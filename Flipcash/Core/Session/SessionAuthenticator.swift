@@ -76,7 +76,7 @@ final class SessionAuthenticator: ObservableObject {
                 do {
                     if let account = try await self?.initialize(using: keyAccount.mnemonic, isRegistration: false) {
                         self?.completeLogin(with: account)
-                        Analytics.autoLoginComplete()
+                        Analytics.track(event: Analytics.GeneralEvent.autoLoginComplete)
                     }
                 } catch {
                     self?.logout()

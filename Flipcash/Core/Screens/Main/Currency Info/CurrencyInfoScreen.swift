@@ -157,6 +157,7 @@ struct CurrencyInfoScreen: View {
             if !isUSDF {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
+                        Analytics.buttonTapped(name: .shareTokenInfo)
                         let url = URL(string: "https://app.flipcash.com/token/\(mint.base58)")!
                         ShareSheet.present(url: url)
                     } label: {
@@ -313,6 +314,7 @@ struct CurrencyInfoScreen: View {
 
                     if balance.quarks > 0 {
                         CodeButton(style: .filledSecondary, title: "Sell") {
+                            Analytics.buttonTapped(name: .sell)
                             isShowingSellAmountEntry = true
                         }
                     }
@@ -329,7 +331,7 @@ struct CurrencyInfoScreen: View {
         .navigationDestinationCompat(item: Bindable(walletConnection).processing) { processing in
             SwapProcessingScreen(
                 swapId: processing.swapId,
-                swapType: .buy,
+                swapType: .buyWithPhantom,
                 mint: processing.mint,
                 amount: processing.amount
             )
@@ -382,10 +384,12 @@ struct CurrencyInfoScreen: View {
             FundingSelectionSheet(
                 reserveBalance: reserveBalance,
                 onSelectReserves: {
+                    Analytics.buttonTapped(name: .buyWithReserves)
                     isShowingBuyAmountEntry = true
                     isShowingFundingSelection = false
                 },
                 onSelectPhantom: {
+                    Analytics.buttonTapped(name: .buyWithPhantom)
                     walletConnection.connectToPhantom()
                     isShowingFundingSelection = false
                 },

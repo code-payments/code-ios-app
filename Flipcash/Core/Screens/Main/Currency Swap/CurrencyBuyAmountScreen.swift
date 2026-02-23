@@ -46,7 +46,7 @@ struct CurrencyBuyAmountScreen: View {
             .navigationDestination(for: CurrencyBuyPath.self) { step in
                 switch step {
                 case .processing(let swapId, let mint, let amount):
-                    SwapProcessingScreen(swapId: swapId, swapType: .buy, mint: mint, amount: amount)
+                    SwapProcessingScreen(swapId: swapId, swapType: .buyWithReserves, mint: mint, amount: amount)
                         .environment(\.dismissParentContainer, {
                             dismissAction()
                         })

@@ -87,6 +87,7 @@ struct BalanceScreen: View {
     private func handlePendingCurrencyInfo() {
         guard let mint = session.pendingCurrencyInfoMint else { return }
 
+        Analytics.tokenInfoOpened(from: .openedFromDeeplink, mint: mint)
         selectedMint = mint
 
         // Clear the pending mint
@@ -162,6 +163,7 @@ struct BalanceScreen: View {
                     if hasBalances {
                         ForEach(currencyBalances) { balance in
                             CurrencyBalanceRow(exchangedBalance: balance) {
+                                Analytics.tokenInfoOpened(from: .openedFromWallet, mint: balance.stored.mint)
                                 selectedMint = balance.stored.mint
                             }
                         }
@@ -199,6 +201,7 @@ struct BalanceScreen: View {
             Divider()
             
             Button {
+                Analytics.tokenInfoOpened(from: .openedFromWallet, mint: reservesBalance.stored.mint)
                 selectedMint = reservesBalance.stored.mint
             } label: {
                 HStack(spacing: 8) {

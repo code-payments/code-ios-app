@@ -13,6 +13,14 @@ import FlipcashCore
 
 typealias AnalyticsValue = MixpanelType
 
+protocol AnalyticsEvent {
+    var eventName: String { get }
+}
+
+extension AnalyticsEvent where Self: RawRepresentable<String> {
+    var eventName: String { rawValue }
+}
+
 enum Analytics {
     
     static func initialize() {
@@ -28,19 +36,19 @@ enum Analytics {
         }
     }
     
-    static func track(event: Name, properties: [Property: AnalyticsValue]? = nil, error: Error? = nil) {
+    static func track(event: some AnalyticsEvent, properties: [Property: AnalyticsValue]? = nil, error: Error? = nil) {
         var container: [String: AnalyticsValue] = [:]
-        
+
         properties?.forEach { key, value in
             container[key.rawValue] = value
         }
-        
+
         if let error {
             let swiftError = error as NSError
             container["Error"] = "\(swiftError.domain).\(error):\(swiftError.code)"
         }
-        
-        track(event.rawValue, properties: container)
+
+        track(event.eventName, properties: container)
     }
     
 //    static func track(_ action: Action, properties: [Property: AnalyticsValue]? = nil) {
