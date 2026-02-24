@@ -87,7 +87,7 @@ struct SwapProcessingScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .interactiveDismissDisabled(true)
-        .onChange(of: walletConnection.isProcessingCancelled) { _, cancelled in
+        .onChange(of: walletConnection.isProcessingCancelled, initial: true) { _, cancelled in
             if cancelled {
                 viewModel.cancel()
             }

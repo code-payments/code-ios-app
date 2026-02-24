@@ -175,6 +175,15 @@ public final class WalletConnection {
             let pending = self?.pendingSwap
             self?.pendingSwap = nil
 
+            // Show the processing screen now that the user has returned with signed transactions
+            if let pending, let self {
+                self.processing = ExternalSwapProcessing(
+                    swapId: pending.swapId,
+                    mint: pending.token.address,
+                    amount: pending.amount
+                )
+            }
+
             // Submit transactions in parallel and collect results
             let results = await withTaskGroup(of: (index: Int, signature: String?).self) { group in
                 for (index, txBase58) in transactions.enumerated() {
@@ -242,6 +251,7 @@ public final class WalletConnection {
                     } catch {
                         ErrorReporting.captureError(error, reason: "Failed to notify server of swap funding")
                         print("[WalletConnection] Failed to notify server: \(error)")
+                        self.isProcessingCancelled = true
                     }
                 } else {
                     // Regular transfer (not a swap)
@@ -251,8 +261,15 @@ public final class WalletConnection {
                 }
             } else {
                 Analytics.track(event: Analytics.WalletEvent.transactionsFailed)
-                await MainActor.run {
-                    self?.showSomethingWentWrongDialog()
+                if pending != nil {
+                    // Swap transaction failed — signal the processing screen
+                    await MainActor.run {
+                        self?.isProcessingCancelled = true
+                    }
+                } else {
+                    await MainActor.run {
+                        self?.showSomethingWentWrongDialog()
+                    }
                 }
             }
         }
@@ -265,15 +282,10 @@ public final class WalletConnection {
         url.openWithApplication()
     }
 
-    /// Requests an external swap: builds the transaction, opens Phantom,
-    /// and shows the processing screen.
-    func requestSwap(usdc: Quarks, mint: FlipcashCore.PublicKey, token: MintMetadata) async throws {
-        let result = try await requestUsdcToUsdfSwap(usdc: usdc, token: token)
-        processing = ExternalSwapProcessing(
-            swapId: result.swapId,
-            mint: mint,
-            amount: result.amount
-        )
+    /// Requests an external swap: builds the transaction and opens Phantom.
+    /// The processing screen is deferred until the user returns with a signed transaction.
+    func requestSwap(usdc: Quarks, token: MintMetadata) async throws {
+        try await requestUsdcToUsdfSwap(usdc: usdc, token: token)
         isShowingAmountEntry = false
     }
 
@@ -310,6 +322,7 @@ public final class WalletConnection {
     /// - Parameters:
     ///   - usdc: Amount of USDC to swap (in quarks)
     ///   - token: The token to buy with the swapped USDF
+    @discardableResult
     func requestUsdcToUsdfSwap(usdc: Quarks, token: MintMetadata) async throws -> (swapId: SwapId, amount: ExchangedFiat) {
         guard let connectedSession = Keychain.connectedWalletSession else {
             throw Error.noSession
