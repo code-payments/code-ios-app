@@ -344,7 +344,6 @@ struct CurrencyInfoScreen: View {
                 EnterWalletAmountScreen { quarks in
                     try await walletConnection.requestSwap(
                         usdc: quarks,
-                        mint: metadata.mint,
                         token: metadata.metadata
                     )
                 }
