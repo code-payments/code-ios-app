@@ -848,6 +848,6 @@ extension InterceptorFactory: Ocp_Transaction_V1_TransactionClientInterceptorFac
 
 extension Ocp_Transaction_V1_TransactionNIOClient: GRPCClientType {
     init(channel: GRPCChannel) {
-        self.init(channel: channel, defaultCallOptions: CallOptions(), interceptors: InterceptorFactory())
+        self.init(channel: channel, defaultCallOptions: .default, interceptors: InterceptorFactory())
     }
 }

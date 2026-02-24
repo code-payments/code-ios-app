@@ -67,6 +67,6 @@ extension InterceptorFactory: Flipcash_Thirdparty_V1_ThirdPartyClientInterceptor
 
 extension Flipcash_Thirdparty_V1_ThirdPartyNIOClient: GRPCClientType {
     init(channel: GRPCChannel) {
-        self.init(channel: channel, defaultCallOptions: CallOptions(), interceptors: InterceptorFactory())
+        self.init(channel: channel, defaultCallOptions: .default, interceptors: InterceptorFactory())
     }
 }

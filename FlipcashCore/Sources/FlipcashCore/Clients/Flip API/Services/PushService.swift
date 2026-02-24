@@ -94,6 +94,6 @@ extension InterceptorFactory: Flipcash_Push_V1_PushClientInterceptorFactoryProto
 
 extension Flipcash_Push_V1_PushNIOClient: GRPCClientType {
     init(channel: GRPCChannel) {
-        self.init(channel: channel, defaultCallOptions: CallOptions(), interceptors: InterceptorFactory())
+        self.init(channel: channel, defaultCallOptions: .default, interceptors: InterceptorFactory())
     }
 }

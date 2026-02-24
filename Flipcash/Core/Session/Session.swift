@@ -739,13 +739,14 @@ class Session: ObservableObject {
                     rendezvous: payload.rendezvous.publicKey,
                     fiat: payload.fiat
                 )
-                
+
                 Analytics.transfer(
                     event: .grabBill,
                     fiat: payload.fiat,
                     successful: false,
                     error: error
                 )
+                showSomethingWentWrongError()
                 completion(.failed)
             }
         }
@@ -1027,7 +1028,7 @@ class Session: ObservableObject {
         let giftCardKeyPair = DerivedKey.derive(using: .solana, mnemonic: mnemonic).keyPair
         Task {
             do {
-                let giftCardAccountInfo = try await client.fetchAccountInfo(
+                let giftCardAccountInfo = try await fetchAccountInfoWithRetry(
                     type: .giftCard,
                     owner: giftCardKeyPair
                 )
@@ -1113,7 +1114,7 @@ class Session: ObservableObject {
                 
             } catch {
                 ErrorReporting.captureError(error)
-                
+
                 Analytics.transfer(
                     event: .receiveCashLink,
                     exchangedFiat: nil,
@@ -1121,8 +1122,12 @@ class Session: ObservableObject {
                     successful: false,
                     error: error
                 )
-                
-                showCashLinkNotAvailable()
+
+                if error is ErrorFetchBalance {
+                    showCashLinkConnectionError()
+                } else {
+                    showSomethingWentWrongError()
+                }
                 trace(.failure, components: "Failed to receive cash link for gift card: \(giftCardKeyPair.publicKey)")
             }
         }
@@ -1226,6 +1231,44 @@ class Session: ObservableObject {
         ) {
             .okay(kind: .destructive)
         }
+    }
+
+    private func showCashLinkConnectionError() {
+        dialogItem = .init(
+            style: .destructive,
+            title: "Unable to Find Cash",
+            subtitle: "Please check your connection and try again",
+            dismissable: true
+        ) {
+            .okay(kind: .destructive)
+        }
+    }
+
+    // MARK: - Helpers -
+
+    private func fetchAccountInfoWithRetry(type: AccountInfoType, owner: KeyPair) async throws -> AccountInfo {
+        let maxAttempts = 3
+
+        for i in 0..<maxAttempts {
+            do {
+                return try await client.fetchAccountInfo(type: type, owner: owner)
+            } catch let error as ErrorFetchBalance {
+                switch error {
+                case .notFound, .unknown:
+                    if i < maxAttempts - 1 {
+                        trace(.warning, components: "fetchAccountInfo returned \(error) (attempt \(i + 1)/\(maxAttempts)), retrying in 500ms")
+                        try await Task.delay(milliseconds: 500)
+                    } else {
+                        throw error
+                    }
+                case .accountNotInList, .parseFailed, .ok:
+                    throw error
+                }
+            }
+        }
+
+        // Unreachable: the loop always returns or throws on the last attempt
+        throw ErrorFetchBalance.unknown
     }
 }
 

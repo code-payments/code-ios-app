@@ -142,6 +142,6 @@ extension InterceptorFactory: Flipcash_Email_V1_EmailVerificationClientIntercept
 
 extension Flipcash_Email_V1_EmailVerificationNIOClient: GRPCClientType {
     init(channel: GRPCChannel) {
-        self.init(channel: channel, defaultCallOptions: CallOptions(), interceptors: InterceptorFactory())
+        self.init(channel: channel, defaultCallOptions: .default, interceptors: InterceptorFactory())
     }
 }

@@ -89,19 +89,32 @@ class ScanCashOperation {
     }
     
     private func listenForMint(rendezvous: KeyPair) async throws -> PublicKey {
-        let messages = try await client.fetchMessages(rendezvous: rendezvous)
-        let mint = messages.compactMap { message in
-            if case .requestToGiveBill(let mint) = message.kind {
-                return mint
+        let maxAttempts = 3
+
+        for i in 0..<maxAttempts {
+            if i > 0 {
+                try await Task.delay(milliseconds: 500)
             }
-            return nil
-        }.first
-        
-        guard let mint else {
-            throw ErrorGeneric.unknown
+
+            do {
+                let messages = try await client.fetchMessages(rendezvous: rendezvous)
+                let mint = messages.compactMap { message in
+                    if case .requestToGiveBill(let mint) = message.kind {
+                        return mint
+                    }
+                    return nil
+                }.first
+
+                if let mint {
+                    return mint
+                }
+            } catch {
+                trace(.warning, components: "Failed to fetch messages (attempt \(i + 1)/\(maxAttempts)): \(error)")
+                throw error
+            }
         }
-        
-        return mint
+
+        throw Error.mintMessageNotFound
     }
     
     private func completePayment(destination: PublicKey, rendezvous: KeyPair) async throws -> PaymentMetadata {
@@ -149,5 +162,6 @@ extension ScanCashOperation {
         case sendPaymentMetadataNotFound
         case failedToFetchMint
         case missingVMAuthority
+        case mintMessageNotFound
     }
 }

@@ -146,6 +146,6 @@ extension InterceptorFactory: Flipcash_Phone_V1_PhoneVerificationClientIntercept
 
 extension Flipcash_Phone_V1_PhoneVerificationNIOClient: GRPCClientType {
     init(channel: GRPCChannel) {
-        self.init(channel: channel, defaultCallOptions: CallOptions(), interceptors: InterceptorFactory())
+        self.init(channel: channel, defaultCallOptions: .default, interceptors: InterceptorFactory())
     }
 }

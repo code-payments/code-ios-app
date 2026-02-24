@@ -172,6 +172,6 @@ extension InterceptorFactory: Flipcash_Account_V1_AccountClientInterceptorFactor
 
 extension Flipcash_Account_V1_AccountNIOClient: GRPCClientType {
     init(channel: GRPCChannel) {
-        self.init(channel: channel, defaultCallOptions: CallOptions(), interceptors: InterceptorFactory())
+        self.init(channel: channel, defaultCallOptions: .default, interceptors: InterceptorFactory())
     }
 }

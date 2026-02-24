@@ -119,6 +119,6 @@ extension InterceptorFactory: Flipcash_Activity_V1_ActivityFeedClientInterceptor
 
 extension Flipcash_Activity_V1_ActivityFeedNIOClient: GRPCClientType {
     init(channel: GRPCChannel) {
-        self.init(channel: channel, defaultCallOptions: CallOptions(), interceptors: InterceptorFactory())
+        self.init(channel: channel, defaultCallOptions: .default, interceptors: InterceptorFactory())
     }
 }
