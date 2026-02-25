@@ -48,12 +48,11 @@ struct CurrencyInfoScreen: View {
         return exchanged?.converted ?? zero
     }
 
-    private var reserveBalance: Quarks {
-        guard let stored = session.balance(for: .usdf) else { return 0 }
+    private var reserveBalance: ExchangedFiat? {
+        guard let stored = session.balance(for: .usdf) else { return nil }
 
         let rate = ratesController.rateForBalanceCurrency()
-        let exchanged = try? ExchangedFiat(underlying: stored.usdf, rate: rate, mint: .usdf)
-        return exchanged?.converted ?? 0
+        return try? ExchangedFiat(underlying: stored.usdf, rate: rate, mint: .usdf)
     }
 
     private var appreciation: (amount: Quarks, isPositive: Bool) {

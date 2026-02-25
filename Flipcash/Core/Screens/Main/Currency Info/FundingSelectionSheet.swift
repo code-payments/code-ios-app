@@ -10,11 +10,11 @@ import FlipcashUI
 import FlipcashCore
 
 struct FundingSelectionSheet: View {
-    let reserveBalance: Quarks
+    let reserveBalance: ExchangedFiat?
     let onSelectReserves: () -> Void
     let onSelectPhantom: () -> Void
     let onDismiss: () -> Void
-    
+
     var body: some View {
         PartialSheet {
             VStack {
@@ -26,8 +26,8 @@ struct FundingSelectionSheet: View {
                 }
                 .padding(.vertical, 20)
 
-                if reserveBalance.isDisplayable {
-                    CodeButton(style: .filled, title: "USD Reserves (\(reserveBalance))") {
+                if let reserveBalance, reserveBalance.hasDisplayableValue() {
+                    CodeButton(style: .filled, title: "USD Reserves (\(reserveBalance.converted.formatted()))") {
                         onSelectReserves()
                     }
                 }

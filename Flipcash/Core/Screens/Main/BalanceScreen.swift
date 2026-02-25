@@ -184,7 +184,7 @@ struct BalanceScreen: View {
                     .textCase(.none)
                     .padding(.vertical, 30)
                 } footer: {
-                    if let reservesBalance, reservesBalance.exchangedFiat.converted.isDisplayable {
+                    if let reservesBalance, reservesBalance.exchangedFiat.hasDisplayableValue() {
                         cashReservesFooter(reservesBalance: reservesBalance)
                     }
                 }

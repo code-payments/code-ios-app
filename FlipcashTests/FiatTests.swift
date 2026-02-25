@@ -148,42 +148,6 @@ struct FiatTests {
         #expect(formatted.contains("USD"))
     }
 
-    // MARK: - isDisplayable -
-
-    @Test
-    static func testIsDisplayable_zero() {
-        let zero = Quarks.zero(currencyCode: .usd, decimals: 6)
-        #expect(!zero.isDisplayable)
-    }
-
-    @Test
-    static func testIsDisplayable_tinyPositive() {
-        // 1 quark with 6 decimals = 0.000001
-        let tiny = Quarks(quarks: 1 as UInt64, currencyCode: .usd, decimals: 6)
-        #expect(!tiny.isDisplayable)
-    }
-
-    @Test
-    static func testIsDisplayable_justBelowThreshold() {
-        // 9999 quarks with 6 decimals = 0.009999
-        let belowThreshold = Quarks(quarks: 9_999 as UInt64, currencyCode: .usd, decimals: 6)
-        #expect(!belowThreshold.isDisplayable)
-    }
-
-    @Test
-    static func testIsDisplayable_exactlyAtThreshold() {
-        // 10000 quarks with 6 decimals = 0.01
-        let atThreshold = Quarks(quarks: 10_000 as UInt64, currencyCode: .usd, decimals: 6)
-        #expect(atThreshold.isDisplayable)
-    }
-
-    @Test
-    static func testIsDisplayable_aboveThreshold() {
-        // 1_000_000 quarks with 6 decimals = 1.0
-        let above = Quarks(quarks: 1_000_000 as UInt64, currencyCode: .usd, decimals: 6)
-        #expect(above.isDisplayable)
-    }
-
 }
 
 

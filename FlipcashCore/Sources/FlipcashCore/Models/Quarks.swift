@@ -22,15 +22,6 @@ public struct Quarks: Equatable, Hashable, Codable, Sendable {
         decimalValue.doubleValue
     }
     
-    /// Whether the value is large enough to display at two decimal places.
-    ///
-    /// A quark amount like `0.004` is positive but rounds to `$0.00` in the UI.
-    /// When `false`, consider showing an alternative representation (e.g. "< $0.01")
-    /// instead of a misleading "$0.00".
-    public var isDisplayable: Bool {
-        decimalValue >= 0.01
-    }
-    
     // MARK: - Init -
     
     public init(quarks: UInt64, currencyCode: CurrencyCode, decimals: Int) {
