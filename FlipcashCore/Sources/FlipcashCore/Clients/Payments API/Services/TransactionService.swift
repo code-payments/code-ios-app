@@ -371,7 +371,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
         // callers don't have to manage the pointer to this stream and keep it alive
         reference.retain()
         
-        reference.stream = service.submitIntent { result in
+        reference.stream = service.submitIntent(callOptions: .streaming) { result in
             switch result.response {
                 
             // 2. Upon successful submission of intent action the server will

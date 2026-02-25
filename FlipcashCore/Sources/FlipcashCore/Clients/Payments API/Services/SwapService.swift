@@ -98,7 +98,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
         var receivedServerParameters: VerifiedSwapMetadata.ServerParameters?
         var verifiedMetadataSignature: Signature?
 
-        reference.stream = service.statefulSwap { result in
+        reference.stream = service.statefulSwap(callOptions: .streaming) { result in
             switch result.response {
 
                 // 2. Upon successful submission of the Start message, server will
