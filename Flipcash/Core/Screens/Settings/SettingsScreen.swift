@@ -106,7 +106,7 @@ struct SettingsScreen: View {
                 }
             }
             .sheet(isPresented: $isShowingWithdrawFlow) {
-                WithdrawDescriptionScreen(
+                WithdrawScreen(
                     isPresented: $isShowingWithdrawFlow,
                     container: container,
                     sessionContainer: sessionContainer

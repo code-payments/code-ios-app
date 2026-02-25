@@ -126,7 +126,6 @@ public enum Asset: String, Sendable {
     case pools
     case info
     case depositCircle
-    case withdrawCircle
     case debitCard
     case debitWallet
     case emailSent
