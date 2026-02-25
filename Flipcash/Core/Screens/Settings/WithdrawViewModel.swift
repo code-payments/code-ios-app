@@ -260,7 +260,16 @@ class WithdrawViewModel: ObservableObject {
     }
     
     // MARK: - Actions -
-    
+
+    func selectCurrency(_ balance: ExchangedBalance) {
+        selectedBalance = balance
+        enteredAmount = ""
+        enteredAddress = ""
+        destinationMetadata = nil
+        withdrawButtonState = .normal
+        pushEnterAmountScreen()
+    }
+
     func amountEnteredAction() {
         guard let exchangedFiat = enteredFiat else {
             return
