@@ -125,7 +125,7 @@ public final class LiveMintDataStreamer: @unchecked Sendable {
             self?.handleTimeout()
         }
 
-        let stream = service.service.streamLiveMintData(callOptions: nil) { [weak self] response in
+        let stream = service.service.streamLiveMintData(callOptions: .streaming) { [weak self] response in
             self?.handleResponse(response)
         }
 

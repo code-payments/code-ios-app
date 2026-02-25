@@ -16,11 +16,18 @@ protocol GRPCClientType {
 }
 
 extension CallOptions {
-    /// Default call options for all gRPC services. The timeout
-    /// caps individual RPCs so they fail fast on dead connections
-    /// instead of waiting for the OS-level TCP timeout (~60s).
+    /// Default call options for unary gRPC calls. The timeout caps
+    /// individual RPCs so they fail fast on dead connections instead
+    /// of waiting for the OS-level TCP timeout (~60s).
     static let `default` = CallOptions(
         timeLimit: .timeout(.seconds(15))
+    )
+
+    /// For bidirectional and long-lived streams. No gRPC-level deadline;
+    /// lifecycle is managed by BidirectionalStreamReference's ping timeout
+    /// and application-level reconnection logic.
+    static let streaming = CallOptions(
+        timeLimit: .none
     )
 }
 
