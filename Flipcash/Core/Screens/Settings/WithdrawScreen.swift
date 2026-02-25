@@ -14,6 +14,7 @@ struct WithdrawScreen: View {
     @Binding var isPresented: Bool
 
     @EnvironmentObject private var session: Session
+    @EnvironmentObject private var ratesController: RatesController
 
     @StateObject private var viewModel: WithdrawViewModel
 
@@ -21,7 +22,7 @@ struct WithdrawScreen: View {
     private let sessionContainer: SessionContainer
 
     private var balances: [ExchangedBalance] {
-        session.balances(for: .oneToOne)
+        session.balances(for: ratesController.rateForBalanceCurrency())
     }
 
     // MARK: - Init -

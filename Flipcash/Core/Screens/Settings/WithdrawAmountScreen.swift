@@ -38,7 +38,7 @@ struct WithdrawAmountScreen: View {
                     viewModel.enteredFiat != nil
                 },
                 action: viewModel.amountEnteredAction,
-                currencySelectionAction: nil
+                currencySelectionAction: showCurrencySelection
             )
             .foregroundColor(.textMain)
             .padding(20)

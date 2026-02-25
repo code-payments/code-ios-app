@@ -49,7 +49,8 @@ class WithdrawViewModel: ObservableObject {
         }
         
         let mint = selectedBalance.stored.mint
-        
+        let rate = ratesController.rateForEntryCurrency()
+
         // Only applies for bonded tokens
         if mint != .usdf {
             guard let supplyQuarks = selectedBalance.stored.supplyFromBonding else {
@@ -58,19 +59,19 @@ class WithdrawViewModel: ObservableObject {
 
             return ExchangedFiat.computeFromEntered(
                 amount: amount,
-                rate: .oneToOne, // Withdrawals are forced to usd
+                rate: rate,
                 mint: mint,
                 supplyQuarks: supplyQuarks,
                 balance: selectedBalance.stored.usdf
             )
         } else {
             return try! ExchangedFiat(
-                underlying: .init(
+                converted: .init(
                     fiatDecimal: amount,
-                    currencyCode: .usd,
+                    currencyCode: rate.currency,
                     decimals: mint.mintDecimals
                 ),
-                rate: .oneToOne,
+                rate: rate,
                 mint: mint
             )
         }
@@ -148,21 +149,22 @@ class WithdrawViewModel: ObservableObject {
     }
     
     var maxWithdrawLimit: ExchangedFiat {
+        let rate = ratesController.rateForEntryCurrency()
         let zero = try! ExchangedFiat(
             underlying: 0,
-            rate: .oneToOne,
+            rate: rate,
             mint: .usdf
         )
-        
+
         guard let mint = selectedBalance?.stored.mint else {
             return zero
         }
-        
+
         guard let balance = session.balance(for: mint) else {
             return zero
         }
-        
-        return balance.computeExchangedValue(with: .oneToOne)
+
+        return balance.computeExchangedValue(with: rate)
     }
     
     private var exchangedFee: ExchangedFiat? {
@@ -182,10 +184,10 @@ class WithdrawViewModel: ObservableObject {
             return nil
         }
 
-        // TODO: Using tokensForValueExchange, should it equivalent to sell pricing?
+        // Fee is charged in USDC, so use oneToOne
         return ExchangedFiat.computeFromEntered(
             amount: destinationMetadata.fee.decimalValue,
-            rate: .oneToOne, // Fee is charged in USDC
+            rate: .oneToOne,
             mint: enteredFiat.mint,
             supplyQuarks: supplyQuarks,
             balance: selectedBalance.stored.usdf
@@ -227,22 +229,22 @@ class WithdrawViewModel: ObservableObject {
     }
     
     private func completeWithdrawal() {
-        guard let enteredFiat, let destinationMetadata else {
+        guard let amountToWithdraw, let destinationMetadata else {
             return
         }
-        
+
         let fee: Quarks
-        if enteredFiat.mint == .usdf {
+        if amountToWithdraw.mint == .usdf {
             fee = destinationMetadata.fee
         } else {
             fee = exchangedFee?.underlying ?? 0
         }
-        
+
         withdrawButtonState = .loading
         Task {
             do {
                 try await session.withdraw(
-                    exchangedFiat: enteredFiat,
+                    exchangedFiat: amountToWithdraw,
                     fee: fee,
                     to: destinationMetadata
                 )

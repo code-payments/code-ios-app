@@ -30,8 +30,10 @@ struct EnterAmountCalculator {
             entryCurrency
         case .onramp:
             onrampCurrency
-        case .walletDeposit, .phantomDeposit, .withdraw:
+        case .walletDeposit, .phantomDeposit:
             .usd
+        case .withdraw:
+            entryCurrency
         }
     }
     
