@@ -243,31 +243,8 @@ struct ScanScreen: View {
         VStack {
             Spacer()
             
-            HStack(alignment: .center, spacing: 30) {
-                if let primaryAction = session.billState.primaryAction {
-                    CapsuleButton(
-                        state: sendButtonState,
-                        asset: primaryAction.asset,
-                        title: primaryAction.title
-                    ) {
-                        Task {
-                            sendButtonState = .loading
-                            try await primaryAction.action()
-                            try await Task.delay(milliseconds: 1000)
-                            sendButtonState = .normal
-                        }
-                    }
-                }
-                
-                if let secondaryAction = session.billState.secondaryAction {
-                    CapsuleButton(
-                        state: .normal,
-                        asset: secondaryAction.asset,
-                        title: secondaryAction.title
-                    ) {
-                        secondaryAction.action()
-                    }
-                }
+            GlassContainer(spacing: 30) {
+                billActionButtons
             }
         }
         .padding(.bottom, 10)
@@ -405,6 +382,35 @@ struct ScanScreen: View {
         let hexColors = billEditorColors.map { $0.hexString }
         let colorString = hexColors.joined(separator: ", ")
         UIPasteboard.general.string = colorString
+    }
+
+    private var billActionButtons: some View {
+        HStack(alignment: .center, spacing: 30) {
+            if let primaryAction = session.billState.primaryAction {
+                CapsuleButton(
+                    state: sendButtonState,
+                    asset: primaryAction.asset,
+                    title: primaryAction.title
+                ) {
+                    Task {
+                        sendButtonState = .loading
+                        try await primaryAction.action()
+                        try await Task.delay(milliseconds: 1000)
+                        sendButtonState = .normal
+                    }
+                }
+            }
+
+            if let secondaryAction = session.billState.secondaryAction {
+                CapsuleButton(
+                    state: .normal,
+                    asset: secondaryAction.asset,
+                    title: secondaryAction.title
+                ) {
+                    secondaryAction.action()
+                }
+            }
+        }
     }
 
     // MARK: - Actions -

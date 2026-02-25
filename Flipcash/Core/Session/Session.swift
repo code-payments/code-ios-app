@@ -790,7 +790,7 @@ class Session: ObservableObject {
             }
         }
         
-        var secondaryAction: BillState.SecondaryAction? = .init(asset: .cancel, title: "Cancel") { [weak self] in
+        var secondaryAction: BillState.SecondaryAction? = .init(asset: .cancel, title: nil) { [weak self] in
             self?.dismissCashBill(style: .slide)
         }
         
