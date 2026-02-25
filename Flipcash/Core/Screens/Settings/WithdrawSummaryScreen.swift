@@ -61,7 +61,7 @@ struct WithdrawSummaryScreen: View {
                                 Spacer()
                                 
                                 AmountText(
-                                    flagStyle: CurrencyCode.usd.flagStyle,
+                                    flagStyle: originalFiat.currencyCode.flagStyle,
                                     content: usdcToWithdraw,
                                     showChevron: false,
                                     canScale: false

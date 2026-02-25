@@ -30,7 +30,7 @@ struct WithdrawAddressScreen: View {
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(alignment: .leading, spacing: 20) {
-                Text("Where would you like to withdraw your USDC to?")
+                Text("Where would you like to withdraw your \(viewModel.selectedBalance?.stored.name ?? "funds") to?")
                     .font(.appTextMedium)
                     .foregroundColor(.textSecondary)
                     .multilineTextAlignment(.leading)
