@@ -56,19 +56,13 @@ struct SwapProcessingScreen: View {
                 Spacer()
                 
                 if viewModel.isFinished {
-                    CodeButton(
-                        style: .filled,
-                        title: viewModel.actionTitle
-                    ) {
+                    Button(viewModel.actionTitle) {
                         dismissParentContainer()
                     }
+                    .buttonStyle(.filled)
                     .padding(20)
                 } else {
-                    CodeButton(
-                        state: pushController.authorizationStatus == .authorized ? .successText("We'll Notify You") : .normal,
-                        style: .filled,
-                        title: "Notify Me When Complete"
-                    ) {
+                    Button {
                         Task {
                             if pushController.authorizationStatus == .denied {
                                 URL.openSettings()
@@ -77,7 +71,18 @@ struct SwapProcessingScreen: View {
                                 await pushController.refreshAuthorizationStatus()
                             }
                         }
+                    } label: {
+                        if pushController.authorizationStatus == .authorized {
+                            HStack(spacing: 10) {
+                                Image.asset(.checkmark)
+                                    .renderingMode(.template)
+                                Text("We'll Notify You")
+                            }
+                        } else {
+                            Text("Notify Me When Complete")
+                        }
                     }
+                    .buttonStyle(.filled)
                     .disabled(pushController.authorizationStatus == .authorized)
                     .padding(20)
                 }
