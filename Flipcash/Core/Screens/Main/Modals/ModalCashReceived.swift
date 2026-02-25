@@ -59,11 +59,8 @@ public struct ModalCashReceived: View {
                 .foregroundStyle(Color.textSecondary)
             }
             
-            CodeButton(
-                style: .filled,
-                title: actionTitle,
-                action: dismissAction
-            )
+            Button(actionTitle, action: dismissAction)
+                .buttonStyle(.filled)
             .padding(.top, 10)
         }
         .padding(20)

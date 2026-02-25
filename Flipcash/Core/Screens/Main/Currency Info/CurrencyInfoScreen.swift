@@ -307,9 +307,10 @@ struct CurrencyInfoScreen: View {
             // Floating Footer
             if !isUSDF {
                 CurrencyInfoFooter {
-                    CodeButton(style: .filled, title: "Buy") {
+                    Button("Buy") {
                         isShowingFundingSelection = true
                     }
+                    .buttonStyle(.filled)
 
                     if balance.quarks > 0 {
                         CodeButton(style: .filledSecondary, title: "Sell") {

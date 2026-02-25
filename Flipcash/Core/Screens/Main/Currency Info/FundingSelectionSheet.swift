@@ -27,14 +27,25 @@ struct FundingSelectionSheet: View {
                 .padding(.vertical, 20)
 
                 if let reserveBalance, reserveBalance.hasDisplayableValue() {
-                    CodeButton(style: .filled, title: "USD Reserves (\(reserveBalance.converted.formatted()))") {
+                    Button("USD Reserves (\(reserveBalance.converted.formatted()))") {
                         onSelectReserves()
                     }
+                    .buttonStyle(.filled)
                 }
 
-                CodeButton(style: .filledCustom(Image.asset(.phantom), "Phantom"), title: "Solana USDC With") {
+                Button {
                     onSelectPhantom()
+                } label: {
+                    HStack(spacing: 4) {
+                        Text("Solana USDC With")
+                        Image.asset(.phantom)
+                            .renderingMode(.template)
+                            .resizable()
+                            .frame(maxWidth: 20, maxHeight: 20)
+                        Text("Phantom")
+                    }
                 }
+                .buttonStyle(.filled)
 
                 CodeButton(style: .subtle, title: "Dismiss") {
                     onDismiss()

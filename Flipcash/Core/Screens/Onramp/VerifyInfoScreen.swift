@@ -43,12 +43,10 @@ struct VerifyInfoScreen: View {
                     
                     Spacer()
                     
-                    CodeButton(
-                        style: .filled,
-                        title: "Next"
-                    ) {
+                    Button("Next") {
                         viewModel.navigateToInitialVerification()
                     }
+                    .buttonStyle(.filled)
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 20)

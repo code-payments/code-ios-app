@@ -53,12 +53,10 @@ struct OnrampSuccessScreen: View {
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
                     
-                    CodeButton(
-                        style: .filled,
-                        title: "OK"
-                    ) {
+                    Button("OK") {
                         viewModel.navigateToRoot()
                     }
+                    .buttonStyle(.filled)
                 }
             }
             .padding(.horizontal, 20)

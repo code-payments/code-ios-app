@@ -36,9 +36,10 @@ struct CurrencyInfoErrorView: View {
             
             Spacer()
 
-            CodeButton(style: .filled, title: "OK") {
+            Button("OK") {
                 onAction()
             }
+            .buttonStyle(.filled)
             .padding(20)
         }
     }

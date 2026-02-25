@@ -47,12 +47,10 @@ struct PermissionScreen: View {
                 }
                 Spacer()
                 Group {
-                    CodeButton(
-                        style: .filled,
-                        title: actionTitle
-                    ) {
+                    Button(actionTitle) {
                         action()
                     }
+                    .buttonStyle(.filled)
                     if let skipAction = skipAction {
                         CodeButton(
                             style: .subtle,

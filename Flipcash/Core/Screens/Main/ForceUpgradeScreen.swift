@@ -39,9 +39,10 @@ struct ForceUpgradeScreen: View {
 
                 Spacer()
 
-                CodeButton(style: .filled, title: "Update Now") {
+                Button("Update Now") {
                     URL.appStoreApplicationHome.openWithApplication()
                 }
+                .buttonStyle(.filled)
             }
             .multilineTextAlignment(.center)
             .padding(20)
