@@ -47,7 +47,14 @@ struct EnterAmountCalculator {
         guard let amount = NumberFormatter.decimal(from: enteredAmount), amount > 0 else {
             return false
         }
-        let displayMax = NumberFormatter.decimal(from: max.formatted()) ?? 0
+        // Use a currency-aware formatter to parse back the display value.
+        // The generic parsers in NumberFormatter.decimal(from:) can't parse
+        // currency symbols that don't match the device locale (e.g. ¥ on en_US).
+        let formatter = NumberFormatter.fiat(
+            currency: max.currencyCode,
+            minimumFractionDigits: max.currencyCode.maximumFractionDigits
+        )
+        let displayMax = formatter.number(from: max.formatted())?.decimalValue ?? 0
         return amount <= displayMax
     }
 
