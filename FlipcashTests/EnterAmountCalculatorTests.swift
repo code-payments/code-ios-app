@@ -69,7 +69,7 @@ import FlipcashCore
         #expect(calculator.currency == .gbp)
     }
     
-    @Test func currency_whenModeIsWithdraw_returnsUSD() {
+    @Test func currency_whenModeIsWithdraw_returnsEntryCurrency() {
         let calculator = EnterAmountCalculator(
             mode: .withdraw,
             entryCurrency: .cad,
@@ -77,8 +77,8 @@ import FlipcashCore
             transactionLimitProvider: { _ in return nil },
             rateProvider: { _ in nil }
         )
-        
-        #expect(calculator.currency == .usd)
+
+        #expect(calculator.currency == .cad)
     }
     
     @Test func currency_whenModeIsWalletDeposit_returnsUSD() {
