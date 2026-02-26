@@ -191,7 +191,7 @@ private class _BillCanvasController: UIViewController {
         
         switch presentationState {
         case .visible(let style):
-            maximizeBrightness()
+            increaseBrightnessIfNeeded()
 
             switch style {
             case .pop:
@@ -266,7 +266,7 @@ private class _BillCanvasController: UIViewController {
     
     // MARK: - Brightness -
 
-    private func maximizeBrightness() {
+    private func increaseBrightnessIfNeeded() {
         let current = UIScreen.main.brightness
         guard current < 0.4 else { return }
         if previousBrightness == nil {
