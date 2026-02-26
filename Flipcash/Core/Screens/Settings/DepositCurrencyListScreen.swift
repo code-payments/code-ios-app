@@ -17,8 +17,16 @@ struct DepositCurrencyListScreen: View {
     @State private var selectedBalance: ExchangedBalance?
     @State private var selectedMint: PublicKey?
 
+    // Skip session.balances(for:) to avoid filtering out zero-balance currencies.
+    // For deposits, we want to show every currency the user has an account for.
     private var balances: [ExchangedBalance] {
-        session.balances(for: ratesController.rateForEntryCurrency())
+        let rate = ratesController.rateForEntryCurrency()
+        return session.balances.map { stored in
+            ExchangedBalance(
+                stored: stored,
+                exchangedFiat: stored.computeExchangedValue(with: rate)
+            )
+        }
     }
 
     init(selectedMint: PublicKey? = nil) {
