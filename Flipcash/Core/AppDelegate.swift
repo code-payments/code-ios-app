@@ -6,179 +6,44 @@
 //
 
 import UIKit
-import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
-    
-    var window: UIWindow?
-    
+
     let container = Container()
-    
-    private var resetInterval: TimeInterval = 60.0
-    private var lastActiveDate: Date?
-    
-    private var hasBeenBackgrounded: Bool = false
-    
-    private var sessionContainer: SessionContainer? {
-        if case .loggedIn(let container) = container.sessionAuthenticator.state {
-            return container
-        }
-        return nil
-    }
-    
+
     // MARK: - Launch -
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        
-        window = UIWindow(frame: UIScreen.main.bounds)
-        
+
         Analytics.initialize()
         ErrorReporting.initialize()
         FontBook.registerApplicationFonts()
         setupAppearance()
-        
-        assignHost()
 
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handlePushDeepLinkNotification(_:)),
-            name: .pushDeepLinkReceived,
-            object: nil
-        )
-        
-        return true
-    }
-    
-    private func assignHost() {
-        guard let window = window else {
-            return
-        }
-
-        let screen = ContainerScreen(container: container)
-            .injectingEnvironment(from: container)
-            .colorScheme(.dark)
-            .tint(Color.textMain)
-        
-        let controller = UIHostingController(rootView: screen)
-        controller.view.backgroundColor = UIColor(.backgroundMain)
-        window.rootViewController = controller
-        window.overrideUserInterfaceStyle = .dark
-        
-        window.makeKeyAndVisible()
-    }
-    
-    // MARK: - Lifecycle -
-    
-    func applicationWillResignActive(_ application: UIApplication) {
-        trace(.warning)
-        lastActiveDate = .now
-        
-//        appContainer.pushController.appWillResignActive()
-        
-//        beginBackgroundTask()
-    }
-    
-    func applicationDidEnterBackground(_ application: UIApplication) {
-        hasBeenBackgrounded = true
-        
-        if let sessionContainer {
-            sessionContainer.session.didEnterBackground()
-        }
-        
-        container.preferences.appDidEnterBackground()
-    }
-    
-    func applicationWillEnterForeground(_ application: UIApplication) {
-        trace(.warning)
-        
-//        appContainer.sessionAuthenticator.updateBiometricsState()
-        
-        if let _ = sessionContainer { // Logged in
-            if !UIApplication.isInterfaceResetDisabled {
-                if let interval = secondsSinceLastActive(), interval > resetInterval {
-                    trace(.warning, components: "Resetting interface...")
-                    assignHost()
-                    //                fadeOutOverlay(delay: 0.4)
-                } else {
-                    //                fadeOutOverlay(delay: 0.3)
-                }
-            } else {
-                trace(.warning, components: "Interface reset disabled.")
-            }
-            
-        } else { // Logged out
-//            destroyOverlay()
-        }
-    }
-    
-    private func secondsSinceLastActive() -> TimeInterval? {
-        guard let lastActiveDate = lastActiveDate else {
-            return nil
-        }
-
-        return Date.now.timeIntervalSince1970 - lastActiveDate.timeIntervalSince1970
-    }
-    
-    // MARK: - Deep Links -
-    
-    func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
-        
-        return handleOpenURL(url: url)
-    }
-    
-    func application(_ application: UIApplication, continue userActivity: NSUserActivity, restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
-        guard
-            userActivity.activityType == NSUserActivityTypeBrowsingWeb,
-            let url = userActivity.webpageURL
-        else {
-            return false
-        }
-        
-        return handleOpenURL(url: url)
-    }
-    
-    private func handleOpenURL(url: URL) -> Bool {
-        let action = container.deepLinkController.handle(open: url)
-        
-        // Calling assignHost() during app launch (when the app
-        // hasn't been running) results in a double call making
-        // it hang for ~10 seconds. Still uncertain of the exact
-        // cause of the problem
-        if hasBeenBackgrounded && action?.preventUserInterfaceReset == false {
-            
-            // Reset the view in the event that the app handles
-            // any deep links to ensure a consistent experience
-            assignHost()
-        }
-        
-        Task {
-            try await action?.executeAction()
-        }
-        
         return true
     }
 
-    @objc private func handlePushDeepLinkNotification(_ notification: Notification) {
-        guard let url = notification.userInfo?["url"] as? URL else {
-            return
-        }
+    // MARK: - Scene Configuration -
 
-        _ = handleOpenURL(url: url)
+    func application(_ application: UIApplication, configurationForConnecting connectingSceneSession: UISceneSession, options: UIScene.ConnectionOptions) -> UISceneConfiguration {
+        let config = UISceneConfiguration(name: "Default Configuration", sessionRole: connectingSceneSession.role)
+        config.delegateClass = SceneDelegate.self
+        return config
     }
-    
+
     // MARK: - Push Notifications -
-    
+
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         trace(.success, components: "Did register for remote notifications with token: \(deviceToken.hexString())")
-        
-        if let sessionContainer {
+
+        if case .loggedIn(let sessionContainer) = container.sessionAuthenticator.state {
             sessionContainer.pushController.didReceiveRemoteNotificationToken(with: deviceToken)
         }
     }
-    
+
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
         trace(.failure, components: "Push notification registration failed: \(error)")
     }
