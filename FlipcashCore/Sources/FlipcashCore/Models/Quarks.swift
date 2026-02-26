@@ -171,6 +171,27 @@ extension Quarks {
     }
 }
 
+// MARK: - Display Threshold -
+
+extension Quarks {
+    /// The smallest quark count that produces a non-zero formatted string for this currency.
+    /// For example: USD (2 fraction digits, 6 decimals) → 10,000 quarks ($0.01).
+    public var minimumDisplayableQuarks: UInt64 {
+        UInt64(pow(10.0, Double(decimals - currencyCode.maximumFractionDigits)))
+    }
+
+    /// Whether this value would display as non-zero when formatted.
+    public var hasDisplayableValue: Bool {
+        quarks >= minimumDisplayableQuarks
+    }
+
+    /// Whether this value is non-zero but too small to display
+    /// (i.e. it would format as the currency's zero).
+    public var isApproximatelyZero: Bool {
+        quarks > 0 && !hasDisplayableValue
+    }
+}
+
 // MARK: - Formatting -
 
 extension Quarks {
