@@ -238,10 +238,10 @@ extension DeepLinkAction {
 extension DeepLinkAction.Kind {
     var analyticsName: String {
         switch self {
-        case .accessKey:        "AccessKey"
+        case .accessKey:        "Login"
         case .receiveCashLink:  "CashLink"
-        case .verifyEmail:      "VerifyEmail"
-        case .currencyInfo:     "CurrencyInfo"
+        case .verifyEmail:      "EmailVerification"
+        case .currencyInfo:     "TokenInfo"
         }
     }
 }
