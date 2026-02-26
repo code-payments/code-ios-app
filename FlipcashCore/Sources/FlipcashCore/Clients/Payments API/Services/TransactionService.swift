@@ -175,42 +175,6 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
         }
     }
     
-    // MARK: - AirDrop -
-    
-    func airdrop(type: AirdropType, owner: KeyPair, completion: @Sendable @escaping (Result<PaymentMetadata, ErrorAirdrop>) -> Void) {
-        trace(.send)
-        
-        let request = Ocp_Transaction_V1_AirdropRequest.with {
-            $0.airdropType = type.grpcType
-            $0.owner = owner.publicKey.solanaAccountID
-            $0.signature = $0.sign(with: owner)
-        }
-        
-        let call = service.airdrop(request)
-        call.handle(on: queue) { response in
-            
-            let result = ErrorAirdrop(rawValue: response.result.rawValue) ?? .unknown
-            guard result == .ok else {
-                trace(.failure, components: "Error: \(result)")
-                completion(.failure(result))
-                return
-            }
-            
-            do {
-                let exchangedFiat = try ExchangedFiat(response.exchangeData)
-                let metadata = PaymentMetadata(exchangedFiat: exchangedFiat)
-                trace(.success, components: "Received: USD \(exchangedFiat.underlying.formatted(suffix: nil))")
-                completion(.success(metadata))
-            } catch {
-                trace(.failure, components: "Failed to parse metadata.")
-                completion(.failure(.unknown))
-            }
-            
-        } failure: { error in
-            completion(.failure(.unknown))
-        }
-    }
-    
     // MARK: - Swaps -
 
     /// A buy is a swap from USDF to desired token (convenience method using submitIntent funding)
@@ -794,13 +758,6 @@ public enum ErrorFetchIntentMetadata: Int, Error {
 
 public enum ErrorFetchLimits: Int, Error {
     case ok
-    case unknown = -1
-}
-
-public enum ErrorAirdrop: Int, Error {
-    case ok
-    case unavailable
-    case alreadyClaimed
     case unknown = -1
 }
 
