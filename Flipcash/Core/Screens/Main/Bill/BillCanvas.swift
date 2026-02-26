@@ -267,10 +267,12 @@ private class _BillCanvasController: UIViewController {
     // MARK: - Brightness -
 
     private func maximizeBrightness() {
+        let current = UIScreen.main.brightness
+        guard current < 0.4 else { return }
         if previousBrightness == nil {
-            previousBrightness = UIScreen.main.brightness
+            previousBrightness = current
         }
-        UIScreen.main.brightness = 1.0
+        UIScreen.main.brightness = 0.6
     }
 
     private func restoreBrightness() {
