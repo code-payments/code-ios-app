@@ -20,7 +20,7 @@ struct DepositCurrencyListScreen: View {
     // Skip session.balances(for:) to avoid filtering out zero-balance currencies.
     // For deposits, we want to show every currency the user has an account for.
     private var balances: [ExchangedBalance] {
-        let rate = ratesController.rateForEntryCurrency()
+        let rate = ratesController.rateForBalanceCurrency()
         return session.balances.map { stored in
             ExchangedBalance(
                 stored: stored,
