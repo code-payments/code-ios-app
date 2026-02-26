@@ -74,6 +74,12 @@ extension Analytics {
         case purchaseWithPhantom  = "Token Purchase With Phantom"
         case sell                 = "Token Sell"
     }
+
+    enum DeeplinkEvent: String, AnalyticsEvent {
+        case open   = "Deeplink: Open"
+        case parse  = "Deeplink: Parse"
+        case routed = "Deeplink: Routed"
+    }
 }
 
 // MARK: - General -
@@ -257,6 +263,36 @@ extension Analytics {
     }
 }
 
+// MARK: - Deeplinks -
+
+extension Analytics {
+    static func deeplinkOpened(url: URL) {
+        track(event: DeeplinkEvent.open, properties: [
+            .url: url.absoluteString,
+        ])
+    }
+
+    static func deeplinkParsed(action: DeepLinkAction?, url: URL) {
+        var properties: [Property: AnalyticsValue] = [:]
+
+        if let action {
+            properties[.type] = action.kind.analyticsName
+        } else {
+            properties[.error] = "Failed to parse deeplink => \(url.absoluteString)"
+        }
+
+        track(event: DeeplinkEvent.parse, properties: properties)
+    }
+
+    static func deeplinkRouted(kind: DeepLinkAction.Kind, error: Error? = nil) {
+        track(
+            event: DeeplinkEvent.routed,
+            properties: [.type: kind.analyticsName],
+            error: error
+        )
+    }
+}
+
 // MARK: - Definitions -
 
 extension Analytics {
@@ -282,6 +318,7 @@ extension Analytics {
 
         case type              = "Type"
         case error             = "Error"
+        case url               = "URL"
     }
 }
 
