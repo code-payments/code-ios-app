@@ -141,8 +141,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
     
     private func handleOpenURL(url: URL) -> Bool {
+        Analytics.deeplinkOpened(url: url)
         let action = container.deepLinkController.handle(open: url)
-        
+        Analytics.deeplinkParsed(action: action, url: url)
+
         // Calling assignHost() during app launch (when the app
         // hasn't been running) results in a double call making
         // it hang for ~10 seconds. Still uncertain of the exact

@@ -195,17 +195,18 @@ struct DeepLinkAction {
                 guard mnemonic != sessionContainer.session.keyAccount.mnemonic else {
                     return
                 }
-                
+
                 sessionContainer.session.attemptLogin(with: mnemonic) {
                     sessionAuthenticator.switchAccount(to: mnemonic)
                 }
-                
+
             } else {
                 sessionAuthenticator.switchAccount(to: mnemonic)
             }
-            
+
         case .receiveCashLink(let mnemonic):
             if case .loggedIn(let container) = sessionAuthenticator.state {
+                Analytics.deeplinkRouted(kind: kind)
                 container.session.receiveCashLink(mnemonic: mnemonic)
             }
 
@@ -216,6 +217,7 @@ struct DeepLinkAction {
 
         case .currencyInfo(let mint):
             if case .loggedIn(let container) = sessionAuthenticator.state {
+                Analytics.deeplinkRouted(kind: kind)
                 container.session.pendingCurrencyInfoMint = mint
             }
         }
@@ -230,6 +232,17 @@ extension DeepLinkAction {
         case receiveCashLink(MnemonicPhrase)
         case verifyEmail(VerificationDescription)
         case currencyInfo(PublicKey)
+    }
+}
+
+extension DeepLinkAction.Kind {
+    var analyticsName: String {
+        switch self {
+        case .accessKey:        "AccessKey"
+        case .receiveCashLink:  "CashLink"
+        case .verifyEmail:      "VerifyEmail"
+        case .currencyInfo:     "CurrencyInfo"
+        }
     }
 }
 
