@@ -32,14 +32,12 @@ struct AccessKeyHelpScreen: View {
 
                 Spacer()
 
-                CodeButton(
-                    style: .filled,
-                    title: "Open Photos"
-                ) {
+                Button("Open Photos") {
                     if let url = URL(string: "photos-redirect://") {
                         UIApplication.shared.open(url)
                     }
                 }
+                .buttonStyle(.filled)
                 .padding(.horizontal, 20)
                 .padding(.bottom, 20)
             }

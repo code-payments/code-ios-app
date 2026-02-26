@@ -86,12 +86,13 @@ struct TransactionDetailsModal: View {
             }
             
             if let cashLinkMetadata = activity.cancellableCashLinkMetadata {
-                CodeButton(style: .filled, title: "Cancel Send") {
+                Button("Cancel Send") {
                     isPresented = false
                     Task {
                         cancelAction(cashLinkMetadata)
                     }
                 }
+                .buttonStyle(.filled)
                 .padding(.top, 30)
             }
         }
