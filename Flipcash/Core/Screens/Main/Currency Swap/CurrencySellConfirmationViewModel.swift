@@ -42,9 +42,10 @@ class CurrencySellConfirmationViewModel: ObservableObject {
     }
     
     /// Formats the fee for display, prefixing with "~" when the value is
-    /// sub-cent (e.g. "~$0.00") to indicate a non-zero but negligible fee.
+    /// too small for the currency's display precision (e.g. "~$0.00" for USD,
+    /// "~¥0" for JPY) to indicate a non-zero but negligible fee.
     var feeFormatted: String {
-        let prefix = fee.converted.decimalValue < 0.01 ? "~" : ""
+        let prefix = fee.isApproximatelyZero() ? "~" : ""
         return "\(prefix)\(fee.converted.formatted())"
     }
     

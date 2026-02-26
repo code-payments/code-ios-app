@@ -337,22 +337,15 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
     }
 
     /// Returns true if the converted fiat value would display as non-zero when formatted.
-    ///
-    /// This checks if the value is at least the minimum displayable amount for the currency.
-    /// For example:
-    /// - USD (2 decimals): requires >= $0.01
-    /// - JPY (0 decimals): requires >= ¥1
-    /// - EUR (2 decimals): requires >= €0.01
     public func hasDisplayableValue() -> Bool {
-        let currencyCode = converted.currencyCode
-        let decimals = converted.decimals
-        let maximumFractionDigits = currencyCode.maximumFractionDigits
+        converted.hasDisplayableValue
+    }
 
-        // Calculate minimum quarks needed to display as non-zero
-        // For example: 2 fraction digits with 6 decimals = 10^(6-2) = 10,000 quarks minimum
-        let minimumQuarks = UInt64(pow(10.0, Double(decimals - maximumFractionDigits)))
-
-        return converted.quarks >= minimumQuarks
+    /// Returns true when the converted value is non-zero but too small to display
+    /// (i.e. it would format as the currency's zero). Use this to decide whether
+    /// to prefix the formatted string with "~".
+    public func isApproximatelyZero() -> Bool {
+        converted.isApproximatelyZero
     }
 }
 
