@@ -213,7 +213,6 @@ class Session: ObservableObject {
 
         registerPoller()
         startStreaming()
-        attemptAirdrop()
 
         Task {
             try await updateProfile()
@@ -322,28 +321,6 @@ class Session: ObservableObject {
         // so we don't want to dismiss the bill from under it
         if let sendOperation, !sendOperation.ignoresStream {
             dismissCashBill(style: .slide)
-        }
-    }
-    
-    // MARK: - Airdrop -
-    
-    private func attemptAirdrop() {
-        Task {
-            let paymentMetadata = try await client.airdrop(type: .welcomeBonus, owner: ownerKeyPair)
-            
-            try await Task.delay(milliseconds: 750)
-            let exchangedFiat = paymentMetadata.exchangedFiat
-            
-            enqueue(toast: .init(
-                amount: exchangedFiat.converted,
-                isDeposit: true
-            ))
-            
-            showCashBill(.init(
-                kind: .cash,
-                exchangedFiat: exchangedFiat,
-                received: true
-            ))
         }
     }
     
