@@ -53,29 +53,7 @@ public struct GlassButton: View {
                 .font(.appTextLarge)
                 .frame(width: size.width, height: size.height)
         }
-        .modifier(GlassEffectModifier())
-    }
-}
-
-// MARK: - Glass Effect Modifier -
-
-private struct GlassEffectModifier: ViewModifier {
-    func body(content: Content) -> some View {
-        if #available(iOS 26, *) {
-            content
-                .glassEffect(.regular.interactive())
-        } else {
-            // Fallback to RoundButton style for iOS 17
-            content
-                .background(
-                    Circle()
-                        .fill(Color.textMain.opacity(0.07))
-                        .background(
-                            Circle()
-                                .strokeBorder(Color.textMain.opacity(0.1), lineWidth: 1)
-                        )
-                )
-        }
+        .buttonStyle(.liquidGlassCompatibleCircle)
     }
 }
 

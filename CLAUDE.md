@@ -488,7 +488,15 @@ BondingCurve.endPrice    // $1,000,000
 BondingCurve.maxSupply   // 21,000,000 tokens
 ```
 
+### Xcode MCP Server
+
+**Prefer Xcode MCP tools over `xcodebuild` shell commands** when the Xcode MCP server is available. It provides direct integration with the open Xcode workspace for building, testing, reading/writing project files, rendering SwiftUI previews, and searching Apple documentation.
+
+**Fall back to `xcodebuild`** when the MCP server is not connected or when you need CLI-specific options (e.g., `-testPlan`, `-only-testing`).
+
 ### Build Commands
+
+Fallback `xcodebuild` commands (when MCP is unavailable):
 
 ```bash
 # Build

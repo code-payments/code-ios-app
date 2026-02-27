@@ -97,7 +97,7 @@ public struct CapsuleButton: View {
             .frame(height: 57)
             .padding(.horizontal, title == nil ? 16 : 20)
         }
-        .buttonStyle(.liquidGlass)
+        .buttonStyle(.liquidGlassCompatible)
     }
 }
 

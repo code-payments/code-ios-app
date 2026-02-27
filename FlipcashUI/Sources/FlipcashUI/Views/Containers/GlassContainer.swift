@@ -16,10 +16,8 @@ import SwiftUI
 /// ```swift
 /// GlassContainer(spacing: 30) {
 ///     HStack(spacing: 30) {
-///         Button("Send") { }
-///             .buttonStyle(.liquidGlass)
-///         Button("Cancel") { }
-///             .buttonStyle(.liquidGlass)
+///         CapsuleButton(state: .normal, asset: .send, title: "Send") { }
+///         CapsuleButton(state: .normal, asset: .cancel, title: "Cancel") { }
 ///     }
 /// }
 /// ```
