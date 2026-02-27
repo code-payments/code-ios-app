@@ -39,11 +39,11 @@ class ScanCashOperation {
     func start() async throws -> PaymentMetadata {
         let rendezvous = payload.rendezvous
         let owner = owner
-        
-        let mint = try await listenForMint(
+
+        let (mint, verifiedState) = try await listenForMint(
             rendezvous: rendezvous
         )
-        
+
         let vmAuthority = try await pullMintIfNeeded(for: mint)
         // 37WNqbyxSCDgYUyLYmbWsDMYzquKZbdC1U6HkRmFdjKH
         let mintCurrencyCluster = AccountCluster(
@@ -65,7 +65,8 @@ class ScanCashOperation {
         
         return try await completePayment(
             destination: mintCurrencyCluster.vaultPublicKey,
-            rendezvous: rendezvous
+            rendezvous: rendezvous,
+            verifiedState: verifiedState
         )
     }
     
@@ -88,7 +89,7 @@ class ScanCashOperation {
         }
     }
     
-    private func listenForMint(rendezvous: KeyPair) async throws -> PublicKey {
+    private func listenForMint(rendezvous: KeyPair) async throws -> (PublicKey, VerifiedState?) {
         let maxAttempts = 3
 
         for i in 0..<maxAttempts {
@@ -98,15 +99,15 @@ class ScanCashOperation {
 
             do {
                 let messages = try await client.fetchMessages(rendezvous: rendezvous)
-                let mint = messages.compactMap { message in
-                    if case .requestToGiveBill(let mint) = message.kind {
-                        return mint
+                let result = messages.compactMap { message -> (PublicKey, VerifiedState?)? in
+                    if case .requestToGiveBill(let mint, _) = message.kind {
+                        return (mint, message.giveVerifiedState)
                     }
                     return nil
                 }.first
 
-                if let mint {
-                    return mint
+                if let result {
+                    return result
                 }
             } catch {
                 trace(.warning, components: "Failed to fetch messages (attempt \(i + 1)/\(maxAttempts)): \(error)")
@@ -117,30 +118,36 @@ class ScanCashOperation {
         throw Error.mintMessageNotFound
     }
     
-    private func completePayment(destination: PublicKey, rendezvous: KeyPair) async throws -> PaymentMetadata {
+    private func completePayment(destination: PublicKey, rendezvous: KeyPair, verifiedState: VerifiedState?) async throws -> PaymentMetadata {
         do {
             let isStreamOpen = try await client.sendRequestToGrabBill(
                 destination: destination,
                 rendezvous: rendezvous
             )
-            
+
             guard isStreamOpen else {
                 throw Error.noOpenStreamForRendezvous
             }
-            
+
             let metadata = try await client.pollIntentMetadata(
                 owner: owner.authority.keyPair,
                 intentID: rendezvous.publicKey
             )
-            
+
             if case .sendPayment(let paymentMetadata) = metadata {
-                return paymentMetadata
+                return PaymentMetadata(
+                    exchangedFiat: paymentMetadata.exchangedFiat,
+                    verifiedState: verifiedState
+                )
             }
-            
+
             if case .receivePayment(let paymentMetadata) = metadata {
-                return paymentMetadata
+                return PaymentMetadata(
+                    exchangedFiat: paymentMetadata.exchangedFiat,
+                    verifiedState: verifiedState
+                )
             }
-            
+
             throw Error.sendPaymentMetadataNotFound
             
         } catch Error.noOpenStreamForRendezvous {

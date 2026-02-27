@@ -15,6 +15,7 @@ public struct UserFlags: Sendable {
     public let onrampProviders: [OnRampProvider]
     public let preferredOnrampProvider: OnRampProvider
     public let minBuildNumber: Int
+    public let billExchangeDataTimeout: TimeInterval?
 
     public var hasPreferredOnrampProvider: Bool {
         preferredOnrampProvider != .unknown
@@ -54,7 +55,8 @@ extension UserFlags {
             isStaff: proto.isStaff,
             onrampProviders: proto.supportedOnRampProviders.map { OnRampProvider($0) },
             preferredOnrampProvider: OnRampProvider(proto.preferredOnRampProvider),
-            minBuildNumber: Int(proto.minBuildNumber)
+            minBuildNumber: Int(proto.minBuildNumber),
+            billExchangeDataTimeout: proto.hasBillExchangeDataTimeout ? TimeInterval(proto.billExchangeDataTimeout.seconds) : nil
         )
     }
 }
