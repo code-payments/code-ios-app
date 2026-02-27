@@ -77,6 +77,25 @@ class WithdrawViewModel: ObservableObject {
         }
     }
     
+    var displayFee: Quarks? {
+        guard let enteredFiat, let withdrawableAmount else {
+            return nil
+        }
+
+        let entered = enteredFiat.converted
+        let result  = withdrawableAmount.converted
+
+        guard entered.quarks >= result.quarks else {
+            return nil
+        }
+
+        return Quarks(
+            quarks: entered.quarks - result.quarks,
+            currencyCode: entered.currencyCode,
+            decimals: entered.decimals
+        )
+    }
+
     var negativeWithdrawableAmount: Quarks? {
         guard let enteredFiat = enteredFiat else {
             return nil

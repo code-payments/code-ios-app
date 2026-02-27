@@ -298,11 +298,7 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
     
     public func subtracting(fee: Quarks, invert: Bool = false) throws -> ExchangedFiat {
         let feeInQuarks = fee.quarks
-        
-        guard rate.currency == .usd else {
-            throw Error.mismatchedRate
-        }
-        
+
         let isValidOperation: () -> Bool = {
             if invert {
                 underlying.quarks <= feeInQuarks

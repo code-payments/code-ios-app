@@ -17,7 +17,7 @@ struct WithdrawSummaryScreen: View {
     
     @State private var dialogItem: DialogItem?
     
-    private var usdcToWithdraw: String {
+    private var withdrawAmount: String {
         if let withdrawableAmount = viewModel.withdrawableAmount {
             return withdrawableAmount.converted.formatted()
             
@@ -52,8 +52,8 @@ struct WithdrawSummaryScreen: View {
                         let metadata = viewModel.destinationMetadata
                     {
                         let originalFiat = enteredAmount.converted
-                        let usdcFiat     = enteredAmount.underlying
                         let fee          = metadata.fee
+                        let displayFee   = viewModel.displayFee
                         
                         BorderedContainer {
                             VStack(spacing: 20) {
@@ -62,7 +62,7 @@ struct WithdrawSummaryScreen: View {
                                 
                                 AmountText(
                                     flagStyle: originalFiat.currencyCode.flagStyle,
-                                    content: usdcToWithdraw,
+                                    content: withdrawAmount,
                                     showChevron: false,
                                     canScale: false
                                 )
@@ -78,17 +78,10 @@ struct WithdrawSummaryScreen: View {
                                             value: originalFiat.formatted()
                                         )
                                         
-//                                        if originalFiat.currencyCode != .usd {
-//                                            lineItem(
-//                                                title: Text("Converted to USD"),
-//                                                value: usdcFiat.formatted()
-//                                            )
-//                                        }
-                                        
-                                        if fee.quarks > 0 {
+                                        if let displayFee, displayFee.quarks > 0 {
                                             lineItem(
                                                 title: Text("Less one time fee").underline() + Text(" \(Image.asset(.info))").baselineOffset(-2),
-                                                value: "-\(fee.formatted())"
+                                                value: "-\(displayFee.formatted())"
                                             ) {
                                                 showFeeInformationDialog()
                                             }
@@ -104,7 +97,7 @@ struct WithdrawSummaryScreen: View {
                     }
                     
                     Image.system(.arrowDown)
-                        .foregroundColor(.textSecondary)
+                        .foregroundStyle(Color.textSecondary)
                     
                     BorderedContainer {
                         Text(viewModel.enteredDestination?.base58 ?? "<address>")
