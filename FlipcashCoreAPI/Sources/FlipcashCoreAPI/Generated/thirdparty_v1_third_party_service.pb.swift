@@ -26,11 +26,11 @@ public struct Flipcash_Thirdparty_V1_GetJwtRequest: Sendable {
   // methods supported on all messages.
 
   public var apiKey: Flipcash_Thirdparty_V1_ApiKey {
-    get {return _apiKey ?? Flipcash_Thirdparty_V1_ApiKey()}
+    get {_apiKey ?? Flipcash_Thirdparty_V1_ApiKey()}
     set {_apiKey = newValue}
   }
   /// Returns true if `apiKey` has been explicitly set.
-  public var hasApiKey: Bool {return self._apiKey != nil}
+  public var hasApiKey: Bool {self._apiKey != nil}
   /// Clears the value of `apiKey`. Subsequent reads from it will return its default value.
   public mutating func clearApiKey() {self._apiKey = nil}
 
@@ -41,11 +41,11 @@ public struct Flipcash_Thirdparty_V1_GetJwtRequest: Sendable {
   public var path: String = String()
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {return _auth ?? Flipcash_Common_V1_Auth()}
+    get {_auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {return self._auth != nil}
+  public var hasAuth: Bool {self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
@@ -65,11 +65,11 @@ public struct Flipcash_Thirdparty_V1_GetJwtResponse: Sendable {
   public var result: Flipcash_Thirdparty_V1_GetJwtResponse.Result = .ok
 
   public var jwt: Flipcash_Thirdparty_V1_Jwt {
-    get {return _jwt ?? Flipcash_Thirdparty_V1_Jwt()}
+    get {_jwt ?? Flipcash_Thirdparty_V1_Jwt()}
     set {_jwt = newValue}
   }
   /// Returns true if `jwt` has been explicitly set.
-  public var hasJwt: Bool {return self._jwt != nil}
+  public var hasJwt: Bool {self._jwt != nil}
   /// Clears the value of `jwt`. Subsequent reads from it will return its default value.
   public mutating func clearJwt() {self._jwt = nil}
 

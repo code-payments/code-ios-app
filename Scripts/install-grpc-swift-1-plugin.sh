@@ -6,7 +6,13 @@
 set -e
 
 TEMP_DIR=$(mktemp -d)
-INSTALL_DIR="/usr/local/bin"
+
+# Prefer Homebrew bin (no sudo needed), fall back to /usr/local/bin
+if [ -d "/opt/homebrew/bin" ]; then
+    INSTALL_DIR="/opt/homebrew/bin"
+else
+    INSTALL_DIR="/usr/local/bin"
+fi
 
 echo "Installing grpc-swift 1.x plugin..."
 echo "Temporary directory: $TEMP_DIR"
@@ -25,8 +31,8 @@ swift build -c release --product protoc-gen-grpc-swift
 
 # Copy to install location
 echo "Installing protoc-gen-grpc-swift to $INSTALL_DIR"
-sudo cp .build/release/protoc-gen-grpc-swift "$INSTALL_DIR/protoc-gen-grpc-swift"
-sudo chmod +x "$INSTALL_DIR/protoc-gen-grpc-swift"
+cp .build/release/protoc-gen-grpc-swift "$INSTALL_DIR/protoc-gen-grpc-swift"
+chmod +x "$INSTALL_DIR/protoc-gen-grpc-swift"
 
 # Clean up
 cd /

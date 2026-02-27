@@ -32,11 +32,11 @@ public struct Flipcash_Activity_V1_GetLatestNotificationsRequest: Sendable {
   public var maxItems: Int32 = 0
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {return _auth ?? Flipcash_Common_V1_Auth()}
+    get {_auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {return self._auth != nil}
+  public var hasAuth: Bool {self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
@@ -104,20 +104,20 @@ public struct Flipcash_Activity_V1_GetPagedNotificationsRequest: Sendable {
   public var type: Flipcash_Activity_V1_ActivityFeedType = .unknown
 
   public var queryOptions: Flipcash_Common_V1_QueryOptions {
-    get {return _queryOptions ?? Flipcash_Common_V1_QueryOptions()}
+    get {_queryOptions ?? Flipcash_Common_V1_QueryOptions()}
     set {_queryOptions = newValue}
   }
   /// Returns true if `queryOptions` has been explicitly set.
-  public var hasQueryOptions: Bool {return self._queryOptions != nil}
+  public var hasQueryOptions: Bool {self._queryOptions != nil}
   /// Clears the value of `queryOptions`. Subsequent reads from it will return its default value.
   public mutating func clearQueryOptions() {self._queryOptions = nil}
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {return _auth ?? Flipcash_Common_V1_Auth()}
+    get {_auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {return self._auth != nil}
+  public var hasAuth: Bool {self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
@@ -185,11 +185,11 @@ public struct Flipcash_Activity_V1_GetBatchNotificationsRequest: Sendable {
   public var ids: [Flipcash_Activity_V1_NotificationId] = []
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {return _auth ?? Flipcash_Common_V1_Auth()}
+    get {_auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {return self._auth != nil}
+  public var hasAuth: Bool {self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 

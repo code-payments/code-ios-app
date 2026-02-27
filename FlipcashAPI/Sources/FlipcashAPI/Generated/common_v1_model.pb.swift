@@ -143,11 +143,11 @@ public struct Ocp_Common_V1_SolanaAddressLookupTable: Sendable {
   // methods supported on all messages.
 
   public var address: Ocp_Common_V1_SolanaAccountId {
-    get {return _address ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_address ?? Ocp_Common_V1_SolanaAccountId()}
     set {_address = newValue}
   }
   /// Returns true if `address` has been explicitly set.
-  public var hasAddress: Bool {return self._address != nil}
+  public var hasAddress: Bool {self._address != nil}
   /// Clears the value of `address`. Subsequent reads from it will return its default value.
   public mutating func clearAddress() {self._address = nil}
 
@@ -331,21 +331,21 @@ public struct Ocp_Common_V1_ServerPing: Sendable {
   /// Timestamp the ping was sent on the stream, for client to get a sense
   /// of potential network latency
   public var timestamp: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_timestamp = newValue}
   }
   /// Returns true if `timestamp` has been explicitly set.
-  public var hasTimestamp: Bool {return self._timestamp != nil}
+  public var hasTimestamp: Bool {self._timestamp != nil}
   /// Clears the value of `timestamp`. Subsequent reads from it will return its default value.
   public mutating func clearTimestamp() {self._timestamp = nil}
 
   /// The delay server will apply before sending the next ping
   public var pingDelay: SwiftProtobuf.Google_Protobuf_Duration {
-    get {return _pingDelay ?? SwiftProtobuf.Google_Protobuf_Duration()}
+    get {_pingDelay ?? SwiftProtobuf.Google_Protobuf_Duration()}
     set {_pingDelay = newValue}
   }
   /// Returns true if `pingDelay` has been explicitly set.
-  public var hasPingDelay: Bool {return self._pingDelay != nil}
+  public var hasPingDelay: Bool {self._pingDelay != nil}
   /// Clears the value of `pingDelay`. Subsequent reads from it will return its default value.
   public mutating func clearPingDelay() {self._pingDelay = nil}
 
@@ -365,11 +365,11 @@ public struct Ocp_Common_V1_ClientPong: Sendable {
   /// Timestamp the Pong was sent on the stream, for server to get a sense
   /// of potential network latency
   public var timestamp: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_timestamp = newValue}
   }
   /// Returns true if `timestamp` has been explicitly set.
-  public var hasTimestamp: Bool {return self._timestamp != nil}
+  public var hasTimestamp: Bool {self._timestamp != nil}
   /// Clears the value of `timestamp`. Subsequent reads from it will return its default value.
   public mutating func clearTimestamp() {self._timestamp = nil}
 

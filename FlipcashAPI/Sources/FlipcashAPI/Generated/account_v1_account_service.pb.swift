@@ -27,11 +27,11 @@ public struct Ocp_Account_V1_IsOcpAccountRequest: Sendable {
 
   /// The owner account to check against.
   public var owner: Ocp_Common_V1_SolanaAccountId {
-    get {return _owner ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_owner ?? Ocp_Common_V1_SolanaAccountId()}
     set {_owner = newValue}
   }
   /// Returns true if `owner` has been explicitly set.
-  public var hasOwner: Bool {return self._owner != nil}
+  public var hasOwner: Bool {self._owner != nil}
   /// Clears the value of `owner`. Subsequent reads from it will return its default value.
   public mutating func clearOwner() {self._owner = nil}
 
@@ -39,11 +39,11 @@ public struct Ocp_Account_V1_IsOcpAccountRequest: Sendable {
   /// using the private key of the owner account. This provides an authentication
   /// mechanism to the RPC.
   public var signature: Ocp_Common_V1_Signature {
-    get {return _signature ?? Ocp_Common_V1_Signature()}
+    get {_signature ?? Ocp_Common_V1_Signature()}
     set {_signature = newValue}
   }
   /// Returns true if `signature` has been explicitly set.
-  public var hasSignature: Bool {return self._signature != nil}
+  public var hasSignature: Bool {self._signature != nil}
   /// Clears the value of `signature`. Subsequent reads from it will return its default value.
   public mutating func clearSignature() {self._signature = nil}
 
@@ -119,11 +119,11 @@ public struct Ocp_Account_V1_GetTokenAccountInfosRequest: Sendable {
   /// The owner account to fetch balances for, which can also be thought of as a
   /// parent account for this RPC that links to one or more token accounts.
   public var owner: Ocp_Common_V1_SolanaAccountId {
-    get {return _owner ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_owner ?? Ocp_Common_V1_SolanaAccountId()}
     set {_owner = newValue}
   }
   /// Returns true if `owner` has been explicitly set.
-  public var hasOwner: Bool {return self._owner != nil}
+  public var hasOwner: Bool {self._owner != nil}
   /// Clears the value of `owner`. Subsequent reads from it will return its default value.
   public mutating func clearOwner() {self._owner = nil}
 
@@ -131,11 +131,11 @@ public struct Ocp_Account_V1_GetTokenAccountInfosRequest: Sendable {
   /// fields set using the private key of the owner account. This provides
   /// an authentication mechanism to the RPC.
   public var signature: Ocp_Common_V1_Signature {
-    get {return _signature ?? Ocp_Common_V1_Signature()}
+    get {_signature ?? Ocp_Common_V1_Signature()}
     set {_signature = newValue}
   }
   /// Returns true if `signature` has been explicitly set.
-  public var hasSignature: Bool {return self._signature != nil}
+  public var hasSignature: Bool {self._signature != nil}
   /// Clears the value of `signature`. Subsequent reads from it will return its default value.
   public mutating func clearSignature() {self._signature = nil}
 
@@ -144,11 +144,11 @@ public struct Ocp_Account_V1_GetTokenAccountInfosRequest: Sendable {
   /// use case includes a user owner account requesting account info for a gift card
   /// owner account.
   public var requestingOwner: Ocp_Common_V1_SolanaAccountId {
-    get {return _requestingOwner ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_requestingOwner ?? Ocp_Common_V1_SolanaAccountId()}
     set {_requestingOwner = newValue}
   }
   /// Returns true if `requestingOwner` has been explicitly set.
-  public var hasRequestingOwner: Bool {return self._requestingOwner != nil}
+  public var hasRequestingOwner: Bool {self._requestingOwner != nil}
   /// Clears the value of `requestingOwner`. Subsequent reads from it will return its default value.
   public mutating func clearRequestingOwner() {self._requestingOwner = nil}
 
@@ -159,11 +159,11 @@ public struct Ocp_Account_V1_GetTokenAccountInfosRequest: Sendable {
   ///
   /// This must be set when requesting_owner is present.
   public var requestingOwnerSignature: Ocp_Common_V1_Signature {
-    get {return _requestingOwnerSignature ?? Ocp_Common_V1_Signature()}
+    get {_requestingOwnerSignature ?? Ocp_Common_V1_Signature()}
     set {_requestingOwnerSignature = newValue}
   }
   /// Returns true if `requestingOwnerSignature` has been explicitly set.
-  public var hasRequestingOwnerSignature: Bool {return self._requestingOwnerSignature != nil}
+  public var hasRequestingOwnerSignature: Bool {self._requestingOwnerSignature != nil}
   /// Clears the value of `requestingOwnerSignature`. Subsequent reads from it will return its default value.
   public mutating func clearRequestingOwnerSignature() {self._requestingOwnerSignature = nil}
 
@@ -267,11 +267,11 @@ public struct Ocp_Account_V1_TokenAccountInfo: @unchecked Sendable {
 
   /// The token account's address
   public var address: Ocp_Common_V1_SolanaAccountId {
-    get {return _storage._address ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_storage._address ?? Ocp_Common_V1_SolanaAccountId()}
     set {_uniqueStorage()._address = newValue}
   }
   /// Returns true if `address` has been explicitly set.
-  public var hasAddress: Bool {return _storage._address != nil}
+  public var hasAddress: Bool {_storage._address != nil}
   /// Clears the value of `address`. Subsequent reads from it will return its default value.
   public mutating func clearAddress() {_uniqueStorage()._address = nil}
 
@@ -279,11 +279,11 @@ public struct Ocp_Account_V1_TokenAccountInfo: @unchecked Sendable {
   /// account that links to one or more token accounts. This is provided when
   /// available.
   public var owner: Ocp_Common_V1_SolanaAccountId {
-    get {return _storage._owner ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_storage._owner ?? Ocp_Common_V1_SolanaAccountId()}
     set {_uniqueStorage()._owner = newValue}
   }
   /// Returns true if `owner` has been explicitly set.
-  public var hasOwner: Bool {return _storage._owner != nil}
+  public var hasOwner: Bool {_storage._owner != nil}
   /// Clears the value of `owner`. Subsequent reads from it will return its default value.
   public mutating func clearOwner() {_uniqueStorage()._owner = nil}
 
@@ -291,30 +291,30 @@ public struct Ocp_Account_V1_TokenAccountInfo: @unchecked Sendable {
   /// account. This can be the owner account under certain circumstances (eg.
   /// ATA, primary account). This is provided when available.
   public var authority: Ocp_Common_V1_SolanaAccountId {
-    get {return _storage._authority ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_storage._authority ?? Ocp_Common_V1_SolanaAccountId()}
     set {_uniqueStorage()._authority = newValue}
   }
   /// Returns true if `authority` has been explicitly set.
-  public var hasAuthority: Bool {return _storage._authority != nil}
+  public var hasAuthority: Bool {_storage._authority != nil}
   /// Clears the value of `authority`. Subsequent reads from it will return its default value.
   public mutating func clearAuthority() {_uniqueStorage()._authority = nil}
 
   /// The type of token account, which infers its intended use.
   public var accountType: Ocp_Common_V1_AccountType {
-    get {return _storage._accountType}
+    get {_storage._accountType}
     set {_uniqueStorage()._accountType = newValue}
   }
 
   /// The account's derivation index for applicable account types. When this field
   /// doesn't apply, a zero value is provided.
   public var index: UInt64 {
-    get {return _storage._index}
+    get {_storage._index}
     set {_uniqueStorage()._index = newValue}
   }
 
   /// The source of truth for the balance calculation.
   public var balanceSource: Ocp_Account_V1_TokenAccountInfo.BalanceSource {
-    get {return _storage._balanceSource}
+    get {_storage._balanceSource}
     set {_uniqueStorage()._balanceSource = newValue}
   }
 
@@ -322,26 +322,26 @@ public struct Ocp_Account_V1_TokenAccountInfo: @unchecked Sendable {
   /// on the blockchain and could be non-zero even if the account hasn't been created.
   /// Use balance_source to determine how this value was calculated.
   public var balance: UInt64 {
-    get {return _storage._balance}
+    get {_storage._balance}
     set {_uniqueStorage()._balance = newValue}
   }
 
   /// The state of the account as it pertains to the OCP's ability to manage funds.
   public var managementState: Ocp_Account_V1_TokenAccountInfo.ManagementState {
-    get {return _storage._managementState}
+    get {_storage._managementState}
     set {_uniqueStorage()._managementState = newValue}
   }
 
   /// The state of the account on the blockchain.
   public var blockchainState: Ocp_Account_V1_TokenAccountInfo.BlockchainState {
-    get {return _storage._blockchainState}
+    get {_storage._blockchainState}
     set {_uniqueStorage()._blockchainState = newValue}
   }
 
   /// Whether an account is claimed. This only applies to relevant account types
   /// (eg. REMOTE_SEND_GIFT_CARD).
   public var claimState: Ocp_Account_V1_TokenAccountInfo.ClaimState {
-    get {return _storage._claimState}
+    get {_storage._claimState}
     set {_uniqueStorage()._claimState = newValue}
   }
 
@@ -354,21 +354,21 @@ public struct Ocp_Account_V1_TokenAccountInfo: @unchecked Sendable {
   ///  3. The balance could have been received, so the total balance can show
   ///     as zero.
   public var originalExchangeData: Ocp_Transaction_V1_ExchangeData {
-    get {return _storage._originalExchangeData ?? Ocp_Transaction_V1_ExchangeData()}
+    get {_storage._originalExchangeData ?? Ocp_Transaction_V1_ExchangeData()}
     set {_uniqueStorage()._originalExchangeData = newValue}
   }
   /// Returns true if `originalExchangeData` has been explicitly set.
-  public var hasOriginalExchangeData: Bool {return _storage._originalExchangeData != nil}
+  public var hasOriginalExchangeData: Bool {_storage._originalExchangeData != nil}
   /// Clears the value of `originalExchangeData`. Subsequent reads from it will return its default value.
   public mutating func clearOriginalExchangeData() {_uniqueStorage()._originalExchangeData = nil}
 
   /// The token account's mint
   public var mint: Ocp_Common_V1_SolanaAccountId {
-    get {return _storage._mint ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_storage._mint ?? Ocp_Common_V1_SolanaAccountId()}
     set {_uniqueStorage()._mint = newValue}
   }
   /// Returns true if `mint` has been explicitly set.
-  public var hasMint: Bool {return _storage._mint != nil}
+  public var hasMint: Bool {_storage._mint != nil}
   /// Clears the value of `mint`. Subsequent reads from it will return its default value.
   public mutating func clearMint() {_uniqueStorage()._mint = nil}
 
@@ -376,25 +376,25 @@ public struct Ocp_Account_V1_TokenAccountInfo: @unchecked Sendable {
   /// the time of intent submission. Otherwise, for external accounts, it is
   /// the time created on the blockchain.
   public var createdAt: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _storage._createdAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_storage._createdAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_uniqueStorage()._createdAt = newValue}
   }
   /// Returns true if `createdAt` has been explicitly set.
-  public var hasCreatedAt: Bool {return _storage._createdAt != nil}
+  public var hasCreatedAt: Bool {_storage._createdAt != nil}
   /// Clears the value of `createdAt`. Subsequent reads from it will return its default value.
   public mutating func clearCreatedAt() {_uniqueStorage()._createdAt = nil}
 
   /// For REMOTE_SEND_GIFT_CARD, if requesting_owner was provided, was
   /// requesting_owner the issuer of the account.
   public var isGiftCardIssuer: Bool {
-    get {return _storage._isGiftCardIssuer}
+    get {_storage._isGiftCardIssuer}
     set {_uniqueStorage()._isGiftCardIssuer = newValue}
   }
 
   /// The USD cost basis for this account, which can be used to compute currency
   /// appreciation/depreciation
   public var usdCostBasis: Double {
-    get {return _storage._usdCostBasis}
+    get {_storage._usdCostBasis}
     set {_uniqueStorage()._usdCostBasis = newValue}
   }
 

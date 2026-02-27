@@ -10,6 +10,39 @@ do
     esac
 done
 
+# Pre-flight: verify required tools before doing anything destructive
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
+MISSING=0
+
+if ! command -v protoc &> /dev/null; then
+    echo "Error: protoc is not installed. Install with: brew install protobuf"
+    MISSING=1
+fi
+
+if ! command -v protoc-gen-swift &> /dev/null; then
+    echo "Error: protoc-gen-swift is not installed. Install with: brew install swift-protobuf"
+    MISSING=1
+fi
+
+if ! command -v protoc-gen-grpc-swift &> /dev/null; then
+    echo "Error: protoc-gen-grpc-swift is not installed. Install with: ./Scripts/install-grpc-swift-1-plugin.sh"
+    MISSING=1
+else
+    GRPC_VERSION=$(protoc-gen-grpc-swift --version 2>&1 || true)
+    if [[ ! "$GRPC_VERSION" =~ ^protoc-gen-grpc-swift\ 1\. ]]; then
+        echo "Error: protoc-gen-grpc-swift must be version 1.x, found: $GRPC_VERSION"
+        echo "Install 1.x with: ./Scripts/install-grpc-swift-1-plugin.sh"
+        MISSING=1
+    fi
+fi
+
+if [[ $MISSING -ne 0 ]]; then
+    echo ""
+    echo "Aborting: required tools are missing. No files were modified."
+    exit 1
+fi
+
 # Set directories based on app
 if [[ "$APP" == "flipchat" ]]; then
     PROTOS_ROOT_DIR="../FlipchatAPI/Sources/FlipchatAPI"

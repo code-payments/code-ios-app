@@ -30,6 +30,11 @@ public protocol Ocp_Currency_V1_CurrencyClientProtocol: GRPCClient {
     callOptions: CallOptions?,
     handler: @escaping (Ocp_Currency_V1_StreamLiveMintDataResponse) -> Void
   ) -> BidirectionalStreamingCall<Ocp_Currency_V1_StreamLiveMintDataRequest, Ocp_Currency_V1_StreamLiveMintDataResponse>
+
+  func launch(
+    _ request: Ocp_Currency_V1_LaunchRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Ocp_Currency_V1_LaunchRequest, Ocp_Currency_V1_LaunchResponse>
 }
 
 extension Ocp_Currency_V1_CurrencyClientProtocol {
@@ -91,6 +96,24 @@ extension Ocp_Currency_V1_CurrencyClientProtocol {
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeStreamLiveMintDataInterceptors() ?? [],
       handler: handler
+    )
+  }
+
+  /// Launch launches a new currency on the launchpad
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to Launch.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func launch(
+    _ request: Ocp_Currency_V1_LaunchRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Ocp_Currency_V1_LaunchRequest, Ocp_Currency_V1_LaunchResponse> {
+    return self.makeUnaryCall(
+      path: Ocp_Currency_V1_CurrencyClientMetadata.Methods.launch.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeLaunchInterceptors() ?? []
     )
   }
 }
@@ -170,6 +193,11 @@ public protocol Ocp_Currency_V1_CurrencyAsyncClientProtocol: GRPCClient {
   func makeStreamLiveMintDataCall(
     callOptions: CallOptions?
   ) -> GRPCAsyncBidirectionalStreamingCall<Ocp_Currency_V1_StreamLiveMintDataRequest, Ocp_Currency_V1_StreamLiveMintDataResponse>
+
+  func makeLaunchCall(
+    _ request: Ocp_Currency_V1_LaunchRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Ocp_Currency_V1_LaunchRequest, Ocp_Currency_V1_LaunchResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -213,6 +241,18 @@ extension Ocp_Currency_V1_CurrencyAsyncClientProtocol {
       path: Ocp_Currency_V1_CurrencyClientMetadata.Methods.streamLiveMintData.path,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeStreamLiveMintDataInterceptors() ?? []
+    )
+  }
+
+  public func makeLaunchCall(
+    _ request: Ocp_Currency_V1_LaunchRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Ocp_Currency_V1_LaunchRequest, Ocp_Currency_V1_LaunchResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Ocp_Currency_V1_CurrencyClientMetadata.Methods.launch.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeLaunchInterceptors() ?? []
     )
   }
 }
@@ -266,6 +306,18 @@ extension Ocp_Currency_V1_CurrencyAsyncClientProtocol {
       interceptors: self.interceptors?.makeStreamLiveMintDataInterceptors() ?? []
     )
   }
+
+  public func launch(
+    _ request: Ocp_Currency_V1_LaunchRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Ocp_Currency_V1_LaunchResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Ocp_Currency_V1_CurrencyClientMetadata.Methods.launch.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeLaunchInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -295,6 +347,9 @@ public protocol Ocp_Currency_V1_CurrencyClientInterceptorFactoryProtocol: Sendab
 
   /// - Returns: Interceptors to use when invoking 'streamLiveMintData'.
   func makeStreamLiveMintDataInterceptors() -> [ClientInterceptor<Ocp_Currency_V1_StreamLiveMintDataRequest, Ocp_Currency_V1_StreamLiveMintDataResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'launch'.
+  func makeLaunchInterceptors() -> [ClientInterceptor<Ocp_Currency_V1_LaunchRequest, Ocp_Currency_V1_LaunchResponse>]
 }
 
 public enum Ocp_Currency_V1_CurrencyClientMetadata {
@@ -305,6 +360,7 @@ public enum Ocp_Currency_V1_CurrencyClientMetadata {
       Ocp_Currency_V1_CurrencyClientMetadata.Methods.getMints,
       Ocp_Currency_V1_CurrencyClientMetadata.Methods.getHistoricalMintData,
       Ocp_Currency_V1_CurrencyClientMetadata.Methods.streamLiveMintData,
+      Ocp_Currency_V1_CurrencyClientMetadata.Methods.launch,
     ]
   )
 
@@ -326,6 +382,12 @@ public enum Ocp_Currency_V1_CurrencyClientMetadata {
       path: "/ocp.currency.v1.Currency/StreamLiveMintData",
       type: GRPCCallType.bidirectionalStreaming
     )
+
+    public static let launch = GRPCMethodDescriptor(
+      name: "Launch",
+      path: "/ocp.currency.v1.Currency/Launch",
+      type: GRPCCallType.unary
+    )
   }
 }
 
@@ -341,6 +403,9 @@ public protocol Ocp_Currency_V1_CurrencyProvider: CallHandlerProvider {
 
   /// StreamLiveMintData streams live mint data for a set of mints
   func streamLiveMintData(context: StreamingResponseCallContext<Ocp_Currency_V1_StreamLiveMintDataResponse>) -> EventLoopFuture<(StreamEvent<Ocp_Currency_V1_StreamLiveMintDataRequest>) -> Void>
+
+  /// Launch launches a new currency on the launchpad
+  func launch(request: Ocp_Currency_V1_LaunchRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Ocp_Currency_V1_LaunchResponse>
 }
 
 extension Ocp_Currency_V1_CurrencyProvider {
@@ -382,6 +447,15 @@ extension Ocp_Currency_V1_CurrencyProvider {
         observerFactory: self.streamLiveMintData(context:)
       )
 
+    case "Launch":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Ocp_Currency_V1_LaunchRequest>(),
+        responseSerializer: ProtobufSerializer<Ocp_Currency_V1_LaunchResponse>(),
+        interceptors: self.interceptors?.makeLaunchInterceptors() ?? [],
+        userFunction: self.launch(request:context:)
+      )
+
     default:
       return nil
     }
@@ -412,6 +486,12 @@ public protocol Ocp_Currency_V1_CurrencyAsyncProvider: CallHandlerProvider, Send
     responseStream: GRPCAsyncResponseStreamWriter<Ocp_Currency_V1_StreamLiveMintDataResponse>,
     context: GRPCAsyncServerCallContext
   ) async throws
+
+  /// Launch launches a new currency on the launchpad
+  func launch(
+    request: Ocp_Currency_V1_LaunchRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Ocp_Currency_V1_LaunchResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -460,6 +540,15 @@ extension Ocp_Currency_V1_CurrencyAsyncProvider {
         wrapping: { try await self.streamLiveMintData(requestStream: $0, responseStream: $1, context: $2) }
       )
 
+    case "Launch":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Ocp_Currency_V1_LaunchRequest>(),
+        responseSerializer: ProtobufSerializer<Ocp_Currency_V1_LaunchResponse>(),
+        interceptors: self.interceptors?.makeLaunchInterceptors() ?? [],
+        wrapping: { try await self.launch(request: $0, context: $1) }
+      )
+
     default:
       return nil
     }
@@ -479,6 +568,10 @@ public protocol Ocp_Currency_V1_CurrencyServerInterceptorFactoryProtocol: Sendab
   /// - Returns: Interceptors to use when handling 'streamLiveMintData'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeStreamLiveMintDataInterceptors() -> [ServerInterceptor<Ocp_Currency_V1_StreamLiveMintDataRequest, Ocp_Currency_V1_StreamLiveMintDataResponse>]
+
+  /// - Returns: Interceptors to use when handling 'launch'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeLaunchInterceptors() -> [ServerInterceptor<Ocp_Currency_V1_LaunchRequest, Ocp_Currency_V1_LaunchResponse>]
 }
 
 public enum Ocp_Currency_V1_CurrencyServerMetadata {
@@ -489,6 +582,7 @@ public enum Ocp_Currency_V1_CurrencyServerMetadata {
       Ocp_Currency_V1_CurrencyServerMetadata.Methods.getMints,
       Ocp_Currency_V1_CurrencyServerMetadata.Methods.getHistoricalMintData,
       Ocp_Currency_V1_CurrencyServerMetadata.Methods.streamLiveMintData,
+      Ocp_Currency_V1_CurrencyServerMetadata.Methods.launch,
     ]
   )
 
@@ -509,6 +603,12 @@ public enum Ocp_Currency_V1_CurrencyServerMetadata {
       name: "StreamLiveMintData",
       path: "/ocp.currency.v1.Currency/StreamLiveMintData",
       type: GRPCCallType.bidirectionalStreaming
+    )
+
+    public static let launch = GRPCMethodDescriptor(
+      name: "Launch",
+      path: "/ocp.currency.v1.Currency/Launch",
+      type: GRPCCallType.unary
     )
   }
 }

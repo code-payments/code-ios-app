@@ -26,21 +26,21 @@ public struct Flipcash_Profile_V1_GetProfileRequest: Sendable {
   // methods supported on all messages.
 
   public var userID: Flipcash_Common_V1_UserId {
-    get {return _userID ?? Flipcash_Common_V1_UserId()}
+    get {_userID ?? Flipcash_Common_V1_UserId()}
     set {_userID = newValue}
   }
   /// Returns true if `userID` has been explicitly set.
-  public var hasUserID: Bool {return self._userID != nil}
+  public var hasUserID: Bool {self._userID != nil}
   /// Clears the value of `userID`. Subsequent reads from it will return its default value.
   public mutating func clearUserID() {self._userID = nil}
 
   /// Optional auth to retrieve private profile information for self
   public var auth: Flipcash_Common_V1_Auth {
-    get {return _auth ?? Flipcash_Common_V1_Auth()}
+    get {_auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {return self._auth != nil}
+  public var hasAuth: Bool {self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
@@ -64,11 +64,11 @@ public struct Flipcash_Profile_V1_GetProfileResponse: Sendable {
   /// Some fields may or may not be set, depending on the scope of request
   /// in the future.
   public var userProfile: Flipcash_Profile_V1_UserProfile {
-    get {return _userProfile ?? Flipcash_Profile_V1_UserProfile()}
+    get {_userProfile ?? Flipcash_Profile_V1_UserProfile()}
     set {_userProfile = newValue}
   }
   /// Returns true if `userProfile` has been explicitly set.
-  public var hasUserProfile: Bool {return self._userProfile != nil}
+  public var hasUserProfile: Bool {self._userProfile != nil}
   /// Clears the value of `userProfile`. Subsequent reads from it will return its default value.
   public mutating func clearUserProfile() {self._userProfile = nil}
 
@@ -122,11 +122,11 @@ public struct Flipcash_Profile_V1_SetDisplayNameRequest: Sendable {
   public var displayName: String = String()
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {return _auth ?? Flipcash_Common_V1_Auth()}
+    get {_auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {return self._auth != nil}
+  public var hasAuth: Bool {self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
@@ -193,20 +193,20 @@ public struct Flipcash_Profile_V1_LinkSocialAccountRequest: Sendable {
   // methods supported on all messages.
 
   public var linkingToken: Flipcash_Profile_V1_LinkSocialAccountRequest.LinkingToken {
-    get {return _linkingToken ?? Flipcash_Profile_V1_LinkSocialAccountRequest.LinkingToken()}
+    get {_linkingToken ?? Flipcash_Profile_V1_LinkSocialAccountRequest.LinkingToken()}
     set {_linkingToken = newValue}
   }
   /// Returns true if `linkingToken` has been explicitly set.
-  public var hasLinkingToken: Bool {return self._linkingToken != nil}
+  public var hasLinkingToken: Bool {self._linkingToken != nil}
   /// Clears the value of `linkingToken`. Subsequent reads from it will return its default value.
   public mutating func clearLinkingToken() {self._linkingToken = nil}
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {return _auth ?? Flipcash_Common_V1_Auth()}
+    get {_auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {return self._auth != nil}
+  public var hasAuth: Bool {self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
@@ -264,11 +264,11 @@ public struct Flipcash_Profile_V1_LinkSocialAccountResponse: Sendable {
   public var result: Flipcash_Profile_V1_LinkSocialAccountResponse.Result = .ok
 
   public var socialProfile: Flipcash_Profile_V1_SocialProfile {
-    get {return _socialProfile ?? Flipcash_Profile_V1_SocialProfile()}
+    get {_socialProfile ?? Flipcash_Profile_V1_SocialProfile()}
     set {_socialProfile = newValue}
   }
   /// Returns true if `socialProfile` has been explicitly set.
-  public var hasSocialProfile: Bool {return self._socialProfile != nil}
+  public var hasSocialProfile: Bool {self._socialProfile != nil}
   /// Clears the value of `socialProfile`. Subsequent reads from it will return its default value.
   public mutating func clearSocialProfile() {self._socialProfile = nil}
 
@@ -337,11 +337,11 @@ public struct Flipcash_Profile_V1_UnlinkSocialAccountRequest: Sendable {
   }
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {return _auth ?? Flipcash_Common_V1_Auth()}
+    get {_auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {return self._auth != nil}
+  public var hasAuth: Bool {self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 

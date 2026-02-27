@@ -87,11 +87,11 @@ public struct Ocp_Currency_V1_GetHistoricalMintDataRequest: Sendable {
 
   /// The mint address to get historical data for
   public var address: Ocp_Common_V1_SolanaAccountId {
-    get {return _address ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_address ?? Ocp_Common_V1_SolanaAccountId()}
     set {_address = newValue}
   }
   /// Returns true if `address` has been explicitly set.
-  public var hasAddress: Bool {return self._address != nil}
+  public var hasAddress: Bool {self._address != nil}
   /// Clears the value of `address`. Subsequent reads from it will return its default value.
   public mutating func clearAddress() {self._address = nil}
 
@@ -345,41 +345,41 @@ public struct Ocp_Currency_V1_Mint: @unchecked Sendable {
 
   /// Token mint address
   public var address: Ocp_Common_V1_SolanaAccountId {
-    get {return _storage._address ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_storage._address ?? Ocp_Common_V1_SolanaAccountId()}
     set {_uniqueStorage()._address = newValue}
   }
   /// Returns true if `address` has been explicitly set.
-  public var hasAddress: Bool {return _storage._address != nil}
+  public var hasAddress: Bool {_storage._address != nil}
   /// Clears the value of `address`. Subsequent reads from it will return its default value.
   public mutating func clearAddress() {_uniqueStorage()._address = nil}
 
   /// The number of decimals configured for the mint
   public var decimals: UInt32 {
-    get {return _storage._decimals}
+    get {_storage._decimals}
     set {_uniqueStorage()._decimals = newValue}
   }
 
   /// Currency name
   public var name: String {
-    get {return _storage._name}
+    get {_storage._name}
     set {_uniqueStorage()._name = newValue}
   }
 
   /// Currency ticker symbol
   public var symbol: String {
-    get {return _storage._symbol}
+    get {_storage._symbol}
     set {_uniqueStorage()._symbol = newValue}
   }
 
   /// Currency description
   public var description_p: String {
-    get {return _storage._description_p}
+    get {_storage._description_p}
     set {_uniqueStorage()._description_p = newValue}
   }
 
   /// URL to currency image
   public var imageURL: String {
-    get {return _storage._imageURL}
+    get {_storage._imageURL}
     set {_uniqueStorage()._imageURL = newValue}
   }
 
@@ -388,11 +388,11 @@ public struct Ocp_Currency_V1_Mint: @unchecked Sendable {
   ///
   /// Note: Only currencies with a VM are useable for payments
   public var vmMetadata: Ocp_Currency_V1_VmMetadata {
-    get {return _storage._vmMetadata ?? Ocp_Currency_V1_VmMetadata()}
+    get {_storage._vmMetadata ?? Ocp_Currency_V1_VmMetadata()}
     set {_uniqueStorage()._vmMetadata = newValue}
   }
   /// Returns true if `vmMetadata` has been explicitly set.
-  public var hasVmMetadata: Bool {return _storage._vmMetadata != nil}
+  public var hasVmMetadata: Bool {_storage._vmMetadata != nil}
   /// Clears the value of `vmMetadata`. Subsequent reads from it will return its default value.
   public mutating func clearVmMetadata() {_uniqueStorage()._vmMetadata = nil}
 
@@ -400,37 +400,37 @@ public struct Ocp_Currency_V1_Mint: @unchecked Sendable {
   /// can be used for calculating price, market cap, etc. based on the exponential
   /// bonding curve
   public var launchpadMetadata: Ocp_Currency_V1_LaunchpadMetadata {
-    get {return _storage._launchpadMetadata ?? Ocp_Currency_V1_LaunchpadMetadata()}
+    get {_storage._launchpadMetadata ?? Ocp_Currency_V1_LaunchpadMetadata()}
     set {_uniqueStorage()._launchpadMetadata = newValue}
   }
   /// Returns true if `launchpadMetadata` has been explicitly set.
-  public var hasLaunchpadMetadata: Bool {return _storage._launchpadMetadata != nil}
+  public var hasLaunchpadMetadata: Bool {_storage._launchpadMetadata != nil}
   /// Clears the value of `launchpadMetadata`. Subsequent reads from it will return its default value.
   public mutating func clearLaunchpadMetadata() {_uniqueStorage()._launchpadMetadata = nil}
 
   /// Timestamp the currency was created
   public var createdAt: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _storage._createdAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_storage._createdAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_uniqueStorage()._createdAt = newValue}
   }
   /// Returns true if `createdAt` has been explicitly set.
-  public var hasCreatedAt: Bool {return _storage._createdAt != nil}
+  public var hasCreatedAt: Bool {_storage._createdAt != nil}
   /// Clears the value of `createdAt`. Subsequent reads from it will return its default value.
   public mutating func clearCreatedAt() {_uniqueStorage()._createdAt = nil}
 
   /// Social links for this currency
   public var socialLinks: [Ocp_Currency_V1_SocialLink] {
-    get {return _storage._socialLinks}
+    get {_storage._socialLinks}
     set {_uniqueStorage()._socialLinks = newValue}
   }
 
   /// Bill customization for this currency. Use the default if not provided
   public var billCustomization: Ocp_Currency_V1_BillCustomization {
-    get {return _storage._billCustomization ?? Ocp_Currency_V1_BillCustomization()}
+    get {_storage._billCustomization ?? Ocp_Currency_V1_BillCustomization()}
     set {_uniqueStorage()._billCustomization = newValue}
   }
   /// Returns true if `billCustomization` has been explicitly set.
-  public var hasBillCustomization: Bool {return _storage._billCustomization != nil}
+  public var hasBillCustomization: Bool {_storage._billCustomization != nil}
   /// Clears the value of `billCustomization`. Subsequent reads from it will return its default value.
   public mutating func clearBillCustomization() {_uniqueStorage()._billCustomization = nil}
 
@@ -448,21 +448,21 @@ public struct Ocp_Currency_V1_VmMetadata: Sendable {
 
   /// VM address
   public var vm: Ocp_Common_V1_SolanaAccountId {
-    get {return _vm ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_vm ?? Ocp_Common_V1_SolanaAccountId()}
     set {_vm = newValue}
   }
   /// Returns true if `vm` has been explicitly set.
-  public var hasVm: Bool {return self._vm != nil}
+  public var hasVm: Bool {self._vm != nil}
   /// Clears the value of `vm`. Subsequent reads from it will return its default value.
   public mutating func clearVm() {self._vm = nil}
 
   /// Authority that subsidizes and authorizes all transactions against the VM
   public var authority: Ocp_Common_V1_SolanaAccountId {
-    get {return _authority ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_authority ?? Ocp_Common_V1_SolanaAccountId()}
     set {_authority = newValue}
   }
   /// Returns true if `authority` has been explicitly set.
-  public var hasAuthority: Bool {return self._authority != nil}
+  public var hasAuthority: Bool {self._authority != nil}
   /// Clears the value of `authority`. Subsequent reads from it will return its default value.
   public mutating func clearAuthority() {self._authority = nil}
 
@@ -472,11 +472,11 @@ public struct Ocp_Currency_V1_VmMetadata: Sendable {
 
   /// VM omnibus address
   public var omnibus: Ocp_Common_V1_SolanaAccountId {
-    get {return _omnibus ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_omnibus ?? Ocp_Common_V1_SolanaAccountId()}
     set {_omnibus = newValue}
   }
   /// Returns true if `omnibus` has been explicitly set.
-  public var hasOmnibus: Bool {return self._omnibus != nil}
+  public var hasOmnibus: Bool {self._omnibus != nil}
   /// Clears the value of `omnibus`. Subsequent reads from it will return its default value.
   public mutating func clearOmnibus() {self._omnibus = nil}
 
@@ -496,61 +496,61 @@ public struct Ocp_Currency_V1_LaunchpadMetadata: Sendable {
 
   /// The address of the currency config
   public var currencyConfig: Ocp_Common_V1_SolanaAccountId {
-    get {return _currencyConfig ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_currencyConfig ?? Ocp_Common_V1_SolanaAccountId()}
     set {_currencyConfig = newValue}
   }
   /// Returns true if `currencyConfig` has been explicitly set.
-  public var hasCurrencyConfig: Bool {return self._currencyConfig != nil}
+  public var hasCurrencyConfig: Bool {self._currencyConfig != nil}
   /// Clears the value of `currencyConfig`. Subsequent reads from it will return its default value.
   public mutating func clearCurrencyConfig() {self._currencyConfig = nil}
 
   /// The address of the liquidity pool
   public var liquidityPool: Ocp_Common_V1_SolanaAccountId {
-    get {return _liquidityPool ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_liquidityPool ?? Ocp_Common_V1_SolanaAccountId()}
     set {_liquidityPool = newValue}
   }
   /// Returns true if `liquidityPool` has been explicitly set.
-  public var hasLiquidityPool: Bool {return self._liquidityPool != nil}
+  public var hasLiquidityPool: Bool {self._liquidityPool != nil}
   /// Clears the value of `liquidityPool`. Subsequent reads from it will return its default value.
   public mutating func clearLiquidityPool() {self._liquidityPool = nil}
 
   /// The random seed used during currency creation
   public var seed: Ocp_Common_V1_SolanaAccountId {
-    get {return _seed ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_seed ?? Ocp_Common_V1_SolanaAccountId()}
     set {_seed = newValue}
   }
   /// Returns true if `seed` has been explicitly set.
-  public var hasSeed: Bool {return self._seed != nil}
+  public var hasSeed: Bool {self._seed != nil}
   /// Clears the value of `seed`. Subsequent reads from it will return its default value.
   public mutating func clearSeed() {self._seed = nil}
 
   /// The address of the authority for the currency
   public var authority: Ocp_Common_V1_SolanaAccountId {
-    get {return _authority ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_authority ?? Ocp_Common_V1_SolanaAccountId()}
     set {_authority = newValue}
   }
   /// Returns true if `authority` has been explicitly set.
-  public var hasAuthority: Bool {return self._authority != nil}
+  public var hasAuthority: Bool {self._authority != nil}
   /// Clears the value of `authority`. Subsequent reads from it will return its default value.
   public mutating func clearAuthority() {self._authority = nil}
 
   /// The address where this mint's tokens are locked against the liquidity pool
   public var mintVault: Ocp_Common_V1_SolanaAccountId {
-    get {return _mintVault ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_mintVault ?? Ocp_Common_V1_SolanaAccountId()}
     set {_mintVault = newValue}
   }
   /// Returns true if `mintVault` has been explicitly set.
-  public var hasMintVault: Bool {return self._mintVault != nil}
+  public var hasMintVault: Bool {self._mintVault != nil}
   /// Clears the value of `mintVault`. Subsequent reads from it will return its default value.
   public mutating func clearMintVault() {self._mintVault = nil}
 
   /// The address where core mint tokens are locked against the liquidity pool
   public var coreMintVault: Ocp_Common_V1_SolanaAccountId {
-    get {return _coreMintVault ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_coreMintVault ?? Ocp_Common_V1_SolanaAccountId()}
     set {_coreMintVault = newValue}
   }
   /// Returns true if `coreMintVault` has been explicitly set.
-  public var hasCoreMintVault: Bool {return self._coreMintVault != nil}
+  public var hasCoreMintVault: Bool {self._coreMintVault != nil}
   /// Clears the value of `coreMintVault`. Subsequent reads from it will return its default value.
   public mutating func clearCoreMintVault() {self._coreMintVault = nil}
 
@@ -587,11 +587,11 @@ public struct Ocp_Currency_V1_HistoricalMintData: Sendable {
 
   /// Timestamp for this data point
   public var timestamp: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_timestamp = newValue}
   }
   /// Returns true if `timestamp` has been explicitly set.
-  public var hasTimestamp: Bool {return self._timestamp != nil}
+  public var hasTimestamp: Bool {self._timestamp != nil}
   /// Clears the value of `timestamp`. Subsequent reads from it will return its default value.
   public mutating func clearTimestamp() {self._timestamp = nil}
 
@@ -618,11 +618,11 @@ public struct Ocp_Currency_V1_CoreMintFiatExchangeRate: Sendable {
 
   /// Timestamp for this data point
   public var timestamp: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_timestamp = newValue}
   }
   /// Returns true if `timestamp` has been explicitly set.
-  public var hasTimestamp: Bool {return self._timestamp != nil}
+  public var hasTimestamp: Bool {self._timestamp != nil}
   /// Clears the value of `timestamp`. Subsequent reads from it will return its default value.
   public mutating func clearTimestamp() {self._timestamp = nil}
 
@@ -640,20 +640,20 @@ public struct Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRate: Sendable {
   // methods supported on all messages.
 
   public var exchangeRate: Ocp_Currency_V1_CoreMintFiatExchangeRate {
-    get {return _exchangeRate ?? Ocp_Currency_V1_CoreMintFiatExchangeRate()}
+    get {_exchangeRate ?? Ocp_Currency_V1_CoreMintFiatExchangeRate()}
     set {_exchangeRate = newValue}
   }
   /// Returns true if `exchangeRate` has been explicitly set.
-  public var hasExchangeRate: Bool {return self._exchangeRate != nil}
+  public var hasExchangeRate: Bool {self._exchangeRate != nil}
   /// Clears the value of `exchangeRate`. Subsequent reads from it will return its default value.
   public mutating func clearExchangeRate() {self._exchangeRate = nil}
 
   public var signature: Ocp_Common_V1_Signature {
-    get {return _signature ?? Ocp_Common_V1_Signature()}
+    get {_signature ?? Ocp_Common_V1_Signature()}
     set {_signature = newValue}
   }
   /// Returns true if `signature` has been explicitly set.
-  public var hasSignature: Bool {return self._signature != nil}
+  public var hasSignature: Bool {self._signature != nil}
   /// Clears the value of `signature`. Subsequent reads from it will return its default value.
   public mutating func clearSignature() {self._signature = nil}
 
@@ -684,11 +684,11 @@ public struct Ocp_Currency_V1_LaunchpadCurrencyReserveState: Sendable {
 
   /// Launchpad currency mint address
   public var mint: Ocp_Common_V1_SolanaAccountId {
-    get {return _mint ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_mint ?? Ocp_Common_V1_SolanaAccountId()}
     set {_mint = newValue}
   }
   /// Returns true if `mint` has been explicitly set.
-  public var hasMint: Bool {return self._mint != nil}
+  public var hasMint: Bool {self._mint != nil}
   /// Clears the value of `mint`. Subsequent reads from it will return its default value.
   public mutating func clearMint() {self._mint = nil}
 
@@ -697,11 +697,11 @@ public struct Ocp_Currency_V1_LaunchpadCurrencyReserveState: Sendable {
 
   /// Timestamp for this data point
   public var timestamp: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_timestamp = newValue}
   }
   /// Returns true if `timestamp` has been explicitly set.
-  public var hasTimestamp: Bool {return self._timestamp != nil}
+  public var hasTimestamp: Bool {self._timestamp != nil}
   /// Clears the value of `timestamp`. Subsequent reads from it will return its default value.
   public mutating func clearTimestamp() {self._timestamp = nil}
 
@@ -720,20 +720,20 @@ public struct Ocp_Currency_V1_VerifiedLaunchpadCurrencyReserveState: Sendable {
   // methods supported on all messages.
 
   public var reserveState: Ocp_Currency_V1_LaunchpadCurrencyReserveState {
-    get {return _reserveState ?? Ocp_Currency_V1_LaunchpadCurrencyReserveState()}
+    get {_reserveState ?? Ocp_Currency_V1_LaunchpadCurrencyReserveState()}
     set {_reserveState = newValue}
   }
   /// Returns true if `reserveState` has been explicitly set.
-  public var hasReserveState: Bool {return self._reserveState != nil}
+  public var hasReserveState: Bool {self._reserveState != nil}
   /// Clears the value of `reserveState`. Subsequent reads from it will return its default value.
   public mutating func clearReserveState() {self._reserveState = nil}
 
   public var signature: Ocp_Common_V1_Signature {
-    get {return _signature ?? Ocp_Common_V1_Signature()}
+    get {_signature ?? Ocp_Common_V1_Signature()}
     set {_signature = newValue}
   }
   /// Returns true if `signature` has been explicitly set.
-  public var hasSignature: Bool {return self._signature != nil}
+  public var hasSignature: Bool {self._signature != nil}
   /// Clears the value of `signature`. Subsequent reads from it will return its default value.
   public mutating func clearSignature() {self._signature = nil}
 
@@ -839,6 +839,114 @@ public struct Ocp_Currency_V1_Color: Sendable {
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
+}
+
+public struct Ocp_Currency_V1_LaunchRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The owner account launching the currency
+  public var owner: Ocp_Common_V1_SolanaAccountId {
+    get {_owner ?? Ocp_Common_V1_SolanaAccountId()}
+    set {_owner = newValue}
+  }
+  /// Returns true if `owner` has been explicitly set.
+  public var hasOwner: Bool {self._owner != nil}
+  /// Clears the value of `owner`. Subsequent reads from it will return its default value.
+  public mutating func clearOwner() {self._owner = nil}
+
+  /// The signature is of serialize(LaunchRequest) without this field set
+  /// using the private key of the owner account. This provides an authentication
+  /// mechanism to the RPC.
+  public var signature: Ocp_Common_V1_Signature {
+    get {_signature ?? Ocp_Common_V1_Signature()}
+    set {_signature = newValue}
+  }
+  /// Returns true if `signature` has been explicitly set.
+  public var hasSignature: Bool {self._signature != nil}
+  /// Clears the value of `signature`. Subsequent reads from it will return its default value.
+  public mutating func clearSignature() {self._signature = nil}
+
+  /// The name of the currency to launch
+  public var name: String = String()
+
+  /// The ticker symbol for the currency. If not provided, a default will be
+  /// generated using the currency name.
+  public var symbol: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _owner: Ocp_Common_V1_SolanaAccountId? = nil
+  fileprivate var _signature: Ocp_Common_V1_Signature? = nil
+}
+
+public struct Ocp_Currency_V1_LaunchResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var result: Ocp_Currency_V1_LaunchResponse.Result = .ok
+
+  /// The mint address of the launched currency on success
+  public var mint: Ocp_Common_V1_SolanaAccountId {
+    get {_mint ?? Ocp_Common_V1_SolanaAccountId()}
+    set {_mint = newValue}
+  }
+  /// Returns true if `mint` has been explicitly set.
+  public var hasMint: Bool {self._mint != nil}
+  /// Clears the value of `mint`. Subsequent reads from it will return its default value.
+  public mutating func clearMint() {self._mint = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Result: SwiftProtobuf.Enum, Swift.CaseIterable {
+    public typealias RawValue = Int
+    case ok // = 0
+
+    /// The launch was denied
+    case denied // = 1
+
+    /// A similar currency already exists
+    case exists // = 2
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .ok
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .ok
+      case 1: self = .denied
+      case 2: self = .exists
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .ok: return 0
+      case .denied: return 1
+      case .exists: return 2
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+    // The compiler won't synthesize support with the UNRECOGNIZED case.
+    public static let allCases: [Ocp_Currency_V1_LaunchResponse.Result] = [
+      .ok,
+      .denied,
+      .exists,
+    ]
+
+  }
+
+  public init() {}
+
+  fileprivate var _mint: Ocp_Common_V1_SolanaAccountId? = nil
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -1957,4 +2065,96 @@ extension Ocp_Currency_V1_Color: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
+}
+
+extension Ocp_Currency_V1_LaunchRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".LaunchRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}owner\0\u{1}signature\0\u{1}name\0\u{1}symbol\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._owner) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._signature) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.name) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.symbol) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._owner {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._signature {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    if !self.name.isEmpty {
+      try visitor.visitSingularStringField(value: self.name, fieldNumber: 3)
+    }
+    if !self.symbol.isEmpty {
+      try visitor.visitSingularStringField(value: self.symbol, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Currency_V1_LaunchRequest, rhs: Ocp_Currency_V1_LaunchRequest) -> Bool {
+    if lhs._owner != rhs._owner {return false}
+    if lhs._signature != rhs._signature {return false}
+    if lhs.name != rhs.name {return false}
+    if lhs.symbol != rhs.symbol {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Currency_V1_LaunchResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".LaunchResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}result\0\u{1}mint\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._mint) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.result != .ok {
+      try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
+    }
+    try { if let v = self._mint {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Currency_V1_LaunchResponse, rhs: Ocp_Currency_V1_LaunchResponse) -> Bool {
+    if lhs.result != rhs.result {return false}
+    if lhs._mint != rhs._mint {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Currency_V1_LaunchResponse.Result: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0OK\0\u{1}DENIED\0\u{1}EXISTS\0")
 }

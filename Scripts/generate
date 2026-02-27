@@ -3,46 +3,60 @@
 # This script requires protoc and Swift protobuf plugins to be installed.
 #
 # Install with Homebrew:
-#    brew install protobuf swift-protobuf grpc-swift
+#    brew install protobuf swift-protobuf
+#
+# Install grpc-swift 1.x plugin (Homebrew only has 2.x):
+#    ./Scripts/install-grpc-swift-1-plugin.sh
 #
 # After installation, you may need to restart your terminal or IDE.
+
+set -euo pipefail
 
 # Add Homebrew paths to ensure protoc and plugins are found
 export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 
+MISSING=0
+
 # Check if protoc is available
 if ! command -v protoc &> /dev/null; then
     echo "Error: protoc is not installed or not in PATH"
-    echo "Install it with: brew install protobuf swift-protobuf grpc-swift"
-    exit 1
+    echo "Install it with: brew install protobuf"
+    MISSING=1
 fi
 
 # Check if Swift protobuf plugin is available
 if ! command -v protoc-gen-swift &> /dev/null; then
     echo "Error: protoc-gen-swift is not installed or not in PATH"
     echo "Install it with: brew install swift-protobuf"
-    exit 1
+    MISSING=1
 fi
 
-# Check if gRPC Swift plugin is available
-# Note: grpc-swift 2.x uses versioned plugin name (protoc-gen-grpc-swift-2)
-GRPC_PLUGIN=""
-if command -v protoc-gen-grpc-swift &> /dev/null; then
-    GRPC_PLUGIN="grpc-swift"
-elif command -v protoc-gen-grpc-swift-2 &> /dev/null; then
-    GRPC_PLUGIN="grpc-swift-2"
-else
+# Check if gRPC Swift 1.x plugin is available
+if ! command -v protoc-gen-grpc-swift &> /dev/null; then
     echo "Error: protoc-gen-grpc-swift is not installed or not in PATH"
-    echo "Install it with: brew install protoc-gen-grpc-swift"
+    echo "Install it with: ./Scripts/install-grpc-swift-1-plugin.sh"
+    MISSING=1
+else
+    GRPC_VERSION=$(protoc-gen-grpc-swift --version 2>&1 || true)
+    if [[ ! "$GRPC_VERSION" =~ ^protoc-gen-grpc-swift\ 1\. ]]; then
+        echo "Error: protoc-gen-grpc-swift must be version 1.x, found: $GRPC_VERSION"
+        echo "Homebrew installs 2.x which is incompatible."
+        echo "Install 1.x with: ./Scripts/install-grpc-swift-1-plugin.sh"
+        MISSING=1
+    fi
+fi
+
+if [[ $MISSING -ne 0 ]]; then
     exit 1
 fi
 
-echo "Using gRPC plugin: $GRPC_PLUGIN"
+GRPC_PLUGIN="grpc-swift"
+echo "Using protoc $(protoc --version), protoc-gen-swift $(protoc-gen-swift --version 2>&1), protoc-gen-grpc-swift $(protoc-gen-grpc-swift --version 2>&1)"
 
 CURRENT_DIR=$(pwd)
-PROTO_DIR="$1"
-OUTPUT_DIR="$2"
-PREFIX="$3"
+PROTO_DIR="${1:-}"
+OUTPUT_DIR="${2:-}"
+PREFIX="${3:-}"
 
 if [ ! -d "$PROTO_DIR" ]
 then

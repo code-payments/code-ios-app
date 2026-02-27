@@ -124,11 +124,11 @@ public struct Flipcash_Activity_V1_Notification: Sendable {
 
   /// The ID of this notification
   public var id: Flipcash_Activity_V1_NotificationId {
-    get {return _id ?? Flipcash_Activity_V1_NotificationId()}
+    get {_id ?? Flipcash_Activity_V1_NotificationId()}
     set {_id = newValue}
   }
   /// Returns true if `id` has been explicitly set.
-  public var hasID: Bool {return self._id != nil}
+  public var hasID: Bool {self._id != nil}
   /// Clears the value of `id`. Subsequent reads from it will return its default value.
   public mutating func clearID() {self._id = nil}
 
@@ -137,21 +137,21 @@ public struct Flipcash_Activity_V1_Notification: Sendable {
 
   /// If a payment applies, the amount that was paid
   public var paymentAmount: Flipcash_Common_V1_CryptoPaymentAmount {
-    get {return _paymentAmount ?? Flipcash_Common_V1_CryptoPaymentAmount()}
+    get {_paymentAmount ?? Flipcash_Common_V1_CryptoPaymentAmount()}
     set {_paymentAmount = newValue}
   }
   /// Returns true if `paymentAmount` has been explicitly set.
-  public var hasPaymentAmount: Bool {return self._paymentAmount != nil}
+  public var hasPaymentAmount: Bool {self._paymentAmount != nil}
   /// Clears the value of `paymentAmount`. Subsequent reads from it will return its default value.
   public mutating func clearPaymentAmount() {self._paymentAmount = nil}
 
   /// The timestamp of this notification
   public var ts: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _ts ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_ts ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_ts = newValue}
   }
   /// Returns true if `ts` has been explicitly set.
-  public var hasTs: Bool {return self._ts != nil}
+  public var hasTs: Bool {self._ts != nil}
   /// Clears the value of `ts`. Subsequent reads from it will return its default value.
   public mutating func clearTs() {self._ts = nil}
 
@@ -294,11 +294,11 @@ public struct Flipcash_Activity_V1_SentCryptoNotificationMetadata: Sendable {
 
   /// The vault of the gift card account that was created for the cash link
   public var vault: Flipcash_Common_V1_PublicKey {
-    get {return _vault ?? Flipcash_Common_V1_PublicKey()}
+    get {_vault ?? Flipcash_Common_V1_PublicKey()}
     set {_vault = newValue}
   }
   /// Returns true if `vault` has been explicitly set.
-  public var hasVault: Bool {return self._vault != nil}
+  public var hasVault: Bool {self._vault != nil}
   /// Clears the value of `vault`. Subsequent reads from it will return its default value.
   public mutating func clearVault() {self._vault = nil}
 

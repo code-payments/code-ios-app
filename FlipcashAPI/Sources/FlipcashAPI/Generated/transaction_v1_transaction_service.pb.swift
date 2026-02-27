@@ -139,31 +139,31 @@ public struct Ocp_Transaction_V1_SubmitIntentRequest: Sendable {
     /// The globally unique client generated intent ID. Use the original intent
     /// ID when operating on actions that mutate the intent.
     public var id: Ocp_Common_V1_IntentId {
-      get {return _id ?? Ocp_Common_V1_IntentId()}
+      get {_id ?? Ocp_Common_V1_IntentId()}
       set {_id = newValue}
     }
     /// Returns true if `id` has been explicitly set.
-    public var hasID: Bool {return self._id != nil}
+    public var hasID: Bool {self._id != nil}
     /// Clears the value of `id`. Subsequent reads from it will return its default value.
     public mutating func clearID() {self._id = nil}
 
     /// The verified owner account public key
     public var owner: Ocp_Common_V1_SolanaAccountId {
-      get {return _owner ?? Ocp_Common_V1_SolanaAccountId()}
+      get {_owner ?? Ocp_Common_V1_SolanaAccountId()}
       set {_owner = newValue}
     }
     /// Returns true if `owner` has been explicitly set.
-    public var hasOwner: Bool {return self._owner != nil}
+    public var hasOwner: Bool {self._owner != nil}
     /// Clears the value of `owner`. Subsequent reads from it will return its default value.
     public mutating func clearOwner() {self._owner = nil}
 
     /// Additional metadata that describes the high-level intention
     public var metadata: Ocp_Transaction_V1_Metadata {
-      get {return _metadata ?? Ocp_Transaction_V1_Metadata()}
+      get {_metadata ?? Ocp_Transaction_V1_Metadata()}
       set {_metadata = newValue}
     }
     /// Returns true if `metadata` has been explicitly set.
-    public var hasMetadata: Bool {return self._metadata != nil}
+    public var hasMetadata: Bool {self._metadata != nil}
     /// Clears the value of `metadata`. Subsequent reads from it will return its default value.
     public mutating func clearMetadata() {self._metadata = nil}
 
@@ -174,11 +174,11 @@ public struct Ocp_Transaction_V1_SubmitIntentRequest: Sendable {
     /// private key of the owner account. This provides an authentication mechanism
     /// to the RPC.
     public var signature: Ocp_Common_V1_Signature {
-      get {return _signature ?? Ocp_Common_V1_Signature()}
+      get {_signature ?? Ocp_Common_V1_Signature()}
       set {_signature = newValue}
     }
     /// Returns true if `signature` has been explicitly set.
-    public var hasSignature: Bool {return self._signature != nil}
+    public var hasSignature: Bool {self._signature != nil}
     /// Clears the value of `signature`. Subsequent reads from it will return its default value.
     public mutating func clearSignature() {self._signature = nil}
 
@@ -386,22 +386,22 @@ public struct Ocp_Transaction_V1_GetIntentMetadataRequest: Sendable {
 
   /// The intent ID to query
   public var intentID: Ocp_Common_V1_IntentId {
-    get {return _intentID ?? Ocp_Common_V1_IntentId()}
+    get {_intentID ?? Ocp_Common_V1_IntentId()}
     set {_intentID = newValue}
   }
   /// Returns true if `intentID` has been explicitly set.
-  public var hasIntentID: Bool {return self._intentID != nil}
+  public var hasIntentID: Bool {self._intentID != nil}
   /// Clears the value of `intentID`. Subsequent reads from it will return its default value.
   public mutating func clearIntentID() {self._intentID = nil}
 
   /// The verified owner account public key when not signing with the rendezvous
   /// key. Only owner accounts involved in the intent can access the metadata.
   public var owner: Ocp_Common_V1_SolanaAccountId {
-    get {return _owner ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_owner ?? Ocp_Common_V1_SolanaAccountId()}
     set {_owner = newValue}
   }
   /// Returns true if `owner` has been explicitly set.
-  public var hasOwner: Bool {return self._owner != nil}
+  public var hasOwner: Bool {self._owner != nil}
   /// Clears the value of `owner`. Subsequent reads from it will return its default value.
   public mutating func clearOwner() {self._owner = nil}
 
@@ -409,11 +409,11 @@ public struct Ocp_Transaction_V1_GetIntentMetadataRequest: Sendable {
   /// using the private key of the rendezvous or owner account. This provides an
   /// authentication mechanism to the RPC.
   public var signature: Ocp_Common_V1_Signature {
-    get {return _signature ?? Ocp_Common_V1_Signature()}
+    get {_signature ?? Ocp_Common_V1_Signature()}
     set {_signature = newValue}
   }
   /// Returns true if `signature` has been explicitly set.
-  public var hasSignature: Bool {return self._signature != nil}
+  public var hasSignature: Bool {self._signature != nil}
   /// Clears the value of `signature`. Subsequent reads from it will return its default value.
   public mutating func clearSignature() {self._signature = nil}
 
@@ -434,11 +434,11 @@ public struct Ocp_Transaction_V1_GetIntentMetadataResponse: Sendable {
   public var result: Ocp_Transaction_V1_GetIntentMetadataResponse.Result = .ok
 
   public var metadata: Ocp_Transaction_V1_Metadata {
-    get {return _metadata ?? Ocp_Transaction_V1_Metadata()}
+    get {_metadata ?? Ocp_Transaction_V1_Metadata()}
     set {_metadata = newValue}
   }
   /// Returns true if `metadata` has been explicitly set.
-  public var hasMetadata: Bool {return self._metadata != nil}
+  public var hasMetadata: Bool {self._metadata != nil}
   /// Clears the value of `metadata`. Subsequent reads from it will return its default value.
   public mutating func clearMetadata() {self._metadata = nil}
 
@@ -491,11 +491,11 @@ public struct Ocp_Transaction_V1_GetLimitsRequest: Sendable {
   /// The owner account whose limits will be calculated. Any other owner accounts
   /// linked with the same identity of the owner will also be applied.
   public var owner: Ocp_Common_V1_SolanaAccountId {
-    get {return _owner ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_owner ?? Ocp_Common_V1_SolanaAccountId()}
     set {_owner = newValue}
   }
   /// Returns true if `owner` has been explicitly set.
-  public var hasOwner: Bool {return self._owner != nil}
+  public var hasOwner: Bool {self._owner != nil}
   /// Clears the value of `owner`. Subsequent reads from it will return its default value.
   public mutating func clearOwner() {self._owner = nil}
 
@@ -503,11 +503,11 @@ public struct Ocp_Transaction_V1_GetLimitsRequest: Sendable {
   /// using the private key of the owner account. This provides an authentication
   /// mechanism to the RPC.
   public var signature: Ocp_Common_V1_Signature {
-    get {return _signature ?? Ocp_Common_V1_Signature()}
+    get {_signature ?? Ocp_Common_V1_Signature()}
     set {_signature = newValue}
   }
   /// Returns true if `signature` has been explicitly set.
-  public var hasSignature: Bool {return self._signature != nil}
+  public var hasSignature: Bool {self._signature != nil}
   /// Clears the value of `signature`. Subsequent reads from it will return its default value.
   public mutating func clearSignature() {self._signature = nil}
 
@@ -515,11 +515,11 @@ public struct Ocp_Transaction_V1_GetLimitsRequest: Sendable {
   /// limit calculation. Clients should set this to the start of the current day in
   /// the client's current time zone (because server has no knowledge of this atm).
   public var consumedSince: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _consumedSince ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_consumedSince ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_consumedSince = newValue}
   }
   /// Returns true if `consumedSince` has been explicitly set.
-  public var hasConsumedSince: Bool {return self._consumedSince != nil}
+  public var hasConsumedSince: Bool {self._consumedSince != nil}
   /// Clears the value of `consumedSince`. Subsequent reads from it will return its default value.
   public mutating func clearConsumedSince() {self._consumedSince = nil}
 
@@ -588,21 +588,21 @@ public struct Ocp_Transaction_V1_CanWithdrawToAccountRequest: Sendable {
   /// The destination account attempted to be withdrawn to. Can be an owner or
   /// token account.
   public var account: Ocp_Common_V1_SolanaAccountId {
-    get {return _account ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_account ?? Ocp_Common_V1_SolanaAccountId()}
     set {_account = newValue}
   }
   /// Returns true if `account` has been explicitly set.
-  public var hasAccount: Bool {return self._account != nil}
+  public var hasAccount: Bool {self._account != nil}
   /// Clears the value of `account`. Subsequent reads from it will return its default value.
   public mutating func clearAccount() {self._account = nil}
 
   /// The mint that the withdraw will be operating against
   public var mint: Ocp_Common_V1_SolanaAccountId {
-    get {return _mint ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_mint ?? Ocp_Common_V1_SolanaAccountId()}
     set {_mint = newValue}
   }
   /// Returns true if `mint` has been explicitly set.
-  public var hasMint: Bool {return self._mint != nil}
+  public var hasMint: Bool {self._mint != nil}
   /// Clears the value of `mint`. Subsequent reads from it will return its default value.
   public mutating func clearMint() {self._mint = nil}
 
@@ -645,11 +645,11 @@ public struct Ocp_Transaction_V1_CanWithdrawToAccountResponse: Sendable {
   ///
   /// Note: The fee is always paid in the target mint.
   public var feeAmount: Ocp_Transaction_V1_ExchangeDataWithoutRate {
-    get {return _feeAmount ?? Ocp_Transaction_V1_ExchangeDataWithoutRate()}
+    get {_feeAmount ?? Ocp_Transaction_V1_ExchangeDataWithoutRate()}
     set {_feeAmount = newValue}
   }
   /// Returns true if `feeAmount` has been explicitly set.
-  public var hasFeeAmount: Bool {return self._feeAmount != nil}
+  public var hasFeeAmount: Bool {self._feeAmount != nil}
   /// Clears the value of `feeAmount`. Subsequent reads from it will return its default value.
   public mutating func clearFeeAmount() {self._feeAmount = nil}
 
@@ -714,11 +714,11 @@ public struct Ocp_Transaction_V1_AirdropRequest: Sendable {
 
   /// The owner account to airdrop core mint tokens to
   public var owner: Ocp_Common_V1_SolanaAccountId {
-    get {return _owner ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_owner ?? Ocp_Common_V1_SolanaAccountId()}
     set {_owner = newValue}
   }
   /// Returns true if `owner` has been explicitly set.
-  public var hasOwner: Bool {return self._owner != nil}
+  public var hasOwner: Bool {self._owner != nil}
   /// Clears the value of `owner`. Subsequent reads from it will return its default value.
   public mutating func clearOwner() {self._owner = nil}
 
@@ -726,11 +726,11 @@ public struct Ocp_Transaction_V1_AirdropRequest: Sendable {
   /// using the private key of the owner account. This provides an authentication
   /// mechanism to the RPC.
   public var signature: Ocp_Common_V1_Signature {
-    get {return _signature ?? Ocp_Common_V1_Signature()}
+    get {_signature ?? Ocp_Common_V1_Signature()}
     set {_signature = newValue}
   }
   /// Returns true if `signature` has been explicitly set.
-  public var hasSignature: Bool {return self._signature != nil}
+  public var hasSignature: Bool {self._signature != nil}
   /// Clears the value of `signature`. Subsequent reads from it will return its default value.
   public mutating func clearSignature() {self._signature = nil}
 
@@ -751,11 +751,11 @@ public struct Ocp_Transaction_V1_AirdropResponse: Sendable {
 
   /// Exchange data for the amount of core mint tokens airdropped when successful
   public var exchangeData: Ocp_Transaction_V1_ExchangeData {
-    get {return _exchangeData ?? Ocp_Transaction_V1_ExchangeData()}
+    get {_exchangeData ?? Ocp_Transaction_V1_ExchangeData()}
     set {_exchangeData = newValue}
   }
   /// Returns true if `exchangeData` has been explicitly set.
-  public var hasExchangeData: Bool {return self._exchangeData != nil}
+  public var hasExchangeData: Bool {self._exchangeData != nil}
   /// Clears the value of `exchangeData`. Subsequent reads from it will return its default value.
   public mutating func clearExchangeData() {self._exchangeData = nil}
 
@@ -815,21 +815,21 @@ public struct Ocp_Transaction_V1_VoidGiftCardRequest: Sendable {
 
   /// The owner account that issued the gift card account
   public var owner: Ocp_Common_V1_SolanaAccountId {
-    get {return _owner ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_owner ?? Ocp_Common_V1_SolanaAccountId()}
     set {_owner = newValue}
   }
   /// Returns true if `owner` has been explicitly set.
-  public var hasOwner: Bool {return self._owner != nil}
+  public var hasOwner: Bool {self._owner != nil}
   /// Clears the value of `owner`. Subsequent reads from it will return its default value.
   public mutating func clearOwner() {self._owner = nil}
 
   /// The vault of the gift card account to void
   public var giftCardVault: Ocp_Common_V1_SolanaAccountId {
-    get {return _giftCardVault ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_giftCardVault ?? Ocp_Common_V1_SolanaAccountId()}
     set {_giftCardVault = newValue}
   }
   /// Returns true if `giftCardVault` has been explicitly set.
-  public var hasGiftCardVault: Bool {return self._giftCardVault != nil}
+  public var hasGiftCardVault: Bool {self._giftCardVault != nil}
   /// Clears the value of `giftCardVault`. Subsequent reads from it will return its default value.
   public mutating func clearGiftCardVault() {self._giftCardVault = nil}
 
@@ -837,11 +837,11 @@ public struct Ocp_Transaction_V1_VoidGiftCardRequest: Sendable {
   /// the private key of the owner account. This provides an authentication mechanism
   /// to the RPC.
   public var signature: Ocp_Common_V1_Signature {
-    get {return _signature ?? Ocp_Common_V1_Signature()}
+    get {_signature ?? Ocp_Common_V1_Signature()}
     set {_signature = newValue}
   }
   /// Returns true if `signature` has been explicitly set.
-  public var hasSignature: Bool {return self._signature != nil}
+  public var hasSignature: Bool {self._signature != nil}
   /// Clears the value of `signature`. Subsequent reads from it will return its default value.
   public mutating func clearSignature() {self._signature = nil}
 
@@ -962,11 +962,11 @@ public struct Ocp_Transaction_V1_StatefulSwapRequest: Sendable {
 
     /// The owner account starting the swap
     public var owner: Ocp_Common_V1_SolanaAccountId {
-      get {return _owner ?? Ocp_Common_V1_SolanaAccountId()}
+      get {_owner ?? Ocp_Common_V1_SolanaAccountId()}
       set {_owner = newValue}
     }
     /// Returns true if `owner` has been explicitly set.
-    public var hasOwner: Bool {return self._owner != nil}
+    public var hasOwner: Bool {self._owner != nil}
     /// Clears the value of `owner`. Subsequent reads from it will return its default value.
     public mutating func clearOwner() {self._owner = nil}
 
@@ -974,21 +974,21 @@ public struct Ocp_Transaction_V1_StatefulSwapRequest: Sendable {
     ///
     /// For Currency Creator program buy/sell flows, this should be a random one-time use account.
     public var swapAuthority: Ocp_Common_V1_SolanaAccountId {
-      get {return _swapAuthority ?? Ocp_Common_V1_SolanaAccountId()}
+      get {_swapAuthority ?? Ocp_Common_V1_SolanaAccountId()}
       set {_swapAuthority = newValue}
     }
     /// Returns true if `swapAuthority` has been explicitly set.
-    public var hasSwapAuthority: Bool {return self._swapAuthority != nil}
+    public var hasSwapAuthority: Bool {self._swapAuthority != nil}
     /// Clears the value of `swapAuthority`. Subsequent reads from it will return its default value.
     public mutating func clearSwapAuthority() {self._swapAuthority = nil}
 
     /// The signature of serialize(VerifiedSwapMetadata) for the swap being initiated.
     public var proofSignature: Ocp_Common_V1_Signature {
-      get {return _proofSignature ?? Ocp_Common_V1_Signature()}
+      get {_proofSignature ?? Ocp_Common_V1_Signature()}
       set {_proofSignature = newValue}
     }
     /// Returns true if `proofSignature` has been explicitly set.
-    public var hasProofSignature: Bool {return self._proofSignature != nil}
+    public var hasProofSignature: Bool {self._proofSignature != nil}
     /// Clears the value of `proofSignature`. Subsequent reads from it will return its default value.
     public mutating func clearProofSignature() {self._proofSignature = nil}
 
@@ -996,11 +996,11 @@ public struct Ocp_Transaction_V1_StatefulSwapRequest: Sendable {
     /// set using the private key of the owner account. This provides an authentication
     /// mechanism to the RPC.
     public var signature: Ocp_Common_V1_Signature {
-      get {return _signature ?? Ocp_Common_V1_Signature()}
+      get {_signature ?? Ocp_Common_V1_Signature()}
       set {_signature = newValue}
     }
     /// Returns true if `signature` has been explicitly set.
-    public var hasSignature: Bool {return self._signature != nil}
+    public var hasSignature: Bool {self._signature != nil}
     /// Clears the value of `signature`. Subsequent reads from it will return its default value.
     public mutating func clearSignature() {self._signature = nil}
 
@@ -1019,31 +1019,31 @@ public struct Ocp_Transaction_V1_StatefulSwapRequest: Sendable {
 
       /// The unique ID for this swap randomly generated on client
       public var id: Ocp_Common_V1_SwapId {
-        get {return _id ?? Ocp_Common_V1_SwapId()}
+        get {_id ?? Ocp_Common_V1_SwapId()}
         set {_id = newValue}
       }
       /// Returns true if `id` has been explicitly set.
-      public var hasID: Bool {return self._id != nil}
+      public var hasID: Bool {self._id != nil}
       /// Clears the value of `id`. Subsequent reads from it will return its default value.
       public mutating func clearID() {self._id = nil}
 
       /// The source mint that will be swapped from
       public var fromMint: Ocp_Common_V1_SolanaAccountId {
-        get {return _fromMint ?? Ocp_Common_V1_SolanaAccountId()}
+        get {_fromMint ?? Ocp_Common_V1_SolanaAccountId()}
         set {_fromMint = newValue}
       }
       /// Returns true if `fromMint` has been explicitly set.
-      public var hasFromMint: Bool {return self._fromMint != nil}
+      public var hasFromMint: Bool {self._fromMint != nil}
       /// Clears the value of `fromMint`. Subsequent reads from it will return its default value.
       public mutating func clearFromMint() {self._fromMint = nil}
 
       /// The destination mint that will be swapped to
       public var toMint: Ocp_Common_V1_SolanaAccountId {
-        get {return _toMint ?? Ocp_Common_V1_SolanaAccountId()}
+        get {_toMint ?? Ocp_Common_V1_SolanaAccountId()}
         set {_toMint = newValue}
       }
       /// Returns true if `toMint` has been explicitly set.
-      public var hasToMint: Bool {return self._toMint != nil}
+      public var hasToMint: Bool {self._toMint != nil}
       /// Clears the value of `toMint`. Subsequent reads from it will return its default value.
       public mutating func clearToMint() {self._toMint = nil}
 
@@ -1203,31 +1203,31 @@ public struct Ocp_Transaction_V1_StatefulSwapResponse: Sendable {
 
       /// Subisdizer account that will be paying for the swap
       public var payer: Ocp_Common_V1_SolanaAccountId {
-        get {return _payer ?? Ocp_Common_V1_SolanaAccountId()}
+        get {_payer ?? Ocp_Common_V1_SolanaAccountId()}
         set {_payer = newValue}
       }
       /// Returns true if `payer` has been explicitly set.
-      public var hasPayer: Bool {return self._payer != nil}
+      public var hasPayer: Bool {self._payer != nil}
       /// Clears the value of `payer`. Subsequent reads from it will return its default value.
       public mutating func clearPayer() {self._payer = nil}
 
       /// The nonce that is reserved for use in the swap transaction
       public var nonce: Ocp_Common_V1_SolanaAccountId {
-        get {return _nonce ?? Ocp_Common_V1_SolanaAccountId()}
+        get {_nonce ?? Ocp_Common_V1_SolanaAccountId()}
         set {_nonce = newValue}
       }
       /// Returns true if `nonce` has been explicitly set.
-      public var hasNonce: Bool {return self._nonce != nil}
+      public var hasNonce: Bool {self._nonce != nil}
       /// Clears the value of `nonce`. Subsequent reads from it will return its default value.
       public mutating func clearNonce() {self._nonce = nil}
 
       /// The blockhash that is reserved for use in the swap transaction
       public var blockhash: Ocp_Common_V1_Blockhash {
-        get {return _blockhash ?? Ocp_Common_V1_Blockhash()}
+        get {_blockhash ?? Ocp_Common_V1_Blockhash()}
         set {_blockhash = newValue}
       }
       /// Returns true if `blockhash` has been explicitly set.
-      public var hasBlockhash: Bool {return self._blockhash != nil}
+      public var hasBlockhash: Bool {self._blockhash != nil}
       /// Clears the value of `blockhash`. Subsequent reads from it will return its default value.
       public mutating func clearBlockhash() {self._blockhash = nil}
 
@@ -1248,11 +1248,11 @@ public struct Ocp_Transaction_V1_StatefulSwapResponse: Sendable {
 
       /// The memory account where the destination virtual Timelock account lives
       public var memoryAccount: Ocp_Common_V1_SolanaAccountId {
-        get {return _memoryAccount ?? Ocp_Common_V1_SolanaAccountId()}
+        get {_memoryAccount ?? Ocp_Common_V1_SolanaAccountId()}
         set {_memoryAccount = newValue}
       }
       /// Returns true if `memoryAccount` has been explicitly set.
-      public var hasMemoryAccount: Bool {return self._memoryAccount != nil}
+      public var hasMemoryAccount: Bool {self._memoryAccount != nil}
       /// Clears the value of `memoryAccount`. Subsequent reads from it will return its default value.
       public mutating func clearMemoryAccount() {self._memoryAccount = nil}
 
@@ -1381,20 +1381,20 @@ public struct Ocp_Transaction_V1_GetSwapRequest: Sendable {
   // methods supported on all messages.
 
   public var id: Ocp_Common_V1_SwapId {
-    get {return _id ?? Ocp_Common_V1_SwapId()}
+    get {_id ?? Ocp_Common_V1_SwapId()}
     set {_id = newValue}
   }
   /// Returns true if `id` has been explicitly set.
-  public var hasID: Bool {return self._id != nil}
+  public var hasID: Bool {self._id != nil}
   /// Clears the value of `id`. Subsequent reads from it will return its default value.
   public mutating func clearID() {self._id = nil}
 
   public var owner: Ocp_Common_V1_SolanaAccountId {
-    get {return _owner ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_owner ?? Ocp_Common_V1_SolanaAccountId()}
     set {_owner = newValue}
   }
   /// Returns true if `owner` has been explicitly set.
-  public var hasOwner: Bool {return self._owner != nil}
+  public var hasOwner: Bool {self._owner != nil}
   /// Clears the value of `owner`. Subsequent reads from it will return its default value.
   public mutating func clearOwner() {self._owner = nil}
 
@@ -1402,11 +1402,11 @@ public struct Ocp_Transaction_V1_GetSwapRequest: Sendable {
   /// private key of the owner account. This provides an authentication mechanism
   /// to the RPC.
   public var signature: Ocp_Common_V1_Signature {
-    get {return _signature ?? Ocp_Common_V1_Signature()}
+    get {_signature ?? Ocp_Common_V1_Signature()}
     set {_signature = newValue}
   }
   /// Returns true if `signature` has been explicitly set.
-  public var hasSignature: Bool {return self._signature != nil}
+  public var hasSignature: Bool {self._signature != nil}
   /// Clears the value of `signature`. Subsequent reads from it will return its default value.
   public mutating func clearSignature() {self._signature = nil}
 
@@ -1427,11 +1427,11 @@ public struct Ocp_Transaction_V1_GetSwapResponse: Sendable {
   public var result: Ocp_Transaction_V1_GetSwapResponse.Result = .ok
 
   public var swap: Ocp_Transaction_V1_SwapMetadata {
-    get {return _swap ?? Ocp_Transaction_V1_SwapMetadata()}
+    get {_swap ?? Ocp_Transaction_V1_SwapMetadata()}
     set {_swap = newValue}
   }
   /// Returns true if `swap` has been explicitly set.
-  public var hasSwap: Bool {return self._swap != nil}
+  public var hasSwap: Bool {self._swap != nil}
   /// Clears the value of `swap`. Subsequent reads from it will return its default value.
   public mutating func clearSwap() {self._swap = nil}
 
@@ -1486,11 +1486,11 @@ public struct Ocp_Transaction_V1_GetPendingSwapsRequest: Sendable {
   // methods supported on all messages.
 
   public var owner: Ocp_Common_V1_SolanaAccountId {
-    get {return _owner ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_owner ?? Ocp_Common_V1_SolanaAccountId()}
     set {_owner = newValue}
   }
   /// Returns true if `owner` has been explicitly set.
-  public var hasOwner: Bool {return self._owner != nil}
+  public var hasOwner: Bool {self._owner != nil}
   /// Clears the value of `owner`. Subsequent reads from it will return its default value.
   public mutating func clearOwner() {self._owner = nil}
 
@@ -1498,11 +1498,11 @@ public struct Ocp_Transaction_V1_GetPendingSwapsRequest: Sendable {
   /// using the private key of the owner account. This provides an authentication
   /// mechanism to the RPC.
   public var signature: Ocp_Common_V1_Signature {
-    get {return _signature ?? Ocp_Common_V1_Signature()}
+    get {_signature ?? Ocp_Common_V1_Signature()}
     set {_signature = newValue}
   }
   /// Returns true if `signature` has been explicitly set.
-  public var hasSignature: Bool {return self._signature != nil}
+  public var hasSignature: Bool {self._signature != nil}
   /// Clears the value of `signature`. Subsequent reads from it will return its default value.
   public mutating func clearSignature() {self._signature = nil}
 
@@ -1635,11 +1635,11 @@ public struct Ocp_Transaction_V1_OpenAccountsMetadata: Sendable {
 
   /// The mint that this action will be operating against
   public var mint: Ocp_Common_V1_SolanaAccountId {
-    get {return _mint ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_mint ?? Ocp_Common_V1_SolanaAccountId()}
     set {_mint = newValue}
   }
   /// Returns true if `mint` has been explicitly set.
-  public var hasMint: Bool {return self._mint != nil}
+  public var hasMint: Bool {self._mint != nil}
   /// Clears the value of `mint`. Subsequent reads from it will return its default value.
   public mutating func clearMint() {self._mint = nil}
 
@@ -1717,32 +1717,32 @@ public struct Ocp_Transaction_V1_SendPublicPaymentMetadata: @unchecked Sendable 
   /// The source account where funds will be sent from. Currently, this is always
   /// the user's primary account.
   public var source: Ocp_Common_V1_SolanaAccountId {
-    get {return _storage._source ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_storage._source ?? Ocp_Common_V1_SolanaAccountId()}
     set {_uniqueStorage()._source = newValue}
   }
   /// Returns true if `source` has been explicitly set.
-  public var hasSource: Bool {return _storage._source != nil}
+  public var hasSource: Bool {_storage._source != nil}
   /// Clears the value of `source`. Subsequent reads from it will return its default value.
   public mutating func clearSource() {_uniqueStorage()._source = nil}
 
   /// The destination token account to send funds to.
   public var destination: Ocp_Common_V1_SolanaAccountId {
-    get {return _storage._destination ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_storage._destination ?? Ocp_Common_V1_SolanaAccountId()}
     set {_uniqueStorage()._destination = newValue}
   }
   /// Returns true if `destination` has been explicitly set.
-  public var hasDestination: Bool {return _storage._destination != nil}
+  public var hasDestination: Bool {_storage._destination != nil}
   /// Clears the value of `destination`. Subsequent reads from it will return its default value.
   public mutating func clearDestination() {_uniqueStorage()._destination = nil}
 
   /// Destination owner account, which is required for withdrawals that intend
   /// to create an ATA. Every other variation of this intent can omit this field.
   public var destinationOwner: Ocp_Common_V1_SolanaAccountId {
-    get {return _storage._destinationOwner ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_storage._destinationOwner ?? Ocp_Common_V1_SolanaAccountId()}
     set {_uniqueStorage()._destinationOwner = newValue}
   }
   /// Returns true if `destinationOwner` has been explicitly set.
-  public var hasDestinationOwner: Bool {return _storage._destinationOwner != nil}
+  public var hasDestinationOwner: Bool {_storage._destinationOwner != nil}
   /// Clears the value of `destinationOwner`. Subsequent reads from it will return its default value.
   public mutating func clearDestinationOwner() {_uniqueStorage()._destinationOwner = nil}
 
@@ -1772,23 +1772,23 @@ public struct Ocp_Transaction_V1_SendPublicPaymentMetadata: @unchecked Sendable 
 
   /// Is the payment a withdrawal?
   public var isWithdrawal: Bool {
-    get {return _storage._isWithdrawal}
+    get {_storage._isWithdrawal}
     set {_uniqueStorage()._isWithdrawal = newValue}
   }
 
   /// Is the payment going to a new gift card? Note is_withdrawal must be false.
   public var isRemoteSend: Bool {
-    get {return _storage._isRemoteSend}
+    get {_storage._isRemoteSend}
     set {_uniqueStorage()._isRemoteSend = newValue}
   }
 
   /// The mint that this intent will be operating against
   public var mint: Ocp_Common_V1_SolanaAccountId {
-    get {return _storage._mint ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_storage._mint ?? Ocp_Common_V1_SolanaAccountId()}
     set {_uniqueStorage()._mint = newValue}
   }
   /// Returns true if `mint` has been explicitly set.
-  public var hasMint: Bool {return _storage._mint != nil}
+  public var hasMint: Bool {_storage._mint != nil}
   /// Clears the value of `mint`. Subsequent reads from it will return its default value.
   public mutating func clearMint() {_uniqueStorage()._mint = nil}
 
@@ -1821,11 +1821,11 @@ public struct Ocp_Transaction_V1_ReceivePaymentsPubliclyMetadata: Sendable {
 
   /// The remote send gift card to receive funds from
   public var source: Ocp_Common_V1_SolanaAccountId {
-    get {return _source ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_source ?? Ocp_Common_V1_SolanaAccountId()}
     set {_source = newValue}
   }
   /// Returns true if `source` has been explicitly set.
-  public var hasSource: Bool {return self._source != nil}
+  public var hasSource: Bool {self._source != nil}
   /// Clears the value of `source`. Subsequent reads from it will return its default value.
   public mutating func clearSource() {self._source = nil}
 
@@ -1840,21 +1840,21 @@ public struct Ocp_Transaction_V1_ReceivePaymentsPubliclyMetadata: Sendable {
   /// part of creating the gift card account. This is purely a server-provided value.
   /// SubmitIntent will disallow this being set.
   public var exchangeData: Ocp_Transaction_V1_ExchangeData {
-    get {return _exchangeData ?? Ocp_Transaction_V1_ExchangeData()}
+    get {_exchangeData ?? Ocp_Transaction_V1_ExchangeData()}
     set {_exchangeData = newValue}
   }
   /// Returns true if `exchangeData` has been explicitly set.
-  public var hasExchangeData: Bool {return self._exchangeData != nil}
+  public var hasExchangeData: Bool {self._exchangeData != nil}
   /// Clears the value of `exchangeData`. Subsequent reads from it will return its default value.
   public mutating func clearExchangeData() {self._exchangeData = nil}
 
   /// The mint that this intent will be operating against
   public var mint: Ocp_Common_V1_SolanaAccountId {
-    get {return _mint ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_mint ?? Ocp_Common_V1_SolanaAccountId()}
     set {_mint = newValue}
   }
   /// Returns true if `mint` has been explicitly set.
-  public var hasMint: Bool {return self._mint != nil}
+  public var hasMint: Bool {self._mint != nil}
   /// Clears the value of `mint`. Subsequent reads from it will return its default value.
   public mutating func clearMint() {self._mint = nil}
 
@@ -1885,11 +1885,11 @@ public struct Ocp_Transaction_V1_PublicDistributionMetadata: Sendable {
 
   /// The pool account to distribute from
   public var source: Ocp_Common_V1_SolanaAccountId {
-    get {return _source ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_source ?? Ocp_Common_V1_SolanaAccountId()}
     set {_source = newValue}
   }
   /// Returns true if `source` has been explicitly set.
-  public var hasSource: Bool {return self._source != nil}
+  public var hasSource: Bool {self._source != nil}
   /// Clears the value of `source`. Subsequent reads from it will return its default value.
   public mutating func clearSource() {self._source = nil}
 
@@ -1898,11 +1898,11 @@ public struct Ocp_Transaction_V1_PublicDistributionMetadata: Sendable {
 
   /// The mint that this intent will be operating against
   public var mint: Ocp_Common_V1_SolanaAccountId {
-    get {return _mint ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_mint ?? Ocp_Common_V1_SolanaAccountId()}
     set {_mint = newValue}
   }
   /// Returns true if `mint` has been explicitly set.
-  public var hasMint: Bool {return self._mint != nil}
+  public var hasMint: Bool {self._mint != nil}
   /// Clears the value of `mint`. Subsequent reads from it will return its default value.
   public mutating func clearMint() {self._mint = nil}
 
@@ -1916,11 +1916,11 @@ public struct Ocp_Transaction_V1_PublicDistributionMetadata: Sendable {
     /// Destination where a portion of the pool's funds will be distributed.
     /// This must always be a primary account.
     public var destination: Ocp_Common_V1_SolanaAccountId {
-      get {return _destination ?? Ocp_Common_V1_SolanaAccountId()}
+      get {_destination ?? Ocp_Common_V1_SolanaAccountId()}
       set {_destination = newValue}
     }
     /// Returns true if `destination` has been explicitly set.
-    public var hasDestination: Bool {return self._destination != nil}
+    public var hasDestination: Bool {self._destination != nil}
     /// Clears the value of `destination`. Subsequent reads from it will return its default value.
     public mutating func clearDestination() {self._destination = nil}
 
@@ -2014,11 +2014,11 @@ public struct Ocp_Transaction_V1_OpenAccountAction: Sendable {
   /// the verified parent owner account public key. All other account types should
   /// set this to the authority value.
   public var owner: Ocp_Common_V1_SolanaAccountId {
-    get {return _owner ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_owner ?? Ocp_Common_V1_SolanaAccountId()}
     set {_owner = newValue}
   }
   /// Returns true if `owner` has been explicitly set.
-  public var hasOwner: Bool {return self._owner != nil}
+  public var hasOwner: Bool {self._owner != nil}
   /// Clears the value of `owner`. Subsequent reads from it will return its default value.
   public mutating func clearOwner() {self._owner = nil}
 
@@ -2027,21 +2027,21 @@ public struct Ocp_Transaction_V1_OpenAccountAction: Sendable {
 
   /// The public key of the private key that has authority over the opened token account
   public var authority: Ocp_Common_V1_SolanaAccountId {
-    get {return _authority ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_authority ?? Ocp_Common_V1_SolanaAccountId()}
     set {_authority = newValue}
   }
   /// Returns true if `authority` has been explicitly set.
-  public var hasAuthority: Bool {return self._authority != nil}
+  public var hasAuthority: Bool {self._authority != nil}
   /// Clears the value of `authority`. Subsequent reads from it will return its default value.
   public mutating func clearAuthority() {self._authority = nil}
 
   /// The token account being opened
   public var token: Ocp_Common_V1_SolanaAccountId {
-    get {return _token ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_token ?? Ocp_Common_V1_SolanaAccountId()}
     set {_token = newValue}
   }
   /// Returns true if `token` has been explicitly set.
-  public var hasToken: Bool {return self._token != nil}
+  public var hasToken: Bool {self._token != nil}
   /// Clears the value of `token`. Subsequent reads from it will return its default value.
   public mutating func clearToken() {self._token = nil}
 
@@ -2049,21 +2049,21 @@ public struct Ocp_Transaction_V1_OpenAccountAction: Sendable {
   /// using the private key of the authority account. This provides a proof
   /// of authorization to link authority to owner.
   public var authoritySignature: Ocp_Common_V1_Signature {
-    get {return _authoritySignature ?? Ocp_Common_V1_Signature()}
+    get {_authoritySignature ?? Ocp_Common_V1_Signature()}
     set {_authoritySignature = newValue}
   }
   /// Returns true if `authoritySignature` has been explicitly set.
-  public var hasAuthoritySignature: Bool {return self._authoritySignature != nil}
+  public var hasAuthoritySignature: Bool {self._authoritySignature != nil}
   /// Clears the value of `authoritySignature`. Subsequent reads from it will return its default value.
   public mutating func clearAuthoritySignature() {self._authoritySignature = nil}
 
   /// The mint that this action will be operating against
   public var mint: Ocp_Common_V1_SolanaAccountId {
-    get {return _mint ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_mint ?? Ocp_Common_V1_SolanaAccountId()}
     set {_mint = newValue}
   }
   /// Returns true if `mint` has been explicitly set.
-  public var hasMint: Bool {return self._mint != nil}
+  public var hasMint: Bool {self._mint != nil}
   /// Clears the value of `mint`. Subsequent reads from it will return its default value.
   public mutating func clearMint() {self._mint = nil}
 
@@ -2086,31 +2086,31 @@ public struct Ocp_Transaction_V1_NoPrivacyTransferAction: Sendable {
 
   /// The public key of the private key that has authority over source
   public var authority: Ocp_Common_V1_SolanaAccountId {
-    get {return _authority ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_authority ?? Ocp_Common_V1_SolanaAccountId()}
     set {_authority = newValue}
   }
   /// Returns true if `authority` has been explicitly set.
-  public var hasAuthority: Bool {return self._authority != nil}
+  public var hasAuthority: Bool {self._authority != nil}
   /// Clears the value of `authority`. Subsequent reads from it will return its default value.
   public mutating func clearAuthority() {self._authority = nil}
 
   /// The source account where funds are transferred from
   public var source: Ocp_Common_V1_SolanaAccountId {
-    get {return _source ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_source ?? Ocp_Common_V1_SolanaAccountId()}
     set {_source = newValue}
   }
   /// Returns true if `source` has been explicitly set.
-  public var hasSource: Bool {return self._source != nil}
+  public var hasSource: Bool {self._source != nil}
   /// Clears the value of `source`. Subsequent reads from it will return its default value.
   public mutating func clearSource() {self._source = nil}
 
   /// The destination account where funds are transferred to
   public var destination: Ocp_Common_V1_SolanaAccountId {
-    get {return _destination ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_destination ?? Ocp_Common_V1_SolanaAccountId()}
     set {_destination = newValue}
   }
   /// Returns true if `destination` has been explicitly set.
-  public var hasDestination: Bool {return self._destination != nil}
+  public var hasDestination: Bool {self._destination != nil}
   /// Clears the value of `destination`. Subsequent reads from it will return its default value.
   public mutating func clearDestination() {self._destination = nil}
 
@@ -2119,11 +2119,11 @@ public struct Ocp_Transaction_V1_NoPrivacyTransferAction: Sendable {
 
   /// The mint that this action will be operating against
   public var mint: Ocp_Common_V1_SolanaAccountId {
-    get {return _mint ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_mint ?? Ocp_Common_V1_SolanaAccountId()}
     set {_mint = newValue}
   }
   /// Returns true if `mint` has been explicitly set.
-  public var hasMint: Bool {return self._mint != nil}
+  public var hasMint: Bool {self._mint != nil}
   /// Clears the value of `mint`. Subsequent reads from it will return its default value.
   public mutating func clearMint() {self._mint = nil}
 
@@ -2145,31 +2145,31 @@ public struct Ocp_Transaction_V1_NoPrivacyWithdrawAction: Sendable {
 
   /// The public key of the private key that has authority over source
   public var authority: Ocp_Common_V1_SolanaAccountId {
-    get {return _authority ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_authority ?? Ocp_Common_V1_SolanaAccountId()}
     set {_authority = newValue}
   }
   /// Returns true if `authority` has been explicitly set.
-  public var hasAuthority: Bool {return self._authority != nil}
+  public var hasAuthority: Bool {self._authority != nil}
   /// Clears the value of `authority`. Subsequent reads from it will return its default value.
   public mutating func clearAuthority() {self._authority = nil}
 
   /// The source account where funds are transferred from
   public var source: Ocp_Common_V1_SolanaAccountId {
-    get {return _source ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_source ?? Ocp_Common_V1_SolanaAccountId()}
     set {_source = newValue}
   }
   /// Returns true if `source` has been explicitly set.
-  public var hasSource: Bool {return self._source != nil}
+  public var hasSource: Bool {self._source != nil}
   /// Clears the value of `source`. Subsequent reads from it will return its default value.
   public mutating func clearSource() {self._source = nil}
 
   /// The destination account where funds are transferred to
   public var destination: Ocp_Common_V1_SolanaAccountId {
-    get {return _destination ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_destination ?? Ocp_Common_V1_SolanaAccountId()}
     set {_destination = newValue}
   }
   /// Returns true if `destination` has been explicitly set.
-  public var hasDestination: Bool {return self._destination != nil}
+  public var hasDestination: Bool {self._destination != nil}
   /// Clears the value of `destination`. Subsequent reads from it will return its default value.
   public mutating func clearDestination() {self._destination = nil}
 
@@ -2187,11 +2187,11 @@ public struct Ocp_Transaction_V1_NoPrivacyWithdrawAction: Sendable {
 
   /// The mint that this action will be operating against
   public var mint: Ocp_Common_V1_SolanaAccountId {
-    get {return _mint ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_mint ?? Ocp_Common_V1_SolanaAccountId()}
     set {_mint = newValue}
   }
   /// Returns true if `mint` has been explicitly set.
-  public var hasMint: Bool {return self._mint != nil}
+  public var hasMint: Bool {self._mint != nil}
   /// Clears the value of `mint`. Subsequent reads from it will return its default value.
   public mutating func clearMint() {self._mint = nil}
 
@@ -2216,21 +2216,21 @@ public struct Ocp_Transaction_V1_FeePaymentAction: Sendable {
 
   /// The public key of the private key that has authority over source
   public var authority: Ocp_Common_V1_SolanaAccountId {
-    get {return _authority ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_authority ?? Ocp_Common_V1_SolanaAccountId()}
     set {_authority = newValue}
   }
   /// Returns true if `authority` has been explicitly set.
-  public var hasAuthority: Bool {return self._authority != nil}
+  public var hasAuthority: Bool {self._authority != nil}
   /// Clears the value of `authority`. Subsequent reads from it will return its default value.
   public mutating func clearAuthority() {self._authority = nil}
 
   /// The source account where funds are transferred from
   public var source: Ocp_Common_V1_SolanaAccountId {
-    get {return _source ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_source ?? Ocp_Common_V1_SolanaAccountId()}
     set {_source = newValue}
   }
   /// Returns true if `source` has been explicitly set.
-  public var hasSource: Bool {return self._source != nil}
+  public var hasSource: Bool {self._source != nil}
   /// Clears the value of `source`. Subsequent reads from it will return its default value.
   public mutating func clearSource() {self._source = nil}
 
@@ -2239,11 +2239,11 @@ public struct Ocp_Transaction_V1_FeePaymentAction: Sendable {
 
   /// The mint that this action will be operating against
   public var mint: Ocp_Common_V1_SolanaAccountId {
-    get {return _mint ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_mint ?? Ocp_Common_V1_SolanaAccountId()}
     set {_mint = newValue}
   }
   /// Returns true if `mint` has been explicitly set.
-  public var hasMint: Bool {return self._mint != nil}
+  public var hasMint: Bool {self._mint != nil}
   /// Clears the value of `mint`. Subsequent reads from it will return its default value.
   public mutating func clearMint() {self._mint = nil}
 
@@ -2366,21 +2366,21 @@ public struct Ocp_Transaction_V1_NoncedTransactionMetadata: Sendable {
 
   /// The nonce account to use in the system::AdvanceNonce instruction
   public var nonce: Ocp_Common_V1_SolanaAccountId {
-    get {return _nonce ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_nonce ?? Ocp_Common_V1_SolanaAccountId()}
     set {_nonce = newValue}
   }
   /// Returns true if `nonce` has been explicitly set.
-  public var hasNonce: Bool {return self._nonce != nil}
+  public var hasNonce: Bool {self._nonce != nil}
   /// Clears the value of `nonce`. Subsequent reads from it will return its default value.
   public mutating func clearNonce() {self._nonce = nil}
 
   /// The blockhash to set in the transaction or virtual instruction
   public var blockhash: Ocp_Common_V1_Blockhash {
-    get {return _blockhash ?? Ocp_Common_V1_Blockhash()}
+    get {_blockhash ?? Ocp_Common_V1_Blockhash()}
     set {_blockhash = newValue}
   }
   /// Returns true if `blockhash` has been explicitly set.
-  public var hasBlockhash: Bool {return self._blockhash != nil}
+  public var hasBlockhash: Bool {self._blockhash != nil}
   /// Clears the value of `blockhash`. Subsequent reads from it will return its default value.
   public mutating func clearBlockhash() {self._blockhash = nil}
 
@@ -2434,11 +2434,11 @@ public struct Ocp_Transaction_V1_FeePaymentServerParameter: Sendable {
   /// only be set when the corresponding FeePaymentAction.Type:
   /// - CREATE_ON_SEND_WITHDRAWAL
   public var destination: Ocp_Common_V1_SolanaAccountId {
-    get {return _destination ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_destination ?? Ocp_Common_V1_SolanaAccountId()}
     set {_destination = newValue}
   }
   /// Returns true if `destination` has been explicitly set.
-  public var hasDestination: Bool {return self._destination != nil}
+  public var hasDestination: Bool {self._destination != nil}
   /// Clears the value of `destination`. Subsequent reads from it will return its default value.
   public mutating func clearDestination() {self._destination = nil}
 
@@ -2535,11 +2535,11 @@ public struct Ocp_Transaction_V1_InvalidSignatureErrorDetails: Sendable {
 
   /// The signature that was provided by the client.
   public var providedSignature: Ocp_Common_V1_Signature {
-    get {return _providedSignature ?? Ocp_Common_V1_Signature()}
+    get {_providedSignature ?? Ocp_Common_V1_Signature()}
     set {_providedSignature = newValue}
   }
   /// Returns true if `providedSignature` has been explicitly set.
-  public var hasProvidedSignature: Bool {return self._providedSignature != nil}
+  public var hasProvidedSignature: Bool {self._providedSignature != nil}
   /// Clears the value of `providedSignature`. Subsequent reads from it will return its default value.
   public mutating func clearProvidedSignature() {self._providedSignature = nil}
 
@@ -2614,11 +2614,11 @@ public struct Ocp_Transaction_V1_VerifiedExchangeData: Sendable {
 
   /// The crypto mint that is being operated against for the payment flow.
   public var mint: Ocp_Common_V1_SolanaAccountId {
-    get {return _mint ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_mint ?? Ocp_Common_V1_SolanaAccountId()}
     set {_mint = newValue}
   }
   /// Returns true if `mint` has been explicitly set.
-  public var hasMint: Bool {return self._mint != nil}
+  public var hasMint: Bool {self._mint != nil}
   /// Clears the value of `mint`. Subsequent reads from it will return its default value.
   public mutating func clearMint() {self._mint = nil}
 
@@ -2635,11 +2635,11 @@ public struct Ocp_Transaction_V1_VerifiedExchangeData: Sendable {
   ///  - Core mint
   ///  - Launchpad currency
   public var coreMintFiatExchangeRate: Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRate {
-    get {return _coreMintFiatExchangeRate ?? Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRate()}
+    get {_coreMintFiatExchangeRate ?? Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRate()}
     set {_coreMintFiatExchangeRate = newValue}
   }
   /// Returns true if `coreMintFiatExchangeRate` has been explicitly set.
-  public var hasCoreMintFiatExchangeRate: Bool {return self._coreMintFiatExchangeRate != nil}
+  public var hasCoreMintFiatExchangeRate: Bool {self._coreMintFiatExchangeRate != nil}
   /// Clears the value of `coreMintFiatExchangeRate`. Subsequent reads from it will return its default value.
   public mutating func clearCoreMintFiatExchangeRate() {self._coreMintFiatExchangeRate = nil}
 
@@ -2648,11 +2648,11 @@ public struct Ocp_Transaction_V1_VerifiedExchangeData: Sendable {
   /// Required when operating against:
   ///  - Launchpad currency
   public var launchpadCurrencyReserveState: Ocp_Currency_V1_VerifiedLaunchpadCurrencyReserveState {
-    get {return _launchpadCurrencyReserveState ?? Ocp_Currency_V1_VerifiedLaunchpadCurrencyReserveState()}
+    get {_launchpadCurrencyReserveState ?? Ocp_Currency_V1_VerifiedLaunchpadCurrencyReserveState()}
     set {_launchpadCurrencyReserveState = newValue}
   }
   /// Returns true if `launchpadCurrencyReserveState` has been explicitly set.
-  public var hasLaunchpadCurrencyReserveState: Bool {return self._launchpadCurrencyReserveState != nil}
+  public var hasLaunchpadCurrencyReserveState: Bool {self._launchpadCurrencyReserveState != nil}
   /// Clears the value of `launchpadCurrencyReserveState`. Subsequent reads from it will return its default value.
   public mutating func clearLaunchpadCurrencyReserveState() {self._launchpadCurrencyReserveState = nil}
 
@@ -2688,11 +2688,11 @@ public struct Ocp_Transaction_V1_ExchangeData: Sendable {
 
   /// The crypto mint that is being operated against for the payment flow.
   public var mint: Ocp_Common_V1_SolanaAccountId {
-    get {return _mint ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_mint ?? Ocp_Common_V1_SolanaAccountId()}
     set {_mint = newValue}
   }
   /// Returns true if `mint` has been explicitly set.
-  public var hasMint: Bool {return self._mint != nil}
+  public var hasMint: Bool {self._mint != nil}
   /// Clears the value of `mint`. Subsequent reads from it will return its default value.
   public mutating func clearMint() {self._mint = nil}
 
@@ -2774,11 +2774,11 @@ public struct Ocp_Transaction_V1_VerifiedCurrencyCreatorSwapMetadata: Sendable {
 
   /// Verifiable client-side parameters that were provided during the StatefulSwap RPC
   public var clientParameters: Ocp_Transaction_V1_StatefulSwapRequest.Initiate.CurrencyCreator {
-    get {return _clientParameters ?? Ocp_Transaction_V1_StatefulSwapRequest.Initiate.CurrencyCreator()}
+    get {_clientParameters ?? Ocp_Transaction_V1_StatefulSwapRequest.Initiate.CurrencyCreator()}
     set {_clientParameters = newValue}
   }
   /// Returns true if `clientParameters` has been explicitly set.
-  public var hasClientParameters: Bool {return self._clientParameters != nil}
+  public var hasClientParameters: Bool {self._clientParameters != nil}
   /// Clears the value of `clientParameters`. Subsequent reads from it will return its default value.
   public mutating func clearClientParameters() {self._clientParameters = nil}
 
@@ -2795,11 +2795,11 @@ public struct Ocp_Transaction_V1_SwapMetadata: Sendable {
   // methods supported on all messages.
 
   public var verifiedMetadata: Ocp_Transaction_V1_VerifiedSwapMetadata {
-    get {return _verifiedMetadata ?? Ocp_Transaction_V1_VerifiedSwapMetadata()}
+    get {_verifiedMetadata ?? Ocp_Transaction_V1_VerifiedSwapMetadata()}
     set {_verifiedMetadata = newValue}
   }
   /// Returns true if `verifiedMetadata` has been explicitly set.
-  public var hasVerifiedMetadata: Bool {return self._verifiedMetadata != nil}
+  public var hasVerifiedMetadata: Bool {self._verifiedMetadata != nil}
   /// Clears the value of `verifiedMetadata`. Subsequent reads from it will return its default value.
   public mutating func clearVerifiedMetadata() {self._verifiedMetadata = nil}
 
@@ -2809,11 +2809,11 @@ public struct Ocp_Transaction_V1_SwapMetadata: Sendable {
   /// key of the owner account. Use this to guarantee that VerifiedSwapMetadata
   /// has not been tampered with.
   public var signature: Ocp_Common_V1_Signature {
-    get {return _signature ?? Ocp_Common_V1_Signature()}
+    get {_signature ?? Ocp_Common_V1_Signature()}
     set {_signature = newValue}
   }
   /// Returns true if `signature` has been explicitly set.
-  public var hasSignature: Bool {return self._signature != nil}
+  public var hasSignature: Bool {self._signature != nil}
   /// Clears the value of `signature`. Subsequent reads from it will return its default value.
   public mutating func clearSignature() {self._signature = nil}
 

@@ -40,20 +40,20 @@ public struct Flipcash_Event_V1_Event: Sendable {
   // methods supported on all messages.
 
   public var id: Flipcash_Event_V1_EventId {
-    get {return _id ?? Flipcash_Event_V1_EventId()}
+    get {_id ?? Flipcash_Event_V1_EventId()}
     set {_id = newValue}
   }
   /// Returns true if `id` has been explicitly set.
-  public var hasID: Bool {return self._id != nil}
+  public var hasID: Bool {self._id != nil}
   /// Clears the value of `id`. Subsequent reads from it will return its default value.
   public mutating func clearID() {self._id = nil}
 
   public var ts: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _ts ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_ts ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_ts = newValue}
   }
   /// Returns true if `ts` has been explicitly set.
-  public var hasTs: Bool {return self._ts != nil}
+  public var hasTs: Bool {self._ts != nil}
   /// Clears the value of `ts`. Subsequent reads from it will return its default value.
   public mutating func clearTs() {self._ts = nil}
 
@@ -98,20 +98,20 @@ public struct Flipcash_Event_V1_UserEvent: Sendable {
   // methods supported on all messages.
 
   public var userID: Flipcash_Common_V1_UserId {
-    get {return _userID ?? Flipcash_Common_V1_UserId()}
+    get {_userID ?? Flipcash_Common_V1_UserId()}
     set {_userID = newValue}
   }
   /// Returns true if `userID` has been explicitly set.
-  public var hasUserID: Bool {return self._userID != nil}
+  public var hasUserID: Bool {self._userID != nil}
   /// Clears the value of `userID`. Subsequent reads from it will return its default value.
   public mutating func clearUserID() {self._userID = nil}
 
   public var event: Flipcash_Event_V1_Event {
-    get {return _event ?? Flipcash_Event_V1_Event()}
+    get {_event ?? Flipcash_Event_V1_Event()}
     set {_event = newValue}
   }
   /// Returns true if `event` has been explicitly set.
-  public var hasEvent: Bool {return self._event != nil}
+  public var hasEvent: Bool {self._event != nil}
   /// Clears the value of `event`. Subsequent reads from it will return its default value.
   public mutating func clearEvent() {self._event = nil}
 
@@ -157,21 +157,21 @@ public struct Flipcash_Event_V1_ServerPing: Sendable {
   /// Timestamp the ping was sent on the stream, for client to get a sense
   /// of potential network latency
   public var timestamp: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_timestamp = newValue}
   }
   /// Returns true if `timestamp` has been explicitly set.
-  public var hasTimestamp: Bool {return self._timestamp != nil}
+  public var hasTimestamp: Bool {self._timestamp != nil}
   /// Clears the value of `timestamp`. Subsequent reads from it will return its default value.
   public mutating func clearTimestamp() {self._timestamp = nil}
 
   /// The delay server will apply before sending the next ping
   public var pingDelay: SwiftProtobuf.Google_Protobuf_Duration {
-    get {return _pingDelay ?? SwiftProtobuf.Google_Protobuf_Duration()}
+    get {_pingDelay ?? SwiftProtobuf.Google_Protobuf_Duration()}
     set {_pingDelay = newValue}
   }
   /// Returns true if `pingDelay` has been explicitly set.
-  public var hasPingDelay: Bool {return self._pingDelay != nil}
+  public var hasPingDelay: Bool {self._pingDelay != nil}
   /// Clears the value of `pingDelay`. Subsequent reads from it will return its default value.
   public mutating func clearPingDelay() {self._pingDelay = nil}
 
@@ -191,11 +191,11 @@ public struct Flipcash_Event_V1_ClientPong: Sendable {
   /// Timestamp the Pong was sent on the stream, for server to get a sense
   /// of potential network latency
   public var timestamp: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_timestamp = newValue}
   }
   /// Returns true if `timestamp` has been explicitly set.
-  public var hasTimestamp: Bool {return self._timestamp != nil}
+  public var hasTimestamp: Bool {self._timestamp != nil}
   /// Clears the value of `timestamp`. Subsequent reads from it will return its default value.
   public mutating func clearTimestamp() {self._timestamp = nil}
 

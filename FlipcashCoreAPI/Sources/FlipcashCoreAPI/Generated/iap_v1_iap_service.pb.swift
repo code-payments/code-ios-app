@@ -28,29 +28,29 @@ public struct Flipcash_Iap_V1_OnPurchaseCompletedRequest: Sendable {
   public var platform: Flipcash_Common_V1_Platform = .unknown
 
   public var receipt: Flipcash_Iap_V1_Receipt {
-    get {return _receipt ?? Flipcash_Iap_V1_Receipt()}
+    get {_receipt ?? Flipcash_Iap_V1_Receipt()}
     set {_receipt = newValue}
   }
   /// Returns true if `receipt` has been explicitly set.
-  public var hasReceipt: Bool {return self._receipt != nil}
+  public var hasReceipt: Bool {self._receipt != nil}
   /// Clears the value of `receipt`. Subsequent reads from it will return its default value.
   public mutating func clearReceipt() {self._receipt = nil}
 
   public var metadata: Flipcash_Iap_V1_Metadata {
-    get {return _metadata ?? Flipcash_Iap_V1_Metadata()}
+    get {_metadata ?? Flipcash_Iap_V1_Metadata()}
     set {_metadata = newValue}
   }
   /// Returns true if `metadata` has been explicitly set.
-  public var hasMetadata: Bool {return self._metadata != nil}
+  public var hasMetadata: Bool {self._metadata != nil}
   /// Clears the value of `metadata`. Subsequent reads from it will return its default value.
   public mutating func clearMetadata() {self._metadata = nil}
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {return _auth ?? Flipcash_Common_V1_Auth()}
+    get {_auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {return self._auth != nil}
+  public var hasAuth: Bool {self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 

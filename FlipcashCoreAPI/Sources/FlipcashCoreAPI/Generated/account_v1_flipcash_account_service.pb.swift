@@ -28,21 +28,21 @@ public struct Flipcash_Account_V1_RegisterRequest: Sendable {
   /// PublicKey the public key that is authorized to perform actions on the
   /// registered users behalf.
   public var publicKey: Flipcash_Common_V1_PublicKey {
-    get {return _publicKey ?? Flipcash_Common_V1_PublicKey()}
+    get {_publicKey ?? Flipcash_Common_V1_PublicKey()}
     set {_publicKey = newValue}
   }
   /// Returns true if `publicKey` has been explicitly set.
-  public var hasPublicKey: Bool {return self._publicKey != nil}
+  public var hasPublicKey: Bool {self._publicKey != nil}
   /// Clears the value of `publicKey`. Subsequent reads from it will return its default value.
   public mutating func clearPublicKey() {self._publicKey = nil}
 
   /// Signature of this message (without the signature), using the provided keypair.
   public var signature: Flipcash_Common_V1_Signature {
-    get {return _signature ?? Flipcash_Common_V1_Signature()}
+    get {_signature ?? Flipcash_Common_V1_Signature()}
     set {_signature = newValue}
   }
   /// Returns true if `signature` has been explicitly set.
-  public var hasSignature: Bool {return self._signature != nil}
+  public var hasSignature: Bool {self._signature != nil}
   /// Clears the value of `signature`. Subsequent reads from it will return its default value.
   public mutating func clearSignature() {self._signature = nil}
 
@@ -63,11 +63,11 @@ public struct Flipcash_Account_V1_RegisterResponse: Sendable {
 
   /// The UserId associated with the account.
   public var userID: Flipcash_Common_V1_UserId {
-    get {return _userID ?? Flipcash_Common_V1_UserId()}
+    get {_userID ?? Flipcash_Common_V1_UserId()}
     set {_userID = newValue}
   }
   /// Returns true if `userID` has been explicitly set.
-  public var hasUserID: Bool {return self._userID != nil}
+  public var hasUserID: Bool {self._userID != nil}
   /// Clears the value of `userID`. Subsequent reads from it will return its default value.
   public mutating func clearUserID() {self._userID = nil}
 
@@ -126,20 +126,20 @@ public struct Flipcash_Account_V1_LoginRequest: Sendable {
   /// The server may reject the request if the timestamp is too far off
   /// the current (server) time. This is to prevent replay attacks.
   public var timestamp: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_timestamp = newValue}
   }
   /// Returns true if `timestamp` has been explicitly set.
-  public var hasTimestamp: Bool {return self._timestamp != nil}
+  public var hasTimestamp: Bool {self._timestamp != nil}
   /// Clears the value of `timestamp`. Subsequent reads from it will return its default value.
   public mutating func clearTimestamp() {self._timestamp = nil}
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {return _auth ?? Flipcash_Common_V1_Auth()}
+    get {_auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {return self._auth != nil}
+  public var hasAuth: Bool {self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
@@ -159,11 +159,11 @@ public struct Flipcash_Account_V1_LoginResponse: Sendable {
   public var result: Flipcash_Account_V1_LoginResponse.Result = .ok
 
   public var userID: Flipcash_Common_V1_UserId {
-    get {return _userID ?? Flipcash_Common_V1_UserId()}
+    get {_userID ?? Flipcash_Common_V1_UserId()}
     set {_userID = newValue}
   }
   /// Returns true if `userID` has been explicitly set.
-  public var hasUserID: Bool {return self._userID != nil}
+  public var hasUserID: Bool {self._userID != nil}
   /// Clears the value of `userID`. Subsequent reads from it will return its default value.
   public mutating func clearUserID() {self._userID = nil}
 
@@ -218,31 +218,31 @@ public struct Flipcash_Account_V1_GetUserFlagsRequest: Sendable {
   // methods supported on all messages.
 
   public var userID: Flipcash_Common_V1_UserId {
-    get {return _userID ?? Flipcash_Common_V1_UserId()}
+    get {_userID ?? Flipcash_Common_V1_UserId()}
     set {_userID = newValue}
   }
   /// Returns true if `userID` has been explicitly set.
-  public var hasUserID: Bool {return self._userID != nil}
+  public var hasUserID: Bool {self._userID != nil}
   /// Clears the value of `userID`. Subsequent reads from it will return its default value.
   public mutating func clearUserID() {self._userID = nil}
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {return _auth ?? Flipcash_Common_V1_Auth()}
+    get {_auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {return self._auth != nil}
+  public var hasAuth: Bool {self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
   public var platform: Flipcash_Common_V1_Platform = .unknown
 
   public var countryCode: Flipcash_Common_V1_CountryCode {
-    get {return _countryCode ?? Flipcash_Common_V1_CountryCode()}
+    get {_countryCode ?? Flipcash_Common_V1_CountryCode()}
     set {_countryCode = newValue}
   }
   /// Returns true if `countryCode` has been explicitly set.
-  public var hasCountryCode: Bool {return self._countryCode != nil}
+  public var hasCountryCode: Bool {self._countryCode != nil}
   /// Clears the value of `countryCode`. Subsequent reads from it will return its default value.
   public mutating func clearCountryCode() {self._countryCode = nil}
 
@@ -263,11 +263,11 @@ public struct Flipcash_Account_V1_GetUserFlagsResponse: Sendable {
   public var result: Flipcash_Account_V1_GetUserFlagsResponse.Result = .ok
 
   public var userFlags: Flipcash_Account_V1_UserFlags {
-    get {return _userFlags ?? Flipcash_Account_V1_UserFlags()}
+    get {_userFlags ?? Flipcash_Account_V1_UserFlags()}
     set {_userFlags = newValue}
   }
   /// Returns true if `userFlags` has been explicitly set.
-  public var hasUserFlags: Bool {return self._userFlags != nil}
+  public var hasUserFlags: Bool {self._userFlags != nil}
   /// Clears the value of `userFlags`. Subsequent reads from it will return its default value.
   public mutating func clearUserFlags() {self._userFlags = nil}
 
@@ -320,11 +320,11 @@ public struct Flipcash_Account_V1_GetUnauthenticatedUserFlagsRequest: Sendable {
   public var platform: Flipcash_Common_V1_Platform = .unknown
 
   public var countryCode: Flipcash_Common_V1_CountryCode {
-    get {return _countryCode ?? Flipcash_Common_V1_CountryCode()}
+    get {_countryCode ?? Flipcash_Common_V1_CountryCode()}
     set {_countryCode = newValue}
   }
   /// Returns true if `countryCode` has been explicitly set.
-  public var hasCountryCode: Bool {return self._countryCode != nil}
+  public var hasCountryCode: Bool {self._countryCode != nil}
   /// Clears the value of `countryCode`. Subsequent reads from it will return its default value.
   public mutating func clearCountryCode() {self._countryCode = nil}
 
@@ -343,11 +343,11 @@ public struct Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse: Sendable 
   public var result: Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse.Result = .ok
 
   public var userFlags: Flipcash_Account_V1_UserFlags {
-    get {return _userFlags ?? Flipcash_Account_V1_UserFlags()}
+    get {_userFlags ?? Flipcash_Account_V1_UserFlags()}
     set {_userFlags = newValue}
   }
   /// Returns true if `userFlags` has been explicitly set.
-  public var hasUserFlags: Bool {return self._userFlags != nil}
+  public var hasUserFlags: Bool {self._userFlags != nil}
   /// Clears the value of `userFlags`. Subsequent reads from it will return its default value.
   public mutating func clearUserFlags() {self._userFlags = nil}
 
@@ -414,6 +414,16 @@ public struct Flipcash_Account_V1_UserFlags: Sendable {
   /// provided value, client should show a forced upgrade screen.
   public var minBuildNumber: UInt32 = 0
 
+  /// Exchange data timeout for sequential give/grabs for bills
+  public var billExchangeDataTimeout: SwiftProtobuf.Google_Protobuf_Duration {
+    get {_billExchangeDataTimeout ?? SwiftProtobuf.Google_Protobuf_Duration()}
+    set {_billExchangeDataTimeout = newValue}
+  }
+  /// Returns true if `billExchangeDataTimeout` has been explicitly set.
+  public var hasBillExchangeDataTimeout: Bool {self._billExchangeDataTimeout != nil}
+  /// Clears the value of `billExchangeDataTimeout`. Subsequent reads from it will return its default value.
+  public mutating func clearBillExchangeDataTimeout() {self._billExchangeDataTimeout = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OnRampProvider: SwiftProtobuf.Enum, Swift.CaseIterable {
@@ -479,6 +489,8 @@ public struct Flipcash_Account_V1_UserFlags: Sendable {
   }
 
   public init() {}
+
+  fileprivate var _billExchangeDataTimeout: SwiftProtobuf.Google_Protobuf_Duration? = nil
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -825,7 +837,7 @@ extension Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse.Result: SwiftP
 
 extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UserFlags"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}is_registered_account\0\u{3}is_staff\0\u{3}requires_iap_for_registration\0\u{3}supported_on_ramp_providers\0\u{3}preferred_on_ramp_provider\0\u{3}min_build_number\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}is_registered_account\0\u{3}is_staff\0\u{3}requires_iap_for_registration\0\u{3}supported_on_ramp_providers\0\u{3}preferred_on_ramp_provider\0\u{3}min_build_number\0\u{3}bill_exchange_data_timeout\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -839,12 +851,17 @@ extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
       case 4: try { try decoder.decodeRepeatedEnumField(value: &self.supportedOnRampProviders) }()
       case 5: try { try decoder.decodeSingularEnumField(value: &self.preferredOnRampProvider) }()
       case 6: try { try decoder.decodeSingularUInt32Field(value: &self.minBuildNumber) }()
+      case 7: try { try decoder.decodeSingularMessageField(value: &self._billExchangeDataTimeout) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
     if self.isRegisteredAccount != false {
       try visitor.visitSingularBoolField(value: self.isRegisteredAccount, fieldNumber: 1)
     }
@@ -863,6 +880,9 @@ extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
     if self.minBuildNumber != 0 {
       try visitor.visitSingularUInt32Field(value: self.minBuildNumber, fieldNumber: 6)
     }
+    try { if let v = self._billExchangeDataTimeout {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -873,6 +893,7 @@ extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
     if lhs.supportedOnRampProviders != rhs.supportedOnRampProviders {return false}
     if lhs.preferredOnRampProvider != rhs.preferredOnRampProvider {return false}
     if lhs.minBuildNumber != rhs.minBuildNumber {return false}
+    if lhs._billExchangeDataTimeout != rhs._billExchangeDataTimeout {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

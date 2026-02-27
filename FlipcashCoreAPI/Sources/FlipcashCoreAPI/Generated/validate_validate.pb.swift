@@ -45,11 +45,11 @@ public struct Validate_FieldRules: @unchecked Sendable {
   // methods supported on all messages.
 
   public var message: Validate_MessageRules {
-    get {return _storage._message ?? Validate_MessageRules()}
+    get {_storage._message ?? Validate_MessageRules()}
     set {_uniqueStorage()._message = newValue}
   }
   /// Returns true if `message` has been explicitly set.
-  public var hasMessage: Bool {return _storage._message != nil}
+  public var hasMessage: Bool {_storage._message != nil}
   /// Clears the value of `message`. Subsequent reads from it will return its default value.
   public mutating func clearMessage() {_uniqueStorage()._message = nil}
 
@@ -272,33 +272,33 @@ public struct Validate_FloatRules: Sendable {
 
   /// Const specifies that this field must be exactly the specified value
   public var const: Float {
-    get {return _const ?? 0}
+    get {_const ?? 0}
     set {_const = newValue}
   }
   /// Returns true if `const` has been explicitly set.
-  public var hasConst: Bool {return self._const != nil}
+  public var hasConst: Bool {self._const != nil}
   /// Clears the value of `const`. Subsequent reads from it will return its default value.
   public mutating func clearConst() {self._const = nil}
 
   /// Lt specifies that this field must be less than the specified value,
   /// exclusive
   public var lt: Float {
-    get {return _lt ?? 0}
+    get {_lt ?? 0}
     set {_lt = newValue}
   }
   /// Returns true if `lt` has been explicitly set.
-  public var hasLt: Bool {return self._lt != nil}
+  public var hasLt: Bool {self._lt != nil}
   /// Clears the value of `lt`. Subsequent reads from it will return its default value.
   public mutating func clearLt() {self._lt = nil}
 
   /// Lte specifies that this field must be less than or equal to the
   /// specified value, inclusive
   public var lte: Float {
-    get {return _lte ?? 0}
+    get {_lte ?? 0}
     set {_lte = newValue}
   }
   /// Returns true if `lte` has been explicitly set.
-  public var hasLte: Bool {return self._lte != nil}
+  public var hasLte: Bool {self._lte != nil}
   /// Clears the value of `lte`. Subsequent reads from it will return its default value.
   public mutating func clearLte() {self._lte = nil}
 
@@ -306,11 +306,11 @@ public struct Validate_FloatRules: Sendable {
   /// exclusive. If the value of Gt is larger than a specified Lt or Lte, the
   /// range is reversed.
   public var gt: Float {
-    get {return _gt ?? 0}
+    get {_gt ?? 0}
     set {_gt = newValue}
   }
   /// Returns true if `gt` has been explicitly set.
-  public var hasGt: Bool {return self._gt != nil}
+  public var hasGt: Bool {self._gt != nil}
   /// Clears the value of `gt`. Subsequent reads from it will return its default value.
   public mutating func clearGt() {self._gt = nil}
 
@@ -318,11 +318,11 @@ public struct Validate_FloatRules: Sendable {
   /// specified value, inclusive. If the value of Gte is larger than a
   /// specified Lt or Lte, the range is reversed.
   public var gte: Float {
-    get {return _gte ?? 0}
+    get {_gte ?? 0}
     set {_gte = newValue}
   }
   /// Returns true if `gte` has been explicitly set.
-  public var hasGte: Bool {return self._gte != nil}
+  public var hasGte: Bool {self._gte != nil}
   /// Clears the value of `gte`. Subsequent reads from it will return its default value.
   public mutating func clearGte() {self._gte = nil}
 
@@ -337,11 +337,11 @@ public struct Validate_FloatRules: Sendable {
   /// IgnoreEmpty specifies that the validation rules of this field should be
   /// evaluated only if the field is not empty
   public var ignoreEmpty: Bool {
-    get {return _ignoreEmpty ?? false}
+    get {_ignoreEmpty ?? false}
     set {_ignoreEmpty = newValue}
   }
   /// Returns true if `ignoreEmpty` has been explicitly set.
-  public var hasIgnoreEmpty: Bool {return self._ignoreEmpty != nil}
+  public var hasIgnoreEmpty: Bool {self._ignoreEmpty != nil}
   /// Clears the value of `ignoreEmpty`. Subsequent reads from it will return its default value.
   public mutating func clearIgnoreEmpty() {self._ignoreEmpty = nil}
 
@@ -365,33 +365,33 @@ public struct Validate_DoubleRules: Sendable {
 
   /// Const specifies that this field must be exactly the specified value
   public var const: Double {
-    get {return _const ?? 0}
+    get {_const ?? 0}
     set {_const = newValue}
   }
   /// Returns true if `const` has been explicitly set.
-  public var hasConst: Bool {return self._const != nil}
+  public var hasConst: Bool {self._const != nil}
   /// Clears the value of `const`. Subsequent reads from it will return its default value.
   public mutating func clearConst() {self._const = nil}
 
   /// Lt specifies that this field must be less than the specified value,
   /// exclusive
   public var lt: Double {
-    get {return _lt ?? 0}
+    get {_lt ?? 0}
     set {_lt = newValue}
   }
   /// Returns true if `lt` has been explicitly set.
-  public var hasLt: Bool {return self._lt != nil}
+  public var hasLt: Bool {self._lt != nil}
   /// Clears the value of `lt`. Subsequent reads from it will return its default value.
   public mutating func clearLt() {self._lt = nil}
 
   /// Lte specifies that this field must be less than or equal to the
   /// specified value, inclusive
   public var lte: Double {
-    get {return _lte ?? 0}
+    get {_lte ?? 0}
     set {_lte = newValue}
   }
   /// Returns true if `lte` has been explicitly set.
-  public var hasLte: Bool {return self._lte != nil}
+  public var hasLte: Bool {self._lte != nil}
   /// Clears the value of `lte`. Subsequent reads from it will return its default value.
   public mutating func clearLte() {self._lte = nil}
 
@@ -399,11 +399,11 @@ public struct Validate_DoubleRules: Sendable {
   /// exclusive. If the value of Gt is larger than a specified Lt or Lte, the
   /// range is reversed.
   public var gt: Double {
-    get {return _gt ?? 0}
+    get {_gt ?? 0}
     set {_gt = newValue}
   }
   /// Returns true if `gt` has been explicitly set.
-  public var hasGt: Bool {return self._gt != nil}
+  public var hasGt: Bool {self._gt != nil}
   /// Clears the value of `gt`. Subsequent reads from it will return its default value.
   public mutating func clearGt() {self._gt = nil}
 
@@ -411,11 +411,11 @@ public struct Validate_DoubleRules: Sendable {
   /// specified value, inclusive. If the value of Gte is larger than a
   /// specified Lt or Lte, the range is reversed.
   public var gte: Double {
-    get {return _gte ?? 0}
+    get {_gte ?? 0}
     set {_gte = newValue}
   }
   /// Returns true if `gte` has been explicitly set.
-  public var hasGte: Bool {return self._gte != nil}
+  public var hasGte: Bool {self._gte != nil}
   /// Clears the value of `gte`. Subsequent reads from it will return its default value.
   public mutating func clearGte() {self._gte = nil}
 
@@ -430,11 +430,11 @@ public struct Validate_DoubleRules: Sendable {
   /// IgnoreEmpty specifies that the validation rules of this field should be
   /// evaluated only if the field is not empty
   public var ignoreEmpty: Bool {
-    get {return _ignoreEmpty ?? false}
+    get {_ignoreEmpty ?? false}
     set {_ignoreEmpty = newValue}
   }
   /// Returns true if `ignoreEmpty` has been explicitly set.
-  public var hasIgnoreEmpty: Bool {return self._ignoreEmpty != nil}
+  public var hasIgnoreEmpty: Bool {self._ignoreEmpty != nil}
   /// Clears the value of `ignoreEmpty`. Subsequent reads from it will return its default value.
   public mutating func clearIgnoreEmpty() {self._ignoreEmpty = nil}
 
@@ -458,33 +458,33 @@ public struct Validate_Int32Rules: Sendable {
 
   /// Const specifies that this field must be exactly the specified value
   public var const: Int32 {
-    get {return _const ?? 0}
+    get {_const ?? 0}
     set {_const = newValue}
   }
   /// Returns true if `const` has been explicitly set.
-  public var hasConst: Bool {return self._const != nil}
+  public var hasConst: Bool {self._const != nil}
   /// Clears the value of `const`. Subsequent reads from it will return its default value.
   public mutating func clearConst() {self._const = nil}
 
   /// Lt specifies that this field must be less than the specified value,
   /// exclusive
   public var lt: Int32 {
-    get {return _lt ?? 0}
+    get {_lt ?? 0}
     set {_lt = newValue}
   }
   /// Returns true if `lt` has been explicitly set.
-  public var hasLt: Bool {return self._lt != nil}
+  public var hasLt: Bool {self._lt != nil}
   /// Clears the value of `lt`. Subsequent reads from it will return its default value.
   public mutating func clearLt() {self._lt = nil}
 
   /// Lte specifies that this field must be less than or equal to the
   /// specified value, inclusive
   public var lte: Int32 {
-    get {return _lte ?? 0}
+    get {_lte ?? 0}
     set {_lte = newValue}
   }
   /// Returns true if `lte` has been explicitly set.
-  public var hasLte: Bool {return self._lte != nil}
+  public var hasLte: Bool {self._lte != nil}
   /// Clears the value of `lte`. Subsequent reads from it will return its default value.
   public mutating func clearLte() {self._lte = nil}
 
@@ -492,11 +492,11 @@ public struct Validate_Int32Rules: Sendable {
   /// exclusive. If the value of Gt is larger than a specified Lt or Lte, the
   /// range is reversed.
   public var gt: Int32 {
-    get {return _gt ?? 0}
+    get {_gt ?? 0}
     set {_gt = newValue}
   }
   /// Returns true if `gt` has been explicitly set.
-  public var hasGt: Bool {return self._gt != nil}
+  public var hasGt: Bool {self._gt != nil}
   /// Clears the value of `gt`. Subsequent reads from it will return its default value.
   public mutating func clearGt() {self._gt = nil}
 
@@ -504,11 +504,11 @@ public struct Validate_Int32Rules: Sendable {
   /// specified value, inclusive. If the value of Gte is larger than a
   /// specified Lt or Lte, the range is reversed.
   public var gte: Int32 {
-    get {return _gte ?? 0}
+    get {_gte ?? 0}
     set {_gte = newValue}
   }
   /// Returns true if `gte` has been explicitly set.
-  public var hasGte: Bool {return self._gte != nil}
+  public var hasGte: Bool {self._gte != nil}
   /// Clears the value of `gte`. Subsequent reads from it will return its default value.
   public mutating func clearGte() {self._gte = nil}
 
@@ -523,11 +523,11 @@ public struct Validate_Int32Rules: Sendable {
   /// IgnoreEmpty specifies that the validation rules of this field should be
   /// evaluated only if the field is not empty
   public var ignoreEmpty: Bool {
-    get {return _ignoreEmpty ?? false}
+    get {_ignoreEmpty ?? false}
     set {_ignoreEmpty = newValue}
   }
   /// Returns true if `ignoreEmpty` has been explicitly set.
-  public var hasIgnoreEmpty: Bool {return self._ignoreEmpty != nil}
+  public var hasIgnoreEmpty: Bool {self._ignoreEmpty != nil}
   /// Clears the value of `ignoreEmpty`. Subsequent reads from it will return its default value.
   public mutating func clearIgnoreEmpty() {self._ignoreEmpty = nil}
 
@@ -551,33 +551,33 @@ public struct Validate_Int64Rules: Sendable {
 
   /// Const specifies that this field must be exactly the specified value
   public var const: Int64 {
-    get {return _const ?? 0}
+    get {_const ?? 0}
     set {_const = newValue}
   }
   /// Returns true if `const` has been explicitly set.
-  public var hasConst: Bool {return self._const != nil}
+  public var hasConst: Bool {self._const != nil}
   /// Clears the value of `const`. Subsequent reads from it will return its default value.
   public mutating func clearConst() {self._const = nil}
 
   /// Lt specifies that this field must be less than the specified value,
   /// exclusive
   public var lt: Int64 {
-    get {return _lt ?? 0}
+    get {_lt ?? 0}
     set {_lt = newValue}
   }
   /// Returns true if `lt` has been explicitly set.
-  public var hasLt: Bool {return self._lt != nil}
+  public var hasLt: Bool {self._lt != nil}
   /// Clears the value of `lt`. Subsequent reads from it will return its default value.
   public mutating func clearLt() {self._lt = nil}
 
   /// Lte specifies that this field must be less than or equal to the
   /// specified value, inclusive
   public var lte: Int64 {
-    get {return _lte ?? 0}
+    get {_lte ?? 0}
     set {_lte = newValue}
   }
   /// Returns true if `lte` has been explicitly set.
-  public var hasLte: Bool {return self._lte != nil}
+  public var hasLte: Bool {self._lte != nil}
   /// Clears the value of `lte`. Subsequent reads from it will return its default value.
   public mutating func clearLte() {self._lte = nil}
 
@@ -585,11 +585,11 @@ public struct Validate_Int64Rules: Sendable {
   /// exclusive. If the value of Gt is larger than a specified Lt or Lte, the
   /// range is reversed.
   public var gt: Int64 {
-    get {return _gt ?? 0}
+    get {_gt ?? 0}
     set {_gt = newValue}
   }
   /// Returns true if `gt` has been explicitly set.
-  public var hasGt: Bool {return self._gt != nil}
+  public var hasGt: Bool {self._gt != nil}
   /// Clears the value of `gt`. Subsequent reads from it will return its default value.
   public mutating func clearGt() {self._gt = nil}
 
@@ -597,11 +597,11 @@ public struct Validate_Int64Rules: Sendable {
   /// specified value, inclusive. If the value of Gte is larger than a
   /// specified Lt or Lte, the range is reversed.
   public var gte: Int64 {
-    get {return _gte ?? 0}
+    get {_gte ?? 0}
     set {_gte = newValue}
   }
   /// Returns true if `gte` has been explicitly set.
-  public var hasGte: Bool {return self._gte != nil}
+  public var hasGte: Bool {self._gte != nil}
   /// Clears the value of `gte`. Subsequent reads from it will return its default value.
   public mutating func clearGte() {self._gte = nil}
 
@@ -616,11 +616,11 @@ public struct Validate_Int64Rules: Sendable {
   /// IgnoreEmpty specifies that the validation rules of this field should be
   /// evaluated only if the field is not empty
   public var ignoreEmpty: Bool {
-    get {return _ignoreEmpty ?? false}
+    get {_ignoreEmpty ?? false}
     set {_ignoreEmpty = newValue}
   }
   /// Returns true if `ignoreEmpty` has been explicitly set.
-  public var hasIgnoreEmpty: Bool {return self._ignoreEmpty != nil}
+  public var hasIgnoreEmpty: Bool {self._ignoreEmpty != nil}
   /// Clears the value of `ignoreEmpty`. Subsequent reads from it will return its default value.
   public mutating func clearIgnoreEmpty() {self._ignoreEmpty = nil}
 
@@ -644,33 +644,33 @@ public struct Validate_UInt32Rules: Sendable {
 
   /// Const specifies that this field must be exactly the specified value
   public var const: UInt32 {
-    get {return _const ?? 0}
+    get {_const ?? 0}
     set {_const = newValue}
   }
   /// Returns true if `const` has been explicitly set.
-  public var hasConst: Bool {return self._const != nil}
+  public var hasConst: Bool {self._const != nil}
   /// Clears the value of `const`. Subsequent reads from it will return its default value.
   public mutating func clearConst() {self._const = nil}
 
   /// Lt specifies that this field must be less than the specified value,
   /// exclusive
   public var lt: UInt32 {
-    get {return _lt ?? 0}
+    get {_lt ?? 0}
     set {_lt = newValue}
   }
   /// Returns true if `lt` has been explicitly set.
-  public var hasLt: Bool {return self._lt != nil}
+  public var hasLt: Bool {self._lt != nil}
   /// Clears the value of `lt`. Subsequent reads from it will return its default value.
   public mutating func clearLt() {self._lt = nil}
 
   /// Lte specifies that this field must be less than or equal to the
   /// specified value, inclusive
   public var lte: UInt32 {
-    get {return _lte ?? 0}
+    get {_lte ?? 0}
     set {_lte = newValue}
   }
   /// Returns true if `lte` has been explicitly set.
-  public var hasLte: Bool {return self._lte != nil}
+  public var hasLte: Bool {self._lte != nil}
   /// Clears the value of `lte`. Subsequent reads from it will return its default value.
   public mutating func clearLte() {self._lte = nil}
 
@@ -678,11 +678,11 @@ public struct Validate_UInt32Rules: Sendable {
   /// exclusive. If the value of Gt is larger than a specified Lt or Lte, the
   /// range is reversed.
   public var gt: UInt32 {
-    get {return _gt ?? 0}
+    get {_gt ?? 0}
     set {_gt = newValue}
   }
   /// Returns true if `gt` has been explicitly set.
-  public var hasGt: Bool {return self._gt != nil}
+  public var hasGt: Bool {self._gt != nil}
   /// Clears the value of `gt`. Subsequent reads from it will return its default value.
   public mutating func clearGt() {self._gt = nil}
 
@@ -690,11 +690,11 @@ public struct Validate_UInt32Rules: Sendable {
   /// specified value, inclusive. If the value of Gte is larger than a
   /// specified Lt or Lte, the range is reversed.
   public var gte: UInt32 {
-    get {return _gte ?? 0}
+    get {_gte ?? 0}
     set {_gte = newValue}
   }
   /// Returns true if `gte` has been explicitly set.
-  public var hasGte: Bool {return self._gte != nil}
+  public var hasGte: Bool {self._gte != nil}
   /// Clears the value of `gte`. Subsequent reads from it will return its default value.
   public mutating func clearGte() {self._gte = nil}
 
@@ -709,11 +709,11 @@ public struct Validate_UInt32Rules: Sendable {
   /// IgnoreEmpty specifies that the validation rules of this field should be
   /// evaluated only if the field is not empty
   public var ignoreEmpty: Bool {
-    get {return _ignoreEmpty ?? false}
+    get {_ignoreEmpty ?? false}
     set {_ignoreEmpty = newValue}
   }
   /// Returns true if `ignoreEmpty` has been explicitly set.
-  public var hasIgnoreEmpty: Bool {return self._ignoreEmpty != nil}
+  public var hasIgnoreEmpty: Bool {self._ignoreEmpty != nil}
   /// Clears the value of `ignoreEmpty`. Subsequent reads from it will return its default value.
   public mutating func clearIgnoreEmpty() {self._ignoreEmpty = nil}
 
@@ -737,33 +737,33 @@ public struct Validate_UInt64Rules: Sendable {
 
   /// Const specifies that this field must be exactly the specified value
   public var const: UInt64 {
-    get {return _const ?? 0}
+    get {_const ?? 0}
     set {_const = newValue}
   }
   /// Returns true if `const` has been explicitly set.
-  public var hasConst: Bool {return self._const != nil}
+  public var hasConst: Bool {self._const != nil}
   /// Clears the value of `const`. Subsequent reads from it will return its default value.
   public mutating func clearConst() {self._const = nil}
 
   /// Lt specifies that this field must be less than the specified value,
   /// exclusive
   public var lt: UInt64 {
-    get {return _lt ?? 0}
+    get {_lt ?? 0}
     set {_lt = newValue}
   }
   /// Returns true if `lt` has been explicitly set.
-  public var hasLt: Bool {return self._lt != nil}
+  public var hasLt: Bool {self._lt != nil}
   /// Clears the value of `lt`. Subsequent reads from it will return its default value.
   public mutating func clearLt() {self._lt = nil}
 
   /// Lte specifies that this field must be less than or equal to the
   /// specified value, inclusive
   public var lte: UInt64 {
-    get {return _lte ?? 0}
+    get {_lte ?? 0}
     set {_lte = newValue}
   }
   /// Returns true if `lte` has been explicitly set.
-  public var hasLte: Bool {return self._lte != nil}
+  public var hasLte: Bool {self._lte != nil}
   /// Clears the value of `lte`. Subsequent reads from it will return its default value.
   public mutating func clearLte() {self._lte = nil}
 
@@ -771,11 +771,11 @@ public struct Validate_UInt64Rules: Sendable {
   /// exclusive. If the value of Gt is larger than a specified Lt or Lte, the
   /// range is reversed.
   public var gt: UInt64 {
-    get {return _gt ?? 0}
+    get {_gt ?? 0}
     set {_gt = newValue}
   }
   /// Returns true if `gt` has been explicitly set.
-  public var hasGt: Bool {return self._gt != nil}
+  public var hasGt: Bool {self._gt != nil}
   /// Clears the value of `gt`. Subsequent reads from it will return its default value.
   public mutating func clearGt() {self._gt = nil}
 
@@ -783,11 +783,11 @@ public struct Validate_UInt64Rules: Sendable {
   /// specified value, inclusive. If the value of Gte is larger than a
   /// specified Lt or Lte, the range is reversed.
   public var gte: UInt64 {
-    get {return _gte ?? 0}
+    get {_gte ?? 0}
     set {_gte = newValue}
   }
   /// Returns true if `gte` has been explicitly set.
-  public var hasGte: Bool {return self._gte != nil}
+  public var hasGte: Bool {self._gte != nil}
   /// Clears the value of `gte`. Subsequent reads from it will return its default value.
   public mutating func clearGte() {self._gte = nil}
 
@@ -802,11 +802,11 @@ public struct Validate_UInt64Rules: Sendable {
   /// IgnoreEmpty specifies that the validation rules of this field should be
   /// evaluated only if the field is not empty
   public var ignoreEmpty: Bool {
-    get {return _ignoreEmpty ?? false}
+    get {_ignoreEmpty ?? false}
     set {_ignoreEmpty = newValue}
   }
   /// Returns true if `ignoreEmpty` has been explicitly set.
-  public var hasIgnoreEmpty: Bool {return self._ignoreEmpty != nil}
+  public var hasIgnoreEmpty: Bool {self._ignoreEmpty != nil}
   /// Clears the value of `ignoreEmpty`. Subsequent reads from it will return its default value.
   public mutating func clearIgnoreEmpty() {self._ignoreEmpty = nil}
 
@@ -830,33 +830,33 @@ public struct Validate_SInt32Rules: Sendable {
 
   /// Const specifies that this field must be exactly the specified value
   public var const: Int32 {
-    get {return _const ?? 0}
+    get {_const ?? 0}
     set {_const = newValue}
   }
   /// Returns true if `const` has been explicitly set.
-  public var hasConst: Bool {return self._const != nil}
+  public var hasConst: Bool {self._const != nil}
   /// Clears the value of `const`. Subsequent reads from it will return its default value.
   public mutating func clearConst() {self._const = nil}
 
   /// Lt specifies that this field must be less than the specified value,
   /// exclusive
   public var lt: Int32 {
-    get {return _lt ?? 0}
+    get {_lt ?? 0}
     set {_lt = newValue}
   }
   /// Returns true if `lt` has been explicitly set.
-  public var hasLt: Bool {return self._lt != nil}
+  public var hasLt: Bool {self._lt != nil}
   /// Clears the value of `lt`. Subsequent reads from it will return its default value.
   public mutating func clearLt() {self._lt = nil}
 
   /// Lte specifies that this field must be less than or equal to the
   /// specified value, inclusive
   public var lte: Int32 {
-    get {return _lte ?? 0}
+    get {_lte ?? 0}
     set {_lte = newValue}
   }
   /// Returns true if `lte` has been explicitly set.
-  public var hasLte: Bool {return self._lte != nil}
+  public var hasLte: Bool {self._lte != nil}
   /// Clears the value of `lte`. Subsequent reads from it will return its default value.
   public mutating func clearLte() {self._lte = nil}
 
@@ -864,11 +864,11 @@ public struct Validate_SInt32Rules: Sendable {
   /// exclusive. If the value of Gt is larger than a specified Lt or Lte, the
   /// range is reversed.
   public var gt: Int32 {
-    get {return _gt ?? 0}
+    get {_gt ?? 0}
     set {_gt = newValue}
   }
   /// Returns true if `gt` has been explicitly set.
-  public var hasGt: Bool {return self._gt != nil}
+  public var hasGt: Bool {self._gt != nil}
   /// Clears the value of `gt`. Subsequent reads from it will return its default value.
   public mutating func clearGt() {self._gt = nil}
 
@@ -876,11 +876,11 @@ public struct Validate_SInt32Rules: Sendable {
   /// specified value, inclusive. If the value of Gte is larger than a
   /// specified Lt or Lte, the range is reversed.
   public var gte: Int32 {
-    get {return _gte ?? 0}
+    get {_gte ?? 0}
     set {_gte = newValue}
   }
   /// Returns true if `gte` has been explicitly set.
-  public var hasGte: Bool {return self._gte != nil}
+  public var hasGte: Bool {self._gte != nil}
   /// Clears the value of `gte`. Subsequent reads from it will return its default value.
   public mutating func clearGte() {self._gte = nil}
 
@@ -895,11 +895,11 @@ public struct Validate_SInt32Rules: Sendable {
   /// IgnoreEmpty specifies that the validation rules of this field should be
   /// evaluated only if the field is not empty
   public var ignoreEmpty: Bool {
-    get {return _ignoreEmpty ?? false}
+    get {_ignoreEmpty ?? false}
     set {_ignoreEmpty = newValue}
   }
   /// Returns true if `ignoreEmpty` has been explicitly set.
-  public var hasIgnoreEmpty: Bool {return self._ignoreEmpty != nil}
+  public var hasIgnoreEmpty: Bool {self._ignoreEmpty != nil}
   /// Clears the value of `ignoreEmpty`. Subsequent reads from it will return its default value.
   public mutating func clearIgnoreEmpty() {self._ignoreEmpty = nil}
 
@@ -923,33 +923,33 @@ public struct Validate_SInt64Rules: Sendable {
 
   /// Const specifies that this field must be exactly the specified value
   public var const: Int64 {
-    get {return _const ?? 0}
+    get {_const ?? 0}
     set {_const = newValue}
   }
   /// Returns true if `const` has been explicitly set.
-  public var hasConst: Bool {return self._const != nil}
+  public var hasConst: Bool {self._const != nil}
   /// Clears the value of `const`. Subsequent reads from it will return its default value.
   public mutating func clearConst() {self._const = nil}
 
   /// Lt specifies that this field must be less than the specified value,
   /// exclusive
   public var lt: Int64 {
-    get {return _lt ?? 0}
+    get {_lt ?? 0}
     set {_lt = newValue}
   }
   /// Returns true if `lt` has been explicitly set.
-  public var hasLt: Bool {return self._lt != nil}
+  public var hasLt: Bool {self._lt != nil}
   /// Clears the value of `lt`. Subsequent reads from it will return its default value.
   public mutating func clearLt() {self._lt = nil}
 
   /// Lte specifies that this field must be less than or equal to the
   /// specified value, inclusive
   public var lte: Int64 {
-    get {return _lte ?? 0}
+    get {_lte ?? 0}
     set {_lte = newValue}
   }
   /// Returns true if `lte` has been explicitly set.
-  public var hasLte: Bool {return self._lte != nil}
+  public var hasLte: Bool {self._lte != nil}
   /// Clears the value of `lte`. Subsequent reads from it will return its default value.
   public mutating func clearLte() {self._lte = nil}
 
@@ -957,11 +957,11 @@ public struct Validate_SInt64Rules: Sendable {
   /// exclusive. If the value of Gt is larger than a specified Lt or Lte, the
   /// range is reversed.
   public var gt: Int64 {
-    get {return _gt ?? 0}
+    get {_gt ?? 0}
     set {_gt = newValue}
   }
   /// Returns true if `gt` has been explicitly set.
-  public var hasGt: Bool {return self._gt != nil}
+  public var hasGt: Bool {self._gt != nil}
   /// Clears the value of `gt`. Subsequent reads from it will return its default value.
   public mutating func clearGt() {self._gt = nil}
 
@@ -969,11 +969,11 @@ public struct Validate_SInt64Rules: Sendable {
   /// specified value, inclusive. If the value of Gte is larger than a
   /// specified Lt or Lte, the range is reversed.
   public var gte: Int64 {
-    get {return _gte ?? 0}
+    get {_gte ?? 0}
     set {_gte = newValue}
   }
   /// Returns true if `gte` has been explicitly set.
-  public var hasGte: Bool {return self._gte != nil}
+  public var hasGte: Bool {self._gte != nil}
   /// Clears the value of `gte`. Subsequent reads from it will return its default value.
   public mutating func clearGte() {self._gte = nil}
 
@@ -988,11 +988,11 @@ public struct Validate_SInt64Rules: Sendable {
   /// IgnoreEmpty specifies that the validation rules of this field should be
   /// evaluated only if the field is not empty
   public var ignoreEmpty: Bool {
-    get {return _ignoreEmpty ?? false}
+    get {_ignoreEmpty ?? false}
     set {_ignoreEmpty = newValue}
   }
   /// Returns true if `ignoreEmpty` has been explicitly set.
-  public var hasIgnoreEmpty: Bool {return self._ignoreEmpty != nil}
+  public var hasIgnoreEmpty: Bool {self._ignoreEmpty != nil}
   /// Clears the value of `ignoreEmpty`. Subsequent reads from it will return its default value.
   public mutating func clearIgnoreEmpty() {self._ignoreEmpty = nil}
 
@@ -1016,33 +1016,33 @@ public struct Validate_Fixed32Rules: Sendable {
 
   /// Const specifies that this field must be exactly the specified value
   public var const: UInt32 {
-    get {return _const ?? 0}
+    get {_const ?? 0}
     set {_const = newValue}
   }
   /// Returns true if `const` has been explicitly set.
-  public var hasConst: Bool {return self._const != nil}
+  public var hasConst: Bool {self._const != nil}
   /// Clears the value of `const`. Subsequent reads from it will return its default value.
   public mutating func clearConst() {self._const = nil}
 
   /// Lt specifies that this field must be less than the specified value,
   /// exclusive
   public var lt: UInt32 {
-    get {return _lt ?? 0}
+    get {_lt ?? 0}
     set {_lt = newValue}
   }
   /// Returns true if `lt` has been explicitly set.
-  public var hasLt: Bool {return self._lt != nil}
+  public var hasLt: Bool {self._lt != nil}
   /// Clears the value of `lt`. Subsequent reads from it will return its default value.
   public mutating func clearLt() {self._lt = nil}
 
   /// Lte specifies that this field must be less than or equal to the
   /// specified value, inclusive
   public var lte: UInt32 {
-    get {return _lte ?? 0}
+    get {_lte ?? 0}
     set {_lte = newValue}
   }
   /// Returns true if `lte` has been explicitly set.
-  public var hasLte: Bool {return self._lte != nil}
+  public var hasLte: Bool {self._lte != nil}
   /// Clears the value of `lte`. Subsequent reads from it will return its default value.
   public mutating func clearLte() {self._lte = nil}
 
@@ -1050,11 +1050,11 @@ public struct Validate_Fixed32Rules: Sendable {
   /// exclusive. If the value of Gt is larger than a specified Lt or Lte, the
   /// range is reversed.
   public var gt: UInt32 {
-    get {return _gt ?? 0}
+    get {_gt ?? 0}
     set {_gt = newValue}
   }
   /// Returns true if `gt` has been explicitly set.
-  public var hasGt: Bool {return self._gt != nil}
+  public var hasGt: Bool {self._gt != nil}
   /// Clears the value of `gt`. Subsequent reads from it will return its default value.
   public mutating func clearGt() {self._gt = nil}
 
@@ -1062,11 +1062,11 @@ public struct Validate_Fixed32Rules: Sendable {
   /// specified value, inclusive. If the value of Gte is larger than a
   /// specified Lt or Lte, the range is reversed.
   public var gte: UInt32 {
-    get {return _gte ?? 0}
+    get {_gte ?? 0}
     set {_gte = newValue}
   }
   /// Returns true if `gte` has been explicitly set.
-  public var hasGte: Bool {return self._gte != nil}
+  public var hasGte: Bool {self._gte != nil}
   /// Clears the value of `gte`. Subsequent reads from it will return its default value.
   public mutating func clearGte() {self._gte = nil}
 
@@ -1081,11 +1081,11 @@ public struct Validate_Fixed32Rules: Sendable {
   /// IgnoreEmpty specifies that the validation rules of this field should be
   /// evaluated only if the field is not empty
   public var ignoreEmpty: Bool {
-    get {return _ignoreEmpty ?? false}
+    get {_ignoreEmpty ?? false}
     set {_ignoreEmpty = newValue}
   }
   /// Returns true if `ignoreEmpty` has been explicitly set.
-  public var hasIgnoreEmpty: Bool {return self._ignoreEmpty != nil}
+  public var hasIgnoreEmpty: Bool {self._ignoreEmpty != nil}
   /// Clears the value of `ignoreEmpty`. Subsequent reads from it will return its default value.
   public mutating func clearIgnoreEmpty() {self._ignoreEmpty = nil}
 
@@ -1109,33 +1109,33 @@ public struct Validate_Fixed64Rules: Sendable {
 
   /// Const specifies that this field must be exactly the specified value
   public var const: UInt64 {
-    get {return _const ?? 0}
+    get {_const ?? 0}
     set {_const = newValue}
   }
   /// Returns true if `const` has been explicitly set.
-  public var hasConst: Bool {return self._const != nil}
+  public var hasConst: Bool {self._const != nil}
   /// Clears the value of `const`. Subsequent reads from it will return its default value.
   public mutating func clearConst() {self._const = nil}
 
   /// Lt specifies that this field must be less than the specified value,
   /// exclusive
   public var lt: UInt64 {
-    get {return _lt ?? 0}
+    get {_lt ?? 0}
     set {_lt = newValue}
   }
   /// Returns true if `lt` has been explicitly set.
-  public var hasLt: Bool {return self._lt != nil}
+  public var hasLt: Bool {self._lt != nil}
   /// Clears the value of `lt`. Subsequent reads from it will return its default value.
   public mutating func clearLt() {self._lt = nil}
 
   /// Lte specifies that this field must be less than or equal to the
   /// specified value, inclusive
   public var lte: UInt64 {
-    get {return _lte ?? 0}
+    get {_lte ?? 0}
     set {_lte = newValue}
   }
   /// Returns true if `lte` has been explicitly set.
-  public var hasLte: Bool {return self._lte != nil}
+  public var hasLte: Bool {self._lte != nil}
   /// Clears the value of `lte`. Subsequent reads from it will return its default value.
   public mutating func clearLte() {self._lte = nil}
 
@@ -1143,11 +1143,11 @@ public struct Validate_Fixed64Rules: Sendable {
   /// exclusive. If the value of Gt is larger than a specified Lt or Lte, the
   /// range is reversed.
   public var gt: UInt64 {
-    get {return _gt ?? 0}
+    get {_gt ?? 0}
     set {_gt = newValue}
   }
   /// Returns true if `gt` has been explicitly set.
-  public var hasGt: Bool {return self._gt != nil}
+  public var hasGt: Bool {self._gt != nil}
   /// Clears the value of `gt`. Subsequent reads from it will return its default value.
   public mutating func clearGt() {self._gt = nil}
 
@@ -1155,11 +1155,11 @@ public struct Validate_Fixed64Rules: Sendable {
   /// specified value, inclusive. If the value of Gte is larger than a
   /// specified Lt or Lte, the range is reversed.
   public var gte: UInt64 {
-    get {return _gte ?? 0}
+    get {_gte ?? 0}
     set {_gte = newValue}
   }
   /// Returns true if `gte` has been explicitly set.
-  public var hasGte: Bool {return self._gte != nil}
+  public var hasGte: Bool {self._gte != nil}
   /// Clears the value of `gte`. Subsequent reads from it will return its default value.
   public mutating func clearGte() {self._gte = nil}
 
@@ -1174,11 +1174,11 @@ public struct Validate_Fixed64Rules: Sendable {
   /// IgnoreEmpty specifies that the validation rules of this field should be
   /// evaluated only if the field is not empty
   public var ignoreEmpty: Bool {
-    get {return _ignoreEmpty ?? false}
+    get {_ignoreEmpty ?? false}
     set {_ignoreEmpty = newValue}
   }
   /// Returns true if `ignoreEmpty` has been explicitly set.
-  public var hasIgnoreEmpty: Bool {return self._ignoreEmpty != nil}
+  public var hasIgnoreEmpty: Bool {self._ignoreEmpty != nil}
   /// Clears the value of `ignoreEmpty`. Subsequent reads from it will return its default value.
   public mutating func clearIgnoreEmpty() {self._ignoreEmpty = nil}
 
@@ -1202,33 +1202,33 @@ public struct Validate_SFixed32Rules: Sendable {
 
   /// Const specifies that this field must be exactly the specified value
   public var const: Int32 {
-    get {return _const ?? 0}
+    get {_const ?? 0}
     set {_const = newValue}
   }
   /// Returns true if `const` has been explicitly set.
-  public var hasConst: Bool {return self._const != nil}
+  public var hasConst: Bool {self._const != nil}
   /// Clears the value of `const`. Subsequent reads from it will return its default value.
   public mutating func clearConst() {self._const = nil}
 
   /// Lt specifies that this field must be less than the specified value,
   /// exclusive
   public var lt: Int32 {
-    get {return _lt ?? 0}
+    get {_lt ?? 0}
     set {_lt = newValue}
   }
   /// Returns true if `lt` has been explicitly set.
-  public var hasLt: Bool {return self._lt != nil}
+  public var hasLt: Bool {self._lt != nil}
   /// Clears the value of `lt`. Subsequent reads from it will return its default value.
   public mutating func clearLt() {self._lt = nil}
 
   /// Lte specifies that this field must be less than or equal to the
   /// specified value, inclusive
   public var lte: Int32 {
-    get {return _lte ?? 0}
+    get {_lte ?? 0}
     set {_lte = newValue}
   }
   /// Returns true if `lte` has been explicitly set.
-  public var hasLte: Bool {return self._lte != nil}
+  public var hasLte: Bool {self._lte != nil}
   /// Clears the value of `lte`. Subsequent reads from it will return its default value.
   public mutating func clearLte() {self._lte = nil}
 
@@ -1236,11 +1236,11 @@ public struct Validate_SFixed32Rules: Sendable {
   /// exclusive. If the value of Gt is larger than a specified Lt or Lte, the
   /// range is reversed.
   public var gt: Int32 {
-    get {return _gt ?? 0}
+    get {_gt ?? 0}
     set {_gt = newValue}
   }
   /// Returns true if `gt` has been explicitly set.
-  public var hasGt: Bool {return self._gt != nil}
+  public var hasGt: Bool {self._gt != nil}
   /// Clears the value of `gt`. Subsequent reads from it will return its default value.
   public mutating func clearGt() {self._gt = nil}
 
@@ -1248,11 +1248,11 @@ public struct Validate_SFixed32Rules: Sendable {
   /// specified value, inclusive. If the value of Gte is larger than a
   /// specified Lt or Lte, the range is reversed.
   public var gte: Int32 {
-    get {return _gte ?? 0}
+    get {_gte ?? 0}
     set {_gte = newValue}
   }
   /// Returns true if `gte` has been explicitly set.
-  public var hasGte: Bool {return self._gte != nil}
+  public var hasGte: Bool {self._gte != nil}
   /// Clears the value of `gte`. Subsequent reads from it will return its default value.
   public mutating func clearGte() {self._gte = nil}
 
@@ -1267,11 +1267,11 @@ public struct Validate_SFixed32Rules: Sendable {
   /// IgnoreEmpty specifies that the validation rules of this field should be
   /// evaluated only if the field is not empty
   public var ignoreEmpty: Bool {
-    get {return _ignoreEmpty ?? false}
+    get {_ignoreEmpty ?? false}
     set {_ignoreEmpty = newValue}
   }
   /// Returns true if `ignoreEmpty` has been explicitly set.
-  public var hasIgnoreEmpty: Bool {return self._ignoreEmpty != nil}
+  public var hasIgnoreEmpty: Bool {self._ignoreEmpty != nil}
   /// Clears the value of `ignoreEmpty`. Subsequent reads from it will return its default value.
   public mutating func clearIgnoreEmpty() {self._ignoreEmpty = nil}
 
@@ -1295,33 +1295,33 @@ public struct Validate_SFixed64Rules: Sendable {
 
   /// Const specifies that this field must be exactly the specified value
   public var const: Int64 {
-    get {return _const ?? 0}
+    get {_const ?? 0}
     set {_const = newValue}
   }
   /// Returns true if `const` has been explicitly set.
-  public var hasConst: Bool {return self._const != nil}
+  public var hasConst: Bool {self._const != nil}
   /// Clears the value of `const`. Subsequent reads from it will return its default value.
   public mutating func clearConst() {self._const = nil}
 
   /// Lt specifies that this field must be less than the specified value,
   /// exclusive
   public var lt: Int64 {
-    get {return _lt ?? 0}
+    get {_lt ?? 0}
     set {_lt = newValue}
   }
   /// Returns true if `lt` has been explicitly set.
-  public var hasLt: Bool {return self._lt != nil}
+  public var hasLt: Bool {self._lt != nil}
   /// Clears the value of `lt`. Subsequent reads from it will return its default value.
   public mutating func clearLt() {self._lt = nil}
 
   /// Lte specifies that this field must be less than or equal to the
   /// specified value, inclusive
   public var lte: Int64 {
-    get {return _lte ?? 0}
+    get {_lte ?? 0}
     set {_lte = newValue}
   }
   /// Returns true if `lte` has been explicitly set.
-  public var hasLte: Bool {return self._lte != nil}
+  public var hasLte: Bool {self._lte != nil}
   /// Clears the value of `lte`. Subsequent reads from it will return its default value.
   public mutating func clearLte() {self._lte = nil}
 
@@ -1329,11 +1329,11 @@ public struct Validate_SFixed64Rules: Sendable {
   /// exclusive. If the value of Gt is larger than a specified Lt or Lte, the
   /// range is reversed.
   public var gt: Int64 {
-    get {return _gt ?? 0}
+    get {_gt ?? 0}
     set {_gt = newValue}
   }
   /// Returns true if `gt` has been explicitly set.
-  public var hasGt: Bool {return self._gt != nil}
+  public var hasGt: Bool {self._gt != nil}
   /// Clears the value of `gt`. Subsequent reads from it will return its default value.
   public mutating func clearGt() {self._gt = nil}
 
@@ -1341,11 +1341,11 @@ public struct Validate_SFixed64Rules: Sendable {
   /// specified value, inclusive. If the value of Gte is larger than a
   /// specified Lt or Lte, the range is reversed.
   public var gte: Int64 {
-    get {return _gte ?? 0}
+    get {_gte ?? 0}
     set {_gte = newValue}
   }
   /// Returns true if `gte` has been explicitly set.
-  public var hasGte: Bool {return self._gte != nil}
+  public var hasGte: Bool {self._gte != nil}
   /// Clears the value of `gte`. Subsequent reads from it will return its default value.
   public mutating func clearGte() {self._gte = nil}
 
@@ -1360,11 +1360,11 @@ public struct Validate_SFixed64Rules: Sendable {
   /// IgnoreEmpty specifies that the validation rules of this field should be
   /// evaluated only if the field is not empty
   public var ignoreEmpty: Bool {
-    get {return _ignoreEmpty ?? false}
+    get {_ignoreEmpty ?? false}
     set {_ignoreEmpty = newValue}
   }
   /// Returns true if `ignoreEmpty` has been explicitly set.
-  public var hasIgnoreEmpty: Bool {return self._ignoreEmpty != nil}
+  public var hasIgnoreEmpty: Bool {self._ignoreEmpty != nil}
   /// Clears the value of `ignoreEmpty`. Subsequent reads from it will return its default value.
   public mutating func clearIgnoreEmpty() {self._ignoreEmpty = nil}
 
@@ -1388,11 +1388,11 @@ public struct Validate_BoolRules: Sendable {
 
   /// Const specifies that this field must be exactly the specified value
   public var const: Bool {
-    get {return _const ?? false}
+    get {_const ?? false}
     set {_const = newValue}
   }
   /// Returns true if `const` has been explicitly set.
-  public var hasConst: Bool {return self._const != nil}
+  public var hasConst: Bool {self._const != nil}
   /// Clears the value of `const`. Subsequent reads from it will return its default value.
   public mutating func clearConst() {self._const = nil}
 
@@ -1411,11 +1411,11 @@ public struct Validate_StringRules: @unchecked Sendable {
 
   /// Const specifies that this field must be exactly the specified value
   public var const: String {
-    get {return _storage._const ?? String()}
+    get {_storage._const ?? String()}
     set {_uniqueStorage()._const = newValue}
   }
   /// Returns true if `const` has been explicitly set.
-  public var hasConst: Bool {return _storage._const != nil}
+  public var hasConst: Bool {_storage._const != nil}
   /// Clears the value of `const`. Subsequent reads from it will return its default value.
   public mutating func clearConst() {_uniqueStorage()._const = nil}
 
@@ -1423,11 +1423,11 @@ public struct Validate_StringRules: @unchecked Sendable {
   /// characters (Unicode code points). Note that the number of
   /// characters may differ from the number of bytes in the string.
   public var len: UInt64 {
-    get {return _storage._len ?? 0}
+    get {_storage._len ?? 0}
     set {_uniqueStorage()._len = newValue}
   }
   /// Returns true if `len` has been explicitly set.
-  public var hasLen: Bool {return _storage._len != nil}
+  public var hasLen: Bool {_storage._len != nil}
   /// Clears the value of `len`. Subsequent reads from it will return its default value.
   public mutating func clearLen() {_uniqueStorage()._len = nil}
 
@@ -1435,11 +1435,11 @@ public struct Validate_StringRules: @unchecked Sendable {
   /// characters (Unicode code points) at a minimum. Note that the number of
   /// characters may differ from the number of bytes in the string.
   public var minLen: UInt64 {
-    get {return _storage._minLen ?? 0}
+    get {_storage._minLen ?? 0}
     set {_uniqueStorage()._minLen = newValue}
   }
   /// Returns true if `minLen` has been explicitly set.
-  public var hasMinLen: Bool {return _storage._minLen != nil}
+  public var hasMinLen: Bool {_storage._minLen != nil}
   /// Clears the value of `minLen`. Subsequent reads from it will return its default value.
   public mutating func clearMinLen() {_uniqueStorage()._minLen = nil}
 
@@ -1447,44 +1447,44 @@ public struct Validate_StringRules: @unchecked Sendable {
   /// characters (Unicode code points) at a maximum. Note that the number of
   /// characters may differ from the number of bytes in the string.
   public var maxLen: UInt64 {
-    get {return _storage._maxLen ?? 0}
+    get {_storage._maxLen ?? 0}
     set {_uniqueStorage()._maxLen = newValue}
   }
   /// Returns true if `maxLen` has been explicitly set.
-  public var hasMaxLen: Bool {return _storage._maxLen != nil}
+  public var hasMaxLen: Bool {_storage._maxLen != nil}
   /// Clears the value of `maxLen`. Subsequent reads from it will return its default value.
   public mutating func clearMaxLen() {_uniqueStorage()._maxLen = nil}
 
   /// LenBytes specifies that this field must be the specified number of bytes
   /// at a minimum
   public var lenBytes: UInt64 {
-    get {return _storage._lenBytes ?? 0}
+    get {_storage._lenBytes ?? 0}
     set {_uniqueStorage()._lenBytes = newValue}
   }
   /// Returns true if `lenBytes` has been explicitly set.
-  public var hasLenBytes: Bool {return _storage._lenBytes != nil}
+  public var hasLenBytes: Bool {_storage._lenBytes != nil}
   /// Clears the value of `lenBytes`. Subsequent reads from it will return its default value.
   public mutating func clearLenBytes() {_uniqueStorage()._lenBytes = nil}
 
   /// MinBytes specifies that this field must be the specified number of bytes
   /// at a minimum
   public var minBytes: UInt64 {
-    get {return _storage._minBytes ?? 0}
+    get {_storage._minBytes ?? 0}
     set {_uniqueStorage()._minBytes = newValue}
   }
   /// Returns true if `minBytes` has been explicitly set.
-  public var hasMinBytes: Bool {return _storage._minBytes != nil}
+  public var hasMinBytes: Bool {_storage._minBytes != nil}
   /// Clears the value of `minBytes`. Subsequent reads from it will return its default value.
   public mutating func clearMinBytes() {_uniqueStorage()._minBytes = nil}
 
   /// MaxBytes specifies that this field must be the specified number of bytes
   /// at a maximum
   public var maxBytes: UInt64 {
-    get {return _storage._maxBytes ?? 0}
+    get {_storage._maxBytes ?? 0}
     set {_uniqueStorage()._maxBytes = newValue}
   }
   /// Returns true if `maxBytes` has been explicitly set.
-  public var hasMaxBytes: Bool {return _storage._maxBytes != nil}
+  public var hasMaxBytes: Bool {_storage._maxBytes != nil}
   /// Clears the value of `maxBytes`. Subsequent reads from it will return its default value.
   public mutating func clearMaxBytes() {_uniqueStorage()._maxBytes = nil}
 
@@ -1492,69 +1492,69 @@ public struct Validate_StringRules: @unchecked Sendable {
   /// regular expression (RE2 syntax). The included expression should elide
   /// any delimiters.
   public var pattern: String {
-    get {return _storage._pattern ?? String()}
+    get {_storage._pattern ?? String()}
     set {_uniqueStorage()._pattern = newValue}
   }
   /// Returns true if `pattern` has been explicitly set.
-  public var hasPattern: Bool {return _storage._pattern != nil}
+  public var hasPattern: Bool {_storage._pattern != nil}
   /// Clears the value of `pattern`. Subsequent reads from it will return its default value.
   public mutating func clearPattern() {_uniqueStorage()._pattern = nil}
 
   /// Prefix specifies that this field must have the specified substring at
   /// the beginning of the string.
   public var prefix: String {
-    get {return _storage._prefix ?? String()}
+    get {_storage._prefix ?? String()}
     set {_uniqueStorage()._prefix = newValue}
   }
   /// Returns true if `prefix` has been explicitly set.
-  public var hasPrefix: Bool {return _storage._prefix != nil}
+  public var hasPrefix: Bool {_storage._prefix != nil}
   /// Clears the value of `prefix`. Subsequent reads from it will return its default value.
   public mutating func clearPrefix() {_uniqueStorage()._prefix = nil}
 
   /// Suffix specifies that this field must have the specified substring at
   /// the end of the string.
   public var suffix: String {
-    get {return _storage._suffix ?? String()}
+    get {_storage._suffix ?? String()}
     set {_uniqueStorage()._suffix = newValue}
   }
   /// Returns true if `suffix` has been explicitly set.
-  public var hasSuffix: Bool {return _storage._suffix != nil}
+  public var hasSuffix: Bool {_storage._suffix != nil}
   /// Clears the value of `suffix`. Subsequent reads from it will return its default value.
   public mutating func clearSuffix() {_uniqueStorage()._suffix = nil}
 
   /// Contains specifies that this field must have the specified substring
   /// anywhere in the string.
   public var contains: String {
-    get {return _storage._contains ?? String()}
+    get {_storage._contains ?? String()}
     set {_uniqueStorage()._contains = newValue}
   }
   /// Returns true if `contains` has been explicitly set.
-  public var hasContains: Bool {return _storage._contains != nil}
+  public var hasContains: Bool {_storage._contains != nil}
   /// Clears the value of `contains`. Subsequent reads from it will return its default value.
   public mutating func clearContains() {_uniqueStorage()._contains = nil}
 
   /// NotContains specifies that this field cannot have the specified substring
   /// anywhere in the string.
   public var notContains: String {
-    get {return _storage._notContains ?? String()}
+    get {_storage._notContains ?? String()}
     set {_uniqueStorage()._notContains = newValue}
   }
   /// Returns true if `notContains` has been explicitly set.
-  public var hasNotContains: Bool {return _storage._notContains != nil}
+  public var hasNotContains: Bool {_storage._notContains != nil}
   /// Clears the value of `notContains`. Subsequent reads from it will return its default value.
   public mutating func clearNotContains() {_uniqueStorage()._notContains = nil}
 
   /// In specifies that this field must be equal to one of the specified
   /// values
   public var `in`: [String] {
-    get {return _storage._in}
+    get {_storage._in}
     set {_uniqueStorage()._in = newValue}
   }
 
   /// NotIn specifies that this field cannot be equal to one of the specified
   /// values
   public var notIn: [String] {
-    get {return _storage._notIn}
+    get {_storage._notIn}
     set {_uniqueStorage()._notIn = newValue}
   }
 
@@ -1671,22 +1671,22 @@ public struct Validate_StringRules: @unchecked Sendable {
   /// Setting to false will enable a looser validations that only disallows
   /// \r\n\0 characters, which can be used to bypass header matching rules.
   public var strict: Bool {
-    get {return _storage._strict ?? true}
+    get {_storage._strict ?? true}
     set {_uniqueStorage()._strict = newValue}
   }
   /// Returns true if `strict` has been explicitly set.
-  public var hasStrict: Bool {return _storage._strict != nil}
+  public var hasStrict: Bool {_storage._strict != nil}
   /// Clears the value of `strict`. Subsequent reads from it will return its default value.
   public mutating func clearStrict() {_uniqueStorage()._strict = nil}
 
   /// IgnoreEmpty specifies that the validation rules of this field should be
   /// evaluated only if the field is not empty
   public var ignoreEmpty: Bool {
-    get {return _storage._ignoreEmpty ?? false}
+    get {_storage._ignoreEmpty ?? false}
     set {_uniqueStorage()._ignoreEmpty = newValue}
   }
   /// Returns true if `ignoreEmpty` has been explicitly set.
-  public var hasIgnoreEmpty: Bool {return _storage._ignoreEmpty != nil}
+  public var hasIgnoreEmpty: Bool {_storage._ignoreEmpty != nil}
   /// Clears the value of `ignoreEmpty`. Subsequent reads from it will return its default value.
   public mutating func clearIgnoreEmpty() {_uniqueStorage()._ignoreEmpty = nil}
 
@@ -1741,43 +1741,43 @@ public struct Validate_BytesRules: Sendable {
 
   /// Const specifies that this field must be exactly the specified value
   public var const: Data {
-    get {return _const ?? Data()}
+    get {_const ?? Data()}
     set {_const = newValue}
   }
   /// Returns true if `const` has been explicitly set.
-  public var hasConst: Bool {return self._const != nil}
+  public var hasConst: Bool {self._const != nil}
   /// Clears the value of `const`. Subsequent reads from it will return its default value.
   public mutating func clearConst() {self._const = nil}
 
   /// Len specifies that this field must be the specified number of bytes
   public var len: UInt64 {
-    get {return _len ?? 0}
+    get {_len ?? 0}
     set {_len = newValue}
   }
   /// Returns true if `len` has been explicitly set.
-  public var hasLen: Bool {return self._len != nil}
+  public var hasLen: Bool {self._len != nil}
   /// Clears the value of `len`. Subsequent reads from it will return its default value.
   public mutating func clearLen() {self._len = nil}
 
   /// MinLen specifies that this field must be the specified number of bytes
   /// at a minimum
   public var minLen: UInt64 {
-    get {return _minLen ?? 0}
+    get {_minLen ?? 0}
     set {_minLen = newValue}
   }
   /// Returns true if `minLen` has been explicitly set.
-  public var hasMinLen: Bool {return self._minLen != nil}
+  public var hasMinLen: Bool {self._minLen != nil}
   /// Clears the value of `minLen`. Subsequent reads from it will return its default value.
   public mutating func clearMinLen() {self._minLen = nil}
 
   /// MaxLen specifies that this field must be the specified number of bytes
   /// at a maximum
   public var maxLen: UInt64 {
-    get {return _maxLen ?? 0}
+    get {_maxLen ?? 0}
     set {_maxLen = newValue}
   }
   /// Returns true if `maxLen` has been explicitly set.
-  public var hasMaxLen: Bool {return self._maxLen != nil}
+  public var hasMaxLen: Bool {self._maxLen != nil}
   /// Clears the value of `maxLen`. Subsequent reads from it will return its default value.
   public mutating func clearMaxLen() {self._maxLen = nil}
 
@@ -1785,44 +1785,44 @@ public struct Validate_BytesRules: Sendable {
   /// regular expression (RE2 syntax). The included expression should elide
   /// any delimiters.
   public var pattern: String {
-    get {return _pattern ?? String()}
+    get {_pattern ?? String()}
     set {_pattern = newValue}
   }
   /// Returns true if `pattern` has been explicitly set.
-  public var hasPattern: Bool {return self._pattern != nil}
+  public var hasPattern: Bool {self._pattern != nil}
   /// Clears the value of `pattern`. Subsequent reads from it will return its default value.
   public mutating func clearPattern() {self._pattern = nil}
 
   /// Prefix specifies that this field must have the specified bytes at the
   /// beginning of the string.
   public var prefix: Data {
-    get {return _prefix ?? Data()}
+    get {_prefix ?? Data()}
     set {_prefix = newValue}
   }
   /// Returns true if `prefix` has been explicitly set.
-  public var hasPrefix: Bool {return self._prefix != nil}
+  public var hasPrefix: Bool {self._prefix != nil}
   /// Clears the value of `prefix`. Subsequent reads from it will return its default value.
   public mutating func clearPrefix() {self._prefix = nil}
 
   /// Suffix specifies that this field must have the specified bytes at the
   /// end of the string.
   public var suffix: Data {
-    get {return _suffix ?? Data()}
+    get {_suffix ?? Data()}
     set {_suffix = newValue}
   }
   /// Returns true if `suffix` has been explicitly set.
-  public var hasSuffix: Bool {return self._suffix != nil}
+  public var hasSuffix: Bool {self._suffix != nil}
   /// Clears the value of `suffix`. Subsequent reads from it will return its default value.
   public mutating func clearSuffix() {self._suffix = nil}
 
   /// Contains specifies that this field must have the specified bytes
   /// anywhere in the string.
   public var contains: Data {
-    get {return _contains ?? Data()}
+    get {_contains ?? Data()}
     set {_contains = newValue}
   }
   /// Returns true if `contains` has been explicitly set.
-  public var hasContains: Bool {return self._contains != nil}
+  public var hasContains: Bool {self._contains != nil}
   /// Clears the value of `contains`. Subsequent reads from it will return its default value.
   public mutating func clearContains() {self._contains = nil}
 
@@ -1871,11 +1871,11 @@ public struct Validate_BytesRules: Sendable {
   /// IgnoreEmpty specifies that the validation rules of this field should be
   /// evaluated only if the field is not empty
   public var ignoreEmpty: Bool {
-    get {return _ignoreEmpty ?? false}
+    get {_ignoreEmpty ?? false}
     set {_ignoreEmpty = newValue}
   }
   /// Returns true if `ignoreEmpty` has been explicitly set.
-  public var hasIgnoreEmpty: Bool {return self._ignoreEmpty != nil}
+  public var hasIgnoreEmpty: Bool {self._ignoreEmpty != nil}
   /// Clears the value of `ignoreEmpty`. Subsequent reads from it will return its default value.
   public mutating func clearIgnoreEmpty() {self._ignoreEmpty = nil}
 
@@ -1917,22 +1917,22 @@ public struct Validate_EnumRules: Sendable {
 
   /// Const specifies that this field must be exactly the specified value
   public var const: Int32 {
-    get {return _const ?? 0}
+    get {_const ?? 0}
     set {_const = newValue}
   }
   /// Returns true if `const` has been explicitly set.
-  public var hasConst: Bool {return self._const != nil}
+  public var hasConst: Bool {self._const != nil}
   /// Clears the value of `const`. Subsequent reads from it will return its default value.
   public mutating func clearConst() {self._const = nil}
 
   /// DefinedOnly specifies that this field must be only one of the defined
   /// values for this enum, failing on any undefined value.
   public var definedOnly: Bool {
-    get {return _definedOnly ?? false}
+    get {_definedOnly ?? false}
     set {_definedOnly = newValue}
   }
   /// Returns true if `definedOnly` has been explicitly set.
-  public var hasDefinedOnly: Bool {return self._definedOnly != nil}
+  public var hasDefinedOnly: Bool {self._definedOnly != nil}
   /// Clears the value of `definedOnly`. Subsequent reads from it will return its default value.
   public mutating func clearDefinedOnly() {self._definedOnly = nil}
 
@@ -1962,21 +1962,21 @@ public struct Validate_MessageRules: Sendable {
   /// Skip specifies that the validation rules of this field should not be
   /// evaluated
   public var skip: Bool {
-    get {return _skip ?? false}
+    get {_skip ?? false}
     set {_skip = newValue}
   }
   /// Returns true if `skip` has been explicitly set.
-  public var hasSkip: Bool {return self._skip != nil}
+  public var hasSkip: Bool {self._skip != nil}
   /// Clears the value of `skip`. Subsequent reads from it will return its default value.
   public mutating func clearSkip() {self._skip = nil}
 
   /// Required specifies that this field must be set
   public var required: Bool {
-    get {return _required ?? false}
+    get {_required ?? false}
     set {_required = newValue}
   }
   /// Returns true if `required` has been explicitly set.
-  public var hasRequired: Bool {return self._required != nil}
+  public var hasRequired: Bool {self._required != nil}
   /// Clears the value of `required`. Subsequent reads from it will return its default value.
   public mutating func clearRequired() {self._required = nil}
 
@@ -1997,22 +1997,22 @@ public struct Validate_RepeatedRules: @unchecked Sendable {
   /// MinItems specifies that this field must have the specified number of
   /// items at a minimum
   public var minItems: UInt64 {
-    get {return _storage._minItems ?? 0}
+    get {_storage._minItems ?? 0}
     set {_uniqueStorage()._minItems = newValue}
   }
   /// Returns true if `minItems` has been explicitly set.
-  public var hasMinItems: Bool {return _storage._minItems != nil}
+  public var hasMinItems: Bool {_storage._minItems != nil}
   /// Clears the value of `minItems`. Subsequent reads from it will return its default value.
   public mutating func clearMinItems() {_uniqueStorage()._minItems = nil}
 
   /// MaxItems specifies that this field must have the specified number of
   /// items at a maximum
   public var maxItems: UInt64 {
-    get {return _storage._maxItems ?? 0}
+    get {_storage._maxItems ?? 0}
     set {_uniqueStorage()._maxItems = newValue}
   }
   /// Returns true if `maxItems` has been explicitly set.
-  public var hasMaxItems: Bool {return _storage._maxItems != nil}
+  public var hasMaxItems: Bool {_storage._maxItems != nil}
   /// Clears the value of `maxItems`. Subsequent reads from it will return its default value.
   public mutating func clearMaxItems() {_uniqueStorage()._maxItems = nil}
 
@@ -2020,11 +2020,11 @@ public struct Validate_RepeatedRules: @unchecked Sendable {
   /// contraint is only applicable to scalar and enum types (messages are not
   /// supported).
   public var unique: Bool {
-    get {return _storage._unique ?? false}
+    get {_storage._unique ?? false}
     set {_uniqueStorage()._unique = newValue}
   }
   /// Returns true if `unique` has been explicitly set.
-  public var hasUnique: Bool {return _storage._unique != nil}
+  public var hasUnique: Bool {_storage._unique != nil}
   /// Clears the value of `unique`. Subsequent reads from it will return its default value.
   public mutating func clearUnique() {_uniqueStorage()._unique = nil}
 
@@ -2032,22 +2032,22 @@ public struct Validate_RepeatedRules: @unchecked Sendable {
   /// Repeated message fields will still execute validation against each item
   /// unless skip is specified here.
   public var items: Validate_FieldRules {
-    get {return _storage._items ?? Validate_FieldRules()}
+    get {_storage._items ?? Validate_FieldRules()}
     set {_uniqueStorage()._items = newValue}
   }
   /// Returns true if `items` has been explicitly set.
-  public var hasItems: Bool {return _storage._items != nil}
+  public var hasItems: Bool {_storage._items != nil}
   /// Clears the value of `items`. Subsequent reads from it will return its default value.
   public mutating func clearItems() {_uniqueStorage()._items = nil}
 
   /// IgnoreEmpty specifies that the validation rules of this field should be
   /// evaluated only if the field is not empty
   public var ignoreEmpty: Bool {
-    get {return _storage._ignoreEmpty ?? false}
+    get {_storage._ignoreEmpty ?? false}
     set {_uniqueStorage()._ignoreEmpty = newValue}
   }
   /// Returns true if `ignoreEmpty` has been explicitly set.
-  public var hasIgnoreEmpty: Bool {return _storage._ignoreEmpty != nil}
+  public var hasIgnoreEmpty: Bool {_storage._ignoreEmpty != nil}
   /// Clears the value of `ignoreEmpty`. Subsequent reads from it will return its default value.
   public mutating func clearIgnoreEmpty() {_uniqueStorage()._ignoreEmpty = nil}
 
@@ -2067,43 +2067,43 @@ public struct Validate_MapRules: @unchecked Sendable {
   /// MinPairs specifies that this field must have the specified number of
   /// KVs at a minimum
   public var minPairs: UInt64 {
-    get {return _storage._minPairs ?? 0}
+    get {_storage._minPairs ?? 0}
     set {_uniqueStorage()._minPairs = newValue}
   }
   /// Returns true if `minPairs` has been explicitly set.
-  public var hasMinPairs: Bool {return _storage._minPairs != nil}
+  public var hasMinPairs: Bool {_storage._minPairs != nil}
   /// Clears the value of `minPairs`. Subsequent reads from it will return its default value.
   public mutating func clearMinPairs() {_uniqueStorage()._minPairs = nil}
 
   /// MaxPairs specifies that this field must have the specified number of
   /// KVs at a maximum
   public var maxPairs: UInt64 {
-    get {return _storage._maxPairs ?? 0}
+    get {_storage._maxPairs ?? 0}
     set {_uniqueStorage()._maxPairs = newValue}
   }
   /// Returns true if `maxPairs` has been explicitly set.
-  public var hasMaxPairs: Bool {return _storage._maxPairs != nil}
+  public var hasMaxPairs: Bool {_storage._maxPairs != nil}
   /// Clears the value of `maxPairs`. Subsequent reads from it will return its default value.
   public mutating func clearMaxPairs() {_uniqueStorage()._maxPairs = nil}
 
   /// NoSparse specifies values in this field cannot be unset. This only
   /// applies to map's with message value types.
   public var noSparse: Bool {
-    get {return _storage._noSparse ?? false}
+    get {_storage._noSparse ?? false}
     set {_uniqueStorage()._noSparse = newValue}
   }
   /// Returns true if `noSparse` has been explicitly set.
-  public var hasNoSparse: Bool {return _storage._noSparse != nil}
+  public var hasNoSparse: Bool {_storage._noSparse != nil}
   /// Clears the value of `noSparse`. Subsequent reads from it will return its default value.
   public mutating func clearNoSparse() {_uniqueStorage()._noSparse = nil}
 
   /// Keys specifies the constraints to be applied to each key in the field.
   public var keys: Validate_FieldRules {
-    get {return _storage._keys ?? Validate_FieldRules()}
+    get {_storage._keys ?? Validate_FieldRules()}
     set {_uniqueStorage()._keys = newValue}
   }
   /// Returns true if `keys` has been explicitly set.
-  public var hasKeys: Bool {return _storage._keys != nil}
+  public var hasKeys: Bool {_storage._keys != nil}
   /// Clears the value of `keys`. Subsequent reads from it will return its default value.
   public mutating func clearKeys() {_uniqueStorage()._keys = nil}
 
@@ -2111,22 +2111,22 @@ public struct Validate_MapRules: @unchecked Sendable {
   /// in the field. Message values will still have their validations evaluated
   /// unless skip is specified here.
   public var values: Validate_FieldRules {
-    get {return _storage._values ?? Validate_FieldRules()}
+    get {_storage._values ?? Validate_FieldRules()}
     set {_uniqueStorage()._values = newValue}
   }
   /// Returns true if `values` has been explicitly set.
-  public var hasValues: Bool {return _storage._values != nil}
+  public var hasValues: Bool {_storage._values != nil}
   /// Clears the value of `values`. Subsequent reads from it will return its default value.
   public mutating func clearValues() {_uniqueStorage()._values = nil}
 
   /// IgnoreEmpty specifies that the validation rules of this field should be
   /// evaluated only if the field is not empty
   public var ignoreEmpty: Bool {
-    get {return _storage._ignoreEmpty ?? false}
+    get {_storage._ignoreEmpty ?? false}
     set {_uniqueStorage()._ignoreEmpty = newValue}
   }
   /// Returns true if `ignoreEmpty` has been explicitly set.
-  public var hasIgnoreEmpty: Bool {return _storage._ignoreEmpty != nil}
+  public var hasIgnoreEmpty: Bool {_storage._ignoreEmpty != nil}
   /// Clears the value of `ignoreEmpty`. Subsequent reads from it will return its default value.
   public mutating func clearIgnoreEmpty() {_uniqueStorage()._ignoreEmpty = nil}
 
@@ -2146,11 +2146,11 @@ public struct Validate_AnyRules: Sendable {
 
   /// Required specifies that this field must be set
   public var required: Bool {
-    get {return _required ?? false}
+    get {_required ?? false}
     set {_required = newValue}
   }
   /// Returns true if `required` has been explicitly set.
-  public var hasRequired: Bool {return self._required != nil}
+  public var hasRequired: Bool {self._required != nil}
   /// Clears the value of `required`. Subsequent reads from it will return its default value.
   public mutating func clearRequired() {self._required = nil}
 
@@ -2178,65 +2178,65 @@ public struct Validate_DurationRules: Sendable {
 
   /// Required specifies that this field must be set
   public var required: Bool {
-    get {return _required ?? false}
+    get {_required ?? false}
     set {_required = newValue}
   }
   /// Returns true if `required` has been explicitly set.
-  public var hasRequired: Bool {return self._required != nil}
+  public var hasRequired: Bool {self._required != nil}
   /// Clears the value of `required`. Subsequent reads from it will return its default value.
   public mutating func clearRequired() {self._required = nil}
 
   /// Const specifies that this field must be exactly the specified value
   public var const: SwiftProtobuf.Google_Protobuf_Duration {
-    get {return _const ?? SwiftProtobuf.Google_Protobuf_Duration()}
+    get {_const ?? SwiftProtobuf.Google_Protobuf_Duration()}
     set {_const = newValue}
   }
   /// Returns true if `const` has been explicitly set.
-  public var hasConst: Bool {return self._const != nil}
+  public var hasConst: Bool {self._const != nil}
   /// Clears the value of `const`. Subsequent reads from it will return its default value.
   public mutating func clearConst() {self._const = nil}
 
   /// Lt specifies that this field must be less than the specified value,
   /// exclusive
   public var lt: SwiftProtobuf.Google_Protobuf_Duration {
-    get {return _lt ?? SwiftProtobuf.Google_Protobuf_Duration()}
+    get {_lt ?? SwiftProtobuf.Google_Protobuf_Duration()}
     set {_lt = newValue}
   }
   /// Returns true if `lt` has been explicitly set.
-  public var hasLt: Bool {return self._lt != nil}
+  public var hasLt: Bool {self._lt != nil}
   /// Clears the value of `lt`. Subsequent reads from it will return its default value.
   public mutating func clearLt() {self._lt = nil}
 
   /// Lt specifies that this field must be less than the specified value,
   /// inclusive
   public var lte: SwiftProtobuf.Google_Protobuf_Duration {
-    get {return _lte ?? SwiftProtobuf.Google_Protobuf_Duration()}
+    get {_lte ?? SwiftProtobuf.Google_Protobuf_Duration()}
     set {_lte = newValue}
   }
   /// Returns true if `lte` has been explicitly set.
-  public var hasLte: Bool {return self._lte != nil}
+  public var hasLte: Bool {self._lte != nil}
   /// Clears the value of `lte`. Subsequent reads from it will return its default value.
   public mutating func clearLte() {self._lte = nil}
 
   /// Gt specifies that this field must be greater than the specified value,
   /// exclusive
   public var gt: SwiftProtobuf.Google_Protobuf_Duration {
-    get {return _gt ?? SwiftProtobuf.Google_Protobuf_Duration()}
+    get {_gt ?? SwiftProtobuf.Google_Protobuf_Duration()}
     set {_gt = newValue}
   }
   /// Returns true if `gt` has been explicitly set.
-  public var hasGt: Bool {return self._gt != nil}
+  public var hasGt: Bool {self._gt != nil}
   /// Clears the value of `gt`. Subsequent reads from it will return its default value.
   public mutating func clearGt() {self._gt = nil}
 
   /// Gte specifies that this field must be greater than the specified value,
   /// inclusive
   public var gte: SwiftProtobuf.Google_Protobuf_Duration {
-    get {return _gte ?? SwiftProtobuf.Google_Protobuf_Duration()}
+    get {_gte ?? SwiftProtobuf.Google_Protobuf_Duration()}
     set {_gte = newValue}
   }
   /// Returns true if `gte` has been explicitly set.
-  public var hasGte: Bool {return self._gte != nil}
+  public var hasGte: Bool {self._gte != nil}
   /// Clears the value of `gte`. Subsequent reads from it will return its default value.
   public mutating func clearGte() {self._gte = nil}
 
@@ -2269,87 +2269,87 @@ public struct Validate_TimestampRules: Sendable {
 
   /// Required specifies that this field must be set
   public var required: Bool {
-    get {return _required ?? false}
+    get {_required ?? false}
     set {_required = newValue}
   }
   /// Returns true if `required` has been explicitly set.
-  public var hasRequired: Bool {return self._required != nil}
+  public var hasRequired: Bool {self._required != nil}
   /// Clears the value of `required`. Subsequent reads from it will return its default value.
   public mutating func clearRequired() {self._required = nil}
 
   /// Const specifies that this field must be exactly the specified value
   public var const: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _const ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_const ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_const = newValue}
   }
   /// Returns true if `const` has been explicitly set.
-  public var hasConst: Bool {return self._const != nil}
+  public var hasConst: Bool {self._const != nil}
   /// Clears the value of `const`. Subsequent reads from it will return its default value.
   public mutating func clearConst() {self._const = nil}
 
   /// Lt specifies that this field must be less than the specified value,
   /// exclusive
   public var lt: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _lt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_lt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_lt = newValue}
   }
   /// Returns true if `lt` has been explicitly set.
-  public var hasLt: Bool {return self._lt != nil}
+  public var hasLt: Bool {self._lt != nil}
   /// Clears the value of `lt`. Subsequent reads from it will return its default value.
   public mutating func clearLt() {self._lt = nil}
 
   /// Lte specifies that this field must be less than the specified value,
   /// inclusive
   public var lte: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _lte ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_lte ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_lte = newValue}
   }
   /// Returns true if `lte` has been explicitly set.
-  public var hasLte: Bool {return self._lte != nil}
+  public var hasLte: Bool {self._lte != nil}
   /// Clears the value of `lte`. Subsequent reads from it will return its default value.
   public mutating func clearLte() {self._lte = nil}
 
   /// Gt specifies that this field must be greater than the specified value,
   /// exclusive
   public var gt: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _gt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_gt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_gt = newValue}
   }
   /// Returns true if `gt` has been explicitly set.
-  public var hasGt: Bool {return self._gt != nil}
+  public var hasGt: Bool {self._gt != nil}
   /// Clears the value of `gt`. Subsequent reads from it will return its default value.
   public mutating func clearGt() {self._gt = nil}
 
   /// Gte specifies that this field must be greater than the specified value,
   /// inclusive
   public var gte: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _gte ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {_gte ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_gte = newValue}
   }
   /// Returns true if `gte` has been explicitly set.
-  public var hasGte: Bool {return self._gte != nil}
+  public var hasGte: Bool {self._gte != nil}
   /// Clears the value of `gte`. Subsequent reads from it will return its default value.
   public mutating func clearGte() {self._gte = nil}
 
   /// LtNow specifies that this must be less than the current time. LtNow
   /// can only be used with the Within rule.
   public var ltNow: Bool {
-    get {return _ltNow ?? false}
+    get {_ltNow ?? false}
     set {_ltNow = newValue}
   }
   /// Returns true if `ltNow` has been explicitly set.
-  public var hasLtNow: Bool {return self._ltNow != nil}
+  public var hasLtNow: Bool {self._ltNow != nil}
   /// Clears the value of `ltNow`. Subsequent reads from it will return its default value.
   public mutating func clearLtNow() {self._ltNow = nil}
 
   /// GtNow specifies that this must be greater than the current time. GtNow
   /// can only be used with the Within rule.
   public var gtNow: Bool {
-    get {return _gtNow ?? false}
+    get {_gtNow ?? false}
     set {_gtNow = newValue}
   }
   /// Returns true if `gtNow` has been explicitly set.
-  public var hasGtNow: Bool {return self._gtNow != nil}
+  public var hasGtNow: Bool {self._gtNow != nil}
   /// Clears the value of `gtNow`. Subsequent reads from it will return its default value.
   public mutating func clearGtNow() {self._gtNow = nil}
 
@@ -2357,11 +2357,11 @@ public struct Validate_TimestampRules: Sendable {
   /// current time. This constraint can be used alone or with the LtNow and
   /// GtNow rules.
   public var within: SwiftProtobuf.Google_Protobuf_Duration {
-    get {return _within ?? SwiftProtobuf.Google_Protobuf_Duration()}
+    get {_within ?? SwiftProtobuf.Google_Protobuf_Duration()}
     set {_within = newValue}
   }
   /// Returns true if `within` has been explicitly set.
-  public var hasWithin: Bool {return self._within != nil}
+  public var hasWithin: Bool {self._within != nil}
   /// Clears the value of `within`. Subsequent reads from it will return its default value.
   public mutating func clearWithin() {self._within = nil}
 
