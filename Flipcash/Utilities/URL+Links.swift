@@ -72,7 +72,18 @@ extension URL {
         guard let components = URLComponents(url: self, resolvingAgainstBaseURL: false) else {
             return nil
         }
-        
+
         return components.queryItems?.first(where: { $0.name == key })?.value
+    }
+}
+
+extension URL {
+    /// Returns the URL stripped of all query parameters and
+    /// fragments for safe use in analytics and logging.
+    var sanitizedForAnalytics: String {
+        var components = URLComponents(url: self, resolvingAgainstBaseURL: true)
+        components?.fragment = nil
+        components?.queryItems = nil
+        return components?.string ?? path
     }
 }

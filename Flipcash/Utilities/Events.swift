@@ -268,7 +268,7 @@ extension Analytics {
 extension Analytics {
     static func deeplinkOpened(url: URL) {
         track(event: DeeplinkEvent.open, properties: [
-            .url: url.absoluteString,
+            .url: url.sanitizedForAnalytics,
         ])
     }
 
@@ -278,7 +278,7 @@ extension Analytics {
         if let action {
             properties[.type] = action.kind.analyticsName
         } else {
-            properties[.error] = "Failed to parse deeplink => \(url.absoluteString)"
+            properties[.error] = "Failed to parse deeplink => \(url.sanitizedForAnalytics)"
         }
 
         track(event: DeeplinkEvent.parse, properties: properties)

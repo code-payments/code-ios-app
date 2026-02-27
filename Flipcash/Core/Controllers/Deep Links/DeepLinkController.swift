@@ -42,7 +42,7 @@ final class DeepLinkController {
                 return nil
             }
 
-            trace(.warning, components: "Jumping to: \(jumpURL)")
+            trace(.warning, components: "Jumping to: \(jumpURL.sanitizedForAnalytics)")
             return handle(open: jumpURL)
         }
         
@@ -52,7 +52,7 @@ final class DeepLinkController {
             return nil
         }
         
-        trace(.note, components: "Deep link: \(url.absoluteString)")
+        trace(.note, components: "Deep link: \(url.sanitizedForAnalytics)")
         
         switch route.path {
         case .login:
