@@ -41,6 +41,35 @@ if let user {
 }
 ```
 
+### Conditional View Modifier Extensions Break Identity
+
+A common pattern is an `if`-based `View` extension for conditional modifiers. This changes the view's return type between branches, which destroys view identity and breaks animations:
+
+```swift
+// Problematic -- different return types per branch
+extension View {
+    @ViewBuilder func `if`<T: View>(_ condition: Bool, transform: (Self) -> T) -> some View {
+        if condition {
+            transform(self)  // Returns T
+        } else {
+            self              // Returns Self
+        }
+    }
+}
+```
+
+Prefer applying the modifier directly with a ternary or always-present modifier:
+
+```swift
+// Good -- same view identity maintained
+Text("Hello")
+    .opacity(isHighlighted ? 1 : 0.5)
+
+// Good -- modifier always present, value changes
+Text("Hello")
+    .foregroundStyle(isError ? .red : .primary)
+```
+
 ## Extract Subviews, Not Computed Properties
 
 ### The Problem with @ViewBuilder Functions
@@ -266,11 +295,119 @@ ZStack(alignment: .topTrailing) {
 }
 ```
 
+## Reusable Styling with ViewModifier
+
+Extract repeated modifier combinations into a `ViewModifier` struct. Expose via a `View` extension for autocompletion:
+
+```swift
+private struct CardStyle: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .padding()
+            .background(Color(.secondarySystemBackground))
+            .clipShape(.rect(cornerRadius: 12))
+    }
+}
+
+extension View {
+    func cardStyle() -> some View {
+        modifier(CardStyle())
+    }
+}
+```
+
+### Custom ButtonStyle
+
+Use the `ButtonStyle` protocol for reusable button designs. Use `PrimitiveButtonStyle` only when you need custom interaction handling (e.g., simultaneous gestures):
+
+```swift
+struct PrimaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .bold()
+            .foregroundStyle(.white)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(Color.accentColor)
+            .clipShape(Capsule())
+            .scaleEffect(configuration.isPressed ? 0.95 : 1)
+            .animation(.smooth, value: configuration.isPressed)
+    }
+}
+```
+
+### Discoverability with Static Member Lookup
+
+Make custom styles and modifiers discoverable via leading-dot syntax:
+
+```swift
+extension ButtonStyle where Self == PrimaryButtonStyle {
+    static var primary: PrimaryButtonStyle { .init() }
+}
+
+// Usage: .buttonStyle(.primary)
+```
+
+This pattern works for any SwiftUI style protocol (`ButtonStyle`, `ListStyle`, `ToggleStyle`, etc.).
+
+## Skeleton Loading with Redacted Views
+
+Use `.redacted(reason: .placeholder)` to show skeleton views while data loads. Use `.unredacted()` to opt out specific views:
+
+```swift
+VStack(alignment: .leading) {
+    Text(article?.title ?? String(repeating: "X", count: 20))
+        .font(.headline)
+    Text(article?.author ?? String(repeating: "X", count: 12))
+        .font(.subheadline)
+    Text("SwiftLee")
+        .font(.caption)
+        .unredacted()
+}
+.redacted(reason: article == nil ? .placeholder : [])
+```
+
+Apply `.redacted` on a container to redact all children at once.
+
+## UIViewRepresentable Essentials
+
+When bridging UIKit views into SwiftUI:
+
+- `makeUIView(context:)` is called **once** to create the UIKit view
+- `updateUIView(_:context:)` is called on **every SwiftUI redraw** to sync state
+- The representable struct itself is **recreated on every redraw** -- avoid heavy work in its init
+- Use a `Coordinator` for delegate callbacks and two-way communication
+
+```swift
+struct MapView: UIViewRepresentable {
+    let coordinate: CLLocationCoordinate2D
+
+    func makeUIView(context: Context) -> MKMapView {
+        let map = MKMapView()
+        map.delegate = context.coordinator
+        return map
+    }
+
+    func updateUIView(_ map: MKMapView, context: Context) {
+        map.setCenter(coordinate, animated: true)
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    class Coordinator: NSObject, MKMapViewDelegate { }
+}
+```
+
 ## Summary Checklist
 
 - [ ] Prefer modifiers over conditional views for state changes
+- [ ] Avoid `if`-based conditional modifier extensions (they break view identity)
 - [ ] Complex views extracted to separate subviews
 - [ ] Views kept small for better performance
 - [ ] `@ViewBuilder` functions only for simple sections
 - [ ] Container views use `@ViewBuilder let content: Content`
 - [ ] Extract views when they have multiple responsibilities or become hard to read
+- [ ] Reusable styling extracted into `ViewModifier` or `ButtonStyle`
+- [ ] Custom styles exposed via static member lookup for discoverability
+- [ ] Use `.redacted(reason: .placeholder)` for skeleton loading states
+- [ ] UIViewRepresentable: heavy work in make/update, not in struct init
