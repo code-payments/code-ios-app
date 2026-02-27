@@ -21,18 +21,20 @@ class SendCashOperation {
     private let ratesController: RatesController
     private let owner: AccountCluster
     private let exchangedFiat: ExchangedFiat
+    private let providedVerifiedState: VerifiedState?
 
     private var messageStream: AnyCancellable? = nil
     private var hasProcessedPayment = false
 
     // MARK: - Init -
 
-    init(client: Client, database: Database, ratesController: RatesController, owner: AccountCluster, exchangedFiat: ExchangedFiat) {
+    init(client: Client, database: Database, ratesController: RatesController, owner: AccountCluster, exchangedFiat: ExchangedFiat, verifiedState: VerifiedState? = nil) {
         self.client          = client
         self.database        = database
         self.ratesController = ratesController
         self.owner           = owner
         self.exchangedFiat   = exchangedFiat
+        self.providedVerifiedState = verifiedState
         self.payload      = .init(
             kind: .cashMulticurrency,
             fiat: exchangedFiat.converted,
@@ -65,12 +67,24 @@ class SendCashOperation {
             )
         }
         
-        // Send a message to the receiver with the mint
-        // so they can create the correct incoming accounts
+        // Send a message to the receiver with the mint and exchange
+        // data so they can create the correct incoming accounts
         // on their end
         Task {
+            let verifiedState: VerifiedState?
+            if let provided = self.providedVerifiedState {
+                verifiedState = provided
+            } else {
+                verifiedState = await self.ratesController.getVerifiedState(
+                    for: exchangedFiat.converted.currencyCode,
+                    mint: exchangedFiat.mint
+                )
+            }
+
             try await client.sendRequestToGiveBill(
                 mint: exchangedFiat.mint,
+                exchangedFiat: exchangedFiat,
+                verifiedState: verifiedState,
                 rendezvous: rendezvous
             )
         }

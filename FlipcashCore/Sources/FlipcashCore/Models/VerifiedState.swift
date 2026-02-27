@@ -11,7 +11,7 @@ import FlipcashAPI
 
 /// Bundles verified proofs for intent construction.
 /// Contains server-signed exchange rate and optional reserve state for launchpad currencies.
-public struct VerifiedState: Sendable {
+public struct VerifiedState: Equatable, Sendable {
 
     /// Exchange rate proof (always required for payments)
     public let rateProto: Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRate
