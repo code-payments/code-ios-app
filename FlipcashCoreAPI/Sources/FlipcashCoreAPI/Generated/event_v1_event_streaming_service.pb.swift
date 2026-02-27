@@ -57,11 +57,11 @@ public struct Flipcash_Event_V1_StreamEventsRequest: Sendable {
     // methods supported on all messages.
 
     public var auth: Flipcash_Common_V1_Auth {
-      get {return _auth ?? Flipcash_Common_V1_Auth()}
+      get {_auth ?? Flipcash_Common_V1_Auth()}
       set {_auth = newValue}
     }
     /// Returns true if `auth` has been explicitly set.
-    public var hasAuth: Bool {return self._auth != nil}
+    public var hasAuth: Bool {self._auth != nil}
     /// Clears the value of `auth`. Subsequent reads from it will return its default value.
     public mutating func clearAuth() {self._auth = nil}
 
@@ -70,11 +70,11 @@ public struct Flipcash_Event_V1_StreamEventsRequest: Sendable {
     /// It is used primarily as a nonce for auth. Server may reject
     /// timestamps that are too far in the future or past.
     public var ts: SwiftProtobuf.Google_Protobuf_Timestamp {
-      get {return _ts ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+      get {_ts ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
       set {_ts = newValue}
     }
     /// Returns true if `ts` has been explicitly set.
-    public var hasTs: Bool {return self._ts != nil}
+    public var hasTs: Bool {self._ts != nil}
     /// Clears the value of `ts`. Subsequent reads from it will return its default value.
     public mutating func clearTs() {self._ts = nil}
 
@@ -184,11 +184,11 @@ public struct Flipcash_Event_V1_ForwardEventsRequest: Sendable {
   // methods supported on all messages.
 
   public var userEvents: Flipcash_Event_V1_UserEventBatch {
-    get {return _userEvents ?? Flipcash_Event_V1_UserEventBatch()}
+    get {_userEvents ?? Flipcash_Event_V1_UserEventBatch()}
     set {_userEvents = newValue}
   }
   /// Returns true if `userEvents` has been explicitly set.
-  public var hasUserEvents: Bool {return self._userEvents != nil}
+  public var hasUserEvents: Bool {self._userEvents != nil}
   /// Clears the value of `userEvents`. Subsequent reads from it will return its default value.
   public mutating func clearUserEvents() {self._userEvents = nil}
 

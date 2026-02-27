@@ -121,20 +121,20 @@ public struct Flipcash_Common_V1_Auth: Sendable {
     // methods supported on all messages.
 
     public var pubKey: Flipcash_Common_V1_PublicKey {
-      get {return _pubKey ?? Flipcash_Common_V1_PublicKey()}
+      get {_pubKey ?? Flipcash_Common_V1_PublicKey()}
       set {_pubKey = newValue}
     }
     /// Returns true if `pubKey` has been explicitly set.
-    public var hasPubKey: Bool {return self._pubKey != nil}
+    public var hasPubKey: Bool {self._pubKey != nil}
     /// Clears the value of `pubKey`. Subsequent reads from it will return its default value.
     public mutating func clearPubKey() {self._pubKey = nil}
 
     public var signature: Flipcash_Common_V1_Signature {
-      get {return _signature ?? Flipcash_Common_V1_Signature()}
+      get {_signature ?? Flipcash_Common_V1_Signature()}
       set {_signature = newValue}
     }
     /// Returns true if `signature` has been explicitly set.
-    public var hasSignature: Bool {return self._signature != nil}
+    public var hasSignature: Bool {self._signature != nil}
     /// Clears the value of `signature`. Subsequent reads from it will return its default value.
     public mutating func clearSignature() {self._signature = nil}
 
@@ -193,11 +193,11 @@ public struct Flipcash_Common_V1_CryptoPaymentAmount: Sendable {
 
   /// The crypto mint that was paid
   public var mint: Flipcash_Common_V1_PublicKey {
-    get {return _mint ?? Flipcash_Common_V1_PublicKey()}
+    get {_mint ?? Flipcash_Common_V1_PublicKey()}
     set {_mint = newValue}
   }
   /// Returns true if `mint` has been explicitly set.
-  public var hasMint: Bool {return self._mint != nil}
+  public var hasMint: Bool {self._mint != nil}
   /// Clears the value of `mint`. Subsequent reads from it will return its default value.
   public mutating func clearMint() {self._mint = nil}
 
@@ -251,11 +251,11 @@ public struct Flipcash_Common_V1_QueryOptions: Sendable {
   /// PagingToken is a token that can be extracted from the
   /// identifier of a collection.
   public var pagingToken: Flipcash_Common_V1_PagingToken {
-    get {return _pagingToken ?? Flipcash_Common_V1_PagingToken()}
+    get {_pagingToken ?? Flipcash_Common_V1_PagingToken()}
     set {_pagingToken = newValue}
   }
   /// Returns true if `pagingToken` has been explicitly set.
-  public var hasPagingToken: Bool {return self._pagingToken != nil}
+  public var hasPagingToken: Bool {self._pagingToken != nil}
   /// Clears the value of `pagingToken`. Subsequent reads from it will return its default value.
   public mutating func clearPagingToken() {self._pagingToken = nil}
 

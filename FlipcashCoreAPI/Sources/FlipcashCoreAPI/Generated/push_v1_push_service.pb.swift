@@ -30,20 +30,20 @@ public struct Flipcash_Push_V1_AddTokenRequest: Sendable {
   public var pushToken: String = String()
 
   public var appInstall: Flipcash_Common_V1_AppInstallId {
-    get {return _appInstall ?? Flipcash_Common_V1_AppInstallId()}
+    get {_appInstall ?? Flipcash_Common_V1_AppInstallId()}
     set {_appInstall = newValue}
   }
   /// Returns true if `appInstall` has been explicitly set.
-  public var hasAppInstall: Bool {return self._appInstall != nil}
+  public var hasAppInstall: Bool {self._appInstall != nil}
   /// Clears the value of `appInstall`. Subsequent reads from it will return its default value.
   public mutating func clearAppInstall() {self._appInstall = nil}
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {return _auth ?? Flipcash_Common_V1_Auth()}
+    get {_auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {return self._auth != nil}
+  public var hasAuth: Bool {self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
@@ -107,20 +107,20 @@ public struct Flipcash_Push_V1_DeleteTokensRequest: Sendable {
   // methods supported on all messages.
 
   public var appInstall: Flipcash_Common_V1_AppInstallId {
-    get {return _appInstall ?? Flipcash_Common_V1_AppInstallId()}
+    get {_appInstall ?? Flipcash_Common_V1_AppInstallId()}
     set {_appInstall = newValue}
   }
   /// Returns true if `appInstall` has been explicitly set.
-  public var hasAppInstall: Bool {return self._appInstall != nil}
+  public var hasAppInstall: Bool {self._appInstall != nil}
   /// Clears the value of `appInstall`. Subsequent reads from it will return its default value.
   public mutating func clearAppInstall() {self._appInstall = nil}
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {return _auth ?? Flipcash_Common_V1_Auth()}
+    get {_auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {return self._auth != nil}
+  public var hasAuth: Bool {self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 

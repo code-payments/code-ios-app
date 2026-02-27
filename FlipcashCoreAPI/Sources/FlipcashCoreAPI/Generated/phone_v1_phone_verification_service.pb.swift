@@ -27,11 +27,11 @@ public struct Flipcash_Phone_V1_SendVerificationCodeRequest: Sendable {
 
   /// The phone number to send a verification code over SMS to
   public var phoneNumber: Flipcash_Phone_V1_PhoneNumber {
-    get {return _phoneNumber ?? Flipcash_Phone_V1_PhoneNumber()}
+    get {_phoneNumber ?? Flipcash_Phone_V1_PhoneNumber()}
     set {_phoneNumber = newValue}
   }
   /// Returns true if `phoneNumber` has been explicitly set.
-  public var hasPhoneNumber: Bool {return self._phoneNumber != nil}
+  public var hasPhoneNumber: Bool {self._phoneNumber != nil}
   /// Clears the value of `phoneNumber`. Subsequent reads from it will return its default value.
   public mutating func clearPhoneNumber() {self._phoneNumber = nil}
 
@@ -39,11 +39,11 @@ public struct Flipcash_Phone_V1_SendVerificationCodeRequest: Sendable {
   public var platform: Flipcash_Common_V1_Platform = .unknown
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {return _auth ?? Flipcash_Common_V1_Auth()}
+    get {_auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {return self._auth != nil}
+  public var hasAuth: Bool {self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
@@ -129,30 +129,30 @@ public struct Flipcash_Phone_V1_CheckVerificationCodeRequest: Sendable {
 
   /// The phone number being verified
   public var phoneNumber: Flipcash_Phone_V1_PhoneNumber {
-    get {return _phoneNumber ?? Flipcash_Phone_V1_PhoneNumber()}
+    get {_phoneNumber ?? Flipcash_Phone_V1_PhoneNumber()}
     set {_phoneNumber = newValue}
   }
   /// Returns true if `phoneNumber` has been explicitly set.
-  public var hasPhoneNumber: Bool {return self._phoneNumber != nil}
+  public var hasPhoneNumber: Bool {self._phoneNumber != nil}
   /// Clears the value of `phoneNumber`. Subsequent reads from it will return its default value.
   public mutating func clearPhoneNumber() {self._phoneNumber = nil}
 
   /// The verification code received via SMS
   public var code: Flipcash_Phone_V1_VerificationCode {
-    get {return _code ?? Flipcash_Phone_V1_VerificationCode()}
+    get {_code ?? Flipcash_Phone_V1_VerificationCode()}
     set {_code = newValue}
   }
   /// Returns true if `code` has been explicitly set.
-  public var hasCode: Bool {return self._code != nil}
+  public var hasCode: Bool {self._code != nil}
   /// Clears the value of `code`. Subsequent reads from it will return its default value.
   public mutating func clearCode() {self._code = nil}
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {return _auth ?? Flipcash_Common_V1_Auth()}
+    get {_auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {return self._auth != nil}
+  public var hasAuth: Bool {self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
@@ -242,20 +242,20 @@ public struct Flipcash_Phone_V1_UnlinkRequest: Sendable {
 
   /// The phone number to unlink
   public var phoneNumber: Flipcash_Phone_V1_PhoneNumber {
-    get {return _phoneNumber ?? Flipcash_Phone_V1_PhoneNumber()}
+    get {_phoneNumber ?? Flipcash_Phone_V1_PhoneNumber()}
     set {_phoneNumber = newValue}
   }
   /// Returns true if `phoneNumber` has been explicitly set.
-  public var hasPhoneNumber: Bool {return self._phoneNumber != nil}
+  public var hasPhoneNumber: Bool {self._phoneNumber != nil}
   /// Clears the value of `phoneNumber`. Subsequent reads from it will return its default value.
   public mutating func clearPhoneNumber() {self._phoneNumber = nil}
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {return _auth ?? Flipcash_Common_V1_Auth()}
+    get {_auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {return self._auth != nil}
+  public var hasAuth: Bool {self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 

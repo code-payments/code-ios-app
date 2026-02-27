@@ -19,6 +19,9 @@ service Currency {
 
     // StreamLiveMintData streams live mint data for a set of mints
     rpc StreamLiveMintData(stream StreamLiveMintDataRequest) returns (stream StreamLiveMintDataResponse);
+
+    // Launch launches a new currency on the launchpad
+    rpc Launch(LaunchRequest) returns (LaunchResponse);
 }
 
 message GetMintsRequest {
@@ -314,4 +317,40 @@ message Color {
     string hex = 1 [(validate.rules).string = {
         pattern: "^#[0-9a-fA-F]{6}$"
     }];
+}
+
+message LaunchRequest {
+    // The owner account launching the currency
+    common.v1.SolanaAccountId owner = 1 [(validate.rules).message.required = true];
+
+    // The signature is of serialize(LaunchRequest) without this field set
+    // using the private key of the owner account. This provides an authentication
+    // mechanism to the RPC.
+    common.v1.Signature signature = 2 [(validate.rules).message.required = true];
+
+    // The name of the currency to launch
+    string name = 3 [(validate.rules).string = {
+        min_len: 1,
+        max_len: 32,
+    }];
+
+    // The ticker symbol for the currency. If not provided, a default will be
+    // generated using the currency name.
+    string symbol = 4 [(validate.rules).string = {
+        max_len: 8,
+    }];
+}
+
+message LaunchResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+        // The launch was denied
+        DENIED = 1;
+        // A similar currency already exists
+        EXISTS = 2;
+    }
+
+    // The mint address of the launched currency on success
+    common.v1.SolanaAccountId mint = 2;
 }

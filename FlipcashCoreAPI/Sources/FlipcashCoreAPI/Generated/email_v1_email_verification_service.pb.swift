@@ -27,20 +27,20 @@ public struct Flipcash_Email_V1_SendVerificationCodeRequest: Sendable {
 
   /// The email address to send a verification code to
   public var emailAddress: Flipcash_Email_V1_EmailAddress {
-    get {return _emailAddress ?? Flipcash_Email_V1_EmailAddress()}
+    get {_emailAddress ?? Flipcash_Email_V1_EmailAddress()}
     set {_emailAddress = newValue}
   }
   /// Returns true if `emailAddress` has been explicitly set.
-  public var hasEmailAddress: Bool {return self._emailAddress != nil}
+  public var hasEmailAddress: Bool {self._emailAddress != nil}
   /// Clears the value of `emailAddress`. Subsequent reads from it will return its default value.
   public mutating func clearEmailAddress() {self._emailAddress = nil}
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {return _auth ?? Flipcash_Common_V1_Auth()}
+    get {_auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {return self._auth != nil}
+  public var hasAuth: Bool {self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
@@ -122,30 +122,30 @@ public struct Flipcash_Email_V1_CheckVerificationCodeRequest: Sendable {
 
   /// The email address being verified
   public var emailAddress: Flipcash_Email_V1_EmailAddress {
-    get {return _emailAddress ?? Flipcash_Email_V1_EmailAddress()}
+    get {_emailAddress ?? Flipcash_Email_V1_EmailAddress()}
     set {_emailAddress = newValue}
   }
   /// Returns true if `emailAddress` has been explicitly set.
-  public var hasEmailAddress: Bool {return self._emailAddress != nil}
+  public var hasEmailAddress: Bool {self._emailAddress != nil}
   /// Clears the value of `emailAddress`. Subsequent reads from it will return its default value.
   public mutating func clearEmailAddress() {self._emailAddress = nil}
 
   /// The verification code received via email
   public var code: Flipcash_Email_V1_VerificationCode {
-    get {return _code ?? Flipcash_Email_V1_VerificationCode()}
+    get {_code ?? Flipcash_Email_V1_VerificationCode()}
     set {_code = newValue}
   }
   /// Returns true if `code` has been explicitly set.
-  public var hasCode: Bool {return self._code != nil}
+  public var hasCode: Bool {self._code != nil}
   /// Clears the value of `code`. Subsequent reads from it will return its default value.
   public mutating func clearCode() {self._code = nil}
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {return _auth ?? Flipcash_Common_V1_Auth()}
+    get {_auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {return self._auth != nil}
+  public var hasAuth: Bool {self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
@@ -235,20 +235,20 @@ public struct Flipcash_Email_V1_UnlinkRequest: Sendable {
 
   /// The email address to unlink
   public var emailAddress: Flipcash_Email_V1_EmailAddress {
-    get {return _emailAddress ?? Flipcash_Email_V1_EmailAddress()}
+    get {_emailAddress ?? Flipcash_Email_V1_EmailAddress()}
     set {_emailAddress = newValue}
   }
   /// Returns true if `emailAddress` has been explicitly set.
-  public var hasEmailAddress: Bool {return self._emailAddress != nil}
+  public var hasEmailAddress: Bool {self._emailAddress != nil}
   /// Clears the value of `emailAddress`. Subsequent reads from it will return its default value.
   public mutating func clearEmailAddress() {self._emailAddress = nil}
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {return _auth ?? Flipcash_Common_V1_Auth()}
+    get {_auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {return self._auth != nil}
+  public var hasAuth: Bool {self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 

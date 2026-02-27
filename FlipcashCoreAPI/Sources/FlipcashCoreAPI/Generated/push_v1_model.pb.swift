@@ -70,11 +70,11 @@ public struct Flipcash_Push_V1_Payload: Sendable {
 
   /// If present, where the app should navigate to after clicking the push
   public var navigation: Flipcash_Push_V1_Navigation {
-    get {return _navigation ?? Flipcash_Push_V1_Navigation()}
+    get {_navigation ?? Flipcash_Push_V1_Navigation()}
     set {_navigation = newValue}
   }
   /// Returns true if `navigation` has been explicitly set.
-  public var hasNavigation: Bool {return self._navigation != nil}
+  public var hasNavigation: Bool {self._navigation != nil}
   /// Clears the value of `navigation`. Subsequent reads from it will return its default value.
   public mutating func clearNavigation() {self._navigation = nil}
 

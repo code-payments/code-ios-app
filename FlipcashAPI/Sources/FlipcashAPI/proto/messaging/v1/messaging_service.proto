@@ -7,6 +7,7 @@ option java_package = "com.codeinc.gen.messaging.v1";
 option objc_class_prefix = "CPBMessagingV1";
 
 import "common/v1/model.proto";
+import "transaction/v1/transaction_service.proto";
 import "validate/validate.proto";
 
 service Messaging {
@@ -194,6 +195,11 @@ message RequestToGrabBill {
 message RequestToGiveBill {
     // The mint that the bill will be received in
     common.v1.SolanaAccountId mint = 1 [(validate.rules).message.required = true];
+
+    // The validated exchange data that was used to compute the fiat value of the give
+    // to support subsequent gives. Clients should be aware of timeouts and dismiss a
+    // bill if the threshold is met.
+    transaction.v1.VerifiedExchangeData exchange_data = 2;
 }
 
 message Message {

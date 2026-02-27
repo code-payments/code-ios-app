@@ -7,6 +7,7 @@ option java_package = "com.codeinc.flipcash.gen.account.v1";
 option objc_class_prefix = "FPBAccountV1";
 
 import "common/v1/common.proto";
+import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "validate/validate.proto";
 
@@ -135,4 +136,7 @@ message UserFlags {
 	// The minumum build number for this user. If their build number is less than the
 	// provided value, client should show a forced upgrade screen.
 	uint32 min_build_number = 6;
+
+	// Exchange data timeout for sequential give/grabs for bills
+	google.protobuf.Duration bill_exchange_data_timeout = 7;
 }

@@ -27,11 +27,11 @@ public struct Ocp_Messaging_V1_OpenMessageStreamRequest: Sendable {
   // methods supported on all messages.
 
   public var rendezvousKey: Ocp_Messaging_V1_RendezvousKey {
-    get {return _rendezvousKey ?? Ocp_Messaging_V1_RendezvousKey()}
+    get {_rendezvousKey ?? Ocp_Messaging_V1_RendezvousKey()}
     set {_rendezvousKey = newValue}
   }
   /// Returns true if `rendezvousKey` has been explicitly set.
-  public var hasRendezvousKey: Bool {return self._rendezvousKey != nil}
+  public var hasRendezvousKey: Bool {self._rendezvousKey != nil}
   /// Clears the value of `rendezvousKey`. Subsequent reads from it will return its default value.
   public mutating func clearRendezvousKey() {self._rendezvousKey = nil}
 
@@ -39,11 +39,11 @@ public struct Ocp_Messaging_V1_OpenMessageStreamRequest: Sendable {
   ///
   /// todo: Make required once clients migrate
   public var signature: Ocp_Common_V1_Signature {
-    get {return _signature ?? Ocp_Common_V1_Signature()}
+    get {_signature ?? Ocp_Common_V1_Signature()}
     set {_signature = newValue}
   }
   /// Returns true if `signature` has been explicitly set.
-  public var hasSignature: Bool {return self._signature != nil}
+  public var hasSignature: Bool {self._signature != nil}
   /// Clears the value of `signature`. Subsequent reads from it will return its default value.
   public mutating func clearSignature() {self._signature = nil}
 
@@ -141,21 +141,21 @@ public struct Ocp_Messaging_V1_PollMessagesRequest: Sendable {
   // methods supported on all messages.
 
   public var rendezvousKey: Ocp_Messaging_V1_RendezvousKey {
-    get {return _rendezvousKey ?? Ocp_Messaging_V1_RendezvousKey()}
+    get {_rendezvousKey ?? Ocp_Messaging_V1_RendezvousKey()}
     set {_rendezvousKey = newValue}
   }
   /// Returns true if `rendezvousKey` has been explicitly set.
-  public var hasRendezvousKey: Bool {return self._rendezvousKey != nil}
+  public var hasRendezvousKey: Bool {self._rendezvousKey != nil}
   /// Clears the value of `rendezvousKey`. Subsequent reads from it will return its default value.
   public mutating func clearRendezvousKey() {self._rendezvousKey = nil}
 
   /// The signature is of serialize(PollMessagesRequest) using rendezvous_key.
   public var signature: Ocp_Common_V1_Signature {
-    get {return _signature ?? Ocp_Common_V1_Signature()}
+    get {_signature ?? Ocp_Common_V1_Signature()}
     set {_signature = newValue}
   }
   /// Returns true if `signature` has been explicitly set.
-  public var hasSignature: Bool {return self._signature != nil}
+  public var hasSignature: Bool {self._signature != nil}
   /// Clears the value of `signature`. Subsequent reads from it will return its default value.
   public mutating func clearSignature() {self._signature = nil}
 
@@ -185,11 +185,11 @@ public struct Ocp_Messaging_V1_AckMessagesRequest: Sendable {
   // methods supported on all messages.
 
   public var rendezvousKey: Ocp_Messaging_V1_RendezvousKey {
-    get {return _rendezvousKey ?? Ocp_Messaging_V1_RendezvousKey()}
+    get {_rendezvousKey ?? Ocp_Messaging_V1_RendezvousKey()}
     set {_rendezvousKey = newValue}
   }
   /// Returns true if `rendezvousKey` has been explicitly set.
-  public var hasRendezvousKey: Bool {return self._rendezvousKey != nil}
+  public var hasRendezvousKey: Bool {self._rendezvousKey != nil}
   /// Clears the value of `rendezvousKey`. Subsequent reads from it will return its default value.
   public mutating func clearRendezvousKey() {self._rendezvousKey = nil}
 
@@ -244,48 +244,46 @@ public struct Ocp_Messaging_V1_AckMesssagesResponse: Sendable {
   public init() {}
 }
 
-public struct Ocp_Messaging_V1_SendMessageRequest: Sendable {
+public struct Ocp_Messaging_V1_SendMessageRequest: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// The message to send. Types of messages clients can send are restricted.
   public var message: Ocp_Messaging_V1_Message {
-    get {return _message ?? Ocp_Messaging_V1_Message()}
-    set {_message = newValue}
+    get {_storage._message ?? Ocp_Messaging_V1_Message()}
+    set {_uniqueStorage()._message = newValue}
   }
   /// Returns true if `message` has been explicitly set.
-  public var hasMessage: Bool {return self._message != nil}
+  public var hasMessage: Bool {_storage._message != nil}
   /// Clears the value of `message`. Subsequent reads from it will return its default value.
-  public mutating func clearMessage() {self._message = nil}
+  public mutating func clearMessage() {_uniqueStorage()._message = nil}
 
   /// The rendezvous key that the message should be routed to.
   public var rendezvousKey: Ocp_Messaging_V1_RendezvousKey {
-    get {return _rendezvousKey ?? Ocp_Messaging_V1_RendezvousKey()}
-    set {_rendezvousKey = newValue}
+    get {_storage._rendezvousKey ?? Ocp_Messaging_V1_RendezvousKey()}
+    set {_uniqueStorage()._rendezvousKey = newValue}
   }
   /// Returns true if `rendezvousKey` has been explicitly set.
-  public var hasRendezvousKey: Bool {return self._rendezvousKey != nil}
+  public var hasRendezvousKey: Bool {_storage._rendezvousKey != nil}
   /// Clears the value of `rendezvousKey`. Subsequent reads from it will return its default value.
-  public mutating func clearRendezvousKey() {self._rendezvousKey = nil}
+  public mutating func clearRendezvousKey() {_uniqueStorage()._rendezvousKey = nil}
 
   /// The signature is of serialize(Message) using the PrivateKey of the keypair.
   public var signature: Ocp_Common_V1_Signature {
-    get {return _signature ?? Ocp_Common_V1_Signature()}
-    set {_signature = newValue}
+    get {_storage._signature ?? Ocp_Common_V1_Signature()}
+    set {_uniqueStorage()._signature = newValue}
   }
   /// Returns true if `signature` has been explicitly set.
-  public var hasSignature: Bool {return self._signature != nil}
+  public var hasSignature: Bool {_storage._signature != nil}
   /// Clears the value of `signature`. Subsequent reads from it will return its default value.
-  public mutating func clearSignature() {self._signature = nil}
+  public mutating func clearSignature() {_uniqueStorage()._signature = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _message: Ocp_Messaging_V1_Message? = nil
-  fileprivate var _rendezvousKey: Ocp_Messaging_V1_RendezvousKey? = nil
-  fileprivate var _signature: Ocp_Common_V1_Signature? = nil
+  fileprivate var _storage = _StorageClass.defaultInstance
 }
 
 public struct Ocp_Messaging_V1_SendMessageResponse: Sendable {
@@ -297,11 +295,11 @@ public struct Ocp_Messaging_V1_SendMessageResponse: Sendable {
 
   /// Set if result == OK.
   public var messageID: Ocp_Messaging_V1_MessageId {
-    get {return _messageID ?? Ocp_Messaging_V1_MessageId()}
+    get {_messageID ?? Ocp_Messaging_V1_MessageId()}
     set {_messageID = newValue}
   }
   /// Returns true if `messageID` has been explicitly set.
-  public var hasMessageID: Bool {return self._messageID != nil}
+  public var hasMessageID: Bool {self._messageID != nil}
   /// Clears the value of `messageID`. Subsequent reads from it will return its default value.
   public mutating func clearMessageID() {self._messageID = nil}
 
@@ -386,11 +384,11 @@ public struct Ocp_Messaging_V1_RequestToGrabBill: Sendable {
   /// Requestor is the virtual token account on the VM to which a payment
   /// should be sent.
   public var requestorAccount: Ocp_Common_V1_SolanaAccountId {
-    get {return _requestorAccount ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_requestorAccount ?? Ocp_Common_V1_SolanaAccountId()}
     set {_requestorAccount = newValue}
   }
   /// Returns true if `requestorAccount` has been explicitly set.
-  public var hasRequestorAccount: Bool {return self._requestorAccount != nil}
+  public var hasRequestorAccount: Bool {self._requestorAccount != nil}
   /// Clears the value of `requestorAccount`. Subsequent reads from it will return its default value.
   public mutating func clearRequestorAccount() {self._requestorAccount = nil}
 
@@ -411,19 +409,32 @@ public struct Ocp_Messaging_V1_RequestToGiveBill: Sendable {
 
   /// The mint that the bill will be received in
   public var mint: Ocp_Common_V1_SolanaAccountId {
-    get {return _mint ?? Ocp_Common_V1_SolanaAccountId()}
+    get {_mint ?? Ocp_Common_V1_SolanaAccountId()}
     set {_mint = newValue}
   }
   /// Returns true if `mint` has been explicitly set.
-  public var hasMint: Bool {return self._mint != nil}
+  public var hasMint: Bool {self._mint != nil}
   /// Clears the value of `mint`. Subsequent reads from it will return its default value.
   public mutating func clearMint() {self._mint = nil}
+
+  /// The validated exchange data that was used to compute the fiat value of the give
+  /// to support subsequent gives. Clients should be aware of timeouts and dismiss a
+  /// bill if the threshold is met.
+  public var exchangeData: Ocp_Transaction_V1_VerifiedExchangeData {
+    get {_exchangeData ?? Ocp_Transaction_V1_VerifiedExchangeData()}
+    set {_exchangeData = newValue}
+  }
+  /// Returns true if `exchangeData` has been explicitly set.
+  public var hasExchangeData: Bool {self._exchangeData != nil}
+  /// Clears the value of `exchangeData`. Subsequent reads from it will return its default value.
+  public mutating func clearExchangeData() {self._exchangeData = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _mint: Ocp_Common_V1_SolanaAccountId? = nil
+  fileprivate var _exchangeData: Ocp_Transaction_V1_VerifiedExchangeData? = nil
 }
 
 public struct Ocp_Messaging_V1_Message: Sendable {
@@ -438,11 +449,11 @@ public struct Ocp_Messaging_V1_Message: Sendable {
   ///     1. Reserve the ability for any future ID changes
   ///     2. Prevent clients attempting to collide message IDs.
   public var id: Ocp_Messaging_V1_MessageId {
-    get {return _id ?? Ocp_Messaging_V1_MessageId()}
+    get {_id ?? Ocp_Messaging_V1_MessageId()}
     set {_id = newValue}
   }
   /// Returns true if `id` has been explicitly set.
-  public var hasID: Bool {return self._id != nil}
+  public var hasID: Bool {self._id != nil}
   /// Clears the value of `id`. Subsequent reads from it will return its default value.
   public mutating func clearID() {self._id = nil}
 
@@ -450,11 +461,11 @@ public struct Ocp_Messaging_V1_Message: Sendable {
   /// This enables clients to ensure no MITM attacks were performed to hijack contents
   /// of the typed message. This is only applicable for messages not generated by server.
   public var sendMessageRequestSignature: Ocp_Common_V1_Signature {
-    get {return _sendMessageRequestSignature ?? Ocp_Common_V1_Signature()}
+    get {_sendMessageRequestSignature ?? Ocp_Common_V1_Signature()}
     set {_sendMessageRequestSignature = newValue}
   }
   /// Returns true if `sendMessageRequestSignature` has been explicitly set.
-  public var hasSendMessageRequestSignature: Bool {return self._sendMessageRequestSignature != nil}
+  public var hasSendMessageRequestSignature: Bool {self._sendMessageRequestSignature != nil}
   /// Clears the value of `sendMessageRequestSignature`. Subsequent reads from it will return its default value.
   public mutating func clearSendMessageRequestSignature() {self._sendMessageRequestSignature = nil}
 
@@ -843,41 +854,81 @@ extension Ocp_Messaging_V1_SendMessageRequest: SwiftProtobuf.Message, SwiftProto
   public static let protoMessageName: String = _protobuf_package + ".SendMessageRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}message\0\u{3}rendezvous_key\0\u{1}signature\0")
 
+  fileprivate class _StorageClass {
+    var _message: Ocp_Messaging_V1_Message? = nil
+    var _rendezvousKey: Ocp_Messaging_V1_RendezvousKey? = nil
+    var _signature: Ocp_Common_V1_Signature? = nil
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _message = source._message
+      _rendezvousKey = source._rendezvousKey
+      _signature = source._signature
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._message) }()
-      case 2: try { try decoder.decodeSingularMessageField(value: &self._rendezvousKey) }()
-      case 3: try { try decoder.decodeSingularMessageField(value: &self._signature) }()
-      default: break
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularMessageField(value: &_storage._message) }()
+        case 2: try { try decoder.decodeSingularMessageField(value: &_storage._rendezvousKey) }()
+        case 3: try { try decoder.decodeSingularMessageField(value: &_storage._signature) }()
+        default: break
+        }
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._message {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    try { if let v = self._rendezvousKey {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-    } }()
-    try { if let v = self._signature {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
-    } }()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      try { if let v = _storage._message {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+      } }()
+      try { if let v = _storage._rendezvousKey {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+      } }()
+      try { if let v = _storage._signature {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+      } }()
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Ocp_Messaging_V1_SendMessageRequest, rhs: Ocp_Messaging_V1_SendMessageRequest) -> Bool {
-    if lhs._message != rhs._message {return false}
-    if lhs._rendezvousKey != rhs._rendezvousKey {return false}
-    if lhs._signature != rhs._signature {return false}
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._message != rhs_storage._message {return false}
+        if _storage._rendezvousKey != rhs_storage._rendezvousKey {return false}
+        if _storage._signature != rhs_storage._signature {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1022,7 +1073,7 @@ extension Ocp_Messaging_V1_RequestToGrabBill: SwiftProtobuf.Message, SwiftProtob
 
 extension Ocp_Messaging_V1_RequestToGiveBill: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RequestToGiveBill"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}mint\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}mint\0\u{3}exchange_data\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1031,6 +1082,7 @@ extension Ocp_Messaging_V1_RequestToGiveBill: SwiftProtobuf.Message, SwiftProtob
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._mint) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._exchangeData) }()
       default: break
       }
     }
@@ -1044,11 +1096,15 @@ extension Ocp_Messaging_V1_RequestToGiveBill: SwiftProtobuf.Message, SwiftProtob
     try { if let v = self._mint {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
     } }()
+    try { if let v = self._exchangeData {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Ocp_Messaging_V1_RequestToGiveBill, rhs: Ocp_Messaging_V1_RequestToGiveBill) -> Bool {
     if lhs._mint != rhs._mint {return false}
+    if lhs._exchangeData != rhs._exchangeData {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
