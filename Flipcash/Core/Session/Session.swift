@@ -689,7 +689,8 @@ class Session: ObservableObject {
                 showCashBill(.init(
                     kind: .cash,
                     exchangedFiat: metadata.exchangedFiat,
-                    received: true
+                    received: true,
+                    verifiedState: metadata.verifiedState
                 ))
                 
                 var grabTimeInSeconds: Double? = nil
@@ -735,7 +736,8 @@ class Session: ObservableObject {
             database: database,
             ratesController: ratesController,
             owner: owner,
-            exchangedFiat: billDescription.exchangedFiat
+            exchangedFiat: billDescription.exchangedFiat,
+            verifiedState: billDescription.verifiedState
         )
         
         let payload = operation.payload
@@ -1295,15 +1297,17 @@ extension Session {
         enum Kind {
             case cash
         }
-        
+
         let kind: Kind
         let exchangedFiat: ExchangedFiat
         let received: Bool
-        
-        init(kind: Kind, exchangedFiat: ExchangedFiat, received: Bool) {
+        let verifiedState: VerifiedState?
+
+        init(kind: Kind, exchangedFiat: ExchangedFiat, received: Bool, verifiedState: VerifiedState? = nil) {
             self.kind = kind
             self.exchangedFiat = exchangedFiat
             self.received = received
+            self.verifiedState = verifiedState
         }
     }
 }

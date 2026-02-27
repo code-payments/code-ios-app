@@ -8,10 +8,12 @@
 import Foundation
 
 public struct PaymentMetadata: Equatable, Sendable {
-    
+
     public let exchangedFiat: ExchangedFiat
-    
-    init(exchangedFiat: ExchangedFiat) {
+    public let verifiedState: VerifiedState?
+
+    public init(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState? = nil) {
         self.exchangedFiat = exchangedFiat
+        self.verifiedState = verifiedState
     }
 }

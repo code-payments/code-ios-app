@@ -31,9 +31,9 @@ extension Client {
         }
     }
     
-    public func sendRequestToGiveBill(mint: PublicKey, rendezvous: KeyPair) async throws -> Bool {
+    public func sendRequestToGiveBill(mint: PublicKey, exchangedFiat: ExchangedFiat, verifiedState: VerifiedState?, rendezvous: KeyPair) async throws -> Bool {
         try await withCheckedThrowingContinuation { c in
-            messagingService.sendRequestToGiveBill(mint: mint, rendezvous: rendezvous) { c.resume(with: $0) }
+            messagingService.sendRequestToGiveBill(mint: mint, exchangedFiat: exchangedFiat, verifiedState: verifiedState, rendezvous: rendezvous) { c.resume(with: $0) }
         }
     }
 }

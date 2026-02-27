@@ -203,10 +203,13 @@ class MessagingService: CodeService<Ocp_Messaging_V1_MessagingNIOClient> {
         }
     }
     
-    private func requestToGiveBill(mint: PublicKey) -> Ocp_Messaging_V1_Message {
+    private func requestToGiveBill(mint: PublicKey, exchangeData: Ocp_Transaction_V1_VerifiedExchangeData?) -> Ocp_Messaging_V1_Message {
         .with {
             $0.requestToGiveBill = .with {
                 $0.mint = mint.solanaAccountID
+                if let exchangeData {
+                    $0.exchangeData = exchangeData
+                }
             }
         }
     }
@@ -231,14 +234,27 @@ class MessagingService: CodeService<Ocp_Messaging_V1_MessagingNIOClient> {
         )
     }
     
-    func sendRequestToGiveBill(mint: PublicKey, rendezvous: KeyPair, completion: @Sendable @escaping (Result<Bool, Error>) -> Void) {
+    func sendRequestToGiveBill(mint: PublicKey, exchangedFiat: ExchangedFiat, verifiedState: VerifiedState?, rendezvous: KeyPair, completion: @Sendable @escaping (Result<Bool, Error>) -> Void) {
         trace(.send, components:
             "Mint: \(mint.base58)",
             "Rendezvous: \(rendezvous.publicKey.base58)"
         )
-        
-        let message = requestToGiveBill(mint: mint)
-        
+
+        var exchangeData: Ocp_Transaction_V1_VerifiedExchangeData?
+        if let verifiedState {
+            exchangeData = Ocp_Transaction_V1_VerifiedExchangeData.with {
+                $0.mint = exchangedFiat.mint.solanaAccountID
+                $0.quarks = exchangedFiat.underlying.quarks
+                $0.nativeAmount = exchangedFiat.converted.doubleValue
+                $0.coreMintFiatExchangeRate = verifiedState.rateProto
+                if let reserveProto = verifiedState.reserveProto {
+                    $0.launchpadCurrencyReserveState = reserveProto
+                }
+            }
+        }
+
+        let message = requestToGiveBill(mint: mint, exchangeData: exchangeData)
+
         sendRendezvousMessage(
             message: message,
             rendezvous: rendezvous,
