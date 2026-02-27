@@ -200,7 +200,7 @@ struct DataView: View {
 
 ### 8. Debug View Updates
 
-**Use `Self._printChanges()` to debug unexpected view updates.**
+**Use `Self._printChanges()` or `Self._logChanges()` to debug unexpected view updates.**
 
 ```swift
 struct DebugView: View {
@@ -208,7 +208,9 @@ struct DebugView: View {
     @State private var name = ""
     
     var body: some View {
-        let _ = Self._printChanges()  // Prints what caused body to be called
+        #if DEBUG
+        let _ = Self._logChanges()  // Xcode 15.1+: logs to com.apple.SwiftUI subsystem
+        #endif
         
         VStack {
             Text("Count: \(count)")
@@ -218,7 +220,12 @@ struct DebugView: View {
 }
 ```
 
-**Why**: This helps identify which state changes are causing view updates. Even if a parent updates, a child's body shouldn't be called if the child's dependencies didn't change.
+- `Self._printChanges()`: Prints which properties changed to standard output.
+- `Self._logChanges()` (iOS 17+): Logs to the `com.apple.SwiftUI` subsystem with category "Changed Body Properties", using `os_log` for structured output.
+
+Both print `@self` when the view value itself changed and `@identity` when the view's persistent data was recycled.
+
+**Why**: This helps identify which state changes are causing view updates. Isolating redraw triggers into single-responsibility subviews is often the fix -- extracting a subview means SwiftUI can skip its body when its inputs haven't changed.
 
 ### 9. Eliminate Unnecessary Dependencies
 
@@ -372,6 +379,6 @@ var itemCount: Int { items.count }  // Computed property
 - [ ] Heavy computation moved out of `body`
 - [ ] Body kept simple and pure (no side effects)
 - [ ] Derived state computed, not stored
-- [ ] Use `Self._printChanges()` to debug unexpected updates
+- [ ] Use `Self._logChanges()` or `Self._printChanges()` to debug unexpected updates
 - [ ] Equatable conformance for expensive views (when appropriate)
 - [ ] Consider POD view wrappers for advanced optimization
