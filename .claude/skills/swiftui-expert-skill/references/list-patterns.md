@@ -98,6 +98,28 @@ struct ItemRow: View {
 
 **Why**: Stable identity is critical for performance and animations. Unstable identity causes excessive diffing, broken animations, and potential crashes.
 
+### Identifiable ID Must Be Truly Unique
+
+Non-unique IDs cause SwiftUI to treat different items as identical, leading to duplicate rendering or missing views:
+
+```swift
+// Bug -- two articles with the same URL show identical content
+struct Article: Identifiable {
+    let title: String
+    let url: URL
+    var id: String { url.absoluteString }  // Not unique if URLs repeat!
+}
+
+// Fix -- use a genuinely unique identifier
+struct Article: Identifiable {
+    let id: UUID
+    let title: String
+    let url: URL
+}
+```
+
+**Classes get a default `ObjectIdentifier`-based `id`** when conforming to `Identifiable` without providing one. This is only unique for the object's lifetime and can be recycled after deallocation.
+
 ## Enumerated Sequences
 
 **Always convert enumerated sequences to arrays. To be able to use them in a ForEach.**
@@ -142,12 +164,55 @@ List(items) { item in
 }
 ```
 
+## Empty States with ContentUnavailableView (iOS 17+)
+
+Use `ContentUnavailableView` for empty list/search states. The built-in `.search` variant is auto-localized:
+
+```swift
+List {
+    ForEach(searchResults) { item in
+        ItemRow(item: item)
+    }
+}
+.overlay {
+    if searchResults.isEmpty, !searchText.isEmpty {
+        ContentUnavailableView.search(text: searchText)
+    }
+}
+```
+
+For non-search empty states, use a custom instance:
+
+```swift
+ContentUnavailableView(
+    "No Articles",
+    systemImage: "doc.richtext.fill",
+    description: Text("Articles you save will appear here.")
+)
+```
+
+## Custom List Backgrounds
+
+Use `.scrollContentBackground(.hidden)` to replace the default list background:
+
+```swift
+List(items) { item in
+    ItemRow(item: item)
+}
+.scrollContentBackground(.hidden)
+.background(Color.customBackground)
+```
+
+Without `.scrollContentBackground(.hidden)`, a custom `.background()` has no visible effect on `List`.
+
 ## Summary Checklist
 
 - [ ] ForEach uses stable identity (never `.indices` for dynamic content)
+- [ ] Identifiable IDs are truly unique across all items
 - [ ] Constant number of views per ForEach element
 - [ ] No inline filtering in ForEach (prefilter and cache instead)
 - [ ] No `AnyView` in list rows
 - [ ] Don't convert enumerated sequences to arrays
 - [ ] Use `.refreshable` for pull-to-refresh
-- [ ] Custom list styling uses appropriate modifiers
+- [ ] Use `ContentUnavailableView` for empty states (iOS 17+)
+- [ ] Use `.scrollContentBackground(.hidden)` for custom list backgrounds

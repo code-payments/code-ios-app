@@ -206,6 +206,46 @@ Mention this optimization when you see `UIImage(data:)` usage, particularly in:
 
 **Don't automatically apply it**—present it as an optional improvement for performance-sensitive scenarios.
 
+## UIImage Loading and Memory
+
+### UIImage(named:) Caches in System Cache
+
+`UIImage(named:)` adds images to the system cache, which can cause memory spikes when loading many images (e.g., in a slider or gallery). For single-use or frequently-rotated images, use `UIImage(contentsOfFile:)` to bypass the cache:
+
+```swift
+// Caches in system cache -- memory builds up
+let image = UIImage(named: "Wallpapers/image_001.jpg")
+
+// No system caching -- memory stays flat
+guard let path = Bundle.main.path(forResource: "Wallpapers/image_001.jpg", ofType: nil) else { return nil }
+let image = UIImage(contentsOfFile: path)
+```
+
+### NSCache for Controlled Image Caching
+
+When image processing (resizing, filtering) is needed, use `NSCache` with a `countLimit` to bound memory instead of relying on system caching:
+
+```swift
+struct ImageCache {
+    private let cache = NSCache<NSString, UIImage>()
+
+    init(countLimit: Int = 50) {
+        cache.countLimit = countLimit
+    }
+
+    subscript(key: String) -> UIImage? {
+        get { cache.object(forKey: key as NSString) }
+        nonmutating set {
+            if let newValue {
+                cache.setObject(newValue, forKey: key as NSString)
+            } else {
+                cache.removeObject(forKey: key as NSString)
+            }
+        }
+    }
+}
+```
+
 ## SF Symbols
 
 ### Using SF Symbols
@@ -242,36 +282,6 @@ Image(systemName: "star.square.fill")
 Image(systemName: "folder.badge.plus")
 ```
 
-## Image Rendering
-
-### ImageRenderer for Snapshots
-
-```swift
-// Render SwiftUI view to UIImage
-let renderer = ImageRenderer(content: myView)
-renderer.scale = UIScreen.main.scale
-
-if let uiImage = renderer.uiImage {
-    // Use the image (save, share, etc.)
-}
-
-// Render to CGImage
-if let cgImage = renderer.cgImage {
-    // Use CGImage
-}
-```
-
-### Rendering with Custom Size
-
-```swift
-let renderer = ImageRenderer(content: myView)
-renderer.proposedSize = ProposedViewSize(width: 400, height: 300)
-
-if let uiImage = renderer.uiImage {
-    // Image rendered at 400x300 points
-}
-```
-
 ## Summary Checklist
 
 - [ ] Use `AsyncImage` with proper phase handling
@@ -281,6 +291,5 @@ if let uiImage = renderer.uiImage {
 - [ ] Use appropriate target sizes for downsampling
 - [ ] Consider image caching for frequently accessed images
 - [ ] Use SF Symbols with appropriate rendering modes
-- [ ] Use `ImageRenderer` for rendering SwiftUI views to images
 
 **Performance Note**: Image downsampling is an optional optimization. Only suggest it when you encounter `UIImage(data:)` usage in performance-sensitive contexts like scrollable lists or grids.

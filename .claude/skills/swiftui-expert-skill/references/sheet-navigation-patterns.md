@@ -117,6 +117,43 @@ struct ParentView: View {
 
 **Why**: Sheets that own their actions are more reusable and don't require callback prop-drilling.
 
+### Enum-Based Sheet Management
+
+When presenting multiple different sheets, use an `Identifiable` enum with `.sheet(item:)` instead of multiple boolean state properties:
+
+```swift
+struct ArticlesView: View {
+    enum Sheet: Identifiable {
+        case add, edit(Article), categories
+        var id: String {
+            switch self {
+            case .add: "add"
+            case .edit(let a): "edit-\(a.id)"
+            case .categories: "categories"
+            }
+        }
+    }
+
+    @State private var presentedSheet: Sheet?
+
+    var body: some View {
+        List { /* ... */ }
+            .toolbar {
+                Button("Add") { presentedSheet = .add }
+            }
+            .sheet(item: $presentedSheet) { sheet in
+                switch sheet {
+                case .add: AddArticleView()
+                case .edit(let article): EditArticleView(article: article)
+                case .categories: CategoriesView()
+                }
+            }
+    }
+}
+```
+
+**Why**: A single `@State` property and one `.sheet(item:)` modifier replaces N boolean properties and N sheet modifiers, improving readability and preventing only-one-sheet-at-a-time conflicts.
+
 ## Navigation Patterns
 
 ### Type-Safe Navigation with NavigationStack
@@ -289,4 +326,5 @@ struct ContentView: View {
 - [ ] Use appropriate presentation modifiers (sheet, fullScreenCover, popover)
 - [ ] Alerts and confirmation dialogs use modern API with actions
 - [ ] Avoid passing dismiss/save callbacks to sheets
+- [ ] Use enum-based `Identifiable` type with `.sheet(item:)` when presenting multiple sheets
 - [ ] Navigation state can be saved/restored when needed

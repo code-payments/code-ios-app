@@ -52,6 +52,8 @@ struct MyView: View {
 }
 ```
 
+**Critical**: When a view *owns* an `@Observable` object, always use `@State` -- not `let`. Without `@State`, SwiftUI may recreate the instance when a parent view redraws, losing accumulated state. `@State` tells SwiftUI to preserve the instance across view redraws. Using `@State` also provides bindings directly (no need for `@Bindable`).
+
 **Note**: You may want to mark `@Observable` classes with `@MainActor` to ensure thread safety with SwiftUI, unless your project or package uses Default Actor Isolation set to `MainActor`—in which case, the explicit attribute is redundant and can be omitted.
 
 ## @Binding
@@ -96,6 +98,74 @@ struct DisplayView: View {
     let title: String
     var body: some View {
         Text(title)
+    }
+}
+```
+
+## @FocusState
+
+Use `@FocusState` to control text input focus in SwiftUI. Choose the focus value type based on how many fields the view manages.
+
+### Bool vs enum
+
+- Use `@FocusState private var isFocused: Bool` when the view has a single focusable field.
+- Use a `Hashable` enum optional value for multiple fields, for better readability and type safety.
+
+### Single Field: Bool
+
+`Bool` keeps the code simple when there is only one field to focus.
+
+```swift
+struct LoginView: View {
+    @State private var email = ""
+    @FocusState private var isEmailFocused: Bool
+
+    var body: some View {
+        TextField("Email", text: $email)
+            .focused($isEmailFocused)
+            .onAppear {
+                isEmailFocused = true
+            }
+    }
+}
+```
+
+### Multiple Fields: Enum (Preferred)
+
+Use a `Hashable` enum optional focus value when a view manages multiple fields. This keeps focus transitions readable and type-safe.
+
+```swift
+struct SignUpView: View {
+    enum Field: Hashable {
+        case name
+        case email
+        case password
+    }
+
+    @State private var name = ""
+    @State private var email = ""
+    @State private var password = ""
+    @FocusState private var focusedField: Field?
+
+    var body: some View {
+        Form {
+            TextField("Name", text: $name)
+                .focused($focusedField, equals: .name)
+
+            TextField("Email", text: $email)
+                .focused($focusedField, equals: .email)
+
+            SecureField("Password", text: $password)
+                .focused($focusedField, equals: .password)
+
+            Button("Next") {
+                switch focusedField {
+                case .name: focusedField = .email
+                case .email: focusedField = .password
+                default: focusedField = nil
+                }
+            }
+        }
     }
 }
 ```
@@ -313,6 +383,27 @@ struct MyView: View {
     }
 }
 ```
+
+### Custom Environment Values with @Entry
+
+Use the `@Entry` macro (Xcode 16+, backward compatible to iOS 13) to define custom environment values without boilerplate:
+
+```swift
+extension EnvironmentValues {
+    @Entry var accentTheme: Theme = .default
+}
+
+// Inject
+ContentView()
+    .environment(\.accentTheme, customTheme)
+
+// Access
+struct ThemedView: View {
+    @Environment(\.accentTheme) private var theme
+}
+```
+
+The `@Entry` macro replaces the manual `EnvironmentKey` conformance pattern. It also works with `TransactionValues`, `ContainerValues`, and `FocusedValues`.
 
 ### @Environment with @Observable (iOS 17+ - Preferred)
 
