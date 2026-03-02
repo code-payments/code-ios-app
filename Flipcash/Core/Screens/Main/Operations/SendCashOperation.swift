@@ -25,6 +25,7 @@ class SendCashOperation {
 
     private var messageStream: AnyCancellable? = nil
     private var hasProcessedPayment = false
+    private var resolvedVerifiedState: VerifiedState?
 
     // MARK: - Init -
 
@@ -81,6 +82,8 @@ class SendCashOperation {
                 )
             }
 
+            self.resolvedVerifiedState = verifiedState
+
             try await client.sendRequestToGiveBill(
                 mint: exchangedFiat.mint,
                 exchangedFiat: exchangedFiat,
@@ -134,11 +137,18 @@ class SendCashOperation {
                 // 2. Send the funds to destination
                 Task {
                     do {
-                        // Get verified state for intent construction
-                        guard let verifiedState = await self.ratesController.getVerifiedState(
+                        // Use the verified state already resolved when the bill
+                        // was created, falling back to the cache only if needed.
+                        // New currencies may not be in the cache yet.
+                        let verifiedState: VerifiedState
+                        if let resolved = self.resolvedVerifiedState {
+                            verifiedState = resolved
+                        } else if let cached = await self.ratesController.getVerifiedState(
                             for: exchangedFiat.converted.currencyCode,
                             mint: exchangedFiat.mint
-                        ) else {
+                        ) {
+                            verifiedState = cached
+                        } else {
                             throw Error.missingVerifiedState
                         }
 

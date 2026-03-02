@@ -90,11 +90,11 @@ class ScanCashOperation {
     }
     
     private func listenForMint(rendezvous: KeyPair) async throws -> (PublicKey, VerifiedState?) {
-        let maxAttempts = 3
+        let maxAttempts = 10
 
         for i in 0..<maxAttempts {
             if i > 0 {
-                try await Task.delay(milliseconds: 500)
+                try await Task.delay(milliseconds: 300)
             }
 
             do {
