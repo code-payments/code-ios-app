@@ -98,20 +98,20 @@ class RatesController: ObservableObject {
     /// Called when user logs in or app becomes active.
     func startStreaming(mints: [PublicKey]) {
         streamedMints = mints
-        liveMintDataStreamer?.start(mints: mints)
+        Task { await liveMintDataStreamer?.start(mints: mints) }
     }
 
     /// Stop streaming live mint data.
     /// Called when user logs out or app goes to background.
     func stopStreaming() {
-        liveMintDataStreamer?.stop()
+        Task { await liveMintDataStreamer?.stop() }
     }
 
     /// Update the list of mints to stream.
     /// Called when user's balances change (new tokens acquired).
     func updateSubscribedMints(_ mints: [PublicKey]) {
         streamedMints = mints
-        liveMintDataStreamer?.updateMints(mints)
+        Task { await liveMintDataStreamer?.updateMints(mints) }
     }
 
     // MARK: - Verified Proofs -

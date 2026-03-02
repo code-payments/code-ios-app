@@ -50,8 +50,7 @@ public class Client: ObservableObject {
     public func createLiveMintDataStreamer(verifiedProtoService: VerifiedProtoService) -> LiveMintDataStreamer {
         LiveMintDataStreamer(
             service: currencyService,
-            verifiedProtoService: verifiedProtoService,
-            queue: queue
+            verifiedProtoService: verifiedProtoService
         )
     }
 }

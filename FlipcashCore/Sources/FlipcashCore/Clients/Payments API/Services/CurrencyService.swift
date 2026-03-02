@@ -11,7 +11,7 @@ import FlipcashAPI
 import GRPC
 import NIO
 
-class CurrencyService: CodeService<Ocp_Currency_V1_CurrencyNIOClient> {
+class CurrencyService: CodeService<Ocp_Currency_V1_CurrencyNIOClient>, @unchecked Sendable {
     func fetchMint(mint: PublicKey, completion: @Sendable @escaping (Result<MintMetadata, Error>) -> Void) {
         fetchMints(mints: [mint]) {
             switch $0 {

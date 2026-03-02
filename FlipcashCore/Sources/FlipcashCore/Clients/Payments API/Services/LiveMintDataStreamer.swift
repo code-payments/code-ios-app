@@ -7,13 +7,12 @@
 //
 
 import Foundation
-import Combine
 import FlipcashAPI
 import GRPC
 
 /// Manages bidirectional streaming for live mint data (exchange rates and reserve states).
 /// Handles connection lifecycle, ping/pong keepalive, and auto-reconnection.
-public final class LiveMintDataStreamer: @unchecked Sendable {
+public actor LiveMintDataStreamer {
 
     public typealias StreamReference = BidirectionalStreamReference<
         Ocp_Currency_V1_StreamLiveMintDataRequest,
@@ -22,7 +21,6 @@ public final class LiveMintDataStreamer: @unchecked Sendable {
 
     private let service: CurrencyService
     private let verifiedProtoService: VerifiedProtoService
-    private let queue: DispatchQueue
 
     private var streamReference: StreamReference?
     private var subscribedMints: [PublicKey] = []
@@ -35,14 +33,14 @@ public final class LiveMintDataStreamer: @unchecked Sendable {
 
     // MARK: - Init
 
-    init(service: CurrencyService, verifiedProtoService: VerifiedProtoService, queue: DispatchQueue) {
+    init(service: CurrencyService, verifiedProtoService: VerifiedProtoService) {
         self.service = service
         self.verifiedProtoService = verifiedProtoService
-        self.queue = queue
     }
 
     deinit {
-        stop()
+        reconnectTask?.cancel()
+        streamReference?.destroy()
     }
 
     // MARK: - Public API
@@ -122,11 +120,13 @@ public final class LiveMintDataStreamer: @unchecked Sendable {
 
         // Set timeout handler for reconnection
         reference.timeoutHandler = { [weak self] in
-            self?.handleTimeout()
+            guard let self else { return }
+            Task { await self.handleTimeout() }
         }
 
         let stream = service.service.streamLiveMintData(callOptions: .streaming) { [weak self] response in
-            self?.handleResponse(response)
+            guard let self else { return }
+            Task { await self.handleResponse(response) }
         }
 
         // Send initial request with mints
@@ -139,15 +139,16 @@ public final class LiveMintDataStreamer: @unchecked Sendable {
         _ = stream.sendMessage(request)
 
         // Handle stream status changes
-        stream.status.whenCompleteBlocking(onto: queue) { [weak self] result in
-            self?.handleStreamStatus(result)
+        stream.status.whenComplete { [weak self] result in
+            guard let self else { return }
+            Task { await self.handleStreamStatus(result) }
         }
 
         self.streamReference = reference
         reference.stream = stream
     }
 
-    private func handleResponse(_ response: Ocp_Currency_V1_StreamLiveMintDataResponse) {
+    private func handleResponse(_ response: Ocp_Currency_V1_StreamLiveMintDataResponse) async {
         guard let type = response.type else {
             trace(.warning, components: "Received empty stream response")
             return
@@ -155,26 +156,24 @@ public final class LiveMintDataStreamer: @unchecked Sendable {
 
         switch type {
         case .data(let liveData):
-            handleLiveData(liveData)
+            await handleLiveData(liveData)
 
         case .ping(let ping):
             handlePing(ping)
         }
     }
 
-    private func handleLiveData(_ liveData: Ocp_Currency_V1_StreamLiveMintDataResponse.LiveData) {
+    private func handleLiveData(_ liveData: Ocp_Currency_V1_StreamLiveMintDataResponse.LiveData) async {
         guard let type = liveData.type else {
             trace(.warning, components: "Received empty live data")
             return
         }
 
-        Task {
-            switch type {
-            case .coreMintFiatExchangeRates(let batch):
-                await verifiedProtoService.saveRates(batch.exchangeRates)
-            case .launchpadCurrencyReserveStates(let batch):
-                await verifiedProtoService.saveReserveStates(batch.reserveStates)
-            }
+        switch type {
+        case .coreMintFiatExchangeRates(let batch):
+            await verifiedProtoService.saveRates(batch.exchangeRates)
+        case .launchpadCurrencyReserveStates(let batch):
+            await verifiedProtoService.saveReserveStates(batch.reserveStates)
         }
     }
 
@@ -246,15 +245,16 @@ public final class LiveMintDataStreamer: @unchecked Sendable {
         // Delay before reconnecting with exponential backoff
         reconnectTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(delay))
-
-            guard !Task.isCancelled, let self, self.isStreaming else {
-                self?.isReconnecting = false
-                return
-            }
-
-            self.queue.async {
-                self.openStream()
-            }
+            guard !Task.isCancelled else { return }
+            await self?.performReconnect()
         }
+    }
+
+    private func performReconnect() {
+        guard isStreaming else {
+            isReconnecting = false
+            return
+        }
+        openStream()
     }
 }
