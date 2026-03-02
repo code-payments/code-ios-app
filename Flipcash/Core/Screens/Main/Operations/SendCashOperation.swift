@@ -9,11 +9,59 @@ import Foundation
 import FlipcashCore
 import Combine
 
+/// Orchestrates a peer-to-peer cash transfer through a rendezvous-based
+/// handshake between sender and receiver.
+///
+/// ## Lifecycle
+///
+/// Calling ``start(completion:)`` kicks off two concurrent paths:
+///
+/// **Path 1 — Advertise (fire-and-forget Task)**
+/// 1. Resolve the exchange-rate proof (`VerifiedState`), preferring the
+///    value provided at init over the `RatesController` cache.
+/// 2. Publish the bill on the rendezvous channel so the receiver knows
+///    which mint and exchange data to expect.
+///
+/// **Path 2 — Listen (message stream)**
+/// 1. Open a persistent gRPC stream on the rendezvous channel.
+/// 2. When the receiver's grab request arrives, verify the destination
+///    signature to prevent tampering.
+/// 3. Transfer funds to the verified destination.
+/// 4. Poll until on-chain settlement is confirmed.
+///
+/// Both paths share the resolved `VerifiedState` through
+/// ``resolvedVerifiedState``. Path 2 reads this value when it's time to
+/// transfer, falling back to the `RatesController` cache if Path 1 hasn't
+/// written it yet. For brand-new currencies whose rate isn't cached, the
+/// provided `verifiedState` at init is the only source of truth.
+///
+/// ## Completion Guarantee
+///
+/// The ``complete(with:completion:)`` method ensures the completion handler
+/// fires exactly once. This guards against double-delivery from gRPC stream
+/// reconnections (see `MessagingService.openMessageStream`) or overlapping
+/// error paths (e.g. advertisement failure racing with a stream disconnect).
+///
+/// ## Not Recoverable
+///
+/// If ``sendRequestToGiveBill`` fails (network error, server down), the
+/// operation terminates immediately. There is no retry — the receiver never
+/// got the advertisement, so the stream will never deliver a grab request.
+/// The bill is dismissed and the user sees an error.
+///
+/// ## Owned By
+///
+/// `Session` creates, stores (`sendOperation`), and tears down this
+/// operation. The `ignoresStream` flag is toggled by Session when presenting
+/// a share sheet to prevent stream events from dismissing the bill.
 @MainActor
 class SendCashOperation {
 
     let payload: CashCode.Payload
 
+    /// When `true`, incoming stream messages are silently dropped. Session
+    /// sets this while a share sheet is presented to prevent the bill from
+    /// being dismissed underneath it.
     var ignoresStream = false
 
     private let client: Client
@@ -21,10 +69,25 @@ class SendCashOperation {
     private let ratesController: RatesController
     private let owner: AccountCluster
     private let exchangedFiat: ExchangedFiat
+
+    /// The exchange-rate proof passed at init. Preferred over the
+    /// `RatesController` cache because new currencies may not have a
+    /// cached rate yet.
     private let providedVerifiedState: VerifiedState?
 
     private var messageStream: AnyCancellable? = nil
+
+    /// Guards against processing more than one grab request per operation.
     private var hasProcessedPayment = false
+
+    /// Guards against delivering the completion handler more than once.
+    /// See ``complete(with:completion:)`` for details.
+    private var hasCompleted = false
+
+    /// The verified state resolved during Path 1 (advertisement). Path 2
+    /// (transfer) reads this to avoid a redundant cache lookup. For new
+    /// currencies this may be the only available source since the cache
+    /// can be empty.
     private var resolvedVerifiedState: VerifiedState?
 
     // MARK: - Init -
@@ -72,24 +135,28 @@ class SendCashOperation {
         // data so they can create the correct incoming accounts
         // on their end
         Task {
-            let verifiedState: VerifiedState?
-            if let provided = self.providedVerifiedState {
-                verifiedState = provided
-            } else {
-                verifiedState = await self.ratesController.getVerifiedState(
-                    for: exchangedFiat.converted.currencyCode,
-                    mint: exchangedFiat.mint
+            do {
+                let verifiedState: VerifiedState?
+                if let provided = self.providedVerifiedState {
+                    verifiedState = provided
+                } else {
+                    verifiedState = await self.ratesController.getVerifiedState(
+                        for: exchangedFiat.converted.currencyCode,
+                        mint: exchangedFiat.mint
+                    )
+                }
+
+                self.resolvedVerifiedState = verifiedState
+
+                _ = try await client.sendRequestToGiveBill(
+                    mint: exchangedFiat.mint,
+                    exchangedFiat: exchangedFiat,
+                    verifiedState: verifiedState,
+                    rendezvous: rendezvous
                 )
+            } catch {
+                self.complete(with: .failure(error), completion: completion)
             }
-
-            self.resolvedVerifiedState = verifiedState
-
-            try await client.sendRequestToGiveBill(
-                mint: exchangedFiat.mint,
-                exchangedFiat: exchangedFiat,
-                verifiedState: verifiedState,
-                rendezvous: rendezvous
-            )
         }
         
         messageStream = self.client.openMessageStream(rendezvous: rendezvous) { [weak self] result in
@@ -123,16 +190,12 @@ class SendCashOperation {
                 )
 
                 guard isValid else {
-                    let error: Error = Error.invalidPaymentDestinationSignature
-                    completion(.failure(error))
+                    self.complete(with: .failure(Error.invalidPaymentDestinationSignature), completion: completion)
                     return
                 }
 
                 // Mark payment as processed to prevent duplicate submissions
                 self.hasProcessedPayment = true
-
-                // Close the message stream to prevent further messages
-                self.invalidateMessageStream()
 
                 // 2. Send the funds to destination
                 Task {
@@ -165,19 +228,29 @@ class SendCashOperation {
                             intentID: rendezvous.publicKey
                         )
 
-                        completion(.success(()))
+                        self.complete(with: .success(()), completion: completion)
 
                     } catch {
-                        completion(.failure(error))
+                        self.complete(with: .failure(error), completion: completion)
                     }
                 }
 
             case .failure(let error):
-                completion(.failure(error))
+                self.complete(with: .failure(error), completion: completion)
             }
         }
     }
     
+    /// Delivers a result to the caller exactly once. Subsequent calls are
+    /// no-ops, preventing double-completion from stream reconnections or
+    /// overlapping error paths.
+    private func complete(with result: Result<Void, Swift.Error>, completion: @escaping (Result<Void, Swift.Error>) -> Void) {
+        guard !hasCompleted else { return }
+        hasCompleted = true
+        invalidateMessageStream()
+        completion(result)
+    }
+
     private func invalidateMessageStream() {
         trace(.warning, components: "Closed message stream")
         messageStream?.cancel()
@@ -187,8 +260,17 @@ class SendCashOperation {
 
 extension SendCashOperation {
     enum Error: Swift.Error {
+        /// The grab request's destination signature did not match the
+        /// rendezvous key, indicating a potential man-in-the-middle attack.
         case invalidPaymentDestinationSignature
+
+        /// The outgoing mint doesn't match the owner's timelock mint, and
+        /// no VM authority was found in the database for the target mint.
         case missingMintMetadata
+
+        /// No exchange-rate proof was available from either the provided
+        /// value at init or the `RatesController` cache. Common for
+        /// brand-new currencies that haven't been rate-cached yet.
         case missingVerifiedState
     }
 }
