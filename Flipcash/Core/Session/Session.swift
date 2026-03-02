@@ -828,7 +828,7 @@ class Session: ObservableObject {
                     error: error,
                     rendezvous: payload.rendezvous.publicKey,
                     exchangedFiat: billDescription.exchangedFiat,
-                    verifiedState: operation.resolvedVerifiedState
+                    verifiedState: self?.sendOperation?.resolvedVerifiedState
                 )
                 
                 Analytics.transfer(
