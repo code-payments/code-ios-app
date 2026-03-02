@@ -88,7 +88,7 @@ class SendCashOperation {
     /// (transfer) reads this to avoid a redundant cache lookup. For new
     /// currencies this may be the only available source since the cache
     /// can be empty.
-    private var resolvedVerifiedState: VerifiedState?
+    private(set) var resolvedVerifiedState: VerifiedState?
 
     // MARK: - Init -
 

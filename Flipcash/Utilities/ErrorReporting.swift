@@ -59,10 +59,14 @@ enum ErrorReporting {
         )
     }
     
-    static func capturePayment(error: Swift.Error, rendezvous: PublicKey, exchangedFiat: ExchangedFiat, reason: String? = nil, file: String = #file, function: String = #function, line: Int = #line) {
+    static func capturePayment(error: Swift.Error, rendezvous: PublicKey, exchangedFiat: ExchangedFiat, verifiedState: VerifiedState? = nil, reason: String? = nil, file: String = #file, function: String = #function, line: Int = #line) {
         capture(error, reason: reason, file: file, function: function, line: line) { userInfo in
             userInfo["rendezvous"]    = rendezvous.base58
             userInfo["exchangedFiat"] = exchangedFiat.descriptionDictionary
+            if let verifiedState {
+                userInfo["rateTimestamp"] = verifiedState.timestamp.description
+                userInfo["rateValue"]     = verifiedState.exchangeRate
+            }
         }
     }
     
