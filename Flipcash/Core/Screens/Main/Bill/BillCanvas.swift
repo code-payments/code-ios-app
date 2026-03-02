@@ -50,19 +50,20 @@ private class _BillCanvasController: UIViewController {
     
     var action: VoidAction?
     var dismissHandler: VoidAction?
-    
+
     private var centerOffset: CGSize
     private var presentationState: PresentationState
     private var preferredCanvasSize: CGSize
     private var bill: BillState.Bill?
     private var host: UIHostingController<AnyView>?
-    
+
     private var dragGesture: UIPanGestureRecognizer?
-    
+
     private var animator: UIViewPropertyAnimator?
-    
+
     private var state: State = .center
     private var didAppear = false
+    private var previousBrightness: CGFloat?
     
     private let dragMultiplier: CGFloat = 0.5
     
@@ -190,6 +191,8 @@ private class _BillCanvasController: UIViewController {
         
         switch presentationState {
         case .visible(let style):
+            increaseBrightnessIfNeeded()
+
             switch style {
             case .pop:
                 setState(.centerDeflated, animated: false)
@@ -198,24 +201,11 @@ private class _BillCanvasController: UIViewController {
                 setState(.bottom, animated: false)
                 setState(.center, animated: true)
             }
-            
-//            Task {
-//                try await Task.delay(seconds: 3)
-//                
-//                let rect = host.view.bounds
-//                let renderer = UIGraphicsImageRenderer(bounds: rect)
-//                let image = renderer.image { _ in
-//                    _ = host.view.drawHierarchy(in: rect, afterScreenUpdates: true)
-//                }
-//                
-//                let pngData = image.pngData()!
-//                let controller = UIActivityViewController(activityItems: [pngData], applicationActivities: nil)
-//                UIApplication.shared.rootViewController?.present(controller, animated: true, completion: nil)
-//            }
-            
+
         case .hidden(let style):
+            restoreBrightness()
             cancelDrag()
-            
+
             switch style {
             case .pop:
                 setState(.centerInflated, animated: true)
@@ -274,6 +264,24 @@ private class _BillCanvasController: UIViewController {
         return translation.y > 200.0 || velocity.y > 200.0
     }
     
+    // MARK: - Brightness -
+
+    private func increaseBrightnessIfNeeded() {
+        let current = UIScreen.main.brightness
+        guard current < 0.4 else { return }
+        if previousBrightness == nil {
+            previousBrightness = current
+        }
+        UIScreen.main.brightness = 0.6
+    }
+
+    private func restoreBrightness() {
+        if let previousBrightness {
+            UIScreen.main.brightness = previousBrightness
+            self.previousBrightness = nil
+        }
+    }
+
     // MARK: - State Changes -
     
     private func setState(_ state: State, animated: Bool) {
