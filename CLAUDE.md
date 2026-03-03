@@ -439,6 +439,7 @@ Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
 | Adding unnecessary abstractions | Keep it simple, solve the current problem |
 | Completing a transaction without refreshing balances | Call `session.updatePostTransaction()` after any transaction completes |
 | Programmatically leaving the app without disabling interface reset | Set `UIApplication.isInterfaceResetDisabled = true` before leaving (e.g. share sheet, external wallet), clear on return. See cash link share sheet in `Session.swift` for the pattern |
+| Canceling/modifying `SendCashOperation` in `dismissCashBill` | **Never** cancel or tear down `SendCashOperation` from `dismissCashBill`. After a grab, the received bill is a **live** `SendCashOperation` that others can scan ("quick give and grab" chain). Calling cancel/invalidateMessageStream from dismiss kills that live bill. The operation must manage its own lifecycle through its `complete()` method only. |
 
 ---
 

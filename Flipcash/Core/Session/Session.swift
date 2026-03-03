@@ -827,7 +827,8 @@ class Session: ObservableObject {
                 ErrorReporting.capturePayment(
                     error: error,
                     rendezvous: payload.rendezvous.publicKey,
-                    exchangedFiat: billDescription.exchangedFiat
+                    exchangedFiat: billDescription.exchangedFiat,
+                    verifiedState: self?.sendOperation?.resolvedVerifiedState
                 )
                 
                 Analytics.transfer(
