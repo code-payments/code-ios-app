@@ -37,6 +37,10 @@ struct CurrencyInfoMarketCapSection: View {
         .task {
             setupChart()
         }
+        .onChange(of: marketCap) { _, newMarketCap in
+            guard let viewModel = chartViewModel else { return }
+            loadChartData(for: viewModel.selectedRange, into: viewModel)
+        }
         .onChange(of: currencyCode) { _, _ in
             guard let viewModel = chartViewModel else { return }
             updateRangeChangeCallback(for: viewModel)
