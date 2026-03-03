@@ -32,6 +32,7 @@ import FlipcashUI
 ///
 /// The controller does not manage any UI state - it only provides processed data.
 /// The caller is responsible for managing the `ChartViewModel` state (loading, error, loaded).
+@MainActor
 final class MarketCapController {
 
     // MARK: - Constants
@@ -75,8 +76,9 @@ final class MarketCapController {
     /// - Throws: `ChartError.insufficientData` if fewer than 2 points returned,
     ///           or network errors from the API
     func fetchChartData(for range: ChartRange) async throws -> [ChartDataPoint] {
+        let fractionDigits = ratesController.balanceCurrency.maximumFractionDigits
         let dataPoints = try await fetchHistoricalData(for: range)
-        return processDataPoints(dataPoints)
+        return processDataPoints(dataPoints, fractionDigits: fractionDigits)
     }
 
     // MARK: - Private Methods
@@ -112,7 +114,7 @@ final class MarketCapController {
     ///
     /// - Parameter dataPoints: Raw historical data points
     /// - Returns: Processed chart data points ready for display
-    private func processDataPoints(_ dataPoints: [HistoricalMintDataPoint]) -> [ChartDataPoint] {
+    private nonisolated func processDataPoints(_ dataPoints: [HistoricalMintDataPoint], fractionDigits: Int) -> [ChartDataPoint] {
         // Fill gaps in multi-day data (preserves intraday detail)
         let filledPoints = DataPointResampler<HistoricalMintDataPoint>.fillMissingDays(dataPoints)
 
@@ -120,12 +122,15 @@ final class MarketCapController {
         let resampler = DataPointResampler<HistoricalMintDataPoint>.historicalMintData
         let sampledPoints = resampler.resample(filledPoints, to: Self.targetPointCount)
 
-        // Convert to chart format with normalized positions
+        // Convert to chart format with normalized positions.
+        // Round values to the currency's displayable precision to prevent
+        // near-zero artifacts like "- $0.00" when computing differences.
+        let multiplier = pow(10.0, Double(fractionDigits))
         return sampledPoints.enumerated().map { index, point in
             ChartDataPoint(
                 id: index,
                 date: point.date,
-                value: point.marketCap,
+                value: (point.marketCap * multiplier).rounded() / multiplier,
                 normalizedPosition: Double(index) / Double(max(sampledPoints.count - 1, 1))
             )
         }
