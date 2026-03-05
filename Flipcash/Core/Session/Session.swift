@@ -821,14 +821,15 @@ class Session: ObservableObject {
                 )
                 
             case .failure(let error):
+                let verifiedState = self?.sendOperation?.resolvedVerifiedState
                 self?.dismissCashBill(style: .slide)
                 self?.showCashReturnedError()
-                
+
                 ErrorReporting.capturePayment(
                     error: error,
                     rendezvous: payload.rendezvous.publicKey,
                     exchangedFiat: billDescription.exchangedFiat,
-                    verifiedState: self?.sendOperation?.resolvedVerifiedState
+                    verifiedState: verifiedState
                 )
                 
                 Analytics.transfer(
