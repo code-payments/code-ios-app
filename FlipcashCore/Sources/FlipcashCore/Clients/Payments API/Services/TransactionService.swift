@@ -455,13 +455,6 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
         }
 
         let submitActions = intent.requestToSubmitActions(owner: owner)
-        do {
-            let bytes = try submitActions.serializedData()
-            trace(.send, components: "Type: \(T.self)", "Submitting submitActions proto (hex): \(bytes.hexEncodedString())")
-        } catch {
-            trace(.warning, components: "Type: \(T.self)", "Failed to serialize submitActions for logging: \(error)")
-        }
-
         _ = reference.stream?.sendMessage(submitActions)
     }
     

@@ -153,7 +153,6 @@ final class SessionAuthenticator: ObservableObject {
         do {
             let flags = try await flipClient.fetchUnauthenticatedUserFlags()
             self.unauthenticatedUserFlags = flags
-            trace(.success, components: "Fetched unauthenticated user flags")
         } catch {
             trace(.failure, components: "Failed to fetch unauthenticated user flags: \(error)")
         }

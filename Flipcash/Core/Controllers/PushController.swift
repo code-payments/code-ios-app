@@ -113,7 +113,6 @@ class PushController: ObservableObject {
         }
         
         if uploadedFirebaseToken != token {
-            trace(.success, components: "APNS: New Firebase token received. Sending to server...", "Token: \(token)")
             try await client.addToken(
                 token: token,
                 installationID: try await Self.installationID(),
@@ -121,8 +120,6 @@ class PushController: ObservableObject {
             )
             uploadedFirebaseToken = token // Cache uploaded token
             
-        } else {
-            trace(.note, components: "APNS: Received a token but it's identical to uploaded token.")
         }
     }
     

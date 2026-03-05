@@ -18,11 +18,7 @@ class Updateable<T>: ObservableObject {
         self.valueBlock = valueBlock
         self.didSet = didSet
         
-        let start = Date.now
         self.value = valueBlock()
-        if let time = Date.now.formattedMilliseconds(from: start, threshold: 0) {
-            print("[Updateable] Loading <\(T.self)>, took: \(time)")
-        }
         
         NotificationCenter.default.addObserver(self, selector: #selector(handleDatabaseDidChange), name: .databaseDidChange, object: nil)
     }
@@ -32,12 +28,8 @@ class Updateable<T>: ObservableObject {
     }
     
     @objc private func handleDatabaseDidChange() {
-        let start = Date.now
         value = valueBlock()
         didSet?()
-        if let time = Date.now.formattedMilliseconds(from: start, threshold: 0) {
-            print("[Updateable] Loading <\(T.self)>, took: \(time)")
-        }
     }
 }
 

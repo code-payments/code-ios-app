@@ -31,9 +31,11 @@ public actor VerifiedProtoService {
     /// Publishes the parsed rates via `ratesPublisher` for observers.
     public func saveRates(_ rates: [Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRate]) {
         var parsedRates: [Rate] = []
+        var unknownCodes: [String] = []
 
         for rate in rates {
             guard let currency = try? CurrencyCode(currencyCode: rate.exchangeRate.currencyCode) else {
+                unknownCodes.append(rate.exchangeRate.currencyCode)
                 continue
             }
             exchangeRates[currency] = rate
@@ -43,7 +45,9 @@ public actor VerifiedProtoService {
             ))
         }
 
-        trace(.receive, components: "Saved \(rates.count) verified exchange rates")
+        if !unknownCodes.isEmpty {
+            trace(.warning, components: "Skipped \(unknownCodes.count)/\(rates.count) exchange rates, unknown codes: \(unknownCodes.joined(separator: ", "))")
+        }
 
         if !parsedRates.isEmpty {
             ratesPublisher.send(parsedRates)
@@ -59,7 +63,6 @@ public actor VerifiedProtoService {
             reserveStates[mint] = state
         }
 
-        trace(.receive, components: "Saved \(states.count) verified reserve states")
     }
 
     // MARK: - Retrieve Methods

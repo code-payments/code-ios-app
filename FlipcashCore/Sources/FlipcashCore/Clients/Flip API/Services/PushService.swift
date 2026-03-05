@@ -13,7 +13,6 @@ import GRPC
 class PushService: CodeService<Flipcash_Push_V1_PushNIOClient> {
     
     func addToken(token: String, installationID: String, owner: KeyPair, completion: @Sendable @escaping (Result<(), ErrorAddToken>) -> Void) {
-        trace(.send, components: "Owner: \(owner.publicKey.base58)", "Token: \(token)", "Install ID: \(installationID)")
         
         let request = Flipcash_Push_V1_AddTokenRequest.with {
             $0.tokenType  = .fcmApns
@@ -27,10 +26,9 @@ class PushService: CodeService<Flipcash_Push_V1_PushNIOClient> {
         call.handle(on: queue) { response in
             let error = ErrorAddToken(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
-                trace(.success)
                 completion(.success(()))
             } else {
-                trace(.failure, components: "Error: \(error)")
+                trace(.failure, components: "addToken error: \(error)")
                 completion(.failure(error))
             }
             
