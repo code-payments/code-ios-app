@@ -315,6 +315,10 @@ class Session: ObservableObject {
     
     // MARK: - Lifecycle -
     
+    func didBecomeActive() {
+        ratesController.ensureStreamConnected()
+    }
+
     func didEnterBackground() {
         // If the sendOperation is ignoring stream, it's likely
         // presenting a share sheet or in some way mid-process
