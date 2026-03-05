@@ -107,6 +107,11 @@ class RatesController: ObservableObject {
         Task { await liveMintDataStreamer?.stop() }
     }
 
+    /// Ensure the stream is alive after returning from background.
+    func ensureStreamConnected() {
+        Task { await liveMintDataStreamer?.ensureConnected() }
+    }
+
     /// Update the list of mints to stream.
     /// Called when user's balances change (new tokens acquired).
     func updateSubscribedMints(_ mints: [PublicKey]) {

@@ -142,17 +142,18 @@ extension Client {
     // MARK: - Status -
     
     public func pollIntentMetadata(owner: KeyPair, intentID: PublicKey, maxAttempts: Int = 50) async throws -> IntentMetadata {
+        trace(.poll, components: "Intent: \(intentID.base58), max \(maxAttempts) attempts")
         for i in 0..<maxAttempts {
             do {
                 let delay = 50 * (i / 10)
                 if delay > 0 {
                     try await Task.delay(milliseconds: delay)
                 }
-                trace(.poll, components: "Delay: \(delay)ms", "Intent ID \(i): \(intentID.base58)")
                 return try await fetchIntentMetadata(owner: owner, intentID: intentID)
             } catch {}
         }
-        
+
+        trace(.failure, components: "Poll limit reached for intent: \(intentID.base58)")
         throw ClientError.pollLimitReached
     }
     

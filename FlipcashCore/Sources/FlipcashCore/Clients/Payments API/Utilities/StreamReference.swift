@@ -20,9 +20,7 @@ class StreamReference<Request, Response>: Cancellable {
         self.stream = stream
     }
     
-    deinit {
-        trace(.note, components: "Deallocating stream reference: \(Request.self)")
-    }
+    deinit {}
     
     func cancel() {
         stream?.cancel(promise: nil)
@@ -58,9 +56,7 @@ public class BidirectionalStreamReference<Request, Response>: Cancellable, @unch
         self.stream = stream
     }
     
-    deinit {
-        trace(.note, components: "Deallocating bidirectional stream reference: \(Request.self)")
-    }
+    deinit {}
     
     // MARK: - Ping -
     
@@ -74,7 +70,6 @@ public class BidirectionalStreamReference<Request, Response>: Cancellable, @unch
             // Double the server-provided timeout
             let newTimeout = updatedTimeout * 2
             if pingTimeout != newTimeout {
-                trace(.warning, components: "Updating timeout from \(pingTimeout) sec to \(newTimeout) sec")
                 pingTimeout = newTimeout
             }
         }

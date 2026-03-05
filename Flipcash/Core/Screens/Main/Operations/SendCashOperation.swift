@@ -104,10 +104,11 @@ class SendCashOperation {
             fiat: exchangedFiat.converted,
             nonce: .nonce
         )
+        trace(.open, components: "SendCashOperation \(payload.rendezvous.publicKey.base58)")
     }
-    
+
     deinit {
-        trace(.note, components: "Deallocated SendCashOperation for \(payload.rendezvous.publicKey.base58)")
+        trace(.close, components: "SendCashOperation \(payload.rendezvous.publicKey.base58)")
         messageStream?.cancel()
         messageStream = nil
     }

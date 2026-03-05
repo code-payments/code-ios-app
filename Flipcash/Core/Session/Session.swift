@@ -315,6 +315,10 @@ class Session: ObservableObject {
     
     // MARK: - Lifecycle -
     
+    func didBecomeActive() {
+        ratesController.ensureStreamConnected()
+    }
+
     func didEnterBackground() {
         // If the sendOperation is ignoring stream, it's likely
         // presenting a share sheet or in some way mid-process
@@ -821,14 +825,15 @@ class Session: ObservableObject {
                 )
                 
             case .failure(let error):
+                let verifiedState = self?.sendOperation?.resolvedVerifiedState
                 self?.dismissCashBill(style: .slide)
                 self?.showCashReturnedError()
-                
+
                 ErrorReporting.capturePayment(
                     error: error,
                     rendezvous: payload.rendezvous.publicKey,
                     exchangedFiat: billDescription.exchangedFiat,
-                    verifiedState: self?.sendOperation?.resolvedVerifiedState
+                    verifiedState: verifiedState
                 )
                 
                 Analytics.transfer(

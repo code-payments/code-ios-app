@@ -96,7 +96,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         
 //        appContainer.sessionAuthenticator.updateBiometricsState()
         
-        if let _ = sessionContainer { // Logged in
+        if let sessionContainer { // Logged in
+            sessionContainer.session.didBecomeActive()
+
             if !UIApplication.isInterfaceResetDisabled {
                 if let interval = secondsSinceLastActive(), interval > resetInterval {
                     trace(.warning, components: "Resetting interface...")

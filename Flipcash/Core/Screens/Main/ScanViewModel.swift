@@ -57,12 +57,10 @@ class ScanViewModel: ObservableObject {
     
     private func didScan(_ payload: CashCode.Payload) {
         guard !session.isShowingBill else {
-            trace(.warning, components: "Can't initiate send, bill on screen.")
             return
         }
-        
+
         guard !scannedRendezvous.contains(payload.rendezvous.publicKey) else {
-            trace(.warning, components: "Nonce previously received: \(payload.nonce.hexString())")
             return
         }
         

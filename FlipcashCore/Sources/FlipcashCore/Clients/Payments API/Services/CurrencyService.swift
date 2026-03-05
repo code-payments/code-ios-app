@@ -28,8 +28,6 @@ class CurrencyService: CodeService<Ocp_Currency_V1_CurrencyNIOClient>, @unchecke
     }
     
     func fetchMints(mints: [PublicKey], completion: @Sendable @escaping (Result<[PublicKey: MintMetadata], Error>) -> Void) {
-        trace(.send)
-        
         var request = Ocp_Currency_V1_GetMintsRequest()
         request.addresses = mints.map(\.solanaAccountID)
         
@@ -45,7 +43,6 @@ class CurrencyService: CodeService<Ocp_Currency_V1_CurrencyNIOClient>, @unchecke
                 }
             }
             
-            trace(.success, components: "\(mints.count) mints")
             completion(.success(mints))
 
         } failure: { error in

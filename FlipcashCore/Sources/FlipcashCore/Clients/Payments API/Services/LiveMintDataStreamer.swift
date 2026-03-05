@@ -60,6 +60,30 @@ public actor LiveMintDataStreamer {
         openStream()
     }
 
+    /// Ensure the stream is alive. If it died (e.g. after backgrounding),
+    /// tear it down and reopen immediately — bypassing exponential backoff.
+    public func ensureConnected() {
+        guard isStreaming, !subscribedMints.isEmpty else { return }
+
+        // If there's an active, healthy stream reference, nothing to do
+        if streamReference?.stream != nil, !isReconnecting {
+            return
+        }
+
+        trace(.warning, components: "Stream not connected on foreground, forcing reconnect")
+
+        // Cancel any pending backoff reconnect
+        reconnectTask?.cancel()
+        reconnectTask = nil
+        isReconnecting = false
+        reconnectAttempts = 0
+
+        // Tear down and reopen immediately
+        streamReference?.destroy()
+        streamReference = nil
+        openStream()
+    }
+
     /// Stop the stream
     public func stop() {
         isStreaming = false

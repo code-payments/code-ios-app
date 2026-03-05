@@ -66,6 +66,9 @@ enum ErrorReporting {
             if let verifiedState {
                 userInfo["rateTimestamp"] = verifiedState.timestamp.description
                 userInfo["rateValue"]     = verifiedState.exchangeRate
+                userInfo["rateAgeMins"]   = String(format: "%.1f", Date().timeIntervalSince(verifiedState.timestamp) / 60)
+            } else {
+                userInfo["verifiedState"] = "nil"
             }
         }
     }

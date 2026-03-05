@@ -11,6 +11,7 @@ import Foundation
 public enum TraceStyle: String {
     case send    = "➡️"
     case open    = "↪️"
+    case close   = "↩️"
     case poll    = "🔄"
     case success = "✅"
     case receive = "✳️"

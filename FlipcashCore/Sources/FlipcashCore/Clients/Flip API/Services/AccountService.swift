@@ -94,8 +94,6 @@ class AccountService: CodeService<Flipcash_Account_V1_AccountNIOClient> {
     }
 
     func fetchUnauthenticatedUserFlags(completion: @Sendable @escaping (Result<UnauthenticatedUserFlags, ErrorFetchUnauthenticatedUserFlags>) -> Void) {
-        trace(.send)
-
         let request = Flipcash_Account_V1_GetUnauthenticatedUserFlagsRequest.with {
             $0.platform = .apple
 
@@ -108,10 +106,9 @@ class AccountService: CodeService<Flipcash_Account_V1_AccountNIOClient> {
         call.handle(on: queue) { response in
             let error = ErrorFetchUnauthenticatedUserFlags(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
-                trace(.success)
                 completion(.success(UnauthenticatedUserFlags(response.userFlags)))
             } else {
-                trace(.failure)
+                trace(.failure, components: "fetchUnauthenticatedUserFlags")
                 completion(.failure(error))
             }
 

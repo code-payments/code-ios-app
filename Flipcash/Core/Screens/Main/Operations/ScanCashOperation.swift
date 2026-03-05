@@ -28,10 +28,11 @@ class ScanCashOperation {
         self.database   = database
         self.owner      = owner
         self.payload    = payload
+        trace(.open, components: "ScanCashOperation \(payload.rendezvous.publicKey.base58)")
     }
-    
+
     deinit {
-        trace(.note, components: "Deallocated SendCashOperation for \(payload.rendezvous.publicKey.base58)")
+        trace(.close, components: "ScanCashOperation \(payload.rendezvous.publicKey.base58)")
         messageStream?.cancel()
         messageStream = nil
     }
