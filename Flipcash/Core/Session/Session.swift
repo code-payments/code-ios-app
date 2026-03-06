@@ -1086,19 +1086,27 @@ class Session: ObservableObject {
                     ),
                     giftCard: giftCard
                 )
-                
+
+                // Fetch verified state so the "quick give and grab" bill
+                // can transfer launchpad currencies that require reserve state
+                let verifiedState = await ratesController.getVerifiedState(
+                    for: exchangedFiat.converted.currencyCode,
+                    mint: vmMint
+                )
+
                 updatePostTransaction()
-                
+
                 enqueue(toast: .init(
                     amount: exchangedFiat.converted,
                     isDeposit: true
                 ))
-                
+
                 showCashBill(
                     .init(
                         kind: .cash,
                         exchangedFiat: exchangedFiat,
-                        received: true
+                        received: true,
+                        verifiedState: verifiedState
                     )
                 )
                 

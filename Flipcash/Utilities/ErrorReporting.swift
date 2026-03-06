@@ -64,12 +64,17 @@ enum ErrorReporting {
             userInfo["rendezvous"]    = rendezvous.base58
             userInfo["exchangedFiat"] = exchangedFiat.descriptionDictionary
             if let verifiedState {
-                userInfo["rateTimestamp"] = verifiedState.timestamp.description
-                userInfo["rateValue"]     = verifiedState.exchangeRate
-                userInfo["rateAgeMins"]   = String(format: "%.1f", Date().timeIntervalSince(verifiedState.timestamp) / 60)
+                userInfo["rateTimestamp"]  = verifiedState.timestamp.description
+                userInfo["rateValue"]      = verifiedState.exchangeRate
+                userInfo["rateAgeMins"]    = String(format: "%.1f", Date().timeIntervalSince(verifiedState.timestamp) / 60)
+                userInfo["hasReserveState"] = verifiedState.reserveProto != nil
+                if let supply = verifiedState.supplyFromBonding {
+                    userInfo["supplyFromBonding"] = supply
+                }
             } else {
                 userInfo["verifiedState"] = "nil"
             }
+            userInfo["mint"] = exchangedFiat.mint.base58
         }
     }
     
