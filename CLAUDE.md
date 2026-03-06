@@ -171,6 +171,25 @@ Container (DI)
 - **Session** is the main state object after authentication
 - **Controllers** handle business logic and data persistence
 
+### gRPC Call Options
+
+Two `CallOptions` presets exist in `CodeService.swift` — using the wrong one causes subtle bugs:
+
+| Preset | Timeout | Use For | Example RPCs |
+|--------|---------|---------|-------------|
+| `.default` | 15 seconds | **Unary** RPCs (request → response) | `fetchMessages`, `sendMessage`, `createAccounts` |
+| `.streaming` | None | **Server-streaming** and **bidirectional** RPCs | `openMessageStream`, `submitIntent`, `streamLiveMintData`, `statefulSwap` |
+
+The `defaultCallOptions` on each gRPC client is `.default`, so unary RPCs get the 15s timeout automatically. **Streaming RPCs must explicitly pass `callOptions: .streaming`** — omitting it silently applies the 15s deadline, killing long-lived streams.
+
+```swift
+// ❌ BAD: Uses default 15s timeout — stream dies silently
+let stream = service.openMessageStream(request) { response in ... }
+
+// ✅ GOOD: No timeout — stream stays open, managed by keepalive
+let stream = service.openMessageStream(request, callOptions: .streaming) { response in ... }
+```
+
 ### Key Architectural Concepts
 
 1. **Quarks** - Smallest unit of any currency (like cents for dollars)
@@ -440,6 +459,7 @@ Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
 | Completing a transaction without refreshing balances | Call `session.updatePostTransaction()` after any transaction completes |
 | Programmatically leaving the app without disabling interface reset | Set `UIApplication.isInterfaceResetDisabled = true` before leaving (e.g. share sheet, external wallet), clear on return. See cash link share sheet in `Session.swift` for the pattern |
 | Canceling/modifying `SendCashOperation` in `dismissCashBill` | **Never** cancel or tear down `SendCashOperation` from `dismissCashBill`. After a grab, the received bill is a **live** `SendCashOperation` that others can scan ("quick give and grab" chain). Calling cancel/invalidateMessageStream from dismiss kills that live bill. The operation must manage its own lifecycle through its `complete()` method only. |
+| Using default `CallOptions` for streaming RPCs | Streaming RPCs (`openMessageStream`, `submitIntent`, `streamLiveMintData`, `statefulSwap`) must use `callOptions: .streaming`. The default 15s timeout silently kills long-lived streams. See [gRPC Call Options](#grpc-call-options). |
 
 ---
 

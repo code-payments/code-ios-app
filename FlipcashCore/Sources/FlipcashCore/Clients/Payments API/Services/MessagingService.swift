@@ -99,7 +99,7 @@ class MessagingService: CodeService<Ocp_Messaging_V1_MessagingNIOClient> {
     
     private func openMessageStream(assigningTo reference: StreamReference<Ocp_Messaging_V1_OpenMessageStreamRequest, Ocp_Messaging_V1_OpenMessageStreamResponse>, request: Ocp_Messaging_V1_OpenMessageStreamRequest, rendezvous: PublicKey, completion: @MainActor @Sendable @escaping (Result<[StreamMessage], Error>) -> Void) {
         let queue = self.queue
-        let stream = service.openMessageStream(request) { [weak self] response in
+        let stream = service.openMessageStream(request, callOptions: .streaming) { [weak self] response in
             
             let messages = response.messages.compactMap { try? StreamMessage($0) }
             

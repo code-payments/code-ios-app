@@ -712,9 +712,22 @@ class Session: ObservableObject {
                 completion(.success)
                 
             } catch ScanCashOperation.Error.noOpenStreamForRendezvous {
-//                showCashExpiredError()
+                // The sender's stream is no longer open, so the
+                // bill has expired or was dismissed.
                 completion(.noStream)
-                
+
+            } catch ClientError.pollLimitReached {
+                // The intent was never fulfilled for this receiver.
+                // Either another user grabbed it first or the transfer
+                // didn't complete in time. Silently reset so the user
+                // can retry by scanning again.
+                completion(.failed)
+
+            } catch ScanCashOperation.Error.connectionFailed {
+                // Network error while fetching the bill's mint data.
+                showCashLinkConnectionError()
+                completion(.failed)
+
             } catch {
                 ErrorReporting.capturePayment(
                     error: error,

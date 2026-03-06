@@ -112,7 +112,7 @@ class ScanCashOperation {
                 }
             } catch {
                 trace(.warning, components: "Failed to fetch messages (attempt \(i + 1)/\(maxAttempts)): \(error)")
-                throw error
+                throw Error.connectionFailed
             }
         }
 
@@ -171,5 +171,9 @@ extension ScanCashOperation {
         case failedToFetchMint
         case missingVMAuthority
         case mintMessageNotFound
+
+        /// A network error prevented fetching messages from the
+        /// rendezvous channel (e.g. no internet connection).
+        case connectionFailed
     }
 }
