@@ -163,6 +163,8 @@ Container (DI)
 └── SessionContainer (when logged in)
     ├── Session (main state, ObservableObject)
     ├── RatesController
+    │   ├── VerifiedProtoService (actor – caches verified exchange rate + reserve state proofs)
+    │   └── LiveMintDataStreamer (actor – bidirectional streaming for rates/reserves)
     ├── HistoryController
     └── Database (SQLite)
 ```
@@ -196,6 +198,8 @@ let stream = service.openMessageStream(request, callOptions: .streaming) { respo
 2. **ExchangedFiat** - Wraps underlying currency + converted display value
 3. **BondingCurve** - Pricing for custom currencies
 4. **AccountCluster** - Manages keys per mint
+5. **VerifiedState** - Bundles server-signed exchange rate proof (`rateProto`) and optional reserve state proof (`reserveProto`). Required when submitting any payment intent. For **launchpad currencies**, `reserveProto` is mandatory — the server rejects intents without it.
+6. **SendCashOperation** - Orchestrates peer-to-peer transfers via a rendezvous handshake. Has two concurrent paths: Path 1 (advertise bill with verified state) and Path 2 (listen for grab, then transfer). Both paths share a resolved `VerifiedState`.
 
 ---
 
@@ -458,8 +462,9 @@ Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
 | Adding unnecessary abstractions | Keep it simple, solve the current problem |
 | Completing a transaction without refreshing balances | Call `session.updatePostTransaction()` after any transaction completes |
 | Programmatically leaving the app without disabling interface reset | Set `UIApplication.isInterfaceResetDisabled = true` before leaving (e.g. share sheet, external wallet), clear on return. See cash link share sheet in `Session.swift` for the pattern |
-| Canceling/modifying `SendCashOperation` in `dismissCashBill` | **Never** cancel or tear down `SendCashOperation` from `dismissCashBill`. After a grab, the received bill is a **live** `SendCashOperation` that others can scan ("quick give and grab" chain). Calling cancel/invalidateMessageStream from dismiss kills that live bill. The operation must manage its own lifecycle through its `complete()` method only. |
+| Canceling/modifying `SendCashOperation` in `dismissCashBill` | **Never** explicitly call `cancel()` or `invalidateMessageStream()` on `SendCashOperation` from `dismissCashBill`. After a grab, the received bill is a **live** `SendCashOperation` that others can scan ("quick give and grab" chain). Setting `sendOperation = nil` is fine (deinit cleans up), but explicit teardown kills a live bill. The operation's `complete()` method handles stream teardown on success/failure. |
 | Using default `CallOptions` for streaming RPCs | Streaming RPCs (`openMessageStream`, `submitIntent`, `streamLiveMintData`, `statefulSwap`) must use `callOptions: .streaming`. The default 15s timeout silently kills long-lived streams. See [gRPC Call Options](#grpc-call-options). |
+| Showing a received bill without `verifiedState` | Every call to `showCashBill` must pass `verifiedState` — even for `received: true` bills. The received bill creates a live `SendCashOperation` for the "quick give and grab" chain. Without `verifiedState`, launchpad currency transfers fail with "reserve state is required". Both `receiveCash` (scan) and `receiveCashLink` (deep link) must provide it. |
 
 ---
 
@@ -486,10 +491,20 @@ Session & Auth:
 - Flipcash/Core/Session/Session.swift
 - Flipcash/Core/Session/SessionAuthenticator.swift
 
+Payments & Operations:
+- Flipcash/Core/Screens/Main/Operations/SendCashOperation.swift
+- Flipcash/Core/Screens/Main/Operations/ScanCashOperation.swift
+- FlipcashCore/Sources/FlipcashCore/Models/VerifiedState.swift
+- FlipcashCore/Sources/FlipcashCore/Clients/Payments API/Services/VerifiedProtoService.swift
+
 Multi-Currency:
 - FlipcashCore/Sources/FlipcashCore/Models/Fiat.swift (Quarks)
 - FlipcashCore/Sources/FlipcashCore/Models/ExchangedFiat.swift
 - FlipcashCore/Sources/FlipcashCore/Models/BondingCurve.swift
+
+Rates & Streaming:
+- Flipcash/Core/Controllers/RatesController.swift
+- FlipcashCore/Sources/FlipcashCore/Clients/Payments API/Services/LiveMintDataStreamer.swift
 
 Database:
 - Flipcash/Core/Controllers/Database/Schema.swift
