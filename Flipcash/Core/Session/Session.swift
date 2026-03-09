@@ -788,15 +788,37 @@ class Session: ObservableObject {
                         payload: payload,
                         exchangedFiat: exchangedFiat
                     )
-                    
+
+                    guard self.isShowingBill else {
+                        // The bill was dismissed (e.g. operation
+                        // failed) while the link was being created.
+                        // Void the gift card to return the funds.
+                        do {
+                            try await self.cancelCashLink(
+                                giftCardVault: giftCard.cluster.vaultPublicKey
+                            )
+                        } catch {
+                            ErrorReporting.capturePayment(
+                                error: error,
+                                rendezvous: payload.rendezvous.publicKey,
+                                exchangedFiat: exchangedFiat,
+                                reason: "Failed to void gift card after bill dismissed during cash link creation"
+                            )
+                        }
+                        self.updatePostTransaction()
+                        return
+                    }
+
                     self.showCashLinkShareSheet(
                         giftCard: giftCard,
                         exchangedFiat: exchangedFiat
                     )
-                    
+
                 } catch {
                     ErrorReporting.captureError(error)
-                    showSomethingWentWrongError()
+                    if self.isShowingBill {
+                        self.showSomethingWentWrongError()
+                    }
                 }
             }
         }
