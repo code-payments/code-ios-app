@@ -83,10 +83,7 @@ class ScanViewModel: ObservableObject {
                 switch result {
                 case .success:
                     break
-                case .noStream:
-                    // Do not remove the nonce from received pool
-                    break
-                case .failed:
+                case .noStream, .failed:
                     self?.scannedRendezvous.remove(payload.rendezvous.publicKey)
                 }
             }
