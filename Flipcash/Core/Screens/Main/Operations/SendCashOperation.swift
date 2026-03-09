@@ -12,6 +12,22 @@ import Combine
 /// Orchestrates a peer-to-peer cash transfer through a rendezvous-based
 /// handshake between sender and receiver.
 ///
+/// ## Per-Device Summary
+///
+/// **Device A (Sender — this operation runs here)**
+/// 1. Resolve `VerifiedState` (provided at init or from `RatesController` cache).
+/// 2. Advertise the bill: publish mint + exchange data on the rendezvous channel.
+/// 3. Listen on the channel for Device B's grab request.
+/// 4. Verify destination signature, then transfer funds to Device B's vault.
+/// 5. Poll until on-chain settlement confirms.
+///
+/// **Device B (Receiver)**
+/// - **Scan path:** `ScanCashOperation` extracts the `VerifiedState` from
+///   Device A's advertisement message — no local cache needed.
+/// - **Cash Link path:** `Session.receiveCashLink` subscribes to the mint
+///   and passes the cached verified state (if available) as
+///   `providedVerifiedState` for the quick-give-and-grab chain.
+///
 /// ## Lifecycle
 ///
 /// Calling ``start(completion:)`` kicks off two concurrent paths:

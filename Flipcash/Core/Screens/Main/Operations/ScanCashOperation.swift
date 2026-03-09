@@ -9,6 +9,28 @@ import Foundation
 import FlipcashCore
 import Combine
 
+/// Handles the receiver side of a face-to-face bill scan.
+///
+/// ## Device A (Sender)
+/// Displays a bill via `SendCashOperation`, which:
+/// - Advertises the mint + verified exchange data on a rendezvous channel
+/// - Listens for a grab request on the same channel
+///
+/// ## Device B (Receiver — this class)
+/// 1. **Listen for mint** — Poll the rendezvous channel until the sender's
+///    `requestToGiveBill` message arrives. Extract the mint address and
+///    `VerifiedState` (exchange rate + reserve state proofs) from the message.
+/// 2. **Fetch mint metadata** — If this is a new currency, pull its VM
+///    authority so we can derive the correct account cluster.
+/// 3. **Create accounts** — Ensure Device B has token accounts for the mint.
+/// 4. **Grab** — Send a `requestToGrabBill` with Device B's destination
+///    account, signed by the rendezvous key to prove legitimacy.
+/// 5. **Poll for settlement** — Wait for the sender's `transfer` intent to
+///    settle on-chain, then return the payment metadata.
+///
+/// The `VerifiedState` returned here comes from the **sender's message**
+/// (step 1), not from the local cache. This means the scan path works even
+/// when Device B has never synced this currency.
 @MainActor
 class ScanCashOperation {
     

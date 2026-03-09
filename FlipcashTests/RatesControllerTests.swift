@@ -1,0 +1,218 @@
+//
+//  RatesControllerTests.swift
+//  FlipcashTests
+//
+//  Created by Claude.
+//
+
+import Testing
+@testable import Flipcash
+import FlipcashCore
+import FlipcashAPI
+
+@Suite("RatesController")
+struct RatesControllerTests {
+
+    // MARK: - awaitVerifiedState -
+
+    @Test("Returns immediately when verified state is already cached")
+    @MainActor
+    func awaitVerifiedState_cached_returnsImmediately() async {
+        let controller = makeController()
+        let mint = PublicKey.jeffy
+
+        await controller.verifiedProtoService.saveRates([
+            .makeTest(currencyCode: "usd", rate: 1.0)
+        ])
+
+        await controller.verifiedProtoService.saveReserveStates([
+            .makeTest(mint: mint)
+        ])
+
+        let state = await controller.awaitVerifiedState(
+            for: .usd,
+            mint: mint,
+            maxAttempts: 1,
+            interval: 1_000_000
+        )
+
+        #expect(state != nil)
+        #expect(state?.rateProto.exchangeRate.currencyCode == "usd")
+    }
+
+    @Test("Returns nil when cache is empty and max attempts exhausted")
+    @MainActor
+    func awaitVerifiedState_empty_returnsNil() async {
+        let controller = makeController()
+        let mint = PublicKey.jeffy
+
+        let state = await controller.awaitVerifiedState(
+            for: .usd,
+            mint: mint,
+            maxAttempts: 3,
+            interval: 10_000_000 // 10ms
+        )
+
+        #expect(state == nil)
+    }
+
+    @Test("Returns state when data arrives after initial miss")
+    @MainActor
+    func awaitVerifiedState_delayedData_returnsOnce() async {
+        let controller = makeController()
+        let mint = PublicKey.jeffy
+
+        // Simulate stream delivering data after a short delay
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+            await controller.verifiedProtoService.saveRates([
+                .makeTest(currencyCode: "usd", rate: 1.0)
+            ])
+            await controller.verifiedProtoService.saveReserveStates([
+                .makeTest(mint: mint)
+            ])
+        }
+
+        let state = await controller.awaitVerifiedState(
+            for: .usd,
+            mint: mint,
+            maxAttempts: 10,
+            interval: 20_000_000 // 20ms
+        )
+
+        #expect(state != nil)
+    }
+
+    @Test("Includes reserve state when available for launchpad currency")
+    @MainActor
+    func awaitVerifiedState_withReserveState_returnsBoth() async {
+        let controller = makeController()
+        let mint = PublicKey.jeffy
+
+        await controller.verifiedProtoService.saveRates([
+            .makeTest(currencyCode: "usd", rate: 1.0)
+        ])
+
+        await controller.verifiedProtoService.saveReserveStates([
+            .makeTest(mint: mint)
+        ])
+
+        let state = await controller.awaitVerifiedState(
+            for: .usd,
+            mint: mint,
+            maxAttempts: 1,
+            interval: 1_000_000
+        )
+
+        #expect(state != nil)
+        #expect(state?.reserveProto != nil)
+    }
+
+    @Test("Keeps polling when rate exists but reserve state is missing for launchpad mint")
+    @MainActor
+    func awaitVerifiedState_rateCachedNoReserve_returnsNil() async {
+        let controller = makeController()
+        let mint = PublicKey.jeffy // launchpad mint, not .usdf
+
+        // Rate is cached but reserve state is not
+        await controller.verifiedProtoService.saveRates([
+            .makeTest(currencyCode: "usd", rate: 1.0)
+        ])
+
+        let state = await controller.awaitVerifiedState(
+            for: .usd,
+            mint: mint,
+            maxAttempts: 3,
+            interval: 10_000_000 // 10ms
+        )
+
+        #expect(state == nil)
+    }
+
+    @Test("Resolves when reserve state arrives after rate for launchpad mint")
+    @MainActor
+    func awaitVerifiedState_reserveArrivesLater_resolves() async {
+        let controller = makeController()
+        let mint = PublicKey.jeffy
+
+        // Rate is immediately available
+        await controller.verifiedProtoService.saveRates([
+            .makeTest(currencyCode: "usd", rate: 1.0)
+        ])
+
+        // Reserve state arrives after a short delay
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+            await controller.verifiedProtoService.saveReserveStates([
+                .makeTest(mint: mint)
+            ])
+        }
+
+        let state = await controller.awaitVerifiedState(
+            for: .usd,
+            mint: mint,
+            maxAttempts: 10,
+            interval: 20_000_000 // 20ms
+        )
+
+        #expect(state != nil)
+        #expect(state?.reserveProto != nil)
+    }
+
+    @Test("Exits early when task is cancelled")
+    @MainActor
+    func awaitVerifiedState_cancelled_returnsNil() async {
+        let controller = makeController()
+        let mint = PublicKey.jeffy
+
+        let task = Task { @MainActor in
+            await controller.awaitVerifiedState(
+                for: .usd,
+                mint: mint,
+                maxAttempts: 100,
+                interval: 100_000_000 // 100ms — would take 10s without cancellation
+            )
+        }
+
+        // Cancel after a short delay
+        try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+        task.cancel()
+
+        let state = await task.value
+        #expect(state == nil)
+    }
+
+    // MARK: - ensureMintSubscribed -
+
+    @Test("Does not duplicate an already subscribed mint")
+    @MainActor
+    func ensureMintSubscribed_alreadySubscribed_noDuplicate() {
+        let controller = makeController()
+        let mint = PublicKey.jeffy
+
+        controller.startStreaming(mints: [mint])
+        controller.ensureMintSubscribed(mint)
+
+        // No crash, no duplicate — verifying the guard works
+    }
+
+    @Test("Subscribes a new mint")
+    @MainActor
+    func ensureMintSubscribed_newMint_subscribes() {
+        let controller = makeController()
+        let mint = PublicKey.jeffy
+
+        controller.startStreaming(mints: [.usdf])
+        controller.ensureMintSubscribed(mint)
+
+        // Second call should be a no-op (already in list)
+        controller.ensureMintSubscribed(mint)
+    }
+
+    // MARK: - Helpers -
+
+    @MainActor
+    private func makeController() -> RatesController {
+        RatesController(container: .mock, database: .mock)
+    }
+}

@@ -654,6 +654,21 @@ class Session: ObservableObject {
     
     // MARK: - Cash -
     
+    /// Completes a face-to-face bill grab after the camera scans a cash code.
+    ///
+    /// ## Device A (Sender)
+    /// Displays a bill (`showCashBill` → `SendCashOperation`), encoding a
+    /// rendezvous keypair and amount into a visual cash code.
+    ///
+    /// ## Device B (Receiver — this method)
+    /// 1. **Scan** — Camera decodes the cash code payload (rendezvous + amount).
+    /// 2. **Delegate to `ScanCashOperation`** — Handles the full grab handshake
+    ///    (listen for mint, create accounts, grab, poll for settlement).
+    /// 3. **Post-transaction** — Refresh balances and show a received-bill UI
+    ///    via `showCashBill` with the `VerifiedState` from the sender's message.
+    ///
+    /// The received bill becomes a **live `SendCashOperation`** — other users
+    /// can scan Device B's screen to continue the "quick give and grab" chain.
     func receiveCash(_ payload: CashCode.Payload, completion: @escaping (ReceiveCashResult) -> Void) {
         // Record the start date of when
         // we first saw the bill and match
@@ -1022,6 +1037,30 @@ class Session: ObservableObject {
         updatePostTransaction()
     }
     
+    /// Receives a Cash Link (gift card) opened via deep link.
+    ///
+    /// ## Device A (Sender)
+    /// 1. Created the gift card via `createCashLink`, which funded a gift-card
+    ///    account on-chain and generated a mnemonic-backed deep link URL.
+    /// 2. Shared the link externally (iMessage, WhatsApp, etc.).
+    ///
+    /// ## Device B (Receiver — this method)
+    /// 1. **Derive keys** — Reconstruct the gift card keypair from the mnemonic
+    ///    embedded in the deep link.
+    /// 2. **Fetch gift card info** — Query the server for the gift card account's
+    ///    balance (`ExchangedFiat`), claim state, and mint.
+    /// 3. **Fetch mint metadata** — Obtain the VM authority for the gift card's
+    ///    mint so we can derive the correct account cluster.
+    /// 4. **Subscribe to mint** — Add the mint to the live stream early so
+    ///    verified state arrives while the blocking calls below execute.
+    /// 5. **Create accounts** — Ensure Device B has token accounts for this mint
+    ///    (no-op if they already exist).
+    /// 6. **Deposit** — Call `receiveCashLink` to move funds from the gift card
+    ///    vault into Device B's vault.
+    /// 7. **Await verified state** — Wait for the exchange-rate and reserve-state
+    ///    proofs to arrive from the stream. Required for launchpad currencies.
+    /// 8. **Show bill** — Display the received bill with a `SendCashOperation`
+    ///    so others can scan it from Device B's screen.
     func receiveCashLink(mnemonic: MnemonicPhrase) {
         let giftCardKeyPair = DerivedKey.derive(using: .solana, mnemonic: mnemonic).keyPair
         Task {
@@ -1066,6 +1105,11 @@ class Session: ObservableObject {
                     timeAuthority: vmAuthority
                 )
                 
+                // Subscribe to this mint's live data early so the stream
+                // has time to deliver verified state while we create
+                // accounts and deposit the gift card below.
+                ratesController.ensureMintSubscribed(vmMint)
+
                 // We need to ensure the accounts for this mint
                 // are created. This call is a no-op is the
                 // account already exists
@@ -1076,7 +1120,7 @@ class Session: ObservableObject {
                     kind: .primary,
                     derivationIndex: 0
                 )
-                
+
                 // Deposit the gift card
                 try await client.receiveCashLink(
                     usdf: exchangedFiat.underlying,
@@ -1087,9 +1131,10 @@ class Session: ObservableObject {
                     giftCard: giftCard
                 )
 
-                // Fetch verified state so the "quick give and grab" bill
-                // can transfer launchpad currencies that require reserve state
-                let verifiedState = await ratesController.getVerifiedState(
+                // Wait for verified state — the stream was subscribed
+                // above, so data should arrive during the blocking calls.
+                // Required for launchpad currencies in the quick-give-and-grab chain.
+                let verifiedState = await ratesController.awaitVerifiedState(
                     for: exchangedFiat.converted.currencyCode,
                     mint: vmMint
                 )

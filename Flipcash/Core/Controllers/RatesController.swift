@@ -50,6 +50,11 @@ class RatesController: ObservableObject {
     /// Current list of mints being streamed
     private var streamedMints: [PublicKey] = []
 
+    /// Mints added via ``ensureMintSubscribed(_:)`` that may not yet
+    /// appear in the user's balance list. Prevents balance refreshes
+    /// from dropping pending subscriptions.
+    private var pendingMints: Set<PublicKey> = []
+
     /// Combine cancellables
     private var cancellables = Set<AnyCancellable>()
 
@@ -114,9 +119,17 @@ class RatesController: ObservableObject {
 
     /// Update the list of mints to stream.
     /// Called when user's balances change (new tokens acquired).
+    /// Preserves any mints added via ``ensureMintSubscribed(_:)``
+    /// that aren't yet reflected in the balance list.
     func updateSubscribedMints(_ mints: [PublicKey]) {
-        streamedMints = mints
-        Task { await liveMintDataStreamer?.updateMints(mints) }
+        var merged = mints
+        for mint in pendingMints where !merged.contains(mint) {
+            merged.append(mint)
+        }
+        // Drop pending mints that are now covered by the balance list
+        pendingMints.subtract(mints)
+        streamedMints = merged
+        Task { await liveMintDataStreamer?.updateMints(merged) }
     }
 
     // MARK: - Verified Proofs -
@@ -125,6 +138,45 @@ class RatesController: ObservableObject {
     /// Returns nil if no verified exchange rate is available.
     func getVerifiedState(for currency: CurrencyCode, mint: PublicKey) async -> VerifiedState? {
         await verifiedProtoService.getVerifiedState(for: currency, mint: mint)
+    }
+
+    /// Ensure a mint is included in the live stream subscription.
+    /// The verified state will arrive asynchronously through the existing
+    /// streaming pipeline. No-op if the mint is already subscribed.
+    /// Extra subscriptions are harmless — they reset on app restart.
+    func ensureMintSubscribed(_ mint: PublicKey) {
+        pendingMints.insert(mint)
+        guard !streamedMints.contains(mint) else { return }
+        updateSubscribedMints(streamedMints)
+    }
+
+    /// Wait for verified state to become available in the cache.
+    /// Call ``ensureMintSubscribed(_:)`` first to trigger the stream.
+    /// Polls the cache at short intervals, returning `nil` on timeout.
+    ///
+    /// For non-core mints (launchpad currencies), this method waits until
+    /// `reserveProto` is also present — the server rejects intents without it.
+    func awaitVerifiedState(
+        for currency: CurrencyCode,
+        mint: PublicKey,
+        maxAttempts: Int = 25,
+        interval: UInt64 = 200_000_000
+    ) async -> VerifiedState? {
+        let requiresReserveState = mint != .usdf
+        for i in 0..<maxAttempts {
+            if Task.isCancelled { return nil }
+            if i > 0 {
+                try? await Task.sleep(nanoseconds: interval)
+            }
+            if let state = await verifiedProtoService.getVerifiedState(for: currency, mint: mint) {
+                if requiresReserveState && state.reserveProto == nil {
+                    continue
+                }
+                return state
+            }
+        }
+        trace(.failure, components: "awaitVerifiedState timed out for \(currency.rawValue), mint: \(mint.base58)")
+        return nil
     }
 
     // MARK: - Rates -
@@ -200,6 +252,7 @@ class RatesController: ObservableObject {
     /// Prepare for logout of current user
     func prepareForLogout() {
         selectedTokenMint = nil
+        pendingMints.removeAll()
         stopStreaming()
         Task {
             await verifiedProtoService.clear()
