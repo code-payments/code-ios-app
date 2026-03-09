@@ -75,7 +75,7 @@ class GiveViewModel: ObservableObject {
     @Published var isPresented = false {
         didSet {
             if isPresented {
-                let rate = ratesController.rateForEntryCurrency()
+                let rate = ratesController.rateForBalanceCurrency()
                 let hasGiveableBalance = session.balances(for: rate).contains { $0.stored.mint != .usdf }
 
                 if hasGiveableBalance {
