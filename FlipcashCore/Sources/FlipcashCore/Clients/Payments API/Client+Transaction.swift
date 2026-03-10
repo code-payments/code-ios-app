@@ -150,6 +150,9 @@ extension Client {
                     try await Task.delay(milliseconds: delay)
                 }
                 return try await fetchIntentMetadata(owner: owner, intentID: intentID)
+            } catch ErrorFetchIntentMetadata.denied {
+                trace(.warning, components: "Intent denied (grabbed by another device): \(intentID.base58)")
+                throw ClientError.denied
             } catch {}
         }
 
@@ -262,5 +265,6 @@ extension Client {
 
 public enum ClientError: Error {
     case pollLimitReached
+    case denied
     case vmMetadataMissing
 }

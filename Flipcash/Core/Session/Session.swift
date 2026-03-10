@@ -739,11 +739,19 @@ class Session: ObservableObject {
                 // bill has expired or was dismissed.
                 completion(.noStream)
 
+            } catch ClientError.denied {
+                // Another device grabbed this bill first. Stop polling
+                // and silently reset so the scanner can pick up new codes.
+                trace(.warning, components:
+                    "Scan denied (concurrent grab)",
+                    "Rendezvous: \(payload.rendezvous.publicKey.base58)"
+                )
+                completion(.failed)
+
             } catch ClientError.pollLimitReached {
                 // The intent was never fulfilled for this receiver.
-                // Either another user grabbed it first or the transfer
-                // didn't complete in time. Silently reset so the user
-                // can retry by scanning again.
+                // The transfer didn't complete in time. Silently reset
+                // so the user can retry by scanning again.
                 completion(.failed)
 
             } catch ScanCashOperation.Error.connectionFailed {

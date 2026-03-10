@@ -175,10 +175,13 @@ class ScanCashOperation {
             
         } catch Error.noOpenStreamForRendezvous {
             throw Error.noOpenStreamForRendezvous // Avoid capture
-            
+
         } catch ClientError.pollLimitReached {
             throw ClientError.pollLimitReached // Avoid capture
-            
+
+        } catch ClientError.denied {
+            throw ClientError.denied // Avoid capture
+
         } catch {
 //            ErrorReporting.captureError(error)
             throw error
