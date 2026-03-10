@@ -109,6 +109,14 @@ class Session: ObservableObject {
     var isShowingBill: Bool {
         billState.bill != nil
     }
+
+    /// Whether a `ScanCashOperation` is currently in flight. Used by
+    /// `ScanViewModel` to prevent new codes from being registered while
+    /// a grab is being processed, avoiding orphaned entries in the
+    /// scanned-rendezvous set.
+    var isProcessingScan: Bool {
+        scanOperation != nil
+    }
     
     var hasCoinbaseOnramp: Bool {
         BetaFlags.shared.hasEnabled(.enableCoinbase) || userFlags?.hasCoinbase == true

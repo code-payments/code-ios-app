@@ -60,6 +60,10 @@ class ScanViewModel: ObservableObject {
             return
         }
 
+        guard !session.isProcessingScan else {
+            return
+        }
+
         guard !scannedRendezvous.contains(payload.rendezvous.publicKey) else {
             return
         }
