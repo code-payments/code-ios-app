@@ -216,6 +216,12 @@ extension MintMetadata {
             case .x(let x):
                 guard !x.username.isEmpty else { return nil }
                 return .x(x.username)
+            case .telegram(_):
+                // TODO: add UI treatment
+                fallthrough
+            case .discord(_):
+                // TODO: add UI treatment
+                fallthrough
             case nil:
                 return nil
             }

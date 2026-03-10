@@ -20,48 +20,6 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
-public enum Ocp_Transaction_V1_AirdropType: SwiftProtobuf.Enum, Swift.CaseIterable {
-  public typealias RawValue = Int
-  case unknown // = 0
-
-  /// Reward for onboarding another user
-  case onboardingBonus // = 1
-
-  /// Airdrop for getting a user started with first crypto balance
-  case welcomeBonus // = 2
-  case UNRECOGNIZED(Int)
-
-  public init() {
-    self = .unknown
-  }
-
-  public init?(rawValue: Int) {
-    switch rawValue {
-    case 0: self = .unknown
-    case 1: self = .onboardingBonus
-    case 2: self = .welcomeBonus
-    default: self = .UNRECOGNIZED(rawValue)
-    }
-  }
-
-  public var rawValue: Int {
-    switch self {
-    case .unknown: return 0
-    case .onboardingBonus: return 1
-    case .welcomeBonus: return 2
-    case .UNRECOGNIZED(let i): return i
-    }
-  }
-
-  // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static let allCases: [Ocp_Transaction_V1_AirdropType] = [
-    .unknown,
-    .onboardingBonus,
-    .welcomeBonus,
-  ]
-
-}
-
 public enum Ocp_Transaction_V1_FundingSource: SwiftProtobuf.Enum, Swift.CaseIterable {
   public typealias RawValue = Int
   case unknown // = 0
@@ -448,6 +406,7 @@ public struct Ocp_Transaction_V1_GetIntentMetadataResponse: Sendable {
     public typealias RawValue = Int
     case ok // = 0
     case notFound // = 1
+    case denied // = 2
     case UNRECOGNIZED(Int)
 
     public init() {
@@ -458,6 +417,7 @@ public struct Ocp_Transaction_V1_GetIntentMetadataResponse: Sendable {
       switch rawValue {
       case 0: self = .ok
       case 1: self = .notFound
+      case 2: self = .denied
       default: self = .UNRECOGNIZED(rawValue)
       }
     }
@@ -466,6 +426,7 @@ public struct Ocp_Transaction_V1_GetIntentMetadataResponse: Sendable {
       switch self {
       case .ok: return 0
       case .notFound: return 1
+      case .denied: return 2
       case .UNRECOGNIZED(let i): return i
       }
     }
@@ -474,6 +435,7 @@ public struct Ocp_Transaction_V1_GetIntentMetadataResponse: Sendable {
     public static let allCases: [Ocp_Transaction_V1_GetIntentMetadataResponse.Result] = [
       .ok,
       .notFound,
+      .denied,
     ]
 
   }
@@ -702,110 +664,6 @@ public struct Ocp_Transaction_V1_CanWithdrawToAccountResponse: Sendable {
   public init() {}
 
   fileprivate var _feeAmount: Ocp_Transaction_V1_ExchangeDataWithoutRate? = nil
-}
-
-public struct Ocp_Transaction_V1_AirdropRequest: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  /// The type of airdrop to claim
-  public var airdropType: Ocp_Transaction_V1_AirdropType = .unknown
-
-  /// The owner account to airdrop core mint tokens to
-  public var owner: Ocp_Common_V1_SolanaAccountId {
-    get {_owner ?? Ocp_Common_V1_SolanaAccountId()}
-    set {_owner = newValue}
-  }
-  /// Returns true if `owner` has been explicitly set.
-  public var hasOwner: Bool {self._owner != nil}
-  /// Clears the value of `owner`. Subsequent reads from it will return its default value.
-  public mutating func clearOwner() {self._owner = nil}
-
-  /// The signature is of serialize(AirdropRequest) without this field set
-  /// using the private key of the owner account. This provides an authentication
-  /// mechanism to the RPC.
-  public var signature: Ocp_Common_V1_Signature {
-    get {_signature ?? Ocp_Common_V1_Signature()}
-    set {_signature = newValue}
-  }
-  /// Returns true if `signature` has been explicitly set.
-  public var hasSignature: Bool {self._signature != nil}
-  /// Clears the value of `signature`. Subsequent reads from it will return its default value.
-  public mutating func clearSignature() {self._signature = nil}
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-
-  fileprivate var _owner: Ocp_Common_V1_SolanaAccountId? = nil
-  fileprivate var _signature: Ocp_Common_V1_Signature? = nil
-}
-
-public struct Ocp_Transaction_V1_AirdropResponse: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  public var result: Ocp_Transaction_V1_AirdropResponse.Result = .ok
-
-  /// Exchange data for the amount of core mint tokens airdropped when successful
-  public var exchangeData: Ocp_Transaction_V1_ExchangeData {
-    get {_exchangeData ?? Ocp_Transaction_V1_ExchangeData()}
-    set {_exchangeData = newValue}
-  }
-  /// Returns true if `exchangeData` has been explicitly set.
-  public var hasExchangeData: Bool {self._exchangeData != nil}
-  /// Clears the value of `exchangeData`. Subsequent reads from it will return its default value.
-  public mutating func clearExchangeData() {self._exchangeData = nil}
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public enum Result: SwiftProtobuf.Enum, Swift.CaseIterable {
-    public typealias RawValue = Int
-    case ok // = 0
-
-    /// Airdrops are unavailable
-    case unavailable // = 1
-
-    /// The airdrop has already been claimed by the owner
-    case alreadyClaimed // = 2
-    case UNRECOGNIZED(Int)
-
-    public init() {
-      self = .ok
-    }
-
-    public init?(rawValue: Int) {
-      switch rawValue {
-      case 0: self = .ok
-      case 1: self = .unavailable
-      case 2: self = .alreadyClaimed
-      default: self = .UNRECOGNIZED(rawValue)
-      }
-    }
-
-    public var rawValue: Int {
-      switch self {
-      case .ok: return 0
-      case .unavailable: return 1
-      case .alreadyClaimed: return 2
-      case .UNRECOGNIZED(let i): return i
-      }
-    }
-
-    // The compiler won't synthesize support with the UNRECOGNIZED case.
-    public static let allCases: [Ocp_Transaction_V1_AirdropResponse.Result] = [
-      .ok,
-      .unavailable,
-      .alreadyClaimed,
-    ]
-
-  }
-
-  public init() {}
-
-  fileprivate var _exchangeData: Ocp_Transaction_V1_ExchangeData? = nil
 }
 
 public struct Ocp_Transaction_V1_VoidGiftCardRequest: Sendable {
@@ -2907,10 +2765,6 @@ public struct Ocp_Transaction_V1_SwapMetadata: Sendable {
 
 fileprivate let _protobuf_package = "ocp.transaction.v1"
 
-extension Ocp_Transaction_V1_AirdropType: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0UNKNOWN\0\u{1}ONBOARDING_BONUS\0\u{1}WELCOME_BONUS\0")
-}
-
 extension Ocp_Transaction_V1_FundingSource: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0FUNDING_SOURCE_UNKNOWN\0\u{1}FUNDING_SOURCE_SUBMIT_INTENT\0\u{1}FUNDING_SOURCE_EXTERNAL_WALLET\0")
 }
@@ -3337,7 +3191,7 @@ extension Ocp_Transaction_V1_GetIntentMetadataResponse: SwiftProtobuf.Message, S
 }
 
 extension Ocp_Transaction_V1_GetIntentMetadataResponse.Result: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0OK\0\u{1}NOT_FOUND\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0OK\0\u{1}NOT_FOUND\0\u{1}DENIED\0")
 }
 
 extension Ocp_Transaction_V1_GetLimitsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
@@ -3518,93 +3372,6 @@ extension Ocp_Transaction_V1_CanWithdrawToAccountResponse: SwiftProtobuf.Message
 
 extension Ocp_Transaction_V1_CanWithdrawToAccountResponse.AccountType: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0Unknown\0\u{1}TokenAccount\0\u{1}OwnerAccount\0")
-}
-
-extension Ocp_Transaction_V1_AirdropRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".AirdropRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}airdrop_type\0\u{1}owner\0\u{1}signature\0")
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularEnumField(value: &self.airdropType) }()
-      case 2: try { try decoder.decodeSingularMessageField(value: &self._owner) }()
-      case 3: try { try decoder.decodeSingularMessageField(value: &self._signature) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    if self.airdropType != .unknown {
-      try visitor.visitSingularEnumField(value: self.airdropType, fieldNumber: 1)
-    }
-    try { if let v = self._owner {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-    } }()
-    try { if let v = self._signature {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
-    } }()
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Ocp_Transaction_V1_AirdropRequest, rhs: Ocp_Transaction_V1_AirdropRequest) -> Bool {
-    if lhs.airdropType != rhs.airdropType {return false}
-    if lhs._owner != rhs._owner {return false}
-    if lhs._signature != rhs._signature {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Ocp_Transaction_V1_AirdropResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".AirdropResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}result\0\u{3}exchange_data\0")
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
-      case 2: try { try decoder.decodeSingularMessageField(value: &self._exchangeData) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    if self.result != .ok {
-      try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
-    }
-    try { if let v = self._exchangeData {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-    } }()
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Ocp_Transaction_V1_AirdropResponse, rhs: Ocp_Transaction_V1_AirdropResponse) -> Bool {
-    if lhs.result != rhs.result {return false}
-    if lhs._exchangeData != rhs._exchangeData {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Ocp_Transaction_V1_AirdropResponse.Result: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0OK\0\u{1}UNAVAILABLE\0\u{1}ALREADY_CLAIMED\0")
 }
 
 extension Ocp_Transaction_V1_VoidGiftCardRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {

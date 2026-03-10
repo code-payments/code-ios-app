@@ -745,6 +745,7 @@ public enum ErrorVoidGiftCard: Int, Error {
 public enum ErrorFetchIntentMetadata: Int, Error {
     case ok
     case notFound
+    case denied
     case unknown = -1
     case failedToParse = -2
 }
@@ -760,11 +761,7 @@ extension InterceptorFactory: Ocp_Transaction_V1_TransactionClientInterceptorFac
     func makeVoidGiftCardInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Transaction_V1_VoidGiftCardRequest, FlipcashAPI.Ocp_Transaction_V1_VoidGiftCardResponse>] {
         makeInterceptors()
     }
-    
-    func makeAirdropInterceptors() -> [GRPC.ClientInterceptor<Ocp_Transaction_V1_AirdropRequest, Ocp_Transaction_V1_AirdropResponse>] {
-        makeInterceptors()
-    }
-    
+        
     func makeCanWithdrawToAccountInterceptors() -> [GRPC.ClientInterceptor<Ocp_Transaction_V1_CanWithdrawToAccountRequest, Ocp_Transaction_V1_CanWithdrawToAccountResponse>] {
         makeInterceptors()
     }

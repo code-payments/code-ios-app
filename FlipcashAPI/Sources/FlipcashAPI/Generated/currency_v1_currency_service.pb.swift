@@ -8,6 +8,7 @@
 // For information on using the generated types, please see the documentation:
 //   https://github.com/apple/swift-protobuf/
 
+import Foundation
 import SwiftProtobuf
 
 // If the compiler emits an error on this type, it is because this file
@@ -780,11 +781,29 @@ public struct Ocp_Currency_V1_SocialLink: Sendable {
     set {type = .x(newValue)}
   }
 
+  public var telegram: Ocp_Currency_V1_SocialLink.Telegram {
+    get {
+      if case .telegram(let v)? = type {return v}
+      return Ocp_Currency_V1_SocialLink.Telegram()
+    }
+    set {type = .telegram(newValue)}
+  }
+
+  public var discord: Ocp_Currency_V1_SocialLink.Discord {
+    get {
+      if case .discord(let v)? = type {return v}
+      return Ocp_Currency_V1_SocialLink.Discord()
+    }
+    set {type = .discord(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Type: Equatable, Sendable {
     case website(Ocp_Currency_V1_SocialLink.Website)
     case x(Ocp_Currency_V1_SocialLink.X)
+    case telegram(Ocp_Currency_V1_SocialLink.Telegram)
+    case discord(Ocp_Currency_V1_SocialLink.Discord)
 
   }
 
@@ -806,6 +825,32 @@ public struct Ocp_Currency_V1_SocialLink: Sendable {
     // methods supported on all messages.
 
     public var username: String = String()
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+  }
+
+  public struct Telegram: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    /// Telegram username (without the @ prefix)
+    public var username: String = String()
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+  }
+
+  public struct Discord: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    /// Discord invite code (e.g. "abc123" from discord.gg/abc123)
+    public var inviteCode: String = String()
 
     public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -947,6 +992,284 @@ public struct Ocp_Currency_V1_LaunchResponse: Sendable {
   public init() {}
 
   fileprivate var _mint: Ocp_Common_V1_SolanaAccountId? = nil
+}
+
+public struct Ocp_Currency_V1_UpdateIconRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The owner account of the currency
+  public var owner: Ocp_Common_V1_SolanaAccountId {
+    get {_owner ?? Ocp_Common_V1_SolanaAccountId()}
+    set {_owner = newValue}
+  }
+  /// Returns true if `owner` has been explicitly set.
+  public var hasOwner: Bool {self._owner != nil}
+  /// Clears the value of `owner`. Subsequent reads from it will return its default value.
+  public mutating func clearOwner() {self._owner = nil}
+
+  /// The signature is of serialize(UpdateIconRequest) without this field set
+  /// using the private key of the owner account. This provides an authentication
+  /// mechanism to the RPC.
+  public var signature: Ocp_Common_V1_Signature {
+    get {_signature ?? Ocp_Common_V1_Signature()}
+    set {_signature = newValue}
+  }
+  /// Returns true if `signature` has been explicitly set.
+  public var hasSignature: Bool {self._signature != nil}
+  /// Clears the value of `signature`. Subsequent reads from it will return its default value.
+  public mutating func clearSignature() {self._signature = nil}
+
+  /// The mint address of the currency to update
+  public var mint: Ocp_Common_V1_SolanaAccountId {
+    get {_mint ?? Ocp_Common_V1_SolanaAccountId()}
+    set {_mint = newValue}
+  }
+  /// Returns true if `mint` has been explicitly set.
+  public var hasMint: Bool {self._mint != nil}
+  /// Clears the value of `mint`. Subsequent reads from it will return its default value.
+  public mutating func clearMint() {self._mint = nil}
+
+  /// The raw image data for the icon
+  public var icon: Data = Data()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _owner: Ocp_Common_V1_SolanaAccountId? = nil
+  fileprivate var _signature: Ocp_Common_V1_Signature? = nil
+  fileprivate var _mint: Ocp_Common_V1_SolanaAccountId? = nil
+}
+
+public struct Ocp_Currency_V1_UpdateIconResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var result: Ocp_Currency_V1_UpdateIconResponse.Result = .ok
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Result: SwiftProtobuf.Enum, Swift.CaseIterable {
+    public typealias RawValue = Int
+    case ok // = 0
+    case notFound // = 1
+    case denied // = 2
+    case invalidIcon // = 3
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .ok
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .ok
+      case 1: self = .notFound
+      case 2: self = .denied
+      case 3: self = .invalidIcon
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .ok: return 0
+      case .notFound: return 1
+      case .denied: return 2
+      case .invalidIcon: return 3
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+    // The compiler won't synthesize support with the UNRECOGNIZED case.
+    public static let allCases: [Ocp_Currency_V1_UpdateIconResponse.Result] = [
+      .ok,
+      .notFound,
+      .denied,
+      .invalidIcon,
+    ]
+
+  }
+
+  public init() {}
+}
+
+public struct Ocp_Currency_V1_UpdateMetadataRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The owner account of the currency
+  public var owner: Ocp_Common_V1_SolanaAccountId {
+    get {_owner ?? Ocp_Common_V1_SolanaAccountId()}
+    set {_owner = newValue}
+  }
+  /// Returns true if `owner` has been explicitly set.
+  public var hasOwner: Bool {self._owner != nil}
+  /// Clears the value of `owner`. Subsequent reads from it will return its default value.
+  public mutating func clearOwner() {self._owner = nil}
+
+  /// The signature is of serialize(UpdateMetadataRequest) without this field set
+  /// using the private key of the owner account. This provides an authentication
+  /// mechanism to the RPC.
+  public var signature: Ocp_Common_V1_Signature {
+    get {_signature ?? Ocp_Common_V1_Signature()}
+    set {_signature = newValue}
+  }
+  /// Returns true if `signature` has been explicitly set.
+  public var hasSignature: Bool {self._signature != nil}
+  /// Clears the value of `signature`. Subsequent reads from it will return its default value.
+  public mutating func clearSignature() {self._signature = nil}
+
+  /// The mint address of the currency to update
+  public var mint: Ocp_Common_V1_SolanaAccountId {
+    get {_mint ?? Ocp_Common_V1_SolanaAccountId()}
+    set {_mint = newValue}
+  }
+  /// Returns true if `mint` has been explicitly set.
+  public var hasMint: Bool {self._mint != nil}
+  /// Clears the value of `mint`. Subsequent reads from it will return its default value.
+  public mutating func clearMint() {self._mint = nil}
+
+  /// Updated currency description. If not provided, description is not updated.
+  public var newDescription: Ocp_Currency_V1_UpdateMetadataRequest.DescriptionUpdate {
+    get {_newDescription ?? Ocp_Currency_V1_UpdateMetadataRequest.DescriptionUpdate()}
+    set {_newDescription = newValue}
+  }
+  /// Returns true if `newDescription` has been explicitly set.
+  public var hasNewDescription: Bool {self._newDescription != nil}
+  /// Clears the value of `newDescription`. Subsequent reads from it will return its default value.
+  public mutating func clearNewDescription() {self._newDescription = nil}
+
+  /// Updated bill customization. If not provided, bill customization is not updated.
+  public var newBillCustomization: Ocp_Currency_V1_UpdateMetadataRequest.BillCustomizationUpdate {
+    get {_newBillCustomization ?? Ocp_Currency_V1_UpdateMetadataRequest.BillCustomizationUpdate()}
+    set {_newBillCustomization = newValue}
+  }
+  /// Returns true if `newBillCustomization` has been explicitly set.
+  public var hasNewBillCustomization: Bool {self._newBillCustomization != nil}
+  /// Clears the value of `newBillCustomization`. Subsequent reads from it will return its default value.
+  public mutating func clearNewBillCustomization() {self._newBillCustomization = nil}
+
+  /// Updated social links. This replaces the entire set of social links. If not
+  /// provided, social links are not updated.
+  public var newSocialLinks: Ocp_Currency_V1_UpdateMetadataRequest.SocialLinksUpdate {
+    get {_newSocialLinks ?? Ocp_Currency_V1_UpdateMetadataRequest.SocialLinksUpdate()}
+    set {_newSocialLinks = newValue}
+  }
+  /// Returns true if `newSocialLinks` has been explicitly set.
+  public var hasNewSocialLinks: Bool {self._newSocialLinks != nil}
+  /// Clears the value of `newSocialLinks`. Subsequent reads from it will return its default value.
+  public mutating func clearNewSocialLinks() {self._newSocialLinks = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public struct DescriptionUpdate: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    public var value: String = String()
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+  }
+
+  public struct BillCustomizationUpdate: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    public var value: Ocp_Currency_V1_BillCustomization {
+      get {_value ?? Ocp_Currency_V1_BillCustomization()}
+      set {_value = newValue}
+    }
+    /// Returns true if `value` has been explicitly set.
+    public var hasValue: Bool {self._value != nil}
+    /// Clears the value of `value`. Subsequent reads from it will return its default value.
+    public mutating func clearValue() {self._value = nil}
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+
+    fileprivate var _value: Ocp_Currency_V1_BillCustomization? = nil
+  }
+
+  public struct SocialLinksUpdate: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    public var value: [Ocp_Currency_V1_SocialLink] = []
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+  }
+
+  public init() {}
+
+  fileprivate var _owner: Ocp_Common_V1_SolanaAccountId? = nil
+  fileprivate var _signature: Ocp_Common_V1_Signature? = nil
+  fileprivate var _mint: Ocp_Common_V1_SolanaAccountId? = nil
+  fileprivate var _newDescription: Ocp_Currency_V1_UpdateMetadataRequest.DescriptionUpdate? = nil
+  fileprivate var _newBillCustomization: Ocp_Currency_V1_UpdateMetadataRequest.BillCustomizationUpdate? = nil
+  fileprivate var _newSocialLinks: Ocp_Currency_V1_UpdateMetadataRequest.SocialLinksUpdate? = nil
+}
+
+public struct Ocp_Currency_V1_UpdateMetadataResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var result: Ocp_Currency_V1_UpdateMetadataResponse.Result = .ok
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Result: SwiftProtobuf.Enum, Swift.CaseIterable {
+    public typealias RawValue = Int
+    case ok // = 0
+    case notFound // = 1
+    case denied // = 2
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .ok
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .ok
+      case 1: self = .notFound
+      case 2: self = .denied
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .ok: return 0
+      case .notFound: return 1
+      case .denied: return 2
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+    // The compiler won't synthesize support with the UNRECOGNIZED case.
+    public static let allCases: [Ocp_Currency_V1_UpdateMetadataResponse.Result] = [
+      .ok,
+      .notFound,
+      .denied,
+    ]
+
+  }
+
+  public init() {}
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -1882,7 +2205,7 @@ extension Ocp_Currency_V1_VerifiedLaunchapdCurrencyReserveStateBatch: SwiftProto
 
 extension Ocp_Currency_V1_SocialLink: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SocialLink"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}website\0\u{1}x\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}website\0\u{1}x\0\u{1}telegram\0\u{1}discord\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1916,6 +2239,32 @@ extension Ocp_Currency_V1_SocialLink: SwiftProtobuf.Message, SwiftProtobuf._Mess
           self.type = .x(v)
         }
       }()
+      case 3: try {
+        var v: Ocp_Currency_V1_SocialLink.Telegram?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .telegram(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .telegram(v)
+        }
+      }()
+      case 4: try {
+        var v: Ocp_Currency_V1_SocialLink.Discord?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .discord(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .discord(v)
+        }
+      }()
       default: break
       }
     }
@@ -1934,6 +2283,14 @@ extension Ocp_Currency_V1_SocialLink: SwiftProtobuf.Message, SwiftProtobuf._Mess
     case .x?: try {
       guard case .x(let v)? = self.type else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    }()
+    case .telegram?: try {
+      guard case .telegram(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    }()
+    case .discord?: try {
+      guard case .discord(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
     }()
     case nil: break
     }
@@ -2002,6 +2359,66 @@ extension Ocp_Currency_V1_SocialLink.X: SwiftProtobuf.Message, SwiftProtobuf._Me
 
   public static func ==(lhs: Ocp_Currency_V1_SocialLink.X, rhs: Ocp_Currency_V1_SocialLink.X) -> Bool {
     if lhs.username != rhs.username {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Currency_V1_SocialLink.Telegram: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Ocp_Currency_V1_SocialLink.protoMessageName + ".Telegram"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}username\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.username) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.username.isEmpty {
+      try visitor.visitSingularStringField(value: self.username, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Currency_V1_SocialLink.Telegram, rhs: Ocp_Currency_V1_SocialLink.Telegram) -> Bool {
+    if lhs.username != rhs.username {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Currency_V1_SocialLink.Discord: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Ocp_Currency_V1_SocialLink.protoMessageName + ".Discord"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}invite_code\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.inviteCode) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.inviteCode.isEmpty {
+      try visitor.visitSingularStringField(value: self.inviteCode, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Currency_V1_SocialLink.Discord, rhs: Ocp_Currency_V1_SocialLink.Discord) -> Bool {
+    if lhs.inviteCode != rhs.inviteCode {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -2157,4 +2574,274 @@ extension Ocp_Currency_V1_LaunchResponse: SwiftProtobuf.Message, SwiftProtobuf._
 
 extension Ocp_Currency_V1_LaunchResponse.Result: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0OK\0\u{1}DENIED\0\u{1}EXISTS\0")
+}
+
+extension Ocp_Currency_V1_UpdateIconRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UpdateIconRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}owner\0\u{1}signature\0\u{1}mint\0\u{1}icon\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._owner) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._signature) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._mint) }()
+      case 4: try { try decoder.decodeSingularBytesField(value: &self.icon) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._owner {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._signature {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._mint {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    if !self.icon.isEmpty {
+      try visitor.visitSingularBytesField(value: self.icon, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Currency_V1_UpdateIconRequest, rhs: Ocp_Currency_V1_UpdateIconRequest) -> Bool {
+    if lhs._owner != rhs._owner {return false}
+    if lhs._signature != rhs._signature {return false}
+    if lhs._mint != rhs._mint {return false}
+    if lhs.icon != rhs.icon {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Currency_V1_UpdateIconResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UpdateIconResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}result\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.result != .ok {
+      try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Currency_V1_UpdateIconResponse, rhs: Ocp_Currency_V1_UpdateIconResponse) -> Bool {
+    if lhs.result != rhs.result {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Currency_V1_UpdateIconResponse.Result: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0OK\0\u{1}NOT_FOUND\0\u{1}DENIED\0\u{1}INVALID_ICON\0")
+}
+
+extension Ocp_Currency_V1_UpdateMetadataRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UpdateMetadataRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}owner\0\u{1}signature\0\u{1}mint\0\u{3}new_description\0\u{3}new_bill_customization\0\u{3}new_social_links\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._owner) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._signature) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._mint) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._newDescription) }()
+      case 5: try { try decoder.decodeSingularMessageField(value: &self._newBillCustomization) }()
+      case 6: try { try decoder.decodeSingularMessageField(value: &self._newSocialLinks) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._owner {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._signature {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._mint {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    try { if let v = self._newDescription {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
+    try { if let v = self._newBillCustomization {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    } }()
+    try { if let v = self._newSocialLinks {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Currency_V1_UpdateMetadataRequest, rhs: Ocp_Currency_V1_UpdateMetadataRequest) -> Bool {
+    if lhs._owner != rhs._owner {return false}
+    if lhs._signature != rhs._signature {return false}
+    if lhs._mint != rhs._mint {return false}
+    if lhs._newDescription != rhs._newDescription {return false}
+    if lhs._newBillCustomization != rhs._newBillCustomization {return false}
+    if lhs._newSocialLinks != rhs._newSocialLinks {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Currency_V1_UpdateMetadataRequest.DescriptionUpdate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Ocp_Currency_V1_UpdateMetadataRequest.protoMessageName + ".DescriptionUpdate"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}value\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.value) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.value.isEmpty {
+      try visitor.visitSingularStringField(value: self.value, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Currency_V1_UpdateMetadataRequest.DescriptionUpdate, rhs: Ocp_Currency_V1_UpdateMetadataRequest.DescriptionUpdate) -> Bool {
+    if lhs.value != rhs.value {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Currency_V1_UpdateMetadataRequest.BillCustomizationUpdate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Ocp_Currency_V1_UpdateMetadataRequest.protoMessageName + ".BillCustomizationUpdate"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}value\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._value) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._value {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Currency_V1_UpdateMetadataRequest.BillCustomizationUpdate, rhs: Ocp_Currency_V1_UpdateMetadataRequest.BillCustomizationUpdate) -> Bool {
+    if lhs._value != rhs._value {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Currency_V1_UpdateMetadataRequest.SocialLinksUpdate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Ocp_Currency_V1_UpdateMetadataRequest.protoMessageName + ".SocialLinksUpdate"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}value\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.value) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.value.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.value, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Currency_V1_UpdateMetadataRequest.SocialLinksUpdate, rhs: Ocp_Currency_V1_UpdateMetadataRequest.SocialLinksUpdate) -> Bool {
+    if lhs.value != rhs.value {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Currency_V1_UpdateMetadataResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UpdateMetadataResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}result\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.result != .ok {
+      try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Currency_V1_UpdateMetadataResponse, rhs: Ocp_Currency_V1_UpdateMetadataResponse) -> Bool {
+    if lhs.result != rhs.result {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Currency_V1_UpdateMetadataResponse.Result: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0OK\0\u{1}NOT_FOUND\0\u{1}DENIED\0")
 }

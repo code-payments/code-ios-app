@@ -59,9 +59,6 @@ service Transaction {
     // The RPC indicates if a withdrawal is possible, and how it should be performed.
     rpc CanWithdrawToAccount(CanWithdrawToAccountRequest) returns (CanWithdrawToAccountResponse);
 
-    // Airdrop airdrops core mint tokens to the requesting account
-    rpc Airdrop(AirdropRequest) returns (AirdropResponse);
-
     // VoidGiftCard voids a gift card account by returning the funds to the funds back
     // to the issuer via the auto-return action if it hasn't been claimed or already
     // returned.
@@ -202,8 +199,9 @@ message GetIntentMetadataRequest {
 message GetIntentMetadataResponse {
     Result result = 1;
     enum Result {
-        OK = 0;
+        OK        = 0;
         NOT_FOUND = 1;
+        DENIED    = 2;
     }
 
     Metadata metadata = 2;
@@ -279,35 +277,6 @@ message CanWithdrawToAccountResponse {
     //
     // Note: The fee is always paid in the target mint.
     ExchangeDataWithoutRate fee_amount = 4;
-}
-
-message AirdropRequest {
-    // The type of airdrop to claim
-    AirdropType airdrop_type = 1 [(validate.rules).enum = {
-        not_in: [0, 1] // UNKNOWN, ONBOARDING_BONUS
-    }];
-
-    // The owner account to airdrop core mint tokens to
-    common.v1.SolanaAccountId owner = 2 [(validate.rules).message.required = true];
-
-    // The signature is of serialize(AirdropRequest) without this field set
-    // using the private key of the owner account. This provides an authentication
-    // mechanism to the RPC.
-    common.v1.Signature signature = 3 [(validate.rules).message.required = true];
-}
-
-message AirdropResponse {
-    Result result = 1;
-    enum Result {
-        OK = 0;
-        // Airdrops are unavailable
-        UNAVAILABLE = 1;
-        // The airdrop has already been claimed by the owner
-        ALREADY_CLAIMED = 2;
-    }
-
-    // Exchange data for the amount of core mint tokens airdropped when successful
-    ExchangeData exchange_data = 2;
 }
 
 message VoidGiftCardRequest {
@@ -1061,14 +1030,6 @@ message SwapMetadata {
         CANCELLING = 7; // The swap is in the process of being cancelled.
         CANCELLED  = 8; // The swap transaction is cancelled. Funds have been deposited back into the VM
     }
-}
-
-enum AirdropType {
-    UNKNOWN = 0;
-    // Reward for onboarding another user
-    ONBOARDING_BONUS = 1;
-    // Airdrop for getting a user started with first crypto balance
-    WELCOME_BONUS = 2;
 }
 
 enum FundingSource {

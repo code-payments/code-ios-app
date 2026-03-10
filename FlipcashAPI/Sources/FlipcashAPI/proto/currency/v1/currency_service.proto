@@ -22,6 +22,12 @@ service Currency {
 
     // Launch launches a new currency on the launchpad
     rpc Launch(LaunchRequest) returns (LaunchResponse);
+
+    // UpdateIcon uploads and updates the icon for a currency
+    rpc UpdateIcon(UpdateIconRequest) returns (UpdateIconResponse);
+
+    // UpdateMetadata updates mutable metadata for a currency
+    rpc UpdateMetadata(UpdateMetadataRequest) returns (UpdateMetadataResponse);
 }
 
 message GetMintsRequest {
@@ -284,8 +290,10 @@ message SocialLink {
     oneof type {
         option (validate.required) = true;
 
-        Website website = 1;
-        X       x       = 2;
+        Website  website  = 1;
+        X        x        = 2;
+        Telegram telegram = 3;
+        Discord  discord  = 4;
     }
 
     message Website {
@@ -300,6 +308,24 @@ message SocialLink {
             min_len: 1,
             max_len: 15,
             pattern: "^[a-zA-Z0-9_]+$",
+        }];
+    }
+
+    message Telegram {
+        // Telegram username (without the @ prefix)
+        string username = 1 [(validate.rules).string = {
+            min_len: 1,
+            max_len: 32,
+            pattern: "^[a-zA-Z0-9_]+$",
+        }];
+    }
+
+    message Discord {
+        // Discord invite code (e.g. "abc123" from discord.gg/abc123)
+        string invite_code = 1 [(validate.rules).string = {
+            min_len: 1,
+            max_len: 32,
+            pattern: "^[a-zA-Z0-9]+$",
         }];
     }
 }
@@ -353,4 +379,83 @@ message LaunchResponse {
 
     // The mint address of the launched currency on success
     common.v1.SolanaAccountId mint = 2;
+}
+
+message UpdateIconRequest {
+    // The owner account of the currency
+    common.v1.SolanaAccountId owner = 1 [(validate.rules).message.required = true];
+
+    // The signature is of serialize(UpdateIconRequest) without this field set
+    // using the private key of the owner account. This provides an authentication
+    // mechanism to the RPC.
+    common.v1.Signature signature = 2 [(validate.rules).message.required = true];
+
+    // The mint address of the currency to update
+    common.v1.SolanaAccountId mint = 3 [(validate.rules).message.required = true];
+
+    // The raw image data for the icon
+    bytes icon = 4 [(validate.rules).bytes = {
+        min_len: 1,
+        max_len: 1048576, // 1 MB
+    }];
+}
+
+message UpdateIconResponse {
+    Result result = 1;
+    enum Result {
+        OK           = 0;
+        NOT_FOUND    = 1;
+        DENIED       = 2;
+        INVALID_ICON = 3;
+    }
+}
+
+message UpdateMetadataRequest {
+    // The owner account of the currency
+    common.v1.SolanaAccountId owner = 1 [(validate.rules).message.required = true];
+
+    // The signature is of serialize(UpdateMetadataRequest) without this field set
+    // using the private key of the owner account. This provides an authentication
+    // mechanism to the RPC.
+    common.v1.Signature signature = 2 [(validate.rules).message.required = true];
+
+    // The mint address of the currency to update
+    common.v1.SolanaAccountId mint = 3 [(validate.rules).message.required = true];
+
+    // Updated currency description. If not provided, description is not updated.
+    DescriptionUpdate new_description = 4;
+
+    // Updated bill customization. If not provided, bill customization is not updated.
+    BillCustomizationUpdate new_bill_customization = 5;
+
+    // Updated social links. This replaces the entire set of social links. If not
+    // provided, social links are not updated.
+    SocialLinksUpdate new_social_links = 6;
+
+    message DescriptionUpdate {
+        string value = 1 [(validate.rules).string = {
+            min_len: 1,
+            max_len: 4096,
+        }];
+    }
+
+    message BillCustomizationUpdate {
+        BillCustomization value = 1 [(validate.rules).message.required = true];
+    }
+
+    message SocialLinksUpdate {
+        repeated SocialLink value = 1 [(validate.rules).repeated = {
+            min_items: 0
+            max_items: 32 // Arbitrary
+        }];
+    }
+}
+
+message UpdateMetadataResponse {
+    Result result = 1;
+    enum Result {
+        OK        = 0;
+        NOT_FOUND = 1;
+        DENIED    = 2;
+    }
 }

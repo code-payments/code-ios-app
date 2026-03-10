@@ -36,11 +36,6 @@ public protocol Ocp_Transaction_V1_TransactionClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> UnaryCall<Ocp_Transaction_V1_CanWithdrawToAccountRequest, Ocp_Transaction_V1_CanWithdrawToAccountResponse>
 
-  func airdrop(
-    _ request: Ocp_Transaction_V1_AirdropRequest,
-    callOptions: CallOptions?
-  ) -> UnaryCall<Ocp_Transaction_V1_AirdropRequest, Ocp_Transaction_V1_AirdropResponse>
-
   func voidGiftCard(
     _ request: Ocp_Transaction_V1_VoidGiftCardRequest,
     callOptions: CallOptions?
@@ -174,24 +169,6 @@ extension Ocp_Transaction_V1_TransactionClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeCanWithdrawToAccountInterceptors() ?? []
-    )
-  }
-
-  /// Airdrop airdrops core mint tokens to the requesting account
-  ///
-  /// - Parameters:
-  ///   - request: Request to send to Airdrop.
-  ///   - callOptions: Call options.
-  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
-  public func airdrop(
-    _ request: Ocp_Transaction_V1_AirdropRequest,
-    callOptions: CallOptions? = nil
-  ) -> UnaryCall<Ocp_Transaction_V1_AirdropRequest, Ocp_Transaction_V1_AirdropResponse> {
-    return self.makeUnaryCall(
-      path: Ocp_Transaction_V1_TransactionClientMetadata.Methods.airdrop.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeAirdropInterceptors() ?? []
     )
   }
 
@@ -369,11 +346,6 @@ public protocol Ocp_Transaction_V1_TransactionAsyncClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Ocp_Transaction_V1_CanWithdrawToAccountRequest, Ocp_Transaction_V1_CanWithdrawToAccountResponse>
 
-  func makeAirdropCall(
-    _ request: Ocp_Transaction_V1_AirdropRequest,
-    callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Ocp_Transaction_V1_AirdropRequest, Ocp_Transaction_V1_AirdropResponse>
-
   func makeVoidGiftCardCall(
     _ request: Ocp_Transaction_V1_VoidGiftCardRequest,
     callOptions: CallOptions?
@@ -447,18 +419,6 @@ extension Ocp_Transaction_V1_TransactionAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeCanWithdrawToAccountInterceptors() ?? []
-    )
-  }
-
-  public func makeAirdropCall(
-    _ request: Ocp_Transaction_V1_AirdropRequest,
-    callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Ocp_Transaction_V1_AirdropRequest, Ocp_Transaction_V1_AirdropResponse> {
-    return self.makeAsyncUnaryCall(
-      path: Ocp_Transaction_V1_TransactionClientMetadata.Methods.airdrop.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeAirdropInterceptors() ?? []
     )
   }
 
@@ -571,18 +531,6 @@ extension Ocp_Transaction_V1_TransactionAsyncClientProtocol {
     )
   }
 
-  public func airdrop(
-    _ request: Ocp_Transaction_V1_AirdropRequest,
-    callOptions: CallOptions? = nil
-  ) async throws -> Ocp_Transaction_V1_AirdropResponse {
-    return try await self.performAsyncUnaryCall(
-      path: Ocp_Transaction_V1_TransactionClientMetadata.Methods.airdrop.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeAirdropInterceptors() ?? []
-    )
-  }
-
   public func voidGiftCard(
     _ request: Ocp_Transaction_V1_VoidGiftCardRequest,
     callOptions: CallOptions? = nil
@@ -675,9 +623,6 @@ public protocol Ocp_Transaction_V1_TransactionClientInterceptorFactoryProtocol: 
   /// - Returns: Interceptors to use when invoking 'canWithdrawToAccount'.
   func makeCanWithdrawToAccountInterceptors() -> [ClientInterceptor<Ocp_Transaction_V1_CanWithdrawToAccountRequest, Ocp_Transaction_V1_CanWithdrawToAccountResponse>]
 
-  /// - Returns: Interceptors to use when invoking 'airdrop'.
-  func makeAirdropInterceptors() -> [ClientInterceptor<Ocp_Transaction_V1_AirdropRequest, Ocp_Transaction_V1_AirdropResponse>]
-
   /// - Returns: Interceptors to use when invoking 'voidGiftCard'.
   func makeVoidGiftCardInterceptors() -> [ClientInterceptor<Ocp_Transaction_V1_VoidGiftCardRequest, Ocp_Transaction_V1_VoidGiftCardResponse>]
 
@@ -700,7 +645,6 @@ public enum Ocp_Transaction_V1_TransactionClientMetadata {
       Ocp_Transaction_V1_TransactionClientMetadata.Methods.getIntentMetadata,
       Ocp_Transaction_V1_TransactionClientMetadata.Methods.getLimits,
       Ocp_Transaction_V1_TransactionClientMetadata.Methods.canWithdrawToAccount,
-      Ocp_Transaction_V1_TransactionClientMetadata.Methods.airdrop,
       Ocp_Transaction_V1_TransactionClientMetadata.Methods.voidGiftCard,
       Ocp_Transaction_V1_TransactionClientMetadata.Methods.statefulSwap,
       Ocp_Transaction_V1_TransactionClientMetadata.Methods.getSwap,
@@ -730,12 +674,6 @@ public enum Ocp_Transaction_V1_TransactionClientMetadata {
     public static let canWithdrawToAccount = GRPCMethodDescriptor(
       name: "CanWithdrawToAccount",
       path: "/ocp.transaction.v1.Transaction/CanWithdrawToAccount",
-      type: GRPCCallType.unary
-    )
-
-    public static let airdrop = GRPCMethodDescriptor(
-      name: "Airdrop",
-      path: "/ocp.transaction.v1.Transaction/Airdrop",
       type: GRPCCallType.unary
     )
 
@@ -816,9 +754,6 @@ public protocol Ocp_Transaction_V1_TransactionProvider: CallHandlerProvider {
   /// The RPC indicates if a withdrawal is possible, and how it should be performed.
   func canWithdrawToAccount(request: Ocp_Transaction_V1_CanWithdrawToAccountRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Ocp_Transaction_V1_CanWithdrawToAccountResponse>
 
-  /// Airdrop airdrops core mint tokens to the requesting account
-  func airdrop(request: Ocp_Transaction_V1_AirdropRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Ocp_Transaction_V1_AirdropResponse>
-
   /// VoidGiftCard voids a gift card account by returning the funds to the funds back
   /// to the issuer via the auto-return action if it hasn't been claimed or already
   /// returned.
@@ -895,15 +830,6 @@ extension Ocp_Transaction_V1_TransactionProvider {
         responseSerializer: ProtobufSerializer<Ocp_Transaction_V1_CanWithdrawToAccountResponse>(),
         interceptors: self.interceptors?.makeCanWithdrawToAccountInterceptors() ?? [],
         userFunction: self.canWithdrawToAccount(request:context:)
-      )
-
-    case "Airdrop":
-      return UnaryServerHandler(
-        context: context,
-        requestDeserializer: ProtobufDeserializer<Ocp_Transaction_V1_AirdropRequest>(),
-        responseSerializer: ProtobufSerializer<Ocp_Transaction_V1_AirdropResponse>(),
-        interceptors: self.interceptors?.makeAirdropInterceptors() ?? [],
-        userFunction: self.airdrop(request:context:)
       )
 
     case "VoidGiftCard":
@@ -1014,12 +940,6 @@ public protocol Ocp_Transaction_V1_TransactionAsyncProvider: CallHandlerProvider
     context: GRPCAsyncServerCallContext
   ) async throws -> Ocp_Transaction_V1_CanWithdrawToAccountResponse
 
-  /// Airdrop airdrops core mint tokens to the requesting account
-  func airdrop(
-    request: Ocp_Transaction_V1_AirdropRequest,
-    context: GRPCAsyncServerCallContext
-  ) async throws -> Ocp_Transaction_V1_AirdropResponse
-
   /// VoidGiftCard voids a gift card account by returning the funds to the funds back
   /// to the issuer via the auto-return action if it hasn't been claimed or already
   /// returned.
@@ -1118,15 +1038,6 @@ extension Ocp_Transaction_V1_TransactionAsyncProvider {
         wrapping: { try await self.canWithdrawToAccount(request: $0, context: $1) }
       )
 
-    case "Airdrop":
-      return GRPCAsyncServerHandler(
-        context: context,
-        requestDeserializer: ProtobufDeserializer<Ocp_Transaction_V1_AirdropRequest>(),
-        responseSerializer: ProtobufSerializer<Ocp_Transaction_V1_AirdropResponse>(),
-        interceptors: self.interceptors?.makeAirdropInterceptors() ?? [],
-        wrapping: { try await self.airdrop(request: $0, context: $1) }
-      )
-
     case "VoidGiftCard":
       return GRPCAsyncServerHandler(
         context: context,
@@ -1187,10 +1098,6 @@ public protocol Ocp_Transaction_V1_TransactionServerInterceptorFactoryProtocol: 
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeCanWithdrawToAccountInterceptors() -> [ServerInterceptor<Ocp_Transaction_V1_CanWithdrawToAccountRequest, Ocp_Transaction_V1_CanWithdrawToAccountResponse>]
 
-  /// - Returns: Interceptors to use when handling 'airdrop'.
-  ///   Defaults to calling `self.makeInterceptors()`.
-  func makeAirdropInterceptors() -> [ServerInterceptor<Ocp_Transaction_V1_AirdropRequest, Ocp_Transaction_V1_AirdropResponse>]
-
   /// - Returns: Interceptors to use when handling 'voidGiftCard'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeVoidGiftCardInterceptors() -> [ServerInterceptor<Ocp_Transaction_V1_VoidGiftCardRequest, Ocp_Transaction_V1_VoidGiftCardResponse>]
@@ -1217,7 +1124,6 @@ public enum Ocp_Transaction_V1_TransactionServerMetadata {
       Ocp_Transaction_V1_TransactionServerMetadata.Methods.getIntentMetadata,
       Ocp_Transaction_V1_TransactionServerMetadata.Methods.getLimits,
       Ocp_Transaction_V1_TransactionServerMetadata.Methods.canWithdrawToAccount,
-      Ocp_Transaction_V1_TransactionServerMetadata.Methods.airdrop,
       Ocp_Transaction_V1_TransactionServerMetadata.Methods.voidGiftCard,
       Ocp_Transaction_V1_TransactionServerMetadata.Methods.statefulSwap,
       Ocp_Transaction_V1_TransactionServerMetadata.Methods.getSwap,
@@ -1247,12 +1153,6 @@ public enum Ocp_Transaction_V1_TransactionServerMetadata {
     public static let canWithdrawToAccount = GRPCMethodDescriptor(
       name: "CanWithdrawToAccount",
       path: "/ocp.transaction.v1.Transaction/CanWithdrawToAccount",
-      type: GRPCCallType.unary
-    )
-
-    public static let airdrop = GRPCMethodDescriptor(
-      name: "Airdrop",
-      path: "/ocp.transaction.v1.Transaction/Airdrop",
       type: GRPCCallType.unary
     )
 

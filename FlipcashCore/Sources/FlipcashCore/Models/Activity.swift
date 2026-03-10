@@ -46,7 +46,6 @@ public struct Activity: Identifiable, Sendable, Equatable, Hashable {
 
 extension Activity {
     public enum Kind: Int, Sendable {
-        case welcomeBonus = 0
         case gave         = 1
         case received     = 2
         case withdrew     = 3
@@ -108,8 +107,6 @@ extension Activity.Kind {
     init(_ proto: Flipcash_Activity_V1_Notification.OneOf_AdditionalMetadata?) {
         if let proto {
             switch proto {
-            case .welcomeBonus:
-                self = .welcomeBonus
             case .gaveCrypto:
                 self = .gave
             case .receivedCrypto:
@@ -137,7 +134,7 @@ extension Activity.Metadata {
         guard let proto else { return nil }
 
         switch proto {
-        case .welcomeBonus, .gaveCrypto, .receivedCrypto, .withdrewCrypto, .depositedCrypto, .boughtCrypto, .soldCrypto:
+        case .gaveCrypto, .receivedCrypto, .withdrewCrypto, .depositedCrypto, .boughtCrypto, .soldCrypto:
             return nil
         case .sentCrypto(let metadata):
             do {

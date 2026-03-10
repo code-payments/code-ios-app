@@ -161,14 +161,6 @@ public struct Flipcash_Activity_V1_Notification: Sendable {
   /// Additional metadata for this notification specific to the notification
   public var additionalMetadata: Flipcash_Activity_V1_Notification.OneOf_AdditionalMetadata? = nil
 
-  public var welcomeBonus: Flipcash_Activity_V1_WelcomeBonusNotificationMetadata {
-    get {
-      if case .welcomeBonus(let v)? = additionalMetadata {return v}
-      return Flipcash_Activity_V1_WelcomeBonusNotificationMetadata()
-    }
-    set {additionalMetadata = .welcomeBonus(newValue)}
-  }
-
   public var gaveCrypto: Flipcash_Activity_V1_GaveCryptoNotificationMetadata {
     get {
       if case .gaveCrypto(let v)? = additionalMetadata {return v}
@@ -229,7 +221,6 @@ public struct Flipcash_Activity_V1_Notification: Sendable {
 
   /// Additional metadata for this notification specific to the notification
   public enum OneOf_AdditionalMetadata: Equatable, Sendable {
-    case welcomeBonus(Flipcash_Activity_V1_WelcomeBonusNotificationMetadata)
     case gaveCrypto(Flipcash_Activity_V1_GaveCryptoNotificationMetadata)
     case receivedCrypto(Flipcash_Activity_V1_ReceivedCryptoNotificationMetadata)
     case withdrewCrypto(Flipcash_Activity_V1_WithdrewCryptoNotificationMetadata)
@@ -245,16 +236,6 @@ public struct Flipcash_Activity_V1_Notification: Sendable {
   fileprivate var _id: Flipcash_Activity_V1_NotificationId? = nil
   fileprivate var _paymentAmount: Flipcash_Common_V1_CryptoPaymentAmount? = nil
   fileprivate var _ts: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
-}
-
-public struct Flipcash_Activity_V1_WelcomeBonusNotificationMetadata: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
 }
 
 public struct Flipcash_Activity_V1_GaveCryptoNotificationMetadata: Sendable {
@@ -386,7 +367,7 @@ extension Flipcash_Activity_V1_NotificationId: SwiftProtobuf.Message, SwiftProto
 
 extension Flipcash_Activity_V1_Notification: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Notification"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}localized_text\0\u{3}payment_amount\0\u{1}ts\0\u{1}state\0\u{3}welcome_bonus\0\u{3}gave_crypto\0\u{3}received_crypto\0\u{3}withdrew_crypto\0\u{3}sent_crypto\0\u{3}deposited_crypto\0\u{3}bought_crypto\0\u{3}sold_crypto\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}localized_text\0\u{3}payment_amount\0\u{1}ts\0\u{1}state\0\u{4}\u{2}gave_crypto\0\u{3}received_crypto\0\u{3}withdrew_crypto\0\u{3}sent_crypto\0\u{3}deposited_crypto\0\u{3}bought_crypto\0\u{3}sold_crypto\0\u{c}\u{6}\u{1}")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -399,19 +380,6 @@ extension Flipcash_Activity_V1_Notification: SwiftProtobuf.Message, SwiftProtobu
       case 3: try { try decoder.decodeSingularMessageField(value: &self._paymentAmount) }()
       case 4: try { try decoder.decodeSingularMessageField(value: &self._ts) }()
       case 5: try { try decoder.decodeSingularEnumField(value: &self.state) }()
-      case 6: try {
-        var v: Flipcash_Activity_V1_WelcomeBonusNotificationMetadata?
-        var hadOneofValue = false
-        if let current = self.additionalMetadata {
-          hadOneofValue = true
-          if case .welcomeBonus(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.additionalMetadata = .welcomeBonus(v)
-        }
-      }()
       case 7: try {
         var v: Flipcash_Activity_V1_GaveCryptoNotificationMetadata?
         var hadOneofValue = false
@@ -529,10 +497,6 @@ extension Flipcash_Activity_V1_Notification: SwiftProtobuf.Message, SwiftProtobu
       try visitor.visitSingularEnumField(value: self.state, fieldNumber: 5)
     }
     switch self.additionalMetadata {
-    case .welcomeBonus?: try {
-      guard case .welcomeBonus(let v)? = self.additionalMetadata else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
-    }()
     case .gaveCrypto?: try {
       guard case .gaveCrypto(let v)? = self.additionalMetadata else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
@@ -573,25 +537,6 @@ extension Flipcash_Activity_V1_Notification: SwiftProtobuf.Message, SwiftProtobu
     if lhs._ts != rhs._ts {return false}
     if lhs.state != rhs.state {return false}
     if lhs.additionalMetadata != rhs.additionalMetadata {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Flipcash_Activity_V1_WelcomeBonusNotificationMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".WelcomeBonusNotificationMetadata"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    // Load everything into unknown fields
-    while try decoder.nextFieldNumber() != nil {}
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Flipcash_Activity_V1_WelcomeBonusNotificationMetadata, rhs: Flipcash_Activity_V1_WelcomeBonusNotificationMetadata) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

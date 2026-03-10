@@ -35,6 +35,16 @@ public protocol Ocp_Currency_V1_CurrencyClientProtocol: GRPCClient {
     _ request: Ocp_Currency_V1_LaunchRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Ocp_Currency_V1_LaunchRequest, Ocp_Currency_V1_LaunchResponse>
+
+  func updateIcon(
+    _ request: Ocp_Currency_V1_UpdateIconRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Ocp_Currency_V1_UpdateIconRequest, Ocp_Currency_V1_UpdateIconResponse>
+
+  func updateMetadata(
+    _ request: Ocp_Currency_V1_UpdateMetadataRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Ocp_Currency_V1_UpdateMetadataRequest, Ocp_Currency_V1_UpdateMetadataResponse>
 }
 
 extension Ocp_Currency_V1_CurrencyClientProtocol {
@@ -114,6 +124,42 @@ extension Ocp_Currency_V1_CurrencyClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeLaunchInterceptors() ?? []
+    )
+  }
+
+  /// UpdateIcon uploads and updates the icon for a currency
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to UpdateIcon.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func updateIcon(
+    _ request: Ocp_Currency_V1_UpdateIconRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Ocp_Currency_V1_UpdateIconRequest, Ocp_Currency_V1_UpdateIconResponse> {
+    return self.makeUnaryCall(
+      path: Ocp_Currency_V1_CurrencyClientMetadata.Methods.updateIcon.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeUpdateIconInterceptors() ?? []
+    )
+  }
+
+  /// UpdateMetadata updates mutable metadata for a currency
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to UpdateMetadata.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func updateMetadata(
+    _ request: Ocp_Currency_V1_UpdateMetadataRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Ocp_Currency_V1_UpdateMetadataRequest, Ocp_Currency_V1_UpdateMetadataResponse> {
+    return self.makeUnaryCall(
+      path: Ocp_Currency_V1_CurrencyClientMetadata.Methods.updateMetadata.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeUpdateMetadataInterceptors() ?? []
     )
   }
 }
@@ -198,6 +244,16 @@ public protocol Ocp_Currency_V1_CurrencyAsyncClientProtocol: GRPCClient {
     _ request: Ocp_Currency_V1_LaunchRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Ocp_Currency_V1_LaunchRequest, Ocp_Currency_V1_LaunchResponse>
+
+  func makeUpdateIconCall(
+    _ request: Ocp_Currency_V1_UpdateIconRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Ocp_Currency_V1_UpdateIconRequest, Ocp_Currency_V1_UpdateIconResponse>
+
+  func makeUpdateMetadataCall(
+    _ request: Ocp_Currency_V1_UpdateMetadataRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Ocp_Currency_V1_UpdateMetadataRequest, Ocp_Currency_V1_UpdateMetadataResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -253,6 +309,30 @@ extension Ocp_Currency_V1_CurrencyAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeLaunchInterceptors() ?? []
+    )
+  }
+
+  public func makeUpdateIconCall(
+    _ request: Ocp_Currency_V1_UpdateIconRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Ocp_Currency_V1_UpdateIconRequest, Ocp_Currency_V1_UpdateIconResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Ocp_Currency_V1_CurrencyClientMetadata.Methods.updateIcon.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeUpdateIconInterceptors() ?? []
+    )
+  }
+
+  public func makeUpdateMetadataCall(
+    _ request: Ocp_Currency_V1_UpdateMetadataRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Ocp_Currency_V1_UpdateMetadataRequest, Ocp_Currency_V1_UpdateMetadataResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Ocp_Currency_V1_CurrencyClientMetadata.Methods.updateMetadata.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeUpdateMetadataInterceptors() ?? []
     )
   }
 }
@@ -318,6 +398,30 @@ extension Ocp_Currency_V1_CurrencyAsyncClientProtocol {
       interceptors: self.interceptors?.makeLaunchInterceptors() ?? []
     )
   }
+
+  public func updateIcon(
+    _ request: Ocp_Currency_V1_UpdateIconRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Ocp_Currency_V1_UpdateIconResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Ocp_Currency_V1_CurrencyClientMetadata.Methods.updateIcon.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeUpdateIconInterceptors() ?? []
+    )
+  }
+
+  public func updateMetadata(
+    _ request: Ocp_Currency_V1_UpdateMetadataRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Ocp_Currency_V1_UpdateMetadataResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Ocp_Currency_V1_CurrencyClientMetadata.Methods.updateMetadata.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeUpdateMetadataInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -350,6 +454,12 @@ public protocol Ocp_Currency_V1_CurrencyClientInterceptorFactoryProtocol: Sendab
 
   /// - Returns: Interceptors to use when invoking 'launch'.
   func makeLaunchInterceptors() -> [ClientInterceptor<Ocp_Currency_V1_LaunchRequest, Ocp_Currency_V1_LaunchResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'updateIcon'.
+  func makeUpdateIconInterceptors() -> [ClientInterceptor<Ocp_Currency_V1_UpdateIconRequest, Ocp_Currency_V1_UpdateIconResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'updateMetadata'.
+  func makeUpdateMetadataInterceptors() -> [ClientInterceptor<Ocp_Currency_V1_UpdateMetadataRequest, Ocp_Currency_V1_UpdateMetadataResponse>]
 }
 
 public enum Ocp_Currency_V1_CurrencyClientMetadata {
@@ -361,6 +471,8 @@ public enum Ocp_Currency_V1_CurrencyClientMetadata {
       Ocp_Currency_V1_CurrencyClientMetadata.Methods.getHistoricalMintData,
       Ocp_Currency_V1_CurrencyClientMetadata.Methods.streamLiveMintData,
       Ocp_Currency_V1_CurrencyClientMetadata.Methods.launch,
+      Ocp_Currency_V1_CurrencyClientMetadata.Methods.updateIcon,
+      Ocp_Currency_V1_CurrencyClientMetadata.Methods.updateMetadata,
     ]
   )
 
@@ -388,6 +500,18 @@ public enum Ocp_Currency_V1_CurrencyClientMetadata {
       path: "/ocp.currency.v1.Currency/Launch",
       type: GRPCCallType.unary
     )
+
+    public static let updateIcon = GRPCMethodDescriptor(
+      name: "UpdateIcon",
+      path: "/ocp.currency.v1.Currency/UpdateIcon",
+      type: GRPCCallType.unary
+    )
+
+    public static let updateMetadata = GRPCMethodDescriptor(
+      name: "UpdateMetadata",
+      path: "/ocp.currency.v1.Currency/UpdateMetadata",
+      type: GRPCCallType.unary
+    )
   }
 }
 
@@ -406,6 +530,12 @@ public protocol Ocp_Currency_V1_CurrencyProvider: CallHandlerProvider {
 
   /// Launch launches a new currency on the launchpad
   func launch(request: Ocp_Currency_V1_LaunchRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Ocp_Currency_V1_LaunchResponse>
+
+  /// UpdateIcon uploads and updates the icon for a currency
+  func updateIcon(request: Ocp_Currency_V1_UpdateIconRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Ocp_Currency_V1_UpdateIconResponse>
+
+  /// UpdateMetadata updates mutable metadata for a currency
+  func updateMetadata(request: Ocp_Currency_V1_UpdateMetadataRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Ocp_Currency_V1_UpdateMetadataResponse>
 }
 
 extension Ocp_Currency_V1_CurrencyProvider {
@@ -456,6 +586,24 @@ extension Ocp_Currency_V1_CurrencyProvider {
         userFunction: self.launch(request:context:)
       )
 
+    case "UpdateIcon":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Ocp_Currency_V1_UpdateIconRequest>(),
+        responseSerializer: ProtobufSerializer<Ocp_Currency_V1_UpdateIconResponse>(),
+        interceptors: self.interceptors?.makeUpdateIconInterceptors() ?? [],
+        userFunction: self.updateIcon(request:context:)
+      )
+
+    case "UpdateMetadata":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Ocp_Currency_V1_UpdateMetadataRequest>(),
+        responseSerializer: ProtobufSerializer<Ocp_Currency_V1_UpdateMetadataResponse>(),
+        interceptors: self.interceptors?.makeUpdateMetadataInterceptors() ?? [],
+        userFunction: self.updateMetadata(request:context:)
+      )
+
     default:
       return nil
     }
@@ -492,6 +640,18 @@ public protocol Ocp_Currency_V1_CurrencyAsyncProvider: CallHandlerProvider, Send
     request: Ocp_Currency_V1_LaunchRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Ocp_Currency_V1_LaunchResponse
+
+  /// UpdateIcon uploads and updates the icon for a currency
+  func updateIcon(
+    request: Ocp_Currency_V1_UpdateIconRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Ocp_Currency_V1_UpdateIconResponse
+
+  /// UpdateMetadata updates mutable metadata for a currency
+  func updateMetadata(
+    request: Ocp_Currency_V1_UpdateMetadataRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Ocp_Currency_V1_UpdateMetadataResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -549,6 +709,24 @@ extension Ocp_Currency_V1_CurrencyAsyncProvider {
         wrapping: { try await self.launch(request: $0, context: $1) }
       )
 
+    case "UpdateIcon":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Ocp_Currency_V1_UpdateIconRequest>(),
+        responseSerializer: ProtobufSerializer<Ocp_Currency_V1_UpdateIconResponse>(),
+        interceptors: self.interceptors?.makeUpdateIconInterceptors() ?? [],
+        wrapping: { try await self.updateIcon(request: $0, context: $1) }
+      )
+
+    case "UpdateMetadata":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Ocp_Currency_V1_UpdateMetadataRequest>(),
+        responseSerializer: ProtobufSerializer<Ocp_Currency_V1_UpdateMetadataResponse>(),
+        interceptors: self.interceptors?.makeUpdateMetadataInterceptors() ?? [],
+        wrapping: { try await self.updateMetadata(request: $0, context: $1) }
+      )
+
     default:
       return nil
     }
@@ -572,6 +750,14 @@ public protocol Ocp_Currency_V1_CurrencyServerInterceptorFactoryProtocol: Sendab
   /// - Returns: Interceptors to use when handling 'launch'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeLaunchInterceptors() -> [ServerInterceptor<Ocp_Currency_V1_LaunchRequest, Ocp_Currency_V1_LaunchResponse>]
+
+  /// - Returns: Interceptors to use when handling 'updateIcon'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeUpdateIconInterceptors() -> [ServerInterceptor<Ocp_Currency_V1_UpdateIconRequest, Ocp_Currency_V1_UpdateIconResponse>]
+
+  /// - Returns: Interceptors to use when handling 'updateMetadata'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeUpdateMetadataInterceptors() -> [ServerInterceptor<Ocp_Currency_V1_UpdateMetadataRequest, Ocp_Currency_V1_UpdateMetadataResponse>]
 }
 
 public enum Ocp_Currency_V1_CurrencyServerMetadata {
@@ -583,6 +769,8 @@ public enum Ocp_Currency_V1_CurrencyServerMetadata {
       Ocp_Currency_V1_CurrencyServerMetadata.Methods.getHistoricalMintData,
       Ocp_Currency_V1_CurrencyServerMetadata.Methods.streamLiveMintData,
       Ocp_Currency_V1_CurrencyServerMetadata.Methods.launch,
+      Ocp_Currency_V1_CurrencyServerMetadata.Methods.updateIcon,
+      Ocp_Currency_V1_CurrencyServerMetadata.Methods.updateMetadata,
     ]
   )
 
@@ -608,6 +796,18 @@ public enum Ocp_Currency_V1_CurrencyServerMetadata {
     public static let launch = GRPCMethodDescriptor(
       name: "Launch",
       path: "/ocp.currency.v1.Currency/Launch",
+      type: GRPCCallType.unary
+    )
+
+    public static let updateIcon = GRPCMethodDescriptor(
+      name: "UpdateIcon",
+      path: "/ocp.currency.v1.Currency/UpdateIcon",
+      type: GRPCCallType.unary
+    )
+
+    public static let updateMetadata = GRPCMethodDescriptor(
+      name: "UpdateMetadata",
+      path: "/ocp.currency.v1.Currency/UpdateMetadata",
       type: GRPCCallType.unary
     )
   }
