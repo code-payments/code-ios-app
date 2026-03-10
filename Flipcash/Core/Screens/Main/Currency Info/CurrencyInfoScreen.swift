@@ -279,6 +279,16 @@ struct CurrencyInfoScreen: View {
                                                 UIApplication.shared.open(URL(string: "https://x.com/\(handle)")!)
                                             }
                                             .buttonStyle(.icon(.twitter))
+                                        case .telegram(let username):
+                                            Button("Telegram") {
+                                                UIApplication.shared.open(URL(string: "https://t.me/\(username)")!)
+                                            }
+                                            .buttonStyle(.icon(.chat))
+                                        case .discord(let inviteCode):
+                                            Button("Discord") {
+                                                UIApplication.shared.open(URL(string: "https://discord.gg/\(inviteCode)")!)
+                                            }
+                                            .buttonStyle(.icon(.chat))
                                         }
                                     }
                                 }

@@ -13,13 +13,19 @@ import FlipcashAPI
 public enum SocialLink: Equatable, Sendable, Codable, Identifiable {
     case website(URL)
     case x(String)
+    case telegram(String)
+    case discord(String)
     
     public var id: String {
         switch self {
         case .website(let url):
-            return url.absoluteString
-        case .x(let handle):
-            return handle
+            return "website:\(url.absoluteString)"
+        case .x(let value):
+            return "x:\(value)"
+        case .telegram(let value):
+            return "telegram:\(value)"
+        case .discord(let value):
+            return "discord:\(value)"
         }
     }
 }
@@ -216,12 +222,12 @@ extension MintMetadata {
             case .x(let x):
                 guard !x.username.isEmpty else { return nil }
                 return .x(x.username)
-            case .telegram(_):
-                // TODO: add UI treatment
-                fallthrough
-            case .discord(_):
-                // TODO: add UI treatment
-                fallthrough
+            case .telegram(let telegram):
+                guard !telegram.username.isEmpty else { return nil }
+                return .telegram(telegram.username)
+            case .discord(let discord):
+                guard !discord.inviteCode.isEmpty else { return nil }
+                return .discord(discord.inviteCode)
             case nil:
                 return nil
             }
