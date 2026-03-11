@@ -11,6 +11,7 @@ import FlipcashCore
 
 struct CurrencyInfoScreen: View {
     @StateObject private var viewModel: CurrencyInfoViewModel
+    @StateObject private var giveViewModel: GiveViewModel
 
     @Environment(\.dismiss) private var dismiss
 
@@ -19,6 +20,11 @@ struct CurrencyInfoScreen: View {
     @State private var isShowingBuyAmountEntry: Bool = false
     @State private var isShowingSellAmountEntry: Bool = false
     @State private var isShowingCurrencySelection: Bool = false
+    /// Drives the navigation push to `GiveScreen`. Separate from
+    /// `giveViewModel.isPresented` (which triggers business logic only)
+    /// so that `dismissParentContainer` can tear down the sheet without
+    /// an intermediate pop animation.
+    @State private var isShowingGive: Bool = false
 
     @ObservedObject private var session: Session
     @StateObject private var currencyBuyViewModel: CurrencyBuyViewModel
@@ -115,6 +121,11 @@ struct CurrencyInfoScreen: View {
 
         _viewModel = .init(wrappedValue: CurrencyInfoViewModel(
             mint: mint,
+            sessionContainer: sessionContainer
+        ))
+
+        _giveViewModel = .init(wrappedValue: GiveViewModel(
+            container: container,
             sessionContainer: sessionContainer
         ))
 
@@ -317,10 +328,19 @@ struct CurrencyInfoScreen: View {
             // Floating Footer
             if !isUSDF {
                 CurrencyInfoFooter {
-                    Button("Buy") {
+                    if balance.quarks > 0 {
+                        Button("Give") {
+                            Analytics.buttonTapped(name: .give)
+                            ratesController.selectToken(mint)
+                            giveViewModel.isPresented = true
+                            isShowingGive = true
+                        }
+                        .buttonStyle(.filled)
+                    }
+
+                    CodeButton(style: .filledSecondary, title: "Buy") {
                         isShowingFundingSelection = true
                     }
-                    .buttonStyle(.filled)
 
                     if balance.quarks > 0 {
                         CodeButton(style: .filledSecondary, title: "Sell") {
@@ -364,6 +384,10 @@ struct CurrencyInfoScreen: View {
                 }
             }
         }
+        .navigationDestination(isPresented: $isShowingGive) {
+            GiveScreen(viewModel: giveViewModel)
+        }
+        .dialog(item: $giveViewModel.dialogItem)
         .sheet(isPresented: $isShowingBuyAmountEntry) {
             CurrencyBuyAmountScreen(viewModel: currencyBuyViewModel)
         }

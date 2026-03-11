@@ -30,6 +30,7 @@ extension Analytics {
         case skipPush         = "Button: Skip Push"
         case buyWithReserves  = "Button: Buy With Reserves"
         case buyWithPhantom   = "Button: Buy With Phantom"
+        case give             = "Button: Give"
         case sell             = "Button: Sell"
         case shareTokenInfo   = "Button: Share Token Info"
     }

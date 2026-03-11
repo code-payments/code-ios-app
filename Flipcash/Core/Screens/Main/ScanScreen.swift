@@ -288,7 +288,16 @@ struct ScanScreen: View {
                 binding: $giveViewModel.isPresented
             )
             .sheet(isPresented: $giveViewModel.isPresented) {
-                GiveScreen(viewModel: giveViewModel)
+                NavigationStack {
+                    GiveScreen(viewModel: giveViewModel)
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarTrailing) {
+                                ToolbarCloseButton(
+                                    binding: $giveViewModel.isPresented
+                                )
+                            }
+                        }
+                }
             }
             
 //            LargeButton(
@@ -343,6 +352,9 @@ struct ScanScreen: View {
                         container: container,
                         sessionContainer: sessionContainer
                     )
+                    .environment(\.dismissParentContainer, {
+                        isShowingBalance = false
+                    })
                 }
                 .onChange(of: session.pendingCurrencyInfoMint, initial: true) { _, mint in
                     if mint != nil {
