@@ -328,21 +328,20 @@ struct CurrencyInfoScreen: View {
             // Floating Footer
             if !isUSDF {
                 CurrencyInfoFooter {
+                    Button("Buy") {
+                        isShowingFundingSelection = true
+                    }
+                        .buttonStyle(.filled)
+
                     if balance.quarks > 0 {
-                        Button("Give") {
+                        CodeButton(style: .filledSecondary, title: "Give") {
                             Analytics.buttonTapped(name: .give)
                             ratesController.selectToken(mint)
                             giveViewModel.isPresented = true
                             isShowingGive = true
                         }
-                        .buttonStyle(.filled)
-                    }
-
-                    CodeButton(style: .filledSecondary, title: "Buy") {
-                        isShowingFundingSelection = true
-                    }
-
-                    if balance.quarks > 0 {
+                        
+                        
                         CodeButton(style: .filledSecondary, title: "Sell") {
                             Analytics.buttonTapped(name: .sell)
                             isShowingSellAmountEntry = true

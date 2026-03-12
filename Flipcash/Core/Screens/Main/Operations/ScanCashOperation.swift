@@ -68,7 +68,6 @@ class ScanCashOperation {
         )
 
         let vmAuthority = try await pullMintIfNeeded(for: mint)
-        // 37WNqbyxSCDgYUyLYmbWsDMYzquKZbdC1U6HkRmFdjKH
         let mintCurrencyCluster = AccountCluster(
             authority: owner.authority,
             mint: mint,
