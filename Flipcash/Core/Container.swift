@@ -49,7 +49,7 @@ class Container {
             .environmentObject(sessionAuthenticator)
             .environmentObject(storeController)
             .environment(betaFlags)
-            .environmentObject(preferences)
+            .environment(preferences)
             .environmentObject(notificationController)
     }
     

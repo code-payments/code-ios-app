@@ -11,7 +11,7 @@ import FlipcashCore
 
 struct SettingsScreen: View {
     @Environment(BetaFlags.self) private var betaFlags
-    @EnvironmentObject private var preferences: Preferences
+    @Environment(Preferences.self) private var preferences
     
     @Binding public var isPresented: Bool
     
