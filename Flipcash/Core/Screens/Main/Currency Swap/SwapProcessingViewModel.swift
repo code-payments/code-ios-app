@@ -18,7 +18,6 @@ class SwapProcessingViewModel {
     private(set) var currentState: SwapState = .created
     private(set) var displayState: DisplayState = .processing
     private(set) var isPolling: Bool = false
-    private(set) var mintMetadata: StoredMintMetadata?
     private(set) var exchangedFiat: ExchangedFiat?
 
     var title: String {
@@ -26,9 +25,9 @@ class SwapProcessingViewModel {
         case .processing:
             return "This Will Take a Minute"
         case .success:
-            if let exchangedFiat, let mintMetadata {
+            if let exchangedFiat {
                 if swapType.isBuy {
-                    return "\(exchangedFiat.converted.formatted()) of \(mintMetadata.name)"
+                    return "\(exchangedFiat.converted.formatted()) of \(currencyName)"
                 } else {
                     return "\(exchangedFiat.converted.formatted()) of USD Reserves"
                 }
@@ -65,9 +64,9 @@ class SwapProcessingViewModel {
         switch displayState {
         case .processing:
             if swapType.isBuy {
-                "Purchasing \(mintMetadata?.name ?? "")"
+                "Purchasing \(currencyName)"
             } else {
-                "Selling \(mintMetadata?.name ?? "")"
+                "Selling \(currencyName)"
             }
         case .success:
             "Success"
@@ -88,14 +87,15 @@ class SwapProcessingViewModel {
 
     private let swapId: SwapId
     private let swapType: SwapType
-    private let mint: PublicKey
+    private let currencyName: String
     private let amount: ExchangedFiat
+
     // MARK: - Init -
 
-    init(swapId: SwapId, swapType: SwapType, mint: PublicKey, amount: ExchangedFiat) {
+    init(swapId: SwapId, swapType: SwapType, currencyName: String, amount: ExchangedFiat) {
         self.swapId = swapId
         self.swapType = swapType
-        self.mint = mint
+        self.currencyName = currencyName
         self.amount = amount
     }
 
@@ -106,10 +106,6 @@ class SwapProcessingViewModel {
     }
 
     // MARK: - Fetching -
-
-    func fetchMintMetadata(session: Session) async {
-        mintMetadata = try? await session.fetchMintMetadata(mint: mint)
-    }
 
     func startPolling(client: Client, ownerKeyPair: KeyPair) async {
         guard !isPolling else { return }

@@ -20,11 +20,11 @@ struct SwapProcessingScreen: View {
 
     // MARK: - Init -
 
-    init(swapId: SwapId, swapType: SwapType, mint: PublicKey, amount: ExchangedFiat) {
+    init(swapId: SwapId, swapType: SwapType, currencyName: String, amount: ExchangedFiat) {
         _viewModel = State(wrappedValue: SwapProcessingViewModel(
             swapId: swapId,
             swapType: swapType,
-            mint: mint,
+            currencyName: currencyName,
             amount: amount
         ))
     }
@@ -98,7 +98,6 @@ struct SwapProcessingScreen: View {
             }
         }
         .task {
-            await viewModel.fetchMintMetadata(session: session)
             await viewModel.startPolling(
                 client: client,
                 ownerKeyPair: session.ownerKeyPair

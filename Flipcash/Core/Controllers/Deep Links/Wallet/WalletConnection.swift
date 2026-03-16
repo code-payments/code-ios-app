@@ -179,7 +179,7 @@ public final class WalletConnection {
             if let pending, let self {
                 self.processing = ExternalSwapProcessing(
                     swapId: pending.swapId,
-                    mint: pending.token.address,
+                    currencyName: pending.token.name,
                     amount: pending.amount
                 )
             }

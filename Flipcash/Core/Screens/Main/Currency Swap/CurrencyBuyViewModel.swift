@@ -89,6 +89,8 @@ class CurrencyBuyViewModel {
     @ObservationIgnored private let ratesController: RatesController
     @ObservationIgnored private let destination: PublicKey
 
+    var currencyName: String = ""
+
     // MARK: - Init -
 
     init(currencyPublicKey: PublicKey, container: Container, sessionContainer: SessionContainer) {
@@ -123,7 +125,7 @@ class CurrencyBuyViewModel {
                 let swapId = try await session.buy(amount: buyAmount, of: destination)
 
                 await MainActor.run {
-                    path.append(.processing(swapId: swapId, mint: destination, amount: buyAmount))
+                    path.append(.processing(swapId: swapId, currencyName: currencyName, amount: buyAmount))
                 }
             } catch Session.Error.insufficientBalance {
                 await MainActor.run {
@@ -171,5 +173,5 @@ class CurrencyBuyViewModel {
 }
 
 enum CurrencyBuyPath: Hashable {
-    case processing(swapId: SwapId, mint: PublicKey, amount: ExchangedFiat)
+    case processing(swapId: SwapId, currencyName: String, amount: ExchangedFiat)
 }

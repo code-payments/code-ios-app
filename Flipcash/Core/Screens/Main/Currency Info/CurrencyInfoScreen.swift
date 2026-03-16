@@ -178,6 +178,7 @@ struct CurrencyInfoScreen: View {
             await viewModel.loadMintMetadata()
 
             if let metadata = viewModel.mintMetadata, currencySellViewModel == nil {
+                currencyBuyViewModel.currencyName = metadata.name
                 currencySellViewModel = CurrencySellViewModel(
                     currencyMetadata: metadata,
                     container: container,
@@ -359,7 +360,7 @@ struct CurrencyInfoScreen: View {
             SwapProcessingScreen(
                 swapId: processing.swapId,
                 swapType: .buyWithPhantom,
-                mint: processing.mint,
+                currencyName: processing.currencyName,
                 amount: processing.amount
             )
             .environment(\.dismissParentContainer, {

@@ -49,6 +49,7 @@ struct CurrencySellAmountScreen: View {
                     if let amount = viewModel.enteredFiat {
                         CurrencySellConfirmationScreen(
                             mint: viewModel.currencyMetadata.mint,
+                            currencyName: viewModel.currencyMetadata.name,
                             amount: amount,
                             path: $viewModel.path
                         )
@@ -56,8 +57,8 @@ struct CurrencySellAmountScreen: View {
                             dismissAction()
                         })
                     }
-                case .processing(let swapId, let mint, let amount):
-                    SwapProcessingScreen(swapId: swapId, swapType: .sell, mint: mint, amount: amount)
+                case .processing(let swapId, let currencyName, let amount):
+                    SwapProcessingScreen(swapId: swapId, swapType: .sell, currencyName: currencyName, amount: amount)
                         .environment(\.dismissParentContainer, {
                             dismissAction()
                         })

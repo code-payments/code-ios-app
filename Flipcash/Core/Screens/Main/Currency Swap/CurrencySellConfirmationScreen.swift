@@ -10,7 +10,7 @@ import FlipcashUI
 import FlipcashCore
 
 struct CurrencySellConfirmationScreen: View {
-    let mint: PublicKey
+    let currencyName: String
     let amount: ExchangedFiat
     @Binding var path: [CurrencySellPath]
 
@@ -20,8 +20,8 @@ struct CurrencySellConfirmationScreen: View {
 
     // MARK: - Init -
 
-    init(mint: PublicKey, amount: ExchangedFiat, path: Binding<[CurrencySellPath]>) {
-        self.mint = mint
+    init(mint: PublicKey, currencyName: String, amount: ExchangedFiat, path: Binding<[CurrencySellPath]>) {
+        self.currencyName = currencyName
         self.amount = amount
         self._path = path
         self.viewModel = CurrencySellConfirmationViewModel(mint: mint, amount: amount)
@@ -92,7 +92,7 @@ struct CurrencySellConfirmationScreen: View {
         .navigationTitle("Confirm Sale")
         .onChange(of: viewModel.pendingSwapId) { _, swapId in
             if let swapId {
-                path.append(.processing(swapId: swapId, mint: mint, amount: viewModel.amountAfterFee))
+                path.append(.processing(swapId: swapId, currencyName: currencyName, amount: viewModel.amountAfterFee))
             }
         }
     }
@@ -107,5 +107,5 @@ struct CurrencySellConfirmationScreen: View {
 #Preview {
     @Previewable @State var path: [CurrencySellPath] = []
     let amount = try! ExchangedFiat(underlying: 10_000_000_000_000, rate: .oneToOne, mint: .usdf)
-    CurrencySellConfirmationScreen(mint: .usdf, amount: amount, path: $path)
+    CurrencySellConfirmationScreen(mint: .usdf, currencyName: "USDF", amount: amount, path: $path)
 }
