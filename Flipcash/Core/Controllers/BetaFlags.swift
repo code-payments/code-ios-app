@@ -8,17 +8,23 @@
 import Foundation
 import SwiftUI
 
-class BetaFlags: ObservableObject {
-    
+/// Manages feature flags gated behind the beta access menu in Settings.
+///
+/// Access is unlocked by tapping the app version 9 times, which reveals the
+/// "Beta Features" row. Each ``Option`` is persisted to `UserDefaults` via
+/// `@Defaults` and survives app relaunches.
+///
+/// Read flags from anywhere with `BetaFlags.shared.hasEnabled(.vibrateOnScan)`.
+/// In SwiftUI views, inject via `@Environment(BetaFlags.self)`.
+@MainActor @Observable
+class BetaFlags {
+
     static let shared = BetaFlags()
+    private(set) var options: Set<Option> = []
+    private(set) var accessGranted: Bool = false
     
-    @Published private(set) var options: Set<Option> = []
-    
-    @Published private(set) var accessGranted: Bool = false
-    
-    @Defaults(.betaFlags) private var storedOptions: Set<Option>?
-    
-    @SecureString(.betaFlagsEnabled) private var storedAccessGranted: String?
+    @ObservationIgnored @Defaults(.betaFlags) private var storedOptions: Set<Option>?
+    @ObservationIgnored @SecureString(.betaFlagsEnabled) private var storedAccessGranted: String?
     
     // MARK: - Init -
     
@@ -27,10 +33,12 @@ class BetaFlags: ObservableObject {
         readAccessGranted()
     }
     
+    /// Returns `true` when the given beta flag is currently active.
     func hasEnabled(_ option: Option) -> Bool {
         options.contains(option)
     }
     
+    /// Enables or disables a beta flag and persists the change to disk.
     func set(_ option: Option, enabled: Bool) {
         if enabled {
             options.insert(option)
@@ -40,6 +48,8 @@ class BetaFlags: ObservableObject {
         writeToCache()
     }
     
+    /// Toggles whether the beta features section is visible in Settings.
+    /// Controlled by the 9-tap easter egg on the app version label.
     func setAccessGranted(_ granted: Bool) {
         if granted {
             storedAccessGranted = "granted"
@@ -49,6 +59,7 @@ class BetaFlags: ObservableObject {
         accessGranted = granted
     }
     
+    /// Creates a two-way `Binding` for use in SwiftUI toggle controls.
     func bindingFor(option: Option) -> Binding<Bool> {
         Binding { [weak self] in
             self?.options.contains(option) ?? false

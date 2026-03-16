@@ -48,7 +48,7 @@ class Container {
             .environmentObject(flipClient)
             .environmentObject(sessionAuthenticator)
             .environmentObject(storeController)
-            .environmentObject(betaFlags)
+            .environment(betaFlags)
             .environmentObject(preferences)
             .environmentObject(notificationController)
     }

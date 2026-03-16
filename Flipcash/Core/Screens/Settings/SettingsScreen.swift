@@ -10,7 +10,7 @@ import FlipcashUI
 import FlipcashCore
 
 struct SettingsScreen: View {
-    @EnvironmentObject private var betaFlags: BetaFlags
+    @Environment(BetaFlags.self) private var betaFlags
     @EnvironmentObject private var preferences: Preferences
     
     @Binding public var isPresented: Bool

@@ -13,7 +13,7 @@ struct ScanScreen: View {
     
     @EnvironmentObject private var sessionAuthenticator: SessionAuthenticator
     @EnvironmentObject private var preferences: Preferences
-    @EnvironmentObject private var betaFlags: BetaFlags
+    @Environment(BetaFlags.self) private var betaFlags
     
     @ObservedObject private var session: Session
     
