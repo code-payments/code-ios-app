@@ -18,18 +18,21 @@ import Combine
 ///
 /// ## Device B (Receiver — this class)
 /// 1. **Listen for mint** — Poll the rendezvous channel until the sender's
-///    `requestToGiveBill` message arrives. Extract the mint address and
-///    `VerifiedState` (exchange rate + reserve state proofs) from the message.
-/// 2. **Fetch mint metadata** — If this is a new currency, pull its VM
-///    authority so we can derive the correct account cluster.
+///    `requestToGiveBill` message arrives. Extract the mint address,
+///    `VerifiedState` (exchange rate + reserve state proofs), and
+///    `MintMetadata` (server-provided via `additionalContext`) from the message.
+/// 2. **Resolve VM authority** — Use the mint metadata from the message
+///    when available (zero network cost). Falls back to a database lookup
+///    or `fetchMints()` call for older servers that don't populate
+///    `additionalContext`.
 /// 3. **Create accounts** — Ensure Device B has token accounts for the mint.
 /// 4. **Grab** — Send a `requestToGrabBill` with Device B's destination
 ///    account, signed by the rendezvous key to prove legitimacy.
 /// 5. **Poll for settlement** — Wait for the sender's `transfer` intent to
 ///    settle on-chain, then return the payment metadata.
 ///
-/// The `VerifiedState` returned here comes from the **sender's message**
-/// (step 1), not from the local cache. This means the scan path works even
+/// Both `VerifiedState` and `MintMetadata` come from the **sender's message**
+/// (step 1), not from local caches. This means the scan path works even
 /// when Device B has never synced this currency.
 @MainActor
 class ScanCashOperation {
@@ -63,11 +66,17 @@ class ScanCashOperation {
         let rendezvous = payload.rendezvous
         let owner = owner
 
-        let (mint, verifiedState) = try await listenForMint(
+        let (mint, verifiedState, mintMetadata) = try await listenForMint(
             rendezvous: rendezvous
         )
 
-        let vmAuthority = try await pullMintIfNeeded(for: mint)
+        let vmAuthority: PublicKey
+        if let mintMetadata, let authority = mintMetadata.vmMetadata?.authority {
+            vmAuthority = authority
+        } else {
+            vmAuthority = try await pullMintIfNeeded(for: mint)
+        }
+
         let mintCurrencyCluster = AccountCluster(
             authority: owner.authority,
             mint: mint,
@@ -111,7 +120,7 @@ class ScanCashOperation {
         }
     }
     
-    private func listenForMint(rendezvous: KeyPair) async throws -> (PublicKey, VerifiedState?) {
+    private func listenForMint(rendezvous: KeyPair) async throws -> (PublicKey, VerifiedState?, MintMetadata?) {
         let maxAttempts = 10
 
         for i in 0..<maxAttempts {
@@ -121,9 +130,9 @@ class ScanCashOperation {
 
             do {
                 let messages = try await client.fetchMessages(rendezvous: rendezvous)
-                let result = messages.compactMap { message -> (PublicKey, VerifiedState?)? in
-                    if case .requestToGiveBill(let mint, _) = message.kind {
-                        return (mint, message.giveVerifiedState)
+                let result = messages.compactMap { message -> (PublicKey, VerifiedState?, MintMetadata?)? in
+                    if case .requestToGiveBill(let mint, _, _) = message.kind {
+                        return (mint, message.giveVerifiedState, message.giveMintMetadata)
                     }
                     return nil
                 }.first

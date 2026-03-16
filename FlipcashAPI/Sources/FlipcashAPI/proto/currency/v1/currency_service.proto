@@ -28,6 +28,9 @@ service Currency {
 
     // UpdateMetadata updates mutable metadata for a currency
     rpc UpdateMetadata(UpdateMetadataRequest) returns (UpdateMetadataResponse);
+
+    // Discover returns a set of currencies to discover
+    rpc Discover(DiscoverRequest) returns (stream DiscoverResponse);
 }
 
 message GetMintsRequest {
@@ -212,8 +215,6 @@ message LaunchpadMetadata {
     common.v1.SolanaAccountId core_mint_vault = 6 [(validate.rules).message.required = true];
 
     // Current circulating mint token supply in quarks
-    //
-    // Deprecated: Use supply value from StreamLiveMintData
     uint64 supply_from_bonding = 7;
 
     // Precent fee for sells in basis points, currently hardcoded to 1%
@@ -458,4 +459,20 @@ message UpdateMetadataResponse {
         NOT_FOUND = 1;
         DENIED    = 2;
     }
+}
+
+message DiscoverRequest {
+}
+
+message DiscoverResponse {
+    Result result = 1;
+    enum Result {
+        OK        = 0;
+        NOT_FOUND = 1;
+    }
+
+    repeated Mint mint = 2 [(validate.rules).repeated = {
+        min_items: 0
+        max_items: 1024 // Arbitrary
+    }];
 }

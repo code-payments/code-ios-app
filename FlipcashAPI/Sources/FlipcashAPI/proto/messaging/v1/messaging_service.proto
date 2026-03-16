@@ -7,6 +7,7 @@ option java_package = "com.codeinc.gen.messaging.v1";
 option objc_class_prefix = "CPBMessagingV1";
 
 import "common/v1/model.proto";
+import "currency/v1/currency_service.proto";
 import "transaction/v1/transaction_service.proto";
 import "validate/validate.proto";
 
@@ -189,6 +190,11 @@ message RequestToGrabBill {
     common.v1.SolanaAccountId requestor_account = 1 [(validate.rules).message.required = true];
 }
 
+message RequestToGiveBillServerContext {
+    // Mint metadata for the bill's mint
+    currency.v1.Mint mint_metadata = 1 [(validate.rules).message.required = true];
+}
+
 // Request that a bill be given in the desired mint
 //
 // This message type is only initiated by clients.
@@ -225,5 +231,16 @@ message Message {
 
         RequestToGrabBill request_to_grab_bill = 3;
         RequestToGiveBill request_to_give_bill = 4;
+    }
+
+    // Additional server-provided context for messages sent by client
+    AdditionalServerContext additional_context = 5;
+}
+
+message AdditionalServerContext {
+    oneof type {
+        option (validate.required) = true;
+
+        RequestToGiveBillServerContext request_to_give_bill = 1;
     }
 }

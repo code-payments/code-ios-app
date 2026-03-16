@@ -45,6 +45,12 @@ public protocol Ocp_Currency_V1_CurrencyClientProtocol: GRPCClient {
     _ request: Ocp_Currency_V1_UpdateMetadataRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Ocp_Currency_V1_UpdateMetadataRequest, Ocp_Currency_V1_UpdateMetadataResponse>
+
+  func discover(
+    _ request: Ocp_Currency_V1_DiscoverRequest,
+    callOptions: CallOptions?,
+    handler: @escaping (Ocp_Currency_V1_DiscoverResponse) -> Void
+  ) -> ServerStreamingCall<Ocp_Currency_V1_DiscoverRequest, Ocp_Currency_V1_DiscoverResponse>
 }
 
 extension Ocp_Currency_V1_CurrencyClientProtocol {
@@ -162,6 +168,27 @@ extension Ocp_Currency_V1_CurrencyClientProtocol {
       interceptors: self.interceptors?.makeUpdateMetadataInterceptors() ?? []
     )
   }
+
+  /// Discover returns a set of currencies to discover
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to Discover.
+  ///   - callOptions: Call options.
+  ///   - handler: A closure called when each response is received from the server.
+  /// - Returns: A `ServerStreamingCall` with futures for the metadata and status.
+  public func discover(
+    _ request: Ocp_Currency_V1_DiscoverRequest,
+    callOptions: CallOptions? = nil,
+    handler: @escaping (Ocp_Currency_V1_DiscoverResponse) -> Void
+  ) -> ServerStreamingCall<Ocp_Currency_V1_DiscoverRequest, Ocp_Currency_V1_DiscoverResponse> {
+    return self.makeServerStreamingCall(
+      path: Ocp_Currency_V1_CurrencyClientMetadata.Methods.discover.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeDiscoverInterceptors() ?? [],
+      handler: handler
+    )
+  }
 }
 
 @available(*, deprecated)
@@ -254,6 +281,11 @@ public protocol Ocp_Currency_V1_CurrencyAsyncClientProtocol: GRPCClient {
     _ request: Ocp_Currency_V1_UpdateMetadataRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Ocp_Currency_V1_UpdateMetadataRequest, Ocp_Currency_V1_UpdateMetadataResponse>
+
+  func makeDiscoverCall(
+    _ request: Ocp_Currency_V1_DiscoverRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncServerStreamingCall<Ocp_Currency_V1_DiscoverRequest, Ocp_Currency_V1_DiscoverResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -333,6 +365,18 @@ extension Ocp_Currency_V1_CurrencyAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeUpdateMetadataInterceptors() ?? []
+    )
+  }
+
+  public func makeDiscoverCall(
+    _ request: Ocp_Currency_V1_DiscoverRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncServerStreamingCall<Ocp_Currency_V1_DiscoverRequest, Ocp_Currency_V1_DiscoverResponse> {
+    return self.makeAsyncServerStreamingCall(
+      path: Ocp_Currency_V1_CurrencyClientMetadata.Methods.discover.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeDiscoverInterceptors() ?? []
     )
   }
 }
@@ -422,6 +466,18 @@ extension Ocp_Currency_V1_CurrencyAsyncClientProtocol {
       interceptors: self.interceptors?.makeUpdateMetadataInterceptors() ?? []
     )
   }
+
+  public func discover(
+    _ request: Ocp_Currency_V1_DiscoverRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncResponseStream<Ocp_Currency_V1_DiscoverResponse> {
+    return self.performAsyncServerStreamingCall(
+      path: Ocp_Currency_V1_CurrencyClientMetadata.Methods.discover.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeDiscoverInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -460,6 +516,9 @@ public protocol Ocp_Currency_V1_CurrencyClientInterceptorFactoryProtocol: Sendab
 
   /// - Returns: Interceptors to use when invoking 'updateMetadata'.
   func makeUpdateMetadataInterceptors() -> [ClientInterceptor<Ocp_Currency_V1_UpdateMetadataRequest, Ocp_Currency_V1_UpdateMetadataResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'discover'.
+  func makeDiscoverInterceptors() -> [ClientInterceptor<Ocp_Currency_V1_DiscoverRequest, Ocp_Currency_V1_DiscoverResponse>]
 }
 
 public enum Ocp_Currency_V1_CurrencyClientMetadata {
@@ -473,6 +532,7 @@ public enum Ocp_Currency_V1_CurrencyClientMetadata {
       Ocp_Currency_V1_CurrencyClientMetadata.Methods.launch,
       Ocp_Currency_V1_CurrencyClientMetadata.Methods.updateIcon,
       Ocp_Currency_V1_CurrencyClientMetadata.Methods.updateMetadata,
+      Ocp_Currency_V1_CurrencyClientMetadata.Methods.discover,
     ]
   )
 
@@ -512,6 +572,12 @@ public enum Ocp_Currency_V1_CurrencyClientMetadata {
       path: "/ocp.currency.v1.Currency/UpdateMetadata",
       type: GRPCCallType.unary
     )
+
+    public static let discover = GRPCMethodDescriptor(
+      name: "Discover",
+      path: "/ocp.currency.v1.Currency/Discover",
+      type: GRPCCallType.serverStreaming
+    )
   }
 }
 
@@ -536,6 +602,9 @@ public protocol Ocp_Currency_V1_CurrencyProvider: CallHandlerProvider {
 
   /// UpdateMetadata updates mutable metadata for a currency
   func updateMetadata(request: Ocp_Currency_V1_UpdateMetadataRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Ocp_Currency_V1_UpdateMetadataResponse>
+
+  /// Discover returns a set of currencies to discover
+  func discover(request: Ocp_Currency_V1_DiscoverRequest, context: StreamingResponseCallContext<Ocp_Currency_V1_DiscoverResponse>) -> EventLoopFuture<GRPCStatus>
 }
 
 extension Ocp_Currency_V1_CurrencyProvider {
@@ -604,6 +673,15 @@ extension Ocp_Currency_V1_CurrencyProvider {
         userFunction: self.updateMetadata(request:context:)
       )
 
+    case "Discover":
+      return ServerStreamingServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Ocp_Currency_V1_DiscoverRequest>(),
+        responseSerializer: ProtobufSerializer<Ocp_Currency_V1_DiscoverResponse>(),
+        interceptors: self.interceptors?.makeDiscoverInterceptors() ?? [],
+        userFunction: self.discover(request:context:)
+      )
+
     default:
       return nil
     }
@@ -652,6 +730,13 @@ public protocol Ocp_Currency_V1_CurrencyAsyncProvider: CallHandlerProvider, Send
     request: Ocp_Currency_V1_UpdateMetadataRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Ocp_Currency_V1_UpdateMetadataResponse
+
+  /// Discover returns a set of currencies to discover
+  func discover(
+    request: Ocp_Currency_V1_DiscoverRequest,
+    responseStream: GRPCAsyncResponseStreamWriter<Ocp_Currency_V1_DiscoverResponse>,
+    context: GRPCAsyncServerCallContext
+  ) async throws
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -727,6 +812,15 @@ extension Ocp_Currency_V1_CurrencyAsyncProvider {
         wrapping: { try await self.updateMetadata(request: $0, context: $1) }
       )
 
+    case "Discover":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Ocp_Currency_V1_DiscoverRequest>(),
+        responseSerializer: ProtobufSerializer<Ocp_Currency_V1_DiscoverResponse>(),
+        interceptors: self.interceptors?.makeDiscoverInterceptors() ?? [],
+        wrapping: { try await self.discover(request: $0, responseStream: $1, context: $2) }
+      )
+
     default:
       return nil
     }
@@ -758,6 +852,10 @@ public protocol Ocp_Currency_V1_CurrencyServerInterceptorFactoryProtocol: Sendab
   /// - Returns: Interceptors to use when handling 'updateMetadata'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeUpdateMetadataInterceptors() -> [ServerInterceptor<Ocp_Currency_V1_UpdateMetadataRequest, Ocp_Currency_V1_UpdateMetadataResponse>]
+
+  /// - Returns: Interceptors to use when handling 'discover'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeDiscoverInterceptors() -> [ServerInterceptor<Ocp_Currency_V1_DiscoverRequest, Ocp_Currency_V1_DiscoverResponse>]
 }
 
 public enum Ocp_Currency_V1_CurrencyServerMetadata {
@@ -771,6 +869,7 @@ public enum Ocp_Currency_V1_CurrencyServerMetadata {
       Ocp_Currency_V1_CurrencyServerMetadata.Methods.launch,
       Ocp_Currency_V1_CurrencyServerMetadata.Methods.updateIcon,
       Ocp_Currency_V1_CurrencyServerMetadata.Methods.updateMetadata,
+      Ocp_Currency_V1_CurrencyServerMetadata.Methods.discover,
     ]
   )
 
@@ -809,6 +908,12 @@ public enum Ocp_Currency_V1_CurrencyServerMetadata {
       name: "UpdateMetadata",
       path: "/ocp.currency.v1.Currency/UpdateMetadata",
       type: GRPCCallType.unary
+    )
+
+    public static let discover = GRPCMethodDescriptor(
+      name: "Discover",
+      path: "/ocp.currency.v1.Currency/Discover",
+      type: GRPCCallType.serverStreaming
     )
   }
 }
