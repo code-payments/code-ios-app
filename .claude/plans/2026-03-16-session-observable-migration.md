@@ -259,8 +259,11 @@ Pattern: Remove `: ObservableObject` + `@Published`, add `@Observable`. In consu
 **Chosen approach:** Inline as tracked properties on Session with closure-based NotificationCenter observer.
 **Why:** `@Observable` can't use `@objc`. The async `notifications(named:)` sequence is an option but adds unnecessary complexity for a synchronous database read. Closure-based observer is the simplest.
 
-### CashOperator Bridge (Deferred)
-CashOperator is part of a separate PR (`cashoperator-phase1`). The `observeCashOperator()` bridge stays as-is during this migration. After the CashOperator PR merges, a follow-up can remove the bridge and replace the 3 duplicated stored properties with computed forwarding properties.
+### CashOperator Integration
+This branch merges **before** the CashOperator PR (`cashoperator-phase1`). When that branch is rebased onto this one, CashOperator should adopt `@Observable` patterns directly — no `ObservableObject` bridge needed. Specifically:
+- Session is now `@Observable`, so `withObservationTracking` bridging is unnecessary
+- CashOperator's `billState`/`presentationState`/`valuation` can either remain on CashOperator (accessed via `session.cashOperator?.billState`) or be forwarded as computed properties on Session
+- No `objectWillChange.send()` — `@Observable` tracks mutations automatically
 
 ### Concurrency Impact
 - No isolation changes needed — Session is already `@MainActor`
@@ -274,7 +277,7 @@ CashOperator is part of a separate PR (`cashoperator-phase1`). The `observeCashO
 | Risk | Mitigation |
 |---|---|
 | Updateable redesign breaks database-driven updates | Test balance/limit updates after `.databaseDidChange` fires |
-| CashOperator bridge interaction with @Observable | Bridge stays as-is; deferred to post-CashOperator-PR follow-up |
+| CashOperator rebase onto this branch | CashOperator PR should adopt @Observable patterns directly — no bridge needed |
 | `.environment()` injection fails silently (crash if type not in environment) | Build + test after each phase; `.environmentObject()` crashes too, so risk is equivalent |
 | ViewModels with `@StateObject` lifetime semantics | `@State` with `@Observable` has same lifetime; verify per-ViewModel |
 
@@ -282,9 +285,8 @@ CashOperator is part of a separate PR (`cashoperator-phase1`). The `observeCashO
 
 ## Estimated Remaining Effort (Revised)
 - ~~**Phase 1:** ✅ Complete~~
-- **Phase 2:** ~1.75 hours (Updateable + RatesController)
-- **Phase 3:** ~2-3 hours (Session — bridge stays, no CashOperator changes)
-- **Phase 4:** ~1 hour (SessionAuthenticator + NotificationController)
-- **Phase 5:** Ongoing (~15 min each ViewModel, opportunistic)
-- **Total remaining:** ~5 hours focused (Phases 2-4), ~8 hours including all ViewModels
-- **Follow-up (post CashOperator PR):** Remove bridge, replace 3 stored properties with computed forwarding
+- ~~**Phase 2:** ✅ Complete~~
+- ~~**Phase 3:** ✅ Complete~~
+- **Phase 4:** ~1 hour (NotificationController + ViewModels, opportunistic)
+- **Total remaining:** ~1 hour for NotificationController, ~2 hours including all ViewModels
+- **CashOperator PR rebase:** Adopt @Observable patterns directly when rebasing onto this branch
