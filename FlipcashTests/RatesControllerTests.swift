@@ -33,7 +33,7 @@ struct RatesControllerTests {
             for: .usd,
             mint: mint,
             maxAttempts: 1,
-            interval: 1_000_000
+            interval: .milliseconds(1)
         )
 
         #expect(state != nil)
@@ -50,7 +50,7 @@ struct RatesControllerTests {
             for: .usd,
             mint: mint,
             maxAttempts: 3,
-            interval: 10_000_000 // 10ms
+            interval: .milliseconds(10)
         )
 
         #expect(state == nil)
@@ -64,7 +64,7 @@ struct RatesControllerTests {
 
         // Simulate stream delivering data after a short delay
         Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+            try? await Task.sleep(for: .milliseconds(50))
             await controller.verifiedProtoService.saveRates([
                 .makeTest(currencyCode: "usd", rate: 1.0)
             ])
@@ -77,7 +77,7 @@ struct RatesControllerTests {
             for: .usd,
             mint: mint,
             maxAttempts: 10,
-            interval: 20_000_000 // 20ms
+            interval: .milliseconds(20)
         )
 
         #expect(state != nil)
@@ -101,7 +101,7 @@ struct RatesControllerTests {
             for: .usd,
             mint: mint,
             maxAttempts: 1,
-            interval: 1_000_000
+            interval: .milliseconds(1)
         )
 
         #expect(state != nil)
@@ -123,7 +123,7 @@ struct RatesControllerTests {
             for: .usd,
             mint: mint,
             maxAttempts: 3,
-            interval: 10_000_000 // 10ms
+            interval: .milliseconds(10)
         )
 
         #expect(state == nil)
@@ -142,7 +142,7 @@ struct RatesControllerTests {
 
         // Reserve state arrives after a short delay
         Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+            try? await Task.sleep(for: .milliseconds(50))
             await controller.verifiedProtoService.saveReserveStates([
                 .makeTest(mint: mint)
             ])
@@ -152,7 +152,7 @@ struct RatesControllerTests {
             for: .usd,
             mint: mint,
             maxAttempts: 10,
-            interval: 20_000_000 // 20ms
+            interval: .milliseconds(20)
         )
 
         #expect(state != nil)
@@ -170,12 +170,12 @@ struct RatesControllerTests {
                 for: .usd,
                 mint: mint,
                 maxAttempts: 100,
-                interval: 100_000_000 // 100ms — would take 10s without cancellation
+                interval: .milliseconds(100) // would take 10s without cancellation
             )
         }
 
         // Cancel after a short delay
-        try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+        try? await Task.sleep(for: .milliseconds(50))
         task.cancel()
 
         let state = await task.value

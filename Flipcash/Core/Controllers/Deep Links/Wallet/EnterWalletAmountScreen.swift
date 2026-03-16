@@ -11,7 +11,7 @@ import FlipcashCore
 
 struct EnterWalletAmountScreen: View {
     
-    @EnvironmentObject private var ratesController: RatesController
+    @Environment(RatesController.self) private var ratesController
     
     @State private var actionState: ButtonState = .normal
     @State private var enteredAmount: String = ""

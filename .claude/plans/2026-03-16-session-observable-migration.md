@@ -13,13 +13,20 @@
 | **Tier 1: BetaFlags** | ✅ Done | `1504bbdb` |
 | **Tier 1: Preferences** | ✅ Done | `0418e9a8` |
 | **Tier 1: PushController** | ✅ Done | `7cd2a054` |
-| **Tier 1: HistoryController** | ✅ Done (pending commit) | — |
-| **Tier 2: Updateable\<T\>** | ⬜ Not started | — |
-| **Tier 2: RatesController** | ⬜ Not started | — |
+| **Tier 1: HistoryController** | ✅ Done | `f758371b` |
+| **Tier 2: Updateable\<T\>** | ✅ Done | `9d31401b` |
+| **Tier 2: RatesController** | ✅ Done (pending commit) | — |
 | **Tier 3: Session** | ⬜ Not started | — |
 | **Tier 3: SessionAuthenticator** | ⬜ Not started | — |
 | **Tier 4: NotificationController** | ⬜ Not started | — |
 | **Tier 4: ViewModels** | ⬜ Not started | — |
+
+### Lessons Learned in Tier 2
+- Updateable\<T\> has 3 consumers (Session, TransactionHistoryScreen, CurrencyInfoViewModel) — migrating the class itself was better than inlining
+- Combine subscriptions can coexist with `@Observable` — mark `cancellables` as `@ObservationIgnored`, keep `import Combine`
+- `@Environment(Type.self)` supports optional types (`Type?`) — used to replace Mirror hack in AccountSelectionScreen
+- `Task.sleep(nanoseconds:)` → `Task.sleep(for: .milliseconds())` with `Duration` parameter type
+- `try!` should be `try?` when return type is already optional
 
 ### Lessons Learned in Tier 1
 - `@ObservationIgnored` is required on all property wrappers (`@Defaults`, `@SecureString`) inside `@Observable` classes
@@ -167,22 +174,12 @@
 
 2. Remove `@Published` from all 9 properties (lines 25–38) — they become plain `var`
 
-3. **Remove CashOperator bridge** (lines 255–273):
-   - Delete `observeCashOperator()` method entirely
-   - Remove `observeCashOperator()` call from `init` (line 241)
-   - Replace the 3 duplicated `@Published` properties with computed properties:
-     ```swift
-     var billState: BillState {
-         cashOperator?.billState ?? .default()
-     }
-     var presentationState: PresentationState {
-         cashOperator?.presentationState ?? .hidden(.slide)
-     }
-     var valuation: BillValuation? {
-         cashOperator?.valuation
-     }
-     ```
-   - **Decision needed:** If views also write to `billState`/`presentationState` (check before implementing), keep as stored properties but remove the bridge
+3. **Keep CashOperator bridge as-is** (lines 255–273):
+   - CashOperator is part of a separate PR (`cashoperator-phase1`) — do NOT modify
+   - Keep `billState`, `presentationState`, `valuation` as stored properties
+   - Keep `observeCashOperator()` and its `withObservationTracking` bridge
+   - The `objectWillChange.send()` calls in the bridge are no longer needed with `@Observable` (mutations to stored properties are tracked automatically), but the bridge itself must stay until the CashOperator PR merges
+   - **Follow-up:** After CashOperator PR merges, remove the bridge and replace with computed forwarding properties
 
 4. Remove `import Combine` and `private var cancellables` (line 218)
 
@@ -255,8 +252,8 @@ Pattern: Remove `: ObservableObject` + `@Published`, add `@Observable`. In consu
 **Chosen approach:** Inline as tracked properties on Session with closure-based NotificationCenter observer.
 **Why:** `@Observable` can't use `@objc`. The async `notifications(named:)` sequence is an option but adds unnecessary complexity for a synchronous database read. Closure-based observer is the simplest.
 
-### CashOperator Bridge Removal
-**Decision needed during Phase 3:** Check if views *write* to `billState`/`presentationState`/`valuation` on Session. If yes, keep as stored properties with a simpler sync mechanism. If no (most likely — CashOperator owns the state), replace with computed properties forwarding to CashOperator.
+### CashOperator Bridge (Deferred)
+CashOperator is part of a separate PR (`cashoperator-phase1`). The `observeCashOperator()` bridge stays as-is during this migration. After the CashOperator PR merges, a follow-up can remove the bridge and replace the 3 duplicated stored properties with computed forwarding properties.
 
 ### Concurrency Impact
 - No isolation changes needed — Session is already `@MainActor`
@@ -270,16 +267,17 @@ Pattern: Remove `: ObservableObject` + `@Published`, add `@Observable`. In consu
 | Risk | Mitigation |
 |---|---|
 | Updateable redesign breaks database-driven updates | Test balance/limit updates after `.databaseDidChange` fires |
-| CashOperator computed properties miss edge cases | Verify all write sites before removing stored properties |
+| CashOperator bridge interaction with @Observable | Bridge stays as-is; deferred to post-CashOperator-PR follow-up |
 | `.environment()` injection fails silently (crash if type not in environment) | Build + test after each phase; `.environmentObject()` crashes too, so risk is equivalent |
 | ViewModels with `@StateObject` lifetime semantics | `@State` with `@Observable` has same lifetime; verify per-ViewModel |
 
 ---
 
-## Estimated Total Effort
-- **Phase 1:** 1 day (pattern validation)
-- **Phase 2:** 1-2 days (prerequisites)
-- **Phase 3:** 1-2 days (Session)
-- **Phase 4:** 1 day (cleanup)
-- **Phase 5:** Ongoing (opportunistic)
-- **Total:** ~4-6 days of focused work
+## Estimated Remaining Effort (Revised)
+- ~~**Phase 1:** ✅ Complete~~
+- **Phase 2:** ~1.75 hours (Updateable + RatesController)
+- **Phase 3:** ~2-3 hours (Session — bridge stays, no CashOperator changes)
+- **Phase 4:** ~1 hour (SessionAuthenticator + NotificationController)
+- **Phase 5:** Ongoing (~15 min each ViewModel, opportunistic)
+- **Total remaining:** ~5 hours focused (Phases 2-4), ~8 hours including all ViewModels
+- **Follow-up (post CashOperator PR):** Remove bridge, replace 3 stored properties with computed forwarding

@@ -375,7 +375,7 @@ struct SessionContainer {
     fileprivate func injectingEnvironment<SomeView>(into view: SomeView) -> some View where SomeView: View {
         view
             .environmentObject(session)
-            .environmentObject(ratesController)
+            .environment(ratesController)
             .environment(historyController)
             .environment(pushController)
             .environment(walletConnection)
