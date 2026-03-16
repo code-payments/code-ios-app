@@ -125,10 +125,15 @@ class CurrencyBuyViewModel {
                 await MainActor.run {
                     path.append(.processing(swapId: swapId, mint: destination, amount: buyAmount))
                 }
-            } catch {
+            } catch Session.Error.insufficientBalance {
                 await MainActor.run {
                     actionButtonState = .normal
                     showInsufficientBalanceError()
+                }
+            } catch {
+                await MainActor.run {
+                    actionButtonState = .normal
+                    showGenericError()
                 }
             }
         }
@@ -147,6 +152,17 @@ class CurrencyBuyViewModel {
             style: .destructive,
             title: "Insufficient Balance",
             subtitle: "Please enter a lower amount and try again",
+            dismissable: true
+        ) {
+            .okay(kind: .destructive)
+        }
+    }
+
+    private func showGenericError() {
+        dialogItem = .init(
+            style: .destructive,
+            title: "Something Went Wrong",
+            subtitle: "Please try again later",
             dismissable: true
         ) {
             .okay(kind: .destructive)
