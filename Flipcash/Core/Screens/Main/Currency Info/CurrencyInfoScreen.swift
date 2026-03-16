@@ -26,7 +26,7 @@ struct CurrencyInfoScreen: View {
     /// an intermediate pop animation.
     @State private var isShowingGive: Bool = false
 
-    @ObservedObject private var session: Session
+    let session: Session
     @StateObject private var currencyBuyViewModel: CurrencyBuyViewModel
     @State private var currencySellViewModel: CurrencySellViewModel?
 

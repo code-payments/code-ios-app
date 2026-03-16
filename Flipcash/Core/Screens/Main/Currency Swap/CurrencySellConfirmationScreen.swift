@@ -16,7 +16,7 @@ struct CurrencySellConfirmationScreen: View {
 
     @StateObject private var viewModel: CurrencySellConfirmationViewModel
 
-    @EnvironmentObject private var session: Session
+    @Environment(Session.self) private var session
 
     // MARK: - Init -
 

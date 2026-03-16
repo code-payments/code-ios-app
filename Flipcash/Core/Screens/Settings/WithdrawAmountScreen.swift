@@ -11,7 +11,7 @@ import FlipcashCore
 
 struct WithdrawAmountScreen: View {
     
-    @EnvironmentObject private var session: Session
+    @Environment(Session.self) private var session
     @Environment(RatesController.self) private var ratesController
     
     @ObservedObject private var viewModel: WithdrawViewModel

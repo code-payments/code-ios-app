@@ -15,7 +15,7 @@ struct ScanScreen: View {
     @Environment(Preferences.self) private var preferences
     @Environment(BetaFlags.self) private var betaFlags
     
-    @ObservedObject private var session: Session
+    @Bindable private var session: Session
     
     @StateObject private var viewModel: ScanViewModel
     

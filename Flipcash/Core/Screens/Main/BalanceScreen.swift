@@ -17,7 +17,7 @@ struct BalanceScreen: View {
     @Environment(HistoryController.self) private var historyController
     @EnvironmentObject private var notificationController: NotificationController
     
-    @ObservedObject private var session: Session
+    let session: Session
     
     @State private var isShowingCurrencySelection: Bool  = false
     @State private var dialogItem: DialogItem?

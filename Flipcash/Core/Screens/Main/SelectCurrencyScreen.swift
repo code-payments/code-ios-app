@@ -13,7 +13,7 @@ struct SelectCurrencyScreen: View {
     
     @Binding var isPresented: Bool
     
-    @EnvironmentObject private var session: Session
+    @Environment(Session.self) private var session
     @Environment(RatesController.self) private var ratesController
         
     @State private var selectedBalance: ExchangedBalance?

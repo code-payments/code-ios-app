@@ -11,7 +11,7 @@ import FlipcashCore
 
 public struct EnterAmountView: View {
     
-    @EnvironmentObject var session: Session
+    @Environment(Session.self) var session
     @Environment(RatesController.self) var rateController
     
     @Binding public var enteredAmount: String
