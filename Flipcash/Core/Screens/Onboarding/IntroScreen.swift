@@ -11,7 +11,7 @@ import FlipcashCore
 
 struct IntroScreen: View {
     
-    @EnvironmentObject private var sessionAuthenticator: SessionAuthenticator
+    @Environment(SessionAuthenticator.self) private var sessionAuthenticator
     
     @State private var isShowingLogin          = false
     @State private var isShowingPrivacyPolicy  = false

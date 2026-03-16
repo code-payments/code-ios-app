@@ -12,7 +12,7 @@ import FlipcashCore
 struct LoginScreen: View {
     
     @EnvironmentObject private var client: Client
-    @EnvironmentObject private var sessionAuthenticator: SessionAuthenticator
+    @Environment(SessionAuthenticator.self) private var sessionAuthenticator
 
     @State private var buttonState: ButtonState = .normal
     @State private var inputText: String = ""

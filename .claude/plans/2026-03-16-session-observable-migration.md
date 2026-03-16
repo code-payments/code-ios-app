@@ -15,11 +15,18 @@
 | **Tier 1: PushController** | ✅ Done | `7cd2a054` |
 | **Tier 1: HistoryController** | ✅ Done | `f758371b` |
 | **Tier 2: Updateable\<T\>** | ✅ Done | `9d31401b` |
-| **Tier 2: RatesController** | ✅ Done (pending commit) | — |
-| **Tier 3: Session** | ⬜ Not started | — |
-| **Tier 3: SessionAuthenticator** | ⬜ Not started | — |
+| **Tier 2: RatesController** | ✅ Done | `f983b7a6` |
+| **Tier 2: Simplify fixes** | ✅ Done | `5b9c618b` |
+| **Tier 3: Session** | ✅ Done | `d22a0c8a` |
+| **Tier 3: SessionAuthenticator** | ✅ Done (pending commit) | — |
 | **Tier 4: NotificationController** | ⬜ Not started | — |
 | **Tier 4: ViewModels** | ⬜ Not started | — |
+
+### Lessons Learned in Tier 3
+- `lazy var` is incompatible with `@Observable` — the macro transforms stored properties into computed, which conflicts with `lazy`. Use IUOs (`Type!`) initialized in `init` instead
+- `@ObservationIgnored` on `Updateable` properties breaks the observation chain — computed properties like `balances` read through them, so they must remain tracked
+- `@ObservedObject` → `let` for read-only injected `@Observable` objects (BalanceScreen, CurrencyInfoScreen); `@Bindable` only when `$` bindings are needed (ScanScreen)
+- Session has a lot of UI state mixed with business logic — future opportunity to split into Session + SessionUIState
 
 ### Lessons Learned in Tier 2
 - Updateable\<T\> has 3 consumers (Session, TransactionHistoryScreen, CurrencyInfoViewModel) — migrating the class itself was better than inlining

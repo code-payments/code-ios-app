@@ -11,7 +11,7 @@ import FlipcashCore
 
 struct ScanScreen: View {
     
-    @EnvironmentObject private var sessionAuthenticator: SessionAuthenticator
+    @Environment(SessionAuthenticator.self) private var sessionAuthenticator
     @Environment(Preferences.self) private var preferences
     @Environment(BetaFlags.self) private var betaFlags
     
