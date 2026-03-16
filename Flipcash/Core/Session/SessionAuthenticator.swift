@@ -1,6 +1,6 @@
 //
 //  SessionAuthenticator.swift
-//  Code
+//  Flipcash
 //
 //  Created by Dima Bart on 2021-11-04.
 //
@@ -9,15 +9,29 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-@MainActor
-final class SessionAuthenticator: ObservableObject {
+/// Manages authentication state, login flow, and session lifecycle.
+///
+/// Handles account creation, login, logout, and session migration.
+/// Publishes the current ``AuthenticationState`` which drives the
+/// top-level view hierarchy (intro → login → scan screen).
+///
+/// Inject via `@Environment(SessionAuthenticator.self)`.
+@MainActor @Observable
+final class SessionAuthenticator {
 
-    let accountManager: AccountManager
+    @ObservationIgnored let accountManager: AccountManager
 
-    @Published private(set) var loginButtonState: ButtonState = .normal
-    @Published private(set) var isUnlocked: Bool = false
-    @Published private(set) var state: AuthenticationState = .migrating
-    @Published private(set) var unauthenticatedUserFlags: UnauthenticatedUserFlags?
+    /// Current state of the login button (normal, loading, disabled).
+    private(set) var loginButtonState: ButtonState = .normal
+
+    /// Whether the user has been unlocked (biometrics/passcode verified).
+    private(set) var isUnlocked: Bool = false
+
+    /// The top-level authentication state driving the view hierarchy.
+    private(set) var state: AuthenticationState = .migrating
+
+    /// Feature flags available before authentication (e.g. minimum build version).
+    private(set) var unauthenticatedUserFlags: UnauthenticatedUserFlags?
 
     var isLoggedIn: Bool {
         if case .loggedIn = state {
@@ -39,10 +53,10 @@ final class SessionAuthenticator: ObservableObject {
         return currentBuild < minBuildNumber
     }
 
-    private let container: Container
-    private let client: Client
-    private let flipClient: FlipClient
-    private var poller: Poller?
+    @ObservationIgnored private let container: Container
+    @ObservationIgnored private let client: Client
+    @ObservationIgnored private let flipClient: FlipClient
+    @ObservationIgnored private var poller: Poller?
     
     // MARK: - Init -
     
@@ -123,16 +137,7 @@ final class SessionAuthenticator: ObservableObject {
                                 didAuthenticate: didAuthenticate,
                                 didFindRecentAccount: didFindRecentAccount
                             )
-                            
-//                            ErrorReporting.breadcrumb(
-//                                name: "Retrying login",
-//                                metadata: ["count": "\(nextCount)"],
-//                                type: .process
-//                            )
                         }
-                        
-                    } else {
-//                        Analytics.unintentialLogout()
                     }
                 }
             }
@@ -374,10 +379,10 @@ struct SessionContainer {
     
     fileprivate func injectingEnvironment<SomeView>(into view: SomeView) -> some View where SomeView: View {
         view
-            .environmentObject(session)
-            .environmentObject(ratesController)
-            .environmentObject(historyController)
-            .environmentObject(pushController)
+            .environment(session)
+            .environment(ratesController)
+            .environment(historyController)
+            .environment(pushController)
             .environment(walletConnection)
     }
     
@@ -423,21 +428,6 @@ extension SessionAuthenticator {
 // MARK: - AuthenticationState -
 
 extension SessionAuthenticator {
-    enum BiometricState {
-        case disabled
-        case notVerified
-        case verified
-        
-        var isPermitted: Bool {
-            switch self {
-            case .disabled, .verified:
-                return true
-            case .notVerified:
-                return false
-            }
-        }
-    }
-    
     enum AuthenticationState {
         case loggedOut
         case migrating
@@ -477,7 +467,5 @@ struct InitializedAccount {
 // MARK: - Mock -
 
 extension SessionAuthenticator {
-    static let mockCameraSession = CameraSession<CodeExtractor>()
-    
     static let mock: SessionAuthenticator = SessionAuthenticator(container: .mock)
 }

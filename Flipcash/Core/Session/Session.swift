@@ -8,40 +8,70 @@
 import UIKit
 import FlipcashUI
 import FlipcashCore
-import Combine
 
 @MainActor
 protocol SessionDelegate: AnyObject {
     func didDetectUnlockedAccount()
 }
 
-@MainActor
-class Session: ObservableObject {
-    
+/// Central state object for an authenticated user session.
+///
+/// Holds balances, transaction limits, user profile, and UI presentation
+/// state (bill display, toasts, dialogs). Balances and limits auto-refresh
+/// from the local database via ``Updateable`` whenever `.databaseDidChange`
+/// is posted.
+///
+/// Inject via `@Environment(Session.self)`. Use `@Bindable` when bindings
+/// are needed (e.g. `$session.dialogItem` for sheets).
+@MainActor @Observable
+class Session {
+
+    // MARK: - Database-Driven State -
+
+    /// Current transaction limits, auto-refreshed from the database.
     var limits: Limits? {
         updateableLimits.value
     }
-    
-    @Published var billState: BillState = .default()
-    @Published var presentationState: PresentationState = .hidden(.slide)
-    
-    @Published var valuation: BillValuation? = nil
-    @Published var toast: Toast? = nil
-    
-    @Published var dialogItem: DialogItem?
-    
-    @Published var profile: Profile?
-    @Published var userFlags: UserFlags?
 
-    @Published var coinbaseOrder: OnrampOrderResponse?
-    @Published var isShowingBillEditor: Bool = false
-    @Published var pendingCurrencyInfoMint: PublicKey? = nil
+    // MARK: - UI Presentation State -
 
-    private var grabStarts: [PublicKey: Date] = [:]
+    /// The bill currently being displayed on the scan screen.
+    var billState: BillState = .default()
 
-    let keyAccount: KeyAccount
-    let owner: AccountCluster
-    let userID: UserID
+    /// Controls bill slide-in/out animation.
+    var presentationState: PresentationState = .hidden(.slide)
+
+    /// Post-transaction amount display, shown as a sheet.
+    var valuation: BillValuation? = nil
+
+    /// Transient success/error notification.
+    var toast: Toast? = nil
+
+    /// Modal dialog state (confirmations, errors).
+    var dialogItem: DialogItem?
+
+    // MARK: - User State -
+
+    /// Server-fetched user profile.
+    var profile: Profile?
+
+    /// Feature flags for the current user.
+    var userFlags: UserFlags?
+
+    /// Active Coinbase onramp order, if any.
+    var coinbaseOrder: OnrampOrderResponse?
+
+    /// Whether the bill color picker is visible.
+    var isShowingBillEditor: Bool = false
+
+    /// Navigation trigger for deep-linking to a currency info screen.
+    var pendingCurrencyInfoMint: PublicKey? = nil
+
+    @ObservationIgnored private var grabStarts: [PublicKey: Date] = [:]
+
+    @ObservationIgnored let keyAccount: KeyAccount
+    @ObservationIgnored let owner: AccountCluster
+    @ObservationIgnored let userID: UserID
     
     var ownerKeyPair: KeyPair {
         owner.authority.keyPair
@@ -166,42 +196,25 @@ class Session: ObservableObject {
         }.first
     }
     
-    private let container: Container
-    private let client: Client
-    private let flipClient: FlipClient
-    private let ratesController: RatesController
-    private let historyController: HistoryController
-    private let database: Database
-    
-    private var poller: Poller!
-    
-    private var scanOperation: ScanCashOperation?
-    private var sendOperation: SendCashOperation?
-    
-    private var toastQueue = ToastQueue()
-    
-    private lazy var updateableBalances: Updateable<[StoredBalance]> = {
-        Updateable { [weak self] in
-            (try? self?.database.getBalances()) ?? []
-        } didSet: { [weak self] in
-            self?.objectWillChange.send()
-            self?.ensureValidTokenSelection()
-            self?.updateStreamingMints()
-        }
-    }()
+    @ObservationIgnored private let container: Container
+    @ObservationIgnored private let client: Client
+    @ObservationIgnored private let flipClient: FlipClient
+    @ObservationIgnored private let ratesController: RatesController
+    @ObservationIgnored private let historyController: HistoryController
+    @ObservationIgnored private let database: Database
 
-    private lazy var updateableLimits: Updateable<Limits?> = {
-        Updateable { [weak self] in
-            try? self?.database.getLimits()
-        } didSet: { [weak self] in
-            self?.objectWillChange.send()
-        }
-    }()
+    @ObservationIgnored private var poller: Poller!
 
-    private var cancellables: Set<AnyCancellable> = []
-    
+    @ObservationIgnored private var scanOperation: ScanCashOperation?
+    @ObservationIgnored private var sendOperation: SendCashOperation?
+
+    @ObservationIgnored private var toastQueue = ToastQueue()
+
+    private var updateableBalances: Updateable<[StoredBalance]>!
+    private var updateableLimits: Updateable<Limits?>!
+
     // MARK: - Init -
-    
+
     init(container: Container, historyController: HistoryController, ratesController: RatesController, database: Database, keyAccount: KeyAccount, owner: AccountCluster, userID: UserID) {
         self.container         = container
         self.client            = container.client
@@ -212,9 +225,17 @@ class Session: ObservableObject {
         self.keyAccount        = keyAccount
         self.owner             = owner
         self.userID            = userID
-        
-        _ = updateableBalances
-        _ = updateableLimits
+
+        self.updateableBalances = Updateable { [weak self] in
+            (try? self?.database.getBalances()) ?? []
+        } didSet: { [weak self] in
+            self?.ensureValidTokenSelection()
+            self?.updateStreamingMints()
+        }
+
+        self.updateableLimits = Updateable { [weak self] in
+            try? self?.database.getLimits()
+        }
 
         // Ensure we have a valid token selected on initialization
         ensureValidTokenSelection()

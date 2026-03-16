@@ -11,8 +11,8 @@ import FlipcashCore
 
 struct DepositCurrencyListScreen: View {
 
-    @EnvironmentObject private var session: Session
-    @EnvironmentObject private var ratesController: RatesController
+    @Environment(Session.self) private var session
+    @Environment(RatesController.self) private var ratesController
 
     @State private var selectedBalance: ExchangedBalance?
     @State private var selectedMint: PublicKey?

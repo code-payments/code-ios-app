@@ -22,10 +22,10 @@ import FlipcashCore
 /// single animation before the bill appears.
 struct GiveScreen: View {
 
-    @EnvironmentObject private var session: Session
-    @EnvironmentObject private var ratesController: RatesController
+    @Environment(Session.self) private var session
+    @Environment(RatesController.self) private var ratesController
 
-    @ObservedObject private var viewModel: GiveViewModel
+    @Bindable private var viewModel: GiveViewModel
 
     @State private var isShowingCurrencySelection: Bool = false
     @State private var isShowingTokenSelection: Bool = false

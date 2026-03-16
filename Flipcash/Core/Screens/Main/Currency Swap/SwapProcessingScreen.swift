@@ -13,8 +13,8 @@ import FlipcashCore
 struct SwapProcessingScreen: View {
     @State private var viewModel: SwapProcessingViewModel
     @EnvironmentObject private var client: Client
-    @EnvironmentObject private var session: Session
-    @EnvironmentObject private var pushController: PushController
+    @Environment(Session.self) private var session
+    @Environment(PushController.self) private var pushController
     @Environment(\.dismissParentContainer) private var dismissParentContainer
     @Environment(WalletConnection.self) private var walletConnection
 

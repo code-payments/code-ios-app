@@ -9,28 +9,41 @@ import Foundation
 import Combine
 import FlipcashCore
 
-@MainActor
-class RatesController: ObservableObject {
-    @Published var entryCurrency: CurrencyCode = .usd {
+/// Manages currency selection, exchange rates, and live mint data streaming.
+///
+/// Owns the ``VerifiedProtoService`` for exchange rate proofs and a
+/// ``LiveMintDataStreamer`` for real-time rate updates. Currency preferences
+/// are persisted to `UserDefaults` via `LocalDefaults`.
+///
+/// Inject via `@Environment(RatesController.self)`.
+@MainActor @Observable
+class RatesController {
+    /// The currency used for amount entry (e.g. on the Give screen).
+    /// Persisted to `UserDefaults` on change.
+    var entryCurrency: CurrencyCode = .usd {
         willSet {
             LocalDefaults.entryCurrency = newValue
         }
     }
 
-    @Published var balanceCurrency: CurrencyCode = .usd {
+    /// The currency used for displaying balances.
+    /// Persisted to `UserDefaults` on change.
+    var balanceCurrency: CurrencyCode = .usd {
         willSet {
             LocalDefaults.balanceCurrency = newValue
         }
     }
 
-    @Published var onrampCurrency: CurrencyCode = .usd {
+    /// The currency used for onramp (buy) flows.
+    /// Persisted to `UserDefaults` on change.
+    var onrampCurrency: CurrencyCode = .usd {
         willSet {
             LocalDefaults.onrampCurrency = newValue
         }
     }
 
     /// The currently selected token mint
-    @Published var selectedTokenMint: PublicKey? {
+    var selectedTokenMint: PublicKey? {
         didSet {
             if let mint = selectedTokenMint {
                 LocalDefaults.storedTokenMint = mint.base58
@@ -38,25 +51,25 @@ class RatesController: ObservableObject {
         }
     }
 
-    private let client: Client
-    private let database: Database
+    @ObservationIgnored private let client: Client
+    @ObservationIgnored private let database: Database
 
     /// Service for verified exchange rate and reserve state proofs
-    let verifiedProtoService: VerifiedProtoService
+    @ObservationIgnored let verifiedProtoService: VerifiedProtoService
 
     /// Streamer for live mint data
-    private var liveMintDataStreamer: LiveMintDataStreamer?
+    @ObservationIgnored private var liveMintDataStreamer: LiveMintDataStreamer?
 
     /// Current list of mints being streamed
-    private var streamedMints: [PublicKey] = []
+    @ObservationIgnored private var streamedMints: [PublicKey] = []
 
     /// Mints added via ``ensureMintSubscribed(_:)`` that may not yet
     /// appear in the user's balance list. Prevents balance refreshes
     /// from dropping pending subscriptions.
-    private var pendingMints: Set<PublicKey> = []
+    @ObservationIgnored private var pendingMints: Set<PublicKey> = []
 
-    /// Combine cancellables
-    private var cancellables = Set<AnyCancellable>()
+    /// Combine cancellables for rate streaming subscription
+    @ObservationIgnored private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Init -
 
@@ -160,13 +173,13 @@ class RatesController: ObservableObject {
         for currency: CurrencyCode,
         mint: PublicKey,
         maxAttempts: Int = 25,
-        interval: UInt64 = 200_000_000
+        interval: Duration = .milliseconds(200)
     ) async -> VerifiedState? {
         let requiresReserveState = mint != .usdf
         for i in 0..<maxAttempts {
             if Task.isCancelled { return nil }
             if i > 0 {
-                try? await Task.sleep(nanoseconds: interval)
+                try? await Task.sleep(for: interval)
             }
             if let state = await verifiedProtoService.getVerifiedState(for: currency, mint: mint) {
                 if requiresReserveState && state.reserveProto == nil {
@@ -181,8 +194,8 @@ class RatesController: ObservableObject {
 
     // MARK: - Rates -
 
-    /// Cache of rates from streaming. Published so views update automatically.
-    @Published private(set) var cachedRates: [CurrencyCode: Rate] = [:]
+    /// Cache of rates from streaming. Tracked by `@Observable` so views update automatically.
+    private(set) var cachedRates: [CurrencyCode: Rate] = [:]
 
     func rateForBalanceCurrency() -> Rate {
         rate(for: balanceCurrency) ?? .oneToOne
@@ -239,7 +252,7 @@ class RatesController: ObservableObject {
     func getSelectedToken(default defaultMint: PublicKey = .usdf) -> StoredMintMetadata? {
         let mint = selectedTokenMint ?? defaultMint
         
-        return try! database.getMintMetadata(mint: mint)
+        return try? database.getMintMetadata(mint: mint)
     }
     
     /// Check if a given mint is currently selected

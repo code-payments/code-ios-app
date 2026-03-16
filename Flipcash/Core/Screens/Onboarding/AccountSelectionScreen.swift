@@ -11,7 +11,7 @@ import FlipcashCore
 
 struct AccountSelectionScreen: View {
     @EnvironmentObject private var client: Client
-    @EnvironmentObject private var ratesController: RatesController
+    @Environment(RatesController.self) private var ratesController: RatesController?
 
     private let sessionAuthenticator: SessionAuthenticator
     private let accountManager: AccountManager
@@ -22,17 +22,7 @@ struct AccountSelectionScreen: View {
     private let onEnterDifferentKey: (() -> Void)?
 
     private var balanceRate: Rate {
-        // HACK: @EnvironmentObject crashes if not injected. This view can be instantiated
-        // without a RatesController, so we use Mirror to check presence at runtime.
-        //
-        // To fix properly: Replace @EnvironmentObject var ratesController: RatesController
-        // with @Environment(\.ratesController) var ratesController: RatesController?
-        // Then delete this Mirror hack and use simple optional chaining.
-        if ((Mirror(reflecting: _ratesController).children.first?.value as? RatesController) != nil) {
-            return ratesController.rateForBalanceCurrency()
-        } else {
-            return .oneToOne
-        }
+        ratesController?.rateForBalanceCurrency() ?? .oneToOne
     }
 
     // MARK: - Init -

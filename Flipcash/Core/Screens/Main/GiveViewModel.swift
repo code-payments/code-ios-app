@@ -9,25 +9,25 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-@MainActor
-class GiveViewModel: ObservableObject {
-    
-    @Published var enteredAmount: String = ""
-    @Published var actionState: ButtonState = .normal
-    
-    @Published var dialogItem: DialogItem?
-    @Published var depositMint: PublicKey?
+@MainActor @Observable
+class GiveViewModel {
+
+    var enteredAmount: String = ""
+    var actionState: ButtonState = .normal
+
+    var dialogItem: DialogItem?
+    var depositMint: PublicKey?
 
     var canGive: Bool {
         enteredFiat != nil && (enteredFiat?.underlying.quarks ?? 0) > 0
     }
 
-    let container: Container
-    let sessionContainer: SessionContainer
-    let session: Session
-    let ratesController: RatesController
-    
-    @Published private(set) var selectedBalance: ExchangedBalance?
+    @ObservationIgnored let container: Container
+    @ObservationIgnored let sessionContainer: SessionContainer
+    @ObservationIgnored let session: Session
+    @ObservationIgnored let ratesController: RatesController
+
+    private(set) var selectedBalance: ExchangedBalance?
     
     private var enteredFiat: ExchangedFiat? {
         guard !enteredAmount.isEmpty else {
@@ -72,7 +72,7 @@ class GiveViewModel: ObservableObject {
         }
     }
     
-    @Published var isPresented = false {
+    var isPresented = false {
         didSet {
             if isPresented {
                 let rate = ratesController.rateForBalanceCurrency()

@@ -11,7 +11,7 @@ import FlipcashCore
 
 struct AccessKeyScreen: View {
     
-    @ObservedObject private var viewModel: OnboardingViewModel
+    @Bindable private var viewModel: OnboardingViewModel
     
     // MARK: - Init -
     

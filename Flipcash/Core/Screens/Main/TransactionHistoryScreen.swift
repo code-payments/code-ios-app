@@ -11,7 +11,7 @@ import FlipcashCore
 
 struct TransactionHistoryScreen: View {
     
-    @StateObject private var updateableActivities: Updateable<[Activity]>
+    @State private var updateableActivities: Updateable<[Activity]>
     
     @State private var dialogItem: DialogItem?
     
@@ -37,9 +37,9 @@ struct TransactionHistoryScreen: View {
         let database          = sessionContainer.database
         self.database         = database
         
-        self._updateableActivities = .init(wrappedValue: Updateable {
+        self.updateableActivities = Updateable {
             (try? database.getActivities(mint: mintMetadata.mint)) ?? []
-        })
+        }
     }
     
     // MARK: - Body -

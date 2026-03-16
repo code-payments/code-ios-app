@@ -9,23 +9,23 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-@MainActor
-class OnboardingViewModel: ObservableObject {
+@MainActor @Observable
+class OnboardingViewModel {
 
-    @Published var path: [OnboardingPath] = []
+    var path: [OnboardingPath] = []
 
-    @Published var accessKeyButtonState: ButtonState = .normal
+    var accessKeyButtonState: ButtonState = .normal
 
-    @Published var dialogItem: DialogItem?
+    var dialogItem: DialogItem?
 
     private(set) var inflightMnemonic: MnemonicPhrase = .generate(.words12)
 
-    private let container: Container
-    private let flipClient: FlipClient
-    private let sessionAuthenticator: SessionAuthenticator
-    private let cameraAuthorizer: CameraAuthorizer
+    @ObservationIgnored private let container: Container
+    @ObservationIgnored private let flipClient: FlipClient
+    @ObservationIgnored private let sessionAuthenticator: SessionAuthenticator
+    @ObservationIgnored private let cameraAuthorizer: CameraAuthorizer
 
-    private var initializedAccount: InitializedAccount?
+    @ObservationIgnored private var initializedAccount: InitializedAccount?
 
     // MARK: - Init -
 

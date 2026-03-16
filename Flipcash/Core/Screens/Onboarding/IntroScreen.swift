@@ -11,18 +11,18 @@ import FlipcashCore
 
 struct IntroScreen: View {
     
-    @EnvironmentObject private var sessionAuthenticator: SessionAuthenticator
+    @Environment(SessionAuthenticator.self) private var sessionAuthenticator
     
     @State private var isShowingLogin          = false
     @State private var isShowingPrivacyPolicy  = false
     @State private var isShowingTermsOfService = false
     
-    @StateObject private var viewModel: OnboardingViewModel
-    
+    @State private var viewModel: OnboardingViewModel
+
     // MARK: - Init -
-    
+
     init(container: Container) {
-        _viewModel = StateObject(wrappedValue: OnboardingViewModel(container: container))
+        self.viewModel = OnboardingViewModel(container: container)
     }
     
     // MARK: - Body -

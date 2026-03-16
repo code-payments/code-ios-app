@@ -7,50 +7,60 @@
 
 import UIKit
 
-@MainActor
-class NotificationController: ObservableObject {
-    
-    @Published private(set) var didBecomeActive:   Int = 0
-    @Published private(set) var willResignActive:  Int = 0
-    @Published private(set) var didTakeScreenshot: Int = 0
-    
-    @Published private(set) var pushReceived:      Int = 0
-    @Published private(set) var pushWillPresent:   Int = 0
-    @Published private(set) var messageReceived:   Int = 0
-    
+/// Tracks app lifecycle and push notification events as incrementing counters.
+///
+/// Views can observe these counters to trigger refreshes when the app becomes
+/// active or receives a push notification.
+///
+/// Inject via `@Environment(NotificationController.self)`.
+@MainActor @Observable
+class NotificationController {
+
+    /// Incremented each time the app becomes active.
+    private(set) var didBecomeActive:   Int = 0
+
+    /// Incremented each time the app resigns active.
+    private(set) var willResignActive:  Int = 0
+
+    /// Incremented when a push notification is tapped.
+    private(set) var pushReceived:      Int = 0
+
+    /// Incremented when a push notification arrives while the app is open.
+    private(set) var pushWillPresent:   Int = 0
+
+    /// Incremented when a message notification is received.
+    private(set) var messageReceived:   Int = 0
+
+    @ObservationIgnored private var observers: [Any] = []
+
     // MARK: - Init -
-    
+
     init() {
-        NotificationCenter.default.addObserver(self, selector: #selector(didBecomeActiveNotification),       name: UIApplication.didBecomeActiveNotification,       object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(willResignActiveNotification),      name: UIApplication.willResignActiveNotification,      object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(userDidTakeScreenshotNotification), name: UIApplication.userDidTakeScreenshotNotification, object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(pushReceivedNotification),          name: .pushNotificationReceived,                       object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(pushWillPresentNotification),       name: .pushNotificationWillPresent,                    object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(messageReceivedNotification),       name: .messageNotificationReceived,                    object: nil)
+        observe(UIApplication.didBecomeActiveNotification)  { $0.didBecomeActive += 1 }
+        observe(UIApplication.willResignActiveNotification) { $0.willResignActive += 1 }
+        observe(.pushNotificationReceived)                  { $0.pushReceived += 1 }
+        observe(.pushNotificationWillPresent)               { $0.pushWillPresent += 1 }
+        observe(.messageNotificationReceived)               { $0.messageReceived += 1 }
     }
-    
-    @objc private func didBecomeActiveNotification() {
-        self.didBecomeActive += 1
+
+    deinit {
+        for observer in observers {
+            NotificationCenter.default.removeObserver(observer)
+        }
     }
-    
-    @objc private func willResignActiveNotification() {
-        self.willResignActive += 1
-    }
-    
-    @objc private func userDidTakeScreenshotNotification() {
-        self.didTakeScreenshot += 1
-    }
-    
-    @objc private func pushReceivedNotification() {
-        self.pushReceived += 1
-    }
-    
-    @objc private func pushWillPresentNotification() {
-        self.pushWillPresent += 1
-    }
-    
-    @objc private func messageReceivedNotification() {
-        self.messageReceived += 1
+
+    private func observe(_ name: Notification.Name, handler: @escaping (NotificationController) -> Void) {
+        let token = NotificationCenter.default.addObserver(
+            forName: name,
+            object: nil,
+            queue: nil
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                handler(self)
+            }
+        }
+        observers.append(token)
     }
 }
 
@@ -59,5 +69,4 @@ extension NSNotification.Name {
     static let pushNotificationWillPresent = Notification.Name("com.code.pushNotificationWillPresent")
     static let pushDeepLinkReceived         = Notification.Name("com.code.pushDeepLinkReceived")
     static let messageNotificationReceived = Notification.Name("com.code.messageNotificationReceived")
-    static let twitterNotificationReceived = Notification.Name("com.code.twitterNotificationReceived")
 }

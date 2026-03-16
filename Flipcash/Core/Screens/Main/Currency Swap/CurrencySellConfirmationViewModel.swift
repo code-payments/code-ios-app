@@ -9,14 +9,14 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-@MainActor
-class CurrencySellConfirmationViewModel: ObservableObject {
-    let mint: PublicKey
-    let amount: ExchangedFiat
+@MainActor @Observable
+class CurrencySellConfirmationViewModel {
+    @ObservationIgnored let mint: PublicKey
+    @ObservationIgnored let amount: ExchangedFiat
 
-    @Published var dialogItem: DialogItem?
-    @Published private(set) var actionButtonState: ButtonState = .normal
-    @Published var pendingSwapId: SwapId?
+    var dialogItem: DialogItem?
+    private(set) var actionButtonState: ButtonState = .normal
+    var pendingSwapId: SwapId?
 
     var canDismissSheet: Bool = false
     

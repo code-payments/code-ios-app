@@ -12,7 +12,7 @@ import FlipcashCore
 struct CurrencySellAmountScreen: View {
     @ObservedObject private var viewModel: CurrencySellViewModel
     @Environment(\.dismiss) var dismissAction: DismissAction
-    @EnvironmentObject private var ratesController: RatesController
+    @Environment(RatesController.self) private var ratesController
 
     @State private var isShowingCurrencySelection: Bool = false
 

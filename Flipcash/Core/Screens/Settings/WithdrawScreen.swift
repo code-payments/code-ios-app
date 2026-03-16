@@ -13,8 +13,8 @@ struct WithdrawScreen: View {
 
     @Binding var isPresented: Bool
 
-    @EnvironmentObject private var session: Session
-    @EnvironmentObject private var ratesController: RatesController
+    @Environment(Session.self) private var session
+    @Environment(RatesController.self) private var ratesController
 
     @StateObject private var viewModel: WithdrawViewModel
 

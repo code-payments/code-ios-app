@@ -12,17 +12,15 @@ import FlipcashCore
 @available(*, deprecated, renamed: "RegionSelectionScreen")
 struct CurrencySelectionScreen: View {
     
-    @StateObject private var viewModel: CurrencySelectionViewModel
-    
+    @State private var viewModel: CurrencySelectionViewModel
+
     // MARK: - Init -
-    
+
     init(isPresented: Binding<Bool>, kind: CurrencySelectionType, ratesController: RatesController) {
-        self._viewModel = StateObject(
-            wrappedValue: CurrencySelectionViewModel(
-                isPresented: isPresented,
-                kind: kind,
-                ratesController: ratesController
-            )
+        self.viewModel = CurrencySelectionViewModel(
+            isPresented: isPresented,
+            kind: kind,
+            ratesController: ratesController
         )
     }
     

@@ -13,11 +13,11 @@ struct BalanceScreen: View {
     
     @Binding var isPresented: Bool
     
-    @EnvironmentObject private var ratesController: RatesController
-    @EnvironmentObject private var historyController: HistoryController
-    @EnvironmentObject private var notificationController: NotificationController
+    @Environment(RatesController.self) private var ratesController
+    @Environment(HistoryController.self) private var historyController
+    @Environment(NotificationController.self) private var notificationController
     
-    @ObservedObject private var session: Session
+    let session: Session
     
     @State private var isShowingCurrencySelection: Bool  = false
     @State private var dialogItem: DialogItem?

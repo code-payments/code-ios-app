@@ -11,15 +11,15 @@ import FlipcashCore
 
 struct ScanScreen: View {
     
-    @EnvironmentObject private var sessionAuthenticator: SessionAuthenticator
-    @EnvironmentObject private var preferences: Preferences
-    @EnvironmentObject private var betaFlags: BetaFlags
+    @Environment(SessionAuthenticator.self) private var sessionAuthenticator
+    @Environment(Preferences.self) private var preferences
+    @Environment(BetaFlags.self) private var betaFlags
     
-    @ObservedObject private var session: Session
+    @Bindable private var session: Session
     
-    @StateObject private var viewModel: ScanViewModel
-    
-    @StateObject private var giveViewModel: GiveViewModel
+    @State private var viewModel: ScanViewModel
+
+    @State private var giveViewModel: GiveViewModel
     
     @State private var cameraAuthorizer = CameraAuthorizer()
     
@@ -66,18 +66,14 @@ struct ScanScreen: View {
         self.sessionContainer = sessionContainer
         self.session          = sessionContainer.session
         
-        _viewModel = .init(
-            wrappedValue: ScanViewModel(
-                container: container,
-                sessionContainer: sessionContainer
-            )
+        self.viewModel = ScanViewModel(
+            container: container,
+            sessionContainer: sessionContainer
         )
-        
-        _giveViewModel = .init(
-            wrappedValue: GiveViewModel(
-                container: container,
-                sessionContainer: sessionContainer
-            )
+
+        self.giveViewModel = GiveViewModel(
+            container: container,
+            sessionContainer: sessionContainer
         )
     }
     
@@ -176,9 +172,6 @@ struct ScanScreen: View {
         )
         .allowsHitTesting(session.presentationState.isPresenting)
         .edgesIgnoringSafeArea(.all)
-//        .onChange(of: notificationController.willResignActive) { [weak session] _ in
-//            session?.willResignActive()
-//        }
     }
     
     private func preferredCanvasSize() -> CGSize {

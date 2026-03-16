@@ -10,15 +10,15 @@ import FlipcashUI
 import FlipcashCore
 import Combine
 
-@MainActor
-class ScanViewModel: ObservableObject {
-    
-    let cameraSession: CameraSession<CodeExtractor>
-    
-    private let session: Session
-    
-    private var scannedRendezvous: Set<PublicKey> = []
-    private var cancellables: Set<AnyCancellable> = []
+@MainActor @Observable
+class ScanViewModel {
+
+    @ObservationIgnored let cameraSession: CameraSession<CodeExtractor>
+
+    @ObservationIgnored private let session: Session
+
+    @ObservationIgnored private var scannedRendezvous: Set<PublicKey> = []
+    @ObservationIgnored private var cancellables: Set<AnyCancellable> = []
     
     // MARK: - Init -
     

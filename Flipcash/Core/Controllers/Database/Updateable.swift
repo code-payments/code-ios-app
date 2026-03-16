@@ -7,48 +7,46 @@
 
 import SwiftUI
 
-class Updateable<T>: ObservableObject {
-    
-    @Published private(set) var value: T
-    
-    private let valueBlock: () -> T
-    private let didSet: (() -> Void)?
-    
+/// Auto-refreshing wrapper that re-evaluates a database query whenever
+/// `.databaseDidChange` is posted.
+///
+/// Use this to keep a view or model in sync with the local database without
+/// manual refresh calls. The ``value`` property is tracked by `@Observable`,
+/// so SwiftUI views reading it will update automatically.
+@MainActor @Observable
+class Updateable<T> {
+
+    private(set) var value: T
+
+    @ObservationIgnored private let valueBlock: () -> T
+    @ObservationIgnored private let didSet: (() -> Void)?
+    @ObservationIgnored private var observer: Any?
+
     init(_ valueBlock: @escaping () -> T, didSet: (() -> Void)? = nil) {
         self.valueBlock = valueBlock
         self.didSet = didSet
-        
+
         self.value = valueBlock()
-        
-        NotificationCenter.default.addObserver(self, selector: #selector(handleDatabaseDidChange), name: .databaseDidChange, object: nil)
+
+        self.observer = NotificationCenter.default.addObserver(
+            forName: .databaseDidChange,
+            object: nil,
+            queue: nil
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.handleDatabaseDidChange()
+            }
+        }
     }
-    
+
     deinit {
-        NotificationCenter.default.removeObserver(self, name: .databaseDidChange, object: nil)
+        if let observer {
+            NotificationCenter.default.removeObserver(observer)
+        }
     }
-    
-    @objc private func handleDatabaseDidChange() {
+
+    private func handleDatabaseDidChange() {
         value = valueBlock()
         didSet?()
-    }
-}
-
-extension Date {
-    func formattedMilliseconds(from reference: Date) -> String {
-        let delta = timeIntervalSince(reference)
-        let ms = delta * 1000
-        return String(format: "%.3f ms", ms)
-    }
-    
-    func formattedMilliseconds(from reference: Date, threshold: Double) -> String? {
-        let delta = timeIntervalSince(reference)
-        let ms = delta * 1000
-        let text = String(format: "%.3f ms", ms)
-        
-        if ms >= threshold {
-            return text
-        } else {
-            return nil
-        }
     }
 }

@@ -10,7 +10,7 @@ import FlipcashUI
 
 struct ContainerScreen: View {
     
-    @EnvironmentObject var sessionAuthenticator: SessionAuthenticator
+    @Environment(SessionAuthenticator.self) var sessionAuthenticator
     
     private let container: Container
     

@@ -46,11 +46,11 @@ class Container {
         view
             .environmentObject(client)
             .environmentObject(flipClient)
-            .environmentObject(sessionAuthenticator)
+            .environment(sessionAuthenticator)
             .environmentObject(storeController)
-            .environmentObject(betaFlags)
-            .environmentObject(preferences)
-            .environmentObject(notificationController)
+            .environment(betaFlags)
+            .environment(preferences)
+            .environment(notificationController)
     }
     
     static func configureFirebase() {

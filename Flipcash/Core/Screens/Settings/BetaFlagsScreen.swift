@@ -10,7 +10,7 @@ import FlipcashUI
 
 struct BetaFlagsScreen: View {
     
-    @ObservedObject private var betaFlags: BetaFlags
+    @Bindable private var betaFlags: BetaFlags
 
     private var options: [Option] = []
     

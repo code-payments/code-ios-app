@@ -10,8 +10,8 @@ import FlipcashUI
 import FlipcashCore
 
 struct CurrencyInfoScreen: View {
-    @StateObject private var viewModel: CurrencyInfoViewModel
-    @StateObject private var giveViewModel: GiveViewModel
+    @State private var viewModel: CurrencyInfoViewModel
+    @State private var giveViewModel: GiveViewModel
 
     @Environment(\.dismiss) private var dismiss
 
@@ -26,8 +26,8 @@ struct CurrencyInfoScreen: View {
     /// an intermediate pop animation.
     @State private var isShowingGive: Bool = false
 
-    @ObservedObject private var session: Session
-    @StateObject private var currencyBuyViewModel: CurrencyBuyViewModel
+    let session: Session
+    @State private var currencyBuyViewModel: CurrencyBuyViewModel
     @State private var currencySellViewModel: CurrencySellViewModel?
 
     private var mintMetadata: StoredMintMetadata? {
@@ -119,22 +119,20 @@ struct CurrencyInfoScreen: View {
         self.sessionContainer    = sessionContainer
         self.showFundingOnAppear = showFundingOnAppear
 
-        _viewModel = .init(wrappedValue: CurrencyInfoViewModel(
+        self.viewModel = CurrencyInfoViewModel(
             mint: mint,
             sessionContainer: sessionContainer
-        ))
+        )
 
-        _giveViewModel = .init(wrappedValue: GiveViewModel(
+        self.giveViewModel = GiveViewModel(
             container: container,
             sessionContainer: sessionContainer
-        ))
+        )
 
-        _currencyBuyViewModel = .init(
-            wrappedValue: CurrencyBuyViewModel(
-                currencyPublicKey: mint,
-                container: container,
-                sessionContainer: sessionContainer
-            )
+        self.currencyBuyViewModel = CurrencyBuyViewModel(
+            currencyPublicKey: mint,
+            container: container,
+            sessionContainer: sessionContainer
         )
 
         self.marketCapController = MarketCapController(
