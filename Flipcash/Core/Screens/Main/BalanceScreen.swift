@@ -14,7 +14,7 @@ struct BalanceScreen: View {
     @Binding var isPresented: Bool
     
     @EnvironmentObject private var ratesController: RatesController
-    @EnvironmentObject private var historyController: HistoryController
+    @Environment(HistoryController.self) private var historyController
     @EnvironmentObject private var notificationController: NotificationController
     
     @ObservedObject private var session: Session

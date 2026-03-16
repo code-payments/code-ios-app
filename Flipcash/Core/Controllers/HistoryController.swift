@@ -8,14 +8,18 @@
 import Foundation
 import FlipcashCore
 
-@MainActor
-class HistoryController: ObservableObject {
-    
-//    @Published var activities: [Activity] = []
-    
-    private let client: FlipClient
-    private let database: Database
-    private let owner: AccountCluster
+/// Synchronizes transaction history from the server into the local database.
+///
+/// On init, fetches any new activities since the last known ID (delta sync)
+/// and resolves pending transactions. Call ``sync()`` to trigger a manual refresh.
+///
+/// Inject via `@Environment(HistoryController.self)`.
+@MainActor @Observable
+class HistoryController {
+
+    @ObservationIgnored private let client: FlipClient
+    @ObservationIgnored private let database: Database
+    @ObservationIgnored private let owner: AccountCluster
     
     private var ownerKeyPair: KeyPair {
         owner.authority.keyPair
@@ -75,7 +79,7 @@ class HistoryController: ObservableObject {
             
             if !activities.isEmpty {
                 container.append(contentsOf: activities)
-                cursor = activities.last!.id
+                cursor = activities.last?.id
             }
             
             hasMore = activities.count == pageSize

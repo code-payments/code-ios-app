@@ -376,7 +376,7 @@ struct SessionContainer {
         view
             .environmentObject(session)
             .environmentObject(ratesController)
-            .environmentObject(historyController)
+            .environment(historyController)
             .environment(pushController)
             .environment(walletConnection)
     }
