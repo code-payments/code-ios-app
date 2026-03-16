@@ -1118,12 +1118,19 @@ class Session: ObservableObject {
                     return
                 }
                 
-                // Fetch the mint metadata. We'll need it to create
+                // Resolve the mint metadata. We'll need it to create
                 // the account cluster. Authority, address and duration
-                // can all be different across VMs
-                let vmMint       = giftCardAccountInfo.mint
-                let mintMetadata = try await fetchMintMetadata(mint: vmMint)
-                let vmAuthority  = mintMetadata.vmAuthority
+                // can all be different across VMs.
+                // Prefer inline metadata from the account info response
+                // to avoid an extra network round-trip.
+                let vmMint = giftCardAccountInfo.mint
+                let vmAuthority: PublicKey?
+                if let inlineMint = giftCardAccountInfo.mintMetadata {
+                    vmAuthority = inlineMint.vmMetadata?.authority
+                } else {
+                    let mintMetadata = try await fetchMintMetadata(mint: vmMint)
+                    vmAuthority = mintMetadata.vmAuthority
+                }
                 
                 guard let vmAuthority else {
                     throw Error.vmMetadataMissing

@@ -11,7 +11,7 @@ import FlipcashAPI
 public struct StreamMessage: Sendable {
     public enum Kind: Sendable {
         case paymentRequest(PaymentRequest)
-        case requestToGiveBill(PublicKey, Ocp_Transaction_V1_VerifiedExchangeData?)
+        case requestToGiveBill(PublicKey, Ocp_Transaction_V1_VerifiedExchangeData?, MintMetadata?)
     }
     
     public let id: ID
@@ -45,12 +45,17 @@ extension StreamMessage {
     }
 
     public var giveVerifiedState: VerifiedState? {
-        guard case .requestToGiveBill(_, let exchangeData) = kind,
+        guard case .requestToGiveBill(_, let exchangeData, _) = kind,
               let exchangeData else { return nil }
         return VerifiedState(
             rateProto: exchangeData.coreMintFiatExchangeRate,
             reserveProto: exchangeData.hasLaunchpadCurrencyReserveState ? exchangeData.launchpadCurrencyReserveState : nil
         )
+    }
+
+    public var giveMintMetadata: MintMetadata? {
+        guard case .requestToGiveBill(_, _, let mintMetadata) = kind else { return nil }
+        return mintMetadata
     }
 }
 
@@ -73,7 +78,13 @@ extension StreamMessage {
         case .requestToGiveBill(let request):
             let mint = try PublicKey(request.mint.value)
             let exchangeData = request.hasExchangeData ? request.exchangeData : nil
-            self.kind = .requestToGiveBill(mint, exchangeData)
+            let mintMetadata: MintMetadata?
+            if case .requestToGiveBill(let context) = message.additionalContext.type, context.hasMintMetadata {
+                mintMetadata = try? MintMetadata(context.mintMetadata)
+            } else {
+                mintMetadata = nil
+            }
+            self.kind = .requestToGiveBill(mint, exchangeData, mintMetadata)
             
         default:
             throw Error.messageNotSupported

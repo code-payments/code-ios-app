@@ -61,9 +61,13 @@ public struct AccountInfo: Equatable, Sendable {
     /// appreciation/depreciation
     public var usdCostBasis: Double
 
+    /// Mint metadata provided by the server, when available.
+    /// Avoids a separate `fetchMints` call for new currencies.
+    public var mintMetadata: MintMetadata?
+
     // MARK: - Init -
 
-    init(address: PublicKey, mint: PublicKey, owner: PublicKey?, authority: PublicKey?, balanceSource: BalanceSource, quarks: UInt64, managementState: ManagementState, blockchainState: BlockchainState, claimState: ClaimState, exchangedFiat: ExchangedFiat?, nextPoolIndex: Int?, usdCostBasis: Double) {
+    init(address: PublicKey, mint: PublicKey, owner: PublicKey?, authority: PublicKey?, balanceSource: BalanceSource, quarks: UInt64, managementState: ManagementState, blockchainState: BlockchainState, claimState: ClaimState, exchangedFiat: ExchangedFiat?, nextPoolIndex: Int?, usdCostBasis: Double, mintMetadata: MintMetadata? = nil) {
         self.address         = address
         self.mint            = mint
         self.owner           = owner
@@ -76,6 +80,7 @@ public struct AccountInfo: Equatable, Sendable {
         self.exchangedFiat   = exchangedFiat
         self.nextPoolIndex   = nextPoolIndex
         self.usdCostBasis    = usdCostBasis
+        self.mintMetadata    = mintMetadata
     }
 }
 
@@ -226,6 +231,13 @@ extension AccountInfo {
             exchangedFiat = nil
         }
         
+        let mintMetadata: MintMetadata?
+        if info.hasMintMetadata {
+            mintMetadata = try? MintMetadata(info.mintMetadata)
+        } else {
+            mintMetadata = nil
+        }
+
         self.init(
             address: try PublicKey(info.address.value),
             mint: try PublicKey(info.mint.value),
@@ -238,7 +250,8 @@ extension AccountInfo {
             claimState: claimState,
             exchangedFiat: exchangedFiat,
             nextPoolIndex: nil,
-            usdCostBasis: info.usdCostBasis
+            usdCostBasis: info.usdCostBasis,
+            mintMetadata: mintMetadata
         )
     }
 }
