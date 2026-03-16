@@ -184,6 +184,8 @@ class Session: ObservableObject {
         Updateable { [weak self] in
             (try? self?.database.getBalances()) ?? []
         } didSet: { [weak self] in
+            // TODO: Remove objectWillChange.send() after Session migrates to @Observable
+            self?.objectWillChange.send()
             self?.ensureValidTokenSelection()
             self?.updateStreamingMints()
         }
@@ -192,6 +194,9 @@ class Session: ObservableObject {
     private lazy var updateableLimits: Updateable<Limits?> = {
         Updateable { [weak self] in
             try? self?.database.getLimits()
+        } didSet: { [weak self] in
+            // TODO: Remove objectWillChange.send() after Session migrates to @Observable
+            self?.objectWillChange.send()
         }
     }()
 

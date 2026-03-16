@@ -31,11 +31,17 @@ class Updateable<T> {
         self.observer = NotificationCenter.default.addObserver(
             forName: .databaseDidChange,
             object: nil,
-            queue: .main
+            queue: nil
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.handleDatabaseDidChange()
             }
+        }
+    }
+
+    deinit {
+        if let observer {
+            NotificationCenter.default.removeObserver(observer)
         }
     }
 

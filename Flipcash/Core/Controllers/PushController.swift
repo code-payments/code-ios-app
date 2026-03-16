@@ -53,7 +53,7 @@ class PushController {
         activeObserver = NotificationCenter.default.addObserver(
             forName: UIApplication.didBecomeActiveNotification,
             object: nil,
-            queue: .main
+            queue: nil
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
                 await self?.refreshAuthorizationStatus()
@@ -69,6 +69,12 @@ class PushController {
             if authorizationStatus != .notDetermined {
                 registerAPNS()
             }
+        }
+    }
+
+    deinit {
+        if let activeObserver {
+            NotificationCenter.default.removeObserver(activeObserver)
         }
     }
 
