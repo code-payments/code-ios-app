@@ -244,46 +244,48 @@ public struct Ocp_Messaging_V1_AckMesssagesResponse: Sendable {
   public init() {}
 }
 
-public struct Ocp_Messaging_V1_SendMessageRequest: @unchecked Sendable {
+public struct Ocp_Messaging_V1_SendMessageRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// The message to send. Types of messages clients can send are restricted.
   public var message: Ocp_Messaging_V1_Message {
-    get {_storage._message ?? Ocp_Messaging_V1_Message()}
-    set {_uniqueStorage()._message = newValue}
+    get {_message ?? Ocp_Messaging_V1_Message()}
+    set {_message = newValue}
   }
   /// Returns true if `message` has been explicitly set.
-  public var hasMessage: Bool {_storage._message != nil}
+  public var hasMessage: Bool {self._message != nil}
   /// Clears the value of `message`. Subsequent reads from it will return its default value.
-  public mutating func clearMessage() {_uniqueStorage()._message = nil}
+  public mutating func clearMessage() {self._message = nil}
 
   /// The rendezvous key that the message should be routed to.
   public var rendezvousKey: Ocp_Messaging_V1_RendezvousKey {
-    get {_storage._rendezvousKey ?? Ocp_Messaging_V1_RendezvousKey()}
-    set {_uniqueStorage()._rendezvousKey = newValue}
+    get {_rendezvousKey ?? Ocp_Messaging_V1_RendezvousKey()}
+    set {_rendezvousKey = newValue}
   }
   /// Returns true if `rendezvousKey` has been explicitly set.
-  public var hasRendezvousKey: Bool {_storage._rendezvousKey != nil}
+  public var hasRendezvousKey: Bool {self._rendezvousKey != nil}
   /// Clears the value of `rendezvousKey`. Subsequent reads from it will return its default value.
-  public mutating func clearRendezvousKey() {_uniqueStorage()._rendezvousKey = nil}
+  public mutating func clearRendezvousKey() {self._rendezvousKey = nil}
 
   /// The signature is of serialize(Message) using the PrivateKey of the keypair.
   public var signature: Ocp_Common_V1_Signature {
-    get {_storage._signature ?? Ocp_Common_V1_Signature()}
-    set {_uniqueStorage()._signature = newValue}
+    get {_signature ?? Ocp_Common_V1_Signature()}
+    set {_signature = newValue}
   }
   /// Returns true if `signature` has been explicitly set.
-  public var hasSignature: Bool {_storage._signature != nil}
+  public var hasSignature: Bool {self._signature != nil}
   /// Clears the value of `signature`. Subsequent reads from it will return its default value.
-  public mutating func clearSignature() {_uniqueStorage()._signature = nil}
+  public mutating func clearSignature() {self._signature = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _storage = _StorageClass.defaultInstance
+  fileprivate var _message: Ocp_Messaging_V1_Message? = nil
+  fileprivate var _rendezvousKey: Ocp_Messaging_V1_RendezvousKey? = nil
+  fileprivate var _signature: Ocp_Common_V1_Signature? = nil
 }
 
 public struct Ocp_Messaging_V1_SendMessageResponse: Sendable {
@@ -399,6 +401,28 @@ public struct Ocp_Messaging_V1_RequestToGrabBill: Sendable {
   fileprivate var _requestorAccount: Ocp_Common_V1_SolanaAccountId? = nil
 }
 
+public struct Ocp_Messaging_V1_RequestToGiveBillServerContext: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Mint metadata for the bill's mint
+  public var mintMetadata: Ocp_Currency_V1_Mint {
+    get {_mintMetadata ?? Ocp_Currency_V1_Mint()}
+    set {_mintMetadata = newValue}
+  }
+  /// Returns true if `mintMetadata` has been explicitly set.
+  public var hasMintMetadata: Bool {self._mintMetadata != nil}
+  /// Clears the value of `mintMetadata`. Subsequent reads from it will return its default value.
+  public mutating func clearMintMetadata() {self._mintMetadata = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _mintMetadata: Ocp_Currency_V1_Mint? = nil
+}
+
 /// Request that a bill be given in the desired mint
 ///
 /// This message type is only initiated by clients.
@@ -437,7 +461,7 @@ public struct Ocp_Messaging_V1_RequestToGiveBill: Sendable {
   fileprivate var _exchangeData: Ocp_Transaction_V1_VerifiedExchangeData? = nil
 }
 
-public struct Ocp_Messaging_V1_Message: Sendable {
+public struct Ocp_Messaging_V1_Message: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -449,43 +473,56 @@ public struct Ocp_Messaging_V1_Message: Sendable {
   ///     1. Reserve the ability for any future ID changes
   ///     2. Prevent clients attempting to collide message IDs.
   public var id: Ocp_Messaging_V1_MessageId {
-    get {_id ?? Ocp_Messaging_V1_MessageId()}
-    set {_id = newValue}
+    get {_storage._id ?? Ocp_Messaging_V1_MessageId()}
+    set {_uniqueStorage()._id = newValue}
   }
   /// Returns true if `id` has been explicitly set.
-  public var hasID: Bool {self._id != nil}
+  public var hasID: Bool {_storage._id != nil}
   /// Clears the value of `id`. Subsequent reads from it will return its default value.
-  public mutating func clearID() {self._id = nil}
+  public mutating func clearID() {_uniqueStorage()._id = nil}
 
   /// The signature sent from SendMessageRequest, which will be injected by server.
   /// This enables clients to ensure no MITM attacks were performed to hijack contents
   /// of the typed message. This is only applicable for messages not generated by server.
   public var sendMessageRequestSignature: Ocp_Common_V1_Signature {
-    get {_sendMessageRequestSignature ?? Ocp_Common_V1_Signature()}
-    set {_sendMessageRequestSignature = newValue}
+    get {_storage._sendMessageRequestSignature ?? Ocp_Common_V1_Signature()}
+    set {_uniqueStorage()._sendMessageRequestSignature = newValue}
   }
   /// Returns true if `sendMessageRequestSignature` has been explicitly set.
-  public var hasSendMessageRequestSignature: Bool {self._sendMessageRequestSignature != nil}
+  public var hasSendMessageRequestSignature: Bool {_storage._sendMessageRequestSignature != nil}
   /// Clears the value of `sendMessageRequestSignature`. Subsequent reads from it will return its default value.
-  public mutating func clearSendMessageRequestSignature() {self._sendMessageRequestSignature = nil}
+  public mutating func clearSendMessageRequestSignature() {_uniqueStorage()._sendMessageRequestSignature = nil}
 
-  public var kind: Ocp_Messaging_V1_Message.OneOf_Kind? = nil
+  public var kind: OneOf_Kind? {
+    get {return _storage._kind}
+    set {_uniqueStorage()._kind = newValue}
+  }
 
   public var requestToGrabBill: Ocp_Messaging_V1_RequestToGrabBill {
     get {
-      if case .requestToGrabBill(let v)? = kind {return v}
+      if case .requestToGrabBill(let v)? = _storage._kind {return v}
       return Ocp_Messaging_V1_RequestToGrabBill()
     }
-    set {kind = .requestToGrabBill(newValue)}
+    set {_uniqueStorage()._kind = .requestToGrabBill(newValue)}
   }
 
   public var requestToGiveBill: Ocp_Messaging_V1_RequestToGiveBill {
     get {
-      if case .requestToGiveBill(let v)? = kind {return v}
+      if case .requestToGiveBill(let v)? = _storage._kind {return v}
       return Ocp_Messaging_V1_RequestToGiveBill()
     }
-    set {kind = .requestToGiveBill(newValue)}
+    set {_uniqueStorage()._kind = .requestToGiveBill(newValue)}
   }
+
+  /// Additional server-provided context for messages sent by client
+  public var additionalContext: Ocp_Messaging_V1_AdditionalServerContext {
+    get {_storage._additionalContext ?? Ocp_Messaging_V1_AdditionalServerContext()}
+    set {_uniqueStorage()._additionalContext = newValue}
+  }
+  /// Returns true if `additionalContext` has been explicitly set.
+  public var hasAdditionalContext: Bool {_storage._additionalContext != nil}
+  /// Clears the value of `additionalContext`. Subsequent reads from it will return its default value.
+  public mutating func clearAdditionalContext() {_uniqueStorage()._additionalContext = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -497,8 +534,32 @@ public struct Ocp_Messaging_V1_Message: Sendable {
 
   public init() {}
 
-  fileprivate var _id: Ocp_Messaging_V1_MessageId? = nil
-  fileprivate var _sendMessageRequestSignature: Ocp_Common_V1_Signature? = nil
+  fileprivate var _storage = _StorageClass.defaultInstance
+}
+
+public struct Ocp_Messaging_V1_AdditionalServerContext: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var type: Ocp_Messaging_V1_AdditionalServerContext.OneOf_Type? = nil
+
+  public var requestToGiveBill: Ocp_Messaging_V1_RequestToGiveBillServerContext {
+    get {
+      if case .requestToGiveBill(let v)? = type {return v}
+      return Ocp_Messaging_V1_RequestToGiveBillServerContext()
+    }
+    set {type = .requestToGiveBill(newValue)}
+  }
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum OneOf_Type: Equatable, Sendable {
+    case requestToGiveBill(Ocp_Messaging_V1_RequestToGiveBillServerContext)
+
+  }
+
+  public init() {}
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -854,81 +915,41 @@ extension Ocp_Messaging_V1_SendMessageRequest: SwiftProtobuf.Message, SwiftProto
   public static let protoMessageName: String = _protobuf_package + ".SendMessageRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}message\0\u{3}rendezvous_key\0\u{1}signature\0")
 
-  fileprivate class _StorageClass {
-    var _message: Ocp_Messaging_V1_Message? = nil
-    var _rendezvousKey: Ocp_Messaging_V1_RendezvousKey? = nil
-    var _signature: Ocp_Common_V1_Signature? = nil
-
-      // This property is used as the initial default value for new instances of the type.
-      // The type itself is protecting the reference to its storage via CoW semantics.
-      // This will force a copy to be made of this reference when the first mutation occurs;
-      // hence, it is safe to mark this as `nonisolated(unsafe)`.
-      static nonisolated(unsafe) let defaultInstance = _StorageClass()
-
-    private init() {}
-
-    init(copying source: _StorageClass) {
-      _message = source._message
-      _rendezvousKey = source._rendezvousKey
-      _signature = source._signature
-    }
-  }
-
-  fileprivate mutating func _uniqueStorage() -> _StorageClass {
-    if !isKnownUniquelyReferenced(&_storage) {
-      _storage = _StorageClass(copying: _storage)
-    }
-    return _storage
-  }
-
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    _ = _uniqueStorage()
-    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
-      while let fieldNumber = try decoder.nextFieldNumber() {
-        // The use of inline closures is to circumvent an issue where the compiler
-        // allocates stack space for every case branch when no optimizations are
-        // enabled. https://github.com/apple/swift-protobuf/issues/1034
-        switch fieldNumber {
-        case 1: try { try decoder.decodeSingularMessageField(value: &_storage._message) }()
-        case 2: try { try decoder.decodeSingularMessageField(value: &_storage._rendezvousKey) }()
-        case 3: try { try decoder.decodeSingularMessageField(value: &_storage._signature) }()
-        default: break
-        }
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._message) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._rendezvousKey) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._signature) }()
+      default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every if/case branch local when no optimizations
-      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-      // https://github.com/apple/swift-protobuf/issues/1182
-      try { if let v = _storage._message {
-        try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-      } }()
-      try { if let v = _storage._rendezvousKey {
-        try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-      } }()
-      try { if let v = _storage._signature {
-        try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
-      } }()
-    }
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._message {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._rendezvousKey {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._signature {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Ocp_Messaging_V1_SendMessageRequest, rhs: Ocp_Messaging_V1_SendMessageRequest) -> Bool {
-    if lhs._storage !== rhs._storage {
-      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
-        let _storage = _args.0
-        let rhs_storage = _args.1
-        if _storage._message != rhs_storage._message {return false}
-        if _storage._rendezvousKey != rhs_storage._rendezvousKey {return false}
-        if _storage._signature != rhs_storage._signature {return false}
-        return true
-      }
-      if !storagesAreEqual {return false}
-    }
+    if lhs._message != rhs._message {return false}
+    if lhs._rendezvousKey != rhs._rendezvousKey {return false}
+    if lhs._signature != rhs._signature {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1071,6 +1092,40 @@ extension Ocp_Messaging_V1_RequestToGrabBill: SwiftProtobuf.Message, SwiftProtob
   }
 }
 
+extension Ocp_Messaging_V1_RequestToGiveBillServerContext: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".RequestToGiveBillServerContext"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}mint_metadata\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._mintMetadata) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._mintMetadata {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Messaging_V1_RequestToGiveBillServerContext, rhs: Ocp_Messaging_V1_RequestToGiveBillServerContext) -> Bool {
+    if lhs._mintMetadata != rhs._mintMetadata {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 extension Ocp_Messaging_V1_RequestToGiveBill: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RequestToGiveBill"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}mint\0\u{3}exchange_data\0")
@@ -1112,7 +1167,131 @@ extension Ocp_Messaging_V1_RequestToGiveBill: SwiftProtobuf.Message, SwiftProtob
 
 extension Ocp_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Message"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}send_message_request_signature\0\u{3}request_to_grab_bill\0\u{3}request_to_give_bill\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}send_message_request_signature\0\u{3}request_to_grab_bill\0\u{3}request_to_give_bill\0\u{3}additional_context\0")
+
+  fileprivate class _StorageClass {
+    var _id: Ocp_Messaging_V1_MessageId? = nil
+    var _sendMessageRequestSignature: Ocp_Common_V1_Signature? = nil
+    var _kind: Ocp_Messaging_V1_Message.OneOf_Kind?
+    var _additionalContext: Ocp_Messaging_V1_AdditionalServerContext? = nil
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _id = source._id
+      _sendMessageRequestSignature = source._sendMessageRequestSignature
+      _kind = source._kind
+      _additionalContext = source._additionalContext
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularMessageField(value: &_storage._id) }()
+        case 2: try { try decoder.decodeSingularMessageField(value: &_storage._sendMessageRequestSignature) }()
+        case 3: try {
+          var v: Ocp_Messaging_V1_RequestToGrabBill?
+          var hadOneofValue = false
+          if let current = _storage._kind {
+            hadOneofValue = true
+            if case .requestToGrabBill(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._kind = .requestToGrabBill(v)
+          }
+        }()
+        case 4: try {
+          var v: Ocp_Messaging_V1_RequestToGiveBill?
+          var hadOneofValue = false
+          if let current = _storage._kind {
+            hadOneofValue = true
+            if case .requestToGiveBill(let m) = current {v = m}
+          }
+          try decoder.decodeSingularMessageField(value: &v)
+          if let v = v {
+            if hadOneofValue {try decoder.handleConflictingOneOf()}
+            _storage._kind = .requestToGiveBill(v)
+          }
+        }()
+        case 5: try { try decoder.decodeSingularMessageField(value: &_storage._additionalContext) }()
+        default: break
+        }
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      try { if let v = _storage._id {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+      } }()
+      try { if let v = _storage._sendMessageRequestSignature {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+      } }()
+      switch _storage._kind {
+      case .requestToGrabBill?: try {
+        guard case .requestToGrabBill(let v)? = _storage._kind else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+      }()
+      case .requestToGiveBill?: try {
+        guard case .requestToGiveBill(let v)? = _storage._kind else { preconditionFailure() }
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+      }()
+      case nil: break
+      }
+      try { if let v = _storage._additionalContext {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+      } }()
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Messaging_V1_Message, rhs: Ocp_Messaging_V1_Message) -> Bool {
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._id != rhs_storage._id {return false}
+        if _storage._sendMessageRequestSignature != rhs_storage._sendMessageRequestSignature {return false}
+        if _storage._kind != rhs_storage._kind {return false}
+        if _storage._additionalContext != rhs_storage._additionalContext {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Messaging_V1_AdditionalServerContext: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".AdditionalServerContext"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}request_to_give_bill\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1120,32 +1299,17 @@ extension Ocp_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._Messag
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._id) }()
-      case 2: try { try decoder.decodeSingularMessageField(value: &self._sendMessageRequestSignature) }()
-      case 3: try {
-        var v: Ocp_Messaging_V1_RequestToGrabBill?
+      case 1: try {
+        var v: Ocp_Messaging_V1_RequestToGiveBillServerContext?
         var hadOneofValue = false
-        if let current = self.kind {
-          hadOneofValue = true
-          if case .requestToGrabBill(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.kind = .requestToGrabBill(v)
-        }
-      }()
-      case 4: try {
-        var v: Ocp_Messaging_V1_RequestToGiveBill?
-        var hadOneofValue = false
-        if let current = self.kind {
+        if let current = self.type {
           hadOneofValue = true
           if case .requestToGiveBill(let m) = current {v = m}
         }
         try decoder.decodeSingularMessageField(value: &v)
         if let v = v {
           if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.kind = .requestToGiveBill(v)
+          self.type = .requestToGiveBill(v)
         }
       }()
       default: break
@@ -1158,30 +1322,14 @@ extension Ocp_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._Messag
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
     // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._id {
+    try { if case .requestToGiveBill(let v)? = self.type {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
     } }()
-    try { if let v = self._sendMessageRequestSignature {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-    } }()
-    switch self.kind {
-    case .requestToGrabBill?: try {
-      guard case .requestToGrabBill(let v)? = self.kind else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
-    }()
-    case .requestToGiveBill?: try {
-      guard case .requestToGiveBill(let v)? = self.kind else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
-    }()
-    case nil: break
-    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Ocp_Messaging_V1_Message, rhs: Ocp_Messaging_V1_Message) -> Bool {
-    if lhs._id != rhs._id {return false}
-    if lhs._sendMessageRequestSignature != rhs._sendMessageRequestSignature {return false}
-    if lhs.kind != rhs.kind {return false}
+  public static func ==(lhs: Ocp_Messaging_V1_AdditionalServerContext, rhs: Ocp_Messaging_V1_AdditionalServerContext) -> Bool {
+    if lhs.type != rhs.type {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

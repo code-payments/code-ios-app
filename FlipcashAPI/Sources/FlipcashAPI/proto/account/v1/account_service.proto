@@ -7,6 +7,7 @@ option java_package = "com.codeinc.gen.account.v1";
 option objc_class_prefix = "CPBAccountV1";
 
 import "common/v1/model.proto";
+import "currency/v1/currency_service.proto";
 import "transaction/v1/transaction_service.proto";
 import "google/protobuf/timestamp.proto";
 import "validate/validate.proto";
@@ -192,6 +193,12 @@ message TokenAccountInfo {
 
     // The token account's mint
     common.v1.SolanaAccountId mint = 12;
+
+    // Mint metadata for the token account's mint
+    currency.v1.Mint mint_metadata = 16;
+
+    // Live mint reserve state, if applicable
+    currency.v1.VerifiedLaunchpadCurrencyReserveState live_reserve_state = 17;
 
     // Time the account was created, if available. For OCP accounts, this is
     // the time of intent submission. Otherwise, for external accounts, it is

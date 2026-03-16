@@ -20,6 +20,7 @@ xcuserdata
 *.xccheckout
 *.xcuserstate
 *.xcscmblueprint
+*.atelier
 
 ## Obj-C/Swift specific
 *.hmap

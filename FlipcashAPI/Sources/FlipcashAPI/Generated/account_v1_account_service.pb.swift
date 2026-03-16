@@ -372,6 +372,26 @@ public struct Ocp_Account_V1_TokenAccountInfo: @unchecked Sendable {
   /// Clears the value of `mint`. Subsequent reads from it will return its default value.
   public mutating func clearMint() {_uniqueStorage()._mint = nil}
 
+  /// Mint metadata for the token account's mint
+  public var mintMetadata: Ocp_Currency_V1_Mint {
+    get {_storage._mintMetadata ?? Ocp_Currency_V1_Mint()}
+    set {_uniqueStorage()._mintMetadata = newValue}
+  }
+  /// Returns true if `mintMetadata` has been explicitly set.
+  public var hasMintMetadata: Bool {_storage._mintMetadata != nil}
+  /// Clears the value of `mintMetadata`. Subsequent reads from it will return its default value.
+  public mutating func clearMintMetadata() {_uniqueStorage()._mintMetadata = nil}
+
+  /// Live mint reserve state, if applicable
+  public var liveReserveState: Ocp_Currency_V1_VerifiedLaunchpadCurrencyReserveState {
+    get {_storage._liveReserveState ?? Ocp_Currency_V1_VerifiedLaunchpadCurrencyReserveState()}
+    set {_uniqueStorage()._liveReserveState = newValue}
+  }
+  /// Returns true if `liveReserveState` has been explicitly set.
+  public var hasLiveReserveState: Bool {_storage._liveReserveState != nil}
+  /// Clears the value of `liveReserveState`. Subsequent reads from it will return its default value.
+  public mutating func clearLiveReserveState() {_uniqueStorage()._liveReserveState = nil}
+
   /// Time the account was created, if available. For OCP accounts, this is
   /// the time of intent submission. Otherwise, for external accounts, it is
   /// the time created on the blockchain.
@@ -845,7 +865,7 @@ extension Ocp_Account_V1_GetTokenAccountInfosResponse.Result: SwiftProtobuf._Pro
 
 extension Ocp_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".TokenAccountInfo"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}address\0\u{1}owner\0\u{1}authority\0\u{3}account_type\0\u{1}index\0\u{3}balance_source\0\u{1}balance\0\u{3}management_state\0\u{3}blockchain_state\0\u{3}claim_state\0\u{3}original_exchange_data\0\u{1}mint\0\u{3}created_at\0\u{3}is_gift_card_issuer\0\u{3}usd_cost_basis\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}address\0\u{1}owner\0\u{1}authority\0\u{3}account_type\0\u{1}index\0\u{3}balance_source\0\u{1}balance\0\u{3}management_state\0\u{3}blockchain_state\0\u{3}claim_state\0\u{3}original_exchange_data\0\u{1}mint\0\u{3}created_at\0\u{3}is_gift_card_issuer\0\u{3}usd_cost_basis\0\u{3}mint_metadata\0\u{3}live_reserve_state\0")
 
   fileprivate class _StorageClass {
     var _address: Ocp_Common_V1_SolanaAccountId? = nil
@@ -860,6 +880,8 @@ extension Ocp_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf.
     var _claimState: Ocp_Account_V1_TokenAccountInfo.ClaimState = .unknown
     var _originalExchangeData: Ocp_Transaction_V1_ExchangeData? = nil
     var _mint: Ocp_Common_V1_SolanaAccountId? = nil
+    var _mintMetadata: Ocp_Currency_V1_Mint? = nil
+    var _liveReserveState: Ocp_Currency_V1_VerifiedLaunchpadCurrencyReserveState? = nil
     var _createdAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
     var _isGiftCardIssuer: Bool = false
     var _usdCostBasis: Double = 0
@@ -885,6 +907,8 @@ extension Ocp_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf.
       _claimState = source._claimState
       _originalExchangeData = source._originalExchangeData
       _mint = source._mint
+      _mintMetadata = source._mintMetadata
+      _liveReserveState = source._liveReserveState
       _createdAt = source._createdAt
       _isGiftCardIssuer = source._isGiftCardIssuer
       _usdCostBasis = source._usdCostBasis
@@ -921,6 +945,8 @@ extension Ocp_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf.
         case 13: try { try decoder.decodeSingularMessageField(value: &_storage._createdAt) }()
         case 14: try { try decoder.decodeSingularBoolField(value: &_storage._isGiftCardIssuer) }()
         case 15: try { try decoder.decodeSingularDoubleField(value: &_storage._usdCostBasis) }()
+        case 16: try { try decoder.decodeSingularMessageField(value: &_storage._mintMetadata) }()
+        case 17: try { try decoder.decodeSingularMessageField(value: &_storage._liveReserveState) }()
         default: break
         }
       }
@@ -978,6 +1004,12 @@ extension Ocp_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf.
       if _storage._usdCostBasis.bitPattern != 0 {
         try visitor.visitSingularDoubleField(value: _storage._usdCostBasis, fieldNumber: 15)
       }
+      try { if let v = _storage._mintMetadata {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 16)
+      } }()
+      try { if let v = _storage._liveReserveState {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 17)
+      } }()
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -999,6 +1031,8 @@ extension Ocp_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf.
         if _storage._claimState != rhs_storage._claimState {return false}
         if _storage._originalExchangeData != rhs_storage._originalExchangeData {return false}
         if _storage._mint != rhs_storage._mint {return false}
+        if _storage._mintMetadata != rhs_storage._mintMetadata {return false}
+        if _storage._liveReserveState != rhs_storage._liveReserveState {return false}
         if _storage._createdAt != rhs_storage._createdAt {return false}
         if _storage._isGiftCardIssuer != rhs_storage._isGiftCardIssuer {return false}
         if _storage._usdCostBasis != rhs_storage._usdCostBasis {return false}
