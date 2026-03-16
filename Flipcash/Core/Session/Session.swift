@@ -184,7 +184,6 @@ class Session: ObservableObject {
         Updateable { [weak self] in
             (try? self?.database.getBalances()) ?? []
         } didSet: { [weak self] in
-            self?.objectWillChange.send()
             self?.ensureValidTokenSelection()
             self?.updateStreamingMints()
         }
@@ -193,8 +192,6 @@ class Session: ObservableObject {
     private lazy var updateableLimits: Updateable<Limits?> = {
         Updateable { [weak self] in
             try? self?.database.getLimits()
-        } didSet: { [weak self] in
-            self?.objectWillChange.send()
         }
     }()
 
