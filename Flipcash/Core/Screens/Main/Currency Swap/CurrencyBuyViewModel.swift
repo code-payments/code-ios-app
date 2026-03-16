@@ -9,12 +9,12 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-@MainActor
-class CurrencyBuyViewModel: ObservableObject {
-    @Published var actionButtonState: ButtonState = .normal
-    @Published var enteredAmount: String = ""
-    @Published var dialogItem: DialogItem?
-    @Published var path: [CurrencyBuyPath] = []
+@MainActor @Observable
+class CurrencyBuyViewModel {
+    var actionButtonState: ButtonState = .normal
+    var enteredAmount: String = ""
+    var dialogItem: DialogItem?
+    var path: [CurrencyBuyPath] = []
         
     var enteredFiat: ExchangedFiat? {
         guard !enteredAmount.isEmpty else {
@@ -85,9 +85,9 @@ class CurrencyBuyViewModel: ObservableObject {
         return balance.computeExchangedValue(with: entryRate)
     }
     
-    private let session: Session
-    private let ratesController: RatesController
-    private let destination: PublicKey
+    @ObservationIgnored private let session: Session
+    @ObservationIgnored private let ratesController: RatesController
+    @ObservationIgnored private let destination: PublicKey
 
     // MARK: - Init -
 

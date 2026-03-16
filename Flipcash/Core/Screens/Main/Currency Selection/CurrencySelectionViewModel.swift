@@ -9,16 +9,16 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-@MainActor
-class CurrencySelectionViewModel: ObservableObject {
-    
-    @Published var availableCurrencies: [CurrencyDescription] = []
-    @Published var availableRecentCurrencies: [CurrencyDescription] = []
-    
-    @Published var searchText = ""
-    @Published var isFocused = false
-    
-    var isPresented: Binding<Bool>
+@MainActor @Observable
+class CurrencySelectionViewModel {
+
+    var availableCurrencies: [CurrencyDescription] = []
+    var availableRecentCurrencies: [CurrencyDescription] = []
+
+    var searchText = ""
+    var isFocused = false
+
+    @ObservationIgnored var isPresented: Binding<Bool>
     
     var isSearching: Bool {
         !searchText.isEmpty
@@ -31,10 +31,10 @@ class CurrencySelectionViewModel: ObservableObject {
         }
     }
     
-    private let kind: CurrencySelectionType
-    private let ratesController: RatesController
-    private let currencies: [CurrencyDescription]
-    private var recentCurrencies: Set<CurrencyCode>
+    @ObservationIgnored private let kind: CurrencySelectionType
+    @ObservationIgnored private let ratesController: RatesController
+    @ObservationIgnored private let currencies: [CurrencyDescription]
+    @ObservationIgnored private var recentCurrencies: Set<CurrencyCode>
     
     // MARK: - Init -
     

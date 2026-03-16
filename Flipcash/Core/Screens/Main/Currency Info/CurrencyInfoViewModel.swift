@@ -8,8 +8,8 @@
 import SwiftUI
 import FlipcashCore
 
-@MainActor
-class CurrencyInfoViewModel: ObservableObject {
+@MainActor @Observable
+class CurrencyInfoViewModel {
 
     enum LoadingState {
         case loading
@@ -22,9 +22,9 @@ class CurrencyInfoViewModel: ObservableObject {
         case networkError
     }
 
-    @Published private(set) var loadingState: LoadingState = .loading
+    private(set) var loadingState: LoadingState = .loading
 
-    private var updateableMint: Updateable<StoredMintMetadata>?
+    @ObservationIgnored private var updateableMint: Updateable<StoredMintMetadata>?
 
     var mintMetadata: StoredMintMetadata? {
         switch loadingState {
@@ -40,9 +40,9 @@ class CurrencyInfoViewModel: ObservableObject {
         return false
     }
 
-    private let mint: PublicKey
-    private let session: Session
-    private let database: Database
+    @ObservationIgnored private let mint: PublicKey
+    @ObservationIgnored private let session: Session
+    @ObservationIgnored private let database: Database
 
     init(mint: PublicKey, sessionContainer: SessionContainer) {
         self.mint = mint

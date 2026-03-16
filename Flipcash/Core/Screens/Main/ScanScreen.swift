@@ -17,9 +17,9 @@ struct ScanScreen: View {
     
     @Bindable private var session: Session
     
-    @StateObject private var viewModel: ScanViewModel
-    
-    @StateObject private var giveViewModel: GiveViewModel
+    @State private var viewModel: ScanViewModel
+
+    @State private var giveViewModel: GiveViewModel
     
     @State private var cameraAuthorizer = CameraAuthorizer()
     
@@ -66,18 +66,14 @@ struct ScanScreen: View {
         self.sessionContainer = sessionContainer
         self.session          = sessionContainer.session
         
-        _viewModel = .init(
-            wrappedValue: ScanViewModel(
-                container: container,
-                sessionContainer: sessionContainer
-            )
+        self.viewModel = ScanViewModel(
+            container: container,
+            sessionContainer: sessionContainer
         )
-        
-        _giveViewModel = .init(
-            wrappedValue: GiveViewModel(
-                container: container,
-                sessionContainer: sessionContainer
-            )
+
+        self.giveViewModel = GiveViewModel(
+            container: container,
+            sessionContainer: sessionContainer
         )
     }
     

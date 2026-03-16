@@ -18,9 +18,12 @@
 | **Tier 2: RatesController** | ✅ Done | `f983b7a6` |
 | **Tier 2: Simplify fixes** | ✅ Done | `5b9c618b` |
 | **Tier 3: Session** | ✅ Done | `d22a0c8a` |
-| **Tier 3: SessionAuthenticator** | ✅ Done (pending commit) | — |
-| **Tier 4: NotificationController** | ⬜ Not started | — |
-| **Tier 4: ViewModels** | ⬜ Not started | — |
+| **Tier 3: SessionAuthenticator** | ✅ Done | `f1b32892` |
+| **Tier 4: NotificationController** | ✅ Done | `378da6ae` |
+| **Tier 4: ViewModels (7 low-risk)** | ✅ Done (pending commit) | — |
+| **Tier 4: OnrampViewModel** | ⬜ Not started (medium risk) | — |
+| **Tier 4: WithdrawViewModel** | ⬜ Not started (medium risk) | — |
+| **Tier 4: CurrencySellViewModel** | ⬜ Not started | — |
 
 ### Lessons Learned in Tier 3
 - `lazy var` is incompatible with `@Observable` — the macro transforms stored properties into computed, which conflicts with `lazy`. Use IUOs (`Type!`) initialized in `init` instead

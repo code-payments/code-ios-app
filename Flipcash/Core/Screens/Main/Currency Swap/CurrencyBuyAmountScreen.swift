@@ -10,7 +10,7 @@ import FlipcashUI
 import FlipcashCore
 
 struct CurrencyBuyAmountScreen: View {
-    @ObservedObject private var viewModel: CurrencyBuyViewModel
+    @Bindable private var viewModel: CurrencyBuyViewModel
     @Environment(\.dismiss) var dismissAction: DismissAction
     @Environment(RatesController.self) private var ratesController
 

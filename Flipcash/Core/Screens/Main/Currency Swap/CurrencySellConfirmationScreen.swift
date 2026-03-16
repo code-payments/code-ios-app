@@ -14,7 +14,7 @@ struct CurrencySellConfirmationScreen: View {
     let amount: ExchangedFiat
     @Binding var path: [CurrencySellPath]
 
-    @StateObject private var viewModel: CurrencySellConfirmationViewModel
+    @State private var viewModel: CurrencySellConfirmationViewModel
 
     @Environment(Session.self) private var session
 
@@ -24,7 +24,7 @@ struct CurrencySellConfirmationScreen: View {
         self.mint = mint
         self.amount = amount
         self._path = path
-        self._viewModel = StateObject(wrappedValue: CurrencySellConfirmationViewModel(mint: mint, amount: amount))
+        self.viewModel = CurrencySellConfirmationViewModel(mint: mint, amount: amount)
     }
         
     var body: some View {

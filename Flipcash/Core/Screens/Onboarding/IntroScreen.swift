@@ -17,12 +17,12 @@ struct IntroScreen: View {
     @State private var isShowingPrivacyPolicy  = false
     @State private var isShowingTermsOfService = false
     
-    @StateObject private var viewModel: OnboardingViewModel
-    
+    @State private var viewModel: OnboardingViewModel
+
     // MARK: - Init -
-    
+
     init(container: Container) {
-        _viewModel = StateObject(wrappedValue: OnboardingViewModel(container: container))
+        self.viewModel = OnboardingViewModel(container: container)
     }
     
     // MARK: - Body -
