@@ -15,7 +15,7 @@ struct BalanceScreen: View {
     
     @Environment(RatesController.self) private var ratesController
     @Environment(HistoryController.self) private var historyController
-    @EnvironmentObject private var notificationController: NotificationController
+    @Environment(NotificationController.self) private var notificationController
     
     let session: Session
     

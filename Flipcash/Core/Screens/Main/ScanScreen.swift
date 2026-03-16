@@ -176,9 +176,6 @@ struct ScanScreen: View {
         )
         .allowsHitTesting(session.presentationState.isPresenting)
         .edgesIgnoringSafeArea(.all)
-//        .onChange(of: notificationController.willResignActive) { [weak session] _ in
-//            session?.willResignActive()
-//        }
     }
     
     private func preferredCanvasSize() -> CGSize {

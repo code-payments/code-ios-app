@@ -11,7 +11,7 @@ import FlipcashCore
 
 struct ConfirmPhoneScreen: View {
     
-    @EnvironmentObject private var notificationController: NotificationController
+    @Environment(NotificationController.self) private var notificationController
 
     @StateObject private var timer = CountdownTimer(seconds: 60)
     

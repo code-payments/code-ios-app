@@ -50,7 +50,7 @@ class Container {
             .environmentObject(storeController)
             .environment(betaFlags)
             .environment(preferences)
-            .environmentObject(notificationController)
+            .environment(notificationController)
     }
     
     static func configureFirebase() {
