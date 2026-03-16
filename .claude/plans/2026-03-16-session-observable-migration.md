@@ -20,7 +20,7 @@
 | **Tier 3: Session** | ✅ Done | `d22a0c8a` |
 | **Tier 3: SessionAuthenticator** | ✅ Done | `f1b32892` |
 | **Tier 4: NotificationController** | ✅ Done | `378da6ae` |
-| **Tier 4: ViewModels (7 low-risk)** | ✅ Done (pending commit) | — |
+| **Tier 4: ViewModels (7 low-risk)** | ✅ Done | `616fc8a8` |
 | **Tier 4: OnrampViewModel** | ⬜ Not started (medium risk) | — |
 | **Tier 4: WithdrawViewModel** | ⬜ Not started (medium risk) | — |
 | **Tier 4: CurrencySellViewModel** | ⬜ Not started | — |
@@ -286,10 +286,30 @@ This branch merges **before** the CashOperator PR (`cashoperator-phase1`). When 
 
 ---
 
-## Estimated Remaining Effort (Revised)
-- ~~**Phase 1:** ✅ Complete~~
-- ~~**Phase 2:** ✅ Complete~~
-- ~~**Phase 3:** ✅ Complete~~
-- **Phase 4:** ~1 hour (NotificationController + ViewModels, opportunistic)
-- **Total remaining:** ~1 hour for NotificationController, ~2 hours including all ViewModels
-- **CashOperator PR rebase:** Adopt @Observable patterns directly when rebasing onto this branch
+## Status: In Progress
+
+**16 of 19 ObservableObject types migrated.** The migration is functional — Session and all core types are on `@Observable`. What remains is cleanup.
+
+### Remaining Work
+
+#### 3 ViewModels (medium risk, ~45 min total)
+| ViewModel | Why medium risk | Notes |
+|-----------|----------------|-------|
+| **OnrampViewModel** | Shared across parent + child screens via `@ObservedObject` | Check all consumers for `$viewModel` bindings |
+| **WithdrawViewModel** | Shared across WithdrawScreen + WithdrawAmountScreen | Same — check binding usage |
+| **CurrencySellViewModel** | Used via `@State` in CurrencyInfoScreen | Already `@State`, just needs `ObservableObject` → `@Observable` |
+
+#### 3 Container-level types (cannot migrate yet)
+| Type | Blocker |
+|------|---------|
+| **Client** | Lives in `FlipcashCore` package — requires package-level changes |
+| **FlipClient** | Lives in `FlipcashCore` package — same |
+| **StoreController** | Inherits from `NSObject` (StoreKit delegate) — `@Observable` incompatible with `NSObject` subclasses |
+
+These 3 remain as `.environmentObject()` in `Container.injectingEnvironment()`. They don't block Swift 6 migration — views consuming them via `@EnvironmentObject` will continue to work.
+
+#### Future improvements (post-migration)
+- **Session UI state extraction** — `billState`, `presentationState`, `valuation`, `toast`, `dialogItem`, `isShowingBillEditor`, `pendingCurrencyInfoMint`, `coinbaseOrder` could move to a dedicated `SessionUIState` type
+- **Session init injection** — ScanScreen, BalanceScreen, CurrencyInfoScreen receive Session via init; could switch to `@Environment(Session.self)` for consistency
+- **CashOperator PR rebase** — adopt `@Observable` patterns directly, no `ObservableObject` bridge needed
+- **Swift 6.2 migration** — once all `ObservableObject` types are migrated, enable strict concurrency checking
