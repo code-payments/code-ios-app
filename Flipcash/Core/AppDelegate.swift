@@ -39,7 +39,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         ErrorReporting.initialize()
         FontBook.registerApplicationFonts()
         setupAppearance()
-        
+
+        if CommandLine.arguments.contains("--ui-testing") {
+            UIView.setAnimationsEnabled(false)
+
+            // Reset the app
+            container.sessionAuthenticator.logout()
+            
+            if let bundleID = Bundle.main.bundleIdentifier {
+                UserDefaults.standard.removePersistentDomain(forName: bundleID)
+            }
+        }
+
         assignHost()
 
         NotificationCenter.default.addObserver(
