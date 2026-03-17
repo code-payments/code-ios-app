@@ -11,7 +11,7 @@ import FlipcashCore
 
 struct OnrampAmountScreen: View {
     
-    @ObservedObject private var viewModel: OnrampViewModel
+    @Bindable private var viewModel: OnrampViewModel
     
     // MARK: - Init -
     

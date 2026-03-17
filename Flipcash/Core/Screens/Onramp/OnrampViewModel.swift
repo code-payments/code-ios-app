@@ -9,64 +9,64 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-@MainActor
-class OnrampViewModel: ObservableObject {
-    
-    @Published var isOnrampPresented: Bool = false
-    
-    @Published var isShowingVerificationFlow: Bool = false {
+@MainActor @Observable
+class OnrampViewModel {
+
+    var isOnrampPresented: Bool = false
+
+    var isShowingVerificationFlow: Bool = false {
         didSet {
             UIApplication.isInterfaceResetDisabled = isShowingVerificationFlow
             print("[Onramp] UI Reset: \(isShowingVerificationFlow ? "disabled" : "enabled")")
         }
     }
-    
-    @Published var isShowingAmountEntryScreen: Bool = false
-    
-    @Published var onrampPath: [OnrampPath] = [] {
+
+    var isShowingAmountEntryScreen: Bool = false
+
+    var onrampPath: [OnrampPath] = [] {
         didSet {
             if onrampPath.isEmpty && !oldValue.isEmpty {
                 reset()
             }
         }
     }
-    
-    @Published var emailVerificationDescription: VerificationDescription? {
+
+    var emailVerificationDescription: VerificationDescription? {
         didSet {
             if emailVerificationDescription == nil {
                 reset()
             }
         }
     }
-    
-    @Published var coinbaseOrder: OnrampOrderResponse?
-    
-    @Published var dialogItem: DialogItem?
-    
-    @Published var purchaseSuccess: DialogItem?
-    
-    @Published var enteredCode: String = ""
-    @Published var enteredEmail: String = ""
-    @Published var enteredAmount: String = ""
-    
-    @Published var selectedPreset: Int? {
+
+    var coinbaseOrder: OnrampOrderResponse?
+
+    var dialogItem: DialogItem?
+
+    var purchaseSuccess: DialogItem?
+
+    var enteredCode: String = ""
+    var enteredEmail: String = ""
+    var enteredAmount: String = ""
+
+    var selectedPreset: Int? {
         didSet {
             if selectedPreset != nil {
                 enteredAmount = ""
             }
         }
     }
-    
-    @Published private(set) var isResending: Bool = false
 
-    @Published private(set) var region: Region
-    @Published private(set) var enteredPhone: String = ""
-    
-    @Published var payButtonState: ButtonState = .normal
-    @Published private(set) var sendCodeButtonState: ButtonState = .normal
-    @Published private(set) var sendEmailCodeState: ButtonState = .normal
-    @Published private(set) var confirmCodeButtonState: ButtonState = .normal
-    @Published private(set) var confirmEmailButtonState: ButtonState = .normal
+    private(set) var isResending: Bool = false
+
+    private(set) var region: Region
+    private(set) var enteredPhone: String = ""
+
+    var payButtonState: ButtonState = .normal
+    private(set) var sendCodeButtonState: ButtonState = .normal
+    private(set) var sendEmailCodeState: ButtonState = .normal
+    private(set) var confirmCodeButtonState: ButtonState = .normal
+    private(set) var confirmEmailButtonState: ButtonState = .normal
     
     let codeLength = 6
     
@@ -141,17 +141,16 @@ class OnrampViewModel: ObservableObject {
         selectedPreset != nil || enteredFiat != nil
     }
     
-    private let container: Container
-    private let session: Session
-    private let ratesController: RatesController
-    private let flipClient: FlipClient
-    private let owner: KeyPair
-    
-    private lazy var coinbase = Coinbase(configuration: .init(bearerTokenProvider: fetchCoinbaseJWT))
-    
-    private let phoneFormatter = PhoneFormatter()
-    
-    private var hasResetIdentity: Bool = false
+    @ObservationIgnored private let container: Container
+    @ObservationIgnored private let session: Session
+    @ObservationIgnored private let ratesController: RatesController
+    @ObservationIgnored private let flipClient: FlipClient
+    @ObservationIgnored private let owner: KeyPair
+
+    @ObservationIgnored private var coinbase: Coinbase!
+
+    @ObservationIgnored private let phoneFormatter = PhoneFormatter()
+
     
     private var isPhoneVerified: Bool {
         session.profile?.isPhoneVerified ?? false
@@ -173,8 +172,9 @@ class OnrampViewModel: ObservableObject {
         self.ratesController = ratesController
         self.owner = session.ownerKeyPair
         self.flipClient = container.flipClient
-        
-        _region = Published(initialValue: phoneFormatter.currentRegion)
+        self.region = phoneFormatter.currentRegion
+
+        self.coinbase = Coinbase(configuration: .init(bearerTokenProvider: fetchCoinbaseJWT))
     }
     
     // MARK: - Setters -
@@ -305,27 +305,11 @@ class OnrampViewModel: ObservableObject {
         // verification flow, otherwise, we
         // can jump straight to the purchase
         if isAccountVerified {
-            isShowingVerificationFlow = false
             createOrder()
         } else {
             Analytics.track(event: Analytics.OnrampEvent.showVerificationInfo)
             isShowingVerificationFlow = true
         }
-    }
-    
-    private func resetIdentityAndVerify() -> Bool {
-        guard !hasResetIdentity else {
-            return false
-        }
-        
-        hasResetIdentity = true
-        
-        Task {
-            try await session.unlinkProfile()
-            navigateToVerificationOrPurchase()
-        }
-        
-        return true
     }
     
     // MARK: - Actions -
@@ -660,28 +644,27 @@ class OnrampViewModel: ObservableObject {
                 agreementAcceptedAt: .now
             ))
             
+            isShowingVerificationFlow = false
             coinbaseOrder = response
         }
-        
+
         catch let error as OnrampErrorResponse {
             if error.errorType == .guestRegionForbidden {
-                let resetStarted = resetIdentityAndVerify()
-                // In the event that reset identity has been
-                // ignored (ie. the reset already happened, etc)
-                // we'll want to show the error
-                if !resetStarted {
-                    showCoinbaseError(
-                        title: error.title,
-                        subtitle: error.subtitle
-                    )
+                showCoinbaseError(
+                    title: error.title,
+                    subtitle: error.subtitle
+                ) { [weak self] in
+                    Task {
+                        try? await self?.session.unlinkProfile()
+                    }
                 }
-            } else if error.errorType != .unknown {
+            } else {
                 showCoinbaseError(
                     title: error.title,
                     subtitle: error.subtitle
                 )
             }
-            
+
             ErrorReporting.captureError(error)
             payButtonState = .normal
         }
@@ -816,30 +799,19 @@ class OnrampViewModel: ObservableObject {
     
     // MARK: - Errors -
     
-    private func showCoinbaseError(title: String, subtitle: String) {
+    private func showCoinbaseError(title: String, subtitle: String, onDismiss: (() -> Void)? = nil) {
         dialogItem = .init(
             style: .destructive,
             title: title,
             subtitle: subtitle,
             dismissable: true,
         ) {
-            .okay(kind: .destructive)
+            .okay(kind: .destructive) {
+                onDismiss?()
+            }
         }
     }
-    
-//    private func showPurchaseSuccessful() {
-//        dialogItem = .init(
-//            style: .success,
-//            title: "Success! Your Cash Is On Its Way",
-//            subtitle: "It should be available in a few minutes. If you have any issues please contact support@flipcash.com",
-//            dismissable: true,
-//        ) {
-//            .okay(kind: .standard, options: .priorityAction) { [weak self] in
-//                self?.isOnrampPresented = false
-//            }
-//        }
-//    }
-    
+
     private func showGenericError(action: @escaping DialogAction.DialogActionHandler = {}) {
         dialogItem = .init(
             style: .destructive,

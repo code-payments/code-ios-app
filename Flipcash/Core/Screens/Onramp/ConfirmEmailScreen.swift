@@ -13,7 +13,7 @@ struct ConfirmEmailScreen: View {
 
     @StateObject private var timer = CountdownTimer(seconds: 60)
     
-    @ObservedObject private var viewModel: OnrampViewModel
+    @Bindable private var viewModel: OnrampViewModel
     
     // MARK: - Init -
     
@@ -104,7 +104,7 @@ struct ConfirmEmailScreen: View {
             .foregroundColor(.textMain)
         }
         .dialog(item: $viewModel.dialogItem)
-        .navigationTitle("Verify Phone Number")
+        .navigationTitle("Verify Email")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             timer.start()

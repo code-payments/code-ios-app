@@ -13,7 +13,7 @@ struct EnterPhoneScreen: View {
     
     @State private var isShowingRegionSelection = false
     
-    @ObservedObject private var viewModel: OnrampViewModel
+    @Bindable private var viewModel: OnrampViewModel
     
     @FocusState private var isFocused: Bool
     
