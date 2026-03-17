@@ -55,11 +55,11 @@ public struct GridAmounts: View {
         } label: {
             Text(text)
         }
-        .buttonStyle(
-            CustomStyle(
-                isSelected: selectedAction?.label == text
-            )
-        )
+        .buttonStyle(.filled10)
+        .overlay {
+            RoundedRectangle(cornerRadius: Metrics.buttonRadius)
+                .stroke(Color.white, lineWidth: selectedAction?.label == text ? 1 : 0)
+        }
     }
 }
 
@@ -82,42 +82,6 @@ extension GridAmounts {
             case .amount: return true
             case .more:   return false
             }
-        }
-    }
-}
-
-// MARK: - CustomStyle -
-
-private extension GridAmounts {
-    struct CustomStyle: ButtonStyle {
-        
-        let isSelected: Bool
-        
-        func makeBody(configuration: Configuration) -> some View {
-            configuration.label
-                .frame(height: 70)
-                .frame(maxWidth: .infinity)
-                .font(.appBarButton)
-                .background(background())
-                .foregroundColor(textColor())
-                .overlay {
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(configuration.isPressed ? Color.black.opacity(0.3) : Color.black.opacity(0))
-                        .stroke(Color.white, lineWidth: isSelected ? 1 : 0)
-                }
-                .cornerRadius(6)
-        }
-        
-        @ViewBuilder private func background() -> some View {
-            if isSelected {
-                Color(r: 55, g: 71, b: 62)
-            } else {
-                Color(r: 29, g: 46, b: 35)
-            }
-        }
-        
-        private func textColor() -> Color {
-            .textMain
         }
     }
 }

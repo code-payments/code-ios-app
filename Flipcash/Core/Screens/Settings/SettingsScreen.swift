@@ -171,11 +171,11 @@ struct SettingsScreen: View {
                     pathItem: .betaFlagss
                 )
                 
-                #if DEBUG
-                row(asset: .debug, title: "Test Onramp Flow") {
-                    onrampViewModel.isOnrampPresented = true
+                if betaFlags.hasEnabled(.enableCoinbase) {
+                    row(asset: .debug, title: "Test Onramp Flow") {
+                        onrampViewModel.isOnrampPresented = true
+                    }
                 }
-                #endif
                 
                 navigationRow(
                     path: $path,
@@ -206,7 +206,6 @@ struct SettingsScreen: View {
         .foregroundColor(.textMain)
         .dialog(item: $dialogItem)
         .dialog(item: $onrampViewModel.purchaseSuccess)
-        #if DEBUG
         .sheet(isPresented: $onrampViewModel.isOnrampPresented) {
             PartialSheet(background: .backgroundMain) {
                 PresetAddCashScreen(
@@ -216,7 +215,6 @@ struct SettingsScreen: View {
                 )
             }
         }
-        #endif
     }
     
     // MARK: - Advanced Features -
