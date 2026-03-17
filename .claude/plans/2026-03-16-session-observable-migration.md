@@ -21,9 +21,9 @@
 | **Tier 3: SessionAuthenticator** | ✅ Done | `f1b32892` |
 | **Tier 4: NotificationController** | ✅ Done | `378da6ae` |
 | **Tier 4: ViewModels (7 low-risk)** | ✅ Done | `616fc8a8` |
-| **Tier 4: OnrampViewModel** | ⬜ Not started (medium risk) | — |
-| **Tier 4: WithdrawViewModel** | ⬜ Not started (medium risk) | — |
-| **Tier 4: CurrencySellViewModel** | ⬜ Not started | — |
+| **Tier 4: CurrencySellViewModel** | ✅ Done | `3ca73a87` (refactor-observable-remaining) |
+| **Tier 4: WithdrawViewModel** | ✅ Done | `f3f9f478` (refactor-observable-remaining) |
+| **Tier 4: OnrampViewModel** | ✅ Done | `16309b40` (refactor-observable-remaining) |
 
 ### Lessons Learned in Tier 3
 - `lazy var` is incompatible with `@Observable` — the macro transforms stored properties into computed, which conflicts with `lazy`. Use IUOs (`Type!`) initialized in `init` instead
@@ -286,30 +286,24 @@ This branch merges **before** the CashOperator PR (`cashoperator-phase1`). When 
 
 ---
 
-## Status: In Progress
+## Status: Complete
 
-**16 of 19 ObservableObject types migrated.** The migration is functional — Session and all core types are on `@Observable`. What remains is cleanup.
+**All 19 ObservableObject types in the Flipcash target migrated to `@Observable`.** Work split across two branches:
+- `refactor-session-observable-migration` — Tiers 1–3 + NotificationController + 7 low-risk ViewModels
+- `refactor-observable-remaining` — CurrencySellViewModel, WithdrawViewModel, OnrampViewModel + bug fixes
 
-### Remaining Work
+### Not Migrated (cannot migrate)
 
-#### 3 ViewModels (medium risk, ~45 min total)
-| ViewModel | Why medium risk | Notes |
-|-----------|----------------|-------|
-| **OnrampViewModel** | Shared across parent + child screens via `@ObservedObject` | Check all consumers for `$viewModel` bindings |
-| **WithdrawViewModel** | Shared across WithdrawScreen + WithdrawAmountScreen | Same — check binding usage |
-| **CurrencySellViewModel** | Used via `@State` in CurrencyInfoScreen | Already `@State`, just needs `ObservableObject` → `@Observable` |
-
-#### 3 Container-level types (cannot migrate yet)
 | Type | Blocker |
 |------|---------|
 | **Client** | Lives in `FlipcashCore` package — requires package-level changes |
 | **FlipClient** | Lives in `FlipcashCore` package — same |
 | **StoreController** | Inherits from `NSObject` (StoreKit delegate) — `@Observable` incompatible with `NSObject` subclasses |
 
-These 3 remain as `.environmentObject()` in `Container.injectingEnvironment()`. They don't block Swift 6 migration — views consuming them via `@EnvironmentObject` will continue to work.
+These 3 remain as `.environmentObject()` in `Container.injectingEnvironment()`. They don't block Swift 6 migration.
 
-#### Future improvements (post-migration)
-- **Session UI state extraction** — `billState`, `presentationState`, `valuation`, `toast`, `dialogItem`, `isShowingBillEditor`, `pendingCurrencyInfoMint`, `coinbaseOrder` could move to a dedicated `SessionUIState` type
+### Future Improvements
+- **Session UI state extraction** — `billState`, `presentationState`, `valuation`, `toast`, `dialogItem`, `isShowingBillEditor`, `pendingCurrencyInfoMint`, `coinbaseOrder` could move to a dedicated type
 - **Session init injection** — ScanScreen, BalanceScreen, CurrencyInfoScreen receive Session via init; could switch to `@Environment(Session.self)` for consistency
 - **CashOperator PR rebase** — adopt `@Observable` patterns directly, no `ObservableObject` bridge needed
-- **Swift 6.2 migration** — once all `ObservableObject` types are migrated, enable strict concurrency checking
+- **Swift 6.2 migration** — enable strict concurrency checking
