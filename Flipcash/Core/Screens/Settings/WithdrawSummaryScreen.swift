@@ -13,7 +13,7 @@ struct WithdrawSummaryScreen: View {
     
     @EnvironmentObject private var bannerController: BannerController
     
-    @ObservedObject private var viewModel: WithdrawViewModel
+    let viewModel: WithdrawViewModel
     
     @State private var dialogItem: DialogItem?
     

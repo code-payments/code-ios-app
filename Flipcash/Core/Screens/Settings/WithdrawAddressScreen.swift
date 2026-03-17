@@ -11,7 +11,7 @@ import FlipcashCore
 
 struct WithdrawAddressScreen: View {
     
-    @ObservedObject private var viewModel: WithdrawViewModel
+    @Bindable private var viewModel: WithdrawViewModel
     
     @State private var pasteboardObserver = PasteboardObserver()
     
