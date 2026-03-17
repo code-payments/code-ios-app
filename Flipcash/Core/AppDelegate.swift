@@ -35,20 +35,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         
         window = UIWindow(frame: UIScreen.main.bounds)
         
-        Analytics.initialize()
-        ErrorReporting.initialize()
+        let isUITesting = CommandLine.arguments.contains("--ui-testing")
+
+        if !isUITesting {
+            Analytics.initialize()
+            ErrorReporting.initialize()
+        }
+
         FontBook.registerApplicationFonts()
         setupAppearance()
 
-        if CommandLine.arguments.contains("--ui-testing") {
+        if isUITesting {
             UIView.setAnimationsEnabled(false)
-
-            // Reset the app
             container.sessionAuthenticator.logout()
-            
-            if let bundleID = Bundle.main.bundleIdentifier {
-                UserDefaults.standard.removePersistentDomain(forName: bundleID)
-            }
         }
 
         assignHost()
