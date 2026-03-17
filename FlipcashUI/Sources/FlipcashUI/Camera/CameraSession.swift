@@ -45,6 +45,10 @@ public class CameraSession<T>: ObservableObject, AnyCameraSession where T: Camer
         }
         
         session.beginConfiguration()
+        // Ensure commitConfiguration() is always called, even if an
+        // early throw leaves the session mid-configuration. Calling
+        // stopRunning() on an uncommitted session crashes at runtime.
+        defer { session.commitConfiguration() }
         
         // Use 1080 p for a solid balance of resolution and frame‑rate when scanning codes
         if session.canSetSessionPreset(.hd1920x1080) {
@@ -111,8 +115,7 @@ public class CameraSession<T>: ObservableObject, AnyCameraSession where T: Camer
         }
         
         session.addOutput(output)
-        
-        session.commitConfiguration()
+
         isConfigured = true
     }
     
