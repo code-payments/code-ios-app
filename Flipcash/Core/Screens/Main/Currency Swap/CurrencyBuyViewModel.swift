@@ -10,7 +10,7 @@ import FlipcashCore
 import FlipcashUI
 
 @MainActor @Observable
-class CurrencyBuyViewModel {
+class CurrencyBuyViewModel: Identifiable {
     var actionButtonState: ButtonState = .normal
     var enteredAmount: String = ""
     var dialogItem: DialogItem?
@@ -88,25 +88,19 @@ class CurrencyBuyViewModel {
     @ObservationIgnored private let session: Session
     @ObservationIgnored private let ratesController: RatesController
     @ObservationIgnored private let destination: PublicKey
-
-    var currencyName: String = ""
+    @ObservationIgnored private let currencyName: String
 
     // MARK: - Init -
 
-    init(currencyPublicKey: PublicKey, container: Container, sessionContainer: SessionContainer) {
+    init(currencyPublicKey: PublicKey, currencyName: String, container: Container, sessionContainer: SessionContainer) {
         self.destination     = currencyPublicKey
+        self.currencyName    = currencyName
         self.session         = sessionContainer.session
         self.ratesController = sessionContainer.ratesController
     }
         
     // MARK: - Actions -
-    
-    func reset() {
-        actionButtonState = .normal
-        enteredAmount = ""
-        path = []
-    }
-    
+
     func amountEnteredAction() {
         guard enteredFiat != nil else {
             return

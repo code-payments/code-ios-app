@@ -17,8 +17,8 @@ struct CurrencyInfoScreen: View {
 
     @State private var isShowingTransactionHistory: Bool = false
     @State private var isShowingFundingSelection: Bool = false
-    @State private var isShowingBuyAmountEntry: Bool = false
-    @State private var isShowingSellAmountEntry: Bool = false
+    @State private var presentedBuyViewModel: CurrencyBuyViewModel?
+    @State private var presentedSellViewModel: CurrencySellViewModel?
     @State private var isShowingCurrencySelection: Bool = false
     /// Drives the navigation push to `GiveScreen`. Separate from
     /// `giveViewModel.isPresented` (which triggers business logic only)
@@ -27,8 +27,6 @@ struct CurrencyInfoScreen: View {
     @State private var isShowingGive: Bool = false
 
     let session: Session
-    @State private var currencyBuyViewModel: CurrencyBuyViewModel
-    @State private var currencySellViewModel: CurrencySellViewModel?
 
     private var mintMetadata: StoredMintMetadata? {
         viewModel.mintMetadata
@@ -129,12 +127,6 @@ struct CurrencyInfoScreen: View {
             sessionContainer: sessionContainer
         )
 
-        self.currencyBuyViewModel = CurrencyBuyViewModel(
-            currencyPublicKey: mint,
-            container: container,
-            sessionContainer: sessionContainer
-        )
-
         self.marketCapController = MarketCapController(
             mint: mint,
             ratesController: sessionContainer.ratesController,
@@ -176,15 +168,6 @@ struct CurrencyInfoScreen: View {
         }
         .task {
             await viewModel.loadMintMetadata()
-
-            if let metadata = viewModel.mintMetadata, currencySellViewModel == nil {
-                currencyBuyViewModel.currencyName = metadata.name
-                currencySellViewModel = CurrencySellViewModel(
-                    currencyMetadata: metadata,
-                    container: container,
-                    sessionContainer: sessionContainer
-                )
-            }
 
             if showFundingOnAppear {
                 isShowingFundingSelection = true
@@ -343,7 +326,11 @@ struct CurrencyInfoScreen: View {
                         
                         CodeButton(style: .filledSecondary, title: "Sell") {
                             Analytics.buttonTapped(name: .sell)
-                            isShowingSellAmountEntry = true
+                            presentedSellViewModel = CurrencySellViewModel(
+                                currencyMetadata: metadata,
+                                container: container,
+                                sessionContainer: sessionContainer
+                            )
                         }
                     }
                 }
@@ -386,13 +373,11 @@ struct CurrencyInfoScreen: View {
             GiveScreen(viewModel: giveViewModel)
         }
         .dialog(item: $giveViewModel.dialogItem)
-        .sheet(isPresented: $isShowingBuyAmountEntry) {
-            CurrencyBuyAmountScreen(viewModel: currencyBuyViewModel)
+        .sheet(item: $presentedBuyViewModel) { buyViewModel in
+            CurrencyBuyAmountScreen(viewModel: buyViewModel)
         }
-        .sheet(isPresented: $isShowingSellAmountEntry) {
-            if let sellViewModel = currencySellViewModel {
-                CurrencySellAmountScreen(viewModel: sellViewModel)
-            }
+        .sheet(item: $presentedSellViewModel) { sellViewModel in
+            CurrencySellAmountScreen(viewModel: sellViewModel)
         }
         .sheet(isPresented: $isShowingCurrencySelection) {
             CurrencySelectionScreen(
@@ -401,22 +386,17 @@ struct CurrencyInfoScreen: View {
                 ratesController: ratesController
             )
         }
-        .onChange(of: isShowingBuyAmountEntry) { _, isPresented in
-            if isPresented {
-                currencyBuyViewModel.reset()
-            }
-        }
-        .onChange(of: isShowingSellAmountEntry) { _, isPresented in
-            if isPresented {
-                currencySellViewModel?.reset()
-            }
-        }
         .sheet(isPresented: $isShowingFundingSelection) {
             FundingSelectionSheet(
                 reserveBalance: reserveBalance,
                 onSelectReserves: {
                     Analytics.buttonTapped(name: .buyWithReserves)
-                    isShowingBuyAmountEntry = true
+                    presentedBuyViewModel = CurrencyBuyViewModel(
+                        currencyPublicKey: metadata.mint,
+                        currencyName: metadata.name,
+                        container: container,
+                        sessionContainer: sessionContainer
+                    )
                     isShowingFundingSelection = false
                 },
                 onSelectPhantom: {

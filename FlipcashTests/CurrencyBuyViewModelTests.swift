@@ -30,6 +30,7 @@ struct CurrencyBuyViewModelTests {
 
         return CurrencyBuyViewModel(
             currencyPublicKey: .usdf,
+            currencyName: "USDF",
             container: container,
             sessionContainer: sessionContainer
         )
@@ -76,19 +77,4 @@ struct CurrencyBuyViewModelTests {
         #expect(exchangedFiat.underlying.quarks < exchangedFiat.converted.quarks)
     }
     
-    // MARK: - Reset Tests -
-    
-    @Test
-    func testReset_ClearsEnteredAmount() {
-        // Given: View model with entered amount
-        let viewModel = Self.createViewModel()
-        viewModel.enteredAmount = "100"
-        
-        // When: Resetting
-        viewModel.reset()
-        
-        // Then: Amount should be cleared and enteredFiat should be nil
-        #expect(viewModel.enteredAmount == "")
-        #expect(viewModel.enteredFiat == nil)
-    }
 }

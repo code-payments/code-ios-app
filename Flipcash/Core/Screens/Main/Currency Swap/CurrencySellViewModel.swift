@@ -10,7 +10,7 @@ import FlipcashCore
 import FlipcashUI
 
 @MainActor
-class CurrencySellViewModel: ObservableObject {
+class CurrencySellViewModel: ObservableObject, Identifiable {
     @Published var enteredAmount: String = ""
     @Published var path: [CurrencySellPath] = []
     let currencyMetadata: StoredMintMetadata
@@ -79,12 +79,6 @@ class CurrencySellViewModel: ObservableObject {
         path.append(.confirmation)
     }
                     
-    // MARK: - Reset -
-    
-    func reset() {
-        enteredAmount = ""
-        path = []
-    }
 }
 
 enum CurrencySellPath: Hashable {
