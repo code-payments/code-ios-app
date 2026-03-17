@@ -9,11 +9,11 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-@MainActor
-class CurrencySellViewModel: ObservableObject, Identifiable {
-    @Published var enteredAmount: String = ""
-    @Published var path: [CurrencySellPath] = []
-    let currencyMetadata: StoredMintMetadata
+@MainActor @Observable
+class CurrencySellViewModel: Identifiable {
+    var enteredAmount: String = ""
+    var path: [CurrencySellPath] = []
+    @ObservationIgnored let currencyMetadata: StoredMintMetadata
         
     var enteredFiat: ExchangedFiat? {
         guard !enteredAmount.isEmpty else { return nil }
@@ -57,8 +57,8 @@ class CurrencySellViewModel: ObservableObject, Identifiable {
         return balance.computeExchangedValue(with: entryRate)
     }
     
-    private let session: Session
-    private let ratesController: RatesController
+    @ObservationIgnored private let session: Session
+    @ObservationIgnored private let ratesController: RatesController
     
     // MARK: - Init -
     
