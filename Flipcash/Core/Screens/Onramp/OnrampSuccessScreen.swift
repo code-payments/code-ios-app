@@ -11,7 +11,7 @@ import FlipcashCore
 
 struct OnrampSuccessScreen: View {
     
-    @ObservedObject private var viewModel: OnrampViewModel
+    let viewModel: OnrampViewModel
     
     // MARK: - Init -
     

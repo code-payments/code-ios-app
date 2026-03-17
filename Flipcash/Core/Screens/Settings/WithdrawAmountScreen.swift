@@ -14,7 +14,7 @@ struct WithdrawAmountScreen: View {
     @Environment(Session.self) private var session
     @Environment(RatesController.self) private var ratesController
     
-    @ObservedObject private var viewModel: WithdrawViewModel
+    @Bindable private var viewModel: WithdrawViewModel
     
     @State private var isShowingCurrencySelection: Bool = false
     

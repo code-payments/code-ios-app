@@ -15,7 +15,7 @@ struct ConfirmPhoneScreen: View {
 
     @StateObject private var timer = CountdownTimer(seconds: 60)
     
-    @ObservedObject private var viewModel: OnrampViewModel
+    @Bindable private var viewModel: OnrampViewModel
     
     @FocusState private var isFocused: Bool
     

@@ -16,7 +16,7 @@ struct WithdrawScreen: View {
     @Environment(Session.self) private var session
     @Environment(RatesController.self) private var ratesController
 
-    @StateObject private var viewModel: WithdrawViewModel
+    @State private var viewModel: WithdrawViewModel
 
     private let container: Container
     private let sessionContainer: SessionContainer
@@ -31,12 +31,10 @@ struct WithdrawScreen: View {
         self._isPresented     = isPresented
         self.container        = container
         self.sessionContainer = sessionContainer
-        self._viewModel       = .init(
-            wrappedValue: WithdrawViewModel(
-                isPresented: isPresented,
-                container: container,
-                sessionContainer: sessionContainer
-            )
+        self.viewModel        = WithdrawViewModel(
+            isPresented: isPresented,
+            container: container,
+            sessionContainer: sessionContainer
         )
     }
 

@@ -13,7 +13,7 @@ struct PresetAddCashScreen: View {
     
     @Binding var isPresented: Bool
     
-    @ObservedObject private var viewModel: OnrampViewModel
+    @Bindable private var viewModel: OnrampViewModel
     
     private let container: Container
     private let session: Session
@@ -77,6 +77,7 @@ struct PresetAddCashScreen: View {
             .sheet(isPresented: $viewModel.isShowingAmountEntryScreen) {
                 OnrampAmountScreen(viewModel: viewModel)
             }
+            .dialog(item: $viewModel.dialogItem)
         }
         .frame(height: 320)
     }

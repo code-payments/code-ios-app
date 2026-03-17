@@ -11,7 +11,7 @@ import FlipcashCore
 
 struct EnterEmailScreen: View {
     
-    @ObservedObject private var viewModel: OnrampViewModel
+    @Bindable private var viewModel: OnrampViewModel
     
     @FocusState private var isFocused: Bool
     

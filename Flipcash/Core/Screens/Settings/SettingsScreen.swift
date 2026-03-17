@@ -15,7 +15,7 @@ struct SettingsScreen: View {
     
     @Binding public var isPresented: Bool
     
-    @ObservedObject private var onrampViewModel: OnrampViewModel
+    @Bindable private var onrampViewModel: OnrampViewModel
     
     @State private var path: [SettingsPath] = []
     
@@ -171,6 +171,12 @@ struct SettingsScreen: View {
                     pathItem: .betaFlagss
                 )
                 
+                if betaFlags.hasEnabled(.enableCoinbase) {
+                    row(asset: .debug, title: "Test Onramp Flow") {
+                        onrampViewModel.isOnrampPresented = true
+                    }
+                }
+                
                 navigationRow(
                     path: $path,
                     asset: .switchAccounts,
@@ -200,6 +206,15 @@ struct SettingsScreen: View {
         .foregroundColor(.textMain)
         .dialog(item: $dialogItem)
         .dialog(item: $onrampViewModel.purchaseSuccess)
+        .sheet(isPresented: $onrampViewModel.isOnrampPresented) {
+            PartialSheet(background: .backgroundMain) {
+                PresetAddCashScreen(
+                    isPresented: $onrampViewModel.isOnrampPresented,
+                    container: container,
+                    sessionContainer: sessionContainer
+                )
+            }
+        }
     }
     
     // MARK: - Advanced Features -

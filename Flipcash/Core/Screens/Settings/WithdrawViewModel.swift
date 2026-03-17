@@ -9,17 +9,13 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-@MainActor
-class WithdrawViewModel: ObservableObject {
-    
-    @Published var path: [WithdrawNavigationPath] = []
-    
-    @Published var withdrawButtonState: ButtonState = .normal
-    
-    @Published var selectedBalance: ExchangedBalance?
-    
-    @Published var enteredAmount: String = ""
-    @Published var enteredAddress: String = "" {
+@MainActor @Observable
+class WithdrawViewModel {
+    var path: [WithdrawNavigationPath] = []
+    var withdrawButtonState: ButtonState = .normal
+    var selectedBalance: ExchangedBalance?
+    var enteredAmount: String = ""
+    var enteredAddress: String = "" {
         didSet {
             if enteredDestination != nil {
                 fetchDestinationMetadata()
@@ -27,10 +23,8 @@ class WithdrawViewModel: ObservableObject {
         }
     }
     
-    @Published var destinationMetadata: DestinationMetadata?
-    
-    @Published var dialogItem: DialogItem?
-    
+    var destinationMetadata: DestinationMetadata?
+    var dialogItem: DialogItem?
     var enteredDestination: PublicKey? {
         try? PublicKey(base58: enteredAddress)
     }
@@ -202,13 +196,12 @@ class WithdrawViewModel: ObservableObject {
         )
     }
     
-    private var amountToWithdraw: ExchangedFiat?
-    
-    private let isPresented: Binding<Bool>
-    private let container: Container
-    private let client: Client
-    private let session: Session
-    private let ratesController: RatesController
+    @ObservationIgnored private var amountToWithdraw: ExchangedFiat?
+    @ObservationIgnored private let isPresented: Binding<Bool>
+    @ObservationIgnored private let container: Container
+    @ObservationIgnored private let client: Client
+    @ObservationIgnored private let session: Session
+    @ObservationIgnored private let ratesController: RatesController
     
     // MARK: - Init -
     
