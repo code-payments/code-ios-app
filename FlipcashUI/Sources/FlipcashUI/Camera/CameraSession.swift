@@ -19,12 +19,16 @@ public protocol AnyCameraSession {
 public class CameraSession<T>: ObservableObject, AnyCameraSession where T: CameraSessionExtractor {
     
     public private(set) var extraction = PassthroughSubject<T.Output?, Never>()
+    /// Publishes raw string values detected from QR codes via `AVCaptureMetadataOutput`.
+    /// Only fires when a new, distinct QR code is detected (duplicate consecutive frames are filtered).
+    public private(set) var metadataExtraction = PassthroughSubject<String, Never>()
 
     public let extractor: T
     public let session: AVCaptureSession
-    
+
     private var isConfigured: Bool = false
     private let videoDelegate: VideoDelegate
+    private let metadataDelegate: MetadataDelegate
     
     // MARK: - Init -
     
@@ -32,8 +36,16 @@ public class CameraSession<T>: ObservableObject, AnyCameraSession where T: Camer
         self.extractor = T.init()
         self.session = AVCaptureSession()
         self.videoDelegate = VideoDelegate()
+        self.metadataDelegate = MetadataDelegate()
+
         self.videoDelegate.receiveHandler = { [weak self] output, sampleBuffer, connection in
             self?.receiveSampleBuffer(output: output, sampleBuffer: sampleBuffer, connection: connection)
+        }
+
+        self.metadataDelegate.receiveHandler = { [weak self] string in
+            DispatchQueue.main.async {
+                self?.metadataExtraction.send(string)
+            }
         }
     }
     
@@ -116,6 +128,20 @@ public class CameraSession<T>: ObservableObject, AnyCameraSession where T: Camer
         
         session.addOutput(output)
 
+        // QR Code Output
+
+        let metadataOutput = AVCaptureMetadataOutput()
+        metadataOutput.setMetadataObjectsDelegate(metadataDelegate, queue: metadataDelegate.queue)
+
+        if session.canAddOutput(metadataOutput) {
+            session.addOutput(metadataOutput)
+            // metadataObjectTypes must be set AFTER adding the output to the session,
+            // otherwise the available types list is empty and this will crash.
+            if metadataOutput.availableMetadataObjectTypes.contains(.qr) {
+                metadataOutput.metadataObjectTypes = [.qr]
+            }
+        }
+
         isConfigured = true
     }
     
@@ -186,6 +212,45 @@ extension CameraSession {
         
         func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
             receiveHandler?(output, sampleBuffer, connection)
+        }
+    }
+}
+
+// MARK: - Metadata Delegate -
+
+extension CameraSession {
+    private class MetadataDelegate: NSObject, AVCaptureMetadataOutputObjectsDelegate {
+
+        typealias ReceiveString = (String) -> Void
+
+        let queue: DispatchQueue
+
+        var receiveHandler: ReceiveString?
+
+        private var lastString: String?
+
+        // MARK: - Init -
+
+        override init() {
+            self.queue = DispatchQueue(label: "com.code.metadataDelegate.queue")
+
+            super.init()
+        }
+
+        // MARK: - Delegate -
+
+        func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject], from connection: AVCaptureConnection) {
+            guard let readable = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
+                  readable.type == .qr,
+                  let string = readable.stringValue else {
+                lastString = nil
+                return
+            }
+
+            guard string != lastString else { return }
+            lastString = string
+
+            receiveHandler?(string)
         }
     }
 }

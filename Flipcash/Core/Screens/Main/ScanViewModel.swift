@@ -13,11 +13,14 @@ import Combine
 @MainActor @Observable
 class ScanViewModel {
 
+    private static let qrCooldownInterval: TimeInterval = 5.0
+
     @ObservationIgnored let cameraSession: CameraSession<CodeExtractor>
 
     @ObservationIgnored private let session: Session
 
     @ObservationIgnored private var scannedRendezvous: Set<PublicKey> = []
+    @ObservationIgnored private var scannedQRCodes: Set<String> = []
     @ObservationIgnored private var cancellables: Set<AnyCancellable> = []
     
     // MARK: - Init -
@@ -51,6 +54,11 @@ class ScanViewModel {
             if let payload = payload {
                 self?.didScan(payload)
             }
+        }
+        .store(in: &cancellables)
+
+        cameraSession.metadataExtraction.sink { [weak self] string in
+            self?.didScanQR(string)
         }
         .store(in: &cancellables)
     }
@@ -92,5 +100,63 @@ class ScanViewModel {
                 }
             }
         }
+    }
+
+    // MARK: - QR Scanning -
+
+    /// Returns whether a URL is eligible for QR code scanning.
+    /// Only `.cash` and `.token` routes are allowed; `.login` and `.verifyEmail` are blocked for security.
+    nonisolated static func canScanQR(url: URL) -> Bool {
+        guard let route = Route(url: url) else {
+            return false
+        }
+
+        switch route.path {
+        case .cash, .token:
+            return true
+        case .login, .verifyEmail, .unknown:
+            return false
+        }
+    }
+
+    private func didScanQR(_ string: String) {
+        guard !session.isShowingBill else {
+            return
+        }
+
+        guard !session.isProcessingScan else {
+            return
+        }
+
+        guard !scannedQRCodes.contains(string) else {
+            return
+        }
+
+        guard let url = URL(string: string) else {
+            return
+        }
+
+        guard Self.canScanQR(url: url) else {
+            return
+        }
+
+        if BetaFlags.shared.hasEnabled(.vibrateOnScan) {
+            Haptics.tap()
+        }
+
+        scannedQRCodes.insert(string)
+
+        // Remove from dedup set after cooldown to allow re-scanning
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.qrCooldownInterval) { [weak self] in
+            self?.scannedQRCodes.remove(string)
+        }
+
+        trace(.note, components: "QR code scanned: \(url.sanitizedForAnalytics)")
+
+        NotificationCenter.default.post(
+            name: .qrDeepLinkReceived,
+            object: nil,
+            userInfo: ["url": url]
+        )
     }
 }
