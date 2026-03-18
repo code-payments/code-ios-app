@@ -17,6 +17,7 @@ struct AccountSelectionScreen: View {
     private let accountManager: AccountManager
 
     @State private var accounts: [HistoricalAccount] = []
+    @State private var dialogItem: DialogItem?
 
     private let action: (AccountDescription) -> Void
     private let onEnterDifferentKey: (() -> Void)?
@@ -66,6 +67,7 @@ struct AccountSelectionScreen: View {
             fetchAccounts()
             fetchBalances()
         }
+        .dialog(item: $dialogItem)
     }
 
     @ViewBuilder private func row(for account: HistoricalAccount) -> some View {
@@ -112,17 +114,18 @@ struct AccountSelectionScreen: View {
                 .lineLimit(1)
             }
         }
+        .disabled(isSelected(for: account.details))
         .listRowBackground(Color.backgroundMain)
         .padding(20)
         .swipeActions {
-            Button {
-                withAnimation {
-                    deleteAccount(description: account.details)
+            if !isSelected(for: account.details) {
+                Button(role: .destructive) {
+                    confirmDelete(account: account.details)
+                } label: {
+                    Image.asset(.delete)
                 }
-            } label: {
-                Image.asset(.delete)
+                .tint(.bannerError)
             }
-            .tint(.bannerError)
         }
         .contextMenu {
             Button {
@@ -166,6 +169,22 @@ struct AccountSelectionScreen: View {
         )
 
         UIPasteboard.general.string = cluster.vaultPublicKey.base58
+    }
+
+    private func confirmDelete(account: AccountDescription) {
+        dialogItem = .init(
+            style: .destructive,
+            title: "Remove Account?",
+            subtitle: "Make sure you have a backup of your Access Key before removing this account.",
+            dismissable: true
+        ) {
+            DialogAction.destructive("Remove") { [account] in
+                withAnimation {
+                    deleteAccount(description: account)
+                }
+            }
+            DialogAction.cancel {}
+        }
     }
 
     private func deleteAccount(description: AccountDescription) {

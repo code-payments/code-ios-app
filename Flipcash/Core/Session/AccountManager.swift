@@ -119,7 +119,11 @@ class AccountManager {
         currentUserAccount = nil
     }
     
-    func nuke() {
+    /// Clears all account data including historical accounts from keychain.
+    /// - Warning: Only intended for UI testing. This permanently deletes
+    /// all local account references — users who haven't backed up their
+    /// Access Key will lose access to their funds.
+    func nukeForUITesting() {
         resetForLogout()
         Keychain.historicalAccounts = nil
     }

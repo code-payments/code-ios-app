@@ -350,7 +350,7 @@ final class SessionAuthenticator {
     }
     
     func resetForUITesting() {
-        accountManager.nuke()
+        accountManager.nukeForUITesting()
         logout()
     }
 
