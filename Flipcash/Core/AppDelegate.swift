@@ -54,11 +54,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(handlePushDeepLinkNotification(_:)),
+            selector: #selector(handleDeepLinkNotification(_:)),
             name: .pushDeepLinkReceived,
             object: nil
         )
-        
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleDeepLinkNotification(_:)),
+            name: .qrDeepLinkReceived,
+            object: nil
+        )
+
         return true
     }
     
@@ -152,37 +159,41 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return handleOpenURL(url: url)
     }
     
-    private func handleOpenURL(url: URL) -> Bool {
+    private func handleOpenURL(url: URL, preventUserInterfaceReset: Bool = false) -> Bool {
         Analytics.deeplinkOpened(url: url)
         let action = container.deepLinkController.handle(open: url)
         Analytics.deeplinkParsed(action: action, url: url)
+
+        let shouldResetInterface = hasBeenBackgrounded
+            && !(action?.preventUserInterfaceReset ?? false)
+            && !preventUserInterfaceReset
 
         // Calling assignHost() during app launch (when the app
         // hasn't been running) results in a double call making
         // it hang for ~10 seconds. Still uncertain of the exact
         // cause of the problem
-        if hasBeenBackgrounded && action?.preventUserInterfaceReset == false {
-            
+        if shouldResetInterface {
             // Reset the view in the event that the app handles
             // any deep links to ensure a consistent experience
             assignHost()
         }
-        
+
         Task {
             try await action?.executeAction()
         }
-        
+
         return true
     }
 
-    @objc private func handlePushDeepLinkNotification(_ notification: Notification) {
+    @objc private func handleDeepLinkNotification(_ notification: Notification) {
         guard let url = notification.userInfo?["url"] as? URL else {
             return
         }
 
-        _ = handleOpenURL(url: url)
+        let preventReset = notification.name == .qrDeepLinkReceived
+        _ = handleOpenURL(url: url, preventUserInterfaceReset: preventReset)
     }
-    
+
     // MARK: - Push Notifications -
     
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
