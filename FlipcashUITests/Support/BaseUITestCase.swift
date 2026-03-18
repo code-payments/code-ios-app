@@ -48,6 +48,17 @@ class BaseUITestCase: XCTestCase {
         element.tap()
     }
 
+    /// Waits for an element to be hittable (on-screen, not obscured, done animating) and taps it.
+    /// Use this for elements that may still be animating into position (e.g. system permission dialogs).
+    func waitUntilHittableAndTap(_ element: XCUIElement, timeout: TimeInterval = 30, _ message: String? = nil) {
+        let predicate = NSPredicate(format: "isHittable == true")
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+        let result = XCTWaiter().wait(for: [expectation], timeout: timeout)
+        let defaultMessage = "Expected \(element) to be hittable within \(timeout)s"
+        XCTAssertEqual(result, .completed, message ?? defaultMessage)
+        element.tap()
+    }
+
     /// Asserts that the main screen (ScanScreen) has been reached by checking for the Give button.
     func assertMainScreenReached(timeout: TimeInterval = 30, _ message: String = "Expected to reach the main screen") {
         XCTAssertTrue(

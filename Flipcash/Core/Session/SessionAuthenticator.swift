@@ -78,6 +78,15 @@ final class SessionAuthenticator {
         // Start polling for unauthenticated user flags
         startPollingUnauthenticatedUserFlags()
 
+        // During UI testing the deeplink handles login. Skip auto-login
+        // to avoid racing with resetForUITesting() and the deeplink's
+        // switchAccount(to:) call.
+        guard !CommandLine.arguments.contains("--ui-testing") else {
+            accountManager.nukeForUITesting()
+            state = .loggedOut
+            return
+        }
+
         initializeState { userAccount in
             let initializedAccount = InitializedAccount(
                 keyAccount: userAccount.keyAccount,
@@ -349,11 +358,6 @@ final class SessionAuthenticator {
         }
     }
     
-    func resetForUITesting() {
-        accountManager.nukeForUITesting()
-        logout()
-    }
-
     func logout() {
         if case .loggedIn(let container) = state {
             container.session.prepareForLogout()

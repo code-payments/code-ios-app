@@ -47,7 +47,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
         if isUITesting {
             UIView.setAnimationsEnabled(false)
-            container.sessionAuthenticator.resetForUITesting()
         }
 
         assignHost()

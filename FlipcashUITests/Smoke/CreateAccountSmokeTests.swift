@@ -15,9 +15,11 @@ final class CreateAccountSmokeTests: BaseUITestCase {
         // AccessKeyScreen
         waitAndTap(app.buttons["Save Access Key to Photos"])
 
-        // System "add to Photos" permission alert (belongs to Springboard)
+        // System "add to Photos" permission alert (belongs to Springboard).
+        // Use waitUntilHittableAndTap because the dialog animates in and
+        // tapping during the animation can miss the button.
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-        waitAndTap(springboard.buttons["Allow"])
+        waitUntilHittableAndTap(springboard.buttons["Allow"])
 
         assertMainScreenReached(
             "Expected to reach the main screen after account creation via Save to Photos"
