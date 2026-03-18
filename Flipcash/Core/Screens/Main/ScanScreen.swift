@@ -414,6 +414,7 @@ struct ScanScreen: View {
                 ) {
                     secondaryAction.action()
                 }
+                .accessibilityLabel(secondaryAction.title ?? "Cancel")
             }
         }
     }
