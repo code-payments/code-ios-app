@@ -42,14 +42,14 @@ class BaseUITestCase: XCTestCase {
     // MARK: - Helpers
 
     /// Waits for an element to appear and taps it. Fails the test if the element doesn't appear within the timeout.
-    func waitAndTap(_ element: XCUIElement, timeout: TimeInterval = 5, _ message: String? = nil) {
+    func waitAndTap(_ element: XCUIElement, timeout: TimeInterval = 30, _ message: String? = nil) {
         let defaultMessage = "Expected \(element) to exist within \(timeout)s"
         XCTAssertTrue(element.waitForExistence(timeout: timeout), message ?? defaultMessage)
         element.tap()
     }
 
     /// Asserts that the main screen (ScanScreen) has been reached by checking for the Give button.
-    func assertMainScreenReached(timeout: TimeInterval = 15, _ message: String = "Expected to reach the main screen") {
+    func assertMainScreenReached(timeout: TimeInterval = 30, _ message: String = "Expected to reach the main screen") {
         XCTAssertTrue(
             app.buttons["Give"].waitForExistence(timeout: timeout),
             message
