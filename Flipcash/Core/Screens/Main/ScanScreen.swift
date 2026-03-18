@@ -257,6 +257,7 @@ struct ScanScreen: View {
                 size: .regular,
                 binding: $isShowingSettings
             )
+            .accessibilityLabel("Settings")
             .sheet(isPresented: $isShowingSettings) {
                 SettingsScreen(
                     isPresented: $isShowingSettings,
@@ -414,6 +415,7 @@ struct ScanScreen: View {
                 ) {
                     secondaryAction.action()
                 }
+                .accessibilityLabel(secondaryAction.title ?? "Cancel")
             }
         }
     }

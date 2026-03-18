@@ -35,11 +35,21 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         
         window = UIWindow(frame: UIScreen.main.bounds)
         
-        Analytics.initialize()
-        ErrorReporting.initialize()
+        let isUITesting = CommandLine.arguments.contains("--ui-testing")
+
+        if !isUITesting {
+            Analytics.initialize()
+            ErrorReporting.initialize()
+        }
+
         FontBook.registerApplicationFonts()
         setupAppearance()
-        
+
+        if isUITesting {
+            UIView.setAnimationsEnabled(false)
+            container.sessionAuthenticator.resetForUITesting()
+        }
+
         assignHost()
 
         NotificationCenter.default.addObserver(

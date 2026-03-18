@@ -349,18 +349,23 @@ final class SessionAuthenticator {
         }
     }
     
+    func resetForUITesting() {
+        accountManager.nuke()
+        logout()
+    }
+
     func logout() {
         if case .loggedIn(let container) = state {
             container.session.prepareForLogout()
             container.pushController.prepareForLogout()
             container.ratesController.prepareForLogout()
         }
-        
+
         accountManager.resetForLogout()
-        
+
         state = .loggedOut
         UserDefaults.wasLoggedIn = false
-        
+
         trace(.note, components: "Logged out")
     }
 }

@@ -593,6 +593,13 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		4C025B362F69DC1F00914087 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 9A516F922D9B12EA00AF478B /* FlipcashUITests */;
+		};
 		9AC0156E2DA579120030298E /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -606,7 +613,7 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		9A516F7B2D9B12E900AF478B /* Flipcash */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (9AC0156E2DA579120030298E /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Flipcash; sourceTree = "<group>"; };
 		9A516F8C2D9B12EA00AF478B /* FlipcashTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = FlipcashTests; sourceTree = "<group>"; };
-		9A516F962D9B12EA00AF478B /* FlipcashUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = FlipcashUITests; sourceTree = "<group>"; };
+		9A516F962D9B12EA00AF478B /* FlipcashUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (4C025B362F69DC1F00914087 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = FlipcashUITests; sourceTree = "<group>"; };
 		9A83DCC52D8A650600E38B84 /* EmojiGenerator */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = EmojiGenerator; sourceTree = "<group>"; };
 		9A9970A42CA33145006BDE08 /* Flipchat */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Flipchat; sourceTree = "<group>"; };
 		9A9970B52CA33147006BDE08 /* FlipchatTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = FlipchatTests; sourceTree = "<group>"; };
@@ -3051,6 +3058,7 @@
 					"$(inherited)",
 				);
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FlipcashUITests/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.0;
@@ -3078,6 +3086,7 @@
 					"$(inherited)",
 				);
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FlipcashUITests/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.0;
@@ -3101,6 +3110,7 @@
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FlipcashUITests/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.0;
@@ -3123,6 +3133,7 @@
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FlipcashUITests/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.0;
