@@ -84,6 +84,8 @@ public struct Dialog: View {
         .frame(maxWidth: .infinity)
         .foregroundColor(.white)
         .background(style.backgroundColor)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier(title ?? "Dialog")
     }
 }
 

@@ -9,12 +9,15 @@
     }
   ],
   "defaultOptions" : {
+    "maximumTestExecutionTimeAllowance" : 120,
     "performanceAntipatternCheckerEnabled" : true,
     "targetForVariableExpansion" : {
       "containerPath" : "container:Code.xcodeproj",
       "identifier" : "9A516F792D9B12E800AF478B",
       "name" : "Flipcash"
-    }
+    },
+    "testRepetitionMode" : "retryOnFailure",
+    "testTimeoutsEnabled" : true
   },
   "testTargets" : [
     {
