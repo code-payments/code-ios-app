@@ -204,7 +204,8 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
         
         Messaging.messaging().appDidReceiveMessage(response.notification.request.content.userInfo)
         
-        handleTargetUrlIfNeeded(response.notification.request.content.userInfo["target_url"] as? String)
+        let aps = response.notification.request.content.userInfo["aps"] as? [String: Any]
+        handleTargetUrlIfNeeded(aps?["target_url"] as? String)
         
         Task { @MainActor in
             NotificationCenter.default.post(name: .pushNotificationReceived, object: nil)
