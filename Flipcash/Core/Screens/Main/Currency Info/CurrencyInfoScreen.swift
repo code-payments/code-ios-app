@@ -224,10 +224,11 @@ struct CurrencyInfoScreen: View {
                             ValueAppreciation(amount: appreciation.amount, isPositive: appreciation.isPositive)
                                 .padding(.top, 8)
 
-                            CodeButton(style: .filledSecondary, title: "View Transaction History") {
+                            Button("View Transaction") {
                                 isShowingTransactionHistory.toggle()
                             }
-                            .padding(.top, 40)
+                                .buttonStyle(.filled20)
+                                .padding(.top, 40)
                         }
                     }
                     .padding(.top, 30)

@@ -270,22 +270,3 @@ private extension CodeButton {
         }
     }
 }
-
-// MARK: - Previews -
-
-struct CodeButton_Previews: PreviewProvider {
-    static var previews: some View {
-        Background(color: .black) {
-            VStack {
-                Spacer()
-                CodeButton(style: .filled, title: "Next", action: {})
-                CodeButton(style: .filled, title: "Prev", action: {})
-                CodeButton(isLoading: true, style: .filled, title: "Prev", action: {})
-                CodeButton(style: .subtle, title: "Log In", action: {})
-                CodeButton(style: .filled, title: "Create Account", action: {})
-                Spacer()
-            }
-            .padding(20.0)
-        }
-    }
-}

@@ -26,6 +26,7 @@ public struct SubtleButtonStyle: ButtonStyle {
             .foregroundStyle(Color.textMain.opacity(isEnabled ? 0.6 : 0.3))
             .frame(maxWidth: .infinity)
             .frame(height: Metrics.buttonHeight)
+            .contentShape(Rectangle())
             .opacity(configuration.isPressed ? 0.7 : 1.0)
             .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }

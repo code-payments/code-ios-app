@@ -46,10 +46,9 @@ struct FundingSelectionSheet: View {
                     }
                 }
                 .buttonStyle(.filled)
-
-                CodeButton(style: .subtle, title: "Dismiss") {
-                    onDismiss()
-                }
+                
+                Button("Dismiss", action: onDismiss)
+                    .buttonStyle(.subtle)
             }
             .padding()
         }

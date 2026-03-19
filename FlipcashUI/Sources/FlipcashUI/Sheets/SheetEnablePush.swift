@@ -42,7 +42,8 @@ public struct SheetGeneric: View {
             }
             .fixedSize(horizontal: false, vertical: true)
             
-            CodeButton(style: .filled, title: actionName, action: action)
+            Button(actionName, action: action)
+                .buttonStyle(.filled)
                 .padding(.top, 10)
         }
         .padding(20)
