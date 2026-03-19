@@ -21,6 +21,52 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
+public enum Ocp_Currency_V1_PredefinedRange: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+  case allTime // = 0
+  case lastDay // = 1
+  case lastWeek // = 2
+  case lastMonth // = 3
+  case lastYear // = 4
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .allTime
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .allTime
+    case 1: self = .lastDay
+    case 2: self = .lastWeek
+    case 3: self = .lastMonth
+    case 4: self = .lastYear
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .allTime: return 0
+    case .lastDay: return 1
+    case .lastWeek: return 2
+    case .lastMonth: return 3
+    case .lastYear: return 4
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Ocp_Currency_V1_PredefinedRange] = [
+    .allTime,
+    .lastDay,
+    .lastWeek,
+    .lastMonth,
+    .lastYear,
+  ]
+
+}
+
 public struct Ocp_Currency_V1_GetMintsRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -101,7 +147,7 @@ public struct Ocp_Currency_V1_GetHistoricalMintDataRequest: Sendable {
 
   public var range: Ocp_Currency_V1_GetHistoricalMintDataRequest.OneOf_Range? = nil
 
-  public var predefinedRange: Ocp_Currency_V1_GetHistoricalMintDataRequest.PredefinedRange {
+  public var predefinedRange: Ocp_Currency_V1_PredefinedRange {
     get {
       if case .predefinedRange(let v)? = range {return v}
       return .allTime
@@ -112,53 +158,7 @@ public struct Ocp_Currency_V1_GetHistoricalMintDataRequest: Sendable {
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Range: Equatable, Sendable {
-    case predefinedRange(Ocp_Currency_V1_GetHistoricalMintDataRequest.PredefinedRange)
-
-  }
-
-  public enum PredefinedRange: SwiftProtobuf.Enum, Swift.CaseIterable {
-    public typealias RawValue = Int
-    case allTime // = 0
-    case lastDay // = 1
-    case lastWeek // = 2
-    case lastMonth // = 3
-    case lastYear // = 4
-    case UNRECOGNIZED(Int)
-
-    public init() {
-      self = .allTime
-    }
-
-    public init?(rawValue: Int) {
-      switch rawValue {
-      case 0: self = .allTime
-      case 1: self = .lastDay
-      case 2: self = .lastWeek
-      case 3: self = .lastMonth
-      case 4: self = .lastYear
-      default: self = .UNRECOGNIZED(rawValue)
-      }
-    }
-
-    public var rawValue: Int {
-      switch self {
-      case .allTime: return 0
-      case .lastDay: return 1
-      case .lastWeek: return 2
-      case .lastMonth: return 3
-      case .lastYear: return 4
-      case .UNRECOGNIZED(let i): return i
-      }
-    }
-
-    // The compiler won't synthesize support with the UNRECOGNIZED case.
-    public static let allCases: [Ocp_Currency_V1_GetHistoricalMintDataRequest.PredefinedRange] = [
-      .allTime,
-      .lastDay,
-      .lastWeek,
-      .lastMonth,
-      .lastYear,
-    ]
+    case predefinedRange(Ocp_Currency_V1_PredefinedRange)
 
   }
 
@@ -434,6 +434,16 @@ public struct Ocp_Currency_V1_Mint: @unchecked Sendable {
   public var hasBillCustomization: Bool {_storage._billCustomization != nil}
   /// Clears the value of `billCustomization`. Subsequent reads from it will return its default value.
   public mutating func clearBillCustomization() {_uniqueStorage()._billCustomization = nil}
+
+  /// Holder metrics. This is surfaced where needed (e.g. only in the Discover RPC)
+  public var holderMetrics: Ocp_Currency_V1_HolderMetrics {
+    get {_storage._holderMetrics ?? Ocp_Currency_V1_HolderMetrics()}
+    set {_uniqueStorage()._holderMetrics = newValue}
+  }
+  /// Returns true if `holderMetrics` has been explicitly set.
+  public var hasHolderMetrics: Bool {_storage._holderMetrics != nil}
+  /// Clears the value of `holderMetrics`. Subsequent reads from it will return its default value.
+  public mutating func clearHolderMetrics() {_uniqueStorage()._holderMetrics = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -880,6 +890,37 @@ public struct Ocp_Currency_V1_Color: Sendable {
   public var hex: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Ocp_Currency_V1_HolderMetrics: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The current number of holders for a currency
+  public var currentHolders: UInt64 = 0
+
+  public var holderDeltas: [Ocp_Currency_V1_HolderMetrics.DeltaHolders] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public struct DeltaHolders: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    /// Predefined range where delta is calculated from
+    public var range: Ocp_Currency_V1_PredefinedRange = .allTime
+
+    /// Net holders within the time range
+    public var delta: Int64 = 0
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+  }
 
   public init() {}
 }
@@ -1368,6 +1409,10 @@ public struct Ocp_Currency_V1_DiscoverResponse: Sendable {
 
 fileprivate let _protobuf_package = "ocp.currency.v1"
 
+extension Ocp_Currency_V1_PredefinedRange: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0ALL_TIME\0\u{1}LAST_DAY\0\u{1}LAST_WEEK\0\u{1}LAST_MONTH\0\u{1}LAST_YEAR\0")
+}
+
 extension Ocp_Currency_V1_GetMintsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetMintsRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}addresses\0")
@@ -1450,7 +1495,7 @@ extension Ocp_Currency_V1_GetHistoricalMintDataRequest: SwiftProtobuf.Message, S
       case 1: try { try decoder.decodeSingularMessageField(value: &self._address) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.currencyCode) }()
       case 3: try {
-        var v: Ocp_Currency_V1_GetHistoricalMintDataRequest.PredefinedRange?
+        var v: Ocp_Currency_V1_PredefinedRange?
         try decoder.decodeSingularEnumField(value: &v)
         if let v = v {
           if self.range != nil {try decoder.handleConflictingOneOf()}
@@ -1486,10 +1531,6 @@ extension Ocp_Currency_V1_GetHistoricalMintDataRequest: SwiftProtobuf.Message, S
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
-}
-
-extension Ocp_Currency_V1_GetHistoricalMintDataRequest.PredefinedRange: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0ALL_TIME\0\u{1}LAST_DAY\0\u{1}LAST_WEEK\0\u{1}LAST_MONTH\0\u{1}LAST_YEAR\0")
 }
 
 extension Ocp_Currency_V1_GetHistoricalMintDataResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
@@ -1764,7 +1805,7 @@ extension Ocp_Currency_V1_StreamLiveMintDataResponse.LiveData: SwiftProtobuf.Mes
 
 extension Ocp_Currency_V1_Mint: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Mint"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}address\0\u{1}decimals\0\u{1}name\0\u{1}symbol\0\u{1}description\0\u{3}image_url\0\u{3}vm_metadata\0\u{3}launchpad_metadata\0\u{3}created_at\0\u{3}social_links\0\u{3}bill_customization\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}address\0\u{1}decimals\0\u{1}name\0\u{1}symbol\0\u{1}description\0\u{3}image_url\0\u{3}vm_metadata\0\u{3}launchpad_metadata\0\u{3}created_at\0\u{3}social_links\0\u{3}bill_customization\0\u{3}holder_metrics\0")
 
   fileprivate class _StorageClass {
     var _address: Ocp_Common_V1_SolanaAccountId? = nil
@@ -1778,6 +1819,7 @@ extension Ocp_Currency_V1_Mint: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
     var _createdAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
     var _socialLinks: [Ocp_Currency_V1_SocialLink] = []
     var _billCustomization: Ocp_Currency_V1_BillCustomization? = nil
+    var _holderMetrics: Ocp_Currency_V1_HolderMetrics? = nil
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -1799,6 +1841,7 @@ extension Ocp_Currency_V1_Mint: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
       _createdAt = source._createdAt
       _socialLinks = source._socialLinks
       _billCustomization = source._billCustomization
+      _holderMetrics = source._holderMetrics
     }
   }
 
@@ -1828,6 +1871,7 @@ extension Ocp_Currency_V1_Mint: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
         case 9: try { try decoder.decodeSingularMessageField(value: &_storage._createdAt) }()
         case 10: try { try decoder.decodeRepeatedMessageField(value: &_storage._socialLinks) }()
         case 11: try { try decoder.decodeSingularMessageField(value: &_storage._billCustomization) }()
+        case 12: try { try decoder.decodeSingularMessageField(value: &_storage._holderMetrics) }()
         default: break
         }
       }
@@ -1873,6 +1917,9 @@ extension Ocp_Currency_V1_Mint: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
       try { if let v = _storage._billCustomization {
         try visitor.visitSingularMessageField(value: v, fieldNumber: 11)
       } }()
+      try { if let v = _storage._holderMetrics {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 12)
+      } }()
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -1893,6 +1940,7 @@ extension Ocp_Currency_V1_Mint: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
         if _storage._createdAt != rhs_storage._createdAt {return false}
         if _storage._socialLinks != rhs_storage._socialLinks {return false}
         if _storage._billCustomization != rhs_storage._billCustomization {return false}
+        if _storage._holderMetrics != rhs_storage._holderMetrics {return false}
         return true
       }
       if !storagesAreEqual {return false}
@@ -2571,6 +2619,76 @@ extension Ocp_Currency_V1_Color: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
 
   public static func ==(lhs: Ocp_Currency_V1_Color, rhs: Ocp_Currency_V1_Color) -> Bool {
     if lhs.hex != rhs.hex {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Currency_V1_HolderMetrics: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".HolderMetrics"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}current_holders\0\u{3}holder_deltas\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularUInt64Field(value: &self.currentHolders) }()
+      case 2: try { try decoder.decodeRepeatedMessageField(value: &self.holderDeltas) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.currentHolders != 0 {
+      try visitor.visitSingularUInt64Field(value: self.currentHolders, fieldNumber: 1)
+    }
+    if !self.holderDeltas.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.holderDeltas, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Currency_V1_HolderMetrics, rhs: Ocp_Currency_V1_HolderMetrics) -> Bool {
+    if lhs.currentHolders != rhs.currentHolders {return false}
+    if lhs.holderDeltas != rhs.holderDeltas {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Currency_V1_HolderMetrics.DeltaHolders: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Ocp_Currency_V1_HolderMetrics.protoMessageName + ".DeltaHolders"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}range\0\u{1}delta\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.range) }()
+      case 2: try { try decoder.decodeSingularInt64Field(value: &self.delta) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.range != .allTime {
+      try visitor.visitSingularEnumField(value: self.range, fieldNumber: 1)
+    }
+    if self.delta != 0 {
+      try visitor.visitSingularInt64Field(value: self.delta, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Currency_V1_HolderMetrics.DeltaHolders, rhs: Ocp_Currency_V1_HolderMetrics.DeltaHolders) -> Bool {
+    if lhs.range != rhs.range {return false}
+    if lhs.delta != rhs.delta {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
