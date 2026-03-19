@@ -27,7 +27,7 @@ struct FundingSelectionSheet: View {
                 .padding(.vertical, 20)
 
                 if let reserveBalance, reserveBalance.hasDisplayableValue() {
-                    Button("USD Reserves (\(reserveBalance.converted.formatted()))") {
+                    Button("USDF (\(reserveBalance.converted.formatted()))") {
                         onSelectReserves()
                     }
                     .buttonStyle(.filled)

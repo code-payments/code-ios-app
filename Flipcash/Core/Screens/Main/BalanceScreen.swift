@@ -205,7 +205,7 @@ struct BalanceScreen: View {
                 selectedMint = reservesBalance.stored.mint
             } label: {
                 HStack(spacing: 8) {
-                    Text("USD Reserves")
+                    Text("USDF")
                         .font(.appBarButton)
                         .foregroundStyle(Color.textSecondary)
 

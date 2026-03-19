@@ -29,7 +29,7 @@ class SwapProcessingViewModel {
                 if swapType.isBuy {
                     return "\(exchangedFiat.converted.formatted()) of \(currencyName)"
                 } else {
-                    return "\(exchangedFiat.converted.formatted()) of USD Reserves"
+                    return "\(exchangedFiat.converted.formatted()) of USDF"
                 }
             }
             return "Transaction Complete"
