@@ -462,6 +462,11 @@ message UpdateMetadataResponse {
 }
 
 message DiscoverRequest {
+    Category category = 1;
+    enum Category {
+        POPULAR = 0;
+        NEW     = 1;
+    }
 }
 
 message DiscoverResponse {
@@ -471,7 +476,7 @@ message DiscoverResponse {
         NOT_FOUND = 1;
     }
 
-    repeated Mint mint = 2 [(validate.rules).repeated = {
+    repeated Mint mints = 2 [(validate.rules).repeated = {
         min_items: 0
         max_items: 1024 // Arbitrary
     }];
