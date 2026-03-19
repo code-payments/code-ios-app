@@ -9,6 +9,8 @@ final class CreateAccountSmokeTests: BaseUITestCase {
 
     override var resetPermissions: [XCUIProtectedResource] { [.photos] }
 
+    // MARK: - Tests
+
     func testCreateAccount_saveToPhotos() {
         waitAndTap(app.buttons["Create a New Account"])
 
@@ -20,6 +22,9 @@ final class CreateAccountSmokeTests: BaseUITestCase {
         // tapping during the animation can miss the button.
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         waitUntilHittableAndTap(springboard.buttons["Allow"])
+
+        // Push notification permission screen (may be skipped if already granted)
+        allowPushNotificationsIfNeeded()
 
         assertMainScreenReached(
             "Expected to reach the main screen after account creation via Save to Photos"
@@ -35,8 +40,25 @@ final class CreateAccountSmokeTests: BaseUITestCase {
         // Confirmation dialog: "Are You Sure?"
         waitAndTap(app.buttons["Yes, I Wrote Them Down"])
 
+        // Push notification permission screen (may be skipped if already granted)
+        allowPushNotificationsIfNeeded()
+
         assertMainScreenReached(
             "Expected to reach the main screen after account creation via Wrote Down"
         )
+    }
+    
+    // MARK: - Helpers
+
+    /// Handles the push notification permission screen if it appears.
+    /// The screen is skipped when notification permissions are already determined,
+    /// so this helper is resilient to both states.
+    private func allowPushNotificationsIfNeeded() {
+        let okButton = app.buttons["OK"]
+        guard okButton.waitForExistence(timeout: 2) else { return }
+        okButton.tap()
+
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        waitUntilHittableAndTap(springboard.buttons["Allow"])
     }
 }

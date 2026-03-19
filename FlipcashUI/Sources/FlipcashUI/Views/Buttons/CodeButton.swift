@@ -8,6 +8,7 @@
 
 import SwiftUI
 
+@available(*, deprecated, message: "Use Button with .buttonStyle(.filled), .buttonStyle(.subtle), etc instead")
 public struct CodeButton: View {
     
     private let state: ButtonState

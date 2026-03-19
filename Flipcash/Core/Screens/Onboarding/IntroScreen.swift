@@ -116,15 +116,8 @@ struct IntroScreen: View {
                     AccessKeyScreen(viewModel: viewModel)
                 case .accessKeyHelp:
                     AccessKeyHelpScreen()
-                case .cameraAccess:
-                    PermissionScreen.forCameraAccess(
-                        action: viewModel.allowCameraAccessAction
-                    )
-                case .pushPermissions:
-                    PermissionScreen.forPushNotifications(
-                        action: viewModel.allowPushPermissionsAction,
-                        skipAction: viewModel.skipPushPermissionsAction
-                    )
+                case .pushNotifications:
+                    NotificationPermissionScreen(viewModel: viewModel)
                 }
             }
         }

@@ -123,7 +123,6 @@
 		9A44E6862D08061200922066 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9A44E6852D08061200922066 /* StoreKit.framework */; };
 		9A476D4A2978884700C5B5CE /* Bugsnag in Frameworks */ = {isa = PBXBuildFile; productRef = 9A476D492978884700C5B5CE /* Bugsnag */; };
 		9A476D4C2978892600C5B5CE /* ErrorReporting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A476D4B2978892600C5B5CE /* ErrorReporting.swift */; };
-		9A48D93928512E7800EA9AA4 /* PermissionScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A48D93828512E7800EA9AA4 /* PermissionScreen.swift */; };
 		9A4F3D07298D99930089C0FB /* BucketScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A4F3D06298D99930089C0FB /* BucketScreen.swift */; };
 		9A557D9D28A6BB2F00A58BB1 /* PushController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A557D9C28A6BB2F00A58BB1 /* PushController.swift */; };
 		9A557DA028AC34A400A58BB1 /* Reachability.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A557D9F28AC34A300A58BB1 /* Reachability.swift */; };
@@ -422,7 +421,6 @@
 		9A43F0102D9C357900CE8817 /* FlipcashCore */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = FlipcashCore; sourceTree = "<group>"; };
 		9A44E6852D08061200922066 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		9A476D4B2978892600C5B5CE /* ErrorReporting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorReporting.swift; sourceTree = "<group>"; };
-		9A48D93828512E7800EA9AA4 /* PermissionScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionScreen.swift; sourceTree = "<group>"; };
 		9A4F3D06298D99930089C0FB /* BucketScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BucketScreen.swift; sourceTree = "<group>"; };
 		9A516F7A2D9B12E900AF478B /* Flipcash.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Flipcash.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9A516F892D9B12EA00AF478B /* FlipcashTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FlipcashTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -927,7 +925,6 @@
 		9A48D93728512E6900EA9AA4 /* Accessory */ = {
 			isa = PBXGroup;
 			children = (
-				9A48D93828512E7800EA9AA4 /* PermissionScreen.swift */,
 			);
 			path = Accessory;
 			sourceTree = "<group>";
@@ -2191,7 +2188,6 @@
 				9A9469BB27A090E10028F27E /* MessageController.swift in Sources */,
 				9A64698E275FF9CD008B1498 /* Events.swift in Sources */,
 				9A7FF8A1269DD5CD0090B457 /* ChatController.swift in Sources */,
-				9A48D93928512E7800EA9AA4 /* PermissionScreen.swift in Sources */,
 				9A6740D82C3472CB00F9F7BD /* MessageSemanticLocation.swift in Sources */,
 				9A69801525F7E7A0002B9D13 /* CurrencySelectionScreen.swift in Sources */,
 				9A093D1A25D1BFD2000E7DD9 /* Code.swift in Sources */,

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UserNotifications
 import FlipcashUI
 import FlipcashCore
 
@@ -23,8 +24,6 @@ class OnboardingViewModel {
     @ObservationIgnored private let container: Container
     @ObservationIgnored private let flipClient: FlipClient
     @ObservationIgnored private let sessionAuthenticator: SessionAuthenticator
-    @ObservationIgnored private let cameraAuthorizer: CameraAuthorizer
-
     @ObservationIgnored private var initializedAccount: InitializedAccount?
 
     // MARK: - Init -
@@ -33,7 +32,6 @@ class OnboardingViewModel {
         self.container            = container
         self.flipClient           = container.flipClient
         self.sessionAuthenticator = container.sessionAuthenticator
-        self.cameraAuthorizer     = CameraAuthorizer()
     }
 
     // MARK: - Action -
@@ -125,7 +123,15 @@ class OnboardingViewModel {
         accessKeyButtonState = .success
         try await Task.delay(milliseconds: 500)
 
-        completeOnboardingAndLogin()
+        let pushStatus = await PushController.fetchStatus()
+        switch pushStatus {
+        case .authorized, .provisional, .denied:
+            completeOnboardingAndLogin()
+        case .notDetermined:
+            navigateToPushNotifications()
+        @unknown default:
+            navigateToPushNotifications()
+        }
 
         try await Task.delay(milliseconds: 500) // Delay deferred state change
     }
@@ -159,33 +165,36 @@ class OnboardingViewModel {
         }
     }
 
-    func allowCameraAccessAction() {
+    func allowPushNotificationsAction() {
         Task {
-            do {
-                // Regardless of authorization status
-                // continue to finalize the account,
-                // they'll have an opportunity to grant
-                // access on the camera screen
-                _ = try await cameraAuthorizer.authorize()
-            } catch {}
+            try? await PushController.authorizeAndRegister()
             completeOnboardingAndLogin()
-        }
-
-        Analytics.buttonTapped(name: .allowCamera)
-    }
-
-    func allowPushPermissionsAction() {
-        Task {
-            navigateToCameraAccessScreen()
         }
 
         Analytics.buttonTapped(name: .allowPush)
     }
 
-    func skipPushPermissionsAction() {
-        navigateToCameraAccessScreen()
+    func skipPushNotificationsAction() {
+        dialogItem = .init(
+            style: .destructive,
+            title: "Are You Sure?",
+            subtitle: "You won't receive updates when your balance changes",
+            dismissable: true
+        ) {
+            .standard("OK Allow") { [weak self] in
+                Task {
+                    try? await PushController.authorizeAndRegister()
+                    self?.completeOnboardingAndLogin()
+                }
 
-        Analytics.buttonTapped(name: .skipPush)
+                Analytics.buttonTapped(name: .allowPush)
+            };
+            .subtle("I'm Sure") { [weak self] in
+                self?.completeOnboardingAndLogin()
+
+                Analytics.buttonTapped(name: .skipPush)
+            }
+        }
     }
 
     // MARK: - Registration -
@@ -235,9 +244,10 @@ class OnboardingViewModel {
         path = [.accessKey]
     }
 
-    func navigateToCameraAccessScreen() {
-        path.append(.cameraAccess)
+    func navigateToPushNotifications() {
+        path.append(.pushNotifications)
     }
+
 }
 
 // MARK: - Path -
@@ -247,6 +257,5 @@ enum OnboardingPath {
     case login
     case accessKey
     case accessKeyHelp
-    case pushPermissions
-    case cameraAccess
+    case pushNotifications
 }
