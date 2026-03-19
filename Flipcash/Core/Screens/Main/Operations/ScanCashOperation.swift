@@ -72,6 +72,10 @@ class ScanCashOperation {
 
         let vmAuthority: PublicKey
         if let mintMetadata, let authority = mintMetadata.vmMetadata?.authority {
+            // Persist the metadata so downstream operations (e.g.
+            // SendCashOperation for the quick give-and-grab chain)
+            // can look it up from the database immediately.
+            try? database.insert(mints: [mintMetadata], date: .now)
             vmAuthority = authority
         } else {
             vmAuthority = try await pullMintIfNeeded(for: mint)

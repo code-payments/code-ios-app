@@ -1147,6 +1147,9 @@ class Session {
                 let vmMint = giftCardAccountInfo.mint
                 let vmAuthority: PublicKey?
                 if let inlineMint = giftCardAccountInfo.mintMetadata {
+                    // Persist so SendCashOperation can find it
+                    // for the quick give-and-grab chain.
+                    try? database.insert(mints: [inlineMint], date: .now)
                     vmAuthority = inlineMint.vmMetadata?.authority
                 } else {
                     let mintMetadata = try await fetchMintMetadata(mint: vmMint)
