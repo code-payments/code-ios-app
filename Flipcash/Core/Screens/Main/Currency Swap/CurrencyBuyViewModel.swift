@@ -92,11 +92,11 @@ class CurrencyBuyViewModel: Identifiable {
 
     // MARK: - Init -
 
-    init(currencyPublicKey: PublicKey, currencyName: String, container: Container, sessionContainer: SessionContainer) {
+    init(currencyPublicKey: PublicKey, currencyName: String, session: Session, ratesController: RatesController) {
         self.destination     = currencyPublicKey
         self.currencyName    = currencyName
-        self.session         = sessionContainer.session
-        self.ratesController = sessionContainer.ratesController
+        self.session         = session
+        self.ratesController = ratesController
     }
         
     // MARK: - Actions -

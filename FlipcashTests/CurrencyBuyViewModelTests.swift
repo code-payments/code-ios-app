@@ -22,7 +22,6 @@ struct CurrencyBuyViewModelTests {
     
     /// Helper to create a test view model with CAD as the entry currency
     static func createViewModel() -> CurrencyBuyViewModel {
-        let container = Container.mock
         let sessionContainer = SessionContainer.mock
 
         // Configure entry currency and inject the CAD rate for deterministic tests
@@ -31,8 +30,8 @@ struct CurrencyBuyViewModelTests {
         return CurrencyBuyViewModel(
             currencyPublicKey: .usdf,
             currencyName: "USDF",
-            container: container,
-            sessionContainer: sessionContainer
+            session: sessionContainer.session,
+            ratesController: sessionContainer.ratesController
         )
     }
     

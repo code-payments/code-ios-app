@@ -44,10 +44,10 @@ class CurrencyInfoViewModel {
     @ObservationIgnored private let session: Session
     @ObservationIgnored private let database: Database
 
-    init(mint: PublicKey, sessionContainer: SessionContainer) {
+    init(mint: PublicKey, session: Session, database: Database) {
         self.mint = mint
-        self.session = sessionContainer.session
-        self.database = sessionContainer.database
+        self.session = session
+        self.database = database
 
         // Load from database immediately if available (fast path)
         if let cachedMetadata = try? database.getMintMetadata(mint: mint) {

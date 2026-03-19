@@ -119,7 +119,8 @@ struct CurrencyInfoScreen: View {
 
         self.viewModel = CurrencyInfoViewModel(
             mint: mint,
-            sessionContainer: sessionContainer
+            session: sessionContainer.session,
+            database: sessionContainer.database
         )
 
         self.giveViewModel = GiveViewModel(
@@ -328,8 +329,8 @@ struct CurrencyInfoScreen: View {
                             Analytics.buttonTapped(name: .sell)
                             presentedSellViewModel = CurrencySellViewModel(
                                 currencyMetadata: metadata,
-                                container: container,
-                                sessionContainer: sessionContainer
+                                session: session,
+                                ratesController: ratesController
                             )
                         }
                     }
@@ -394,8 +395,8 @@ struct CurrencyInfoScreen: View {
                     presentedBuyViewModel = CurrencyBuyViewModel(
                         currencyPublicKey: metadata.mint,
                         currencyName: metadata.name,
-                        container: container,
-                        sessionContainer: sessionContainer
+                        session: session,
+                        ratesController: ratesController
                     )
                     isShowingFundingSelection = false
                 },

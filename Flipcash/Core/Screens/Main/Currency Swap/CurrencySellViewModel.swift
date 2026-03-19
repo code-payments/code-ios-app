@@ -62,10 +62,10 @@ class CurrencySellViewModel: Identifiable {
     
     // MARK: - Init -
     
-    init(currencyMetadata: StoredMintMetadata, container: Container, sessionContainer: SessionContainer) {
+    init(currencyMetadata: StoredMintMetadata, session: Session, ratesController: RatesController) {
         self.currencyMetadata = currencyMetadata
-        self.session = sessionContainer.session
-        self.ratesController  = sessionContainer.ratesController
+        self.session          = session
+        self.ratesController  = ratesController
     }
         
     // MARK: - Actions -
