@@ -131,8 +131,46 @@ extension StoredMintMetadata {
     }
 }
 
-//extension StoredMintMetadata {
-//    enum Error: Swift.Error {
-//        
-//    }
-//}
+extension StoredMintMetadata {
+    /// Creates a StoredMintMetadata from a MintMetadata for immediate display.
+    /// Used when navigating from screens that already have the full metadata
+    /// (e.g. Currency Discovery) to avoid a loading flash.
+    init(_ metadata: MintMetadata) {
+        let encodedSocialLinks: String? = {
+            guard !metadata.socialLinks.isEmpty,
+                  let data = try? JSONEncoder().encode(metadata.socialLinks) else { return nil }
+            return String(data: data, encoding: .utf8)
+        }()
+
+        let encodedBillColors: String? = {
+            guard !metadata.billColors.isEmpty,
+                  let data = try? JSONEncoder().encode(metadata.billColors) else { return nil }
+            return String(data: data, encoding: .utf8)
+        }()
+
+        self.init(
+            mint: metadata.address,
+            name: metadata.name,
+            symbol: metadata.symbol,
+            decimals: metadata.decimals,
+            bio: metadata.description,
+            imageURL: metadata.imageURL,
+            vmAddress: metadata.vmMetadata?.vm,
+            vmAuthority: metadata.vmMetadata?.authority,
+            lockDuration: metadata.vmMetadata?.lockDurationInDays,
+            currencyConfig: metadata.launchpadMetadata?.currencyConfig,
+            liquidityPool: metadata.launchpadMetadata?.liquidityPool,
+            seed: metadata.launchpadMetadata?.seed,
+            authority: metadata.launchpadMetadata?.authority,
+            mintVault: metadata.launchpadMetadata?.mintVault,
+            coreMintVault: metadata.launchpadMetadata?.coreMintVault,
+            coreMintFees: metadata.launchpadMetadata?.coreMintFees,
+            supplyFromBonding: metadata.launchpadMetadata?.supplyFromBonding,
+            sellFeeBps: metadata.launchpadMetadata?.sellFeeBps,
+            socialLinks: encodedSocialLinks,
+            billColors: encodedBillColors,
+            createdAt: metadata.createdAt,
+            updatedAt: .now
+        )
+    }
+}

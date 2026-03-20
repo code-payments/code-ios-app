@@ -271,6 +271,13 @@ private extension AppDelegate {
             bar.setBackgroundImage(background, for: .any, barMetrics: .default)
             bar.shadowImage = background
         }
+
+        // Segmented Control
+        let segmented = UISegmentedControl.appearance()
+        segmented.setTitleTextAttributes([
+            .font: UIFont.appTextMedium,
+            .foregroundColor: UIColor(.textMain),
+        ], for: .normal)
     }
 }
 

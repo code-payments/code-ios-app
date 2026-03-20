@@ -26,4 +26,26 @@ extension Client {
             currencyService.fetchHistoricalMintData(mint: mint, range: range, currencyCode: currencyCode) { c.resume(with: $0) }
         }
     }
+
+    /// Returns an `AsyncStream` of currency batches for the given category.
+    ///
+    /// Each yielded array is a complete ranked snapshot (not a delta). The stream
+    /// finishes when the server closes the connection. Cancelling the consuming
+    /// `Task` (e.g. via `.task(id:)`) tears down the underlying gRPC stream.
+    public func discoverCurrencies(category: DiscoverCategory) -> AsyncStream<[MintMetadata]> {
+        AsyncStream { continuation in
+            let ref = currencyService.discover(category: category) { mints in
+                continuation.yield(mints)
+            }
+
+            ref.stream?.status.whenComplete { _ in
+                continuation.finish()
+            }
+
+            nonisolated(unsafe) let unsafeRef = ref
+            continuation.onTermination = { @Sendable _ in
+                unsafeRef.cancel()
+            }
+        }
+    }
 }

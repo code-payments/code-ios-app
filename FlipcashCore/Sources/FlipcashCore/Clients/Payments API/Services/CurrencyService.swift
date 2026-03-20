@@ -86,11 +86,36 @@ class CurrencyService: CodeService<Ocp_Currency_V1_CurrencyNIOClient>, @unchecke
             completion(.failure(error))
         }
     }
+
+    /// Opens a server-streaming `Discover` RPC that pushes ranked currency batches.
+    ///
+    /// Each streamed response delivers a complete list of ``MintMetadata`` for the
+    /// requested category. Uses `callOptions: .streaming` to avoid the 15-second
+    /// default timeout. Cancel the returned ``StreamReference`` to tear down the stream.
+    @discardableResult
+    func discover(
+        category: DiscoverCategory,
+        handler: @Sendable @escaping ([MintMetadata]) -> Void
+    ) -> StreamReference<Ocp_Currency_V1_DiscoverRequest, Ocp_Currency_V1_DiscoverResponse> {
+        var request = Ocp_Currency_V1_DiscoverRequest()
+        request.category = category.protoCategory
+
+        let streamReference = StreamReference<Ocp_Currency_V1_DiscoverRequest, Ocp_Currency_V1_DiscoverResponse>()
+
+        let stream = service.discover(request, callOptions: .streaming) { response in
+            guard response.result == .ok else { return }
+            let mints = response.mints.compactMap { try? MintMetadata($0) }
+            handler(mints)
+        }
+
+        streamReference.stream = stream
+        return streamReference
+    }
 }
 
 // MARK: - Types -
 
-public typealias HistoricalRange = Ocp_Currency_V1_GetHistoricalMintDataRequest.PredefinedRange
+public typealias HistoricalRange = Ocp_Currency_V1_PredefinedRange
 
 public struct HistoricalMintDataPoint: Sendable {
     public let date: Date

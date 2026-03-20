@@ -44,6 +44,8 @@ class CurrencyInfoViewModel {
     @ObservationIgnored private let session: Session
     @ObservationIgnored private let database: Database
 
+    /// Initializes with a mint address. Attempts a fast database lookup;
+    /// falls back to loading state until ``loadMintMetadata()`` completes.
     init(mint: PublicKey, session: Session, database: Database) {
         self.mint = mint
         self.session = session
@@ -54,6 +56,19 @@ class CurrencyInfoViewModel {
             setupUpdateable(with: cachedMetadata)
             loadingState = .loaded(cachedMetadata)
         }
+    }
+
+    /// Initializes with pre-fetched metadata for instant display. Converts
+    /// the ``MintMetadata`` to ``StoredMintMetadata`` and starts in the
+    /// `.loaded` state — no loading spinner is shown.
+    init(metadata: MintMetadata, session: Session, database: Database) {
+        self.mint = metadata.address
+        self.session = session
+        self.database = database
+
+        let stored = StoredMintMetadata(metadata)
+        setupUpdateable(with: stored)
+        loadingState = .loaded(stored)
     }
 
     func loadMintMetadata() async {

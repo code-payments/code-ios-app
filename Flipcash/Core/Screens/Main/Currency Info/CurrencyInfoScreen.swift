@@ -109,6 +109,8 @@ struct CurrencyInfoScreen: View {
 
     // MARK: - Init -
 
+    /// Creates the screen by mint address. Metadata is loaded from the database
+    /// (fast path) or fetched from the network, showing a loading state until ready.
     init(mint: PublicKey, container: Container, sessionContainer: SessionContainer, showFundingOnAppear: Bool = false) {
         self.mint                = mint
         self.container           = container
@@ -130,6 +132,35 @@ struct CurrencyInfoScreen: View {
 
         self.marketCapController = MarketCapController(
             mint: mint,
+            ratesController: sessionContainer.ratesController,
+            client: container.client
+        )
+    }
+
+    /// Creates the screen with pre-fetched metadata for instant display.
+    /// The title and icon render immediately; a background refresh still runs
+    /// via ``CurrencyInfoViewModel/loadMintMetadata()`` to pick up any updates.
+    init(metadata: MintMetadata, container: Container, sessionContainer: SessionContainer) {
+        self.mint                = metadata.address
+        self.container           = container
+        self.ratesController     = sessionContainer.ratesController
+        self.session             = sessionContainer.session
+        self.sessionContainer    = sessionContainer
+        self.showFundingOnAppear = false
+
+        self.viewModel = CurrencyInfoViewModel(
+            metadata: metadata,
+            session: sessionContainer.session,
+            database: sessionContainer.database
+        )
+
+        self.giveViewModel = GiveViewModel(
+            container: container,
+            sessionContainer: sessionContainer
+        )
+
+        self.marketCapController = MarketCapController(
+            mint: metadata.address,
             ratesController: sessionContainer.ratesController,
             client: container.client
         )
