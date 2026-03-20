@@ -16,10 +16,12 @@ struct BalanceScreen: View {
     @Environment(RatesController.self) private var ratesController
     @Environment(HistoryController.self) private var historyController
     @Environment(NotificationController.self) private var notificationController
-    
+    @Environment(BetaFlags.self) private var betaFlags
+
     let session: Session
-    
+
     @State private var isShowingCurrencySelection: Bool  = false
+    @State private var isShowingCurrencyDiscovery: Bool = false
     @State private var dialogItem: DialogItem?
     @State private var selectedActivity: Activity?
     @State private var selectedMint: PublicKey?
@@ -138,6 +140,12 @@ struct BalanceScreen: View {
             }
         }
         .dialog(item: $dialogItem)
+        .sheet(isPresented: $isShowingCurrencyDiscovery) {
+            CurrencyDiscoveryScreen(
+                container: container,
+                sessionContainer: sessionContainer
+            )
+        }
     }
     
     @ViewBuilder private func emptyState(geometry: GeometryProxy) -> some View {
@@ -149,6 +157,13 @@ struct BalanceScreen: View {
                 .foregroundStyle(Color.textSecondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity, alignment: .center)
+
+            if betaFlags.hasEnabled(.currencyDiscovery) {
+                BubbleButton(text: "Discover Currencies") {
+                    isShowingCurrencyDiscovery = true
+                }
+                .padding(.top, 8)
+            }
         }
         .listRowBackground(Color.clear)
         .frame(height: geometry.size.height * (1 - proportion - 0.1))

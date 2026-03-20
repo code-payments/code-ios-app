@@ -66,6 +66,9 @@ public struct MintMetadata: Equatable, Sendable {
     /// Timestamp the currency was created
     public let createdAt: Date?
 
+    /// Holder metrics (only populated by the Discover RPC)
+    public let holderMetrics: HolderMetrics?
+
     public init(
         address: PublicKey,
         decimals: Int,
@@ -77,7 +80,8 @@ public struct MintMetadata: Equatable, Sendable {
         launchpadMetadata: LaunchpadMetadata?,
         socialLinks: [SocialLink] = [],
         billColors: [String] = [],
-        createdAt: Date? = nil
+        createdAt: Date? = nil,
+        holderMetrics: HolderMetrics? = nil
     ) {
         self.address = address
         self.decimals = decimals
@@ -90,6 +94,7 @@ public struct MintMetadata: Equatable, Sendable {
         self.socialLinks = socialLinks
         self.billColors = billColors
         self.createdAt = createdAt
+        self.holderMetrics = holderMetrics
     }
 
     public static let usdf: MintMetadata =
@@ -204,6 +209,31 @@ public struct LaunchpadMetadata: Equatable, Sendable {
     }
 }
 
+// MARK: - HolderMetrics -
+
+public struct HolderMetrics: Equatable, Sendable {
+    /// Current number of holders
+    public let currentHolders: UInt64
+
+    /// Net holder changes for various time ranges
+    public let holderDeltas: [HolderDelta]
+
+    public struct HolderDelta: Equatable, Sendable {
+        public let range: Ocp_Currency_V1_PredefinedRange
+        public let delta: Int64
+
+        public init(range: Ocp_Currency_V1_PredefinedRange, delta: Int64) {
+            self.range = range
+            self.delta = delta
+        }
+    }
+
+    public init(currentHolders: UInt64, holderDeltas: [HolderDelta]) {
+        self.currentHolders = currentHolders
+        self.holderDeltas = holderDeltas
+    }
+}
+
 // MARK: - Errors -
 
 enum MintMetadataError: Swift.Error {
@@ -249,7 +279,8 @@ extension MintMetadata {
             launchpadMetadata: proto.hasLaunchpadMetadata ? try LaunchpadMetadata(proto.launchpadMetadata) : nil,
             socialLinks: socialLinks,
             billColors: billColors,
-            createdAt: proto.hasCreatedAt ? proto.createdAt.date : nil
+            createdAt: proto.hasCreatedAt ? proto.createdAt.date : nil,
+            holderMetrics: proto.hasHolderMetrics ? HolderMetrics(proto.holderMetrics) : nil
         )
     }
     
@@ -295,6 +326,17 @@ extension LaunchpadMetadata {
             sellFeeBps: Int(proto.sellFeeBps),
             price: proto.price,
             marketCap: proto.marketCap
+        )
+    }
+}
+
+extension HolderMetrics {
+    init(_ proto: Ocp_Currency_V1_HolderMetrics) {
+        self.init(
+            currentHolders: proto.currentHolders,
+            holderDeltas: proto.holderDeltas.map {
+                HolderDelta(range: $0.range, delta: $0.delta)
+            }
         )
     }
 }
