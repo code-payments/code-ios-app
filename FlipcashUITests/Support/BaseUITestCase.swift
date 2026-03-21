@@ -66,4 +66,27 @@ class BaseUITestCase: XCTestCase {
             message
         )
     }
+
+    /// Navigates into the Give flow, retrying up to 3 times if the balance hasn't loaded yet.
+    /// On CI the balance may not be fetched immediately, showing a "No Balance Yet" dialog.
+    /// Returns an `AmountEntryScreen` ready for amount entry.
+    @discardableResult
+    func navigateToGiveAmount() -> AmountEntryScreen {
+        let amountEntry = AmountEntryScreen(app: app)
+
+        for attempt in 1...3 {
+            waitAndTap(app.buttons["Give"])
+            if amountEntry.keypadZero.waitForExistence(timeout: 10) { break }
+
+            let ok = app.buttons["OK"]
+            if ok.exists { ok.tap() }
+
+            if attempt == 3 {
+                XCTFail("Balance did not load after 3 attempts")
+            }
+        }
+
+        return amountEntry
+    }
+
 }

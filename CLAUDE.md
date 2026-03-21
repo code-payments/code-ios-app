@@ -409,6 +409,15 @@ extension RatesController {
 
 Place test support extensions in `FlipcashTests/TestSupport/` using the naming pattern `{Type}+TestSupport.swift`.
 
+### CI Compatibility
+
+**All tests must work on both Xcode Cloud and locally.** Never use APIs that are sandboxed or unavailable on Xcode Cloud:
+
+- ❌ `Process` / `ProcessInfo` for shelling out (sandboxed on Xcode Cloud)
+- ❌ `xcrun simctl` from within tests
+- ❌ Host-only filesystem access
+- ✅ `UIPasteboard`, `XCUIApplication`, `XCUIElement` — standard XCUITest APIs
+
 ### Regression Tests
 
 **Every crash fixed from Bugsnag (or similar) gets a dedicated regression test** in `FlipcashTests/Regressions/`.
