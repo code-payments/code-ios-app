@@ -47,7 +47,7 @@ struct EnterPhoneScreen: View {
                                 .strokeBorder(Metrics.inputFieldStrokeColor(highlighted: false), lineWidth: Metrics.inputFieldBorderWidth(highlighted: false))
                         )
                         .sheet(isPresented: $isShowingRegionSelection) {
-                            RegionSelectionScreen(
+                            CountryCodeSelectionScreen(
                                 isPresented: $isShowingRegionSelection,
                                 didSelectRegion: didSelectRegion
                             )

@@ -1,5 +1,5 @@
 //
-//  RegionSelectionScreen.swift
+//  CountryCodeSelectionScreen.swift
 //  Code
 //
 //  Created by Dima Bart on 2021-03-09.
@@ -9,7 +9,7 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-struct RegionSelectionScreen: View {
+struct CountryCodeSelectionScreen: View {
         
     @Binding public var isPresented: Bool
 
