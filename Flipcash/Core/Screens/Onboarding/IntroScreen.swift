@@ -115,6 +115,8 @@ struct IntroScreen: View {
                     AccessKeyHelpScreen()
                 case .pushNotifications:
                     NotificationPermissionScreen(viewModel: viewModel)
+                case .pushNotificationsDenied:
+                    NotificationPermissionDeniedScreen(viewModel: viewModel)
                 }
             }
         }

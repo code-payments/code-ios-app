@@ -167,8 +167,16 @@ class OnboardingViewModel {
 
     func allowPushNotificationsAction() {
         Task {
-            try? await PushController.authorizeAndRegister()
-            completeOnboardingAndLogin()
+            do {
+                let granted = try await PushController.authorizeAndRegister()
+                if granted {
+                    completeOnboardingAndLogin()
+                } else {
+                    navigateToPushNotificationsDenied()
+                }
+            } catch {
+                completeOnboardingAndLogin()
+            }
         }
 
         Analytics.buttonTapped(name: .allowPush)
@@ -195,6 +203,17 @@ class OnboardingViewModel {
                 Analytics.buttonTapped(name: .skipPush)
             }
         }
+    }
+
+    func openNotificationSettingsAction() {
+        completeOnboardingAndLogin()
+        URL.openSettings()
+    }
+
+    func confirmSkipNotificationsAction() {
+        completeOnboardingAndLogin()
+
+        Analytics.buttonTapped(name: .skipPush)
     }
 
     // MARK: - Registration -
@@ -248,6 +267,10 @@ class OnboardingViewModel {
         path.append(.pushNotifications)
     }
 
+    func navigateToPushNotificationsDenied() {
+        path.append(.pushNotificationsDenied)
+    }
+
 }
 
 // MARK: - Path -
@@ -258,4 +281,5 @@ enum OnboardingPath {
     case accessKey
     case accessKeyHelp
     case pushNotifications
+    case pushNotificationsDenied
 }
