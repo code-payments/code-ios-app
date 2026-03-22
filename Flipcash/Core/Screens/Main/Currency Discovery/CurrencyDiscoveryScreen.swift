@@ -77,7 +77,7 @@ struct CurrencyDiscoveryScreen: View {
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
             } else {
-                ForEach(mints.enumerated(), id: \.element.address) { index, mint in
+                ForEach(Array(mints.enumerated()), id: \.element.address) { index, mint in
                     Button {
                         selectedMint = mint.address
                     } label: {

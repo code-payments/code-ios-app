@@ -241,17 +241,4 @@ extension CurrencyCode: @retroactive Value {
     }
 }
 
-extension Data: @retroactive Value {
-    public static var declaredDatatype: String {
-        Blob.declaredDatatype
-    }
-
-    public static func fromDatatypeValue(_ dataValue: Blob) -> Data {
-        Data(dataValue.bytes)
-    }
-
-    public var datatypeValue: Blob {
-        Blob(bytes: [UInt8](self))
-    }
-}
 

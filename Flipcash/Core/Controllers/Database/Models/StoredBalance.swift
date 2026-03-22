@@ -41,7 +41,7 @@ struct StoredBalance: Identifiable, Sendable, Equatable, Hashable {
         // For non-USDC currencies that have a bonding
         // curve liquidity provider, we'll compute their
         // equivalent USDC value
-        if let supplyFromBonding, let sellFeeBps {
+        if let supplyFromBonding {
             guard let sellEstimate = Self.bondingCurve.sell(
                 tokenQuarks: Int(quarks),
                 feeBps: 0,

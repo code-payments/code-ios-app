@@ -33,8 +33,7 @@ final class AccountInfoService: CodeService<Ocp_Account_V1_AccountNIOClient> {
                     }
                 }.first
                 
-                if var account {
-//                    trace(.success, components: "Balance: \(account.fiat.formatted(suffix: " USD"))")
+                if let account {
                     completion(.success(account))
                 } else {
                     trace(.failure, components: "Account not in list of accounts returned: \(response.tokenAccountInfos)")

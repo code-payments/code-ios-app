@@ -26,7 +26,6 @@ struct WithdrawAmountScreen: View {
     
     // MARK: - Body -
     
-    #warning("Add support for max withdrawal")
     var body: some View {
         Background(color: .backgroundMain) {
             EnterAmountView(

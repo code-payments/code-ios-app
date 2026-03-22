@@ -99,29 +99,11 @@ class MessagingService: CodeService<Ocp_Messaging_V1_MessagingNIOClient> {
     
     private func openMessageStream(assigningTo reference: StreamReference<Ocp_Messaging_V1_OpenMessageStreamRequest, Ocp_Messaging_V1_OpenMessageStreamResponse>, request: Ocp_Messaging_V1_OpenMessageStreamRequest, rendezvous: PublicKey, completion: @MainActor @Sendable @escaping (Result<[StreamMessage], Error>) -> Void) {
         let queue = self.queue
-        let stream = service.openMessageStream(request, callOptions: .streaming) { [weak self] response in
-            
+        let stream = service.openMessageStream(request, callOptions: .streaming) { response in
             let messages = response.messages.compactMap { try? StreamMessage($0) }
-            
-            // Cleans up the message reference on the server after we've received
-            // the message. We only expect on message - receiver's public key.
-            #warning("Clean up messages at some point?")
-//            self?.acknowledge(messages: messages, rendezvous: rendezvous, completion: { _ in })
-            
+                        
             Task { @MainActor in
                 completion(.success(messages))
-//                if let paymentRequest = paymentRequests.first {
-//                    var components = [
-//                        "Recipient: \(paymentRequest.account.base58)",
-//                        "Signature: \(paymentRequest.signature.base58)",
-//                    ]
-//                    components.append(contentsOf: response.messages.hexEncodedIDs.map { "Message ID: \($0)" })
-//                    trace(.receive, components: components)
-//                    completion(.success(paymentRequest))
-//                } else {
-//                    trace(.failure, components: "No accounts received.")
-//                    completion(.failure(MessagingError.failedToParsePaymentRequests))
-//                }
             }
         }
         
