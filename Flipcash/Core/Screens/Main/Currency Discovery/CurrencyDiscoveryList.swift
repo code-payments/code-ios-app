@@ -87,8 +87,9 @@ struct CurrencyDiscoveryList: View {
                     mintsByCategory[category] = Array(batch.prefix(100))
                 }
             }
-            // Stream closed without yielding — server has no results
-            if mintsByCategory[category] == nil {
+            // Stream closed without yielding — server has no results.
+            // Only set empty if this task wasn't cancelled and no data was cached.
+            if !Task.isCancelled, mintsByCategory[category] == nil {
                 mintsByCategory[category] = []
             }
         }

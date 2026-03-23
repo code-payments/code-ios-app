@@ -41,7 +41,7 @@ private struct CashReservesRow: View {
     @Binding var selectedMint: PublicKey?
 
     var body: some View {
-        VStack {
+        VStack(spacing: 0) {
             if showTopDivider {
                 Divider()
                     .overlay(Color.rowSeparator)

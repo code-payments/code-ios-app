@@ -149,27 +149,25 @@ struct BalanceScreen: View {
     }
     
     @ViewBuilder private func emptyState(geometry: GeometryProxy) -> some View {
+        let subtitle = betaFlags.hasEnabled(.currencyDiscovery)
+            ? "Buy your first currency to get started"
+            : "Get another Flipcash user to give you some cash to get a balance"
+
         VStack(spacing: 10) {
             Text("No Balance Yet")
                 .font(.appTextLarge)
-            
+
+            Text(subtitle)
+                .font(.appTextMedium)
+                .foregroundStyle(Color.textSecondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity, alignment: .center)
+
             if betaFlags.hasEnabled(.currencyDiscovery) {
-                Text("Buy your first currency to get started")
-                    .font(.appTextMedium)
-                    .foregroundStyle(Color.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity, alignment: .center)
-           
                 BubbleButton(text: "Discover Currencies") {
                     isShowingCurrencyDiscovery = true
                 }
                 .padding(.top, 8)
-            } else {
-                Text("Get another Flipcash user to give you some cash to get a balance")
-                    .font(.appTextMedium)
-                    .foregroundStyle(Color.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity, alignment: .center)
             }
         }
         .listRowBackground(Color.clear)

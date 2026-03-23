@@ -19,14 +19,6 @@ struct CurrencyDiscoveryScreen: View {
     @State private var selectedMint: PublicKey?
     @State private var refreshID: Int = 0
 
-    private var currentMints: [MintMetadata] {
-        mintsByCategory[selectedCategory] ?? []
-    }
-
-    private var isLoading: Bool {
-        mintsByCategory[selectedCategory] == nil
-    }
-
     var body: some View {
         NavigationStack {
             ZStack {
@@ -38,7 +30,7 @@ struct CurrencyDiscoveryScreen: View {
                     refreshID: $refreshID
                 )
 
-                if !isLoading, betaFlags.hasEnabled(.currencyCreation) {
+                if mintsByCategory[selectedCategory] != nil, betaFlags.hasEnabled(.currencyCreation) {
                     CurrencyInfoFooter {
                         Button("Create Your Own Currency") {
                             // No-op for now
@@ -55,7 +47,7 @@ struct CurrencyDiscoveryScreen: View {
                 }
             }
             .navigationDestination(item: $selectedMint) { mintAddress in
-                if let metadata = currentMints.first(where: { $0.address == mintAddress }) {
+                if let metadata = mintsByCategory[selectedCategory]?.first(where: { $0.address == mintAddress }) {
                     CurrencyInfoScreen(
                         metadata: metadata,
                         container: container,
