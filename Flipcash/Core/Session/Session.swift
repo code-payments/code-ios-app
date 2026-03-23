@@ -247,6 +247,12 @@ class Session {
             try await updateProfile()
             try await updateUserFlags()
         }
+
+        Task {
+            await syncUserPreferences()
+        }
+
+        observeBalanceCurrencyChanges()
     }
 
     /// Start streaming live mint data for exchange rates
@@ -321,7 +327,33 @@ class Session {
     func updateUserFlags() async throws {
         userFlags = try await flipClient.fetchUserFlags(userID: userID, owner: ownerKeyPair)
     }
-    
+
+    // MARK: - Settings Sync -
+
+    /// Syncs user locale and region preferences to the server.
+    /// Fire-and-forget — best-effort server hints.
+    func syncUserPreferences() async {
+        try? await flipClient.updateSettings(
+            locale: Locale.current.identifier(.bcp47),
+            region: ratesController.balanceCurrency.rawValue,
+            owner: ownerKeyPair
+        )
+    }
+
+    /// Observes `balanceCurrency` changes on `RatesController` and
+    /// syncs the updated region to the server. Re-registers after
+    /// each change since `withObservationTracking` is one-shot.
+    private func observeBalanceCurrencyChanges() {
+        withObservationTracking {
+            _ = ratesController.balanceCurrency
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in
+                await self?.syncUserPreferences()
+                self?.observeBalanceCurrencyChanges()
+            }
+        }
+    }
+
     // MARK: - Login -
     
     func attemptLogin(with mnemonic: MnemonicPhrase, completion: @escaping () async throws -> Void) {

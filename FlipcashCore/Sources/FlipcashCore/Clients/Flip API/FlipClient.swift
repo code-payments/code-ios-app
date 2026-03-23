@@ -27,9 +27,10 @@ public class FlipClient: ObservableObject {
     internal let phoneService: PhoneService
     internal let emailService: EmailService
     internal let profileService: ProfileService
-    
+    internal let settingsService: SettingsService
+
     // MARK: - Init -
-    
+
     public init(network: Network) {
         self.network = network
         self.queue   = .main
@@ -37,7 +38,7 @@ public class FlipClient: ObservableObject {
             host: network.hostForCore,
             port: network.port
         )
-        
+
         self.accountService    = AccountService(channel: channel, queue: queue)
         self.activityService   = ActivityService(channel: channel, queue: queue)
         self.iapService        = IAPService(channel: channel, queue: queue)
@@ -46,6 +47,7 @@ public class FlipClient: ObservableObject {
         self.phoneService      = PhoneService(channel: channel, queue: queue)
         self.emailService      = EmailService(channel: channel, queue: queue)
         self.profileService    = ProfileService(channel: channel, queue: queue)
+        self.settingsService   = SettingsService(channel: channel, queue: queue)
     }
     
     deinit {
