@@ -1,0 +1,118 @@
+//
+//  CurrencyDiscoveryList.swift
+//  Flipcash
+//
+
+import SwiftUI
+import FlipcashCore
+
+struct CurrencyDiscoveryList: View {
+    let container: Container
+
+    @Environment(BetaFlags.self) private var betaFlags
+    @Binding var mintsByCategory: [DiscoverCategory: [MintMetadata]]
+    @Binding var selectedCategory: DiscoverCategory
+    @Binding var selectedMint: PublicKey?
+    @Binding var refreshID: Int
+
+    @State private var failedCategories: Set<DiscoverCategory> = []
+
+    private var mints: [MintMetadata] {
+        mintsByCategory[selectedCategory] ?? []
+    }
+
+    private var isLoading: Bool {
+        mintsByCategory[selectedCategory] == nil && !failedCategories.contains(selectedCategory)
+    }
+
+    private var isFailed: Bool {
+        failedCategories.contains(selectedCategory)
+    }
+
+    var body: some View {
+        List {
+            Section {
+                if isLoading {
+                    ForEach(1...10, id: \.self) { rank in
+                        CurrencyDiscoverySkeletonRow(rank: rank)
+                    }
+                    .listRowInsets(EdgeInsets())
+                } else {
+                    ForEach(mints.indexed(), id: \.element.address) { item in
+                        Button {
+                            selectedMint = item.element.address
+                        } label: {
+                            CurrencyDiscoveryRow(rank: item.index + 1, mint: item.element)
+                        }
+                        .buttonStyle(.plain)
+                        .listRowInsets(EdgeInsets())
+                    }
+
+                    if betaFlags.hasEnabled(.currencyCreation) {
+                        Color.clear
+                            .frame(height: 80)
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                    }
+                }
+            } header: {
+                Picker("Category", selection: $selectedCategory) {
+                    Text("Popular").tag(DiscoverCategory.popular)
+                    Text("New").tag(DiscoverCategory.new)
+                }
+                .pickerStyle(.segmented)
+                .frame(height: 44)
+                .textCase(nil)
+            }
+        }
+        .overlay {
+            if isFailed {
+                VStack(spacing: 10) {
+                    Text("Something Went Wrong")
+                        .font(.appTextLarge)
+                    Text("We couldn't load currencies right now. Pull down to try again.")
+                        .font(.appTextMedium)
+                        .foregroundStyle(Color.textSecondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.horizontal, 20)
+            } else if !isLoading, mints.isEmpty {
+                VStack(spacing: 10) {
+                    Text("No Currencies Yet")
+                        .font(.appTextLarge)
+                    Text("There are no currencies in this category yet. Check back soon!")
+                        .font(.appTextMedium)
+                        .foregroundStyle(Color.textSecondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.horizontal, 20)
+            }
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .contentMargins(.top, 0, for: .scrollContent)
+        .refreshable {
+            failedCategories.remove(selectedCategory)
+            refreshID += 1
+        }
+        .task(id: "\(selectedCategory.rawValue)-\(refreshID)") {
+            let category = selectedCategory
+            do {
+                for try await batch in container.client.discoverCurrencies(category: category) {
+                    failedCategories.remove(category)
+                    withAnimation {
+                        mintsByCategory[category] = Array(batch.prefix(100))
+                    }
+                }
+                // Stream finished with .ok status — no yield means genuinely empty
+                if mintsByCategory[category] == nil {
+                    mintsByCategory[category] = []
+                }
+            } catch {
+                if !Task.isCancelled {
+                    failedCategories.insert(category)
+                }
+            }
+        }
+    }
+}

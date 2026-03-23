@@ -15,9 +15,9 @@ struct CurrencyDiscoveryRow: View {
         HStack(spacing: 12) {
             Text("\(rank)")
                 .font(.appTextMedium)
-                .foregroundStyle(Color.textSecondary)
+                .foregroundStyle(Color.textMain)
                 .monospacedDigit()
-                .frame(width: 24, alignment: .leading)
+                .frame(width: 24, alignment: .center)
 
             RemoteImage(url: mint.imageURL)
                 .frame(width: 40, height: 40)
@@ -62,7 +62,7 @@ struct CurrencyDiscoveryRow: View {
 
 // MARK: - Formatting -
 
-extension CurrencyDiscoveryRow {
+private extension CurrencyDiscoveryRow {
     static func formatDelta(_ delta: Int64) -> String {
         let sign = delta >= 0 ? "+" : ""
         let compact = delta.formatted(.number.notation(.compactName))

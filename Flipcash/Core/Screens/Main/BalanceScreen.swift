@@ -130,7 +130,7 @@ struct BalanceScreen: View {
                 )
             }
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .topBarTrailing) {
                     ToolbarCloseButton(binding: $isPresented)
                 }
             }
@@ -149,10 +149,15 @@ struct BalanceScreen: View {
     }
     
     @ViewBuilder private func emptyState(geometry: GeometryProxy) -> some View {
+        let subtitle = betaFlags.hasEnabled(.currencyDiscovery)
+            ? "Buy your first currency to get started"
+            : "Get another Flipcash user to give you some cash to get a balance"
+
         VStack(spacing: 10) {
             Text("No Balance Yet")
                 .font(.appTextLarge)
-            Text("Get another Flipcash user to give you some cash to get a balance")
+
+            Text(subtitle)
                 .font(.appTextMedium)
                 .foregroundStyle(Color.textSecondary)
                 .multilineTextAlignment(.center)
@@ -199,52 +204,23 @@ struct BalanceScreen: View {
                     .textCase(.none)
                     .padding(.vertical, 30)
                 } footer: {
-                    if let reservesBalance, reservesBalance.exchangedFiat.hasDisplayableValue() {
-                        cashReservesFooter(reservesBalance: reservesBalance)
-                    }
+                    BalanceFooter(
+                        reservesBalance: reservesBalance,
+                        showDiscoverCurrencies: hasBalances && betaFlags.hasEnabled(.currencyDiscovery),
+                        isOnlyRow: currencyBalances.isEmpty,
+                        selectedMint: $selectedMint,
+                        isShowingCurrencyDiscovery: $isShowingCurrencyDiscovery
+                    )
                 }
                 .listRowInsets(EdgeInsets())
-                .listRowSeparatorTint(hasBalances ? .rowSeparator : .clear)
+                .listRowSeparator(hasBalances ? .automatic : .hidden)
+                .listRowSeparatorTint(.rowSeparator)
             }
             .listStyle(.grouped)
             .scrollContentBackground(.hidden)
         }
     }
 
-    @ViewBuilder private func cashReservesFooter(reservesBalance: ExchangedBalance) -> some View {
-        VStack {
-            Divider()
-            
-            Button {
-                Analytics.tokenInfoOpened(from: .openedFromWallet, mint: reservesBalance.stored.mint)
-                selectedMint = reservesBalance.stored.mint
-            } label: {
-                HStack(spacing: 8) {
-                    Text("USDF")
-                        .font(.appBarButton)
-                        .foregroundStyle(Color.textSecondary)
-
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Color.textSecondary)
-                        .padding(.top, 3)
-
-                    Spacer()
-
-                    Text(reservesBalance.exchangedFiat.converted.formatted())
-                        .font(.appTextMedium)
-                        .foregroundStyle(Color.textMain)
-                }
-            }
-                .listRowBackground(Color.clear)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 14)
-                .textCase(.none)
-            
-            Divider()
-        }
-        
-    }
     
     @ViewBuilder private func header() -> some View {
         VStack(spacing: 10) {
