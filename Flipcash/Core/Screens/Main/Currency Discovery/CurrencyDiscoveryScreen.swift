@@ -22,17 +22,14 @@ struct CurrencyDiscoveryScreen: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                VStack(spacing: 0) {
-                    Picker("Category", selection: $selectedCategory) {
-                        Text("Popular").tag(DiscoverCategory.popular)
-                        Text("New").tag(DiscoverCategory.new)
-                    }
-                    .pickerStyle(.segmented)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
-
-                    list()
-                }
+                CurrencyDiscoveryList(
+                    container: container,
+                    mints: $mints,
+                    selectedCategory: $selectedCategory,
+                    selectedMint: $selectedMint,
+                    isLoading: $isLoading,
+                    refreshID: $refreshID
+                )
 
                 if !isLoading {
                     CurrencyInfoFooter {
@@ -65,50 +62,6 @@ struct CurrencyDiscoveryScreen: View {
                     )
                 }
             }
-        }
-    }
-
-    @ViewBuilder
-    private func list() -> some View {
-        List {
-            if isLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity)
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-            } else {
-                ForEach(Array(mints.enumerated()), id: \.element.address) { index, mint in
-                    Button {
-                        selectedMint = mint.address
-                    } label: {
-                        CurrencyDiscoveryRow(rank: index + 1, mint: mint)
-                    }
-                    .buttonStyle(.plain)
-                    .listRowInsets(EdgeInsets())
-                }
-
-                Color.clear
-                    .frame(height: 80)
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-            }
-        }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .refreshable {
-            refreshID += 1
-        }
-        .task(id: "\(selectedCategory.rawValue)-\(refreshID)") {
-            if mints.isEmpty {
-                isLoading = true
-            }
-            for await batch in container.client.discoverCurrencies(category: selectedCategory) {
-                withAnimation {
-                    mints = Array(batch.prefix(100))
-                }
-                isLoading = false
-            }
-            isLoading = false
         }
     }
 }
