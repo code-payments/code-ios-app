@@ -77,7 +77,7 @@ public struct CodeButton: View {
                 case .success:
                     Image.asset(.checkmark)
                         .renderingMode(.template)
-                        .foregroundColor(.textSuccess)
+                        .foregroundColor(.textMain)
                     
                 case .successText(let text):
                     HStack(spacing: 10) {
