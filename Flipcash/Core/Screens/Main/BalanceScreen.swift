@@ -259,6 +259,7 @@ struct BalanceScreen: View {
                 .font(.appDisplayLarge)
                 .foregroundStyle(Color.textMain)
             }
+            .accessibilityIdentifier("balance-header")
             .frame(maxWidth: .infinity)
             .sheet(isPresented: $isShowingCurrencySelection) {
                 CurrencySelectionScreen(

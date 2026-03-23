@@ -126,6 +126,16 @@ class AccountManager {
     func nukeForUITesting() {
         resetForLogout()
         Keychain.historicalAccounts = nil
+
+        let currencyKeys: [DefaultsKey] = [
+            .entryCurrency,
+            .balanceCurrency,
+            .recentCurrencies,
+            .localCurrencyAdded,
+        ]
+        for key in currencyKeys {
+            UserDefaults.standard.removeObject(forKey: key.rawValue)
+        }
     }
     
     static func fetchDescription(for publicKey: PublicKey) -> AccountDescription? {

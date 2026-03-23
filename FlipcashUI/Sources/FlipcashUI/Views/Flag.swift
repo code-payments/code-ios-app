@@ -28,7 +28,8 @@ public struct Flag: View {
                     .frame(width: size.dimensions.width, height: size.dimensions.height)
                 }
                 .mask { Circle() }
-            
+                .accessibilityIdentifier("flag-\(region.rawValue)")
+
         case .crypto(let currency):
             Image.cryptoFlag(currency)
                 .resizable()
@@ -36,6 +37,7 @@ public struct Flag: View {
                     .frame(width: size.dimensions.width, height: size.dimensions.height)
                 }
                 .mask { Circle() }
+                .accessibilityIdentifier("flag-\(currency.rawValue)")
         }
     }
 }

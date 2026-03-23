@@ -9,7 +9,6 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-@available(*, deprecated, renamed: "RegionSelectionScreen")
 struct CurrencySelectionScreen: View {
     
     @State private var viewModel: CurrencySelectionViewModel

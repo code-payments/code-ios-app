@@ -22,7 +22,7 @@ class BaseUITestCase: XCTestCase {
         try await super.setUp()
         continueAfterFailure = false
 
-        app.launchArguments = ["--ui-testing"]
+        app.launchArguments = ["--ui-testing", "-AppleLocale", "en_US", "-AppleLanguages", "(en)"]
 
         for permission in resetPermissions {
             app.resetAuthorizationStatus(for: permission)
