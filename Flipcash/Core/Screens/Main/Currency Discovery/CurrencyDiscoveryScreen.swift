@@ -14,21 +14,27 @@ struct CurrencyDiscoveryScreen: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(BetaFlags.self) private var betaFlags
 
-    @State private var mints: [MintMetadata] = []
+    @State private var mintsByCategory: [DiscoverCategory: [MintMetadata]] = [:]
     @State private var selectedCategory: DiscoverCategory = .popular
     @State private var selectedMint: PublicKey?
-    @State private var isLoading: Bool = true
     @State private var refreshID: Int = 0
+
+    private var currentMints: [MintMetadata] {
+        mintsByCategory[selectedCategory] ?? []
+    }
+
+    private var isLoading: Bool {
+        mintsByCategory[selectedCategory] == nil
+    }
 
     var body: some View {
         NavigationStack {
             ZStack {
                 CurrencyDiscoveryList(
                     container: container,
-                    mints: $mints,
+                    mintsByCategory: $mintsByCategory,
                     selectedCategory: $selectedCategory,
                     selectedMint: $selectedMint,
-                    isLoading: $isLoading,
                     refreshID: $refreshID
                 )
 
@@ -49,7 +55,7 @@ struct CurrencyDiscoveryScreen: View {
                 }
             }
             .navigationDestination(item: $selectedMint) { mintAddress in
-                if let metadata = mints.first(where: { $0.address == mintAddress }) {
+                if let metadata = currentMints.first(where: { $0.address == mintAddress }) {
                     CurrencyInfoScreen(
                         metadata: metadata,
                         container: container,

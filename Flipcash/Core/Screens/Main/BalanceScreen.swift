@@ -130,7 +130,7 @@ struct BalanceScreen: View {
                 )
             }
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .topBarTrailing) {
                     ToolbarCloseButton(binding: $isPresented)
                 }
             }
@@ -152,17 +152,24 @@ struct BalanceScreen: View {
         VStack(spacing: 10) {
             Text("No Balance Yet")
                 .font(.appTextLarge)
-            Text("Get another Flipcash user to give you some cash to get a balance")
-                .font(.appTextMedium)
-                .foregroundStyle(Color.textSecondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity, alignment: .center)
-
+            
             if betaFlags.hasEnabled(.currencyDiscovery) {
+                Text("Buy your first currency to get started")
+                    .font(.appTextMedium)
+                    .foregroundStyle(Color.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity, alignment: .center)
+           
                 BubbleButton(text: "Discover Currencies") {
                     isShowingCurrencyDiscovery = true
                 }
                 .padding(.top, 8)
+            } else {
+                Text("Get another Flipcash user to give you some cash to get a balance")
+                    .font(.appTextMedium)
+                    .foregroundStyle(Color.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity, alignment: .center)
             }
         }
         .listRowBackground(Color.clear)
@@ -201,13 +208,15 @@ struct BalanceScreen: View {
                 } footer: {
                     BalanceFooter(
                         reservesBalance: reservesBalance,
-                        showDiscoverCurrencies: betaFlags.hasEnabled(.currencyDiscovery),
+                        showDiscoverCurrencies: hasBalances && betaFlags.hasEnabled(.currencyDiscovery),
+                        isOnlyRow: currencyBalances.isEmpty,
                         selectedMint: $selectedMint,
                         isShowingCurrencyDiscovery: $isShowingCurrencyDiscovery
                     )
                 }
                 .listRowInsets(EdgeInsets())
-                .listRowSeparatorTint(hasBalances ? .rowSeparator : .clear)
+                .listRowSeparator(hasBalances ? .automatic : .hidden)
+                .listRowSeparatorTint(.rowSeparator)
             }
             .listStyle(.grouped)
             .scrollContentBackground(.hidden)

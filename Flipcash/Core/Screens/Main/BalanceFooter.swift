@@ -10,6 +10,7 @@ import FlipcashUI
 struct BalanceFooter: View {
     let reservesBalance: ExchangedBalance?
     let showDiscoverCurrencies: Bool
+    let isOnlyRow: Bool
     @Binding var selectedMint: PublicKey?
     @Binding var isShowingCurrencyDiscovery: Bool
 
@@ -18,6 +19,7 @@ struct BalanceFooter: View {
             if let reservesBalance, reservesBalance.exchangedFiat.hasDisplayableValue() {
                 CashReservesRow(
                     reservesBalance: reservesBalance,
+                    showTopDivider: isOnlyRow,
                     selectedMint: $selectedMint
                 )
             }
@@ -33,13 +35,17 @@ struct BalanceFooter: View {
     }
 }
 
-struct CashReservesRow: View {
+private struct CashReservesRow: View {
     let reservesBalance: ExchangedBalance
+    let showTopDivider: Bool
     @Binding var selectedMint: PublicKey?
 
     var body: some View {
         VStack {
-            Divider()
+            if showTopDivider {
+                Divider()
+                    .overlay(Color.rowSeparator)
+            }
 
             Button {
                 Analytics.tokenInfoOpened(from: .openedFromWallet, mint: reservesBalance.stored.mint)
@@ -68,6 +74,7 @@ struct CashReservesRow: View {
             .textCase(.none)
 
             Divider()
+                .overlay(Color.rowSeparator)
         }
     }
 }

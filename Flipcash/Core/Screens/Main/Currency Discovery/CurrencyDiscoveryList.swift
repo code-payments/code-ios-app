@@ -9,11 +9,20 @@ import FlipcashCore
 struct CurrencyDiscoveryList: View {
     let container: Container
 
-    @Binding var mints: [MintMetadata]
+    @Binding var mintsByCategory: [DiscoverCategory: [MintMetadata]]
     @Binding var selectedCategory: DiscoverCategory
     @Binding var selectedMint: PublicKey?
-    @Binding var isLoading: Bool
     @Binding var refreshID: Int
+
+    private var mints: [MintMetadata] {
+        mintsByCategory[selectedCategory] ?? []
+    }
+
+    /// `nil` in the dictionary means "never fetched" → show spinner.
+    /// Empty `[]` means "fetched, no results" → show empty state.
+    private var isLoading: Bool {
+        mintsByCategory[selectedCategory] == nil
+    }
 
     var body: some View {
         List {
@@ -49,6 +58,19 @@ struct CurrencyDiscoveryList: View {
                 .textCase(nil)
             }
         }
+        .overlay {
+            if !isLoading, mints.isEmpty {
+                VStack(spacing: 10) {
+                    Text("No Currencies Yet")
+                        .font(.appTextLarge)
+                    Text("There are no currencies in this category yet. Check back soon!")
+                        .font(.appTextMedium)
+                        .foregroundStyle(Color.textSecondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.horizontal, 20)
+            }
+        }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .contentMargins(.top, 0, for: .scrollContent)
@@ -56,16 +78,12 @@ struct CurrencyDiscoveryList: View {
             refreshID += 1
         }
         .task(id: "\(selectedCategory.rawValue)-\(refreshID)") {
-            if mints.isEmpty {
-                isLoading = true
-            }
-            for await batch in container.client.discoverCurrencies(category: selectedCategory) {
+            let category = selectedCategory
+            for await batch in container.client.discoverCurrencies(category: category) {
                 withAnimation {
-                    mints = Array(batch.prefix(100))
+                    mintsByCategory[category] = Array(batch.prefix(100))
                 }
-                isLoading = false
             }
-            isLoading = false
         }
     }
 }
