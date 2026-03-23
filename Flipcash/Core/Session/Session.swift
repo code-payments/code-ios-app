@@ -725,27 +725,30 @@ class Session {
             }
             
             do {
+                // Track grab initiation to measure the start-to-completion funnel
+                Analytics.transferStart(event: .grabBillStart)
+
                 let metadata = try await operation.start()
-                
+
                 updatePostTransaction()
-                
+
                 enqueue(toast: .init(
                     amount: metadata.exchangedFiat.converted,
                     isDeposit: true
                 ))
-                
+
                 showCashBill(.init(
                     kind: .cash,
                     exchangedFiat: metadata.exchangedFiat,
                     received: true,
                     verifiedState: metadata.verifiedState
                 ))
-                
+
                 var grabTimeInSeconds: Double? = nil
                 if let start = grabStarts[payload.rendezvous.publicKey] {
                     grabTimeInSeconds = Date.now.timeIntervalSince1970 - start.timeIntervalSince1970
                 }
-                
+
                 Analytics.transfer(
                     event: .grabBill,
                     exchangedFiat: metadata.exchangedFiat,
@@ -891,6 +894,13 @@ class Session {
             secondaryAction: secondaryAction,
         )
         
+        // Track give initiation to measure the start-to-completion funnel.
+        // Only for outgoing bills — received bills are displayed after a
+        // successful grab and don't represent a new give action.
+        if !billDescription.received {
+            Analytics.transferStart(event: .giveBillStart)
+        }
+
         operation.start { [weak self] result in
             switch result {
             case .success:

@@ -41,6 +41,8 @@ extension Analytics {
         case receiveCashLink = "Receive Cash Link"
         case grabBill        = "Grab Bill"
         case giveBill        = "Give Bill"
+        case grabBillStart   = "Grab Bill Start"
+        case giveBillStart   = "Give Bill Start"
     }
 
     enum OnrampEvent: String, AnalyticsEvent {
@@ -107,6 +109,10 @@ extension Analytics {
 // MARK: - Cash Transfer -
 
 extension Analytics {
+    static func transferStart(event: TransferEvent) {
+        track(event: event)
+    }
+
     static func withdrawal(exchangedFiat: ExchangedFiat?, successful: Bool, error: Error?) {
         var properties: [Property: AnalyticsValue] = [
             .state: successful ? String.success : String.failure,
