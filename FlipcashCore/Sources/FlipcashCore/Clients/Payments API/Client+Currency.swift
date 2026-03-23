@@ -27,19 +27,27 @@ extension Client {
         }
     }
 
-    /// Returns an `AsyncStream` of currency batches for the given category.
+    /// Returns an `AsyncThrowingStream` of currency batches for the given category.
     ///
     /// Each yielded array is a complete ranked snapshot (not a delta). The stream
-    /// finishes when the server closes the connection. Cancelling the consuming
-    /// `Task` (e.g. via `.task(id:)`) tears down the underlying gRPC stream.
-    public func discoverCurrencies(category: DiscoverCategory) -> AsyncStream<[MintMetadata]> {
-        AsyncStream { continuation in
+    /// finishes when the server closes the connection successfully, or throws on
+    /// gRPC errors. Cancelling the consuming `Task` (e.g. via `.task(id:)`) tears
+    /// down the underlying gRPC stream.
+    public func discoverCurrencies(category: DiscoverCategory) -> AsyncThrowingStream<[MintMetadata], Error> {
+        AsyncThrowingStream { continuation in
             let ref = currencyService.discover(category: category) { mints in
                 continuation.yield(mints)
             }
 
-            ref.stream?.status.whenComplete { _ in
-                continuation.finish()
+            ref.stream?.status.whenComplete { result in
+                switch result {
+                case .success(let status) where status.code == .ok:
+                    continuation.finish()
+                case .success(let status):
+                    continuation.finish(throwing: status)
+                case .failure(let error):
+                    continuation.finish(throwing: error)
+                }
             }
 
             nonisolated(unsafe) let unsafeRef = ref

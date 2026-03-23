@@ -15,24 +15,28 @@ struct CurrencyDiscoveryList: View {
     @Binding var selectedMint: PublicKey?
     @Binding var refreshID: Int
 
+    @State private var failedCategories: Set<DiscoverCategory> = []
+
     private var mints: [MintMetadata] {
         mintsByCategory[selectedCategory] ?? []
     }
 
-    /// `nil` in the dictionary means "never fetched" → show spinner.
-    /// Empty `[]` means "fetched, no results" → show empty state.
     private var isLoading: Bool {
-        mintsByCategory[selectedCategory] == nil
+        mintsByCategory[selectedCategory] == nil && !failedCategories.contains(selectedCategory)
+    }
+
+    private var isFailed: Bool {
+        failedCategories.contains(selectedCategory)
     }
 
     var body: some View {
         List {
             Section {
                 if isLoading {
-                    ProgressView()
-                        .frame(maxWidth: .infinity)
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
+                    ForEach(1...10, id: \.self) { rank in
+                        CurrencyDiscoverySkeletonRow(rank: rank)
+                    }
+                    .listRowInsets(EdgeInsets())
                 } else {
                     ForEach(mints.indexed(), id: \.element.address) { item in
                         Button {
@@ -62,7 +66,17 @@ struct CurrencyDiscoveryList: View {
             }
         }
         .overlay {
-            if !isLoading, mints.isEmpty {
+            if isFailed {
+                VStack(spacing: 10) {
+                    Text("Something Went Wrong")
+                        .font(.appTextLarge)
+                    Text("We couldn't load currencies right now. Pull down to try again.")
+                        .font(.appTextMedium)
+                        .foregroundStyle(Color.textSecondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.horizontal, 20)
+            } else if !isLoading, mints.isEmpty {
                 VStack(spacing: 10) {
                     Text("No Currencies Yet")
                         .font(.appTextLarge)
@@ -78,19 +92,26 @@ struct CurrencyDiscoveryList: View {
         .scrollContentBackground(.hidden)
         .contentMargins(.top, 0, for: .scrollContent)
         .refreshable {
+            failedCategories.remove(selectedCategory)
             refreshID += 1
         }
         .task(id: "\(selectedCategory.rawValue)-\(refreshID)") {
             let category = selectedCategory
-            for await batch in container.client.discoverCurrencies(category: category) {
-                withAnimation {
-                    mintsByCategory[category] = Array(batch.prefix(100))
+            do {
+                for try await batch in container.client.discoverCurrencies(category: category) {
+                    failedCategories.remove(category)
+                    withAnimation {
+                        mintsByCategory[category] = Array(batch.prefix(100))
+                    }
                 }
-            }
-            // Stream closed without yielding — server has no results.
-            // Only set empty if this task wasn't cancelled and no data was cached.
-            if !Task.isCancelled, mintsByCategory[category] == nil {
-                mintsByCategory[category] = []
+                // Stream finished with .ok status — no yield means genuinely empty
+                if mintsByCategory[category] == nil {
+                    mintsByCategory[category] = []
+                }
+            } catch {
+                if !Task.isCancelled {
+                    failedCategories.insert(category)
+                }
             }
         }
     }

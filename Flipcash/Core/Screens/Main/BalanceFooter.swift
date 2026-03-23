@@ -69,8 +69,7 @@ private struct CashReservesRow: View {
                 }
             }
             .listRowBackground(Color.clear)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 14)
+            .padding(20)
             .textCase(.none)
 
             Divider()
