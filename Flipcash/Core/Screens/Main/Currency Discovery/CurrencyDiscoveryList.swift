@@ -9,6 +9,7 @@ import FlipcashCore
 struct CurrencyDiscoveryList: View {
     let container: Container
 
+    @Environment(BetaFlags.self) private var betaFlags
     @Binding var mintsByCategory: [DiscoverCategory: [MintMetadata]]
     @Binding var selectedCategory: DiscoverCategory
     @Binding var selectedMint: PublicKey?
@@ -43,10 +44,12 @@ struct CurrencyDiscoveryList: View {
                         .listRowInsets(EdgeInsets())
                     }
 
-                    Color.clear
-                        .frame(height: 80)
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
+                    if betaFlags.hasEnabled(.currencyCreation) {
+                        Color.clear
+                            .frame(height: 80)
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                    }
                 }
             } header: {
                 Picker("Category", selection: $selectedCategory) {
@@ -83,6 +86,10 @@ struct CurrencyDiscoveryList: View {
                 withAnimation {
                     mintsByCategory[category] = Array(batch.prefix(100))
                 }
+            }
+            // Stream closed without yielding — server has no results
+            if mintsByCategory[category] == nil {
+                mintsByCategory[category] = []
             }
         }
     }
