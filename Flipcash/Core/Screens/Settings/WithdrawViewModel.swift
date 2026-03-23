@@ -79,23 +79,36 @@ class WithdrawViewModel {
         return try? enteredFiat.converted.subtracting(withdrawableAmount.converted)
     }
 
+    /// Returns the amount by which the fee exceeds the entered amount, or nil if the fee is covered.
+    /// Used by `completeWithdrawalAction` to block withdrawals where the initialization fee exceeds the amount,
+    /// and by the summary screen to display the negative delta.
     var negativeWithdrawableAmount: Quarks? {
         guard let enteredFiat = enteredFiat else {
             return nil
         }
-        
-        guard let exchangedFee else {
+
+        guard let destinationMetadata, destinationMetadata.requiresInitialization, destinationMetadata.fee.quarks > 0 else {
             return nil
         }
-        
-        let feeInUnderlying = exchangedFee.underlying
-        
-        guard feeInUnderlying.quarks >= enteredFiat.underlying.quarks else {
+
+        // USDF fee is charged directly in USDC; bonded tokens need
+        // the fee converted through the bonding curve (exchangedFee).
+        let fee: Quarks
+        if enteredFiat.mint == .usdf {
+            fee = destinationMetadata.fee
+        } else {
+            guard let exchangedFee else {
+                return nil
+            }
+            fee = exchangedFee.underlying
+        }
+
+        guard fee.quarks >= enteredFiat.underlying.quarks else {
             return nil
         }
-        
+
         return try! enteredFiat.subtracting(
-            fee: feeInUnderlying,
+            fee: fee,
             invert: true // fee - enteredFiat
         ).converted
     }
