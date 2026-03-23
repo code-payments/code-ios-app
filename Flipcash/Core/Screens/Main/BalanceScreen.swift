@@ -199,9 +199,12 @@ struct BalanceScreen: View {
                     .textCase(.none)
                     .padding(.vertical, 30)
                 } footer: {
-                    if let reservesBalance, reservesBalance.exchangedFiat.hasDisplayableValue() {
-                        cashReservesFooter(reservesBalance: reservesBalance)
-                    }
+                    BalanceFooter(
+                        reservesBalance: reservesBalance,
+                        showDiscoverCurrencies: betaFlags.hasEnabled(.currencyDiscovery),
+                        selectedMint: $selectedMint,
+                        isShowingCurrencyDiscovery: $isShowingCurrencyDiscovery
+                    )
                 }
                 .listRowInsets(EdgeInsets())
                 .listRowSeparatorTint(hasBalances ? .rowSeparator : .clear)
@@ -211,40 +214,6 @@ struct BalanceScreen: View {
         }
     }
 
-    @ViewBuilder private func cashReservesFooter(reservesBalance: ExchangedBalance) -> some View {
-        VStack {
-            Divider()
-            
-            Button {
-                Analytics.tokenInfoOpened(from: .openedFromWallet, mint: reservesBalance.stored.mint)
-                selectedMint = reservesBalance.stored.mint
-            } label: {
-                HStack(spacing: 8) {
-                    Text("USDF")
-                        .font(.appBarButton)
-                        .foregroundStyle(Color.textSecondary)
-
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Color.textSecondary)
-                        .padding(.top, 3)
-
-                    Spacer()
-
-                    Text(reservesBalance.exchangedFiat.converted.formatted())
-                        .font(.appTextMedium)
-                        .foregroundStyle(Color.textMain)
-                }
-            }
-                .listRowBackground(Color.clear)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 14)
-                .textCase(.none)
-            
-            Divider()
-        }
-        
-    }
     
     @ViewBuilder private func header() -> some View {
         VStack(spacing: 10) {
