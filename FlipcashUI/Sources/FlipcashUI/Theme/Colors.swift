@@ -94,14 +94,3 @@ extension LinearGradient {
         endPoint:   UnitPoint(x: 0.0, y: 0.54)
     )
 }
-
-extension LinearGradient {
-    public static let loginBillBackground = LinearGradient(
-        gradient: Gradient(stops: [
-            Gradient.Stop(color: Color(r: 31, g: 35, b: 35), location: 0.0),
-            Gradient.Stop(color: Color(r: 18, g: 21, b: 20), location: 1.0),
-        ]),
-        startPoint: UnitPoint(x: 0.5, y: 0.0),
-        endPoint:   UnitPoint(x: 0.5, y: 1.0)
-    )
-}
