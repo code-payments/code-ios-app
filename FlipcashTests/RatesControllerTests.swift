@@ -6,6 +6,7 @@
 //
 
 import Testing
+import Combine
 @testable import Flipcash
 import FlipcashCore
 import FlipcashAPI
@@ -207,6 +208,32 @@ struct RatesControllerTests {
 
         // Second call should be a no-op (already in list)
         controller.ensureMintSubscribed(mint)
+    }
+
+    @Test("Reserve state publisher emits updates when reserve states are saved")
+    @MainActor
+    func reserveStatesPublisher_emitsOnSave() async {
+        let controller = makeController()
+        let mint = PublicKey.jeffy
+
+        var received: [ReserveStateUpdate] = []
+        let cancellable = controller.verifiedProtoService.reserveStatesPublisher
+            .sink { updates in
+                received.append(contentsOf: updates)
+            }
+
+        await controller.verifiedProtoService.saveReserveStates([
+            .makeTest(mint: mint, supplyFromBonding: 1_000_000)
+        ])
+
+        // Allow publisher to deliver
+        try? await Task.sleep(for: .milliseconds(50))
+
+        #expect(received.count == 1)
+        #expect(received.first?.mint == mint)
+        #expect(received.first?.supplyFromBonding == 1_000_000)
+
+        _ = cancellable
     }
 
     // MARK: - Helpers -
