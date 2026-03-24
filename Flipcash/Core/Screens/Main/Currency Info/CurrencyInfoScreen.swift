@@ -40,36 +40,6 @@ struct CurrencyInfoScreen: View {
         return mintMetadata?.bio ?? "No information"
     }
 
-    private var balance: Quarks {
-        let rate = ratesController.rateForBalanceCurrency()
-        let zeroQuarks: UInt64 = 0
-        let zero = Quarks(quarks: zeroQuarks, currencyCode: rate.currency, decimals: PublicKey.usdf.mintDecimals)
-
-        guard let mintMetadata else { return zero }
-        guard let stored = session.balance(for: mintMetadata.mint) else { return zero }
-
-        let exchanged = try? ExchangedFiat(underlying: stored.usdf, rate: rate, mint: .usdf)
-        return exchanged?.converted ?? zero
-    }
-
-    private var reserveBalance: ExchangedFiat? {
-        guard let stored = session.balance(for: .usdf) else { return nil }
-
-        let rate = ratesController.rateForBalanceCurrency()
-        return try? ExchangedFiat(underlying: stored.usdf, rate: rate, mint: .usdf)
-    }
-
-    private var appreciation: (amount: Quarks, isPositive: Bool) {
-        let zeroQuarks: UInt64 = 0
-        let zero = Quarks(quarks: zeroQuarks, currencyCode: ratesController.rateForBalanceCurrency().currency, decimals: PublicKey.usdf.mintDecimals)
-
-        guard let mintMetadata, let balance = session.balance(for: mintMetadata.mint) else {
-            return (zero, true)
-        }
-        let (appreciationValue, isPositive) = balance.computeAppreciation(with: ratesController.rateForBalanceCurrency())
-        return (appreciationValue.converted, isPositive)
-    }
-
     @Environment(WalletConnection.self) private var walletConnection
 
     private let mint: PublicKey
@@ -79,51 +49,22 @@ struct CurrencyInfoScreen: View {
     private let marketCapController: MarketCapController
     private let showFundingOnAppear: Bool
 
-    private var marketCap: Quarks {
-        guard let mintMetadata else { return 0 }
-
-        var supply: Int = 0
-        if let supplyFromBonding = mintMetadata.supplyFromBonding {
-            supply = Int(supplyFromBonding)
-        }
-
-        let curve = DiscreteBondingCurve()
-        guard let mCap = curve.marketCap(for: supply) else {
-            return 0
-        }
-
-        let usdc = try! Quarks(
-            fiatDecimal: mCap,
-            currencyCode: .usd,
-            decimals: mintMetadata.mint.mintDecimals
-        )
-
-        let exchanged = try! ExchangedFiat(
-            underlying: usdc,
-            rate: ratesController.rateForBalanceCurrency(),
-            mint: .usdf
-        )
-
-        return exchanged.converted
-    }
-
     // MARK: - Init -
 
-    /// Creates the screen by mint address. Metadata is loaded from the database
-    /// (fast path) or fetched from the network, showing a loading state until ready.
-    init(mint: PublicKey, container: Container, sessionContainer: SessionContainer, showFundingOnAppear: Bool = false) {
+    private init(
+        mint: PublicKey,
+        viewModel: CurrencyInfoViewModel,
+        container: Container,
+        sessionContainer: SessionContainer,
+        showFundingOnAppear: Bool
+    ) {
         self.mint                = mint
         self.container           = container
         self.ratesController     = sessionContainer.ratesController
         self.session             = sessionContainer.session
         self.sessionContainer    = sessionContainer
         self.showFundingOnAppear = showFundingOnAppear
-
-        self.viewModel = CurrencyInfoViewModel(
-            mint: mint,
-            session: sessionContainer.session,
-            database: sessionContainer.database
-        )
+        self.viewModel           = viewModel
 
         self.giveViewModel = GiveViewModel(
             container: container,
@@ -134,6 +75,23 @@ struct CurrencyInfoScreen: View {
             mint: mint,
             ratesController: sessionContainer.ratesController,
             client: container.client
+        )
+    }
+
+    /// Creates the screen by mint address. Metadata is loaded from the database
+    /// (fast path) or fetched from the network, showing a loading state until ready.
+    init(mint: PublicKey, container: Container, sessionContainer: SessionContainer, showFundingOnAppear: Bool = false) {
+        self.init(
+            mint: mint,
+            viewModel: CurrencyInfoViewModel(
+                mint: mint,
+                session: sessionContainer.session,
+                database: sessionContainer.database,
+                ratesController: sessionContainer.ratesController
+            ),
+            container: container,
+            sessionContainer: sessionContainer,
+            showFundingOnAppear: showFundingOnAppear
         )
     }
 
@@ -141,28 +99,17 @@ struct CurrencyInfoScreen: View {
     /// The title and icon render immediately; a background refresh still runs
     /// via ``CurrencyInfoViewModel/loadMintMetadata()`` to pick up any updates.
     init(metadata: MintMetadata, container: Container, sessionContainer: SessionContainer) {
-        self.mint                = metadata.address
-        self.container           = container
-        self.ratesController     = sessionContainer.ratesController
-        self.session             = sessionContainer.session
-        self.sessionContainer    = sessionContainer
-        self.showFundingOnAppear = false
-
-        self.viewModel = CurrencyInfoViewModel(
-            metadata: metadata,
-            session: sessionContainer.session,
-            database: sessionContainer.database
-        )
-
-        self.giveViewModel = GiveViewModel(
-            container: container,
-            sessionContainer: sessionContainer
-        )
-
-        self.marketCapController = MarketCapController(
+        self.init(
             mint: metadata.address,
-            ratesController: sessionContainer.ratesController,
-            client: container.client
+            viewModel: CurrencyInfoViewModel(
+                metadata: metadata,
+                session: sessionContainer.session,
+                database: sessionContainer.database,
+                ratesController: sessionContainer.ratesController
+            ),
+            container: container,
+            sessionContainer: sessionContainer,
+            showFundingOnAppear: false
         )
     }
 
@@ -227,45 +174,21 @@ struct CurrencyInfoScreen: View {
 
     @ViewBuilder private func loadedContent(metadata: StoredMintMetadata) -> some View {
         // Compute values once per body evaluation instead of on every property reference.
-        let balance = self.balance
-        let appreciation = self.appreciation
-        let marketCap = self.marketCap
-        let reserveBalance = self.reserveBalance
+        let balance = viewModel.balance
+        let appreciation = viewModel.appreciation
+        let marketCap = viewModel.marketCap
+        let reserveBalance = viewModel.reserveBalance
 
         ZStack {
             ScrollView {
                 VStack(spacing: 0) {
-                    // Header
-                    VStack {
-                        Button {
-                            isShowingCurrencySelection.toggle()
-                        } label: {
-                            AmountText(
-                                flagStyle: balance.currencyCode.flagStyle,
-                                content: balance.formatted(),
-                                showChevron: true
-                            )
-                            .font(.appDisplayLarge)
-                            .foregroundStyle(Color.textMain)
-                        }
-                        .frame(height: 60)
-                        .frame(maxWidth: .infinity)
-
-                        if !isUSDF && balance.quarks > 0 {
-                            ValueAppreciation(amount: appreciation.amount, isPositive: appreciation.isPositive)
-                                .padding(.top, 8)
-
-                            Button("View Transaction") {
-                                isShowingTransactionHistory.toggle()
-                            }
-                                .buttonStyle(.filled20)
-                                .padding(.top, 40)
-                        }
-                    }
-                    .padding(.top, 30)
-                    .padding(.bottom, 25)
-                    .vSeparator(color: .rowSeparator)
-                    .padding(.horizontal, 20)
+                    CurrencyInfoHeaderSection(
+                        balance: balance,
+                        appreciation: appreciation,
+                        isUSDF: isUSDF,
+                        onCurrencySelection: { isShowingCurrencySelection.toggle() },
+                        onViewTransaction: { isShowingTransactionHistory.toggle() }
+                    )
 
                     // Currency Info
                     section(spacing: 20) {
@@ -289,39 +212,8 @@ struct CurrencyInfoScreen: View {
                             .foregroundStyle(Color.textSecondary)
                             .font(.appTextSmall)
 
-                        // Social Links
                         if !isUSDF && !metadata.metadata.socialLinks.isEmpty {
-                            ScrollView(.horizontal) {
-                                HStack {
-                                    ForEach(metadata.metadata.socialLinks) { socialLink in
-                                        switch socialLink {
-                                        case .website(let url):
-                                            Button("Website") {
-                                                UIApplication.shared.open(url)
-                                            }
-                                            .buttonStyle(.icon(.globus))
-                                        case .x(let handle):
-                                            Button(handle) {
-                                                UIApplication.shared.open(URL(string: "https://x.com/\(handle)")!)
-                                            }
-                                            .buttonStyle(.icon(.twitter))
-                                        case .telegram(let username):
-                                            Button("Telegram") {
-                                                UIApplication.shared.open(URL(string: "https://t.me/\(username)")!)
-                                            }
-                                            .buttonStyle(.icon(.chat))
-                                        case .discord(let inviteCode):
-                                            Button("Discord") {
-                                                UIApplication.shared.open(URL(string: "https://discord.gg/\(inviteCode)")!)
-                                            }
-                                            .buttonStyle(.icon(.chat))
-                                        }
-                                    }
-                                }
-                            }
-                            .scrollIndicators(.hidden)
-                            .padding(.horizontal, -20) // Extend past the parent's padding
-                            .contentMargins(.horizontal, 20) // Inset the scroll content to match
+                            CurrencyInfoSocialLinksSection(socialLinks: metadata.metadata.socialLinks)
                         }
                     }
 

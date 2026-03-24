@@ -43,13 +43,85 @@ class CurrencyInfoViewModel {
     @ObservationIgnored private let mint: PublicKey
     @ObservationIgnored private let session: Session
     @ObservationIgnored private let database: Database
+    @ObservationIgnored private let ratesController: RatesController
+
+    // MARK: - Computed Properties -
+
+    /// The current balance for this currency converted to the user's
+    /// selected display currency. Returns zero quarks when metadata
+    /// hasn't loaded or the user holds no balance for this mint.
+    var balance: Quarks {
+        let rate = ratesController.rateForBalanceCurrency()
+        let zero = Quarks.zero(currencyCode: rate.currency, decimals: PublicKey.usdf.mintDecimals)
+
+        guard let mintMetadata else { return zero }
+        guard let stored = session.balance(for: mintMetadata.mint) else { return zero }
+
+        let exchanged = try? ExchangedFiat(underlying: stored.usdf, rate: rate, mint: .usdf)
+        return exchanged?.converted ?? zero
+    }
+
+    /// The user's USDF reserve balance converted to the display currency.
+    /// Returns `nil` when the user has no USDF balance.
+    var reserveBalance: ExchangedFiat? {
+        guard let stored = session.balance(for: .usdf) else { return nil }
+
+        let rate = ratesController.rateForBalanceCurrency()
+        return try? ExchangedFiat(underlying: stored.usdf, rate: rate, mint: .usdf)
+    }
+
+    /// The absolute appreciation (or depreciation) of this currency's balance
+    /// relative to its cost basis, converted to the display currency.
+    /// Returns zero with `isPositive: true` when
+    /// metadata or balance is unavailable.
+    var appreciation: (amount: Quarks, isPositive: Bool) {
+        let rate = ratesController.rateForBalanceCurrency()
+        let zero = Quarks.zero(currencyCode: rate.currency, decimals: PublicKey.usdf.mintDecimals)
+
+        guard let mintMetadata, let balance = session.balance(for: mintMetadata.mint) else {
+            return (zero, true)
+        }
+        let (appreciationValue, isPositive) = balance.computeAppreciation(with: rate)
+        return (appreciationValue.converted, isPositive)
+    }
+
+    /// The market capitalisation of this currency (supply × spot price on the
+    /// bonding curve), converted to the user's display currency. Returns zero
+    /// when metadata is missing or the supply exceeds the curve's max.
+    var marketCap: Quarks {
+        guard let mintMetadata else { return 0 }
+
+        let supply = Int(mintMetadata.supplyFromBonding ?? 0)
+
+        let curve = DiscreteBondingCurve()
+        guard let mCap = curve.marketCap(for: supply) else {
+            return 0
+        }
+
+        let usdc = try! Quarks(
+            fiatDecimal: mCap,
+            currencyCode: .usd,
+            decimals: mintMetadata.mint.mintDecimals
+        )
+
+        let exchanged = try! ExchangedFiat(
+            underlying: usdc,
+            rate: ratesController.rateForBalanceCurrency(),
+            mint: .usdf
+        )
+
+        return exchanged.converted
+    }
+
+    // MARK: - Init -
 
     /// Initializes with a mint address. Attempts a fast database lookup;
     /// falls back to loading state until ``loadMintMetadata()`` completes.
-    init(mint: PublicKey, session: Session, database: Database) {
+    init(mint: PublicKey, session: Session, database: Database, ratesController: RatesController) {
         self.mint = mint
         self.session = session
         self.database = database
+        self.ratesController = ratesController
 
         // Load from database immediately if available (fast path)
         if let cachedMetadata = try? database.getMintMetadata(mint: mint) {
@@ -61,10 +133,11 @@ class CurrencyInfoViewModel {
     /// Initializes with pre-fetched metadata for instant display. Converts
     /// the ``MintMetadata`` to ``StoredMintMetadata`` and starts in the
     /// `.loaded` state — no loading spinner is shown.
-    init(metadata: MintMetadata, session: Session, database: Database) {
+    init(metadata: MintMetadata, session: Session, database: Database, ratesController: RatesController) {
         self.mint = metadata.address
         self.session = session
         self.database = database
+        self.ratesController = ratesController
 
         let stored = StoredMintMetadata(metadata)
         setupUpdateable(with: stored)
