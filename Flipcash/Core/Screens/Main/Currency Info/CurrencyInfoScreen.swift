@@ -182,37 +182,13 @@ struct CurrencyInfoScreen: View {
         ZStack {
             ScrollView {
                 VStack(spacing: 0) {
-                    // Header
-                    VStack {
-                        Button {
-                            isShowingCurrencySelection.toggle()
-                        } label: {
-                            AmountText(
-                                flagStyle: balance.currencyCode.flagStyle,
-                                content: balance.formatted(),
-                                showChevron: true
-                            )
-                            .font(.appDisplayLarge)
-                            .foregroundStyle(Color.textMain)
-                        }
-                        .frame(height: 60)
-                        .frame(maxWidth: .infinity)
-
-                        if !isUSDF && balance.quarks > 0 {
-                            ValueAppreciation(amount: appreciation.amount, isPositive: appreciation.isPositive)
-                                .padding(.top, 8)
-
-                            Button("View Transaction") {
-                                isShowingTransactionHistory.toggle()
-                            }
-                                .buttonStyle(.filled20)
-                                .padding(.top, 40)
-                        }
-                    }
-                    .padding(.top, 30)
-                    .padding(.bottom, 25)
-                    .vSeparator(color: .rowSeparator)
-                    .padding(.horizontal, 20)
+                    CurrencyInfoHeaderSection(
+                        balance: balance,
+                        appreciation: appreciation,
+                        isUSDF: isUSDF,
+                        onCurrencySelection: { isShowingCurrencySelection.toggle() },
+                        onViewTransaction: { isShowingTransactionHistory.toggle() }
+                    )
 
                     // Currency Info
                     section(spacing: 20) {
