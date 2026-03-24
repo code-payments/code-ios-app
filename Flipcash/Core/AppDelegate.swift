@@ -163,9 +163,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         let action = container.deepLinkController.handle(open: url)
         Analytics.deeplinkParsed(action: action, url: url)
 
-        let shouldResetInterface = hasBeenBackgrounded
-            && !(action?.preventUserInterfaceReset ?? false)
-            && !preventUserInterfaceReset
+        let shouldResetInterface = Self.shouldResetInterface(
+            hasBeenBackgrounded: hasBeenBackgrounded,
+            action: action,
+            preventUserInterfaceReset: preventUserInterfaceReset
+        )
 
         // Calling assignHost() during app launch (when the app
         // hasn't been running) results in a double call making
@@ -205,6 +207,24 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
         trace(.failure, components: "Push notification registration failed: \(error)")
+    }
+
+    // MARK: - Interface Reset -
+
+    /// Determines whether the app should reset its view hierarchy after
+    /// handling a deep link URL. Extracted for testability.
+    ///
+    /// When `action` is `nil` (e.g. wallet callback URLs that don't
+    /// match any Route), we must NOT reset — the URL was already handled
+    /// as a side effect in `DeepLinkController.handle(open:)`.
+    @MainActor static func shouldResetInterface(
+        hasBeenBackgrounded: Bool,
+        action: DeepLinkAction?,
+        preventUserInterfaceReset: Bool
+    ) -> Bool {
+        hasBeenBackgrounded
+            && action?.preventUserInterfaceReset == false
+            && !preventUserInterfaceReset
     }
 }
 

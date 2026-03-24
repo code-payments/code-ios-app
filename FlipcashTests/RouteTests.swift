@@ -119,4 +119,139 @@ struct RouteTests {
         #expect(Route(url: noMintDeepLink) == nil)
         #expect(Route(url: noMintUniversalLink) == nil)
     }
+
+    // MARK: - Wallet Callback URLs -
+
+    @Test("Wallet callback universal links parse as unknown routes")
+    func walletCallbackUniversalLinks() {
+        // Wallet callback URLs (from Phantom) parse as .unknown routes.
+        // DeepLinkController returns nil action for .unknown, which means
+        // the interface reset condition must handle nil action correctly
+        // (see interfaceResetWithNilAction test).
+
+        let walletConnected = URL(string: "https://app.flipcash.com/wallet/walletConnected?nonce=abc&data=xyz")!
+        let transactionSigned = URL(string: "https://app.flipcash.com/wallet/transactionSigned?nonce=abc&data=xyz")!
+        let walletError = URL(string: "https://app.flipcash.com/wallet/walletConnected?errorCode=4001")!
+
+        if case .unknown = Route(url: walletConnected)?.path {} else {
+            Issue.record("walletConnected should parse as .unknown")
+        }
+        if case .unknown = Route(url: transactionSigned)?.path {} else {
+            Issue.record("transactionSigned should parse as .unknown")
+        }
+        if case .unknown = Route(url: walletError)?.path {} else {
+            Issue.record("walletError should parse as .unknown")
+        }
+    }
+
+    @Test("Wallet callback deep links parse as unknown routes")
+    func walletCallbackDeepLinks() {
+        let walletConnected = URL(string: "flipcash://wallet/walletConnected?nonce=abc&data=xyz")!
+        let transactionSigned = URL(string: "flipcash://wallet/transactionSigned?nonce=abc&data=xyz")!
+        let walletError = URL(string: "flipcash://wallet/walletConnected?errorCode=4001")!
+
+        if case .unknown = Route(url: walletConnected)?.path {} else {
+            Issue.record("walletConnected deep link should parse as .unknown")
+        }
+        if case .unknown = Route(url: transactionSigned)?.path {} else {
+            Issue.record("transactionSigned deep link should parse as .unknown")
+        }
+        if case .unknown = Route(url: walletError)?.path {} else {
+            Issue.record("walletError deep link should parse as .unknown")
+        }
+    }
+
+    // MARK: - Interface Reset Condition -
+
+    @Test("Nil action (wallet callback) does not reset interface")
+    @MainActor func interfaceResetWithNilAction() {
+        // Wallet callback URLs return nil action from DeepLinkController.
+        // The interface must NOT be reset — the URL was already handled
+        // by WalletConnection.didReceiveURL as a side effect.
+        //
+        // Regression guard for a8b43188 where `== false` was changed
+        // to `?? false`, inverting the nil case.
+
+        let result = AppDelegate.shouldResetInterface(
+            hasBeenBackgrounded: true,
+            action: nil,
+            preventUserInterfaceReset: false
+        )
+
+        #expect(result == false, "nil action must not trigger interface reset")
+    }
+
+    @Test("Normal deep link resets interface when backgrounded")
+    @MainActor func interfaceResetWithNormalDeepLink() {
+        // A normal deep link (cash link, login) with default
+        // preventUserInterfaceReset should reset the UI.
+
+        let action = DeepLinkAction(
+            kind: .accessKey(.mock),
+            sessionAuthenticator: .mock
+        )
+
+        let result = AppDelegate.shouldResetInterface(
+            hasBeenBackgrounded: true,
+            action: action,
+            preventUserInterfaceReset: false
+        )
+
+        #expect(result == true, "normal deep link should trigger reset when backgrounded")
+    }
+
+    @Test("Action with preventUserInterfaceReset does not reset")
+    @MainActor func interfaceResetWithPreventFlag() {
+        // Email verification mid-flow sets preventUserInterfaceReset
+        // to avoid destroying the onboarding state.
+
+        var action = DeepLinkAction(
+            kind: .accessKey(.mock),
+            sessionAuthenticator: .mock
+        )
+        action.preventUserInterfaceReset = true
+
+        let result = AppDelegate.shouldResetInterface(
+            hasBeenBackgrounded: true,
+            action: action,
+            preventUserInterfaceReset: false
+        )
+
+        #expect(result == false, "action with preventUserInterfaceReset must not reset")
+    }
+
+    @Test("QR deep link parameter prevents reset")
+    @MainActor func interfaceResetWithQRParameter() {
+        // QR code scans pass preventUserInterfaceReset: true as a
+        // parameter to keep the camera active after scanning.
+
+        let action = DeepLinkAction(
+            kind: .accessKey(.mock),
+            sessionAuthenticator: .mock
+        )
+
+        let result = AppDelegate.shouldResetInterface(
+            hasBeenBackgrounded: true,
+            action: action,
+            preventUserInterfaceReset: true
+        )
+
+        #expect(result == false, "QR parameter must prevent reset")
+    }
+
+    @Test("No reset when app has not been backgrounded")
+    @MainActor func interfaceResetWithoutBackgrounding() {
+        let action = DeepLinkAction(
+            kind: .accessKey(.mock),
+            sessionAuthenticator: .mock
+        )
+
+        let result = AppDelegate.shouldResetInterface(
+            hasBeenBackgrounded: false,
+            action: action,
+            preventUserInterfaceReset: false
+        )
+
+        #expect(result == false, "must not reset if app was never backgrounded")
+    }
 }
