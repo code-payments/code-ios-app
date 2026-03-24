@@ -29,10 +29,6 @@ public struct ImmutableField: View {
                         Text(content)
                             .truncationMode(.middle)
                             .lineLimit(1)
-                    case .kin:
-                        KinText(content, format: .large)
-                            .truncationMode(.middle)
-                            .lineLimit(1)
                     }
                 }
                 .frame(minHeight: 26)
@@ -54,8 +50,8 @@ public struct ImmutableField: View {
 
 // MARK: - State -
 
-extension ImmutableField {
-    public enum State: Equatable {
+public extension ImmutableField {
+    enum State: Equatable {
         
         case success(Image)
         case `default`(Image)
@@ -85,7 +81,6 @@ extension ImmutableField {
 extension ImmutableField {
     public enum Configuration {
         case `default`
-        case kin
     }
 }
 
@@ -97,7 +92,6 @@ struct ImmutableField_Previews: PreviewProvider {
             VStack {
                 ImmutableField("9xFTcyYWKmU3dXwayxaGCmHrCoWgUrSvqEiJu6i9YD9", state: .default(.system(.doc)))
                 ImmutableField("849.99")
-                ImmutableField("849.99", configuration: .kin)
             }
             .padding(20)
         }

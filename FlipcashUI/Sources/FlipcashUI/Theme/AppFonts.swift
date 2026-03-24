@@ -29,9 +29,6 @@ extension Font {
     public static let appTextCaption:   Font = .default(size: 12, weight: .medium)
     
     public static let appTextAccessKey: Font = .default(size: 9, weight: .bold)
-    public static let appTextSeed:      Font = .fixedWidth(size: 16)
-    
-    public static let appReceiptMedium: Font = .roboto(size: 16)
 }
 
 #if canImport(UIKit)
@@ -59,9 +56,6 @@ extension UIFont {
     public static let appTextCaption:   UIFont = .default(size: 12, weight: .bold)
     
     public static let appTextAccessKey: UIFont = .default(size: 9, weight: .bold)
-    public static let appTextSeed:      UIFont = .fixedWidth(size: 16)
-    
-    public static let appReceiptMedium: UIFont = .roboto(size: 16)
 }
 
 #endif

@@ -10,9 +10,7 @@ import FlipcashUI
 import FlipcashCore
 
 struct WithdrawSummaryScreen: View {
-    
-    @EnvironmentObject private var bannerController: BannerController
-    
+
     let viewModel: WithdrawViewModel
     
     @State private var dialogItem: DialogItem?

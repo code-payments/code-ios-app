@@ -20,10 +20,7 @@ extension Metrics {
     public static let boxRadius: CGFloat = 12.0
     public static let buttonPadding: CGFloat = 20.0
     public static let buttonLineWidth: CGFloat = 1.0
-    
-    public static let chatMessageRadiusLarge: CGFloat = 8.0
-    public static let chatMessageRadiusSmall: CGFloat = 2.0
-    
+
     public static var localizedDecimalSeparator: String {
         Locale.current.decimalSeparator ?? "."
     }
