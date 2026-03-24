@@ -243,16 +243,7 @@ private extension AppDelegate {
         bar.titleTextAttributes = titleAttributes
 
         if #available(iOS 26, *) {
-            // iOS 26: Use minimal configuration to allow liquid glass effect
-            let barAppearance = UINavigationBarAppearance()
-            barAppearance.configureWithTransparentBackground()
-            barAppearance.titleTextAttributes = titleAttributes
-            barAppearance.largeTitleTextAttributes = largeAttributes
-            barAppearance.backButtonAppearance = buttonAppearance
-
-            bar.standardAppearance = barAppearance
-            bar.scrollEdgeAppearance = barAppearance
-            bar.isTranslucent = true
+            // iOS 26: Use default configuration
         } else {
             // iOS < 26: Use custom background
             let background = UIImage.solid(color: UIColor(.backgroundMain))
@@ -278,6 +269,7 @@ private extension AppDelegate {
             .font: UIFont.appTextMedium,
             .foregroundColor: UIColor(.textMain),
         ], for: .normal)
+        segmented.backgroundColor = UIColor(white: 0.0, alpha: 0.25)
     }
 }
 

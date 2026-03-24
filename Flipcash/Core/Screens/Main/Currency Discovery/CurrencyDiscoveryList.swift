@@ -13,7 +13,6 @@ struct CurrencyDiscoveryList: View {
     @Binding var mintsByCategory: [DiscoverCategory: [MintMetadata]]
     @Binding var selectedCategory: DiscoverCategory
     @Binding var selectedMint: PublicKey?
-    @Binding var refreshID: Int
 
     @State private var failedCategories: Set<DiscoverCategory> = []
 
@@ -70,7 +69,7 @@ struct CurrencyDiscoveryList: View {
                 VStack(spacing: 10) {
                     Text("Something Went Wrong")
                         .font(.appTextLarge)
-                    Text("We couldn't load currencies right now. Pull down to try again.")
+                    Text("We couldn't load currencies right now. Please try again.")
                         .font(.appTextMedium)
                         .foregroundStyle(Color.textSecondary)
                         .multilineTextAlignment(.center)
@@ -91,11 +90,7 @@ struct CurrencyDiscoveryList: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .contentMargins(.top, 0, for: .scrollContent)
-        .refreshable {
-            failedCategories.remove(selectedCategory)
-            refreshID += 1
-        }
-        .task(id: "\(selectedCategory.rawValue)-\(refreshID)") {
+        .task(id: selectedCategory) {
             let category = selectedCategory
             do {
                 for try await batch in container.client.discoverCurrencies(category: category) {

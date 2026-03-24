@@ -17,7 +17,6 @@ struct CurrencyDiscoveryScreen: View {
     @State private var mintsByCategory: [DiscoverCategory: [MintMetadata]] = [:]
     @State private var selectedCategory: DiscoverCategory = .popular
     @State private var selectedMint: PublicKey?
-    @State private var refreshID: Int = 0
 
     var body: some View {
         NavigationStack {
@@ -26,8 +25,7 @@ struct CurrencyDiscoveryScreen: View {
                     container: container,
                     mintsByCategory: $mintsByCategory,
                     selectedCategory: $selectedCategory,
-                    selectedMint: $selectedMint,
-                    refreshID: $refreshID
+                    selectedMint: $selectedMint
                 )
 
                 if mintsByCategory[selectedCategory] != nil, betaFlags.hasEnabled(.currencyCreation) {
