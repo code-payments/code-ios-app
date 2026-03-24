@@ -140,6 +140,14 @@ Existing `ObservableObject` classes (`Session`, `Client`, controllers) stay as-i
 - `Flipchat/` - Legacy chat app (inactive)
 - `PoolController` and pools-related code - feature is deprecated
 
+### Database Schema Changes
+
+**Bump `SQLiteVersion` in Info.plist on every schema change.** The app does not run migrations — when the version number increases, the database is deleted and rebuilt from server data on next login (`SessionAuthenticator.initializeDatabase`). This means:
+
+- Adding/removing tables or columns → bump version
+- Changing which table a query reads from → bump version if the old schema can't satisfy the new query
+- No migration code needed, but all data must be recoverable from server
+
 ### Package.resolved Policy
 
 **Always commit the workspace Package.resolved:**
