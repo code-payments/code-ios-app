@@ -54,12 +54,9 @@ struct AccessKeyScreen: View {
                     action: viewModel.saveToPhotosAction
                 )
                 
-                CodeButton(
-                    style: .subtle,
-                    title: "Wrote the 12 Words Down Instead?",
-                    disabled: viewModel.accessKeyButtonState != .normal,
-                    action: viewModel.wroteDownAction
-                )
+                Button("Wrote the 12 Words Down Instead?", action: viewModel.wroteDownAction)
+                    .buttonStyle(.subtle)
+                    .disabled(viewModel.accessKeyButtonState != .normal)
             }
             .ignoresSafeArea(.keyboard)
             .foregroundColor(.textMain)

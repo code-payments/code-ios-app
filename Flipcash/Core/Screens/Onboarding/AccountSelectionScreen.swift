@@ -51,11 +51,8 @@ struct AccountSelectionScreen: View {
                 .scrollContentBackground(.hidden)
 
                 if let onEnterDifferentKey {
-                    CodeButton(
-                        style: .subtle,
-                        title: "Enter a Different Access Key",
-                        action: onEnterDifferentKey
-                    )
+                    Button("Enter a Different Access Key", action: onEnterDifferentKey)
+                        .buttonStyle(.subtle)
                     .padding(.horizontal, 20)
                     .padding(.bottom, 20)
                 }

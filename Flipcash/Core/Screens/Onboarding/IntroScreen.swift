@@ -48,11 +48,8 @@ struct IntroScreen: View {
                                 action: viewModel.createAccountAction
                             )
                             
-                            CodeButton(
-                                style: .subtle,
-                                title: "Log In",
-                                action: viewModel.loginAction
-                            )
+                            Button("Log In", action: viewModel.loginAction)
+                                .buttonStyle(.subtle)
                         }
                     }
                     .padding(20.0)
