@@ -16,13 +16,11 @@ struct DatabaseLiveSupplyTests {
 
     // MARK: - Helpers
 
-    /// Creates a fresh in-memory database for test isolation
     private static func makeDatabase() -> Database {
         try! Database(url: URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("test-\(UUID().uuidString).sqlite"))
     }
 
-    /// Alias for the shared test helper
     private static func makeLaunchpadMint(
         address: PublicKey = .jeffy,
         supplyFromBonding: UInt64 = 50_000 * 10_000_000_000
@@ -32,31 +30,39 @@ struct DatabaseLiveSupplyTests {
 
     // MARK: - updateLiveSupply Tests
 
-    @Test("updateLiveSupply inserts new rows")
-    func updateLiveSupply_insertsNew() throws {
+    @Test("updateLiveSupply updates supplyFromBonding in mint table")
+    func updateLiveSupply_updatesMintTable() throws {
         let db = Self.makeDatabase()
         let mint = PublicKey.jeffy
-        let supply: UInt64 = 100_000
+        let originalSupply: UInt64 = 50_000 * 10_000_000_000
+        let newSupply: UInt64 = 60_000 * 10_000_000_000
 
+        let metadata = Self.makeLaunchpadMint(address: mint, supplyFromBonding: originalSupply)
+        try db.insert(mints: [metadata], date: .now)
+        try db.insertBalance(quarks: 1_000_000_000_000, mint: mint, costBasis: 0, date: .now)
+
+        // Verify original supply
+        let before = try db.getBalances()
+        #expect(before.first?.supplyFromBonding == originalSupply)
+
+        // Update via streaming path
         try db.updateLiveSupply(
-            updates: [ReserveStateUpdate(mint: mint, supplyFromBonding: supply)],
+            updates: [ReserveStateUpdate(mint: mint, supplyFromBonding: newSupply)],
             date: .now
         )
 
-        // Verify by reading mint_live directly via raw SQL
-        let table = MintLiveTable()
-        let rows = try db.reader.prepareRowIterator(
-            table.table.filter(table.mint == mint)
-        )
-        let results = try Array(rows)
-        #expect(results.count == 1)
-        #expect(results[0][table.supplyFromBonding] == supply)
+        // Verify updated supply
+        let after = try db.getBalances()
+        #expect(after.first?.supplyFromBonding == newSupply)
     }
 
-    @Test("updateLiveSupply overwrites existing rows")
+    @Test("updateLiveSupply overwrites on repeated calls")
     func updateLiveSupply_overwrites() throws {
         let db = Self.makeDatabase()
         let mint = PublicKey.jeffy
+
+        let metadata = Self.makeLaunchpadMint(address: mint)
+        try db.insert(mints: [metadata], date: .now)
 
         try db.updateLiveSupply(
             updates: [ReserveStateUpdate(mint: mint, supplyFromBonding: 100)],
@@ -68,32 +74,20 @@ struct DatabaseLiveSupplyTests {
             date: .now
         )
 
-        let table = MintLiveTable()
-        let rows = try db.reader.prepareRowIterator(
-            table.table.filter(table.mint == mint)
-        )
-        let results = try Array(rows)
-        #expect(results.count == 1)
-        #expect(results[0][table.supplyFromBonding] == 999)
+        let stored = try db.getMintMetadata(mint: mint)
+        #expect(stored?.supplyFromBonding == 999)
     }
 
-    // MARK: - getBalances COALESCE Tests
-
-    @Test("getBalances returns mint_live supply when it exists")
-    func getBalances_prefersLiveSupply() throws {
+    @Test("getBalances reflects live supply update")
+    func getBalances_reflectsLiveUpdate() throws {
         let db = Self.makeDatabase()
         let mint = PublicKey.jeffy
-        let mintSupply: UInt64 = 50_000 * 10_000_000_000
-        let liveSupply: UInt64 = 60_000 * 10_000_000_000
+        let liveSupply: UInt64 = 75_000 * 10_000_000_000
 
-        // Insert mint metadata with original supply
-        let metadata = Self.makeLaunchpadMint(address: mint, supplyFromBonding: mintSupply)
+        let metadata = Self.makeLaunchpadMint(address: mint)
         try db.insert(mints: [metadata], date: .now)
-
-        // Insert balance row
         try db.insertBalance(quarks: 1_000_000_000_000, mint: mint, costBasis: 0, date: .now)
 
-        // Update live supply to a different value
         try db.updateLiveSupply(
             updates: [ReserveStateUpdate(mint: mint, supplyFromBonding: liveSupply)],
             date: .now
@@ -104,41 +98,15 @@ struct DatabaseLiveSupplyTests {
         #expect(balances[0].supplyFromBonding == liveSupply)
     }
 
-    @Test("getBalances falls back to mint table supply when no mint_live row exists")
-    func getBalances_fallsBackToMintSupply() throws {
+    @Test("getMintMetadata reflects live supply update")
+    func getMintMetadata_reflectsLiveUpdate() throws {
         let db = Self.makeDatabase()
         let mint = PublicKey.jeffy
-        let mintSupply: UInt64 = 50_000 * 10_000_000_000
+        let liveSupply: UInt64 = 80_000 * 10_000_000_000
 
-        // Insert mint metadata (which also seeds mint_live via insert(mint:date:))
-        let metadata = Self.makeLaunchpadMint(address: mint, supplyFromBonding: mintSupply)
+        let metadata = Self.makeLaunchpadMint(address: mint)
         try db.insert(mints: [metadata], date: .now)
 
-        // Delete the mint_live row to simulate no live data
-        let liveTable = MintLiveTable()
-        try db.writer.run(liveTable.table.filter(liveTable.mint == mint).delete())
-
-        // Insert balance row
-        try db.insertBalance(quarks: 1_000_000_000_000, mint: mint, costBasis: 0, date: .now)
-
-        let balances = try db.getBalances()
-        #expect(balances.count == 1)
-        #expect(balances[0].supplyFromBonding == mintSupply)
-    }
-
-    // MARK: - getMintMetadata COALESCE Tests
-
-    @Test("getMintMetadata returns mint_live supply when it exists")
-    func getMintMetadata_prefersLiveSupply() throws {
-        let db = Self.makeDatabase()
-        let mint = PublicKey.jeffy
-        let mintSupply: UInt64 = 50_000 * 10_000_000_000
-        let liveSupply: UInt64 = 75_000 * 10_000_000_000
-
-        let metadata = Self.makeLaunchpadMint(address: mint, supplyFromBonding: mintSupply)
-        try db.insert(mints: [metadata], date: .now)
-
-        // Overwrite live supply
         try db.updateLiveSupply(
             updates: [ReserveStateUpdate(mint: mint, supplyFromBonding: liveSupply)],
             date: .now
@@ -147,56 +115,5 @@ struct DatabaseLiveSupplyTests {
         let stored = try db.getMintMetadata(mint: mint)
         #expect(stored != nil)
         #expect(stored?.supplyFromBonding == liveSupply)
-    }
-
-    @Test("getMintMetadata falls back to mint table supply when no mint_live row")
-    func getMintMetadata_fallsBackToMintSupply() throws {
-        let db = Self.makeDatabase()
-        let mint = PublicKey.jeffy
-        let mintSupply: UInt64 = 50_000 * 10_000_000_000
-
-        let metadata = Self.makeLaunchpadMint(address: mint, supplyFromBonding: mintSupply)
-        try db.insert(mints: [metadata], date: .now)
-
-        // Delete the mint_live row
-        let liveTable = MintLiveTable()
-        try db.writer.run(liveTable.table.filter(liveTable.mint == mint).delete())
-
-        let stored = try db.getMintMetadata(mint: mint)
-        #expect(stored != nil)
-        #expect(stored?.supplyFromBonding == mintSupply)
-    }
-
-    // MARK: - insert(mints:) Seeding Tests
-
-    @Test("insert(mints:) seeds mint_live for launchpad currencies")
-    func insertMints_seedsLiveTable() throws {
-        let db = Self.makeDatabase()
-        let mint = PublicKey.jeffy
-        let supply: UInt64 = 42_000 * 10_000_000_000
-
-        let metadata = Self.makeLaunchpadMint(address: mint, supplyFromBonding: supply)
-        try db.insert(mints: [metadata], date: .now)
-
-        let table = MintLiveTable()
-        let rows = try db.reader.prepareRowIterator(
-            table.table.filter(table.mint == mint)
-        )
-        let results = try Array(rows)
-        #expect(results.count == 1)
-        #expect(results[0][table.supplyFromBonding] == supply)
-    }
-
-    @Test("insert(mints:) does not seed mint_live for non-launchpad currencies")
-    func insertMints_doesNotSeedForNonLaunchpad() throws {
-        let db = Self.makeDatabase()
-
-        // Insert USDF which has no launchpadMetadata
-        try db.insert(mints: [.usdf], date: .now)
-
-        let table = MintLiveTable()
-        let rows = try db.reader.prepareRowIterator(table.table)
-        let results = try Array(rows)
-        #expect(results.isEmpty)
     }
 }
