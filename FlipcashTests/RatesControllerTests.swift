@@ -5,7 +5,9 @@
 //  Created by Claude.
 //
 
+import Foundation
 import Testing
+import Combine
 @testable import Flipcash
 import FlipcashCore
 import FlipcashAPI
@@ -209,10 +211,66 @@ struct RatesControllerTests {
         controller.ensureMintSubscribed(mint)
     }
 
+    @Test("Reserve state publisher emits updates when reserve states are saved")
+    @MainActor
+    func reserveStatesPublisher_emitsOnSave() async {
+        let controller = makeController()
+        let mint = PublicKey.jeffy
+
+        var received: [ReserveStateUpdate] = []
+        let cancellable = controller.verifiedProtoService.reserveStatesPublisher
+            .sink { updates in
+                received.append(contentsOf: updates)
+            }
+
+        await controller.verifiedProtoService.saveReserveStates([
+            .makeTest(mint: mint, supplyFromBonding: 1_000_000)
+        ])
+
+        // Allow publisher to deliver
+        try? await Task.sleep(for: .milliseconds(50))
+
+        #expect(received.count == 1)
+        #expect(received.first?.mint == mint)
+        #expect(received.first?.supplyFromBonding == 1_000_000)
+
+        _ = cancellable
+    }
+
+    // MARK: - reserveStatesPublisher DB sync -
+
+    @Test("Reserve state updates are written to mint_live table")
+    @MainActor
+    func reserveStatesPublisher_writesToDatabase() async throws {
+        let database = try Database(
+            url: URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent("test-\(UUID().uuidString).sqlite")
+        )
+        let controller = makeController(database: database)
+        let mint = PublicKey.jeffy
+
+        let metadata = MintMetadata.makeLaunchpad(address: mint, supplyFromBonding: 500)
+        try database.insert(mints: [metadata], date: .now)
+        try database.insertBalance(quarks: 1_000_000_000_000, mint: mint, costBasis: 0, date: .now)
+
+        // Trigger streaming update with new supply
+        await controller.verifiedProtoService.saveReserveStates([
+            .makeTest(mint: mint, supplyFromBonding: 2_000_000)
+        ])
+
+        // Allow publisher → .receive(on: main) → sink → DB write
+        try await Task.sleep(for: .milliseconds(200))
+
+        // Verify the database was updated via mint_live
+        let balances = try database.getBalances()
+        let balance = balances.first { $0.mint == mint }
+        #expect(balance?.supplyFromBonding == 2_000_000)
+    }
+
     // MARK: - Helpers -
 
     @MainActor
-    private func makeController() -> RatesController {
-        RatesController(container: .mock, database: .mock)
+    private func makeController(database: Database = .mock) -> RatesController {
+        RatesController(container: .mock, database: database)
     }
 }

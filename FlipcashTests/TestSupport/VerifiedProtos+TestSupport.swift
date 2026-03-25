@@ -18,9 +18,10 @@ extension Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRate {
 }
 
 extension Ocp_Currency_V1_VerifiedLaunchpadCurrencyReserveState {
-    static func makeTest(mint: PublicKey) -> Self {
+    static func makeTest(mint: PublicKey, supplyFromBonding: UInt64 = 0) -> Self {
         var proto = Self()
         proto.reserveState.mint = mint.solanaAccountID
+        proto.reserveState.supplyFromBonding = supplyFromBonding
         return proto
     }
 }

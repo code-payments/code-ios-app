@@ -962,7 +962,8 @@ class Session {
                     error: error,
                     rendezvous: payload.rendezvous.publicKey,
                     exchangedFiat: billDescription.exchangedFiat,
-                    verifiedState: verifiedState
+                    verifiedState: verifiedState,
+                    reason: self?.sendOperation?.failurePath
                 )
                 
                 Analytics.transfer(

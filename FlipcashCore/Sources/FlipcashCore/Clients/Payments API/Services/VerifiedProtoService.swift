@@ -10,6 +10,17 @@ import Foundation
 @preconcurrency import Combine
 import FlipcashAPI
 
+/// Lightweight value emitted when reserve states are saved from streaming.
+public struct ReserveStateUpdate: Sendable {
+    public let mint: PublicKey
+    public let supplyFromBonding: UInt64
+
+    public init(mint: PublicKey, supplyFromBonding: UInt64) {
+        self.mint = mint
+        self.supplyFromBonding = supplyFromBonding
+    }
+}
+
 /// Service that manages verified exchange rate and reserve state proofs received from streaming.
 /// Used by TransactionService when constructing intents that require verified exchange data.
 public actor VerifiedProtoService {
@@ -22,6 +33,9 @@ public actor VerifiedProtoService {
 
     /// Publisher for rate updates. Emits array of Rate when rates are saved.
     public nonisolated let ratesPublisher = PassthroughSubject<[Rate], Never>()
+
+    /// Publisher for reserve state updates. Emits parsed mint/supply pairs when reserve states are saved.
+    public nonisolated let reserveStatesPublisher = PassthroughSubject<[ReserveStateUpdate], Never>()
 
     public init() {}
 
@@ -54,15 +68,28 @@ public actor VerifiedProtoService {
         }
     }
 
-    /// Save verified reserve states from streaming batch
+    /// Save verified reserve states from streaming batch.
+    /// Only publishes updates for mints whose supply actually changed,
+    /// avoiding no-op DB writes and cascading UI refreshes.
     public func saveReserveStates(_ states: [Ocp_Currency_V1_VerifiedLaunchpadCurrencyReserveState]) {
+        var updates: [ReserveStateUpdate] = []
         for state in states {
             guard let mint = try? PublicKey(state.reserveState.mint.value) else {
                 continue
             }
+            let supplyChanged = reserveStates[mint]?.reserveState.supplyFromBonding != state.reserveState.supplyFromBonding
             reserveStates[mint] = state
+            if supplyChanged {
+                updates.append(ReserveStateUpdate(
+                    mint: mint,
+                    supplyFromBonding: state.reserveState.supplyFromBonding
+                ))
+            }
         }
 
+        if !updates.isEmpty {
+            reserveStatesPublisher.send(updates)
+        }
     }
 
     // MARK: - Retrieve Methods

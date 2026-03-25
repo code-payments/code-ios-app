@@ -53,6 +53,7 @@ struct MintTable: Sendable {
     let updatedAt         = Expression <Date>       ("updatedAt")
 }
 
+
 struct ActivityTable: Sendable {
     static let name = "activity"
     

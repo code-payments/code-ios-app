@@ -144,6 +144,23 @@ extension Database {
         return authority
     }
     
+    // MARK: - Live Supply -
+
+    func updateLiveSupply(updates: [ReserveStateUpdate], date: Date) throws {
+        try transaction {
+            let table = MintTable()
+            for update in updates {
+                let row = table.table.filter(table.mint == update.mint)
+                try $0.writer.run(
+                    row.update(
+                        table.supplyFromBonding <- update.supplyFromBonding,
+                        table.updatedAt         <- date
+                    )
+                )
+            }
+        }
+    }
+
     // MARK: - Insert -
     
     func insertBalance(quarks: UInt64, mint: PublicKey, costBasis: Double, date: Date) throws {
@@ -216,5 +233,6 @@ extension Database {
                 onConflictOf: table.mint,
             )
         )
+
     }
 }
