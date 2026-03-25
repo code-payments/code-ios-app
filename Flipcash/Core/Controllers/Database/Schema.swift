@@ -53,6 +53,15 @@ struct MintTable: Sendable {
     let updatedAt         = Expression <Date>       ("updatedAt")
 }
 
+struct MintLiveTable: Sendable {
+    static let name = "mint_live"
+
+    let table             = Table(Self.name)
+    let mint              = Expression<PublicKey>("mint")
+    let supplyFromBonding = Expression<UInt64>("supplyFromBonding")
+    let updatedAt         = Expression<Date>("updatedAt")
+}
+
 struct ActivityTable: Sendable {
     static let name = "activity"
     
@@ -156,6 +165,16 @@ extension Database {
             _ = try? writer.run(mintTable.table.addColumn(mintTable.createdAt))
         }
         
+        let mintLiveTable = MintLiveTable()
+
+        try writer.transaction {
+            try writer.run(mintLiveTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                t.column(mintLiveTable.mint, primaryKey: true)
+                t.column(mintLiveTable.supplyFromBonding)
+                t.column(mintLiveTable.updatedAt)
+            })
+        }
+
         try writer.transaction {
             try writer.run(activityTable.table.create(ifNotExists: true, withoutRowid: true) { t in
                 t.column(activityTable.id, primaryKey: true)

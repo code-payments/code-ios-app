@@ -25,12 +25,13 @@ extension Database {
             m.name,
             m.imageURL,
             m.sellFeeBps,
-            m.supplyFromBonding,
+            COALESCE(ml.supplyFromBonding, m.supplyFromBonding) AS supplyFromBonding,
             m.vmAuthority
         FROM
             balance b
 
         LEFT JOIN mint m ON m.mint = b.mint
+        LEFT JOIN mint_live ml ON ml.mint = b.mint
 
         ORDER BY b.quarks;
         """)
@@ -75,7 +76,7 @@ extension Database {
             m.mintVault,
             m.coreMintVault,
             m.coreMintFees,
-            m.supplyFromBonding,
+            COALESCE(ml.supplyFromBonding, m.supplyFromBonding) AS supplyFromBonding,
             m.sellFeeBps,
             m.socialLinks,
             m.billColors,
@@ -83,6 +84,7 @@ extension Database {
             m.updatedAt
         FROM
             mint m
+        LEFT JOIN mint_live ml ON ml.mint = m.mint
         WHERE
             m.mint = ?
         LIMIT 1;
@@ -144,6 +146,24 @@ extension Database {
         return authority
     }
     
+    // MARK: - Live Supply -
+
+    func updateLiveSupply(updates: [ReserveStateUpdate], date: Date) throws {
+        try transaction {
+            let table = MintLiveTable()
+            for update in updates {
+                try $0.writer.run(
+                    table.table.upsert(
+                        table.mint              <- update.mint,
+                        table.supplyFromBonding <- update.supplyFromBonding,
+                        table.updatedAt         <- date,
+                        onConflictOf: table.mint
+                    )
+                )
+            }
+        }
+    }
+
     // MARK: - Insert -
     
     func insertBalance(quarks: UInt64, mint: PublicKey, costBasis: Double, date: Date) throws {
@@ -216,5 +236,17 @@ extension Database {
                 onConflictOf: table.mint,
             )
         )
+
+        if let supply = mint.launchpadMetadata?.supplyFromBonding {
+            let liveTable = MintLiveTable()
+            try writer.run(
+                liveTable.table.upsert(
+                    liveTable.mint              <- mint.address,
+                    liveTable.supplyFromBonding <- supply,
+                    liveTable.updatedAt         <- date,
+                    onConflictOf: liveTable.mint
+                )
+            )
+        }
     }
 }
