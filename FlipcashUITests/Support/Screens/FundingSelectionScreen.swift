@@ -24,6 +24,13 @@ struct FundingSelectionScreen {
         ).firstMatch
     }
 
+    /// The Phantom wallet button. Label includes "Solana USDC With, Phantom".
+    var phantomButton: XCUIElement {
+        app.buttons.matching(
+            NSPredicate(format: "label CONTAINS 'Phantom'")
+        ).firstMatch
+    }
+
     // MARK: - Actions
 
     func selectUSDF(from testCase: BaseUITestCase) {
@@ -31,6 +38,14 @@ struct FundingSelectionScreen {
             usdfReservesButton,
             timeout: 10,
             "Expected USDF reserves option in funding sheet"
+        )
+    }
+
+    func selectPhantom(from testCase: BaseUITestCase) {
+        testCase.waitAndTap(
+            phantomButton,
+            timeout: 10,
+            "Expected Phantom option in funding sheet"
         )
     }
 }
