@@ -47,8 +47,7 @@ class WithdrawViewModel {
 
         // Only applies for bonded tokens
         if mint != .usdf {
-            guard let supplyQuarks = session.balance(for: mint)?.supplyFromBonding
-                ?? selectedBalance.stored.supplyFromBonding else {
+            guard let supplyQuarks = selectedBalance.stored.supplyFromBonding else {
                 return nil
             }
 
