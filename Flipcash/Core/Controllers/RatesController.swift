@@ -114,7 +114,11 @@ class RatesController {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] updates in
                 guard let self else { return }
-                try? self.database.updateLiveSupply(updates: updates, date: .now)
+                do {
+                    try self.database.updateLiveSupply(updates: updates, date: .now)
+                } catch {
+                    trace(.warning, components: "Failed to update live supply: \(error)")
+                }
             }
             .store(in: &cancellables)
     }

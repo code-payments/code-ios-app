@@ -249,31 +249,7 @@ struct RatesControllerTests {
         let controller = makeController(database: database)
         let mint = PublicKey.jeffy
 
-        // Insert prerequisite mint metadata so getBalances has something to join
-        let metadata = MintMetadata(
-            address: mint,
-            decimals: 10,
-            name: "Test Token",
-            symbol: "TEST",
-            description: "A test token",
-            imageURL: nil,
-            vmMetadata: VMMetadata(
-                vm: .usdc,
-                authority: .usdcAuthority,
-                lockDurationInDays: 21
-            ),
-            launchpadMetadata: LaunchpadMetadata(
-                currencyConfig: .usdc,
-                liquidityPool: .usdc,
-                seed: .usdc,
-                authority: .usdcAuthority,
-                mintVault: .usdc,
-                coreMintVault: .usdc,
-                coreMintFees: nil,
-                supplyFromBonding: 500,
-                sellFeeBps: 100
-            )
-        )
+        let metadata = MintMetadata.makeLaunchpad(address: mint, supplyFromBonding: 500)
         try database.insert(mints: [metadata], date: .now)
         try database.insertBalance(quarks: 1_000_000_000_000, mint: mint, costBasis: 0, date: .now)
 

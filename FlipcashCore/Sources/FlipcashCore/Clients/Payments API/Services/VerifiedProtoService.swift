@@ -68,18 +68,23 @@ public actor VerifiedProtoService {
         }
     }
 
-    /// Save verified reserve states from streaming batch
+    /// Save verified reserve states from streaming batch.
+    /// Only publishes updates for mints whose supply actually changed,
+    /// avoiding no-op DB writes and cascading UI refreshes.
     public func saveReserveStates(_ states: [Ocp_Currency_V1_VerifiedLaunchpadCurrencyReserveState]) {
         var updates: [ReserveStateUpdate] = []
         for state in states {
             guard let mint = try? PublicKey(state.reserveState.mint.value) else {
                 continue
             }
+            let supplyChanged = reserveStates[mint]?.reserveState.supplyFromBonding != state.reserveState.supplyFromBonding
             reserveStates[mint] = state
-            updates.append(ReserveStateUpdate(
-                mint: mint,
-                supplyFromBonding: state.reserveState.supplyFromBonding
-            ))
+            if supplyChanged {
+                updates.append(ReserveStateUpdate(
+                    mint: mint,
+                    supplyFromBonding: state.reserveState.supplyFromBonding
+                ))
+            }
         }
 
         if !updates.isEmpty {
