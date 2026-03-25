@@ -108,6 +108,15 @@ class RatesController {
                 self?.updateRates(rates)
             }
             .store(in: &cancellables)
+
+        // Subscribe to reserve state updates and persist live supply to database
+        verifiedProtoService.reserveStatesPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] updates in
+                guard let self else { return }
+                try? self.database.updateLiveSupply(updates: updates, date: .now)
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - Streaming Lifecycle -
