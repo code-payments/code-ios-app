@@ -97,9 +97,9 @@ struct CurrencyDiscoveryList: View {
                 .padding(.horizontal, 20)
             } else if !isLoading, mints.isEmpty {
                 VStack(spacing: 10) {
-                    Text("No Currencies Yet")
+                    Text("No New Currencies")
                         .font(.appTextLarge)
-                    Text("There are no currencies in this category yet. Check back soon!")
+                    Text("No currencies have been created in the last week")
                         .font(.appTextMedium)
                         .foregroundStyle(Color.textSecondary)
                         .multilineTextAlignment(.center)
