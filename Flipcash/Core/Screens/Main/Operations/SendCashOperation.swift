@@ -100,6 +100,10 @@ class SendCashOperation {
     /// See ``complete(with:completion:)`` for details.
     private var hasCompleted = false
 
+    /// Which path failed — used for error reporting to distinguish
+    /// advertisement failures (Path 1) from transfer failures (Path 2).
+    private(set) var failurePath: String?
+
     /// The verified state resolved during Path 1 (advertisement). Path 2
     /// (transfer) reads this to avoid a redundant cache lookup. For new
     /// currencies this may be the only available source since the cache
@@ -172,10 +176,11 @@ class SendCashOperation {
                     rendezvous: rendezvous
                 )
             } catch {
+                self.failurePath = "advertisement"
                 self.complete(with: .failure(error), completion: completion)
             }
         }
-        
+
         messageStream = self.client.openMessageStream(rendezvous: rendezvous) { [weak self] result in
             guard let self = self else { return }
 
@@ -248,11 +253,13 @@ class SendCashOperation {
                         self.complete(with: .success(()), completion: completion)
 
                     } catch {
+                        self.failurePath = "transfer"
                         self.complete(with: .failure(error), completion: completion)
                     }
                 }
 
             case .failure(let error):
+                self.failurePath = "stream"
                 self.complete(with: .failure(error), completion: completion)
             }
         }
