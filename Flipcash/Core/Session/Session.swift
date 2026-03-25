@@ -257,7 +257,7 @@ class Session {
 
     /// Start streaming live mint data for exchange rates
     private func startStreaming() {
-        let mints = balances.map { $0.mint }
+        let mints = balances.filter { $0.quarks > 0 }.map { $0.mint }
         ratesController.startStreaming(mints: mints)
     }
     
@@ -294,7 +294,7 @@ class Session {
 
     /// Updates the streaming subscription with the current balance mints
     private func updateStreamingMints() {
-        let mints = balances.map { $0.mint }
+        let mints = balances.filter { $0.quarks > 0 }.map { $0.mint }
         ratesController.updateSubscribedMints(mints)
     }
     

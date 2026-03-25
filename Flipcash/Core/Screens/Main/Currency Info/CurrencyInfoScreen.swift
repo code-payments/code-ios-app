@@ -146,6 +146,7 @@ struct CurrencyInfoScreen: View {
             }
         }
         .task {
+            ratesController.ensureMintSubscribed(mint)
             await viewModel.loadMintMetadata()
 
             if showFundingOnAppear {

@@ -61,7 +61,7 @@ class RatesController {
     @ObservationIgnored private var liveMintDataStreamer: LiveMintDataStreamer?
 
     /// Current list of mints being streamed
-    @ObservationIgnored private var streamedMints: [PublicKey] = []
+    @ObservationIgnored private(set) var streamedMints: [PublicKey] = []
 
     /// Mints added via ``ensureMintSubscribed(_:)`` that may not yet
     /// appear in the user's balance list. Prevents balance refreshes

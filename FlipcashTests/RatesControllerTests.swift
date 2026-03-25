@@ -195,7 +195,8 @@ struct RatesControllerTests {
         controller.startStreaming(mints: [mint])
         controller.ensureMintSubscribed(mint)
 
-        // No crash, no duplicate — verifying the guard works
+        #expect(controller.streamedMints.count == 1)
+        #expect(controller.streamedMints.contains(mint))
     }
 
     @Test("Subscribes a new mint")
@@ -207,8 +208,9 @@ struct RatesControllerTests {
         controller.startStreaming(mints: [.usdf])
         controller.ensureMintSubscribed(mint)
 
-        // Second call should be a no-op (already in list)
-        controller.ensureMintSubscribed(mint)
+        #expect(controller.streamedMints.contains(.usdf))
+        #expect(controller.streamedMints.contains(mint))
+        #expect(controller.streamedMints.count == 2)
     }
 
     @Test("Reserve state publisher emits updates when reserve states are saved")
@@ -265,6 +267,54 @@ struct RatesControllerTests {
         let balances = try database.getBalances()
         let balance = balances.first { $0.mint == mint }
         #expect(balance?.supplyFromBonding == 2_000_000)
+    }
+
+    // MARK: - streamedMints filtering -
+
+    @Test("startStreaming sets streamedMints to provided list")
+    @MainActor
+    func startStreaming_setsStreamedMints() {
+        let controller = makeController()
+        let mintA = PublicKey.jeffy
+        let mintC = PublicKey.usdf
+
+        controller.startStreaming(mints: [mintA, mintC])
+
+        #expect(controller.streamedMints.contains(mintA))
+        #expect(controller.streamedMints.contains(mintC))
+        #expect(controller.streamedMints.count == 2)
+    }
+
+    @Test("updateSubscribedMints expands the mint list")
+    @MainActor
+    func updateSubscribedMints_addsMint() {
+        let controller = makeController()
+        let mintA = PublicKey.jeffy
+        let mintB = PublicKey.usdc
+        let mintC = PublicKey.usdf
+
+        controller.startStreaming(mints: [mintA, mintC])
+        controller.updateSubscribedMints([mintA, mintB, mintC])
+
+        #expect(controller.streamedMints.count == 3)
+        #expect(controller.streamedMints.contains(mintA))
+        #expect(controller.streamedMints.contains(mintB))
+        #expect(controller.streamedMints.contains(mintC))
+    }
+
+    @Test("updateSubscribedMints shrinks the mint list when mints are removed")
+    @MainActor
+    func updateSubscribedMints_removesMint() {
+        let controller = makeController()
+        let mintA = PublicKey.jeffy
+        let mintC = PublicKey.usdf
+
+        controller.startStreaming(mints: [mintA, mintC])
+        controller.updateSubscribedMints([mintA])
+
+        #expect(controller.streamedMints.count == 1)
+        #expect(controller.streamedMints.contains(mintA))
+        #expect(!controller.streamedMints.contains(mintC))
     }
 
     // MARK: - Helpers -
