@@ -35,7 +35,6 @@ struct CurrencyDiscoveryList: View {
                     ForEach(1...10, id: \.self) { rank in
                         CurrencyDiscoverySkeletonRow(rank: rank)
                     }
-                    .listRowInsets(EdgeInsets())
                 } else {
                     ForEach(mints.indexed(), id: \.element.address) { item in
                         Button {
@@ -55,15 +54,36 @@ struct CurrencyDiscoveryList: View {
                     }
                 }
             } header: {
-                Picker("Category", selection: $selectedCategory) {
-                    Text("Popular").tag(DiscoverCategory.popular)
-                    Text("New").tag(DiscoverCategory.new)
+                // There is no fallback for newer version, the actual fallback can be found
+                // in the safeAreBar modifier below.
+                if #unavailable(iOS 26.0) {
+                    Picker("Category", selection: $selectedCategory) {
+                        Text("Popular").tag(DiscoverCategory.popular)
+                        Text("New").tag(DiscoverCategory.new)
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(height: 44)
+                    .textCase(nil)
                 }
-                .pickerStyle(.segmented)
-                .frame(height: 44)
-                .textCase(nil)
             }
         }
+        .ifAvailable({ view in
+            // There is no fallback for previous version, the actual fallback can be found
+            // in the Section header above
+            if #available(iOS 26.0, *) {
+                view.safeAreaBar(edge: .top) {
+                    Picker("Category", selection: $selectedCategory) {
+                        Text("Popular").tag(DiscoverCategory.popular)
+                        Text("New").tag(DiscoverCategory.new)
+                    }
+                    .pickerStyle(.segmented)
+                    .glassEffect()
+                    .frame(height: 44)
+                    .padding(.horizontal, 20)
+                    .textCase(nil)
+                }
+            }
+        })
         .overlay {
             if isFailed {
                 VStack(spacing: 10) {

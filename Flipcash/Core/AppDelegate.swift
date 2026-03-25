@@ -289,7 +289,6 @@ private extension AppDelegate {
             .font: UIFont.appTextMedium,
             .foregroundColor: UIColor(.textMain),
         ], for: .normal)
-        segmented.backgroundColor = UIColor(white: 0.0, alpha: 0.25)
     }
 }
 
