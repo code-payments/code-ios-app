@@ -9,7 +9,7 @@ import Foundation
 import FlipcashCore
 import SQLite
 
-private let balanceLogger = Logger(label: "flipcash.database")
+private let logger = Logger(label: "flipcash.database")
 
 extension Database {
     
@@ -120,7 +120,7 @@ extension Database {
         }
         
         if mints.isEmpty {
-            balanceLogger.warning("Missing mint in database", metadata: ["mint": "\(mint.base58)"])
+            logger.warning("Missing mint in database", metadata: ["mint": "\(mint.base58)"])
         }
         
         return mints.first

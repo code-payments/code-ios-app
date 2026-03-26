@@ -58,14 +58,14 @@ class CodeService<T> where T: GRPCClientType {
 //    }
 //}
 
-private let codeServiceLogger = Logger(label: "flipcash.grpc")
+private let logger = Logger(label: "flipcash.grpc")
 
 final class CodeServiceErrorDelegate: NSObject, ClientErrorDelegate {
     override init() {
         super.init()
     }
 
-    func didCatchError(_ error: Error, logger: Logger, file: StaticString, line: Int) {
-        codeServiceLogger.error("gRPC client error at \(file):\(line): \(error)")
+    func didCatchError(_ error: Error, logger _: Logger, file: StaticString, line: Int) {
+        logger.error("gRPC client error at \(file):\(line): \(error)")
     }
 }
