@@ -86,8 +86,22 @@ enum ErrorReporting {
         }
     }
     
-    static func captureError(_ error: Swift.Error, reason: String? = nil, id: String? = nil, file: String = #file, function: String = #function, line: Int = #line) {
-        capture(error, reason: reason, id: id, file: file, function: function, line: line) { _ in }
+    /// Reports a non-fatal error to Bugsnag with optional context.
+    ///
+    /// - Parameters:
+    ///   - error: The error to report.
+    ///   - reason: A human-readable description that becomes the Bugsnag error message
+    ///     and `NSLocalizedFailureReasonErrorKey` in the event's user info.
+    ///   - id: An optional identifier appended to the grouping hash. Use this when a
+    ///     single function contains multiple catch sites that should group separately.
+    ///   - metadata: Key-value pairs attached to the Bugsnag event's user info for
+    ///     debugging context (e.g. mint, amount, swap ID).
+    static func captureError(_ error: Swift.Error, reason: String? = nil, id: String? = nil, metadata: [String: String] = [:], file: String = #file, function: String = #function, line: Int = #line) {
+        capture(error, reason: reason, id: id, file: file, function: function, line: line) { userInfo in
+            metadata.forEach { key, value in
+                userInfo[key] = value
+            }
+        }
     }
     
     private static func capture(_ error: Swift.Error, reason: String? = nil, id: String? = nil, file: String = #file, function: String = #function, line: Int = #line, buildUserInfo: (inout [String: Any]) -> Void) {

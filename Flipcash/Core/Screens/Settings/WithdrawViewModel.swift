@@ -270,6 +270,18 @@ class WithdrawViewModel {
                 showSuccessfulWithdrawalDialog()
                 
             } catch {
+                ErrorReporting.captureError(
+                    error,
+                    reason: "Failed to withdraw",
+                    metadata: [
+                        "mint": amountToWithdraw.mint.base58,
+                        "amount": amountToWithdraw.converted.formatted(),
+                        "quarks": "\(amountToWithdraw.underlying.quarks)",
+                        "fee": "\(fee.quarks)",
+                        "destination": destinationMetadata.destination.token.base58,
+                        "requiresInit": "\(destinationMetadata.requiresInitialization)",
+                    ]
+                )
                 withdrawButtonState = .normal
             }
         }

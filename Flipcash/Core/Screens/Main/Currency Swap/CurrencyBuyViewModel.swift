@@ -127,6 +127,15 @@ class CurrencyBuyViewModel: Identifiable {
                     showInsufficientBalanceError()
                 }
             } catch {
+                ErrorReporting.captureError(
+                    error,
+                    reason: "Failed to buy currency",
+                    metadata: [
+                        "mint": destination.base58,
+                        "amount": buyAmount.converted.formatted(),
+                        "quarks": "\(buyAmount.underlying.quarks)",
+                    ]
+                )
                 await MainActor.run {
                     actionButtonState = .normal
                     showGenericError()
