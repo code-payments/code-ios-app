@@ -362,12 +362,19 @@ struct SessionTests {
 
 ### Running Tests
 
+Simulator device names and OS versions in test commands change with Xcode releases. Update destinations as new simulators become available.
+
 ```bash
 # Run all tests
-xcodebuild test -scheme Flipcash -destination 'platform=iOS Simulator,name=iPhone 16'
+xcodebuild test -scheme Flipcash -destination 'platform=iOS Simulator,name=iPhone 17' -testPlan AllTargets
+
+# Run UI tests on current and previous OS
+xcodebuild test -scheme Flipcash -only-testing:FlipcashUITests \
+  -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.6' \
+  -destination 'platform=iOS Simulator,name=iPhone 17'
 
 # Run specific test suite
-xcodebuild test -scheme Flipcash -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:FlipcashTests/SessionTests
+xcodebuild test -scheme Flipcash -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:FlipcashTests/SessionTests
 ```
 
 ### Test Naming
