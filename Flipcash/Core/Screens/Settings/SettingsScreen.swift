@@ -93,6 +93,8 @@ struct SettingsScreen: View {
                         sessionAuthenticator: sessionAuthenticator,
                         action: switchAccount
                     )
+                case .applicationLogs:
+                    ApplicationLogsScreen()
                 }
             }
             .sheet(isPresented: $isShowingDepositFlow) {
@@ -245,12 +247,8 @@ struct SettingsScreen: View {
             ) {
                 isShowingDepositFlow = true
             }
-            row(systemImage: "doc.text", title: "Send Logs") {
-                Task {
-                    if let url = try? await LogStore.shared.exportLogs() {
-                        ShareSheet.present(url: url)
-                    }
-                }
+            row(systemImage: "doc.text", title: "Application Logs") {
+                path.append(.applicationLogs)
             }
         }
         .font(.appDisplayXS)
@@ -483,5 +481,6 @@ extension SettingsScreen {
         case appSettings
         case betaFlagss
         case accountSelection
+        case applicationLogs
     }
 }
