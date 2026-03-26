@@ -96,7 +96,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // MARK: - Lifecycle -
     
     func applicationWillResignActive(_ application: UIApplication) {
-        logger.warning("applicationWillResignActive")
+        logger.debug("applicationWillResignActive")
         lastActiveDate = .now
         
 //        appContainer.pushController.appWillResignActive()
@@ -115,7 +115,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
     
     func applicationWillEnterForeground(_ application: UIApplication) {
-        logger.warning("applicationWillEnterForeground")
+        logger.debug("applicationWillEnterForeground")
 
 //        appContainer.sessionAuthenticator.updateBiometricsState()
 

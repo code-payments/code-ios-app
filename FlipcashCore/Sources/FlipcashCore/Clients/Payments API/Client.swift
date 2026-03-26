@@ -43,7 +43,7 @@ public class Client: ObservableObject {
     }
     
     deinit {
-        logger.warning("Deallocating Client")
+        logger.debug("Deallocating Client")
     }
 
     // MARK: - Streaming -

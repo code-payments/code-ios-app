@@ -111,7 +111,7 @@ final class SessionAuthenticator {
     }
     
     private func initializeState(count: Int = 0, didAuthenticate: @escaping (UserAccount) -> Void, didFindRecentAccount: @escaping (KeyAccount) -> Void) {
-        logger.warning("initializeState called")
+        logger.debug("initializeState called")
         
         let userAccount = accountManager.fetchCurrentUserAccount()
         if let userAccount = userAccount {

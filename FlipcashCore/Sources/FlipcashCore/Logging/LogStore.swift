@@ -9,8 +9,9 @@ public final class LogStore: Sendable {
 
     public static let shared = LogStore()
 
-    public let ringBuffer: RingBufferStorage
+    let ringBuffer: RingBufferStorage
     let fileWriter: FileWriterActor
+    let fileBuffer: FileWriteBuffer
 
     private init() {
         self.ringBuffer = RingBufferStorage(capacity: 100)
@@ -18,33 +19,31 @@ public final class LogStore: Sendable {
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
         let logsDir = caches.appendingPathComponent("Logs", isDirectory: true)
         self.fileWriter = FileWriterActor(directory: logsDir)
+        self.fileBuffer = FileWriteBuffer(writer: fileWriter)
     }
 
     // MARK: - Bootstrap
 
     /// Call once at app launch, before any logging.
     ///
-    /// Registers a `MultiplexLogHandler` with swift-log that dispatches
-    /// to console, ring buffer, and rotating file handlers.
+    /// Registers a single `FlipcashLogHandler` that processes each entry
+    /// once and dispatches to console, ring buffer, and file writer.
     public static func bootstrap(middleware: [LogMiddleware] = []) {
         let store = LogStore.shared
 
-        LoggingSystem.bootstrap { label in
-            var consoleHandler = ConsoleLogHandler(middleware: middleware)
-            var ringHandler = RingBufferLogHandler(storage: store.ringBuffer, middleware: middleware)
-            var fileHandler = RotatingFileLogHandler(fileWriter: store.fileWriter, middleware: middleware)
+        #if DEBUG
+        let level = Logger.Level.debug
+        #else
+        let level = Logger.Level.info
+        #endif
 
-            #if DEBUG
-            let level = Logger.Level.debug
-            #else
-            let level = Logger.Level.info
-            #endif
-
-            consoleHandler.logLevel = level
-            ringHandler.logLevel = level
-            fileHandler.logLevel = level
-
-            return MultiplexLogHandler([consoleHandler, ringHandler, fileHandler])
+        LoggingSystem.bootstrap { _ in
+            FlipcashLogHandler(
+                logLevel: level,
+                ringBuffer: store.ringBuffer,
+                fileBuffer: store.fileBuffer,
+                middleware: middleware
+            )
         }
     }
 
@@ -57,10 +56,16 @@ public final class LogStore: Sendable {
     }
 
     /// Concatenates all log files into a single `.log` for sharing.
+    /// Streams data through FileHandle to avoid loading all files into memory.
     ///
     /// This is a deliberate user action ("Send Logs"), so surfacing
     /// errors via `throws` is appropriate.
+    private static let exportChunkSize = 64 * 1024 // 64KB
+
     public func exportLogs() async throws -> URL {
+        // Flush buffered entries and await the write to complete on the actor
+        await fileBuffer.flush()
+
         let logFiles = await fileWriter.logFileURLs()
 
         guard !logFiles.isEmpty else {
@@ -72,24 +77,39 @@ public final class LogStore: Sendable {
 
         // Remove any prior export
         try? FileManager.default.removeItem(at: logURL)
+        FileManager.default.createFile(atPath: logURL.path, contents: nil)
 
-        // Concatenate all log files into a single readable file
-        var combinedData = Data()
+        // Stream through FileHandle in chunks to avoid loading all files into memory
+        let outputHandle = try FileHandle(forWritingTo: logURL)
+        defer { try? outputHandle.close() }
+
         for file in logFiles {
-            if let data = try? Data(contentsOf: file) {
-                combinedData.append(data)
+            guard let inputHandle = try? FileHandle(forReadingFrom: file) else { continue }
+            defer { try? inputHandle.close() }
+
+            var chunk = try inputHandle.read(upToCount: Self.exportChunkSize) ?? Data()
+            while !chunk.isEmpty {
+                outputHandle.write(chunk)
+                chunk = try inputHandle.read(upToCount: Self.exportChunkSize) ?? Data()
             }
         }
-
-        try combinedData.write(to: logURL)
 
         return logURL
     }
 
-    private func dateStamp() -> String {
+    // MARK: - Private
+
+    private static let exportFormatterLock = NSLock()
+    private static let exportFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd-HHmmss"
-        return f.string(from: Date())
+        return f
+    }()
+
+    private func dateStamp() -> String {
+        Self.exportFormatterLock.lock()
+        defer { Self.exportFormatterLock.unlock() }
+        return Self.exportFormatter.string(from: Date())
     }
 }
 

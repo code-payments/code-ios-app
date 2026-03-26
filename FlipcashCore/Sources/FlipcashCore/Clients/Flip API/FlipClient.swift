@@ -53,7 +53,7 @@ public class FlipClient: ObservableObject {
     }
     
     deinit {
-        logger.warning("Deallocating FlipClient")
+        logger.debug("Deallocating FlipClient")
     }
 }
 

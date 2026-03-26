@@ -34,15 +34,23 @@ public struct LogEntry: Sendable {
 
     // MARK: - Formatting
 
+    // NSLock protects the shared DateFormatter (which is not thread-safe)
+    private static let formatterLock = NSLock()
     private static let formatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "(HH:mm:ss.SSSS)"
         return f
     }()
 
+    private static func formatTimestamp(_ date: Date) -> String {
+        formatterLock.lock()
+        defer { formatterLock.unlock() }
+        return formatter.string(from: date)
+    }
+
     public func formatted() -> String {
-        let ts = Self.formatter.string(from: timestamp)
-        let lvl = "[\(level.uppercased)]"
+        let ts = Self.formatTimestamp(timestamp)
+        let lvl = "[\(level.rawValue.uppercased())]"
         var result = "\(lvl) \(ts) \(source) \(message)"
 
         if let metadata, !metadata.isEmpty {
@@ -55,20 +63,45 @@ public struct LogEntry: Sendable {
 
         return result
     }
-}
 
-// MARK: - Logger.Level
-
-extension Logger.Level {
-    var uppercased: String {
-        switch self {
-        case .trace:    "TRACE"
-        case .debug:    "DEBUG"
-        case .info:     "INFO"
-        case .notice:   "NOTICE"
-        case .warning:  "WARNING"
-        case .error:    "ERROR"
-        case .critical: "CRITICAL"
+    /// Creates a `LogEntry` from handler parameters, merges metadata, and runs the middleware pipeline.
+    /// Returns `nil` if any middleware drops the entry.
+    static func process(
+        level: Logger.Level,
+        message: Logger.Message,
+        metadata explicitMetadata: Logger.Metadata?,
+        source: String,
+        file: String,
+        function: String,
+        line: UInt,
+        handlerMetadata: Logger.Metadata,
+        metadataProvider: Logger.MetadataProvider?,
+        middleware: [LogMiddleware]
+    ) -> LogEntry? {
+        var merged = handlerMetadata
+        if let provided = metadataProvider?.get() {
+            merged.merge(provided) { _, new in new }
         }
+        if let explicitMetadata {
+            merged.merge(explicitMetadata) { _, new in new }
+        }
+
+        var entry = LogEntry(
+            timestamp: Date(),
+            level: level,
+            message: "\(message)",
+            metadata: merged.isEmpty ? nil : merged,
+            source: source,
+            function: function,
+            file: file,
+            line: line
+        )
+
+        for m in middleware {
+            if !m.process(&entry) { return nil }
+        }
+
+        return entry
     }
 }
+

@@ -85,69 +85,48 @@ public actor FileWriterActor {
     }
 }
 
-/// LogHandler that dispatches writes to a `FileWriterActor`.
-///
-/// The `log()` call fires a detached task and returns immediately.
-/// File I/O errors are silently ignored — the app never knows.
-public struct RotatingFileLogHandler: LogHandler {
+/// Batches formatted log lines and flushes them to the `FileWriterActor`
+/// in a single `Task.detached` per batch, reducing task allocation overhead.
+public final class FileWriteBuffer: @unchecked Sendable {
 
-    private let fileWriter: FileWriterActor
-    private let middleware: [LogMiddleware]
+    private let lock = NSLock()
+    private var buffer: [String] = []
+    private let writer: FileWriterActor
+    private let flushThreshold: Int
 
-    public var logLevel: Logger.Level = .debug
-    public var metadata: Logger.Metadata = [:]
-    public var metadataProvider: Logger.MetadataProvider?
-
-    public init(fileWriter: FileWriterActor, middleware: [LogMiddleware] = []) {
-        self.fileWriter = fileWriter
-        self.middleware = middleware
+    public init(writer: FileWriterActor, flushThreshold: Int = 10) {
+        self.writer = writer
+        self.flushThreshold = flushThreshold
     }
 
-    public subscript(metadataKey key: String) -> Logger.MetadataValue? {
-        get { metadata[key] }
-        set { metadata[key] = newValue }
-    }
+    public func append(_ line: String) {
+        lock.lock()
+        buffer.append(line)
+        let shouldFlush = buffer.count >= flushThreshold
+        let batch: String? = shouldFlush ? buffer.joined() : nil
+        if shouldFlush { buffer = [] }
+        lock.unlock()
 
-    public func log(
-        level: Logger.Level,
-        message: Logger.Message,
-        metadata: Logger.Metadata?,
-        source: String,
-        file: String,
-        function: String,
-        line: UInt
-    ) {
-        let merged = mergedMetadata(explicit: metadata)
-        var entry = LogEntry(
-            timestamp: Date(),
-            level: level,
-            message: "\(message)",
-            metadata: merged,
-            source: source,
-            function: function,
-            file: file,
-            line: line
-        )
-
-        for m in middleware {
-            if !m.process(&entry) { return }
-        }
-
-        let formatted = entry.formatted() + "\n"
-        let writer = fileWriter
-        Task.detached {
-            await writer.write(formatted)
+        if let batch {
+            let writer = self.writer
+            Task.detached {
+                await writer.write(batch)
+            }
         }
     }
 
-    private func mergedMetadata(explicit: Logger.Metadata?) -> Logger.Metadata? {
-        var merged = self.metadata
-        if let provided = metadataProvider?.get() {
-            merged.merge(provided) { _, new in new }
-        }
-        if let explicit {
-            merged.merge(explicit) { _, new in new }
-        }
-        return merged.isEmpty ? nil : merged
+    /// Flushes any remaining buffered lines to disk and waits for the write to complete.
+    public func flush() async {
+        let remaining = drainBuffer()
+        guard !remaining.isEmpty else { return }
+        await writer.write(remaining)
+    }
+
+    private func drainBuffer() -> String {
+        lock.lock()
+        defer { lock.unlock() }
+        let joined = buffer.joined()
+        buffer = []
+        return joined
     }
 }
