@@ -9,6 +9,8 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
+private let logger = Logger(label: "flipcash.onramp")
+
 @MainActor @Observable
 class OnrampViewModel {
 
@@ -87,12 +89,12 @@ class OnrampViewModel {
         let currency = ratesController.entryCurrency
         
         guard let rate = ratesController.rate(for: currency) else {
-            trace(.failure, components: "[Onramp] Rate not found for: \(currency)")
+            logger.error("[Onramp] Rate not found", metadata: ["currency": "\(currency)"])
             return nil
         }
-        
+
         guard let converted = try? Quarks(fiatDecimal: amount, currencyCode: currency, decimals: PublicKey.usdf.mintDecimals) else {
-            trace(.failure, components: "[Onramp] Invalid amount for entry")
+            logger.error("[Onramp] Invalid amount for entry")
             return nil
         }
         
@@ -676,7 +678,7 @@ class OnrampViewModel {
     }
     
     private func didReceiveApplePayEvent(event: ApplePayEvent) {
-        trace(.warning, components: "[Coinbase]: \(event.event?.rawValue ?? "unknown")")
+        logger.warning("[Coinbase] Apple Pay event", metadata: ["event": "\(event.event?.rawValue ?? "unknown")"])
         
         func handleEventError(_ event: ApplePayEvent) {
             payButtonState = .normal

@@ -9,6 +9,8 @@ import Foundation
 import FlipcashCore
 import SQLite
 
+private let logger = Logger(label: "flipcash.database")
+
 typealias Expression = SQLite.Expression
 
 class Database {
@@ -87,7 +89,7 @@ class Database {
             }
             
         } catch {
-            trace(.failure, components: "Transaction error: \(error)")
+            logger.error("Transaction error: \(error)")
 //            ErrorReporting.captureError(error)
         }
 //        print("[DB TX]: \(Date.now.timeIntervalSince1970 - start.timeIntervalSince1970) seconds")

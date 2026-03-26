@@ -8,6 +8,8 @@
 import UIKit
 import FlipcashCore
 
+private let logger = Logger(label: "flipcash.pasteboard")
+
 @Observable
 class PasteboardObserver {
     
@@ -19,7 +21,7 @@ class PasteboardObserver {
     }
     
     @objc private func pasteboardChanged() {
-        trace(.note, components: "Pasteboard did change")
+        logger.debug("Pasteboard did change")
         hasStrings = UIPasteboard.general.hasStrings
     }
 }

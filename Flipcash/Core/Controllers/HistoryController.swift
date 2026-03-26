@@ -8,6 +8,8 @@
 import Foundation
 import FlipcashCore
 
+private let logger = Logger(label: "flipcash.history-controller")
+
 /// Synchronizes transaction history from the server into the local database.
 ///
 /// On init, fetches any new activities since the last known ID (delta sync)
@@ -52,9 +54,9 @@ class HistoryController {
                 try $0.insertActivities(activities: activities)
             }
             
-            trace(.success, components: "Inserted \(activities.count) pending activities")
+            logger.info("Inserted pending activities", metadata: ["count": "\(activities.count)"])
         } else {
-            trace(.note, components: "No pending activities")
+            logger.debug("No pending activities")
         }
     }
     
@@ -90,9 +92,9 @@ class HistoryController {
                 try $0.insertActivities(activities: container)
             }
             
-            trace(.success, components: "Inserted \(container.count) activities")
+            logger.info("Inserted activities", metadata: ["count": "\(container.count)"])
         } else {
-            trace(.success, components: "No new activities")
+            logger.info("No new activities")
         }
     }
 }

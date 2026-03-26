@@ -9,6 +9,8 @@ import Foundation
 import Combine
 import FlipcashCore
 
+private let logger = Logger(label: "flipcash.rates-controller")
+
 /// Manages currency selection, exchange rates, and live mint data streaming.
 ///
 /// Owns the ``VerifiedProtoService`` for exchange rate proofs and a
@@ -117,7 +119,7 @@ class RatesController {
                 do {
                     try self.database.updateLiveSupply(updates: updates, date: .now)
                 } catch {
-                    trace(.warning, components: "Failed to update live supply: \(error)")
+                    logger.warning("Failed to update live supply: \(error)")
                 }
             }
             .store(in: &cancellables)
@@ -201,7 +203,7 @@ class RatesController {
                 return state
             }
         }
-        trace(.failure, components: "awaitVerifiedState timed out for \(currency.rawValue), mint: \(mint.base58)")
+        logger.error("awaitVerifiedState timed out", metadata: ["currency": "\(currency.rawValue)", "mint": "\(mint.base58)"])
         return nil
     }
 

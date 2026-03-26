@@ -9,6 +9,8 @@ import UIKit
 import FlipcashUI
 import FlipcashCore
 
+private let logger = Logger(label: "flipcash.session")
+
 @MainActor
 protocol SessionDelegate: AnyObject {
     func didDetectUnlockedAccount()
@@ -477,7 +479,7 @@ class Session {
             try? database.insertLimits(fetchedLimits)
         }
 
-        trace(.note, components: "Daily limit updated (USD): \(fetchedLimits.sendLimitFor(currency: .usd)?.maxPerDay.decimalValue ?? -1)")
+        logger.debug("Daily limit updated", metadata: ["usd_max_per_day": "\(fetchedLimits.sendLimitFor(currency: .usd)?.maxPerDay.decimalValue ?? -1)"])
     }
     
     private func updateLimits() {
@@ -572,7 +574,7 @@ class Session {
             // otherwise we'll wait for dismissBill
             // to consume the toast
             guard !isShowingBill else {
-                trace(.note, components: "Bill showing, waiting for toasts to resume...")
+                logger.debug("Bill showing, waiting for toasts to resume...")
                 return
             }
             
@@ -607,7 +609,7 @@ class Session {
             throw Error.missingVerifiedState
         }
 
-        trace(.note, components: "buying \(amount.converted.formatted()) of \(token.symbol)")
+        logger.info("buying", metadata: ["amount": "\(amount.converted.formatted())", "token": "\(token.symbol)"])
 
         return try await client.buy(amount: amount, verifiedState: verifiedState, of: token.metadata, owner: owner)
     }
@@ -653,7 +655,7 @@ class Session {
             amountForIntent = amount
         }
 
-        trace(.note, components: "selling \(amountForIntent.converted.formatted()) of \(token.symbol)")
+        logger.info("selling", metadata: ["amount": "\(amountForIntent.converted.formatted())", "token": "\(token.symbol)"])
 
         return try await client.sell(amount: amountForIntent, verifiedState: verifiedState, in: token.metadata, owner: owner)
     }
@@ -798,10 +800,7 @@ class Session {
             } catch ClientError.denied {
                 // Another device grabbed this bill first. Stop polling
                 // and silently reset so the scanner can pick up new codes.
-                trace(.warning, components:
-                    "Scan denied (concurrent grab)",
-                    "Rendezvous: \(payload.rendezvous.publicKey.base58)"
-                )
+                logger.warning("Scan denied (concurrent grab)", metadata: ["rendezvous": "\(payload.rendezvous.publicKey.base58)"])
                 completion(.failed)
 
             } catch ClientError.pollLimitReached {
@@ -1173,7 +1172,7 @@ class Session {
                 )
                 
                 guard let exchangedFiat = giftCardAccountInfo.exchangedFiat else {
-                    trace(.failure, components: "Gift card account info is missing ExchangeFiat.")
+                    logger.error("Gift card account info is missing ExchangeFiat.")
                     return
                 }
                 
@@ -1291,7 +1290,7 @@ class Session {
                 } else {
                     showSomethingWentWrongError()
                 }
-                trace(.failure, components: "Failed to receive cash link for gift card: \(giftCardKeyPair.publicKey)")
+                logger.error("Failed to receive cash link for gift card", metadata: ["public_key": "\(giftCardKeyPair.publicKey)"])
             }
         }
     }
@@ -1419,7 +1418,7 @@ class Session {
                 switch error {
                 case .notFound, .unknown:
                     if i < maxAttempts - 1 {
-                        trace(.warning, components: "fetchAccountInfo returned \(error) (attempt \(i + 1)/\(maxAttempts)), retrying in 500ms")
+                        logger.warning("fetchAccountInfo failed, retrying", metadata: ["error": "\(error)", "attempt": "\(i + 1)/\(maxAttempts)"])
                         try await Task.delay(milliseconds: 500)
                     } else {
                         throw error

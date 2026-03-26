@@ -10,6 +10,8 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
+private let logger = Logger(label: "flipcash.app-delegate")
+
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
     
@@ -94,7 +96,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // MARK: - Lifecycle -
     
     func applicationWillResignActive(_ application: UIApplication) {
-        trace(.warning)
+        logger.warning("applicationWillResignActive")
         lastActiveDate = .now
         
 //        appContainer.pushController.appWillResignActive()
@@ -113,23 +115,23 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
     
     func applicationWillEnterForeground(_ application: UIApplication) {
-        trace(.warning)
-        
+        logger.warning("applicationWillEnterForeground")
+
 //        appContainer.sessionAuthenticator.updateBiometricsState()
-        
+
         if let sessionContainer { // Logged in
             sessionContainer.session.didBecomeActive()
 
             if !UIApplication.isInterfaceResetDisabled {
                 if let interval = secondsSinceLastActive(), interval > resetInterval {
-                    trace(.warning, components: "Resetting interface...")
+                    logger.warning("Resetting interface...")
                     assignHost()
                     //                fadeOutOverlay(delay: 0.4)
                 } else {
                     //                fadeOutOverlay(delay: 0.3)
                 }
             } else {
-                trace(.warning, components: "Interface reset disabled.")
+                logger.warning("Interface reset disabled.")
             }
             
         } else { // Logged out
@@ -203,7 +205,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // MARK: - Push Notifications -
     
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-        trace(.success, components: "Did register for remote notifications with token: \(deviceToken.hexString())")
+        logger.info("Did register for remote notifications", metadata: ["token": "\(deviceToken.hexString())"])
         
         if let sessionContainer {
             sessionContainer.pushController.didReceiveRemoteNotificationToken(with: deviceToken)
@@ -211,7 +213,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
     
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
-        trace(.failure, components: "Push notification registration failed: \(error)")
+        logger.error("Push notification registration failed: \(error)")
     }
 
     // MARK: - Interface Reset -

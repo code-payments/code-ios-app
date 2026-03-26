@@ -8,6 +8,8 @@
 import Foundation
 import FlipcashCore
 
+private let logger = Logger(label: "flipcash.deeplink")
+
 @MainActor
 final class DeepLinkController {
     
@@ -42,7 +44,7 @@ final class DeepLinkController {
                 return nil
             }
 
-            trace(.warning, components: "Jumping to: \(jumpURL.sanitizedForAnalytics)")
+            logger.info("Jumping to", metadata: ["url": "\(jumpURL.sanitizedForAnalytics)"])
             return handle(open: jumpURL)
         }
         
@@ -52,7 +54,7 @@ final class DeepLinkController {
             return nil
         }
         
-        trace(.note, components: "Deep link: \(url.sanitizedForAnalytics)")
+        logger.debug("Deep link", metadata: ["url": "\(url.sanitizedForAnalytics)"])
         
         switch route.path {
         case .login:

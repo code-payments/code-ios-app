@@ -10,6 +10,8 @@ import FlipcashUI
 import FlipcashCore
 import Combine
 
+private let logger = Logger(label: "flipcash.scan")
+
 @MainActor @Observable
 class ScanViewModel {
 
@@ -39,7 +41,7 @@ class ScanViewModel {
             try cameraSession.configureDevices()
             cameraSession.start()
         } catch {
-            trace(.failure, components: "Error configuring camera session: \(error)")
+            logger.error("Error configuring camera session: \(error)")
         }
     }
     
@@ -83,11 +85,11 @@ class ScanViewModel {
 //        trace(.note, components: scannedRendezvous.map { $0.base58 })
         scannedRendezvous.insert(payload.rendezvous.publicKey)
         
-        trace(.note, components:
-              "Kind: \(payload.kind)",
-              "Nonce: \(payload.nonce.hexString())",
-              "Rendezvous: \(payload.rendezvous.publicKey.base58)"
-        )
+        logger.debug("Scanned payload", metadata: [
+            "kind":       "\(payload.kind)",
+            "nonce":      "\(payload.nonce.hexString())",
+            "rendezvous": "\(payload.rendezvous.publicKey.base58)",
+        ])
         
         switch payload.kind {
         case .cash, .cashMulticurrency:
@@ -151,7 +153,7 @@ class ScanViewModel {
             self?.scannedQRCodes.remove(string)
         }
 
-        trace(.note, components: "QR code scanned: \(url.sanitizedForAnalytics)")
+        logger.debug("QR code scanned", metadata: ["url": "\(url.sanitizedForAnalytics)"])
 
         NotificationCenter.default.post(
             name: .qrDeepLinkReceived,
