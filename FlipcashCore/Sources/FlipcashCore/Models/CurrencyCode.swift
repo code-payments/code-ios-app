@@ -164,6 +164,8 @@ public enum CurrencyCode: String, CaseIterable, Codable, Equatable, Hashable, Se
     case zmw
     case sle
     case ved
+    case cnh
+    case xcg
     
     // MARK: - Init -
     
@@ -462,6 +464,8 @@ extension CurrencyCode {
         case .gip: return .gi
         case .vnd: return .vn
         case .pgk: return .pg
+        case .cnh: return .cn
+        case .xcg: return .cw
         }
     }
 }
