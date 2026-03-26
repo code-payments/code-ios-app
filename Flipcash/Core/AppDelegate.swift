@@ -32,7 +32,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // MARK: - Launch -
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        
+
+        LogStore.bootstrap(middleware: [
+            SensitiveKeyRedactor(),
+            PatternRedactor(),
+        ])
+
         window = UIWindow(frame: UIScreen.main.bounds)
         
         let isUITesting = CommandLine.arguments.contains("--ui-testing")

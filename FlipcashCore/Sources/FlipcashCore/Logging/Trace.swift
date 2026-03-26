@@ -1,14 +1,15 @@
 //
 //  Trace.swift
-//  FlipchatServices
+//  FlipcashCore
 //
-//  Created by Dima Bart.
-//  Copyright © 2021 Code Inc. All rights reserved.
+//  Bridge: delegates to swift-log Logger. Will be deleted
+//  once all call sites are migrated to Logger directly.
 //
 
 import Foundation
+import Logging
 
-public enum TraceStyle: String {
+public enum TraceStyle: String, Sendable {
     case send    = "➡️"
     case open    = "↪️"
     case close   = "↩️"
@@ -20,44 +21,26 @@ public enum TraceStyle: String {
     case warning = "⚠️"
     case failure = "❌"
     case write   = "💿"
+
+    var loggerLevel: Logger.Level {
+        switch self {
+        case .failure:                          .error
+        case .warning:                          .warning
+        case .success, .receive, .send,
+             .open, .close:                     .info
+        case .poll, .cache, .write, .note:      .debug
+        }
+    }
 }
+
+private let traceLogger = Logger(label: "flipcash.trace")
 
 public func trace(_ style: TraceStyle, components: String..., function: String = #function) {
     trace(style, components: components, function: function)
 }
 
 public func trace(_ style: TraceStyle, components: [String], function: String = #function, compact: Bool = false) {
-    let space = compact ? "" : "\n"
-    var output = " \(style.rawValue) \(Date.timestamp)\(space)\(function)"
-    
-    if !components.isEmpty {
-        let spacer  = compact ? " " : "      "
-        let newline = compact ? " " : "\n"
-        
-        let modified = components.map { component in
-            component
-                .components(separatedBy: "\n")
-                .map { line in
-                    "\(spacer)\(line)"
-                }
-                .joined(separator: newline)
-        }.joined(separator: newline)
-        
-        output = "\(output)\(newline)\(modified)"
-    }
-    
-    print(output)
-}
-
-private extension Date {
-    
-    private static let formatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "(hh:mm:ss.SSSS)"
-        return f
-    }()
-    
-    static var timestamp: String {
-        formatter.string(from: Date())
-    }
+    let level = style.loggerLevel
+    let message = Logger.Message(stringLiteral: components.joined(separator: " "))
+    traceLogger.log(level: level, message, source: function)
 }
