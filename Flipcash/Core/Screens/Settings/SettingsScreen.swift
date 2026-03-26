@@ -245,6 +245,13 @@ struct SettingsScreen: View {
             ) {
                 isShowingDepositFlow = true
             }
+            row(systemImage: "doc.text", title: "Send Logs") {
+                Task {
+                    if let url = try? await LogStore.shared.exportCompressedLogs() {
+                        ShareSheet.present(url: url)
+                    }
+                }
+            }
         }
         .font(.appDisplayXS)
         .foregroundColor(.textMain)
