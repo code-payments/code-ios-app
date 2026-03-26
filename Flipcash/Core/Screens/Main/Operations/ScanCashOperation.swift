@@ -9,6 +9,8 @@ import Foundation
 import FlipcashCore
 import Combine
 
+private let logger = Logger(label: "flipcash.scan-cash")
+
 /// Handles the receiver side of a face-to-face bill scan.
 ///
 /// ## Device A (Sender)
@@ -53,11 +55,11 @@ class ScanCashOperation {
         self.database   = database
         self.owner      = owner
         self.payload    = payload
-        trace(.open, components: "ScanCashOperation \(payload.rendezvous.publicKey.base58)")
+        logger.info("ScanCashOperation opened", metadata: ["rendezvous": "\(payload.rendezvous.publicKey.base58)"])
     }
 
     deinit {
-        trace(.close, components: "ScanCashOperation \(payload.rendezvous.publicKey.base58)")
+        logger.info("ScanCashOperation closed", metadata: ["rendezvous": "\(payload.rendezvous.publicKey.base58)"])
         messageStream?.cancel()
         messageStream = nil
     }
@@ -145,7 +147,7 @@ class ScanCashOperation {
                     return result
                 }
             } catch {
-                trace(.warning, components: "Failed to fetch messages (attempt \(i + 1)/\(maxAttempts)): \(error)")
+                logger.warning("Failed to fetch messages", metadata: ["attempt": "\(i + 1)/\(maxAttempts)", "error": "\(error)"])
                 throw Error.connectionFailed
             }
         }

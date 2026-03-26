@@ -10,25 +10,27 @@ import Foundation
 import FlipcashCoreAPI
 import GRPC
 
+private let logger = Logger(label: "flipcash.account-service")
+
 class AccountService: CodeService<Flipcash_Account_V1_AccountNIOClient> {
     
     func register(owner: KeyPair, completion: @Sendable @escaping (Result<UserID, ErrorRegisterAccount>) -> Void) {
-        trace(.send, components: "Owner: \(owner.publicKey.base58)")
-        
+        logger.info("Registering account", metadata: ["owner": "\(owner.publicKey.base58)"])
+
         let request = Flipcash_Account_V1_RegisterRequest.with {
             $0.publicKey = owner.publicKey.proto
             $0.signature = $0.sign(with: owner)
         }
-        
+
         let call = service.register(request)
         call.handle(on: queue) { response in
             let error = ErrorRegisterAccount(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
                 let userID = try! UUID(data: response.userID.value)
-                trace(.success)
+                logger.info("Account registered successfully")
                 completion(.success(userID))
             } else {
-                trace(.failure, components: "Failed to register: \(owner.publicKey.base58)")
+                logger.error("Failed to register account: \(owner.publicKey.base58)")
                 completion(.failure(error))
             }
             
@@ -38,22 +40,22 @@ class AccountService: CodeService<Flipcash_Account_V1_AccountNIOClient> {
     }
     
     func login(owner: KeyPair, completion: @Sendable @escaping (Result<UserID, ErrorLoginAccount>) -> Void) {
-        trace(.send, components: "Owner: \(owner.publicKey.base58)")
-        
+        logger.info("Logging in", metadata: ["owner": "\(owner.publicKey.base58)"])
+
         let request = Flipcash_Account_V1_LoginRequest.with {
             $0.timestamp = .init(date: .now)
             $0.auth = owner.authFor(message: $0)
         }
-        
+
         let call = service.login(request)
         call.handle(on: queue) { response in
             let error = ErrorLoginAccount(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
                 let userID = try! UUID(data: response.userID.value)
-                trace(.success)
+                logger.info("Login succeeded")
                 completion(.success(userID))
             } else {
-                trace(.failure, components: "Failed to register: \(owner.publicKey.base58)")
+                logger.error("Failed to login: \(owner.publicKey.base58)")
                 completion(.failure(error))
             }
             
@@ -63,7 +65,7 @@ class AccountService: CodeService<Flipcash_Account_V1_AccountNIOClient> {
     }
     
     func fetchUserFlags(userID: UserID, owner: KeyPair, completion: @Sendable @escaping (Result<UserFlags, ErrorFetchUserFlags>) -> Void) {
-        trace(.send, components: "UserID: \(userID)")
+        logger.info("Fetching user flags", metadata: ["userId": "\(userID)"])
 
         let request = Flipcash_Account_V1_GetUserFlagsRequest.with {
             $0.userID = userID.proto
@@ -81,10 +83,10 @@ class AccountService: CodeService<Flipcash_Account_V1_AccountNIOClient> {
         call.handle(on: queue) { response in
             let error = ErrorFetchUserFlags(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
-                trace(.success)
+                logger.info("User flags fetched successfully")
                 completion(.success(UserFlags(response.userFlags)))
             } else {
-                trace(.failure, components: "Failed to register: \(owner.publicKey.base58)")
+                logger.error("Failed to fetch user flags: \(owner.publicKey.base58)")
                 completion(.failure(error))
             }
 
@@ -108,7 +110,7 @@ class AccountService: CodeService<Flipcash_Account_V1_AccountNIOClient> {
             if error == .ok {
                 completion(.success(UnauthenticatedUserFlags(response.userFlags)))
             } else {
-                trace(.failure, components: "fetchUnauthenticatedUserFlags")
+                logger.error("Failed to fetch unauthenticated user flags")
                 completion(.failure(error))
             }
 

@@ -10,11 +10,16 @@ import Foundation
 import FlipcashCoreAPI
 import GRPC
 
+private let logger = Logger(label: "flipcash.activity-service")
+
 class ActivityService: CodeService<Flipcash_Activity_V1_ActivityFeedNIOClient> {
-    
+
     func fetchTransactionHistory(owner: KeyPair, pageSize: Int, since cursor: PublicKey?, completion: @Sendable @escaping (Result<[Activity], ErrorFetchTransactionHistory>) -> Void) {
-        trace(.send, components: "Owner: \(owner.publicKey.base58)", "Cursor: \(cursor?.base58 ?? "nil")")
-        
+        logger.info("Fetching transaction history", metadata: [
+            "owner": "\(owner.publicKey.base58)",
+            "cursor": "\(cursor?.base58 ?? "nil")"
+        ])
+
         let request = Flipcash_Activity_V1_GetPagedNotificationsRequest.with {
             $0.type = .transactionHistory
             $0.queryOptions = .with {
@@ -26,7 +31,7 @@ class ActivityService: CodeService<Flipcash_Activity_V1_ActivityFeedNIOClient> {
             }
             $0.auth = owner.authFor(message: $0)
         }
-        
+
         let call = service.getPagedNotifications(request)
         call.handle(on: queue) { response in
             let error = ErrorFetchTransactionHistory(rawValue: response.result.rawValue) ?? .unknown
@@ -35,30 +40,30 @@ class ActivityService: CodeService<Flipcash_Activity_V1_ActivityFeedNIOClient> {
                     do {
                         return try Activity($0)
                     } catch {
-                        trace(.failure, components: "Failed to parse activity: \($0)")
+                        logger.error("Failed to parse activity: \($0)")
                         return nil
                     }
                 }
-                trace(.success, components: "Fetched \(activities.count) activities")
+                logger.info("Fetched \(activities.count) activities")
                 completion(.success(activities))
             } else {
-                trace(.failure, components: "Failed to register: \(owner.publicKey.base58)")
+                logger.error("Failed to fetch transaction history for owner: \(owner.publicKey.base58)")
                 completion(.failure(error))
             }
-            
+
         } failure: { error in
             completion(.failure(.unknown))
         }
     }
-    
+
     func fetchTransactionHistoryItemsByID(owner: KeyPair, ids: [PublicKey], completion: @Sendable @escaping (Result<[Activity], ErrorFetchTransactionHistoryItemsByID>) -> Void) {
-        trace(.send, components: "Owner: \(owner.publicKey.base58)")
-        
+        logger.info("Fetching transaction history items by ID", metadata: ["owner": "\(owner.publicKey.base58)"])
+
         let request = Flipcash_Activity_V1_GetBatchNotificationsRequest.with {
             $0.ids = ids.map { id in .with { $0.value = id.data } }
             $0.auth = owner.authFor(message: $0)
         }
-        
+
         let call = service.getBatchNotifications(request)
         call.handle(on: queue) { response in
             let error = ErrorFetchTransactionHistoryItemsByID(rawValue: response.result.rawValue) ?? .unknown
@@ -67,17 +72,17 @@ class ActivityService: CodeService<Flipcash_Activity_V1_ActivityFeedNIOClient> {
                     do {
                         return try Activity($0)
                     } catch {
-                        trace(.failure, components: "Failed to parse activity: \($0)")
+                        logger.error("Failed to parse activity: \($0)")
                         return nil
                     }
                 }
-                trace(.success, components: "Fetched \(activities.count) activities")
+                logger.info("Fetched \(activities.count) activities by ID")
                 completion(.success(activities))
             } else {
-                trace(.failure, components: "Failed to register: \(owner.publicKey.base58)")
+                logger.error("Failed to fetch transaction history items for owner: \(owner.publicKey.base58)")
                 completion(.failure(error))
             }
-            
+
         } failure: { error in
             completion(.failure(.unknown))
         }

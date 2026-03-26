@@ -8,6 +8,8 @@
 import UIKit
 import FlipcashCore
 
+private let logger = Logger(label: "flipcash.account-manager")
+
 @MainActor
 class AccountManager {
     
@@ -89,11 +91,11 @@ class AccountManager {
                 historicalAccounts[key] = newDescription
             }
             
-            trace(.cache, components: "Storing private key in historical list.")
+            logger.debug("Storing private key in historical list.")
             Keychain.historicalAccounts = historicalAccounts
-            
+
         } else {
-            trace(.cache, components: "Storing private key in historical list. (first)")
+            logger.debug("Storing private key in historical list. (first)")
             Keychain.historicalAccounts = [key: newDescription]
         }
     }

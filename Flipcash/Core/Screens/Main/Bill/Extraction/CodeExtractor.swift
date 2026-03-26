@@ -12,6 +12,8 @@ import FlipcashCore
 
 @preconcurrency import Accelerate
 
+private let logger = Logger(label: "flipcash.code-extractor")
+
 class CodeExtractor: CameraSessionExtractor {
     
     private var container = RedundancyContainer<Data>(threshold: 1)
@@ -303,7 +305,7 @@ extension UIImage {
         )
         
         guard generateInfoResult == kvImageNoError else {
-            trace(.failure, components: "Failed to generate YUV conversion info: \(generateInfoResult)")
+            logger.error("Failed to generate YUV conversion info", metadata: ["result": "\(generateInfoResult)"])
             throw CodeExtractor.Error.failedToGenerateConversionInfo
         }
         
@@ -320,7 +322,7 @@ extension UIImage {
         )
 
         guard conversionResult == kvImageNoError else {
-            trace(.failure, components: "Failed to convert image to YUV: \(conversionResult)")
+            logger.error("Failed to convert image to YUV", metadata: ["result": "\(conversionResult)"])
             throw CodeExtractor.Error.failedToConvert
         }
 

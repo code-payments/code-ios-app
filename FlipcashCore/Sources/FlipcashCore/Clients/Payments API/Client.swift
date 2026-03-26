@@ -11,6 +11,8 @@ import Combine
 import NIO
 import GRPC
 
+private let logger = Logger(label: "flipcash.payment-client")
+
 @MainActor
 public class Client: ObservableObject {
     
@@ -41,7 +43,7 @@ public class Client: ObservableObject {
     }
     
     deinit {
-        trace(.warning, components: "Deallocating Client")
+        logger.debug("Deallocating Client")
     }
 
     // MARK: - Streaming -

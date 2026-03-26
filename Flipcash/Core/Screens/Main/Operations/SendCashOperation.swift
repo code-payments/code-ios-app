@@ -9,6 +9,8 @@ import Foundation
 import FlipcashCore
 import Combine
 
+private let logger = Logger(label: "flipcash.send-cash")
+
 /// Orchestrates a peer-to-peer cash transfer through a rendezvous-based
 /// handshake between sender and receiver.
 ///
@@ -124,11 +126,11 @@ class SendCashOperation {
             fiat: exchangedFiat.converted,
             nonce: .nonce
         )
-        trace(.open, components: "SendCashOperation \(payload.rendezvous.publicKey.base58)")
+        logger.info("SendCashOperation opened", metadata: ["rendezvous": "\(payload.rendezvous.publicKey.base58)"])
     }
 
     deinit {
-        trace(.close, components: "SendCashOperation \(payload.rendezvous.publicKey.base58)")
+        logger.info("SendCashOperation closed", metadata: ["rendezvous": "\(payload.rendezvous.publicKey.base58)"])
         messageStream?.cancel()
         messageStream = nil
     }
@@ -190,7 +192,7 @@ class SendCashOperation {
 
             // Prevent processing duplicate payment requests
             guard !self.hasProcessedPayment else {
-                trace(.warning, components: "Ignoring duplicate payment request for rendezvous: \(rendezvous.publicKey.base58)")
+                logger.warning("Ignoring duplicate payment request", metadata: ["rendezvous": "\(rendezvous.publicKey.base58)"])
                 return
             }
 
@@ -276,7 +278,7 @@ class SendCashOperation {
     }
 
     private func invalidateMessageStream() {
-        trace(.warning, components: "Closed message stream")
+        logger.info("Closed message stream")
         messageStream?.cancel()
         messageStream = nil
     }

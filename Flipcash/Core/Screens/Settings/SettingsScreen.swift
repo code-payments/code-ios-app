@@ -93,6 +93,8 @@ struct SettingsScreen: View {
                         sessionAuthenticator: sessionAuthenticator,
                         action: switchAccount
                     )
+                case .applicationLogs:
+                    ApplicationLogsScreen()
                 }
             }
             .sheet(isPresented: $isShowingDepositFlow) {
@@ -244,6 +246,9 @@ struct SettingsScreen: View {
                 title: "Deposit Funds",
             ) {
                 isShowingDepositFlow = true
+            }
+            row(systemImage: "doc.text", title: "Application Logs") {
+                path.append(.applicationLogs)
             }
         }
         .font(.appDisplayXS)
@@ -476,5 +481,6 @@ extension SettingsScreen {
         case appSettings
         case betaFlagss
         case accountSelection
+        case applicationLogs
     }
 }

@@ -7,7 +7,6 @@
 //
 
 import Foundation
-import Logging
 import GRPC
 import NIO
 
@@ -59,13 +58,14 @@ class CodeService<T> where T: GRPCClientType {
 //    }
 //}
 
+private let logger = Logger(label: "flipcash.grpc")
+
 final class CodeServiceErrorDelegate: NSObject, ClientErrorDelegate {
     override init() {
         super.init()
-        
     }
-    
-    func didCatchError(_ error: Error, logger: Logger, file: StaticString, line: Int) {
-        trace(.failure, components: "Error: \(error)", function: "\(file):\(line)")
+
+    func didCatchError(_ error: Error, logger _: Logger, file: StaticString, line: Int) {
+        logger.error("gRPC client error at \(file):\(line): \(error)")
     }
 }

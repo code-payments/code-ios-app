@@ -9,6 +9,8 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
+private let logger = Logger(label: "flipcash.session-auth")
+
 /// Manages authentication state, login flow, and session lifecycle.
 ///
 /// Handles account creation, login, logout, and session migration.
@@ -69,11 +71,11 @@ final class SessionAuthenticator {
         // Update launch state.
         // This is a fresh install.
         if UserDefaults.launchCount == nil {
-            trace(.note, components: "First launch...")
+            logger.debug("First launch...")
         }
 
         UserDefaults.launchCount = (UserDefaults.launchCount ?? 0) + 1
-        trace(.note, components: "Launch count: \(UserDefaults.launchCount!)")
+        logger.debug("Launch count", metadata: ["count": "\(UserDefaults.launchCount!)"])
 
         // Start polling for unauthenticated user flags
         startPollingUnauthenticatedUserFlags()
@@ -109,7 +111,7 @@ final class SessionAuthenticator {
     }
     
     private func initializeState(count: Int = 0, didAuthenticate: @escaping (UserAccount) -> Void, didFindRecentAccount: @escaping (KeyAccount) -> Void) {
-        trace(.warning)
+        logger.debug("initializeState called")
         
         let userAccount = accountManager.fetchCurrentUserAccount()
         if let userAccount = userAccount {
@@ -168,7 +170,7 @@ final class SessionAuthenticator {
             let flags = try await flipClient.fetchUnauthenticatedUserFlags()
             self.unauthenticatedUserFlags = flags
         } catch {
-            trace(.failure, components: "Failed to fetch unauthenticated user flags: \(error)")
+            logger.error("Failed to fetch unauthenticated user flags: \(error)")
         }
     }
 
@@ -237,7 +239,7 @@ final class SessionAuthenticator {
         let currentVersion = try InfoPlist.value(for: "SQLiteVersion").integer()
         if currentVersion > userVersion {
             try Database.deleteStore(owner: owner)
-            trace(.failure, components: "Outdated user version, deleted database.")
+            logger.error("Outdated user version, deleted database.")
             try Database.setUserVersion(version: currentVersion, owner: owner)
         }
         
@@ -301,8 +303,8 @@ final class SessionAuthenticator {
                 userID: userID
             )
             
-            trace(.note, components: "Owner: \(keyAccount.ownerPublicKey)")
-            
+            logger.debug("Owner", metadata: ["owner": "\(keyAccount.ownerPublicKey)"])
+
             return InitializedAccount(
                 keyAccount: keyAccount,
                 userID: userID
@@ -315,9 +317,7 @@ final class SessionAuthenticator {
     }
     
     func completeLogin(with initializedAccount: InitializedAccount) {
-        trace(.note, components:
-            "Owner: \(initializedAccount.keyAccount.ownerPublicKey)"
-        )
+        logger.debug("completeLogin", metadata: ["owner": "\(initializedAccount.keyAccount.ownerPublicKey)"])
         
         let session = createSessionContainer(
             container: container,
@@ -370,7 +370,7 @@ final class SessionAuthenticator {
         state = .loggedOut
         UserDefaults.wasLoggedIn = false
 
-        trace(.note, components: "Logged out")
+        logger.debug("Logged out")
     }
 }
 

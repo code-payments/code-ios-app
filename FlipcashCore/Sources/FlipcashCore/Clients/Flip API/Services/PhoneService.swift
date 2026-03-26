@@ -10,77 +10,79 @@ import Foundation
 import FlipcashCoreAPI
 import GRPC
 
+private let logger = Logger(label: "flipcash.phone-service")
+
 class PhoneService: CodeService<Flipcash_Phone_V1_PhoneVerificationNIOClient> {
-    
+
     func sendVerificationCode(phone: String, owner: KeyPair, completion: @Sendable @escaping (Result<(), ErrorSendVerificationCode>) -> Void) {
-        trace(.send, components: "Phone: \(phone)")
-        
+        logger.info("Sending phone verification code")
+
         let request = Flipcash_Phone_V1_SendVerificationCodeRequest.with {
             $0.platform = .apple
             $0.phoneNumber = .with { $0.value = phone }
             $0.auth = owner.authFor(message: $0)
         }
-        
+
         let call = service.sendVerificationCode(request)
         call.handle(on: queue) { response in
             let error = ErrorSendVerificationCode(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
-                trace(.success)
+                logger.info("Phone verification code sent successfully")
                 completion(.success(()))
             } else {
-                trace(.failure, components: "Phone: \(phone)")
+                logger.error("Failed to send phone verification code: \(error)")
                 completion(.failure(error))
             }
-            
+
         } failure: { error in
             completion(.failure(.unknown))
         }
     }
-    
+
     func checkVerificationCode(phone: String, code: String, owner: KeyPair, completion: @Sendable @escaping (Result<(), ErrorCheckVerificationCode>) -> Void) {
-        trace(.send, components: "Phone: \(phone)", "Code: \(code)")
-        
+        logger.info("Checking phone verification code")
+
         let request = Flipcash_Phone_V1_CheckVerificationCodeRequest.with {
             $0.phoneNumber = .with { $0.value = phone }
             $0.code = .with { $0.value = code }
             $0.auth = owner.authFor(message: $0)
         }
-        
+
         let call = service.checkVerificationCode(request)
         call.handle(on: queue) { response in
             let error = ErrorCheckVerificationCode(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
-                trace(.success)
+                logger.info("Phone verification code accepted")
                 completion(.success(()))
             } else {
-                trace(.failure, components: "Phone: \(phone)", "Code: \(code)")
+                logger.error("Phone verification code check failed: \(error)")
                 completion(.failure(error))
             }
-            
+
         } failure: { error in
             completion(.failure(.unknown))
         }
     }
-    
+
     func unlinkPhone(phone: String, owner: KeyPair, completion: @Sendable @escaping (Result<(), ErrorUnlinkPhone>) -> Void) {
-        trace(.send, components: "Phone: \(phone)")
-        
+        logger.info("Unlinking phone number")
+
         let request = Flipcash_Phone_V1_UnlinkRequest.with {
             $0.phoneNumber = .with { $0.value = phone }
             $0.auth = owner.authFor(message: $0)
         }
-        
+
         let call = service.unlink(request)
         call.handle(on: queue) { response in
             let error = ErrorUnlinkPhone(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
-                trace(.success)
+                logger.info("Phone number unlinked successfully")
                 completion(.success(()))
             } else {
-                trace(.failure, components: "Phone: \(phone)")
+                logger.error("Failed to unlink phone number: \(error)")
                 completion(.failure(error))
             }
-            
+
         } failure: { error in
             completion(.failure(.unknown))
         }

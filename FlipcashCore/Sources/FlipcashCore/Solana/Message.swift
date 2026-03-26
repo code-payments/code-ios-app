@@ -8,6 +8,8 @@
 
 import Foundation
 
+private let logger = Logger(label: "flipcash.solana")
+
 public enum Message: Equatable, Sendable {
     
     case legacy(LegacyMessage)
@@ -105,7 +107,7 @@ extension Message {
             return nil
         }
         
-        trace(.note, components: "version: \(version)")
+        logger.debug("Decoding Solana message with version: \(version)")
         
         switch version {
         case .legacy:

@@ -106,35 +106,43 @@ enum ErrorReporting {
     
     private static func capture(_ error: Swift.Error, reason: String? = nil, id: String? = nil, file: String = #file, function: String = #function, line: Int = #line, buildUserInfo: (inout [String: Any]) -> Void) {
         let swiftError = error as NSError
-        
+
         var userInfo: [String: Any] = [:]
-        
+
         swiftError.userInfo.forEach { key, value in
             userInfo[key] = value
         }
-        
+
         let fileName = file.components(separatedBy: "/").last ?? "unknown"
         let location = "\(fileName):\(function):\(line)"
         userInfo["location"] = location
-        
+
         buildUserInfo(&userInfo)
-        
+
         if let reason {
             userInfo[NSLocalizedFailureReasonErrorKey] = reason
         }
-        
+
+        let recentLogs = LogStore.shared.recentEntries(last: 100)
+
         let customError = Fault(
             domain: "\(swiftError.domain).\(error)",
             code: swiftError.code,
             userInfo: userInfo
         )
-        
+
         Bugsnag.notifyError(customError) { event in
             if !event.errors.isEmpty {
                 event.errors[0].errorClass = "\(error)"
                 event.errors[0].errorMessage = reason ?? ""
             }
-            
+
+            event.addMetadata(
+                recentLogs.joined(separator: "\n"),
+                key: "recent_logs",
+                section: "app_logs"
+            )
+
             // Skip the line numbers to maintain grouping
             // even when files and line numbers change.
             var hash = "\(fileName):\(function)"
@@ -142,7 +150,7 @@ enum ErrorReporting {
                 hash = "\(hash):\(id)"
             }
             event.groupingHash = hash
-            
+
             return true
         }
     }

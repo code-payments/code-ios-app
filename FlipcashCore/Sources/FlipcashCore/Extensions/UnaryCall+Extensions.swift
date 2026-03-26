@@ -9,6 +9,8 @@
 import Foundation
 import GRPC
 
+private let logger = Logger(label: "flipcash.grpc")
+
 extension UnaryCall {
     func handle(on queue: DispatchQueue, function: String = #function, success: @Sendable @escaping (ResponsePayload) -> Void, failure: @Sendable @escaping (GRPC.GRPCStatus) -> Void) {
         response.whenSuccessBlocking(onto: queue, success)
@@ -16,10 +18,10 @@ extension UnaryCall {
             if let typedError = error as? GRPC.GRPCStatus {
                 let message = typedError.message ?? "'no-message'"
                 let code = typedError.code.description
-                trace(.failure, components: [code, message], function: function)
+                logger.error("gRPC call failed in \(function): \(code) - \(message)")
                 failure(typedError)
             } else {
-                trace(.failure, components: "Failed to type GRPC response error as `GRPC.GRPCStatus`: \(error)", function: function)
+                logger.error("gRPC call failed in \(function) with unexpected error type: \(error)")
                 failure(.processingError)
             }
         }

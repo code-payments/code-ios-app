@@ -12,6 +12,8 @@ import FlipcashCore
 @preconcurrency import FirebaseInstallations
 @preconcurrency import UserNotifications
 
+private let logger = Logger(label: "flipcash.push-controller")
+
 /// Manages push notification registration, Firebase Cloud Messaging tokens,
 /// and APNs lifecycle.
 ///
@@ -81,7 +83,7 @@ class PushController {
     /// Called by the app delegate when APNs delivers a device token.
     /// Forwards the token to Firebase and triggers FCM token upload.
     func didReceiveRemoteNotificationToken(with token: Data) {
-        trace(.warning, components: "Received APNs token: \(token.hexString())")
+        logger.info("Received APNs token", metadata: ["token": "\(token.hexString())"])
         apnsToken = token
         Messaging.messaging().setAPNSToken(token, type: .unknown)
         
@@ -116,7 +118,7 @@ class PushController {
     private func didReceiveFirebaseToken(token: String?) async throws {
         guard let token else {
             uploadedFirebaseToken = nil
-            trace(.warning, components: "APNS: Firebase token cleared.")
+            logger.warning("APNS: Firebase token cleared.")
             return
         }
         
@@ -180,14 +182,13 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
     }
     
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
-        trace(.warning, components: 
-              "Date:     \(notification.date)",
-              "Category: \(notification.request.content.categoryIdentifier)",
-              "Thread:   \(notification.request.content.threadIdentifier)",
-              "Title:    \(notification.request.content.title)",
-              "Body:     \(notification.request.content.body)",
-              "Info:     \(notification.request.content.userInfo)"
-        )
+        logger.info("Notification will present", metadata: [
+            "date":     "\(notification.date)",
+            "category": "\(notification.request.content.categoryIdentifier)",
+            "thread":   "\(notification.request.content.threadIdentifier)",
+            "title":    "\(notification.request.content.title)",
+            "body":     "\(notification.request.content.body)",
+        ])
         
         Messaging.messaging().appDidReceiveMessage(notification.request.content.userInfo)
 
@@ -204,7 +205,7 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
     }
     
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
-        trace(.warning, components: "Received response: \(response.actionIdentifier)")
+        logger.info("Received notification response", metadata: ["action": "\(response.actionIdentifier)"])
         
         Messaging.messaging().appDidReceiveMessage(response.notification.request.content.userInfo)
         
@@ -217,7 +218,7 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
     }
     
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
-        trace(.warning, components: "Received FCM token: \(fcmToken ?? "nil")")
+        logger.info("Received FCM token", metadata: ["token": "\(fcmToken ?? "nil")"])
         Task {
             try await self.didReceiveFCMToken?(fcmToken)
         }

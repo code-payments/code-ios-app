@@ -11,6 +11,8 @@ import Bugsnag
 import Firebase
 import FlipcashCore
 
+private let logger = Logger(label: "flipcash.analytics")
+
 typealias AnalyticsValue = MixpanelType
 
 protocol AnalyticsEvent {
@@ -30,9 +32,9 @@ enum Analytics {
         let apiKey = try? InfoPlist.value(for: "mixpanel").value(for: "apiKey").string()
         if let apiKey {
             Mixpanel.initialize(token: apiKey, trackAutomaticEvents: true)
-            trace(.success, components: "Initializing Mixpanel...")
+            logger.info("Initializing Mixpanel...")
         } else {
-            trace(.failure, components: "Failed to initialize Mixpanel. No API key found in Info.plist")
+            logger.error("Failed to initialize Mixpanel. No API key found in Info.plist")
         }
     }
     

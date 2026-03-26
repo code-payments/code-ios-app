@@ -13,6 +13,8 @@ import GRPC
 import SwiftProtobuf
 import NIO
 
+private let logger = Logger(label: "flipcash.swap-service")
+
 /// Service for managing token swap operations
 final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @unchecked Sendable {
     typealias BidirectionalSwapStream = BidirectionalStreamReference<Ocp_Transaction_V1_StatefulSwapRequest, Ocp_Transaction_V1_StatefulSwapResponse>
@@ -39,29 +41,34 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
     ) {
         let fromMint = direction.sourceMint.address
         let toMint = direction.destinationMint.address
-        trace(.send, components: "Swap ID: \(swapId.publicKey.base58)", "From: \(fromMint.base58)", "To: \(toMint.base58)", "Amount: \(amount.formatted())")
+        logger.info("Starting swap", metadata: [
+            "swapId": "\(swapId.publicKey.base58)",
+            "from": "\(fromMint.base58)",
+            "to": "\(toMint.base58)",
+            "amount": "\(amount.formatted())"
+        ])
 
         // Validate that required metadata is present for transaction building
         switch direction {
         case .buy(let targetMint):
             guard targetMint.vmMetadata != nil else {
-                trace(.failure, components: "Target mint \(targetMint.symbol) missing VM metadata")
+                logger.error("Target mint missing VM metadata: \(targetMint.symbol)")
                 completion(.failure(.invalidSwap))
                 return
             }
             guard targetMint.launchpadMetadata != nil else {
-                trace(.failure, components: "Target mint \(targetMint.symbol) missing launchpad metadata")
+                logger.error("Target mint missing launchpad metadata: \(targetMint.symbol)")
                 completion(.failure(.invalidSwap))
                 return
             }
         case .sell(let sourceMint):
             guard sourceMint.vmMetadata != nil else {
-                trace(.failure, components: "Source mint \(sourceMint.symbol) missing VM metadata")
+                logger.error("Source mint missing VM metadata: \(sourceMint.symbol)")
                 completion(.failure(.invalidSwap))
                 return
             }
             guard sourceMint.launchpadMetadata != nil else {
-                trace(.failure, components: "Source mint \(sourceMint.symbol) missing launchpad metadata")
+                logger.error("Source mint missing launchpad metadata: \(sourceMint.symbol)")
                 completion(.failure(.invalidSwap))
                 return
             }
@@ -69,7 +76,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
 
         // Also validate that USDF (core mint) has VM metadata
         guard MintMetadata.usdf.vmMetadata != nil else {
-            trace(.failure, components: "USDF missing VM metadata")
+            logger.error("USDF missing VM metadata")
             completion(.failure(.invalidSwap))
             return
         }
@@ -105,21 +112,21 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                 // respond with parameters (nonce + blockhash) that we need to sign
             case .serverParameters(let parameters):
                 guard case .currencyCreator(let serverParams) = parameters.kind else {
-                    trace(.failure, components: "Unexpected server parameter kind")
+                    logger.error("Unexpected server parameter kind in swap")
                     _ = reference.stream?.sendEnd()
                     completion(.failure(.unknown))
                     return
                 }
 
                 guard let serverParameters = VerifiedSwapMetadata.ServerParameters(serverParams) else {
-                    trace(.failure, components: "Failed to parse server parameters")
+                    logger.error("Failed to parse swap server parameters")
                     _ = reference.stream?.sendEnd()
                     completion(.failure(.unknown))
                     return
                 }
 
                 guard let responseParams = SwapResponseServerParameters(parameters) else {
-                    trace(.failure, components: "Failed to parse response parameters")
+                    logger.error("Failed to parse swap response parameters")
                     _ = reference.stream?.sendEnd()
                     completion(.failure(.unknown))
                     return
@@ -155,14 +162,18 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
 
                 _ = reference.stream?.sendMessage(submitSignature)
 
-                trace(.receive, components: "Received server parameters. Submitting \(signatures.count) signatures...", "Nonce: \(serverParameters.nonce.base58)", "Blockhash: \(serverParameters.blockhash.base58)")
+                logger.info("Received swap server parameters, submitting signatures", metadata: [
+                    "signatureCount": "\(signatures.count)",
+                    "nonce": "\(serverParameters.nonce.base58)",
+                    "blockhash": "\(serverParameters.blockhash.base58)"
+                ])
                 
                 // 3. If submitted signature is valid, we'll receive a success
                 // and the swap state will be created on the server
             case .success:
                 guard let serverParams = receivedServerParameters,
                       let signature = verifiedMetadataSignature else {
-                    trace(.failure, components: "Missing server parameters or signature")
+                    logger.error("Swap success received but missing server parameters or signature")
                     _ = reference.stream?.sendEnd()
                     completion(.failure(.unknown))
                     return
@@ -177,7 +188,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                     signature: signature
                 )
                 
-                trace(.success, components: "Swap started successfully", "Swap ID: \(swapId.publicKey.base58)")
+                logger.info("Swap started successfully", metadata: ["swapId": "\(swapId.publicKey.base58)"])
                 _ = reference.stream?.sendEnd()
                 completion(.success(metadata))
                 
@@ -202,33 +213,33 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                     }
                 }
                 container.append(contentsOf: errors)
-                
-                trace(.failure, components: container)
-                
+
+                logger.error("Swap stream error: \(container.joined(separator: ", "))")
+
                 _ = reference.stream?.sendEnd()
                 let intentError = ErrorSwap(error: error)
                 completion(.failure(intentError))
-                
+
             case .none:
-                trace(.failure, components: "No response from server")
+                logger.error("Swap received empty response from server")
                 _ = reference.stream?.sendEnd()
                 completion(.failure(.unknown))
             }
         }
-        
+
         reference.stream?.status.whenCompleteBlocking(onto: queue) { result in
             switch result {
             case .success(let status):
                 if status.code == .ok {
-                    trace(.success, components: "Stream closed")
+                    logger.info("Swap stream closed")
                     // Completion called in the success block
                 } else {
-                    trace(.warning, components: "Stream closed: \(status)")
+                    logger.warning("Swap stream closed with non-OK status: \(status)")
                     completion(.failure(.grpcStatus(status)))
                 }
-                
+
             case .failure(let error):
-                trace(.failure, components: "GRPC Error - stream closed: \(error)")
+                logger.error("Swap stream closed with gRPC error: \(error)")
                 completion(.failure(.grpcError(error)))
             }
             
@@ -268,14 +279,14 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
 
             do {
                 let bytes = try startRequest.serializedData()
-                trace(.send, components: "StartSwap initiate proto (hex): \(bytes.hexEncodedString())")
+                logger.debug("StartSwap initiate proto (hex): \(bytes.hexEncodedString())")
             } catch {
-                trace(.warning, components: "Failed to serialize StartSwap initiate proto for logging: \(error)")
+                logger.warning("Failed to serialize StartSwap initiate proto for logging: \(error)")
             }
 
             _ = reference.stream?.sendMessage(startRequest)
         } catch {
-            trace(.failure, components: "Failed to serialize client parameters for proof signature: \(error)")
+            logger.error("Failed to serialize client parameters for proof signature: \(error)")
             _ = reference.stream?.sendEnd()
             completion(.failure(.unknown))
             return
@@ -295,7 +306,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
         owner: KeyPair,
         completion: @escaping (Result<SwapMetadata, ErrorGetSwap>) -> Void
     ) {
-        trace(.send, components: "GetSwap", "Swap ID: \(swapId.publicKey.base58)")
+        logger.info("Fetching swap state", metadata: ["swapId": "\(swapId.publicKey.base58)"])
 
         var request = Ocp_Transaction_V1_GetSwapRequest()
         request.id = swapId.codeSwapID
@@ -310,28 +321,28 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                 switch response.result {
                 case .ok:
                     guard let metadata = SwapMetadata(response.swap) else {
-                        trace(.failure, components: "GetSwap", "Failed to parse swap metadata")
+                        logger.error("Failed to parse swap metadata")
                         completion(.failure(.failedToParse))
                         return
                     }
-                    trace(.success, components: "GetSwap", "State: \(metadata.state)")
+                    logger.info("Swap state fetched", metadata: ["state": "\(metadata.state)"])
                     completion(.success(metadata))
 
                 case .notFound:
-                    trace(.failure, components: "GetSwap", "Swap not found")
+                    logger.error("Swap not found")
                     completion(.failure(.notFound))
 
                 case .denied:
-                    trace(.failure, components: "GetSwap", "Access denied")
+                    logger.error("Swap access denied")
                     completion(.failure(.denied))
 
                 case .UNRECOGNIZED:
-                    trace(.failure, components: "GetSwap", "Unknown result")
+                    logger.error("Swap fetch returned unknown result")
                     completion(.failure(.unknown))
                 }
 
             case .failure(let error):
-                trace(.failure, components: "GetSwap", "gRPC error: \(error)")
+                logger.error("Swap fetch gRPC error: \(error)")
                 completion(.failure(.unknown))
             }
         }

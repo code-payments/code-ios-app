@@ -10,11 +10,13 @@ import Foundation
 import FlipcashCoreAPI
 import GRPC
 
+private let logger = Logger(label: "flipcash.third-party-service")
+
 class ThirdPartyService: CodeService<Flipcash_Thirdparty_V1_ThirdPartyNIOClient> {
-    
+
     func fetchCoinbaseOnrampJWT(apiKey: String, owner: KeyPair, completion: @Sendable @escaping (Result<String, ErrorFetchJWT>) -> Void) {
-        trace(.send)
-        
+        logger.info("Fetching Coinbase onramp JWT")
+
         let request = Flipcash_Thirdparty_V1_GetJwtRequest.with {
             $0.apiKey = .with {
                 $0.provider = .coinbase
@@ -25,18 +27,18 @@ class ThirdPartyService: CodeService<Flipcash_Thirdparty_V1_ThirdPartyNIOClient>
             $0.path   = "platform/v2/onramp/orders"
             $0.auth   = owner.authFor(message: $0)
         }
-        
+
         let call = service.getJwt(request)
         call.handle(on: queue) { response in
             let error = ErrorFetchJWT(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
-                trace(.success)
+                logger.info("Coinbase onramp JWT fetched successfully")
                 completion(.success(response.jwt.value))
             } else {
-                trace(.failure, components: "Error: \(error)")
+                logger.error("Failed to fetch Coinbase onramp JWT: \(error)")
                 completion(.failure(error))
             }
-            
+
         } failure: { error in
             completion(.failure(.unknown))
         }

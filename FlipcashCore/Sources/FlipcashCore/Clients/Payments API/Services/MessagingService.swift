@@ -12,6 +12,8 @@ import Combine
 import GRPC
 import SwiftProtobuf
 
+private let logger = Logger(label: "flipcash.messaging-service")
+
 class MessagingService: CodeService<Ocp_Messaging_V1_MessagingNIOClient> {
     
 //    typealias KeepAliveMessageStreamReference = BidirectionalStreamReference<Code_Messaging_V1_OpenMessageStreamWithKeepAliveRequest, Code_Messaging_V1_OpenMessageStreamWithKeepAliveResponse>
@@ -82,7 +84,7 @@ class MessagingService: CodeService<Ocp_Messaging_V1_MessagingNIOClient> {
 //    }
     
     func openMessageStream(rendezvous: KeyPair, completion: @MainActor @Sendable @escaping (Result<[StreamMessage], Error>) -> Void) -> AnyCancellable {
-        trace(.open, components: "Rendezvous: \(rendezvous.publicKey.base58)")
+        logger.info("Opening message stream", metadata: ["rendezvous": "\(rendezvous.publicKey.base58)"])
         
         let request = Ocp_Messaging_V1_OpenMessageStreamRequest.with {
             $0.rendezvousKey = rendezvous.publicKey.codeRendezvousKey
@@ -113,7 +115,7 @@ class MessagingService: CodeService<Ocp_Messaging_V1_MessagingNIOClient> {
             if case .success(let status) = result, status.code == .unavailable {
                 // Reconnect only if the stream was closed as a result of
                 // server actions and not cancelled by the client, etc.
-                trace(.note, components: "Reconnecting: \(rendezvous.base58)")
+                logger.debug("Reconnecting message stream", metadata: ["rendezvous": "\(rendezvous.base58)"])
                 self.openMessageStream(
                     assigningTo: streamReference,
                     request: request,
@@ -128,18 +130,18 @@ class MessagingService: CodeService<Ocp_Messaging_V1_MessagingNIOClient> {
     }
     
     func fetchMessages(rendezvous: KeyPair, completion: @Sendable @escaping (Result<[StreamMessage], Error>) -> Void) {
-        trace(.send, components: "Rendezvous: \(rendezvous.publicKey.base58)")
-        
+        logger.info("Fetching messages", metadata: ["rendezvous": "\(rendezvous.publicKey.base58)"])
+
         let request = Ocp_Messaging_V1_PollMessagesRequest.with {
             $0.rendezvousKey = rendezvous.publicKey.codeRendezvousKey
             $0.signature = $0.sign(with: rendezvous)
         }
-        
+
         let call = service.pollMessages(request)
-        
+
         call.handle(on: queue) { response in
             let messages = response.messages.compactMap { try? StreamMessage($0) }
-            trace(.success, components: "Fetched \(response.messages.count) messages.")
+            logger.info("Fetched \(response.messages.count) messages")
             completion(.success(messages))
             
         } failure: { error in
@@ -149,26 +151,25 @@ class MessagingService: CodeService<Ocp_Messaging_V1_MessagingNIOClient> {
     
     func acknowledge(messages: [StreamMessage], rendezvous: PublicKey, completion: @Sendable @escaping (Result<Void, Error>) -> Void) {
         let ids = messages.map { $0.id }
-        
-        let stringsIDs = ids.map { "Message ID: \($0.data.hexEncodedString())" }
-        trace(.send, components: stringsIDs)
-        
+
+        logger.info("Acknowledging \(ids.count) messages")
+
         let request = Ocp_Messaging_V1_AckMessagesRequest.with {
             $0.rendezvousKey = rendezvous.codeRendezvousKey
             $0.messageIds = ids.map { id in
                 Ocp_Messaging_V1_MessageId.with { $0.value = id.data }
             }
         }
-        
+
         let call = service.ackMessages(request)
         call.handle(on: queue) { response in
             switch response.result {
             case .ok:
-                trace(.success, components: stringsIDs)
+                logger.info("Messages acknowledged successfully")
                 completion(.success(()))
-                
+
             case .UNRECOGNIZED:
-                trace(.failure, components: stringsIDs)
+                logger.error("Failed to acknowledge messages")
                 completion(.failure(ErrorGeneric.unknown))
             }
             
@@ -202,10 +203,10 @@ class MessagingService: CodeService<Ocp_Messaging_V1_MessagingNIOClient> {
     }
     
     func sendRequestToGrabBill(destination: PublicKey, rendezvous: KeyPair, completion: @Sendable @escaping (Result<Bool, Error>) -> Void) {
-        trace(.send, components:
-            "Destination: \(destination.base58)",
-            "Rendezvous: \(rendezvous.publicKey.base58)"
-        )
+        logger.info("Sending request to grab bill", metadata: [
+            "destination": "\(destination.base58)",
+            "rendezvous": "\(rendezvous.publicKey.base58)"
+        ])
         
         let message = requestToGrabBill(destination: destination)
         
@@ -217,10 +218,10 @@ class MessagingService: CodeService<Ocp_Messaging_V1_MessagingNIOClient> {
     }
     
     func sendRequestToGiveBill(mint: PublicKey, exchangedFiat: ExchangedFiat, verifiedState: VerifiedState?, rendezvous: KeyPair, completion: @Sendable @escaping (Result<Bool, Error>) -> Void) {
-        trace(.send, components:
-            "Mint: \(mint.base58)",
-            "Rendezvous: \(rendezvous.publicKey.base58)"
-        )
+        logger.info("Sending request to give bill", metadata: [
+            "mint": "\(mint.base58)",
+            "rendezvous": "\(rendezvous.publicKey.base58)"
+        ])
 
         var exchangeData: Ocp_Transaction_V1_VerifiedExchangeData?
         if let verifiedState {
@@ -264,7 +265,10 @@ class MessagingService: CodeService<Ocp_Messaging_V1_MessagingNIOClient> {
             default:
                 isStreamOpen = false
             }
-            trace(.success, components: response.messageID.hexEncoded, "Stream: \(isStreamOpen ? "Open" : "n/a")")
+            logger.info("Message sent", metadata: [
+                "messageId": "\(response.messageID.hexEncoded)",
+                "streamOpen": "\(isStreamOpen)"
+            ])
             completion(.success(isStreamOpen))
             
         } failure: { error in
