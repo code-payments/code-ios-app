@@ -150,9 +150,13 @@ class PushController {
 }
 
 extension PushController {
-    static func authorizeAndRegister() async throws {
-        try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound])
-        UIApplication.shared.registerForRemoteNotifications()
+    @discardableResult
+    static func authorizeAndRegister() async throws -> Bool {
+        let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound])
+        if granted {
+            UIApplication.shared.registerForRemoteNotifications()
+        }
+        return granted
     }
     
     static func fetchStatus() async -> UNAuthorizationStatus {
