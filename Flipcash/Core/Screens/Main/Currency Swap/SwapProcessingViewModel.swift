@@ -128,9 +128,11 @@ class SwapProcessingViewModel {
                 trackTransaction(successful: true)
                 displayState = .success
             case .failed, .cancelled:
+                reportSwapFailure(state: metadata.state, reason: "Swap completed with failure state")
                 trackTransaction(successful: false)
                 displayState = .failed
             case .unknown, .created, .funding, .funded, .submitting, .cancelling:
+                reportSwapFailure(state: metadata.state, reason: "Swap timed out in intermediate state")
                 trackTransaction(successful: false)
                 displayState = .failed
             }
@@ -148,6 +150,20 @@ class SwapProcessingViewModel {
     
     private func setSwapDetails() {
         exchangedFiat = amount
+    }
+
+    private func reportSwapFailure(state: SwapState, reason: String) {
+        ErrorReporting.captureError(
+            SwapError.failed(state: state),
+            reason: reason,
+            metadata: [
+                "swapId": swapId.publicKey.base58,
+                "swapType": "\(swapType)",
+                "finalState": "\(state)",
+                "amount": amount.converted.formatted(),
+                "quarks": "\(amount.underlying.quarks)",
+            ]
+        )
     }
 
     private func trackTransaction(successful: Bool) {
@@ -170,6 +186,12 @@ extension SwapProcessingViewModel {
         case success
         case failed
     }
+}
+
+// MARK: - SwapError -
+
+enum SwapError: Error {
+    case failed(state: SwapState)
 }
 
 // MARK: - SwapType -

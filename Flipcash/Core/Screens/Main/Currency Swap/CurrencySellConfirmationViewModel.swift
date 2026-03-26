@@ -75,6 +75,17 @@ class CurrencySellConfirmationViewModel {
                 // Navigate to processing screen
                 pendingSwapId = swapId
             } catch {
+                ErrorReporting.captureError(
+                    error,
+                    reason: "Failed to sell currency",
+                    metadata: [
+                        "mint": mint.base58,
+                        "amount": amount.converted.formatted(),
+                        "fee": "\(fee.underlying.quarks)",
+                        "amountAfterFees": "\(amountAfterFee.converted.formatted())",
+                        "quarks": "\(amount.underlying.quarks)",
+                    ]
+                )
                 actionButtonState = .normal
                 showErrorDialog(error: error)
             }
