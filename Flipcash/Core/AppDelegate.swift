@@ -263,7 +263,16 @@ private extension AppDelegate {
         bar.titleTextAttributes = titleAttributes
 
         if #available(iOS 26, *) {
-            // iOS 26: Use default configuration
+            // iOS 26: Transparent background to allow Liquid Glass,
+            // but still apply custom title font and button styling
+            let barAppearance = UINavigationBarAppearance()
+            barAppearance.configureWithTransparentBackground()
+            barAppearance.titleTextAttributes = titleAttributes
+            barAppearance.largeTitleTextAttributes = largeAttributes
+            barAppearance.backButtonAppearance = buttonAppearance
+
+            bar.standardAppearance = barAppearance
+            bar.scrollEdgeAppearance = barAppearance
         } else {
             // iOS < 26: Use custom background
             let background = UIImage.solid(color: UIColor(.backgroundMain))
