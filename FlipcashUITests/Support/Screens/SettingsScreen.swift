@@ -23,6 +23,7 @@ struct SettingsUIScreen {
     var advancedFeaturesRow: XCUIElement { app.buttons["Advanced Features"] }
     var accessKeyRow: XCUIElement { app.buttons["Access Key"] }
     var depositFundsRow: XCUIElement { app.buttons["Deposit Funds"] }
+    var applicationLogsRow: XCUIElement { app.buttons["Application Logs"] }
 
     // MARK: - Actions
 
