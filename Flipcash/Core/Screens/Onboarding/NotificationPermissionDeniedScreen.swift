@@ -30,7 +30,7 @@ struct NotificationPermissionDeniedScreen: View {
             VStack(spacing: 0) {
                 VStack(spacing: 20) {
                     Spacer()
-                    Image(.notificationPreview)
+                    Image(.notificationAllow)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .frame(maxWidth: 300)
