@@ -14,6 +14,8 @@ import SwiftProtobuf
 import NIO
 import DeviceCheck
 
+private let logger = Logger(label: "flipcash.transaction-service")
+
 class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
     typealias BidirectionalStream = BidirectionalStreamReference<Ocp_Transaction_V1_SubmitIntentRequest, Ocp_Transaction_V1_SubmitIntentResponse>
     
@@ -25,8 +27,8 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
     // MARK: - Account Creation -
     
     func createAccounts(owner: KeyPair, mint: PublicKey, cluster: AccountCluster, kind: AccountKind, derivationIndex: Int, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
-        trace(.send)
-        
+        logger.info("Creating accounts")
+
         let intent = IntentCreateAccount(
             owner: owner.publicKey,
             mint: mint,
@@ -34,15 +36,15 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
             kind: kind,
             derivationIndex: derivationIndex
         )
-        
+
         submit(intent: intent, owner: owner) { result in
             switch result {
             case .success(_):
-                trace(.success)
+                logger.info("Accounts created successfully")
                 completion(.success(()))
-                
+
             case .failure(let error):
-                trace(.failure, components: "Error: \(error)")
+                logger.error("Failed to create accounts: \(error)")
                 completion(.failure(error))
             }
         }
@@ -51,7 +53,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
     // MARK: - Transfer -
 
     func transfer(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, sourceCluster: AccountCluster, destination: PublicKey, owner: KeyPair, rendezvous: PublicKey, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
-        trace(.send)
+        logger.info("Sending transfer")
 
         let intent = IntentTransfer(
             rendezvous: rendezvous,
@@ -64,18 +66,18 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
         submit(intent: intent, owner: owner) { result in
             switch result {
             case .success(_):
-                trace(.success)
+                logger.info("Transfer succeeded")
                 completion(.success(()))
 
             case .failure(let error):
-                trace(.failure, components: "Error: \(error)")
+                logger.error("Transfer failed: \(error)")
                 completion(.failure(error))
             }
         }
     }
 
     func withdraw(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, fee: Quarks, sourceCluster: AccountCluster, destinationMetadata: DestinationMetadata, owner: KeyPair, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
-        trace(.send)
+        logger.info("Sending withdrawal")
 
         do {
             let intent = try IntentWithdraw(
@@ -85,27 +87,30 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
                 exchangedFiat: exchangedFiat,
                 verifiedState: verifiedState
             )
-            
+
             submit(intent: intent, owner: owner) { result in
                 switch result {
                 case .success(_):
-                    trace(.success)
+                    logger.info("Withdrawal succeeded")
                     completion(.success(()))
-                    
+
                 case .failure(let error):
-                    trace(.failure, components: "Error: \(error)")
+                    logger.error("Withdrawal failed: \(error)")
                     completion(.failure(error))
                 }
             }
-            
+
         } catch {
-            trace(.failure, components: "Intent error: \(error)")
+            logger.error("Failed to build withdraw intent: \(error)")
             completion(.failure(error))
         }
     }
     
     func sendCashLink(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, ownerCluster: AccountCluster, giftCard: GiftCardCluster, rendezvous: PublicKey, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
-        trace(.send, components: "Gift card vault: \(giftCard.cluster.vaultPublicKey.base58)", "Amount: \(exchangedFiat.underlying.formatted(suffix: " USDF"))")
+        logger.info("Sending cash link", metadata: [
+            "giftCardVault": "\(giftCard.cluster.vaultPublicKey.base58)",
+            "amount": "\(exchangedFiat.underlying.formatted(suffix: " USDF"))"
+        ])
 
         let intent = IntentSendCashLink(
             rendezvous: rendezvous,
@@ -118,58 +123,61 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
         submit(intent: intent, owner: ownerCluster.authority.keyPair) { result in
             switch result {
             case .success(_):
-                trace(.success)
+                logger.info("Cash link sent successfully")
                 completion(.success(()))
 
             case .failure(let error):
-                trace(.failure, components: "Error: \(error)")
+                logger.error("Failed to send cash link: \(error)")
                 completion(.failure(error))
             }
         }
     }
     
     func receiveCashLink(usdf: Quarks, ownerCluster: AccountCluster, giftCard: GiftCardCluster, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
-        trace(.send, components: "Gift card vault: \(giftCard.cluster.vaultPublicKey.base58)", "Amount: \(usdf.formatted(suffix: " USDF"))")
-        
+        logger.info("Receiving cash link", metadata: [
+            "giftCardVault": "\(giftCard.cluster.vaultPublicKey.base58)",
+            "amount": "\(usdf.formatted(suffix: " USDF"))"
+        ])
+
         let intent = IntentReceiveCashLink(
             ownerCluster: ownerCluster,
             giftCard: giftCard,
             usdf: usdf
         )
-        
+
         submit(intent: intent, owner: ownerCluster.authority.keyPair) { result in
             switch result {
             case .success(_):
-                trace(.success)
+                logger.info("Cash link received successfully")
                 completion(.success(()))
-                
+
             case .failure(let error):
-                trace(.failure, components: "Error: \(error)")
+                logger.error("Failed to receive cash link: \(error)")
                 completion(.failure(error))
             }
         }
     }
     
     func voidCashLink(giftCardVault: PublicKey, owner: KeyPair, completion: @Sendable @escaping (Result<(), ErrorVoidGiftCard>) -> Void) {
-        trace(.send, components: "Gift card: \(giftCardVault.base58)")
-        
+        logger.info("Voiding cash link", metadata: ["giftCard": "\(giftCardVault.base58)"])
+
         let request = Ocp_Transaction_V1_VoidGiftCardRequest.with {
             $0.giftCardVault = giftCardVault.solanaAccountID
             $0.owner = owner.publicKey.solanaAccountID
             $0.signature = $0.sign(with: owner)
         }
-        
+
         let call = service.voidGiftCard(request)
         call.handle(on: queue) { response in
             let error = ErrorVoidGiftCard(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
-                trace(.success, components: "Gift card: \(giftCardVault.base58)")
+                logger.info("Cash link voided", metadata: ["giftCard": "\(giftCardVault.base58)"])
                 completion(.success(()))
             } else {
-                trace(.failure, components: "Error: \(error)")
+                logger.error("Failed to void cash link: \(error)")
                 completion(.failure(error))
             }
-            
+
         } failure: { _ in
             completion(.failure(.unknown))
         }
@@ -206,7 +214,11 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
         fundingSource: FundingSource,
         completion: @Sendable @escaping (Result<SwapId, ErrorSwap>) -> Void
     ) {
-        trace(.send, components: "Starting \(amount.converted.formatted()) buy of \(token.symbol) with \(fundingSource)")
+        logger.info("Starting buy", metadata: [
+            "amount": "\(amount.converted.formatted())",
+            "token": "\(token.symbol)",
+            "fundingSource": "\(fundingSource)"
+        ])
 
         let swapService = self.swapService
         let ownerKeyPair = owner.authority.keyPair
@@ -221,7 +233,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
         ) { result in
             switch result {
             case .success(let metadata):
-                trace(.success, components: "Swap state created", "Swap ID: \(swapId.publicKey.base58)")
+                logger.info("Swap state created", metadata: ["swapId": "\(swapId.publicKey.base58)"])
 
                 switch fundingSource {
                 case .submitIntent(let fundingIntentID):
@@ -239,26 +251,26 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
                     self.submit(intent: fundingIntent, owner: ownerKeyPair) { fundingResult in
                         switch fundingResult {
                         case .success:
-                            trace(.success, components: "Swap completed", "Intent ID: \(fundingIntentID.base58)")
+                            logger.info("Buy swap completed", metadata: ["intentId": "\(fundingIntentID.base58)"])
                             completion(.success(swapId))
                         case .failure(let error):
-                            trace(.failure, components: "Failed to swap: \(error)")
+                            logger.error("Failed to fund buy swap: \(error)")
                             completion(.failure(.unknown))
                         }
                     }
 
                 case .externalWallet:
                     // NO Phase 2 - funding already happened via external wallet
-                    trace(.success, components: "Swap initiated with external funding", "Swap ID: \(swapId.publicKey.base58)")
+                    logger.info("Buy swap initiated with external funding", metadata: ["swapId": "\(swapId.publicKey.base58)"])
                     completion(.success(swapId))
 
                 case .unknown:
-                    trace(.failure, components: "Unknown funding source")
+                    logger.error("Unknown funding source for buy swap")
                     completion(.failure(.unknown))
                 }
 
             case .failure(let error):
-                trace(.failure, components: "Failed to start swap: \(error)")
+                logger.error("Failed to start buy swap: \(error)")
                 completion(.failure(error))
             }
         }
@@ -266,14 +278,17 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
 
     /// A sell is a swap from token to USDF
     func sell(amount: ExchangedFiat, verifiedState: VerifiedState, in token: MintMetadata, owner: AccountCluster, completion: @Sendable @escaping (Result<SwapId, ErrorSwap>) -> Void) {
-        trace(.send, components: "Starting sell of \(token.symbol) for \(amount.converted.formatted())")
+        logger.info("Starting sell", metadata: [
+            "token": "\(token.symbol)",
+            "amount": "\(amount.converted.formatted())"
+        ])
 
         // Generate unique identifiers for this swap
         let swapId = SwapId.generate()
         let fundingIntentID = KeyPair.generate()!.publicKey
 
         guard let tokenVmAuthority = token.vmMetadata?.authority else {
-            trace(.failure, components: "Failed to find vm authority for \(token.symbol)")
+            logger.error("Failed to find VM authority for token: \(token.symbol)")
             // Map ErrorSubmitIntent to ErrorSwap
             completion(.failure(.unknown))
             return
@@ -290,7 +305,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
             guard let self = self else { return }
             switch result {
             case .success(let metadata):
-                trace(.success, components: "Swap state created", "Swap ID: \(swapId.publicKey.base58)")
+                logger.info("Swap state created", metadata: ["swapId": "\(swapId.publicKey.base58)"])
 
                 // Phase 2: SubmitIntent - Fund the VM swap PDA
                 let fundingIntent = IntentFundSwap(
@@ -306,18 +321,18 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
                 self.submit(intent: fundingIntent, owner: owner.authority.keyPair) { fundingResult in
                     switch fundingResult {
                     case .success:
-                        trace(.success, components: "Swap completed", "Intent ID: \(fundingIntentID.base58)")
+                        logger.info("Sell swap completed", metadata: ["intentId": "\(fundingIntentID.base58)"])
                         completion(.success(swapId))
 
                     case .failure(let error):
-                        trace(.failure, components: "Failed to fund swap: \(error)")
+                        logger.error("Failed to fund sell swap: \(error)")
                         // Map ErrorSubmitIntent to ErrorSwap
                         completion(.failure(.unknown))
                     }
                 }
 
             case .failure(let error):
-                trace(.failure, components: "Failed to start swap: \(error)")
+                logger.error("Failed to start sell swap: \(error)")
                 completion(.failure(error))
             }
         }
@@ -326,7 +341,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
     // MARK: - Submit -
     
     private func submit<T>(intent: T, owner: KeyPair, deviceToken: Data? = nil, completion: @Sendable @escaping (Result<T, ErrorSubmitIntent>) -> Void) where T: IntentType {
-        trace(.send, components: "Type: \(T.self)", "Submitting intent: \(intent.id.base58)")
+        logger.info("Submitting intent", metadata: ["type": "\(T.self)", "intentId": "\(intent.id.base58)"])
         
         let reference = BidirectionalStream()
         
@@ -348,21 +363,33 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
                     }
                     
                     try intent.apply(parameters: serverParameters)
-                    
+
                     let submitSignatures = try intent.requestToSubmitSignatures()
                     _ = reference.stream?.sendMessage(submitSignatures)
-                    
-                    trace(.receive, components: "Type: \(T.self)", "Received \(parameters.serverParameters.count) parameters. Submitting signatures...", "Intent: \(intent.id.base58)")
-                    
+
+                    logger.info("Received server parameters, submitting signatures", metadata: [
+                        "type": "\(T.self)",
+                        "paramCount": "\(parameters.serverParameters.count)",
+                        "intentId": "\(intent.id.base58)"
+                    ])
+
                 } catch {
-                    trace(.failure, components: "Type: \(T.self)", "Received \(parameters.serverParameters.count) parameters but failed to apply them: \(error)", "Intent: \(intent.id.base58)")
+                    logger.error("Received server parameters but failed to apply them: \(error)", metadata: [
+                        "type": "\(T.self)",
+                        "paramCount": "\(parameters.serverParameters.count)",
+                        "intentId": "\(intent.id.base58)"
+                    ])
                     completion(.failure(.unknown))
                 }
                 
             // 3. If submitted transaction signatures are valid and match
             // the server, we'll receive a success for the submitted intent.
             case .success(let success):
-                trace(.success, components: "Type: \(T.self)", "Success: \(success.code.rawValue)", "Intent: \(intent.id.base58)")
+                logger.info("Intent submitted successfully", metadata: [
+                    "type": "\(T.self)",
+                    "code": "\(success.code.rawValue)",
+                    "intentId": "\(intent.id.base58)"
+                ])
                 _ = reference.stream?.sendEnd()
                 completion(.success(intent))
                 
@@ -394,7 +421,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
                 }
                 
                 container.append(contentsOf: errors)
-                
+
 //                let expectedTransactions = error.errorDetails.compactMap { SolanaTransaction(data: $0.invalidSignature.expectedTransaction.value) }
 //                let producedTransactions = intent.actions.flatMap { $0.transactions() }
 //                let expectedHashes = expectedTransactions.enumerated().map { "Expected (\($0.0): \(SHA256.digest($0.1.encode()).hexEncodedString())" }
@@ -402,9 +429,9 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
 //
 //                container.append(contentsOf: expectedHashes)
 //                container.append(contentsOf: producedHashes)
-                
-                trace(.failure, components: container)
-                
+
+                logger.error("Intent submission error: \(container.joined(separator: ", "))")
+
                 _ = reference.stream?.sendEnd()
                 let intentError = ErrorSubmitIntent(error: error)
                 completion(.failure(intentError))
@@ -425,32 +452,41 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
             switch result {
             case .success(let status):
                 if status.code == .ok {
-                    trace(.success, components: "Stream closed")
+                    logger.info("Intent stream closed")
                     // Completion called in the success block
                 } else {
-                    trace(.warning, components: "Stream closed: \(status)")
+                    logger.warning("Intent stream closed with non-OK status: \(status)")
                     completion(.failure(.grpcStatus(status)))
                 }
-                
+
             case .failure(let error):
-                trace(.failure, components: "GRPC Error - stream closed: \(error)")
+                logger.error("Intent stream closed with gRPC error: \(error)")
                 completion(.failure(.grpcError(error)))
             }
-            
+
             // We release the stream reference after the stream has been
             // closed and there's no further actions required
             reference.release()
         }
-        
+
         // Send `submitActions` request with actions generated by the intent
         // Log action-level details to verify we are opening the expected account
         intent.actions.enumerated().forEach { idx, action in
             if let open = action as? ActionOpenAccount {
-                trace(.send, components: "Action[\(idx)]: OpenAccount", "owner: \(open.owner.base58)", "authority: \(open.cluster.authority.keyPair.publicKey.base58)", "token: \(open.cluster.vaultPublicKey.base58)", "mint: \(open.mint.base58)", "index: \(open.derivationIndex)")
+                logger.info("Action[\(idx)]: OpenAccount", metadata: [
+                    "owner": "\(open.owner.base58)",
+                    "authority": "\(open.cluster.authority.keyPair.publicKey.base58)",
+                    "token": "\(open.cluster.vaultPublicKey.base58)",
+                    "mint": "\(open.mint.base58)",
+                    "index": "\(open.derivationIndex)"
+                ])
             } else if let transfer = action as? ActionTransfer {
-                trace(.send, components: "Action[\(idx)]: Transfer", "quarks: \(transfer.amount.quarks)", "destination: \(transfer.destination.base58)")
+                logger.info("Action[\(idx)]: Transfer", metadata: [
+                    "quarks": "\(transfer.amount.quarks)",
+                    "destination": "\(transfer.destination.base58)"
+                ])
             } else {
-                trace(.send, components: "Action[\(idx)]: \(type(of: action))")
+                logger.info("Action[\(idx)]: \(type(of: action))")
             }
         }
 
@@ -478,10 +514,10 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
             
             do {
                 let metadata = try IntentMetadata(response.metadata)
-                trace(.success, components: "Intent Successful: \(intentID.base58)")
+                logger.info("Intent metadata fetched successfully", metadata: ["intentId": "\(intentID.base58)"])
                 completion(.success(metadata))
             } catch {
-                trace(.failure, components: "Failed to parse metadata: \(response.metadata)")
+                logger.error("Failed to parse intent metadata: \(response.metadata)")
                 completion(.failure(.failedToParse))
             }
             
@@ -493,7 +529,10 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
     // MARK: - Limits -
     
     func fetchTransactionLimits(owner: KeyPair, since date: Date, completion: @Sendable @escaping (Result<Limits, ErrorFetchLimits>) -> Void) {
-        trace(.send, components: "Owner: \(owner.publicKey.base58)", "Since (local): \(date.description(with: .current))")
+        logger.info("Fetching transaction limits", metadata: [
+            "owner": "\(owner.publicKey.base58)",
+            "since": "\(date.description(with: .current))"
+        ])
         
         let fetchDate: Date = .now
         
@@ -508,18 +547,23 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
             
             let error = ErrorFetchLimits(rawValue: response.result.rawValue) ?? .unknown
             guard error == .ok else {
-                trace(.failure, components: "Owner: \(owner.publicKey.base58)", "Since (local): \(date.description(with: .current))", "Error: \(error)")
+                logger.error("Failed to fetch transaction limits: \(error)", metadata: [
+                    "owner": "\(owner.publicKey.base58)",
+                    "since": "\(date.description(with: .current))"
+                ])
                 completion(.failure(error))
                 return
             }
-            
+
             let limits = Limits(
                 proto: response,
                 sinceDate: date,
                 fetchDate: fetchDate
             )
-            
-            trace(.success, components: "Owner: \(owner.publicKey.base58)", "Since (local): \(date.description(with: .current))")
+
+            logger.info("Transaction limits fetched successfully", metadata: [
+                "owner": "\(owner.publicKey.base58)"
+            ])
             completion(.success(limits))
             
         } failure: { error in
@@ -530,7 +574,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
     // MARK: - Withdrawals -
     
     func fetchDestinationMetadata(destination: PublicKey, mint: PublicKey, completion: @Sendable @escaping (Result<DestinationMetadata, Never>) -> Void) {
-        trace(.send, components: "Destination: \(destination.base58)")
+        logger.info("Fetching destination metadata", metadata: ["destination": "\(destination.base58)"])
         
         let request = Ocp_Transaction_V1_CanWithdrawToAccountRequest.with {
             $0.account = destination.solanaAccountID

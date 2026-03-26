@@ -11,6 +11,8 @@ import FlipcashAPI
 import Combine
 import GRPC
 
+private let logger = Logger(label: "flipcash.account-info-service")
+
 final class AccountInfoService: CodeService<Ocp_Account_V1_AccountNIOClient> {
     func fetchAccountInfo(type: AccountInfoType, owner: KeyPair, completion: @Sendable @escaping (Result<AccountInfo, ErrorFetchBalance>) -> Void) {
 //        trace(.send, components: "Owner: \(owner.publicKey.base58)")
@@ -36,12 +38,12 @@ final class AccountInfoService: CodeService<Ocp_Account_V1_AccountNIOClient> {
                 if let account {
                     completion(.success(account))
                 } else {
-                    trace(.failure, components: "Account not in list of accounts returned: \(response.tokenAccountInfos)")
+                    logger.error("Account not in list of accounts returned: \(response.tokenAccountInfos)")
                     completion(.failure(error))
                 }
-                
+
             } else {
-                trace(.failure, components: "Owner: \(owner.publicKey.base58)")
+                logger.error("Failed to fetch account info for owner: \(owner.publicKey.base58)")
                 completion(.failure(error))
             }
             
@@ -71,15 +73,15 @@ final class AccountInfoService: CodeService<Ocp_Account_V1_AccountNIOClient> {
                 completion(.success(accounts))
                 
             } else {
-                trace(.failure, components: "Owner: \(owner.publicKey.base58)")
+                logger.error("Failed to fetch primary accounts for owner: \(owner.publicKey.base58)")
                 completion(.failure(error))
             }
-            
+
         } failure: { error in
             completion(.failure(.unknown))
         }
     }
-    
+
     func fetchLinkedAccountBalance(owner: KeyPair, account: PublicKey, completion: @Sendable @escaping (Result<Quarks, ErrorFetchBalance>) -> Void) {
 //        trace(.send, components: "Owner: \(owner.publicKey.base58)")
         
@@ -109,10 +111,10 @@ final class AccountInfoService: CodeService<Ocp_Account_V1_AccountNIOClient> {
                 }
                 
             } else {
-                trace(.failure, components: "Owner: \(owner.publicKey.base58)")
+                logger.error("Failed to fetch linked account balance for owner: \(owner.publicKey.base58)")
                 completion(.failure(error))
             }
-            
+
         } failure: { error in
             completion(.failure(.unknown))
         }

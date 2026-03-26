@@ -10,6 +10,8 @@ import Foundation
 import FlipcashAPI
 import GRPC
 
+private let logger = Logger(label: "flipcash.live-mint-data-streamer")
+
 /// Manages bidirectional streaming for live mint data (exchange rates and reserve states).
 /// Handles connection lifecycle, ping/pong keepalive, and auto-reconnection.
 public actor LiveMintDataStreamer {
@@ -70,7 +72,7 @@ public actor LiveMintDataStreamer {
             return
         }
 
-        trace(.warning, components: "Stream not connected on foreground, forcing reconnect")
+        logger.warning("Stream not connected on foreground, forcing reconnect")
 
         // Cancel any pending backoff reconnect
         reconnectTask?.cancel()
@@ -93,7 +95,7 @@ public actor LiveMintDataStreamer {
         reconnectTask = nil
         streamReference?.destroy()
         streamReference = nil
-        trace(.note, components: "Stopped live mint data stream")
+        logger.debug("Stopped live mint data stream")
     }
 
     /// Update the list of mints to subscribe to.
@@ -111,7 +113,7 @@ public actor LiveMintDataStreamer {
                 }
             }
             _ = stream.sendMessage(request)
-            trace(.note, components: "Updated mint subscription to \(mints.count) mints")
+            logger.debug("Updated mint subscription to \(mints.count) mints")
         } else if isStreaming {
             // No active stream — open a new one
             openStream()
@@ -122,13 +124,13 @@ public actor LiveMintDataStreamer {
 
     private func openStream() {
         guard isStreaming, !subscribedMints.isEmpty else {
-            trace(.warning, components: "Cannot open stream: not streaming or no mints")
+            logger.warning("Cannot open stream: not streaming or no mints")
             return
         }
 
         // Clean up any existing stream before creating a new one
         if let existing = streamReference {
-            trace(.note, components: "Cleaning up existing stream before opening new one")
+            logger.debug("Cleaning up existing stream before opening new one")
             existing.destroy()
             streamReference = nil
         }
@@ -137,7 +139,7 @@ public actor LiveMintDataStreamer {
         isReconnecting = false
         reconnectAttempts = 0
 
-        trace(.open, components: "Opening live mint data stream for \(subscribedMints.count) mints")
+        logger.info("Opening live mint data stream for \(subscribedMints.count) mints")
 
         let reference = StreamReference()
         reference.retain()
@@ -174,7 +176,7 @@ public actor LiveMintDataStreamer {
 
     private func handleResponse(_ response: Ocp_Currency_V1_StreamLiveMintDataResponse) async {
         guard let type = response.type else {
-            trace(.warning, components: "Received empty stream response")
+            logger.warning("Received empty stream response")
             return
         }
 
@@ -189,7 +191,7 @@ public actor LiveMintDataStreamer {
 
     private func handleLiveData(_ liveData: Ocp_Currency_V1_StreamLiveMintDataResponse.LiveData) async {
         guard let type = liveData.type else {
-            trace(.warning, components: "Received empty live data")
+            logger.warning("Received empty live data")
             return
         }
 
@@ -216,7 +218,7 @@ public actor LiveMintDataStreamer {
     }
 
     private func handleTimeout() {
-        trace(.warning, components: "Stream timeout, reconnecting...")
+        logger.warning("Stream timeout, reconnecting")
         reconnect()
     }
 
@@ -225,20 +227,20 @@ public actor LiveMintDataStreamer {
         case .success(let status):
             switch status.code {
             case .ok:
-                trace(.note, components: "Stream closed normally, reconnecting...")
+                logger.debug("Stream closed normally, reconnecting")
                 reconnect()
 
             case .unavailable, .deadlineExceeded, .cancelled:
-                trace(.warning, components: "Stream closed with \(status.code), reconnecting...")
+                logger.warning("Stream closed with \(status.code), reconnecting")
                 reconnect()
 
             default:
-                trace(.warning, components: "Stream closed with status: \(status), reconnecting...")
+                logger.warning("Stream closed with status: \(status), reconnecting")
                 reconnect()
             }
 
         case .failure(let error):
-            trace(.failure, components: "Stream error: \(error)")
+            logger.error("Stream error: \(error)")
             reconnect()
         }
     }
@@ -248,7 +250,7 @@ public actor LiveMintDataStreamer {
 
         // Prevent multiple concurrent reconnection attempts
         guard !isReconnecting else {
-            trace(.note, components: "Already reconnecting, skipping duplicate attempt")
+            logger.debug("Already reconnecting, skipping duplicate attempt")
             return
         }
         isReconnecting = true
@@ -264,7 +266,7 @@ public actor LiveMintDataStreamer {
             Self.maxReconnectDelay
         )
 
-        trace(.note, components: "Reconnecting in \(delay)s (attempt \(reconnectAttempts))")
+        logger.debug("Reconnecting in \(delay)s (attempt \(reconnectAttempts))")
 
         // Delay before reconnecting with exponential backoff
         reconnectTask = Task { [weak self] in

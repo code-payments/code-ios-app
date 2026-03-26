@@ -11,6 +11,8 @@ import Combine
 import NIO
 import GRPC
 
+private let logger = Logger(label: "flipcash.flip-client")
+
 @MainActor
 public class FlipClient: ObservableObject {
     
@@ -51,7 +53,7 @@ public class FlipClient: ObservableObject {
     }
     
     deinit {
-        trace(.warning, components: "Deallocating Client")
+        logger.warning("Deallocating FlipClient")
     }
 }
 

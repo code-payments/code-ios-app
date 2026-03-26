@@ -10,76 +10,78 @@ import Foundation
 import FlipcashCoreAPI
 import GRPC
 
+private let logger = Logger(label: "flipcash.email-service")
+
 class EmailService: CodeService<Flipcash_Email_V1_EmailVerificationNIOClient> {
-    
+
     func sendEmailVerification(email: String, owner: KeyPair, completion: @Sendable @escaping (Result<(), ErrorSendEmailCode>) -> Void) {
-        trace(.send, components: "Email: \(email)")
-        
+        logger.info("Sending email verification code")
+
         let request = Flipcash_Email_V1_SendVerificationCodeRequest.with {
             $0.emailAddress = .with { $0.value = email }
             $0.auth = owner.authFor(message: $0)
         }
-        
+
         let call = service.sendVerificationCode(request)
         call.handle(on: queue) { response in
             let error = ErrorSendEmailCode(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
-                trace(.success)
+                logger.info("Email verification code sent successfully")
                 completion(.success(()))
             } else {
-                trace(.failure, components: "Email: \(email)")
+                logger.error("Failed to send email verification code: \(error)")
                 completion(.failure(error))
             }
-            
+
         } failure: { error in
             completion(.failure(.unknown))
         }
     }
-    
+
     func checkEmailCode(email: String, code: String, owner: KeyPair, completion: @Sendable @escaping (Result<(), ErrorCheckEmailCode>) -> Void) {
-        trace(.send, components: "Email: \(email)", "Code: \(code)")
-        
+        logger.info("Checking email verification code")
+
         let request = Flipcash_Email_V1_CheckVerificationCodeRequest.with {
             $0.emailAddress = .with { $0.value = email }
             $0.code = .with { $0.value = code }
             $0.auth = owner.authFor(message: $0)
         }
-        
+
         let call = service.checkVerificationCode(request)
         call.handle(on: queue) { response in
             let error = ErrorCheckEmailCode(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
-                trace(.success)
+                logger.info("Email verification code accepted")
                 completion(.success(()))
             } else {
-                trace(.failure, components: "Email: \(email)", "Code: \(code)")
+                logger.error("Email verification code check failed: \(error)")
                 completion(.failure(error))
             }
-            
+
         } failure: { error in
             completion(.failure(.unknown))
         }
     }
-    
+
     func unlinkEmail(email: String, owner: KeyPair, completion: @Sendable @escaping (Result<(), ErrorUnlinkEmail>) -> Void) {
-        trace(.send, components: "Email: \(email)")
-        
+        logger.info("Unlinking email address")
+
         let request = Flipcash_Email_V1_UnlinkRequest.with {
             $0.emailAddress = .with { $0.value = email }
             $0.auth = owner.authFor(message: $0)
         }
-        
+
         let call = service.unlink(request)
         call.handle(on: queue) { response in
             let error = ErrorUnlinkEmail(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
-                trace(.success)
+                logger.info("Email address unlinked successfully")
                 completion(.success(()))
             } else {
-                trace(.failure, components: "Email: \(email)")
+                logger.error("Failed to unlink email address: \(error)")
                 completion(.failure(error))
             }
-            
+
         } failure: { error in
             completion(.failure(.unknown))
         }

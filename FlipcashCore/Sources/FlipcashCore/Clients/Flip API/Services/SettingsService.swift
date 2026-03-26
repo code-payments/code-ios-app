@@ -7,10 +7,15 @@ import Foundation
 import FlipcashCoreAPI
 import GRPC
 
+private let logger = Logger(label: "flipcash.settings-service")
+
 class SettingsService: CodeService<Flipcash_Settings_V1_SettingsNIOClient> {
 
     func updateSettings(locale: String?, region: String?, owner: KeyPair, completion: @Sendable @escaping (Result<Void, ErrorUpdateSettings>) -> Void) {
-        trace(.send, components: "Locale: \(locale ?? "nil"), Region: \(region ?? "nil")")
+        logger.info("Updating settings", metadata: [
+            "locale": "\(locale ?? "nil")",
+            "region": "\(region ?? "nil")"
+        ])
 
         let request = Flipcash_Settings_V1_UpdateSettingsRequest.with {
             if let locale {
@@ -26,10 +31,10 @@ class SettingsService: CodeService<Flipcash_Settings_V1_SettingsNIOClient> {
         call.handle(on: queue) { response in
             let error = ErrorUpdateSettings(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
-                trace(.success)
+                logger.info("Settings updated successfully")
                 completion(.success(()))
             } else {
-                trace(.failure, components: "Failed to update settings: \(error)")
+                logger.error("Failed to update settings: \(error)")
                 completion(.failure(error))
             }
         } failure: { error in

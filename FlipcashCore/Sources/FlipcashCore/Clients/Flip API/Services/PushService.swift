@@ -10,53 +10,58 @@ import Foundation
 import FlipcashCoreAPI
 import GRPC
 
+private let logger = Logger(label: "flipcash.push-service")
+
 class PushService: CodeService<Flipcash_Push_V1_PushNIOClient> {
-    
+
     func addToken(token: String, installationID: String, owner: KeyPair, completion: @Sendable @escaping (Result<(), ErrorAddToken>) -> Void) {
-        
+
         let request = Flipcash_Push_V1_AddTokenRequest.with {
             $0.tokenType  = .fcmApns
             $0.pushToken  = token
             $0.appInstall = .with { $0.value = installationID }
             $0.auth       = owner.authFor(message: $0)
         }
-        
+
         let call = service.addToken(request)
-        
+
         call.handle(on: queue) { response in
             let error = ErrorAddToken(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
                 completion(.success(()))
             } else {
-                trace(.failure, components: "addToken error: \(error)")
+                logger.error("Failed to add push token: \(error)")
                 completion(.failure(error))
             }
-            
+
         } failure: { error in
             completion(.failure(.unknown))
         }
     }
-    
+
     func deleteTokens(installationID: String, owner: KeyPair, completion: @Sendable @escaping (Result<(), ErrorDeleteToken>) -> Void) {
-        trace(.send, components: "Owner: \(owner.publicKey.base58)", "Install ID: \(installationID)")
-        
+        logger.info("Deleting push tokens", metadata: [
+            "owner": "\(owner.publicKey.base58)",
+            "installationId": "\(installationID)"
+        ])
+
         let request = Flipcash_Push_V1_DeleteTokensRequest.with {
             $0.appInstall = .with { $0.value = installationID }
             $0.auth       = owner.authFor(message: $0)
         }
-        
+
         let call = service.deleteTokens(request)
-        
+
         call.handle(on: queue) { response in
             let error = ErrorDeleteToken(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
-                trace(.success)
+                logger.info("Push tokens deleted successfully")
                 completion(.success(()))
             } else {
-                trace(.failure, components: "Error: \(error)")
+                logger.error("Failed to delete push tokens: \(error)")
                 completion(.failure(error))
             }
-            
+
         } failure: { error in
             completion(.failure(.unknown))
         }

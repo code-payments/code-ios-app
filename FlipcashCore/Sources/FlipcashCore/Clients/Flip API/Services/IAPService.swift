@@ -10,11 +10,13 @@ import Foundation
 import FlipcashCoreAPI
 import GRPC
 
+private let logger = Logger(label: "flipcash.iap-service")
+
 class IAPService: CodeService<Flipcash_Iap_V1_IapNIOClient> {
-    
+
     func completePurchase(receipt: Data, productID: String, price: Double, currency: String, owner: KeyPair, completion: @Sendable @escaping (Result<(), ErrorCompletePurchase>) -> Void) {
-        trace(.send, components: "Receipt: \(receipt.count) bytes")
-        
+        logger.info("Completing in-app purchase", metadata: ["receiptSize": "\(receipt.count) bytes"])
+
         let request = Flipcash_Iap_V1_OnPurchaseCompletedRequest.with {
             $0.platform = .apple
             $0.metadata = .with {
@@ -25,18 +27,18 @@ class IAPService: CodeService<Flipcash_Iap_V1_IapNIOClient> {
             $0.receipt = .with { $0.value = receipt.base64EncodedString() }
             $0.auth = owner.authFor(message: $0)
         }
-        
+
         let call = service.onPurchaseCompleted(request)
         call.handle(on: queue) { response in
             let error = ErrorCompletePurchase(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
-                trace(.success)
+                logger.info("In-app purchase completed successfully")
                 completion(.success(()))
             } else {
-                trace(.failure, components: "Error: \(error)", "Receipt: \(receipt.base64EncodedString())")
+                logger.error("Failed to complete in-app purchase: \(error)")
                 completion(.failure(error))
             }
-            
+
         } failure: { error in
             completion(.failure(.unknown))
         }

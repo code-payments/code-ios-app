@@ -10,6 +10,8 @@ import Foundation
 @preconcurrency import Combine
 import FlipcashAPI
 
+private let logger = Logger(label: "flipcash.verified-proto-service")
+
 /// Lightweight value emitted when reserve states are saved from streaming.
 public struct ReserveStateUpdate: Sendable {
     public let mint: PublicKey
@@ -60,7 +62,7 @@ public actor VerifiedProtoService {
         }
 
         if !unknownCodes.isEmpty {
-            trace(.warning, components: "Skipped \(unknownCodes.count)/\(rates.count) exchange rates, unknown codes: \(unknownCodes.joined(separator: ", "))")
+            logger.warning("Skipped \(unknownCodes.count)/\(rates.count) exchange rates with unknown codes: \(unknownCodes.joined(separator: ", "))")
         }
 
         if !parsedRates.isEmpty {
@@ -103,7 +105,7 @@ public actor VerifiedProtoService {
     /// - Returns: VerifiedState with exchange rate proof and optional reserve state proof
     public func getVerifiedState(for currency: CurrencyCode, mint: PublicKey) -> VerifiedState? {
         guard let rateProto = exchangeRates[currency] else {
-            trace(.warning, components: "No verified exchange rate for \(currency.rawValue)")
+            logger.warning("No verified exchange rate for currency: \(currency.rawValue)")
             return nil
         }
 
@@ -147,6 +149,6 @@ public actor VerifiedProtoService {
     public func clear() {
         exchangeRates.removeAll()
         reserveStates.removeAll()
-        trace(.note, components: "Cleared all verified proofs")
+        logger.debug("Cleared all verified proofs")
     }
 }

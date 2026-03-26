@@ -8,6 +8,8 @@
 
 import Foundation
 
+private let logger = Logger(label: "flipcash.solana")
+
 /**
     Signature: [64]byte
     PublicKey: [32]byte
@@ -296,7 +298,7 @@ extension SolanaTransaction {
         let messageData = payload.tail(from: signatureCount * Signature.length)
         
         guard let message = Message(data: messageData) else {
-            trace(.failure, components: "failed to unmarshal message")
+            logger.error("Failed to unmarshal Solana transaction message")
             return nil
         }
         

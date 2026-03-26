@@ -9,6 +9,8 @@
 import Foundation
 import Combine
 
+private let logger = Logger(label: "flipcash.payment-client")
+
 extension Client {
  
     public func createAccounts(owner: KeyPair, mint: PublicKey, cluster: AccountCluster, kind: AccountKind, derivationIndex: Int) async throws {
@@ -142,7 +144,7 @@ extension Client {
     // MARK: - Status -
     
     public func pollIntentMetadata(owner: KeyPair, intentID: PublicKey, maxAttempts: Int = 50) async throws -> IntentMetadata {
-        trace(.poll, components: "Intent: \(intentID.base58), max \(maxAttempts) attempts")
+        logger.debug("Polling intent metadata", metadata: ["intentId": "\(intentID.base58)", "maxAttempts": "\(maxAttempts)"])
         for i in 0..<maxAttempts {
             do {
                 let delay = 50 * (i / 10)
@@ -151,12 +153,12 @@ extension Client {
                 }
                 return try await fetchIntentMetadata(owner: owner, intentID: intentID)
             } catch ErrorFetchIntentMetadata.denied {
-                trace(.warning, components: "Intent denied (grabbed by another device): \(intentID.base58)")
+                logger.warning("Intent denied (grabbed by another device): \(intentID.base58)")
                 throw ClientError.denied
             } catch {}
         }
 
-        trace(.failure, components: "Poll limit reached for intent: \(intentID.base58)")
+        logger.error("Poll limit reached for intent: \(intentID.base58)")
         throw ClientError.pollLimitReached
     }
     
@@ -210,7 +212,11 @@ extension Client {
                 try await Task.delay(milliseconds: delay)
             }
 
-            trace(.poll, components: "SwapState", "Attempt \(i + 1)/\(maxAttempts)", "Delay: \(delay)ms", "Swap ID: \(swapId.publicKey.base58)")
+            logger.debug("Polling swap state", metadata: [
+                "attempt": "\(i + 1)/\(maxAttempts)",
+                "delay": "\(delay)ms",
+                "swapId": "\(swapId.publicKey.base58)"
+            ])
 
             do {
                 let metadata = try await fetchSwapMetadata(swapId: swapId, owner: owner)
@@ -224,7 +230,7 @@ extension Client {
                 // Check for terminal states
                 switch metadata.state {
                 case .finalized, .failed, .cancelled:
-                    trace(.success, components: "SwapState", "Terminal state reached: \(metadata.state)")
+                    logger.info("Swap reached terminal state: \(metadata.state)")
                     return metadata
                 case .unknown, .created, .funding, .funded, .submitting, .cancelling:
                     // Continue polling
@@ -232,11 +238,11 @@ extension Client {
                 }
             } catch ErrorGetSwap.notFound {
                 // Swap not yet visible, continue polling
-                trace(.warning, components: "SwapState", "Swap not found yet, continuing...")
+                logger.warning("Swap not found yet, continuing poll")
                 continue
             } catch {
                 // Log but continue polling for transient errors
-                trace(.warning, components: "SwapState", "Poll error: \(error), continuing...")
+                logger.warning("Swap poll error: \(error), continuing")
                 continue
             }
         }

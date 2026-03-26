@@ -11,6 +11,8 @@ import FlipcashAPI
 import GRPC
 import NIO
 
+private let logger = Logger(label: "flipcash.currency-service")
+
 class CurrencyService: CodeService<Ocp_Currency_V1_CurrencyNIOClient>, @unchecked Sendable {
     func fetchMint(mint: PublicKey, completion: @Sendable @escaping (Result<MintMetadata, Error>) -> Void) {
         fetchMints(mints: [mint]) {
@@ -56,7 +58,7 @@ class CurrencyService: CodeService<Ocp_Currency_V1_CurrencyNIOClient>, @unchecke
         currencyCode: String,
         completion: @Sendable @escaping (Result<[HistoricalMintDataPoint], Error>) -> Void
     ) {
-        trace(.send)
+        logger.info("Fetching historical mint data")
 
         var request = Ocp_Currency_V1_GetHistoricalMintDataRequest()
         request.address = mint.solanaAccountID
@@ -73,7 +75,7 @@ class CurrencyService: CodeService<Ocp_Currency_V1_CurrencyNIOClient>, @unchecke
                         marketCap: data.marketCap
                     )
                 }
-                trace(.success, components: "\(dataPoints.count) data points")
+                logger.info("Fetched historical mint data: \(dataPoints.count) data points")
                 completion(.success(dataPoints))
 
             case .notFound:
