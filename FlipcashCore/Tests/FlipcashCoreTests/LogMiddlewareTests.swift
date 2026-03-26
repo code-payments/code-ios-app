@@ -56,7 +56,7 @@ struct LogMiddlewareTests {
 
     // MARK: - PatternRedactor
 
-    @Test("PatternRedactor redacts base58 strings longer than 32 chars")
+    @Test("PatternRedactor partially redacts base58 strings longer than 32 chars")
     func patternRedactorBase58() {
         let redactor = PatternRedactor()
         let base58Key = "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d" // 44 chars, valid base58
@@ -67,7 +67,7 @@ struct LogMiddlewareTests {
 
         _ = redactor.process(&entry)
 
-        #expect(entry.metadata?["mint"] == "[REDACTED]")
+        #expect(entry.metadata?["mint"] == "5eyk...2N9d")
         #expect(entry.metadata?["name"] == "USDC")
     }
 

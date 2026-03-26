@@ -247,7 +247,7 @@ struct SettingsScreen: View {
             }
             row(systemImage: "doc.text", title: "Send Logs") {
                 Task {
-                    if let url = try? await LogStore.shared.exportCompressedLogs() {
+                    if let url = try? await LogStore.shared.exportLogs() {
                         ShareSheet.present(url: url)
                     }
                 }

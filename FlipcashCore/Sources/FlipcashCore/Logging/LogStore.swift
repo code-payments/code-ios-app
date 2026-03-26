@@ -56,11 +56,11 @@ public final class LogStore: Sendable {
         ringBuffer.entries(last: last).map { $0.formatted() }
     }
 
-    /// Compresses all log files into a temporary `.zip` and returns the URL.
+    /// Concatenates all log files into a single `.log` for sharing.
     ///
     /// This is a deliberate user action ("Send Logs"), so surfacing
     /// errors via `throws` is appropriate.
-    public func exportCompressedLogs() async throws -> URL {
+    public func exportLogs() async throws -> URL {
         let logFiles = await fileWriter.logFileURLs()
 
         guard !logFiles.isEmpty else {
@@ -68,12 +68,12 @@ public final class LogStore: Sendable {
         }
 
         let tempDir = FileManager.default.temporaryDirectory
-        let zipURL = tempDir.appendingPathComponent("flipcash-logs-\(dateStamp()).zip")
+        let logURL = tempDir.appendingPathComponent("flipcash-logs-\(dateStamp()).log")
 
         // Remove any prior export
-        try? FileManager.default.removeItem(at: zipURL)
+        try? FileManager.default.removeItem(at: logURL)
 
-        // Concatenate all log files into a single file, then compress
+        // Concatenate all log files into a single readable file
         var combinedData = Data()
         for file in logFiles {
             if let data = try? Data(contentsOf: file) {
@@ -81,10 +81,9 @@ public final class LogStore: Sendable {
             }
         }
 
-        let compressedData = try (combinedData as NSData).compressed(using: .lzfse) as Data
-        try compressedData.write(to: zipURL)
+        try combinedData.write(to: logURL)
 
-        return zipURL
+        return logURL
     }
 
     private func dateStamp() -> String {

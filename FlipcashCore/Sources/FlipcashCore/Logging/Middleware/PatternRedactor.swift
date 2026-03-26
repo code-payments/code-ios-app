@@ -23,8 +23,8 @@ public struct PatternRedactor: LogMiddleware {
         }
 
         for (key, value) in metadata {
-            if case .string(let str) = value, shouldRedact(str) {
-                metadata[key] = "[REDACTED]"
+            if case .string(let str) = value, let redacted = redact(str) {
+                metadata[key] = .string(redacted)
             }
         }
 
@@ -32,22 +32,26 @@ public struct PatternRedactor: LogMiddleware {
         return true
     }
 
-    private func shouldRedact(_ value: String) -> Bool {
+    /// Returns a redacted version of the string, or `nil` if no redaction is needed.
+    private func redact(_ value: String) -> String? {
         // Base58 strings longer than 32 chars (likely Solana public keys)
+        // Partially redact: show first 4 and last 4 chars
         if value.count > 32 && value.unicodeScalars.allSatisfy({ Self.base58Chars.contains($0) }) {
-            return true
+            let prefix = value.prefix(4)
+            let suffix = value.suffix(4)
+            return "\(prefix)...\(suffix)"
         }
 
-        // Email addresses
+        // Email addresses — fully redacted
         if value.firstMatch(of: Self.emailPattern) != nil {
-            return true
+            return "[REDACTED]"
         }
 
-        // Phone numbers (only if the string looks like it's primarily a phone number)
+        // Phone numbers — fully redacted
         if value.count <= 20, value.firstMatch(of: Self.phonePattern) != nil {
-            return true
+            return "[REDACTED]"
         }
 
-        return false
+        return nil
     }
 }
