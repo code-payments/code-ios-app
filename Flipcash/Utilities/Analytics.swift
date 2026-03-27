@@ -8,7 +8,6 @@
 import Foundation
 import Mixpanel
 import Bugsnag
-import Firebase
 import FlipcashCore
 
 private let logger = Logger(label: "flipcash.analytics")
@@ -26,9 +25,6 @@ extension AnalyticsEvent where Self: RawRepresentable<String> {
 enum Analytics {
     
     static func initialize() {
-        FirebaseApp.app()?.isDataCollectionDefaultEnabled = true
-        Crashlytics.crashlytics().setCrashlyticsCollectionEnabled(true)
-        
         let apiKey = try? InfoPlist.value(for: "mixpanel").value(for: "apiKey").string()
         if let apiKey {
             Mixpanel.initialize(token: apiKey, trackAutomaticEvents: true)
