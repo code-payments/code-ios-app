@@ -13,18 +13,19 @@ struct TransactionHistoryScreen: View {
 
     @Environment(Session.self) private var session
 
-    @State private var activities: [Activity] = []
+    @State private var activities: Updateable<[Activity]>
 
     @State private var dialogItem: DialogItem?
 
     private let mintMetadata: StoredMintMetadata
-    private let database: Database
 
     // MARK: - Init -
 
     init(mintMetadata: StoredMintMetadata, database: Database) {
         self.mintMetadata = mintMetadata
-        self.database = database
+        self.activities = Updateable {
+            (try? database.getActivities(mint: mintMetadata.mint)) ?? []
+        }
     }
 
     // MARK: - Body -
@@ -33,7 +34,7 @@ struct TransactionHistoryScreen: View {
         Background(color: .backgroundMain) {
             List {
                 Section {
-                    ForEach(activities) { activity in
+                    ForEach(activities.value) { activity in
                         ActivityRow(activity: activity) {
                             rowAction(activity: activity)
                         }
@@ -47,13 +48,6 @@ struct TransactionHistoryScreen: View {
             .navigationTitle("Transaction History")
         }
         .dialog(item: $dialogItem)
-        .task {
-            loadActivities()
-        }
-    }
-
-    private func loadActivities() {
-        activities = (try? database.getActivities(mint: mintMetadata.mint)) ?? []
     }
 
     // MARK: - Action -
@@ -85,7 +79,6 @@ struct TransactionHistoryScreen: View {
         Task {
             do {
                 try await session.cancelCashLink(giftCardVault: metadata.vault)
-                loadActivities()
             } catch {
                 dialogItem = .init(
                     style: .destructive,
