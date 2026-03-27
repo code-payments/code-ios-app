@@ -10,46 +10,33 @@ import FlipcashUI
 import FlipcashCore
 
 struct TransactionHistoryScreen: View {
-    
-    @State private var updateableActivities: Updateable<[Activity]>
-    
+
+    @Environment(Session.self) private var session
+
+    @State private var activities: [Activity] = []
+
     @State private var dialogItem: DialogItem?
-    
-    @State private var selectedActivity: Activity?
-    
-    private var activities: [Activity] {
-        updateableActivities.value
-    }
-    
+
     private let mintMetadata: StoredMintMetadata
-    private let container: Container
-    private let sessionContainer: SessionContainer
-    private let session: Session
     private let database: Database
-    
+
     // MARK: - Init -
-    
-    init(mintMetadata: StoredMintMetadata, container: Container, sessionContainer: SessionContainer) {
-        self.mintMetadata     = mintMetadata
-        self.container        = container
-        self.sessionContainer = sessionContainer
-        self.session          = sessionContainer.session
-        let database          = sessionContainer.database
-        self.database         = database
-        
-        self.updateableActivities = Updateable {
-            (try? database.getActivities(mint: mintMetadata.mint)) ?? []
-        }
+
+    init(mintMetadata: StoredMintMetadata, database: Database) {
+        self.mintMetadata = mintMetadata
+        self.database = database
     }
-    
+
     // MARK: - Body -
-    
+
     var body: some View {
         Background(color: .backgroundMain) {
             List {
                 Section {
                     ForEach(activities) { activity in
-                        row(activity: activity)
+                        ActivityRow(activity: activity) {
+                            rowAction(activity: activity)
+                        }
                     }
                 }
                 .listRowInsets(EdgeInsets())
@@ -60,16 +47,67 @@ struct TransactionHistoryScreen: View {
             .navigationTitle("Transaction History")
         }
         .dialog(item: $dialogItem)
+        .task {
+            loadActivities()
+        }
     }
-    
-    @ViewBuilder private func row(activity: Activity) -> some View {
-        Button {
-            if BetaFlags.shared.hasEnabled(.transactionDetails) {
-                selectedActivity = activity
-            } else {
-                rowAction(activity: activity)
+
+    private func loadActivities() {
+        activities = (try? database.getActivities(mint: mintMetadata.mint)) ?? []
+    }
+
+    // MARK: - Action -
+
+    private func rowAction(activity: Activity) {
+        if let cashLinkMetadata = activity.cancellableCashLinkMetadata {
+            cancelCashLinkAction(
+                activity: activity,
+                metadata: cashLinkMetadata
+            )
+        }
+    }
+
+    private func cancelCashLinkAction(activity: Activity, metadata: Activity.CashLinkMetadata) {
+        dialogItem = .init(
+            style: .destructive,
+            title: "Cancel \(activity.exchangedFiat.converted.formatted()) Transfer?",
+            subtitle: "The money will be returned to your wallet.",
+            dismissable: true
+        ) {
+            .destructive("Cancel Transfer") {
+                cancelCashLink(metadata: metadata)
+            };
+            .cancel()
+        }
+    }
+
+    private func cancelCashLink(metadata: Activity.CashLinkMetadata) {
+        Task {
+            do {
+                try await session.cancelCashLink(giftCardVault: metadata.vault)
+                loadActivities()
+            } catch {
+                dialogItem = .init(
+                    style: .destructive,
+                    title: "Failed to Cancel Transfer",
+                    subtitle: "Something went wrong. Please try again later",
+                    dismissable: true
+                ) {
+                    .okay(kind: .destructive)
+                }
             }
-        } label: {
+        }
+    }
+}
+
+// MARK: - Activity Row -
+
+private struct ActivityRow: View {
+    let activity: Activity
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
             VStack {
                 HStack {
                     Text(activity.title)
@@ -84,64 +122,17 @@ struct TransactionHistoryScreen: View {
                     .font(.appTextMedium)
                     .foregroundStyle(Color.textMain)
                 }
-                
+
                 HStack {
                     Text(activity.date.formattedRelatively(useTimeForToday: true))
                         .font(.appTextSmall)
                         .foregroundStyle(Color.textSecondary)
                     Spacer()
-//                    if activity.exchangedFiat.converted.currencyCode != .usd {
-//                        Text(activity.exchangedFiat.usdc.formatted())
-//                            .font(.appTextSmall)
-//                            .foregroundStyle(Color.textSecondary)
-//                    }
                 }
             }
         }
         .listRowBackground(Color.clear)
         .padding(.horizontal, 20)
         .padding(.vertical, 20)
-    }
-    
-    // MARK: - Action -
-    
-    private func rowAction(activity: Activity) {
-        if let cashLinkMetadata = activity.cancellableCashLinkMetadata {
-            cancelCashLinkAction(
-                activity: activity,
-                metadata: cashLinkMetadata
-            )
-        }
-    }
-    
-    private func cancelCashLinkAction(activity: Activity, metadata: Activity.CashLinkMetadata) {
-        dialogItem = .init(
-            style: .destructive,
-            title: "Cancel \(activity.exchangedFiat.converted.formatted()) Transfer?",
-            subtitle: "The money will be returned to your wallet.",
-            dismissable: true
-        ) {
-            .destructive("Cancel Transfer") {
-                cancelCashLink(metadata: metadata)
-            };
-            .cancel()
-        }
-    }
-    
-    private func cancelCashLink(metadata: Activity.CashLinkMetadata) {
-        Task {
-            do {
-                try await session.cancelCashLink(giftCardVault: metadata.vault)
-            } catch {
-                dialogItem = .init(
-                    style: .destructive,
-                    title: "Failed to Cancel Transfer",
-                    subtitle: "Something went wrong. Please try again later",
-                    dismissable: true
-                ) {
-                    .okay(kind: .destructive)
-                }
-            }
-        }
     }
 }

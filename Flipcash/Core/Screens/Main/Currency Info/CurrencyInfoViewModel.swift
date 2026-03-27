@@ -170,6 +170,12 @@ class CurrencyInfoViewModel {
             (try? database.getMintMetadata(mint: mint)) ?? initialValue
         } didSet: { [weak self] in
             guard let self, let updateable = self.updateableMint else { return }
+            // Skip redundant updates — @Observable fires on every set,
+            // even with the same value, which would re-evaluate every
+            // view observing loadingState on each poll cycle.
+            if case .loaded(let current) = self.loadingState, current == updateable.value {
+                return
+            }
             self.loadingState = .loaded(updateable.value)
         }
     }

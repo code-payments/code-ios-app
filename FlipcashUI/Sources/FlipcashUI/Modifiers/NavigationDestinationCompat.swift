@@ -9,16 +9,18 @@ import SwiftUI
 
 extension View {
 
-    /// A compatibility wrapper around `navigationDestination(item:)` that works
-    /// around an iOS 18 bug where dismissing the destination (setting the item
-    /// to `nil`) and then presenting it again (second push) causes a blank view.
+    /// A compatibility wrapper around `navigationDestination(item:)` that
+    /// always produces a **navigation push** — never a full-screen cover.
     ///
-    /// On iOS 18 a `fullScreenCover` is used instead. The cover wraps the
-    /// destination in a `NavigationStack` so toolbar and navigation title
-    /// modifiers continue to work. Setting the item to `nil` dismisses the
-    /// cover the same way it would pop a navigation destination.
+    /// On iOS 19+ this falls through to the standard
+    /// `navigationDestination(item:)` (`@escaping` closure, lazy evaluation).
     ///
-    /// On iOS 19+ this falls through to the standard `navigationDestination(item:)`.
+    /// On iOS 18, `navigationDestination(item:)` has a bug where dismissing
+    /// the destination and re-presenting it causes a blank view. This wrapper
+    /// bridges the `item` binding to `isPresented` and uses the bug-free
+    /// `navigationDestination(isPresented:)` variant instead. The closure is
+    /// non-escaping on this path (view struct created on every body eval),
+    /// so destination inits must be lightweight.
     @ViewBuilder
     public func navigationDestinationCompat<Item: Identifiable & Hashable, Destination: View>(
         item: Binding<Item?>,
@@ -27,8 +29,13 @@ extension View {
         if #available(iOS 19, *) {
             self.navigationDestination(item: item, destination: destination)
         } else {
-            self.fullScreenCover(item: item) { value in
-                NavigationStack {
+            self.navigationDestination(
+                isPresented: Binding(
+                    get: { item.wrappedValue != nil },
+                    set: { if !$0 { item.wrappedValue = nil } }
+                )
+            ) {
+                if let value = item.wrappedValue {
                     destination(value)
                 }
             }

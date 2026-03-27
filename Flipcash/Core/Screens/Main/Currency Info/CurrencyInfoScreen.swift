@@ -15,7 +15,7 @@ struct CurrencyInfoScreen: View {
 
     @Environment(\.dismiss) private var dismiss
 
-    @State private var isShowingTransactionHistory: Bool = false
+    @State private var transactionHistoryMetadata: StoredMintMetadata?
     @State private var isShowingFundingSelection: Bool = false
     @State private var presentedBuyViewModel: CurrencyBuyViewModel?
     @State private var presentedSellViewModel: CurrencySellViewModel?
@@ -34,10 +34,6 @@ struct CurrencyInfoScreen: View {
 
     private var isUSDF: Bool {
         mintMetadata?.mint == .usdf
-    }
-
-    private var currencyDescription: String {
-        return mintMetadata?.bio ?? "No information"
     }
 
     @Environment(WalletConnection.self) private var walletConnection
@@ -121,7 +117,29 @@ struct CurrencyInfoScreen: View {
             case .loading:
                 CurrencyInfoLoadingView()
             case .loaded(let metadata):
-                loadedContent(metadata: metadata)
+                LoadedContent(
+                    metadata: metadata,
+                    viewModel: viewModel,
+                    ratesController: ratesController,
+                    marketCapController: marketCapController,
+                    onShowTransactionHistory: { transactionHistoryMetadata = metadata },
+                    onShowCurrencySelection: { isShowingCurrencySelection = true },
+                    onBuy: { isShowingFundingSelection = true },
+                    onGive: {
+                        Analytics.buttonTapped(name: .give)
+                        ratesController.selectToken(mint)
+                        giveViewModel.isPresented = true
+                        isShowingGive = true
+                    },
+                    onSell: {
+                        Analytics.buttonTapped(name: .sell)
+                        presentedSellViewModel = CurrencySellViewModel(
+                            currencyMetadata: metadata,
+                            session: session,
+                            ratesController: ratesController
+                        )
+                    }
+                )
             case .error(let error):
                 CurrencyInfoErrorView(error: error) {
                     dismiss()
@@ -134,7 +152,7 @@ struct CurrencyInfoScreen: View {
                 toolbarContent()
             }
             if !isUSDF {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         Analytics.buttonTapped(name: .shareTokenInfo)
                         let url = URL(string: "https://app.flipcash.com/token/\(mint.base58)")!
@@ -153,6 +171,85 @@ struct CurrencyInfoScreen: View {
                 isShowingFundingSelection = true
             }
         }
+        .navigationDestinationCompat(item: $transactionHistoryMetadata) { metadata in
+            TransactionHistoryScreen(
+                mintMetadata: metadata,
+                database: sessionContainer.database
+            )
+        }
+        .fullScreenCover(item: Bindable(walletConnection).processing) { processing in
+            NavigationStack {
+                SwapProcessingScreen(
+                    swapId: processing.swapId,
+                    swapType: .buyWithPhantom,
+                    currencyName: processing.currencyName,
+                    amount: processing.amount
+                )
+                .environment(\.dismissParentContainer, {
+                    walletConnection.dismissProcessing()
+                })
+            }
+        }
+        .navigationDestination(isPresented: $isShowingGive) {
+            GiveScreen(viewModel: giveViewModel)
+        }
+        .sheet(isPresented: Bindable(walletConnection).isShowingAmountEntry) {
+            if let metadata = viewModel.mintMetadata {
+                NavigationStack {
+                    EnterWalletAmountScreen { quarks in
+                        try await walletConnection.requestSwap(
+                            usdc: quarks,
+                            token: metadata.metadata
+                        )
+                    }
+                    .toolbar {
+                        ToolbarCloseButton {
+                            walletConnection.isShowingAmountEntry = false
+                        }
+                    }
+                }
+            }
+        }
+        .dialog(item: $giveViewModel.dialogItem)
+        .sheet(item: $presentedBuyViewModel) { buyViewModel in
+            CurrencyBuyAmountScreen(viewModel: buyViewModel)
+        }
+        .sheet(item: $presentedSellViewModel) { sellViewModel in
+            CurrencySellAmountScreen(viewModel: sellViewModel)
+        }
+        .sheet(isPresented: $isShowingCurrencySelection) {
+            CurrencySelectionScreen(
+                isPresented: $isShowingCurrencySelection,
+                kind: .balance,
+                ratesController: ratesController
+            )
+        }
+        .sheet(isPresented: $isShowingFundingSelection) {
+            if let metadata = viewModel.mintMetadata {
+                FundingSelectionSheet(
+                    reserveBalance: viewModel.reserveBalance,
+                    onSelectReserves: {
+                        Analytics.buttonTapped(name: .buyWithReserves)
+                        presentedBuyViewModel = CurrencyBuyViewModel(
+                            currencyPublicKey: metadata.mint,
+                            currencyName: metadata.name,
+                            session: session,
+                            ratesController: ratesController
+                        )
+                        isShowingFundingSelection = false
+                    },
+                    onSelectPhantom: {
+                        Analytics.buttonTapped(name: .buyWithPhantom)
+                        walletConnection.connectToPhantom()
+                        isShowingFundingSelection = false
+                    },
+                    onDismiss: {
+                        isShowingFundingSelection = false
+                    }
+                )
+            }
+        }
+        .dialog(item: Bindable(walletConnection).dialogItem)
     }
 
     @ViewBuilder private func toolbarContent() -> some View {
@@ -172,13 +269,38 @@ struct CurrencyInfoScreen: View {
             EmptyView()
         }
     }
+}
 
-    @ViewBuilder private func loadedContent(metadata: StoredMintMetadata) -> some View {
-        // Compute values once per body evaluation instead of on every property reference.
+// MARK: - Loaded Content -
+
+/// Extracted subview that isolates observation tracking from the parent.
+/// Reads from `viewModel`, `ratesController`, and `session` (indirectly)
+/// are scoped to this view's body — the parent body is not invalidated
+/// when poll-driven rate/balance changes occur every ~10 seconds.
+private struct LoadedContent: View {
+    let metadata: StoredMintMetadata
+    let viewModel: CurrencyInfoViewModel
+    let ratesController: RatesController
+    let marketCapController: MarketCapController
+
+    let onShowTransactionHistory: () -> Void
+    let onShowCurrencySelection: () -> Void
+    let onBuy: () -> Void
+    let onGive: () -> Void
+    let onSell: () -> Void
+
+    private var isUSDF: Bool {
+        metadata.mint == .usdf
+    }
+
+    private var currencyDescription: String {
+        metadata.bio ?? "No information"
+    }
+
+    var body: some View {
         let balance = viewModel.balance
         let appreciation = viewModel.appreciation
         let marketCap = viewModel.marketCap
-        let reserveBalance = viewModel.reserveBalance
 
         ZStack {
             ScrollView {
@@ -187,8 +309,8 @@ struct CurrencyInfoScreen: View {
                         balance: balance,
                         appreciation: appreciation,
                         isUSDF: isUSDF,
-                        onCurrencySelection: { isShowingCurrencySelection.toggle() },
-                        onViewTransaction: { isShowingTransactionHistory.toggle() }
+                        onCurrencySelection: onShowCurrencySelection,
+                        onViewTransaction: onShowTransactionHistory
                     )
 
                     // Currency Info
@@ -237,105 +359,22 @@ struct CurrencyInfoScreen: View {
             if !isUSDF {
                 CurrencyInfoFooter {
                     Button("Buy") {
-                        isShowingFundingSelection = true
+                        onBuy()
                     }
-                        .buttonStyle(.filled)
+                    .buttonStyle(.filled)
 
                     if balance.quarks > 0 {
                         CodeButton(style: .filledSecondary, title: "Give") {
-                            Analytics.buttonTapped(name: .give)
-                            ratesController.selectToken(mint)
-                            giveViewModel.isPresented = true
-                            isShowingGive = true
+                            onGive()
                         }
-                        
-                        
+
                         CodeButton(style: .filledSecondary, title: "Sell") {
-                            Analytics.buttonTapped(name: .sell)
-                            presentedSellViewModel = CurrencySellViewModel(
-                                currencyMetadata: metadata,
-                                session: session,
-                                ratesController: ratesController
-                            )
+                            onSell()
                         }
                     }
                 }
             }
         }
-        .navigationDestination(isPresented: $isShowingTransactionHistory) {
-            TransactionHistoryScreen(
-                mintMetadata: metadata,
-                container: container,
-                sessionContainer: sessionContainer
-            )
-        }
-        .navigationDestinationCompat(item: Bindable(walletConnection).processing) { processing in
-            SwapProcessingScreen(
-                swapId: processing.swapId,
-                swapType: .buyWithPhantom,
-                currencyName: processing.currencyName,
-                amount: processing.amount
-            )
-            .environment(\.dismissParentContainer, {
-                walletConnection.dismissProcessing()
-            })
-        }
-        .sheet(isPresented: Bindable(walletConnection).isShowingAmountEntry) {
-            NavigationStack {
-                EnterWalletAmountScreen { quarks in
-                    try await walletConnection.requestSwap(
-                        usdc: quarks,
-                        token: metadata.metadata
-                    )
-                }
-                .toolbar {
-                    ToolbarCloseButton {
-                        walletConnection.isShowingAmountEntry = false
-                    }
-                }
-            }
-        }
-        .navigationDestination(isPresented: $isShowingGive) {
-            GiveScreen(viewModel: giveViewModel)
-        }
-        .dialog(item: $giveViewModel.dialogItem)
-        .sheet(item: $presentedBuyViewModel) { buyViewModel in
-            CurrencyBuyAmountScreen(viewModel: buyViewModel)
-        }
-        .sheet(item: $presentedSellViewModel) { sellViewModel in
-            CurrencySellAmountScreen(viewModel: sellViewModel)
-        }
-        .sheet(isPresented: $isShowingCurrencySelection) {
-            CurrencySelectionScreen(
-                isPresented: $isShowingCurrencySelection,
-                kind: .balance,
-                ratesController: ratesController
-            )
-        }
-        .sheet(isPresented: $isShowingFundingSelection) {
-            FundingSelectionSheet(
-                reserveBalance: reserveBalance,
-                onSelectReserves: {
-                    Analytics.buttonTapped(name: .buyWithReserves)
-                    presentedBuyViewModel = CurrencyBuyViewModel(
-                        currencyPublicKey: metadata.mint,
-                        currencyName: metadata.name,
-                        session: session,
-                        ratesController: ratesController
-                    )
-                    isShowingFundingSelection = false
-                },
-                onSelectPhantom: {
-                    Analytics.buttonTapped(name: .buyWithPhantom)
-                    walletConnection.connectToPhantom()
-                    isShowingFundingSelection = false
-                },
-                onDismiss: {
-                    isShowingFundingSelection = false
-                }
-            )
-        }
-        .dialog(item: Bindable(walletConnection).dialogItem)
     }
 
     @ViewBuilder private func section(spacing: CGFloat = 0, @ViewBuilder builder: () -> some View) -> some View {
