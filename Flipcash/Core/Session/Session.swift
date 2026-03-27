@@ -457,7 +457,8 @@ class Session {
     
     private var didAttemptBuy = false
     private func poll() async throws {
-        try await fetchLimitsIfNeeded()
+        // Limits failure must not block balance fetch
+        try? await fetchLimitsIfNeeded()
         try await fetchBalance()
     }
     
