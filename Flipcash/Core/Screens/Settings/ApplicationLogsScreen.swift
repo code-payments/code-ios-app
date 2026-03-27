@@ -26,7 +26,7 @@ struct ApplicationLogsScreen: View {
                         .font(.appTextLarge)
                         .foregroundStyle(Color.textMain)
 
-                    Text("Share a copy of recent app activity with our team to help troubleshoot any issues.\n\nNo passwords, keys, or personal information are included.")
+                    Text("Share a copy of recent app activity with our team to help troubleshoot any issues.\nNo passwords, keys, or personal information are included.")
                         .font(.appTextSmall)
                         .foregroundStyle(Color.textSecondary)
                         .multilineTextAlignment(.center)

@@ -38,7 +38,7 @@ public struct LogEntry: Sendable {
     private static let formatterLock = NSLock()
     private static let formatter: DateFormatter = {
         let f = DateFormatter()
-        f.dateFormat = "(HH:mm:ss.SSSS)"
+        f.dateFormat = "yyyy-MM-dd HH:mm:ss"
         return f
     }()
 

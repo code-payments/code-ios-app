@@ -247,8 +247,10 @@ struct SettingsScreen: View {
             ) {
                 isShowingDepositFlow = true
             }
-            row(systemImage: "doc.text", title: "Application Logs") {
-                path.append(.applicationLogs)
+            if betaFlags.hasEnabled(.applicationLogs) {
+                row(systemImage: "doc.text", title: "Application Logs") {
+                    path.append(.applicationLogs)
+                }
             }
         }
         .font(.appDisplayXS)

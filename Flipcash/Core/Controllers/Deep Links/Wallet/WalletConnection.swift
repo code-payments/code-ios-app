@@ -12,6 +12,8 @@ import FlipcashCore
 import TweetNacl
 import SolanaSwift
 
+private let logger = Logger(label: "flipcash.wallet-connection")
+
 @MainActor
 @Observable
 public final class WalletConnection {
@@ -66,10 +68,10 @@ public final class WalletConnection {
         if let connectedWalletSession = Keychain.connectedWalletSession {
             self.session = connectedWalletSession
             self.box = try! Box(secretKey: connectedWalletSession.secretKey)
-            print("[WalletConnection] Restored encryption box, public key: \(box.publicKey.base58)")
+            logger.info("Restored encryption box, public key: \(box.publicKey.base58)")
         } else {
             self.box = try! Box()
-            print("[WalletConnection] New encryption box, public key: \(box.publicKey.base58)")
+            logger.info("New encryption box, public key: \(box.publicKey.base58)")
         }
     }
     
@@ -125,7 +127,7 @@ public final class WalletConnection {
                 
             case "transactionSigned":
                 guard let session else {
-                    print("[WalletConnection] Received signed transactions but no active session found.")
+                    logger.warning("Received signed transactions but no active session found.")
                     return
                 }
                 
@@ -139,12 +141,12 @@ public final class WalletConnection {
                 didSignTransactions(response.transactions)
                 
             default:
-                print("[WalletConnection] Deep link path did not match known routes: \(component ?? "nil")")
+                logger.warning("Deep link path did not match known routes: \(component ?? "nil")")
                 return
             }
             
         } catch {
-            print("[WalletConnection] Failed to decrypt: \(error)")
+            logger.error("Failed to decrypt: \(error)")
             return
         }
     }
@@ -154,7 +156,7 @@ public final class WalletConnection {
             walletPublicKey: response.publicKey,
             sessionToken: response.session
         ) {
-            print("[WalletConnection] Connected to: \(response.publicKey), Session: \(response.session)")
+            logger.info("Connected to wallet")
             let session = ConnectedWalletSession(
                 secretKey: box.secretKey,
                 walletPublicKey: walletSession.walletPublicKey,
@@ -199,12 +201,12 @@ public final class WalletConnection {
                                 configs: .init(encoding: "base64")!
                             )
 
-                            print("[WalletConnection] Transaction sent: \(signature)")
+                            logger.info("Transaction sent: \(signature)")
                             return (index, signature)
 
                         } catch {
                             ErrorReporting.captureError(error, reason: "Failed to send Solana transaction")
-                            print("[WalletConnection] Transaction failed to send: \(error)")
+                            logger.error("Transaction failed to send: \(error)")
                             return (index, nil)
                         }
                     }
@@ -247,10 +249,10 @@ public final class WalletConnection {
                             fundingSource: fundingSource
                         )
 
-                        print("[WalletConnection] Server notified of swap funding via buy()")
+                        logger.info("Server notified of swap funding via buy()")
                     } catch {
                         ErrorReporting.captureError(error, reason: "Failed to notify server of swap funding")
-                        print("[WalletConnection] Failed to notify server: \(error)")
+                        logger.error("Failed to notify server: \(error)")
                         self.isProcessingCancelled = true
                     }
                 } else {
@@ -396,13 +398,13 @@ public final class WalletConnection {
 
         guard let url = c.url else {
             pendingSwap = nil
-            print("[WalletConnection] Failed to construct signAllTransactions URL")
+            logger.error("Failed to construct signAllTransactions URL")
             throw Error.invalidURL
         }
 
         Analytics.walletRequestAmount(amount: amount.underlying)
         openExternalWallet(url)
-        print("[WalletConnection] Requested USDC→USDF swap of \(amount.underlying) for \(token.symbol), swapId: \(swapId.publicKey.base58)")
+        logger.info("Requested USDC→USDF swap of \(amount.underlying) for \(token.symbol), swapId: \(swapId.publicKey.base58)")
 
         return (swapId: swapId, amount: amount)
     }
