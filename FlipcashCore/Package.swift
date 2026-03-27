@@ -16,7 +16,6 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/karwa/swift-url", from: "0.4.2"),
         .package(url: "https://github.com/marmelroy/PhoneNumberKit", from: "4.1.4"),
         .package(url: "https://github.com/mgriebling/BigDecimal", from: "3.0.2"),
         .package(url: "https://github.com/apple/swift-log", from: "1.6.0"),
@@ -29,8 +28,6 @@ let package = Package(
             name: "FlipcashCore",
             dependencies: [
                 .product(name: "CodeCurves", package: "CodeCurves"),
-                .product(name: "WebURL", package: "swift-url"),
-                .product(name: "WebURLFoundationExtras", package: "swift-url"),
                 .product(name: "BigDecimal", package: "BigDecimal"),
                 .product(name: "PhoneNumberKit", package: "PhoneNumberKit"),
                 .product(name: "Logging", package: "swift-log"),
