@@ -16,6 +16,7 @@ import FlipcashUI
 struct NotificationPermissionDeniedScreen: View {
 
     @Bindable private var viewModel: OnboardingViewModel
+    @State private var toggleOn = false
 
     // MARK: - Init -
 
@@ -30,10 +31,7 @@ struct NotificationPermissionDeniedScreen: View {
             VStack(spacing: 0) {
                 VStack(spacing: 20) {
                     Spacer()
-                    Image(.notificationAllow)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(maxWidth: 300)
+                    DeviceTogglePreview(toggleOn: $toggleOn)
                     Spacer()
                     Text("Are You Sure?")
                         .font(.appTitle)
@@ -57,5 +55,61 @@ struct NotificationPermissionDeniedScreen: View {
             .padding(20)
         }
         .navigationBarBackButtonHidden(true)
+        .task {
+            try? await Task.sleep(for: .seconds(0.35))
+            toggleOn = true
+        }
     }
+}
+
+// MARK: - Device Toggle Preview -
+
+private struct DeviceTogglePreview: View {
+    @Binding var toggleOn: Bool
+
+    var body: some View {
+        Image(.deviceFrame)
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .frame(maxWidth: 300)
+            .overlay(alignment: .top) {
+                NotificationToggleRow(isOn: $toggleOn)
+                    .offset(y: 70)
+            }
+    }
+}
+
+// MARK: - Notification Toggle Row -
+
+private struct NotificationToggleRow: View {
+    @Binding var isOn: Bool
+
+    var body: some View {
+        Toggle("Allow Notifications", isOn: $isOn)
+            .tint(.green)
+            .font(.system(size: 14, weight: .medium))
+            .allowsHitTesting(false)
+            .padding(12)
+            .modifier(NotificationToggleBackground())
+    }
+}
+
+// MARK: - Notification Toggle Background -
+
+private struct NotificationToggleBackground: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26, *) {
+            content
+                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 20))
+        } else {
+            content
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+        }
+    }
+}
+
+// MARK: - Previews -
+
+#Preview {
+    NotificationPermissionDeniedScreen(viewModel: OnboardingViewModel(container: .mock))
 }
