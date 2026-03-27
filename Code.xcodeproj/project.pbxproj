@@ -164,7 +164,6 @@
 		9A83DCCE2D8A653D00E38B84 /* SQLite in Frameworks */ = {isa = PBXBuildFile; productRef = 9A83DCCD2D8A653D00E38B84 /* SQLite */; };
 		9A88672127345419005F1113 /* SessionAuthenticator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A88672027345419005F1113 /* SessionAuthenticator.swift */; };
 		9A88672427359B56005F1113 /* NotificationController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A88672327359B56005F1113 /* NotificationController.swift */; };
-		9A8A219C2E7B253A00C12594 /* TweetNacl in Frameworks */ = {isa = PBXBuildFile; productRef = 9A8A219B2E7B253A00C12594 /* TweetNacl */; };
 		9A8B265A2C10F156009FB349 /* TooltipViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8B26592C10F156009FB349 /* TooltipViewModel.swift */; };
 		9A8B265F2C18AC74009FB349 /* BiometricsAuthScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8B265E2C18AC74009FB349 /* BiometricsAuthScreen.swift */; };
 		9A8B26612C1A32BC009FB349 /* Preferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8B26602C1A32BB009FB349 /* Preferences.swift */; };
@@ -237,7 +236,6 @@
 		9AC784B32BDC36FF00EFAE83 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 9AC784B12BDC36FF00EFAE83 /* PrivacyInfo.xcprivacy */; };
 		9ACC074F28342BF1001F0081 /* Guards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ACC074E28342BF1001F0081 /* Guards.swift */; };
 		9ACE172B27E6287D00ACA047 /* Mixpanel in Frameworks */ = {isa = PBXBuildFile; productRef = 9ACE172A27E6287D00ACA047 /* Mixpanel */; };
-		9ACF9AD32E26D62300BF4F82 /* ConfettiSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = 9ACF9AD22E26D62300BF4F82 /* ConfettiSwiftUI */; };
 		9ACFA004261DFDA6007F97B4 /* Environment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ACFA003261DFDA6007F97B4 /* Environment.swift */; };
 		9ACFA30C2A4A0FAD0057A5DF /* Abacus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ACFA30B2A4A0FAD0057A5DF /* Abacus.swift */; };
 		9ACFA30E2A4B3C0B0057A5DF /* SavedLoginScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ACFA30D2A4B3C0B0057A5DF /* SavedLoginScreen.swift */; };
@@ -626,13 +624,11 @@
 				9A780F972EDF817D009BC4D9 /* CodeScanner in Frameworks */,
 				9ADEF1C92DD50BDE001B260A /* FirebaseMessaging in Frameworks */,
 				9AD1265E2DA98ADC0048141F /* SQLite in Frameworks */,
-				9A8A219C2E7B253A00C12594 /* TweetNacl in Frameworks */,
 				9ADEF1D72DD627C0001B260A /* Bugsnag in Frameworks */,
 				9A017D692EAC1DE200216925 /* Kingfisher in Frameworks */,
 				9ADEF1C32DD50BDE001B260A /* FirebaseAnalytics in Frameworks */,
 				9ADEF1C72DD50BDE001B260A /* FirebaseInstallations in Frameworks */,
 				9A444EE72E8C414D002B1E39 /* BigDecimal in Frameworks */,
-				9ACF9AD32E26D62300BF4F82 /* ConfettiSwiftUI in Frameworks */,
 				9ADEF1C52DD50BDE001B260A /* FirebaseCrashlytics in Frameworks */,
 				9AC011182DA4320F0030298E /* FlipcashUI in Frameworks */,
 				9A2396762E7DE27500D70699 /* SolanaSwift in Frameworks */,
@@ -1331,8 +1327,6 @@
 				9ADEF1C82DD50BDE001B260A /* FirebaseMessaging */,
 				9ADEF1D62DD627C0001B260A /* Bugsnag */,
 				9ADEF1D82DD627C6001B260A /* Mixpanel */,
-				9ACF9AD22E26D62300BF4F82 /* ConfettiSwiftUI */,
-				9A8A219B2E7B253A00C12594 /* TweetNacl */,
 				9A2396752E7DE27500D70699 /* SolanaSwift */,
 				9A444EE62E8C414D002B1E39 /* BigDecimal */,
 				9A017D682EAC1DE200216925 /* Kingfisher */,
@@ -1723,8 +1717,6 @@
 				9A9499D62CFB829300DC219B /* XCRemoteSwiftPackageReference "SQLite" */,
 				9A340F642D6E1591003858F4 /* XCRemoteSwiftPackageReference "TwitterAPIKit" */,
 				9A8D9A3D2D78C2E200E755B9 /* XCRemoteSwiftPackageReference "Kingfisher" */,
-				9ACF9AD12E26D62300BF4F82 /* XCRemoteSwiftPackageReference "ConfettiSwiftUI" */,
-				9A8A219A2E7B253A00C12594 /* XCRemoteSwiftPackageReference "tweetnacl-swiftwrap" */,
 				9A2396742E7DE27500D70699 /* XCRemoteSwiftPackageReference "solana-swift" */,
 				9A444EE52E8C414D002B1E39 /* XCRemoteSwiftPackageReference "BigDecimal" */,
 				9A780F952EDF817D009BC4D9 /* XCLocalSwiftPackageReference "CodeScanner" */,
@@ -4494,14 +4486,6 @@
 				kind = branch;
 			};
 		};
-		9A8A219A2E7B253A00C12594 /* XCRemoteSwiftPackageReference "tweetnacl-swiftwrap" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/bitmark-inc/tweetnacl-swiftwrap";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.1.0;
-			};
-		};
 		9A8D9A3D2D78C2E200E755B9 /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/onevcat/Kingfisher";
@@ -4524,14 +4508,6 @@
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 4.2.5;
-			};
-		};
-		9ACF9AD12E26D62300BF4F82 /* XCRemoteSwiftPackageReference "ConfettiSwiftUI" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/simibac/ConfettiSwiftUI";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.0.3;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
@@ -4604,11 +4580,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 9A9499D62CFB829300DC219B /* XCRemoteSwiftPackageReference "SQLite" */;
 			productName = SQLite;
-		};
-		9A8A219B2E7B253A00C12594 /* TweetNacl */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 9A8A219A2E7B253A00C12594 /* XCRemoteSwiftPackageReference "tweetnacl-swiftwrap" */;
-			productName = TweetNacl;
 		};
 		9A8D9A3E2D78C2E200E755B9 /* Kingfisher */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -4696,11 +4667,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 9ACE172927E6287C00ACA047 /* XCRemoteSwiftPackageReference "mixpanel-swift" */;
 			productName = Mixpanel;
-		};
-		9ACF9AD22E26D62300BF4F82 /* ConfettiSwiftUI */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 9ACF9AD12E26D62300BF4F82 /* XCRemoteSwiftPackageReference "ConfettiSwiftUI" */;
-			productName = ConfettiSwiftUI;
 		};
 		9AD1265D2DA98ADC0048141F /* SQLite */ = {
 			isa = XCSwiftPackageProductDependency;
