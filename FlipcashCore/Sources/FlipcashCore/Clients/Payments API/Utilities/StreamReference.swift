@@ -41,7 +41,7 @@ public class BidirectionalStreamReference<Request, Response>: Cancellable, @unch
     
     var timeoutHandler: (() -> Void)?
     
-    private(set) var lastPing: Date?
+    var lastPing: Date?
     private(set) var pingTimeout: Int = 15 // seconds
     
     private var closure: (() -> Void)?
@@ -102,6 +102,23 @@ public class BidirectionalStreamReference<Request, Response>: Cancellable, @unch
         }
     }
     
+    // MARK: - Health -
+
+    /// Whether a ping was received recently enough to consider the stream alive.
+    /// The existing `postponeTimeout` timer cannot be relied on here because
+    /// `Task.sleep` does not fire promptly when the app resumes from suspension.
+    var hasRecentPing: Bool {
+        guard let lastPing else { return false }
+        return Date.now.timeIntervalSince(lastPing) < TimeInterval(pingTimeout)
+    }
+
+    /// Whether the stream is likely alive based on recent ping activity.
+    /// After backgrounding, the OS kills the socket but the stream object
+    /// persists in memory. This catches that case by checking ping staleness.
+    var isLikelyHealthy: Bool {
+        stream != nil && hasRecentPing
+    }
+
     // MARK: - Cancel -
     
     public func destroy() {

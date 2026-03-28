@@ -67,8 +67,8 @@ public actor LiveMintDataStreamer {
     public func ensureConnected() {
         guard isStreaming, !subscribedMints.isEmpty else { return }
 
-        // If there's an active, healthy stream reference, nothing to do
-        if streamReference?.stream != nil, !isReconnecting {
+        // If the stream is alive and has received a recent ping, nothing to do
+        if let ref = streamReference, ref.isLikelyHealthy, !isReconnecting {
             return
         }
 
