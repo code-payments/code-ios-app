@@ -16,7 +16,6 @@ class Container {
     let client: Client
     let flipClient: FlipClient
     let accountManager: AccountManager
-    let storeController: StoreController
     let betaFlags: BetaFlags
     let preferences: Preferences
     let notificationController: NotificationController
@@ -34,7 +33,6 @@ class Container {
         self.client                 = Client(network: .mainNet)
         self.flipClient             = FlipClient(network: .mainNet)
         self.accountManager         = AccountManager()
-        self.storeController        = StoreController()
         self.betaFlags              = BetaFlags.shared
         self.preferences            = Preferences()
         self.notificationController = NotificationController()
@@ -47,7 +45,6 @@ class Container {
             .environmentObject(client)
             .environmentObject(flipClient)
             .environment(sessionAuthenticator)
-            .environmentObject(storeController)
             .environment(betaFlags)
             .environment(preferences)
             .environment(notificationController)

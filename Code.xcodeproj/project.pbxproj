@@ -122,7 +122,6 @@
 		9A4283BE2A02B9F200792BFD /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A4283BD2A02B9F200792BFD /* ShareSheet.swift */; };
 		9A4283C12A055C5400792BFD /* GiftCardVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A4283C02A055C5400792BFD /* GiftCardVault.swift */; };
 		9A444EE72E8C414D002B1E39 /* BigDecimal in Frameworks */ = {isa = PBXBuildFile; productRef = 9A444EE62E8C414D002B1E39 /* BigDecimal */; };
-		9A44E6862D08061200922066 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9A44E6852D08061200922066 /* StoreKit.framework */; };
 		9A476D4A2978884700C5B5CE /* Bugsnag in Frameworks */ = {isa = PBXBuildFile; productRef = 9A476D492978884700C5B5CE /* Bugsnag */; };
 		9A476D4C2978892600C5B5CE /* ErrorReporting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A476D4B2978892600C5B5CE /* ErrorReporting.swift */; };
 		9A4F3D07298D99930089C0FB /* BucketScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A4F3D06298D99930089C0FB /* BucketScreen.swift */; };
@@ -415,7 +414,6 @@
 		9A4283BD2A02B9F200792BFD /* ShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSheet.swift; sourceTree = "<group>"; };
 		9A4283C02A055C5400792BFD /* GiftCardVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GiftCardVault.swift; sourceTree = "<group>"; };
 		9A43F0102D9C357900CE8817 /* FlipcashCore */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = FlipcashCore; sourceTree = "<group>"; };
-		9A44E6852D08061200922066 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		9A476D4B2978892600C5B5CE /* ErrorReporting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorReporting.swift; sourceTree = "<group>"; };
 		9A4F3D06298D99930089C0FB /* BucketScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BucketScreen.swift; sourceTree = "<group>"; };
 		9A516F7A2D9B12E900AF478B /* Flipcash.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Flipcash.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -680,7 +678,6 @@
 			files = (
 				9A9499D82CFB82A200DC219B /* SQLite in Frameworks */,
 				9A340F662D6E1591003858F4 /* TwitterAPIKit in Frameworks */,
-				9A44E6862D08061200922066 /* StoreKit.framework in Frameworks */,
 				9A9E26B72CEA73D80021E5DD /* FirebaseMessaging in Frameworks */,
 				9A8D9A3F2D78C2E200E755B9 /* Kingfisher in Frameworks */,
 				9A9E26B52CEA73D80021E5DD /* FirebaseInstallations in Frameworks */,
@@ -840,7 +837,6 @@
 		9A1654C42678FB60000A135E /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				9A44E6852D08061200922066 /* StoreKit.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
