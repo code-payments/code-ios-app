@@ -14,23 +14,23 @@ private let logger = Logger(label: "flipcash.app-delegate")
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
-    
+
     var window: UIWindow?
-    
+
     let container = Container()
-    
+
     private var resetInterval: TimeInterval = 60.0
     private var lastActiveDate: Date?
-    
+
     private var hasBeenBackgrounded: Bool = false
-    
+
     private var sessionContainer: SessionContainer? {
         if case .loggedIn(let container) = container.sessionAuthenticator.state {
             return container
         }
         return nil
     }
-    
+
     // MARK: - Launch -
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
@@ -41,7 +41,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         ])
 
         window = UIWindow(frame: UIScreen.main.bounds)
-        
+
         let isUITesting = CommandLine.arguments.contains("--ui-testing")
 
         if !isUITesting {
@@ -74,7 +74,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
         return true
     }
-    
+
+    /// Replace the window's root view controller with a fresh ContainerScreen.
+    /// Used at launch and when resetting the interface after a long background.
     private func assignHost() {
         guard let window = window else {
             return
@@ -84,36 +86,32 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             .injectingEnvironment(from: container)
             .colorScheme(.dark)
             .tint(Color.textMain)
-        
+
         let controller = UIHostingController(rootView: screen)
         controller.view.backgroundColor = UIColor(.backgroundMain)
         window.rootViewController = controller
         window.overrideUserInterfaceStyle = .dark
-        
+
         window.makeKeyAndVisible()
     }
-    
+
     // MARK: - Lifecycle -
-    
+
     func applicationWillResignActive(_ application: UIApplication) {
         logger.info("applicationWillResignActive")
         lastActiveDate = .now
-        
-//        appContainer.pushController.appWillResignActive()
-        
-//        beginBackgroundTask()
     }
-    
+
     func applicationDidEnterBackground(_ application: UIApplication) {
         hasBeenBackgrounded = true
-        
+
         if let sessionContainer {
             sessionContainer.session.didEnterBackground()
         }
-        
+
         container.preferences.appDidEnterBackground()
     }
-    
+
     func applicationWillEnterForeground(_ application: UIApplication) {
         logger.info("applicationWillEnterForeground")
 
@@ -123,28 +121,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // time streams and RPCs need it.
         container.client.warmUpChannel()
 
-//        appContainer.sessionAuthenticator.updateBiometricsState()
+        guard let sessionContainer else { return }
 
-        if let sessionContainer { // Logged in
-            sessionContainer.session.didBecomeActive()
+        let isStaleSession = !UIApplication.isInterfaceResetDisabled && (secondsSinceLastActive() ?? 0) > resetInterval
 
-            if !UIApplication.isInterfaceResetDisabled {
-                if let interval = secondsSinceLastActive(), interval > resetInterval {
-                    logger.warning("Resetting interface...")
-                    assignHost()
-                    //                fadeOutOverlay(delay: 0.4)
-                } else {
-                    //                fadeOutOverlay(delay: 0.3)
-                }
-            } else {
-                logger.warning("Interface reset disabled.")
-            }
-            
-        } else { // Logged out
-//            destroyOverlay()
+        if isStaleSession {
+            logger.warning("Resetting interface...")
+            assignHost()
         }
+
+        // Reconnect streams after the reset so the new view hierarchy
+        // doesn't trigger a redundant stream open.
+        sessionContainer.session.didBecomeActive()
     }
-    
+
     private func secondsSinceLastActive() -> TimeInterval? {
         guard let lastActiveDate = lastActiveDate else {
             return nil
@@ -152,14 +142,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
         return Date.now.timeIntervalSince1970 - lastActiveDate.timeIntervalSince1970
     }
-    
+
     // MARK: - Deep Links -
-    
+
     func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
-        
         return handleOpenURL(url: url)
     }
-    
+
     func application(_ application: UIApplication, continue userActivity: NSUserActivity, restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
         guard
             userActivity.activityType == NSUserActivityTypeBrowsingWeb,
@@ -167,10 +156,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         else {
             return false
         }
-        
+
         return handleOpenURL(url: url)
     }
-    
+
     private func handleOpenURL(url: URL, preventUserInterfaceReset: Bool = false) -> Bool {
         Analytics.deeplinkOpened(url: url)
         let action = container.deepLinkController.handle(open: url)
@@ -182,13 +171,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             preventUserInterfaceReset: preventUserInterfaceReset
         )
 
-        // Calling assignHost() during app launch (when the app
-        // hasn't been running) results in a double call making
-        // it hang for ~10 seconds. Still uncertain of the exact
-        // cause of the problem
         if shouldResetInterface {
-            // Reset the view in the event that the app handles
-            // any deep links to ensure a consistent experience
             assignHost()
         }
 
@@ -209,15 +192,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     // MARK: - Push Notifications -
-    
+
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         logger.info("Did register for remote notifications", metadata: ["token": "\(deviceToken.hexString())"])
-        
+
         if let sessionContainer {
             sessionContainer.pushController.didReceiveRemoteNotificationToken(with: deviceToken)
         }
     }
-    
+
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
         logger.error("Push notification registration failed: \(error)")
     }
@@ -250,26 +233,26 @@ extension UIApplication {
 // MARK: - Appearance -
 
 private extension AppDelegate {
-    
+
     func setupAppearance() {
         let largeAttributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.appDisplayLarge,
             .foregroundColor: UIColor(.textMain),
         ]
-                              
+
         let titleAttributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.appTitle,
             .foregroundColor: UIColor(.textMain),
         ]
-        
+
         let buttonAttributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.appBarButton,
             .foregroundColor: UIColor(.textMain),
         ]
-        
+
         let buttonAppearance = UIBarButtonItemAppearance()
         buttonAppearance.normal.titleTextAttributes = buttonAttributes
-                              
+
         let bar = UINavigationBar.appearance()
 
         bar.largeTitleTextAttributes = largeAttributes
@@ -323,7 +306,7 @@ extension UINavigationController {
         if #available(iOS 26, *) {
             return
         }
-        
+
         for viewController in viewControllers {
             viewController.navigationItem.backButtonDisplayMode = .minimal
         }
