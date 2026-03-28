@@ -46,6 +46,23 @@ public class Client: ObservableObject {
         logger.debug("Deallocating Client")
     }
 
+    // MARK: - Channel Lifecycle -
+
+    /// Pre-warm the gRPC channel by triggering a lightweight unary call.
+    /// Forces TCP+TLS reconnection if the underlying socket died during
+    /// backgrounding (common: errno 57 / unavailable 14).
+    /// The response is irrelevant — we only need the channel to start connecting.
+    public func warmUpChannel() {
+        currencyService.fetchMint(mint: .usdf) { result in
+            switch result {
+            case .success:
+                logger.info("Channel warm-up succeeded")
+            case .failure:
+                logger.warning("Channel warm-up completed (channel reconnecting)")
+            }
+        }
+    }
+
     // MARK: - Streaming -
 
     /// Create a LiveMintDataStreamer for streaming exchange rates and reserve states

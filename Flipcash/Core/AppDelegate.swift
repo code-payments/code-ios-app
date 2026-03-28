@@ -96,7 +96,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // MARK: - Lifecycle -
     
     func applicationWillResignActive(_ application: UIApplication) {
-        logger.debug("applicationWillResignActive")
+        logger.info("applicationWillResignActive")
         lastActiveDate = .now
         
 //        appContainer.pushController.appWillResignActive()
@@ -115,7 +115,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
     
     func applicationWillEnterForeground(_ application: UIApplication) {
-        logger.debug("applicationWillEnterForeground")
+        logger.info("applicationWillEnterForeground")
+
+        // Pre-warm the gRPC channel before anything else.
+        // After backgrounding the OS kills the TCP socket; this
+        // triggers reconnection so the channel is ready by the
+        // time streams and RPCs need it.
+        container.client.warmUpChannel()
 
 //        appContainer.sessionAuthenticator.updateBiometricsState()
 
