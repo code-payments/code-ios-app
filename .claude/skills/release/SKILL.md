@@ -1,34 +1,49 @@
 ---
 name: release
 description: Use when the user wants to cut a release, ship a version, prepare for release, or invokes /release
+disable-model-invocation: true
+argument-hint: [major|minor|patch]
+allowed-tools: Bash(git log *), Bash(git checkout *), Bash(git tag *), Bash(git push *), Bash(git add *), Bash(git commit *), Bash(xcodebuild *), Bash(gh *), Read, Edit, Agent, Grep
 ---
 
 # Release
 
 Two-phase workflow with a dogfooding gate. Nothing leaves the machine until the user confirms they've tested on device.
 
+## Pre-flight context
+
+- Working tree: !`git status --porcelain`
+- Latest tag: !`git describe --tags --abbrev=0 HEAD 2>/dev/null || echo "no tags found"`
+- Marketing version: !`grep 'MARKETING_VERSION' Code.xcodeproj/project.pbxproj | head -1 | sed 's/.*= //' | tr -d ';\" '`
+
 ## Phase 1: Prepare & Verify
 
 ### 1. Clean working tree
-```bash
-git status --porcelain
-```
-Non-empty → STOP. Commit or stash first.
+If the pre-flight working tree output is non-empty → STOP. Commit or stash first.
 
-### 2. Release version
-Read `MARKETING_VERSION` from the Flipcash target in `Code.xcodeproj/project.pbxproj`.
-Confirm with user: "Releasing v{version} — correct?"
+### 2. Calculate next version
+Parse the pre-flight marketing version as X.Y.Z. Determine bump type from `$ARGUMENTS` (default: `minor`):
 
-### 3. Previous tag
-```bash
-git describe --tags --abbrev=0 HEAD
-```
-Show to user. If it picks up a legacy tag, ask for the correct base.
+| Argument | Bump | Example |
+|----------|------|---------|
+| `major` | X+1.0.0 | 2.3.1 → 3.0.0 |
+| `minor` (default) | X.Y+1.0 | 2.3.1 → 2.4.0 |
+| `patch` | X.Y.Z+1 | 2.3.1 → 2.3.2 |
+
+Confirm with user: "Bumping {type}: v{current} → v{next} — correct?"
+
+### 3. Determine base
+- **major / minor**: base is HEAD on the current branch. Show the pre-flight latest tag to user. If it picks up a legacy tag, ask for the correct base.
+- **patch**: base is the `release/X.Y.Z` branch (the release being patched). Checkout that branch before proceeding:
+  ```bash
+  git checkout release/{current-version}
+  ```
 
 ### 4. What's shipping
 ```bash
-git log {previous-tag}..HEAD --format="- %s" --no-merges
+git log {base-tag}..HEAD --format="- %s" --no-merges
 ```
+For patch releases, `{base-tag}` is `v{current-version}` (the tag on the branch being patched).
 Display for sanity check.
 
 ### 5. Run all tests
@@ -57,10 +72,21 @@ Use the Agent tool with `model: "haiku"`. Pass the commit list with this prompt:
 
 Show to user for approval.
 
-### 7. Branch and tag
+### 7. Branch, bump, and tag
+For **patch**: already on `release/X.Y.Z` from step 3.
 ```bash
-git checkout -b release/{version}
-git tag v{version}
+git checkout -b release/{next-version}
+```
+For **major / minor**:
+```bash
+git checkout -b release/{next-version}
+```
+
+Update `MARKETING_VERSION` in `Code.xcodeproj/project.pbxproj` to `{next-version}` using the Edit tool, then:
+```bash
+git add Code.xcodeproj/project.pbxproj
+git commit -m "chore: bump version to {next-version}"
+git tag v{next-version}
 ```
 
 ## STOP — Dogfooding Gate
@@ -94,7 +120,6 @@ gh release create v{version} --title "v{version}" --notes "{changelog}"
 
 ## Never
 - Merge the release branch into main
-- Bump MARKETING_VERSION or CURRENT_PROJECT_VERSION
 - Commit changelog files
 - Skip the dogfooding gate
 - Proceed past the gate without explicit user confirmation
