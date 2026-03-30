@@ -128,8 +128,11 @@ extension ApplePayWebView {
         }
 
         deinit {
-            print("[WEBVIEW] Deallocating ApplePayWevView coordinator")
-            contentController?.removeScriptMessageHandler(forName: .messageHandlerName)
+            let controller = contentController
+            let name = String.messageHandlerName
+            MainActor.assumeIsolated {
+                controller?.removeScriptMessageHandler(forName: name)
+            }
         }
     }
 }
@@ -162,5 +165,5 @@ public struct ApplePayEvent: Codable {
 }
 
 private extension String {
-    static let messageHandlerName = "coinbasepayment"
+    nonisolated static let messageHandlerName = "coinbasepayment"
 }
