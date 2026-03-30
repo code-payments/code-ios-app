@@ -101,7 +101,6 @@ extension BetaFlags {
         case coinbaseSandbox
         case currencyDiscovery
         case currencyCreation
-        case applicationLogs
 
         var id: String {
             localizedTitle
@@ -121,8 +120,6 @@ extension BetaFlags {
                 return "Currency Discovery"
             case .currencyCreation:
                 return "Currency Creation"
-            case .applicationLogs:
-                return "Application Logs"
             }
         }
 
@@ -140,8 +137,6 @@ extension BetaFlags {
                 return "If enabled, shows a button to browse currencies from the empty balance state"
             case .currencyCreation:
                 return "If enabled, shows a button to create your own currency in the discovery screen"
-            case .applicationLogs:
-                return "If enabled, shows the application logs screen in settings"
             }
         }
     }
