@@ -130,7 +130,7 @@ extension ApplePayWebView {
         deinit {
             let controller = contentController
             let name = String.messageHandlerName
-            MainActor.assumeIsolated {
+            Task { @MainActor in
                 controller?.removeScriptMessageHandler(forName: name)
             }
         }
