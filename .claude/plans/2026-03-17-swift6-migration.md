@@ -1,8 +1,8 @@
 # Swift 6.2 Strict Concurrency Migration
 
 **Date:** 2026-03-17 (updated 2026-03-30)
-**Status:** Phase 0 complete, Phase 1 baseline established
-**Prerequisites:** `@Observable` migration **complete** — all 4 remaining types resolved (see Phase 0 below)
+**Status:** Swift 6 on Flipcash app + test targets. Soaking on TestFlight.
+**Prerequisites:** All resolved.
 
 ---
 
@@ -27,11 +27,12 @@ Nonisolated async functions inherit the caller's isolation instead of hopping to
 
 ## Current State (verified 2026-03-30)
 
-- **Flipcash target:** Swift 5.0 (all 4 build configs), `SWIFT_STRICT_CONCURRENCY = targeted` enabled
-- **Test targets:** Swift 5.0 — need version bump first
-- **Packages:** FlipcashCore/FlipcashAPI/FlipcashCoreAPI/FlipcashUI at swift-tools-version 6.1, but no `swiftSettings` for strict concurrency
+- **Flipcash target:** Swift 6.0, `SWIFT_STRICT_CONCURRENCY = complete`, `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`
+- **FlipcashTests target:** Swift 6.0, `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`
+- **Packages:** FlipcashCore/FlipcashAPI/FlipcashCoreAPI/FlipcashUI at swift-tools-version 6.1, but no `swiftSettings` for strict concurrency — Phase 2
 - **Legacy packages:** CodeServices/CodeUI/CodeCurves/CodeAPI at 5.7, CodeScanner at 5.9 — only migrate if Flipcash depends on them
 - **Generated protos:** FlipcashAPI + FlipcashCoreAPI have `@unchecked Sendable` and `nonisolated(unsafe)` in generated files — regenerate with updated protoc, don't hand-edit
+- **Known issue:** Combine `PassthroughSubject` in actors crashes with SE-0423 dynamic isolation if subscribers forget `.receive(on: DispatchQueue.main)` — Phase 5 migrates to AsyncStream
 
 ### @Observable Blockers — RESOLVED
 
