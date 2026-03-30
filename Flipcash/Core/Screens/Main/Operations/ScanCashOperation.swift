@@ -45,7 +45,8 @@ class ScanCashOperation {
     private let owner: AccountCluster
     private let payload: CashCode.Payload
     
-    private var messageStream: AnyCancellable? = nil
+    // nonisolated(unsafe): AnyCancellable.cancel() is thread-safe, accessed in deinit
+    private nonisolated(unsafe) var messageStream: AnyCancellable? = nil
     
     // MARK: - Init -
     

@@ -10,7 +10,7 @@ import UIKit
 import FlipcashUI
 import FlipcashCore
 import TweetNacl
-import SolanaSwift
+@preconcurrency import SolanaSwift
 
 private nonisolated let logger = Logger(label: "flipcash.wallet-connection")
 

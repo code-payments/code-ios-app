@@ -93,7 +93,8 @@ class SendCashOperation {
     /// cached rate yet.
     private let providedVerifiedState: VerifiedState?
 
-    private var messageStream: AnyCancellable? = nil
+    // nonisolated(unsafe): AnyCancellable.cancel() is thread-safe, accessed in deinit
+    private nonisolated(unsafe) var messageStream: AnyCancellable? = nil
 
     /// Guards against processing more than one grab request per operation.
     private var hasProcessedPayment = false

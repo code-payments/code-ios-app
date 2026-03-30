@@ -205,7 +205,20 @@ With packages clean, enable strict concurrency on the app target:
    - `@EnvironmentObject` types (`Client`, `FlipClient`, `StoreController`) — these stay as-is with `@preconcurrency` if needed
    - Any remaining `Task { }` patterns that need `@Sendable` closures
 
-### Phase 5 — Cleanup & Polish (1 day)
+### Phase 5 — Migrate Combine publishers in actors to AsyncStream
+
+`VerifiedProtoService` uses `PassthroughSubject` inside an `actor`. Combine's `sink` closures are non-`@Sendable`, so Swift 6 infers caller isolation on them (SE-0423). When `send()` fires from the actor's executor, the runtime assertion fails because the sink was created in a `@MainActor` context.
+
+**Current workaround:** subscribers must use `.receive(on: DispatchQueue.main)` before `.sink`. This is fragile — any subscriber that forgets will crash at runtime with `_dispatch_assert_queue_fail`.
+
+**Proper fix:** replace `PassthroughSubject` with `AsyncStream` via `makeStream(of:)`. This is the actor-native approach — no Combine threading mismatch, no runtime assertions.
+
+| Publisher | Location | Subscribers |
+|-----------|----------|-------------|
+| `ratesPublisher` | `VerifiedProtoService:37` | `RatesController:109` |
+| `reserveStatesPublisher` | `VerifiedProtoService:40` | `RatesController:117` |
+
+### Phase 6 — Cleanup & Polish (1 day)
 
 1. Remove all `@preconcurrency` imports that are no longer needed (after library updates)
 2. Remove `@unchecked Sendable` where proper Sendable conformance is now possible

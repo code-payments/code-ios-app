@@ -9,7 +9,7 @@ import Foundation
 import Bugsnag
 import FlipcashCore
 
-enum ErrorReporting {
+nonisolated enum ErrorReporting {
     
     static func initialize() {
         Bugsnag.start()
