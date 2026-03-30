@@ -311,7 +311,10 @@ final class SessionAuthenticator {
             )
             
         } catch {
-//            ErrorReporting.captureError(error)
+            ErrorReporting.captureError(
+                error,
+                reason: isRegistration ? "Failed to register" : "Failed to login"
+            )
             throw error
         }
     }
