@@ -56,6 +56,7 @@ public final class WalletConnection {
         let swapId: SwapId
         let amount: ExchangedFiat
         let token: MintMetadata
+        let verifiedState: VerifiedState
     }
 
     // MARK: - Init -
@@ -231,19 +232,11 @@ public final class WalletConnection {
                         let signatureKey = try Signature(base58: firstSignature)
                         let fundingSource = FundingSource.externalWallet(transactionSignature: signatureKey)
 
-                        // Get verified state for intent construction
-                        guard let verifiedState = await self.ratesController.getVerifiedState(
-                            for: pending.amount.converted.currencyCode,
-                            mint: pending.amount.mint
-                        ) else {
-                            throw Error.missingVerifiedState
-                        }
-
                         // Call buy() with externalWallet funding (Phase 1 only, no IntentFundSwap)
                         try await client.buy(
                             swapId: pending.swapId,
                             amount: pending.amount,
-                            verifiedState: verifiedState,
+                            verifiedState: pending.verifiedState,
                             of: pending.token,
                             owner: self.owner,
                             fundingSource: fundingSource
@@ -318,8 +311,9 @@ public final class WalletConnection {
 
     /// Initiates USDC→USDF swap via Phantom wallet
     /// 1. Generate swapId and build transaction (with swapId in memo)
-    /// 2. Send to Phantom for signing
-    /// 3. After signing: submit TX to chain, then call buy() with externalWallet funding
+    /// 2. Capture verified state for the server notification after signing
+    /// 3. Send to Phantom for signing
+    /// 4. After signing: submit TX to chain, then call buy() with externalWallet funding
     ///
     /// - Parameters:
     ///   - usdc: Amount of USDC to swap (in quarks)
@@ -371,10 +365,19 @@ public final class WalletConnection {
             feePayer: try SolanaSwift.PublicKey(string: externalWallet.base58)
         )
 
-        // 3. Store pending swap info (to use when Phantom returns)
-        pendingSwap = PendingSwap(swapId: swapId, amount: amount, token: token)
+        // 3. Capture verified state now so didSignTransactions doesn't
+        //    depend on prior screen navigation having subscribed the mint.
+        guard let verifiedState = await ratesController.getVerifiedState(
+            for: amount.converted.currencyCode,
+            mint: token.address
+        ) else {
+            throw Error.missingVerifiedState
+        }
 
-        // 4. Serialize and send to Phantom
+        // 4. Store pending swap info (to use when Phantom returns)
+        pendingSwap = PendingSwap(swapId: swapId, amount: amount, token: token, verifiedState: verifiedState)
+
+        // 5. Serialize and send to Phantom
         let txEncoded = Base58.fromBytes(Array(try transaction.serialize()))
 
         let payload: [String: Any] = [
