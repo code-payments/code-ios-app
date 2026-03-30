@@ -62,10 +62,12 @@ struct CurrencyDiscoveryList: View {
                         Text("New").tag(DiscoverCategory.new)
                     }
                     .pickerStyle(.segmented)
-                    .frame(height: 44)
+                    .frame(height: 36)
+                    .padding(.bottom, 12)
                     .textCase(nil)
                 }
             }
+            .listSectionSeparator(.hidden)
         }
         .ifAvailable({ view in
             // There is no fallback for previous version, the actual fallback can be found
@@ -78,8 +80,9 @@ struct CurrencyDiscoveryList: View {
                     }
                     .pickerStyle(.segmented)
                     .glassEffect()
-                    .frame(height: 44)
+                    .frame(height: 36)
                     .padding(.horizontal, 20)
+                    .padding(.bottom, 12)
                     .textCase(nil)
                 }
             }
