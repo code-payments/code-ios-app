@@ -11,7 +11,7 @@ import FlipcashCore
 
 struct ConfirmEmailScreen: View {
 
-    @StateObject private var timer = CountdownTimer(seconds: 60)
+    @State private var countdownEnd: Date?
     
     @Bindable private var viewModel: OnrampViewModel
     
@@ -56,14 +56,14 @@ struct ConfirmEmailScreen: View {
                 
                 Spacer()
                 
-                Group {
-                    if timer.state == .running {
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    if let countdownEnd, context.date < countdownEnd {
+                        let remaining = Int(ceil(countdownEnd.timeIntervalSince(context.date)))
                         VStack(spacing: 0) {
                             Text("Didn't get an email?")
-                            Text("Request a new one in \(timer.formattedTimeString)") // <- matching this
+                            Text("Request a new one in \(String(format: "%02d:%02d", (remaining / 60) % 60, remaining % 60))")
                         }
                         .multilineTextAlignment(.center)
-                        
                     } else {
                         VStack(spacing: 15) {
                             Button {
@@ -107,13 +107,11 @@ struct ConfirmEmailScreen: View {
         .navigationTitle("Verify Email")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
-            timer.start()
+            countdownEnd = Date.now.addingTimeInterval(60)
         }
         .onChange(of: viewModel.isResending) { _, isResending in
             if !isResending {
-                Task {
-                    timer.restart()
-                }
+                countdownEnd = Date.now.addingTimeInterval(60)
             }
         }
     }
