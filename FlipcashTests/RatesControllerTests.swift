@@ -195,8 +195,9 @@ struct RatesControllerTests {
         controller.startStreaming(mints: [mint])
         controller.ensureMintSubscribed(mint)
 
-        #expect(controller.streamedMints.count == 1)
+        #expect(controller.streamedMints.count == 2) // mint + USDF
         #expect(controller.streamedMints.contains(mint))
+        #expect(controller.streamedMints.contains(.usdf))
     }
 
     @Test("Subscribes a new mint")
@@ -211,6 +212,86 @@ struct RatesControllerTests {
         #expect(controller.streamedMints.contains(.usdf))
         #expect(controller.streamedMints.contains(mint))
         #expect(controller.streamedMints.count == 2)
+    }
+
+    // MARK: - USDF always subscribed -
+
+    @Test("USDF is always included after startStreaming with empty balances")
+    @MainActor
+    func startStreaming_emptyBalances_includesUsdf() {
+        let controller = makeController()
+        controller.startStreaming(mints: [])
+        #expect(controller.streamedMints.contains(.usdf))
+    }
+
+    @Test("USDF is always included after startStreaming with balances")
+    @MainActor
+    func startStreaming_withBalances_includesUsdf() {
+        let controller = makeController()
+        controller.startStreaming(mints: [.jeffy])
+        #expect(controller.streamedMints.contains(.usdf))
+        #expect(controller.streamedMints.contains(.jeffy))
+    }
+
+    @Test("USDF survives a balance refresh that removes all user mints")
+    @MainActor
+    func updateSubscribedMints_emptyBalances_retainsUsdf() {
+        let controller = makeController()
+        controller.startStreaming(mints: [.jeffy])
+        controller.updateSubscribedMints([])
+        #expect(controller.streamedMints.contains(.usdf))
+    }
+
+    @Test("Pending mints survive a balance refresh after multiple ensureMintSubscribed calls")
+    @MainActor
+    func ensureMintSubscribed_balanceRefresh_retainsPending() {
+        let controller = makeController()
+        let balanceMint = PublicKey.usdf
+        let pendingA = PublicKey.jeffy
+        let pendingB = PublicKey.usdc
+
+        // Start with one balance mint
+        controller.startStreaming(mints: [balanceMint])
+
+        // Subscribe two mints the user doesn't hold
+        controller.ensureMintSubscribed(pendingA)
+        controller.ensureMintSubscribed(pendingB)
+
+        #expect(controller.streamedMints.count == 3)
+
+        // Simulate a balance refresh (only includes the original balance mint)
+        controller.updateSubscribedMints([balanceMint])
+
+        // Both pending mints must survive
+        #expect(controller.streamedMints.contains(balanceMint))
+        #expect(controller.streamedMints.contains(pendingA))
+        #expect(controller.streamedMints.contains(pendingB))
+        #expect(controller.streamedMints.count == 3)
+    }
+
+    @Test("Pending mint is promoted out of pendingMints when it appears in a balance refresh")
+    @MainActor
+    func ensureMintSubscribed_promotedByBalance_dropsFromPending() {
+        let controller = makeController()
+        let balanceMint = PublicKey.usdf
+        let newToken = PublicKey.jeffy
+
+        controller.startStreaming(mints: [balanceMint])
+
+        // User views a token they don't own
+        controller.ensureMintSubscribed(newToken)
+        #expect(controller.streamedMints.count == 2)
+
+        // User buys the token — it now appears in balances
+        controller.updateSubscribedMints([balanceMint, newToken])
+        #expect(controller.streamedMints.count == 2)
+
+        // User sells all of it — balance refresh no longer includes it,
+        // and it should drop because pendingMints was cleared by the
+        // previous balance refresh that included it.
+        controller.updateSubscribedMints([balanceMint])
+        #expect(controller.streamedMints.count == 1)
+        #expect(!controller.streamedMints.contains(newToken))
     }
 
     @Test("Reserve state publisher emits updates when reserve states are saved")
@@ -307,14 +388,16 @@ struct RatesControllerTests {
     func updateSubscribedMints_removesMint() {
         let controller = makeController()
         let mintA = PublicKey.jeffy
-        let mintC = PublicKey.usdf
+        let mintB = PublicKey.usdc
 
-        controller.startStreaming(mints: [mintA, mintC])
+        controller.startStreaming(mints: [mintA, mintB])
         controller.updateSubscribedMints([mintA])
 
-        #expect(controller.streamedMints.count == 1)
+        // mintB is removed, USDF always stays
         #expect(controller.streamedMints.contains(mintA))
-        #expect(!controller.streamedMints.contains(mintC))
+        #expect(controller.streamedMints.contains(.usdf))
+        #expect(!controller.streamedMints.contains(mintB))
+        #expect(controller.streamedMints.count == 2)
     }
 
     // MARK: - Helpers -

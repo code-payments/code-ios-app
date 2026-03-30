@@ -62,8 +62,10 @@ class RatesController {
     /// Streamer for live mint data
     @ObservationIgnored private var liveMintDataStreamer: LiveMintDataStreamer?
 
-    /// Current list of mints being streamed
-    @ObservationIgnored private(set) var streamedMints: [PublicKey] = []
+    /// Current set of mints being streamed.
+    /// Always includes USDF — the server only delivers core mint fiat
+    /// exchange rates when the core mint is in the subscription.
+    @ObservationIgnored private(set) var streamedMints: Set<PublicKey> = [.usdf]
 
     /// Mints added via ``ensureMintSubscribed(_:)`` that may not yet
     /// appear in the user's balance list. Prevents balance refreshes
@@ -130,8 +132,8 @@ class RatesController {
     /// Start streaming live mint data for the specified mints.
     /// Called when user logs in or app becomes active.
     func startStreaming(mints: [PublicKey]) {
-        streamedMints = mints
-        Task { await liveMintDataStreamer?.start(mints: mints) }
+        streamedMints = Set(mints).union([.usdf])
+        Task { await liveMintDataStreamer?.start(mints: streamedMints) }
     }
 
     /// Stop streaming live mint data.
@@ -150,10 +152,7 @@ class RatesController {
     /// Preserves any mints added via ``ensureMintSubscribed(_:)``
     /// that aren't yet reflected in the balance list.
     func updateSubscribedMints(_ mints: [PublicKey]) {
-        var merged = mints
-        for mint in pendingMints where !merged.contains(mint) {
-            merged.append(mint)
-        }
+        let merged = Set(mints).union(pendingMints).union([.usdf])
         // Drop pending mints that are now covered by the balance list
         pendingMints.subtract(mints)
         streamedMints = merged
@@ -175,7 +174,8 @@ class RatesController {
     func ensureMintSubscribed(_ mint: PublicKey) {
         pendingMints.insert(mint)
         guard !streamedMints.contains(mint) else { return }
-        updateSubscribedMints(streamedMints)
+        streamedMints.insert(mint)
+        Task { await liveMintDataStreamer?.updateMints(streamedMints) }
     }
 
     /// Wait for verified state to become available in the cache.

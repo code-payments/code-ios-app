@@ -25,11 +25,15 @@ public actor LiveMintDataStreamer {
     private let verifiedProtoService: VerifiedProtoService
 
     private var streamReference: StreamReference?
-    private var subscribedMints: [PublicKey] = []
+    private var subscribedMints: Set<PublicKey> = []
     private var isStreaming = false
     private var isReconnecting = false
     private var reconnectAttempts = 0
     private var reconnectTask: Task<Void, Never>?
+    /// Set when a subscription update is sent on the existing stream.
+    /// The server typically aborts the stream in response, so the next
+    /// close should reconnect immediately without backoff.
+    private var sentSubscriptionUpdate = false
     private static let maxReconnectDelay: TimeInterval = 30.0
     private static let baseReconnectDelay: TimeInterval = 1.0
 
@@ -48,16 +52,17 @@ public actor LiveMintDataStreamer {
     // MARK: - Public API
 
     /// Start streaming live mint data for the specified mints
-    public func start(mints: [PublicKey]) {
+    public func start(mints: some Collection<PublicKey>) {
+        let mintSet = Set(mints)
         guard !isStreaming else {
             // Already streaming, just update mints if needed
-            if mints != subscribedMints {
-                updateMints(mints)
+            if mintSet != subscribedMints {
+                updateMints(mintSet)
             }
             return
         }
 
-        subscribedMints = mints
+        subscribedMints = mintSet
         isStreaming = true
         openStream()
     }
@@ -73,16 +78,7 @@ public actor LiveMintDataStreamer {
         }
 
         logger.warning("Stream not connected on foreground, forcing reconnect")
-
-        // Cancel any pending backoff reconnect
-        reconnectTask?.cancel()
-        reconnectTask = nil
-        isReconnecting = false
-        reconnectAttempts = 0
-
-        // Tear down and reopen immediately
-        streamReference?.destroy()
-        streamReference = nil
+        resetAndTeardown()
         openStream()
     }
 
@@ -90,6 +86,7 @@ public actor LiveMintDataStreamer {
     public func stop() {
         isStreaming = false
         isReconnecting = false
+        sentSubscriptionUpdate = false
         reconnectAttempts = 0
         reconnectTask?.cancel()
         reconnectTask = nil
@@ -98,21 +95,24 @@ public actor LiveMintDataStreamer {
         logger.debug("Stopped live mint data stream")
     }
 
-    /// Update the list of mints to subscribe to.
+    /// Update the set of mints to subscribe to.
     /// Sends a new request on the existing stream to avoid tearing it down.
-    public func updateMints(_ mints: [PublicKey]) {
+    public func updateMints(_ mints: Set<PublicKey>) {
         guard mints != subscribedMints else { return }
 
         subscribedMints = mints
 
         if isStreaming, let stream = streamReference?.stream {
-            // Send updated mint list on existing stream — no teardown needed
+            // Send updated mint list on existing stream — no teardown needed.
+            // The server may abort the stream in response; sentSubscriptionUpdate
+            // tells handleStreamStatus to reconnect immediately.
             let request = Ocp_Currency_V1_StreamLiveMintDataRequest.with {
                 $0.request = .with {
                     $0.mints = mints.map(\.solanaAccountID)
                 }
             }
             _ = stream.sendMessage(request)
+            sentSubscriptionUpdate = true
             logger.debug("Updated mint subscription to \(mints.count) mints")
         } else if isStreaming {
             // No active stream — open a new one
@@ -223,12 +223,21 @@ public actor LiveMintDataStreamer {
     }
 
     private func handleStreamStatus(_ result: Result<GRPCStatus, Error>) {
+        let wasSubscriptionUpdate = sentSubscriptionUpdate
+        sentSubscriptionUpdate = false
+
         switch result {
         case .success(let status):
             switch status.code {
             case .ok:
                 logger.debug("Stream closed normally, reconnecting")
                 reconnect()
+
+            case .aborted where wasSubscriptionUpdate:
+                // Server aborts the stream after a subscription change.
+                // Reconnect immediately — this is expected, not a failure.
+                logger.debug("Stream aborted after subscription update, reopening")
+                immediateReconnect()
 
             case .unavailable, .deadlineExceeded, .cancelled:
                 logger.warning("Stream closed with \(status.code), reconnecting")
@@ -243,6 +252,25 @@ public actor LiveMintDataStreamer {
             logger.error("Stream error: \(error)")
             reconnect()
         }
+    }
+
+    /// Cancel any pending backoff, tear down the current stream, and
+    /// reset reconnection counters so the next `openStream()` starts fresh.
+    private func resetAndTeardown() {
+        reconnectTask?.cancel()
+        reconnectTask = nil
+        isReconnecting = false
+        reconnectAttempts = 0
+        streamReference?.destroy()
+        streamReference = nil
+    }
+
+    /// Reconnect immediately without backoff. Used when the server closes
+    /// the stream in response to a subscription update — not a real failure.
+    private func immediateReconnect() {
+        guard isStreaming else { return }
+        resetAndTeardown()
+        openStream()
     }
 
     private func reconnect() {
