@@ -97,7 +97,7 @@ git tag v{next-version}
 Ready for dogfooding. Nothing has been pushed.
 
 Please verify on device:
-□ Claim a Cash Link
+□ Claim a Cash Link on an empty account
 □ Scan & Send between 2 devices
 
 Safe to abort. Tell me when you're ready to ship.
