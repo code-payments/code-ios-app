@@ -89,4 +89,16 @@ class BaseUITestCase: XCTestCase {
         return amountEntry
     }
 
+    /// Handles the push notification permission screen if it appears.
+    /// The screen is skipped when notification permissions are already determined,
+    /// so this helper is resilient to both states.
+    func allowPushNotificationsIfNeeded() {
+        let okButton = app.buttons["OK"]
+        guard okButton.waitForExistence(timeout: 2) else { return }
+        okButton.tap()
+
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        waitUntilHittableAndTap(springboard.buttons["Allow"])
+    }
+
 }
