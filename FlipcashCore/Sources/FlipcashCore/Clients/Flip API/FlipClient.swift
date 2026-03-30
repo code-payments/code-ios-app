@@ -50,10 +50,24 @@ public class FlipClient: ObservableObject {
         self.emailService      = EmailService(channel: channel, queue: queue)
         self.profileService    = ProfileService(channel: channel, queue: queue)
         self.settingsService   = SettingsService(channel: channel, queue: queue)
+
+        self.channel.connectivity.delegate = self
     }
     
     deinit {
         logger.debug("Deallocating FlipClient")
+    }
+}
+
+// MARK: - ConnectivityStateDelegate -
+
+extension FlipClient: ConnectivityStateDelegate {
+    public nonisolated func connectivityStateDidChange(from oldState: ConnectivityState, to newState: ConnectivityState) {
+        logger.info("Flip channel: \(oldState) → \(newState)")
+    }
+
+    public nonisolated func connectionStartedQuiescing() {
+        logger.notice("Flip channel quiescing")
     }
 }
 

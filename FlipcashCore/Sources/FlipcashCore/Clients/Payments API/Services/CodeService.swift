@@ -43,20 +43,8 @@ class CodeService<T> where T: GRPCClientType {
         self.channel = channel
         self.queue   = queue
         self.service = T(channel: channel)
-        
-//        self.channel.connectivity.delegate = self
     }
 }
-
-//extension CodeService: ConnectivityStateDelegate {
-//    public func connectivityStateDidChange(from oldState: ConnectivityState, to newState: ConnectivityState) {
-//        trace(.note, components: "## Code ##", "Changed \(oldState) -> \(newState)")
-//    }
-//    
-//    public func connectionStartedQuiescing() {
-//        trace(.note, components: "## Code ##", "Started quiescing")
-//    }
-//}
 
 private let logger = Logger(label: "flipcash.grpc")
 

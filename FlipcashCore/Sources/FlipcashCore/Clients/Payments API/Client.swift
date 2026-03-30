@@ -35,11 +35,13 @@ public class Client: ObservableObject {
             host: network.hostForPayments,
             port: network.port
         )
-        
+
         self.accountService     = AccountInfoService(channel: channel, queue: queue)
         self.transactionService = TransactionService(channel: channel, queue: queue)
         self.currencyService    = CurrencyService(channel: channel, queue: queue)
         self.messagingService   = MessagingService(channel: channel, queue: queue)
+
+        self.channel.connectivity.delegate = self
     }
     
     deinit {
@@ -81,6 +83,18 @@ extension ClientConnection {
         .withKeepalive(.init(interval: .seconds(30), timeout: .seconds(10), permitWithoutCalls: true))
         .withConnectionIdleTimeout(.minutes(5))
         .connect(host: host, port: port)
+    }
+}
+
+// MARK: - ConnectivityStateDelegate -
+
+extension Client: ConnectivityStateDelegate {
+    public nonisolated func connectivityStateDidChange(from oldState: ConnectivityState, to newState: ConnectivityState) {
+        logger.info("Payment channel: \(oldState) → \(newState)")
+    }
+
+    public nonisolated func connectionStartedQuiescing() {
+        logger.notice("Payment channel quiescing")
     }
 }
 
