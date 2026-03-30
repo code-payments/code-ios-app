@@ -7,9 +7,9 @@
 
 import Foundation
 import FlipcashCore
-import Combine
+@preconcurrency import Combine
 
-private let logger = Logger(label: "flipcash.send-cash")
+private nonisolated let logger = Logger(label: "flipcash.send-cash")
 
 /// Orchestrates a peer-to-peer cash transfer through a rendezvous-based
 /// handshake between sender and receiver.

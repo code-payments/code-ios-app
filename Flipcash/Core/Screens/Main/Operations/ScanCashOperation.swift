@@ -7,9 +7,9 @@
 
 import Foundation
 import FlipcashCore
-import Combine
+@preconcurrency import Combine
 
-private let logger = Logger(label: "flipcash.scan-cash")
+private nonisolated let logger = Logger(label: "flipcash.scan-cash")
 
 /// Handles the receiver side of a face-to-face bill scan.
 ///

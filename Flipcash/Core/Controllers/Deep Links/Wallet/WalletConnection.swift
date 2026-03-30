@@ -12,7 +12,7 @@ import FlipcashCore
 import TweetNacl
 import SolanaSwift
 
-private let logger = Logger(label: "flipcash.wallet-connection")
+private nonisolated let logger = Logger(label: "flipcash.wallet-connection")
 
 @MainActor
 @Observable
