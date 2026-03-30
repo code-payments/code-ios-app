@@ -114,9 +114,9 @@ struct AccountSelectionScreen: View {
         .disabled(isSelected(for: account.details))
         .listRowBackground(Color.backgroundMain)
         .padding(20)
-        .swipeActions {
+        .swipeActions(allowsFullSwipe: false) {
             if !isSelected(for: account.details) {
-                Button(role: .destructive) {
+                Button {
                     confirmDelete(account: account.details)
                 } label: {
                     Image.asset(.delete)
