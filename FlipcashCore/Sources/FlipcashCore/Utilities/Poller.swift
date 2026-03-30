@@ -8,6 +8,12 @@
 
 import Foundation
 
+/// Repeating async poller that serializes actions — each invocation
+/// completes before the next sleep begins.
+///
+/// The internal `Task` inherits the caller's actor isolation.
+/// Both current callers are `@MainActor` (Session, SessionAuthenticator),
+/// matching the old `RunLoop.main` behavior.
 public final class Poller: Sendable {
 
     private let task: Task<Void, Never>
