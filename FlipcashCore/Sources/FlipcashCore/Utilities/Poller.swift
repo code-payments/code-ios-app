@@ -8,25 +8,24 @@
 
 import Foundation
 
-public class Poller: ObservableObject {
-    
-    private let timer: Timer
-    
-    public init(seconds: TimeInterval, fireImmediately: Bool = false, action: @Sendable @escaping () -> Void) {
-        let timer = Timer(timeInterval: seconds, repeats: true) { _ in
-            action()
-        }
-        
-        RunLoop.main.add(timer, forMode: .common)
-        self.timer = timer
-        
-        if fireImmediately {
-            action()
+public final class Poller: Sendable {
+
+    private let task: Task<Void, Never>
+
+    public init(seconds: TimeInterval, fireImmediately: Bool = false, action: @Sendable @escaping () async -> Void) {
+        task = Task {
+            if fireImmediately {
+                await action()
+            }
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(seconds))
+                guard !Task.isCancelled else { break }
+                await action()
+            }
         }
     }
-    
+
     deinit {
-        print("Deallocating Poller...")
-        timer.invalidate()
+        task.cancel()
     }
 }
