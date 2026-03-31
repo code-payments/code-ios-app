@@ -98,6 +98,7 @@ Ready for dogfooding. Nothing has been pushed.
 
 Please verify on device:
 □ Claim a Cash Link on an empty account
+□ Buy a currency with Phantom
 □ Scan & Send between 2 devices
 
 Safe to abort. Tell me when you're ready to ship.
