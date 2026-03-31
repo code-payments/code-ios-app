@@ -277,6 +277,9 @@ struct BalanceScreen: View {
             do {
                 try await session.cancelCashLink(giftCardVault: metadata.vault)
             } catch {
+                ErrorReporting.captureError(error, reason: "Failed to cancel cash link", metadata: [
+                    "vault": metadata.vault.base58,
+                ])
                 dialogItem = .init(
                     style: .destructive,
                     title: "Failed to Cancel Transfer",
