@@ -112,9 +112,6 @@ extension Database {
                 t.column(balanceTable.costBasis)
                 t.column(balanceTable.updatedAt)
             })
-
-            // Migration: add costBasis column if it doesn't exist
-            _ = try? writer.run(balanceTable.table.addColumn(balanceTable.costBasis))
         }
 
         try writer.transaction {
@@ -148,13 +145,6 @@ extension Database {
 
                 t.column(mintTable.updatedAt)
             })
-
-            // Migration: add socialLinks and billColors columns if they don't exist
-            _ = try? writer.run(mintTable.table.addColumn(mintTable.socialLinks))
-            _ = try? writer.run(mintTable.table.addColumn(mintTable.billColors))
-
-            // Migration: add createdAt column if it doesn't exist
-            _ = try? writer.run(mintTable.table.addColumn(mintTable.createdAt))
         }
         
         try writer.transaction {
