@@ -19,11 +19,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     let container = Container()
 
-    private var resetInterval: TimeInterval = 60.0
-    private var lastActiveDate: Date?
-
-    private var hasBeenBackgrounded: Bool = false
-
     private var sessionContainer: SessionContainer? {
         if case .loggedIn(let container) = container.sessionAuthenticator.state {
             return container
@@ -76,7 +71,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     /// Replace the window's root view controller with a fresh ContainerScreen.
-    /// Used at launch and when resetting the interface after a long background.
     private func assignHost() {
         guard let window = window else {
             return
@@ -99,12 +93,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func applicationWillResignActive(_ application: UIApplication) {
         logger.info("applicationWillResignActive")
-        lastActiveDate = .now
     }
 
     func applicationDidEnterBackground(_ application: UIApplication) {
-        hasBeenBackgrounded = true
-
         if let sessionContainer {
             sessionContainer.session.didEnterBackground()
         }
@@ -123,24 +114,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
         guard let sessionContainer else { return }
 
-        let isStaleSession = !UIApplication.isInterfaceResetDisabled && (secondsSinceLastActive() ?? 0) > resetInterval
-
-        if isStaleSession {
-            logger.warning("Resetting interface...")
-            assignHost()
-        }
-
-        // Reconnect streams after the reset so the new view hierarchy
-        // doesn't trigger a redundant stream open.
         sessionContainer.session.didBecomeActive()
-    }
-
-    private func secondsSinceLastActive() -> TimeInterval? {
-        guard let lastActiveDate = lastActiveDate else {
-            return nil
-        }
-
-        return Date.now.timeIntervalSince1970 - lastActiveDate.timeIntervalSince1970
     }
 
     // MARK: - Deep Links -
@@ -160,20 +134,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return handleOpenURL(url: url)
     }
 
-    private func handleOpenURL(url: URL, preventUserInterfaceReset: Bool = false) -> Bool {
+    private func handleOpenURL(url: URL) -> Bool {
         Analytics.deeplinkOpened(url: url)
         let action = container.deepLinkController.handle(open: url)
         Analytics.deeplinkParsed(action: action, url: url)
-
-        let shouldResetInterface = Self.shouldResetInterface(
-            hasBeenBackgrounded: hasBeenBackgrounded,
-            action: action,
-            preventUserInterfaceReset: preventUserInterfaceReset
-        )
-
-        if shouldResetInterface {
-            assignHost()
-        }
 
         Task {
             try await action?.executeAction()
@@ -187,8 +151,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             return
         }
 
-        let preventReset = notification.name == .qrDeepLinkReceived
-        _ = handleOpenURL(url: url, preventUserInterfaceReset: preventReset)
+        _ = handleOpenURL(url: url)
     }
 
     // MARK: - Push Notifications -
@@ -205,29 +168,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         logger.error("Push notification registration failed: \(error)")
     }
 
-    // MARK: - Interface Reset -
-
-    /// Determines whether the app should reset its view hierarchy after
-    /// handling a deep link URL. Extracted for testability.
-    ///
-    /// When `action` is `nil` (e.g. wallet callback URLs that don't
-    /// match any Route), we must NOT reset — the URL was already handled
-    /// as a side effect in `DeepLinkController.handle(open:)`.
-    @MainActor static func shouldResetInterface(
-        hasBeenBackgrounded: Bool,
-        action: DeepLinkAction?,
-        preventUserInterfaceReset: Bool
-    ) -> Bool {
-        hasBeenBackgrounded
-            && action?.preventUserInterfaceReset == false
-            && !preventUserInterfaceReset
-    }
-}
-
-// MARK: - UIApplication -
-
-extension UIApplication {
-    static var isInterfaceResetDisabled: Bool = false
 }
 
 // MARK: - Appearance -

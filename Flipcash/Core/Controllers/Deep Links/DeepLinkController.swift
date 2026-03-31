@@ -85,19 +85,11 @@ final class DeepLinkController {
                     clientData = nil
                 }
                 
-                var action = actionForVerificationCode(
+                return actionForVerificationCode(
                     email: email,
                     code: code,
                     clientData: clientData
                 )
-
-                // Only prevent user interface reset when
-                // the onboarding flow is midflight.
-                if case .loggedIn(let container) = sessionAuthenticator.state, container.onrampViewModel.isShowingVerificationFlow {
-                    action.preventUserInterfaceReset = true
-                }
-                
-                return action
             }
             
         case .token(let mint):
@@ -156,9 +148,7 @@ extension DeepLinkController {
 
 @MainActor
 struct DeepLinkAction {
-    
-    var preventUserInterfaceReset: Bool = false
-    
+
     let kind: Kind
     
 //    var confirmationDescription: ConfirmationDescription? {

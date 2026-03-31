@@ -16,12 +16,7 @@ class OnrampViewModel {
 
     var isOnrampPresented: Bool = false
 
-    var isShowingVerificationFlow: Bool = false {
-        didSet {
-            UIApplication.isInterfaceResetDisabled = isShowingVerificationFlow
-            print("[Onramp] UI Reset: \(isShowingVerificationFlow ? "disabled" : "enabled")")
-        }
-    }
+    var isShowingVerificationFlow: Bool = false
 
     var isShowingAmountEntryScreen: Bool = false
 
