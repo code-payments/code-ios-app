@@ -127,7 +127,7 @@ case .insufficient(let shortfall):
 | `@AppStorage` wrapping `UserDefaults` manually | `@AppStorage` directly | For simple per-screen preferences |
 | `onChange(of:perform:)` (deprecated) | `onChange(of:initial:_:)` | Use `initial: true` when the handler should also fire on appear |
 
-Existing `ObservableObject` classes (`Session`, `Client`, controllers) stay as-is until their dependents are migrated. Do not mix observation systems in a single class — see memory notes on `@Observable` vs `ObservableObject`.
+Existing `ObservableObject` classes (`Session`, `Client`, controllers) stay as-is until their dependents are migrated. A single class must use one system — either `ObservableObject` with `@Published`, or `@Observable`. Mixing causes silent observation failures.
 
 ### Generated Files
 
@@ -156,6 +156,12 @@ Existing `ObservableObject` classes (`Session`, `Client`, controllers) stay as-i
 - ❌ Individual package `Package.resolved` files - ignored by git
 
 This ensures deterministic builds across all developers and CI systems while minimizing merge conflicts. The workspace Package.resolved is the single source of truth for all dependency versions.
+
+---
+
+## Getting Started
+
+Open `Code.xcodeproj` in Xcode 16.x. Swift packages resolve automatically on first open. Build and run the `Flipcash` scheme.
 
 ---
 
@@ -217,7 +223,7 @@ let stream = service.openMessageStream(request, callOptions: .streaming) { respo
 
 | Technology | Version/Notes |
 |------------|---------------|
-| Swift | 6.1 |
+| Swift | 6.0 (language mode); Xcode toolchain 16.x |
 | iOS Minimum | 17.0 |
 | UI Framework | SwiftUI (primary), UIKit (AppDelegate, navigation) |
 | Testing | Swift Testing (`import Testing`) |
@@ -241,64 +247,13 @@ CodeScanner/       # C++/OpenCV circular code scanning (see below)
 
 ## CodeScanner Project
 
-CodeScanner is a C++ library for encoding, decoding, and scanning custom circular 2D codes ("Kik Codes"). See `.claude/spec.md` for the complete technical specification.
+C++ library for encoding, decoding, and scanning custom circular 2D codes ("Kik Codes"). Uses OpenCV 4.10.0 and a bundled ZXing Reed-Solomon subset.
 
-### Quick Reference
-
-**Location:** `CodeScanner/`
-
-**Dependencies:**
-- OpenCV 4.10.0 (~100MB XCFramework in `CodeScanner/Frameworks/`)
-- ZXing Reed-Solomon subset (bundled in `src/zxing/`)
-
-**Public API (Objective-C):**
-```objc
-@interface KikCodes : NSObject
-+ (NSData *)encode:(NSData *)data;   // 20-byte → 35-byte
-+ (NSData *)decode:(NSData *)data;   // 35-byte → 20-byte
-+ (nullable NSData *)scan:(NSData *)data width:(NSInteger)width height:(NSInteger)height quality:(KikCodesScanQuality)quality;
-@end
-```
-
-**Swift Usage:**
-```swift
-import CodeScanner
-
-// Scanning
-if let data = KikCodes.scan(yPlaneData, width: width, height: height, quality: .best) {
-    let payload = KikCodes.decode(data)
-    // Parse payload...
-}
-
-// Encoding
-let encoded = KikCodes.encode(payloadData)  // Ready for rendering
-```
-
-**Key Files:**
-- `CodeScanner/CodeScanner/Code.h` - Objective-C public interface
-- `CodeScanner/CodeScanner/src/scanner.cpp` - Core OpenCV scanning (~1000 lines)
-- `CodeScanner/CodeScanner/src/kikcode_encoding.cpp` - Encoding/decoding logic
-
-**Integration:**
-- Linked as embedded framework in Code.xcodeproj
-- Used by `Flipcash/Core/Screens/Main/Bill/Extraction/CodeExtractor.swift`
-- Used by `Flipcash/Core/Screens/Main/Bill/CashCode.Payload+Encoding.swift`
-
-**Known Issues:**
-- All C++ files compiled with `-w` to suppress warnings
-- JNI files included but not used (Android artifacts)
-
-**OpenCV 4.10.0 Upgrade (December 2025):**
-- Updated from OpenCV 2.4.13.7 to 4.10.0
-- API changes: `CV_*` macros → `cv::` namespace enums
-- Built as XCFramework with minimal modules (core, imgproc, calib3d, features2d)
-
-**Updating OpenCV:**
-```bash
-cd CodeScanner
-./Scripts/build_opencv.sh --version 4.11.0  # or latest
-```
-See `.claude/spec.md` for detailed build documentation.
+- **Location:** `CodeScanner/`
+- **Public API:** `CodeScanner/CodeScanner/Code.h` (`KikCodes` class — encode, decode, scan)
+- **Used by:** `CodeExtractor.swift`, `CashCode.Payload+Encoding.swift`
+- **Full spec:** `.claude/spec.md` (API details, build docs, OpenCV upgrade history)
+- **Updating OpenCV:** `cd CodeScanner && ./Scripts/build_opencv.sh --version <version>`
 
 ---
 
@@ -468,9 +423,12 @@ Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
 
 ### Before Committing
 
-1. Ensure code compiles: `xcodebuild build -scheme Flipcash`
-2. Run tests: `xcodebuild test -scheme Flipcash -destination '...'`
+1. Code compiles without errors and no new warnings: `xcodebuild build -scheme Flipcash`
+2. Tests pass: `xcodebuild test -scheme Flipcash -destination 'platform=iOS Simulator,name=iPhone 17' -testPlan AllTargets`
 3. Review changes with `git diff`
+4. Module boundaries respected (no `CodeServices` in Flipcash)
+5. Switch statements are exhaustive (no unnecessary `default` cases)
+6. Changes are minimal and focused on the task
 
 ---
 
@@ -478,9 +436,6 @@ Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
 
 | Pitfall | Solution |
 |---------|----------|
-| Importing CodeServices in Flipcash | Use `import FlipcashCore` instead |
-| Using XCTest | Use Swift Testing (`import Testing`) |
-| Using `if case` for enums | Use exhaustive `switch` statements |
 | Modifying generated proto files | Update service files instead |
 | Working on pools/betting code | Feature is deprecated, ignore it |
 | Adding unnecessary abstractions | Keep it simple, solve the current problem |
@@ -489,20 +444,6 @@ Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
 | Canceling/modifying `SendCashOperation` in `dismissCashBill` | **Never** explicitly call `cancel()` or `invalidateMessageStream()` on `SendCashOperation` from `dismissCashBill`. After a grab, the received bill is a **live** `SendCashOperation` that others can scan ("quick give and grab" chain). Setting `sendOperation = nil` is fine (deinit cleans up), but explicit teardown kills a live bill. The operation's `complete()` method handles stream teardown on success/failure. |
 | Using default `CallOptions` for streaming RPCs | Streaming RPCs (`openMessageStream`, `submitIntent`, `streamLiveMintData`, `statefulSwap`) must use `callOptions: .streaming`. The default 15s timeout silently kills long-lived streams. See [gRPC Call Options](#grpc-call-options). |
 | Showing a received bill without `verifiedState` | Every call to `showCashBill` must pass `verifiedState` — even for `received: true` bills. The received bill creates a live `SendCashOperation` for the "quick give and grab" chain. Without `verifiedState`, launchpad currency transfers fail with "reserve state is required". Both `receiveCash` (scan) and `receiveCashLink` (deep link) must provide it. |
-
----
-
-## Verification Checklist
-
-Before completing any task:
-
-- [ ] Code compiles without errors
-- [ ] No new warnings introduced
-- [ ] Tests pass (if applicable)
-- [ ] Module boundaries respected (no CodeServices in Flipcash)
-- [ ] Using Swift Testing, not XCTest
-- [ ] Switch statements are exhaustive (no unnecessary `default` cases)
-- [ ] Changes are minimal and focused on the task
 
 ---
 
@@ -563,7 +504,7 @@ Fallback `xcodebuild` commands (when MCP is unavailable):
 xcodebuild build -scheme Flipcash -destination 'generic/platform=iOS'
 
 # Test
-xcodebuild test -scheme Flipcash -destination 'platform=iOS Simulator,name=iPhone 16'
+xcodebuild test -scheme Flipcash -destination 'platform=iOS Simulator,name=iPhone 17'
 
 # Clean
 xcodebuild clean -scheme Flipcash
