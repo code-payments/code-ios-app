@@ -227,9 +227,12 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
     
     private func handleTargetUrlIfNeeded(_ urlString: String?) {
         guard let urlString, let url = URL(string: urlString) else {
+            logger.debug("No target_url in notification payload")
             return
         }
-        
+
+        logger.debug("Forwarding notification target_url to deep link handler", metadata: ["url": "\(url.sanitizedForAnalytics)"])
+
         Task { @MainActor in
             NotificationCenter.default.post(
                 name: .pushDeepLinkReceived,

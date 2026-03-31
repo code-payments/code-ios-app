@@ -181,6 +181,8 @@ struct DeepLinkAction {
     // MARK: - Execute -
     
     func executeAction() async throws {
+        logger.info("Executing deep link action", metadata: ["kind": "\(kind.analyticsName)"])
+
         switch kind {
         case .accessKey(let mnemonic):
             if case .loggedIn(let sessionContainer) = sessionAuthenticator.state {

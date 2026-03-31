@@ -83,17 +83,6 @@ struct BalanceScreen: View {
 
     private func onAppear() {
         historyController.sync()
-        handlePendingCurrencyInfo()
-    }
-
-    private func handlePendingCurrencyInfo() {
-        guard let mint = session.pendingCurrencyInfoMint else { return }
-
-        Analytics.tokenInfoOpened(from: .openedFromDeeplink, mint: mint)
-        selectedMint = mint
-
-        // Clear the pending mint
-        session.pendingCurrencyInfoMint = nil
     }
     
     // MARK: - Body -
@@ -120,6 +109,12 @@ struct BalanceScreen: View {
                 }
             }
             .onAppear(perform: onAppear)
+            .onChange(of: session.pendingCurrencyInfoMint, initial: true) { _, mint in
+                guard let mint else { return }
+                Analytics.tokenInfoOpened(from: .openedFromDeeplink, mint: mint)
+                selectedMint = mint
+                session.pendingCurrencyInfoMint = nil
+            }
             .navigationTitle("Wallet")
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(item: $selectedMint) { mint in
