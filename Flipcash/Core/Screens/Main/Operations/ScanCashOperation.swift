@@ -7,9 +7,9 @@
 
 import Foundation
 import FlipcashCore
-import Combine
+@preconcurrency import Combine
 
-private let logger = Logger(label: "flipcash.scan-cash")
+private nonisolated let logger = Logger(label: "flipcash.scan-cash")
 
 /// Handles the receiver side of a face-to-face bill scan.
 ///
@@ -45,7 +45,8 @@ class ScanCashOperation {
     private let owner: AccountCluster
     private let payload: CashCode.Payload
     
-    private var messageStream: AnyCancellable? = nil
+    // nonisolated(unsafe): AnyCancellable.cancel() is thread-safe, accessed in deinit
+    private nonisolated(unsafe) var messageStream: AnyCancellable? = nil
     
     // MARK: - Init -
     

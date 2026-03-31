@@ -12,11 +12,8 @@ import FlipcashCore
 struct ConfirmPhoneScreen: View {
     
     @Environment(NotificationController.self) private var notificationController
-
-    @StateObject private var timer = CountdownTimer(seconds: 60)
-    
+    @State private var countdownEnd: Date?
     @Bindable private var viewModel: OnrampViewModel
-    
     @FocusState private var isFocused: Bool
     
     // MARK: - Init -
@@ -47,17 +44,17 @@ struct ConfirmPhoneScreen: View {
                 
                 let text = "An SMS message was sent to your phone number with a verification code. Please enter the verification code above."
                 
-                Group {
-                    if timer.state == .running {
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    if let countdownEnd, context.date < countdownEnd {
+                        let remaining = Int(ceil(countdownEnd.timeIntervalSince(context.date)))
                         VStack(spacing: 15) {
                             Text(text)
                             VStack(spacing: 0) {
-                                Text("Didn't get an SMS at \(viewModel.phone?.national ?? "")")
-                                Text("Request a new one in \(timer.formattedTimeString)") // <- matching this
+                                Text("Didn't get an SMS at \(viewModel.phone?.national ?? "")?")
+                                Text("Request a new one in \(String(format: "%02d:%02d", (remaining / 60) % 60, remaining % 60))")
                             }
                         }
                         .multilineTextAlignment(.center)
-                        
                     } else {
                         VStack(spacing: 15) {
                             Text(text)
@@ -65,7 +62,7 @@ struct ConfirmPhoneScreen: View {
                                 Task {
                                     do {
                                         try await viewModel.resendCodeAction()
-                                        timer.restart()
+                                        countdownEnd = Date.now.addingTimeInterval(60)
                                     }
                                 }
                             } label: {
@@ -102,7 +99,7 @@ struct ConfirmPhoneScreen: View {
         .navigationTitle("Verify Phone Number")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
-            timer.start()
+            countdownEnd = Date.now.addingTimeInterval(60)
             isFocused = true
         }
         .onChange(of: viewModel.enteredCode) { _, _ in

@@ -31,7 +31,8 @@ class NotificationController {
     /// Incremented when a message notification is received.
     private(set) var messageReceived:   Int = 0
 
-    @ObservationIgnored private var observers: [Any] = []
+    // nonisolated(unsafe): removeObserver is thread-safe, accessed in deinit
+    @ObservationIgnored private nonisolated(unsafe) var observers: [Any] = []
 
     // MARK: - Init -
 
@@ -49,7 +50,7 @@ class NotificationController {
         }
     }
 
-    private func observe(_ name: Notification.Name, handler: @escaping (NotificationController) -> Void) {
+    private func observe(_ name: Notification.Name, handler: @MainActor @Sendable @escaping (NotificationController) -> Void) {
         let token = NotificationCenter.default.addObserver(
             forName: name,
             object: nil,

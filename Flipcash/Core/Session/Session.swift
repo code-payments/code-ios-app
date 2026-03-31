@@ -449,9 +449,7 @@ class Session {
     
     private func registerPoller() {
         poller = Poller(seconds: 10, fireImmediately: true) { [weak self] in
-            Task {
-                try await self?.poll()
-            }
+            try? await self?.poll()
         }
     }
     
