@@ -79,10 +79,6 @@ public final class WalletConnection {
     // MARK: - Receive -
 
     func didReceiveURL(url: URL) {
-        // The user has returned from the external wallet — re-enable interface reset
-        // regardless of outcome (success, cancel, error).
-        UIApplication.isInterfaceResetDisabled = false
-
         if let code = url.queryItemValue(for: "errorCode") {
             if code == "4001" {
                 Analytics.track(event: Analytics.WalletEvent.cancel)
@@ -270,10 +266,8 @@ public final class WalletConnection {
         }
     }
     
-    /// Opens the external wallet via deep link and disables interface reset while the user is away.
-    /// The flag is cleared in `didReceiveURL` when Phantom redirects back.
+    /// Opens the external wallet via deep link.
     private func openExternalWallet(_ url: URL) {
-        UIApplication.isInterfaceResetDisabled = true
         url.openWithApplication()
     }
 

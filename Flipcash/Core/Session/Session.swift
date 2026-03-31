@@ -976,8 +976,6 @@ class Session {
     }
     
     private func showCashLinkShareSheet(giftCard: GiftCardCluster, exchangedFiat: ExchangedFiat) {
-        UIApplication.isInterfaceResetDisabled = true
-
         let item = ShareCashLinkItem(giftCard: giftCard, exchangedFiat: exchangedFiat)
         ShareSheet.present(activityItem: item) { [weak self] didShare in
             guard let self = self else { return }
@@ -1054,8 +1052,6 @@ class Session {
         presentationState = .hidden(style)
         billState = .default()
         valuation = nil
-
-        UIApplication.isInterfaceResetDisabled = false
 
         // Consume toast after bill state is cleared
         // so isShowingBill returns false
