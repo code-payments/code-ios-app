@@ -51,7 +51,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             UIView.setAnimationsEnabled(false)
         }
 
-        assignHost()
+        installRootScreen()
 
         NotificationCenter.default.addObserver(
             self,
@@ -70,8 +70,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return true
     }
 
-    /// Replace the window's root view controller with a fresh ContainerScreen.
-    private func assignHost() {
+    /// Sets up the window with the root ContainerScreen.
+    private func installRootScreen() {
         guard let window = window else {
             return
         }
