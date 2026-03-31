@@ -56,12 +56,12 @@ struct ConfirmEmailScreen: View {
                 
                 Spacer()
                 
-                TimelineView(.periodic(from: .now, by: 1)) { context in
-                    if let countdownEnd, context.date < countdownEnd {
-                        let remaining = Int(ceil(countdownEnd.timeIntervalSince(context.date)))
+                Group {
+                    if let countdownEnd {
                         VStack(spacing: 0) {
                             Text("Didn't get an email?")
-                            Text("Request a new one in \(String(format: "%02d:%02d", (remaining / 60) % 60, remaining % 60))")
+                            (Text("Request a new one in ") + Text(timerInterval: .now...countdownEnd, countsDown: true))
+                                .contentTransition(.numericText())
                         }
                         .multilineTextAlignment(.center)
                     } else {
@@ -108,6 +108,18 @@ struct ConfirmEmailScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             countdownEnd = Date.now.addingTimeInterval(60)
+        }
+        .task(id: countdownEnd) {
+            guard let countdownEnd else { return }
+            let remaining = countdownEnd.timeIntervalSinceNow
+            guard remaining > 0 else {
+                self.countdownEnd = nil
+                return
+            }
+            try? await Task.sleep(for: .seconds(remaining))
+            if !Task.isCancelled {
+                self.countdownEnd = nil
+            }
         }
         .onChange(of: viewModel.isResending) { _, isResending in
             if !isResending {

@@ -44,14 +44,14 @@ struct ConfirmPhoneScreen: View {
                 
                 let text = "An SMS message was sent to your phone number with a verification code. Please enter the verification code above."
                 
-                TimelineView(.periodic(from: .now, by: 1)) { context in
-                    if let countdownEnd, context.date < countdownEnd {
-                        let remaining = Int(ceil(countdownEnd.timeIntervalSince(context.date)))
+                Group {
+                    if let countdownEnd {
                         VStack(spacing: 15) {
                             Text(text)
                             VStack(spacing: 0) {
                                 Text("Didn't get an SMS at \(viewModel.phone?.national ?? "")?")
-                                Text("Request a new one in \(String(format: "%02d:%02d", (remaining / 60) % 60, remaining % 60))")
+                                (Text("Request a new one in ") + Text(timerInterval: .now...countdownEnd, countsDown: true))
+                                    .contentTransition(.numericText())
                             }
                         }
                         .multilineTextAlignment(.center)
@@ -101,6 +101,18 @@ struct ConfirmPhoneScreen: View {
         .onAppear {
             countdownEnd = Date.now.addingTimeInterval(60)
             isFocused = true
+        }
+        .task(id: countdownEnd) {
+            guard let countdownEnd else { return }
+            let remaining = countdownEnd.timeIntervalSinceNow
+            guard remaining > 0 else {
+                self.countdownEnd = nil
+                return
+            }
+            try? await Task.sleep(for: .seconds(remaining))
+            if !Task.isCancelled {
+                self.countdownEnd = nil
+            }
         }
         .onChange(of: viewModel.enteredCode) { _, _ in
             if viewModel.isCodeComplete {
