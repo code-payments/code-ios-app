@@ -149,19 +149,17 @@ private class _BillCanvasController: UIViewController {
     }
     
     private func setupHostController() {
-        let host = SafeHostingController(rootView: AnyView(content(bill: bill)))
-        
+        let host = UIHostingController(rootView: AnyView(content(bill: bill)))
+        host.safeAreaRegions = []
+
         addChild(host)
         view.addSubview(host.view)
         host.didMove(toParent: self)
-        
+
         view.backgroundColor = .clear
         host.view.backgroundColor = .clear
         
         self.host = host
-        
-//        view.backgroundColor = .red.withAlphaComponent(0.5)
-//        host.view.backgroundColor = .blue.withAlphaComponent(0.5)
         
         resize()
         layoutCenter()
@@ -490,36 +488,3 @@ extension CGPoint {
     }
 }
 
-// MARK: - SafeHostingController -
-
-private class SafeHostingController<Content> : UIHostingController<Content> where Content : View {
-    override public init(rootView: Content) {
-        super.init(rootView: rootView)
-        
-        disableSafeArea()
-    }
-    
-    required init?(coder aDecoder: NSCoder) { fatalError() }
-    
-    func disableSafeArea() {
-        guard let viewClass = object_getClass(view) else { return }
-        
-        let viewSubclassName = String(cString: class_getName(viewClass)).appending("_IgnoreSafeArea")
-        if let viewSubclass = NSClassFromString(viewSubclassName) {
-            object_setClass(view, viewSubclass)
-        } else {
-            guard let viewClassNameUtf8 = (viewSubclassName as NSString).utf8String else { return }
-            guard let viewSubclass = objc_allocateClassPair(viewClass, viewClassNameUtf8, 0) else { return }
-            
-            if let method = class_getInstanceMethod(UIView.self, #selector(getter: UIView.safeAreaInsets)) {
-                let safeAreaInsets: @convention(block) (AnyObject) -> UIEdgeInsets = { _ in
-                    return .zero
-                }
-                class_addMethod(viewSubclass, #selector(getter: UIView.safeAreaInsets), imp_implementationWithBlock(safeAreaInsets), method_getTypeEncoding(method))
-            }
-            
-            objc_registerClassPair(viewSubclass)
-            object_setClass(view, viewSubclass)
-        }
-    }
-}
