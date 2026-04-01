@@ -8,19 +8,19 @@ import FlipcashUI
 
 struct CurrencyDescriptionScreen: View {
     let currencyName: String
-    let selectedIcon: Int
+    let selectedImage: UIImage?
     @Binding var currencyDescription: String
     let namespace: Namespace.ID
+    let onContinue: () -> Void
 
     @FocusState private var isFocused: Bool
 
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(spacing: 20) {
-                // Geometry-matched header
                 CurrencyHeader(
                     currencyName: currencyName,
-                    iconName: CurrencyCreationIcons.name(for: selectedIcon),
+                    selectedImage: selectedImage,
                     namespace: namespace
                 )
                 .padding(.top, 20)
@@ -36,7 +36,6 @@ struct CurrencyDescriptionScreen: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                // Description input
                 InputContainer(size: .custom(120)) {
                     TextEditor(text: $currencyDescription)
                         .font(.appTextBody)
@@ -49,8 +48,8 @@ struct CurrencyDescriptionScreen: View {
 
                 Spacer()
 
-                NavigationLink(value: CurrencyCreationPath.billCreation) {
-                    Text("Continue")
+                Button("Next") {
+                    onContinue()
                 }
                 .buttonStyle(.filled)
                 .disabled(currencyDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -58,30 +57,33 @@ struct CurrencyDescriptionScreen: View {
             }
             .padding(.horizontal, 20)
         }
-        .navigationTitle("Description")
-        .navigationBarTitleDisplayMode(.inline)
         .onAppear { isFocused = true }
     }
 }
 
 // MARK: - CurrencyHeader
 
-/// Reusable header showing the currency icon + name with geometry matching.
-/// Used on screens 4+ where both icon and name are displayed.
 private struct CurrencyHeader: View {
     let currencyName: String
-    let iconName: String
+    let selectedImage: UIImage?
     let namespace: Namespace.ID
 
     var body: some View {
         HStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            Circle()
                 .fill(Color(white: 0.15))
                 .frame(width: 44, height: 44)
                 .overlay {
-                    Image(systemName: iconName)
-                        .font(.system(size: 18))
-                        .foregroundStyle(Color.textMain)
+                    if let image = selectedImage {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFill()
+                            .clipShape(Circle())
+                    } else {
+                        Image(systemName: "photo")
+                            .font(.system(size: 18))
+                            .foregroundStyle(Color.textMain)
+                    }
                 }
                 .matchedGeometryEffect(id: "currencyIcon", in: namespace)
 

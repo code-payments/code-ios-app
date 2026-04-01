@@ -11,6 +11,7 @@ import SwiftUI
 extension Font {
     public static let appDisplayLarge:  Font = .default(size: 55, weight: .bold)
     public static let appDisplayMedium: Font = .default(size: 40, weight: .bold)
+    public static let appDisplayCompact: Font = .default(size: 30, weight: .bold)
     public static let appDisplaySmall:  Font = .default(size: 24, weight: .bold)
     public static let appDisplayXS:     Font = .default(size: 20, weight: .bold)
     

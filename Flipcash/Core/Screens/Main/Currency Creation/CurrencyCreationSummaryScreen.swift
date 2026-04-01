@@ -12,23 +12,24 @@ struct CurrencyCreationSummaryScreen: View {
 
     var body: some View {
         Background(color: .backgroundMain) {
-            VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .center, spacing: 0) {
                 Text("Create Your Currency")
-                    .font(.appDisplaySmall)
+                    .font(.appDisplayCompact)
                     .foregroundStyle(Color.textMain)
-                    .padding(.top, 20)
 
                 Text("Launch your own currency in minutes.\nReady to use right away.")
                     .font(.appTextSmall)
                     .foregroundStyle(Color.textSecondary)
                     .padding(.top, 12)
+                    .multilineTextAlignment(.center)
 
                 CreationStepsList()
-                    .padding(.top, 30)
+                    .padding(.top, 45)
+                    .padding(.horizontal, 16)
 
                 Spacer()
 
-                NavigationLink(value: CurrencyCreationPath.name) {
+                NavigationLink(value: CurrencyCreationPath.steps) {
                     Text("Get Started")
                 }
                 .buttonStyle(.filled)
@@ -39,11 +40,7 @@ struct CurrencyCreationSummaryScreen: View {
         .navigationBarBackButtonHidden(true)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Button { dismiss() } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(Color.textMain)
-                }
+                ToolbarCloseButton(action: dismiss.callAsFunction)
             }
         }
     }
@@ -54,11 +51,11 @@ struct CurrencyCreationSummaryScreen: View {
 private struct CreationStepsList: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            StepRow(iconName: "textformat", title: "Name", subtitle: "Pick a name for your currency")
-            StepRow(iconName: "photo", title: "Icon", subtitle: "Choose an image")
-            StepRow(iconName: "pencil.line", title: "Description", subtitle: "Describe your currency")
-            StepRow(iconName: "paintbrush.fill", title: "Cash Design", subtitle: "Customize the look")
-            StepRow(iconName: "banknote.fill", title: "Purchase $20 USD", subtitle: "Buy the first $20 of your currency", isLast: true)
+            StepRow(icon: .CurrencyCreation.name, title: "Name", subtitle: "Pick a name for your currency")
+            StepRow(icon: .CurrencyCreation.icon, title: "Icon", subtitle: "Choose an image")
+            StepRow(icon: .CurrencyCreation.description, title: "Description", subtitle: "Describe your currency")
+            StepRow(icon: .CurrencyCreation.cash, title: "Cash Design", subtitle: "Customize the look")
+            StepRow(icon: .CurrencyCreation.purchase, title: "Purchase $20 USD", subtitle: "Buy the first $20 of your currency", isLast: true)
         }
     }
 }
@@ -66,27 +63,41 @@ private struct CreationStepsList: View {
 // MARK: - StepRow
 
 private struct StepRow: View {
-    let iconName: String
+    let icon: ImageResource
     let title: String
     let subtitle: String
     var isLast: Bool = false
 
     var body: some View {
-        HStack(alignment: .top, spacing: 16) {
+        HStack(alignment: .top, spacing: 30) {
             VStack(spacing: 0) {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color(white: 0.15))
-                    .frame(width: 50, height: 50)
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(.white.opacity(0.16))
+                    .frame(width: 48, height: 48)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                        .inset(by: 0.5)
+                        .stroke(.white.opacity(0.1), lineWidth: 1)
+                    )
                     .overlay {
-                        Image(systemName: iconName)
-                            .font(.system(size: 20))
+                        Image(icon)
+                            .renderingMode(.template)
                             .foregroundStyle(Color.textMain)
                     }
 
                 if !isLast {
                     Rectangle()
-                        .fill(Color(white: 0.25))
-                        .frame(width: 1, height: 30)
+                        .fill(
+                            LinearGradient(
+                                stops: [
+                                    Gradient.Stop(color: Color(white: 0.45), location: 0.00),
+                                    Gradient.Stop(color: Color(red: 0.3, green: 0.3, blue: 0.3), location: 1.00),
+                                ],
+                                startPoint: UnitPoint(x: 0.5, y: 0),
+                                endPoint: UnitPoint(x: 0.5, y: 1)
+                            )
+                        )
+                        .frame(width: 1, height: 45)
                 }
             }
 
@@ -99,8 +110,6 @@ private struct StepRow: View {
                     .font(.appTextSmall)
                     .foregroundStyle(Color.textSecondary)
             }
-            .padding(.top, 12)
-
             Spacer()
         }
     }

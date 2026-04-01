@@ -43,6 +43,7 @@ struct CurrencyDiscoveryList: View {
                     }
                 } else {
                     ForEach(mints.indexed(), id: \.element.address) { item in
+                        let _ = print(item.element.address, item.element.name)
                         Button {
                             selectedMint = item.element.address
                         } label: {

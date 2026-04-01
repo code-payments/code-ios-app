@@ -8,9 +8,7 @@ import FlipcashCore
 import FlipcashUI
 
 enum CurrencyCreationPath: Hashable {
-    case name
-    case icon
-    case description
+    case steps
     case billCreation
     case confirmation
 }
@@ -18,10 +16,9 @@ enum CurrencyCreationPath: Hashable {
 struct CurrencyCreationScreen: View {
     @State private var path: [CurrencyCreationPath] = []
     @State private var currencyName: String = ""
-    @State private var selectedIcon: Int = 0
+    @State private var selectedImage: UIImage?
     @State private var currencyDescription: String = ""
     @State private var backgroundColors: [Color] = [Color(white: 0.1)]
-    @Namespace private var animation
 
     @Environment(\.dismiss) private var dismiss
 
@@ -30,23 +27,12 @@ struct CurrencyCreationScreen: View {
             CurrencyCreationSummaryScreen()
                 .navigationDestination(for: CurrencyCreationPath.self) { step in
                     switch step {
-                    case .name:
-                        CurrencyNameScreen(
+                    case .steps:
+                        CreationStepsContainer(
                             currencyName: $currencyName,
-                            namespace: animation
-                        )
-                    case .icon:
-                        CurrencyIconScreen(
-                            currencyName: currencyName,
-                            selectedIcon: $selectedIcon,
-                            namespace: animation
-                        )
-                    case .description:
-                        CurrencyDescriptionScreen(
-                            currencyName: currencyName,
-                            selectedIcon: selectedIcon,
+                            selectedImage: $selectedImage,
                             currencyDescription: $currencyDescription,
-                            namespace: animation
+                            onComplete: { path.append(.billCreation) }
                         )
                     case .billCreation:
                         CurrencyBillCreationScreen(
@@ -61,20 +47,5 @@ struct CurrencyCreationScreen: View {
                     }
                 }
         }
-    }
-}
-
-/// Temporary placeholder — replaced screen-by-screen in subsequent tasks.
-private struct PlaceholderScreen: View {
-    let title: String
-
-    var body: some View {
-        Background(color: .backgroundMain) {
-            Text(title)
-                .font(.appDisplaySmall)
-                .foregroundStyle(Color.textMain)
-        }
-        .navigationTitle(title)
-        .navigationBarTitleDisplayMode(.inline)
     }
 }
