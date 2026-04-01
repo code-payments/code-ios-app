@@ -147,6 +147,17 @@ struct ScanScreen: View {
         }
         .dialog(item: $session.dialogItem)
         .dialog(item: $giveViewModel.dialogItem)
+        // Dismiss all presented sheets when a bill is about to appear.
+        // Bills render in ScanScreen's ZStack, so any sheet on top
+        // (Settings, Balance, Give) would obscure them. This ensures
+        // cash links received via push notifications or deep links
+        // are always visible regardless of the current navigation state.
+        .onChange(of: session.presentationState.isPresenting) { _, isPresenting in
+            guard isPresenting else { return }
+            isShowingSettings = false
+            isShowingBalance = false
+            giveViewModel.isPresented = false
+        }
     }
     
     @ViewBuilder private func cameraViewport() -> some View {

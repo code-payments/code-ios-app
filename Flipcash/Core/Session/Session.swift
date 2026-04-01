@@ -835,6 +835,10 @@ class Session {
     }
     
     func showCashBill(_ billDescription: BillDescription) {
+        // Clear pending navigation so deep link triggers don't
+        // re-present sheets after the bill dismisses them.
+        pendingCurrencyInfoMint = nil
+
         let operation = SendCashOperation(
             client: client,
             database: database,
