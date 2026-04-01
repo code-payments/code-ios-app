@@ -35,7 +35,11 @@ struct CurrencyCreationScreen: View {
                             namespace: animation
                         )
                     case .icon:
-                        PlaceholderScreen(title: "Icon")
+                        CurrencyIconScreen(
+                            currencyName: currencyName,
+                            selectedIcon: $selectedIcon,
+                            namespace: animation
+                        )
                     case .description:
                         PlaceholderScreen(title: "Description")
                     case .billCreation:
