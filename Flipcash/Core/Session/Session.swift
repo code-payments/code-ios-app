@@ -46,7 +46,8 @@ class Session {
     /// Post-transaction amount display, shown as a sheet.
     var valuation: BillValuation? = nil
 
-    /// Transient success/error notification.
+    /// The currently visible balance-change toast, or `nil` when none is shown.
+    /// Set by ``consumeToast()`` and cleared after a 3-second display window.
     var toast: Toast? = nil
 
     /// App-wide modal dialog (confirmations, errors). Presented by
@@ -211,6 +212,9 @@ class Session {
     @ObservationIgnored private var scanOperation: ScanCashOperation?
     @ObservationIgnored private var sendOperation: SendCashOperation?
 
+    /// Buffered toasts waiting to be displayed. Observation is ignored because
+    /// the queue is an internal detail — only the published ``toast`` property
+    /// drives UI updates.
     @ObservationIgnored private var toastQueue = ToastQueue()
 
     private var updateableBalances: Updateable<[StoredBalance]>!
@@ -550,18 +554,28 @@ class Session {
     }
     
     // MARK: - Toast -
-    
+
+    /// Enqueues a toast and kicks off consumption if no toast is currently visible.
     private func show(toast: Toast) {
         enqueue(toast: toast)
         if self.toast == nil {
             consumeToast()
         }
     }
-    
+
+    /// Adds a toast to the queue without triggering consumption.
+    ///
+    /// Preferred over ``show(toast:)`` when consumption will be triggered
+    /// externally (e.g. after a bill is dismissed via ``dismissCashBill``).
     private func enqueue(toast: Toast) {
         toastQueue.insert(toast)
     }
-    
+
+    /// Pops the next toast from the queue and displays it for 3 seconds.
+    ///
+    /// Consumption is deferred while a bill is on screen — ``dismissCashBill``
+    /// calls this method once the bill is cleared so queued toasts resume.
+    /// After each toast, a 1-second gap separates consecutive notifications.
     private func consumeToast() {
         guard toastQueue.hasToasts else {
             return
@@ -768,6 +782,7 @@ class Session {
 
                 updatePostTransaction()
 
+                // Toast: user grabbed cash by scanning a bill (+amount)
                 enqueue(toast: .init(
                     amount: metadata.exchangedFiat.converted,
                     isDeposit: true
@@ -941,6 +956,7 @@ class Session {
         operation.start { [weak self] result in
             switch result {
             case .success:
+                // Toast: someone grabbed the user's bill (-amount)
                 self?.enqueue(toast: .init(
                     amount: billDescription.exchangedFiat.converted,
                     isDeposit: false
@@ -1015,7 +1031,8 @@ class Session {
             let completeSend = {
                 _ = Task {
                     try await Task.delay(milliseconds: 250)
-                    
+
+                    // Toast: user confirmed sending a cash link (-amount)
                     self.enqueue(toast: .init(
                         amount: exchangedFiat.converted,
                         isDeposit: false
@@ -1262,6 +1279,7 @@ class Session {
 
                 updatePostTransaction()
 
+                // Toast: user redeemed a cash link (+amount)
                 enqueue(toast: .init(
                     amount: exchangedFiat.converted,
                     isDeposit: true
