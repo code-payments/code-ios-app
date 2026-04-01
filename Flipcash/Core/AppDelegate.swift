@@ -17,6 +17,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
 
+    private var dialogWindow: DialogWindow?
+
     let container = Container()
 
     private var sessionContainer: SessionContainer? {
@@ -87,6 +89,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         window.overrideUserInterfaceStyle = .dark
 
         window.makeKeyAndVisible()
+
+        if let windowScene = window.windowScene {
+            dialogWindow = DialogWindow(
+                sessionAuthenticator: container.sessionAuthenticator,
+                windowScene: windowScene
+            )
+        }
     }
 
     // MARK: - Lifecycle -

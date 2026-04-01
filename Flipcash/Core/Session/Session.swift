@@ -49,7 +49,8 @@ class Session {
     /// Transient success/error notification.
     var toast: Toast? = nil
 
-    /// Modal dialog state (confirmations, errors).
+    /// App-wide modal dialog (confirmations, errors). Presented by
+    /// ``DialogWindow`` in a separate `UIWindow` above all sheets.
     var dialogItem: DialogItem?
 
     // MARK: - User State -

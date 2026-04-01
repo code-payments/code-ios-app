@@ -145,7 +145,6 @@ struct ScanScreen: View {
             }
             .interactiveDismissDisabled()
         }
-        .dialog(item: $session.dialogItem)
         .dialog(item: $giveViewModel.dialogItem)
         // Dismiss all presented sheets when a bill is about to appear.
         // Bills render in ScanScreen's ZStack, so any sheet on top

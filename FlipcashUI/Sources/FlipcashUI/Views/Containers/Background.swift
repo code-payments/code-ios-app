@@ -30,7 +30,7 @@ public struct Background<Content>: View where Content: View {
         content
             .background {
                 background
-                    .edgesIgnoringSafeArea(.all)
+                    .ignoresSafeArea()
             }
     }
 }
