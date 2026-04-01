@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import FlipcashCore
 import FlipcashUI
 
 enum CurrencyCreationPath: Hashable {
@@ -48,9 +49,15 @@ struct CurrencyCreationScreen: View {
                             namespace: animation
                         )
                     case .billCreation:
-                        PlaceholderScreen(title: "Bill Creation")
+                        CurrencyBillCreationScreen(
+                            currencyName: currencyName,
+                            backgroundColors: $backgroundColors
+                        )
                     case .confirmation:
-                        PlaceholderScreen(title: "Confirmation")
+                        CurrencyConfirmationScreen(
+                            currencyName: currencyName,
+                            backgroundColors: backgroundColors
+                        )
                     }
                 }
         }
