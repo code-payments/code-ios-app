@@ -178,6 +178,7 @@ class SendCashOperation {
                     rendezvous: rendezvous
                 )
             } catch {
+                logger.error("Advertisement failed", metadata: ["rendezvous": "\(rendezvous.publicKey.base58)", "error": "\(error)"])
                 self.failurePath = "advertisement"
                 self.complete(with: .failure(error), completion: completion)
             }
@@ -255,12 +256,14 @@ class SendCashOperation {
                         self.complete(with: .success(()), completion: completion)
 
                     } catch {
+                        logger.error("Transfer failed", metadata: ["rendezvous": "\(rendezvous.publicKey.base58)", "error": "\(error)"])
                         self.failurePath = "transfer"
                         self.complete(with: .failure(error), completion: completion)
                     }
                 }
 
             case .failure(let error):
+                logger.error("Stream failed", metadata: ["rendezvous": "\(rendezvous.publicKey.base58)", "error": "\(error)"])
                 self.failurePath = "stream"
                 self.complete(with: .failure(error), completion: completion)
             }

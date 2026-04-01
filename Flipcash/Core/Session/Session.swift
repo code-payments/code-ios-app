@@ -955,16 +955,24 @@ class Session {
                 
             case .failure(let error):
                 let verifiedState = self?.sendOperation?.resolvedVerifiedState
-                self?.dismissCashBill(style: .slide)
-                self?.showCashReturnedError()
+                let failurePath = self?.sendOperation?.failurePath
+
+                logger.error("SendCashOperation failed", metadata: [
+                    "rendezvous": "\(payload.rendezvous.publicKey.base58)",
+                    "path": "\(failurePath ?? "unknown")",
+                    "error": "\(error)"
+                ])
 
                 ErrorReporting.capturePayment(
                     error: error,
                     rendezvous: payload.rendezvous.publicKey,
                     exchangedFiat: billDescription.exchangedFiat,
                     verifiedState: verifiedState,
-                    reason: self?.sendOperation?.failurePath
+                    reason: failurePath
                 )
+
+                self?.dismissCashBill(style: .slide)
+                self?.showCashReturnedError()
                 
                 Analytics.transfer(
                     event: .giveBill,
