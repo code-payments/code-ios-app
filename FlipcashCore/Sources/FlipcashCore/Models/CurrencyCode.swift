@@ -54,6 +54,7 @@ public enum CurrencyCode: String, CaseIterable, Codable, Equatable, Hashable, Se
     case eur
     case fjd
     case fkp
+    case fok
     case gbp
     case gel
     case ghs
@@ -79,6 +80,7 @@ public enum CurrencyCode: String, CaseIterable, Codable, Equatable, Hashable, Se
     case kes
     case kgs
     case khr
+    case kid
     case kmf
     case kpw
     case krw
@@ -144,6 +146,7 @@ public enum CurrencyCode: String, CaseIterable, Codable, Equatable, Hashable, Se
     case top
     case `try`
     case ttd
+    case tvd
     case twd
     case tzs
     case uah
@@ -162,6 +165,7 @@ public enum CurrencyCode: String, CaseIterable, Codable, Equatable, Hashable, Se
     case yer
     case zar
     case zmw
+    case zwg
     case sle
     case ved
     case cnh
@@ -406,12 +410,14 @@ extension CurrencyCode {
         case .uah: return .ua
         case .pyg: return .py
         case .ttd: return .tt
+        case .tvd: return .tv
         case .cad: return .ca
         case .scr: return .sc
         case .try: return .tr
         case .ved: return .ve
         case .ves: return .ve
         case .fkp: return .fk
+        case .fok: return .fo
         case .hnl: return .hn
         case .gnf: return .gn
         case .ngn: return .ng
@@ -431,6 +437,7 @@ extension CurrencyCode {
         case .jpy: return .jp
         case .omr: return .om
         case .lrd: return .lr
+        case .kid: return .ki
         case .kmf: return .km
         case .mur: return .mu
         case .jmd: return .jm
@@ -461,6 +468,7 @@ extension CurrencyCode {
         case .cve: return .cv
         case .gel: return .ge
         case .zmw: return .zm
+        case .zwg: return .zw
         case .gip: return .gi
         case .vnd: return .vn
         case .pgk: return .pg
