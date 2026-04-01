@@ -124,7 +124,7 @@ public struct OnrampErrorResponse: Error, Decodable {
         errorType.subtitle
     }
     
-    public enum ErrorType: String, Sendable, Decodable {
+    public enum ErrorType: String, Decodable {
         case invalidCard                  = "ERROR_CODE_GUEST_INVALID_CARD"
         case transactionLimit             = "ERROR_CODE_GUEST_TRANSACTION_LIMIT"
         case transactionCount             = "ERROR_CODE_GUEST_TRANSACTION_COUNT"

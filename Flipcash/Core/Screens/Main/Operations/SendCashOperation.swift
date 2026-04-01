@@ -7,9 +7,9 @@
 
 import Foundation
 import FlipcashCore
-@preconcurrency import Combine
+import Combine
 
-private nonisolated let logger = Logger(label: "flipcash.send-cash")
+private let logger = Logger(label: "flipcash.send-cash")
 
 /// Orchestrates a peer-to-peer cash transfer through a rendezvous-based
 /// handshake between sender and receiver.
@@ -93,8 +93,7 @@ class SendCashOperation {
     /// cached rate yet.
     private let providedVerifiedState: VerifiedState?
 
-    // nonisolated(unsafe): AnyCancellable.cancel() is thread-safe, accessed in deinit
-    private nonisolated(unsafe) var messageStream: AnyCancellable? = nil
+    private var messageStream: AnyCancellable? = nil
 
     /// Guards against processing more than one grab request per operation.
     private var hasProcessedPayment = false

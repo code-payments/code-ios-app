@@ -159,7 +159,9 @@ final class SessionAuthenticator {
 
     private func startPollingUnauthenticatedUserFlags() {
         poller = Poller(seconds: 30, fireImmediately: true) { [weak self] in
-            await self?.fetchUnauthenticatedUserFlags()
+            Task {
+                await self?.fetchUnauthenticatedUserFlags()
+            }
         }
     }
 

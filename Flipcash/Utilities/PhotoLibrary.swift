@@ -16,13 +16,15 @@ enum PhotoLibrary {
     }
     
     static func saveSecretRecoveryPhraseSnapshot(for mnemonic: MnemonicPhrase) async throws {
-        let snapshot = createSnapshotImage(mnemonic: mnemonic)
+        let snapshot = await createSnapshotImage(mnemonic: mnemonic)
         try await withCheckedThrowingContinuation { (c: CheckedContinuation<Void, Error>) -> Void in
-            PhotoLibrary.write(image: snapshot) { error in
-                if let error = error {
-                    c.resume(throwing: error)
-                } else {
-                    c.resume(returning: ())
+            DispatchQueue.global(qos: .background).async {
+                PhotoLibrary.write(image: snapshot) { error in
+                    if let error = error {
+                        c.resume(throwing: error)
+                    } else {
+                        c.resume(returning: ())
+                    }
                 }
             }
         }

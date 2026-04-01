@@ -7,7 +7,7 @@
 
 import Foundation
 import Testing
-@preconcurrency import Combine
+import Combine
 @testable import Flipcash
 import FlipcashCore
 import FlipcashAPI
@@ -302,7 +302,6 @@ struct RatesControllerTests {
 
         var received: [ReserveStateUpdate] = []
         let cancellable = controller.verifiedProtoService.reserveStatesPublisher
-            .receive(on: DispatchQueue.main)
             .sink { updates in
                 received.append(contentsOf: updates)
             }

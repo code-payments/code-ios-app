@@ -108,7 +108,7 @@ class ScanViewModel {
 
     /// Returns whether a URL is eligible for QR code scanning.
     /// Only `.cash` and `.token` routes are allowed; `.login` and `.verifyEmail` are blocked for security.
-    static func canScanQR(url: URL) -> Bool {
+    nonisolated static func canScanQR(url: URL) -> Bool {
         guard let route = Route(url: url) else {
             return false
         }

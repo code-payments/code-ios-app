@@ -10,7 +10,7 @@ import FlipcashUI
 import FlipcashCore
 
 struct AccountSelectionScreen: View {
-    @Environment(Client.self) private var client
+    @EnvironmentObject private var client: Client
     @Environment(RatesController.self) private var ratesController: RatesController?
 
     private let sessionAuthenticator: SessionAuthenticator

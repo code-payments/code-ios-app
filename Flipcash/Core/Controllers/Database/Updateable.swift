@@ -20,8 +20,7 @@ class Updateable<T> {
 
     @ObservationIgnored private let valueBlock: () -> T
     @ObservationIgnored private let didSet: (() -> Void)?
-    // nonisolated(unsafe): removeObserver is thread-safe, accessed in deinit
-    @ObservationIgnored private nonisolated(unsafe) var observer: Any?
+    @ObservationIgnored private var observer: Any?
 
     init(_ valueBlock: @escaping () -> T, didSet: (() -> Void)? = nil) {
         self.valueBlock = valueBlock

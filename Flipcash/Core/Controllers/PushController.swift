@@ -35,8 +35,7 @@ class PushController {
 
     @ObservationIgnored private var apnsToken: Data?
     @ObservationIgnored private var uploadedFirebaseToken: String?
-    // nonisolated(unsafe): removeObserver is thread-safe, accessed in deinit
-    @ObservationIgnored private nonisolated(unsafe) var activeObserver: Any?
+    @ObservationIgnored private var activeObserver: Any?
 
     // MARK: - Init -
 

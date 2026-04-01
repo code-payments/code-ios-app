@@ -12,7 +12,7 @@ import FlipcashCore
 
 private let logger = Logger(label: "flipcash.app-delegate")
 
-@main
+@UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?

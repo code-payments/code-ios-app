@@ -39,7 +39,7 @@ final class MarketCapController {
 
     /// The target number of data points for chart display.
     /// This ensures consistent animations regardless of the source data size.
-    private nonisolated static let targetPointCount = 100
+    private nonisolated(unsafe) static let targetPointCount = 100
 
     // MARK: - Private Properties
 

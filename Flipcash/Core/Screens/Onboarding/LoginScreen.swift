@@ -11,7 +11,7 @@ import FlipcashCore
 
 struct LoginScreen: View {
     
-    @Environment(Client.self) private var client
+    @EnvironmentObject private var client: Client
     @Environment(SessionAuthenticator.self) private var sessionAuthenticator
 
     @State private var buttonState: ButtonState = .normal

@@ -6,7 +6,7 @@
 //
 
 import Foundation
-@preconcurrency import Combine
+import Combine
 import FlipcashCore
 
 private let logger = Logger(label: "flipcash.rates-controller")

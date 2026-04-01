@@ -9,7 +9,7 @@ import Foundation
 import Bugsnag
 import FlipcashCore
 
-nonisolated enum ErrorReporting {
+enum ErrorReporting {
     
     static func initialize() {
         Bugsnag.start()
@@ -156,7 +156,7 @@ nonisolated enum ErrorReporting {
     }
 }
 
-nonisolated class Fault: NSError, @unchecked Sendable {}
+class Fault: NSError, @unchecked Sendable {}
 
 enum Breadcrumb: String {
     case placeholder = "Placeholder"

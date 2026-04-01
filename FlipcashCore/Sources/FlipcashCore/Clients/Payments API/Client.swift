@@ -7,14 +7,14 @@
 //
 
 import Foundation
+import Combine
 import NIO
 import GRPC
 
 private let logger = Logger(label: "flipcash.payment-client")
 
 @MainActor
-@Observable
-public final class Client {
+public class Client: ObservableObject {
     
     public let network: Network
     public let channel: ClientConnection
