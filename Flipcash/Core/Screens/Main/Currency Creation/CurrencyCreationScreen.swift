@@ -26,11 +26,14 @@ struct CurrencyCreationScreen: View {
 
     var body: some View {
         NavigationStack(path: $path) {
-            PlaceholderScreen(title: "Summary")
+            CurrencyCreationSummaryScreen()
                 .navigationDestination(for: CurrencyCreationPath.self) { step in
                     switch step {
                     case .name:
-                        PlaceholderScreen(title: "Name")
+                        CurrencyNameScreen(
+                            currencyName: $currencyName,
+                            namespace: animation
+                        )
                     case .icon:
                         PlaceholderScreen(title: "Icon")
                     case .description:
