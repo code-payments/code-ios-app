@@ -365,7 +365,6 @@ final class SessionAuthenticator {
         if case .loggedIn(let container) = state {
             container.session.prepareForLogout()
             container.pushController.prepareForLogout()
-            container.ratesController.prepareForLogout()
         }
 
         accountManager.resetForLogout()

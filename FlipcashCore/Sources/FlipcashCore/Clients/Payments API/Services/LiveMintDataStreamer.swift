@@ -230,7 +230,7 @@ public actor LiveMintDataStreamer {
         case .success(let status):
             switch status.code {
             case .ok:
-                logger.debug("Stream closed normally, reconnecting")
+                logger.debug("Stream closed normally")
                 reconnect()
 
             case .aborted where wasSubscriptionUpdate:
@@ -240,11 +240,11 @@ public actor LiveMintDataStreamer {
                 immediateReconnect()
 
             case .unavailable, .deadlineExceeded, .cancelled:
-                logger.warning("Stream closed with \(status.code), reconnecting")
+                logger.warning("Stream closed with \(status.code)")
                 reconnect()
 
             default:
-                logger.warning("Stream closed with status: \(status), reconnecting")
+                logger.warning("Stream closed with status: \(status)")
                 reconnect()
             }
 
