@@ -529,11 +529,16 @@ class Session {
     
     func updateBalance() {
         Task {
-            try await fetchBalance()
+            do {
+                try await fetchBalance()
+            } catch {
+                logger.error("Balance fetch failed", metadata: ["error": "\(error)"])
+            }
         }
     }
-    
+
     func updatePostTransaction() {
+        logger.info("Post-transaction update triggered")
         updateBalance()
         updateLimits()
         historyController.sync()

@@ -227,7 +227,7 @@ let stream = service.openMessageStream(request, callOptions: .streaming) { respo
 | iOS Minimum | 17.0 |
 | UI Framework | SwiftUI (primary), UIKit (AppDelegate, navigation) |
 | Testing | Swift Testing (`import Testing`) |
-| Database | SQLite via SQLite.swift |
+| Database | SQLite via SQLite.swift (fork, see below) |
 | Networking | gRPC via grpc-swift |
 | Crypto | Ed25519 via CodeCurves |
 
@@ -242,6 +242,19 @@ CodeServices/      # Shared Solana services (don't import in Flipcash)
 CodeCurves/        # Ed25519 cryptography
 CodeScanner/       # C++/OpenCV circular code scanning (see below)
 ```
+
+### SQLite.swift Fork
+
+**We use a fork of SQLite.swift** (`dbart01/SQLite.swift`), not the official `stephencelis/SQLite.swift`. The fork is pinned to `master` branch and adds two changes on top of the official `0.15.4` base:
+
+1. **Upsert WHERE clause fix** — moves `whereClause` after `DO UPDATE SET` (the official repo places it before `ON CONFLICT`, producing invalid SQL for filtered upserts like `table.filter(...).upsert(...)`)
+2. **Custom dispatch queue injection** — adds a `queue:` parameter to `Connection.init` so callers can supply their own `DispatchQueue`
+3. **Public `Setter` access (pending)** — `Setter.column` and `Setter(excluded:)` need to be made `public` so callers can build custom ON CONFLICT SET clauses (e.g., `COALESCE(excluded.column, column)` for conditional upserts). See `Database+Balance.swift` TODO.
+
+**Do not switch to the official repo** without verifying:
+- Filtered upserts still generate valid SQL
+- `Connection.init(queue:)` is no longer needed
+- Custom SET clause building still compiles
 
 ---
 

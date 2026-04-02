@@ -202,6 +202,9 @@ extension Database {
             return String(data: data, encoding: .utf8)
         }()
 
+        // TODO: Collapse into a single statement with COALESCE(excluded.supplyFromBonding,
+        // supplyFromBonding) once Setter(excluded:) is made public in our SQLite.swift fork.
+        // See CLAUDE.md "SQLite.swift Fork" for details.
         try writer.run(
             table.table.upsert(
                 table.mint              <- mint.address,
@@ -222,7 +225,6 @@ extension Database {
                 table.mintVault         <- mint.launchpadMetadata?.mintVault,
                 table.coreMintVault     <- mint.launchpadMetadata?.coreMintVault,
                 table.coreMintFees      <- mint.launchpadMetadata?.coreMintFees,
-                table.supplyFromBonding <- mint.launchpadMetadata?.supplyFromBonding,
                 table.sellFeeBps        <- mint.launchpadMetadata?.sellFeeBps,
 
                 table.socialLinks       <- socialLinksJSON,
@@ -236,5 +238,11 @@ extension Database {
             )
         )
 
+        if let supplyFromBonding = mint.launchpadMetadata?.supplyFromBonding {
+            let row = table.table.filter(table.mint == mint.address)
+            try writer.run(
+                row.update(table.supplyFromBonding <- supplyFromBonding)
+            )
+        }
     }
 }
