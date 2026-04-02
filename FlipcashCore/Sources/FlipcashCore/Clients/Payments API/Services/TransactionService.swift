@@ -185,92 +185,88 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
     
     // MARK: - Swaps -
 
-    /// A buy is a swap from USDF to desired token (convenience method using submitIntent funding)
+    /// A buy is a swap from USDF to desired token (Phase 1 + Phase 2 via IntentFundSwap)
     func buy(amount: ExchangedFiat, verifiedState: VerifiedState, of token: MintMetadata, owner: AccountCluster, completion: @Sendable @escaping (Result<SwapId, ErrorSwap>) -> Void) {
         let swapId = SwapId.generate()
         let fundingIntentID = KeyPair.generate()!.publicKey
-
-        buy(
-            swapId: swapId,
-            amount: amount,
-            verifiedState: verifiedState,
-            of: token,
-            owner: owner,
-            fundingSource: .submitIntent(id: fundingIntentID),
-            completion: completion
-        )
-    }
-
-    /// A buy is a swap from USDF to desired token with specified funding source.
-    ///
-    /// - For `.submitIntent`: Phase 1 (startSwap) + Phase 2 (IntentFundSwap)
-    /// - For `.externalWallet`: Phase 1 only (funding already happened via external wallet)
-    func buy(
-        swapId: SwapId,
-        amount: ExchangedFiat,
-        verifiedState: VerifiedState,
-        of token: MintMetadata,
-        owner: AccountCluster,
-        fundingSource: FundingSource,
-        completion: @Sendable @escaping (Result<SwapId, ErrorSwap>) -> Void
-    ) {
-        logger.info("Starting buy", metadata: [
-            "amount": "\(amount.converted.formatted())",
-            "token": "\(token.symbol)",
-            "fundingSource": "\(fundingSource)"
-        ])
-
-        let swapService = self.swapService
         let ownerKeyPair = owner.authority.keyPair
 
-        // Phase 1: StartSwap (always needed)
+        logger.info("Starting buy", metadata: [
+            "amount": "\(amount.converted.formatted())",
+            "token": "\(token.symbol)"
+        ])
+
+        // Phase 1: Create swap state on the server
         swapService.swap(
             swapId: swapId,
             direction: .buy(mint: token),
             amount: amount.underlying,
-            fundingSource: fundingSource,
+            fundingSource: .submitIntent(id: fundingIntentID),
             owner: ownerKeyPair
         ) { result in
             switch result {
             case .success(let metadata):
                 logger.info("Swap state created", metadata: ["swapId": "\(swapId.publicKey.base58)"])
 
-                switch fundingSource {
-                case .submitIntent(let fundingIntentID):
-                    // Phase 2: Fund via IntentFundSwap
-                    let fundingIntent = IntentFundSwap(
-                        intentID: fundingIntentID,
-                        swapId: metadata.swapId,
-                        sourceCluster: owner,
-                        amount: amount,
-                        verifiedState: verifiedState,
-                        fromMint: .usdf,
-                        toMint: token
-                    )
+                // Phase 2: Fund via IntentFundSwap
+                let fundingIntent = IntentFundSwap(
+                    intentID: fundingIntentID,
+                    swapId: metadata.swapId,
+                    sourceCluster: owner,
+                    amount: amount,
+                    verifiedState: verifiedState,
+                    fromMint: .usdf,
+                    toMint: token
+                )
 
-                    self.submit(intent: fundingIntent, owner: ownerKeyPair) { fundingResult in
-                        switch fundingResult {
-                        case .success:
-                            logger.info("Buy swap completed", metadata: ["intentId": "\(fundingIntentID.base58)"])
-                            completion(.success(swapId))
-                        case .failure(let error):
-                            logger.error("Failed to fund buy swap: \(error)")
-                            completion(.failure(.unknown))
-                        }
+                self.submit(intent: fundingIntent, owner: ownerKeyPair) { fundingResult in
+                    switch fundingResult {
+                    case .success:
+                        logger.info("Buy swap completed", metadata: ["intentId": "\(fundingIntentID.base58)"])
+                        completion(.success(swapId))
+                    case .failure(let error):
+                        logger.error("Failed to fund buy swap: \(error)")
+                        completion(.failure(.unknown))
                     }
-
-                case .externalWallet:
-                    // NO Phase 2 - funding already happened via external wallet
-                    logger.info("Buy swap initiated with external funding", metadata: ["swapId": "\(swapId.publicKey.base58)"])
-                    completion(.success(swapId))
-
-                case .unknown:
-                    logger.error("Unknown funding source for buy swap")
-                    completion(.failure(.unknown))
                 }
 
             case .failure(let error):
                 logger.error("Failed to start buy swap: \(error)")
+                completion(.failure(error))
+            }
+        }
+    }
+
+    /// A buy funded by an external wallet (Phase 1 only — no IntentFundSwap).
+    /// The transaction signature is provided; the caller submits it to
+    /// the chain after the server confirms the swap state.
+    func buyWithExternalFunding(
+        swapId: SwapId,
+        amount: ExchangedFiat,
+        of token: MintMetadata,
+        owner: KeyPair,
+        transactionSignature: Signature,
+        completion: @Sendable @escaping (Result<SwapId, ErrorSwap>) -> Void
+    ) {
+        logger.info("Starting externally-funded buy", metadata: [
+            "amount": "\(amount.converted.formatted())",
+            "token": "\(token.symbol)",
+            "swapId": "\(swapId.publicKey.base58)"
+        ])
+
+        swapService.swap(
+            swapId: swapId,
+            direction: .buy(mint: token),
+            amount: amount.underlying,
+            fundingSource: .externalWallet(transactionSignature: transactionSignature),
+            owner: owner
+        ) { result in
+            switch result {
+            case .success:
+                logger.info("Buy swap initiated with external funding", metadata: ["swapId": "\(swapId.publicKey.base58)"])
+                completion(.success(swapId))
+            case .failure(let error):
+                logger.error("Failed to start externally-funded buy swap: \(error)")
                 completion(.failure(error))
             }
         }

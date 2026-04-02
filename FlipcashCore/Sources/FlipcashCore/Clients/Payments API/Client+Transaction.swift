@@ -117,12 +117,16 @@ extension Client {
         }
     }
 
-    /// Buy tokens with specified funding source
-    /// - For `.submitIntent`: Phase 1 (startSwap) + Phase 2 (IntentFundSwap)
-    /// - For `.externalWallet`: Phase 1 only (funding already happened via external wallet)
+    /// Buy tokens funded by an external wallet (Phase 1 only).
+    /// No `verifiedState` needed — the external wallet already funded the swap on-chain.
     @discardableResult
-    public func buy(swapId: SwapId, amount: ExchangedFiat, verifiedState: VerifiedState, of token: MintMetadata, owner: AccountCluster, fundingSource: FundingSource) async throws -> SwapId {
-        // Ensure the timelock vault account exists for this mint
+    public func buyWithExternalFunding(
+        swapId: SwapId,
+        amount: ExchangedFiat,
+        of token: MintMetadata,
+        owner: AccountCluster,
+        transactionSignature: Signature
+    ) async throws -> SwapId {
         try await ensureAccountExists(
             owner: owner.authority.keyPair,
             ownerAuthority: owner.authority,
@@ -130,7 +134,13 @@ extension Client {
         )
 
         return try await withCheckedThrowingContinuation { c in
-            transactionService.buy(swapId: swapId, amount: amount, verifiedState: verifiedState, of: token, owner: owner, fundingSource: fundingSource) { c.resume(with: $0) }
+            transactionService.buyWithExternalFunding(
+                swapId: swapId,
+                amount: amount,
+                of: token,
+                owner: owner.authority.keyPair,
+                transactionSignature: transactionSignature
+            ) { c.resume(with: $0) }
         }
     }
 

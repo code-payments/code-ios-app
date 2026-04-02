@@ -38,7 +38,6 @@ public final class WalletConnection {
     private let box: Box
     private let owner: AccountCluster
     private let client: Client
-    private let ratesController: RatesController
 
     private let solanaClient = BlockchainClient(
         apiClient: JSONRPCAPIClient(
@@ -56,15 +55,13 @@ public final class WalletConnection {
         let swapId: SwapId
         let amount: ExchangedFiat
         let token: MintMetadata
-        let verifiedState: VerifiedState
     }
 
     // MARK: - Init -
 
-    init(owner: AccountCluster, client: Client, ratesController: RatesController) {
+    init(owner: AccountCluster, client: Client) {
         self.owner = owner
         self.client = client
-        self.ratesController = ratesController
 
         if let connectedWalletSession = Keychain.connectedWalletSession {
             self.session = connectedWalletSession
@@ -199,20 +196,17 @@ public final class WalletConnection {
                 return
             }
 
-            let fundingSource = FundingSource.externalWallet(transactionSignature: tx.identifier)
-
             // Notify server before submitting to chain — if the server rejects,
             // skip chain submission entirely so no USDC is spent without a swap state.
             do {
-                try await client.buy(
+                try await client.buyWithExternalFunding(
                     swapId: pending.swapId,
                     amount: pending.amount,
-                    verifiedState: pending.verifiedState,
                     of: pending.token,
                     owner: self.owner,
-                    fundingSource: fundingSource
+                    transactionSignature: tx.identifier
                 )
-                logger.info("Server notified of swap funding via buy()")
+                logger.info("Server notified of swap funding via buyWithExternalFunding()")
             } catch {
                 ErrorReporting.captureError(error, reason: "Server notification failed", metadata: swapMetadata)
                 logger.error("Server notification failed: \(error)")
@@ -276,9 +270,8 @@ public final class WalletConnection {
 
     /// Initiates USDC→USDF swap via Phantom wallet
     /// 1. Generate swapId and build transaction (with swapId in memo)
-    /// 2. Capture verified state for the server notification after signing
-    /// 3. Send to Phantom for signing
-    /// 4. After signing: submit TX to chain, then call buy() with externalWallet funding
+    /// 2. Send to Phantom for signing
+    /// 3. After signing: notify server via buyWithExternalFunding(), then submit TX to chain
     ///
     /// - Parameters:
     ///   - usdc: Amount of USDC to swap (in quarks)
@@ -330,19 +323,10 @@ public final class WalletConnection {
             feePayer: try SolanaSwift.PublicKey(string: externalWallet.base58)
         )
 
-        // 3. Capture verified state now so didSignTransactions doesn't
-        //    depend on prior screen navigation having subscribed the mint.
-        guard let verifiedState = await ratesController.getVerifiedState(
-            for: amount.converted.currencyCode,
-            mint: token.address
-        ) else {
-            throw Error.missingVerifiedState
-        }
+        // 3. Store pending swap info (to use when Phantom returns)
+        pendingSwap = PendingSwap(swapId: swapId, amount: amount, token: token)
 
-        // 4. Store pending swap info (to use when Phantom returns)
-        pendingSwap = PendingSwap(swapId: swapId, amount: amount, token: token, verifiedState: verifiedState)
-
-        // 5. Serialize and send to Phantom
+        // 4. Serialize and send to Phantom
         let txEncoded = Base58.fromBytes(Array(try transaction.serialize()))
 
         let payload: [String: Any] = [
@@ -567,5 +551,5 @@ private extension FlipcashCore.Keychain {
 // MARK: - Mock -
 
 extension WalletConnection {
-    static let mock = WalletConnection(owner: .mock, client: .mock, ratesController: .mock)
+    static let mock = WalletConnection(owner: .mock, client: .mock)
 }
