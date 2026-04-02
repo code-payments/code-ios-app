@@ -1026,7 +1026,6 @@ class Session {
                 Task {
                     do {
                         try await self.cancelCashLink(giftCardVault: giftCard.cluster.vaultPublicKey)
-                        self.updatePostTransaction()
                     } catch {
                         ErrorReporting.captureError(error)
                     }
@@ -1166,7 +1165,6 @@ class Session {
     
     func cancelCashLink(giftCardVault: PublicKey) async throws {
         try await client.voidCashLink(giftCardVault: giftCardVault, owner: ownerKeyPair)
-        
         updatePostTransaction()
     }
     
