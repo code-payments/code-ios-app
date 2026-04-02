@@ -214,7 +214,7 @@ final class SessionAuthenticator {
             ratesController: ratesController
         )
         
-        let walletConnection = WalletConnection(owner: owner, client: container.client, ratesController: ratesController)
+        let walletConnection = WalletConnection(owner: owner, client: container.client)
         
         return SessionContainer(
             session: session,
