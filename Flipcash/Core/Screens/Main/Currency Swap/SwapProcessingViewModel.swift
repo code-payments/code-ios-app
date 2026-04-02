@@ -108,7 +108,7 @@ class SwapProcessingViewModel {
     // MARK: - Fetching -
 
     func startPolling(client: Client, ownerKeyPair: KeyPair) async {
-        guard !isPolling else { return }
+        guard !isPolling, displayState == .processing else { return }
         isPolling = true
 
         do {
