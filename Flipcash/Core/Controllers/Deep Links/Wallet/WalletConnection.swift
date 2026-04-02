@@ -270,9 +270,8 @@ public final class WalletConnection {
 
     /// Initiates USDC→USDF swap via Phantom wallet
     /// 1. Generate swapId and build transaction (with swapId in memo)
-    /// 2. Capture verified state for the server notification after signing
-    /// 3. Send to Phantom for signing
-    /// 4. After signing: submit TX to chain, then call buy() with externalWallet funding
+    /// 2. Send to Phantom for signing
+    /// 3. After signing: notify server via buyWithExternalFunding(), then submit TX to chain
     ///
     /// - Parameters:
     ///   - usdc: Amount of USDC to swap (in quarks)
@@ -327,7 +326,7 @@ public final class WalletConnection {
         // 3. Store pending swap info (to use when Phantom returns)
         pendingSwap = PendingSwap(swapId: swapId, amount: amount, token: token)
 
-        // 5. Serialize and send to Phantom
+        // 4. Serialize and send to Phantom
         let txEncoded = Base58.fromBytes(Array(try transaction.serialize()))
 
         let payload: [String: Any] = [

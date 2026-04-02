@@ -238,7 +238,8 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
     }
 
     /// A buy funded by an external wallet (Phase 1 only — no IntentFundSwap).
-    /// The external wallet has already submitted the USDC transfer on-chain.
+    /// The transaction signature is provided; the caller submits it to
+    /// the chain after the server confirms the swap state.
     func buyWithExternalFunding(
         swapId: SwapId,
         amount: ExchangedFiat,
