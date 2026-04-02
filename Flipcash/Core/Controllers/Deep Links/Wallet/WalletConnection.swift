@@ -124,18 +124,18 @@ public final class WalletConnection {
                 
             case "transactionSigned":
                 guard let session else {
-                    logger.warning("Received signed transactions but no active session found.")
+                    logger.warning("Received signed transaction but no active session found.")
                     return
                 }
-                
+
                 encryptedResponse.encryptionPublicKey = session.phantomEncryptionPublicKey
-                
+
                 let response = try box.decrypt(
-                    type: WalletResponse.SignedTransactions.self,
+                    type: WalletResponse.SignedTransaction.self,
                     encryptedWalletResponse: encryptedResponse
                 )
-                
-                didSignTransactions(response.transactions)
+
+                didSignTransaction(response.transaction)
                 
             default:
                 logger.warning("Deep link path did not match known routes: \(component ?? "nil")")
@@ -168,100 +168,71 @@ public final class WalletConnection {
         }
     }
     
-    private func didSignTransactions(_ transactions: [String]) {
+    private func didSignTransaction(_ signedTx: String) {
         Task { [solanaClient, client, weak self] in
-            // Capture pending swap before processing
             let pending = self?.pendingSwap
             self?.pendingSwap = nil
 
-            // Show the processing screen now that the user has returned with signed transactions
-            if let pending, let self {
-                self.processing = ExternalSwapProcessing(
+            guard let pending, let self else {
+                logger.warning("Received signed transaction but no pending swap context")
+                return
+            }
+
+            self.processing = ExternalSwapProcessing(
+                swapId: pending.swapId,
+                currencyName: pending.token.name,
+                amount: pending.amount
+            )
+
+            let swapMetadata: [String: String] = [
+                "swapId": pending.swapId.publicKey.base58,
+                "token": pending.token.symbol,
+                "amount": pending.amount.converted.formatted(),
+                "mint": pending.token.address.base58
+            ]
+
+            let rawData = Data(Base58.toBytes(signedTx))
+            guard let tx = SolanaTransaction(data: rawData) else {
+                ErrorReporting.captureError(Error.invalidURL, reason: "Failed to decode signed transaction", metadata: swapMetadata)
+                logger.error("Failed to decode signed transaction")
+                self.isProcessingCancelled = true
+                return
+            }
+
+            let fundingSource = FundingSource.externalWallet(transactionSignature: tx.identifier)
+
+            // Notify server before submitting to chain — if the server rejects,
+            // skip chain submission entirely so no USDC is spent without a swap state.
+            do {
+                try await client.buy(
                     swapId: pending.swapId,
-                    currencyName: pending.token.name,
-                    amount: pending.amount
+                    amount: pending.amount,
+                    verifiedState: pending.verifiedState,
+                    of: pending.token,
+                    owner: self.owner,
+                    fundingSource: fundingSource
                 )
+                logger.info("Server notified of swap funding via buy()")
+            } catch {
+                ErrorReporting.captureError(error, reason: "Server notification failed", metadata: swapMetadata)
+                logger.error("Server notification failed: \(error)")
+                self.isProcessingCancelled = true
+                return
             }
 
-            // Submit transactions in parallel and collect results
-            let results = await withTaskGroup(of: (index: Int, signature: String?).self) { group in
-                for (index, txBase58) in transactions.enumerated() {
-                    group.addTask {
-                        do {
-                            // Decode base58 -> bytes -> Data
-                            let rawBytes = Base58.toBytes(txBase58)
-                            let rawData  = Data(rawBytes)
-                            let txBase64 = rawData.base64EncodedString()
-
-                            let signature = try await solanaClient.apiClient.sendTransaction(
-                                transaction: txBase64,
-                                configs: .init(encoding: "base64")!
-                            )
-
-                            logger.info("Transaction sent: \(signature)")
-                            return (index, signature)
-
-                        } catch {
-                            ErrorReporting.captureError(error, reason: "Failed to send Solana transaction")
-                            logger.error("Transaction failed to send: \(error)")
-                            return (index, nil)
-                        }
-                    }
-                }
-
-                var collected: [(index: Int, signature: String?)] = []
-                for await result in group {
-                    collected.append(result)
-                }
-                return collected.sorted { $0.index < $1.index }
-            }
-
-            let submittedSignatures = results.compactMap(\.signature)
-            let errorCount = results.count - submittedSignatures.count
-
-            if errorCount == 0 {
+            // Server accepted — submit transaction to chain
+            do {
+                let txBase64 = rawData.base64EncodedString()
+                let signature = try await solanaClient.apiClient.sendTransaction(
+                    transaction: txBase64,
+                    configs: .init(encoding: "base64")!
+                )
+                logger.info("Transaction sent: \(signature)")
                 Analytics.track(event: Analytics.WalletEvent.transactionsSubmitted)
-
-                // If this was a swap transaction, notify server via buy()
-                if let pending, let firstSignature = submittedSignatures.first, let self {
-                    do {
-                        let signatureKey = try Signature(base58: firstSignature)
-                        let fundingSource = FundingSource.externalWallet(transactionSignature: signatureKey)
-
-                        // Call buy() with externalWallet funding (Phase 1 only, no IntentFundSwap)
-                        try await client.buy(
-                            swapId: pending.swapId,
-                            amount: pending.amount,
-                            verifiedState: pending.verifiedState,
-                            of: pending.token,
-                            owner: self.owner,
-                            fundingSource: fundingSource
-                        )
-
-                        logger.info("Server notified of swap funding via buy()")
-                    } catch {
-                        ErrorReporting.captureError(error, reason: "Failed to notify server of swap funding")
-                        logger.error("Failed to notify server: \(error)")
-                        self.isProcessingCancelled = true
-                    }
-                } else {
-                    // Regular transfer (not a swap)
-                    await MainActor.run {
-                        self?.showSuccessDialog(tokenName: "Funds")
-                    }
-                }
-            } else {
-                Analytics.track(event: Analytics.WalletEvent.transactionsFailed)
-                if pending != nil {
-                    // Swap transaction failed — signal the processing screen
-                    await MainActor.run {
-                        self?.isProcessingCancelled = true
-                    }
-                } else {
-                    await MainActor.run {
-                        self?.showSomethingWentWrongDialog()
-                    }
-                }
+            } catch {
+                ErrorReporting.captureError(error, reason: "Chain submission failed", metadata: swapMetadata)
+                logger.error("Chain submission failed: \(error)")
+                self.isProcessingCancelled = true
             }
         }
     }
@@ -375,7 +346,7 @@ public final class WalletConnection {
         let txEncoded = Base58.fromBytes(Array(try transaction.serialize()))
 
         let payload: [String: Any] = [
-            "transactions": [txEncoded],
+            "transaction": txEncoded,
             "session": connectedSession.sessionToken
         ]
         let payloadData = try JSONSerialization.data(withJSONObject: payload, options: [])
@@ -385,7 +356,7 @@ public final class WalletConnection {
             encryptionPublicKey: connectedSession.phantomEncryptionPublicKey
         )
 
-        var c = URLComponents(string: "https://phantom.app/ul/v1/signAllTransactions")!
+        var c = URLComponents(string: "https://phantom.app/ul/v1/signTransaction")!
         c.queryItems = [
             URLQueryItem(name: "dapp_encryption_public_key", value: publicKey.base58),
             URLQueryItem(name: "nonce",                      value: nonce),
@@ -395,7 +366,7 @@ public final class WalletConnection {
 
         guard let url = c.url else {
             pendingSwap = nil
-            logger.error("Failed to construct signAllTransactions URL")
+            logger.error("Failed to construct signTransaction URL")
             throw Error.invalidURL
         }
 
@@ -406,44 +377,6 @@ public final class WalletConnection {
         return (swapId: swapId, amount: amount)
     }
 
-    // MARK: - Dialogs -
-    
-    private func showSuccessDialog(tokenName: String) {
-        Task {
-            let status = await PushController.fetchStatus()
-            
-            dialogItem = .init(
-                style: .success,
-                title: "Your \(tokenName) Will Be Available Soon",
-                subtitle: "It should be available in a few minutes. If you have any issues please contact support@flipcash.com",
-                dismissable: true,
-            ) {
-                if status == .notDetermined {
-                    .standard("Notify Me") {
-                        Task {
-                            do {
-                                try await PushController.authorizeAndRegister()
-                            } catch {}
-                        }
-                    };
-                    .dismiss(kind: .subtle)
-                } else {
-                    .okay(kind: .standard)
-                }
-            }
-        }
-    }
-    
-    private func showSomethingWentWrongDialog() {
-        dialogItem = .init(
-            style: .destructive,
-            title: "Something Went Wrong",
-            subtitle: "Please try again later",
-            dismissable: true,
-        ) {
-            .okay(kind: .destructive)
-        }
-    }
 }
 
 /// NaCl “box” with an ephemeral X25519 keypair for one Phantom session.

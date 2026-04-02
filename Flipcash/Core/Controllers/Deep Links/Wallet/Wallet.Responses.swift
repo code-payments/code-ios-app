@@ -21,7 +21,7 @@ extension WalletResponse {
 }
 
 extension WalletResponse {
-    public struct SignedTransactions: Decodable {
-        public let transactions: [String]
+    public struct SignedTransaction: Decodable {
+        public let transaction: String
     }
 }
