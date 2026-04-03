@@ -67,7 +67,7 @@ struct SwapProcessingScreen: View {
                             if pushController.authorizationStatus == .denied {
                                 URL.openSettings()
                             } else {
-                                try? await PushController.authorizeAndRegister()
+                                _ = try? await PushController.authorizeAndRegister()
                                 await pushController.refreshAuthorizationStatus()
                             }
                         }

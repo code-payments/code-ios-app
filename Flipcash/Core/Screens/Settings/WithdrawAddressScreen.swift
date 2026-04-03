@@ -10,7 +10,6 @@ import FlipcashUI
 import FlipcashCore
 
 struct WithdrawAddressScreen: View {
-    
     @Bindable private var viewModel: WithdrawViewModel
     
     @State private var pasteboardObserver = PasteboardObserver()
@@ -52,23 +51,17 @@ struct WithdrawAddressScreen: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
-                
-                CodeButton(
-                    style: .filled,
-                    title: "Paste From Clipboard",
-                    disabled: !canPaste,
-                    action: viewModel.pasteFromClipboardAction
-                )
+                                
+                Button("Paste From Clipboard", action: viewModel.pasteFromClipboardAction)
+                    .disabled(!canPaste)
+                    .buttonStyle(.filled20)
                 
                 Spacer()
                     .frame(minHeight: 1)
-                
-                CodeButton(
-                    style: .filled,
-                    title: "Next",
-                    disabled: !viewModel.canCompleteWithdrawal,
-                    action: viewModel.addressEnteredAction
-                )
+                                
+                Button("Next", action: viewModel.addressEnteredAction)
+                    .disabled(!viewModel.canCompleteWithdrawal)
+                    .buttonStyle(.filled)
             }
             .padding(20)
         }

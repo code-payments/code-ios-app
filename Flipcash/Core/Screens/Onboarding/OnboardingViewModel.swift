@@ -125,7 +125,7 @@ class OnboardingViewModel {
 
         let pushStatus = await PushController.fetchStatus()
         switch pushStatus {
-        case .authorized, .provisional, .denied:
+        case .authorized, .provisional, .denied, .ephemeral:
             completeOnboardingAndLogin()
         case .notDetermined:
             navigateToPushNotifications()
@@ -191,7 +191,7 @@ class OnboardingViewModel {
         ) {
             .standard("OK Allow") { [weak self] in
                 Task {
-                    try? await PushController.authorizeAndRegister()
+                    _ = try? await PushController.authorizeAndRegister()
                     self?.completeOnboardingAndLogin()
                 }
 

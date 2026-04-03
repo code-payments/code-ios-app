@@ -10,7 +10,6 @@ import FlipcashUI
 import FlipcashCore
 
 struct DepositScreen: View {
-    
     @State private var buttonState: ButtonState = .normal
     
     private let cluster: AccountCluster
@@ -48,22 +47,6 @@ struct DepositScreen: View {
                     title: "Copy Address",
                     action: copyAddress
                 )
-//                QRCode(
-//                    data: Data(publicKey.base58.utf8),
-//                    padding: 6,
-//                    codeColor: .white,
-//                    backgroundColor: .backgroundMain,
-//                    labelColor: .textSecondary.opacity(0.5),
-//                    correctionLevel: .medium
-//                )
-//                .frame(width: 200, height: 200)
-//                .contextMenu(ContextMenu {
-//                    Button(action: copyAddress) {
-//                        Label("Copy Address", systemImage: SystemSymbol.doc.rawValue)
-//                    }
-//                })
-//
-//                Spacer()
             }
             .padding(20)
         }

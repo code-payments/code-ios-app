@@ -595,7 +595,7 @@ class OnrampViewModel {
             return
         }
         
-        if let selectedPreset {
+        if selectedPreset != nil {
             Analytics.onrampInvokePayment(amount: exchangedFiat.underlying)
         } else {
             Analytics.onrampInvokePaymentCustom(amount: exchangedFiat.underlying)
