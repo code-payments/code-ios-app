@@ -30,7 +30,7 @@ public struct EnterAmountView: View {
             mode: mode,
             entryCurrency: rateController.entryCurrency,
             onrampCurrency: rateController.onrampCurrency,
-            transactionLimitProvider: session.singleTransactionLimitFor(currency:),
+            sendLimitProvider: session.sendLimitFor(currency:),
             rateProvider: rateController.rate(for:)
         )
     }

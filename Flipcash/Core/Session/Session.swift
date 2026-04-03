@@ -104,40 +104,12 @@ class Session {
 //        )
 //    }
     
-    var nextTransactionLimit: Quarks? {
-        nextTransactionLimit(currency: ratesController.rateForEntryCurrency().currency)
-    }
-    
-    func nextTransactionLimit(currency: CurrencyCode) -> Quarks? {
-        guard let limits else {
-            return nil
-        }
-        
-        guard let limit = limits.sendLimitFor(currency: currency) else {
-            return nil
-        }
-        
-        return limit.nextTransaction
-    }
-    
-    var singleTransactionLimit: Quarks? {
-        singleTransactionLimitFor(currency: ratesController.entryCurrency)
-    }
-    
-    func singleTransactionLimitFor(currency: CurrencyCode) -> Quarks? {
-        guard let limits else {
-            return nil
-        }
-        
-        guard let rate = ratesController.rate(for: currency) else {
-            return nil
-        }
-        
-        guard let limit = limits.sendLimitFor(currency: rate.currency) else {
-            return nil
-        }
-        
-        return limit.maxPerTransaction
+    /// Returns the server-provided send limit for the given currency, or `nil` if limits
+    /// haven't been fetched yet. Callers pick the field appropriate for their flow:
+    /// - Give: `nextTransaction` (remaining daily allowance, capped at `maxPerTransaction`)
+    /// - Buy / WalletConnect / Onramp: `maxPerDay` (reused as per-transaction buy cap)
+    func sendLimitFor(currency: CurrencyCode) -> SendLimit? {
+        limits?.sendLimitFor(currency: currency)
     }
     
     var isShowingBill: Bool {
@@ -398,17 +370,6 @@ class Session {
     
     // MARK: - Balance -
     
-    func hasLimitToSendFunds(for exchangedFiat: ExchangedFiat) -> Bool {
-        guard let nextTransactionLimit else {
-            return false
-        }
-        
-        guard exchangedFiat.converted.currencyCode == nextTransactionLimit.currencyCode else {
-            return false
-        }
-        
-        return exchangedFiat.converted <= nextTransactionLimit
-    }
     
     func hasSufficientFunds(for exchangedFiat: ExchangedFiat) -> SufficientFundsResult {
         guard exchangedFiat.underlying.quarks > 0 else {

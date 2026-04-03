@@ -123,7 +123,8 @@ class GiveViewModel {
         let result = session.hasSufficientFunds(for: exchangedFiat)
         switch result {
         case .sufficient(let amountToSend):
-            guard session.hasLimitToSendFunds(for: amountToSend) else {
+            guard let sendLimit = session.sendLimitFor(currency: amountToSend.converted.currencyCode),
+                  amountToSend.converted <= sendLimit.nextTransaction else {
                 showLimitsError()
                 return
             }

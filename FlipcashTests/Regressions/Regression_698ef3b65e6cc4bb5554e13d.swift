@@ -41,13 +41,17 @@ struct Regression_698ef3b {
             mint: .usdf
         )
 
-        let limit = Quarks(quarks: 950_000_000_000 as UInt64, currencyCode: .clp, decimals: 6)
+        let sendLimit = SendLimit(
+            nextTransaction: Quarks(quarks: 950_000_000_000 as UInt64, currencyCode: .clp, decimals: 6),
+            maxPerTransaction: Quarks(quarks: 950_000_000_000 as UInt64, currencyCode: .clp, decimals: 6),
+            maxPerDay: Quarks(quarks: 3_800_000_000_000 as UInt64, currencyCode: .clp, decimals: 6)
+        )
 
         let calculator = EnterAmountCalculator(
             mode: .currency,
             entryCurrency: .clp,
             onrampCurrency: .usd,
-            transactionLimitProvider: { _ in return limit },
+            sendLimitProvider: { _ in return sendLimit },
             rateProvider: { _ in clpRate }
         )
 

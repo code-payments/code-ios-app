@@ -332,11 +332,11 @@ class OnrampViewModel {
             return
         }
         
-        guard let limit = session.singleTransactionLimitFor(currency: exchangedFiat.converted.currencyCode) else {
+        guard let maxPerDay = session.sendLimitFor(currency: exchangedFiat.converted.currencyCode)?.maxPerDay else {
             return
         }
-        
-        guard exchangedFiat.converted <= limit else {
+
+        guard exchangedFiat.converted <= maxPerDay else {
             showAmountTooLargeError()
             return
         }

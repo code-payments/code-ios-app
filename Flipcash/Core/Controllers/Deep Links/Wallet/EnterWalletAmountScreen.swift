@@ -11,8 +11,9 @@ import FlipcashCore
 
 struct EnterWalletAmountScreen: View {
     
+    @Environment(Session.self) private var session
     @Environment(RatesController.self) private var ratesController
-    
+
     @State private var actionState: ButtonState = .normal
     @State private var enteredAmount: String = ""
     
@@ -51,8 +52,10 @@ struct EnterWalletAmountScreen: View {
                 enteredAmount: $enteredAmount,
                 subtitle: .singleTransactionLimit,
                 actionState: $actionState,
-                actionEnabled: { _ in
-                    fiat != nil && (fiat?.quarks ?? 0) > 0
+                actionEnabled: { enteredAmount in
+                    guard let fiat, fiat.quarks > 0 else { return false }
+                    guard let maxPerDay = session.sendLimitFor(currency: .usd)?.maxPerDay else { return false }
+                    return EnterAmountCalculator.isWithinDisplayLimit(enteredAmount: enteredAmount, max: maxPerDay)
                 },
                 action: nextAction,
                 currencySelectionAction: nil//showCurrencySelection

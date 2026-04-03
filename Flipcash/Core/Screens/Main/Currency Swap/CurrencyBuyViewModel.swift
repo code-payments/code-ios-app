@@ -112,6 +112,12 @@ class CurrencyBuyViewModel: Identifiable {
     private func performBuy() {
         guard let buyAmount = enteredFiat else { return }
 
+        guard let sendLimit = session.sendLimitFor(currency: buyAmount.converted.currencyCode),
+              buyAmount.converted <= sendLimit.maxPerDay else {
+            showLimitsError()
+            return
+        }
+
         actionButtonState = .loading
 
         Task {
@@ -157,6 +163,17 @@ class CurrencyBuyViewModel: Identifiable {
             style: .destructive,
             title: "Insufficient Balance",
             subtitle: "Please enter a lower amount and try again",
+            dismissable: true
+        ) {
+            .okay(kind: .destructive)
+        }
+    }
+
+    private func showLimitsError() {
+        dialogItem = .init(
+            style: .destructive,
+            title: "Transaction Limit Reached",
+            subtitle: "You can only buy up to the transaction limit at a time",
             dismissable: true
         ) {
             .okay(kind: .destructive)

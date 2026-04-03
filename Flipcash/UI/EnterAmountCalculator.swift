@@ -8,22 +8,22 @@
 import Foundation
 import FlipcashCore
 
-struct EnterAmountCalculator {    
+struct EnterAmountCalculator {
     /// Provides exchange rate lookup capability
     typealias RateProvider = (CurrencyCode) -> Rate?
-    /// Provides transaction limits for a given currency
-    typealias TransactionLimitProvider = (CurrencyCode) -> Quarks?
-    
+    /// Provides the full SendLimit for a given currency
+    typealias SendLimitProvider = (CurrencyCode) -> SendLimit?
+
     // MARK: - Properties
-    
+
     let mode: EnterAmountView.Mode
     let entryCurrency: CurrencyCode
     let onrampCurrency: CurrencyCode
-    let transactionLimitProvider: TransactionLimitProvider
+    let sendLimitProvider: SendLimitProvider
     let rateProvider: RateProvider
-    
+
     // MARK: - Computed
-    
+
     var currency: CurrencyCode {
         switch mode {
         case .currency, .buy:
@@ -36,9 +36,24 @@ struct EnterAmountCalculator {
             entryCurrency
         }
     }
-    
+
+    /// The maximum amount the user can enter for a single transaction, determined by flow type.
+    /// Used by `EnterAmountView` for the "Enter up to X" subtitle and button-enable logic.
     var maxTransactionAmount: Quarks {
-        transactionLimitProvider(currency) ?? 0
+        guard let limit = sendLimitProvider(currency) else {
+            return 0
+        }
+
+        switch mode {
+        case .currency:
+            // Give: effective limit is the lower of per-tx cap and remaining daily
+            return min(limit.maxPerTransaction, limit.nextTransaction)
+        case .buy, .phantomDeposit, .walletDeposit, .onramp:
+            // Buy: per-tx limit is the daily cap (no daily accumulation limit)
+            return limit.maxPerDay
+        case .withdraw:
+            return limit.maxPerTransaction
+        }
     }
     
     // MARK: - Static
