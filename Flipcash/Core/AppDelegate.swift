@@ -68,9 +68,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func scenePhaseChanged(_ phase: ScenePhase) {
         switch phase {
         case .background:
+            logger.info("scenePhase → background")
             sessionContainer?.session.didEnterBackground()
             container.preferences.appDidEnterBackground()
         case .active:
+            logger.info("scenePhase → active")
             container.client.warmUpChannel()
             sessionContainer?.session.didBecomeActive()
         case .inactive:
