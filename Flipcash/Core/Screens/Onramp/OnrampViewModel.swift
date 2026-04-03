@@ -337,6 +337,11 @@ class OnrampViewModel {
         }
 
         guard exchangedFiat.converted <= maxPerDay else {
+            logger.info("Onramp rejected: amount exceeds limit", metadata: [
+                "amount": "\(exchangedFiat.converted.formatted())",
+                "max_per_day": "\(maxPerDay.decimalValue)",
+                "currency": "\(exchangedFiat.converted.currencyCode)",
+            ])
             showAmountTooLargeError()
             return
         }

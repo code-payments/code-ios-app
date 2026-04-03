@@ -8,6 +8,9 @@
 import SwiftUI
 import FlipcashCore
 import FlipcashUI
+import Logging
+
+private let logger = Logger(label: "flipcash.swap-service")
 
 @MainActor @Observable
 class CurrencyBuyViewModel: Identifiable {
@@ -112,8 +115,14 @@ class CurrencyBuyViewModel: Identifiable {
     private func performBuy() {
         guard let buyAmount = enteredFiat else { return }
 
-        guard let sendLimit = session.sendLimitFor(currency: buyAmount.converted.currencyCode),
-              buyAmount.converted <= sendLimit.maxPerDay else {
+        let sendLimit = session.sendLimitFor(currency: buyAmount.converted.currencyCode) ?? .zero
+
+        guard buyAmount.converted <= sendLimit.maxPerDay else {
+            logger.info("Buy rejected: amount exceeds limit", metadata: [
+                "amount": "\(buyAmount.converted.formatted())",
+                "max_per_day": "\(sendLimit.maxPerDay.decimalValue)",
+                "currency": "\(buyAmount.converted.currencyCode)",
+            ])
             showLimitsError()
             return
         }

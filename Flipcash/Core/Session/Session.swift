@@ -432,6 +432,9 @@ class Session {
     
     private func fetchLimitsIfNeeded() async throws {
         if limits == nil || limits?.isStale == true {
+            if limits != nil {
+                logger.info("Limits stale, refreshing")
+            }
             try await fetchLimits()
         }
     }
@@ -446,7 +449,13 @@ class Session {
             try? database.insertLimits(fetchedLimits)
         }
 
-        logger.debug("Daily limit updated", metadata: ["usd_max_per_day": "\(fetchedLimits.sendLimitFor(currency: .usd)?.maxPerDay.decimalValue ?? -1)"])
+        if let usdLimit = fetchedLimits.sendLimitFor(currency: .usd) {
+            logger.info("Limits updated", metadata: [
+                "usd_max_per_tx": "\(usdLimit.maxPerTransaction.decimalValue)",
+                "usd_next_tx": "\(usdLimit.nextTransaction.decimalValue)",
+                "usd_max_per_day": "\(usdLimit.maxPerDay.decimalValue)",
+            ])
+        }
     }
     
     private func updateLimits() {
