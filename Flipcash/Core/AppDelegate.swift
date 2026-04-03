@@ -12,12 +12,7 @@ import FlipcashCore
 
 private let logger = Logger(label: "flipcash.app-delegate")
 
-@UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
-
-    var window: UIWindow?
-
-    private var dialogWindow: DialogWindow?
 
     let container = Container()
 
@@ -37,8 +32,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             PatternRedactor(),
         ])
 
-        window = UIWindow(frame: UIScreen.main.bounds)
-
         let isUITesting = CommandLine.arguments.contains("--ui-testing")
 
         if !isUITesting {
@@ -52,8 +45,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         if isUITesting {
             UIView.setAnimationsEnabled(false)
         }
-
-        installRootScreen()
 
         NotificationCenter.default.addObserver(
             self,
@@ -72,78 +63,26 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return true
     }
 
-    /// Sets up the window with the root ContainerScreen.
-    private func installRootScreen() {
-        guard let window = window else {
-            return
-        }
-
-        let screen = ContainerScreen(container: container)
-            .injectingEnvironment(from: container)
-            .colorScheme(.dark)
-            .tint(Color.textMain)
-
-        let controller = UIHostingController(rootView: screen)
-        controller.view.backgroundColor = UIColor(.backgroundMain)
-        window.rootViewController = controller
-        window.overrideUserInterfaceStyle = .dark
-
-        window.makeKeyAndVisible()
-
-        if let windowScene = window.windowScene {
-            dialogWindow = DialogWindow(
-                sessionAuthenticator: container.sessionAuthenticator,
-                windowScene: windowScene
-            )
-        }
-    }
-
     // MARK: - Lifecycle -
 
-    func applicationWillResignActive(_ application: UIApplication) {
-        logger.info("applicationWillResignActive")
-    }
-
-    func applicationDidEnterBackground(_ application: UIApplication) {
-        if let sessionContainer {
-            sessionContainer.session.didEnterBackground()
+    func scenePhaseChanged(_ phase: ScenePhase) {
+        switch phase {
+        case .background:
+            sessionContainer?.session.didEnterBackground()
+            container.preferences.appDidEnterBackground()
+        case .active:
+            container.client.warmUpChannel()
+            sessionContainer?.session.didBecomeActive()
+        case .inactive:
+            break
+        @unknown default:
+            break
         }
-
-        container.preferences.appDidEnterBackground()
-    }
-
-    func applicationWillEnterForeground(_ application: UIApplication) {
-        logger.info("applicationWillEnterForeground")
-
-        // Pre-warm the gRPC channel before anything else.
-        // After backgrounding the OS kills the TCP socket; this
-        // triggers reconnection so the channel is ready by the
-        // time streams and RPCs need it.
-        container.client.warmUpChannel()
-
-        guard let sessionContainer else { return }
-
-        sessionContainer.session.didBecomeActive()
     }
 
     // MARK: - Deep Links -
 
-    func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
-        return handleOpenURL(url: url)
-    }
-
-    func application(_ application: UIApplication, continue userActivity: NSUserActivity, restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
-        guard
-            userActivity.activityType == NSUserActivityTypeBrowsingWeb,
-            let url = userActivity.webpageURL
-        else {
-            return false
-        }
-
-        return handleOpenURL(url: url)
-    }
-
-    private func handleOpenURL(url: URL) -> Bool {
+    func handleOpenURL(url: URL) {
         Analytics.deeplinkOpened(url: url)
         let action = container.deepLinkController.handle(open: url)
         Analytics.deeplinkParsed(action: action, url: url)
@@ -151,8 +90,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         Task {
             try await action?.executeAction()
         }
-
-        return true
     }
 
     @objc private func handleDeepLinkNotification(_ notification: Notification) {
@@ -160,7 +97,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             return
         }
 
-        _ = handleOpenURL(url: url)
+        handleOpenURL(url: url)
     }
 
     // MARK: - Push Notifications -
