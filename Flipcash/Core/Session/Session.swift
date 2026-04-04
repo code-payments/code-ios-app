@@ -630,7 +630,7 @@ class Session {
             throw Error.missingVerifiedState
         }
 
-        logger.info("buying", metadata: ["amount": "\(amount.converted.formatted())", "token": "\(token.symbol)"])
+        logger.info("buying", metadata: ["amount": "\(amount.converted.formatted())", "symbol": "\(token.symbol)"])
 
         return try await client.buy(amount: amount, verifiedState: verifiedState, of: token.metadata, owner: owner)
     }
@@ -676,7 +676,7 @@ class Session {
             amountForIntent = amount
         }
 
-        logger.info("selling", metadata: ["amount": "\(amountForIntent.converted.formatted())", "token": "\(token.symbol)"])
+        logger.info("selling", metadata: ["amount": "\(amountForIntent.converted.formatted())", "symbol": "\(token.symbol)"])
 
         return try await client.sell(amount: amountForIntent, verifiedState: verifiedState, in: token.metadata, owner: owner)
     }

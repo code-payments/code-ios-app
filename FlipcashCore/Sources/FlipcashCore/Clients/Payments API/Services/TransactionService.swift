@@ -193,7 +193,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
 
         logger.info("Starting buy", metadata: [
             "amount": "\(amount.converted.formatted())",
-            "token": "\(token.symbol)"
+            "symbol": "\(token.symbol)"
         ])
 
         // Phase 1: Create swap state on the server
@@ -250,7 +250,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
     ) {
         logger.info("Starting externally-funded buy", metadata: [
             "amount": "\(amount.converted.formatted())",
-            "token": "\(token.symbol)",
+            "symbol": "\(token.symbol)",
             "swapId": "\(swapId.publicKey.base58)"
         ])
 
@@ -275,7 +275,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
     /// A sell is a swap from token to USDF
     func sell(amount: ExchangedFiat, verifiedState: VerifiedState, in token: MintMetadata, owner: AccountCluster, completion: @Sendable @escaping (Result<SwapId, ErrorSwap>) -> Void) {
         logger.info("Starting sell", metadata: [
-            "token": "\(token.symbol)",
+            "symbol": "\(token.symbol)",
             "amount": "\(amount.converted.formatted())"
         ])
 
@@ -472,7 +472,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
                 logger.info("Action[\(idx)]: OpenAccount", metadata: [
                     "owner": "\(open.owner.base58)",
                     "authority": "\(open.cluster.authority.keyPair.publicKey.base58)",
-                    "token": "\(open.cluster.vaultPublicKey.base58)",
+                    "vault": "\(open.cluster.vaultPublicKey.base58)",
                     "mint": "\(open.mint.base58)",
                     "index": "\(open.derivationIndex)"
                 ])
