@@ -27,6 +27,7 @@ struct ScanScreen: View {
     @State private var isShowingSettings: Bool = false
     
     @State private var sendButtonState: ButtonState = .normal
+    @State private var sendButtonTask: Task<Void, Never>?
     @State private var billEditorColors: [Color] = [GradientStop.solidPresets.randomElement()?.color ?? .blue]
     
     private var toast: String? {
@@ -156,6 +157,13 @@ struct ScanScreen: View {
             isShowingSettings = false
             isShowingBalance = false
             giveViewModel.isPresented = false
+        }
+        // Reset button state on bill dismissal — `sendButtonState` outlives individual bills.
+        .onChange(of: session.billState.bill) { _, newBill in
+            guard newBill == nil else { return }
+            sendButtonTask?.cancel()
+            sendButtonTask = nil
+            sendButtonState = .normal
         }
     }
     
@@ -408,10 +416,13 @@ struct ScanScreen: View {
                     asset: primaryAction.asset,
                     title: primaryAction.title
                 ) {
-                    Task {
+                    sendButtonTask?.cancel()
+                    sendButtonTask = Task {
                         sendButtonState = .loading
-                        try await primaryAction.action()
-                        try await Task.delay(milliseconds: 1000)
+                        do {
+                            try await primaryAction.action()
+                            try await Task.delay(milliseconds: 1000)
+                        } catch {}
                         sendButtonState = .normal
                     }
                 }

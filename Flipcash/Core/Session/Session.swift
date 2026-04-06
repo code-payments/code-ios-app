@@ -886,10 +886,11 @@ class Session {
                         exchangedFiat: exchangedFiat
                     )
 
-                    guard self.isShowingBill else {
-                        // The bill was dismissed (e.g. operation
-                        // failed) while the link was being created.
-                        // Void the gift card to return the funds.
+                    guard self.isShowingBill && self.sendOperation === operation else {
+                        // The bill was dismissed (e.g. operation failed) OR a
+                        // new bill was pulled while this link was being created.
+                        // Either way this gift card belongs to a bill the user
+                        // has moved on from — void it to return the funds.
                         do {
                             try await self.cancelCashLink(
                                 giftCardVault: giftCard.cluster.vaultPublicKey
@@ -913,13 +914,16 @@ class Session {
 
                 } catch {
                     ErrorReporting.captureError(error)
-                    if self.isShowingBill {
+                    // Suppress late-arriving errors from stale/orphaned tasks
+                    // (e.g. gRPC stream finally giving up minutes later) so they
+                    // don't fire dialogs on unrelated bills the user has moved on to.
+                    if self.isShowingBill && self.sendOperation === operation {
                         self.showSomethingWentWrongError()
                     }
                 }
             }
         }
-        
+
         var secondaryAction: BillState.SecondaryAction? = .init(asset: .cancel, title: nil) { [weak self] in
             self?.dismissCashBill(style: .slide)
         }
@@ -1392,7 +1396,7 @@ class Session {
 //    }
     
     // MARK: - Errors -
-    
+
     private func showSomethingWentWrongError() {
         dialogItem = .init(
             style: .destructive,
