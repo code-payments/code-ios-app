@@ -267,7 +267,6 @@ struct CurrencyInfoScreen: View {
                     onrampViewModel.clearPendingBuy()
                 }
         }
-        .dialog(item: $onrampViewModel.purchaseSuccess)
         .dialog(item: Bindable(walletConnection).dialogItem)
     }
 

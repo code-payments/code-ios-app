@@ -26,8 +26,49 @@ public final class Coinbase {
     
     // MARK: - API -
     
+    /// Fetches the current state of an existing onramp order. Used to retrieve
+    /// the on-chain `txHash` after the user has completed Apple Pay — Coinbase
+    /// only populates `txHash` once `status == ONRAMP_ORDER_STATUS_COMPLETED`.
+    public func fetchOrder(orderId: String) async throws -> OnrampOrderStatusResponse {
+        let url = config.baseURL.appendingPathComponent("onramp/orders/\(orderId)")
+
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "GET"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        // CDP JWTs are URI-bound — token must be minted for this exact path.
+        let token = try await config.bearerTokenProvider("GET", "platform/v2/onramp/orders/\(orderId)")
+        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await config.urlSession.data(for: urlRequest)
+        } catch {
+            throw Error.transport(error)
+        }
+
+        guard let http = response as? HTTPURLResponse else {
+            throw Error.invalidResponse
+        }
+
+        guard (200..<300).contains(http.statusCode) else {
+            if var errorResponse = try? decoder.decode(OnrampErrorResponse.self, from: data) {
+                errorResponse.errorCode = http.statusCode
+                throw errorResponse
+            } else {
+                throw Error.badStatus(code: http.statusCode, body: data)
+            }
+        }
+
+        do {
+            return try decoder.decode(OnrampOrderStatusResponse.self, from: data)
+        } catch {
+            throw Error.decoding(error)
+        }
+    }
+
     public func createOrder(request: OnrampOrderRequest, idempotencyKey: UUID? = nil) async throws -> OnrampOrderResponse {
-        
+
         // 1. Build URL
         let url = config.baseURL.appendingPathComponent("onramp/orders")
         
@@ -289,6 +330,12 @@ public struct OnrampOrderResponse: Decodable, Identifiable {
     }
     public let order: Order
     public let paymentLink: PaymentLink
+}
+
+/// Response shape for `GET /v2/onramp/orders/{orderId}`. Unlike the create-order
+/// response, this only contains the `order` envelope — no `paymentLink`.
+public struct OnrampOrderStatusResponse: Decodable {
+    public let order: OnrampOrderResponse.Order
 }
 
 // MARK: - Error -

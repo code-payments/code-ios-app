@@ -38,8 +38,6 @@ class OnrampViewModel {
 
     var dialogItem: DialogItem?
 
-    var purchaseSuccess: DialogItem?
-
     private(set) var pendingBuyDestination: BuyDestination?
 
     var enteredCode: String = ""
@@ -127,6 +125,8 @@ class OnrampViewModel {
     @ObservationIgnored private let owner: KeyPair
 
     @ObservationIgnored private var coinbase: Coinbase!
+
+    @ObservationIgnored private var pendingCoinbaseOrderId: String?
 
     @ObservationIgnored private let phoneFormatter = PhoneFormatter()
 
@@ -286,6 +286,7 @@ class OnrampViewModel {
     /// navigating). Stage 4 reads `pendingBuyDestination` after these resets.
     func clearPendingBuy() {
         pendingBuyDestination = nil
+        pendingCoinbaseOrderId = nil
     }
 
     // MARK: - Actions -
@@ -598,6 +599,7 @@ class OnrampViewModel {
             
             isShowingVerificationFlow = false
             coinbaseOrder = response
+            pendingCoinbaseOrderId = response.order.orderId
             logger.info("Coinbase order created", metadata: [
                 "order_id": "\(response.id)"
             ])
@@ -668,46 +670,7 @@ class OnrampViewModel {
         case .pollingSuccess:
             logger.info("Apple Pay polling succeeded")
             Task {
-                try await Task.delay(milliseconds: 2000)
-                coinbaseOrder = nil
-                payButtonState = .success
-                try await Task.delay(milliseconds: 500)
-                isOnrampPresented = false
-                try await Task.delay(milliseconds: 650)
-
-                let status = await PushController.fetchStatus()
-
-                Analytics.onrampCompleted(
-                    amount: enteredFiat?.underlying,
-                    successful: true,
-                    error: nil
-                )
-
-                payButtonState = .normal
-                purchaseSuccess = .init(
-                    style: .success,
-                    title: "Your Cash Will Be Available Soon",
-                    subtitle: "It should be available in a few minutes. If you have any issues please contact support@flipcash.com",
-                    dismissable: true,
-                ) {
-                    if status == .notDetermined {
-                        .standard("Notify Me") { [weak self] in
-                            self?.isOnrampPresented = false
-                            Task {
-                                do {
-                                    try await PushController.authorizeAndRegister()
-                                } catch {}
-                            }
-                        };
-                        .dismiss(kind: .subtle) { [weak self] in
-                            self?.isOnrampPresented = false
-                        }
-                    } else {
-                        .okay(kind: .standard, options: .priorityAction) { [weak self] in
-                            self?.isOnrampPresented = false
-                        }
-                    }
-                }
+                await handleCoinbaseFundingSuccess()
             }
         case .pollingError:
             logger.error("Apple Pay polling failed")
@@ -764,8 +727,212 @@ class OnrampViewModel {
         return nil
     }
     
+    // MARK: - Buy -
+
+    /// Polls `GET /v2/onramp/orders/{id}` until the order reaches a terminal state
+    /// (COMPLETED or FAILED) or the timeout expires. Returns the final order on
+    /// success. Throws on timeout, FAILED status, or repeated network errors.
+    private func pollCoinbaseOrderUntilComplete(orderId: String) async throws -> OnrampOrderResponse.Order {
+        let start = Date()
+        let deadline = start.addingTimeInterval(60) // sandbox completes in 250ms; 60s is generous for production
+        var pollCount = 0
+        var lastError: Error?
+
+        while Date() < deadline {
+            pollCount += 1
+            do {
+                let response = try await coinbase.fetchOrder(orderId: orderId)
+                let elapsedMs = Int(Date().timeIntervalSince(start) * 1000)
+                let status = response.order.status.uppercased()
+
+                logger.info("Coinbase order poll", metadata: [
+                    "poll": "\(pollCount)",
+                    "elapsed_ms": "\(elapsedMs)",
+                    "status": "\(response.order.status)"
+                ])
+
+                if status.contains("COMPLETED") {
+                    return response.order
+                }
+                if status.contains("FAILED") {
+                    throw OnrampError.coinbaseOrderFailed(status: response.order.status)
+                }
+            } catch let error as OnrampError {
+                throw error
+            } catch {
+                lastError = error
+                logger.warning("Coinbase order poll error, retrying", metadata: [
+                    "poll": "\(pollCount)",
+                    "error": "\(error)"
+                ])
+            }
+
+            // Backoff: start at 500ms, +200ms every 5 polls
+            let delayMs = 500 + (200 * (pollCount / 5))
+            try await Task.sleep(for: .milliseconds(delayMs))
+        }
+
+        throw lastError ?? OnrampError.coinbaseOrderPollTimeout
+    }
+
+    /// Decodes a Coinbase-reported `txHash` as a Solana base58 transaction signature.
+    /// Returns `nil` if the input is too short, contains non-base58 characters, or
+    /// doesn't decode to the expected 64-byte signature length. Belt + suspenders for
+    /// sandbox: the placeholder "sandbox_tx_hash" is 15 chars, real Solana signatures
+    /// are 87-88 chars base58.
+    private func decodeSolanaSignature(from txHash: String) -> Signature? {
+        guard txHash.count >= 85, txHash.count <= 90 else {
+            return nil
+        }
+        let bytes = Base58.toBytes(txHash)
+        guard bytes.count == 64 else {
+            return nil
+        }
+        // Force-try is safe: Key64.init only throws on invalid byte count, which the
+        // guard above already excludes.
+        return try! Signature(bytes)
+    }
+
+    /// Builds an ExchangedFiat for the buyWithExternalFunding call. The Coinbase
+    /// `purchaseAmount` is a string-encoded decimal in USDF units (e.g. "5" for $5).
+    /// Returns nil if the order didn't actually purchase USDF (defense against future
+    /// Coinbase API changes — we always request USDF, so a mismatch indicates a server
+    /// behavior change worth failing closed on).
+    private func makeUsdfSwapAmount(from order: OnrampOrderResponse.Order) -> ExchangedFiat? {
+        guard let purchaseCurrency = order.purchaseCurrency,
+              purchaseCurrency.uppercased() == "USDF" else {
+            return nil
+        }
+
+        guard let purchaseAmountString = order.purchaseAmount,
+              let decimal = Decimal(string: purchaseAmountString) else {
+            return nil
+        }
+
+        let rate = ratesController.rateForEntryCurrency()
+        guard let underlying = try? Quarks(
+            fiatDecimal: decimal,
+            currencyCode: .usd,
+            decimals: PublicKey.usdf.mintDecimals
+        ) else {
+            return nil
+        }
+
+        return try? ExchangedFiat(
+            underlying: underlying,
+            rate: rate,
+            mint: .usdf
+        )
+    }
+
+    private func handleCoinbaseFundingSuccess() async {
+        let destination = pendingBuyDestination
+
+        logger.info("Coinbase funding succeeded", metadata: [
+            "destination_mint": "\(destination?.mint.base58 ?? "nil")",
+            "destination_name": "\(destination?.name ?? "nil")"
+        ])
+
+        guard let destination else {
+            logger.warning("Funding succeeded with no pendingBuyDestination — closing sheet")
+            coinbaseOrder = nil
+            isOnrampPresented = false
+            return
+        }
+
+        guard let orderId = pendingCoinbaseOrderId else {
+            logger.error("pollingSuccess fired with no pendingCoinbaseOrderId")
+            showBuyFailedDialog()
+            return
+        }
+
+        // Poll Coinbase for the completed order. This runs in sandbox too — it
+        // validates the full Coinbase integration (JWT scoping, GET endpoint,
+        // status transitions, txHash field parsing) end-to-end on every run.
+        let order: OnrampOrderResponse.Order
+        do {
+            order = try await pollCoinbaseOrderUntilComplete(orderId: orderId)
+        } catch is CancellationError {
+            // View model was deallocated or task was cancelled mid-poll. The user
+            // already navigated away — no UI update needed.
+            return
+        } catch {
+            logger.error("Coinbase order poll failed", metadata: ["error": "\(error)"])
+            ErrorReporting.captureError(error)
+            showBuyFailedDialog()
+            return
+        }
+
+        // Sandbox short-circuits the on-chain settlement — Coinbase returns a
+        // placeholder tx_hash that isn't a real Solana signature. We skip the
+        // buy (`buyWithExternalFunding` would reject the placeholder) but only
+        // AFTER exercising the full Coinbase order polling pipeline above.
+        if BetaFlags.shared.hasEnabled(.coinbaseSandbox) {
+            logger.info("Sandbox order — skipping buy", metadata: [
+                "order_id": "\(orderId)",
+                "status": "\(order.status)",
+                "tx_hash": "\(order.txHash ?? "nil")"
+            ])
+            showSandboxOrderCompleted()
+            return
+        }
+
+        guard let txHash = order.txHash, !txHash.isEmpty else {
+            logger.error("Coinbase order completed with no txHash", metadata: [
+                "order_id": "\(orderId)",
+                "status": "\(order.status)"
+            ])
+            showBuyFailedDialog()
+            return
+        }
+
+        guard let signature = decodeSolanaSignature(from: txHash) else {
+            logger.error("Failed to decode txHash as Solana signature", metadata: [
+                "tx_hash": "\(txHash)",
+                "tx_hash_length": "\(txHash.count)"
+            ])
+            showBuyFailedDialog()
+            return
+        }
+
+        guard let exchangedFiat = makeUsdfSwapAmount(from: order) else {
+            logger.error("Failed to construct swap amount from order", metadata: [
+                "order_id": "\(orderId)"
+            ])
+            showBuyFailedDialog()
+            return
+        }
+
+        do {
+            let swapId = try await session.buyWithExternalFunding(
+                amount: exchangedFiat,
+                of: destination.mint,
+                transactionSignature: signature
+            )
+            logger.info("Buy initiated", metadata: [
+                "swap_id": "\(swapId.publicKey.base58)",
+                "destination_mint": "\(destination.mint.base58)"
+            ])
+            coinbaseOrder = nil
+            Analytics.onrampCompleted(
+                amount: exchangedFiat.underlying,
+                successful: true,
+                error: nil
+            )
+            onrampPath.append(.swapProcessing(
+                swapId: swapId,
+                currencyName: destination.name,
+                amount: exchangedFiat
+            ))
+        } catch {
+            logger.error("Buy failed", metadata: ["error": "\(error)"])
+            ErrorReporting.captureError(error)
+            showBuyFailedDialog()
+        }
+    }
+
     // MARK: - Errors -
-    
+
     private func showCoinbaseError(title: String, subtitle: String, onDismiss: (() -> Void)? = nil) {
         dialogItem = .init(
             style: .destructive,
@@ -876,16 +1043,47 @@ class OnrampViewModel {
             }
         }
     }
+
+    private func showSandboxOrderCompleted() {
+        payButtonState = .normal
+        coinbaseOrder = nil
+        dialogItem = .init(
+            style: .success,
+            title: "Sandbox Order Completed",
+            subtitle: "The buy is skipped in sandbox mode.",
+            dismissable: true,
+        ) {
+            .okay(kind: .standard) { [weak self] in
+                self?.isOnrampPresented = false
+            }
+        }
+    }
+
+    private func showBuyFailedDialog() {
+        payButtonState = .normal
+        coinbaseOrder = nil
+        dialogItem = .init(
+            style: .destructive,
+            title: "Couldn't Buy Token",
+            subtitle: "Your USDF is in your wallet. Try again from the currency screen.",
+            dismissable: true,
+        ) {
+            .okay(kind: .destructive) { [weak self] in
+                self?.isOnrampPresented = false
+            }
+        }
+    }
 }
 
 // MARK: - Path -
 
-enum OnrampPath {
+enum OnrampPath: Hashable {
     case info
     case enterPhoneNumber
     case confirmPhoneNumberCode
     case enterEmail
     case confirmEmailCode
+    case swapProcessing(swapId: SwapId, currencyName: String, amount: ExchangedFiat)
 }
 
 private enum Origin: Int {
@@ -917,6 +1115,13 @@ extension OnrampViewModel {
         let mint: PublicKey
         let name: String
     }
+}
+
+// MARK: - OnrampError -
+
+enum OnrampError: Error {
+    case coinbaseOrderFailed(status: String)
+    case coinbaseOrderPollTimeout
 }
 
 // MARK: - Mock -

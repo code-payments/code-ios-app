@@ -48,6 +48,23 @@ struct OnrampAmountScreen: View {
                     ToolbarCloseButton(binding: $viewModel.isOnrampPresented)
                 }
             }
+            .navigationDestination(for: OnrampPath.self) { path in
+                switch path {
+                case .swapProcessing(let swapId, let currencyName, let amount):
+                    SwapProcessingScreen(
+                        swapId: swapId,
+                        swapType: .buyWithPhantom,
+                        currencyName: currencyName,
+                        amount: amount
+                    )
+                case .info, .enterPhoneNumber, .confirmPhoneNumberCode, .enterEmail, .confirmEmailCode:
+                    // Verification destinations are pushed inside VerifyInfoScreen's own
+                    // NavigationStack (which also binds onrampPath). They're never reached
+                    // here because OnrampAmountScreen's stack is only active after the
+                    // verification sheet has dismissed.
+                    EmptyView()
+                }
+            }
         }
         .sheet(isPresented: $viewModel.isShowingVerificationFlow) {
             VerifyInfoScreen(viewModel: viewModel)

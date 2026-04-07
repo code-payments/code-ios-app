@@ -74,6 +74,10 @@ struct VerifyInfoScreen: View {
                 case .confirmEmailCode:
                     ConfirmEmailScreen(viewModel: viewModel)
                         .interactiveDismissDisabled()
+                case .swapProcessing:
+                    // Swap processing is presented from OnrampAmountScreen's stack,
+                    // never from inside this verification sheet.
+                    EmptyView()
                 }
             }
             .ignoresSafeArea(.keyboard)
