@@ -1124,8 +1124,12 @@ class Session {
                 timeAuthority: vmAuthority
             )
 
-            // Get verified state for intent construction
-            guard let verifiedState = await ratesController.getVerifiedState(
+            // Wait for verified state. The in-memory cache is empty on cold
+            // launch until the live mint stream delivers the first batch, so
+            // polling matches the receive path's behavior at `receiveCashLink`
+            // below and avoids a spurious error when the user taps Send within
+            // the first few seconds of relaunching the app.
+            guard let verifiedState = await ratesController.awaitVerifiedState(
                 for: exchangedFiat.converted.currencyCode,
                 mint: exchangedFiat.mint
             ) else {
