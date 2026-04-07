@@ -640,12 +640,38 @@ class OnrampViewModel {
     }
     
     private func didReceiveApplePayEvent(event: ApplePayEvent) {
+        func errorMetadata(_ event: ApplePayEvent) -> Logger.Metadata {
+            [
+                "error_code": "\(event.data?.errorCode ?? "nil")",
+                "error_message": "\(event.data?.errorMessage ?? "nil")"
+            ]
+        }
+
         func handleEventError(_ event: ApplePayEvent) {
             payButtonState = .normal
             coinbaseOrder = nil
 
-            showGenericError() { [weak self] in
-                self?.isOnrampPresented = false
+            // Prefer the Coinbase-provided reason if we have one — users hitting
+            // a region mismatch or card decline shouldn't see "Something went wrong".
+            let title: String
+            let subtitle: String
+            if let message = event.data?.errorMessage, !message.isEmpty {
+                title = "Payment Failed"
+                subtitle = message
+            } else {
+                title = "Something Went Wrong"
+                subtitle = "Please try again later"
+            }
+
+            dialogItem = .init(
+                style: .destructive,
+                title: title,
+                subtitle: subtitle,
+                dismissable: true,
+            ) {
+                .okay(kind: .destructive) { [weak self] in
+                    self?.isOnrampPresented = false
+                }
             }
 
             ErrorReporting.captureError(event.event!)
@@ -657,13 +683,13 @@ class OnrampViewModel {
         case .loadSuccess:
             logger.info("Apple Pay loaded")
         case .loadError:
-            logger.error("Apple Pay load failed")
+            logger.error("Apple Pay load failed", metadata: errorMetadata(event))
             handleEventError(event)
 
         case .commitSuccess:
             logger.info("Apple Pay commit succeeded")
         case .commitError:
-            logger.error("Apple Pay commit failed")
+            logger.error("Apple Pay commit failed", metadata: errorMetadata(event))
             handleEventError(event)
         case .pollingStart:
             logger.info("Apple Pay polling started")
@@ -673,7 +699,7 @@ class OnrampViewModel {
                 await handleCoinbaseFundingSuccess()
             }
         case .pollingError:
-            logger.error("Apple Pay polling failed")
+            logger.error("Apple Pay polling failed", metadata: errorMetadata(event))
             Analytics.onrampCompleted(
                 amount: nil,
                 successful: false,
@@ -748,7 +774,8 @@ class OnrampViewModel {
                 logger.info("Coinbase order poll", metadata: [
                     "poll": "\(pollCount)",
                     "elapsed_ms": "\(elapsedMs)",
-                    "status": "\(response.order.status)"
+                    "status": "\(response.order.status)",
+                    "tx_hash": "\(response.order.txHash ?? "nil")"
                 ])
 
                 if status.contains("COMPLETED") {
@@ -855,6 +882,7 @@ class OnrampViewModel {
         } catch is CancellationError {
             // View model was deallocated or task was cancelled mid-poll. The user
             // already navigated away — no UI update needed.
+            logger.info("Coinbase order poll cancelled")
             return
         } catch {
             logger.error("Coinbase order poll failed", metadata: ["error": "\(error)"])
@@ -895,6 +923,10 @@ class OnrampViewModel {
             return
         }
 
+        logger.info("Decoded Coinbase signature", metadata: [
+            "tx_hash_length": "\(txHash.count)"
+        ])
+
         guard let exchangedFiat = makeUsdfSwapAmount(from: order) else {
             logger.error("Failed to construct swap amount from order", metadata: [
                 "order_id": "\(orderId)"
@@ -911,7 +943,8 @@ class OnrampViewModel {
             )
             logger.info("Buy initiated", metadata: [
                 "swap_id": "\(swapId.publicKey.base58)",
-                "destination_mint": "\(destination.mint.base58)"
+                "destination_mint": "\(destination.mint.base58)",
+                "exchanged_fiat_quarks": "\(exchangedFiat.underlying.quarks)"
             ])
             coinbaseOrder = nil
             Analytics.onrampCompleted(

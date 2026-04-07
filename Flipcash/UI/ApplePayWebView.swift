@@ -136,28 +136,37 @@ extension ApplePayWebView {
 
 public struct ApplePayEvent: Codable {
     public let name: String
-    
+    public let data: EventData?
+
     public var event: Event? {
         Event(rawValue: name)
     }
-    
+
     public enum Event: String, Error {
         case loadPending    = "onramp_api.load_pending"
         case loadSuccess    = "onramp_api.load_success"
         case loadError      = "onramp_api.load_error"
-        
+
         case commitSuccess  = "onramp_api.commit_success"
         case commitError    = "onramp_api.commit_error"
-        
+
         case pollingStart   = "onramp_api.polling_start"
         case pollingSuccess = "onramp_api.polling_success"
         case pollingError   = "onramp_api.polling_error"
-        
+
         case cancelled      = "onramp_api.cancel"
+    }
+
+    /// Optional payload that Coinbase attaches to error events. Present on
+    /// `loadError`, `commitError`, and `pollingError` — absent on success events.
+    public struct EventData: Codable {
+        public let errorCode: String?
+        public let errorMessage: String?
     }
 
     private enum CodingKeys: String, CodingKey {
         case name = "eventName"
+        case data
     }
 }
 
