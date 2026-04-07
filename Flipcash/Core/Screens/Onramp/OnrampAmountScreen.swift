@@ -53,7 +53,7 @@ struct OnrampAmountScreen: View {
                 case .swapProcessing(let swapId, let currencyName, let amount):
                     SwapProcessingScreen(
                         swapId: swapId,
-                        swapType: .buyWithPhantom,
+                        swapType: .buyWithCoinbase,
                         currencyName: currencyName,
                         amount: amount
                     )

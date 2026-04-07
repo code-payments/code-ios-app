@@ -73,6 +73,7 @@ extension Analytics {
     enum TokenTransactionEvent: String, AnalyticsEvent {
         case purchaseWithReserves = "Token Purchase With Reserves"
         case purchaseWithPhantom  = "Token Purchase With Phantom"
+        case purchaseWithCoinbase = "Token Purchase With Coinbase"
         case sell                 = "Token Sell"
     }
 

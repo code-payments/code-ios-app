@@ -590,7 +590,7 @@ class OnrampViewModel {
             let response = try await coinbase.createOrder(request: .init(
                 paymentAmount: nil,
                 paymentCurrency: "USD",
-                purchaseAmount: f.string(from: exchangedFiat.converted.decimalValue),
+                purchaseAmount: f.string(from: exchangedFiat.underlying.decimalValue),
                 purchaseCurrency: "USDF",
                 isQuote: false,
                 destinationAddress: usdfSwapAccounts.ata.publicKey,
