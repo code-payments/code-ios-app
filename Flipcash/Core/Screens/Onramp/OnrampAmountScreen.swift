@@ -44,10 +44,13 @@ struct OnrampAmountScreen: View {
             .navigationTitle("Amount to Add")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    ToolbarCloseButton(binding: $viewModel.isOnrampPresented)
+                if !viewModel.isProcessingPayment {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        ToolbarCloseButton(binding: $viewModel.isOnrampPresented)
+                    }
                 }
             }
+            .interactiveDismissDisabled(viewModel.isProcessingPayment)
             .navigationDestination(for: OnrampPath.self) { path in
                 switch path {
                 case .swapProcessing(let swapId, let currencyName, let amount):

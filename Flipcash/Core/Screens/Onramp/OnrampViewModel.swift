@@ -41,6 +41,16 @@ class OnrampViewModel {
 
     var coinbaseOrder: OnrampOrderResponse?
 
+    /// True once Coinbase has accepted the order and while payment is in-flight
+    /// (Apple Pay commit, on-chain settlement, or our poll loop). While true, the
+    /// Onramp sheet must not be dismissible: the USDF is destined for the user's
+    /// VM swap ATA, a staging slot that only a downstream `buyWithExternalFunding`
+    /// call can drain. Dismissing mid-flight would strand the USDF in a VM-owned
+    /// account with no recovery path through normal UI.
+    var isProcessingPayment: Bool {
+        coinbaseOrder != nil
+    }
+
     var dialogItem: DialogItem?
 
     private(set) var pendingBuyDestination: BuyDestination?
