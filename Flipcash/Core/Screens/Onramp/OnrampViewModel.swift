@@ -77,23 +77,21 @@ class OnrampViewModel {
         }
         
         guard let amount = NumberFormatter.decimal(from: amount) else {
-//            trace(.failure, components: "[Onramp] Failed to parse amount string: \(amount)")
             return nil
         }
         
         let currency = ratesController.entryCurrency
         
         guard let rate = ratesController.rate(for: currency) else {
-            logger.error("[Onramp] Rate not found", metadata: ["currency": "\(currency)"])
+            logger.error("Rate not found", metadata: ["currency": "\(currency)"])
             return nil
         }
 
         guard let converted = try? Quarks(fiatDecimal: amount, currencyCode: currency, decimals: PublicKey.usdf.mintDecimals) else {
-            logger.error("[Onramp] Invalid amount for entry")
             return nil
         }
         
-        return try! ExchangedFiat(
+        return try? ExchangedFiat(
             converted: converted,
             rate: rate,
             mint: .usdf
@@ -391,7 +389,7 @@ class OnrampViewModel {
             {
                 showUnsupportedPhoneNumberError()
             }
-            
+
             catch {
                 ErrorReporting.captureError(error)
                 showGenericError()
@@ -442,25 +440,19 @@ class OnrampViewModel {
                 )
                 
                 try? await session.updateProfile()
-                
+
                 try await Task.delay(milliseconds: 500)
                 confirmCodeButtonState = .success
-                
+
                 try await Task.delay(milliseconds: 500)
                 navigateToAmount(from: .phone)
                 
                 try await Task.delay(milliseconds: 500)
-            }
-            
-            catch ErrorCheckVerificationCode.invalidCode {
+            } catch ErrorCheckVerificationCode.invalidCode {
                 showInvalidCodeError()
-            }
-            
-            catch ErrorCheckVerificationCode.noVerification {
+            } catch ErrorCheckVerificationCode.noVerification {
                 showGenericError()
-            }
-            
-            catch {
+            } catch {
                 ErrorReporting.captureError(error)
             }
         }
@@ -491,19 +483,15 @@ class OnrampViewModel {
                 Analytics.track(event: Analytics.OnrampEvent.showConfirmEmail)
                 
                 try await Task.delay(milliseconds: 500)
-            }
-            
-            catch ErrorSendEmailCode.invalidEmailAddress {
+            } catch ErrorSendEmailCode.invalidEmailAddress {
                 showInvalidEmailError()
-            }
-            
-            catch {
+            } catch {
                 ErrorReporting.captureError(error)
                 showGenericError()
             }
         }
     }
-    
+
     func resendEmailCodeAction() async throws {
         guard isEmailValid else {
             return
@@ -542,7 +530,6 @@ class OnrampViewModel {
             }
             
             do {
-//                try await Task.delay(milliseconds: 500)
                 if !isEmailVerified {
                     try await flipClient.checkEmailCode(
                         email: verification.email,
@@ -552,7 +539,7 @@ class OnrampViewModel {
                     
                     try? await session.updateProfile()
                 }
-                
+
                 try await Task.delay(milliseconds: 500)
                 confirmEmailButtonState = .success
                 
@@ -560,9 +547,7 @@ class OnrampViewModel {
                 navigateToAmount(from: .email)
                 
                 try await Task.delay(milliseconds: 500)
-            }
-            
-            catch ErrorCheckEmailCode.invalidCode {
+            } catch ErrorCheckEmailCode.invalidCode {
                 showInvalidVerificationLinkError { [weak self] in
                     Task {
                         try await self?.resendEmailCodeAction()
@@ -570,9 +555,7 @@ class OnrampViewModel {
                 } cancel: { [weak self] in
                     self?.emailVerificationDescription = nil
                 }
-            }
-            
-            catch ErrorCheckEmailCode.noVerification {
+            } catch ErrorCheckEmailCode.noVerification {
                 showExpiredVerificationLinkError { [weak self] in
                     Task {
                         try await self?.resendEmailCodeAction()
@@ -580,9 +563,7 @@ class OnrampViewModel {
                 } cancel: { [weak self] in
                     self?.emailVerificationDescription = nil
                 }
-            }
-            
-            catch {
+            } catch {
                 ErrorReporting.captureError(error)
                 showGenericError()
             }
@@ -631,11 +612,16 @@ class OnrampViewModel {
         let ref = BetaFlags.shared.hasEnabled(.coinbaseSandbox) ? "sandbox-\(userRef)" : userRef
         
         do {
+            logger.info("Creating Coinbase order", metadata: [
+                "currency": "\(exchangedFiat.converted.currencyCode)",
+                "purchase_quarks": "\(exchangedFiat.underlying.quarks)",
+                "sandbox": "\(BetaFlags.shared.hasEnabled(.coinbaseSandbox))"
+            ])
             let response = try await coinbase.createOrder(request: .init(
                 paymentAmount: nil,
                 paymentCurrency: "USD",
                 purchaseAmount: f.string(from: exchangedFiat.converted.decimalValue),
-                purchaseCurrency: "USDC",
+                purchaseCurrency: "USDF",
                 isQuote: false,
                 destinationAddress: session.owner.depositPublicKey,
                 email: email,
@@ -648,6 +634,9 @@ class OnrampViewModel {
             
             isShowingVerificationFlow = false
             coinbaseOrder = response
+            logger.info("Coinbase order created", metadata: [
+                "order_id": "\(response.id)"
+            ])
         }
 
         catch let error as OnrampErrorResponse {
@@ -668,44 +657,52 @@ class OnrampViewModel {
             }
 
             ErrorReporting.captureError(error)
+            logger.error("Coinbase order failed", metadata: [
+                "error_type": "\(error.errorType)",
+                "error_title": "\(error.title)"
+            ])
             payButtonState = .normal
         }
-        
+
         catch {
             ErrorReporting.captureError(error)
+            logger.error("Coinbase order failed with unexpected error", metadata: [
+                "error": "\(error)"
+            ])
             payButtonState = .normal
         }
     }
     
     private func didReceiveApplePayEvent(event: ApplePayEvent) {
-        logger.warning("[Coinbase] Apple Pay event", metadata: ["event": "\(event.event?.rawValue ?? "unknown")"])
-        
         func handleEventError(_ event: ApplePayEvent) {
             payButtonState = .normal
             coinbaseOrder = nil
-            
+
             showGenericError() { [weak self] in
                 self?.isOnrampPresented = false
             }
-            
+
             ErrorReporting.captureError(event.event!)
         }
-        
+
         switch event.event {
         case .loadPending:
-            break
+            logger.info("Apple Pay load pending")
         case .loadSuccess:
-            break
+            logger.info("Apple Pay loaded")
         case .loadError:
+            logger.error("Apple Pay load failed")
             handleEventError(event)
-            
+
         case .commitSuccess:
-            break
+            logger.info("Apple Pay commit succeeded")
         case .commitError:
+            logger.error("Apple Pay commit failed")
             handleEventError(event)
         case .pollingStart:
-            break
+            logger.info("Apple Pay polling started")
         case .pollingSuccess:
+            logger.info("Apple Pay polling succeeded")
             Task {
                 try await Task.delay(milliseconds: 2000)
                 coinbaseOrder = nil
@@ -713,15 +710,15 @@ class OnrampViewModel {
                 try await Task.delay(milliseconds: 500)
                 isOnrampPresented = false
                 try await Task.delay(milliseconds: 650)
-                
+
                 let status = await PushController.fetchStatus()
-                
+
                 Analytics.onrampCompleted(
                     amount: enteredFiat?.underlying,
                     successful: true,
                     error: nil
                 )
-                
+
                 payButtonState = .normal
                 purchaseSuccess = .init(
                     style: .success,
@@ -749,6 +746,7 @@ class OnrampViewModel {
                 }
             }
         case .pollingError:
+            logger.error("Apple Pay polling failed")
             Analytics.onrampCompleted(
                 amount: nil,
                 successful: false,
@@ -756,10 +754,11 @@ class OnrampViewModel {
             )
             handleEventError(event)
         case .cancelled:
+            logger.info("Apple Pay cancelled")
             coinbaseOrder = nil
             payButtonState = .normal
         case .none:
-            break
+            logger.warning("Apple Pay received unknown event", metadata: ["raw_event": "\(event.name)"])
         }
     }
     
