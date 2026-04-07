@@ -7,24 +7,38 @@
 
 import SwiftUI
 import FlipcashUI
+import FlipcashCore
+
+private let logger = Logger(label: "flipcash.betaflags")
 
 struct BetaFlagsScreen: View {
-    
+
     @Bindable private var betaFlags: BetaFlags
 
-    private var options: [Option] = []
-    
+    @Environment(Session.self) private var session
+
+    @State private var isConfirmingUnlinkEmail: Bool = false
+    @State private var isConfirmingUnlinkPhone: Bool = false
+    @State private var unlinkAlertTitle: String?
+    @State private var unlinkAlertMessage: String?
+    @State private var isShowingUnlinkAlert: Bool = false
+
+    private let container: Container
+
     // MARK: - Init -
-    
+
     init(container: Container) {
         self.betaFlags = container.betaFlags
+        self.container = container
     }
-    
+
     // MARK: - Body -
-    
+
     var body: some View {
         Background(color: .backgroundMain) {
             LazyTable(spacing: 0) {
+                sectionHeader("Flags")
+
                 ForEach(BetaFlags.Option.allCases) { option in
                     HStack(spacing: 12) {
                         Toggle(isOn: betaFlags.bindingFor(option: option)) {
@@ -40,15 +54,140 @@ struct BetaFlagsScreen: View {
                             .padding(.trailing, 20)
                         }
                         .tint(.textSuccess)
-                        .padding([.top, .bottom], 10)
                     }
                     .padding(20)
                     .vSeparator(color: .rowSeparator, position: .bottom)
                 }
+
+                sectionHeader("Account")
+
+                unlinkEmailRow()
+                unlinkPhoneRow()
             }
         }
         .navigationTitle("Beta Flags")
         .navigationBarTitleDisplayMode(.inline)
+        .alert(
+            "Unlink Email?",
+            isPresented: $isConfirmingUnlinkEmail
+        ) {
+            Button("Unlink Email", role: .destructive) {
+                Task { await unlinkEmail() }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This will unlink the email from your account.")
+        }
+        .alert(
+            "Unlink Phone?",
+            isPresented: $isConfirmingUnlinkPhone
+        ) {
+            Button("Unlink Phone", role: .destructive) {
+                Task { await unlinkPhone() }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This will unlink the phone from your account.")
+        }
+        .alert(
+            unlinkAlertTitle ?? "",
+            isPresented: $isShowingUnlinkAlert,
+            presenting: unlinkAlertMessage
+        ) { _ in
+            Button("OK", role: .cancel) { }
+        } message: { message in
+            Text(message)
+        }
+    }
+
+    // MARK: - Subviews -
+
+    private func sectionHeader(_ title: String) -> some View {
+        HStack {
+            Text(title)
+                .font(.appTextHeading)
+                .foregroundColor(.textSecondary)
+            Spacer()
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 20)
+        .padding(.bottom, 8)
+    }
+
+    private func unlinkEmailRow() -> some View {
+        Button {
+            isConfirmingUnlinkEmail = true
+        } label: {
+            HStack {
+                Text("Unlink Email")
+                    .font(.appTextMedium)
+                    .foregroundColor(.textMain)
+                    .padding([.top, .bottom], 10)
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
+            .vSeparator(color: .rowSeparator, position: .bottom)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(session.profile?.email == nil)
+    }
+
+    private func unlinkPhoneRow() -> some View {
+        Button {
+            isConfirmingUnlinkPhone = true
+        } label: {
+            HStack {
+                Text("Unlink Phone")
+                    .font(.appTextMedium)
+                    .foregroundColor(.textMain)
+                    .padding([.top, .bottom], 10)
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
+            .vSeparator(color: .rowSeparator, position: .bottom)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(session.profile?.phone == nil)
+    }
+
+    // MARK: - Actions -
+
+    private func unlinkEmail() async {
+        guard let email = session.profile?.email else {
+            logger.warning("Unlink email invoked but profile has no email")
+            return
+        }
+
+        do {
+            try await container.flipClient.unlinkEmail(email: email, owner: session.ownerKeyPair)
+            try? await session.updateProfile()
+        } catch {
+            showUnlinkAlert(title: "Unlink Failed", message: "\(error)")
+        }
+    }
+
+    private func unlinkPhone() async {
+        guard let phone = session.profile?.phone else {
+            logger.warning("Unlink phone invoked but profile has no phone")
+            return
+        }
+
+        do {
+            try await container.flipClient.unlinkPhone(phone: phone.e164, owner: session.ownerKeyPair)
+            try? await session.updateProfile()
+        } catch {
+            showUnlinkAlert(title: "Unlink Failed", message: "\(error)")
+        }
+    }
+
+    private func showUnlinkAlert(title: String, message: String) {
+        unlinkAlertTitle = title
+        unlinkAlertMessage = message
+        isShowingUnlinkAlert = true
     }
 }
 
