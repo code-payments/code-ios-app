@@ -196,6 +196,12 @@ class RatesController {
             if i > 0 {
                 try? await Task.sleep(for: interval)
             }
+            
+            logger.debug("Polling verified state", metadata: [
+                "attempt": "\(i + 1)/\(maxAttempts)",
+                "mint": "\(mint.base58)"
+            ])
+            
             if let state = await verifiedProtoService.getVerifiedState(for: currency, mint: mint) {
                 if requiresReserveState && state.reserveProto == nil {
                     continue
