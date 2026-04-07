@@ -28,6 +28,8 @@ struct CurrencyInfoScreen: View {
 
     let session: Session
 
+    @Bindable private var onrampViewModel: OnrampViewModel
+
     private var mintMetadata: StoredMintMetadata? {
         viewModel.mintMetadata
     }
@@ -61,6 +63,7 @@ struct CurrencyInfoScreen: View {
         self.sessionContainer    = sessionContainer
         self.showFundingOnAppear = showFundingOnAppear
         self.viewModel           = viewModel
+        self.onrampViewModel     = sessionContainer.onrampViewModel
 
         self.giveViewModel = GiveViewModel(
             container: container,
@@ -228,6 +231,7 @@ struct CurrencyInfoScreen: View {
             if let metadata = viewModel.mintMetadata {
                 FundingSelectionSheet(
                     reserveBalance: viewModel.reserveBalance,
+                    isCoinbaseAvailable: session.hasCoinbaseOnramp,
                     onSelectReserves: {
                         Analytics.buttonTapped(name: .buyWithReserves)
                         presentedBuyViewModel = CurrencyBuyViewModel(
@@ -236,6 +240,14 @@ struct CurrencyInfoScreen: View {
                             session: session,
                             ratesController: ratesController
                         )
+                        isShowingFundingSelection = false
+                    },
+                    onSelectCoinbase: {
+                        Analytics.buttonTapped(name: .buyWithCoinbase)
+                        onrampViewModel.presentForBuy(destination: .init(
+                            mint: metadata.mint,
+                            name: metadata.name
+                        ))
                         isShowingFundingSelection = false
                     },
                     onSelectPhantom: {
@@ -249,6 +261,13 @@ struct CurrencyInfoScreen: View {
                 )
             }
         }
+        .sheet(isPresented: $onrampViewModel.isOnrampPresented) {
+            OnrampAmountScreen(viewModel: onrampViewModel)
+                .onDisappear {
+                    onrampViewModel.clearPendingBuy()
+                }
+        }
+        .dialog(item: $onrampViewModel.purchaseSuccess)
         .dialog(item: Bindable(walletConnection).dialogItem)
     }
 

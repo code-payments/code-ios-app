@@ -11,7 +11,9 @@ import FlipcashCore
 
 struct FundingSelectionSheet: View {
     let reserveBalance: ExchangedFiat?
+    let isCoinbaseAvailable: Bool
     let onSelectReserves: () -> Void
+    let onSelectCoinbase: () -> Void
     let onSelectPhantom: () -> Void
     let onDismiss: () -> Void
 
@@ -25,7 +27,20 @@ struct FundingSelectionSheet: View {
                     Spacer()
                 }
                 .padding(.vertical, 20)
-
+                
+                if isCoinbaseAvailable {
+                    Button {
+                        onSelectCoinbase()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text("Debit Card with")
+                            Text("Pay")
+                                .font(.body.bold())
+                        }
+                    }
+                    .buttonStyle(.filled)
+                }
+                
                 if let reserveBalance, reserveBalance.hasDisplayableValue() {
                     Button("USDF (\(reserveBalance.converted.formatted()))") {
                         onSelectReserves()
@@ -41,12 +56,12 @@ struct FundingSelectionSheet: View {
                         Image.asset(.phantom)
                             .renderingMode(.template)
                             .resizable()
-                            .frame(maxWidth: 20, maxHeight: 20)
+                            .frame(width: 20, height: 20)
                         Text("Phantom")
                     }
                 }
                 .buttonStyle(.filled)
-                
+
                 Button("Dismiss", action: onDismiss)
                     .buttonStyle(.subtle)
             }

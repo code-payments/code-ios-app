@@ -14,17 +14,20 @@ private let logger = Logger(label: "flipcash.third-party-service")
 
 class ThirdPartyService: CodeService<Flipcash_Thirdparty_V1_ThirdPartyNIOClient> {
 
-    func fetchCoinbaseOnrampJWT(apiKey: String, owner: KeyPair, completion: @Sendable @escaping (Result<String, ErrorFetchJWT>) -> Void) {
-        logger.info("Fetching Coinbase onramp JWT")
+    func fetchCoinbaseOnrampJWT(apiKey: String, owner: KeyPair, method: String, path: String, completion: @Sendable @escaping (Result<String, ErrorFetchJWT>) -> Void) {
+        logger.info("Fetching Coinbase onramp JWT", metadata: [
+            "method": "\(method)",
+            "path": "\(path)"
+        ])
 
         let request = Flipcash_Thirdparty_V1_GetJwtRequest.with {
             $0.apiKey = .with {
                 $0.provider = .coinbase
                 $0.value    = apiKey
             }
-            $0.method = "POST"
+            $0.method = method
             $0.host   = "api.cdp.coinbase.com/"
-            $0.path   = "platform/v2/onramp/orders"
+            $0.path   = path
             $0.auth   = owner.authFor(message: $0)
         }
 

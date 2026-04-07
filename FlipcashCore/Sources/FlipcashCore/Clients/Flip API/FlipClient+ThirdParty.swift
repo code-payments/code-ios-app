@@ -9,9 +9,9 @@ import Foundation
 
 extension FlipClient {
     
-    public func fetchCoinbaseOnrampJWT(apiKey: String, owner: KeyPair) async throws -> String {
+    public func fetchCoinbaseOnrampJWT(apiKey: String, owner: KeyPair, method: String, path: String) async throws -> String {
         try await withCheckedThrowingContinuation { c in
-            thirdPartyService.fetchCoinbaseOnrampJWT(apiKey: apiKey, owner: owner) { c.resume(with: $0) }
+            thirdPartyService.fetchCoinbaseOnrampJWT(apiKey: apiKey, owner: owner, method: method, path: path) { c.resume(with: $0) }
         }
     }
 }

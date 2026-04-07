@@ -18,8 +18,6 @@ class OnrampViewModel {
 
     var isShowingVerificationFlow: Bool = false
 
-    var isShowingAmountEntryScreen: Bool = false
-
     var onrampPath: [OnrampPath] = [] {
         didSet {
             if onrampPath.isEmpty && !oldValue.isEmpty {
@@ -42,17 +40,11 @@ class OnrampViewModel {
 
     var purchaseSuccess: DialogItem?
 
+    private(set) var pendingBuyDestination: BuyDestination?
+
     var enteredCode: String = ""
     var enteredEmail: String = ""
     var enteredAmount: String = ""
-
-    var selectedPreset: Int? {
-        didSet {
-            if selectedPreset != nil {
-                enteredAmount = ""
-            }
-        }
-    }
 
     private(set) var isResending: Bool = false
 
@@ -68,20 +60,16 @@ class OnrampViewModel {
     let codeLength = 6
     
     var enteredFiat: ExchangedFiat? {
-        var amount: String = ""
-        
-        if !enteredAmount.isEmpty {
-            amount = enteredAmount
-        } else if let selectedPreset {
-            amount = "\(selectedPreset)"
-        }
-        
-        guard let amount = NumberFormatter.decimal(from: amount) else {
+        guard !enteredAmount.isEmpty else {
             return nil
         }
-        
+
+        guard let amount = NumberFormatter.decimal(from: enteredAmount) else {
+            return nil
+        }
+
         let currency = ratesController.entryCurrency
-        
+
         guard let rate = ratesController.rate(for: currency) else {
             logger.error("Rate not found", metadata: ["currency": "\(currency)"])
             return nil
@@ -90,7 +78,7 @@ class OnrampViewModel {
         guard let converted = try? Quarks(fiatDecimal: amount, currencyCode: currency, decimals: PublicKey.usdf.mintDecimals) else {
             return nil
         }
-        
+
         return try? ExchangedFiat(
             converted: converted,
             rate: rate,
@@ -130,10 +118,6 @@ class OnrampViewModel {
         }
         
         return e.range(of: #"^[^\s@]+@[^\s@]+\.[^\s@]+$"#, options: .regularExpression) != nil
-    }
-    
-    var hasSelectedAmount: Bool {
-        selectedPreset != nil || enteredFiat != nil
     }
     
     @ObservationIgnored private let container: Container
@@ -181,12 +165,11 @@ class OnrampViewModel {
         enteredAmount = ""
         
         isResending = false
-        
+
         coinbaseOrder = nil
-        selectedPreset = nil
-        
+
         payButtonState = .normal
-        
+
         navigateToRoot()
     }
     
@@ -224,24 +207,6 @@ class OnrampViewModel {
                 self.enteredCode = String(newValue.prefix(self.codeLength))
             } else {
                 self.enteredCode = newValue
-            }
-        }
-    }
-    
-    var adjustingSelectedPreset: Binding<GridAmounts.SelectedAction?> {
-        Binding { [weak self] in
-            guard let preset = self?.selectedPreset else { return nil }
-            return .amount(preset)
-            
-        } set: { [weak self] newValue in
-            guard let self = self else { return }
-            switch newValue {
-            case .amount(let amount):
-                self.selectedPreset = amount
-            case .more:
-                break
-            case .none:
-                break
             }
         }
     }
@@ -307,24 +272,24 @@ class OnrampViewModel {
         }
     }
     
+    // MARK: - Presentation -
+
+    func presentForBuy(destination: BuyDestination) {
+        pendingBuyDestination = destination
+        isOnrampPresented = true
+    }
+
+    /// Clears the pending buy destination. Must be called from the Onramp sheet's
+    /// `.onDisappear` rather than from `reset()` — the destination needs to survive
+    /// across the internal `reset()` calls that fire during the purchase flow
+    /// (e.g., when `customAmountEnteredAction` resets verification state before
+    /// navigating). Stage 4 reads `pendingBuyDestination` after these resets.
+    func clearPendingBuy() {
+        pendingBuyDestination = nil
+    }
+
     // MARK: - Actions -
-    
-    func addWithApplePayAction() {
-        let selectedPreset  = selectedPreset
-        let enteredAmount   = enteredAmount
-        reset()
-        self.selectedPreset = selectedPreset
-        self.enteredAmount  = enteredAmount
-        
-        navigateToVerificationOrPurchase()
-    }
-    
-    func customAmountAction() {
-        selectedPreset = nil
-        isShowingAmountEntryScreen = true
-        Analytics.track(event: Analytics.OnrampEvent.enterCustomAmount)
-    }
-    
+
     func customAmountEnteredAction() {
         guard let exchangedFiat = enteredFiat else {
             return
@@ -349,11 +314,14 @@ class OnrampViewModel {
             return
         }
 
-        isShowingAmountEntryScreen = false
-
-        Task {
-            addWithApplePayAction()
-        }
+        // Reset stale verification state from any prior attempt, then restore the
+        // amount the user just typed so `enteredFiat` resolves correctly when
+        // `createOrder` reads it. `pendingBuyDestination` survives `reset()` —
+        // see `clearPendingBuy()`.
+        let amount = enteredAmount
+        reset()
+        enteredAmount = amount
+        navigateToVerificationOrPurchase()
     }
     
     func sendPhoneNumberCodeAction() {
@@ -581,11 +549,7 @@ class OnrampViewModel {
             return
         }
         
-        if selectedPreset != nil {
-            Analytics.onrampInvokePayment(amount: exchangedFiat.underlying)
-        } else {
-            Analytics.onrampInvokePaymentCustom(amount: exchangedFiat.underlying)
-        }
+        Analytics.onrampInvokePaymentCustom(amount: exchangedFiat.underlying)
         
         Task {
             try await createOnrampOrder(
@@ -762,15 +726,17 @@ class OnrampViewModel {
         }
     }
     
-    private func fetchCoinbaseJWT() async throws -> String {
+    private func fetchCoinbaseJWT(method: String, path: String) async throws -> String {
         let coinbaseApiKey = try! InfoPlist.value(for: "coinbase").value(for: "apiKey").string()
-        
+
         return try await flipClient.fetchCoinbaseOnrampJWT(
             apiKey: coinbaseApiKey,
-            owner: owner
+            owner: owner,
+            method: method,
+            path: path
         )
     }
-    
+
     // MARK: - Clipboard -
     
     func pasteCodeFromClipboardIfPossible() {
@@ -920,8 +886,6 @@ enum OnrampPath {
     case confirmPhoneNumberCode
     case enterEmail
     case confirmEmailCode
-    case enterAmount
-    case success
 }
 
 private enum Origin: Int {
@@ -944,6 +908,15 @@ extension Profile {
 
 private extension CharacterSet {
     static let numbers: CharacterSet = CharacterSet(charactersIn: "0123456789")
+}
+
+// MARK: - BuyDestination -
+
+extension OnrampViewModel {
+    struct BuyDestination: Equatable {
+        let mint: PublicKey
+        let name: String
+    }
 }
 
 // MARK: - Mock -

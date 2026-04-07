@@ -10,19 +10,19 @@ import FlipcashUI
 import FlipcashCore
 
 struct OnrampAmountScreen: View {
-    
+
     @Bindable private var viewModel: OnrampViewModel
-    
+
     // MARK: - Init -
-    
+
     init(viewModel: OnrampViewModel) {
         self.viewModel = viewModel
     }
-    
+
     // MARK: - Body -
-    
+
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $viewModel.onrampPath) {
             Background(color: .backgroundMain) {
                 EnterAmountView(
                     mode: .onramp,
@@ -45,9 +45,12 @@ struct OnrampAmountScreen: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    ToolbarCloseButton(binding: $viewModel.isShowingAmountEntryScreen)
+                    ToolbarCloseButton(binding: $viewModel.isOnrampPresented)
                 }
             }
+        }
+        .sheet(isPresented: $viewModel.isShowingVerificationFlow) {
+            VerifyInfoScreen(viewModel: viewModel)
         }
         .dialog(item: $viewModel.dialogItem)
     }

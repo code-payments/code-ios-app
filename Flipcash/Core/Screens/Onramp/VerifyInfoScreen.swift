@@ -74,12 +74,6 @@ struct VerifyInfoScreen: View {
                 case .confirmEmailCode:
                     ConfirmEmailScreen(viewModel: viewModel)
                         .interactiveDismissDisabled()
-                case .enterAmount:
-                    OnrampAmountScreen(viewModel: viewModel)
-                        .interactiveDismissDisabled()
-                case .success:
-                    OnrampSuccessScreen(viewModel: viewModel)
-                        .interactiveDismissDisabled()
                 }
             }
             .ignoresSafeArea(.keyboard)

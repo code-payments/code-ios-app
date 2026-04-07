@@ -48,10 +48,10 @@ public final class Coinbase {
             urlRequest.setValue(key.uuidString, forHTTPHeaderField: "Idempotency-Key")
         }
         
-        // Bearer token (JWT per CDP docs)
-        let token = try await config.bearerTokenProvider()
+        // Bearer token (JWT per CDP docs) — scoped to POST /platform/v2/onramp/orders
+        let token = try await config.bearerTokenProvider("POST", "platform/v2/onramp/orders")
         urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        
+
         // 4. Fire
         let (data, response): (Data, URLResponse)
         do {
@@ -92,13 +92,16 @@ public final class Coinbase {
 extension Coinbase {
     public struct Configuration {
         public let baseURL: URL
-        public let bearerTokenProvider: () async throws -> String
+        /// Mints a Coinbase CDP JWT scoped to a specific HTTP method + path.
+        /// CDP JWTs are URI-bound, so each request needs a token signed for
+        /// that exact method/path or Coinbase rejects with 401.
+        public let bearerTokenProvider: (_ method: String, _ path: String) async throws -> String
         public let urlSession: URLSession
-        
+
         public init(
             baseURL: URL = URL(string: "https://api.cdp.coinbase.com/platform/v2")!,
             urlSession: URLSession = .shared,
-            bearerTokenProvider: @escaping () async throws -> String
+            bearerTokenProvider: @escaping (_ method: String, _ path: String) async throws -> String
         ) {
             self.baseURL = baseURL
             self.urlSession = urlSession
