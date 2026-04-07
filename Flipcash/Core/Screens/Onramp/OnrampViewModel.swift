@@ -14,7 +14,12 @@ private let logger = Logger(label: "flipcash.onramp")
 @MainActor @Observable
 class OnrampViewModel {
 
-    var isOnrampPresented: Bool = false
+    var isOnrampPresented: Bool = false {
+        didSet {
+            guard !isOnrampPresented, oldValue else { return }
+            handleDismissal()
+        }
+    }
 
     var isShowingVerificationFlow: Bool = false
 
@@ -126,7 +131,11 @@ class OnrampViewModel {
 
     @ObservationIgnored private var coinbase: Coinbase!
 
+    @ObservationIgnored private let coinbaseApiKey: String?
+
     @ObservationIgnored private var pendingCoinbaseOrderId: String?
+
+    @ObservationIgnored private var fundingTask: Task<Void, Never>?
 
     @ObservationIgnored private let phoneFormatter = PhoneFormatter()
 
@@ -152,6 +161,7 @@ class OnrampViewModel {
         self.owner = session.ownerKeyPair
         self.flipClient = container.flipClient
         self.region = phoneFormatter.currentRegion
+        self.coinbaseApiKey = try? InfoPlist.value(for: "coinbase").value(for: "apiKey").string()
 
         self.coinbase = Coinbase(configuration: .init(bearerTokenProvider: fetchCoinbaseJWT))
     }
@@ -279,14 +289,17 @@ class OnrampViewModel {
         isOnrampPresented = true
     }
 
-    /// Clears the pending buy destination. Must be called from the Onramp sheet's
-    /// `.onDisappear` rather than from `reset()` — the destination needs to survive
-    /// across the internal `reset()` calls that fire during the purchase flow
-    /// (e.g., when `customAmountEnteredAction` resets verification state before
-    /// navigating). Stage 4 reads `pendingBuyDestination` after these resets.
-    func clearPendingBuy() {
+    /// Cleans up when the Onramp sheet dismisses. Cancels any in-flight Coinbase
+    /// poll + buy task, clears the presentation-scoped destination/order snapshot,
+    /// and resets the verification flow state so the next presentation starts
+    /// fresh. Triggered automatically via `isOnrampPresented`'s didSet — callers
+    /// should not invoke this directly.
+    private func handleDismissal() {
+        fundingTask?.cancel()
+        fundingTask = nil
         pendingBuyDestination = nil
         pendingCoinbaseOrderId = nil
+        reset()
     }
 
     // MARK: - Actions -
@@ -700,8 +713,9 @@ class OnrampViewModel {
             logger.info("Apple Pay polling started")
         case .pollingSuccess:
             logger.info("Apple Pay polling succeeded")
-            Task {
-                await handleCoinbaseFundingSuccess()
+            fundingTask?.cancel()
+            fundingTask = Task { [weak self] in
+                await self?.handleCoinbaseFundingSuccess()
             }
         case .pollingError:
             logger.error("Apple Pay polling failed", metadata: errorMetadata(event))
@@ -721,7 +735,9 @@ class OnrampViewModel {
     }
     
     private func fetchCoinbaseJWT(method: String, path: String) async throws -> String {
-        let coinbaseApiKey = try! InfoPlist.value(for: "coinbase").value(for: "apiKey").string()
+        guard let coinbaseApiKey else {
+            throw OnrampError.missingCoinbaseApiKey
+        }
 
         return try await flipClient.fetchCoinbaseOnrampJWT(
             apiKey: coinbaseApiKey,
@@ -770,6 +786,7 @@ class OnrampViewModel {
         var lastError: Error?
 
         while Date() < deadline {
+            try Task.checkCancellation()
             pollCount += 1
             do {
                 let response = try await coinbase.fetchOrder(orderId: orderId)
@@ -789,6 +806,8 @@ class OnrampViewModel {
                 if status.contains("FAILED") {
                     throw OnrampError.coinbaseOrderFailed(status: response.order.status)
                 }
+            } catch is CancellationError {
+                throw CancellationError()
             } catch let error as OnrampError {
                 throw error
             } catch {
@@ -801,7 +820,7 @@ class OnrampViewModel {
 
             // Backoff: start at 500ms, +200ms every 5 polls
             let delayMs = 500 + (200 * (pollCount / 5))
-            try await Task.sleep(for: .milliseconds(delayMs))
+            try await Task.delay(milliseconds: delayMs)
         }
 
         throw lastError ?? OnrampError.coinbaseOrderPollTimeout
@@ -1160,6 +1179,7 @@ extension OnrampViewModel {
 enum OnrampError: Error {
     case coinbaseOrderFailed(status: String)
     case coinbaseOrderPollTimeout
+    case missingCoinbaseApiKey
 }
 
 // MARK: - Mock -

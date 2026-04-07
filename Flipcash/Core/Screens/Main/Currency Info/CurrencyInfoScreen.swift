@@ -263,9 +263,6 @@ struct CurrencyInfoScreen: View {
         }
         .sheet(isPresented: $onrampViewModel.isOnrampPresented) {
             OnrampAmountScreen(viewModel: onrampViewModel)
-                .onDisappear {
-                    onrampViewModel.clearPendingBuy()
-                }
         }
         .dialog(item: Bindable(walletConnection).dialogItem)
     }
