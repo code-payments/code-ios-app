@@ -582,13 +582,18 @@ class OnrampViewModel {
                 "purchase_quarks": "\(exchangedFiat.underlying.quarks)",
                 "sandbox": "\(BetaFlags.shared.hasEnabled(.coinbaseSandbox))"
             ])
+            
+            guard let usdfSwapAccounts = MintMetadata.usdf.timelockSwapAccounts(owner: session.owner.authorityPublicKey) else {
+                fatalError("Failed to derive USDF swap accounts")
+            }
+            
             let response = try await coinbase.createOrder(request: .init(
                 paymentAmount: nil,
                 paymentCurrency: "USD",
                 purchaseAmount: f.string(from: exchangedFiat.converted.decimalValue),
                 purchaseCurrency: "USDF",
                 isQuote: false,
-                destinationAddress: session.owner.depositPublicKey,
+                destinationAddress: usdfSwapAccounts.ata.publicKey,
                 email: email,
                 phoneNumber: phone,
                 partnerOrderRef: orderRef,
