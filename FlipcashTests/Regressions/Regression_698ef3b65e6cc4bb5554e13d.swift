@@ -51,8 +51,7 @@ struct Regression_698ef3b {
             mode: .currency,
             entryCurrency: .clp,
             onrampCurrency: .usd,
-            sendLimitProvider: { _ in return sendLimit },
-            rateProvider: { _ in clpRate }
+            sendLimitProvider: { _ in return sendLimit }
         )
 
         // Must not crash with arithmetic overflow

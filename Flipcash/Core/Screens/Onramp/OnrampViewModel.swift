@@ -331,7 +331,7 @@ class OnrampViewModel {
         guard let exchangedFiat = enteredFiat else {
             return
         }
-        
+
         guard let maxPerDay = session.sendLimitFor(currency: exchangedFiat.converted.currencyCode)?.maxPerDay else {
             return
         }
@@ -345,14 +345,14 @@ class OnrampViewModel {
             showAmountTooLargeError()
             return
         }
-        
+
         guard exchangedFiat.converted.decimalValue >= 5.00 else {
             showAmountTooSmallError()
             return
         }
-        
+
         isShowingAmountEntryScreen = false
-        
+
         Task {
             addWithApplePayAction()
         }

@@ -28,7 +28,7 @@ struct CurrencySellAmountScreen: View {
         NavigationStack(path: $viewModel.path) {
             Background(color: .backgroundMain) {
                 EnterAmountView(
-                    mode: .currency,
+                    mode: .sell,
                     enteredAmount: $viewModel.enteredAmount,
                     subtitle: .balanceWithLimit(viewModel.maxPossibleAmount),
                     actionState: .constant(.normal),
