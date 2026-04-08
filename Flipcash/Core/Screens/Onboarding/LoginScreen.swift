@@ -140,45 +140,12 @@ struct LoginScreen: View {
             
             try await Task.delay(milliseconds: 500)
             sessionAuthenticator.completeLogin(with: initializedAccount)
-            
-//            Analytics.login(
-//                ownerPublicKey: owner.publicKey,
-//                autoCompleteCount: autoCompleteCount,
-//                inputChangeCount: inputChangeCount
-//            )
-            
         } catch {
             try await Task.delay(milliseconds: 500)
             buttonState = .normal
-//            showError()
         }
     }
-    
-    // MARK: - Errors -
-    
-//    private func showError() {
-//        banners.show(
-//            style: .error,
-//            title: "Invalid Account",
-//            description: "This is not a valid Flipchat account.",
-//            position: .top,
-//            actions: [
-//                .cancel(title: Localized.Action.ok),
-//            ]
-//        )
-//    }
-//    
-//    private func showUnlockedTimelockError() {
-//        banners.show(
-//            style: .error,
-//            title: "Access Key No Longer Useable",
-//            description: "Your Access Key has initiated an unlock. As a result, you will no longer be able to use this Access Key.",
-//            actions: [
-//                .cancel(title: Localized.Action.ok)
-//            ]
-//        )
-//    }
-    
+        
     // MARK: - Auto-complete -
     
     private func words() -> [String] {
