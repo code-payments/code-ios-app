@@ -30,7 +30,7 @@ class AccountService: CodeService<Flipcash_Account_V1_AccountNIOClient> {
                 logger.info("Account registered successfully")
                 completion(.success(userID))
             } else {
-                logger.error("Failed to register account: \(owner.publicKey.base58)")
+                logger.error("Failed to register account", metadata: ["owner": "\(owner.publicKey.base58)"])
                 completion(.failure(error))
             }
             
@@ -55,7 +55,7 @@ class AccountService: CodeService<Flipcash_Account_V1_AccountNIOClient> {
                 logger.info("Login succeeded")
                 completion(.success(userID))
             } else {
-                logger.error("Failed to login: \(owner.publicKey.base58)")
+                logger.error("Failed to login", metadata: ["owner": "\(owner.publicKey.base58)"])
                 completion(.failure(error))
             }
             
@@ -86,7 +86,7 @@ class AccountService: CodeService<Flipcash_Account_V1_AccountNIOClient> {
                 logger.info("User flags fetched successfully")
                 completion(.success(UserFlags(response.userFlags)))
             } else {
-                logger.error("Failed to fetch user flags: \(owner.publicKey.base58)")
+                logger.error("Failed to fetch user flags", metadata: ["owner": "\(owner.publicKey.base58)"])
                 completion(.failure(error))
             }
 

@@ -13,7 +13,8 @@ struct LogEntryTests {
             level: .info,
             message: "Rate fetched",
             metadata: nil,
-            source: "flipcash.rates-controller",
+            label: "flipcash.rates-controller",
+            source: "FlipcashCore",
             function: "fetchRates()",
             file: "RatesController.swift",
             line: 42
@@ -34,7 +35,8 @@ struct LogEntryTests {
             level: .warning,
             message: "Stale rate",
             metadata: ["currency": "USD", "age": "120"],
-            source: "flipcash.rates-controller",
+            label: "flipcash.rates-controller",
+            source: "FlipcashCore",
             function: "fetchRates()",
             file: "RatesController.swift",
             line: 42
@@ -46,6 +48,26 @@ struct LogEntryTests {
         #expect(result.contains("Stale rate"))
         #expect(result.contains("currency=USD"))
         #expect(result.contains("age=120"))
+    }
+
+    @Test("formatted() prints the Logger label, not the module-name source")
+    func formattedPrintsLabelNotSource() {
+        let entry = LogEntry(
+            timestamp: makeDate(hour: 10, minute: 32, second: 15, millisecond: 0),
+            level: .info,
+            message: "Rate fetched",
+            metadata: nil,
+            label: "flipcash.rates-controller",
+            source: "FlipcashCore",
+            function: "fetchRates()",
+            file: "RatesController.swift",
+            line: 42
+        )
+
+        let result = entry.formatted()
+
+        #expect(result.contains("flipcash.rates-controller"))
+        #expect(!result.contains("FlipcashCore"))
     }
 
     @Test("formatted() uses uppercase level labels")
@@ -65,6 +87,7 @@ struct LogEntryTests {
                 level: level,
                 message: "test",
                 metadata: nil,
+                label: "test",
                 source: "test",
                 function: "test()",
                 file: "Test.swift",

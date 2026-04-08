@@ -71,18 +71,38 @@ struct LogMiddlewareTests {
         #expect(entry.metadata?["name"] == "USDC")
     }
 
-    @Test("PatternRedactor redacts email addresses")
+    @Test("PatternRedactor partially redacts email addresses keeping first char and domain")
     func patternRedactorEmail() {
         let redactor = PatternRedactor()
         var entry = makeEntry(metadata: [
             "contact": "user@example.com",
+            "shortLocal": "a@b.com",
             "status": "active",
         ])
 
         _ = redactor.process(&entry)
 
-        #expect(entry.metadata?["contact"] == "[REDACTED]")
+        #expect(entry.metadata?["contact"] == "u..@example.com")
+        #expect(entry.metadata?["shortLocal"] == "a..@b.com")
         #expect(entry.metadata?["status"] == "active")
+    }
+
+    @Test("PatternRedactor partially redacts phone numbers showing only last 4 digits")
+    func patternRedactorPhone() {
+        let redactor = PatternRedactor()
+        var entry = makeEntry(metadata: [
+            "withParens": "(415) 555-4321",
+            "withCountry": "+1-415-555-1234",
+            "digitsOnly": "4155551234",
+            "code": "USD",
+        ])
+
+        _ = redactor.process(&entry)
+
+        #expect(entry.metadata?["withParens"] == "***-***-4321")
+        #expect(entry.metadata?["withCountry"] == "***-***-1234")
+        #expect(entry.metadata?["digitsOnly"] == "***-***-1234")
+        #expect(entry.metadata?["code"] == "USD")
     }
 
     @Test("PatternRedactor keeps short alphanumeric strings")
@@ -107,6 +127,7 @@ struct LogMiddlewareTests {
             level: .info,
             message: "test",
             metadata: metadata,
+            label: "test",
             source: "test",
             function: "test()",
             file: "Test.swift",

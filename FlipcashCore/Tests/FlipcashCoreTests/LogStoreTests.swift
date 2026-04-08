@@ -16,6 +16,7 @@ struct LogStoreTests {
             level: .info,
             message: "test entry",
             metadata: nil,
+            label: "test",
             source: "test",
             function: "test()",
             file: "Test.swift",

@@ -66,10 +66,10 @@ public final class WalletConnection {
         if let connectedWalletSession = Keychain.connectedWalletSession {
             self.session = connectedWalletSession
             self.box = try! Box(secretKey: connectedWalletSession.secretKey)
-            logger.info("Restored encryption box, public key: \(box.publicKey.base58)")
+            logger.info("Restored encryption box", metadata: ["publicKey": "\(box.publicKey.base58)"])
         } else {
             self.box = try! Box()
-            logger.info("New encryption box, public key: \(box.publicKey.base58)")
+            logger.info("New encryption box", metadata: ["publicKey": "\(box.publicKey.base58)"])
         }
     }
     
@@ -221,7 +221,7 @@ public final class WalletConnection {
                     transaction: txBase64,
                     configs: .init(encoding: "base64")!
                 )
-                logger.info("Transaction sent: \(signature)")
+                logger.info("Transaction sent", metadata: ["signature": "\(signature)"])
                 Analytics.track(event: Analytics.WalletEvent.transactionsSubmitted)
             } catch {
                 ErrorReporting.captureError(error, reason: "Chain submission failed", metadata: swapMetadata)
@@ -356,7 +356,11 @@ public final class WalletConnection {
 
         Analytics.walletRequestAmount(amount: amount.underlying)
         openExternalWallet(url)
-        logger.info("Requested USDC→USDF swap of \(amount.underlying) for \(token.symbol), swapId: \(swapId.publicKey.base58)")
+        logger.info("Requested USDC→USDF swap", metadata: [
+            "amount": "\(amount.underlying)",
+            "token": "\(token.symbol)",
+            "swapId": "\(swapId.publicKey.base58)",
+        ])
 
         return (swapId: swapId, amount: amount)
     }

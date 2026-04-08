@@ -38,12 +38,15 @@ final class AccountInfoService: CodeService<Ocp_Account_V1_AccountNIOClient> {
                 if let account {
                     completion(.success(account))
                 } else {
-                    logger.error("Account not in list of accounts returned: \(response.tokenAccountInfos)")
+                    logger.error("Account not in list of accounts returned", metadata: [
+                        "expectedType": "\(type)",
+                        "returnedCount": "\(response.tokenAccountInfos.count)",
+                    ])
                     completion(.failure(error))
                 }
 
             } else {
-                logger.error("Failed to fetch account info for owner: \(owner.publicKey.base58)")
+                logger.error("Failed to fetch account info", metadata: ["owner": "\(owner.publicKey.base58)"])
                 completion(.failure(error))
             }
             
@@ -73,7 +76,7 @@ final class AccountInfoService: CodeService<Ocp_Account_V1_AccountNIOClient> {
                 completion(.success(accounts))
                 
             } else {
-                logger.error("Failed to fetch primary accounts for owner: \(owner.publicKey.base58)")
+                logger.error("Failed to fetch primary accounts", metadata: ["owner": "\(owner.publicKey.base58)"])
                 completion(.failure(error))
             }
 
@@ -111,7 +114,7 @@ final class AccountInfoService: CodeService<Ocp_Account_V1_AccountNIOClient> {
                 }
                 
             } else {
-                logger.error("Failed to fetch linked account balance for owner: \(owner.publicKey.base58)")
+                logger.error("Failed to fetch linked account balance", metadata: ["owner": "\(owner.publicKey.base58)"])
                 completion(.failure(error))
             }
 

@@ -148,6 +148,33 @@ Existing `ObservableObject` classes (`Session`, `Client`, controllers) stay as-i
 - Changing which table a query reads from → bump version if the old schema can't satisfy the new query
 - No migration code needed, but all data must be recoverable from server
 
+### Logging: Variables Go in Metadata
+
+**All variable data must go in structured `metadata`. The message string is a constant, free-form description.** Two reasons, in order of importance:
+
+1. **Privacy.** The redactors (`PatternRedactor`, `SensitiveKeyRedactor` in `FlipcashCore/Sources/FlipcashCore/Logging/Middleware/`) only scan `entry.metadata`. Anything interpolated into the message is written verbatim to the file export, the Bugsnag ring buffer attachment, and OSLog. Putting *every* variable in metadata means values that look innocent today get the redactor safety net automatically — instead of relying on developers to spot which ones are sensitive.
+2. **Queryability.** Metadata is structured key=value, so you can `grep owner=` or filter by key in a structured log viewer. Interpolated values get baked into a string and lose their key.
+
+```swift
+// ❌ BAD: leaks the public key in plaintext to every log sink
+logger.info("New encryption box, public key: \(box.publicKey.base58)")
+
+// ❌ BAD: even non-sensitive variables don't belong in the message
+logger.info("Requested swap of \(amount) for \(token.symbol)", metadata: [
+    "swapId": "\(swapId.base58)",
+])
+
+// ✅ GOOD: message is a constant, every variable is in metadata
+logger.info("New encryption box", metadata: ["publicKey": "\(box.publicKey.base58)"])
+logger.info("Requested swap", metadata: [
+    "amount": "\(amount)",
+    "token": "\(token.symbol)",
+    "swapId": "\(swapId.base58)",
+])
+```
+
+**Never log proto blobs whole.** A naked `\(response.tokenAccountInfos)` or `\(notification)` recursively serializes every field, including the base58 ones. Extract the specific diagnostic values you actually need into metadata instead — usually a count, a type, or an error, not the whole record.
+
 ### Package.resolved Policy
 
 **Always commit the workspace Package.resolved:**

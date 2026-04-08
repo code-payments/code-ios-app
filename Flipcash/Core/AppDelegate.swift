@@ -14,7 +14,7 @@ private let logger = Logger(label: "flipcash.app-delegate")
 
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
-    let container = Container()
+    let container: Container
 
     private var sessionContainer: SessionContainer? {
         if case .loggedIn(let container) = container.sessionAuthenticator.state {
@@ -23,14 +23,24 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return nil
     }
 
-    // MARK: - Launch -
+    // MARK: - Init -
 
-    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-
+    override init() {
+        // Bootstrap logging before constructing Container so every Logger
+        // in the dependency tree binds to FlipcashLogHandler. Constructing
+        // Container first would let early loggers (e.g. WalletConnection)
+        // capture swift-log's default StreamLogHandler permanently.
         LogStore.bootstrap(middleware: [
             SensitiveKeyRedactor(),
             PatternRedactor(),
         ])
+        self.container = Container()
+        super.init()
+    }
+
+    // MARK: - Launch -
+
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
 
         let isUITesting = CommandLine.arguments.contains("--ui-testing")
 

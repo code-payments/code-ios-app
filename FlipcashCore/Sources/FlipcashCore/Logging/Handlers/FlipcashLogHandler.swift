@@ -11,24 +11,28 @@ struct FlipcashLogHandler: LogHandler {
     var metadata: Logging.Logger.Metadata = [:]
     var metadataProvider: Logging.Logger.MetadataProvider?
 
+    private let label: String
+    private let osLogger: os.Logger
     private let ringBuffer: RingBufferStorage
     private let fileBuffer: FileWriteBuffer
     private let middleware: [LogMiddleware]
-    private static let osLogger = os.Logger(
-        subsystem: Bundle.main.bundleIdentifier ?? "com.flipcash",
-        category: "app"
-    )
 
     init(
+        label: String,
         logLevel: Logging.Logger.Level,
         ringBuffer: RingBufferStorage,
         fileBuffer: FileWriteBuffer,
         middleware: [LogMiddleware]
     ) {
+        self.label = label
         self.logLevel = logLevel
         self.ringBuffer = ringBuffer
         self.fileBuffer = fileBuffer
         self.middleware = middleware
+        self.osLogger = os.Logger(
+            subsystem: Bundle.main.bundleIdentifier ?? "com.flipcash",
+            category: label
+        )
     }
 
     subscript(metadataKey key: String) -> Logging.Logger.MetadataValue? {
@@ -48,7 +52,7 @@ struct FlipcashLogHandler: LogHandler {
         // Process once: construct entry, merge metadata, run middleware
         guard let entry = LogEntry.process(
             level: level, message: message, metadata: metadata,
-            source: source, file: file, function: function, line: line,
+            label: self.label, source: source, file: file, function: function, line: line,
             handlerMetadata: self.metadata, metadataProvider: metadataProvider,
             middleware: middleware
         ) else { return }
@@ -57,7 +61,7 @@ struct FlipcashLogHandler: LogHandler {
         let formatted = entry.formatted()
 
         // Console — OSLog for Console.app filtering and Instruments integration
-        Self.osLogger.log(level: level.osLogType, "\(formatted, privacy: .public)")
+        osLogger.log(level: level.osLogType, "\(formatted, privacy: .public)")
 
         // Ring buffer — synchronous append under lock
         ringBuffer.append(entry)

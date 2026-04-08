@@ -7,6 +7,7 @@ public struct LogEntry: Sendable {
     public let level: Logger.Level
     public var message: String
     public var metadata: Logger.Metadata?
+    public let label: String
     public let source: String
     public let function: String
     public let file: String
@@ -17,6 +18,7 @@ public struct LogEntry: Sendable {
         level: Logger.Level,
         message: String,
         metadata: Logger.Metadata?,
+        label: String,
         source: String,
         function: String,
         file: String,
@@ -26,6 +28,7 @@ public struct LogEntry: Sendable {
         self.level = level
         self.message = message
         self.metadata = metadata
+        self.label = label
         self.source = source
         self.function = function
         self.file = file
@@ -51,7 +54,7 @@ public struct LogEntry: Sendable {
     public func formatted() -> String {
         let ts = Self.formatTimestamp(timestamp)
         let lvl = "[\(level.rawValue.uppercased())]"
-        var result = "\(lvl) \(ts) \(source) \(message)"
+        var result = "\(lvl) \(ts) \(label) \(message)"
 
         if let metadata, !metadata.isEmpty {
             let pairs = metadata
@@ -70,6 +73,7 @@ public struct LogEntry: Sendable {
         level: Logger.Level,
         message: Logger.Message,
         metadata explicitMetadata: Logger.Metadata?,
+        label: String,
         source: String,
         file: String,
         function: String,
@@ -91,6 +95,7 @@ public struct LogEntry: Sendable {
             level: level,
             message: "\(message)",
             metadata: merged.isEmpty ? nil : merged,
+            label: label,
             source: source,
             function: function,
             file: file,
