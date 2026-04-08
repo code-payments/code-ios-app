@@ -91,7 +91,7 @@ struct LogMiddlewareTests {
     func patternRedactorPhone() {
         let redactor = PatternRedactor()
         var entry = makeEntry(metadata: [
-            "withParens": "(415) 555-1234",
+            "withParens": "(415) 555-4321",
             "withCountry": "+1-415-555-1234",
             "digitsOnly": "4155551234",
             "code": "USD",
@@ -99,7 +99,7 @@ struct LogMiddlewareTests {
 
         _ = redactor.process(&entry)
 
-        #expect(entry.metadata?["withParens"] == "***-***-1234")
+        #expect(entry.metadata?["withParens"] == "***-***-4321")
         #expect(entry.metadata?["withCountry"] == "***-***-1234")
         #expect(entry.metadata?["digitsOnly"] == "***-***-1234")
         #expect(entry.metadata?["code"] == "USD")
