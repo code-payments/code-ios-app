@@ -29,21 +29,25 @@ public struct Profile: Equatable, Sendable {
     }
     
     public init(displayName: String?, phone: String?, email: String?) throws {
-        
+
         // Only parse phone if it's not empty
         var parsedPhone: Phone?
         if let phone = phone, !phone.isEmpty {
             guard let p = Phone(phone) else {
                 throw Error.failedToParsePhoneNumber
             }
-            
+
             parsedPhone = p
         }
-        
+
+        // Proto represents "unset" email as an empty string; normalize to nil
+        // so downstream `email == nil` checks behave the same for phone and email.
+        let normalizedEmail: String? = (email?.isEmpty == false) ? email : nil
+
         self.init(
             displayName: displayName,
             phone: parsedPhone,
-            email: email
+            email: normalizedEmail
         )
     }
     

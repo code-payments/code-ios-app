@@ -11,18 +11,38 @@ import FlipcashCore
 
 struct OnrampAmountScreen: View {
 
-    @Bindable private var viewModel: OnrampViewModel
+    @State private var viewModel: OnrampViewModel
+
+    private let onDismiss: () -> Void
+    private let deeplinkInbox: OnrampDeeplinkInbox
 
     // MARK: - Init -
 
-    init(viewModel: OnrampViewModel) {
-        self.viewModel = viewModel
+    init(
+        destination: OnrampViewModel.BuyDestination,
+        session: Session,
+        ratesController: RatesController,
+        flipClient: FlipClient,
+        deeplinkInbox: OnrampDeeplinkInbox,
+        pendingEmailVerification: VerificationDescription?,
+        onDismiss: @escaping () -> Void
+    ) {
+        self.onDismiss = onDismiss
+        self.deeplinkInbox = deeplinkInbox
+        _viewModel = State(wrappedValue: OnrampViewModel(
+            destination: destination,
+            session: session,
+            ratesController: ratesController,
+            flipClient: flipClient,
+            pendingEmailVerification: pendingEmailVerification,
+            onDismiss: onDismiss
+        ))
     }
 
     // MARK: - Body -
 
     var body: some View {
-        NavigationStack(path: $viewModel.onrampPath) {
+        NavigationStack(path: $viewModel.amountPath) {
             Background(color: .backgroundMain) {
                 EnterAmountView(
                     mode: .onramp,
@@ -38,7 +58,9 @@ struct OnrampAmountScreen: View {
                 .foregroundColor(.textMain)
                 .padding(20)
                 .overlay {
-                    viewModel.applePayWebView()
+                    ApplePayOverlay(order: viewModel.coinbaseOrder) { event in
+                        viewModel.receiveApplePayEvent(event)
+                    }
                 }
             }
             .navigationTitle("Amount to Add")
@@ -46,12 +68,12 @@ struct OnrampAmountScreen: View {
             .toolbar {
                 if !viewModel.isProcessingPayment {
                     ToolbarItem(placement: .navigationBarTrailing) {
-                        ToolbarCloseButton(binding: $viewModel.isOnrampPresented)
+                        ToolbarCloseButton { onDismiss() }
                     }
                 }
             }
             .interactiveDismissDisabled(viewModel.isProcessingPayment)
-            .navigationDestination(for: OnrampPath.self) { path in
+            .navigationDestination(for: OnrampAmountPath.self) { path in
                 switch path {
                 case .swapProcessing(let swapId, let currencyName, let amount):
                     SwapProcessingScreen(
@@ -60,12 +82,6 @@ struct OnrampAmountScreen: View {
                         currencyName: currencyName,
                         amount: amount
                     )
-                case .info, .enterPhoneNumber, .confirmPhoneNumberCode, .enterEmail, .confirmEmailCode:
-                    // Verification destinations are pushed inside VerifyInfoScreen's own
-                    // NavigationStack (which also binds onrampPath). They're never reached
-                    // here because OnrampAmountScreen's stack is only active after the
-                    // verification sheet has dismissed.
-                    EmptyView()
                 }
             }
         }
@@ -73,5 +89,33 @@ struct OnrampAmountScreen: View {
             VerifyInfoScreen(viewModel: viewModel)
         }
         .dialog(item: $viewModel.dialogItem)
+        .onChange(of: deeplinkInbox.pendingEmailVerification) { _, verification in
+            if let verification {
+                viewModel.applyDeeplinkVerification(verification)
+                deeplinkInbox.pendingEmailVerification = nil
+            }
+        }
+    }
+}
+
+/// Invisible overlay that hosts the Coinbase Apple Pay WKWebView. The view is
+/// rendered at zero opacity (it exists only to drive Apple Pay's JS payment
+/// flow in the background) and explicitly excluded from hit testing and
+/// accessibility so the covered region of the amount keypad remains tappable
+/// and VoiceOver users don't land on a silent 300×300 zone.
+private struct ApplePayOverlay: View {
+
+    let order: OnrampOrderResponse?
+    let onEvent: (ApplePayEvent) -> Void
+
+    var body: some View {
+        if let order {
+            ApplePayWebView(url: order.paymentLink.url, onMessage: onEvent)
+                .frame(width: 300, height: 300)
+                .opacity(0)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+                .id(order.id)
+        }
     }
 }

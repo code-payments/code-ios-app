@@ -25,10 +25,11 @@ struct CurrencyInfoScreen: View {
     /// so that `dismissParentContainer` can tear down the sheet without
     /// an intermediate pop animation.
     @State private var isShowingGive: Bool = false
+    /// Non-nil while the Onramp sheet is presented. Setting it presents the
+    /// sheet with a fresh `OnrampViewModel`; nil'ing it dismisses.
+    @State private var onrampDestination: OnrampViewModel.BuyDestination?
 
     let session: Session
-
-    @Bindable private var onrampViewModel: OnrampViewModel
 
     private var mintMetadata: StoredMintMetadata? {
         viewModel.mintMetadata
@@ -63,7 +64,6 @@ struct CurrencyInfoScreen: View {
         self.sessionContainer    = sessionContainer
         self.showFundingOnAppear = showFundingOnAppear
         self.viewModel           = viewModel
-        self.onrampViewModel     = sessionContainer.onrampViewModel
 
         self.giveViewModel = GiveViewModel(
             container: container,
@@ -244,10 +244,10 @@ struct CurrencyInfoScreen: View {
                     },
                     onSelectCoinbase: {
                         Analytics.buttonTapped(name: .buyWithCoinbase)
-                        onrampViewModel.presentForBuy(destination: .init(
+                        onrampDestination = .init(
                             mint: metadata.mint,
                             name: metadata.name
-                        ))
+                        )
                         isShowingFundingSelection = false
                     },
                     onSelectPhantom: {
@@ -261,8 +261,16 @@ struct CurrencyInfoScreen: View {
                 )
             }
         }
-        .sheet(isPresented: $onrampViewModel.isOnrampPresented) {
-            OnrampAmountScreen(viewModel: onrampViewModel)
+        .sheet(item: $onrampDestination) { destination in
+            OnrampAmountScreen(
+                destination: destination,
+                session: sessionContainer.session,
+                ratesController: sessionContainer.ratesController,
+                flipClient: sessionContainer.flipClient,
+                deeplinkInbox: sessionContainer.onrampDeeplinkInbox,
+                pendingEmailVerification: sessionContainer.onrampDeeplinkInbox.take(),
+                onDismiss: { onrampDestination = nil }
+            )
         }
         .dialog(item: Bindable(walletConnection).dialogItem)
     }

@@ -11,29 +11,32 @@ import FlipcashCore
 
 private let logger = Logger(label: "flipcash.onramp")
 
+/// Long-lived store for Onramp email verification deeplinks. `DeepLinkController`
+/// drops incoming verifications here; the active `OnrampViewModel` picks them
+/// up on init (if the sheet is opened after the link arrived) or via an
+/// observer on the hosting view (if the sheet is already presented). Lives on
+/// `SessionContainer` so it survives sheet dismissal but not logout.
+@MainActor @Observable
+final class OnrampDeeplinkInbox {
+    var pendingEmailVerification: VerificationDescription?
+
+    func take() -> VerificationDescription? {
+        let verification = pendingEmailVerification
+        pendingEmailVerification = nil
+        return verification
+    }
+}
+
 @MainActor @Observable
 class OnrampViewModel {
 
-    var isOnrampPresented: Bool = false {
-        didSet {
-            guard !isOnrampPresented, oldValue else { return }
-            handleDismissal()
-        }
-    }
-
     var isShowingVerificationFlow: Bool = false
 
-    var onrampPath: [OnrampPath] = [] {
-        didSet {
-            if onrampPath.isEmpty && !oldValue.isEmpty {
-                reset()
-            }
-        }
-    }
+    var amountPath: [OnrampAmountPath] = []
 
-    var emailVerificationDescription: VerificationDescription? {
+    var verificationPath: [OnrampVerificationPath] = [] {
         didSet {
-            if emailVerificationDescription == nil {
+            if verificationPath.isEmpty && !oldValue.isEmpty {
                 reset()
             }
         }
@@ -53,7 +56,9 @@ class OnrampViewModel {
 
     var dialogItem: DialogItem?
 
-    private(set) var pendingBuyDestination: BuyDestination?
+    /// The token the user is buying. Fixed at init time — this view model
+    /// is scoped to a single presentation of the Onramp sheet.
+    let destination: BuyDestination
 
     var enteredCode: String = ""
     var enteredEmail: String = ""
@@ -133,11 +138,11 @@ class OnrampViewModel {
         return e.range(of: #"^[^\s@]+@[^\s@]+\.[^\s@]+$"#, options: .regularExpression) != nil
     }
     
-    @ObservationIgnored private let container: Container
     @ObservationIgnored private let session: Session
     @ObservationIgnored private let ratesController: RatesController
     @ObservationIgnored private let flipClient: FlipClient
     @ObservationIgnored private let owner: KeyPair
+    @ObservationIgnored private let onDismiss: () -> Void
 
     @ObservationIgnored private var coinbase: Coinbase!
 
@@ -149,31 +154,47 @@ class OnrampViewModel {
 
     @ObservationIgnored private let phoneFormatter = PhoneFormatter()
 
-    
+
     private var isPhoneVerified: Bool {
         session.profile?.isPhoneVerified ?? false
     }
-    
+
     private var isEmailVerified: Bool {
         session.profile?.isEmailVerified ?? false
     }
-    
+
     private var isAccountVerified: Bool {
         isPhoneVerified && isEmailVerified
     }
-    
+
     // MARK: - Init -
-    
-    init(container: Container, session: Session, ratesController: RatesController) {
-        self.container = container
+
+    init(
+        destination: BuyDestination,
+        session: Session,
+        ratesController: RatesController,
+        flipClient: FlipClient,
+        pendingEmailVerification: VerificationDescription? = nil,
+        onDismiss: @escaping () -> Void
+    ) {
+        self.destination = destination
         self.session = session
         self.ratesController = ratesController
+        self.flipClient = flipClient
         self.owner = session.ownerKeyPair
-        self.flipClient = container.flipClient
+        self.onDismiss = onDismiss
         self.region = phoneFormatter.currentRegion
         self.coinbaseApiKey = try? InfoPlist.value(for: "coinbase").value(for: "apiKey").string()
 
         self.coinbase = Coinbase(configuration: .init(bearerTokenProvider: fetchCoinbaseJWT))
+
+        if let pendingEmailVerification {
+            applyDeeplinkVerification(pendingEmailVerification)
+        }
+    }
+
+    deinit {
+        fundingTask?.cancel()
     }
     
     // MARK: - Setters -
@@ -231,51 +252,35 @@ class OnrampViewModel {
         }
     }
     
-    // MARK: - Root -
-    
-    func applePayWebView() -> AnyView {
-        if let order = coinbaseOrder {
-            AnyView(
-                ApplePayWebView(url: order.paymentLink.url) { [weak self] event in
-                    self?.didReceiveApplePayEvent(event: event)
-                }
-                .frame(width: 300, height: 300)
-                .opacity(0)
-                .id(order.id)
-            )
-        } else {
-            AnyView(EmptyView())
-        }
-    }
-    
     // MARK: - Navigation -
     
     func navigateToRoot() {
-        onrampPath = []
+        amountPath = []
+        verificationPath = []
     }
-    
+
     func navigateToInitialVerification() {
         navigateToAmount(from: .info)
     }
-    
+
     private func navigateToAmount(from origin: Origin) {
         if origin.rawValue < Origin.info.rawValue, (!isPhoneVerified || !isEmailVerified) {
-            onrampPath.append(.info)
+            verificationPath.append(.info)
             return
         }
-        
+
         if origin.rawValue < Origin.phone.rawValue, !isPhoneVerified {
             Analytics.track(event: Analytics.OnrampEvent.showEnterPhone)
-            onrampPath.append(.enterPhoneNumber)
+            verificationPath.append(.enterPhoneNumber)
             return
         }
-        
+
         if origin.rawValue < Origin.email.rawValue, !isEmailVerified {
             Analytics.track(event: Analytics.OnrampEvent.showEnterEmail)
-            onrampPath.append(.enterEmail)
+            verificationPath.append(.enterEmail)
             return
         }
-        
+
         navigateToVerificationOrPurchase()
     }
     
@@ -292,26 +297,6 @@ class OnrampViewModel {
         }
     }
     
-    // MARK: - Presentation -
-
-    func presentForBuy(destination: BuyDestination) {
-        pendingBuyDestination = destination
-        isOnrampPresented = true
-    }
-
-    /// Cleans up when the Onramp sheet dismisses. Cancels any in-flight Coinbase
-    /// poll + buy task, clears the presentation-scoped destination/order snapshot,
-    /// and resets the verification flow state so the next presentation starts
-    /// fresh. Triggered automatically via `isOnrampPresented`'s didSet — callers
-    /// should not invoke this directly.
-    private func handleDismissal() {
-        fundingTask?.cancel()
-        fundingTask = nil
-        pendingBuyDestination = nil
-        pendingCoinbaseOrderId = nil
-        reset()
-    }
-
     // MARK: - Actions -
 
     func customAmountEnteredAction() {
@@ -338,10 +323,8 @@ class OnrampViewModel {
             return
         }
 
-        // Reset stale verification state from any prior attempt, then restore the
-        // amount the user just typed so `enteredFiat` resolves correctly when
-        // `createOrder` reads it. `pendingBuyDestination` survives `reset()` —
-        // see `clearPendingBuy()`.
+        // `reset()` clears `enteredAmount` along with verification fields,
+        // so stash and restore it.
         let amount = enteredAmount
         reset()
         enteredAmount = amount
@@ -368,8 +351,8 @@ class OnrampViewModel {
                 sendCodeButtonState = .success
                 
                 try await Task.delay(milliseconds: 500)
-                onrampPath.append(.confirmPhoneNumberCode)
-                
+                verificationPath.append(.confirmPhoneNumberCode)
+
                 Analytics.track(event: Analytics.OnrampEvent.showConfirmPhone)
                 
                 try await Task.delay(milliseconds: 500)
@@ -470,8 +453,8 @@ class OnrampViewModel {
                 sendEmailCodeState = .success
                 
                 try await Task.delay(milliseconds: 500)
-                onrampPath.append(.confirmEmailCode)
-                
+                verificationPath.append(.confirmEmailCode)
+
                 Analytics.track(event: Analytics.OnrampEvent.showConfirmEmail)
                 
                 try await Task.delay(milliseconds: 500)
@@ -504,23 +487,20 @@ class OnrampViewModel {
         }
     }
     
-    func confirmEmailFromDeeplinkAction(verification: VerificationDescription) {
-        // Check to see if the user is already in the
-        // verification flow. If not, we'll skip them
-        // over to the email confirmation screen
+    func applyDeeplinkVerification(_ verification: VerificationDescription) {
+        // If the user isn't already parked on the confirm-code screen, jump
+        // them there so the API call's result has somewhere to surface.
         if !isShowingVerificationFlow {
-            // TODO: Verify this works
-            emailVerificationDescription = verification
-            onrampPath = [.confirmEmailCode]
+            verificationPath = [.confirmEmailCode]
             enteredEmail = verification.email
         }
-        
+
         Task {
             confirmEmailButtonState = .loading
             defer {
                 confirmEmailButtonState = .normal
             }
-            
+
             do {
                 if !isEmailVerified {
                     try await flipClient.checkEmailCode(
@@ -528,32 +508,28 @@ class OnrampViewModel {
                         code: verification.code,
                         owner: owner
                     )
-                    
+
                     try? await session.updateProfile()
                 }
 
                 try await Task.delay(milliseconds: 500)
                 confirmEmailButtonState = .success
-                
+
                 try await Task.delay(milliseconds: 500)
                 navigateToAmount(from: .email)
-                
+
                 try await Task.delay(milliseconds: 500)
             } catch ErrorCheckEmailCode.invalidCode {
                 showInvalidVerificationLinkError { [weak self] in
                     Task {
                         try await self?.resendEmailCodeAction()
                     }
-                } cancel: { [weak self] in
-                    self?.emailVerificationDescription = nil
                 }
             } catch ErrorCheckEmailCode.noVerification {
                 showExpiredVerificationLinkError { [weak self] in
                     Task {
                         try await self?.resendEmailCodeAction()
                     }
-                } cancel: { [weak self] in
-                    self?.emailVerificationDescription = nil
                 }
             } catch {
                 ErrorReporting.captureError(error)
@@ -667,7 +643,7 @@ class OnrampViewModel {
         }
     }
     
-    private func didReceiveApplePayEvent(event: ApplePayEvent) {
+    func receiveApplePayEvent(_ event: ApplePayEvent) {
         func errorMetadata(_ event: ApplePayEvent) -> Logger.Metadata {
             [
                 "error_code": "\(event.data?.errorCode ?? "nil")",
@@ -698,7 +674,7 @@ class OnrampViewModel {
                 dismissable: true,
             ) {
                 .okay(kind: .destructive) { [weak self] in
-                    self?.isOnrampPresented = false
+                    self?.onDismiss()
                 }
             }
 
@@ -887,19 +863,10 @@ class OnrampViewModel {
     }
 
     private func handleCoinbaseFundingSuccess() async {
-        let destination = pendingBuyDestination
-
         logger.info("Coinbase funding succeeded", metadata: [
-            "destination_mint": "\(destination?.mint.base58 ?? "nil")",
-            "destination_name": "\(destination?.name ?? "nil")"
+            "destination_mint": "\(destination.mint.base58)",
+            "destination_name": "\(destination.name)"
         ])
-
-        guard let destination else {
-            logger.warning("Funding succeeded with no pendingBuyDestination — closing sheet")
-            coinbaseOrder = nil
-            isOnrampPresented = false
-            return
-        }
 
         guard let orderId = pendingCoinbaseOrderId else {
             logger.error("pollingSuccess fired with no pendingCoinbaseOrderId")
@@ -986,7 +953,7 @@ class OnrampViewModel {
                 successful: true,
                 error: nil
             )
-            onrampPath.append(.swapProcessing(
+            amountPath.append(.swapProcessing(
                 swapId: swapId,
                 currencyName: destination.name,
                 amount: exchangedFiat
@@ -1079,7 +1046,7 @@ class OnrampViewModel {
         }
     }
     
-    private func showInvalidVerificationLinkError(resendAction: @escaping () -> Void, cancel: @escaping () -> Void) {
+    private func showInvalidVerificationLinkError(resendAction: @escaping () -> Void) {
         dialogItem = .init(
             style: .destructive,
             title: "Verification Link Invalid",
@@ -1089,13 +1056,11 @@ class OnrampViewModel {
             .destructive("Resend Verification Code") {
                 resendAction()
             };
-            .cancel {
-                cancel()
-            }
+            .cancel()
         }
     }
-    
-    private func showExpiredVerificationLinkError(resendAction: @escaping () -> Void, cancel: @escaping () -> Void) {
+
+    private func showExpiredVerificationLinkError(resendAction: @escaping () -> Void) {
         dialogItem = .init(
             style: .destructive,
             title: "Verification Link Expired",
@@ -1105,9 +1070,7 @@ class OnrampViewModel {
             .destructive("Resend Verification Code") {
                 resendAction()
             };
-            .cancel {
-                cancel()
-            }
+            .cancel()
         }
     }
 
@@ -1121,7 +1084,7 @@ class OnrampViewModel {
             dismissable: true,
         ) {
             .okay(kind: .standard) { [weak self] in
-                self?.isOnrampPresented = false
+                self?.onDismiss()
             }
         }
     }
@@ -1136,21 +1099,28 @@ class OnrampViewModel {
             dismissable: true,
         ) {
             .okay(kind: .destructive) { [weak self] in
-                self?.isOnrampPresented = false
+                self?.onDismiss()
             }
         }
     }
 }
 
-// MARK: - Path -
+// MARK: - Paths -
 
-enum OnrampPath: Hashable {
+/// Navigation path for `OnrampAmountScreen`'s NavigationStack. Exhaustive on
+/// its own — the verification flow has its own path type so the two stacks
+/// never bind the same `[Path]` array.
+enum OnrampAmountPath: Hashable {
+    case swapProcessing(swapId: SwapId, currencyName: String, amount: ExchangedFiat)
+}
+
+/// Navigation path for `VerifyInfoScreen`'s NavigationStack.
+enum OnrampVerificationPath: Hashable {
     case info
     case enterPhoneNumber
     case confirmPhoneNumberCode
     case enterEmail
     case confirmEmailCode
-    case swapProcessing(swapId: SwapId, currencyName: String, amount: ExchangedFiat)
 }
 
 private enum Origin: Int {
@@ -1178,9 +1148,11 @@ private extension CharacterSet {
 // MARK: - BuyDestination -
 
 extension OnrampViewModel {
-    struct BuyDestination: Equatable {
+    struct BuyDestination: Equatable, Identifiable, Sendable, Hashable {
         let mint: PublicKey
         let name: String
+
+        var id: String { mint.base58 }
     }
 }
 
@@ -1192,12 +1164,3 @@ enum OnrampError: Error {
     case missingCoinbaseApiKey
 }
 
-// MARK: - Mock -
-
-extension OnrampViewModel {
-    static let mock: OnrampViewModel = .init(
-        container: .mock,
-        session: .mock,
-        ratesController: .mock
-    )
-}

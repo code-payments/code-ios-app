@@ -206,7 +206,7 @@ struct DeepLinkAction {
 
         case .verifyEmail(let description):
             if case .loggedIn(let container) = sessionAuthenticator.state {
-                container.onrampViewModel.confirmEmailFromDeeplinkAction(verification: description)
+                container.onrampDeeplinkInbox.pendingEmailVerification = description
             }
 
         case .currencyInfo(let mint):
@@ -240,11 +240,11 @@ extension DeepLinkAction.Kind {
     }
 }
 
-struct VerificationDescription: Identifiable {
+struct VerificationDescription: Identifiable, Equatable {
     var email: String
     var code: String
     var clientData: String?
-    
+
     var id: String {
         "\(email):\(code)"
     }
