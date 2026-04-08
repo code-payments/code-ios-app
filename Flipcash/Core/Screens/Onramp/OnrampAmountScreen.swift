@@ -21,7 +21,6 @@ struct OnrampAmountScreen: View {
     init(
         destination: OnrampViewModel.BuyDestination,
         session: Session,
-        ratesController: RatesController,
         flipClient: FlipClient,
         deeplinkInbox: OnrampDeeplinkInbox,
         onDismiss: @escaping () -> Void
@@ -31,7 +30,6 @@ struct OnrampAmountScreen: View {
         _viewModel = State(wrappedValue: OnrampViewModel(
             destination: destination,
             session: session,
-            ratesController: ratesController,
             flipClient: flipClient,
             onDismiss: onDismiss
         ))

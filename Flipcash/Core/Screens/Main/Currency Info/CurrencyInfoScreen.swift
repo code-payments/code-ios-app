@@ -265,7 +265,6 @@ struct CurrencyInfoScreen: View {
             OnrampAmountScreen(
                 destination: destination,
                 session: sessionContainer.session,
-                ratesController: sessionContainer.ratesController,
                 flipClient: sessionContainer.flipClient,
                 deeplinkInbox: sessionContainer.onrampDeeplinkInbox,
                 onDismiss: { onrampDestination = nil }

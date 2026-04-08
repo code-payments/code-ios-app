@@ -82,18 +82,13 @@ class OnrampViewModel {
             return nil
         }
 
-        guard let rate = ratesController.rate(for: .usd) else {
-            logger.error("Rate not found", metadata: ["currency": "usd"])
-            return nil
-        }
-
         guard let converted = try? Quarks(fiatDecimal: amount, currencyCode: .usd, decimals: PublicKey.usdf.mintDecimals) else {
             return nil
         }
 
         return try? ExchangedFiat(
             converted: converted,
-            rate: rate,
+            rate: .oneToOne,
             mint: .usdf
         )
     }
@@ -133,7 +128,6 @@ class OnrampViewModel {
     }
     
     @ObservationIgnored private let session: Session
-    @ObservationIgnored private let ratesController: RatesController
     @ObservationIgnored private let flipClient: FlipClient
     @ObservationIgnored private let owner: KeyPair
     @ObservationIgnored private let onDismiss: () -> Void
@@ -164,13 +158,11 @@ class OnrampViewModel {
     init(
         destination: BuyDestination,
         session: Session,
-        ratesController: RatesController,
         flipClient: FlipClient,
         onDismiss: @escaping () -> Void
     ) {
         self.destination = destination
         self.session = session
-        self.ratesController = ratesController
         self.flipClient = flipClient
         self.owner = session.ownerKeyPair
         self.onDismiss = onDismiss
@@ -813,7 +805,6 @@ class OnrampViewModel {
             return nil
         }
 
-        let rate = ratesController.rateForEntryCurrency()
         guard let underlying = try? Quarks(
             fiatDecimal: decimal,
             currencyCode: .usd,
@@ -824,7 +815,7 @@ class OnrampViewModel {
 
         return try? ExchangedFiat(
             underlying: underlying,
-            rate: rate,
+            rate: .oneToOne,
             mint: .usdf
         )
     }
