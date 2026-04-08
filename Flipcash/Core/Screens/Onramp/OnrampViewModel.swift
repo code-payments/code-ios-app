@@ -331,23 +331,28 @@ class OnrampViewModel {
         guard let exchangedFiat = enteredFiat else {
             return
         }
-        
-        guard let limit = session.singleTransactionLimitFor(currency: exchangedFiat.converted.currencyCode) else {
+
+        guard let maxPerDay = session.sendLimitFor(currency: exchangedFiat.converted.currencyCode)?.maxPerDay else {
             return
         }
-        
-        guard exchangedFiat.converted <= limit else {
+
+        guard exchangedFiat.converted <= maxPerDay else {
+            logger.info("Onramp rejected: amount exceeds limit", metadata: [
+                "amount": "\(exchangedFiat.converted.formatted())",
+                "max_per_day": "\(maxPerDay.decimalValue)",
+                "currency": "\(exchangedFiat.converted.currencyCode)",
+            ])
             showAmountTooLargeError()
             return
         }
-        
+
         guard exchangedFiat.converted.decimalValue >= 5.00 else {
             showAmountTooSmallError()
             return
         }
-        
+
         isShowingAmountEntryScreen = false
-        
+
         Task {
             addWithApplePayAction()
         }

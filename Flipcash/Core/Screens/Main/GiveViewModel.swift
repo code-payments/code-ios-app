@@ -8,6 +8,9 @@
 import SwiftUI
 import FlipcashUI
 import FlipcashCore
+import Logging
+
+private let logger = Logger(label: "flipcash.send-cash")
 
 @MainActor @Observable
 class GiveViewModel {
@@ -123,7 +126,14 @@ class GiveViewModel {
         let result = session.hasSufficientFunds(for: exchangedFiat)
         switch result {
         case .sufficient(let amountToSend):
-            guard session.hasLimitToSendFunds(for: amountToSend) else {
+            let sendLimit = session.sendLimitFor(currency: amountToSend.converted.currencyCode) ?? .zero
+
+            guard amountToSend.converted <= sendLimit.nextTransaction else {
+                logger.info("Give rejected: amount exceeds limit", metadata: [
+                    "amount": "\(amountToSend.converted.formatted())",
+                    "next_tx": "\(sendLimit.nextTransaction.decimalValue)",
+                    "currency": "\(amountToSend.converted.currencyCode)",
+                ])
                 showLimitsError()
                 return
             }

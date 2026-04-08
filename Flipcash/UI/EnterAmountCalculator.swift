@@ -8,25 +8,22 @@
 import Foundation
 import FlipcashCore
 
-struct EnterAmountCalculator {    
-    /// Provides exchange rate lookup capability
-    typealias RateProvider = (CurrencyCode) -> Rate?
-    /// Provides transaction limits for a given currency
-    typealias TransactionLimitProvider = (CurrencyCode) -> Quarks?
-    
+struct EnterAmountCalculator {
+    /// Provides the full SendLimit for a given currency
+    typealias SendLimitProvider = (CurrencyCode) -> SendLimit?
+
     // MARK: - Properties
-    
+
     let mode: EnterAmountView.Mode
     let entryCurrency: CurrencyCode
     let onrampCurrency: CurrencyCode
-    let transactionLimitProvider: TransactionLimitProvider
-    let rateProvider: RateProvider
-    
+    let sendLimitProvider: SendLimitProvider
+
     // MARK: - Computed
-    
+
     var currency: CurrencyCode {
         switch mode {
-        case .currency, .buy:
+        case .currency, .buy, .sell:
             entryCurrency
         case .onramp:
             onrampCurrency
@@ -36,9 +33,24 @@ struct EnterAmountCalculator {
             entryCurrency
         }
     }
-    
-    var maxTransactionAmount: Quarks {
-        transactionLimitProvider(currency) ?? 0
+
+    /// The maximum amount the user can enter for a single transaction, determined by flow type.
+    /// Returns `nil` for flows that have no per-transaction cap (sell, withdraw). Used by
+    /// `EnterAmountView` for the "Enter up to X" subtitle and button-enable logic.
+    var maxTransactionAmount: Quarks? {
+        switch mode {
+        case .currency:
+            // Give: effective limit is the lower of per-tx cap and remaining daily
+            guard let limit = sendLimitProvider(currency) else { return nil }
+            return min(limit.maxPerTransaction, limit.nextTransaction)
+        case .buy, .phantomDeposit, .walletDeposit, .onramp:
+            // Buy-style flows: per-tx limit is the daily cap (no daily accumulation limit)
+            guard let limit = sendLimitProvider(currency) else { return nil }
+            return limit.maxPerDay
+        case .sell, .withdraw:
+            // No per-transaction limits for these flows
+            return nil
+        }
     }
     
     // MARK: - Static
@@ -61,17 +73,18 @@ struct EnterAmountCalculator {
     // MARK: - Methods
 
     func maxEnterAmount(maxBalance: ExchangedFiat) -> Quarks {
-        guard let rate = rateProvider(maxBalance.converted.currencyCode) else {
+        // Unbounded flows (sell, withdraw, deposit): cap at balance only.
+        guard let limit = maxTransactionAmount else {
             return maxBalance.converted
         }
-        
-        // Convert the transaction limit from USD to the entry currency before comparing
-        // Always use USDF decimals (6) since maxTransactionAmount comes from limits which are stored in USDC decimals
-        let transactionLimitInEntryCurrency = maxTransactionAmount.converting(
-            to: rate,
-            decimals: PublicKey.usdf.mintDecimals
-        )
-        
-        return min(maxBalance.converted, transactionLimitInEntryCurrency)
+
+        // Server-provided limits are already localized to the entry currency,
+        // and `maxBalance.converted` is also in the entry currency, so we can
+        // compare directly. No fx conversion needed.
+        guard limit.currencyCode == maxBalance.converted.currencyCode else {
+            return maxBalance.converted
+        }
+
+        return min(maxBalance.converted, limit)
     }
 }

@@ -30,8 +30,7 @@ public struct EnterAmountView: View {
             mode: mode,
             entryCurrency: rateController.entryCurrency,
             onrampCurrency: rateController.onrampCurrency,
-            transactionLimitProvider: session.singleTransactionLimitFor(currency:),
-            rateProvider: rateController.rate(for:)
+            sendLimitProvider: session.sendLimitFor(currency:)
         )
     }
     
@@ -92,10 +91,12 @@ public struct EnterAmountView: View {
                     
                     switch subtitle {
                     case .singleTransactionLimit:
-                        Text("Enter up to \(calculator.maxTransactionAmount.formatted())")
-                            .fixedSize()
-                            .foregroundColor(subtitleColor)
-                            .font(.appTextMedium)
+                        if let limit = calculator.maxTransactionAmount {
+                            Text("Enter up to \(limit.formatted())")
+                                .fixedSize()
+                                .foregroundColor(subtitleColor)
+                                .font(.appTextMedium)
+                        }
 
                     case .balanceWithLimit(let maxBalance):
                         Text("Enter up to \(calculator.maxEnterAmount(maxBalance: maxBalance).formatted())")
@@ -142,27 +143,28 @@ public struct EnterAmountView: View {
 
 extension EnterAmountView {
     enum Mode {
-        
+
         case phantomDeposit
         case walletDeposit(String)
         case currency
         case onramp
         case withdraw
         case buy
-        
+        case sell
+
         fileprivate func formatter(with currency: CurrencyCode) -> NumberFormatter {
             switch self {
-            case .currency, .onramp, .walletDeposit, .phantomDeposit, .withdraw, .buy:
+            case .currency, .onramp, .walletDeposit, .phantomDeposit, .withdraw, .buy, .sell:
                 return .fiat(currency: currency, minimumFractionDigits: 0)
             }
         }
-        
+
         fileprivate var defaultValue: AmountField.DefaultValue {
             switch self {
-            case .currency, .onramp, .walletDeposit, .phantomDeposit, .withdraw, .buy: return .number("0")
+            case .currency, .onramp, .walletDeposit, .phantomDeposit, .withdraw, .buy, .sell: return .number("0")
             }
         }
-        
+
         fileprivate var actionName: String {
             switch self {
             case .phantomDeposit:
@@ -172,10 +174,11 @@ extension EnterAmountView {
             case .currency: return "Next"
             case .onramp:   return "Add Cash"
             case .withdraw: return "Next"
-            case .buy: return "Buy"
+            case .buy:      return "Buy"
+            case .sell:     return "Next"
             }
         }
-        
+
         fileprivate var buttonStyle: CodeButton.Style {
             switch self {
             case .phantomDeposit: return .filledCustom(Image.asset(.phantom), "Phantom")
@@ -184,6 +187,7 @@ extension EnterAmountView {
             case .onramp:         return .filledApplePay
             case .withdraw:       return .filled
             case .buy:            return .filled
+            case .sell:           return .filled
             }
         }
     }

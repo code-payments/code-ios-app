@@ -104,40 +104,12 @@ class Session {
 //        )
 //    }
     
-    var nextTransactionLimit: Quarks? {
-        nextTransactionLimit(currency: ratesController.rateForEntryCurrency().currency)
-    }
-    
-    func nextTransactionLimit(currency: CurrencyCode) -> Quarks? {
-        guard let limits else {
-            return nil
-        }
-        
-        guard let limit = limits.sendLimitFor(currency: currency) else {
-            return nil
-        }
-        
-        return limit.nextTransaction
-    }
-    
-    var singleTransactionLimit: Quarks? {
-        singleTransactionLimitFor(currency: ratesController.entryCurrency)
-    }
-    
-    func singleTransactionLimitFor(currency: CurrencyCode) -> Quarks? {
-        guard let limits else {
-            return nil
-        }
-        
-        guard let rate = ratesController.rate(for: currency) else {
-            return nil
-        }
-        
-        guard let limit = limits.sendLimitFor(currency: rate.currency) else {
-            return nil
-        }
-        
-        return limit.maxPerTransaction
+    /// Returns the server-provided send limit for the given currency, or `nil` if limits
+    /// haven't been fetched yet. Callers pick the field appropriate for their flow:
+    /// - Give: `nextTransaction` (remaining daily allowance, capped at `maxPerTransaction`)
+    /// - Buy / WalletConnect / Onramp: `maxPerDay` (reused as per-transaction buy cap)
+    func sendLimitFor(currency: CurrencyCode) -> SendLimit? {
+        limits?.sendLimitFor(currency: currency)
     }
     
     var isShowingBill: Bool {
@@ -398,17 +370,6 @@ class Session {
     
     // MARK: - Balance -
     
-    func hasLimitToSendFunds(for exchangedFiat: ExchangedFiat) -> Bool {
-        guard let nextTransactionLimit else {
-            return false
-        }
-        
-        guard exchangedFiat.converted.currencyCode == nextTransactionLimit.currencyCode else {
-            return false
-        }
-        
-        return exchangedFiat.converted <= nextTransactionLimit
-    }
     
     func hasSufficientFunds(for exchangedFiat: ExchangedFiat) -> SufficientFundsResult {
         guard exchangedFiat.underlying.quarks > 0 else {
@@ -471,6 +432,9 @@ class Session {
     
     private func fetchLimitsIfNeeded() async throws {
         if limits == nil || limits?.isStale == true {
+            if limits != nil {
+                logger.info("Limits stale, refreshing")
+            }
             try await fetchLimits()
         }
     }
@@ -485,7 +449,13 @@ class Session {
             try? database.insertLimits(fetchedLimits)
         }
 
-        logger.debug("Daily limit updated", metadata: ["usd_max_per_day": "\(fetchedLimits.sendLimitFor(currency: .usd)?.maxPerDay.decimalValue ?? -1)"])
+        if let usdLimit = fetchedLimits.sendLimitFor(currency: .usd) {
+            logger.info("Limits updated", metadata: [
+                "usd_max_per_tx": "\(usdLimit.maxPerTransaction.decimalValue)",
+                "usd_next_tx": "\(usdLimit.nextTransaction.decimalValue)",
+                "usd_max_per_day": "\(usdLimit.maxPerDay.decimalValue)",
+            ])
+        }
     }
     
     private func updateLimits() {
