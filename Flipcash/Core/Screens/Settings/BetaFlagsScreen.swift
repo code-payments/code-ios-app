@@ -61,8 +61,12 @@ struct BetaFlagsScreen: View {
 
                 sectionHeader("Account")
 
-                unlinkEmailRow()
-                unlinkPhoneRow()
+                unlinkRow(title: "Unlink Email", isDisabled: session.profile?.email == nil) {
+                    isConfirmingUnlinkEmail = true
+                }
+                unlinkRow(title: "Unlink Phone", isDisabled: session.profile?.phone == nil) {
+                    isConfirmingUnlinkPhone = true
+                }
             }
         }
         .navigationTitle("Beta Flags")
@@ -114,12 +118,10 @@ struct BetaFlagsScreen: View {
         .padding(.bottom, 8)
     }
 
-    private func unlinkEmailRow() -> some View {
-        Button {
-            isConfirmingUnlinkEmail = true
-        } label: {
+    private func unlinkRow(title: String, isDisabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
             HStack {
-                Text("Unlink Email")
+                Text(title)
                     .font(.appTextMedium)
                     .foregroundColor(.textMain)
                     .padding([.top, .bottom], 10)
@@ -131,27 +133,7 @@ struct BetaFlagsScreen: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .disabled(session.profile?.email == nil)
-    }
-
-    private func unlinkPhoneRow() -> some View {
-        Button {
-            isConfirmingUnlinkPhone = true
-        } label: {
-            HStack {
-                Text("Unlink Phone")
-                    .font(.appTextMedium)
-                    .foregroundColor(.textMain)
-                    .padding([.top, .bottom], 10)
-                Spacer()
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 10)
-            .vSeparator(color: .rowSeparator, position: .bottom)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .disabled(session.profile?.phone == nil)
+        .disabled(isDisabled)
     }
 
     // MARK: - Actions -

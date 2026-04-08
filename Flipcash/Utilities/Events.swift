@@ -52,7 +52,7 @@ extension Analytics {
         case showConfirmPhone     = "Onramp: Show Confirm Phone"
         case showEnterEmail       = "Onramp: Show Enter Email"
         case showConfirmEmail     = "Onramp: Show Confirm Email"
-        case invokePaymentCustom  = "Onramp: Invoke Payment Custom"
+        case invokePayment        = "Onramp: Invoke Payment Custom"
         case completed            = "Onramp: Completed"
     }
 
@@ -179,13 +179,13 @@ extension Analytics {
 // MARK: - Onramp -
 
 extension Analytics {
-    static func onrampInvokePaymentCustom(amount: Quarks) {
+    static func onrampInvokePayment(amount: Quarks) {
         var properties: [Property: AnalyticsValue] = [:]
 
         properties[.fiat]     = amount.doubleValue
         properties[.currency] = amount.currencyCode.rawValue
 
-        track(event: OnrampEvent.invokePaymentCustom, properties: properties)
+        track(event: OnrampEvent.invokePayment, properties: properties)
     }
 
     static func onrampCompleted(amount: Quarks?, successful: Bool, error: Error?) {
