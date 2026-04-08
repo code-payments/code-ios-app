@@ -37,8 +37,9 @@ public final class LogStore: Sendable {
         let level = Logger.Level.info
         #endif
 
-        LoggingSystem.bootstrap { _ in
+        LoggingSystem.bootstrap { label in
             FlipcashLogHandler(
+                label: label,
                 logLevel: level,
                 ringBuffer: store.ringBuffer,
                 fileBuffer: store.fileBuffer,

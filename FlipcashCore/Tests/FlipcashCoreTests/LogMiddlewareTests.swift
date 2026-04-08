@@ -107,6 +107,7 @@ struct LogMiddlewareTests {
             level: .info,
             message: "test",
             metadata: metadata,
+            label: "test",
             source: "test",
             function: "test()",
             file: "Test.swift",

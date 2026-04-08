@@ -72,6 +72,7 @@ struct RingBufferLogHandlerTests {
             level: .info,
             message: message,
             metadata: nil,
+            label: "test",
             source: "test",
             function: "test()",
             file: "Test.swift",
