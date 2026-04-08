@@ -268,7 +268,6 @@ struct CurrencyInfoScreen: View {
                 ratesController: sessionContainer.ratesController,
                 flipClient: sessionContainer.flipClient,
                 deeplinkInbox: sessionContainer.onrampDeeplinkInbox,
-                pendingEmailVerification: sessionContainer.onrampDeeplinkInbox.take(),
                 onDismiss: { onrampDestination = nil }
             )
         }

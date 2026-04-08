@@ -12,19 +12,14 @@ import FlipcashCore
 private let logger = Logger(label: "flipcash.onramp")
 
 /// Long-lived store for Onramp email verification deeplinks. `DeepLinkController`
-/// drops incoming verifications here; the active `OnrampViewModel` picks them
-/// up on init (if the sheet is opened after the link arrived) or via an
-/// observer on the hosting view (if the sheet is already presented). Lives on
-/// `SessionContainer` so it survives sheet dismissal but not logout.
+/// drops incoming verifications here; `OnrampAmountScreen` observes the value
+/// with `.onChange(initial: true)`, so whether the link arrived before or
+/// after the sheet opened the verification is picked up through the same
+/// entry point. Lives on `SessionContainer` so it survives sheet dismissal
+/// but not logout.
 @MainActor @Observable
 final class OnrampDeeplinkInbox {
     var pendingEmailVerification: VerificationDescription?
-
-    func take() -> VerificationDescription? {
-        let verification = pendingEmailVerification
-        pendingEmailVerification = nil
-        return verification
-    }
 }
 
 @MainActor @Observable
@@ -44,14 +39,15 @@ class OnrampViewModel {
 
     var coinbaseOrder: OnrampOrderResponse?
 
-    /// True once Coinbase has accepted the order and while payment is in-flight
-    /// (Apple Pay commit, on-chain settlement, or our poll loop). While true, the
-    /// Onramp sheet must not be dismissible: the USDF is destined for the user's
-    /// VM swap ATA, a staging slot that only a downstream `buyWithExternalFunding`
-    /// call can drain. Dismissing mid-flight would strand the USDF in a VM-owned
-    /// account with no recovery path through normal UI.
+    /// True once Coinbase has accepted the order and remains true through the
+    /// full committed flow: Apple Pay commit, on-chain settlement, the poll
+    /// loop, the downstream `buyWithExternalFunding` swap, and while
+    /// `SwapProcessingScreen` is on the nav stack. Drives the sheet-level
+    /// dismiss lock — the USDF destination is a VM-owned staging ATA that only
+    /// `buyWithExternalFunding` can drain, so dismissing mid-flight would
+    /// strand funds with no recovery path through normal UI.
     var isProcessingPayment: Bool {
-        coinbaseOrder != nil
+        coinbaseOrder != nil || !amountPath.isEmpty
     }
 
     var dialogItem: DialogItem?
@@ -86,14 +82,12 @@ class OnrampViewModel {
             return nil
         }
 
-        let currency = ratesController.entryCurrency
-
-        guard let rate = ratesController.rate(for: currency) else {
-            logger.error("Rate not found", metadata: ["currency": "\(currency)"])
+        guard let rate = ratesController.rate(for: .usd) else {
+            logger.error("Rate not found", metadata: ["currency": "usd"])
             return nil
         }
 
-        guard let converted = try? Quarks(fiatDecimal: amount, currencyCode: currency, decimals: PublicKey.usdf.mintDecimals) else {
+        guard let converted = try? Quarks(fiatDecimal: amount, currencyCode: .usd, decimals: PublicKey.usdf.mintDecimals) else {
             return nil
         }
 
@@ -172,7 +166,6 @@ class OnrampViewModel {
         session: Session,
         ratesController: RatesController,
         flipClient: FlipClient,
-        pendingEmailVerification: VerificationDescription? = nil,
         onDismiss: @escaping () -> Void
     ) {
         self.destination = destination
@@ -185,10 +178,6 @@ class OnrampViewModel {
         self.coinbaseApiKey = try? InfoPlist.value(for: "coinbase").value(for: "apiKey").string()
 
         self.coinbase = Coinbase(configuration: .init(bearerTokenProvider: fetchCoinbaseJWT))
-
-        if let pendingEmailVerification {
-            applyDeeplinkVerification(pendingEmailVerification)
-        }
     }
 
     deinit {
@@ -281,7 +270,7 @@ class OnrampViewModel {
 
         navigateToVerificationOrPurchase()
     }
-    
+
     private func navigateToVerificationOrPurchase() {
         // If we need to verify the phone or
         // email, we'll need to open up the
@@ -515,8 +504,6 @@ class OnrampViewModel {
 
                 try await Task.delay(milliseconds: 500)
                 navigateToAmount(from: .email)
-
-                try await Task.delay(milliseconds: 500)
             } catch ErrorCheckEmailCode.invalidCode {
                 showInvalidVerificationLinkError { [weak self] in
                     Task {
@@ -542,13 +529,13 @@ class OnrampViewModel {
         guard let exchangedFiat = enteredFiat else {
             return
         }
-        
+
         guard let profile = session.profile, profile.canCreateCoinbaseOrder else {
             return
         }
-        
+
         Analytics.onrampInvokePayment(amount: exchangedFiat.underlying)
-        
+
         Task {
             try await createOnrampOrder(
                 profile: profile,
@@ -569,11 +556,6 @@ class OnrampViewModel {
         
         payButtonState = .loading
         
-        let f = NumberFormatter()
-        f.numberStyle = .decimal
-        f.minimumFractionDigits = 2
-        f.maximumFractionDigits = 2
-        
         let ref = BetaFlags.shared.hasEnabled(.coinbaseSandbox) ? "sandbox-\(userRef)" : userRef
         
         do {
@@ -586,11 +568,10 @@ class OnrampViewModel {
             guard let usdfSwapAccounts = MintMetadata.usdf.timelockSwapAccounts(owner: session.owner.authorityPublicKey) else {
                 fatalError("Failed to derive USDF swap accounts")
             }
-            
+                        
             let response = try await coinbase.createOrder(request: .init(
-                paymentAmount: nil,
+                purchaseAmount: "\(exchangedFiat.underlying.decimalValue)",
                 paymentCurrency: "USD",
-                purchaseAmount: f.string(from: exchangedFiat.underlying.decimalValue),
                 purchaseCurrency: "USDF",
                 isQuote: false,
                 destinationAddress: usdfSwapAccounts.ata.publicKey,

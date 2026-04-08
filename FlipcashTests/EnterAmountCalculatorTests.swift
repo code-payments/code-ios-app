@@ -49,7 +49,6 @@ import FlipcashCore
         let calculator = EnterAmountCalculator(
             mode: .currency,
             entryCurrency: .cad,
-            onrampCurrency: .usd,
             sendLimitProvider: { _ in return nil }
         )
 
@@ -60,7 +59,6 @@ import FlipcashCore
         let calculator = EnterAmountCalculator(
             mode: .buy,
             entryCurrency: .eur,
-            onrampCurrency: .usd,
             sendLimitProvider: { _ in return nil }
         )
 
@@ -71,29 +69,26 @@ import FlipcashCore
         let calculator = EnterAmountCalculator(
             mode: .sell,
             entryCurrency: .cad,
-            onrampCurrency: .usd,
             sendLimitProvider: { _ in return nil }
         )
 
         #expect(calculator.currency == .cad)
     }
 
-    @Test func currency_whenModeIsOnramp_returnsOnrampCurrency() {
+    @Test func currency_whenModeIsOnramp_returnsUSD() {
         let calculator = EnterAmountCalculator(
             mode: .onramp,
             entryCurrency: .cad,
-            onrampCurrency: .gbp,
             sendLimitProvider: { _ in return nil }
         )
 
-        #expect(calculator.currency == .gbp)
+        #expect(calculator.currency == .usd)
     }
 
     @Test func currency_whenModeIsWithdraw_returnsEntryCurrency() {
         let calculator = EnterAmountCalculator(
             mode: .withdraw,
             entryCurrency: .cad,
-            onrampCurrency: .gbp,
             sendLimitProvider: { _ in return nil }
         )
 
@@ -104,7 +99,6 @@ import FlipcashCore
         let calculator = EnterAmountCalculator(
             mode: .walletDeposit("Phantom"),
             entryCurrency: .cad,
-            onrampCurrency: .gbp,
             sendLimitProvider: { _ in return nil }
         )
 
@@ -115,7 +109,6 @@ import FlipcashCore
         let calculator = EnterAmountCalculator(
             mode: .phantomDeposit,
             entryCurrency: .cad,
-            onrampCurrency: .gbp,
             sendLimitProvider: { _ in return nil }
         )
 
@@ -128,7 +121,6 @@ import FlipcashCore
         let calculator = EnterAmountCalculator(
             mode: .currency,
             entryCurrency: .usd,
-            onrampCurrency: .usd,
             sendLimitProvider: { _ in return nil }
         )
 
@@ -140,7 +132,6 @@ import FlipcashCore
         let calculator = EnterAmountCalculator(
             mode: .currency,
             entryCurrency: .usd,
-            onrampCurrency: .usd,
             sendLimitProvider: { _ in return sendLimit }
         )
 
@@ -158,7 +149,6 @@ import FlipcashCore
         let calculator = EnterAmountCalculator(
             mode: .currency,
             entryCurrency: .usd,
-            onrampCurrency: .usd,
             sendLimitProvider: { _ in sendLimit }
         )
 
@@ -174,7 +164,6 @@ import FlipcashCore
         let calculator = EnterAmountCalculator(
             mode: .currency,
             entryCurrency: .usd,
-            onrampCurrency: .usd,
             sendLimitProvider: { _ in sendLimit }
         )
 
@@ -194,7 +183,6 @@ import FlipcashCore
         let calculator = EnterAmountCalculator(
             mode: .currency,
             entryCurrency: .cad,
-            onrampCurrency: .usd,
             sendLimitProvider: { _ in sendLimit }
         )
 
@@ -219,7 +207,6 @@ import FlipcashCore
         let calculator = EnterAmountCalculator(
             mode: mode,
             entryCurrency: .usd,
-            onrampCurrency: .usd,
             sendLimitProvider: { _ in sendLimit }
         )
 
@@ -240,7 +227,6 @@ import FlipcashCore
         let calculator = EnterAmountCalculator(
             mode: mode,
             entryCurrency: .usd,
-            onrampCurrency: .usd,
             sendLimitProvider: { _ in sendLimit }
         )
 
@@ -255,7 +241,6 @@ import FlipcashCore
         let calculator = EnterAmountCalculator(
             mode: mode,
             entryCurrency: .usd,
-            onrampCurrency: .usd,
             sendLimitProvider: { _ in sendLimit }
         )
 
@@ -316,7 +301,6 @@ import FlipcashCore
         let calculator = EnterAmountCalculator(
             mode: .currency,
             entryCurrency: .usd,
-            onrampCurrency: .usd,
             sendLimitProvider: { _ in return nil }
         )
 
@@ -330,7 +314,6 @@ import FlipcashCore
         let calculator = EnterAmountCalculator(
             mode: .currency,
             entryCurrency: .usd,
-            onrampCurrency: .usd,
             sendLimitProvider: { _ in return sendLimit }
         )
 
@@ -344,7 +327,6 @@ import FlipcashCore
         let calculator = EnterAmountCalculator(
             mode: .currency,
             entryCurrency: .usd,
-            onrampCurrency: .usd,
             sendLimitProvider: { _ in return sendLimit }
         )
 
@@ -370,7 +352,6 @@ import FlipcashCore
         let calculator = EnterAmountCalculator(
             mode: .currency,
             entryCurrency: .cad,
-            onrampCurrency: .usd,
             sendLimitProvider: { _ in return sendLimit }
         )
 
@@ -389,7 +370,6 @@ import FlipcashCore
         let calculator = EnterAmountCalculator(
             mode: .buy,
             entryCurrency: .usd,
-            onrampCurrency: .usd,
             sendLimitProvider: { _ in return sendLimit }
         )
 

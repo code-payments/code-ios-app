@@ -24,7 +24,6 @@ struct OnrampAmountScreen: View {
         ratesController: RatesController,
         flipClient: FlipClient,
         deeplinkInbox: OnrampDeeplinkInbox,
-        pendingEmailVerification: VerificationDescription?,
         onDismiss: @escaping () -> Void
     ) {
         self.onDismiss = onDismiss
@@ -34,7 +33,6 @@ struct OnrampAmountScreen: View {
             session: session,
             ratesController: ratesController,
             flipClient: flipClient,
-            pendingEmailVerification: pendingEmailVerification,
             onDismiss: onDismiss
         ))
     }
@@ -89,7 +87,7 @@ struct OnrampAmountScreen: View {
             VerifyInfoScreen(viewModel: viewModel)
         }
         .dialog(item: $viewModel.dialogItem)
-        .onChange(of: deeplinkInbox.pendingEmailVerification) { _, verification in
+        .onChange(of: deeplinkInbox.pendingEmailVerification, initial: true) { _, verification in
             if let verification {
                 viewModel.applyDeeplinkVerification(verification)
                 deeplinkInbox.pendingEmailVerification = nil

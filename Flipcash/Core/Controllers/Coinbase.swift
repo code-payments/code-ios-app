@@ -293,10 +293,8 @@ public struct OnrampErrorResponse: Error, Decodable, Sendable {
 }
 
 public struct OnrampOrderRequest: Encodable, Sendable {
-
-    public var paymentAmount: String?
+    public var purchaseAmount: String
     public var paymentCurrency: String
-    public var purchaseAmount: String?
     public var purchaseCurrency: String?
     public var isQuote: Bool = false
     public var destinationAddress: String
@@ -310,10 +308,9 @@ public struct OnrampOrderRequest: Encodable, Sendable {
     public let destinationNetwork: String = "solana"
     public let paymentMethod: String = "GUEST_CHECKOUT_APPLE_PAY"
     
-    init(paymentAmount: String?, paymentCurrency: String, purchaseAmount: String?, purchaseCurrency: String?, isQuote: Bool, destinationAddress: PublicKey, email: String, phoneNumber: String, partnerOrderRef: String, partnerUserRef: String, phoneNumberVerifiedAt: Date, agreementAcceptedAt: Date) {
-        self.paymentAmount = paymentAmount
-        self.paymentCurrency = paymentCurrency
+    init(purchaseAmount: String, paymentCurrency: String, purchaseCurrency: String?, isQuote: Bool, destinationAddress: PublicKey, email: String, phoneNumber: String, partnerOrderRef: String, partnerUserRef: String, phoneNumberVerifiedAt: Date, agreementAcceptedAt: Date) {
         self.purchaseAmount = purchaseAmount
+        self.paymentCurrency = paymentCurrency
         self.purchaseCurrency = purchaseCurrency
         self.isQuote = isQuote
         self.destinationAddress = destinationAddress.base58
