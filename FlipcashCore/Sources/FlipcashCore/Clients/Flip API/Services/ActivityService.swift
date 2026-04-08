@@ -40,14 +40,14 @@ class ActivityService: CodeService<Flipcash_Activity_V1_ActivityFeedNIOClient> {
                     do {
                         return try Activity($0)
                     } catch {
-                        logger.error("Failed to parse activity: \($0)")
+                        logger.error("Failed to parse activity", metadata: ["error": "\(error)"])
                         return nil
                     }
                 }
                 logger.info("Fetched \(activities.count) activities")
                 completion(.success(activities))
             } else {
-                logger.error("Failed to fetch transaction history for owner: \(owner.publicKey.base58)")
+                logger.error("Failed to fetch transaction history", metadata: ["owner": "\(owner.publicKey.base58)"])
                 completion(.failure(error))
             }
 
@@ -72,14 +72,14 @@ class ActivityService: CodeService<Flipcash_Activity_V1_ActivityFeedNIOClient> {
                     do {
                         return try Activity($0)
                     } catch {
-                        logger.error("Failed to parse activity: \($0)")
+                        logger.error("Failed to parse activity", metadata: ["error": "\(error)"])
                         return nil
                     }
                 }
                 logger.info("Fetched \(activities.count) activities by ID")
                 completion(.success(activities))
             } else {
-                logger.error("Failed to fetch transaction history items for owner: \(owner.publicKey.base58)")
+                logger.error("Failed to fetch transaction history items", metadata: ["owner": "\(owner.publicKey.base58)"])
                 completion(.failure(error))
             }
 

@@ -163,12 +163,12 @@ extension Client {
                 }
                 return try await fetchIntentMetadata(owner: owner, intentID: intentID)
             } catch ErrorFetchIntentMetadata.denied {
-                logger.warning("Intent denied (grabbed by another device): \(intentID.base58)")
+                logger.warning("Intent denied (grabbed by another device)", metadata: ["intentId": "\(intentID.base58)"])
                 throw ClientError.denied
             } catch {}
         }
 
-        logger.error("Poll limit reached for intent: \(intentID.base58)")
+        logger.error("Poll limit reached for intent", metadata: ["intentId": "\(intentID.base58)"])
         throw ClientError.pollLimitReached
     }
     
