@@ -25,6 +25,9 @@ struct CurrencyInfoScreen: View {
     /// so that `dismissParentContainer` can tear down the sheet without
     /// an intermediate pop animation.
     @State private var isShowingGive: Bool = false
+    /// Non-nil while the Onramp sheet is presented. Setting it presents the
+    /// sheet with a fresh `OnrampViewModel`; nil'ing it dismisses.
+    @State private var onrampDestination: OnrampViewModel.BuyDestination?
 
     let session: Session
 
@@ -228,6 +231,7 @@ struct CurrencyInfoScreen: View {
             if let metadata = viewModel.mintMetadata {
                 FundingSelectionSheet(
                     reserveBalance: viewModel.reserveBalance,
+                    isCoinbaseAvailable: session.hasCoinbaseOnramp,
                     onSelectReserves: {
                         Analytics.buttonTapped(name: .buyWithReserves)
                         presentedBuyViewModel = CurrencyBuyViewModel(
@@ -235,6 +239,14 @@ struct CurrencyInfoScreen: View {
                             currencyName: metadata.name,
                             session: session,
                             ratesController: ratesController
+                        )
+                        isShowingFundingSelection = false
+                    },
+                    onSelectCoinbase: {
+                        Analytics.buttonTapped(name: .buyWithCoinbase)
+                        onrampDestination = .init(
+                            mint: metadata.mint,
+                            name: metadata.name
                         )
                         isShowingFundingSelection = false
                     },
@@ -248,6 +260,15 @@ struct CurrencyInfoScreen: View {
                     }
                 )
             }
+        }
+        .sheet(item: $onrampDestination) { destination in
+            OnrampAmountScreen(
+                destination: destination,
+                session: sessionContainer.session,
+                flipClient: sessionContainer.flipClient,
+                deeplinkInbox: sessionContainer.onrampDeeplinkInbox,
+                onDismiss: { onrampDestination = nil }
+            )
         }
         .dialog(item: Bindable(walletConnection).dialogItem)
     }

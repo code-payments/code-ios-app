@@ -16,7 +16,6 @@ struct EnterAmountCalculator {
 
     let mode: EnterAmountView.Mode
     let entryCurrency: CurrencyCode
-    let onrampCurrency: CurrencyCode
     let sendLimitProvider: SendLimitProvider
 
     // MARK: - Computed
@@ -25,9 +24,7 @@ struct EnterAmountCalculator {
         switch mode {
         case .currency, .buy, .sell:
             entryCurrency
-        case .onramp:
-            onrampCurrency
-        case .walletDeposit, .phantomDeposit:
+        case .onramp, .walletDeposit, .phantomDeposit:
             .usd
         case .withdraw:
             entryCurrency

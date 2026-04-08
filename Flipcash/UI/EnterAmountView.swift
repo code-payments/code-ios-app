@@ -29,7 +29,6 @@ public struct EnterAmountView: View {
         EnterAmountCalculator(
             mode: mode,
             entryCurrency: rateController.entryCurrency,
-            onrampCurrency: rateController.onrampCurrency,
             sendLimitProvider: session.sendLimitFor(currency:)
         )
     }

@@ -606,6 +606,24 @@ class Session {
     }
 
     @discardableResult
+    func buyWithExternalFunding(
+        amount: ExchangedFiat,
+        of mint: PublicKey,
+        transactionSignature: Signature
+    ) async throws -> SwapId {
+        let token = try await fetchMintMetadata(mint: mint)
+        let swapId = SwapId.generate()
+
+        return try await client.buyWithExternalFunding(
+            swapId: swapId,
+            amount: amount,
+            of: token.metadata,
+            owner: owner,
+            transactionSignature: transactionSignature
+        )
+    }
+
+    @discardableResult
     func sell(amount: ExchangedFiat, in mint: PublicKey) async throws -> SwapId {
         let token = try await fetchMintMetadata(mint: mint)
 

@@ -30,6 +30,7 @@ extension Analytics {
         case skipPush         = "Button: Skip Push"
         case buyWithReserves  = "Button: Buy With Reserves"
         case buyWithPhantom   = "Button: Buy With Phantom"
+        case buyWithCoinbase  = "Button: Buy With Coinbase"
         case give             = "Button: Give"
         case sell             = "Button: Sell"
         case shareTokenInfo   = "Button: Share Token Info"
@@ -51,10 +52,7 @@ extension Analytics {
         case showConfirmPhone     = "Onramp: Show Confirm Phone"
         case showEnterEmail       = "Onramp: Show Enter Email"
         case showConfirmEmail     = "Onramp: Show Confirm Email"
-        case presetSelected       = "Onramp: Amount Selected"
-        case enterCustomAmount    = "Onramp: Enter Custom Amount"
-        case invokePayment        = "Onramp: Invoke Payment"
-        case invokePaymentCustom  = "Onramp: Invoke Payment Custom"
+        case invokePayment        = "Onramp: Invoke Payment Custom"
         case completed            = "Onramp: Completed"
     }
 
@@ -75,6 +73,7 @@ extension Analytics {
     enum TokenTransactionEvent: String, AnalyticsEvent {
         case purchaseWithReserves = "Token Purchase With Reserves"
         case purchaseWithPhantom  = "Token Purchase With Phantom"
+        case purchaseWithCoinbase = "Token Purchase With Coinbase"
         case sell                 = "Token Sell"
     }
 
@@ -180,15 +179,6 @@ extension Analytics {
 // MARK: - Onramp -
 
 extension Analytics {
-    static func onrampAmountPresetSelected(amount: Quarks) {
-        var properties: [Property: AnalyticsValue] = [:]
-
-        properties[.fiat]     = amount.doubleValue
-        properties[.currency] = amount.currencyCode.rawValue
-
-        track(event: OnrampEvent.presetSelected, properties: properties)
-    }
-
     static func onrampInvokePayment(amount: Quarks) {
         var properties: [Property: AnalyticsValue] = [:]
 
@@ -196,15 +186,6 @@ extension Analytics {
         properties[.currency] = amount.currencyCode.rawValue
 
         track(event: OnrampEvent.invokePayment, properties: properties)
-    }
-
-    static func onrampInvokePaymentCustom(amount: Quarks) {
-        var properties: [Property: AnalyticsValue] = [:]
-
-        properties[.fiat]     = amount.doubleValue
-        properties[.currency] = amount.currencyCode.rawValue
-
-        track(event: OnrampEvent.invokePaymentCustom, properties: properties)
     }
 
     static func onrampCompleted(amount: Quarks?, successful: Bool, error: Error?) {

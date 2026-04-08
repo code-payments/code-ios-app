@@ -8,7 +8,9 @@
 import Foundation
 import FlipcashCore
 
-public final class Coinbase {
+private let logger = Logger(label: "flipcash.coinbase")
+
+public actor Coinbase {
     
     private let config: Configuration
     
@@ -26,8 +28,64 @@ public final class Coinbase {
     
     // MARK: - API -
     
+    /// Fetches the current state of an existing onramp order. Used to retrieve
+    /// the on-chain `txHash` after the user has completed Apple Pay — Coinbase
+    /// only populates `txHash` once `status == ONRAMP_ORDER_STATUS_COMPLETED`.
+    public func fetchOrder(orderId: String) async throws -> OnrampOrderStatusResponse {
+        let url = config.baseURL.appendingPathComponent("onramp/orders/\(orderId)")
+
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "GET"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        // CDP JWTs are URI-bound — token must be minted for this exact path.
+        let token = try await config.bearerTokenProvider("GET", "platform/v2/onramp/orders/\(orderId)")
+        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await config.urlSession.data(for: urlRequest)
+        } catch {
+            logger.error("fetchOrder transport error", metadata: [
+                "order_id": "\(orderId)",
+                "error": "\(error)"
+            ])
+            throw Error.transport(error)
+        }
+
+        guard let http = response as? HTTPURLResponse else {
+            throw Error.invalidResponse
+        }
+
+        guard (200..<300).contains(http.statusCode) else {
+            if var errorResponse = try? decoder.decode(OnrampErrorResponse.self, from: data) {
+                errorResponse.errorCode = http.statusCode
+                logger.error("fetchOrder rejected", metadata: [
+                    "order_id": "\(orderId)",
+                    "error_type": "\(errorResponse.errorType)",
+                    "status": "\(http.statusCode)"
+                ])
+                throw errorResponse
+            } else {
+                let body = String(data: data, encoding: .utf8) ?? "nil"
+                logger.error("fetchOrder http error", metadata: [
+                    "order_id": "\(orderId)",
+                    "status": "\(http.statusCode)",
+                    "body": "\(body)"
+                ])
+                throw Error.badStatus(code: http.statusCode, body: data)
+            }
+        }
+
+        do {
+            return try decoder.decode(OnrampOrderStatusResponse.self, from: data)
+        } catch {
+            throw Error.decoding(error)
+        }
+    }
+
     public func createOrder(request: OnrampOrderRequest, idempotencyKey: UUID? = nil) async throws -> OnrampOrderResponse {
-        
+
         // 1. Build URL
         let url = config.baseURL.appendingPathComponent("onramp/orders")
         
@@ -48,32 +106,38 @@ public final class Coinbase {
             urlRequest.setValue(key.uuidString, forHTTPHeaderField: "Idempotency-Key")
         }
         
-        // Bearer token (JWT per CDP docs)
-        let token = try await config.bearerTokenProvider()
+        // Bearer token (JWT per CDP docs) — scoped to POST /platform/v2/onramp/orders
+        let token = try await config.bearerTokenProvider("POST", "platform/v2/onramp/orders")
         urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        
+
         // 4. Fire
         let (data, response): (Data, URLResponse)
         do {
             (data, response) = try await config.urlSession.data(for: urlRequest)
         } catch {
-            print("[COINBASE] \(error)")
+            logger.error("createOrder transport error", metadata: ["error": "\(error)"])
             throw Error.transport(error)
         }
-        
+
         // 5. Validate
         guard let http = response as? HTTPURLResponse else {
             throw Error.invalidResponse
         }
-        
+
         guard (200..<300).contains(http.statusCode) else {
             if var errorResponse = try? decoder.decode(OnrampErrorResponse.self, from: data) {
                 errorResponse.errorCode = http.statusCode
-                print("[COINBASE]: \(errorResponse)")
+                logger.error("createOrder rejected", metadata: [
+                    "error_type": "\(errorResponse.errorType)",
+                    "status": "\(http.statusCode)"
+                ])
                 throw errorResponse
-                
             } else {
-                print("[COINBASE] \(http.statusCode): \(String(data: data, encoding: .utf8) ?? "nil")")
+                let body = String(data: data, encoding: .utf8) ?? "nil"
+                logger.error("createOrder http error", metadata: [
+                    "status": "\(http.statusCode)",
+                    "body": "\(body)"
+                ])
                 throw Error.badStatus(code: http.statusCode, body: data)
             }
         }
@@ -90,15 +154,18 @@ public final class Coinbase {
 // MARK: - Configuration -
 
 extension Coinbase {
-    public struct Configuration {
+    public struct Configuration: Sendable {
         public let baseURL: URL
-        public let bearerTokenProvider: () async throws -> String
+        /// Mints a Coinbase CDP JWT scoped to a specific HTTP method + path.
+        /// CDP JWTs are URI-bound, so each request needs a token signed for
+        /// that exact method/path or Coinbase rejects with 401.
+        public let bearerTokenProvider: @Sendable (_ method: String, _ path: String) async throws -> String
         public let urlSession: URLSession
-        
+
         public init(
             baseURL: URL = URL(string: "https://api.cdp.coinbase.com/platform/v2")!,
             urlSession: URLSession = .shared,
-            bearerTokenProvider: @escaping () async throws -> String
+            bearerTokenProvider: @Sendable @escaping (_ method: String, _ path: String) async throws -> String
         ) {
             self.baseURL = baseURL
             self.urlSession = urlSession
@@ -109,8 +176,8 @@ extension Coinbase {
 
 // MARK: - Models -
 
-public struct OnrampErrorResponse: Error, Decodable {
-    
+public struct OnrampErrorResponse: Error, Decodable, Sendable {
+
     public var errorCode: Int?
     public var correlationId: String
     public var errorMessage: String
@@ -124,7 +191,7 @@ public struct OnrampErrorResponse: Error, Decodable {
         errorType.subtitle
     }
     
-    public enum ErrorType: String, Decodable {
+    public enum ErrorType: String, Decodable, Sendable {
         case invalidCard                  = "ERROR_CODE_GUEST_INVALID_CARD"
         case transactionLimit             = "ERROR_CODE_GUEST_TRANSACTION_LIMIT"
         case transactionCount             = "ERROR_CODE_GUEST_TRANSACTION_COUNT"
@@ -225,11 +292,9 @@ public struct OnrampErrorResponse: Error, Decodable {
     }
 }
 
-public struct OnrampOrderRequest: Encodable {
-
-    public var paymentAmount: String?
+public struct OnrampOrderRequest: Encodable, Sendable {
+    public var purchaseAmount: String
     public var paymentCurrency: String
-    public var purchaseAmount: String?
     public var purchaseCurrency: String?
     public var isQuote: Bool = false
     public var destinationAddress: String
@@ -243,10 +308,9 @@ public struct OnrampOrderRequest: Encodable {
     public let destinationNetwork: String = "solana"
     public let paymentMethod: String = "GUEST_CHECKOUT_APPLE_PAY"
     
-    init(paymentAmount: String?, paymentCurrency: String, purchaseAmount: String?, purchaseCurrency: String?, isQuote: Bool, destinationAddress: PublicKey, email: String, phoneNumber: String, partnerOrderRef: String, partnerUserRef: String, phoneNumberVerifiedAt: Date, agreementAcceptedAt: Date) {
-        self.paymentAmount = paymentAmount
-        self.paymentCurrency = paymentCurrency
+    init(purchaseAmount: String, paymentCurrency: String, purchaseCurrency: String?, isQuote: Bool, destinationAddress: PublicKey, email: String, phoneNumber: String, partnerOrderRef: String, partnerUserRef: String, phoneNumberVerifiedAt: Date, agreementAcceptedAt: Date) {
         self.purchaseAmount = purchaseAmount
+        self.paymentCurrency = paymentCurrency
         self.purchaseCurrency = purchaseCurrency
         self.isQuote = isQuote
         self.destinationAddress = destinationAddress.base58
@@ -259,15 +323,15 @@ public struct OnrampOrderRequest: Encodable {
     }
 }
 
-public struct OnrampOrderResponse: Decodable, Identifiable {
+public struct OnrampOrderResponse: Decodable, Identifiable, Sendable {
     public var id: String {
         order.id
     }
-    
-    public struct Order: Codable, Identifiable {
-        
+
+    public struct Order: Codable, Identifiable, Sendable {
+
         public var id: String { orderId }
-        
+
         public let orderId: String
         public let status: String
         public let paymentTotal: String?
@@ -280,12 +344,18 @@ public struct OnrampOrderResponse: Decodable, Identifiable {
         public let createdAt: Date
         public let updatedAt: Date
     }
-    public struct PaymentLink: Codable {
+    public struct PaymentLink: Codable, Sendable {
         public let url: URL
         public let paymentLinkType: String
     }
     public let order: Order
     public let paymentLink: PaymentLink
+}
+
+/// Response shape for `GET /v2/onramp/orders/{orderId}`. Unlike the create-order
+/// response, this only contains the `order` envelope — no `paymentLink`.
+public struct OnrampOrderStatusResponse: Decodable, Sendable {
+    public let order: OnrampOrderResponse.Order
 }
 
 // MARK: - Error -
@@ -298,37 +368,3 @@ extension Coinbase {
         case transport(Swift.Error)
     }
 }
-
-/*
- 
-{
-    "purchaseAmount": "10.00",
-    "partnerUserRef": "sandbox-dima",
-    "paymentMethod": "GUEST_CHECKOUT_APPLE_PAY",
-    "partnerOrderRef": "dimasorder1",
-    "email": "dima.bart01@gmail.com",
-    "phoneNumber": "+15615557689",
-    "paymentCurrency": "cad",
-    "purchaseCurrency": "usdc",
-    "destinationAddress": "C4BEeePWFG1dyZe1QFBwEJHRabZw9thaB8RhgE7kUvKr",
-    "destinationNetwork": "solana",
-    "phoneNumberVerifiedAt": "2025-08-08T19:06:05Z",
-    "agreementAcceptedAt": "2025-08-08T19:06:05Z",
-    "isQuote": true
-}
-
-{
-    "purchaseAmount": "10",
-    "partnerUserRef": "sandbox-iob9Nc3sQfejRtBhsTYSfg==",
-    "paymentMethod": "GUEST_CHECKOUT_APPLE_PAY",
-    "email": "brandon.mcansh@gmail.com",
-    "phoneNumber": "+(1)5869802333",
-    "paymentCurrency": "USD",
-    "purchaseCurrency": "USDC",
-    "destinationAddress": "9e8zSubWQiz3iA6Nyu5NWGdcPJtc2zc4XQaztr1Xvvqy",
-    "destinationNetwork": "solana",
-    "phoneNumberVerifiedAt": "2025-07-27:00:00Z",
-    "agreementAcceptedAt": "2025-07-27T00:00:00Z"
-}
- 
-*/

@@ -36,14 +36,6 @@ class RatesController {
         }
     }
 
-    /// The currency used for onramp (buy) flows.
-    /// Persisted to `UserDefaults` on change.
-    var onrampCurrency: CurrencyCode = .usd {
-        willSet {
-            LocalDefaults.onrampCurrency = newValue
-        }
-    }
-
     /// The currently selected token mint
     var selectedTokenMint: PublicKey? {
         didSet {
@@ -90,14 +82,8 @@ class RatesController {
             LocalDefaults.balanceCurrency = .local() ?? .usd
         }
 
-        if LocalDefaults.onrampCurrency == nil {
-            LocalDefaults.onrampCurrency = .usd
-        }
-
-
         entryCurrency   = LocalDefaults.entryCurrency!
         balanceCurrency = LocalDefaults.balanceCurrency!
-        onrampCurrency  = LocalDefaults.onrampCurrency!
         selectedTokenMint = loadSelectedToken()
 
         // Create the streamer using the client factory method
@@ -310,10 +296,7 @@ private enum LocalDefaults {
     
     @Defaults(.balanceCurrency)
     static var balanceCurrency: CurrencyCode?
-    
-    @Defaults(.onrampCurrency)
-    static var onrampCurrency: CurrencyCode?
-    
+
     @Defaults(.storedTokenMint)
     static var storedTokenMint: String?
 }

@@ -7,6 +7,9 @@
 
 import SwiftUI
 import WebKit
+import FlipcashCore
+
+private let logger = Logger(label: "flipcash.applepay.webview")
 
 public struct ApplePayWebView: UIViewRepresentable {
     
@@ -81,17 +84,20 @@ extension ApplePayWebView {
         }
         
         public func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-            print("[WEBVIEW] Received message \(message.name): \(message.body)")
-            
+            logger.debug("Received message", metadata: [
+                "name": "\(message.name)",
+                "body": "\(message.body)"
+            ])
+
             guard let string = message.body as? String else {
                 return
             }
-            
+
             let content = Data(string.utf8)
             guard let applePayEvent = try? JSONDecoder().decode(ApplePayEvent.self, from: content) else {
                 return
             }
-            
+
             if let webView = message.webView {
                 if applePayEvent.event == .loadSuccess {
                     let jsAutoClick = """
@@ -109,55 +115,66 @@ extension ApplePayWebView {
                                 })();
                                 """
                     webView.evaluateJavaScript(jsAutoClick) { _, error in
-                        if let e = error {
-                            print("Auto-click error:", e)
+                        if let error {
+                            logger.error("Auto-click failed", metadata: ["error": "\(error)"])
                         }
                     }
                 }
             }
-            
+
             parent.onMessage?(applePayEvent)
         }
-        
+
         public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             // Optional: handle load completion
         }
-        
+
         public func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-            print("Navigation error: \(error.localizedDescription)")
+            logger.error("Navigation failed", metadata: ["error": "\(error.localizedDescription)"])
         }
 
         deinit {
-            print("[WEBVIEW] Deallocating ApplePayWevView coordinator")
             contentController?.removeScriptMessageHandler(forName: .messageHandlerName)
         }
     }
 }
 
-public struct ApplePayEvent: Codable {
+public struct ApplePayEvent: Codable, Sendable {
     public let name: String
-    
+    public let data: EventData?
+
     public var event: Event? {
         Event(rawValue: name)
     }
-    
-    public enum Event: String, Error {
-        case loadPending    = "onramp_api.load_pending"
-        case loadSuccess    = "onramp_api.load_success"
-        case loadError      = "onramp_api.load_error"
-        
-        case commitSuccess  = "onramp_api.commit_success"
-        case commitError    = "onramp_api.commit_error"
-        
-        case pollingStart   = "onramp_api.polling_start"
-        case pollingSuccess = "onramp_api.polling_success"
-        case pollingError   = "onramp_api.polling_error"
-        
-        case cancelled      = "onramp_api.cancel"
+
+    public enum Event: String, Error, Sendable {
+        case loadPending           = "onramp_api.load_pending"
+        case loadSuccess           = "onramp_api.load_success"
+        case loadError             = "onramp_api.load_error"
+
+        case applePayButtonPressed = "onramp_api.apple_pay_button_pressed"
+        case pendingPaymentAuth    = "onramp_api.pending_payment_auth"
+
+        case commitSuccess         = "onramp_api.commit_success"
+        case commitError           = "onramp_api.commit_error"
+
+        case pollingStart          = "onramp_api.polling_start"
+        case pollingSuccess        = "onramp_api.polling_success"
+        case pollingError          = "onramp_api.polling_error"
+
+        case cancelled             = "onramp_api.cancel"
+    }
+
+    /// Optional payload that Coinbase attaches to error events. Present on
+    /// `loadError`, `commitError`, and `pollingError` — absent on success events.
+    public struct EventData: Codable, Sendable {
+        public let errorCode: String?
+        public let errorMessage: String?
     }
 
     private enum CodingKeys: String, CodingKey {
         case name = "eventName"
+        case data
     }
 }
 

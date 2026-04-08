@@ -172,6 +172,8 @@ class SwapProcessingViewModel {
             Analytics.tokenPurchase(method: .purchaseWithReserves, exchangedFiat: amount, successful: successful)
         case .buyWithPhantom:
             Analytics.tokenPurchase(method: .purchaseWithPhantom, exchangedFiat: amount, successful: successful)
+        case .buyWithCoinbase:
+            Analytics.tokenPurchase(method: .purchaseWithCoinbase, exchangedFiat: amount, successful: successful)
         case .sell:
             Analytics.tokenSell(exchangedFiat: amount, successful: successful)
         }
@@ -199,11 +201,12 @@ enum SwapError: Error {
 enum SwapType {
     case buyWithReserves
     case buyWithPhantom
+    case buyWithCoinbase
     case sell
 
     var isBuy: Bool {
         switch self {
-        case .buyWithReserves, .buyWithPhantom: true
+        case .buyWithReserves, .buyWithPhantom, .buyWithCoinbase: true
         case .sell: false
         }
     }

@@ -14,9 +14,7 @@ struct SettingsScreen: View {
     @Environment(Preferences.self) private var preferences
     
     @Binding public var isPresented: Bool
-    
-    @Bindable private var onrampViewModel: OnrampViewModel
-    
+
     @State private var path: [SettingsPath] = []
     
     @State private var isShowingWithdrawFlow = false
@@ -46,7 +44,6 @@ struct SettingsScreen: View {
         self.container = container
         self.sessionAuthenticator = container.sessionAuthenticator
         self.sessionContainer = sessionContainer
-        self.onrampViewModel = sessionContainer.onrampViewModel
         self.session = sessionContainer.session
     }
     
@@ -172,13 +169,7 @@ struct SettingsScreen: View {
                     badge: betaBadge(),
                     pathItem: .betaFlagss
                 )
-                
-                if betaFlags.hasEnabled(.enableCoinbase) {
-                    row(asset: .debug, title: "Test Onramp Flow") {
-                        onrampViewModel.isOnrampPresented = true
-                    }
-                }
-                
+
                 navigationRow(
                     path: $path,
                     asset: .switchAccounts,
@@ -207,18 +198,8 @@ struct SettingsScreen: View {
         .font(.appDisplayXS)
         .foregroundColor(.textMain)
         .dialog(item: $dialogItem)
-        .dialog(item: $onrampViewModel.purchaseSuccess)
-        .sheet(isPresented: $onrampViewModel.isOnrampPresented) {
-            PartialSheet(background: .backgroundMain) {
-                PresetAddCashScreen(
-                    isPresented: $onrampViewModel.isOnrampPresented,
-                    container: container,
-                    sessionContainer: sessionContainer
-                )
-            }
-        }
     }
-    
+
     // MARK: - Advanced Features -
     
     @ViewBuilder private func advancedFeaturesScreen() -> some View {

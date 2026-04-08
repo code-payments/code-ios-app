@@ -50,7 +50,6 @@ struct Regression_698ef3b {
         let calculator = EnterAmountCalculator(
             mode: .currency,
             entryCurrency: .clp,
-            onrampCurrency: .usd,
             sendLimitProvider: { _ in return sendLimit }
         )
 

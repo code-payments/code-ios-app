@@ -11,26 +11,27 @@ import FlipcashCore
 
 private let logger = Logger(label: "flipcash.onramp")
 
+/// Long-lived store for Onramp email verification deeplinks. `DeepLinkController`
+/// drops incoming verifications here; `OnrampAmountScreen` observes the value
+/// with `.onChange(initial: true)`, so whether the link arrived before or
+/// after the sheet opened the verification is picked up through the same
+/// entry point. Lives on `SessionContainer` so it survives sheet dismissal
+/// but not logout.
+@MainActor @Observable
+final class OnrampDeeplinkInbox {
+    var pendingEmailVerification: VerificationDescription?
+}
+
 @MainActor @Observable
 class OnrampViewModel {
 
-    var isOnrampPresented: Bool = false
-
     var isShowingVerificationFlow: Bool = false
 
-    var isShowingAmountEntryScreen: Bool = false
+    var amountPath: [OnrampAmountPath] = []
 
-    var onrampPath: [OnrampPath] = [] {
+    var verificationPath: [OnrampVerificationPath] = [] {
         didSet {
-            if onrampPath.isEmpty && !oldValue.isEmpty {
-                reset()
-            }
-        }
-    }
-
-    var emailVerificationDescription: VerificationDescription? {
-        didSet {
-            if emailVerificationDescription == nil {
+            if verificationPath.isEmpty && !oldValue.isEmpty {
                 reset()
             }
         }
@@ -38,21 +39,26 @@ class OnrampViewModel {
 
     var coinbaseOrder: OnrampOrderResponse?
 
+    /// True once Coinbase has accepted the order and remains true through the
+    /// full committed flow: Apple Pay commit, on-chain settlement, the poll
+    /// loop, the downstream `buyWithExternalFunding` swap, and while
+    /// `SwapProcessingScreen` is on the nav stack. Drives the sheet-level
+    /// dismiss lock — the USDF destination is a VM-owned staging ATA that only
+    /// `buyWithExternalFunding` can drain, so dismissing mid-flight would
+    /// strand funds with no recovery path through normal UI.
+    var isProcessingPayment: Bool {
+        coinbaseOrder != nil || !amountPath.isEmpty
+    }
+
     var dialogItem: DialogItem?
 
-    var purchaseSuccess: DialogItem?
+    /// The token the user is buying. Fixed at init time — this view model
+    /// is scoped to a single presentation of the Onramp sheet.
+    let destination: BuyDestination
 
     var enteredCode: String = ""
     var enteredEmail: String = ""
     var enteredAmount: String = ""
-
-    var selectedPreset: Int? {
-        didSet {
-            if selectedPreset != nil {
-                enteredAmount = ""
-            }
-        }
-    }
 
     private(set) var isResending: Bool = false
 
@@ -68,34 +74,21 @@ class OnrampViewModel {
     let codeLength = 6
     
     var enteredFiat: ExchangedFiat? {
-        var amount: String = ""
-        
-        if !enteredAmount.isEmpty {
-            amount = enteredAmount
-        } else if let selectedPreset {
-            amount = "\(selectedPreset)"
-        }
-        
-        guard let amount = NumberFormatter.decimal(from: amount) else {
-//            trace(.failure, components: "[Onramp] Failed to parse amount string: \(amount)")
-            return nil
-        }
-        
-        let currency = ratesController.entryCurrency
-        
-        guard let rate = ratesController.rate(for: currency) else {
-            logger.error("[Onramp] Rate not found", metadata: ["currency": "\(currency)"])
+        guard !enteredAmount.isEmpty else {
             return nil
         }
 
-        guard let converted = try? Quarks(fiatDecimal: amount, currencyCode: currency, decimals: PublicKey.usdf.mintDecimals) else {
-            logger.error("[Onramp] Invalid amount for entry")
+        guard let amount = NumberFormatter.decimal(from: enteredAmount) else {
             return nil
         }
-        
-        return try! ExchangedFiat(
+
+        guard let converted = try? Quarks(fiatDecimal: amount, currencyCode: .usd, decimals: PublicKey.usdf.mintDecimals) else {
+            return nil
+        }
+
+        return try? ExchangedFiat(
             converted: converted,
-            rate: rate,
+            rate: .oneToOne,
             mint: .usdf
         )
     }
@@ -134,44 +127,53 @@ class OnrampViewModel {
         return e.range(of: #"^[^\s@]+@[^\s@]+\.[^\s@]+$"#, options: .regularExpression) != nil
     }
     
-    var hasSelectedAmount: Bool {
-        selectedPreset != nil || enteredFiat != nil
-    }
-    
-    @ObservationIgnored private let container: Container
     @ObservationIgnored private let session: Session
-    @ObservationIgnored private let ratesController: RatesController
     @ObservationIgnored private let flipClient: FlipClient
     @ObservationIgnored private let owner: KeyPair
+    @ObservationIgnored private let onDismiss: () -> Void
 
     @ObservationIgnored private var coinbase: Coinbase!
 
+    @ObservationIgnored private let coinbaseApiKey: String?
+
+    @ObservationIgnored private var fundingTask: Task<Void, Never>?
+
     @ObservationIgnored private let phoneFormatter = PhoneFormatter()
 
-    
+
     private var isPhoneVerified: Bool {
         session.profile?.isPhoneVerified ?? false
     }
-    
+
     private var isEmailVerified: Bool {
         session.profile?.isEmailVerified ?? false
     }
-    
+
     private var isAccountVerified: Bool {
         isPhoneVerified && isEmailVerified
     }
-    
+
     // MARK: - Init -
-    
-    init(container: Container, session: Session, ratesController: RatesController) {
-        self.container = container
+
+    init(
+        destination: BuyDestination,
+        session: Session,
+        flipClient: FlipClient,
+        onDismiss: @escaping () -> Void
+    ) {
+        self.destination = destination
         self.session = session
-        self.ratesController = ratesController
+        self.flipClient = flipClient
         self.owner = session.ownerKeyPair
-        self.flipClient = container.flipClient
+        self.onDismiss = onDismiss
         self.region = phoneFormatter.currentRegion
+        self.coinbaseApiKey = try? InfoPlist.value(for: "coinbase").value(for: "apiKey").string()
 
         self.coinbase = Coinbase(configuration: .init(bearerTokenProvider: fetchCoinbaseJWT))
+    }
+
+    deinit {
+        fundingTask?.cancel()
     }
     
     // MARK: - Setters -
@@ -183,12 +185,11 @@ class OnrampViewModel {
         enteredAmount = ""
         
         isResending = false
-        
+
         coinbaseOrder = nil
-        selectedPreset = nil
-        
+
         payButtonState = .normal
-        
+
         navigateToRoot()
     }
     
@@ -230,72 +231,38 @@ class OnrampViewModel {
         }
     }
     
-    var adjustingSelectedPreset: Binding<GridAmounts.SelectedAction?> {
-        Binding { [weak self] in
-            guard let preset = self?.selectedPreset else { return nil }
-            return .amount(preset)
-            
-        } set: { [weak self] newValue in
-            guard let self = self else { return }
-            switch newValue {
-            case .amount(let amount):
-                self.selectedPreset = amount
-            case .more:
-                break
-            case .none:
-                break
-            }
-        }
-    }
-    
-    // MARK: - Root -
-    
-    func applePayWebView() -> AnyView {
-        if let order = coinbaseOrder {
-            AnyView(
-                ApplePayWebView(url: order.paymentLink.url) { [weak self] event in
-                    self?.didReceiveApplePayEvent(event: event)
-                }
-                .frame(width: 300, height: 300)
-                .opacity(0)
-                .id(order.id)
-            )
-        } else {
-            AnyView(EmptyView())
-        }
-    }
-    
     // MARK: - Navigation -
     
     func navigateToRoot() {
-        onrampPath = []
+        amountPath = []
+        verificationPath = []
     }
-    
+
     func navigateToInitialVerification() {
         navigateToAmount(from: .info)
     }
-    
+
     private func navigateToAmount(from origin: Origin) {
         if origin.rawValue < Origin.info.rawValue, (!isPhoneVerified || !isEmailVerified) {
-            onrampPath.append(.info)
+            verificationPath.append(.info)
             return
         }
-        
+
         if origin.rawValue < Origin.phone.rawValue, !isPhoneVerified {
             Analytics.track(event: Analytics.OnrampEvent.showEnterPhone)
-            onrampPath.append(.enterPhoneNumber)
+            verificationPath.append(.enterPhoneNumber)
             return
         }
-        
+
         if origin.rawValue < Origin.email.rawValue, !isEmailVerified {
             Analytics.track(event: Analytics.OnrampEvent.showEnterEmail)
-            onrampPath.append(.enterEmail)
+            verificationPath.append(.enterEmail)
             return
         }
-        
+
         navigateToVerificationOrPurchase()
     }
-    
+
     private func navigateToVerificationOrPurchase() {
         // If we need to verify the phone or
         // email, we'll need to open up the
@@ -310,23 +277,7 @@ class OnrampViewModel {
     }
     
     // MARK: - Actions -
-    
-    func addWithApplePayAction() {
-        let selectedPreset  = selectedPreset
-        let enteredAmount   = enteredAmount
-        reset()
-        self.selectedPreset = selectedPreset
-        self.enteredAmount  = enteredAmount
-        
-        navigateToVerificationOrPurchase()
-    }
-    
-    func customAmountAction() {
-        selectedPreset = nil
-        isShowingAmountEntryScreen = true
-        Analytics.track(event: Analytics.OnrampEvent.enterCustomAmount)
-    }
-    
+
     func customAmountEnteredAction() {
         guard let exchangedFiat = enteredFiat else {
             return
@@ -351,11 +302,12 @@ class OnrampViewModel {
             return
         }
 
-        isShowingAmountEntryScreen = false
-
-        Task {
-            addWithApplePayAction()
-        }
+        // `reset()` clears `enteredAmount` along with verification fields,
+        // so stash and restore it.
+        let amount = enteredAmount
+        reset()
+        enteredAmount = amount
+        navigateToVerificationOrPurchase()
     }
     
     func sendPhoneNumberCodeAction() {
@@ -378,8 +330,8 @@ class OnrampViewModel {
                 sendCodeButtonState = .success
                 
                 try await Task.delay(milliseconds: 500)
-                onrampPath.append(.confirmPhoneNumberCode)
-                
+                verificationPath.append(.confirmPhoneNumberCode)
+
                 Analytics.track(event: Analytics.OnrampEvent.showConfirmPhone)
                 
                 try await Task.delay(milliseconds: 500)
@@ -391,7 +343,7 @@ class OnrampViewModel {
             {
                 showUnsupportedPhoneNumberError()
             }
-            
+
             catch {
                 ErrorReporting.captureError(error)
                 showGenericError()
@@ -442,25 +394,19 @@ class OnrampViewModel {
                 )
                 
                 try? await session.updateProfile()
-                
+
                 try await Task.delay(milliseconds: 500)
                 confirmCodeButtonState = .success
-                
+
                 try await Task.delay(milliseconds: 500)
                 navigateToAmount(from: .phone)
                 
                 try await Task.delay(milliseconds: 500)
-            }
-            
-            catch ErrorCheckVerificationCode.invalidCode {
+            } catch ErrorCheckVerificationCode.invalidCode {
                 showInvalidCodeError()
-            }
-            
-            catch ErrorCheckVerificationCode.noVerification {
+            } catch ErrorCheckVerificationCode.noVerification {
                 showGenericError()
-            }
-            
-            catch {
+            } catch {
                 ErrorReporting.captureError(error)
             }
         }
@@ -486,24 +432,20 @@ class OnrampViewModel {
                 sendEmailCodeState = .success
                 
                 try await Task.delay(milliseconds: 500)
-                onrampPath.append(.confirmEmailCode)
-                
+                verificationPath.append(.confirmEmailCode)
+
                 Analytics.track(event: Analytics.OnrampEvent.showConfirmEmail)
                 
                 try await Task.delay(milliseconds: 500)
-            }
-            
-            catch ErrorSendEmailCode.invalidEmailAddress {
+            } catch ErrorSendEmailCode.invalidEmailAddress {
                 showInvalidEmailError()
-            }
-            
-            catch {
+            } catch {
                 ErrorReporting.captureError(error)
                 showGenericError()
             }
         }
     }
-    
+
     func resendEmailCodeAction() async throws {
         guard isEmailValid else {
             return
@@ -524,65 +466,49 @@ class OnrampViewModel {
         }
     }
     
-    func confirmEmailFromDeeplinkAction(verification: VerificationDescription) {
-        // Check to see if the user is already in the
-        // verification flow. If not, we'll skip them
-        // over to the email confirmation screen
+    func applyDeeplinkVerification(_ verification: VerificationDescription) {
+        // If the user isn't already parked on the confirm-code screen, jump
+        // them there so the API call's result has somewhere to surface.
         if !isShowingVerificationFlow {
-            // TODO: Verify this works
-            emailVerificationDescription = verification
-            onrampPath = [.confirmEmailCode]
+            verificationPath = [.confirmEmailCode]
             enteredEmail = verification.email
         }
-        
+
         Task {
             confirmEmailButtonState = .loading
             defer {
                 confirmEmailButtonState = .normal
             }
-            
+
             do {
-//                try await Task.delay(milliseconds: 500)
                 if !isEmailVerified {
                     try await flipClient.checkEmailCode(
                         email: verification.email,
                         code: verification.code,
                         owner: owner
                     )
-                    
+
                     try? await session.updateProfile()
                 }
-                
+
                 try await Task.delay(milliseconds: 500)
                 confirmEmailButtonState = .success
-                
+
                 try await Task.delay(milliseconds: 500)
                 navigateToAmount(from: .email)
-                
-                try await Task.delay(milliseconds: 500)
-            }
-            
-            catch ErrorCheckEmailCode.invalidCode {
+            } catch ErrorCheckEmailCode.invalidCode {
                 showInvalidVerificationLinkError { [weak self] in
                     Task {
                         try await self?.resendEmailCodeAction()
                     }
-                } cancel: { [weak self] in
-                    self?.emailVerificationDescription = nil
                 }
-            }
-            
-            catch ErrorCheckEmailCode.noVerification {
+            } catch ErrorCheckEmailCode.noVerification {
                 showExpiredVerificationLinkError { [weak self] in
                     Task {
                         try await self?.resendEmailCodeAction()
                     }
-                } cancel: { [weak self] in
-                    self?.emailVerificationDescription = nil
                 }
-            }
-            
-            catch {
+            } catch {
                 ErrorReporting.captureError(error)
                 showGenericError()
             }
@@ -595,17 +521,13 @@ class OnrampViewModel {
         guard let exchangedFiat = enteredFiat else {
             return
         }
-        
+
         guard let profile = session.profile, profile.canCreateCoinbaseOrder else {
             return
         }
-        
-        if selectedPreset != nil {
-            Analytics.onrampInvokePayment(amount: exchangedFiat.underlying)
-        } else {
-            Analytics.onrampInvokePaymentCustom(amount: exchangedFiat.underlying)
-        }
-        
+
+        Analytics.onrampInvokePayment(amount: exchangedFiat.underlying)
+
         Task {
             try await createOnrampOrder(
                 profile: profile,
@@ -615,29 +537,36 @@ class OnrampViewModel {
     }
     
     private func createOnrampOrder(profile: Profile, exchangedFiat: ExchangedFiat) async throws {
+        guard let email = profile.email, let phone = profile.phone?.e164 else {
+            logger.warning("createOnrampOrder invoked with incomplete profile")
+            return
+        }
+
         let id       = UUID()
-        let email    = profile.email!
-        let phone    = profile.phone!.e164
         let userRef  = "\(email):\(phone)"
         let orderRef = "\(userRef):\(id)"
         
         payButtonState = .loading
         
-        let f = NumberFormatter()
-        f.numberStyle = .decimal
-        f.minimumFractionDigits = 2
-        f.maximumFractionDigits = 2
-        
         let ref = BetaFlags.shared.hasEnabled(.coinbaseSandbox) ? "sandbox-\(userRef)" : userRef
         
         do {
+            logger.info("Creating Coinbase order", metadata: [
+                "currency": "\(exchangedFiat.converted.currencyCode)",
+                "purchase_quarks": "\(exchangedFiat.underlying.quarks)",
+                "sandbox": "\(BetaFlags.shared.hasEnabled(.coinbaseSandbox))"
+            ])
+            
+            guard let usdfSwapAccounts = MintMetadata.usdf.timelockSwapAccounts(owner: session.owner.authorityPublicKey) else {
+                fatalError("Failed to derive USDF swap accounts")
+            }
+                        
             let response = try await coinbase.createOrder(request: .init(
-                paymentAmount: nil,
+                purchaseAmount: "\(exchangedFiat.underlying.decimalValue)",
                 paymentCurrency: "USD",
-                purchaseAmount: f.string(from: exchangedFiat.converted.decimalValue),
-                purchaseCurrency: "USDC",
+                purchaseCurrency: "USDF",
                 isQuote: false,
-                destinationAddress: session.owner.depositPublicKey,
+                destinationAddress: usdfSwapAccounts.ata.publicKey,
                 email: email,
                 phoneNumber: phone,
                 partnerOrderRef: orderRef,
@@ -648,6 +577,9 @@ class OnrampViewModel {
             
             isShowingVerificationFlow = false
             coinbaseOrder = response
+            logger.info("Coinbase order created", metadata: [
+                "order_id": "\(response.id)"
+            ])
         }
 
         catch let error as OnrampErrorResponse {
@@ -668,110 +600,116 @@ class OnrampViewModel {
             }
 
             ErrorReporting.captureError(error)
+            logger.error("Coinbase order failed", metadata: [
+                "error_type": "\(error.errorType)",
+                "error_title": "\(error.title)"
+            ])
             payButtonState = .normal
         }
-        
+
         catch {
             ErrorReporting.captureError(error)
+            logger.error("Coinbase order failed with unexpected error", metadata: [
+                "error": "\(error)"
+            ])
             payButtonState = .normal
         }
     }
     
-    private func didReceiveApplePayEvent(event: ApplePayEvent) {
-        logger.warning("[Coinbase] Apple Pay event", metadata: ["event": "\(event.event?.rawValue ?? "unknown")"])
-        
-        func handleEventError(_ event: ApplePayEvent) {
+    func receiveApplePayEvent(_ event: ApplePayEvent) {
+        func errorMetadata() -> Logger.Metadata {
+            [
+                "error_code": "\(event.data?.errorCode ?? "nil")",
+                "error_message": "\(event.data?.errorMessage ?? "nil")"
+            ]
+        }
+
+        func handleEventError(_ kind: ApplePayEvent.Event) {
             payButtonState = .normal
             coinbaseOrder = nil
-            
-            showGenericError() { [weak self] in
-                self?.isOnrampPresented = false
+
+            // Prefer the Coinbase-provided reason if we have one — users hitting
+            // a region mismatch or card decline shouldn't see "Something went wrong".
+            let title: String
+            let subtitle: String
+            if let message = event.data?.errorMessage, !message.isEmpty {
+                title = "Payment Failed"
+                subtitle = message
+            } else {
+                title = "Something Went Wrong"
+                subtitle = "Please try again later"
             }
-            
-            ErrorReporting.captureError(event.event!)
-        }
-        
-        switch event.event {
-        case .loadPending:
-            break
-        case .loadSuccess:
-            break
-        case .loadError:
-            handleEventError(event)
-            
-        case .commitSuccess:
-            break
-        case .commitError:
-            handleEventError(event)
-        case .pollingStart:
-            break
-        case .pollingSuccess:
-            Task {
-                try await Task.delay(milliseconds: 2000)
-                coinbaseOrder = nil
-                payButtonState = .success
-                try await Task.delay(milliseconds: 500)
-                isOnrampPresented = false
-                try await Task.delay(milliseconds: 650)
-                
-                let status = await PushController.fetchStatus()
-                
-                Analytics.onrampCompleted(
-                    amount: enteredFiat?.underlying,
-                    successful: true,
-                    error: nil
-                )
-                
-                payButtonState = .normal
-                purchaseSuccess = .init(
-                    style: .success,
-                    title: "Your Cash Will Be Available Soon",
-                    subtitle: "It should be available in a few minutes. If you have any issues please contact support@flipcash.com",
-                    dismissable: true,
-                ) {
-                    if status == .notDetermined {
-                        .standard("Notify Me") { [weak self] in
-                            self?.isOnrampPresented = false
-                            Task {
-                                do {
-                                    try await PushController.authorizeAndRegister()
-                                } catch {}
-                            }
-                        };
-                        .dismiss(kind: .subtle) { [weak self] in
-                            self?.isOnrampPresented = false
-                        }
-                    } else {
-                        .okay(kind: .standard, options: .priorityAction) { [weak self] in
-                            self?.isOnrampPresented = false
-                        }
-                    }
+
+            dialogItem = .init(
+                style: .destructive,
+                title: title,
+                subtitle: subtitle,
+                dismissable: true,
+            ) {
+                .okay(kind: .destructive) { [weak self] in
+                    self?.onDismiss()
                 }
             }
+
+            ErrorReporting.captureError(kind)
+        }
+
+        switch event.event {
+        case .loadPending:
+            logger.info("Apple Pay load pending")
+        case .loadSuccess:
+            logger.info("Apple Pay loaded")
+        case .loadError:
+            logger.error("Apple Pay load failed", metadata: errorMetadata())
+            handleEventError(.loadError)
+
+        case .applePayButtonPressed:
+            logger.info("Apple Pay button pressed")
+        case .pendingPaymentAuth:
+            logger.info("Apple Pay pending payment auth")
+
+        case .commitSuccess:
+            logger.info("Apple Pay commit succeeded")
+        case .commitError:
+            logger.error("Apple Pay commit failed", metadata: errorMetadata())
+            handleEventError(.commitError)
+        case .pollingStart:
+            logger.info("Apple Pay polling started")
+        case .pollingSuccess:
+            fundingTask?.cancel()
+            fundingTask = Task { [weak self] in
+                await self?.handleCoinbaseFundingSuccess()
+            }
         case .pollingError:
+            logger.error("Apple Pay polling failed", metadata: errorMetadata())
             Analytics.onrampCompleted(
                 amount: nil,
                 successful: false,
                 error: nil
             )
-            handleEventError(event)
+            handleEventError(.pollingError)
         case .cancelled:
+            logger.info("Apple Pay cancelled")
             coinbaseOrder = nil
             payButtonState = .normal
         case .none:
-            break
+            logger.warning("Apple Pay received unknown event", metadata: ["raw_event": "\(event.name)"])
         }
     }
     
-    private func fetchCoinbaseJWT() async throws -> String {
-        let coinbaseApiKey = try! InfoPlist.value(for: "coinbase").value(for: "apiKey").string()
-        
+    private func fetchCoinbaseJWT(method: String, path: String) async throws -> String {
+        guard let coinbaseApiKey else {
+            throw OnrampError.missingCoinbaseApiKey
+        }
+
         return try await flipClient.fetchCoinbaseOnrampJWT(
             apiKey: coinbaseApiKey,
-            owner: owner
+            owner: owner,
+            method: method,
+            path: path
         )
     }
-    
+
     // MARK: - Clipboard -
     
     func pasteCodeFromClipboardIfPossible() {
@@ -799,130 +737,324 @@ class OnrampViewModel {
         return nil
     }
     
-    // MARK: - Errors -
-    
-    private func showCoinbaseError(title: String, subtitle: String, onDismiss: (() -> Void)? = nil) {
+    // MARK: - Buy -
+
+    /// Polls `GET /v2/onramp/orders/{id}` until the order reaches a terminal state
+    /// (COMPLETED or FAILED) or the timeout expires. Returns the final order on
+    /// success. Throws on timeout, FAILED status, or repeated network errors.
+    private func pollCoinbaseOrderUntilComplete(orderId: String) async throws -> OnrampOrderResponse.Order {
+        let start = Date()
+        let deadline = start.addingTimeInterval(60) // sandbox completes in 250ms; 60s is generous for production
+        var pollCount = 0
+        var lastError: Error?
+
+        while Date() < deadline {
+            try Task.checkCancellation()
+            pollCount += 1
+            do {
+                let response = try await coinbase.fetchOrder(orderId: orderId)
+                let elapsedMs = Int(Date().timeIntervalSince(start) * 1000)
+                let status = response.order.status.uppercased()
+
+                logger.info("Coinbase order poll", metadata: [
+                    "poll": "\(pollCount)",
+                    "elapsed_ms": "\(elapsedMs)",
+                    "status": "\(response.order.status)",
+                    "tx_hash": "\(response.order.txHash ?? "nil")"
+                ])
+
+                if status.contains("COMPLETED") {
+                    return response.order
+                }
+                if status.contains("FAILED") {
+                    throw OnrampError.coinbaseOrderFailed(status: response.order.status)
+                }
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch let error as OnrampError {
+                throw error
+            } catch {
+                lastError = error
+                logger.warning("Coinbase order poll error, retrying", metadata: [
+                    "poll": "\(pollCount)",
+                    "error": "\(error)"
+                ])
+            }
+
+            // Backoff: start at 500ms, +200ms every 5 polls
+            let delayMs = 500 + (200 * (pollCount / 5))
+            try await Task.delay(milliseconds: delayMs)
+        }
+
+        throw lastError ?? OnrampError.coinbaseOrderPollTimeout
+    }
+
+    /// Builds an ExchangedFiat for the buyWithExternalFunding call. The Coinbase
+    /// `purchaseAmount` is a string-encoded decimal in USDF units (e.g. "5" for $5).
+    /// Returns nil if the order didn't actually purchase USDF (defense against future
+    /// Coinbase API changes — we always request USDF, so a mismatch indicates a server
+    /// behavior change worth failing closed on).
+    private func makeUsdfSwapAmount(from order: OnrampOrderResponse.Order) -> ExchangedFiat? {
+        guard let purchaseCurrency = order.purchaseCurrency,
+              purchaseCurrency.uppercased() == "USDF" else {
+            return nil
+        }
+
+        guard let purchaseAmountString = order.purchaseAmount,
+              let decimal = NumberFormatter.decimal(from: purchaseAmountString) else {
+            return nil
+        }
+
+        guard let underlying = try? Quarks(
+            fiatDecimal: decimal,
+            currencyCode: .usd,
+            decimals: PublicKey.usdf.mintDecimals
+        ) else {
+            return nil
+        }
+
+        return try? ExchangedFiat(
+            underlying: underlying,
+            rate: .oneToOne,
+            mint: .usdf
+        )
+    }
+
+    private func handleCoinbaseFundingSuccess() async {
+        logger.info("Coinbase funding succeeded", metadata: [
+            "destination_mint": "\(destination.mint.base58)",
+            "destination_name": "\(destination.name)"
+        ])
+
+        guard let orderId = coinbaseOrder?.order.orderId else {
+            logger.error("pollingSuccess fired with no active Coinbase order")
+            showBuyFailedDialog()
+            return
+        }
+
+        // Poll Coinbase for the completed order. This runs in sandbox too — it
+        // validates the full Coinbase integration (JWT scoping, GET endpoint,
+        // status transitions, txHash field parsing) end-to-end on every run.
+        let order: OnrampOrderResponse.Order
+        do {
+            order = try await pollCoinbaseOrderUntilComplete(orderId: orderId)
+        } catch is CancellationError {
+            // View model was deallocated or task was cancelled mid-poll. The user
+            // already navigated away — no UI update needed.
+            logger.info("Coinbase order poll cancelled")
+            return
+        } catch {
+            logger.error("Coinbase order poll failed", metadata: ["error": "\(error)"])
+            ErrorReporting.captureError(error)
+            showBuyFailedDialog()
+            return
+        }
+
+        // Sandbox short-circuits the on-chain settlement — Coinbase returns a
+        // placeholder tx_hash that isn't a real Solana signature. We skip the
+        // buy (`buyWithExternalFunding` would reject the placeholder) but only
+        // AFTER exercising the full Coinbase order polling pipeline above.
+        if BetaFlags.shared.hasEnabled(.coinbaseSandbox) {
+            logger.info("Sandbox order — skipping buy", metadata: [
+                "order_id": "\(orderId)",
+                "status": "\(order.status)",
+                "tx_hash": "\(order.txHash ?? "nil")"
+            ])
+            showSandboxOrderCompleted()
+            return
+        }
+
+        guard let txHash = order.txHash, !txHash.isEmpty else {
+            logger.error("Coinbase order completed with no txHash", metadata: [
+                "order_id": "\(orderId)",
+                "status": "\(order.status)"
+            ])
+            showBuyFailedDialog()
+            return
+        }
+
+        guard let signature = try? Signature(base58: txHash) else {
+            logger.error("Failed to decode txHash as Solana signature", metadata: [
+                "tx_hash": "\(txHash)",
+                "tx_hash_length": "\(txHash.count)"
+            ])
+            showBuyFailedDialog()
+            return
+        }
+
+        guard let exchangedFiat = makeUsdfSwapAmount(from: order) else {
+            logger.error("Failed to construct swap amount from order", metadata: [
+                "order_id": "\(orderId)"
+            ])
+            showBuyFailedDialog()
+            return
+        }
+
+        do {
+            let swapId = try await session.buyWithExternalFunding(
+                amount: exchangedFiat,
+                of: destination.mint,
+                transactionSignature: signature
+            )
+            coinbaseOrder = nil
+            Analytics.onrampCompleted(
+                amount: exchangedFiat.underlying,
+                successful: true,
+                error: nil
+            )
+            amountPath.append(.swapProcessing(
+                swapId: swapId,
+                currencyName: destination.name,
+                amount: exchangedFiat
+            ))
+        } catch {
+            logger.error("Buy failed", metadata: ["error": "\(error)"])
+            ErrorReporting.captureError(error)
+            showBuyFailedDialog()
+        }
+    }
+
+    // MARK: - Dialog Factories -
+
+    private func presentDestructiveDialog(
+        title: String,
+        subtitle: String,
+        action: @escaping DialogAction.DialogActionHandler = {}
+    ) {
         dialogItem = .init(
             style: .destructive,
             title: title,
             subtitle: subtitle,
             dismissable: true,
         ) {
-            .okay(kind: .destructive) {
-                onDismiss?()
-            }
+            .okay(kind: .destructive, action: action)
+        }
+    }
+
+    private func presentResendOrCancelDialog(title: String, subtitle: String, resendAction: @escaping () -> Void) {
+        dialogItem = .init(
+            style: .destructive,
+            title: title,
+            subtitle: subtitle,
+            dismissable: true,
+        ) {
+            .destructive("Resend Verification Code") {
+                resendAction()
+            };
+            .cancel()
+        }
+    }
+
+    // MARK: - Errors -
+
+    private func showCoinbaseError(title: String, subtitle: String, onDismiss: (() -> Void)? = nil) {
+        presentDestructiveDialog(title: title, subtitle: subtitle) {
+            onDismiss?()
         }
     }
 
     private func showGenericError(action: @escaping DialogAction.DialogActionHandler = {}) {
-        dialogItem = .init(
-            style: .destructive,
+        presentDestructiveDialog(
             title: "Something Went Wrong",
             subtitle: "Please try again later",
-            dismissable: true,
-        ) {
-            .okay(kind: .destructive, action: action)
-        }
+            action: action
+        )
     }
-    
+
     private func showAmountTooSmallError() {
-        dialogItem = .init(
-            style: .destructive,
+        presentDestructiveDialog(
             title: "$5 Minimum Purchase",
-            subtitle: "Please enter an amount of $5 or higher",
-            dismissable: true,
-        ) {
-            .okay(kind: .destructive)
-        }
+            subtitle: "Please enter an amount of $5 or higher"
+        )
     }
-    
+
     private func showAmountTooLargeError() {
-        dialogItem = .init(
-            style: .destructive,
+        presentDestructiveDialog(
             title: "Amount Too Large",
-            subtitle: "Please enter a smaller amount",
-            dismissable: true,
-        ) {
-            .okay(kind: .destructive)
-        }
+            subtitle: "Please enter a smaller amount"
+        )
     }
-    
+
     private func showUnsupportedPhoneNumberError() {
-        dialogItem = .init(
-            style: .destructive,
+        presentDestructiveDialog(
             title: "Unsupported Phone Number",
-            subtitle: "Please use a different phone number and try again",
-            dismissable: true,
-        ) {
-            .okay(kind: .destructive)
-        }
+            subtitle: "Please use a different phone number and try again"
+        )
     }
-    
+
     private func showInvalidEmailError() {
-        dialogItem = .init(
-            style: .destructive,
+        presentDestructiveDialog(
             title: "Invalid Email",
-            subtitle: "Please enter a different email and try again",
-            dismissable: true,
-        ) {
-            .okay(kind: .destructive)
-        }
+            subtitle: "Please enter a different email and try again"
+        )
     }
-    
+
     private func showInvalidCodeError() {
-        dialogItem = .init(
-            style: .destructive,
+        presentDestructiveDialog(
             title: "Invalid Code",
-            subtitle: "Please enter the verification code that was sent to your phone number or request a new code",
-            dismissable: true,
-        ) {
-            .okay(kind: .destructive)
-        }
+            subtitle: "Please enter the verification code that was sent to your phone number or request a new code"
+        )
     }
-    
-    private func showInvalidVerificationLinkError(resendAction: @escaping () -> Void, cancel: @escaping () -> Void) {
-        dialogItem = .init(
-            style: .destructive,
+
+    private func showInvalidVerificationLinkError(resendAction: @escaping () -> Void) {
+        presentResendOrCancelDialog(
             title: "Verification Link Invalid",
             subtitle: "This verification link is invalid. Please try again",
+            resendAction: resendAction
+        )
+    }
+
+    private func showExpiredVerificationLinkError(resendAction: @escaping () -> Void) {
+        presentResendOrCancelDialog(
+            title: "Verification Link Expired",
+            subtitle: "This verification link has expired. Please try again",
+            resendAction: resendAction
+        )
+    }
+
+    private func showSandboxOrderCompleted() {
+        payButtonState = .normal
+        coinbaseOrder = nil
+        dialogItem = .init(
+            style: .success,
+            title: "Sandbox Order Completed",
+            subtitle: "The buy is skipped in sandbox mode.",
             dismissable: true,
         ) {
-            .destructive("Resend Verification Code") {
-                resendAction()
-            };
-            .cancel {
-                cancel()
+            .okay(kind: .standard) { [weak self] in
+                self?.onDismiss()
             }
         }
     }
-    
-    private func showExpiredVerificationLinkError(resendAction: @escaping () -> Void, cancel: @escaping () -> Void) {
-        dialogItem = .init(
-            style: .destructive,
-            title: "Verification Link Expired",
-            subtitle: "This verification link has expired. Please try again",
-            dismissable: true,
-        ) {
-            .destructive("Resend Verification Code") {
-                resendAction()
-            };
-            .cancel {
-                cancel()
-            }
+
+    private func showBuyFailedDialog() {
+        payButtonState = .normal
+        coinbaseOrder = nil
+        presentDestructiveDialog(
+            title: "Couldn't Buy Token",
+            subtitle: "Your USDF is in your wallet. Try again from the currency screen."
+        ) { [weak self] in
+            self?.onDismiss()
         }
     }
 }
 
-// MARK: - Path -
+// MARK: - Paths -
 
-enum OnrampPath {
+/// Navigation path for `OnrampAmountScreen`'s NavigationStack. Exhaustive on
+/// its own — the verification flow has its own path type so the two stacks
+/// never bind the same `[Path]` array.
+enum OnrampAmountPath: Hashable {
+    case swapProcessing(swapId: SwapId, currencyName: String, amount: ExchangedFiat)
+}
+
+/// Navigation path for `VerifyInfoScreen`'s NavigationStack.
+enum OnrampVerificationPath: Hashable {
     case info
     case enterPhoneNumber
     case confirmPhoneNumberCode
     case enterEmail
     case confirmEmailCode
-    case enterAmount
-    case success
 }
 
 private enum Origin: Int {
@@ -947,12 +1079,22 @@ private extension CharacterSet {
     static let numbers: CharacterSet = CharacterSet(charactersIn: "0123456789")
 }
 
-// MARK: - Mock -
+// MARK: - BuyDestination -
 
 extension OnrampViewModel {
-    static let mock: OnrampViewModel = .init(
-        container: .mock,
-        session: .mock,
-        ratesController: .mock
-    )
+    struct BuyDestination: Equatable, Identifiable, Sendable, Hashable {
+        let mint: PublicKey
+        let name: String
+
+        var id: String { mint.base58 }
+    }
 }
+
+// MARK: - OnrampError -
+
+enum OnrampError: Error {
+    case coinbaseOrderFailed(status: String)
+    case coinbaseOrderPollTimeout
+    case missingCoinbaseApiKey
+}
+

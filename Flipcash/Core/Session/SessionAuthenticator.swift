@@ -208,14 +208,8 @@ final class SessionAuthenticator {
             userID: initializedAccount.userID
         )
         
-        let onrampViewModel = OnrampViewModel(
-            container: container,
-            session: session,
-            ratesController: ratesController
-        )
-        
         let walletConnection = WalletConnection(owner: owner, client: container.client)
-        
+
         return SessionContainer(
             session: session,
             database: database,
@@ -223,7 +217,7 @@ final class SessionAuthenticator {
             ratesController: ratesController,
             historyController: historyController,
             pushController: pushController,
-            onrampViewModel: onrampViewModel
+            flipClient: container.flipClient
         )
     }
     
@@ -386,8 +380,29 @@ struct SessionContainer {
     let ratesController: RatesController
     let historyController: HistoryController
     let pushController: PushController
-    let onrampViewModel: OnrampViewModel
-    
+    let flipClient: FlipClient
+    let onrampDeeplinkInbox: OnrampDeeplinkInbox
+
+    @MainActor
+    init(
+        session: Session,
+        database: Database,
+        walletConnection: WalletConnection,
+        ratesController: RatesController,
+        historyController: HistoryController,
+        pushController: PushController,
+        flipClient: FlipClient
+    ) {
+        self.session = session
+        self.database = database
+        self.walletConnection = walletConnection
+        self.ratesController = ratesController
+        self.historyController = historyController
+        self.pushController = pushController
+        self.flipClient = flipClient
+        self.onrampDeeplinkInbox = OnrampDeeplinkInbox()
+    }
+
     fileprivate func injectingEnvironment<SomeView>(into view: SomeView) -> some View where SomeView: View {
         view
             .environment(session)
@@ -396,9 +411,17 @@ struct SessionContainer {
             .environment(pushController)
             .environment(walletConnection)
     }
-    
+
     @MainActor
-    static let mock: SessionContainer = .init(session: .mock, database: .mock, walletConnection: .mock, ratesController: .mock, historyController: .mock, pushController: .mock, onrampViewModel: .mock)
+    static let mock: SessionContainer = .init(
+        session: .mock,
+        database: .mock,
+        walletConnection: .mock,
+        ratesController: .mock,
+        historyController: .mock,
+        pushController: .mock,
+        flipClient: Container.mock.flipClient
+    )
 }
 
 extension View {
