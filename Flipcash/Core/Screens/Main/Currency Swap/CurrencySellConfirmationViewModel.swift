@@ -100,10 +100,23 @@ class CurrencySellConfirmationViewModel {
     // MARK: - Dialogs -
 
     private func showErrorDialog(error: Error) {
+        let title: String
+        let subtitle: String
+
+        switch error {
+        case ErrorSwap.denied(_, let kinds, _) where kinds.contains(.insufficientSellFee):
+            title = "Amount Too Small"
+            subtitle = "The amount you entered is too small to cover the required transaction fee. Please enter a larger amount"
+
+        default:
+            title = "Unable to Sell Currency"
+            subtitle = "We couldn't complete your sale. Please try again or contact support at support@flipcash.com if the issue persists."
+        }
+
         dialogItem = .init(
             style: .destructive,
-            title: "Unable to Sell Currency",
-            subtitle: "We couldn't complete your sale. Please try again or contact support at support@flipcash.com if the issue persists.",
+            title: title,
+            subtitle: subtitle,
             dismissable: true
         ) {
             .okay(kind: .destructive) { [weak self] in
