@@ -60,7 +60,10 @@ public final class ChartViewModel {
 
     /// Whether the chart shows positive change
     public var isPositive: Bool {
-        valueChange >= 0
+        // Treat sub-cent changes as positive to avoid displaying
+        // negligible negative rounding artifacts like "- $0.00".
+        guard abs(valueChange) >= 0.01 else { return true }
+        return valueChange >= 0
     }
     
     /// A reference to the current value

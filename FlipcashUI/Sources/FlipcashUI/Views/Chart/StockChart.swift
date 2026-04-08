@@ -104,9 +104,8 @@ public struct StockChart: View {
             return dateFormatter(scrubbedPoint.date)
         }
 
-        let change = viewModel.valueChange
-        let prefix = change >= 0 ? "+ " : "- "
-        let formatted = valueFormatter.string(for: abs(change)) ?? ""
+        let prefix = viewModel.isPositive ? "+ " : "- "
+        let formatted = valueFormatter.string(for: abs(viewModel.valueChange)) ?? ""
         return "\(prefix)\(formatted) \(viewModel.selectedRange.contextLabel)"
     }
 
