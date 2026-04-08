@@ -681,22 +681,14 @@ extension DestinationMetadata {
 // MARK: - Errors -
 
 public enum ErrorSubmitIntent: Error, CustomStringConvertible, CustomDebugStringConvertible, Sendable {
+    /// Proto-code-backed denial reason. Maps 1:1 to DeniedErrorDetails.Code.
     public enum DeniedReason: Int, Sendable {
         /// No reason is available
         case unspecified // = 0
-        /// Phone number has exceeded its free account allocation
-        case tooManyFreeAccountsForPhoneNumber // = 1
-        /// Device has exceeded its free account allocation
-        case tooManyFreeAccountsForDevice // = 2
-        /// The country associated with the phone number with the account is not
-        /// supported (eg. it is on the sanctioned list).
-        case unsupportedCountry // = 3
-        /// The device is not supported (eg. it fails device attestation checks)
-        case unsupportedDevice // = 4
     }
-    
+
     /// Denied by a guard (spam, money laundering, etc)
-    case denied([DeniedReason])
+    case denied([DeniedReason], messages: [String])
     /// The intent is invalid.
     case invalidIntent([String])
     /// There is an issue with provided signatures.
@@ -711,7 +703,7 @@ public enum ErrorSubmitIntent: Error, CustomStringConvertible, CustomDebugString
     case grpcStatus(GRPCStatus)
     /// gRPC error
     case grpcError(Error)
-    
+
     init(error: Ocp_Transaction_V1_SubmitIntentResponse.Error) {
         let reasonStrings: [String] = error.errorDetails.compactMap {
             if case .reasonString(let object) = $0.type {
@@ -720,38 +712,45 @@ public enum ErrorSubmitIntent: Error, CustomStringConvertible, CustomDebugString
                 return nil
             }
         }
-        
+
         switch error.code {
         case .denied:
-            let reasons: [DeniedReason] = error.errorDetails.compactMap {
-                if case .denied(let details) = $0.type {
-                    return DeniedReason(rawValue: details.code.rawValue)
-                } else {
-                    return nil
+            var reasons: [DeniedReason] = []
+            var messages: [String] = []
+            for details in error.errorDetails {
+                if case .denied(let deniedDetails) = details.type {
+                    if let reason = DeniedReason(rawValue: deniedDetails.code.rawValue) {
+                        reasons.append(reason)
+                    }
+                    if !deniedDetails.reason.isEmpty {
+                        messages.append(deniedDetails.reason)
+                    }
                 }
             }
-            
-            self = .denied(reasons)
-            
+            self = .denied(reasons, messages: messages)
+
         case .invalidIntent:
             self = .invalidIntent(reasonStrings)
-            
+
         case .signatureError:
             self = .signatureError
-            
+
         case .staleState:
             self = .staleState(reasonStrings)
-            
+
         case .UNRECOGNIZED:
             self = .unknown
         }
     }
-    
+
     public var description: String {
         switch self {
-        case .denied(let reasons):
-            let string = reasons.map { "\($0)" }.joined(separator: ", ")
-            return "denied(\(string))"
+        case .denied(let reasons, let messages):
+            let reasonString = reasons.map { "\($0)" }.joined(separator: ", ")
+            if messages.isEmpty {
+                return "denied(\(reasonString))"
+            }
+            return "denied(\(reasonString): \(messages.joined(separator: "; ")))"
         case .invalidIntent(let reasons):
             return "invalidIntent(\(reasons.joined(separator: ", ")))"
         case .signatureError:

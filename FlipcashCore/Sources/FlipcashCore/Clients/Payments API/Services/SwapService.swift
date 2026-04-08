@@ -197,18 +197,26 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                 var container: [String] = []
                 container.append("Code: \(error.code)")
                 
-                let errors = error.errorDetails.flatMap { details in
+                let errors = error.errorDetails.flatMap { details -> [String] in
                     switch details.type {
                     case .reasonString(let reason):
                         return ["Reason: \(reason.reason)"]
-                        
+
                     case .invalidSignature(let signatureDetails):
                         return [
                             "Action index: \(signatureDetails.actionID)",
                             "Invalid signature: \((try? Signature(signatureDetails.providedSignature.value).base58) ?? "nil")",
                             "Transaction bytes: \(signatureDetails.expectedTransaction.value.hexEncodedString())",
                         ]
-                    default:
+
+                    case .denied(let deniedDetails):
+                        var parts = ["Denied code: \(deniedDetails.code)"]
+                        if !deniedDetails.reason.isEmpty {
+                            parts.append("Denied reason: \(deniedDetails.reason)")
+                        }
+                        return parts
+
+                    case .none:
                         return []
                     }
                 }
@@ -357,10 +365,30 @@ public enum SwapResult: Sendable {
 }
 
 public enum ErrorSwap: Error, CustomStringConvertible, CustomDebugStringConvertible, Sendable {
+    /// Proto-code-backed denial reason. Maps 1:1 to DeniedErrorDetails.Code.
     public enum DeniedReason: Int, Sendable {
-        case unknown = -1
+        /// No reason is available
+        case unspecified // = 0
     }
-    case denied([DeniedReason])
+
+    /// Semantic categorization derived from the server's human-readable reason string.
+    /// Independent of the proto code — extended whenever we want to handle a
+    /// specific server message specially at a call site.
+    public enum DeniedKind: Sendable, Equatable {
+        /// The swap amount is too small to produce a non-zero sell fee.
+        /// Server reason: "swap would not generate a sell fee"
+        case insufficientSellFee
+
+        public init?(serverReason: String) {
+            if serverReason.range(of: "would not generate a sell fee", options: .caseInsensitive) != nil {
+                self = .insufficientSellFee
+                return
+            }
+            return nil
+        }
+    }
+
+    case denied([DeniedReason], kinds: Set<DeniedKind>, messages: [String])
     case signatureError
     case invalidSwap
     case failed
@@ -368,35 +396,46 @@ public enum ErrorSwap: Error, CustomStringConvertible, CustomDebugStringConverti
     case grpcStatus(GRPCStatus)
     /// gRPC error
     case grpcError(Error)
-    
+
     init(error: Ocp_Transaction_V1_StatefulSwapResponse.Error) {
         switch error.code {
         case .denied:
-            let reasons: [DeniedReason] = error.errorDetails.compactMap {
-                if case .denied(let details) = $0.type {
-                    return DeniedReason(rawValue: details.code.rawValue)
-                } else {
-                    return nil
+            var reasons: [DeniedReason] = []
+            var kinds: Set<DeniedKind> = []
+            var messages: [String] = []
+            for details in error.errorDetails {
+                if case .denied(let deniedDetails) = details.type {
+                    if let reason = DeniedReason(rawValue: deniedDetails.code.rawValue) {
+                        reasons.append(reason)
+                    }
+                    if let kind = DeniedKind(serverReason: deniedDetails.reason) {
+                        kinds.insert(kind)
+                    }
+                    if !deniedDetails.reason.isEmpty {
+                        messages.append(deniedDetails.reason)
+                    }
                 }
             }
-            
-            self = .denied(reasons)
-            
+            self = .denied(reasons, kinds: kinds, messages: messages)
+
         case .invalidSwap:
             self = .invalidSwap
         case .signatureError:
             self = .signatureError
-            
+
         case .UNRECOGNIZED:
             self = .unknown
         }
     }
-    
+
     public var description: String {
         switch self {
-        case .denied(let reasons):
-            let string = reasons.map { "\($0)" }.joined(separator: ", ")
-            return "denied(\(string))"
+        case .denied(let reasons, _, let messages):
+            let reasonString = reasons.map { "\($0)" }.joined(separator: ", ")
+            if messages.isEmpty {
+                return "denied(\(reasonString))"
+            }
+            return "denied(\(reasonString): \(messages.joined(separator: "; ")))"
         case .signatureError:
             return "signatureError"
         case .invalidSwap:
