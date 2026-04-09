@@ -107,7 +107,7 @@ class RatesController {
                 do {
                     try self.database.updateLiveSupply(updates: updates, date: .now)
                 } catch {
-                    logger.warning("Failed to update live supply: \(error)")
+                    logger.warning("Failed to update live supply", metadata: ["error": "\(error)"])
                 }
             }
             .store(in: &cancellables)

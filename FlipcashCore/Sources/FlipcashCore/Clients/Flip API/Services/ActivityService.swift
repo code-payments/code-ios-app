@@ -44,7 +44,7 @@ class ActivityService: CodeService<Flipcash_Activity_V1_ActivityFeedNIOClient> {
                         return nil
                     }
                 }
-                logger.info("Fetched \(activities.count) activities")
+                logger.info("Fetched activities", metadata: ["count": "\(activities.count)"])
                 completion(.success(activities))
             } else {
                 logger.error("Failed to fetch transaction history", metadata: ["owner": "\(owner.publicKey.base58)"])
@@ -76,7 +76,7 @@ class ActivityService: CodeService<Flipcash_Activity_V1_ActivityFeedNIOClient> {
                         return nil
                     }
                 }
-                logger.info("Fetched \(activities.count) activities by ID")
+                logger.info("Fetched activities by ID", metadata: ["count": "\(activities.count)"])
                 completion(.success(activities))
             } else {
                 logger.error("Failed to fetch transaction history items", metadata: ["owner": "\(owner.publicKey.base58)"])

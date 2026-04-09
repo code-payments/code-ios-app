@@ -39,7 +39,7 @@ class ProfileService: CodeService<Flipcash_Profile_V1_ProfileNIOClient> {
                 completion(.success(.empty))
 
             } else {
-                logger.error("Failed to fetch profile for userId: \(userID)")
+                logger.error("Failed to fetch profile", metadata: ["userId": "\(userID)"])
                 completion(.failure(error))
             }
 

@@ -1314,6 +1314,7 @@ class Session {
                 )
                 
             } catch {
+                logger.error("Failed to receive cash link for gift card", metadata: ["public_key": "\(giftCardKeyPair.publicKey)"])
                 ErrorReporting.captureError(error)
 
                 Analytics.transfer(
@@ -1329,7 +1330,6 @@ class Session {
                 } else {
                     showSomethingWentWrongError()
                 }
-                logger.error("Failed to receive cash link for gift card", metadata: ["public_key": "\(giftCardKeyPair.publicKey)"])
             }
         }
     }

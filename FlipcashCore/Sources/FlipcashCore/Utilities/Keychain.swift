@@ -81,11 +81,17 @@ public class Keychain {
         var result: AnyObject?
         let status = SecItemCopyMatching(query.dictionary, &result)
         if status == errSecSuccess {
-            logger.debug("Accessed: \(query.account ?? "nil"), accessGroup: \(query.accessGroup ?? "nil")")
+            logger.debug("Accessed keychain item", metadata: [
+                "account": "\(query.account ?? "nil")",
+                "accessGroup": "\(query.accessGroup ?? "nil")"
+            ])
             return result as? Data
         } else if status != errSecItemNotFound {
             if let error = SecCopyErrorMessageString(status, nil) {
-                logger.warning("Fetch error: \(error as String)")
+                logger.warning("Keychain fetch error", metadata: [
+                    "status": "\(status)",
+                    "error": "\(error as String)"
+                ])
             }
         }
         
@@ -96,7 +102,11 @@ public class Keychain {
         let status = SecItemAdd(query.dictionary, nil)
         if status != errSecSuccess {
             if let error = SecCopyErrorMessageString(status, nil) {
-                logger.error("Failed to save \(query.account ?? "nil"): (\(status)) \(error as String)")
+                logger.error("Failed to save keychain item", metadata: [
+                    "account": "\(query.account ?? "nil")",
+                    "status": "\(status)",
+                    "error": "\(error as String)"
+                ])
             }
         }
         

@@ -27,8 +27,8 @@ enum Analytics {
     static func initialize() {
         let apiKey = try? InfoPlist.value(for: "mixpanel").value(for: "apiKey").string()
         if let apiKey {
+            logger.info("Initializing Mixpanel")
             Mixpanel.initialize(token: apiKey, trackAutomaticEvents: true)
-            logger.info("Initializing Mixpanel...")
         } else {
             logger.error("Failed to initialize Mixpanel. No API key found in Info.plist")
         }
@@ -48,17 +48,7 @@ enum Analytics {
 
         track(event.eventName, properties: container)
     }
-    
-//    static func track(_ action: Action, properties: [Property: AnalyticsValue]? = nil) {
-//        var container: [String: AnalyticsValue] = [:]
-//        
-//        properties?.forEach { key, value in
-//            container[key.rawValue] = value
-//        }
-//        
-//        track(action.rawValue, properties: container)
-//    }
-    
+        
     private static func track(_ name: String, properties: [String: AnalyticsValue]? = nil) {
         logger.debug("Track", metadata: ["event": "\(name)", "properties": "\(properties ?? [:])"])
         mixpanel.track(event: name, properties: properties)

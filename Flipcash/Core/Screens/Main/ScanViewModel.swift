@@ -41,7 +41,7 @@ class ScanViewModel {
             try cameraSession.configureDevices()
             cameraSession.start()
         } catch {
-            logger.error("Error configuring camera session: \(error)")
+            logger.error("Error configuring camera session", metadata: ["error": "\(error)"])
         }
     }
     

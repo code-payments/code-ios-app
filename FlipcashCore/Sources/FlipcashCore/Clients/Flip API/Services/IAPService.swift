@@ -35,7 +35,7 @@ class IAPService: CodeService<Flipcash_Iap_V1_IapNIOClient> {
                 logger.info("In-app purchase completed successfully")
                 completion(.success(()))
             } else {
-                logger.error("Failed to complete in-app purchase: \(error)")
+                logger.error("Failed to complete in-app purchase", metadata: ["error": "\(error)"])
                 completion(.failure(error))
             }
 

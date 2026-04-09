@@ -135,12 +135,12 @@ public final class WalletConnection {
                 didSignTransaction(response.transaction)
                 
             default:
-                logger.warning("Deep link path did not match known routes: \(component ?? "nil")")
+                logger.warning("Deep link path did not match known routes", metadata: ["component": "\(component ?? "nil")"])
                 return
             }
             
         } catch {
-            logger.error("Failed to decrypt: \(error)")
+            logger.error("Failed to decrypt", metadata: ["error": "\(error)"])
             return
         }
     }
@@ -190,8 +190,8 @@ public final class WalletConnection {
 
             let rawData = Data(Base58.toBytes(signedTx))
             guard let tx = SolanaTransaction(data: rawData) else {
-                ErrorReporting.captureError(Error.invalidURL, reason: "Failed to decode signed transaction", metadata: swapMetadata)
                 logger.error("Failed to decode signed transaction")
+                ErrorReporting.captureError(Error.invalidURL, reason: "Failed to decode signed transaction", metadata: swapMetadata)
                 self.isProcessingCancelled = true
                 return
             }
@@ -208,8 +208,8 @@ public final class WalletConnection {
                 )
                 logger.info("Server notified of swap funding via buyWithExternalFunding()")
             } catch {
+                logger.error("Server notification failed", metadata: ["error": "\(error)"])
                 ErrorReporting.captureError(error, reason: "Server notification failed", metadata: swapMetadata)
-                logger.error("Server notification failed: \(error)")
                 self.isProcessingCancelled = true
                 return
             }
@@ -224,8 +224,8 @@ public final class WalletConnection {
                 logger.info("Transaction sent", metadata: ["signature": "\(signature)"])
                 Analytics.track(event: Analytics.WalletEvent.transactionsSubmitted)
             } catch {
+                logger.error("Chain submission failed", metadata: ["error": "\(error)"])
                 ErrorReporting.captureError(error, reason: "Chain submission failed", metadata: swapMetadata)
-                logger.error("Chain submission failed: \(error)")
                 self.isProcessingCancelled = true
             }
         }

@@ -62,7 +62,11 @@ public actor VerifiedProtoService {
         }
 
         if !unknownCodes.isEmpty {
-            logger.warning("Skipped \(unknownCodes.count)/\(rates.count) exchange rates with unknown codes: \(unknownCodes.joined(separator: ", "))")
+            logger.warning("Skipped exchange rates with unknown codes", metadata: [
+                "skipped": "\(unknownCodes.count)",
+                "total": "\(rates.count)",
+                "codes": "\(unknownCodes.joined(separator: ","))"
+            ])
         }
 
         if !parsedRates.isEmpty {
@@ -105,7 +109,7 @@ public actor VerifiedProtoService {
     /// - Returns: VerifiedState with exchange rate proof and optional reserve state proof
     public func getVerifiedState(for currency: CurrencyCode, mint: PublicKey) -> VerifiedState? {
         guard let rateProto = exchangeRates[currency] else {
-            logger.warning("No verified exchange rate for currency: \(currency.rawValue)")
+            logger.warning("No verified exchange rate for currency", metadata: ["currency": "\(currency.rawValue)"])
             return nil
         }
 

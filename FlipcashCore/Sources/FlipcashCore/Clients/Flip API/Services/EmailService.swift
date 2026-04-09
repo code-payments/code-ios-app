@@ -29,7 +29,7 @@ class EmailService: CodeService<Flipcash_Email_V1_EmailVerificationNIOClient> {
                 logger.info("Email verification code sent successfully")
                 completion(.success(()))
             } else {
-                logger.error("Failed to send email verification code: \(error)")
+                logger.error("Failed to send email verification code", metadata: ["error": "\(error)"])
                 completion(.failure(error))
             }
 
@@ -54,7 +54,7 @@ class EmailService: CodeService<Flipcash_Email_V1_EmailVerificationNIOClient> {
                 logger.info("Email verification code accepted")
                 completion(.success(()))
             } else {
-                logger.error("Email verification code check failed: \(error)")
+                logger.error("Email verification code check failed", metadata: ["error": "\(error)"])
                 completion(.failure(error))
             }
 
@@ -78,7 +78,7 @@ class EmailService: CodeService<Flipcash_Email_V1_EmailVerificationNIOClient> {
                 logger.info("Email address unlinked successfully")
                 completion(.success(()))
             } else {
-                logger.error("Failed to unlink email address: \(error)")
+                logger.error("Failed to unlink email address", metadata: ["error": "\(error)"])
                 completion(.failure(error))
             }
 
