@@ -13,7 +13,7 @@ Two-phase workflow with a dogfooding gate. Nothing leaves the machine until the 
 ## Pre-flight context
 
 - Working tree: !`git status --porcelain`
-- Latest tag: !`git describe --tags --abbrev=0 HEAD 2>/dev/null || echo "no tags found"`
+- Latest tag: !`git describe --tags --match 'flipcash-*' --abbrev=0 HEAD 2>/dev/null || echo "no tags found"`
 - Marketing version: !`grep 'MARKETING_VERSION' Code.xcodeproj/project.pbxproj | head -1 | sed 's/.*= //' | tr -d ';\" '`
 
 ## Phase 1: Prepare & Verify
@@ -30,20 +30,23 @@ Parse the pre-flight marketing version as X.Y.Z. Determine bump type from `$ARGU
 | `minor` (default) | X.Y+1.0 | 2.3.1 → 2.4.0 |
 | `patch` | X.Y.Z+1 | 2.3.1 → 2.3.2 |
 
-Confirm with user: "Bumping {type}: v{current} → v{next} — correct?"
+Confirm with user: "Bumping {type}: flipcash-{current} → flipcash-{next} — correct?"
 
 ### 3. Determine base
 - **major / minor**: base is HEAD on the current branch. Show the pre-flight latest tag to user. If it picks up a legacy tag, ask for the correct base.
-- **patch**: base is the `release/X.Y.Z` branch (the release being patched). Checkout that branch before proceeding:
+- **patch**: base is the `release/flipcash-X.Y.Z` branch (the release being patched). Checkout that branch before proceeding:
   ```bash
-  git checkout release/{current-version}
+  git checkout release/flipcash-{current-version}
   ```
 
 ### 4. What's shipping
 ```bash
 git log {base-tag}..HEAD --format="- %s" --no-merges
 ```
-For patch releases, `{base-tag}` is `v{current-version}` (the tag on the branch being patched).
+For patch releases, `{base-tag}` is `flipcash-{current-version}` (the tag on the branch being patched).
+
+**First run after tag-scheme change:** if the pre-flight "Latest tag" is `no tags found`, no `flipcash-*` tag exists yet. Use `fc1.2.0` (the last legacy tag) as the base for this one-time transition, then ask the user to confirm before running the log command.
+
 Display for sanity check.
 
 ### 5. Run all tests
@@ -73,20 +76,20 @@ Use the Agent tool with `model: "haiku"`. Pass the commit list with this prompt:
 Show to user for approval.
 
 ### 7. Branch, bump, and tag
-For **patch**: already on `release/X.Y.Z` from step 3.
+For **patch**: already on `release/flipcash-X.Y.Z` from step 3.
 ```bash
-git checkout -b release/{next-version}
+git checkout -b release/flipcash-{next-version}
 ```
 For **major / minor**:
 ```bash
-git checkout -b release/{next-version}
+git checkout -b release/flipcash-{next-version}
 ```
 
 Update `MARKETING_VERSION` in `Code.xcodeproj/project.pbxproj` to `{next-version}` using the Edit tool, then:
 ```bash
 git add Code.xcodeproj/project.pbxproj
 git commit -m "chore: bump version to {next-version}"
-git tag v{next-version}
+git tag flipcash-{next-version}
 ```
 
 ## STOP — Dogfooding Gate
@@ -110,13 +113,13 @@ After user confirms:
 
 ### 8. Push
 ```bash
-git push -u origin release/{version}
-git push origin v{version}
+git push -u origin release/flipcash-{version}
+git push origin flipcash-{version}
 ```
 
 ### 9. GitHub Release
 ```bash
-gh release create v{version} --title "v{version}" --notes "{changelog}"
+gh release create flipcash-{version} --title "Flipcash {version}" --notes "{changelog}"
 ```
 
 ## Never
