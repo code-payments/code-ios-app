@@ -50,7 +50,7 @@ struct ConfirmPhoneScreen: View {
                             Text(text)
                             VStack(spacing: 0) {
                                 Text("Didn't get an SMS at \(viewModel.phone?.national ?? "")?")
-                                (Text("Request a new one in ") + Text(timerInterval: min(Date.now, countdownEnd)...countdownEnd, countsDown: true))
+                                (Text("Request a new one in ") + Text(timerInterval: .now...countdownEnd, countsDown: true))
                                     .contentTransition(.numericText())
                             }
                         }
