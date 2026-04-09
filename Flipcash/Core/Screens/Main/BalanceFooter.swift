@@ -66,6 +66,8 @@ private struct CashReservesRow: View {
                     Text(reservesBalance.exchangedFiat.converted.formatted())
                         .font(.appTextMedium)
                         .foregroundStyle(Color.textMain)
+                        .contentTransition(.numericText())
+                        .animation(.default, value: reservesBalance.exchangedFiat.converted)
                 }
             }
             .listRowBackground(Color.clear)
