@@ -34,7 +34,7 @@ extension URL {
     }
     
     static var appStoreApplicationHome: URL {
-        URL(string: "https://apps.apple.com/ca/app/flipcash/id6745559740")!
+        URL(string: "https://apps.apple.com/app/flipcash/id6758636374")!
     }
 }
 
