@@ -20,7 +20,7 @@
 		</dict>
 	</array>
 	<key>SQLiteVersion</key>
-	<integer>8</integer>
+	<integer>9</integer>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>

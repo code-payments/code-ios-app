@@ -44,7 +44,11 @@ public actor VerifiedProtoService {
     // MARK: - Save Methods
 
     /// Save verified exchange rates from streaming batch.
-    /// Publishes the parsed rates via `ratesPublisher` for observers.
+    /// Only publishes updates for currencies whose `fx` actually changed,
+    /// avoiding no-op downstream work (SwiftUI re-renders, DB writes).
+    /// The full proto is still stored on every call so intent submission
+    /// always uses the freshest signed rate proof, even when the
+    /// numeric exchange rate is unchanged.
     public func saveRates(_ rates: [Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRate]) {
         var parsedRates: [Rate] = []
         var unknownCodes: [String] = []
@@ -54,11 +58,14 @@ public actor VerifiedProtoService {
                 unknownCodes.append(rate.exchangeRate.currencyCode)
                 continue
             }
+            let fxChanged = exchangeRates[currency]?.exchangeRate.exchangeRate != rate.exchangeRate.exchangeRate
             exchangeRates[currency] = rate
-            parsedRates.append(Rate(
-                fx: Decimal(rate.exchangeRate.exchangeRate),
-                currency: currency
-            ))
+            if fxChanged {
+                parsedRates.append(Rate(
+                    fx: Decimal(rate.exchangeRate.exchangeRate),
+                    currency: currency
+                ))
+            }
         }
 
         if !unknownCodes.isEmpty {
@@ -70,6 +77,10 @@ public actor VerifiedProtoService {
         }
 
         if !parsedRates.isEmpty {
+            logger.info("Exchange rates changed", metadata: [
+                "changed": "\(parsedRates.count)",
+                "total": "\(rates.count)",
+            ])
             ratesPublisher.send(parsedRates)
         }
     }

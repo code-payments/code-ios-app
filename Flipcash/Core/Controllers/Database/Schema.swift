@@ -86,6 +86,14 @@ struct LimitsTable: Sendable {
     let data  = Expression <Data> ("data")
 }
 
+struct RateTable: Sendable {
+    static let name = "rate"
+
+    let table    = Table(Self.name)
+    let currency = Expression <CurrencyCode> ("currency")
+    let data     = Expression <Data>         ("data")
+}
+
 extension Expression {
     func alias(_ alias: String) -> Expression<Datatype> {
         Expression(alias)
@@ -177,6 +185,15 @@ extension Database {
             try writer.run(limitsTable.table.create(ifNotExists: true, withoutRowid: true) { t in
                 t.column(limitsTable.id, primaryKey: true)
                 t.column(limitsTable.data)
+            })
+        }
+
+        let rateTable = RateTable()
+
+        try writer.transaction {
+            try writer.run(rateTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                t.column(rateTable.currency, primaryKey: true)
+                t.column(rateTable.data)
             })
         }
 
