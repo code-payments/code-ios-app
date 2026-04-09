@@ -45,7 +45,7 @@ struct ConfirmPhoneScreen: View {
                 let text = "An SMS message was sent to your phone number with a verification code. Please enter the verification code above."
                 
                 Group {
-                    if let countdownEnd {
+                    if let countdownEnd, countdownEnd > .now {
                         VStack(spacing: 15) {
                             Text(text)
                             VStack(spacing: 0) {

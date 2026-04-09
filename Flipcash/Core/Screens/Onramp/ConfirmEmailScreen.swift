@@ -57,7 +57,7 @@ struct ConfirmEmailScreen: View {
                 Spacer()
                 
                 Group {
-                    if let countdownEnd {
+                    if let countdownEnd, countdownEnd > .now {
                         VStack(spacing: 0) {
                             Text("Didn't get an email?")
                             (Text("Request a new one in ") + Text(timerInterval: .now...countdownEnd, countsDown: true))
