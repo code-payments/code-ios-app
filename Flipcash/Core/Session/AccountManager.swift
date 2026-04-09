@@ -83,7 +83,7 @@ class AccountManager {
         
         if var historicalAccounts = Keychain.historicalAccounts {
             if var oldDescription = historicalAccounts[key] {
-                logger.debug("Upsert: \(oldDescription.account.ownerPublicKey)")
+                logger.debug("Upsert historical account", metadata: ["owner": "\(oldDescription.account.ownerPublicKey)"])
                 oldDescription.lastSeen = .now
                 oldDescription.deletionDate = nil // Undelete
                 historicalAccounts[key] = oldDescription

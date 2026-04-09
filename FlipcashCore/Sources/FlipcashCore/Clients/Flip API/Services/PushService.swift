@@ -30,7 +30,7 @@ class PushService: CodeService<Flipcash_Push_V1_PushNIOClient> {
             if error == .ok {
                 completion(.success(()))
             } else {
-                logger.error("Failed to add push token: \(error)")
+                logger.error("Failed to add push token", metadata: ["error": "\(error)"])
                 completion(.failure(error))
             }
 
@@ -58,7 +58,7 @@ class PushService: CodeService<Flipcash_Push_V1_PushNIOClient> {
                 logger.info("Push tokens deleted successfully")
                 completion(.success(()))
             } else {
-                logger.error("Failed to delete push tokens: \(error)")
+                logger.error("Failed to delete push tokens", metadata: ["error": "\(error)"])
                 completion(.failure(error))
             }
 

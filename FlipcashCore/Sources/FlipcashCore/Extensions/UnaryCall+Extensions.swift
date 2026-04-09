@@ -18,10 +18,17 @@ extension UnaryCall {
             if let typedError = error as? GRPC.GRPCStatus {
                 let message = typedError.message ?? "'no-message'"
                 let code = typedError.code.description
-                logger.error("gRPC call failed in \(function): \(code) - \(message)")
+                logger.error("gRPC call failed", metadata: [
+                    "function": "\(function)",
+                    "code": "\(code)",
+                    "message": "\(message)"
+                ])
                 failure(typedError)
             } else {
-                logger.error("gRPC call failed in \(function) with unexpected error type: \(error)")
+                logger.error("gRPC call failed with unexpected error type", metadata: [
+                    "function": "\(function)",
+                    "error": "\(error)"
+                ])
                 failure(.processingError)
             }
         }

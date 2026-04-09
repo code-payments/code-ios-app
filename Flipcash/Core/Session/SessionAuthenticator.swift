@@ -170,7 +170,7 @@ final class SessionAuthenticator {
             let flags = try await flipClient.fetchUnauthenticatedUserFlags()
             self.unauthenticatedUserFlags = flags
         } catch {
-            logger.error("Failed to fetch unauthenticated user flags: \(error)")
+            logger.error("Failed to fetch unauthenticated user flags", metadata: ["error": "\(error)"])
         }
     }
 

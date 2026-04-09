@@ -141,7 +141,7 @@ class MessagingService: CodeService<Ocp_Messaging_V1_MessagingNIOClient> {
 
         call.handle(on: queue) { response in
             let messages = response.messages.compactMap { try? StreamMessage($0) }
-            logger.info("Fetched \(response.messages.count) messages")
+            logger.info("Fetched messages", metadata: ["count": "\(response.messages.count)"])
             completion(.success(messages))
             
         } failure: { error in
@@ -152,7 +152,7 @@ class MessagingService: CodeService<Ocp_Messaging_V1_MessagingNIOClient> {
     func acknowledge(messages: [StreamMessage], rendezvous: PublicKey, completion: @Sendable @escaping (Result<Void, Error>) -> Void) {
         let ids = messages.map { $0.id }
 
-        logger.info("Acknowledging \(ids.count) messages")
+        logger.info("Acknowledging messages", metadata: ["count": "\(ids.count)"])
 
         let request = Ocp_Messaging_V1_AckMessagesRequest.with {
             $0.rendezvousKey = rendezvous.codeRendezvousKey

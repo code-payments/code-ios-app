@@ -66,7 +66,7 @@ extension VersionedMessageV0 {
 
         // Decode static account keys
         let (accountCount, accountData) = ShortVec.decodeLength(payload)
-        logger.debug("V0 message static account count: \(accountCount)")
+        logger.debug("V0 message static account count", metadata: ["count": "\(accountCount)"])
         guard let staticKeys = accountData.chunk(size: PublicKey.length, count: accountCount, block: { try? PublicKey($0) })?.compactMap({ $0 }) else {
             logger.error("Failed to decode V0 message static account keys")
             return nil
@@ -82,7 +82,7 @@ extension VersionedMessageV0 {
 
         // Decode compiled instructions (without decompiling yet)
         let (instructionCount, instructionsData) = ShortVec.decodeLength(payload)
-        logger.debug("V0 message instruction count: \(instructionCount)")
+        logger.debug("V0 message instruction count", metadata: ["count": "\(instructionCount)"])
 
         var remainingInstructionData = instructionsData
         var compiledInstructions: [CompiledInstruction] = []
@@ -122,7 +122,10 @@ extension VersionedMessageV0 {
             remaining = writableRemaining
 
             guard remaining.count >= writableIndexesLength else {
-                logger.error("Not enough data for V0 writable indexes: need \(writableIndexesLength), have \(remaining.count)")
+                logger.error("Not enough data for V0 writable indexes", metadata: [
+                    "needed": "\(writableIndexesLength)",
+                    "available": "\(remaining.count)"
+                ])
                 return nil
             }
             let writableIndexes = Array(remaining.prefix(writableIndexesLength))
@@ -133,7 +136,10 @@ extension VersionedMessageV0 {
             remaining = readonlyRemaining
 
             guard remaining.count >= readonlyIndexesLength else {
-                logger.error("Not enough data for V0 readonly indexes: need \(readonlyIndexesLength), have \(remaining.count)")
+                logger.error("Not enough data for V0 readonly indexes", metadata: [
+                    "needed": "\(readonlyIndexesLength)",
+                    "available": "\(remaining.count)"
+                ])
                 return nil
             }
             let readonlyIndexes = Array(remaining.prefix(readonlyIndexesLength))

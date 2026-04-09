@@ -240,7 +240,7 @@ extension Client {
                 // Check for terminal states
                 switch metadata.state {
                 case .finalized, .failed, .cancelled:
-                    logger.info("Swap reached terminal state: \(metadata.state)")
+                    logger.info("Swap reached terminal state", metadata: ["state": "\(metadata.state)"])
                     return metadata
                 case .unknown, .created, .funding, .funded, .submitting, .cancelling:
                     // Continue polling
@@ -252,7 +252,7 @@ extension Client {
                 continue
             } catch {
                 // Log but continue polling for transient errors
-                logger.warning("Swap poll error: \(error), continuing")
+                logger.warning("Swap poll error, continuing", metadata: ["error": "\(error)"])
                 continue
             }
         }

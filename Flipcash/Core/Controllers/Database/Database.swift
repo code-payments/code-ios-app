@@ -89,7 +89,7 @@ class Database {
             }
             
         } catch {
-            logger.error("Transaction error: \(error)")
+            logger.error("Transaction error", metadata: ["error": "\(error)"])
 //            ErrorReporting.captureError(error)
         }
 //        print("[DB TX]: \(Date.now.timeIntervalSince1970 - start.timeIntervalSince1970) seconds")

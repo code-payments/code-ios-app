@@ -113,7 +113,7 @@ public actor LiveMintDataStreamer {
             }
             _ = stream.sendMessage(request)
             sentSubscriptionUpdate = true
-            logger.debug("Updated mint subscription to \(mints.count) mints")
+            logger.debug("Updated mint subscription", metadata: ["count": "\(mints.count)"])
         } else if isStreaming {
             // No active stream — open a new one
             openStream()
@@ -139,7 +139,7 @@ public actor LiveMintDataStreamer {
         isReconnecting = false
         reconnectAttempts = 0
 
-        logger.info("Opening live mint data stream for \(subscribedMints.count) mints")
+        logger.info("Opening live mint data stream", metadata: ["count": "\(subscribedMints.count)"])
 
         let reference = StreamReference()
         reference.retain()
@@ -244,12 +244,15 @@ public actor LiveMintDataStreamer {
                 reconnect()
 
             default:
-                logger.warning("Stream closed with status: \(status)")
+                logger.warning("Stream closed with status", metadata: [
+                    "code": "\(status.code)",
+                    "message": "\(status.message ?? "nil")"
+                ])
                 reconnect()
             }
 
         case .failure(let error):
-            logger.error("Stream error: \(error)")
+            logger.error("Stream error", metadata: ["error": "\(error)"])
             reconnect()
         }
     }
@@ -294,7 +297,10 @@ public actor LiveMintDataStreamer {
             Self.maxReconnectDelay
         )
 
-        logger.debug("Reconnecting in \(delay)s (attempt \(reconnectAttempts))")
+        logger.debug("Reconnecting live mint data stream", metadata: [
+            "delaySeconds": "\(delay)",
+            "attempt": "\(reconnectAttempts)"
+        ])
 
         // Delay before reconnecting with exponential backoff
         reconnectTask = Task { [weak self] in

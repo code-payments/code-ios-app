@@ -75,7 +75,7 @@ class CurrencyService: CodeService<Ocp_Currency_V1_CurrencyNIOClient>, @unchecke
                         marketCap: data.marketCap
                     )
                 }
-                logger.info("Fetched historical mint data: \(dataPoints.count) data points")
+                logger.info("Fetched historical mint data", metadata: ["count": "\(dataPoints.count)"])
                 completion(.success(dataPoints))
 
             case .notFound:

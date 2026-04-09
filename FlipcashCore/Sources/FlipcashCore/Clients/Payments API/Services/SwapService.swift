@@ -52,23 +52,35 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
         switch direction {
         case .buy(let targetMint):
             guard targetMint.vmMetadata != nil else {
-                logger.error("Target mint missing VM metadata: \(targetMint.symbol)")
+                logger.error("Target mint missing VM metadata", metadata: [
+                    "symbol": "\(targetMint.symbol)",
+                    "mint": "\(targetMint.address.base58)"
+                ])
                 completion(.failure(.invalidSwap))
                 return
             }
             guard targetMint.launchpadMetadata != nil else {
-                logger.error("Target mint missing launchpad metadata: \(targetMint.symbol)")
+                logger.error("Target mint missing launchpad metadata", metadata: [
+                    "symbol": "\(targetMint.symbol)",
+                    "mint": "\(targetMint.address.base58)"
+                ])
                 completion(.failure(.invalidSwap))
                 return
             }
         case .sell(let sourceMint):
             guard sourceMint.vmMetadata != nil else {
-                logger.error("Source mint missing VM metadata: \(sourceMint.symbol)")
+                logger.error("Source mint missing VM metadata", metadata: [
+                    "symbol": "\(sourceMint.symbol)",
+                    "mint": "\(sourceMint.address.base58)"
+                ])
                 completion(.failure(.invalidSwap))
                 return
             }
             guard sourceMint.launchpadMetadata != nil else {
-                logger.error("Source mint missing launchpad metadata: \(sourceMint.symbol)")
+                logger.error("Source mint missing launchpad metadata", metadata: [
+                    "symbol": "\(sourceMint.symbol)",
+                    "mint": "\(sourceMint.address.base58)"
+                ])
                 completion(.failure(.invalidSwap))
                 return
             }
@@ -222,7 +234,10 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                 }
                 container.append(contentsOf: errors)
 
-                logger.error("Swap stream error: \(container.joined(separator: ", "))")
+                logger.error("Swap stream error", metadata: [
+                    "code": "\(error.code)",
+                    "detailCount": "\(error.errorDetails.count)"
+                ])
 
                 _ = reference.stream?.sendEnd()
                 let intentError = ErrorSwap(error: error)
@@ -242,12 +257,15 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                     logger.info("Swap stream closed")
                     // Completion called in the success block
                 } else {
-                    logger.warning("Swap stream closed with non-OK status: \(status)")
+                    logger.warning("Swap stream closed with non-OK status", metadata: [
+                        "code": "\(status.code)",
+                        "message": "\(status.message ?? "nil")"
+                    ])
                     completion(.failure(.grpcStatus(status)))
                 }
 
             case .failure(let error):
-                logger.error("Swap stream closed with gRPC error: \(error)")
+                logger.error("Swap stream closed with gRPC error", metadata: ["error": "\(error)"])
                 completion(.failure(.grpcError(error)))
             }
             
@@ -285,16 +303,9 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                 }
             }
 
-            do {
-                let bytes = try startRequest.serializedData()
-                logger.debug("StartSwap initiate proto (hex): \(bytes.hexEncodedString())")
-            } catch {
-                logger.warning("Failed to serialize StartSwap initiate proto for logging: \(error)")
-            }
-
             _ = reference.stream?.sendMessage(startRequest)
         } catch {
-            logger.error("Failed to serialize client parameters for proof signature: \(error)")
+            logger.error("Failed to serialize client parameters for proof signature", metadata: ["error": "\(error)"])
             _ = reference.stream?.sendEnd()
             completion(.failure(.unknown))
             return
@@ -350,7 +361,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                 }
 
             case .failure(let error):
-                logger.error("Swap fetch gRPC error: \(error)")
+                logger.error("Swap fetch gRPC error", metadata: ["error": "\(error)"])
                 completion(.failure(.unknown))
             }
         }

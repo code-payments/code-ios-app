@@ -44,7 +44,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
                 completion(.success(()))
 
             case .failure(let error):
-                logger.error("Failed to create accounts: \(error)")
+                logger.error("Failed to create accounts", metadata: ["error": "\(error)"])
                 completion(.failure(error))
             }
         }
@@ -70,7 +70,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
                 completion(.success(()))
 
             case .failure(let error):
-                logger.error("Transfer failed: \(error)")
+                logger.error("Transfer failed", metadata: ["error": "\(error)"])
                 completion(.failure(error))
             }
         }
@@ -95,13 +95,13 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
                     completion(.success(()))
 
                 case .failure(let error):
-                    logger.error("Withdrawal failed: \(error)")
+                    logger.error("Withdrawal failed", metadata: ["error": "\(error)"])
                     completion(.failure(error))
                 }
             }
 
         } catch {
-            logger.error("Failed to build withdraw intent: \(error)")
+            logger.error("Failed to build withdraw intent", metadata: ["error": "\(error)"])
             completion(.failure(error))
         }
     }
@@ -127,7 +127,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
                 completion(.success(()))
 
             case .failure(let error):
-                logger.error("Failed to send cash link: \(error)")
+                logger.error("Failed to send cash link", metadata: ["error": "\(error)"])
                 completion(.failure(error))
             }
         }
@@ -152,7 +152,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
                 completion(.success(()))
 
             case .failure(let error):
-                logger.error("Failed to receive cash link: \(error)")
+                logger.error("Failed to receive cash link", metadata: ["error": "\(error)"])
                 completion(.failure(error))
             }
         }
@@ -174,7 +174,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
                 logger.info("Cash link voided", metadata: ["giftCard": "\(giftCardVault.base58)"])
                 completion(.success(()))
             } else {
-                logger.error("Failed to void cash link: \(error)")
+                logger.error("Failed to void cash link", metadata: ["error": "\(error)"])
                 completion(.failure(error))
             }
 
@@ -225,13 +225,13 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
                         logger.info("Buy swap completed", metadata: ["intentId": "\(fundingIntentID.base58)"])
                         completion(.success(swapId))
                     case .failure(let error):
-                        logger.error("Failed to fund buy swap: \(error)")
+                        logger.error("Failed to fund buy swap", metadata: ["error": "\(error)"])
                         completion(.failure(.unknown))
                     }
                 }
 
             case .failure(let error):
-                logger.error("Failed to start buy swap: \(error)")
+                logger.error("Failed to start buy swap", metadata: ["error": "\(error)"])
                 completion(.failure(error))
             }
         }
@@ -266,7 +266,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
                 logger.info("Buy swap initiated with external funding", metadata: ["swapId": "\(swapId.publicKey.base58)"])
                 completion(.success(swapId))
             case .failure(let error):
-                logger.error("Failed to start externally-funded buy swap: \(error)")
+                logger.error("Failed to start externally-funded buy swap", metadata: ["error": "\(error)"])
                 completion(.failure(error))
             }
         }
@@ -284,7 +284,10 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
         let fundingIntentID = KeyPair.generate()!.publicKey
 
         guard let tokenVmAuthority = token.vmMetadata?.authority else {
-            logger.error("Failed to find VM authority for token: \(token.symbol)")
+            logger.error("Failed to find VM authority for token", metadata: [
+                "symbol": "\(token.symbol)",
+                "mint": "\(token.address.base58)"
+            ])
             // Map ErrorSubmitIntent to ErrorSwap
             completion(.failure(.unknown))
             return
@@ -321,14 +324,14 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
                         completion(.success(swapId))
 
                     case .failure(let error):
-                        logger.error("Failed to fund sell swap: \(error)")
+                        logger.error("Failed to fund sell swap", metadata: ["error": "\(error)"])
                         // Map ErrorSubmitIntent to ErrorSwap
                         completion(.failure(.unknown))
                     }
                 }
 
             case .failure(let error):
-                logger.error("Failed to start sell swap: \(error)")
+                logger.error("Failed to start sell swap", metadata: ["error": "\(error)"])
                 completion(.failure(error))
             }
         }
@@ -370,10 +373,11 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
                     ])
 
                 } catch {
-                    logger.error("Received server parameters but failed to apply them: \(error)", metadata: [
+                    logger.error("Received server parameters but failed to apply them", metadata: [
                         "type": "\(T.self)",
                         "paramCount": "\(parameters.serverParameters.count)",
-                        "intentId": "\(intent.id.base58)"
+                        "intentId": "\(intent.id.base58)",
+                        "error": "\(error)"
                     ])
                     completion(.failure(.unknown))
                 }
@@ -426,7 +430,12 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
 //                container.append(contentsOf: expectedHashes)
 //                container.append(contentsOf: producedHashes)
 
-                logger.error("Intent submission error: \(container.joined(separator: ", "))")
+                logger.error("Intent submission error", metadata: [
+                    "type": "\(T.self)",
+                    "code": "\(error.code)",
+                    "detailCount": "\(error.errorDetails.count)",
+                    "intentId": "\(intent.id.base58)"
+                ])
 
                 _ = reference.stream?.sendEnd()
                 let intentError = ErrorSubmitIntent(error: error)
@@ -451,12 +460,15 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
                     logger.info("Intent stream closed")
                     // Completion called in the success block
                 } else {
-                    logger.warning("Intent stream closed with non-OK status: \(status)")
+                    logger.warning("Intent stream closed with non-OK status", metadata: [
+                        "code": "\(status.code)",
+                        "message": "\(status.message ?? "nil")"
+                    ])
                     completion(.failure(.grpcStatus(status)))
                 }
 
             case .failure(let error):
-                logger.error("Intent stream closed with gRPC error: \(error)")
+                logger.error("Intent stream closed with gRPC error", metadata: ["error": "\(error)"])
                 completion(.failure(.grpcError(error)))
             }
 
@@ -469,20 +481,25 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
         // Log action-level details to verify we are opening the expected account
         intent.actions.enumerated().forEach { idx, action in
             if let open = action as? ActionOpenAccount {
-                logger.info("Action[\(idx)]: OpenAccount", metadata: [
+                logger.info("Action OpenAccount", metadata: [
+                    "index": "\(idx)",
                     "owner": "\(open.owner.base58)",
                     "authority": "\(open.cluster.authority.keyPair.publicKey.base58)",
                     "vault": "\(open.cluster.vaultPublicKey.base58)",
                     "mint": "\(open.mint.base58)",
-                    "index": "\(open.derivationIndex)"
+                    "derivationIndex": "\(open.derivationIndex)"
                 ])
             } else if let transfer = action as? ActionTransfer {
-                logger.info("Action[\(idx)]: Transfer", metadata: [
+                logger.info("Action Transfer", metadata: [
+                    "index": "\(idx)",
                     "quarks": "\(transfer.amount.quarks)",
                     "destination": "\(transfer.destination.base58)"
                 ])
             } else {
-                logger.info("Action[\(idx)]: \(type(of: action))")
+                logger.info("Action", metadata: [
+                    "index": "\(idx)",
+                    "type": "\(type(of: action))"
+                ])
             }
         }
 
@@ -513,7 +530,10 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
                 logger.info("Intent metadata fetched successfully", metadata: ["intentId": "\(intentID.base58)"])
                 completion(.success(metadata))
             } catch {
-                logger.error("Failed to parse intent metadata: \(response.metadata)")
+                logger.error("Failed to parse intent metadata", metadata: [
+                    "intentId": "\(intentID.base58)",
+                    "error": "\(error)"
+                ])
                 completion(.failure(.failedToParse))
             }
             
@@ -543,9 +563,10 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
             
             let error = ErrorFetchLimits(rawValue: response.result.rawValue) ?? .unknown
             guard error == .ok else {
-                logger.error("Failed to fetch transaction limits: \(error)", metadata: [
+                logger.error("Failed to fetch transaction limits", metadata: [
                     "owner": "\(owner.publicKey.base58)",
-                    "since": "\(date.description(with: .current))"
+                    "since": "\(date.description(with: .current))",
+                    "error": "\(error)"
                 ])
                 completion(.failure(error))
                 return

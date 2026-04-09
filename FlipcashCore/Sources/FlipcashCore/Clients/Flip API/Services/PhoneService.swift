@@ -30,7 +30,7 @@ class PhoneService: CodeService<Flipcash_Phone_V1_PhoneVerificationNIOClient> {
                 logger.info("Phone verification code sent successfully")
                 completion(.success(()))
             } else {
-                logger.error("Failed to send phone verification code: \(error)")
+                logger.error("Failed to send phone verification code", metadata: ["error": "\(error)"])
                 completion(.failure(error))
             }
 
@@ -55,7 +55,7 @@ class PhoneService: CodeService<Flipcash_Phone_V1_PhoneVerificationNIOClient> {
                 logger.info("Phone verification code accepted")
                 completion(.success(()))
             } else {
-                logger.error("Phone verification code check failed: \(error)")
+                logger.error("Phone verification code check failed", metadata: ["error": "\(error)"])
                 completion(.failure(error))
             }
 
@@ -79,7 +79,7 @@ class PhoneService: CodeService<Flipcash_Phone_V1_PhoneVerificationNIOClient> {
                 logger.info("Phone number unlinked successfully")
                 completion(.success(()))
             } else {
-                logger.error("Failed to unlink phone number: \(error)")
+                logger.error("Failed to unlink phone number", metadata: ["error": "\(error)"])
                 completion(.failure(error))
             }
 

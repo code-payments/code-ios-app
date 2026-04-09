@@ -54,6 +54,10 @@ final class CodeServiceErrorDelegate: NSObject, ClientErrorDelegate {
     }
 
     func didCatchError(_ error: Error, logger _: Logger, file: StaticString, line: Int) {
-        logger.error("gRPC client error at \(file):\(line): \(error)")
+        logger.error("gRPC client error", metadata: [
+            "file": "\(file)",
+            "line": "\(line)",
+            "error": "\(error)"
+        ])
     }
 }

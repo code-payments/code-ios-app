@@ -599,19 +599,19 @@ class OnrampViewModel {
                 )
             }
 
-            ErrorReporting.captureError(error)
             logger.error("Coinbase order failed", metadata: [
                 "error_type": "\(error.errorType)",
                 "error_title": "\(error.title)"
             ])
+            ErrorReporting.captureError(error)
             payButtonState = .normal
         }
 
         catch {
-            ErrorReporting.captureError(error)
             logger.error("Coinbase order failed with unexpected error", metadata: [
                 "error": "\(error)"
             ])
+            ErrorReporting.captureError(error)
             payButtonState = .normal
         }
     }

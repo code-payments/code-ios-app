@@ -38,7 +38,7 @@ class ThirdPartyService: CodeService<Flipcash_Thirdparty_V1_ThirdPartyNIOClient>
                 logger.info("Coinbase onramp JWT fetched successfully")
                 completion(.success(response.jwt.value))
             } else {
-                logger.error("Failed to fetch Coinbase onramp JWT: \(error)")
+                logger.error("Failed to fetch Coinbase onramp JWT", metadata: ["error": "\(error)"])
                 completion(.failure(error))
             }
 

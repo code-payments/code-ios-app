@@ -123,7 +123,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
-        logger.error("Push notification registration failed: \(error)")
+        logger.error("Push notification registration failed", metadata: ["error": "\(error)"])
     }
 
 }
