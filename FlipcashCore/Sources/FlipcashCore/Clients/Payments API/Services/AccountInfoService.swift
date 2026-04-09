@@ -14,14 +14,25 @@ import GRPC
 private let logger = Logger(label: "flipcash.account-info-service")
 
 final class AccountInfoService: CodeService<Ocp_Account_V1_AccountNIOClient> {
-    func fetchAccountInfo(type: AccountInfoType, owner: KeyPair, completion: @Sendable @escaping (Result<AccountInfo, ErrorFetchBalance>) -> Void) {
-//        trace(.send, components: "Owner: \(owner.publicKey.base58)")
-        
-        let request = Ocp_Account_V1_GetTokenAccountInfosRequest.with {
-            $0.owner = owner.publicKey.solanaAccountID
-            $0.signature = $0.sign(with: owner)
+    func fetchAccountInfo(type: AccountInfoType, owner: KeyPair, requestingOwner: KeyPair?, completion: @Sendable @escaping (Result<AccountInfo, ErrorFetchBalance>) -> Void) {
+        var request = Ocp_Account_V1_GetTokenAccountInfosRequest()
+        request.owner = owner.publicKey.solanaAccountID
+        if let requestingOwner {
+            request.requestingOwner = requestingOwner.publicKey.solanaAccountID
         }
-        
+
+        // Compute BOTH signatures against the unsigned message, then assign.
+        // Assigning the first signature before computing the second would
+        // change the serialized bytes the second sign() sees, and the server
+        // would reject the request.
+        let ownerSignature: Ocp_Common_V1_Signature = request.sign(with: owner)
+        let requestingSignature: Ocp_Common_V1_Signature? = requestingOwner.map { request.sign(with: $0) }
+
+        request.signature = ownerSignature
+        if let requestingSignature {
+            request.requestingOwnerSignature = requestingSignature
+        }
+
         let call = service.getTokenAccountInfos(request)
         call.handle(on: queue) { response in
             

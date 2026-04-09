@@ -65,22 +65,38 @@ public struct AccountInfo: Equatable, Sendable {
     /// Avoids a separate `fetchMints` call for new currencies.
     public var mintMetadata: MintMetadata?
 
+    /// Whether the current `requestingOwner` is the issuer of this gift card.
+    ///
+    /// Meaningful only when **both** conditions hold:
+    /// 1. The account was looked up with type `.remoteSendGiftCard`.
+    /// 2. `requestingOwner` was supplied on the `GetTokenAccountInfos` request
+    ///    and its signature verified by the server.
+    ///
+    /// For any other account type or for a request without a requesting
+    /// owner, the server returns `false` (proto3 default), which the field's
+    /// default value faithfully represents. Callers that want to gate on
+    /// "this is my gift card" must only check this flag when both conditions
+    /// above are satisfied — otherwise `false` means "server did not run the
+    /// check", not "server ran the check and said no".
+    public let isGiftCardIssuer: Bool
+
     // MARK: - Init -
 
-    init(address: PublicKey, mint: PublicKey, owner: PublicKey?, authority: PublicKey?, balanceSource: BalanceSource, quarks: UInt64, managementState: ManagementState, blockchainState: BlockchainState, claimState: ClaimState, exchangedFiat: ExchangedFiat?, nextPoolIndex: Int?, usdCostBasis: Double, mintMetadata: MintMetadata? = nil) {
-        self.address         = address
-        self.mint            = mint
-        self.owner           = owner
-        self.authority       = authority
-        self.balanceSource   = balanceSource
-        self.quarks          = quarks
-        self.managementState = managementState
-        self.blockchainState = blockchainState
-        self.claimState      = claimState
-        self.exchangedFiat   = exchangedFiat
-        self.nextPoolIndex   = nextPoolIndex
-        self.usdCostBasis    = usdCostBasis
-        self.mintMetadata    = mintMetadata
+    init(address: PublicKey, mint: PublicKey, owner: PublicKey?, authority: PublicKey?, balanceSource: BalanceSource, quarks: UInt64, managementState: ManagementState, blockchainState: BlockchainState, claimState: ClaimState, exchangedFiat: ExchangedFiat?, nextPoolIndex: Int?, usdCostBasis: Double, mintMetadata: MintMetadata? = nil, isGiftCardIssuer: Bool = false) {
+        self.address           = address
+        self.mint              = mint
+        self.owner             = owner
+        self.authority         = authority
+        self.balanceSource     = balanceSource
+        self.quarks            = quarks
+        self.managementState   = managementState
+        self.blockchainState   = blockchainState
+        self.claimState        = claimState
+        self.exchangedFiat     = exchangedFiat
+        self.nextPoolIndex     = nextPoolIndex
+        self.usdCostBasis      = usdCostBasis
+        self.mintMetadata      = mintMetadata
+        self.isGiftCardIssuer  = isGiftCardIssuer
     }
 }
 
@@ -251,7 +267,8 @@ extension AccountInfo {
             exchangedFiat: exchangedFiat,
             nextPoolIndex: nil,
             usdCostBasis: info.usdCostBasis,
-            mintMetadata: mintMetadata
+            mintMetadata: mintMetadata,
+            isGiftCardIssuer: info.isGiftCardIssuer
         )
     }
 }
