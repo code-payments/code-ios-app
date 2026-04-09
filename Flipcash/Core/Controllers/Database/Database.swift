@@ -13,13 +13,16 @@ private let logger = Logger(label: "flipcash.database")
 
 typealias Expression = SQLite.Expression
 
-class Database {
-    
+// SQLite.swift serializes reads/writes through each `Connection`'s own
+// dispatch queue, so concurrent calls into `reader` and `writer` are safe
+// despite Database itself being a reference type. Marking it
+// `@unchecked Sendable` lets background write paths (e.g. RatesController's
+// rate persistence queue) capture it without escaping Swift 6 isolation.
+class Database: @unchecked Sendable {
+
     let reader: Connection
     let writer: Connection
-    
-    var commit: (() -> Void)?
-    
+
     private let storeURL: URL
     
     // MARK: - Init -
@@ -82,7 +85,6 @@ class Database {
                         coalesceMask: .onName,
                         forModes: [.common]
                     )
-                    commit?()
                 } else {
                     print("Transaction detected no changes. Skipping commit...")
                 }

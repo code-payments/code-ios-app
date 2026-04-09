@@ -18,4 +18,17 @@ extension RatesController {
 
         updateRates(rates)
     }
+
+    /// Block until all pending rate writes on the background queue have
+    /// finished. `updateRates` dispatches the SQLite upsert asynchronously
+    /// to avoid blocking the main thread on I/O, so tests that read from
+    /// the database immediately after calling `updateRates` need to drain
+    /// the queue first.
+    func awaitPendingRateWrites() async {
+        await withCheckedContinuation { continuation in
+            rateWriteQueue.async {
+                continuation.resume()
+            }
+        }
+    }
 }

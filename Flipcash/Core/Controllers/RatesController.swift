@@ -67,6 +67,17 @@ class RatesController {
     /// Combine cancellables for rate streaming subscription
     @ObservationIgnored private var cancellables = Set<AnyCancellable>()
 
+    /// Serial queue for persisting rate updates off the main thread.
+    /// The in-memory `cachedRates` mutation has to stay on main (it's
+    /// `@Observable` and drives SwiftUI re-renders), but the SQLite
+    /// write-through is pure I/O and belongs on a background queue.
+    /// `internal` (not `private`) so tests can sync-wait on it via
+    /// `@testable import Flipcash`.
+    @ObservationIgnored let rateWriteQueue = DispatchQueue(
+        label: "flipcash.rates-controller.db-writes",
+        qos: .utility
+    )
+
     // MARK: - Init -
 
     init(container: Container, database: Database) {
@@ -85,6 +96,35 @@ class RatesController {
         entryCurrency   = LocalDefaults.entryCurrency!
         balanceCurrency = LocalDefaults.balanceCurrency!
         selectedTokenMint = loadSelectedToken()
+
+        // Rehydrate last-known display rates from the database so screens
+        // that read rateFor{Balance,Entry}Currency render in the user's
+        // selected currency on cold launch instead of flashing USD while
+        // waiting for the live mint stream to deliver its first batch.
+        // The stream overwrites these within seconds. Display rates are
+        // unsigned and have no validity window — intent submission still
+        // goes through the verified-proof path (VerifiedProtoService),
+        // which is intentionally untouched because those proofs carry
+        // validity windows that would need a server-team conversation
+        // before being persisted the same way.
+        //
+        // Runs synchronously on the main actor at init so the first
+        // SwiftUI render already has warm data. The duration is logged
+        // below as a regression guardrail — on a real device this is
+        // expected to be a low single-digit millisecond cost for ~200
+        // currencies. If it ever grows past ~20ms the read path should
+        // be reshaped (bulk decode, column-typed storage, etc.) rather
+        // than moved async, because async rehydration would bring the
+        // USD flash back.
+        let rehydrateStart = CFAbsoluteTimeGetCurrent()
+        for rate in (try? database.getRates()) ?? [] {
+            cachedRates[rate.currency] = rate
+        }
+        let rehydrateMs = (CFAbsoluteTimeGetCurrent() - rehydrateStart) * 1000
+        logger.info("Rehydrated cached rates", metadata: [
+            "count": "\(cachedRates.count)",
+            "durationMs": "\(String(format: "%.2f", rehydrateMs))",
+        ])
 
         // Create the streamer using the client factory method
         liveMintDataStreamer = client.createLiveMintDataStreamer(
@@ -230,10 +270,27 @@ class RatesController {
         return exchangedFiat
     }
 
-    /// Called when streaming receives new rates. Updates the cache.
+    /// Called when streaming delivers new rates. `VerifiedProtoService`
+    /// has already deduped the batch against the last-known values, so
+    /// everything in `rates` is a real delta that needs to be mirrored
+    /// to the database. The in-memory mutation stays on main (drives
+    /// SwiftUI via `@Observable`); the SQLite write runs on a
+    /// background queue so it can't stall rendering.
     func updateRates(_ rates: [Rate]) {
         for rate in rates {
             cachedRates[rate.currency] = rate
+        }
+
+        // Capturing `database` across the queue boundary relies on
+        // `Database: @unchecked Sendable`. If that conformance is ever
+        // removed, this closure will fail to compile and the write path
+        // needs to be reshaped (likely moving Database behind an actor).
+        rateWriteQueue.async { [database] in
+            do {
+                try database.upsertRates(rates)
+            } catch {
+                logger.warning("Failed to persist rates", metadata: ["error": "\(error)"])
+            }
         }
     }
     

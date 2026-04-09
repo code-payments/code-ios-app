@@ -400,10 +400,118 @@ struct RatesControllerTests {
         #expect(controller.streamedMints.count == 2)
     }
 
+    // MARK: - Rate persistence -
+
+    @Test("Rehydrates persisted rates on init")
+    @MainActor
+    func rehydrate_persistedRates_populatesCache() throws {
+        let (database, url) = try makeTempDatabase()
+        defer { removeTempDatabase(at: url) }
+
+        let cad = Rate(fx: Decimal(string: "1.4")!, currency: .cad)
+        let eur = Rate(fx: Decimal(string: "0.92")!, currency: .eur)
+        try database.upsertRates([cad, eur])
+
+        let controller = makeController(database: database)
+
+        #expect(controller.rate(for: .cad) == cad)
+        #expect(controller.rate(for: .eur) == eur)
+    }
+
+    @Test("Fresh database has no persisted rates on init")
+    @MainActor
+    func rehydrate_freshDatabase_noRates() throws {
+        let (database, url) = try makeTempDatabase()
+        defer { removeTempDatabase(at: url) }
+
+        let controller = makeController(database: database)
+
+        #expect(controller.rate(for: .cad) == nil)
+        #expect(controller.rate(for: .eur) == nil)
+    }
+
+    @Test("updateRates writes incoming batch through to database")
+    @MainActor
+    func updateRates_writesBatchThrough() async throws {
+        let (database, url) = try makeTempDatabase()
+        defer { removeTempDatabase(at: url) }
+
+        let controller = makeController(database: database)
+
+        let cad = Rate(fx: Decimal(string: "1.4")!, currency: .cad)
+        let eur = Rate(fx: Decimal(string: "0.92")!, currency: .eur)
+
+        controller.updateRates([cad])
+        controller.updateRates([eur])
+
+        await controller.awaitPendingRateWrites()
+
+        let persisted = try database.getRates()
+        #expect(persisted.count == 2)
+        #expect(persisted.contains(cad))
+        #expect(persisted.contains(eur))
+    }
+
+    @Test("Stream rates overwrite rehydrated stale values in both memory and database")
+    @MainActor
+    func staleRehydration_doesNotBlockStreamUpdate() async throws {
+        let (database, url) = try makeTempDatabase()
+        defer { removeTempDatabase(at: url) }
+
+        let stale = Rate(fx: Decimal(string: "1.3")!, currency: .cad)
+        try database.upsertRates([stale])
+
+        let controller = makeController(database: database)
+        let staleCAD = try #require(controller.rate(for: .cad))
+        #expect(staleCAD.fx == Decimal(string: "1.3"))
+
+        let fresh = Rate(fx: Decimal(string: "1.4")!, currency: .cad)
+        controller.updateRates([fresh])
+
+        let freshCAD = try #require(controller.rate(for: .cad))
+        #expect(freshCAD.fx == Decimal(string: "1.4"))
+
+        await controller.awaitPendingRateWrites()
+
+        let persisted = try database.getRates()
+        let persistedCAD = try #require(persisted.first(where: { $0.currency == .cad }))
+        #expect(persistedCAD.fx == Decimal(string: "1.4"))
+    }
+
     // MARK: - Helpers -
 
+    /// NOTE: RatesController.init reads `balanceCurrency` / `entryCurrency`
+    /// from `UserDefaults.standard` (via `LocalDefaults`). Tests that
+    /// mutate those values are NOT parallel-safe with each other or with
+    /// any other test on the standard defaults suite. Current tests only
+    /// read the defaults, so parallel execution is fine — but adding any
+    /// test that does `controller.balanceCurrency = .xxx` would require
+    /// `.serialized` on the suite or a proper UserDefaults isolation seam.
     @MainActor
     private func makeController(database: Database = .mock) -> RatesController {
         RatesController(container: .mock, database: database)
+    }
+
+    /// Creates an on-disk temp SQLite database. Callers are responsible
+    /// for calling ``removeTempDatabase(at:)`` in a `defer` to clean up
+    /// the `.sqlite` / `-wal` / `-shm` files.
+    private func makeTempDatabase() throws -> (database: Database, url: URL) {
+        let url = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("test-\(UUID().uuidString).sqlite")
+        let database = try Database(url: url)
+        return (database, url)
+    }
+
+    /// Removes the temp database file and its SQLite WAL/SHM sidecars.
+    private func removeTempDatabase(at url: URL) {
+        let manager = FileManager.default
+        let paths: [URL] = [
+            url,
+            URL(fileURLWithPath: url.path + "-wal"),
+            URL(fileURLWithPath: url.path + "-shm"),
+        ]
+        for path in paths where manager.fileExists(atPath: path.path) {
+            try? manager.removeItem(at: path)
+        }
     }
 }
