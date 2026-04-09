@@ -1188,7 +1188,7 @@ class Session {
     ///    proofs to arrive from the stream. Required for launchpad currencies.
     /// 8. **Show bill** — Display the received bill with a `SendCashOperation`
     ///    so others can scan it from Device B's screen.
-    func receiveCashLink(mnemonic: MnemonicPhrase) {
+    func receiveCashLink(mnemonic: MnemonicPhrase, claimIfOwned: Bool = false) {
         let giftCardKeyPair = DerivedKey.derive(using: .solana, mnemonic: mnemonic).keyPair
         Task {
             do {
@@ -1196,17 +1196,29 @@ class Session {
                     type: .giftCard,
                     owner: giftCardKeyPair
                 )
-                
+
                 guard let exchangedFiat = giftCardAccountInfo.exchangedFiat else {
                     logger.error("Gift card account info is missing ExchangeFiat.")
                     return
                 }
-                
+
                 guard giftCardAccountInfo.claimState != .claimed && giftCardAccountInfo.claimState != .expired else {
                     showCashLinkNotAvailable()
                     return
                 }
-                
+
+                if giftCardAccountInfo.isGiftCardIssuer && !claimIfOwned {
+                    logger.info("Cash link self-claim detected", metadata: [
+                        "giftCardAuthority": "\(giftCardKeyPair.publicKey.base58)",
+                        "currency": "\(exchangedFiat.rate.currency.rawValue)",
+                    ])
+                    showCollectOwnCashConfirmation(
+                        mnemonic: mnemonic,
+                        giftCardAuthority: giftCardKeyPair.publicKey
+                    )
+                    return
+                }
+
                 // Resolve the mint metadata. We'll need it to create
                 // the account cluster. Authority, address and duration
                 // can all be different across VMs.
@@ -1433,6 +1445,32 @@ class Session {
         }
     }
 
+    private func showCollectOwnCashConfirmation(
+        mnemonic: MnemonicPhrase,
+        giftCardAuthority: PublicKey
+    ) {
+        dialogItem = .init(
+            style: .destructive,
+            title: "Collect Your Own Cash?",
+            subtitle: "You tapped to collect the cash you sent. Are you sure you want to collect it yourself?",
+            dismissable: false,
+        ) {
+            .standard("Collect") { [weak self] in
+                guard let self else { return }
+                logger.info("Cash link self-claim confirmed", metadata: [
+                    "giftCardAuthority": "\(giftCardAuthority.base58)",
+                ])
+                self.receiveCashLink(mnemonic: mnemonic, claimIfOwned: true)
+            };
+
+            .subtle("Don't Collect") {
+                logger.info("Cash link self-claim cancelled", metadata: [
+                    "giftCardAuthority": "\(giftCardAuthority.base58)",
+                ])
+            }
+        }
+    }
+
     // MARK: - Helpers -
 
     private func fetchAccountInfoWithRetry(type: AccountInfoType, owner: KeyPair) async throws -> AccountInfo {
@@ -1440,7 +1478,7 @@ class Session {
 
         for i in 0..<maxAttempts {
             do {
-                return try await client.fetchAccountInfo(type: type, owner: owner)
+                return try await client.fetchAccountInfo(type: type, owner: owner, requestingOwner: ownerKeyPair)
             } catch let error as ErrorFetchBalance {
                 switch error {
                 case .notFound, .unknown:

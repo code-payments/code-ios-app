@@ -10,9 +10,9 @@ import Foundation
 
 extension Client {
     
-    public func fetchAccountInfo(type: AccountInfoType, owner: KeyPair) async throws -> AccountInfo {
+    public func fetchAccountInfo(type: AccountInfoType, owner: KeyPair, requestingOwner: KeyPair? = nil) async throws -> AccountInfo {
         try await withCheckedThrowingContinuation { c in
-            accountService.fetchAccountInfo(type: type, owner: owner) { c.resume(with: $0) }
+            accountService.fetchAccountInfo(type: type, owner: owner, requestingOwner: requestingOwner) { c.resume(with: $0) }
         }
     }
     
