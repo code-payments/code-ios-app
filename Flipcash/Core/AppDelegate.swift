@@ -16,6 +16,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     let container: Container
 
+    private var inFlightDeepLinks: Set<URL> = []
+
     private var sessionContainer: SessionContainer? {
         if case .loggedIn(let container) = container.sessionAuthenticator.state {
             return container
@@ -94,16 +96,27 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     // MARK: - Deep Links -
 
+    @MainActor
     func handleOpenURL(url: URL) {
+        // Drop duplicate in-flight deliveries: a concurrent second claim is
+        // rejected server-side as stale state and surfaces as a false error
+        // after the first claim has already succeeded.
+        guard inFlightDeepLinks.insert(url).inserted else {
+            logger.info("Ignoring duplicate deep link", metadata: ["url": "\(url.sanitizedForAnalytics)"])
+            return
+        }
+
         Analytics.deeplinkOpened(url: url)
         let action = container.deepLinkController.handle(open: url)
         Analytics.deeplinkParsed(action: action, url: url)
 
         Task {
+            defer { self.inFlightDeepLinks.remove(url) }
             try await action?.executeAction()
         }
     }
 
+    @MainActor
     @objc private func handleDeepLinkNotification(_ notification: Notification) {
         guard let url = notification.userInfo?["url"] as? URL else {
             return
