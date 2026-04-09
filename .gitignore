@@ -46,3 +46,6 @@ Package.resolved
 !*.xcodeproj/**/Package.resolved
 .mcp.json
 /.build-benchmark
+
+# Claude
+.claude/worktrees
