@@ -1203,6 +1203,10 @@ class Session {
                 }
 
                 guard giftCardAccountInfo.claimState != .claimed && giftCardAccountInfo.claimState != .expired else {
+                    logger.info("Cash link not available", metadata: [
+                        "claimState": "\(giftCardAccountInfo.claimState)",
+                        "giftCardAuthority": "\(giftCardKeyPair.publicKey.base58)",
+                    ])
                     showCashLinkNotAvailable()
                     return
                 }
