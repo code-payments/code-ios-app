@@ -142,12 +142,14 @@ struct CurrencyLabel: View {
 
             if let amount {
                 Spacer()
-                
+
                 Text(amount.formatted())
                     .font(.appTextMedium)
                     .foregroundStyle(Color.textMain)
+                    .contentTransition(.numericText())
+                    .animation(.default, value: amount)
             }
-            
+
             if let isSelected {
                 CheckView(active: isSelected)
                     .padding(.leading, 12)
