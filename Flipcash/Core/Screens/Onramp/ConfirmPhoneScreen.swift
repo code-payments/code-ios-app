@@ -45,12 +45,12 @@ struct ConfirmPhoneScreen: View {
                 let text = "An SMS message was sent to your phone number with a verification code. Please enter the verification code above."
                 
                 Group {
-                    if let countdownEnd {
+                    if let countdownEnd, countdownEnd > .now {
                         VStack(spacing: 15) {
                             Text(text)
                             VStack(spacing: 0) {
                                 Text("Didn't get an SMS at \(viewModel.phone?.national ?? "")?")
-                                (Text("Request a new one in ") + Text(timerInterval: .now...countdownEnd, countsDown: true))
+                                (Text("Request a new one in ") + Text(timerInterval: min(Date.now, countdownEnd)...countdownEnd, countsDown: true))
                                     .contentTransition(.numericText())
                             }
                         }
