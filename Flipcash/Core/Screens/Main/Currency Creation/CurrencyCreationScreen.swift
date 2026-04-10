@@ -51,6 +51,7 @@ struct CurrencyCreationScreen: View {
                     .navigationDestination(isPresented: $showConfirmation) {
                         CurrencyConfirmationScreen(
                             currencyName: currencyName,
+                            selectedImage: selectedImage,
                             backgroundColors: $backgroundColors
                         )
                     }

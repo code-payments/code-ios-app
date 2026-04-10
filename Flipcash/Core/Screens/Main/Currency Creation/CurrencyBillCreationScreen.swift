@@ -19,27 +19,20 @@ struct CurrencyBillCreationScreen: View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
                 GeometryReader { geometry in
-                    BillView(
-                        fiat: Self.previewFiat,
-                        data: .placeholder35,
-                        canvasSize: CGSize(
-                            width: geometry.size.width,
-                            height: geometry.size.height
-                        ),
-                        backgroundColors: backgroundColors
-                    )
-                    .frame(maxWidth: .infinity)
+                    if geometry.size.width > 0, geometry.size.height > 0 {
+                        BillView(
+                            fiat: Self.previewFiat,
+                            data: .placeholder35,
+                            canvasSize: geometry.size,
+                            backgroundColors: backgroundColors
+                        )
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
                 }
                 .padding(.top, 20)
 
                 ColorEditorControl(colors: $backgroundColors)
-                    .frame(maxHeight: .infinity)
-                    .padding(.bottom, 20)
                     .fixedSize(horizontal: false, vertical: true)
-
-                Button("Continue", action: onContinue)
-                    .buttonStyle(.filled)
-                    .padding(.horizontal, 20)
                     .padding(.bottom, 20)
             }
         }
@@ -47,6 +40,10 @@ struct CurrencyBillCreationScreen: View {
         .toolbar {
             ToolbarItem(placement: .principal) {
                 CreationProgressBar(current: 4, total: CreationProgressBar.totalSteps)
+            }
+
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Done", action: onContinue)
             }
         }
     }
