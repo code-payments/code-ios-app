@@ -45,7 +45,7 @@ struct CurrencyDiscoveryScreen: View {
                     ToolbarCloseButton(action: dismiss.callAsFunction)
                 }
             }
-            .sheet(isPresented: $isShowingCurrencyCreation) {
+            .navigationDestination(isPresented: $isShowingCurrencyCreation) {
                 CurrencyCreationScreen()
             }
             .navigationDestination(item: $selectedMint) { mintAddress in

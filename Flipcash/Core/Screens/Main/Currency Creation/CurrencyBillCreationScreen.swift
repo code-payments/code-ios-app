@@ -10,13 +10,17 @@ import FlipcashUI
 struct CurrencyBillCreationScreen: View {
     let currencyName: String
     @Binding var backgroundColors: [Color]
+    let onContinue: () -> Void
+
+    // swiftlint:disable:next force_try
+    private static let previewFiat = try! Quarks(fiatDecimal: 20, currencyCode: .usd, decimals: 6)
 
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
                 GeometryReader { geometry in
                     BillView(
-                        fiat: try! Quarks(fiatDecimal: 20, currencyCode: .usd, decimals: 6),
+                        fiat: Self.previewFiat,
                         data: .placeholder35,
                         canvasSize: CGSize(
                             width: geometry.size.width,
@@ -33,15 +37,17 @@ struct CurrencyBillCreationScreen: View {
                     .padding(.bottom, 20)
                     .fixedSize(horizontal: false, vertical: true)
 
-                NavigationLink(value: CurrencyCreationPath.confirmation) {
-                    Text("Continue")
-                }
-                .buttonStyle(.filled)
-                .padding(.horizontal, 20)
-                .padding(.bottom, 20)
+                Button("Continue", action: onContinue)
+                    .buttonStyle(.filled)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 20)
             }
         }
-        .navigationTitle(currencyName)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                CreationProgressBar(current: 4, total: CreationProgressBar.totalSteps)
+            }
+        }
     }
 }

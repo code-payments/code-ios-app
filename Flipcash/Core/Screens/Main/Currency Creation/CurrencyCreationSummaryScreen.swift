@@ -7,8 +7,7 @@ import SwiftUI
 import FlipcashUI
 
 struct CurrencyCreationSummaryScreen: View {
-
-    @Environment(\.dismiss) private var dismiss
+    let onGetStarted: () -> Void
 
     var body: some View {
         Background(color: .backgroundMain) {
@@ -29,20 +28,13 @@ struct CurrencyCreationSummaryScreen: View {
 
                 Spacer()
 
-                NavigationLink(value: CurrencyCreationPath.steps) {
-                    Text("Get Started")
-                }
-                .buttonStyle(.filled)
-                .padding(.bottom, 20)
+                Button("Get Started", action: onGetStarted)
+                    .buttonStyle(.filled)
+                    .padding(.bottom, 20)
             }
             .padding(.horizontal, 20)
         }
-        .navigationBarBackButtonHidden(true)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                ToolbarCloseButton(action: dismiss.callAsFunction)
-            }
-        }
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
@@ -71,14 +63,10 @@ private struct StepRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 30) {
             VStack(spacing: 0) {
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                RoundedRectangle(cornerRadius: 6)
                     .fill(.white.opacity(0.16))
+                    .stroke(.white.opacity(0.1), lineWidth: 1)
                     .frame(width: 48, height: 48)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                        .inset(by: 0.5)
-                        .stroke(.white.opacity(0.1), lineWidth: 1)
-                    )
                     .overlay {
                         Image(icon)
                             .renderingMode(.template)

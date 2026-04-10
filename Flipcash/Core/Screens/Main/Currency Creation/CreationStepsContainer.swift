@@ -19,9 +19,18 @@ struct CreationStepsContainer: View {
     let onComplete: () -> Void
 
     @State private var currentStep: CreationStep = .name
+    @State private var isMovingForward = true
     @Namespace private var animation
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var stepTransition: AnyTransition {
+        if reduceMotion { return .opacity }
+        return isMovingForward
+            ? .asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading))
+            : .asymmetric(insertion: .move(edge: .leading), removal: .move(edge: .trailing))
+    }
 
     var body: some View {
         ZStack {
@@ -29,10 +38,9 @@ struct CreationStepsContainer: View {
             case .name:
                 CurrencyNameScreen(
                     currencyName: $currencyName,
-                    namespace: animation,
                     onContinue: { goForward() }
                 )
-                .transition(.move(edge: .leading))
+                .transition(stepTransition)
 
             case .icon:
                 CurrencyIconScreen(
@@ -41,7 +49,7 @@ struct CreationStepsContainer: View {
                     namespace: animation,
                     onContinue: { goForward() }
                 )
-                .transition(.move(edge: .trailing))
+                .transition(stepTransition)
 
             case .description:
                 CurrencyDescriptionScreen(
@@ -51,29 +59,31 @@ struct CreationStepsContainer: View {
                     namespace: animation,
                     onContinue: { onComplete() }
                 )
-                .transition(.move(edge: .trailing))
+                .transition(stepTransition)
             }
         }
-        .animation(.easeInOut(duration: 0.3), value: currentStep)
         .navigationBarBackButtonHidden(true)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Button(action: goBack) {
-                    Image(systemName: "chevron.left")
-                }
+                Button("Back", systemImage: "chevron.left", action: goBack)
+                    .labelStyle(.iconOnly)
             }
 
             ToolbarItem(placement: .principal) {
-                ProgressView(
-                    value: Double(currentStep.rawValue + 1),
-                    total: Double(CreationStep.allCases.count)
+                CreationProgressBar(
+                    current: currentStep.rawValue + 1,
+                    total: CreationProgressBar.totalSteps
                 )
-                .progressViewStyle(.linear)
-                .tint(Color.textMain)
-                .frame(width: 140)
             }
         }
+    }
+
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder),
+            to: nil, from: nil, for: nil
+        )
     }
 
     private func goForward() {
@@ -83,6 +93,8 @@ struct CreationStepsContainer: View {
             onComplete()
             return
         }
+        dismissKeyboard()
+        isMovingForward = true
         withAnimation(.easeInOut(duration: 0.3)) {
             currentStep = allSteps[index + 1]
         }
@@ -94,6 +106,8 @@ struct CreationStepsContainer: View {
             dismiss()
             return
         }
+        dismissKeyboard()
+        isMovingForward = false
         withAnimation(.easeInOut(duration: 0.3)) {
             currentStep = allSteps[index - 1]
         }

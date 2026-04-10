@@ -15,9 +15,11 @@ struct CurrencyDescriptionScreen: View {
 
     @FocusState private var isFocused: Bool
 
+    private let characterLimit = 500
+
     var body: some View {
         Background(color: .backgroundMain) {
-            VStack(spacing: 20) {
+            VStack(alignment: .leading, spacing: 0) {
                 CurrencyHeader(
                     currencyName: currencyName,
                     selectedImage: selectedImage,
@@ -25,35 +27,34 @@ struct CurrencyDescriptionScreen: View {
                 )
                 .padding(.top, 20)
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Describe Your Currency")
-                        .font(.appTextLarge)
-                        .foregroundStyle(Color.textMain)
+                Text("Provide a description for\nyour currency")
+                    .font(.appTextLarge)
+                    .foregroundStyle(Color.textMain)
+                    .padding(.top, 20)
 
-                    Text("Tell people what your currency is about")
-                        .font(.appTextSmall)
-                        .foregroundStyle(Color.textSecondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                InputContainer(size: .custom(120)) {
-                    TextEditor(text: $currencyDescription)
-                        .font(.appTextBody)
-                        .foregroundStyle(Color.textMain)
-                        .scrollContentBackground(.hidden)
-                        .focused($isFocused)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                }
+                TextField("Description", text: $currencyDescription, axis: .vertical)
+                    .font(.appTextMedium)
+                    .foregroundStyle(Color.textMain)
+                    .focused($isFocused)
+                    .lineLimit(5...10)
+                    .padding(.top, 16)
+                    .onChange(of: currencyDescription) { _, newValue in
+                        if newValue.count > characterLimit {
+                            currencyDescription = String(newValue.prefix(characterLimit))
+                        }
+                    }
 
                 Spacer()
 
-                Button("Next") {
-                    onContinue()
-                }
-                .buttonStyle(.filled)
-                .disabled(currencyDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                .padding(.bottom, 20)
+                Text("\(characterLimit - currencyDescription.count) characters")
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textSecondary)
+                    .padding(.bottom, 12)
+
+                Button("Next", action: onContinue)
+                    .buttonStyle(.filled)
+                    .disabled(currencyDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .padding(.bottom, 20)
             }
             .padding(.horizontal, 20)
         }
@@ -70,22 +71,24 @@ private struct CurrencyHeader: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Circle()
-                .fill(Color(white: 0.15))
-                .frame(width: 44, height: 44)
-                .overlay {
-                    if let image = selectedImage {
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFill()
-                            .clipShape(Circle())
-                    } else {
-                        Image(systemName: "photo")
-                            .font(.system(size: 18))
-                            .foregroundStyle(Color.textMain)
-                    }
+            ZStack {
+                Circle()
+                    .fill(Color(white: 0.15))
+
+                if let image = selectedImage {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    Image(systemName: "photo")
+                        .font(.system(size: 18))
+                        .foregroundStyle(Color.textMain)
                 }
-                .matchedGeometryEffect(id: "currencyIcon", in: namespace)
+            }
+            .frame(width: 44, height: 44)
+            .compositingGroup()
+            .clipShape(Circle())
+            .matchedGeometryEffect(id: "currencyIcon", in: namespace)
 
             Text(currencyName)
                 .font(.appTextLarge)

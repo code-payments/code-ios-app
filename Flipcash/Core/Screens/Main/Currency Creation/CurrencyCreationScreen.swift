@@ -7,45 +7,54 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-enum CurrencyCreationPath: Hashable {
-    case steps
-    case billCreation
-    case confirmation
+// MARK: - CreationProgressBar
+
+struct CreationProgressBar: View {
+    let current: Int
+    let total: Int
+
+    /// Name, Icon, Description, Bill Creation, Confirmation
+    static let totalSteps = 5
+
+    var body: some View {
+        ProgressView(value: Double(current), total: Double(total))
+            .progressViewStyle(.linear)
+            .tint(Color.textMain)
+            .frame(width: 140)
+    }
 }
 
 struct CurrencyCreationScreen: View {
-    @State private var path: [CurrencyCreationPath] = []
     @State private var currencyName: String = ""
     @State private var selectedImage: UIImage?
     @State private var currencyDescription: String = ""
     @State private var backgroundColors: [Color] = [Color(white: 0.1)]
-
-    @Environment(\.dismiss) private var dismiss
+    @State private var showSteps = false
+    @State private var showBillCreation = false
+    @State private var showConfirmation = false
 
     var body: some View {
-        NavigationStack(path: $path) {
-            CurrencyCreationSummaryScreen()
-                .navigationDestination(for: CurrencyCreationPath.self) { step in
-                    switch step {
-                    case .steps:
-                        CreationStepsContainer(
-                            currencyName: $currencyName,
-                            selectedImage: $selectedImage,
-                            currencyDescription: $currencyDescription,
-                            onComplete: { path.append(.billCreation) }
-                        )
-                    case .billCreation:
-                        CurrencyBillCreationScreen(
+        CurrencyCreationSummaryScreen(onGetStarted: { showSteps = true })
+            .navigationDestination(isPresented: $showSteps) {
+                CreationStepsContainer(
+                    currencyName: $currencyName,
+                    selectedImage: $selectedImage,
+                    currencyDescription: $currencyDescription,
+                    onComplete: { showBillCreation = true }
+                )
+                .navigationDestination(isPresented: $showBillCreation) {
+                    CurrencyBillCreationScreen(
+                        currencyName: currencyName,
+                        backgroundColors: $backgroundColors,
+                        onContinue: { showConfirmation = true }
+                    )
+                    .navigationDestination(isPresented: $showConfirmation) {
+                        CurrencyConfirmationScreen(
                             currencyName: currencyName,
                             backgroundColors: $backgroundColors
                         )
-                    case .confirmation:
-                        CurrencyConfirmationScreen(
-                            currencyName: currencyName,
-                            backgroundColors: backgroundColors
-                        )
                     }
                 }
-        }
+            }
     }
 }
