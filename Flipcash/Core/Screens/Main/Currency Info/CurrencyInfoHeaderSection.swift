@@ -28,9 +28,11 @@ struct CurrencyInfoHeaderSection: View {
                 )
                 .font(.appDisplayLarge)
                 .foregroundStyle(Color.textMain)
+                .contentTransition(.numericText())
             }
             .frame(height: 60)
             .frame(maxWidth: .infinity)
+            .animation(.default, value: balance)
 
             if !isUSDF && balance.quarks > 0 {
                 ValueAppreciation(amount: appreciation.amount, isPositive: appreciation.isPositive)
