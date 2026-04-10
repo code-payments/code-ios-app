@@ -20,43 +20,48 @@ struct CurrencyDescriptionScreen: View {
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(alignment: .leading, spacing: 0) {
-                CurrencyHeader(
-                    currencyName: currencyName,
-                    selectedImage: selectedImage,
-                    namespace: namespace
-                )
-                .padding(.top, 20)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        CurrencyHeader(
+                            currencyName: currencyName,
+                            selectedImage: selectedImage,
+                            namespace: namespace
+                        )
+                        .padding(.top, 20)
 
-                Text("Provide a description for\nyour currency")
-                    .font(.appTextLarge)
-                    .foregroundStyle(Color.textMain)
-                    .padding(.top, 20)
+                        Text("Provide a description for\nyour currency")
+                            .font(.appTextLarge)
+                            .foregroundStyle(Color.textMain)
+                            .padding(.top, 20)
 
-                TextField("Description", text: $currencyDescription, axis: .vertical)
-                    .font(.appTextMedium)
-                    .foregroundStyle(Color.textMain)
-                    .focused($isFocused)
-                    .lineLimit(5...10)
-                    .padding(.top, 16)
-                    .onChange(of: currencyDescription) { _, newValue in
-                        if newValue.count > characterLimit {
-                            currencyDescription = String(newValue.prefix(characterLimit))
-                        }
+                        TextField("Description", text: $currencyDescription, axis: .vertical)
+                            .font(.appTextMedium)
+                            .foregroundStyle(Color.textMain)
+                            .focused($isFocused)
+                            .padding(.top, 16)
+                            .onChange(of: currencyDescription) { _, newValue in
+                                if newValue.count > characterLimit {
+                                    currencyDescription = String(newValue.prefix(characterLimit))
+                                }
+                            }
                     }
-
-                Spacer()
+                    .padding(.horizontal, 20)
+                }
+                .scrollDismissesKeyboard(.interactively)
+                .scrollIndicators(.hidden)
 
                 Text("\(characterLimit - currencyDescription.count) characters")
                     .font(.appTextSmall)
                     .foregroundStyle(Color.textSecondary)
+                    .padding(.horizontal, 20)
                     .padding(.bottom, 12)
 
                 Button("Next", action: onContinue)
                     .buttonStyle(.filled)
                     .disabled(currencyDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .padding(.horizontal, 20)
                     .padding(.bottom, 20)
             }
-            .padding(.horizontal, 20)
         }
         .onAppear { isFocused = true }
     }
