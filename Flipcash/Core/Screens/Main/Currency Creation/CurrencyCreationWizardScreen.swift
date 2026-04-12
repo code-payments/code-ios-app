@@ -466,18 +466,21 @@ private struct WizardHeroNameField: View {
                 .foregroundStyle(Color.textMain)
                 .lineLimit(1)
 
+            // Editable TextField — only on name step. Uses .identity transition
+            // so SwiftUI removes it instantly (no fade), revealing the hero Text
+            // already underneath at the same position/font.
             if step == .name {
                 TextField("Currency Name", text: $state.currencyName)
-                    .font(nameFont)
+                    .font(.appDisplayMedium)
                     .foregroundStyle(Color.textMain)
                     .multilineTextAlignment(.leading)
                     .focused($focusedField, equals: .name)
+                    .transition(.identity)
                     .onChange(of: state.currencyName) { _, newValue in
                         if newValue.count > nameCharLimit {
                             state.currencyName = String(newValue.prefix(nameCharLimit))
                         }
                     }
-                    .transition(.opacity)
             }
         }
     }
@@ -513,6 +516,8 @@ private struct WizardBottomBar: View {
             )
             .font(.appTextSmall)
             .foregroundStyle(Color.textSecondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 20)
             .padding(.bottom, 12)
 
             WizardPrimaryButton(
