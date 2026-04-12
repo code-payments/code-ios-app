@@ -13,9 +13,6 @@ struct CreationProgressBar: View {
     let current: Int
     let total: Int
 
-    /// Name, Icon, Description, Bill Creation, Confirmation
-    static let totalSteps = 5
-
     var body: some View {
         ProgressView(value: Double(current), total: Double(total))
             .progressViewStyle(.linear)
@@ -24,38 +21,47 @@ struct CreationProgressBar: View {
     }
 }
 
-struct CurrencyCreationScreen: View {
-    @State private var currencyName: String = ""
-    @State private var selectedImage: UIImage?
-    @State private var currencyDescription: String = ""
-    @State private var backgroundColors: [Color] = [Color(white: 0.1)]
-    @State private var showSteps = false
-    @State private var showBillCreation = false
-    @State private var showConfirmation = false
+// MARK: - CurrencyCreationStep
 
-    var body: some View {
-        CurrencyCreationSummaryScreen(onGetStarted: { showSteps = true })
-            .navigationDestination(isPresented: $showSteps) {
-                CreationStepsContainer(
-                    currencyName: $currencyName,
-                    selectedImage: $selectedImage,
-                    currencyDescription: $currencyDescription,
-                    onComplete: { showBillCreation = true }
-                )
-                .navigationDestination(isPresented: $showBillCreation) {
-                    CurrencyBillCreationScreen(
-                        currencyName: currencyName,
-                        backgroundColors: $backgroundColors,
-                        onContinue: { showConfirmation = true }
-                    )
-                    .navigationDestination(isPresented: $showConfirmation) {
-                        CurrencyConfirmationScreen(
-                            currencyName: currencyName,
-                            selectedImage: selectedImage,
-                            backgroundColors: $backgroundColors
-                        )
-                    }
+enum CurrencyCreationStep: Hashable {
+    case summary
+    case wizard
+}
+
+// MARK: - CurrencyCreationState
+
+@Observable
+final class CurrencyCreationState {
+    var currencyName: String = ""
+    var selectedImage: UIImage?
+    var currencyDescription: String = ""
+    var backgroundColors: [Color] = [Color(white: 0.1)]
+}
+
+// MARK: - CurrencyCreationFlow
+
+/// Registers currency creation step destinations on the surrounding
+/// `NavigationStack`. Must be attached inside a `NavigationStack` so the
+/// destinations are visible to `NavigationLink(value:)` calls from any
+/// pushed step.
+struct CurrencyCreationFlow: ViewModifier {
+    @Bindable var state: CurrencyCreationState
+
+    func body(content: Content) -> some View {
+        content
+            .navigationDestination(for: CurrencyCreationStep.self) { step in
+                switch step {
+                case .summary:
+                    CurrencyCreationSummaryScreen()
+                case .wizard:
+                    CurrencyCreationWizardScreen(state: state)
                 }
             }
+    }
+}
+
+extension View {
+    func withCurrencyCreationFlow(state: CurrencyCreationState) -> some View {
+        modifier(CurrencyCreationFlow(state: state))
     }
 }

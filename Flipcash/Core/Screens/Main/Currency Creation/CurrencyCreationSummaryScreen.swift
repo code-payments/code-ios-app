@@ -7,8 +7,6 @@ import SwiftUI
 import FlipcashUI
 
 struct CurrencyCreationSummaryScreen: View {
-    let onGetStarted: () -> Void
-
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(alignment: .center, spacing: 0) {
@@ -28,7 +26,7 @@ struct CurrencyCreationSummaryScreen: View {
 
                 Spacer()
 
-                Button("Get Started", action: onGetStarted)
+                NavigationLink("Get Started", value: CurrencyCreationStep.wizard)
                     .buttonStyle(.filled)
                     .padding(.bottom, 20)
             }

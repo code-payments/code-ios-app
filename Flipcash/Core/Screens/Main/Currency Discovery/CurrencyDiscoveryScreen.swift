@@ -17,7 +17,7 @@ struct CurrencyDiscoveryScreen: View {
     @State private var mintsByCategory: [DiscoverCategory: [MintMetadata]] = [:]
     @State private var selectedCategory: DiscoverCategory = .popular
     @State private var selectedMint: PublicKey?
-    @State private var isShowingCurrencyCreation = false
+    @State private var creationState = CurrencyCreationState()
 
     var body: some View {
         NavigationStack {
@@ -31,10 +31,8 @@ struct CurrencyDiscoveryScreen: View {
 
                 if mintsByCategory[selectedCategory] != nil, betaFlags.hasEnabled(.currencyCreation) {
                     CurrencyInfoFooter {
-                        Button("Create Your Own Currency") {
-                            isShowingCurrencyCreation = true
-                        }
-                        .buttonStyle(.filled)
+                        NavigationLink("Create Your Own Currency", value: CurrencyCreationStep.summary)
+                            .buttonStyle(.filled)
                     }
                 }
             }
@@ -45,9 +43,7 @@ struct CurrencyDiscoveryScreen: View {
                     ToolbarCloseButton(action: dismiss.callAsFunction)
                 }
             }
-            .navigationDestination(isPresented: $isShowingCurrencyCreation) {
-                CurrencyCreationScreen()
-            }
+            .withCurrencyCreationFlow(state: creationState)
             .navigationDestination(item: $selectedMint) { mintAddress in
                 if let metadata = mintsByCategory[selectedCategory]?.first(where: { $0.address == mintAddress }) {
                     CurrencyInfoScreen(
