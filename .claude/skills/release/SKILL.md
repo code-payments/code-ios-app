@@ -3,7 +3,7 @@ name: release
 description: Use when the user wants to cut a release, ship a version, prepare for release, or invokes /release
 disable-model-invocation: true
 argument-hint: [major|minor|patch]
-allowed-tools: Bash(git log *), Bash(git checkout *), Bash(git tag *), Bash(git push *), Bash(git add *), Bash(git commit *), Bash(xcodebuild *), Bash(gh *), Read, Edit, Agent, Grep
+allowed-tools: Bash(git log *), Bash(git checkout *), Bash(git tag *), Bash(git push *), Bash(xcodebuild *), Bash(gh *), Read, Agent, Grep
 ---
 
 # Release
@@ -14,7 +14,6 @@ Two-phase workflow with a dogfooding gate. Nothing leaves the machine until the 
 
 - Working tree: !`git status --porcelain`
 - Latest tag: !`git describe --tags --match 'flipcash-*' --abbrev=0 HEAD 2>/dev/null || echo "no tags found"`
-- Marketing version: !`grep 'MARKETING_VERSION' Code.xcodeproj/project.pbxproj | head -1 | sed 's/.*= //' | tr -d ';\" '`
 
 ## Phase 1: Prepare & Verify
 
@@ -22,7 +21,9 @@ Two-phase workflow with a dogfooding gate. Nothing leaves the machine until the 
 If the pre-flight working tree output is non-empty → STOP. Commit or stash first.
 
 ### 2. Calculate next version
-Parse the pre-flight marketing version as X.Y.Z. Determine bump type from `$ARGUMENTS` (default: `minor`):
+Derive the current released version from the pre-flight latest tag (strip the `flipcash-` prefix). The `MARKETING_VERSION` in the project file is always bumped ahead for TestFlight builds and must NOT be used.
+
+Determine bump type from `$ARGUMENTS` (default: `minor`):
 
 | Argument | Bump | Example |
 |----------|------|---------|
@@ -45,8 +46,6 @@ git log {base-tag}..HEAD --format="- %s" --no-merges
 ```
 For patch releases, `{base-tag}` is `flipcash-{current-version}` (the tag on the branch being patched).
 
-**First run after tag-scheme change:** if the pre-flight "Latest tag" is `no tags found`, no `flipcash-*` tag exists yet. Use `fc1.2.0` (the last legacy tag) as the base for this one-time transition, then ask the user to confirm before running the log command.
-
 Display for sanity check.
 
 ### 5. Run all tests
@@ -55,12 +54,8 @@ xcodebuild test -scheme Flipcash \
   -destination 'platform=iOS Simulator,name=iPhone 17' \
   -testPlan AllTargets
 ```
-```bash
-xcodebuild test -scheme Flipcash \
-  -only-testing:FlipcashUITests \
-  -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.6' \
-  -destination 'platform=iOS Simulator,name=iPhone 17'
-```
+The `AllTargets` test plan already includes UI tests. Do NOT run UI tests separately.
+
 Any failure → STOP.
 
 ### 6. Generate changelog
@@ -75,20 +70,18 @@ Use the Agent tool with `model: "haiku"`. Pass the commit list with this prompt:
 
 Show to user for approval.
 
-### 7. Branch, bump, and tag
-For **patch**: already on `release/flipcash-X.Y.Z` from step 3.
-```bash
-git checkout -b release/flipcash-{next-version}
-```
+### 7. Branch and tag
+The version in `Code.xcodeproj/project.pbxproj` is already bumped ahead for TestFlight — do NOT modify it.
+
+For **patch**: already on `release/flipcash-X.Y.Z` from step 3 — skip branch creation.
+
 For **major / minor**:
 ```bash
 git checkout -b release/flipcash-{next-version}
 ```
 
-Update `MARKETING_VERSION` in `Code.xcodeproj/project.pbxproj` to `{next-version}` using the Edit tool, then:
+Then tag:
 ```bash
-git add Code.xcodeproj/project.pbxproj
-git commit -m "chore: bump version to {next-version}"
 git tag flipcash-{next-version}
 ```
 
