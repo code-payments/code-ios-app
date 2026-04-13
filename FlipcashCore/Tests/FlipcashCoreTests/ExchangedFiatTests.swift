@@ -393,98 +393,50 @@ struct ExchangedFiatComputeFromEnteredCapTests {
 @Suite("ExchangedFiat.computeFromEntered - Server Consistency")
 struct ExchangedFiatServerConsistencyTests {
 
-    private let testMint = try! PublicKey(base58: "54ggcQ23uen5b9QXMAns99MQNTKn7iyzq4wvCW6e8r25")
+    private static let testMint = try! PublicKey(base58: "54ggcQ23uen5b9QXMAns99MQNTKn7iyzq4wvCW6e8r25")
     private static let quarksPerToken: UInt64 = 10_000_000_000
 
-    /// Asserts that computeFromEntered produces a converted fiat value
-    /// consistent with what computeFromQuarks derives from the same quarks.
-    /// The server validates intents using the tokens→fiat direction
-    /// (bondingCurve.sell), so the client must send values in that direction.
-    private func assertServerConsistency(
-        fiatAmount: Foundation.Decimal,
-        rate: Rate,
-        supplyQuarks: UInt64,
-        sourceLocation: SourceLocation = #_sourceLocation
-    ) {
-        guard let fromEntered = ExchangedFiat.computeFromEntered(
-            amount: fiatAmount,
+    private static let bondedTokenCases: [(amount: Decimal, rate: Rate, supplyTokens: UInt64)] = [
+        (Decimal(string: "326.79")!, Rate(fx: 1.4, currency: .cad), 1_000_000),
+        (100,                        Rate(fx: 1.4, currency: .cad), 100_000),
+        (10000,                      .oneToOne,                     10_000_000),
+        (Decimal(string: "0.50")!,   .oneToOne,                     100),
+    ]
+
+    @Test(
+        "Bonded token fiat matches server direction",
+        arguments: bondedTokenCases
+    )
+    func bondedTokenServerConsistency(
+        amount: Decimal, rate: Rate, supplyTokens: UInt64
+    ) throws {
+        let supplyQuarks = supplyTokens * Self.quarksPerToken
+
+        let fromEntered = try #require(ExchangedFiat.computeFromEntered(
+            amount: amount,
             rate: rate,
-            mint: testMint,
+            mint: Self.testMint,
             supplyQuarks: supplyQuarks
-        ) else {
-            Issue.record("computeFromEntered returned nil", sourceLocation: sourceLocation)
-            return
-        }
+        ))
 
         let fromQuarks = ExchangedFiat.computeFromQuarks(
             quarks: fromEntered.underlying.quarks,
-            mint: testMint,
+            mint: Self.testMint,
             rate: rate,
             supplyQuarks: supplyQuarks
         )
 
-        #expect(
-            fromEntered.converted.quarks == fromQuarks.converted.quarks,
-            """
-            computeFromEntered converted (\(fromEntered.converted.quarks)) \
-            ≠ computeFromQuarks converted (\(fromQuarks.converted.quarks)) \
-            for \(fiatAmount) \(rate.currency)
-            """,
-            sourceLocation: sourceLocation
-        )
-    }
-
-    @Test("Bonded token at $326.79 CAD matches server direction (Bugsnag reproduction)")
-    func bondedTokenCAD326() {
-        let supply: UInt64 = 1_000_000 * Self.quarksPerToken
-        assertServerConsistency(
-            fiatAmount: Decimal(string: "326.79")!,
-            rate: Rate(fx: 1.4, currency: .cad),
-            supplyQuarks: supply
-        )
-    }
-
-    @Test("Bonded token at $100 CAD matches server direction")
-    func bondedTokenCAD100() {
-        let supply: UInt64 = 100_000 * Self.quarksPerToken
-        assertServerConsistency(
-            fiatAmount: 100,
-            rate: Rate(fx: 1.4, currency: .cad),
-            supplyQuarks: supply
-        )
-    }
-
-    @Test("Bonded token at $10,000 USD matches server direction")
-    func bondedTokenUSD10000() {
-        let supply: UInt64 = 10_000_000 * Self.quarksPerToken
-        assertServerConsistency(
-            fiatAmount: 10000,
-            rate: .oneToOne,
-            supplyQuarks: supply
-        )
-    }
-
-    @Test("Small amount at small supply matches server direction")
-    func smallAmountSmallSupply() {
-        let supply: UInt64 = 100 * Self.quarksPerToken
-        assertServerConsistency(
-            fiatAmount: Decimal(string: "0.50")!,
-            rate: .oneToOne,
-            supplyQuarks: supply
-        )
+        #expect(fromEntered.converted.quarks == fromQuarks.converted.quarks)
     }
 
     @Test("USDF bypasses bonding curve, no divergence possible")
-    func usdfNoDivergence() {
-        guard let fromEntered = ExchangedFiat.computeFromEntered(
+    func usdfNoDivergence() throws {
+        let fromEntered = try #require(ExchangedFiat.computeFromEntered(
             amount: Decimal(string: "326.79")!,
             rate: .oneToOne,
             mint: .usdf,
             supplyQuarks: 0
-        ) else {
-            Issue.record("computeFromEntered returned nil for USDF")
-            return
-        }
+        ))
 
         let fromQuarks = ExchangedFiat.computeFromQuarks(
             quarks: fromEntered.underlying.quarks,
