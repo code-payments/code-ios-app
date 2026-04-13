@@ -16,7 +16,7 @@ struct BalanceScreen: View {
     @Environment(RatesController.self) private var ratesController
     @Environment(HistoryController.self) private var historyController
     @Environment(NotificationController.self) private var notificationController
-    @Environment(BetaFlags.self) private var betaFlags
+
 
     let session: Session
 
@@ -144,26 +144,20 @@ struct BalanceScreen: View {
     }
     
     @ViewBuilder private func emptyState(geometry: GeometryProxy) -> some View {
-        let subtitle = betaFlags.hasEnabled(.currencyDiscovery)
-            ? "Buy your first currency to get started"
-            : "Get another Flipcash user to give you some cash to get a balance"
-
         VStack(spacing: 10) {
             Text("No Balance Yet")
                 .font(.appTextLarge)
 
-            Text(subtitle)
+            Text("Buy your first currency to get started")
                 .font(.appTextMedium)
                 .foregroundStyle(Color.textSecondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity, alignment: .center)
 
-            if betaFlags.hasEnabled(.currencyDiscovery) {
-                BubbleButton(text: "Discover Currencies") {
-                    isShowingCurrencyDiscovery = true
-                }
-                .padding(.top, 8)
+            BubbleButton(text: "Discover Currencies") {
+                isShowingCurrencyDiscovery = true
             }
+            .padding(.top, 8)
         }
         .listRowBackground(Color.clear)
         .frame(height: geometry.size.height * (1 - proportion - 0.1))
@@ -201,7 +195,7 @@ struct BalanceScreen: View {
                 } footer: {
                     BalanceFooter(
                         reservesBalance: reservesBalance,
-                        showDiscoverCurrencies: hasBalances && betaFlags.hasEnabled(.currencyDiscovery),
+                        showDiscoverCurrencies: hasBalances,
                         isOnlyRow: currencyBalances.isEmpty,
                         selectedMint: $selectedMint,
                         isShowingCurrencyDiscovery: $isShowingCurrencyDiscovery
