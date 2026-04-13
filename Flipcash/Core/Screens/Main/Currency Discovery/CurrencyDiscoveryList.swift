@@ -53,40 +53,9 @@ struct CurrencyDiscoveryList: View {
                             .listRowSeparator(.hidden)
                     }
                 }
-            } header: {
-                // There is no fallback for newer version, the actual fallback can be found
-                // in the safeAreBar modifier below.
-                if #unavailable(iOS 26.0) {
-                    Picker("Category", selection: $selectedCategory) {
-                        Text("Popular").tag(DiscoverCategory.popular)
-                        Text("New").tag(DiscoverCategory.new)
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(height: 36)
-                    .padding(.bottom, 12)
-                    .textCase(nil)
-                }
             }
             .listSectionSeparator(.hidden)
         }
-        .ifAvailable({ view in
-            // There is no fallback for previous version, the actual fallback can be found
-            // in the Section header above
-            if #available(iOS 26.0, *) {
-                view.safeAreaBar(edge: .top) {
-                    Picker("Category", selection: $selectedCategory) {
-                        Text("Popular").tag(DiscoverCategory.popular)
-                        Text("New").tag(DiscoverCategory.new)
-                    }
-                    .pickerStyle(.segmented)
-                    .glassEffect()
-                    .frame(height: 36)
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 12)
-                    .textCase(nil)
-                }
-            }
-        })
         .overlay {
             if isFailed {
                 VStack(spacing: 10) {
