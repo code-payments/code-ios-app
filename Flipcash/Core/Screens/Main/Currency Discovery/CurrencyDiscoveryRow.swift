@@ -41,7 +41,7 @@ struct CurrencyDiscoveryRow: View {
 
             if let metrics = mint.holderMetrics {
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text("\(metrics.currentHolders, format: .number.notation(.compactName)) Holders")
+                    Text("\(metrics.currentHolders, format: .number.notation(.compactName)) \(metrics.currentHolders == 1 ? "person" : "people")") 
                         .font(.appTextSmall)
                         .foregroundStyle(Color.textMain)
                         .contentTransition(.numericText())
