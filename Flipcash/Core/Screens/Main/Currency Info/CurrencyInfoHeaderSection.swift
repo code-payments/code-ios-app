@@ -38,7 +38,7 @@ struct CurrencyInfoHeaderSection: View {
                 ValueAppreciation(amount: appreciation.amount, isPositive: appreciation.isPositive)
                     .padding(.top, 8)
 
-                Button("View Transaction") {
+                Button("Transaction History") {
                     onViewTransaction()
                 }
                     .buttonStyle(.filled20)

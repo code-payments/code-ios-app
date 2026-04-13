@@ -57,11 +57,11 @@ final class CashLinkRegressionTests: BaseUITestCase {
         wallet.open(from: self)
         wallet.selectFirstCurrency()
 
-        // CurrencyInfoScreen — tap "View Transaction" to open history
+        // CurrencyInfoScreen — tap "Transaction History" to open history
         waitAndTap(
             currencyInfo.viewTransactionButton,
             timeout: 10,
-            "Expected 'View Transaction' button on CurrencyInfoScreen"
+            "Expected 'Transaction History' button on CurrencyInfoScreen"
         )
 
         // Step 3: Tap the first "Sending" row to trigger the cancel dialog.

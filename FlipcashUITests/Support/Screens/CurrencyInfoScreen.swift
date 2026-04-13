@@ -21,7 +21,7 @@ struct CurrencyInfoUIScreen {
     var buyButton: XCUIElement { app.buttons["Buy"] }
     var sellButton: XCUIElement { app.buttons["Sell"] }
     var giveButton: XCUIElement { app.buttons["Give"] }
-    var viewTransactionButton: XCUIElement { app.buttons["View Transaction"] }
+    var viewTransactionButton: XCUIElement { app.buttons["Transaction History"] }
 
     // MARK: - Assertions
 
