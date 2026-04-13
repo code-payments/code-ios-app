@@ -639,23 +639,15 @@ class Session {
             throw Error.missingSupply
         }
 
-        // Cap token quarks to the user's actual balance
-        let balance = balance(for: mint)
-        let tokenQuarks: UInt64
-        if let balanceQuarks = balance?.quarks, amount.underlying.quarks > balanceQuarks {
-            tokenQuarks = balanceQuarks
-        } else {
-            tokenQuarks = amount.underlying.quarks
-        }
-
-        // For bonded tokens, derive the server-consistent ExchangedFiat
-        // from the token quarks using computeFromQuarks (which uses
-        // bondingCurve.sell → tokensToValue, matching server validation).
-        // For USDF, the ViewModel's amount is already correct.
+        // Cap to the on-chain balance when rounding pushed quarks above it.
+        // computeFromEntered already round-trips through computeFromQuarks
+        // for server consistency, so we only need to recompute when capping.
         let amountForIntent: ExchangedFiat
-        if mint != .usdf {
+        if let balance = balance(for: mint),
+           amount.underlying.quarks > balance.quarks,
+           mint != .usdf {
             amountForIntent = ExchangedFiat.computeFromQuarks(
-                quarks: tokenQuarks,
+                quarks: balance.quarks,
                 mint: mint,
                 rate: ratesController.rateForEntryCurrency(),
                 supplyQuarks: supply

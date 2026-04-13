@@ -262,6 +262,18 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
             )
         }
 
+        // For bonded tokens, round-trip through computeFromQuarks so the
+        // fiat side uses the tokens→fiat direction (bondingCurve.sell),
+        // matching the server's intent validation.
+        if mint != .usdf {
+            return computeFromQuarks(
+                quarks: tokenQuarks,
+                mint: mint,
+                rate: rate,
+                supplyQuarks: supplyQuarks
+            )
+        }
+
         let exchanged = ExchangedFiat(
             underlying: Quarks(
                 quarks: tokenQuarks,
