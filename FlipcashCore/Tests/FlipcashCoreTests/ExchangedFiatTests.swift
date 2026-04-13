@@ -388,6 +388,67 @@ struct ExchangedFiatComputeFromEnteredCapTests {
     }
 }
 
+// MARK: - Server Consistency Tests
+
+@Suite("ExchangedFiat.computeFromEntered - Server Consistency")
+struct ExchangedFiatServerConsistencyTests {
+
+    private static let testMint = try! PublicKey(base58: "54ggcQ23uen5b9QXMAns99MQNTKn7iyzq4wvCW6e8r25")
+    private static let quarksPerToken: UInt64 = 10_000_000_000
+
+    private static let bondedTokenCases: [(amount: Decimal, rate: Rate, supplyTokens: UInt64)] = [
+        (Decimal(string: "326.79")!, Rate(fx: 1.4, currency: .cad), 1_000_000),
+        (100,                        Rate(fx: 1.4, currency: .cad), 100_000),
+        (10000,                      .oneToOne,                     10_000_000),
+        (Decimal(string: "0.50")!,   .oneToOne,                     100),
+    ]
+
+    @Test(
+        "Bonded token fiat matches server direction",
+        arguments: bondedTokenCases
+    )
+    func bondedTokenServerConsistency(
+        amount: Decimal, rate: Rate, supplyTokens: UInt64
+    ) throws {
+        let supplyQuarks = supplyTokens * Self.quarksPerToken
+
+        let fromEntered = try #require(ExchangedFiat.computeFromEntered(
+            amount: amount,
+            rate: rate,
+            mint: Self.testMint,
+            supplyQuarks: supplyQuarks
+        ))
+
+        let fromQuarks = ExchangedFiat.computeFromQuarks(
+            quarks: fromEntered.underlying.quarks,
+            mint: Self.testMint,
+            rate: rate,
+            supplyQuarks: supplyQuarks
+        )
+
+        #expect(fromEntered.converted.quarks == fromQuarks.converted.quarks)
+    }
+
+    @Test("USDF bypasses bonding curve, no divergence possible")
+    func usdfNoDivergence() throws {
+        let fromEntered = try #require(ExchangedFiat.computeFromEntered(
+            amount: Decimal(string: "326.79")!,
+            rate: .oneToOne,
+            mint: .usdf,
+            supplyQuarks: 0
+        ))
+
+        let fromQuarks = ExchangedFiat.computeFromQuarks(
+            quarks: fromEntered.underlying.quarks,
+            mint: .usdf,
+            rate: .oneToOne,
+            supplyQuarks: nil
+        )
+
+        #expect(fromEntered.converted.quarks == fromQuarks.converted.quarks)
+    }
+}
+
 // MARK: - Collection.total Tests
 
 @Suite("ExchangedFiat Collection.total")
