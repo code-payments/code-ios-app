@@ -157,10 +157,22 @@ struct CurrencyCreationWizardScreen: View {
 
     private func advance() {
         guard let next = step.next else { return }
-        if step == .name {
-            heroNameRevealed = true
-        }
         descriptionScrollOffset = 0
+
+        if step == .name {
+            // Dismiss keyboard first so the layout settles before the
+            // hero animation starts — prevents the ~300pt position jump
+            // caused by keyboard avoidance shifting the GeometryReader.
+            focusedField = nil
+            heroNameRevealed = true
+            DispatchQueue.main.async {
+                withAnimation(.spring(duration: 0.55, bounce: 0.12)) {
+                    step = next
+                }
+            }
+            return
+        }
+
         withAnimation(.spring(duration: 0.55, bounce: 0.12)) {
             step = next
         }
@@ -198,11 +210,17 @@ private struct WizardStepContent: View {
         ZStack {
             if step == .name {
                 NameStepContent()
-                    .transition(.opacity)
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .trailing),
+                        removal: .move(edge: .leading)
+                    ))
             }
             if step == .icon {
                 IconStepContent()
-                    .transition(.opacity)
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .trailing),
+                        removal: .move(edge: .leading)
+                    ))
             }
             if step == .description {
                 DescriptionStepContent(
@@ -211,15 +229,24 @@ private struct WizardStepContent: View {
                     characterLimit: descriptionCharLimit,
                     scrollOffset: $descriptionScrollOffset
                 )
-                .transition(.opacity)
+                .transition(.asymmetric(
+                        insertion: .move(edge: .trailing),
+                        removal: .move(edge: .leading)
+                    ))
             }
             if step == .billCreation {
                 BillCreationStepContent(state: state, previewFiat: previewFiat)
-                    .transition(.opacity)
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .trailing),
+                        removal: .move(edge: .leading)
+                    ))
             }
             if step == .confirmation {
                 ConfirmationStepContent(previewFiat: previewFiat, state: state)
-                    .transition(.opacity)
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .trailing),
+                        removal: .move(edge: .leading)
+                    ))
             }
         }
     }
@@ -332,6 +359,7 @@ private struct BillCreationStepContent: View {
             ColorEditorControl(colors: $state.backgroundColors)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.bottom, 20)
+                .clipped()
         }
     }
 }
@@ -418,7 +446,7 @@ private struct WizardHeroGroup: View {
 
     private var groupOffset: CGFloat {
         switch step {
-        case .name: 90
+        case .name: 93
         case .icon: geometry.size.height * 0.28
         case .description, .billCreation, .confirmation: 20
         }
