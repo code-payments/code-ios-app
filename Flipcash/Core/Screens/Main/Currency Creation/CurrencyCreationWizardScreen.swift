@@ -20,6 +20,8 @@ struct CurrencyCreationWizardScreen: View {
 
     @State private var step: WizardStep = .name
     @FocusState private var focusedField: Field?
+    @State private var heroNameRevealed = false
+    @State private var descriptionScrollOffset: CGFloat = 0
     @State private var isShowingPhotoPicker = false
     @State private var isShowingFilePicker = false
     @State private var isShowingFundingSheet = false
@@ -63,12 +65,15 @@ struct CurrencyCreationWizardScreen: View {
                         state: state,
                         focusedField: $focusedField,
                         previewFiat: Self.previewFiat,
-                        descriptionCharLimit: Self.descriptionCharLimit
+                        descriptionCharLimit: Self.descriptionCharLimit,
+                        descriptionScrollOffset: $descriptionScrollOffset
                     )
 
                     WizardHeroGroup(
                         step: step,
                         state: state,
+                        heroNameRevealed: heroNameRevealed,
+                        descriptionScrollOffset: descriptionScrollOffset,
                         focusedField: $focusedField,
                         geometry: geometry,
                         nameCharLimit: Self.nameCharLimit,
@@ -87,9 +92,11 @@ struct CurrencyCreationWizardScreen: View {
                         )
                     }
                 }
+                .clipped()
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .interactiveDismissDisabled()
         .toolbar {
             ToolbarItem(placement: .principal) {
                 CreationProgressBar(
@@ -150,6 +157,10 @@ struct CurrencyCreationWizardScreen: View {
 
     private func advance() {
         guard let next = step.next else { return }
+        if step == .name {
+            heroNameRevealed = true
+        }
+        descriptionScrollOffset = 0
         withAnimation(.spring(duration: 0.55, bounce: 0.12)) {
             step = next
         }
@@ -181,6 +192,7 @@ private struct WizardStepContent: View {
     @FocusState.Binding var focusedField: CurrencyCreationWizardScreen.Field?
     let previewFiat: Quarks
     let descriptionCharLimit: Int
+    @Binding var descriptionScrollOffset: CGFloat
 
     var body: some View {
         ZStack {
@@ -196,7 +208,8 @@ private struct WizardStepContent: View {
                 DescriptionStepContent(
                     state: state,
                     focusedField: $focusedField,
-                    characterLimit: descriptionCharLimit
+                    characterLimit: descriptionCharLimit,
+                    scrollOffset: $descriptionScrollOffset
                 )
                 .transition(.opacity)
             }
@@ -255,32 +268,45 @@ private struct DescriptionStepContent: View {
     @Bindable var state: CurrencyCreationState
     @FocusState.Binding var focusedField: CurrencyCreationWizardScreen.Field?
     let characterLimit: Int
+    @Binding var scrollOffset: CGFloat
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Reserve space for the hero header row
-            Color.clear
-                .frame(height: 80)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                // Reserve space for the hero header (floats above, moves with scroll)
+                Color.clear
+                    .frame(height: 80)
 
-            Text("Provide a description for\nyour currency")
-                .font(.appTextLarge)
-                .foregroundStyle(Color.textMain)
+                Text("Provide a description for\nyour currency")
+                    .font(.appTextLarge)
+                    .foregroundStyle(Color.textMain)
 
-            TextField("Description", text: $state.currencyDescription, axis: .vertical)
-                .font(.appTextMedium)
-                .foregroundStyle(Color.textMain)
-                .focused($focusedField, equals: .description)
-                .padding(.top, 16)
-                .onChange(of: state.currencyDescription) { _, newValue in
-                    if newValue.count > characterLimit {
-                        state.currencyDescription = String(newValue.prefix(characterLimit))
+                TextField("Description", text: $state.currencyDescription, axis: .vertical)
+                    .font(.appTextMedium)
+                    .foregroundStyle(Color.textMain)
+                    .focused($focusedField, equals: .description)
+                    .padding(.top, 16)
+                    .onChange(of: state.currencyDescription) { _, newValue in
+                        if newValue.count > characterLimit {
+                            state.currencyDescription = String(newValue.prefix(characterLimit))
+                        }
                     }
-                }
 
-            Spacer()
+                Color.clear
+                    .frame(height: 100)
+            }
+            .padding(.horizontal, 20)
+            .background(alignment: .top) {
+                GeometryReader { proxy in
+                    let y = proxy.frame(in: .scrollView).minY
+                    Color.clear
+                        .onAppear { scrollOffset = y }
+                        .onChange(of: y) { _, newY in scrollOffset = newY }
+                }
+            }
         }
-        .padding(.horizontal, 20)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .scrollDismissesKeyboard(.interactively)
+        .scrollIndicators(.hidden)
     }
 }
 
@@ -346,6 +372,8 @@ private struct ConfirmationStepContent: View {
 private struct WizardHeroGroup: View {
     let step: CurrencyCreationWizardScreen.WizardStep
     @Bindable var state: CurrencyCreationState
+    let heroNameRevealed: Bool
+    let descriptionScrollOffset: CGFloat
     @FocusState.Binding var focusedField: CurrencyCreationWizardScreen.Field?
     let geometry: GeometryProxy
     let nameCharLimit: Int
@@ -370,13 +398,14 @@ private struct WizardHeroGroup: View {
             WizardHeroNameField(
                 step: step,
                 state: state,
+                heroNameRevealed: heroNameRevealed,
                 focusedField: $focusedField,
                 nameCharLimit: nameCharLimit
             )
         }
         .padding(.horizontal, 20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: frameAlignment)
-        .offset(y: groupOffset)
+        .offset(y: groupOffset + scrollAdjustment)
         .opacity(step == .billCreation ? 0 : 1)
     }
 
@@ -393,6 +422,10 @@ private struct WizardHeroGroup: View {
         case .icon: geometry.size.height * 0.28
         case .description, .billCreation, .confirmation: 20
         }
+    }
+
+    private var scrollAdjustment: CGFloat {
+        step == .description ? min(descriptionScrollOffset, 0) : 0
     }
 }
 
@@ -456,6 +489,7 @@ private struct WizardHeroCircle: View {
 private struct WizardHeroNameField: View {
     let step: CurrencyCreationWizardScreen.WizardStep
     @Bindable var state: CurrencyCreationState
+    let heroNameRevealed: Bool
     @FocusState.Binding var focusedField: CurrencyCreationWizardScreen.Field?
     let nameCharLimit: Int
 
@@ -465,6 +499,7 @@ private struct WizardHeroNameField: View {
                 .font(nameFont)
                 .foregroundStyle(Color.textMain)
                 .lineLimit(1)
+                .opacity(heroNameRevealed ? 1 : 0)
 
             // Editable TextField — only on name step. Uses .identity transition
             // so SwiftUI removes it instantly (no fade), revealing the hero Text
@@ -516,7 +551,7 @@ private struct WizardBottomBar: View {
             )
             .font(.appTextSmall)
             .foregroundStyle(Color.textSecondary)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: helperTextAlignment)
             .padding(.horizontal, 20)
             .padding(.bottom, 12)
 
@@ -528,6 +563,13 @@ private struct WizardBottomBar: View {
             )
             .padding(.horizontal, 20)
             .padding(.bottom, 20)
+        }
+    }
+
+    private var helperTextAlignment: Alignment {
+        switch step {
+        case .name, .description: .leading
+        case .icon, .billCreation, .confirmation: .center
         }
     }
 }
@@ -560,24 +602,30 @@ private struct WizardPrimaryButton: View {
     let onBuy: () -> Void
 
     var body: some View {
+        Button(buttonTitle) {
+            step == .confirmation ? onBuy() : onAdvance()
+        }
+        .buttonStyle(.filled)
+        .disabled(isDisabled)
+    }
+
+    private var buttonTitle: String {
+        switch step {
+        case .confirmation: "Buy $20 to Create Your Currency"
+        case .name, .icon, .description, .billCreation: "Next"
+        }
+    }
+
+    private var isDisabled: Bool {
         switch step {
         case .name:
-            Button("Next") { onAdvance() }
-                .buttonStyle(.filled)
-                .disabled(state.currencyName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            state.currencyName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         case .icon:
-            Button("Next") { onAdvance() }
-                .buttonStyle(.filled)
-                .disabled(state.selectedImage == nil)
+            state.selectedImage == nil
         case .description:
-            Button("Next") { onAdvance() }
-                .buttonStyle(.filled)
-                .disabled(state.currencyDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-        case .billCreation:
-            EmptyView() // "Done" is in the toolbar
-        case .confirmation:
-            Button("Buy $20 to Create Your Currency") { onBuy() }
-                .buttonStyle(.filled)
+            state.currencyDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case .billCreation, .confirmation:
+            false
         }
     }
 }
