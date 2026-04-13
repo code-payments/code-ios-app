@@ -1459,7 +1459,7 @@ class Session {
             subtitle: "You tapped to collect the cash you sent. Are you sure you want to collect it yourself?",
             dismissable: false,
         ) {
-            .standard("Collect") { [weak self] in
+            .destructive("Collect") { [weak self] in
                 guard let self else { return }
                 logger.info("Cash link self-claim confirmed", metadata: [
                     "giftCardAuthority": "\(giftCardAuthority.base58)",
