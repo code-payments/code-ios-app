@@ -25,9 +25,9 @@ public class Client: ObservableObject {
     internal let transactionService: TransactionService
     internal let currencyService: CurrencyService
     internal let messagingService: MessagingService
-    
+
     // MARK: - Init -
-    
+
     public init(network: Network) {
         self.network = network
         self.queue   = .main

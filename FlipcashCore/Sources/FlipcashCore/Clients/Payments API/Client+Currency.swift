@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import FlipcashAPI
 
 extension Client {
     public func fetchMint(mint: PublicKey) async throws -> MintMetadata {
@@ -54,6 +55,40 @@ extension Client {
             continuation.onTermination = { @Sendable _ in
                 unsafeRef.cancel()
             }
+        }
+    }
+
+    public func checkAvailability(name: String) async throws -> Bool {
+        try await withCheckedThrowingContinuation { c in
+            currencyService.checkAvailability(name: name) { c.resume(with: $0) }
+        }
+    }
+
+    public func launch(
+        name: String,
+        symbol: String?,
+        description: String?,
+        billCustomization: Ocp_Currency_V1_BillCustomization?,
+        icon: Data?,
+        nameAttestation: ModerationAttestation,
+        symbolAttestation: ModerationAttestation?,
+        descriptionAttestation: ModerationAttestation?,
+        iconAttestation: ModerationAttestation?,
+        owner: KeyPair
+    ) async throws -> PublicKey {
+        try await withCheckedThrowingContinuation { c in
+            currencyService.launch(
+                name: name,
+                symbol: symbol,
+                description: description,
+                billCustomization: billCustomization,
+                icon: icon,
+                nameAttestation: nameAttestation,
+                symbolAttestation: symbolAttestation,
+                descriptionAttestation: descriptionAttestation,
+                iconAttestation: iconAttestation,
+                owner: owner
+            ) { c.resume(with: $0) }
         }
     }
 }

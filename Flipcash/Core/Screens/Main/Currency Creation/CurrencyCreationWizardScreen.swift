@@ -8,23 +8,31 @@ import UniformTypeIdentifiers
 import FlipcashCore
 import FlipcashUI
 
+private let logger = Logger(label: "flipcash.currency-creation")
+
 // MARK: - CurrencyCreationWizardScreen
 
 struct CurrencyCreationWizardScreen: View {
     @Bindable var state: CurrencyCreationState
 
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var client: Client
+    @EnvironmentObject private var flipClient: FlipClient
+    @Environment(Session.self) private var session
 
     @State private var step: WizardStep = .name
     @State private var direction: Direction = .forward
     @State private var compressTask: Task<Void, Never>?
+    @State private var validationTask: Task<Void, Never>?
+    @State private var isValidating: Bool = false
+    @State private var errorDialog: DialogItem?
     @FocusState private var focusedField: Field?
 
     @State private var isShowingPhotoPicker = false
     @State private var isShowingFilePicker = false
     @State private var isShowingFundingSheet = false
 
-    static let nameCharLimit = 25
+    static let nameCharLimit = 32
     static let descriptionCharLimit = 500
     static let iconCircleSize: CGFloat = 150
 
@@ -66,16 +74,18 @@ struct CurrencyCreationWizardScreen: View {
                         state: state,
                         focusedField: $focusedField,
                         characterLimit: Self.nameCharLimit,
-                        onNext: advance
+                        isValidating: isValidating,
+                        onNext: { validateAndAdvanceName() }
                     )
                     .transition(direction.slide)
 
                 case .icon:
                     IconStep(
                         state: state,
+                        isValidating: isValidating,
                         onPhotoPicker: { isShowingPhotoPicker = true },
                         onFilePicker: { isShowingFilePicker = true },
-                        onNext: advance
+                        onNext: { validateAndAdvanceIcon() }
                     )
                     .transition(direction.slide)
 
@@ -84,7 +94,8 @@ struct CurrencyCreationWizardScreen: View {
                         state: state,
                         focusedField: $focusedField,
                         characterLimit: Self.descriptionCharLimit,
-                        onNext: advance
+                        isValidating: isValidating,
+                        onNext: { validateAndAdvanceDescription() }
                     )
                     .transition(direction.slide)
 
@@ -105,6 +116,7 @@ struct CurrencyCreationWizardScreen: View {
                 }
             }
         }
+        .dialog(item: $errorDialog)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .interactiveDismissDisabled()
@@ -207,6 +219,168 @@ struct CurrencyCreationWizardScreen: View {
             setSelectedImage(image)
         }
     }
+
+    // MARK: - Validation
+
+    private func validateAndAdvanceName() {
+        validationTask?.cancel()
+        validationTask = Task {
+            isValidating = true
+            defer { isValidating = false }
+
+            let name = state.currencyName
+
+            // 1. Uniqueness check
+            let isAvailable: Bool
+            do {
+                isAvailable = try await client.checkAvailability(name: name)
+            } catch {
+                if Task.isCancelled { return }
+                logger.error("Currency name availability check failed", metadata: ["error": "\(error)"])
+                ErrorReporting.captureError(error)
+                presentGenericErrorDialog()
+                return
+            }
+            if !isAvailable {
+                logger.info("Currency name unavailable", metadata: ["name_length": "\(name.count)"])
+                errorDialog = makeDestructiveDialog(
+                    title: "This Name is Taken",
+                    subtitle: "Try a different currency name"
+                )
+                return
+            }
+
+            // 2. Moderation
+            let attestation: ModerationAttestation
+            do {
+                attestation = try await flipClient.moderateText(name, owner: session.ownerKeyPair)
+            } catch ErrorModeration.denied(let category) {
+                logger.info("Currency name moderation denied", metadata: ["category": "\(category)"])
+                errorDialog = makeDestructiveDialog(
+                    title: "This Name is Not Allowed",
+                    subtitle: "Try a different currency name"
+                )
+                return
+            } catch {
+                if Task.isCancelled { return }
+                logger.error("Currency name moderation failed", metadata: ["error": "\(error)"])
+                ErrorReporting.captureError(error)
+                presentGenericErrorDialog()
+                return
+            }
+
+            state.nameAttestation = attestation
+            advance()
+        }
+    }
+
+    private func validateAndAdvanceIcon() {
+        validationTask?.cancel()
+        validationTask = Task {
+            isValidating = true
+            defer { isValidating = false }
+
+            guard let image = state.selectedImage else {
+                logger.error("Icon step triggered without a selected image")
+                presentGenericErrorDialog()
+                return
+            }
+
+            // 1 MB = max request size accepted by Moderation + Launch RPCs.
+            let imageData: Data
+            do {
+                imageData = try await ImageEncoder.encodeForUpload(image, maxBytes: 1_048_576)
+            } catch {
+                logger.error("Failed to encode icon within 1 MB budget", metadata: ["error": "\(error)"])
+                ErrorReporting.captureError(error)
+                errorDialog = makeDestructiveDialog(
+                    title: "Couldn't Process Image",
+                    subtitle: "Try a smaller or simpler image"
+                )
+                return
+            }
+            state.encodedIconData = imageData
+
+            let attestation: ModerationAttestation
+            do {
+                attestation = try await flipClient.moderateImage(imageData, owner: session.ownerKeyPair)
+            } catch ErrorModeration.denied(let category) {
+                logger.info("Currency icon moderation denied", metadata: ["category": "\(category)"])
+                errorDialog = makeDestructiveDialog(
+                    title: "This Image is Not Allowed",
+                    subtitle: "Try a different image"
+                )
+                return
+            } catch ErrorModeration.unsupportedFormat {
+                logger.info("Currency icon format unsupported")
+                errorDialog = makeDestructiveDialog(
+                    title: "This Image Format Isn't Supported",
+                    subtitle: "Use PNG, JPEG, or HEIC"
+                )
+                return
+            } catch {
+                if Task.isCancelled { return }
+                logger.error("Currency icon moderation failed", metadata: ["error": "\(error)"])
+                ErrorReporting.captureError(error)
+                presentGenericErrorDialog()
+                return
+            }
+
+            state.iconAttestation = attestation
+            advance()
+        }
+    }
+
+    private func validateAndAdvanceDescription() {
+        validationTask?.cancel()
+        validationTask = Task {
+            isValidating = true
+            defer { isValidating = false }
+
+            let description = state.currencyDescription
+
+            let attestation: ModerationAttestation
+            do {
+                attestation = try await flipClient.moderateText(description, owner: session.ownerKeyPair)
+            } catch ErrorModeration.denied(let category) {
+                logger.info("Currency description moderation denied", metadata: ["category": "\(category)"])
+                errorDialog = makeDestructiveDialog(
+                    title: "This Description is Not Allowed",
+                    subtitle: "Try a different description"
+                )
+                return
+            } catch {
+                if Task.isCancelled { return }
+                logger.error("Currency description moderation failed", metadata: ["error": "\(error)"])
+                ErrorReporting.captureError(error)
+                presentGenericErrorDialog()
+                return
+            }
+
+            state.descriptionAttestation = attestation
+            advance()
+        }
+    }
+
+    // MARK: - Dialogs
+
+    private func presentGenericErrorDialog() {
+        errorDialog = makeDestructiveDialog(
+            title: "Something Went Wrong",
+            subtitle: "Please try again"
+        )
+    }
+
+    private func makeDestructiveDialog(title: String, subtitle: String) -> DialogItem {
+        .init(
+            style: .destructive,
+            title: title,
+            subtitle: subtitle,
+            dismissable: true
+        ) {
+            .okay(kind: .destructive)
+        }
+    }
 }
 
 // MARK: - NameStep
@@ -215,6 +389,7 @@ private struct NameStep: View {
     @Bindable var state: CurrencyCreationState
     @FocusState.Binding var focusedField: CurrencyCreationWizardScreen.Field?
     let characterLimit: Int
+    let isValidating: Bool
     let onNext: () -> Void
 
     var body: some View {
@@ -229,6 +404,7 @@ private struct NameStep: View {
                 .foregroundStyle(Color.textMain)
                 .focused($focusedField, equals: .name)
                 .padding(.top, 32)
+                .disabled(isValidating)
                 .onChange(of: state.currencyName) { _, newValue in
                     if newValue.count > characterLimit {
                         state.currencyName = String(newValue.prefix(characterLimit))
@@ -243,10 +419,16 @@ private struct NameStep: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.bottom, 12)
 
-            Button("Next", action: onNext)
-                .buttonStyle(.filled)
-                .disabled(state.currencyName.allSatisfy(\.isWhitespace))
-                .padding(.bottom, 20)
+            Button(action: onNext) {
+                if isValidating {
+                    ProgressView().progressViewStyle(.circular)
+                } else {
+                    Text("Next")
+                }
+            }
+            .buttonStyle(.filled)
+            .disabled(!state.isCurrencyNameValid || isValidating)
+            .padding(.bottom, 20)
         }
         .padding(.horizontal, 20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -257,6 +439,7 @@ private struct NameStep: View {
 
 private struct IconStep: View {
     let state: CurrencyCreationState
+    let isValidating: Bool
     let onPhotoPicker: () -> Void
     let onFilePicker: () -> Void
     let onNext: () -> Void
@@ -288,6 +471,7 @@ private struct IconStep: View {
                 )
             }
             .menuIndicator(.hidden)
+            .disabled(isValidating)
 
             if !state.currencyName.isEmpty {
                 Text(state.currencyName)
@@ -304,10 +488,16 @@ private struct IconStep: View {
                 .foregroundStyle(Color.textSecondary)
                 .padding(.bottom, 12)
 
-            Button("Next", action: onNext)
-                .buttonStyle(.filled)
-                .disabled(state.selectedImage == nil)
-                .padding(.bottom, 20)
+            Button(action: onNext) {
+                if isValidating {
+                    ProgressView().progressViewStyle(.circular)
+                } else {
+                    Text("Next")
+                }
+            }
+            .buttonStyle(.filled)
+            .disabled(state.selectedImage == nil || isValidating)
+            .padding(.bottom, 20)
         }
         .padding(.horizontal, 20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -320,6 +510,7 @@ private struct DescriptionStep: View {
     @Bindable var state: CurrencyCreationState
     @FocusState.Binding var focusedField: CurrencyCreationWizardScreen.Field?
     let characterLimit: Int
+    let isValidating: Bool
     let onNext: () -> Void
 
     var body: some View {
@@ -345,6 +536,7 @@ private struct DescriptionStep: View {
                         .foregroundStyle(Color.textMain)
                         .focused($focusedField, equals: .description)
                         .padding(.top, 16)
+                        .disabled(isValidating)
                         .onChange(of: state.currencyDescription) { _, newValue in
                             if newValue.count > characterLimit {
                                 state.currencyDescription = String(newValue.prefix(characterLimit))
@@ -363,10 +555,16 @@ private struct DescriptionStep: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.bottom, 12)
 
-            Button("Next", action: onNext)
-                .buttonStyle(.filled)
-                .disabled(state.currencyDescription.allSatisfy(\.isWhitespace))
-                .padding(.bottom, 20)
+            Button(action: onNext) {
+                if isValidating {
+                    ProgressView().progressViewStyle(.circular)
+                } else {
+                    Text("Next")
+                }
+            }
+            .buttonStyle(.filled)
+            .disabled(state.currencyDescription.allSatisfy(\.isWhitespace) || isValidating)
+            .padding(.bottom, 20)
         }
         .padding(.horizontal, 20)
     }
