@@ -13,6 +13,7 @@ import SwiftUI
 enum HeroAnchorID: Hashable {
     case circle
     case name
+    case bill
 }
 
 struct HeroAnchorKey: PreferenceKey {

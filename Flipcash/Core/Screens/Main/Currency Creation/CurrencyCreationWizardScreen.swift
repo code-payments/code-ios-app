@@ -77,7 +77,6 @@ struct CurrencyCreationWizardScreen: View {
                     direction: direction,
                     state: state,
                     focusedField: $focusedField,
-                    previewFiat: Self.previewFiat,
                     descriptionCharLimit: Self.descriptionCharLimit,
                     menuHidden: menuHidden,
                     onPhotoPicker: { isShowingPhotoPicker = true },
@@ -108,6 +107,7 @@ struct CurrencyCreationWizardScreen: View {
                     step: step,
                     state: state,
                     heroNameRevealed: heroNameRevealed,
+                    previewFiat: Self.previewFiat,
                     anchors: anchors
                 )
             }
@@ -247,15 +247,15 @@ struct CurrencyCreationWizardScreen: View {
 // MARK: - HeroPlaceholder
 
 /// Invisible view sized to where a hero should land, publishing its
-/// bounds as the anchor for the given hero ID. Pass `width: nil` for a
-/// flexible/leading target (e.g. the name row); pass a concrete width
-/// for a fixed target (e.g. a 28pt header circle).
+/// bounds as the anchor for the given hero ID. Pass `nil` for either
+/// dimension to let it flex to fill the parent (used by the bill
+/// placeholder, which takes the remaining space in its container).
 private struct HeroPlaceholder: View {
     let id: HeroAnchorID
     let width: CGFloat?
-    let height: CGFloat
+    let height: CGFloat?
 
-    init(_ id: HeroAnchorID, width: CGFloat? = nil, height: CGFloat) {
+    init(_ id: HeroAnchorID, width: CGFloat? = nil, height: CGFloat? = nil) {
         self.id = id
         self.width = width
         self.height = height
@@ -264,7 +264,10 @@ private struct HeroPlaceholder: View {
     var body: some View {
         Color.clear
             .frame(width: width, height: height)
-            .frame(maxWidth: width == nil ? .infinity : nil)
+            .frame(
+                maxWidth: width == nil ? .infinity : nil,
+                maxHeight: height == nil ? .infinity : nil
+            )
             .heroAnchor(id)
     }
 }
@@ -276,7 +279,6 @@ private struct StepChrome: View {
     let direction: CurrencyCreationWizardScreen.Direction
     @Bindable var state: CurrencyCreationState
     @FocusState.Binding var focusedField: CurrencyCreationWizardScreen.Field?
-    let previewFiat: Quarks
     let descriptionCharLimit: Int
     let menuHidden: Bool
     let onPhotoPicker: () -> Void
@@ -304,11 +306,11 @@ private struct StepChrome: View {
                 .transition(direction.slide)
             }
             if step == .billCreation {
-                BillCreationChrome(state: state, previewFiat: previewFiat)
+                BillCreationChrome(state: state)
                     .transition(direction.slide)
             }
             if step == .confirmation {
-                ConfirmationChrome(previewFiat: previewFiat, state: state)
+                ConfirmationChrome()
                     .transition(direction.slide)
             }
         }
@@ -420,24 +422,15 @@ private struct DescriptionChrome: View {
     }
 }
 
+/// The bill itself is rendered by the HeroLayer overlay at the `.bill`
+/// anchor published in BillCreationControls. This chrome just holds the
+/// ColorEditor at the bottom.
 private struct BillCreationChrome: View {
     @Bindable var state: CurrencyCreationState
-    let previewFiat: Quarks
 
     var body: some View {
         VStack(spacing: 0) {
-            GeometryReader { geometry in
-                if geometry.size.width > 0, geometry.size.height > 0 {
-                    BillView(
-                        fiat: previewFiat,
-                        data: .placeholder35,
-                        canvasSize: geometry.size,
-                        backgroundColors: state.backgroundColors
-                    )
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-            }
-            .padding(.top, 20)
+            Spacer(minLength: 0)
 
             ColorEditorControl(colors: $state.backgroundColors)
                 .fixedSize(horizontal: false, vertical: true)
@@ -447,28 +440,12 @@ private struct BillCreationChrome: View {
     }
 }
 
+/// Empty sliding chrome — all content (heroes, bill, button) lives in
+/// non-sliding layers that morph between steps.
 private struct ConfirmationChrome: View {
-    let previewFiat: Quarks
-    @Bindable var state: CurrencyCreationState
-
     var body: some View {
-        VStack(spacing: 0) {
-            Color.clear.frame(height: 48)
-
-            GeometryReader { geometry in
-                if geometry.size.width > 0, geometry.size.height > 0 {
-                    BillView(
-                        fiat: previewFiat,
-                        data: .placeholder35,
-                        canvasSize: geometry.size,
-                        backgroundColors: state.backgroundColors
-                    )
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 100)
-        }
+        Color.clear
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -495,8 +472,11 @@ private struct StepControls: View {
             if step == .icon {
                 IconControls().transition(.identity)
             }
+            if step == .billCreation {
+                BillCreationControls().transition(.identity)
+            }
             if step == .confirmation {
-                HeaderControls().transition(.identity)
+                ConfirmationControls(state: state).transition(.identity)
             }
             // .description publishes its header anchors inside the
             // ScrollView in DescriptionChrome so they scroll with
@@ -569,19 +549,63 @@ private struct IconControls: View {
     }
 }
 
-private struct HeaderControls: View {
+/// Publishes the .bill anchor at the bill-creation position.
+/// Proportional sizing keeps the bill smaller than confirmation
+/// because the ColorEditor takes significant vertical space at the
+/// bottom (larger than the Buy button used on confirmation).
+private struct BillCreationControls: View {
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                HeroPlaceholder(.circle, width: 28, height: 28)
-                HeroPlaceholder(.name, height: 24)
-            }
-            .padding(.top, 20)
-            .padding(.horizontal, 20)
+        GeometryReader { proxy in
+            VStack(spacing: 0) {
+                HeroPlaceholder(.bill, height: proxy.size.height * 0.52)
+                    .padding(.top, 20)
+                    .padding(.horizontal, 40)
 
-            Spacer(minLength: 0)
+                Spacer(minLength: 0)
+
+                // ColorEditor sits at the bottom of BillCreationChrome.
+                // Reserve ~30% of content height — ColorEditor internals
+                // (PanelMetrics.height 110 + tile grid + paddings) plus
+                // a visual gap above.
+                Color.clear.frame(height: proxy.size.height * 0.32)
+            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+}
+
+/// Centered header for the confirmation step PLUS the bill anchor
+/// below it. The bill is taller here than on bill creation because
+/// the only thing below it is the Buy button (much shorter than the
+/// ColorEditor).
+private struct ConfirmationControls: View {
+    @Bindable var state: CurrencyCreationState
+
+    var body: some View {
+        GeometryReader { proxy in
+            VStack(spacing: 0) {
+                HStack(spacing: 12) {
+                    HeroPlaceholder(.circle, width: 28, height: 28)
+
+                    Text(state.currencyName.isEmpty ? " " : state.currencyName)
+                        .font(.appTextLarge)
+                        .lineLimit(1)
+                        .hidden()
+                        .heroAnchor(.name)
+                }
+                .padding(.top, 20)
+
+                // Gap between heroes and bill.
+                Color.clear.frame(height: 40)
+
+                HeroPlaceholder(.bill, height: proxy.size.height * 0.62)
+                    .padding(.horizontal, 20)
+
+                Spacer(minLength: 0)
+
+                // Reserve for the Buy button in the bottom bar.
+                Color.clear.frame(height: 120)
+            }
+        }
     }
 }
 

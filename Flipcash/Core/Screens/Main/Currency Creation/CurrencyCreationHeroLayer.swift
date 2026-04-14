@@ -17,11 +17,27 @@ struct HeroLayer: View {
     let step: CurrencyCreationWizardScreen.WizardStep
     @Bindable var state: CurrencyCreationState
     let heroNameRevealed: Bool
+    let previewFiat: Quarks
     let anchors: [HeroAnchorID: Anchor<CGRect>]
 
     var body: some View {
         GeometryReader { proxy in
             ZStack(alignment: .topLeading) {
+                // Bill morphs between billCreation and confirmation.
+                // Rendered as a hero so it doesn't duplicate across the
+                // sliding chromes.
+                if let rect = anchors[.bill].map({ proxy[$0] }) {
+                    BillView(
+                        fiat: previewFiat,
+                        data: .placeholder35,
+                        canvasSize: CGSize(width: rect.width, height: rect.height),
+                        backgroundColors: state.backgroundColors
+                    )
+                    .frame(width: rect.width, height: rect.height)
+                    .clipped()
+                    .position(x: rect.midX, y: rect.midY)
+                }
+
                 if step != .billCreation, let rect = anchors[.circle].map({ proxy[$0] }) {
                     HeroCircle(step: step, selectedImage: state.selectedImage)
                         .frame(width: rect.width, height: rect.height)
