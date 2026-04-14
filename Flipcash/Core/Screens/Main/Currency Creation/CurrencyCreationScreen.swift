@@ -35,7 +35,7 @@ final class CurrencyCreationState {
     var currencyName: String = ""
     var selectedImage: UIImage?
     var currencyDescription: String = ""
-    var backgroundColors: [Color] = [Color(white: 0.1)]
+    var backgroundColors: [Color] = ColorEditorControl.randomColors()
 }
 
 // MARK: - CurrencyCreationFlow

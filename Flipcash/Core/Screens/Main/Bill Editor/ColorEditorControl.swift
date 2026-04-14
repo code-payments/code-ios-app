@@ -433,6 +433,17 @@ private struct PresetTileView: View {
 
 // MARK: - Extensions
 
+extension ColorEditorControl {
+    /// Returns `count` random colors sampled without replacement from
+    /// the solid presets. Default 3 matches `maxStops`.
+    public static func randomColors(count: Int = 3) -> [Color] {
+        GradientStop.solidPresets
+            .shuffled()
+            .prefix(count)
+            .map(\.color)
+    }
+}
+
 extension GradientStop {
     public static let solidPresets: [GradientStop] = [
         GradientStop(hue: 0.0, saturation: 0.0, brightness: 1.0),      // White
