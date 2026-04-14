@@ -182,7 +182,7 @@ public struct VerifiedSwapMetadata: Sendable {
 // MARK: - Proto Conversion -
 
 extension VerifiedSwapMetadata.ClientParameters {
-    public init?(_ proto: Ocp_Transaction_V1_StatefulSwapRequest.Initiate.CurrencyCreator) {
+    public init?(_ proto: Ocp_Transaction_V1_StatefulSwapRequest.Initiate.ReserveSwapClientParameters) {
         guard
             let swapId = SwapId(proto.id),
             let fromMint = try? PublicKey(proto.fromMint.value),
@@ -202,7 +202,7 @@ extension VerifiedSwapMetadata.ClientParameters {
         )
     }
 
-    public var proto: Ocp_Transaction_V1_StatefulSwapRequest.Initiate.CurrencyCreator {
+    public var proto: Ocp_Transaction_V1_StatefulSwapRequest.Initiate.ReserveSwapClientParameters {
         .with {
             $0.id = id.codeSwapID
             $0.fromMint = fromMint.solanaAccountID
@@ -215,14 +215,14 @@ extension VerifiedSwapMetadata.ClientParameters {
 }
 
 extension VerifiedSwapMetadata.ServerParameters {
-    public init?(_ proto: Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.CurrencyCreator) {
+    public init?(_ proto: Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveExistingCurrencyServerParameters) {
         guard
             let nonce = try? PublicKey(proto.nonce.value),
             let blockhash = try? Hash(proto.blockhash.value)
         else {
             return nil
         }
-        
+
         self.init(nonce: nonce, blockhash: blockhash)
     }
 }
@@ -249,7 +249,7 @@ extension VerifiedSwapMetadata.ServerParameters {
 
 extension VerifiedSwapMetadata {
     public init?(_ proto: Ocp_Transaction_V1_VerifiedSwapMetadata) {
-        guard case .currencyCreator(let verified) = proto.kind else {
+        guard case .reserve(let verified) = proto.kind else {
             return nil
         }
         
@@ -273,7 +273,7 @@ extension VerifiedSwapMetadata {
     
     public var proto: Ocp_Transaction_V1_VerifiedSwapMetadata {
         .with {
-            $0.currencyCreator = .with {
+            $0.reserve = .with {
                 $0.clientParameters = clientParameters.proto
             }
         }
@@ -459,7 +459,7 @@ extension SwapResponseServerParameters.CurrencyCreatorStateless {
 }
 
 extension SwapResponseServerParameters.CurrencyCreatorStateful {
-    public init?(_ proto: Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.CurrencyCreator) {
+    public init?(_ proto: Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveExistingCurrencyServerParameters) {
         guard
             let payer = try? PublicKey(proto.payer.value),
             let memoryAccount = try? PublicKey(proto.memoryAccount.value)
@@ -484,12 +484,17 @@ extension SwapResponseServerParameters.CurrencyCreatorStateful {
 extension SwapResponseServerParameters {
     public init?(_ proto: Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters) {
         switch proto.kind {
-        case .currencyCreator(let stateful):
+        case .reserveExistingCurrency(let stateful):
             guard let params = CurrencyCreatorStateful(stateful) else {
                 return nil
             }
             self.init(kind: .stateful(params))
-            
+
+        case .reserveNewCurrency:
+            // Handled by the dedicated new-currency swap path in Phase 3;
+            // existing-currency swaps never receive this case.
+            return nil
+
         case .none:
             return nil
         }

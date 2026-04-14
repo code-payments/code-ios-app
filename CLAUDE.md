@@ -190,6 +190,27 @@ This ensures deterministic builds across all developers and CI systems while min
 
 Open `Code.xcodeproj` in Xcode 16.x. Swift packages resolve automatically on first open. Build and run the `Flipcash` scheme.
 
+### Regenerating Protos
+
+Swift gRPC bindings in `FlipcashAPI/Sources/FlipcashAPI/Generated` and `FlipcashCoreAPI/Sources/FlipcashCoreAPI/Generated` are generated from `.proto` files pulled from the server-protobuf repos. To regenerate:
+
+```
+cd Scripts
+./run -a flipcashPayments
+./run -a flipcashCore
+```
+
+Each invocation clones the latest `.proto` files from the upstream repo, replaces the local `proto/` directory, and regenerates the Swift code in `Generated/`.
+
+**Required tools** (checked by the script; aborts if missing):
+- `protoc` — `brew install protobuf`
+- `protoc-gen-swift` — `brew install swift-protobuf`
+- `protoc-gen-grpc-swift` (version **1.x**, not 2.x) — `./Scripts/install-grpc-swift-1-plugin.sh`
+
+The "Generate Flipcash Services" Xcode scheme wraps these same two commands — use either, they produce the same output.
+
+**Never modify files under `Generated/` directly** — changes will be overwritten on the next regen.
+
 ---
 
 ## Architecture & Patterns

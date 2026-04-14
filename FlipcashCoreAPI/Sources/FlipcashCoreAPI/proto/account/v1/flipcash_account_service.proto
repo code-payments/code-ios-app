@@ -139,4 +139,7 @@ message UserFlags {
 
 	// Exchange data timeout for sequential give/grabs for bills
 	google.protobuf.Duration bill_exchange_data_timeout = 7;
+
+	// USDF amount, in quarks, that must be purchased when launching a new currency
+	uint64 new_currency_purchase_amount = 8;
 }

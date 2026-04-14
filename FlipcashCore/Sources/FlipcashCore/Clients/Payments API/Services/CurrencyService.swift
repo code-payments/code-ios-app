@@ -162,6 +162,10 @@ extension InterceptorFactory: Ocp_Currency_V1_CurrencyClientInterceptorFactoryPr
     func makeDiscoverInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Currency_V1_DiscoverRequest, FlipcashAPI.Ocp_Currency_V1_DiscoverResponse>] {
         makeInterceptors()
     }
+
+    func makeCheckAvailabilityInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Currency_V1_CheckAvailabilityRequest, FlipcashAPI.Ocp_Currency_V1_CheckAvailabilityResponse>] {
+        makeInterceptors()
+    }
 }
 
 // MARK: - GRPCClientType -

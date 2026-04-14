@@ -317,11 +317,11 @@ message StatefulSwapRequest {
         oneof kind {
             option (validate.required) = true;
 
-            CurrencyCreator currency_creator = 1;
+            ReserveSwapClientParameters reserve = 1;
         }
 
-         // Server parameters for starting swaps against the Currency Creator program
-        message CurrencyCreator {
+         // Client parameters for starting swaps against the Reserve contract
+        message ReserveSwapClientParameters {
             // The unique ID for this swap randomly generated on client
             common.v1.SwapId id = 1 [(validate.rules).message.required = true];
 
@@ -354,7 +354,8 @@ message StatefulSwapRequest {
 
         // The user authority account that will sign to authorize the swap.
         //
-        // For Currency Creator program buy/sell flows, this should be a random one-time use account.
+        // For Reserve contract buy/sell flows against existing currencies, this must be a random one-time use account.
+        // For Reserve contract buy flows against new currencies, this must be the owner account that is the currency creator.
         common.v1.SolanaAccountId swap_authority = 10 [(validate.rules).message.required = true];
 
         // The signature of serialize(VerifiedSwapMetadata) for the swap being initiated.
@@ -367,9 +368,11 @@ message StatefulSwapRequest {
     }
 
     message SubmitSignatures {
-        // The signatures for the locally constructed swap transaction
+        // The signatures for the locally constructed swap transaction:
+        //   - owner is at index 0
+        //   - swap_authority is at index 1
         repeated common.v1.Signature transaction_signatures = 1 [(validate.rules).repeated = {
-            min_items: 2
+            min_items: 1
             max_items: 2
         }];
     }
@@ -388,11 +391,12 @@ message StatefulSwapResponse {
         oneof kind {
             option (validate.required) = true;
 
-            CurrencyCreator currency_creator = 1;
+            ReserveExistingCurrencyServerParameters reserve_existing_currency = 1;
+            ReserveNewCurrencyServerParameter       reserve_new_currency      = 2;
         }
 
         // Server parameters when executing stateful buy/sell flows against the
-        // Currency Creator program
+        // Reserve contract against an existing currency
         //
         // Supported Solana transaction version: v0
         //
@@ -405,7 +409,7 @@ message StatefulSwapResponse {
         //  4. [Optional] Memo::Memo
         //  5. AssociatedTokenAccount::CreateIdempotent (open Core Mint temporary account)
         //  6. VM::TransferForSwap (Core Mint VM swap ATA -> Core Mint temporary account)
-        //  6. CurrencyCreator::BuyAndDepositIntoVm (bounded buy depositing to_mint tokens into the to_mint VM)
+        //  6. Reserve::BuyAndDepositIntoVm (bounded buy depositing to_mint tokens into the to_mint VM)
         //  8. Token::CloseAccount (closes Core Mint temporary account)
         //  9. VM::CloseSwapAccountIfEmpty (closes Core Mint VM swap ATA if empty)
         //
@@ -416,7 +420,7 @@ message StatefulSwapResponse {
         //  4. [Optional] Memo::Memo
         //  5. AssociatedTokenAccount::CreateIdempotent (open from_mint temporary account)
         //  6. VM::TransferForSwap (from_mint VM swap ATA -> from_mint temporary account)
-        //  7. CurrencyCreator::SellAndDepositIntoVm (bounded sell depositing Core Mint into the Core Mint VM)
+        //  7. Reserve::SellAndDepositIntoVm (bounded sell depositing Core Mint into the Core Mint VM)
         //  8. Token::CloseAccount (closes from_mint temporary account)
         //  9. VM::CloseSwapAccountIfEmpty (closes from_mint swap PDA/ATA if empty)
         //
@@ -428,12 +432,12 @@ message StatefulSwapResponse {
         //  5.  AssociatedTokenAccount::CreateIdempotent (open Core Mint temporary account)
         //  6.  AssociatedTokenAccount::CreateIdempotent (open from_mint temporary account)
         //  7.  VM::TransferForSwap (from_mint VM swap ATA -> from_mint temporary account)
-        //  8.  CurrencyCreator::SellTokens (bounded sell transferring Core Mint into temporary account)
-        //  9.  CurrencyCreator::BuyAndDepositIntoVm (unlimited buy depositing to_mint tokens into the to_mint VM)
+        //  8.  Reserve::SellTokens (bounded sell transferring Core Mint into temporary account)
+        //  9.  Reserve::BuyAndDepositIntoVm (unlimited buy depositing to_mint tokens into the to_mint VM)
         //  10. Token::CloseAccount (closes Core Mint temporary account)
         //  11. Token::CloseAccount (closes from_mint temporary account)
         //  12. VM::CloseSwapAccountIfEmpty (closes from_mint VM swap ATA if empty)
-        message CurrencyCreator {
+        message ReserveExistingCurrencyServerParameters {
             // Subisdizer account that will be paying for the swap
             common.v1.SolanaAccountId payer = 1 [(validate.rules).message.required = true];
 
@@ -456,13 +460,85 @@ message StatefulSwapResponse {
 
             // Value provided into the Memo::Memo instruction. If the value length is 0,
             // then the instruction can be omitted.
-            string memo_value = 7 [(validate.rules).string. max_len = 64];
+            string memo_value = 7 [(validate.rules).string.max_len = 64];
 
             // The memory account where the destination virtual Timelock account lives
             common.v1.SolanaAccountId memory_account = 8 [(validate.rules).message.required = true];
 
             // The memory index where the destination virtual Timelock account lives
             uint32 memory_index = 9;
+        }
+
+        // Server parameters when executing stateful buy flows against the
+        // Reserve contract against a new currency. Only the creator of the
+        // currency will be able to execute this flow.
+        //
+        // Supported Solana transaction version: v0
+        //
+        // Instruction format:
+        //  1. System::AdvanceNonce
+        //  2. [Optional] ComputeBudget::SetComputeUnitLimit
+        //  3. [Optional] ComputeBudget::SetComputeUnitPrice
+        //  4. [Optional] Memo::Memo
+        //  5. Reserve::InitializeCurrency
+        //  6. Reserve::InitializePool
+        //  7. VM::InitializeVm
+        //  8. AssociatedTokenAccount::CreateIdempotent (open owner's Core Mint ATA)
+        //  9. AssociatedTokenAccount::CreateIdempotent (open owner's to_mint VM Deposit ATA)
+        // 10. VM::TransferForSwap (Core Mint VM swap ATA -> owner's Core Mint ATA)
+        // 11. Reserve::BuyTokens (limited buy transferring to_mint tokens into the to_mint VM Deposit ATA)
+        // 12. Token::CloseAccount (closes owner's Core Mint ATA)
+        //
+        // Note: Client should verify that the new currency's mint address matches that derived
+        //       from using these server parameters.
+        message ReserveNewCurrencyServerParameter {
+            // Subisdizer account that will be paying for the swap
+            common.v1.SolanaAccountId payer = 1 [(validate.rules).message.required = true];
+
+            // The nonce that is reserved for use in the swap transaction
+            common.v1.SolanaAccountId nonce = 2 [(validate.rules).message.required = true];
+
+            // The blockhash that is reserved for use in the swap transaction
+            common.v1.Blockhash blockhash = 3 [(validate.rules).message.required = true];
+
+            // ALTs that should be used when constructing the versioned transaction
+            repeated common.v1.SolanaAddressLookupTable alts = 4;
+
+            // Compute unit limit provided to the ComputeBudget::SetComputeUnitLimit
+            // instruction. If the value is 0, then the instruction can be omitted.
+            uint32 compute_unit_limit = 5;
+
+            // Compute unit price provided in the ComputeBudget::SetComputeUnitPrice
+            // instruction. If the value is 0, then the instruction can be omitted.
+            uint64 compute_unit_price = 6;
+
+            // Value provided into the Memo::Memo instruction. If the value length is 0,
+            // then the instruction can be omitted.
+            string memo_value = 7 [(validate.rules).string.max_len = 64];
+
+            // The VM and currency authority
+            common.v1.SolanaAccountId authority = 8 [(validate.rules).message.required = true];
+
+            // The currency name
+            string name = 9 [(validate.rules).string = {
+                min_len: 1,
+                max_len: 32,
+            }];
+
+            // The currency symbol
+            string symbol = 10 [(validate.rules).string = {
+                min_len: 1,
+                max_len: 8,
+            }];
+
+            // The random seed value used to generate a unique currency of the given name
+            common.v1.SolanaAccountId seed = 11 [(validate.rules).message.required = true];
+
+            // Liquidity pool's percent sell fee in basis points
+            uint32 sell_fee_bps = 12 [(validate.rules).uint32.const = 100];
+
+            // The VM lock duration
+            uint32 vm_lock_duration_in_days = 13 [(validate.rules).uint32.const = 21];
         }
     }
 
@@ -996,15 +1072,15 @@ message VerifiedSwapMetadata {
     oneof kind {
         option (validate.required) = true;
 
-        VerifiedCurrencyCreatorSwapMetadata currency_creator = 1;
+        VerifiedReserveSwapMetadata reserve = 1;
     }
 }
 
-// VerifiedCurrencyCreatorSwapMetadata is verified metadata for swaps against the
+// VerifiedReserveSwapMetadata is verified metadata for swaps against the
 // Currency Creator program
-message VerifiedCurrencyCreatorSwapMetadata {
+message VerifiedReserveSwapMetadata {
     // Verifiable client-side parameters that were provided during the StatefulSwap RPC
-    StatefulSwapRequest.Initiate.CurrencyCreator client_parameters = 1 [(validate.rules).message.required = true];
+    StatefulSwapRequest.Initiate.ReserveSwapClientParameters client_parameters = 1 [(validate.rules).message.required = true];
 }
 
 message SwapMetadata {

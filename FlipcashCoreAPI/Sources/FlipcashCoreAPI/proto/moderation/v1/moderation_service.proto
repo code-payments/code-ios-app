@@ -1,0 +1,102 @@
+syntax = "proto3";
+
+package flipcash.moderation.v1;
+
+option go_package = "github.com/code-payments/flipcash2-protobuf-api/generated/go/moderation/v1;moderationpb";
+option java_package = "com.codeinc.flipcash.gen.moderation.v1";
+option objc_class_prefix = "FPBModerationV1";
+
+import "common/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+import "validate/validate.proto";
+
+service Moderation {
+    // ModerateText checks text content against moderation policies
+    rpc ModerateText(ModerateTextRequest) returns (ModerateTextResponse);
+
+    // ModerateImage checks image content against moderation policies
+    rpc ModerateImage(ModerateImageRequest) returns (ModerateImageResponse);
+}
+
+message ModerateTextRequest {
+    // The text content to moderate
+    string text = 1 [(validate.rules).string = {
+        min_len: 1
+        max_len: 4096
+    }];
+
+    common.v1.Auth auth = 2 [(validate.rules).message.required = true];
+}
+
+message ModerateTextResponse {
+    Result result = 1;
+    enum Result {
+        OK     = 0;
+        DENIED = 1;
+    }
+
+    // Whether the text content is allowed
+    bool is_allowed = 2;
+
+    // Signed attestation of the moderation result when content is allowed
+    ModerationAttestation attestation = 3;
+
+    // The best fit flagged category when content is not allowed
+    FlaggedCategory flagged_category = 4;
+}
+
+message ModerateImageRequest {
+    // The raw image data to moderate
+    bytes image_data = 1 [(validate.rules).bytes = {
+        min_len: 1
+        max_len: 1048576 // 1 MB
+    }];
+
+    common.v1.Auth auth = 2 [(validate.rules).message.required = true];
+}
+
+message ModerateImageResponse {
+    Result result = 1;
+    enum Result {
+        OK                 = 0;
+        DENIED             = 1;
+        UNSUPPORTED_FORMAT = 2;
+    }
+
+    // Whether the image content is allowed
+    bool is_allowed = 2;
+
+    // Signed attestation of the moderation result when content is allowed
+    ModerationAttestation attestation = 3;
+
+    // The best fit flagged category when content is not allowed
+    FlaggedCategory flagged_category = 4;
+}
+
+// ModerationAttestation is a signed proof of the moderation result.
+// The signature is computed over this message without the signature field set.
+message ModerationAttestation {
+    // SHA-256 hash of the moderated content to be allowed
+    bytes content_hash = 1;
+
+    // Timestamp of the moderation
+    google.protobuf.Timestamp timestamp = 2;
+
+    // The user who submitted the content
+    common.v1.UserId user_id = 3;
+
+    // Public key of the attestor that signed this message
+    common.v1.PublicKey attestor = 4;
+
+    // Attestor signature over this message
+    common.v1.Signature signature = 5;
+}
+
+enum FlaggedCategory {
+    NONE          = 0;
+    OTHER         = 1; // Fallback category when flagged content does not fit into a well-defined FlaggedCategory
+    NSFW          = 2;
+    IMPERSONATION = 3;
+    MISLEADING    = 4;
+    SPAM          = 5;
+}

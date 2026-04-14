@@ -123,7 +123,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                 // 2. Upon successful submission of the Start message, server will
                 // respond with parameters (nonce + blockhash) that we need to sign
             case .serverParameters(let parameters):
-                guard case .currencyCreator(let serverParams) = parameters.kind else {
+                guard case .reserveExistingCurrency(let serverParams) = parameters.kind else {
                     logger.error("Unexpected server parameter kind in swap")
                     _ = reference.stream?.sendEnd()
                     completion(.failure(.unknown))
@@ -286,7 +286,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
 
             // Build the full VerifiedSwapMetadata proto structure
             let verifiedMetadataProto = Ocp_Transaction_V1_VerifiedSwapMetadata.with {
-                $0.currencyCreator = .with {
+                $0.reserve = .with {
                     $0.clientParameters = clientProto
                 }
             }
@@ -295,7 +295,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
 
             let startRequest = Ocp_Transaction_V1_StatefulSwapRequest.with {
                 $0.initiate = .with {
-                    $0.kind = .currencyCreator(clientProto)
+                    $0.kind = .reserve(clientProto)
                     $0.owner = owner.publicKey.solanaAccountID
                     $0.swapAuthority = swapAuthority.publicKey.solanaAccountID
                     $0.proofSignature = proof.proto
