@@ -19,6 +19,7 @@ extension VMProgram {
 extension VMProgram {
     public enum Command: UInt8 {
         case unknown = 0
+        case initializeVm = 1
         case transferForSwap = 17
         case closeSwapAccountIfEmpty = 19
     }

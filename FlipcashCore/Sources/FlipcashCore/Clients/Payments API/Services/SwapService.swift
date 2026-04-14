@@ -37,6 +37,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
         amount: Quarks,
         fundingSource: FundingSource,
         owner: KeyPair,
+        isNewCurrencyLaunch: Bool = false,
         completion: @escaping (Result<SwapMetadata, ErrorSwap>) -> Void
     ) {
         let fromMint = direction.sourceMint.address
@@ -45,44 +46,49 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
             "swapId": "\(swapId.publicKey.base58)",
             "from": "\(fromMint.base58)",
             "to": "\(toMint.base58)",
-            "amount": "\(amount.formatted())"
+            "amount": "\(amount.formatted())",
+            "isNewCurrencyLaunch": "\(isNewCurrencyLaunch)"
         ])
 
-        // Validate that required metadata is present for transaction building
-        switch direction {
-        case .buy(let targetMint):
-            guard targetMint.vmMetadata != nil else {
-                logger.error("Target mint missing VM metadata", metadata: [
-                    "symbol": "\(targetMint.symbol)",
-                    "mint": "\(targetMint.address.base58)"
-                ])
-                completion(.failure(.invalidSwap))
-                return
-            }
-            guard targetMint.launchpadMetadata != nil else {
-                logger.error("Target mint missing launchpad metadata", metadata: [
-                    "symbol": "\(targetMint.symbol)",
-                    "mint": "\(targetMint.address.base58)"
-                ])
-                completion(.failure(.invalidSwap))
-                return
-            }
-        case .sell(let sourceMint):
-            guard sourceMint.vmMetadata != nil else {
-                logger.error("Source mint missing VM metadata", metadata: [
-                    "symbol": "\(sourceMint.symbol)",
-                    "mint": "\(sourceMint.address.base58)"
-                ])
-                completion(.failure(.invalidSwap))
-                return
-            }
-            guard sourceMint.launchpadMetadata != nil else {
-                logger.error("Source mint missing launchpad metadata", metadata: [
-                    "symbol": "\(sourceMint.symbol)",
-                    "mint": "\(sourceMint.address.base58)"
-                ])
-                completion(.failure(.invalidSwap))
-                return
+        // New-currency launches defer VM/launchpad metadata validation: the
+        // target mint and its VM don't exist yet on-chain. For all other flows,
+        // we validate that the mints have VM + launchpad metadata hydrated.
+        if !isNewCurrencyLaunch {
+            switch direction {
+            case .buy(let targetMint):
+                guard targetMint.vmMetadata != nil else {
+                    logger.error("Target mint missing VM metadata", metadata: [
+                        "symbol": "\(targetMint.symbol)",
+                        "mint": "\(targetMint.address.base58)"
+                    ])
+                    completion(.failure(.invalidSwap))
+                    return
+                }
+                guard targetMint.launchpadMetadata != nil else {
+                    logger.error("Target mint missing launchpad metadata", metadata: [
+                        "symbol": "\(targetMint.symbol)",
+                        "mint": "\(targetMint.address.base58)"
+                    ])
+                    completion(.failure(.invalidSwap))
+                    return
+                }
+            case .sell(let sourceMint):
+                guard sourceMint.vmMetadata != nil else {
+                    logger.error("Source mint missing VM metadata", metadata: [
+                        "symbol": "\(sourceMint.symbol)",
+                        "mint": "\(sourceMint.address.base58)"
+                    ])
+                    completion(.failure(.invalidSwap))
+                    return
+                }
+                guard sourceMint.launchpadMetadata != nil else {
+                    logger.error("Source mint missing launchpad metadata", metadata: [
+                        "symbol": "\(sourceMint.symbol)",
+                        "mint": "\(sourceMint.address.base58)"
+                    ])
+                    completion(.failure(.invalidSwap))
+                    return
+                }
             }
         }
 
@@ -92,10 +98,10 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
             completion(.failure(.invalidSwap))
             return
         }
-        
+
         let reference = BidirectionalSwapStream()
         let queue = self.queue // Capture queue, not self
-        
+
         // Store client parameters for verification metadata construction
         let clientParameters = VerifiedSwapMetadata.ClientParameters(
             id: swapId,
@@ -104,14 +110,16 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
             amount: amount,
             fundingSource: fundingSource
         )
-        
+
         // Intentionally creates a retain-cycle using closures to ensure that we have
         // a strong reference to the stream at all times. Doing so ensures that the
         // callers don't have to manage the pointer to this stream and keep it alive
         reference.retain()
 
-        // Generate swap authority keypair for transaction signing
-        let swapAuthority = KeyPair.generate()!
+        // Swap authority signs the transaction. For standard swaps the server
+        // requires a distinct authority from owner; for new-currency launches
+        // the server requires owner == swap_authority.
+        let swapAuthority: KeyPair = isNewCurrencyLaunch ? owner : (KeyPair.generate() ?? owner)
 
         // Store server parameters when received
         var receivedServerParameters: VerifiedSwapMetadata.ServerParameters?
@@ -123,63 +131,145 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                 // 2. Upon successful submission of the Start message, server will
                 // respond with parameters (nonce + blockhash) that we need to sign
             case .serverParameters(let parameters):
-                guard case .reserveExistingCurrency(let serverParams) = parameters.kind else {
-                    logger.error("Unexpected server parameter kind in swap")
-                    _ = reference.stream?.sendEnd()
-                    completion(.failure(.unknown))
-                    return
-                }
-
-                guard let serverParameters = VerifiedSwapMetadata.ServerParameters(serverParams) else {
-                    logger.error("Failed to parse swap server parameters")
-                    _ = reference.stream?.sendEnd()
-                    completion(.failure(.unknown))
-                    return
-                }
-
-                guard let responseParams = SwapResponseServerParameters(parameters) else {
-                    logger.error("Failed to parse swap response parameters")
-                    _ = reference.stream?.sendEnd()
-                    completion(.failure(.unknown))
-                    return
-                }
-
-                // Store for later use in success response
-                receivedServerParameters = serverParameters
-
-                // Construct verified metadata for signing
-                let verifiedMetadata = VerifiedSwapMetadata(
-                    clientParameters: clientParameters,
-                    serverParameters: serverParameters
-                )
-
-                // Build the swap transaction and sign with both owner and swapAuthority
-                let transaction = TransactionBuilder.swap(
-                    responseParams: responseParams,
-                    metadata: verifiedMetadata,
-                    authority: owner.publicKey,
-                    swapAuthority: swapAuthority.publicKey,
-                    direction: direction,
-                    amount: amount.quarks
-                )
-                let signatures = transaction.signatures(using: owner, swapAuthority)
-                verifiedMetadataSignature = signatures.first
-
-                // Send both signatures back to server
-                let submitSignature = Ocp_Transaction_V1_StatefulSwapRequest.with {
-                    $0.submitSignatures = .with {
-                        $0.transactionSignatures = signatures.map { $0.proto }
+                switch parameters.kind {
+                case .reserveExistingCurrency(let serverParams):
+                    guard let serverParameters = VerifiedSwapMetadata.ServerParameters(serverParams) else {
+                        logger.error("Failed to parse swap server parameters")
+                        _ = reference.stream?.sendEnd()
+                        completion(.failure(.unknown))
+                        return
                     }
+
+                    guard let responseParams = SwapResponseServerParameters(parameters) else {
+                        logger.error("Failed to parse swap response parameters")
+                        _ = reference.stream?.sendEnd()
+                        completion(.failure(.unknown))
+                        return
+                    }
+
+                    // Store for later use in success response
+                    receivedServerParameters = serverParameters
+
+                    // Construct verified metadata for signing
+                    let verifiedMetadata = VerifiedSwapMetadata(
+                        clientParameters: clientParameters,
+                        serverParameters: serverParameters
+                    )
+
+                    // Build the swap transaction and sign with both owner and swapAuthority
+                    let transaction = TransactionBuilder.swap(
+                        responseParams: responseParams,
+                        metadata: verifiedMetadata,
+                        authority: owner.publicKey,
+                        swapAuthority: swapAuthority.publicKey,
+                        direction: direction,
+                        amount: amount.quarks
+                    )
+                    let signatures = transaction.signatures(using: owner, swapAuthority)
+                    verifiedMetadataSignature = signatures.first
+
+                    // Send both signatures back to server
+                    let submitSignature = Ocp_Transaction_V1_StatefulSwapRequest.with {
+                        $0.submitSignatures = .with {
+                            $0.transactionSignatures = signatures.map { $0.proto }
+                        }
+                    }
+
+                    _ = reference.stream?.sendMessage(submitSignature)
+
+                    logger.info("Received swap server parameters, submitting signatures", metadata: [
+                        "signatureCount": "\(signatures.count)",
+                        "nonce": "\(serverParameters.nonce.base58)",
+                        "blockhash": "\(serverParameters.blockhash.base58)"
+                    ])
+
+                case .reserveNewCurrency(let serverParams):
+                    guard let params = SwapResponseServerParameters.ReserveNewCurrency(serverParams) else {
+                        logger.error("Failed to parse new-currency server parameters")
+                        _ = reference.stream?.sendEnd()
+                        completion(.failure(.unknown))
+                        return
+                    }
+
+                    // Verify that the server-supplied authority matches the
+                    // owner. The launch transaction has instructions signed by
+                    // both `params.authority` (currency/pool/VM init) and
+                    // `owner` (transfer/buy/close); these must be the same key
+                    // for the single owner signature to satisfy all signer
+                    // slots (per the proto: only the creator can execute this
+                    // flow).
+                    guard params.authority == owner.publicKey else {
+                        logger.error("New-currency server authority does not match owner", metadata: [
+                            "expected": "\(owner.publicKey.base58)",
+                            "received": "\(params.authority.base58)"
+                        ])
+                        _ = reference.stream?.sendEnd()
+                        completion(.failure(.invalidSwap))
+                        return
+                    }
+
+                    // Verify that the mint derived from server params matches
+                    // the mint the client expects (clientParameters.toMint).
+                    guard let (derivedMint, _) = LaunchpadMint.deriveMint(
+                        authority: params.authority,
+                        name: params.name,
+                        seed: params.seed
+                    ) else {
+                        logger.error("Failed to derive mint from new-currency server params")
+                        _ = reference.stream?.sendEnd()
+                        completion(.failure(.invalidSwap))
+                        return
+                    }
+
+                    guard derivedMint == clientParameters.toMint else {
+                        logger.error("Derived mint does not match expected mint", metadata: [
+                            "expected": "\(clientParameters.toMint.base58)",
+                            "derived": "\(derivedMint.base58)"
+                        ])
+                        _ = reference.stream?.sendEnd()
+                        completion(.failure(.invalidSwap))
+                        return
+                    }
+
+                    let serverParameters = VerifiedSwapMetadata.ServerParameters(
+                        nonce: params.nonce,
+                        blockhash: params.blockhash
+                    )
+                    receivedServerParameters = serverParameters
+
+                    // Build the atomic launch-and-first-buy transaction. The owner
+                    // is also the swap_authority for new-currency flows, so only
+                    // one signature is required.
+                    let transaction = TransactionBuilder.swapNewCurrency(
+                        responseParams: params,
+                        authority: owner.publicKey,
+                        amount: amount.quarks
+                    )
+
+                    let signatures = transaction.signatures(using: owner)
+                    verifiedMetadataSignature = signatures.first
+
+                    let submitSignature = Ocp_Transaction_V1_StatefulSwapRequest.with {
+                        $0.submitSignatures = .with {
+                            $0.transactionSignatures = signatures.map { $0.proto }
+                        }
+                    }
+
+                    _ = reference.stream?.sendMessage(submitSignature)
+
+                    logger.info("New-currency swap submitting signatures", metadata: [
+                        "signatureCount": "\(signatures.count)",
+                        "mint": "\(derivedMint.base58)",
+                        "nonce": "\(params.nonce.base58)",
+                        "blockhash": "\(params.blockhash.base58)"
+                    ])
+
+                case .none:
+                    logger.error("Unexpected empty server parameter kind in swap")
+                    _ = reference.stream?.sendEnd()
+                    completion(.failure(.unknown))
                 }
 
-                _ = reference.stream?.sendMessage(submitSignature)
-
-                logger.info("Received swap server parameters, submitting signatures", metadata: [
-                    "signatureCount": "\(signatures.count)",
-                    "nonce": "\(serverParameters.nonce.base58)",
-                    "blockhash": "\(serverParameters.blockhash.base58)"
-                ])
-                
                 // 3. If submitted signature is valid, we'll receive a success
                 // and the swap state will be created on the server
             case .success:

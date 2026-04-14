@@ -19,9 +19,13 @@ extension CurrencyCreatorProgram {
 extension CurrencyCreatorProgram {
     public enum Command: UInt8 {
         case unknown = 0
+        case initializeCurrency = 1
+        case initializePool = 2
+        case initializeMetadata = 3
         case buyTokens = 4
         case sellTokens = 5
         case buyAndDepositIntoVm = 6
         case sellAndDepositIntoVm = 7
+        case burnFees = 8
     }
 }

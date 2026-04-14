@@ -354,6 +354,7 @@ public struct SwapResponseServerParameters {
     public enum Kind {
         case stateless(CurrencyCreatorStateless)
         case stateful(CurrencyCreatorStateful)
+        case newCurrency(ReserveNewCurrency)
     }
     
     // Server parameters for stateless buy/sell flows
@@ -397,7 +398,7 @@ public struct SwapResponseServerParameters {
         public let memoValue: String
         public let memoryAccount: PublicKey
         public let memoryIndex: UInt32
-        
+
         public init(
             payer: PublicKey,
             alts: [AddressLookupTable],
@@ -414,6 +415,54 @@ public struct SwapResponseServerParameters {
             self.memoValue = memoValue
             self.memoryAccount = memoryAccount
             self.memoryIndex = memoryIndex
+        }
+    }
+
+    /// Server parameters for the first-ever buy on a newly-launched currency.
+    /// Only the creator (owner == swap_authority) can execute this path.
+    public struct ReserveNewCurrency: Sendable {
+        public let payer: PublicKey
+        public let nonce: PublicKey
+        public let blockhash: Hash
+        public let alts: [AddressLookupTable]
+        public let computeUnitLimit: UInt32
+        public let computeUnitPrice: UInt64
+        public let memoValue: String
+        public let authority: PublicKey
+        public let name: String
+        public let symbol: String
+        public let seed: PublicKey
+        public let sellFeeBps: UInt32
+        public let vmLockDurationInDays: UInt32
+
+        public init(
+            payer: PublicKey,
+            nonce: PublicKey,
+            blockhash: Hash,
+            alts: [AddressLookupTable],
+            computeUnitLimit: UInt32,
+            computeUnitPrice: UInt64,
+            memoValue: String,
+            authority: PublicKey,
+            name: String,
+            symbol: String,
+            seed: PublicKey,
+            sellFeeBps: UInt32,
+            vmLockDurationInDays: UInt32
+        ) {
+            self.payer = payer
+            self.nonce = nonce
+            self.blockhash = blockhash
+            self.alts = alts
+            self.computeUnitLimit = computeUnitLimit
+            self.computeUnitPrice = computeUnitPrice
+            self.memoValue = memoValue
+            self.authority = authority
+            self.name = name
+            self.symbol = symbol
+            self.seed = seed
+            self.sellFeeBps = sellFeeBps
+            self.vmLockDurationInDays = vmLockDurationInDays
         }
     }
 }
@@ -466,9 +515,9 @@ extension SwapResponseServerParameters.CurrencyCreatorStateful {
         else {
             return nil
         }
-        
+
         let alts = proto.alts.compactMap { AddressLookupTable($0) }
-        
+
         self.init(
             payer: payer,
             alts: alts,
@@ -477,6 +526,38 @@ extension SwapResponseServerParameters.CurrencyCreatorStateful {
             memoValue: proto.memoValue,
             memoryAccount: memoryAccount,
             memoryIndex: proto.memoryIndex
+        )
+    }
+}
+
+extension SwapResponseServerParameters.ReserveNewCurrency {
+    public init?(_ proto: Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveNewCurrencyServerParameter) {
+        guard
+            let payer = try? PublicKey(proto.payer.value),
+            let nonce = try? PublicKey(proto.nonce.value),
+            let blockhash = try? Hash(proto.blockhash.value),
+            let authority = try? PublicKey(proto.authority.value),
+            let seed = try? PublicKey(proto.seed.value)
+        else {
+            return nil
+        }
+
+        let alts = proto.alts.compactMap { AddressLookupTable($0) }
+
+        self.init(
+            payer: payer,
+            nonce: nonce,
+            blockhash: blockhash,
+            alts: alts,
+            computeUnitLimit: proto.computeUnitLimit,
+            computeUnitPrice: proto.computeUnitPrice,
+            memoValue: proto.memoValue,
+            authority: authority,
+            name: proto.name,
+            symbol: proto.symbol,
+            seed: seed,
+            sellFeeBps: proto.sellFeeBps,
+            vmLockDurationInDays: proto.vmLockDurationInDays
         )
     }
 }
@@ -490,10 +571,11 @@ extension SwapResponseServerParameters {
             }
             self.init(kind: .stateful(params))
 
-        case .reserveNewCurrency:
-            // Handled by the dedicated new-currency swap path in Phase 3;
-            // existing-currency swaps never receive this case.
-            return nil
+        case .reserveNewCurrency(let newCurrency):
+            guard let params = ReserveNewCurrency(newCurrency) else {
+                return nil
+            }
+            self.init(kind: .newCurrency(params))
 
         case .none:
             return nil

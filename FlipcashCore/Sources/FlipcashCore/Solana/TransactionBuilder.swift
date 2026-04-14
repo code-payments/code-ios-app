@@ -48,6 +48,10 @@ extension TransactionBuilder {
             (params.payer, metadata.serverParameters.blockhash, params.alts)
         case .stateless(let params):
             (params.payer, params.recentBlockhash, params.alts)
+        case .newCurrency:
+            // New-currency launches go through TransactionBuilder.swapNewCurrency,
+            // which consumes the ReserveNewCurrency params directly.
+            fatalError("TransactionBuilder.swap cannot be used with a new-currency launch")
         }
         
         let coreMint = MintMetadata.usdf
@@ -84,6 +88,28 @@ extension TransactionBuilder {
             payer: payer,
             recentBlockhash: blockhash,
             addressLookupTables: alts,
+            instructions: instructions
+        )
+    }
+
+    /// Builds the atomic launch-and-first-buy transaction for a new
+    /// launchpad currency. Only the creator (owner == swap authority ==
+    /// serverParams.authority) can execute this path.
+    static func swapNewCurrency(
+        responseParams: SwapResponseServerParameters.ReserveNewCurrency,
+        authority: PublicKey,
+        amount: UInt64
+    ) -> SolanaTransaction {
+        let instructions = SwapInstructionBuilder.newCurrencyLaunch(
+            serverParams: responseParams,
+            authority: authority,
+            amount: amount
+        )
+
+        return SolanaTransaction(
+            payer: responseParams.payer,
+            recentBlockhash: responseParams.blockhash,
+            addressLookupTables: responseParams.alts,
             instructions: instructions
         )
     }
