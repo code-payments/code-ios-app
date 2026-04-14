@@ -2,10 +2,16 @@
 //  CurrencyCreationWizardScreen.swift
 //  Flipcash
 //
-//  Single-view wizard for currency creation. Hero elements (currency name
-//  text and icon circle) are always present in the view tree. AnyLayout
-//  interpolates between VStack (icon step) and HStack (header steps) so
-//  the heroes morph between layouts without conditional-branch cross-fade.
+//  Single-view wizard with three layers stacked in a ZStack:
+//    1. StepChrome — sliding headings, subtitles, scroll content,
+//       bill preview, AND the icon step's real Menu. Uses
+//       `.transition(.asymmetric(...))` driven by `direction`.
+//    2. StepControls — non-sliding. Real TextField on name step,
+//       invisible HeroPlaceholder views per step. Uses
+//       `.transition(.identity)` so step changes swap contents
+//       instantly.
+//    3. HeroLayer — overlay reading anchor preferences, purely
+//       visual HeroCircle + HeroName. `.allowsHitTesting(false)`.
 //
 
 import SwiftUI
@@ -18,16 +24,21 @@ import FlipcashUI
 struct CurrencyCreationWizardScreen: View {
     @Bindable var state: CurrencyCreationState
 
+    @Environment(\.dismiss) private var dismiss
+
     @State private var step: WizardStep = .name
-    @FocusState private var focusedField: Field?
+    @State private var direction: Direction = .forward
     @State private var heroNameRevealed = false
-    @State private var descriptionScrollOffset: CGFloat = 0
+    @State private var menuHidden = false
+    @FocusState private var focusedField: Field?
+
     @State private var isShowingPhotoPicker = false
     @State private var isShowingFilePicker = false
     @State private var isShowingFundingSheet = false
 
-    private static let nameCharLimit = 25
-    private static let descriptionCharLimit = 500
+    static let nameCharLimit = 25
+    static let descriptionCharLimit = 500
+    static let heroCircleSize: CGFloat = 150
 
     // swiftlint:disable:next force_try
     private static let previewFiat = try! Quarks(fiatDecimal: 20, currencyCode: .usd, decimals: 6)
@@ -38,66 +49,86 @@ struct CurrencyCreationWizardScreen: View {
     }
 
     enum WizardStep: Int, CaseIterable {
-        case name = 0
-        case icon
-        case description
-        case billCreation
-        case confirmation
+        case name = 0, icon, description, billCreation, confirmation
 
-        var next: WizardStep? {
-            WizardStep(rawValue: rawValue + 1)
-        }
+        var next: WizardStep? { WizardStep(rawValue: rawValue + 1) }
+        var previous: WizardStep? { WizardStep(rawValue: rawValue - 1) }
+    }
 
-        var isHeader: Bool {
-            switch self {
-            case .description, .billCreation, .confirmation: true
-            case .name, .icon: false
-            }
+    enum Direction {
+        case forward, backward
+
+        var insertionEdge: Edge { self == .forward ? .trailing : .leading }
+        var removalEdge: Edge { self == .forward ? .leading : .trailing }
+
+        var slide: AnyTransition {
+            .asymmetric(
+                insertion: .move(edge: insertionEdge),
+                removal: .move(edge: removalEdge)
+            )
         }
     }
 
     var body: some View {
         Background(color: .backgroundMain) {
-            GeometryReader { geometry in
-                ZStack {
-                    WizardStepContent(
-                        step: step,
-                        state: state,
-                        focusedField: $focusedField,
-                        previewFiat: Self.previewFiat,
-                        descriptionCharLimit: Self.descriptionCharLimit,
-                        descriptionScrollOffset: $descriptionScrollOffset
-                    )
+            ZStack {
+                StepChrome(
+                    step: step,
+                    direction: direction,
+                    state: state,
+                    focusedField: $focusedField,
+                    previewFiat: Self.previewFiat,
+                    descriptionCharLimit: Self.descriptionCharLimit,
+                    menuHidden: menuHidden,
+                    onPhotoPicker: { isShowingPhotoPicker = true },
+                    onFilePicker: { isShowingFilePicker = true }
+                )
 
-                    WizardHeroGroup(
+                StepControls(
+                    step: step,
+                    state: state,
+                    focusedField: $focusedField,
+                    nameCharLimit: Self.nameCharLimit,
+                    heroNameRevealed: heroNameRevealed
+                )
+
+                if step != .billCreation {
+                    WizardBottomBar(
                         step: step,
                         state: state,
-                        heroNameRevealed: heroNameRevealed,
-                        descriptionScrollOffset: descriptionScrollOffset,
-                        focusedField: $focusedField,
-                        geometry: geometry,
                         nameCharLimit: Self.nameCharLimit,
-                        onPhotoPicker: { isShowingPhotoPicker = true },
-                        onFilePicker: { isShowingFilePicker = true }
+                        descriptionCharLimit: Self.descriptionCharLimit,
+                        onAdvance: advance,
+                        onBuy: { isShowingFundingSheet = true }
                     )
-
-                    if step != .billCreation {
-                        WizardBottomBar(
-                            step: step,
-                            state: state,
-                            nameCharLimit: Self.nameCharLimit,
-                            descriptionCharLimit: Self.descriptionCharLimit,
-                            onAdvance: advance,
-                            onBuy: { isShowingFundingSheet = true }
-                        )
-                    }
                 }
-                .clipped()
+            }
+            .overlayPreferenceValue(HeroAnchorKey.self) { anchors in
+                HeroLayer(
+                    step: step,
+                    state: state,
+                    heroNameRevealed: heroNameRevealed,
+                    anchors: anchors
+                )
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
         .interactiveDismissDisabled()
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    if step == .name {
+                        dismiss()
+                    } else {
+                        goBack()
+                    }
+                } label: {
+                    Image(systemName: "chevron.backward")
+                        .foregroundStyle(Color.textMain)
+                }
+            }
+
             ToolbarItem(placement: .principal) {
                 CreationProgressBar(
                     current: step.rawValue + 1,
@@ -139,44 +170,61 @@ struct CurrencyCreationWizardScreen: View {
             )
         }
         .onAppear {
-            if step == .name {
-                focusedField = .name
-            }
+            if step == .name { focusedField = .name }
         }
         .onChange(of: step) { _, newStep in
             switch newStep {
-            case .name:
-                focusedField = .name
-            case .description:
-                focusedField = .description
-            case .icon, .billCreation, .confirmation:
-                focusedField = nil
+            case .name: focusedField = .name
+            case .description: focusedField = .description
+            case .icon, .billCreation, .confirmation: focusedField = nil
             }
         }
     }
 
+    // MARK: - Navigation
+
     private func advance() {
         guard let next = step.next else { return }
-        descriptionScrollOffset = 0
+
+        direction = .forward
 
         if step == .name {
-            // Dismiss keyboard first so the layout settles before the
-            // hero animation starts — prevents the ~300pt position jump
-            // caused by keyboard avoidance shifting the GeometryReader.
             focusedField = nil
             heroNameRevealed = true
-            DispatchQueue.main.async {
-                withAnimation(.spring(duration: 0.55, bounce: 0.12)) {
-                    step = next
-                }
+        }
+        if step == .icon {
+            // Real Menu vanishes instantly; overlay HeroCircle takes
+            // over at the same position for the morph.
+            withTransaction(Transaction(animation: nil)) {
+                menuHidden = true
             }
-            return
         }
 
         withAnimation(.spring(duration: 0.55, bounce: 0.12)) {
             step = next
         }
     }
+
+    private func goBack() {
+        guard let previous = step.previous else { return }
+
+        direction = .backward
+
+        withAnimation(.spring(duration: 0.55, bounce: 0.12)) {
+            step = previous
+        } completion: {
+            if previous == .icon {
+                withTransaction(Transaction(animation: nil)) {
+                    menuHidden = false
+                }
+            }
+            if previous == .name {
+                heroNameRevealed = false
+            }
+        }
+    }
+
+    // MARK: - File Import
 
     private func handleFileImport(_ result: Result<[URL], Error>) {
         switch result {
@@ -196,65 +244,78 @@ struct CurrencyCreationWizardScreen: View {
     }
 }
 
-// MARK: - WizardStepContent
+// MARK: - HeroPlaceholder
 
-private struct WizardStepContent: View {
+/// Invisible view sized to where a hero should land, publishing its
+/// bounds as the anchor for the given hero ID. Pass `width: nil` for a
+/// flexible/leading target (e.g. the name row); pass a concrete width
+/// for a fixed target (e.g. a 28pt header circle).
+private struct HeroPlaceholder: View {
+    let id: HeroAnchorID
+    let width: CGFloat?
+    let height: CGFloat
+
+    init(_ id: HeroAnchorID, width: CGFloat? = nil, height: CGFloat) {
+        self.id = id
+        self.width = width
+        self.height = height
+    }
+
+    var body: some View {
+        Color.clear
+            .frame(width: width, height: height)
+            .frame(maxWidth: width == nil ? .infinity : nil)
+            .heroAnchor(id)
+    }
+}
+
+// MARK: - StepChrome (sliding layer)
+
+private struct StepChrome: View {
     let step: CurrencyCreationWizardScreen.WizardStep
+    let direction: CurrencyCreationWizardScreen.Direction
     @Bindable var state: CurrencyCreationState
     @FocusState.Binding var focusedField: CurrencyCreationWizardScreen.Field?
     let previewFiat: Quarks
     let descriptionCharLimit: Int
-    @Binding var descriptionScrollOffset: CGFloat
+    let menuHidden: Bool
+    let onPhotoPicker: () -> Void
+    let onFilePicker: () -> Void
 
     var body: some View {
         ZStack {
             if step == .name {
-                NameStepContent()
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .trailing),
-                        removal: .move(edge: .leading)
-                    ))
+                NameChrome().transition(direction.slide)
             }
             if step == .icon {
-                IconStepContent()
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .trailing),
-                        removal: .move(edge: .leading)
-                    ))
+                IconChrome(
+                    menuHidden: menuHidden,
+                    onPhotoPicker: onPhotoPicker,
+                    onFilePicker: onFilePicker
+                )
+                .transition(direction.slide)
             }
             if step == .description {
-                DescriptionStepContent(
+                DescriptionChrome(
                     state: state,
                     focusedField: $focusedField,
-                    characterLimit: descriptionCharLimit,
-                    scrollOffset: $descriptionScrollOffset
+                    characterLimit: descriptionCharLimit
                 )
-                .transition(.asymmetric(
-                        insertion: .move(edge: .trailing),
-                        removal: .move(edge: .leading)
-                    ))
+                .transition(direction.slide)
             }
             if step == .billCreation {
-                BillCreationStepContent(state: state, previewFiat: previewFiat)
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .trailing),
-                        removal: .move(edge: .leading)
-                    ))
+                BillCreationChrome(state: state, previewFiat: previewFiat)
+                    .transition(direction.slide)
             }
             if step == .confirmation {
-                ConfirmationStepContent(previewFiat: previewFiat, state: state)
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .trailing),
-                        removal: .move(edge: .leading)
-                    ))
+                ConfirmationChrome(previewFiat: previewFiat, state: state)
+                    .transition(direction.slide)
             }
         }
     }
 }
 
-// MARK: - Step Content Views
-
-private struct NameStepContent: View {
+private struct NameChrome: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("What do you want to call\nyour currency?")
@@ -269,44 +330,75 @@ private struct NameStepContent: View {
     }
 }
 
-private struct IconStepContent: View {
+private struct IconChrome: View {
+    let menuHidden: Bool
+    let onPhotoPicker: () -> Void
+    let onFilePicker: () -> Void
+
+    // Circle center Y as a fraction of content height. 0.5 is exact
+    // geometric center; 0.4 sits visually above the center to match
+    // the canonical mock (name + helper + button balance below the
+    // circle). Tune here.
+    private static let circleCenterFraction: CGFloat = 0.4
+
     var body: some View {
-        VStack(spacing: 0) {
-            Text("Upload Currency Icon")
-                .font(.appTextLarge)
-                .foregroundStyle(Color.textMain)
-                .padding(.top, 20)
-
-            Text("Choose an image that represents your currency. It will be displayed as a circular icon.")
-                .font(.appTextSmall)
-                .foregroundStyle(Color.textSecondary)
-                .multilineTextAlignment(.center)
-                .padding(.top, 8)
-                .padding(.horizontal, 20)
-
-            Spacer()
+        GeometryReader { proxy in
+            Menu {
+                Button("Photo Library", systemImage: "photo.on.rectangle") { onPhotoPicker() }
+                Button("Choose File", systemImage: "folder") { onFilePicker() }
+            } label: {
+                Color.clear
+                    .frame(
+                        width: CurrencyCreationWizardScreen.heroCircleSize,
+                        height: CurrencyCreationWizardScreen.heroCircleSize
+                    )
+                    .heroAnchor(.circle)
+            }
+            .menuIndicator(.hidden)
+            .opacity(menuHidden ? 0 : 1)
+            .position(
+                x: proxy.size.width / 2,
+                y: proxy.size.height * Self.circleCenterFraction
+            )
         }
-        .padding(.horizontal, 20)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .overlay(alignment: .top) {
+            VStack(spacing: 16) {
+                Text("Upload Currency Icon")
+                    .font(.appTextLarge)
+                    .foregroundStyle(Color.textMain)
+
+                Text("Choose an image that represents your currency. It will be displayed as a circular icon.")
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 20)
+            }
+            .padding(.top, 20)
+            .padding(.horizontal, 20)
+        }
     }
 }
 
-private struct DescriptionStepContent: View {
+private struct DescriptionChrome: View {
     @Bindable var state: CurrencyCreationState
     @FocusState.Binding var focusedField: CurrencyCreationWizardScreen.Field?
     let characterLimit: Int
-    @Binding var scrollOffset: CGFloat
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                // Reserve space for the hero header (floats above, moves with scroll)
-                Color.clear
-                    .frame(height: 80)
+                // Header placeholders live inside the ScrollView so
+                // scrolling moves the hero anchors for free.
+                HStack(spacing: 12) {
+                    HeroPlaceholder(.circle, width: 28, height: 28)
+                    HeroPlaceholder(.name, height: 24)
+                }
+                .padding(.top, 20)
 
                 Text("Provide a description for\nyour currency")
                     .font(.appTextLarge)
                     .foregroundStyle(Color.textMain)
+                    .padding(.top, 32)
 
                 TextField("Description", text: $state.currencyDescription, axis: .vertical)
                     .font(.appTextMedium)
@@ -319,25 +411,16 @@ private struct DescriptionStepContent: View {
                         }
                     }
 
-                Color.clear
-                    .frame(height: 100)
+                Color.clear.frame(height: 100)
             }
             .padding(.horizontal, 20)
-            .background(alignment: .top) {
-                GeometryReader { proxy in
-                    let y = proxy.frame(in: .scrollView).minY
-                    Color.clear
-                        .onAppear { scrollOffset = y }
-                        .onChange(of: y) { _, newY in scrollOffset = newY }
-                }
-            }
         }
         .scrollDismissesKeyboard(.interactively)
         .scrollIndicators(.hidden)
     }
 }
 
-private struct BillCreationStepContent: View {
+private struct BillCreationChrome: View {
     @Bindable var state: CurrencyCreationState
     let previewFiat: Quarks
 
@@ -364,15 +447,13 @@ private struct BillCreationStepContent: View {
     }
 }
 
-private struct ConfirmationStepContent: View {
+private struct ConfirmationChrome: View {
     let previewFiat: Quarks
     @Bindable var state: CurrencyCreationState
 
     var body: some View {
         VStack(spacing: 0) {
-            // Reserve space for the hero header row
-            Color.clear
-                .frame(height: 80)
+            Color.clear.frame(height: 48)
 
             GeometryReader { geometry in
                 if geometry.size.width > 0, geometry.size.height > 0 {
@@ -391,169 +472,116 @@ private struct ConfirmationStepContent: View {
     }
 }
 
-// MARK: - WizardHeroGroup
+// MARK: - StepControls (non-sliding layer)
 
-/// Contains the hero icon circle and name text/field as children of an
-/// AnyLayout. The layout morphs from VStack (name/icon steps) to HStack
-/// (description/bill/confirmation header) — AnyLayout interpolates child
-/// positions so the heroes smoothly rearrange without conditional branches.
-private struct WizardHeroGroup: View {
+private struct StepControls: View {
     let step: CurrencyCreationWizardScreen.WizardStep
     @Bindable var state: CurrencyCreationState
-    let heroNameRevealed: Bool
-    let descriptionScrollOffset: CGFloat
     @FocusState.Binding var focusedField: CurrencyCreationWizardScreen.Field?
-    let geometry: GeometryProxy
     let nameCharLimit: Int
-    let onPhotoPicker: () -> Void
-    let onFilePicker: () -> Void
-
-    private var layout: AnyLayout {
-        step.isHeader
-            ? AnyLayout(HStackLayout(spacing: 12))
-            : AnyLayout(VStackLayout(spacing: 16))
-    }
+    let heroNameRevealed: Bool
 
     var body: some View {
-        layout {
-            WizardHeroCircle(
-                step: step,
-                selectedImage: state.selectedImage,
-                onPhotoPicker: onPhotoPicker,
-                onFilePicker: onFilePicker
-            )
+        ZStack {
+            if step == .name {
+                NameControls(
+                    state: state,
+                    focusedField: $focusedField,
+                    nameCharLimit: nameCharLimit,
+                    heroNameRevealed: heroNameRevealed
+                )
+                .transition(.identity)
+            }
+            if step == .icon {
+                IconControls().transition(.identity)
+            }
+            if step == .confirmation {
+                HeaderControls().transition(.identity)
+            }
+            // .description publishes its header anchors inside the
+            // ScrollView in DescriptionChrome so they scroll with
+            // content.
+        }
+    }
+}
 
-            WizardHeroNameField(
-                step: step,
-                state: state,
-                heroNameRevealed: heroNameRevealed,
-                focusedField: $focusedField,
-                nameCharLimit: nameCharLimit
-            )
+private struct NameControls: View {
+    @Bindable var state: CurrencyCreationState
+    @FocusState.Binding var focusedField: CurrencyCreationWizardScreen.Field?
+    let nameCharLimit: Int
+    let heroNameRevealed: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Heading lives in NameChrome; this reserves room so the
+            // TextField sits below it with a visible gap.
+            Color.clear.frame(height: 96)
+
+            TextField("Currency Name", text: $state.currencyName)
+                .font(.appDisplayMedium)
+                .foregroundStyle(Color.textMain)
+                .multilineTextAlignment(.leading)
+                .focused($focusedField, equals: .name)
+                .heroAnchor(.name)
+                // Hidden while overlay HeroName owns the visual (during
+                // forward advance and back-return transitions). Toggled
+                // instantly with `heroNameRevealed` — no fade.
+                .opacity(heroNameRevealed ? 0 : 1)
+                .onChange(of: state.currencyName) { _, newValue in
+                    if newValue.count > nameCharLimit {
+                        state.currencyName = String(newValue.prefix(nameCharLimit))
+                    }
+                }
+
+            Spacer(minLength: 0)
         }
         .padding(.horizontal, 20)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: frameAlignment)
-        .offset(y: groupOffset + scrollAdjustment)
-        .opacity(step == .billCreation ? 0 : 1)
-    }
-
-    private var frameAlignment: Alignment {
-        switch step {
-        case .description, .billCreation: .topLeading
-        case .name, .icon, .confirmation: .top
-        }
-    }
-
-    private var groupOffset: CGFloat {
-        switch step {
-        case .name: 93
-        case .icon: geometry.size.height * 0.28
-        case .description, .billCreation, .confirmation: 20
-        }
-    }
-
-    private var scrollAdjustment: CGFloat {
-        step == .description ? min(descriptionScrollOffset, 0) : 0
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 
-// MARK: - WizardHeroCircle
-
-private struct WizardHeroCircle: View {
-    let step: CurrencyCreationWizardScreen.WizardStep
-    let selectedImage: UIImage?
-    let onPhotoPicker: () -> Void
-    let onFilePicker: () -> Void
+private struct IconControls: View {
+    // Keep in sync with IconChrome.circleCenterFraction so the circle
+    // footprint lines up with the Menu's anchor exactly.
+    private static let circleCenterFraction: CGFloat = 0.4
 
     var body: some View {
-        Menu {
-            Button("Photo Library", systemImage: "photo.on.rectangle") {
-                onPhotoPicker()
-            }
-            Button("Choose File", systemImage: "folder") {
-                onFilePicker()
-            }
-        } label: {
-            ZStack {
-                Circle()
-                    .fill(Color(white: 0.2))
+        GeometryReader { proxy in
+            let centerY = proxy.size.height * Self.circleCenterFraction
 
-                if let image = selectedImage {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFill()
-                } else {
-                    Image(systemName: "plus")
-                        .font(.system(size: step == .icon ? 40 : 18, weight: .light))
-                        .foregroundStyle(Color.textSecondary)
-                }
-            }
-            .frame(width: circleSize, height: circleSize)
-            .compositingGroup()
-            .clipShape(Circle())
-        }
-        .menuIndicator(.hidden)
-        .contentTransition(.identity)
-        .allowsHitTesting(step == .icon)
-        .opacity(step == .name ? 0 : 1)
-    }
+            Color.clear
+                .frame(
+                    width: CurrencyCreationWizardScreen.heroCircleSize,
+                    height: CurrencyCreationWizardScreen.heroCircleSize
+                )
+                .position(x: proxy.size.width / 2, y: centerY)
 
-    private var circleSize: CGFloat {
-        switch step {
-        case .name: 1
-        case .icon: 150
-        case .description, .billCreation, .confirmation: 28
+            HeroPlaceholder(.name, height: 40)
+                .padding(.horizontal, 20)
+                .position(
+                    x: proxy.size.width / 2,
+                    y: centerY
+                        + CurrencyCreationWizardScreen.heroCircleSize / 2
+                        + 16
+                        + 20
+                )
         }
     }
 }
 
-// MARK: - WizardHeroNameField
-
-/// A ZStack containing the always-visible hero name Text and a conditional
-/// TextField overlay for the `.name` step. Both render the same string at
-/// the same font, so the TextField sits perfectly on top. When advancing
-/// from `.name`, the TextField fades out revealing the Text already there —
-/// which then smoothly repositions via AnyLayout.
-private struct WizardHeroNameField: View {
-    let step: CurrencyCreationWizardScreen.WizardStep
-    @Bindable var state: CurrencyCreationState
-    let heroNameRevealed: Bool
-    @FocusState.Binding var focusedField: CurrencyCreationWizardScreen.Field?
-    let nameCharLimit: Int
-
+private struct HeaderControls: View {
     var body: some View {
-        ZStack(alignment: .leading) {
-            Text(state.currencyName.isEmpty ? " " : state.currencyName)
-                .font(nameFont)
-                .foregroundStyle(Color.textMain)
-                .lineLimit(1)
-                .opacity(heroNameRevealed ? 1 : 0)
-
-            // Editable TextField — only on name step. Uses .identity transition
-            // so SwiftUI removes it instantly (no fade), revealing the hero Text
-            // already underneath at the same position/font.
-            if step == .name {
-                TextField("Currency Name", text: $state.currencyName)
-                    .font(.appDisplayMedium)
-                    .foregroundStyle(Color.textMain)
-                    .multilineTextAlignment(.leading)
-                    .focused($focusedField, equals: .name)
-                    .transition(.identity)
-                    .onChange(of: state.currencyName) { _, newValue in
-                        if newValue.count > nameCharLimit {
-                            state.currencyName = String(newValue.prefix(nameCharLimit))
-                        }
-                    }
+        VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                HeroPlaceholder(.circle, width: 28, height: 28)
+                HeroPlaceholder(.name, height: 24)
             }
-        }
-    }
+            .padding(.top, 20)
+            .padding(.horizontal, 20)
 
-    private var nameFont: Font {
-        switch step {
-        case .name: .appDisplayMedium
-        case .icon: .appDisplaySmall
-        case .description, .billCreation, .confirmation: .appTextLarge
+            Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 }
 
@@ -617,8 +645,7 @@ private struct WizardHelperText: View {
         case .description:
             Text("\(descriptionCharLimit - state.currencyDescription.count) characters")
         case .billCreation, .confirmation:
-            Text(" ")
-                .hidden()
+            Text(" ").hidden()
         }
     }
 }
@@ -684,12 +711,13 @@ private struct ImagePickerWithEditor: UIViewControllerRepresentable {
             self.onImagePicked = onImagePicked
         }
 
-        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+        func imagePickerController(
+            _ picker: UIImagePickerController,
+            didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]
+        ) {
             let image = (info[.editedImage] as? UIImage) ?? (info[.originalImage] as? UIImage)
             picker.dismiss(animated: true)
-            if let image {
-                onImagePicked(image)
-            }
+            if let image { onImagePicked(image) }
         }
 
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
