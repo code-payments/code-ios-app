@@ -39,8 +39,9 @@ struct CurrencyDiscoverySkeletonRow: View {
                     .font(.appTextSmall)
             }
         }
-        .redacted(reason: .placeholder)
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
+        .contentShape(Rectangle())
+        .redacted(reason: .placeholder)
     }
 }

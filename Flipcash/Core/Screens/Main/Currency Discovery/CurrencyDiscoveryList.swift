@@ -33,7 +33,13 @@ struct CurrencyDiscoveryList: View {
             Section {
                 if isLoading {
                     ForEach(1...10, id: \.self) { rank in
-                        CurrencyDiscoverySkeletonRow(rank: rank)
+                        Button {
+                            // Intentionally left blank
+                        } label: {
+                            CurrencyDiscoverySkeletonRow(rank: rank)
+                        }
+                        .buttonStyle(.plain)
+                        .listRowInsets(EdgeInsets())
                     }
                 } else {
                     ForEach(mints.indexed(), id: \.element.address) { item in
