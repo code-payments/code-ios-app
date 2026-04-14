@@ -1,8 +1,178 @@
+# Currency Creation Wizard — Strip Heroes (Option D)
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Keep the single-view wizard structure but rip out everything hero-related — anchor preferences, `HeroLayer`, `menuHidden`/`heroNameRevealed`/`direction` flags, `withAnimation` completion handlers. Each step's content lives inline in the wizard file with default step-change transitions. The persistent toolbar (back button + progress bar) stays because it's one screen with one toolbar.
+
+**Why this instead of Plan C:** Option A (sheet + NavigationStack) works but changes UX (sheet presentation). Option C (per-screen progress bar in NavigationStack) has visible flicker on push/pop. Option D preserves the current UX (pushed wizard screen) without the complexity that caused glitches. The hero morphing was the source of:
+- iOS 18 back-animation oddness (direction-aware slide + completion handlers racing the system animator)
+- On-device cancelled-back glitches (state coordination between `heroNameRevealed`, `menuHidden`, `direction`, and the spring)
+- Bill sizing hassles (anchor rects vs. overlay canvasSize mismatch)
+
+Remove all of that. State-driven step switch with default transitions. Done.
+
+**Scope guard:** None needed — this plan only removes code; there's nothing to architecturally regress into.
+
+**Reference:**
+- `.claude/plans/2026-04-14-hero-anchor-preferences.md` — the hero architecture we're retiring (kept for history)
+- Commit `38b1394f` — last state of the hero architecture (in git history for reference)
+
+---
+
+## Architecture
+
+### The wizard
+
+Single `CurrencyCreationWizardScreen` view. `@State step: WizardStep` drives which content renders:
+
+```swift
+struct CurrencyCreationWizardScreen: View {
+    @Bindable var state: CurrencyCreationState
+    @Environment(\.dismiss) private var dismiss
+    @State private var step: WizardStep = .name
+    @FocusState private var focusedField: Field?
+
+    // ... sheet/picker state flags as before
+
+    var body: some View {
+        Background(color: .backgroundMain) {
+            ZStack {
+                switch step {
+                case .name: NameStep(state: state, focusedField: $focusedField, onNext: advance)
+                case .icon: IconStep(state: state, onPhotoPicker: ..., onFilePicker: ..., onNext: advance)
+                case .description: DescriptionStep(state: state, focusedField: $focusedField, onNext: advance)
+                case .billCreation: BillCreationStep(state: state, onDone: advance)
+                case .confirmation: ConfirmationStep(state: state, onBuy: ...)
+                }
+            }
+        }
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button(action: goBack) {
+                    Image(systemName: "chevron.backward")
+                        .foregroundStyle(Color.textMain)
+                }
+            }
+            ToolbarItem(placement: .principal) {
+                CreationProgressBar(current: step.rawValue + 1, total: WizardStep.allCases.count)
+            }
+        }
+        .navigationBarBackButtonHidden(true)
+        // ... existing pickers, funding sheet, onAppear focus
+    }
+
+    private func advance() {
+        guard let next = step.next else { return }
+        withAnimation(.easeInOut(duration: 0.3)) { step = next }
+    }
+
+    private func goBack() {
+        if let previous = step.previous {
+            withAnimation(.easeInOut(duration: 0.3)) { step = previous }
+        } else {
+            dismiss()
+        }
+    }
+}
+```
+
+### Step transitions
+
+Default fade crossfade (`.transition(.opacity)` on each step's content, applied inside the switch). No direction tracking, no slide, no completion handlers. Simplest possible.
+
+If the crossfade feels abrupt, we can upgrade to `.transition(.move(edge: .trailing))` — but direction-aware slide is what caused the iOS 18 and cancellation issues, so we avoid it unless necessary.
+
+### Per-step content
+
+Each step is its own private struct inside the wizard file, owning its layout:
+
+- **`NameStep`** — "What do you want to call" heading + `TextField` + Next button.
+- **`IconStep`** — heading + subtitle + `Menu` wrapping the image circle + currency name text + Next button.
+- **`DescriptionStep`** — header row (small circle + name) inside a ScrollView + "Provide a description" heading + `TextField` + Next button.
+- **`BillCreationStep`** — `BillView` filling top area + `ColorEditorControl` at bottom. "Done" is the trailing toolbar item (handled by the wizard, not the step).
+- **`ConfirmationStep`** — header row (small circle + name) + `BillView` centered + "Buy $20 to Create Your Currency" button.
+
+No shared heroes. No anchors. Each step owns its own circle/name/bill rendering. The "Currency Name" text on icon/description/confirmation steps is just a `Text(state.currencyName)` — it doesn't animate between positions.
+
+### Persistent toolbar
+
+`ToolbarItem(placement: .principal)` with `CreationProgressBar` persists because the wizard is a single view with a single toolbar. The value animates via `withAnimation` when `step` changes. No flicker — we validated the opposite behavior (flicker) requires multiple screens in a NavigationStack.
+
+Back button (`ToolbarItem(placement: .topBarLeading)`) is always visible. On `.name`, it dismisses the wizard (pops the outer NavigationStack). On other steps, it decrements `step`.
+
+### State flags we're removing
+
+- `direction: Direction` — no more direction-aware transitions
+- `heroNameRevealed: Bool` — no more TextField ↔ hero Text handoff
+- `menuHidden: Bool` — no more Menu ↔ overlay HeroCircle handoff
+- `@Namespace billNamespace` — no more matchedGeometryEffect
+- Any `withAnimation(_:completion:)` — simplified to plain `withAnimation`
+
+---
+
+## File Structure
+
+**Deleted files:**
+- `Flipcash/Core/Screens/Main/Currency Creation/CurrencyCreationHeroAnchor.swift`
+- `Flipcash/Core/Screens/Main/Currency Creation/CurrencyCreationHeroLayer.swift`
+- `FlipcashTests/CurrencyCreation/HeroAnchorKeyTests.swift` (plus the empty `CurrencyCreation/` directory)
+
+**Rewritten file:**
+- `Flipcash/Core/Screens/Main/Currency Creation/CurrencyCreationWizardScreen.swift` — full rewrite, ~350 lines. Replaces the three-layer architecture with a single `switch step` ZStack.
+
+**Unchanged files:**
+- `CurrencyCreationScreen.swift` (registers the wizard destination on the outer stack — already correct)
+- `CurrencyCreationSummaryScreen.swift` (pushes `.wizard` via `NavigationLink`)
+- `CurrencyDiscoveryScreen.swift` (applies `.withCurrencyCreationFlow(state:)`)
+
+---
+
+## Test Strategy
+
+Visual. The removed `HeroAnchorKeyTests.swift` is no longer relevant — deleted. No new unit tests. Manual walkthrough of each step forward + back.
+
+---
+
+## Task 1: Delete the hero architecture
+
+**Files:**
+- Delete: `Flipcash/Core/Screens/Main/Currency Creation/CurrencyCreationHeroAnchor.swift`
+- Delete: `Flipcash/Core/Screens/Main/Currency Creation/CurrencyCreationHeroLayer.swift`
+- Delete: `FlipcashTests/CurrencyCreation/HeroAnchorKeyTests.swift`
+- Delete: `FlipcashTests/CurrencyCreation/` (empty directory)
+
+- [ ] **Step 1: Remove the files**
+
+```bash
+rm "Flipcash/Core/Screens/Main/Currency Creation/CurrencyCreationHeroAnchor.swift"
+rm "Flipcash/Core/Screens/Main/Currency Creation/CurrencyCreationHeroLayer.swift"
+rm "FlipcashTests/CurrencyCreation/HeroAnchorKeyTests.swift"
+rmdir "FlipcashTests/CurrencyCreation" 2>/dev/null || true
+```
+
+- [ ] **Step 2: Verify build fails**
+
+```bash
+xcodebuild build -scheme Flipcash -destination 'platform=iOS Simulator,name=iPhone 17' 2>&1 | grep -E "error|FAILED" | head -20
+```
+
+Expected: errors in `CurrencyCreationWizardScreen.swift` because it imports / uses `HeroAnchorKey`, `HeroLayer`, etc. Task 2 fixes this.
+
+---
+
+## Task 2: Rewrite `CurrencyCreationWizardScreen.swift`
+
+**Files:**
+- Modify: `Flipcash/Core/Screens/Main/Currency Creation/CurrencyCreationWizardScreen.swift` (full rewrite)
+
+- [ ] **Step 1: Replace the entire file with the following**
+
+```swift
 //
 //  CurrencyCreationWizardScreen.swift
 //  Flipcash
 //
-//  Single-view wizard. `@State step` drives which content renders.
+//  Single-view wizard. @State step drives which content renders.
 //  No heroes, no anchor preferences, no overlay. Each step's content
 //  is a private struct below that owns its own circle, name, bill,
 //  etc. The persistent top toolbar (back + progress) is possible
@@ -22,7 +192,6 @@ struct CurrencyCreationWizardScreen: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var step: WizardStep = .name
-    @State private var direction: Direction = .forward
     @FocusState private var focusedField: Field?
 
     @State private var isShowingPhotoPicker = false
@@ -48,24 +217,6 @@ struct CurrencyCreationWizardScreen: View {
         var previous: WizardStep? { WizardStep(rawValue: rawValue - 1) }
     }
 
-    enum Direction {
-        case forward, backward
-
-        /// Asymmetric move transition matching the direction of travel.
-        /// Forward: new slides from trailing, old slides out to leading.
-        /// Backward: new slides from leading, old slides out to trailing.
-        var slide: AnyTransition {
-            switch self {
-            case .forward:
-                .asymmetric(insertion: .move(edge: .trailing),
-                            removal: .move(edge: .leading))
-            case .backward:
-                .asymmetric(insertion: .move(edge: .leading),
-                            removal: .move(edge: .trailing))
-            }
-        }
-    }
-
     var body: some View {
         Background(color: .backgroundMain) {
             ZStack {
@@ -77,7 +228,7 @@ struct CurrencyCreationWizardScreen: View {
                         characterLimit: Self.nameCharLimit,
                         onNext: advance
                     )
-                    .transition(direction.slide)
+                    .transition(.opacity)
 
                 case .icon:
                     IconStep(
@@ -86,7 +237,7 @@ struct CurrencyCreationWizardScreen: View {
                         onFilePicker: { isShowingFilePicker = true },
                         onNext: advance
                     )
-                    .transition(direction.slide)
+                    .transition(.opacity)
 
                 case .description:
                     DescriptionStep(
@@ -95,14 +246,14 @@ struct CurrencyCreationWizardScreen: View {
                         characterLimit: Self.descriptionCharLimit,
                         onNext: advance
                     )
-                    .transition(direction.slide)
+                    .transition(.opacity)
 
                 case .billCreation:
                     BillCreationStep(
                         state: state,
                         previewFiat: Self.previewFiat
                     )
-                    .transition(direction.slide)
+                    .transition(.opacity)
 
                 case .confirmation:
                     ConfirmationStep(
@@ -110,7 +261,7 @@ struct CurrencyCreationWizardScreen: View {
                         previewFiat: Self.previewFiat,
                         onBuy: { isShowingFundingSheet = true }
                     )
-                    .transition(direction.slide)
+                    .transition(.opacity)
                 }
             }
         }
@@ -178,21 +329,12 @@ struct CurrencyCreationWizardScreen: View {
 
     private func advance() {
         guard let next = step.next else { return }
-        // Update direction synchronously before withAnimation so the
-        // transition modifier reads the new direction when SwiftUI
-        // evaluates insertion/removal for the step change.
-        direction = .forward
-        withAnimation(.easeInOut(duration: 0.3)) {
-            step = next
-        }
+        withAnimation(.easeInOut(duration: 0.3)) { step = next }
     }
 
     private func goBack() {
         if let previous = step.previous {
-            direction = .backward
-            withAnimation(.easeInOut(duration: 0.3)) {
-                step = previous
-            }
+            withAnimation(.easeInOut(duration: 0.3)) { step = previous }
         } else {
             dismiss()
         }
@@ -453,9 +595,9 @@ private struct ConfirmationStep: View {
 
 // MARK: - CircleImage
 
-/// Shared circle used at varying sizes across icon/description/
-/// confirmation steps. Shows the selected image or a plus icon
-/// placeholder.
+/// Shared small-medium circle used by NameStep/IconStep/DescriptionStep/
+/// ConfirmationStep to display the selected image (or a plus icon as
+/// placeholder) at different sizes.
 private struct CircleImage: View {
     let image: UIImage?
     let size: CGFloat
@@ -521,3 +663,107 @@ private struct ImagePickerWithEditor: UIViewControllerRepresentable {
         }
     }
 }
+```
+
+- [ ] **Step 2: Build**
+
+```bash
+xcodebuild build -scheme Flipcash -destination 'platform=iOS Simulator,name=iPhone 17'
+```
+
+Expected: BUILD SUCCEEDED.
+
+---
+
+## Task 3: Visual QA
+
+**Files:** none.
+
+- [ ] **Step 1: Walk the forward path**
+
+Navigate: Currencies → Create Your Own Currency → Get Started → wizard.
+
+Per step, verify:
+
+1. **Name step** — progress bar at 1/5, back chevron present, TextField focused, keyboard up. Typing past 25 chars clamps. Next enabled after typing.
+2. **Name → Icon** — crossfade. Progress bar animates 1/5 → 2/5.
+3. **Icon step** — heading + subtitle + circle with plus + currency name text below. Tap circle → Menu (Photo Library / Choose File). Pick image.
+4. **Icon → Description** — crossfade. Progress 3/5.
+5. **Description step** — scrolls, header row visible (circle + name), description TextField works.
+6. **Description → Bill Creation** — crossfade. Progress 4/5. "Done" button visible in toolbar trailing.
+7. **Bill Creation** — BillView above ColorEditor at bottom. Color changes reflect in bill. "Done" advances.
+8. **Bill Creation → Confirmation** — crossfade. Progress 5/5. "Done" gone from toolbar.
+9. **Confirmation** — header row (circle + name) + BillView + "Buy $20…" button. Button opens funding sheet (placeholder).
+
+- [ ] **Step 2: Walk the back path**
+
+Tap back chevron on each step, from confirmation back to name:
+
+- Each back crossfades content back one step. Progress bar animates down.
+- Try tapping back RAPIDLY to test cancellation. With `withAnimation` only (no completion handlers), rapid taps should just queue up state changes cleanly. Watch for glitches.
+- Swipe-back gesture doesn't apply (we're `.interactiveDismissDisabled()` and single-view).
+- On `.name` step, back button dismisses the wizard (pops the outer NavigationStack).
+
+- [ ] **Step 3: Stop, report to user, wait for approval**
+
+Do not commit without explicit approval.
+
+---
+
+## Task 4: Commit
+
+**Files:** all changes from Tasks 1–3.
+
+- [ ] **Step 1: Wait for user approval**
+
+- [ ] **Step 2: Review diff**
+
+```bash
+git status
+git diff
+```
+
+Expected:
+- Deleted: `CurrencyCreationHeroAnchor.swift`, `CurrencyCreationHeroLayer.swift`, `HeroAnchorKeyTests.swift`
+- Modified: `CurrencyCreationWizardScreen.swift` (full rewrite)
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add -A
+git commit -m "$(cat <<'EOF'
+refactor: strip heroes from wizard, state-driven steps with default crossfade
+
+Removes the anchor-preference hero system (HeroAnchorKey, HeroLayer,
+menuHidden, heroNameRevealed, direction-aware slides, withAnimation
+completion handlers, matchedGeometryEffect namespace) in favor of a
+single ZStack switching on step state. Each step owns its content
+(heading, TextField/Menu/BillView, Next button) inline; no morphing,
+no overlay, no hero flags. Default opacity crossfade between steps.
+
+The hero architecture was technically correct but fought iOS 18's
+back-animation engine, produced on-device cancellation glitches, and
+required per-device tuning of the bill rect to avoid overlapping the
+ColorEditor. Dropping it returns the wizard to a known-working shape
+with a single persistent toolbar (back chevron + progress bar).
+
+Deletes CurrencyCreationHeroAnchor.swift, CurrencyCreationHeroLayer.swift,
+and HeroAnchorKeyTests.swift.
+EOF
+)"
+```
+
+- [ ] **Step 4: Verify**
+
+```bash
+git log -1 --stat
+```
+
+---
+
+## Notes
+
+- **CLAUDE.md pitfall about `matchedGeometryEffect` modifier order** stays — still valid guidance for any future usage, even if we're not using it here.
+- **Historical plans** in `.claude/plans/` remain as reference. They document why we ended up here; deleting them loses that context.
+- **The `swiftui-pro` / `swiftui-expert` skills** will flag the `switch` inside `ZStack` as idiomatic, not something to extract.
+- **If the fade feels abrupt** in visual QA, upgrade `.transition(.opacity)` to `.transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .move(edge: .leading).combined(with: .opacity)))`. That's direction-agnostic (same edges regardless of forward/back) so it doesn't re-introduce the cancellation glitches. But start with plain opacity.
