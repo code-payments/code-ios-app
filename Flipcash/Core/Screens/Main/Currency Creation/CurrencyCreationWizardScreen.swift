@@ -2,12 +2,6 @@
 //  CurrencyCreationWizardScreen.swift
 //  Flipcash
 //
-//  Single-view wizard. `@State step` drives which content renders.
-//  No heroes, no anchor preferences, no overlay. Each step's content
-//  is a private struct below that owns its own circle, name, bill,
-//  etc. The persistent top toolbar (back + progress) is possible
-//  because this is one screen with one toolbar.
-//
 
 import SwiftUI
 import UniformTypeIdentifiers
@@ -23,6 +17,7 @@ struct CurrencyCreationWizardScreen: View {
 
     @State private var step: WizardStep = .name
     @State private var direction: Direction = .forward
+    @State private var compressTask: Task<Void, Never>?
     @FocusState private var focusedField: Field?
 
     @State private var isShowingPhotoPicker = false
@@ -31,10 +26,9 @@ struct CurrencyCreationWizardScreen: View {
 
     static let nameCharLimit = 25
     static let descriptionCharLimit = 500
-    static let heroCircleSize: CGFloat = 150
+    static let iconCircleSize: CGFloat = 150
 
-    // swiftlint:disable:next force_try
-    private static let previewFiat = try! Quarks(fiatDecimal: 20, currencyCode: .usd, decimals: 6)
+    private static let previewFiat = Quarks(fiatUnsigned: 20, currencyCode: .usd, decimals: 6)
 
     enum Field: Hashable {
         case name
@@ -51,9 +45,6 @@ struct CurrencyCreationWizardScreen: View {
     enum Direction {
         case forward, backward
 
-        /// Asymmetric move transition matching the direction of travel.
-        /// Forward: new slides from trailing, old slides out to leading.
-        /// Backward: new slides from leading, old slides out to trailing.
         var slide: AnyTransition {
             switch self {
             case .forward:
@@ -137,12 +128,10 @@ struct CurrencyCreationWizardScreen: View {
             }
         }
         .fullScreenCover(isPresented: $isShowingPhotoPicker) {
-            ImagePickerWithEditor { image in
-                Task.detached {
-                    let compressed = ImageCompressor.compress(image)
-                    await MainActor.run { state.selectedImage = compressed }
-                }
-            }
+            ImagePickerWithEditor(
+                onImagePicked: setSelectedImage,
+                onDismiss: { isShowingPhotoPicker = false }
+            )
             .ignoresSafeArea()
         }
         .fileImporter(
@@ -178,9 +167,8 @@ struct CurrencyCreationWizardScreen: View {
 
     private func advance() {
         guard let next = step.next else { return }
-        // Update direction synchronously before withAnimation so the
-        // transition modifier reads the new direction when SwiftUI
-        // evaluates insertion/removal for the step change.
+        // `direction` must be set outside `withAnimation` so the transition
+        // modifier captures the new edge when SwiftUI evaluates the push.
         direction = .forward
         withAnimation(.easeInOut(duration: 0.3)) {
             step = next
@@ -198,22 +186,25 @@ struct CurrencyCreationWizardScreen: View {
         }
     }
 
-    // MARK: - File Import
+    private func setSelectedImage(_ image: UIImage) {
+        compressTask?.cancel()
+        compressTask = Task {
+            let compressed = await ImageCompressor.compress(image)
+            guard !Task.isCancelled else { return }
+            state.selectedImage = compressed
+        }
+    }
 
     private func handleFileImport(_ result: Result<[URL], Error>) {
-        switch result {
-        case .success(let urls):
-            guard let url = urls.first,
-                  url.startAccessingSecurityScopedResource() else { return }
-            let data = try? Data(contentsOf: url)
-            url.stopAccessingSecurityScopedResource()
+        guard case .success(let urls) = result, let url = urls.first else { return }
+        Task {
+            guard url.startAccessingSecurityScopedResource() else { return }
+            defer { url.stopAccessingSecurityScopedResource() }
+            let data = await Task.detached(priority: .userInitiated) {
+                try? Data(contentsOf: url)
+            }.value
             guard let data, let image = UIImage(data: data) else { return }
-            Task.detached {
-                let compressed = ImageCompressor.compress(image)
-                await MainActor.run { state.selectedImage = compressed }
-            }
-        case .failure:
-            break
+            setSelectedImage(image)
         }
     }
 }
@@ -254,7 +245,7 @@ private struct NameStep: View {
 
             Button("Next", action: onNext)
                 .buttonStyle(.filled)
-                .disabled(state.currencyName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .disabled(state.currencyName.allSatisfy(\.isWhitespace))
                 .padding(.bottom, 20)
         }
         .padding(.horizontal, 20)
@@ -265,7 +256,7 @@ private struct NameStep: View {
 // MARK: - IconStep
 
 private struct IconStep: View {
-    @Bindable var state: CurrencyCreationState
+    let state: CurrencyCreationState
     let onPhotoPicker: () -> Void
     let onFilePicker: () -> Void
     let onNext: () -> Void
@@ -292,7 +283,7 @@ private struct IconStep: View {
             } label: {
                 CircleImage(
                     image: state.selectedImage,
-                    size: CurrencyCreationWizardScreen.heroCircleSize,
+                    size: CurrencyCreationWizardScreen.iconCircleSize,
                     plusSize: 40
                 )
             }
@@ -374,7 +365,7 @@ private struct DescriptionStep: View {
 
             Button("Next", action: onNext)
                 .buttonStyle(.filled)
-                .disabled(state.currencyDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .disabled(state.currencyDescription.allSatisfy(\.isWhitespace))
                 .padding(.bottom, 20)
         }
         .padding(.horizontal, 20)
@@ -413,7 +404,7 @@ private struct BillCreationStep: View {
 // MARK: - ConfirmationStep
 
 private struct ConfirmationStep: View {
-    @Bindable var state: CurrencyCreationState
+    let state: CurrencyCreationState
     let previewFiat: Quarks
     let onBuy: () -> Void
 
@@ -453,9 +444,6 @@ private struct ConfirmationStep: View {
 
 // MARK: - CircleImage
 
-/// Shared circle used at varying sizes across icon/description/
-/// confirmation steps. Shows the selected image or a plus icon
-/// placeholder.
 private struct CircleImage: View {
     let image: UIImage?
     let size: CGFloat
@@ -485,9 +473,10 @@ private struct CircleImage: View {
 
 private struct ImagePickerWithEditor: UIViewControllerRepresentable {
     let onImagePicked: (UIImage) -> Void
+    let onDismiss: () -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onImagePicked: onImagePicked)
+        Coordinator(onImagePicked: onImagePicked, onDismiss: onDismiss)
     }
 
     func makeUIViewController(context: Context) -> UIImagePickerController {
@@ -502,9 +491,11 @@ private struct ImagePickerWithEditor: UIViewControllerRepresentable {
 
     final class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
         let onImagePicked: (UIImage) -> Void
+        let onDismiss: () -> Void
 
-        init(onImagePicked: @escaping (UIImage) -> Void) {
+        init(onImagePicked: @escaping (UIImage) -> Void, onDismiss: @escaping () -> Void) {
             self.onImagePicked = onImagePicked
+            self.onDismiss = onDismiss
         }
 
         func imagePickerController(
@@ -512,12 +503,12 @@ private struct ImagePickerWithEditor: UIViewControllerRepresentable {
             didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]
         ) {
             let image = (info[.editedImage] as? UIImage) ?? (info[.originalImage] as? UIImage)
-            picker.dismiss(animated: true)
             if let image { onImagePicked(image) }
+            onDismiss()
         }
 
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
-            picker.dismiss(animated: true)
+            onDismiss()
         }
     }
 }

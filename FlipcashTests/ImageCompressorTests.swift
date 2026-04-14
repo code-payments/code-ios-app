@@ -10,27 +10,18 @@ import UIKit
 @Suite("ImageCompressor")
 struct ImageCompressorTests {
 
-    // MARK: - Passthrough
+    @Test("Returns the same image instance when within max dimension", arguments: [
+        CGSize(width: 500, height: 500),
+        CGSize(width: 1024, height: 768),
+        CGSize(width: 1024, height: 1024),
+        CGSize(width: 800, height: 1024),
+    ])
+    func withinBounds_passesThroughIdentically(size: CGSize) {
+        let image = makeImage(size: size)
+        let result = ImageCompressor.compressSync(image)
 
-    @Test("Returns original image when within max dimension")
-    func smallImage_passesThrough() {
-        let image = makeImage(size: CGSize(width: 500, height: 500))
-        let result = ImageCompressor.compress(image)
-
-        #expect(result.size.width == 500)
-        #expect(result.size.height == 500)
+        #expect(result === image)
     }
-
-    @Test("Returns original image when exactly at max dimension")
-    func exactLimit_passesThrough() {
-        let image = makeImage(size: CGSize(width: 1024, height: 768))
-        let result = ImageCompressor.compress(image)
-
-        #expect(result.size.width == 1024)
-        #expect(result.size.height == 768)
-    }
-
-    // MARK: - Downscaling
 
     @Test("Downscales preserving aspect ratio", arguments: [
         (input: CGSize(width: 4000, height: 2000), expected: CGSize(width: 1024, height: 512)),
@@ -39,39 +30,44 @@ struct ImageCompressorTests {
     ] as [(input: CGSize, expected: CGSize)])
     func downscalesCorrectly(input: CGSize, expected: CGSize) {
         let image = makeImage(size: input)
-        let result = ImageCompressor.compress(image)
+        let result = ImageCompressor.compressSync(image)
 
-        #expect(Int(result.size.width) == Int(expected.width))
-        #expect(Int(result.size.height) == Int(expected.height))
+        #expect(result.size.width == expected.width)
+        #expect(result.size.height == expected.height)
     }
-
-    // MARK: - Custom max dimension
 
     @Test("Respects custom max dimension")
     func customMaxDimension() {
         let image = makeImage(size: CGSize(width: 1000, height: 500))
-        let result = ImageCompressor.compress(image, maxDimension: 200)
+        let result = ImageCompressor.compressSync(image, maxDimension: 200)
 
         #expect(result.size.width == 200)
         #expect(result.size.height == 100)
     }
 
-    // MARK: - Orientation normalization
-
     @Test("Normalizes rotated image to orientation up")
     func rotatedImage_normalizedToUp() throws {
-        let ciImage = CIImage(color: .red).cropped(to: CGRect(x: 0, y: 0, width: 500, height: 500))
-        let cgImage = try #require(CIContext().createCGImage(ciImage, from: ciImage.extent))
-        let rotated = UIImage(cgImage: cgImage, scale: 1, orientation: .right)
-
+        let rotated = try makeRotatedImage(size: CGSize(width: 500, height: 500), orientation: .right)
         #expect(rotated.imageOrientation == .right)
 
-        let result = ImageCompressor.compress(rotated)
+        let result = ImageCompressor.compressSync(rotated)
 
         #expect(result.imageOrientation == .up)
     }
 
-    // MARK: - Helpers
+    @Test("Rotated oversized image is both normalized and downscaled")
+    func rotatedOversized_normalizedAndDownscaled() throws {
+        // CGImage is 2000x1000, but .right orientation swaps display dims
+        // — UIImage.size reports (1000, 2000). After normalize+downscale,
+        // the longest side caps to 1024 → result is 512x1024.
+        let rotated = try makeRotatedImage(size: CGSize(width: 2000, height: 1000), orientation: .right)
+
+        let result = ImageCompressor.compressSync(rotated)
+
+        #expect(result.imageOrientation == .up)
+        #expect(result.size.width == 512)
+        #expect(result.size.height == 1024)
+    }
 
     private func makeImage(size: CGSize) -> UIImage {
         let renderer = UIGraphicsImageRenderer(size: size)
@@ -79,5 +75,11 @@ struct ImageCompressorTests {
             UIColor.blue.setFill()
             context.fill(CGRect(x: 0, y: 0, width: size.width, height: size.height))
         }
+    }
+
+    private func makeRotatedImage(size: CGSize, orientation: UIImage.Orientation) throws -> UIImage {
+        let ciImage = CIImage(color: .red).cropped(to: CGRect(origin: .zero, size: size))
+        let cgImage = try #require(CIContext().createCGImage(ciImage, from: ciImage.extent))
+        return UIImage(cgImage: cgImage, scale: 1, orientation: orientation)
     }
 }

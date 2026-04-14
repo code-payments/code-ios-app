@@ -9,7 +9,15 @@ enum ImageCompressor {
 
     /// Normalizes EXIF orientation and caps the image to `maxDimension` on its
     /// longest side. Returns the original image unchanged when already within bounds.
-    static func compress(_ original: UIImage, maxDimension: CGFloat = 1024) -> UIImage {
+    static func compress(_ original: UIImage, maxDimension: CGFloat = 1024) async -> UIImage {
+        await Task.detached(priority: .userInitiated) {
+            compressSync(original, maxDimension: maxDimension)
+        }.value
+    }
+
+    /// Synchronous variant for tests. Production callers should use the async
+    /// form which offloads the CPU work.
+    static func compressSync(_ original: UIImage, maxDimension: CGFloat = 1024) -> UIImage {
         // Normalize orientation — UIImage from Files can carry EXIF
         // rotation that causes layout jumps when set as view content.
         let normalized: UIImage

@@ -28,7 +28,7 @@ struct ScanScreen: View {
     
     @State private var sendButtonState: ButtonState = .normal
     @State private var sendButtonTask: Task<Void, Never>?
-    @State private var billEditorColors: [Color] = [GradientStop.solidPresets.randomElement()?.color ?? .blue]
+    @State private var billEditorColors: [Color] = ColorEditorControl.randomColors(count: 1)
     
     private var toast: String? {
         if let toast = session.toast {

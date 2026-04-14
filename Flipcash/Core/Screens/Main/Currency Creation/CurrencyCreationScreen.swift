@@ -30,7 +30,7 @@ enum CurrencyCreationStep: Hashable {
 
 // MARK: - CurrencyCreationState
 
-@Observable
+@MainActor @Observable
 final class CurrencyCreationState {
     var currencyName: String = ""
     var selectedImage: UIImage?
@@ -40,10 +40,9 @@ final class CurrencyCreationState {
 
 // MARK: - CurrencyCreationFlow
 
-/// Registers currency creation step destinations on the surrounding
-/// `NavigationStack`. Must be attached inside a `NavigationStack` so the
-/// destinations are visible to `NavigationLink(value:)` calls from any
-/// pushed step.
+/// Attach inside a `NavigationStack` — destinations must be declared at
+/// the stack root for `NavigationLink(value:)` calls from pushed steps
+/// to resolve.
 struct CurrencyCreationFlow: ViewModifier {
     @Bindable var state: CurrencyCreationState
 
