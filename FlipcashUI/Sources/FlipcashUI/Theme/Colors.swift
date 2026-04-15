@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import UIKit
 import FlipcashCore
 
 extension Color {
@@ -79,6 +80,21 @@ extension Color {
             g: Double((rgb >>  8) & 0xFF),
             b: Double( rgb        & 0xFF)
         )
+    }
+
+    /// Renders the Color as a `#RRGGBB` hex string. Resolves through `UIColor`
+    /// so SwiftUI's dynamic colors flatten to their current trait collection's
+    /// concrete values.
+    public var hexString: String {
+        let uiColor = UIColor(self)
+        var red:   CGFloat = 0
+        var green: CGFloat = 0
+        var blue:  CGFloat = 0
+        var alpha: CGFloat = 0
+        uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+
+        let rgb = Int(red * 255) << 16 | Int(green * 255) << 8 | Int(blue * 255)
+        return String(format: "#%06X", rgb)
     }
 }
 

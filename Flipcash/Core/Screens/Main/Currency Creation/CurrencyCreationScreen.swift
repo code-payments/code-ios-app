@@ -58,9 +58,6 @@ final class CurrencyCreationState {
     /// when the user changes the selected image.
     var encodedIconData: Data?
 
-    /// The launched mint address, available only after a successful Launch.
-    var launchedMint: PublicKey?
-
     /// True when the current name passes both the char-range check and the
     /// printable-ASCII pattern enforced by the server's Launch RPC:
     /// `^[!-~]([ -~]*[!-~])?$` — no leading or trailing space, 1-32 chars.
@@ -76,27 +73,3 @@ private let currencyNameAllowedPattern = #/^[!-~]([ -~]*[!-~])?$/#
 
 // MARK: - CurrencyCreationFlow
 
-/// Attach inside a `NavigationStack` — destinations must be declared at
-/// the stack root for `NavigationLink(value:)` calls from pushed steps
-/// to resolve.
-struct CurrencyCreationFlow: ViewModifier {
-    @Bindable var state: CurrencyCreationState
-
-    func body(content: Content) -> some View {
-        content
-            .navigationDestination(for: CurrencyCreationStep.self) { step in
-                switch step {
-                case .summary:
-                    CurrencyCreationSummaryScreen()
-                case .wizard:
-                    CurrencyCreationWizardScreen(state: state)
-                }
-            }
-    }
-}
-
-extension View {
-    func withCurrencyCreationFlow(state: CurrencyCreationState) -> some View {
-        modifier(CurrencyCreationFlow(state: state))
-    }
-}

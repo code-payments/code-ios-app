@@ -683,6 +683,35 @@ class Session {
     }
 
     @discardableResult
+    func buyNewCurrencyWithExternalFunding(
+        amount: ExchangedFiat,
+        mint: PublicKey,
+        transactionSignature: Signature
+    ) async throws -> SwapId {
+        logger.info("Buying new currency (external funding)", metadata: [
+            "amount": "\(amount.converted.formatted())",
+            "mint": "\(mint.base58)"
+        ])
+
+        let swapId = SwapId.generate()
+        let metadata = try await client.buyNewCurrencyWithExternalFunding(
+            swapId: swapId,
+            amount: amount,
+            mint: mint,
+            owner: ownerKeyPair,
+            transactionSignature: transactionSignature
+        )
+
+        logger.info("New currency buy (external) completed", metadata: [
+            "swapId": "\(metadata.swapId.publicKey.base58)",
+            "state": "\(metadata.state)"
+        ])
+
+        updatePostTransaction()
+        return metadata.swapId
+    }
+
+    @discardableResult
     func sell(amount: ExchangedFiat, in mint: PublicKey) async throws -> SwapId {
         let token = try await fetchMintMetadata(mint: mint)
 

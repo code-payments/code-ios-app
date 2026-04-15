@@ -14,6 +14,7 @@ private let logger = Logger(label: "flipcash.currency-creation")
 
 struct CurrencyCreationWizardScreen: View {
     @Bindable var state: CurrencyCreationState
+    let sessionContainer: SessionContainer
 
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var client: Client
@@ -32,6 +33,15 @@ struct CurrencyCreationWizardScreen: View {
     @State private var isShowingPhotoPicker = false
     @State private var isShowingFilePicker = false
     @State private var isShowingFundingSheet = false
+    /// Non-nil while the Coinbase onramp sheet is presented for a launch flow.
+    /// Carries the user-chosen currency name (used as the sheet identity and
+    /// for SwapProcessing's display label).
+    @State private var launchOnrampName: LaunchSheetIdentity?
+
+    private struct LaunchSheetIdentity: Identifiable, Hashable {
+        let displayName: String
+        var id: String { displayName }
+    }
 
     static let nameCharLimit = 32
     static let descriptionCharLimit = 500
@@ -187,10 +197,36 @@ struct CurrencyCreationWizardScreen: View {
                     isShowingFundingSheet = false
                     launchAndBuyWithReserves()
                 },
-                onSelectCoinbase: { isShowingFundingSheet = false },
+                onSelectCoinbase: {
+                    isShowingFundingSheet = false
+                    isValidating = true
+                    launchOnrampName = LaunchSheetIdentity(displayName: state.currencyName)
+                },
                 onSelectPhantom: { isShowingFundingSheet = false },
                 onDismiss: { isShowingFundingSheet = false }
             )
+        }
+        .sheet(item: $launchOnrampName) { identity in
+            OnrampAmountScreen.forLaunching(
+                displayName: identity.displayName,
+                session: sessionContainer.session,
+                flipClient: sessionContainer.flipClient,
+                deeplinkInbox: sessionContainer.onrampDeeplinkInbox,
+                onDismiss: {
+                    launchOnrampName = nil
+                    isValidating = false
+                },
+                onUsdfReady: { signature, amount in
+                    try await launchAfterOnramp(signature: signature, amount: amount)
+                }
+            )
+            // Done button on SwapProcessingScreen tears down both the onramp
+            // sheet and the wizard so the user lands back in the discovery stack.
+            .environment(\.dismissParentContainer, {
+                launchOnrampName = nil
+                isValidating = false
+                dismiss()
+            })
         }
         .onAppear {
             if step == .name { focusedField = .name }
@@ -399,72 +435,11 @@ struct CurrencyCreationWizardScreen: View {
             isValidating = true
             defer { isValidating = false }
 
-            guard let nameAttestation = state.nameAttestation,
-                  let iconAttestation = state.iconAttestation,
-                  let descriptionAttestation = state.descriptionAttestation,
-                  let iconData = state.encodedIconData else {
-                logger.error("Confirmation reached without required attestations or icon")
-                presentGenericErrorDialog()
-                return
-            }
-
-            let billColors = state.backgroundColors.map { $0.hexString }
             let launchAmount = self.launchAmount
 
-            // 1. Launch
-            let mint: PublicKey
-            do {
-                mint = try await session.launchCurrency(
-                    name: state.currencyName,
-                    description: state.currencyDescription,
-                    billColors: billColors,
-                    icon: iconData,
-                    nameAttestation: nameAttestation,
-                    descriptionAttestation: descriptionAttestation,
-                    iconAttestation: iconAttestation
-                )
-            } catch ErrorLaunchCurrency.denied {
-                logger.error("Launch denied after preflight attestations passed")
-                ErrorReporting.captureError(ErrorLaunchCurrency.denied)
-                errorDialog = makeDestructiveDialog(
-                    title: "Couldn't Launch Currency",
-                    subtitle: "Please try again. Contact support if this persists."
-                )
-                return
-            } catch ErrorLaunchCurrency.nameExists {
-                logger.error("Launch name-exists after preflight CheckAvailability passed")
-                ErrorReporting.captureError(ErrorLaunchCurrency.nameExists)
-                state.nameAttestation = nil
-                state.currencyName = ""
-                withAnimation(.easeInOut(duration: 0.3)) { step = .name }
-                errorDialog = makeDestructiveDialog(
-                    title: "Name No Longer Available",
-                    subtitle: "Please pick a different name."
-                )
-                return
-            } catch ErrorLaunchCurrency.invalidIcon {
-                logger.error("Launch rejected icon after preflight moderation passed")
-                ErrorReporting.captureError(ErrorLaunchCurrency.invalidIcon)
-                state.iconAttestation = nil
-                state.selectedImage = nil
-                withAnimation(.easeInOut(duration: 0.3)) { step = .icon }
-                errorDialog = makeDestructiveDialog(
-                    title: "Image Is Invalid",
-                    subtitle: "Please pick a different image."
-                )
-                return
-            } catch {
-                if Task.isCancelled { return }
-                logger.error("Launch failed", metadata: ["error": "\(error)"])
-                ErrorReporting.captureError(error)
-                errorDialog = makeDestructiveDialog(
-                    title: "Couldn't Launch Currency",
-                    subtitle: "Check your connection and try again."
-                )
+            guard let mint = await launchCurrencyWithPreflightRouting() else {
                 return
             }
-
-            state.launchedMint = mint
 
             // 2. Buy
             do {
@@ -491,6 +466,97 @@ struct CurrencyCreationWizardScreen: View {
             logger.info("New currency purchased; dismissing wizard")
             dismiss()
         }
+    }
+
+    /// Runs the Launch RPC and routes post-preflight failures (DENIED /
+    /// NAME_EXISTS / INVALID_ICON) back to the offending step with an
+    /// error dialog queued. Returns the new mint on success, nil on any
+    /// failure (with the appropriate dialog / step navigation already
+    /// applied). Shared between the reserves and Coinbase funding flows.
+    private func launchCurrencyWithPreflightRouting() async -> PublicKey? {
+        guard let nameAttestation = state.nameAttestation,
+              let iconAttestation = state.iconAttestation,
+              let descriptionAttestation = state.descriptionAttestation,
+              let iconData = state.encodedIconData else {
+            logger.error("Confirmation reached without required attestations or icon")
+            presentGenericErrorDialog()
+            return nil
+        }
+
+        let billColors = state.backgroundColors.map { $0.hexString }
+
+        do {
+            let mint = try await session.launchCurrency(
+                name: state.currencyName,
+                description: state.currencyDescription,
+                billColors: billColors,
+                icon: iconData,
+                nameAttestation: nameAttestation,
+                descriptionAttestation: descriptionAttestation,
+                iconAttestation: iconAttestation
+            )
+            return mint
+        } catch ErrorLaunchCurrency.denied {
+            logger.error("Launch denied after preflight attestations passed")
+            ErrorReporting.captureError(ErrorLaunchCurrency.denied)
+            errorDialog = makeDestructiveDialog(
+                title: "Couldn't Launch Currency",
+                subtitle: "Please try again. Contact support if this persists."
+            )
+            return nil
+        } catch ErrorLaunchCurrency.nameExists {
+            logger.error("Launch name-exists after preflight CheckAvailability passed")
+            ErrorReporting.captureError(ErrorLaunchCurrency.nameExists)
+            state.nameAttestation = nil
+            state.currencyName = ""
+            withAnimation(.easeInOut(duration: 0.3)) { step = .name }
+            errorDialog = makeDestructiveDialog(
+                title: "Name No Longer Available",
+                subtitle: "Please pick a different name."
+            )
+            return nil
+        } catch ErrorLaunchCurrency.invalidIcon {
+            logger.error("Launch rejected icon after preflight moderation passed")
+            ErrorReporting.captureError(ErrorLaunchCurrency.invalidIcon)
+            state.iconAttestation = nil
+            state.selectedImage = nil
+            withAnimation(.easeInOut(duration: 0.3)) { step = .icon }
+            errorDialog = makeDestructiveDialog(
+                title: "Image Is Invalid",
+                subtitle: "Please pick a different image."
+            )
+            return nil
+        } catch {
+            if Task.isCancelled { return nil }
+            logger.error("Launch failed", metadata: ["error": "\(error)"])
+            ErrorReporting.captureError(error)
+            errorDialog = makeDestructiveDialog(
+                title: "Couldn't Launch Currency",
+                subtitle: "Check your connection and try again."
+            )
+            return nil
+        }
+    }
+
+    /// Called by the Coinbase onramp after a successful USDF deposit. Runs
+    /// the same Launch + error-routing helper used by the reserves flow,
+    /// then buys the new currency with the external-funding signature.
+    /// Returns the resulting `SwapId` so the onramp view model can push its
+    /// `SwapProcessing` step. Throws `CancellationError` on launch failure —
+    /// the wizard has already shown its own step-routed dialog, so this
+    /// signals "stop" to OnrampViewModel without surfacing a second one.
+    private func launchAfterOnramp(signature: Signature, amount: ExchangedFiat) async throws -> SwapId {
+        guard let mint = await launchCurrencyWithPreflightRouting() else {
+            throw CancellationError()
+        }
+
+        let swapId = try await session.buyNewCurrencyWithExternalFunding(
+            amount: amount,
+            mint: mint,
+            transactionSignature: signature
+        )
+        logger.info("New currency purchased (external funding)")
+        return swapId
     }
 
     // MARK: - Dialogs

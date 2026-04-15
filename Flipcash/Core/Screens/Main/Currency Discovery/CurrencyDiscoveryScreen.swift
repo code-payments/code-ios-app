@@ -43,7 +43,17 @@ struct CurrencyDiscoveryScreen: View {
                     ToolbarCloseButton(action: dismiss.callAsFunction)
                 }
             }
-            .withCurrencyCreationFlow(state: creationState)
+            .navigationDestination(for: CurrencyCreationStep.self) { step in
+                switch step {
+                case .summary:
+                    CurrencyCreationSummaryScreen()
+                case .wizard:
+                    CurrencyCreationWizardScreen(
+                        state: creationState,
+                        sessionContainer: sessionContainer
+                    )
+                }
+            }
             .navigationDestination(item: $selectedMint) { mintAddress in
                 if let metadata = mintsByCategory[selectedCategory]?.first(where: { $0.address == mintAddress }) {
                     CurrencyInfoScreen(

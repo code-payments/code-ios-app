@@ -97,6 +97,24 @@ public struct MintMetadata: Equatable, Sendable {
         self.holderMetrics = holderMetrics
     }
 
+    /// A bare-bones `MintMetadata` for a freshly-launched currency mint. Used
+    /// when the swap pipeline requires a `MintMetadata` for the `SwapDirection`
+    /// API but the launch-buy code path doesn't actually consume any of the
+    /// metadata fields (it derives every account from the server's
+    /// `ReserveNewCurrencyServerParameter`).
+    public static func launchStub(address: PublicKey) -> MintMetadata {
+        MintMetadata(
+            address: address,
+            decimals: 10, // Reserve TOKEN_DECIMALS
+            name: "",
+            symbol: "",
+            description: "",
+            imageURL: nil,
+            vmMetadata: nil,
+            launchpadMetadata: nil
+        )
+    }
+
     public static let usdf: MintMetadata =
         .init(
             address: PublicKey.usdf,

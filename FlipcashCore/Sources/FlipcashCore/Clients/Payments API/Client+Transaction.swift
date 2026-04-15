@@ -165,28 +165,35 @@ extension Client {
             throw ErrorSwap.unknown
         }
 
-        // Stub MintMetadata — required by SwapDirection.buy but effectively
-        // unused for new-currency launches. SwapService skips VM/launchpad
-        // metadata validation when isNewCurrencyLaunch=true, and the
-        // new-currency instruction builder derives every account from the
-        // ReserveNewCurrencyServerParameter directly.
-        let stubMetadata = MintMetadata(
-            address: mint,
-            decimals: 10, // Reserve TOKEN_DECIMALS
-            name: "",
-            symbol: "",
-            description: "",
-            imageURL: nil,
-            vmMetadata: nil,
-            launchpadMetadata: nil
-        )
-
         return try await withCheckedThrowingContinuation { c in
             transactionService.swapService.swap(
                 swapId: swapId,
-                direction: .buy(mint: stubMetadata),
+                direction: .buy(mint: .launchStub(address: mint)),
                 amount: amount.underlying,
                 fundingSource: .submitIntent(id: fundingIntentID),
+                owner: owner,
+                isNewCurrencyLaunch: true
+            ) { c.resume(with: $0) }
+        }
+    }
+
+    /// Same launch-first-buy atomic flow as ``buyNewCurrency`` but funded by
+    /// an externally-settled USDF deposit (e.g. Coinbase onramp). The caller
+    /// supplies the Solana signature proving the external USDF transfer.
+    @discardableResult
+    public func buyNewCurrencyWithExternalFunding(
+        swapId: SwapId,
+        amount: ExchangedFiat,
+        mint: PublicKey,
+        owner: KeyPair,
+        transactionSignature: Signature
+    ) async throws -> SwapMetadata {
+        return try await withCheckedThrowingContinuation { c in
+            transactionService.swapService.swap(
+                swapId: swapId,
+                direction: .buy(mint: .launchStub(address: mint)),
+                amount: amount.underlying,
+                fundingSource: .externalWallet(transactionSignature: transactionSignature),
                 owner: owner,
                 isNewCurrencyLaunch: true
             ) { c.resume(with: $0) }
