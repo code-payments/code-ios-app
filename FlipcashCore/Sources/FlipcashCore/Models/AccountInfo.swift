@@ -152,6 +152,23 @@ extension AccountInfo {
     }
 }
 
+extension AccountInfo.ManagementState {
+
+    /// Whether an account in this state is safe for the user to keep using
+    /// the app. `.unknown` is treated as usable because a transient "server
+    /// couldn't determine state" response shouldn't lock a user out. For
+    /// the stricter operational check (should a transaction be attempted),
+    /// see ``AccountInfo/unuseable``.
+    public var isUsable: Bool {
+        switch self {
+        case .locked, .none, .unknown:
+            return true
+        case .locking, .unlocking, .unlocked, .closing, .closed:
+            return false
+        }
+    }
+}
+
 // MARK: - BlockchainState -
 
 extension AccountInfo {

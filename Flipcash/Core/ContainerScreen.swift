@@ -23,6 +23,9 @@ struct ContainerScreen: View {
             if sessionAuthenticator.requiresUpgrade {
                 ForceUpgradeScreen()
                     .transition(.opacity)
+            } else if sessionAuthenticator.requiresForceLogout {
+                ForceLogoutScreen()
+                    .transition(.opacity)
             } else {
                 switch sessionAuthenticator.state {
                 case .loggedOut:
@@ -47,5 +50,6 @@ struct ContainerScreen: View {
         }
         .animation(.easeOut(duration: 0.3), value: sessionAuthenticator.state.intValue)
         .animation(.easeOut(duration: 0.3), value: sessionAuthenticator.requiresUpgrade)
+        .animation(.easeOut(duration: 0.3), value: sessionAuthenticator.requiresForceLogout)
     }
 }
