@@ -35,6 +35,12 @@ final class SessionAuthenticator {
     /// Feature flags available before authentication (e.g. minimum build version).
     private(set) var unauthenticatedUserFlags: UnauthenticatedUserFlags?
 
+    /// Whether any of the user's primary accounts has left the `locked`
+    /// state, meaning the Access Key can no longer be used in Flipcash.
+    /// Drives ``ForceLogoutScreen`` display. One-way latch for the lifetime
+    /// of the login — reset on ``logout()``.
+    private(set) var requiresForceLogout: Bool = false
+
     var isLoggedIn: Bool {
         if case .loggedIn = state {
             return true
@@ -77,8 +83,9 @@ final class SessionAuthenticator {
         UserDefaults.launchCount = (UserDefaults.launchCount ?? 0) + 1
         logger.debug("Launch count", metadata: ["count": "\(UserDefaults.launchCount!)"])
 
-        // Start polling for unauthenticated user flags
-        startPollingUnauthenticatedUserFlags()
+        // Poll server-driven gates that can block app use
+        // (forced upgrade, forced logout on timelock unlock).
+        startPolling()
 
         // During UI testing the deeplink handles login. Skip auto-login
         // to avoid racing with resetForUITesting() and the deeplink's
@@ -155,12 +162,17 @@ final class SessionAuthenticator {
         }
     }
     
-    // MARK: - Unauthenticated User Flags Polling -
+    // MARK: - Polling -
 
-    private func startPollingUnauthenticatedUserFlags() {
+    /// Polls server-driven state that gates app use. Fires immediately and
+    /// then every 30s for the lifetime of the authenticator, covering both
+    /// ``requiresUpgrade`` (always) and ``requiresForceLogout`` (once
+    /// logged in).
+    private func startPolling() {
         poller = Poller(seconds: 30, fireImmediately: true) { [weak self] in
             Task {
                 await self?.fetchUnauthenticatedUserFlags()
+                await self?.checkForUnusableAccount()
             }
         }
     }
@@ -171,6 +183,25 @@ final class SessionAuthenticator {
             self.unauthenticatedUserFlags = flags
         } catch {
             logger.error("Failed to fetch unauthenticated user flags", metadata: ["error": "\(error)"])
+        }
+    }
+
+    /// Checks whether any of the user's primary accounts is in an unusable
+    /// management state and, if so, latches ``requiresForceLogout`` to
+    /// `true`. No-op if not logged in or if already latched. Failures are
+    /// logged but leave the cached value unchanged so transient errors
+    /// don't flip the user into the force-logout modal.
+    private func checkForUnusableAccount() async {
+        guard case .loggedIn(let sessionContainer) = state else { return }
+        guard !requiresForceLogout else { return }
+        let owner = sessionContainer.session.ownerKeyPair
+
+        do {
+            let accounts = try await client.fetchPrimaryAccounts(owner: owner)
+            guard accounts.contains(where: { !$0.managementState.isUsable }) else { return }
+            self.requiresForceLogout = true
+        } catch {
+            logger.error("Failed to check for unusable account", metadata: ["error": "\(error)"])
         }
     }
 
@@ -323,8 +354,10 @@ final class SessionAuthenticator {
         
         state = .loggedIn(session)
         UserDefaults.wasLoggedIn = true
-        
+
         Analytics.setIdentity(initializedAccount.userID)
+
+        Task { await checkForUnusableAccount() }
     }
     
     func switchAccount(to mnemonic: MnemonicPhrase) {
@@ -364,6 +397,7 @@ final class SessionAuthenticator {
         accountManager.resetForLogout()
 
         state = .loggedOut
+        requiresForceLogout = false
         UserDefaults.wasLoggedIn = false
 
         logger.debug("Logged out")

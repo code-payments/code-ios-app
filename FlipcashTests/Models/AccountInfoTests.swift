@@ -35,3 +35,19 @@ struct AccountInfoSelfClaimTests {
         return proto
     }
 }
+
+@Suite("AccountInfo.ManagementState.isUsable")
+struct ManagementStateIsUsableTests {
+
+    @Test("Covers every case")
+    func isUsableForEveryState() {
+        for state in AccountInfo.ManagementState.allCases {
+            switch state {
+            case .locked, .none, .unknown:
+                #expect(state.isUsable == true, "state=\(state)")
+            case .locking, .unlocking, .unlocked, .closing, .closed:
+                #expect(state.isUsable == false, "state=\(state)")
+            }
+        }
+    }
+}
