@@ -86,6 +86,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         case .active:
             logger.info("scenePhase → active")
             container.client.warmUpChannel()
+            container.flipClient.warmUpChannel()
             sessionContainer?.session.didBecomeActive()
         case .inactive:
             break

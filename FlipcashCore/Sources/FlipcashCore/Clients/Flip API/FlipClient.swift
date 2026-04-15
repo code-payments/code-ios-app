@@ -57,6 +57,26 @@ public class FlipClient: ObservableObject {
     deinit {
         logger.debug("Deallocating FlipClient")
     }
+
+    // MARK: - Channel Lifecycle -
+
+    /// Pre-warm the gRPC channel by triggering a lightweight unauthenticated
+    /// call. Forces TCP+TLS reconnection if the underlying socket died during
+    /// backgrounding. Without this, the first call on the cold channel after
+    /// foregrounding tends to surface as a `GRPCStatus.Code.internalError`
+    /// with an empty message, which the caller can't distinguish from a real
+    /// server error.
+    /// The response is irrelevant — we only need the channel to start connecting.
+    public func warmUpChannel() {
+        accountService.fetchUnauthenticatedUserFlags { result in
+            switch result {
+            case .success:
+                logger.info("Flip channel warm-up succeeded")
+            case .failure:
+                logger.warning("Flip channel warm-up completed (channel reconnecting)")
+            }
+        }
+    }
 }
 
 // MARK: - ConnectivityStateDelegate -
