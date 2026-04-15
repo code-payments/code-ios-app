@@ -19,6 +19,7 @@ struct CurrencyCreationWizardScreen: View {
     @EnvironmentObject private var client: Client
     @EnvironmentObject private var flipClient: FlipClient
     @Environment(Session.self) private var session
+    @Environment(RatesController.self) private var ratesController
 
     @State private var step: WizardStep = .name
     @State private var direction: Direction = .forward
@@ -36,7 +37,31 @@ struct CurrencyCreationWizardScreen: View {
     static let descriptionCharLimit = 500
     static let iconCircleSize: CGFloat = 150
 
-    private static let previewFiat = Quarks(fiatUnsigned: 20, currencyCode: .usd, decimals: 6)
+    /// USDF amount the user must buy to launch the currency. Driven by the
+    /// server-supplied `newCurrencyPurchaseAmount` user flag and falls back to
+    /// zero quarks until flags are loaded.
+    private var launchAmount: ExchangedFiat {
+        let quarks = session.userFlags?.newCurrencyPurchaseAmount.quarks ?? 0
+        return ExchangedFiat.computeFromQuarks(
+            quarks: quarks,
+            mint: .usdf,
+            rate: .oneToOne,
+            supplyQuarks: 0
+        )
+    }
+
+    private var previewFiat: Quarks {
+        launchAmount.underlying
+    }
+
+    private var reserveBalance: ExchangedFiat? {
+        guard let stored = session.balance(for: .usdf) else { return nil }
+        return try? ExchangedFiat(
+            underlying: stored.usdf,
+            rate: ratesController.rateForBalanceCurrency(),
+            mint: .usdf
+        )
+    }
 
     enum Field: Hashable {
         case name
@@ -102,14 +127,15 @@ struct CurrencyCreationWizardScreen: View {
                 case .billCreation:
                     BillCreationStep(
                         state: state,
-                        previewFiat: Self.previewFiat
+                        previewFiat: previewFiat
                     )
                     .transition(direction.slide)
 
                 case .confirmation:
                     ConfirmationStep(
                         state: state,
-                        previewFiat: Self.previewFiat,
+                        previewFiat: previewFiat,
+                        launchAmount: launchAmount,
                         onBuy: { isShowingFundingSheet = true }
                     )
                     .transition(direction.slide)
@@ -155,9 +181,12 @@ struct CurrencyCreationWizardScreen: View {
         }
         .sheet(isPresented: $isShowingFundingSheet) {
             FundingSelectionSheet(
-                reserveBalance: nil,
-                isCoinbaseAvailable: false,
-                onSelectReserves: { isShowingFundingSheet = false },
+                reserveBalance: reserveBalance,
+                isCoinbaseAvailable: session.hasCoinbaseOnramp,
+                onSelectReserves: {
+                    isShowingFundingSheet = false
+                    launchAndBuyWithReserves()
+                },
                 onSelectCoinbase: { isShowingFundingSheet = false },
                 onSelectPhantom: { isShowingFundingSheet = false },
                 onDismiss: { isShowingFundingSheet = false }
@@ -359,6 +388,108 @@ struct CurrencyCreationWizardScreen: View {
 
             state.descriptionAttestation = attestation
             advance()
+        }
+    }
+
+    // MARK: - Launch + Buy
+
+    private func launchAndBuyWithReserves() {
+        validationTask?.cancel()
+        validationTask = Task {
+            isValidating = true
+            defer { isValidating = false }
+
+            guard let nameAttestation = state.nameAttestation,
+                  let iconAttestation = state.iconAttestation,
+                  let descriptionAttestation = state.descriptionAttestation,
+                  let iconData = state.encodedIconData else {
+                logger.error("Confirmation reached without required attestations or icon")
+                presentGenericErrorDialog()
+                return
+            }
+
+            let billColors = state.backgroundColors.map { $0.hexString }
+            let launchAmount = self.launchAmount
+
+            // 1. Launch
+            let mint: PublicKey
+            do {
+                mint = try await session.launchCurrency(
+                    name: state.currencyName,
+                    description: state.currencyDescription,
+                    billColors: billColors,
+                    icon: iconData,
+                    nameAttestation: nameAttestation,
+                    descriptionAttestation: descriptionAttestation,
+                    iconAttestation: iconAttestation
+                )
+            } catch ErrorLaunchCurrency.denied {
+                logger.error("Launch denied after preflight attestations passed")
+                ErrorReporting.captureError(ErrorLaunchCurrency.denied)
+                errorDialog = makeDestructiveDialog(
+                    title: "Couldn't Launch Currency",
+                    subtitle: "Please try again. Contact support if this persists."
+                )
+                return
+            } catch ErrorLaunchCurrency.nameExists {
+                logger.error("Launch name-exists after preflight CheckAvailability passed")
+                ErrorReporting.captureError(ErrorLaunchCurrency.nameExists)
+                state.nameAttestation = nil
+                state.currencyName = ""
+                withAnimation(.easeInOut(duration: 0.3)) { step = .name }
+                errorDialog = makeDestructiveDialog(
+                    title: "Name No Longer Available",
+                    subtitle: "Please pick a different name."
+                )
+                return
+            } catch ErrorLaunchCurrency.invalidIcon {
+                logger.error("Launch rejected icon after preflight moderation passed")
+                ErrorReporting.captureError(ErrorLaunchCurrency.invalidIcon)
+                state.iconAttestation = nil
+                state.selectedImage = nil
+                withAnimation(.easeInOut(duration: 0.3)) { step = .icon }
+                errorDialog = makeDestructiveDialog(
+                    title: "Image Is Invalid",
+                    subtitle: "Please pick a different image."
+                )
+                return
+            } catch {
+                if Task.isCancelled { return }
+                logger.error("Launch failed", metadata: ["error": "\(error)"])
+                ErrorReporting.captureError(error)
+                errorDialog = makeDestructiveDialog(
+                    title: "Couldn't Launch Currency",
+                    subtitle: "Check your connection and try again."
+                )
+                return
+            }
+
+            state.launchedMint = mint
+
+            // 2. Buy
+            do {
+                _ = try await session.buyNewCurrency(amount: launchAmount, mint: mint)
+            } catch Session.Error.insufficientBalance {
+                logger.info("Insufficient balance to complete currency purchase")
+                errorDialog = makeDestructiveDialog(
+                    title: "Not Enough Funds",
+                    subtitle: "You need \(launchAmount.converted.formatted()) to create this currency."
+                )
+                return
+            } catch {
+                if Task.isCancelled { return }
+                logger.error("New currency buy failed", metadata: ["error": "\(error)"])
+                ErrorReporting.captureError(error)
+                errorDialog = makeDestructiveDialog(
+                    title: "Couldn't Complete Purchase",
+                    subtitle: "Check your connection and try again."
+                )
+                return
+            }
+
+            // 3. Success — dismiss wizard
+            logger.info("New currency purchased; dismissing wizard")
+            dismiss()
         }
     }
 
@@ -604,6 +735,7 @@ private struct BillCreationStep: View {
 private struct ConfirmationStep: View {
     let state: CurrencyCreationState
     let previewFiat: Quarks
+    let launchAmount: ExchangedFiat
     let onBuy: () -> Void
 
     var body: some View {
@@ -631,7 +763,7 @@ private struct ConfirmationStep: View {
             .padding(.top, 32)
             .padding(.horizontal, 20)
 
-            Button("Buy $20 to Create Your Currency", action: onBuy)
+            Button("Buy \(launchAmount.converted.formatted()) to Create Your Currency", action: onBuy)
                 .buttonStyle(.filled)
                 .padding(.top, 20)
                 .padding(.bottom, 20)

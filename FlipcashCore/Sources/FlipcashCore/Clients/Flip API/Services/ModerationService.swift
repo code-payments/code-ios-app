@@ -45,12 +45,6 @@ class ModerationService: CodeService<Flipcash_Moderation_V1_ModerationNIOClient>
                 completion(.failure(.unknown))
             }
         } failure: { error in
-#if DEBUG
-            if let attestation = bypassIfUnimplemented(error, rpc: "moderateText") {
-                completion(.success(attestation))
-                return
-            }
-#endif
             logger.error("Text moderation gRPC error", metadata: ["error": "\(error)"])
             completion(.failure(.network(error)))
         }
@@ -93,34 +87,11 @@ class ModerationService: CodeService<Flipcash_Moderation_V1_ModerationNIOClient>
                 completion(.failure(.unknown))
             }
         } failure: { error in
-#if DEBUG
-            if let attestation = bypassIfUnimplemented(error, rpc: "moderateImage") {
-                completion(.success(attestation))
-                return
-            }
-#endif
             logger.error("Image moderation gRPC error", metadata: ["error": "\(error)"])
             completion(.failure(.network(error)))
         }
     }
 }
-
-#if DEBUG
-// TEMPORARY BYPASS — remove once `flipcash.moderation.v1.Moderation` is deployed.
-//
-// Detects gRPC status code `unimplemented (12)` — which is what the server
-// returns when the Moderation service is not yet registered — and substitutes
-// a placeholder attestation so the wizard can progress during local testing.
-// Release builds never hit this branch.
-private func bypassIfUnimplemented(_ error: Error, rpc: String) -> ModerationAttestation? {
-    guard let status = error as? GRPCStatus, status.code == .unimplemented else { return nil }
-    logger.warning("Moderation RPC not yet implemented on backend — emitting placeholder attestation", metadata: [
-        "rpc": "\(rpc)",
-        "note": "DEBUG bypass; remove when server deploys the service",
-    ])
-    return ModerationAttestation(rawValue: Data([0x00]))
-}
-#endif
 
 // MARK: - Errors -
 

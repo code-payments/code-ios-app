@@ -91,4 +91,38 @@ extension Client {
             ) { c.resume(with: $0) }
         }
     }
+
+    /// Launches a new currency using hex color strings for bill customization.
+    /// Callers outside FlipcashCore can use this overload without importing
+    /// `FlipcashAPI` to construct the proto `BillCustomization` directly.
+    public func launch(
+        name: String,
+        symbol: String?,
+        description: String?,
+        billColors: [String],
+        icon: Data?,
+        nameAttestation: ModerationAttestation,
+        symbolAttestation: ModerationAttestation?,
+        descriptionAttestation: ModerationAttestation?,
+        iconAttestation: ModerationAttestation?,
+        owner: KeyPair
+    ) async throws -> PublicKey {
+        let billCustomization = Ocp_Currency_V1_BillCustomization.with {
+            $0.colors = billColors.map { hex in
+                Ocp_Currency_V1_Color.with { $0.hex = hex }
+            }
+        }
+        return try await launch(
+            name: name,
+            symbol: symbol,
+            description: description,
+            billCustomization: billCustomization,
+            icon: icon,
+            nameAttestation: nameAttestation,
+            symbolAttestation: symbolAttestation,
+            descriptionAttestation: descriptionAttestation,
+            iconAttestation: iconAttestation,
+            owner: owner
+        )
+    }
 }

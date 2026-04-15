@@ -4,9 +4,23 @@
 //
 
 import SwiftUI
+import FlipcashCore
 import FlipcashUI
 
 struct CurrencyCreationSummaryScreen: View {
+    @Environment(Session.self) private var session
+    @Environment(RatesController.self) private var ratesController
+
+    private var launchAmountText: String {
+        let quarks = session.userFlags?.newCurrencyPurchaseAmount.quarks ?? 0
+        return ExchangedFiat.computeFromQuarks(
+            quarks: quarks,
+            mint: .usdf,
+            rate: ratesController.rateForEntryCurrency(),
+            supplyQuarks: 0
+        ).converted.formatted()
+    }
+
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(alignment: .center, spacing: 0) {
@@ -20,7 +34,7 @@ struct CurrencyCreationSummaryScreen: View {
                     .padding(.top, 12)
                     .multilineTextAlignment(.center)
 
-                CreationStepsList()
+                CreationStepsList(launchAmount: launchAmountText)
                     .padding(.top, 45)
                     .padding(.horizontal, 16)
 
@@ -39,13 +53,20 @@ struct CurrencyCreationSummaryScreen: View {
 // MARK: - CreationStepsList
 
 private struct CreationStepsList: View {
+    let launchAmount: String
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             StepRow(icon: .CurrencyCreation.name, title: "Name", subtitle: "Pick a name for your currency")
             StepRow(icon: .CurrencyCreation.icon, title: "Icon", subtitle: "Choose an image")
             StepRow(icon: .CurrencyCreation.description, title: "Description", subtitle: "Describe your currency")
             StepRow(icon: .CurrencyCreation.cash, title: "Cash Design", subtitle: "Customize the look")
-            StepRow(icon: .CurrencyCreation.purchase, title: "Purchase $20 USD", subtitle: "Buy the first $20 of your currency", isLast: true)
+            StepRow(
+                icon: .CurrencyCreation.purchase,
+                title: "Purchase \(launchAmount)",
+                subtitle: "Buy the first \(launchAmount) of your currency",
+                isLast: true
+            )
         }
     }
 }

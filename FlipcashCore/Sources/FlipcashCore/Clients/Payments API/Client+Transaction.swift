@@ -150,6 +150,48 @@ extension Client {
             transactionService.sell(amount: amount, verifiedState: verifiedState, in: token, owner: owner) { c.resume(with: $0) }
         }
     }
+
+    /// Buys the first tokens on a newly-launched currency using reserves funding.
+    /// Drives the `isNewCurrencyLaunch: true` branch in `SwapService.swap`, which
+    /// assembles the atomic launch-and-first-buy transaction.
+    @discardableResult
+    public func buyNewCurrency(
+        swapId: SwapId,
+        amount: ExchangedFiat,
+        mint: PublicKey,
+        owner: KeyPair
+    ) async throws -> SwapMetadata {
+        guard let fundingIntentID = PublicKey.generate() else {
+            throw ErrorSwap.unknown
+        }
+
+        // Stub MintMetadata — required by SwapDirection.buy but effectively
+        // unused for new-currency launches. SwapService skips VM/launchpad
+        // metadata validation when isNewCurrencyLaunch=true, and the
+        // new-currency instruction builder derives every account from the
+        // ReserveNewCurrencyServerParameter directly.
+        let stubMetadata = MintMetadata(
+            address: mint,
+            decimals: 10, // Reserve TOKEN_DECIMALS
+            name: "",
+            symbol: "",
+            description: "",
+            imageURL: nil,
+            vmMetadata: nil,
+            launchpadMetadata: nil
+        )
+
+        return try await withCheckedThrowingContinuation { c in
+            transactionService.swapService.swap(
+                swapId: swapId,
+                direction: .buy(mint: stubMetadata),
+                amount: amount.underlying,
+                fundingSource: .submitIntent(id: fundingIntentID),
+                owner: owner,
+                isNewCurrencyLaunch: true
+            ) { c.resume(with: $0) }
+        }
+    }
     
     // MARK: - Status -
     

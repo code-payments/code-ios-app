@@ -326,7 +326,8 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
 
                 logger.error("Swap stream error", metadata: [
                     "code": "\(error.code)",
-                    "detailCount": "\(error.errorDetails.count)"
+                    "detailCount": "\(error.errorDetails.count)",
+                    "details": "\(container.joined(separator: " | "))"
                 ])
 
                 _ = reference.stream?.sendEnd()

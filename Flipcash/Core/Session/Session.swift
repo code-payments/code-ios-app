@@ -624,6 +624,65 @@ class Session {
     }
 
     @discardableResult
+    func launchCurrency(
+        name: String,
+        description: String,
+        billColors: [String],
+        icon: Data,
+        nameAttestation: ModerationAttestation,
+        descriptionAttestation: ModerationAttestation,
+        iconAttestation: ModerationAttestation
+    ) async throws -> PublicKey {
+        logger.info("Launching currency")
+
+        let mint = try await client.launch(
+            name: name,
+            symbol: nil,
+            description: description,
+            billColors: billColors,
+            icon: icon,
+            nameAttestation: nameAttestation,
+            symbolAttestation: nil,
+            descriptionAttestation: descriptionAttestation,
+            iconAttestation: iconAttestation,
+            owner: ownerKeyPair
+        )
+
+        logger.info("Currency launched", metadata: ["mint": "\(mint.base58)"])
+        return mint
+    }
+
+    @discardableResult
+    func buyNewCurrency(amount: ExchangedFiat, mint: PublicKey) async throws -> SwapId {
+        logger.info("Buying new currency", metadata: [
+            "amount": "\(amount.converted.formatted())",
+            "mint": "\(mint.base58)"
+        ])
+
+        // Intentionally no fetchMintMetadata: a freshly-launched currency isn't
+        // yet in the local DB, and in dry-run mode the server doesn't surface it
+        // via fetchMints either. The new-currency swap path in SwapService skips
+        // VM/launchpad metadata validation, and SwapInstructionBuilder derives
+        // every account from the ReserveNewCurrencyServerParameter, so the mint
+        // PublicKey is all we need.
+        let swapId = SwapId.generate()
+        let metadata = try await client.buyNewCurrency(
+            swapId: swapId,
+            amount: amount,
+            mint: mint,
+            owner: ownerKeyPair
+        )
+
+        logger.info("New currency buy completed", metadata: [
+            "swapId": "\(metadata.swapId.publicKey.base58)",
+            "state": "\(metadata.state)"
+        ])
+
+        updatePostTransaction()
+        return metadata.swapId
+    }
+
+    @discardableResult
     func sell(amount: ExchangedFiat, in mint: PublicKey) async throws -> SwapId {
         let token = try await fetchMintMetadata(mint: mint)
 
