@@ -21,6 +21,7 @@ struct CurrencyCreationWizardScreen: View {
     @EnvironmentObject private var flipClient: FlipClient
     @Environment(Session.self) private var session
     @Environment(RatesController.self) private var ratesController
+    @Environment(WalletConnection.self) private var walletConnection
 
     @State private var step: WizardStep = .name
     @State private var direction: Direction = .forward
@@ -202,7 +203,10 @@ struct CurrencyCreationWizardScreen: View {
                     isValidating = true
                     launchOnrampName = LaunchSheetIdentity(displayName: state.currencyName)
                 },
-                onSelectPhantom: { isShowingFundingSheet = false },
+                onSelectPhantom: {
+                    isShowingFundingSheet = false
+                    beginPhantomLaunch()
+                },
                 onDismiss: { isShowingFundingSheet = false }
             )
         }
@@ -227,6 +231,25 @@ struct CurrencyCreationWizardScreen: View {
                 isValidating = false
                 dismiss()
             })
+        }
+        // Phantom launch flow: `WalletConnection.processing` is set inside
+        // `didSignTransaction` after the user returns from signing. The wizard
+        // hosts the same processing surface as `CurrencyInfoScreen` so the
+        // user sees the swap settle without needing to navigate elsewhere.
+        .fullScreenCover(item: Bindable(walletConnection).processing) { processing in
+            NavigationStack {
+                SwapProcessingScreen(
+                    swapId: processing.swapId,
+                    swapType: .buyWithPhantom,
+                    currencyName: processing.currencyName,
+                    amount: processing.amount
+                )
+                .environment(\.dismissParentContainer, {
+                    walletConnection.dismissProcessing()
+                    isValidating = false
+                    dismiss()
+                })
+            }
         }
         .onAppear {
             if step == .name { focusedField = .name }
@@ -556,6 +579,62 @@ struct CurrencyCreationWizardScreen: View {
             transactionSignature: signature
         )
         logger.info("New currency purchased (external funding)")
+        return swapId
+    }
+
+    /// Kicks off the Phantom launch flow. Phantom signing happens out of
+    /// process (deeplink), so we don't toggle `isValidating` — once Phantom
+    /// returns, `WalletConnection.processing` becomes non-nil and the
+    /// `fullScreenCover` takes over the UI. Any failure while *requesting*
+    /// the swap surfaces a generic dialog.
+    private func beginPhantomLaunch() {
+        guard walletConnection.isConnected else {
+            errorDialog = makeDestructiveDialog(
+                title: "Connect Phantom First",
+                subtitle: "Open any currency screen, choose Phantom to fund a purchase, and approve the connection in Phantom. Then come back here."
+            )
+            return
+        }
+
+        validationTask?.cancel()
+        validationTask = Task {
+            let displayName = state.currencyName
+            do {
+                try await walletConnection.requestSwapForLaunch(
+                    usdc: launchAmount.underlying,
+                    displayName: displayName,
+                    onCompleted: { signature, amount in
+                        try await launchAfterPhantom(signature: signature, amount: amount)
+                    }
+                )
+            } catch {
+                if Task.isCancelled { return }
+                logger.error("Failed to request Phantom swap", metadata: ["error": "\(error)"])
+                ErrorReporting.captureError(error)
+                presentGenericErrorDialog()
+            }
+        }
+    }
+
+    /// Called by `WalletConnection` after Phantom returns with a signed swap.
+    /// Runs the same Launch + error-routing helper used by the reserves and
+    /// Coinbase flows, then tells the server to complete the buy with the
+    /// external-funding signature. Returns the resulting `SwapId` so the
+    /// processing screen polls the right swap state. Throws `CancellationError`
+    /// on launch failure — the wizard has already shown its step-routed
+    /// dialog, so this signals "stop" to `WalletConnection.didSignTransaction`
+    /// without surfacing a second one.
+    private func launchAfterPhantom(signature: Signature, amount: ExchangedFiat) async throws -> SwapId {
+        guard let mint = await launchCurrencyWithPreflightRouting() else {
+            throw CancellationError()
+        }
+
+        let swapId = try await session.buyNewCurrencyWithExternalFunding(
+            amount: amount,
+            mint: mint,
+            transactionSignature: signature
+        )
+        logger.info("New currency purchased (Phantom funding)")
         return swapId
     }
 

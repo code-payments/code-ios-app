@@ -51,10 +51,24 @@ public final class WalletConnection {
     /// Pending swap info to use when Phantom returns with signed transaction
     private var pendingSwap: PendingSwap?
 
+    /// What the signed-transaction handler should do after the user returns
     private struct PendingSwap {
-        let swapId: SwapId
+        /// Funding-leg swap id (USDC→USDF) — used in the Phantom memo.
+        let fundingSwapId: SwapId
         let amount: ExchangedFiat
-        let token: MintMetadata
+        let displayName: String
+        /// Runs after Phantom signs the funding transaction. Returns the
+        /// `SwapId` the processing screen should poll. For buy-existing flows
+        /// that's the same as `fundingSwapId`; for launch flows it's the
+        /// fresh swap id `Session.buyNewCurrencyWithExternalFunding` generated.
+        let onCompleted: @MainActor @Sendable (FlipcashCore.Signature, ExchangedFiat) async throws -> SwapId
+    }
+
+    /// Whether the user has previously linked a Phantom wallet via
+    /// `connectToPhantom`. Once true it stays true for the lifetime of the
+    /// keychain entry; users can clear by uninstalling Phantom or wiping app data.
+    var isConnected: Bool {
+        Keychain.connectedWalletSession != nil
     }
 
     // MARK: - Init -
@@ -166,7 +180,7 @@ public final class WalletConnection {
     }
     
     private func didSignTransaction(_ signedTx: String) {
-        Task { [solanaClient, client, weak self] in
+        Task { [solanaClient, weak self] in
             let pending = self?.pendingSwap
             self?.pendingSwap = nil
 
@@ -176,16 +190,15 @@ public final class WalletConnection {
             }
 
             self.processing = ExternalSwapProcessing(
-                swapId: pending.swapId,
-                currencyName: pending.token.name,
+                swapId: pending.fundingSwapId,
+                currencyName: pending.displayName,
                 amount: pending.amount
             )
 
             let swapMetadata: [String: String] = [
-                "swapId": pending.swapId.publicKey.base58,
-                "token": pending.token.symbol,
+                "swapId": pending.fundingSwapId.publicKey.base58,
                 "amount": pending.amount.converted.formatted(),
-                "mint": pending.token.address.base58
+                "name": pending.displayName,
             ]
 
             let rawData = Data(Base58.toBytes(signedTx))
@@ -199,14 +212,19 @@ public final class WalletConnection {
             // Notify server before submitting to chain — if the server rejects,
             // skip chain submission entirely so no USDC is spent without a swap state.
             do {
-                try await client.buyWithExternalFunding(
-                    swapId: pending.swapId,
-                    amount: pending.amount,
-                    of: pending.token,
-                    owner: self.owner,
-                    transactionSignature: tx.identifier
-                )
-                logger.info("Server notified of swap funding via buyWithExternalFunding()")
+                let serverSwapId = try await pending.onCompleted(tx.identifier, pending.amount)
+                if serverSwapId != pending.fundingSwapId {
+                    // Launch path generated its own swap id server-side; refresh
+                    // the processing screen so it polls that one (otherwise it
+                    // would poll the funding swap id, which has no state and
+                    // times out to .failed).
+                    self.processing = ExternalSwapProcessing(
+                        swapId: serverSwapId,
+                        currencyName: pending.displayName,
+                        amount: pending.amount
+                    )
+                }
+                logger.info("Server notified of swap funding")
             } catch {
                 logger.error("Server notification failed", metadata: ["error": "\(error)"])
                 ErrorReporting.captureError(error, reason: "Server notification failed", metadata: swapMetadata)
@@ -236,11 +254,44 @@ public final class WalletConnection {
         url.openWithApplication()
     }
 
-    /// Requests an external swap: builds the transaction and opens Phantom.
+    /// Requests an external swap to fund a buy of an existing launchpad currency.
     /// The processing screen is deferred until the user returns with a signed transaction.
     func requestSwap(usdc: Quarks, token: MintMetadata) async throws {
-        try await requestUsdcToUsdfSwap(usdc: usdc, token: token)
+        let fundingSwapId = SwapId.generate()
+        try await requestUsdcToUsdfSwap(
+            fundingSwapId: fundingSwapId,
+            usdc: usdc,
+            displayName: token.name,
+            onCompleted: { [client, owner] signature, amount in
+                try await client.buyWithExternalFunding(
+                    swapId: fundingSwapId,
+                    amount: amount,
+                    of: token,
+                    owner: owner,
+                    transactionSignature: signature
+                )
+                return fundingSwapId
+            }
+        )
         isShowingAmountEntry = false
+    }
+
+    /// Requests an external USDC→USDF swap for the currency-creation launch flow.
+    /// `onCompleted` runs after Phantom signs and must execute
+    /// `Session.launchCurrency` + `Session.buyNewCurrencyWithExternalFunding`,
+    /// returning the swap id from the buy so the processing screen polls the
+    /// right swap state (the funding swap id is unrelated).
+    func requestSwapForLaunch(
+        usdc: Quarks,
+        displayName: String,
+        onCompleted: @escaping @MainActor @Sendable (FlipcashCore.Signature, ExchangedFiat) async throws -> SwapId
+    ) async throws {
+        try await requestUsdcToUsdfSwap(
+            fundingSwapId: SwapId.generate(),
+            usdc: usdc,
+            displayName: displayName,
+            onCompleted: onCompleted
+        )
     }
 
     /// Dismisses the processing screen and clears any pending wallet dialogs.
@@ -268,27 +319,21 @@ public final class WalletConnection {
         openExternalWallet(c.url!)
     }
 
-    /// Initiates USDC→USDF swap via Phantom wallet
-    /// 1. Generate swapId and build transaction (with swapId in memo)
-    /// 2. Send to Phantom for signing
-    /// 3. After signing: notify server via buyWithExternalFunding(), then submit TX to chain
-    ///
-    /// - Parameters:
-    ///   - usdc: Amount of USDC to swap (in quarks)
-    ///   - token: The token to buy with the swapped USDF
-    @discardableResult
-    func requestUsdcToUsdfSwap(usdc: Quarks, token: MintMetadata) async throws -> (swapId: SwapId, amount: ExchangedFiat) {
+    /// Builds + sends a USDC→USDF transaction to Phantom for signing. Stashes
+    /// the supplied `onCompleted` closure so `didSignTransaction` can run it
+    /// once the signed transaction comes back via deeplink.
+    private func requestUsdcToUsdfSwap(
+        fundingSwapId: SwapId,
+        usdc: Quarks,
+        displayName: String,
+        onCompleted: @escaping @MainActor @Sendable (FlipcashCore.Signature, ExchangedFiat) async throws -> SwapId
+    ) async throws {
         guard let connectedSession = Keychain.connectedWalletSession else {
             throw Error.noSession
         }
 
-        // 1. Generate swapId (will be used in memo AND in buy() call)
-        let swapId = SwapId.generate()
+        let amount = ExchangedFiat(underlying: usdc, converted: usdc, mint: .usdf)
 
-        // Create ExchangedFiat for the buy() call (USDC/USDF are 1:1)
-        let amount = ExchangedFiat(underlying: usdc, converted: usdc, mint: token.address)
-
-        // 2. Build transaction with swapId in memo
         let externalWallet = try FlipcashCore.PublicKey(base58: connectedSession.walletPublicKey.base58)
         let flipcashOwner = owner.authorityPublicKey
 
@@ -297,10 +342,9 @@ public final class WalletConnection {
             owner: flipcashOwner,
             amount: usdc.quarks,
             pool: .usdf,
-            swapId: swapId.publicKey
+            swapId: fundingSwapId.publicKey
         )
 
-        // Convert FlipcashCore instructions to SolanaSwift
         let instructionsConverted = instructions.map { instruction in
             TransactionInstruction(
                 keys: instruction.accounts.map { meta in
@@ -323,10 +367,13 @@ public final class WalletConnection {
             feePayer: try SolanaSwift.PublicKey(string: externalWallet.base58)
         )
 
-        // 3. Store pending swap info (to use when Phantom returns)
-        pendingSwap = PendingSwap(swapId: swapId, amount: amount, token: token)
+        pendingSwap = PendingSwap(
+            fundingSwapId: fundingSwapId,
+            amount: amount,
+            displayName: displayName,
+            onCompleted: onCompleted
+        )
 
-        // 4. Serialize and send to Phantom
         let txEncoded = Base58.fromBytes(Array(try transaction.serialize()))
 
         let payload: [String: Any] = [
@@ -358,13 +405,10 @@ public final class WalletConnection {
         openExternalWallet(url)
         logger.info("Requested USDC→USDF swap", metadata: [
             "amount": "\(amount.underlying)",
-            "token": "\(token.symbol)",
-            "swapId": "\(swapId.publicKey.base58)",
+            "swapId": "\(fundingSwapId.publicKey.base58)",
+            "name": "\(displayName)",
         ])
-
-        return (swapId: swapId, amount: amount)
     }
-
 }
 
 /// NaCl “box” with an ephemeral X25519 keypair for one Phantom session.
