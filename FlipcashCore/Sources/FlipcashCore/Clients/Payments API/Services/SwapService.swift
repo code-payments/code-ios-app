@@ -191,23 +191,6 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                         return
                     }
 
-                    // Verify that the server-supplied authority matches the
-                    // owner. The launch transaction has instructions signed by
-                    // both `params.authority` (currency/pool/VM init) and
-                    // `owner` (transfer/buy/close); these must be the same key
-                    // for the single owner signature to satisfy all signer
-                    // slots (per the proto: only the creator can execute this
-                    // flow).
-                    guard params.authority == owner.publicKey else {
-                        logger.error("New-currency server authority does not match owner", metadata: [
-                            "expected": "\(owner.publicKey.base58)",
-                            "received": "\(params.authority.base58)"
-                        ])
-                        _ = reference.stream?.sendEnd()
-                        completion(.failure(.invalidSwap))
-                        return
-                    }
-
                     // Verify that the mint derived from server params matches
                     // the mint the client expects (clientParameters.toMint).
                     guard let (derivedMint, _) = LaunchpadMint.deriveMint(
@@ -245,6 +228,14 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                         authority: owner.publicKey,
                         amount: amount.quarks
                     )
+
+                    // Log the serialized transaction so it can be diffed against
+                    // the server's `expected_transaction` when `signatureError`
+                    // comes back. `encode()` includes the zero-filled signature
+                    // slots + message body, matching the server's expected form.
+                    logger.debug("New-currency transaction built", metadata: [
+                        "txBytes": "\(transaction.encode().hexEncodedString())"
+                    ])
 
                     let signatures = transaction.signatures(using: owner)
                     verifiedMetadataSignature = signatures.first
@@ -439,7 +430,9 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                     completion(.success(metadata))
 
                 case .notFound:
-                    logger.error("Swap not found")
+                    // Expected during the early phase of polling a freshly
+                    // submitted swap; the caller retries on this condition.
+                    logger.debug("Swap not found")
                     completion(.failure(.notFound))
 
                 case .denied:

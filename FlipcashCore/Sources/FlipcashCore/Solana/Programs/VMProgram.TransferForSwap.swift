@@ -72,7 +72,7 @@ extension VMProgram.TransferForSwap: InstructionType {
             program: VMProgram.address,
             accounts: [
                 .writable(publicKey: vmAuthority, signer: true),
-                .readonly(publicKey: vm),
+                .writable(publicKey: vm),
                 .writable(publicKey: swapper, signer: true),
                 .readonly(publicKey: swapPda),
                 .writable(publicKey: swapAta),

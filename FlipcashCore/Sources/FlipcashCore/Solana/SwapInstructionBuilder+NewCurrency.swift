@@ -190,7 +190,7 @@ extension SwapInstructionBuilder {
 
         // 8. ATA::CreateIdempotent — owner's Core Mint (USDF) ATA
         let createCoreMintATA = AssociatedTokenProgram.CreateIdempotent(
-            subsidizer: serverParams.payer,
+            subsidizer: serverParams.authority,
             address: ownerCoreMintATA.publicKey,
             owner: authority,
             mint: coreMint.address
@@ -200,7 +200,7 @@ extension SwapInstructionBuilder {
         // 9. ATA::CreateIdempotent — owner's target-mint VM Deposit ATA
         instructions.append(
             AssociatedTokenProgram.CreateIdempotent(
-                subsidizer: serverParams.payer,
+                subsidizer: serverParams.authority,
                 address: ownerTargetVMDepositATA.publicKey,
                 owner: ownerVMDepositPda.publicKey,
                 mint: targetMint
@@ -239,11 +239,11 @@ extension SwapInstructionBuilder {
             ).instruction()
         )
 
-        // 12. Token::CloseAccount — closes owner's Core Mint ATA, rent to payer
+        // 12. Token::CloseAccount — closes owner's Core Mint ATA, rent to authority
         instructions.append(
             TokenProgram.CloseAccount(
                 account: ownerCoreMintATA.publicKey,
-                destination: serverParams.payer,
+                destination: serverParams.authority,
                 owner: authority
             ).instruction()
         )

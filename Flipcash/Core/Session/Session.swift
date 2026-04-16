@@ -653,11 +653,21 @@ class Session {
     }
 
     @discardableResult
-    func buyNewCurrency(amount: ExchangedFiat, mint: PublicKey) async throws -> SwapId {
+    func buyNewCurrency(amount: ExchangedFiat, mint: PublicKey, swapId: SwapId = .generate()) async throws -> SwapId {
         logger.info("Buying new currency", metadata: [
             "amount": "\(amount.converted.formatted())",
-            "mint": "\(mint.base58)"
+            "mint": "\(mint.base58)",
+            "swapId": "\(swapId.publicKey.base58)"
         ])
+
+        // Phase 2 funding (IntentFundSwap) requires a verified state for the
+        // source mint — USDF for a reserves-funded launch.
+        guard let verifiedState = await ratesController.getVerifiedState(
+            for: amount.converted.currencyCode,
+            mint: amount.mint
+        ) else {
+            throw Error.missingVerifiedState
+        }
 
         // Intentionally no fetchMintMetadata: a freshly-launched currency isn't
         // yet in the local DB, and in dry-run mode the server doesn't surface it
@@ -665,12 +675,12 @@ class Session {
         // VM/launchpad metadata validation, and SwapInstructionBuilder derives
         // every account from the ReserveNewCurrencyServerParameter, so the mint
         // PublicKey is all we need.
-        let swapId = SwapId.generate()
         let metadata = try await client.buyNewCurrency(
             swapId: swapId,
             amount: amount,
+            verifiedState: verifiedState,
             mint: mint,
-            owner: ownerKeyPair
+            owner: owner
         )
 
         logger.info("New currency buy completed", metadata: [

@@ -151,28 +151,25 @@ extension Client {
         }
     }
 
-    /// Buys the first tokens on a newly-launched currency using reserves funding.
-    /// Drives the `isNewCurrencyLaunch: true` branch in `SwapService.swap`, which
-    /// assembles the atomic launch-and-first-buy transaction.
+    /// Buys the first tokens on a newly-launched currency using reserves funding
+    /// (Phase 1 stateful swap + Phase 2 `IntentFundSwap`). Without the Phase 2
+    /// funding intent the server-side swap sits at `CREATED` and is cancelled
+    /// once the blockhash expires.
     @discardableResult
     public func buyNewCurrency(
         swapId: SwapId,
         amount: ExchangedFiat,
+        verifiedState: VerifiedState,
         mint: PublicKey,
-        owner: KeyPair
+        owner: AccountCluster
     ) async throws -> SwapMetadata {
-        guard let fundingIntentID = PublicKey.generate() else {
-            throw ErrorSwap.unknown
-        }
-
-        return try await withCheckedThrowingContinuation { c in
-            transactionService.swapService.swap(
+        try await withCheckedThrowingContinuation { c in
+            transactionService.buyNewCurrency(
                 swapId: swapId,
-                direction: .buy(mint: .launchStub(address: mint)),
-                amount: amount.underlying,
-                fundingSource: .submitIntent(id: fundingIntentID),
-                owner: owner,
-                isNewCurrencyLaunch: true
+                amount: amount,
+                verifiedState: verifiedState,
+                mint: mint,
+                owner: owner
             ) { c.resume(with: $0) }
         }
     }
@@ -291,8 +288,8 @@ extension Client {
                     continue
                 }
             } catch ErrorGetSwap.notFound {
-                // Swap not yet visible, continue polling
-                logger.warning("Swap not found yet, continuing poll")
+                // Swap not yet visible — service layer already logs this at
+                // debug level. Continue polling.
                 continue
             } catch {
                 // Log but continue polling for transient errors

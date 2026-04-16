@@ -28,7 +28,7 @@ extension SystemProgram.AdvanceNonce: InstructionType {
             accounts: [
                 .writable(publicKey: nonce),
                 .readonly(publicKey: SysVar.recentBlockhashes.address),
-                .writable(publicKey: authority, signer: true),
+                .readonly(publicKey: authority, signer: true),
             ],
             data: encode()
         )
