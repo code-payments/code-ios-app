@@ -22,8 +22,13 @@ public final class WalletConnection {
 
     var dialogItem: DialogItem?
 
-    /// Current swap processing context. When set, the processing screen should be shown.
+    /// Buy-existing processing context. When set, `CurrencyInfoScreen` shows the
+    /// generic `SwapProcessingScreen`.
     var processing: ExternalSwapProcessing?
+
+    /// Currency-launch processing context. When set, the currency-creation wizard
+    /// shows `CurrencyLaunchProcessingScreen` (distinct UI + bill handoff).
+    var launchProcessing: ExternalLaunchProcessing?
 
     /// Set when the user cancels in the external wallet. The processing screen
     /// observes this to switch to the failed display state.
@@ -57,11 +62,7 @@ public final class WalletConnection {
         let fundingSwapId: SwapId
         let amount: ExchangedFiat
         let displayName: String
-        /// Runs after Phantom signs the funding transaction. Returns the
-        /// `SwapId` the processing screen should poll. For buy-existing flows
-        /// that's the same as `fundingSwapId`; for launch flows it's the
-        /// fresh swap id `Session.buyNewCurrencyWithExternalFunding` generated.
-        let onCompleted: @MainActor @Sendable (FlipcashCore.Signature, ExchangedFiat) async throws -> SwapId
+        let onCompleted: @MainActor @Sendable (FlipcashCore.Signature, ExchangedFiat) async throws -> SignedSwapResult
     }
 
     /// Whether the user has previously linked a Phantom wallet via
@@ -189,6 +190,9 @@ public final class WalletConnection {
                 return
             }
 
+            // Present the generic processing screen immediately. The server callback
+            // below may swap this for a launch-processing context if the caller is
+            // launching a new currency; buy-existing callers leave this in place.
             self.processing = ExternalSwapProcessing(
                 swapId: pending.fundingSwapId,
                 currencyName: pending.displayName,
@@ -212,14 +216,23 @@ public final class WalletConnection {
             // Notify server before submitting to chain — if the server rejects,
             // skip chain submission entirely so no USDC is spent without a swap state.
             do {
-                let serverSwapId = try await pending.onCompleted(tx.identifier, pending.amount)
-                if serverSwapId != pending.fundingSwapId {
-                    // Launch path generated its own swap id server-side; refresh
-                    // the processing screen so it polls that one (otherwise it
-                    // would poll the funding swap id, which has no state and
-                    // times out to .failed).
-                    self.processing = ExternalSwapProcessing(
-                        swapId: serverSwapId,
+                let result = try await pending.onCompleted(tx.identifier, pending.amount)
+                switch result {
+                case .buyExisting(let swapId):
+                    if swapId != pending.fundingSwapId {
+                        self.processing = ExternalSwapProcessing(
+                            swapId: swapId,
+                            currencyName: pending.displayName,
+                            amount: pending.amount
+                        )
+                    }
+                case .launch(let swapId, let mint):
+                    // Swap the buy-existing scaffold for the launch context so the
+                    // currency-creation wizard routes to CurrencyLaunchProcessingScreen.
+                    self.processing = nil
+                    self.launchProcessing = ExternalLaunchProcessing(
+                        swapId: swapId,
+                        launchedMint: mint,
                         currencyName: pending.displayName,
                         amount: pending.amount
                     )
@@ -270,7 +283,7 @@ public final class WalletConnection {
                     owner: owner,
                     transactionSignature: signature
                 )
-                return fundingSwapId
+                return .buyExisting(swapId: fundingSwapId)
             }
         )
         isShowingAmountEntry = false
@@ -284,7 +297,7 @@ public final class WalletConnection {
     func requestSwapForLaunch(
         usdc: Quarks,
         displayName: String,
-        onCompleted: @escaping @MainActor @Sendable (FlipcashCore.Signature, ExchangedFiat) async throws -> SwapId
+        onCompleted: @escaping @MainActor @Sendable (FlipcashCore.Signature, ExchangedFiat) async throws -> SignedSwapResult
     ) async throws {
         try await requestUsdcToUsdfSwap(
             fundingSwapId: SwapId.generate(),
@@ -299,6 +312,7 @@ public final class WalletConnection {
         dialogItem = nil
         isProcessingCancelled = false
         processing = nil
+        launchProcessing = nil
     }
 
     // MARK: - Actions -
@@ -326,7 +340,7 @@ public final class WalletConnection {
         fundingSwapId: SwapId,
         usdc: Quarks,
         displayName: String,
-        onCompleted: @escaping @MainActor @Sendable (FlipcashCore.Signature, ExchangedFiat) async throws -> SwapId
+        onCompleted: @escaping @MainActor @Sendable (FlipcashCore.Signature, ExchangedFiat) async throws -> SignedSwapResult
     ) async throws {
         guard let connectedSession = Keychain.connectedWalletSession else {
             throw Error.noSession

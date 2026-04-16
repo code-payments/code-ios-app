@@ -77,6 +77,12 @@ extension Analytics {
         case sell                 = "Token Sell"
     }
 
+    enum CurrencyLaunchEvent: String, AnalyticsEvent {
+        case launchWithReserves = "Currency Launch With Reserves"
+        case launchWithPhantom  = "Currency Launch With Phantom"
+        case launchWithCoinbase = "Currency Launch With Coinbase"
+    }
+
     enum DeeplinkEvent: String, AnalyticsEvent {
         case open   = "Deeplink: Open"
         case parse  = "Deeplink: Parse"
@@ -248,6 +254,20 @@ extension Analytics {
             .currency: exchangedFiat.rate.currency.rawValue,
         ]
         track(event: TokenTransactionEvent.sell, properties: properties, error: error)
+    }
+}
+
+// MARK: - Currency Launch -
+
+extension Analytics {
+    static func currencyLaunch(event: CurrencyLaunchEvent, exchangedFiat: ExchangedFiat, successful: Bool, error: Error? = nil) {
+        let properties: [Property: AnalyticsValue] = [
+            .state: successful ? String.success : String.failure,
+            .mint: exchangedFiat.mint.base58,
+            .fiat: exchangedFiat.converted.doubleValue,
+            .currency: exchangedFiat.rate.currency.rawValue,
+        ]
+        track(event: event, properties: properties, error: error)
     }
 }
 

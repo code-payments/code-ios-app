@@ -45,7 +45,7 @@ struct OnrampAmountScreen: View {
         flipClient: FlipClient,
         deeplinkInbox: OnrampDeeplinkInbox,
         onDismiss: @escaping () -> Void,
-        onUsdfReady: @escaping @MainActor @Sendable (Signature, ExchangedFiat) async throws -> SwapId
+        onUsdfReady: @escaping @MainActor @Sendable (Signature, ExchangedFiat) async throws -> SignedSwapResult
     ) -> OnrampAmountScreen {
         OnrampAmountScreen(
             viewModel: .forLaunching(
@@ -112,6 +112,14 @@ struct OnrampAmountScreen: View {
                         swapType: .buyWithCoinbase,
                         currencyName: currencyName,
                         amount: amount
+                    )
+                case .launchProcessing(let swapId, let launchedMint, let currencyName, let amount):
+                    CurrencyLaunchProcessingScreen(
+                        swapId: swapId,
+                        launchedMint: launchedMint,
+                        currencyName: currencyName,
+                        launchAmount: amount,
+                        fundingMethod: .coinbase
                     )
                 }
             }

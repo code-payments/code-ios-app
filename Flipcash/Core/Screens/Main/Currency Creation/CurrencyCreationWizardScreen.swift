@@ -38,10 +38,22 @@ struct CurrencyCreationWizardScreen: View {
     /// Carries the user-chosen currency name (used as the sheet identity and
     /// for SwapProcessing's display label).
     @State private var launchOnrampName: LaunchSheetIdentity?
+    /// Non-nil while the Reserves-funded launch is in flight. Drives a
+    /// `fullScreenCover` that presents `CurrencyLaunchProcessingScreen`.
+    @State private var reservesLaunchContext: ReservesLaunchContext?
 
     private struct LaunchSheetIdentity: Identifiable, Hashable {
         let displayName: String
         var id: String { displayName }
+    }
+
+    private struct ReservesLaunchContext: Identifiable, Hashable {
+        let swapId: SwapId
+        let launchedMint: PublicKey
+        let currencyName: String
+        let amount: ExchangedFiat
+
+        var id: String { swapId.publicKey.base58 }
     }
 
     static let nameCharLimit = 32
@@ -211,6 +223,21 @@ struct CurrencyCreationWizardScreen: View {
                 onDismiss: { isShowingFundingSheet = false }
             )
         }
+        .fullScreenCover(item: $reservesLaunchContext) { context in
+            NavigationStack {
+                CurrencyLaunchProcessingScreen(
+                    swapId: context.swapId,
+                    launchedMint: context.launchedMint,
+                    currencyName: context.currencyName,
+                    launchAmount: context.amount,
+                    fundingMethod: .reserves
+                )
+                .environment(\.dismissParentContainer, {
+                    reservesLaunchContext = nil
+                    dismiss()
+                })
+            }
+        }
         .sheet(item: $launchOnrampName) { identity in
             OnrampAmountScreen.forLaunching(
                 displayName: identity.displayName,
@@ -233,17 +260,18 @@ struct CurrencyCreationWizardScreen: View {
                 dismiss()
             })
         }
-        // Phantom launch flow: `WalletConnection.processing` is set inside
-        // `didSignTransaction` after the user returns from signing. The wizard
-        // hosts the same processing surface as `CurrencyInfoScreen` so the
-        // user sees the swap settle without needing to navigate elsewhere.
-        .fullScreenCover(item: Bindable(walletConnection).processing) { processing in
+        // Phantom launch flow: `WalletConnection.launchProcessing` is set
+        // inside `didSignTransaction` after the user returns from signing.
+        // The wizard only ever hosts launches here — buy-existing Phantom
+        // flows present their own cover from `CurrencyInfoScreen`.
+        .fullScreenCover(item: Bindable(walletConnection).launchProcessing) { processing in
             NavigationStack {
-                SwapProcessingScreen(
+                CurrencyLaunchProcessingScreen(
                     swapId: processing.swapId,
-                    swapType: .buyWithPhantom,
+                    launchedMint: processing.launchedMint,
                     currencyName: processing.currencyName,
-                    amount: processing.amount
+                    launchAmount: processing.amount,
+                    fundingMethod: .phantom
                 )
                 .environment(\.dismissParentContainer, {
                     walletConnection.dismissProcessing()
@@ -457,38 +485,56 @@ struct CurrencyCreationWizardScreen: View {
         validationTask?.cancel()
         validationTask = Task {
             isValidating = true
-            defer { isValidating = false }
 
             let launchAmount = self.launchAmount
+            let displayName = state.currencyName
 
+            // 1. Launch — must be awaited inline; its error routing (denied /
+            // nameExists / invalidIcon) has to run before we navigate forward.
             guard let mint = await launchCurrencyWithPreflightRouting() else {
+                isValidating = false
                 return
             }
 
-            // 2. Buy
+            // 2. Submit the buy — awaited inline. The stateful swap stream returns
+            // only after the server-side swap record is created (state=created),
+            // so a failure here means the submission never took effect. Surface
+            // it as a wizard dialog rather than presenting a processing screen
+            // that would poll a swap id the server never registered.
+            let swapId: SwapId
             do {
-                _ = try await session.buyNewCurrency(amount: launchAmount, mint: mint)
+                swapId = try await session.buyNewCurrency(amount: launchAmount, mint: mint)
             } catch Session.Error.insufficientBalance {
                 logger.info("Insufficient balance to complete currency purchase")
                 errorDialog = makeDestructiveDialog(
                     title: "Not Enough Funds",
                     subtitle: "You need \(launchAmount.converted.formatted()) to create this currency."
                 )
+                isValidating = false
                 return
             } catch {
-                if Task.isCancelled { return }
-                logger.error("New currency buy failed", metadata: ["error": "\(error)"])
+                if Task.isCancelled { isValidating = false; return }
+                logger.error("Reserves-funded buy failed", metadata: [
+                    "error": "\(error)",
+                    "mint": "\(mint.base58)",
+                ])
                 ErrorReporting.captureError(error)
                 errorDialog = makeDestructiveDialog(
-                    title: "Couldn't Complete Purchase",
-                    subtitle: "Check your connection and try again."
+                    title: "Couldn't Create Currency",
+                    subtitle: "Please try again."
                 )
+                isValidating = false
                 return
             }
 
-            // 3. Success — dismiss wizard
-            logger.info("New currency purchased; dismissing wizard")
-            dismiss()
+            // 3. Submission accepted — hand off to the processing screen.
+            reservesLaunchContext = ReservesLaunchContext(
+                swapId: swapId,
+                launchedMint: mint,
+                currencyName: displayName,
+                amount: launchAmount
+            )
+            isValidating = false
         }
     }
 
@@ -569,7 +615,7 @@ struct CurrencyCreationWizardScreen: View {
     /// `SwapProcessing` step. Throws `CancellationError` on launch failure —
     /// the wizard has already shown its own step-routed dialog, so this
     /// signals "stop" to OnrampViewModel without surfacing a second one.
-    private func launchAfterOnramp(signature: Signature, amount: ExchangedFiat) async throws -> SwapId {
+    private func launchAfterOnramp(signature: Signature, amount: ExchangedFiat) async throws -> SignedSwapResult {
         guard let mint = await launchCurrencyWithPreflightRouting() else {
             throw CancellationError()
         }
@@ -580,7 +626,7 @@ struct CurrencyCreationWizardScreen: View {
             transactionSignature: signature
         )
         logger.info("New currency purchased (external funding)")
-        return swapId
+        return .launch(swapId: swapId, mint: mint)
     }
 
     /// Kicks off the Phantom launch flow. Phantom signing happens out of
@@ -625,7 +671,7 @@ struct CurrencyCreationWizardScreen: View {
     /// on launch failure — the wizard has already shown its step-routed
     /// dialog, so this signals "stop" to `WalletConnection.didSignTransaction`
     /// without surfacing a second one.
-    private func launchAfterPhantom(signature: Signature, amount: ExchangedFiat) async throws -> SwapId {
+    private func launchAfterPhantom(signature: Signature, amount: ExchangedFiat) async throws -> SignedSwapResult {
         guard let mint = await launchCurrencyWithPreflightRouting() else {
             throw CancellationError()
         }
@@ -636,7 +682,7 @@ struct CurrencyCreationWizardScreen: View {
             transactionSignature: signature
         )
         logger.info("New currency purchased (Phantom funding)")
-        return swapId
+        return .launch(swapId: swapId, mint: mint)
     }
 
     // MARK: - Dialogs
