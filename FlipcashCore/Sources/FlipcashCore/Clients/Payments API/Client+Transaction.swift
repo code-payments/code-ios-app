@@ -263,17 +263,12 @@ extension Client {
         var lastState: SwapState?
 
         for i in 0..<maxAttempts {
-            // Backoff strategy: start at 500ms, increase by 100ms every 10 polls
-            // Poll 0-9: 500ms, Poll 10-19: 600ms, Poll 20-29: 700ms, etc.
-            let delay = 500 + (100 * (i / 10))
-
             if i > 0 {
-                try await Task.delay(milliseconds: delay)
+                try await Task.delay(milliseconds: 1_000)
             }
 
             logger.debug("Polling swap state", metadata: [
                 "attempt": "\(i + 1)/\(maxAttempts)",
-                "delay": "\(delay)ms",
                 "swapId": "\(swapId.publicKey.base58)"
             ])
 

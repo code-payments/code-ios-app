@@ -115,7 +115,7 @@ class SwapProcessingViewModel {
             let metadata = try await client.pollSwapState(
                 swapId: swapId,
                 owner: ownerKeyPair,
-                maxAttempts: 90
+                maxAttempts: 180
             ) { [weak self] state in
                 Task { @MainActor in
                     self?.currentState = state
