@@ -67,6 +67,7 @@ struct CurrencyCreationWizardScreen: View {
 
     private var reserveBalance: ExchangedFiat? {
         guard let stored = session.balance(for: .usdf) else { return nil }
+        guard stored.usdf >= launchAmount.underlying else { return nil }
         return try? ExchangedFiat(
             underlying: stored.usdf,
             rate: ratesController.rateForBalanceCurrency(),
