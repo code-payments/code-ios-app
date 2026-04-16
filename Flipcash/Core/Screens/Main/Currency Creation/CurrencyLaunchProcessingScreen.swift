@@ -67,7 +67,7 @@ struct CurrencyLaunchProcessingScreen: View {
         .task {
             await viewModel.startPolling(
                 client: client,
-                ownerKeyPair: session.ownerKeyPair
+                session: session
             )
 
             if viewModel.isSuccess {
@@ -77,7 +77,10 @@ struct CurrencyLaunchProcessingScreen: View {
     }
 
     private func handleReceiveLaunchedCurrency() async {
-        let description = await viewModel.prepareBillHandoff(ratesController: ratesController)
+        let description = await viewModel.prepareBillHandoff(
+            session: session,
+            ratesController: ratesController
+        )
         if let description {
             session.showCashBill(description)
         }
@@ -158,7 +161,8 @@ private struct LaunchStatusIcon: View {
         Group {
             switch displayState {
             case .processing:
-                CircularLoadingView(duration: 180)
+                // 180 s swap polling + 240 s balance-landing budget.
+                CircularLoadingView(duration: 420)
 
             case .success:
                 Image("IconCircleCheck")

@@ -96,14 +96,14 @@ class CurrencyLaunchProcessingViewModel {
 
     // MARK: - Polling -
 
-    func startPolling(client: Client, ownerKeyPair: KeyPair) async {
+    func startPolling(client: Client, session: Session) async {
         guard !isPolling, displayState == .processing else { return }
         isPolling = true
 
         do {
             let metadata = try await client.pollSwapState(
                 swapId: swapId,
-                owner: ownerKeyPair,
+                owner: session.ownerKeyPair,
                 maxAttempts: 180
             ) { [weak self] state in
                 Task { @MainActor in
@@ -113,8 +113,19 @@ class CurrencyLaunchProcessingViewModel {
 
             switch metadata.state {
             case .finalized:
-                displayState = .success
-                Analytics.currencyLaunch(event: analyticsEvent, exchangedFiat: launchAmount, successful: true)
+                // Swap settled on-chain, but the user's balance update may still
+                // be in transit through the streaming layer — typically another
+                // ~60s. Wait for the balance to actually land before signalling
+                // success so the "Receive My X" handoff can advertise the bill
+                // immediately rather than racing the streamed wallet update.
+                if await awaitBalance(session: session) {
+                    displayState = .success
+                    Analytics.currencyLaunch(event: analyticsEvent, exchangedFiat: launchAmount, successful: true)
+                } else {
+                    reportLaunchFailure(state: metadata.state, reason: "Launched currency balance did not land within budget")
+                    displayState = .failed
+                    Analytics.currencyLaunch(event: analyticsEvent, exchangedFiat: launchAmount, successful: false)
+                }
             case .failed, .cancelled:
                 reportLaunchFailure(state: metadata.state, reason: "Launch swap completed with failure state")
                 displayState = .failed
@@ -136,12 +147,40 @@ class CurrencyLaunchProcessingViewModel {
         isPolling = false
     }
 
+    /// Polls `session.balance(for: launchedMint)` until the launched currency
+    /// appears in the user's local wallet state. Budget: 120 × 2 s = 4 min,
+    /// comfortably covering the observed ~70 s streamed-update latency.
+    private func awaitBalance(session: Session, maxAttempts: Int = 120, interval: Duration = .seconds(2)) async -> Bool {
+        for i in 0..<maxAttempts {
+            if Task.isCancelled { return false }
+            if i > 0 {
+                try? await Task.sleep(for: interval)
+            }
+            if session.balance(for: launchedMint) != nil {
+                logger.info("Launched currency balance landed", metadata: [
+                    "mint": "\(launchedMint.base58)",
+                    "attempt": "\(i + 1)/\(maxAttempts)",
+                ])
+                return true
+            }
+        }
+        logger.warning("Launched currency balance did not land in budget", metadata: [
+            "mint": "\(launchedMint.base58)",
+            "maxAttempts": "\(maxAttempts)",
+        ])
+        return false
+    }
+
     // MARK: - Bill handoff -
 
-    /// Fetches verified state for the launched mint so the caller can show
-    /// the cash bill. Returns `nil` if the verified state cannot be resolved
-    /// in time — caller should dismiss without presenting a bill.
-    func prepareBillHandoff(ratesController: RatesController) async -> Session.BillDescription? {
+    /// Builds the cash-bill description for the newly-created currency. The
+    /// bill represents the user's *launched-currency* balance, not the USDF
+    /// they spent — otherwise `SendCashOperation` derives USDF timelock
+    /// accounts and the launchpad reserve proof gets rejected with
+    /// "reserve state cannot be provided for core mint". Returns `nil` when
+    /// the verified state or balance are unexpectedly missing (the polling
+    /// loop should have guaranteed both by now).
+    func prepareBillHandoff(session: Session, ratesController: RatesController) async -> Session.BillDescription? {
         isReceivingBill = true
         defer { isReceivingBill = false }
 
@@ -157,9 +196,18 @@ class CurrencyLaunchProcessingViewModel {
             return nil
         }
 
+        guard let stored = session.balance(for: launchedMint) else {
+            logger.warning("Launched currency balance missing at handoff; skipping bill", metadata: [
+                "mint": "\(launchedMint.base58)"
+            ])
+            return nil
+        }
+
+        let balanceFiat = stored.computeExchangedValue(with: ratesController.rateForBalanceCurrency())
+
         return Session.BillDescription(
             kind: .cash,
-            exchangedFiat: launchAmount,
+            exchangedFiat: balanceFiat,
             received: true,
             verifiedState: state
         )
