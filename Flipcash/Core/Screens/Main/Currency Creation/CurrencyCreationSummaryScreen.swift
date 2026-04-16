@@ -16,7 +16,7 @@ struct CurrencyCreationSummaryScreen: View {
         return ExchangedFiat.computeFromQuarks(
             quarks: quarks,
             mint: .usdf,
-            rate: ratesController.rateForEntryCurrency(),
+            rate: .oneToOne,
             supplyQuarks: 0
         ).converted.formatted()
     }
@@ -117,7 +117,6 @@ private struct StepRow: View {
                     .font(.appTextSmall)
                     .foregroundStyle(Color.textSecondary)
             }
-            Spacer()
         }
     }
 }
