@@ -167,6 +167,7 @@ struct CurrencyCreationWizardScreen: View {
             }
         }
         .dialog(item: $errorDialog)
+        .dialog(item: Bindable(walletConnection).dialogItem)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .interactiveDismissDisabled()
@@ -635,24 +636,33 @@ struct CurrencyCreationWizardScreen: View {
     /// `fullScreenCover` takes over the UI. Any failure while *requesting*
     /// the swap surfaces a generic dialog.
     private func beginPhantomLaunch() {
-        guard walletConnection.isConnected else {
-            errorDialog = makeDestructiveDialog(
-                title: "Connect Phantom First",
-                subtitle: "Open any currency screen, choose Phantom to fund a purchase, and approve the connection in Phantom. Then come back here."
-            )
-            return
-        }
-
         validationTask?.cancel()
         validationTask = Task {
             let displayName = state.currencyName
             do {
+                if !walletConnection.isConnected {
+                    try await walletConnection.connect()
+                    // Returning from Phantom drops us through a brief
+                    // background → inactive → active scene transition.
+                    // UIApplication.shared.open is silently suppressed
+                    // until the scene is fully active, so the follow-up
+                    // sign request is no-op'd without this yield.
+                    try await Task.sleep(for: .seconds(1))
+                }
                 try await walletConnection.requestSwapForLaunch(
                     usdc: launchAmount.underlying,
                     displayName: displayName,
                     onCompleted: { signature, amount in
                         try await launchAfterPhantom(signature: signature, amount: amount)
                     }
+                )
+            } catch is CancellationError {
+                // User declined the connect request in Phantom. Surface a
+                // dialog so the wizard shows visible feedback instead of
+                // silently returning to the confirmation screen.
+                errorDialog = makeDestructiveDialog(
+                    title: "Wallet Connection Cancelled",
+                    subtitle: "You cancelled the connection in your wallet. Tap Phantom again to retry."
                 )
             } catch {
                 if Task.isCancelled { return }

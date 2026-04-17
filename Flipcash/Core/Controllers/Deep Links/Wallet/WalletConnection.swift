@@ -87,6 +87,10 @@ public final class WalletConnection {
     /// Pending swap info to use when Phantom returns with signed transaction
     private var pendingSwap: PendingSwap?
 
+    /// Awaiting continuation for `connect()`. Resumed by `didConnect` on
+    /// success or by the errorCode branch of `didReceiveURL` on failure.
+    private var pendingConnect: CheckedContinuation<Void, Swift.Error>?
+
     /// What the signed-transaction handler should do after the user returns
     private struct PendingSwap {
         /// Funding-leg swap id (USDC→USDF) — used in the Phantom memo.
@@ -132,6 +136,29 @@ public final class WalletConnection {
                     "code": "\(code)",
                     "url": "\(url.sanitizedForAnalytics)",
                 ])
+                // Non-cancel errors commonly mean the stored session is no
+                // longer recognised by Phantom (uninstall, user-disconnect,
+                // server revocation). Drop the keychain entry so the next
+                // attempt forces a fresh connect instead of looping on a
+                // dead session.
+                Keychain.connectedWalletSession = nil
+                session = nil
+            }
+
+            // If the error came from the connect deeplink and an async
+            // awaiter is present, propagate the failure to them instead of
+            // showing the transaction-oriented dialog. 4001 (user-cancel)
+            // becomes a CancellationError so callers can silently abort;
+            // every other code becomes `connectFailed` so callers can
+            // surface an error.
+            if url.pathComponents.last == "walletConnected", let continuation = pendingConnect {
+                pendingConnect = nil
+                if isUserCancel {
+                    continuation.resume(throwing: CancellationError())
+                } else {
+                    continuation.resume(throwing: WalletConnectionError.connectFailed(code: code))
+                }
+                return
             }
 
             if case .idle = state {
@@ -214,11 +241,21 @@ public final class WalletConnection {
                 sessionToken: walletSession.sessionToken,
                 phantomEncryptionPublicKey: encryptionPublicKey
             )
-            
+
             Keychain.connectedWalletSession = session
             self.session = session
 
-            isShowingAmountEntry = true
+            if let continuation = pendingConnect {
+                pendingConnect = nil
+                continuation.resume(returning: ())
+            } else {
+                // Legacy path — the connect was initiated from a non-async
+                // caller (e.g. CurrencyInfoScreen's Phantom entry point),
+                // which expects the amount-entry sheet to appear after
+                // connect. Callers using `connect()` handle the follow-up
+                // themselves.
+                isShowingAmountEntry = true
+            }
         }
     }
     
@@ -370,6 +407,20 @@ public final class WalletConnection {
     }
 
     // MARK: - Actions -
+
+    /// Async wrapper around `connectToPhantom()`. Returns immediately if
+    /// already connected. Otherwise opens Phantom and suspends until the
+    /// connect deeplink arrives (success) or an errorCode callback does
+    /// (throws `WalletConnectionError.connectFailed`). A second call while
+    /// the first is in flight cancels the first waiter.
+    func connect() async throws {
+        guard !isConnected else { return }
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Swift.Error>) in
+            pendingConnect?.resume(throwing: CancellationError())
+            pendingConnect = continuation
+            connectToPhantom()
+        }
+    }
 
     func connectToPhantom() {
         let nonce = UUID().uuidString
@@ -595,6 +646,7 @@ public enum WalletConnectionError: Error, LocalizedError {
     case decryptionFailed
     case jsonDecodingFailed(underlying: Error)
     case noSession
+    case connectFailed(code: String)
 
     public var errorDescription: String? {
         switch self {
@@ -602,6 +654,7 @@ public enum WalletConnectionError: Error, LocalizedError {
         case .decryptionFailed:          return "Failed to decrypt payload (MAC check failed)."
         case .jsonDecodingFailed(let e): return "Failed to decode JSON: \(e.localizedDescription)"
         case .noSession:                 return "No connected wallet session."
+        case .connectFailed(let code):   return "Wallet connection failed (code: \(code))."
         }
     }
 }
