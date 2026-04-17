@@ -41,6 +41,15 @@ struct CurrencyCreationWizardScreen: View {
     /// Non-nil while the Reserves-funded launch is in flight. Drives a
     /// `fullScreenCover` that presents `CurrencyLaunchProcessingScreen`.
     @State private var reservesLaunchContext: ReservesLaunchContext?
+    /// Mint from an earlier attempt whose buy failed inline. On a
+    /// `nameExists` retry, reuse it so only the buy reruns. Bound to
+    /// `name` — renaming invalidates.
+    @State private var createdMint: CreatedMintRecord?
+
+    private struct CreatedMintRecord {
+        let mint: PublicKey
+        let name: String
+    }
 
     private struct LaunchSheetIdentity: Identifiable, Hashable {
         let displayName: String
@@ -566,6 +575,7 @@ struct CurrencyCreationWizardScreen: View {
                 descriptionAttestation: descriptionAttestation,
                 iconAttestation: iconAttestation
             )
+            createdMint = CreatedMintRecord(mint: mint, name: state.currencyName)
             return mint
         } catch ErrorLaunchCurrency.denied {
             logger.error("Launch denied after preflight attestations passed")
@@ -576,11 +586,14 @@ struct CurrencyCreationWizardScreen: View {
             )
             return nil
         } catch ErrorLaunchCurrency.nameExists {
+            if let existing = createdMint, existing.name == state.currencyName {
+                logger.info("Launch nameExists — reusing mint from prior attempt", metadata: [
+                    "mint": "\(existing.mint.base58)",
+                ])
+                return existing.mint
+            }
             logger.error("Launch name-exists after preflight CheckAvailability passed")
             ErrorReporting.captureError(ErrorLaunchCurrency.nameExists)
-            state.nameAttestation = nil
-            state.currencyName = ""
-            withAnimation(.easeInOut(duration: 0.3)) { step = .name }
             errorDialog = makeDestructiveDialog(
                 title: "Name No Longer Available",
                 subtitle: "Please pick a different name."
@@ -589,9 +602,6 @@ struct CurrencyCreationWizardScreen: View {
         } catch ErrorLaunchCurrency.invalidIcon {
             logger.error("Launch rejected icon after preflight moderation passed")
             ErrorReporting.captureError(ErrorLaunchCurrency.invalidIcon)
-            state.iconAttestation = nil
-            state.selectedImage = nil
-            withAnimation(.easeInOut(duration: 0.3)) { step = .icon }
             errorDialog = makeDestructiveDialog(
                 title: "Image Is Invalid",
                 subtitle: "Please pick a different image."
