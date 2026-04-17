@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import FlipcashAPI
 
 extension Client {
     public func fetchMint(mint: PublicKey) async throws -> MintMetadata {
@@ -55,5 +56,65 @@ extension Client {
                 unsafeRef.cancel()
             }
         }
+    }
+
+    public func checkAvailability(name: String) async throws -> Bool {
+        try await withCheckedThrowingContinuation { c in
+            currencyService.checkAvailability(name: name) { c.resume(with: $0) }
+        }
+    }
+
+    public func launch(
+        name: String,
+        description: String?,
+        billCustomization: Ocp_Currency_V1_BillCustomization?,
+        icon: Data?,
+        nameAttestation: ModerationAttestation,
+        descriptionAttestation: ModerationAttestation?,
+        iconAttestation: ModerationAttestation?,
+        owner: KeyPair
+    ) async throws -> PublicKey {
+        try await withCheckedThrowingContinuation { c in
+            currencyService.launch(
+                name: name,
+                description: description,
+                billCustomization: billCustomization,
+                icon: icon,
+                nameAttestation: nameAttestation,
+                descriptionAttestation: descriptionAttestation,
+                iconAttestation: iconAttestation,
+                owner: owner
+            ) { c.resume(with: $0) }
+        }
+    }
+
+    /// Launches a new currency using hex color strings for bill customization.
+    /// Callers outside FlipcashCore can use this overload without importing
+    /// `FlipcashAPI` to construct the proto `BillCustomization` directly.
+    public func launch(
+        name: String,
+        description: String?,
+        billColors: [String],
+        icon: Data?,
+        nameAttestation: ModerationAttestation,
+        descriptionAttestation: ModerationAttestation?,
+        iconAttestation: ModerationAttestation?,
+        owner: KeyPair
+    ) async throws -> PublicKey {
+        let billCustomization = Ocp_Currency_V1_BillCustomization.with {
+            $0.colors = billColors.map { hex in
+                Ocp_Currency_V1_Color.with { $0.hex = hex }
+            }
+        }
+        return try await launch(
+            name: name,
+            description: description,
+            billCustomization: billCustomization,
+            icon: icon,
+            nameAttestation: nameAttestation,
+            descriptionAttestation: descriptionAttestation,
+            iconAttestation: iconAttestation,
+            owner: owner
+        )
     }
 }

@@ -190,6 +190,27 @@ This ensures deterministic builds across all developers and CI systems while min
 
 Open `Code.xcodeproj` in Xcode 16.x. Swift packages resolve automatically on first open. Build and run the `Flipcash` scheme.
 
+### Regenerating Protos
+
+Swift gRPC bindings in `FlipcashAPI/Sources/FlipcashAPI/Generated` and `FlipcashCoreAPI/Sources/FlipcashCoreAPI/Generated` are generated from `.proto` files pulled from the server-protobuf repos. To regenerate:
+
+```
+cd Scripts
+./run -a flipcashPayments
+./run -a flipcashCore
+```
+
+Each invocation clones the latest `.proto` files from the upstream repo, replaces the local `proto/` directory, and regenerates the Swift code in `Generated/`.
+
+**Required tools** (checked by the script; aborts if missing):
+- `protoc` — `brew install protobuf`
+- `protoc-gen-swift` — `brew install swift-protobuf`
+- `protoc-gen-grpc-swift` (version **1.x**, not 2.x) — `./Scripts/install-grpc-swift-1-plugin.sh`
+
+The "Generate Flipcash Services" Xcode scheme wraps these same two commands — use either, they produce the same output.
+
+**Never modify files under `Generated/` directly** — changes will be overwritten on the next regen.
+
 ---
 
 ## Architecture & Patterns
@@ -483,6 +504,7 @@ Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
 | Canceling/modifying `SendCashOperation` in `dismissCashBill` | **Never** explicitly call `cancel()` or `invalidateMessageStream()` on `SendCashOperation` from `dismissCashBill`. After a grab, the received bill is a **live** `SendCashOperation` that others can scan ("quick give and grab" chain). Setting `sendOperation = nil` is fine (deinit cleans up), but explicit teardown kills a live bill. The operation's `complete()` method handles stream teardown on success/failure. |
 | Using default `CallOptions` for streaming RPCs | Streaming RPCs (`openMessageStream`, `submitIntent`, `streamLiveMintData`, `statefulSwap`) must use `callOptions: .streaming`. The default 15s timeout silently kills long-lived streams. See [gRPC Call Options](#grpc-call-options). |
 | Showing a received bill without `verifiedState` | Every call to `showCashBill` must pass `verifiedState` — even for `received: true` bills. The received bill creates a live `SendCashOperation` for the "quick give and grab" chain. Without `verifiedState`, launchpad currency transfers fail with "reserve state is required". Both `receiveCash` (scan) and `receiveCashLink` (deep link) must provide it. |
+| `matchedGeometryEffect` applied after `.frame` | **`.matchedGeometryEffect` must come BEFORE `.frame` in the modifier chain.** Wrong order causes hero animations to fail silently: you see two separate views fading in/out at their own static positions instead of one morphing element. Paul Hudson's hackingwithswift example uses the wrong order and does not work on current iOS. Correct: `Rectangle().fill(.red).matchedGeometryEffect(id:in:).frame(width:height:)`. Incorrect: `Rectangle().fill(.red).frame(width:height:).matchedGeometryEffect(id:in:)`. Also note: `.transition(.identity)` on a parent containing matched views **kills the animation entirely** — matched geometry needs the parent view to remain in the tree briefly for interpolation, and `.identity` removes it instantly. |
 
 ---
 

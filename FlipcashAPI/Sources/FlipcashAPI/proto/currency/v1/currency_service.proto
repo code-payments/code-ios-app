@@ -31,6 +31,9 @@ service Currency {
 
     // Discover returns a set of currencies to discover
     rpc Discover(DiscoverRequest) returns (stream DiscoverResponse);
+
+    // CheckAvailability checks whether a currency name is available for launch
+    rpc CheckAvailability(CheckAvailabilityRequest) returns (CheckAvailabilityResponse);
 }
 
 message GetMintsRequest {
@@ -368,17 +371,48 @@ message LaunchRequest {
     // mechanism to the RPC.
     common.v1.Signature signature = 2 [(validate.rules).message.required = true];
 
-    // The name of the currency to launch
+    // The name of the currency to launch. Must be printable ASCII with no
+    // leading or trailing spaces.
     string name = 3 [(validate.rules).string = {
         min_len: 1,
         max_len: 32,
+        // [!-~] = printable ASCII excluding space; [ -~] = printable ASCII including space
+        pattern: "^[!-~]([ -~]*[!-~])?$",
     }];
 
-    // The ticker symbol for the currency. If not provided, a default will be
-    // generated using the currency name.
+    // The ticker symbol for the currency. Must be printable ASCII with no
+    // spaces. If not provided, a default will be generated using the currency
+    // name.
     string symbol = 4 [(validate.rules).string = {
         max_len: 8,
+        // [!-~] = printable ASCII excluding space
+        pattern: "^[!-~]*$",
     }];
+
+    // Optional description
+    string description = 5 [(validate.rules).string = {
+        max_len: 4096,
+    }];
+
+    // Optional bill customization. If not provided, a default will be set.
+    BillCustomization bill_customization = 6;
+
+    // The raw image data for the icon. If not provided, a default will be set.
+    bytes icon = 7 [(validate.rules).bytes = {
+        max_len: 1048576, // 1 MB
+    }];
+
+    // Attestation that the name passed moderation
+    ModerationAttestation name_moderation_attestation = 8 [(validate.rules).message.required = true];
+
+    // Attestation that the symbol, if provided, passed moderation
+    ModerationAttestation symbol_moderation_attestation = 9;
+
+    // Attestation that the descritpion, if provided, passed moderation
+    ModerationAttestation description_moderation_attestation = 10;
+
+    // Attestation that the icon image, if provided, passed moderation
+    ModerationAttestation icon_moderation_attestation = 11;
 }
 
 message LaunchResponse {
@@ -388,7 +422,9 @@ message LaunchResponse {
         // The launch was denied
         DENIED = 1;
         // A similar currency already exists
-        EXISTS = 2;
+        NAME_EXISTS = 2;
+        // Provided icon is invalid
+        INVALID_ICON = 3;
     }
 
     // The mint address of the launched currency on success
@@ -412,6 +448,9 @@ message UpdateIconRequest {
         min_len: 1,
         max_len: 1048576, // 1 MB
     }];
+
+    // Attestation that the icon image passed moderation
+    ModerationAttestation moderation_attestation = 5 [(validate.rules).message.required = true];
 }
 
 message UpdateIconResponse {
@@ -451,6 +490,9 @@ message UpdateMetadataRequest {
             min_len: 1,
             max_len: 4096,
         }];
+
+        // Attestation that the description passed moderation
+        ModerationAttestation moderation_attestation = 2 [(validate.rules).message.required = true];
     }
 
     message BillCustomizationUpdate {
@@ -495,10 +537,37 @@ message DiscoverResponse {
     }];
 }
 
+message CheckAvailabilityRequest {
+    // The currency name to check availability for
+    string name = 1 [(validate.rules).string = {
+        min_len: 1,
+        max_len: 32,
+        // [!-~] = printable ASCII excluding space; [ -~] = printable ASCII including space
+        pattern: "^[!-~]([ -~]*[!-~])?$",
+    }];
+}
+
+message CheckAvailabilityResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+    }
+
+    // Whether the name is available for use
+    bool is_available = 2;
+}
+
 enum PredefinedRange {
     ALL_TIME   = 0;
     LAST_DAY   = 1;
     LAST_WEEK  = 2;
     LAST_MONTH = 3;
     LAST_YEAR  = 4;
+}
+
+message ModerationAttestation {
+    bytes raw_value = 1 [(validate.rules).bytes = {
+        min_len: 1,
+        max_len: 4096,
+    }];
 }

@@ -272,6 +272,77 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
         }
     }
 
+    /// A buy of a freshly-launched currency, funded by the caller's USDF VM
+    /// (Phase 1 + Phase 2 via IntentFundSwap). Mirrors `buy(...)` but takes a
+    /// raw `mint: PublicKey` because the currency is too new to have
+    /// `MintMetadata` hydrated locally.
+    func buyNewCurrency(
+        swapId: SwapId,
+        amount: ExchangedFiat,
+        verifiedState: VerifiedState,
+        mint: PublicKey,
+        owner: AccountCluster,
+        completion: @Sendable @escaping (Result<SwapMetadata, ErrorSwap>) -> Void
+    ) {
+        guard let fundingIntentID = PublicKey.generate() else {
+            completion(.failure(.unknown))
+            return
+        }
+        let ownerKeyPair = owner.authority.keyPair
+
+        logger.info("Starting new-currency buy", metadata: [
+            "amount": "\(amount.converted.formatted())",
+            "mint": "\(mint.base58)",
+            "swapId": "\(swapId.publicKey.base58)",
+        ])
+
+        // Phase 1: Create swap state on the server
+        swapService.swap(
+            swapId: swapId,
+            direction: .buy(mint: .launchStub(address: mint)),
+            amount: amount.underlying,
+            fundingSource: .submitIntent(id: fundingIntentID),
+            owner: ownerKeyPair,
+            isNewCurrencyLaunch: true
+        ) { [weak self] result in
+            guard let self else { return }
+            switch result {
+            case .success(let metadata):
+                logger.info("New-currency swap state created", metadata: [
+                    "swapId": "\(metadata.swapId.publicKey.base58)",
+                ])
+
+                // Phase 2: Fund the VM swap PDA via IntentFundSwap
+                let fundingIntent = IntentFundSwap(
+                    intentID: fundingIntentID,
+                    swapId: metadata.swapId,
+                    sourceCluster: owner,
+                    amount: amount,
+                    verifiedState: verifiedState,
+                    fromMint: .usdf,
+                    toMint: .usdf
+                )
+
+                self.submit(intent: fundingIntent, owner: ownerKeyPair) { fundingResult in
+                    switch fundingResult {
+                    case .success:
+                        logger.info("New-currency buy completed", metadata: [
+                            "intentId": "\(fundingIntentID.base58)",
+                        ])
+                        completion(.success(metadata))
+                    case .failure(let error):
+                        logger.error("Failed to fund new-currency swap", metadata: ["error": "\(error)"])
+                        completion(.failure(.unknown))
+                    }
+                }
+
+            case .failure(let error):
+                logger.error("Failed to start new-currency swap", metadata: ["error": "\(error)"])
+                completion(.failure(error))
+            }
+        }
+    }
+
     /// A sell is a swap from token to USDF
     func sell(amount: ExchangedFiat, verifiedState: VerifiedState, in token: MintMetadata, owner: AccountCluster, completion: @Sendable @escaping (Result<SwapId, ErrorSwap>) -> Void) {
         logger.info("Starting sell", metadata: [

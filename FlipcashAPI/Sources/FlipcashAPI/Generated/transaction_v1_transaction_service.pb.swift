@@ -810,12 +810,12 @@ public struct Ocp_Transaction_V1_StatefulSwapRequest: Sendable {
 
     public var kind: Ocp_Transaction_V1_StatefulSwapRequest.Initiate.OneOf_Kind? = nil
 
-    public var currencyCreator: Ocp_Transaction_V1_StatefulSwapRequest.Initiate.CurrencyCreator {
+    public var reserve: Ocp_Transaction_V1_StatefulSwapRequest.Initiate.ReserveSwapClientParameters {
       get {
-        if case .currencyCreator(let v)? = kind {return v}
-        return Ocp_Transaction_V1_StatefulSwapRequest.Initiate.CurrencyCreator()
+        if case .reserve(let v)? = kind {return v}
+        return Ocp_Transaction_V1_StatefulSwapRequest.Initiate.ReserveSwapClientParameters()
       }
-      set {kind = .currencyCreator(newValue)}
+      set {kind = .reserve(newValue)}
     }
 
     /// The owner account starting the swap
@@ -830,7 +830,8 @@ public struct Ocp_Transaction_V1_StatefulSwapRequest: Sendable {
 
     /// The user authority account that will sign to authorize the swap.
     ///
-    /// For Currency Creator program buy/sell flows, this should be a random one-time use account.
+    /// For Reserve contract buy/sell flows against existing currencies, this must be a random one-time use account.
+    /// For Reserve contract buy flows against new currencies, this must be the owner account that is the currency creator.
     public var swapAuthority: Ocp_Common_V1_SolanaAccountId {
       get {_swapAuthority ?? Ocp_Common_V1_SolanaAccountId()}
       set {_swapAuthority = newValue}
@@ -865,12 +866,12 @@ public struct Ocp_Transaction_V1_StatefulSwapRequest: Sendable {
     public var unknownFields = SwiftProtobuf.UnknownStorage()
 
     public enum OneOf_Kind: Equatable, Sendable {
-      case currencyCreator(Ocp_Transaction_V1_StatefulSwapRequest.Initiate.CurrencyCreator)
+      case reserve(Ocp_Transaction_V1_StatefulSwapRequest.Initiate.ReserveSwapClientParameters)
 
     }
 
-    /// Server parameters for starting swaps against the Currency Creator program
-    public struct CurrencyCreator: Sendable {
+    /// Client parameters for starting swaps against the Reserve contract
+    public struct ReserveSwapClientParameters: Sendable {
       // SwiftProtobuf.Message conformance is added in an extension below. See the
       // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
       // methods supported on all messages.
@@ -939,7 +940,9 @@ public struct Ocp_Transaction_V1_StatefulSwapRequest: Sendable {
     // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
     // methods supported on all messages.
 
-    /// The signatures for the locally constructed swap transaction
+    /// The signatures for the locally constructed swap transaction:
+    ///   - owner is at index 0
+    ///   - swap_authority is at index 1
     public var transactionSignatures: [Ocp_Common_V1_Signature] = []
 
     public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -997,23 +1000,32 @@ public struct Ocp_Transaction_V1_StatefulSwapResponse: Sendable {
 
     public var kind: Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.OneOf_Kind? = nil
 
-    public var currencyCreator: Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.CurrencyCreator {
+    public var reserveExistingCurrency: Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveExistingCurrencyServerParameters {
       get {
-        if case .currencyCreator(let v)? = kind {return v}
-        return Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.CurrencyCreator()
+        if case .reserveExistingCurrency(let v)? = kind {return v}
+        return Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveExistingCurrencyServerParameters()
       }
-      set {kind = .currencyCreator(newValue)}
+      set {kind = .reserveExistingCurrency(newValue)}
+    }
+
+    public var reserveNewCurrency: Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveNewCurrencyServerParameter {
+      get {
+        if case .reserveNewCurrency(let v)? = kind {return v}
+        return Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveNewCurrencyServerParameter()
+      }
+      set {kind = .reserveNewCurrency(newValue)}
     }
 
     public var unknownFields = SwiftProtobuf.UnknownStorage()
 
     public enum OneOf_Kind: Equatable, Sendable {
-      case currencyCreator(Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.CurrencyCreator)
+      case reserveExistingCurrency(Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveExistingCurrencyServerParameters)
+      case reserveNewCurrency(Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveNewCurrencyServerParameter)
 
     }
 
     /// Server parameters when executing stateful buy/sell flows against the
-    /// Currency Creator program
+    /// Reserve contract against an existing currency
     ///
     /// Supported Solana transaction version: v0
     ///
@@ -1026,7 +1038,7 @@ public struct Ocp_Transaction_V1_StatefulSwapResponse: Sendable {
     ///  4. [Optional] Memo::Memo
     ///  5. AssociatedTokenAccount::CreateIdempotent (open Core Mint temporary account)
     ///  6. VM::TransferForSwap (Core Mint VM swap ATA -> Core Mint temporary account)
-    ///  6. CurrencyCreator::BuyAndDepositIntoVm (bounded buy depositing to_mint tokens into the to_mint VM)
+    ///  6. Reserve::BuyAndDepositIntoVm (bounded buy depositing to_mint tokens into the to_mint VM)
     ///  8. Token::CloseAccount (closes Core Mint temporary account)
     ///  9. VM::CloseSwapAccountIfEmpty (closes Core Mint VM swap ATA if empty)
     ///
@@ -1037,7 +1049,7 @@ public struct Ocp_Transaction_V1_StatefulSwapResponse: Sendable {
     ///  4. [Optional] Memo::Memo
     ///  5. AssociatedTokenAccount::CreateIdempotent (open from_mint temporary account)
     ///  6. VM::TransferForSwap (from_mint VM swap ATA -> from_mint temporary account)
-    ///  7. CurrencyCreator::SellAndDepositIntoVm (bounded sell depositing Core Mint into the Core Mint VM)
+    ///  7. Reserve::SellAndDepositIntoVm (bounded sell depositing Core Mint into the Core Mint VM)
     ///  8. Token::CloseAccount (closes from_mint temporary account)
     ///  9. VM::CloseSwapAccountIfEmpty (closes from_mint swap PDA/ATA if empty)
     ///
@@ -1049,12 +1061,12 @@ public struct Ocp_Transaction_V1_StatefulSwapResponse: Sendable {
     ///  5.  AssociatedTokenAccount::CreateIdempotent (open Core Mint temporary account)
     ///  6.  AssociatedTokenAccount::CreateIdempotent (open from_mint temporary account)
     ///  7.  VM::TransferForSwap (from_mint VM swap ATA -> from_mint temporary account)
-    ///  8.  CurrencyCreator::SellTokens (bounded sell transferring Core Mint into temporary account)
-    ///  9.  CurrencyCreator::BuyAndDepositIntoVm (unlimited buy depositing to_mint tokens into the to_mint VM)
+    ///  8.  Reserve::SellTokens (bounded sell transferring Core Mint into temporary account)
+    ///  9.  Reserve::BuyAndDepositIntoVm (unlimited buy depositing to_mint tokens into the to_mint VM)
     ///  10. Token::CloseAccount (closes Core Mint temporary account)
     ///  11. Token::CloseAccount (closes from_mint temporary account)
     ///  12. VM::CloseSwapAccountIfEmpty (closes from_mint VM swap ATA if empty)
-    public struct CurrencyCreator: Sendable {
+    public struct ReserveExistingCurrencyServerParameters: Sendable {
       // SwiftProtobuf.Message conformance is added in an extension below. See the
       // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
       // methods supported on all messages.
@@ -1125,6 +1137,121 @@ public struct Ocp_Transaction_V1_StatefulSwapResponse: Sendable {
       fileprivate var _nonce: Ocp_Common_V1_SolanaAccountId? = nil
       fileprivate var _blockhash: Ocp_Common_V1_Blockhash? = nil
       fileprivate var _memoryAccount: Ocp_Common_V1_SolanaAccountId? = nil
+    }
+
+    /// Server parameters when executing stateful buy flows against the
+    /// Reserve contract against a new currency. Only the creator of the
+    /// currency will be able to execute this flow.
+    ///
+    /// Supported Solana transaction version: v0
+    ///
+    /// Instruction format:
+    ///  1. System::AdvanceNonce
+    ///  2. [Optional] ComputeBudget::SetComputeUnitLimit
+    ///  3. [Optional] ComputeBudget::SetComputeUnitPrice
+    ///  4. [Optional] Memo::Memo
+    ///  5. Reserve::InitializeCurrency
+    ///  6. Reserve::InitializePool
+    ///  7. VM::InitializeVm
+    ///  8. AssociatedTokenAccount::CreateIdempotent (open owner's Core Mint ATA)
+    ///  9. AssociatedTokenAccount::CreateIdempotent (open owner's to_mint VM Deposit ATA)
+    /// 10. VM::TransferForSwap (Core Mint VM swap ATA -> owner's Core Mint ATA)
+    /// 11. Reserve::BuyTokens (limited buy transferring to_mint tokens into the to_mint VM Deposit ATA)
+    /// 12. Token::CloseAccount (closes owner's Core Mint ATA)
+    ///
+    /// Note: Client should verify that the new currency's mint address matches that derived
+    ///       from using these server parameters.
+    public struct ReserveNewCurrencyServerParameter: Sendable {
+      // SwiftProtobuf.Message conformance is added in an extension below. See the
+      // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+      // methods supported on all messages.
+
+      /// Subisdizer account that will be paying for the swap
+      public var payer: Ocp_Common_V1_SolanaAccountId {
+        get {_payer ?? Ocp_Common_V1_SolanaAccountId()}
+        set {_payer = newValue}
+      }
+      /// Returns true if `payer` has been explicitly set.
+      public var hasPayer: Bool {self._payer != nil}
+      /// Clears the value of `payer`. Subsequent reads from it will return its default value.
+      public mutating func clearPayer() {self._payer = nil}
+
+      /// The nonce that is reserved for use in the swap transaction
+      public var nonce: Ocp_Common_V1_SolanaAccountId {
+        get {_nonce ?? Ocp_Common_V1_SolanaAccountId()}
+        set {_nonce = newValue}
+      }
+      /// Returns true if `nonce` has been explicitly set.
+      public var hasNonce: Bool {self._nonce != nil}
+      /// Clears the value of `nonce`. Subsequent reads from it will return its default value.
+      public mutating func clearNonce() {self._nonce = nil}
+
+      /// The blockhash that is reserved for use in the swap transaction
+      public var blockhash: Ocp_Common_V1_Blockhash {
+        get {_blockhash ?? Ocp_Common_V1_Blockhash()}
+        set {_blockhash = newValue}
+      }
+      /// Returns true if `blockhash` has been explicitly set.
+      public var hasBlockhash: Bool {self._blockhash != nil}
+      /// Clears the value of `blockhash`. Subsequent reads from it will return its default value.
+      public mutating func clearBlockhash() {self._blockhash = nil}
+
+      /// ALTs that should be used when constructing the versioned transaction
+      public var alts: [Ocp_Common_V1_SolanaAddressLookupTable] = []
+
+      /// Compute unit limit provided to the ComputeBudget::SetComputeUnitLimit
+      /// instruction. If the value is 0, then the instruction can be omitted.
+      public var computeUnitLimit: UInt32 = 0
+
+      /// Compute unit price provided in the ComputeBudget::SetComputeUnitPrice
+      /// instruction. If the value is 0, then the instruction can be omitted.
+      public var computeUnitPrice: UInt64 = 0
+
+      /// Value provided into the Memo::Memo instruction. If the value length is 0,
+      /// then the instruction can be omitted.
+      public var memoValue: String = String()
+
+      /// The VM and currency authority
+      public var authority: Ocp_Common_V1_SolanaAccountId {
+        get {_authority ?? Ocp_Common_V1_SolanaAccountId()}
+        set {_authority = newValue}
+      }
+      /// Returns true if `authority` has been explicitly set.
+      public var hasAuthority: Bool {self._authority != nil}
+      /// Clears the value of `authority`. Subsequent reads from it will return its default value.
+      public mutating func clearAuthority() {self._authority = nil}
+
+      /// The currency name
+      public var name: String = String()
+
+      /// The currency symbol
+      public var symbol: String = String()
+
+      /// The random seed value used to generate a unique currency of the given name
+      public var seed: Ocp_Common_V1_SolanaAccountId {
+        get {_seed ?? Ocp_Common_V1_SolanaAccountId()}
+        set {_seed = newValue}
+      }
+      /// Returns true if `seed` has been explicitly set.
+      public var hasSeed: Bool {self._seed != nil}
+      /// Clears the value of `seed`. Subsequent reads from it will return its default value.
+      public mutating func clearSeed() {self._seed = nil}
+
+      /// Liquidity pool's percent sell fee in basis points
+      public var sellFeeBps: UInt32 = 0
+
+      /// The VM lock duration
+      public var vmLockDurationInDays: UInt32 = 0
+
+      public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+      public init() {}
+
+      fileprivate var _payer: Ocp_Common_V1_SolanaAccountId? = nil
+      fileprivate var _nonce: Ocp_Common_V1_SolanaAccountId? = nil
+      fileprivate var _blockhash: Ocp_Common_V1_Blockhash? = nil
+      fileprivate var _authority: Ocp_Common_V1_SolanaAccountId? = nil
+      fileprivate var _seed: Ocp_Common_V1_SolanaAccountId? = nil
     }
 
     public init() {}
@@ -2605,34 +2732,34 @@ public struct Ocp_Transaction_V1_VerifiedSwapMetadata: Sendable {
 
   public var kind: Ocp_Transaction_V1_VerifiedSwapMetadata.OneOf_Kind? = nil
 
-  public var currencyCreator: Ocp_Transaction_V1_VerifiedCurrencyCreatorSwapMetadata {
+  public var reserve: Ocp_Transaction_V1_VerifiedReserveSwapMetadata {
     get {
-      if case .currencyCreator(let v)? = kind {return v}
-      return Ocp_Transaction_V1_VerifiedCurrencyCreatorSwapMetadata()
+      if case .reserve(let v)? = kind {return v}
+      return Ocp_Transaction_V1_VerifiedReserveSwapMetadata()
     }
-    set {kind = .currencyCreator(newValue)}
+    set {kind = .reserve(newValue)}
   }
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Kind: Equatable, Sendable {
-    case currencyCreator(Ocp_Transaction_V1_VerifiedCurrencyCreatorSwapMetadata)
+    case reserve(Ocp_Transaction_V1_VerifiedReserveSwapMetadata)
 
   }
 
   public init() {}
 }
 
-/// VerifiedCurrencyCreatorSwapMetadata is verified metadata for swaps against the
+/// VerifiedReserveSwapMetadata is verified metadata for swaps against the
 /// Currency Creator program
-public struct Ocp_Transaction_V1_VerifiedCurrencyCreatorSwapMetadata: Sendable {
+public struct Ocp_Transaction_V1_VerifiedReserveSwapMetadata: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Verifiable client-side parameters that were provided during the StatefulSwap RPC
-  public var clientParameters: Ocp_Transaction_V1_StatefulSwapRequest.Initiate.CurrencyCreator {
-    get {_clientParameters ?? Ocp_Transaction_V1_StatefulSwapRequest.Initiate.CurrencyCreator()}
+  public var clientParameters: Ocp_Transaction_V1_StatefulSwapRequest.Initiate.ReserveSwapClientParameters {
+    get {_clientParameters ?? Ocp_Transaction_V1_StatefulSwapRequest.Initiate.ReserveSwapClientParameters()}
     set {_clientParameters = newValue}
   }
   /// Returns true if `clientParameters` has been explicitly set.
@@ -2644,7 +2771,7 @@ public struct Ocp_Transaction_V1_VerifiedCurrencyCreatorSwapMetadata: Sendable {
 
   public init() {}
 
-  fileprivate var _clientParameters: Ocp_Transaction_V1_StatefulSwapRequest.Initiate.CurrencyCreator? = nil
+  fileprivate var _clientParameters: Ocp_Transaction_V1_StatefulSwapRequest.Initiate.ReserveSwapClientParameters? = nil
 }
 
 public struct Ocp_Transaction_V1_SwapMetadata: Sendable {
@@ -3521,7 +3648,7 @@ extension Ocp_Transaction_V1_StatefulSwapRequest: SwiftProtobuf.Message, SwiftPr
 
 extension Ocp_Transaction_V1_StatefulSwapRequest.Initiate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = Ocp_Transaction_V1_StatefulSwapRequest.protoMessageName + ".Initiate"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}currency_creator\0\u{2}\u{8}owner\0\u{3}swap_authority\0\u{3}proof_signature\0\u{1}signature\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}reserve\0\u{2}\u{8}owner\0\u{3}swap_authority\0\u{3}proof_signature\0\u{1}signature\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -3530,16 +3657,16 @@ extension Ocp_Transaction_V1_StatefulSwapRequest.Initiate: SwiftProtobuf.Message
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try {
-        var v: Ocp_Transaction_V1_StatefulSwapRequest.Initiate.CurrencyCreator?
+        var v: Ocp_Transaction_V1_StatefulSwapRequest.Initiate.ReserveSwapClientParameters?
         var hadOneofValue = false
         if let current = self.kind {
           hadOneofValue = true
-          if case .currencyCreator(let m) = current {v = m}
+          if case .reserve(let m) = current {v = m}
         }
         try decoder.decodeSingularMessageField(value: &v)
         if let v = v {
           if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.kind = .currencyCreator(v)
+          self.kind = .reserve(v)
         }
       }()
       case 9: try { try decoder.decodeSingularMessageField(value: &self._owner) }()
@@ -3556,7 +3683,7 @@ extension Ocp_Transaction_V1_StatefulSwapRequest.Initiate: SwiftProtobuf.Message
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
     // https://github.com/apple/swift-protobuf/issues/1182
-    try { if case .currencyCreator(let v)? = self.kind {
+    try { if case .reserve(let v)? = self.kind {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
     } }()
     try { if let v = self._owner {
@@ -3585,8 +3712,8 @@ extension Ocp_Transaction_V1_StatefulSwapRequest.Initiate: SwiftProtobuf.Message
   }
 }
 
-extension Ocp_Transaction_V1_StatefulSwapRequest.Initiate.CurrencyCreator: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = Ocp_Transaction_V1_StatefulSwapRequest.Initiate.protoMessageName + ".CurrencyCreator"
+extension Ocp_Transaction_V1_StatefulSwapRequest.Initiate.ReserveSwapClientParameters: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Ocp_Transaction_V1_StatefulSwapRequest.Initiate.protoMessageName + ".ReserveSwapClientParameters"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}from_mint\0\u{3}to_mint\0\u{1}amount\0\u{3}funding_source\0\u{3}funding_id\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -3632,7 +3759,7 @@ extension Ocp_Transaction_V1_StatefulSwapRequest.Initiate.CurrencyCreator: Swift
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Ocp_Transaction_V1_StatefulSwapRequest.Initiate.CurrencyCreator, rhs: Ocp_Transaction_V1_StatefulSwapRequest.Initiate.CurrencyCreator) -> Bool {
+  public static func ==(lhs: Ocp_Transaction_V1_StatefulSwapRequest.Initiate.ReserveSwapClientParameters, rhs: Ocp_Transaction_V1_StatefulSwapRequest.Initiate.ReserveSwapClientParameters) -> Bool {
     if lhs._id != rhs._id {return false}
     if lhs._fromMint != rhs._fromMint {return false}
     if lhs._toMint != rhs._toMint {return false}
@@ -3760,7 +3887,7 @@ extension Ocp_Transaction_V1_StatefulSwapResponse: SwiftProtobuf.Message, SwiftP
 
 extension Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = Ocp_Transaction_V1_StatefulSwapResponse.protoMessageName + ".ServerParameters"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}currency_creator\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}reserve_existing_currency\0\u{3}reserve_new_currency\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -3769,16 +3896,29 @@ extension Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters: SwiftProtobu
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try {
-        var v: Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.CurrencyCreator?
+        var v: Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveExistingCurrencyServerParameters?
         var hadOneofValue = false
         if let current = self.kind {
           hadOneofValue = true
-          if case .currencyCreator(let m) = current {v = m}
+          if case .reserveExistingCurrency(let m) = current {v = m}
         }
         try decoder.decodeSingularMessageField(value: &v)
         if let v = v {
           if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.kind = .currencyCreator(v)
+          self.kind = .reserveExistingCurrency(v)
+        }
+      }()
+      case 2: try {
+        var v: Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveNewCurrencyServerParameter?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .reserveNewCurrency(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .reserveNewCurrency(v)
         }
       }()
       default: break
@@ -3791,9 +3931,17 @@ extension Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters: SwiftProtobu
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
     // https://github.com/apple/swift-protobuf/issues/1182
-    try { if case .currencyCreator(let v)? = self.kind {
+    switch self.kind {
+    case .reserveExistingCurrency?: try {
+      guard case .reserveExistingCurrency(let v)? = self.kind else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
+    }()
+    case .reserveNewCurrency?: try {
+      guard case .reserveNewCurrency(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    }()
+    case nil: break
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -3804,8 +3952,8 @@ extension Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters: SwiftProtobu
   }
 }
 
-extension Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.CurrencyCreator: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.protoMessageName + ".CurrencyCreator"
+extension Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveExistingCurrencyServerParameters: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.protoMessageName + ".ReserveExistingCurrencyServerParameters"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}payer\0\u{1}nonce\0\u{1}blockhash\0\u{1}alts\0\u{3}compute_unit_limit\0\u{3}compute_unit_price\0\u{3}memo_value\0\u{3}memory_account\0\u{3}memory_index\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -3863,7 +4011,7 @@ extension Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.CurrencyCreat
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.CurrencyCreator, rhs: Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.CurrencyCreator) -> Bool {
+  public static func ==(lhs: Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveExistingCurrencyServerParameters, rhs: Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveExistingCurrencyServerParameters) -> Bool {
     if lhs._payer != rhs._payer {return false}
     if lhs._nonce != rhs._nonce {return false}
     if lhs._blockhash != rhs._blockhash {return false}
@@ -3873,6 +4021,100 @@ extension Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.CurrencyCreat
     if lhs.memoValue != rhs.memoValue {return false}
     if lhs._memoryAccount != rhs._memoryAccount {return false}
     if lhs.memoryIndex != rhs.memoryIndex {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveNewCurrencyServerParameter: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.protoMessageName + ".ReserveNewCurrencyServerParameter"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}payer\0\u{1}nonce\0\u{1}blockhash\0\u{1}alts\0\u{3}compute_unit_limit\0\u{3}compute_unit_price\0\u{3}memo_value\0\u{1}authority\0\u{1}name\0\u{1}symbol\0\u{1}seed\0\u{3}sell_fee_bps\0\u{3}vm_lock_duration_in_days\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._payer) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._nonce) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._blockhash) }()
+      case 4: try { try decoder.decodeRepeatedMessageField(value: &self.alts) }()
+      case 5: try { try decoder.decodeSingularUInt32Field(value: &self.computeUnitLimit) }()
+      case 6: try { try decoder.decodeSingularUInt64Field(value: &self.computeUnitPrice) }()
+      case 7: try { try decoder.decodeSingularStringField(value: &self.memoValue) }()
+      case 8: try { try decoder.decodeSingularMessageField(value: &self._authority) }()
+      case 9: try { try decoder.decodeSingularStringField(value: &self.name) }()
+      case 10: try { try decoder.decodeSingularStringField(value: &self.symbol) }()
+      case 11: try { try decoder.decodeSingularMessageField(value: &self._seed) }()
+      case 12: try { try decoder.decodeSingularUInt32Field(value: &self.sellFeeBps) }()
+      case 13: try { try decoder.decodeSingularUInt32Field(value: &self.vmLockDurationInDays) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._payer {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._nonce {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._blockhash {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    if !self.alts.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.alts, fieldNumber: 4)
+    }
+    if self.computeUnitLimit != 0 {
+      try visitor.visitSingularUInt32Field(value: self.computeUnitLimit, fieldNumber: 5)
+    }
+    if self.computeUnitPrice != 0 {
+      try visitor.visitSingularUInt64Field(value: self.computeUnitPrice, fieldNumber: 6)
+    }
+    if !self.memoValue.isEmpty {
+      try visitor.visitSingularStringField(value: self.memoValue, fieldNumber: 7)
+    }
+    try { if let v = self._authority {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+    } }()
+    if !self.name.isEmpty {
+      try visitor.visitSingularStringField(value: self.name, fieldNumber: 9)
+    }
+    if !self.symbol.isEmpty {
+      try visitor.visitSingularStringField(value: self.symbol, fieldNumber: 10)
+    }
+    try { if let v = self._seed {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 11)
+    } }()
+    if self.sellFeeBps != 0 {
+      try visitor.visitSingularUInt32Field(value: self.sellFeeBps, fieldNumber: 12)
+    }
+    if self.vmLockDurationInDays != 0 {
+      try visitor.visitSingularUInt32Field(value: self.vmLockDurationInDays, fieldNumber: 13)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveNewCurrencyServerParameter, rhs: Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveNewCurrencyServerParameter) -> Bool {
+    if lhs._payer != rhs._payer {return false}
+    if lhs._nonce != rhs._nonce {return false}
+    if lhs._blockhash != rhs._blockhash {return false}
+    if lhs.alts != rhs.alts {return false}
+    if lhs.computeUnitLimit != rhs.computeUnitLimit {return false}
+    if lhs.computeUnitPrice != rhs.computeUnitPrice {return false}
+    if lhs.memoValue != rhs.memoValue {return false}
+    if lhs._authority != rhs._authority {return false}
+    if lhs.name != rhs.name {return false}
+    if lhs.symbol != rhs.symbol {return false}
+    if lhs._seed != rhs._seed {return false}
+    if lhs.sellFeeBps != rhs.sellFeeBps {return false}
+    if lhs.vmLockDurationInDays != rhs.vmLockDurationInDays {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -5534,7 +5776,7 @@ extension Ocp_Transaction_V1_SendLimit: SwiftProtobuf.Message, SwiftProtobuf._Me
 
 extension Ocp_Transaction_V1_VerifiedSwapMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".VerifiedSwapMetadata"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}currency_creator\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}reserve\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -5543,16 +5785,16 @@ extension Ocp_Transaction_V1_VerifiedSwapMetadata: SwiftProtobuf.Message, SwiftP
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try {
-        var v: Ocp_Transaction_V1_VerifiedCurrencyCreatorSwapMetadata?
+        var v: Ocp_Transaction_V1_VerifiedReserveSwapMetadata?
         var hadOneofValue = false
         if let current = self.kind {
           hadOneofValue = true
-          if case .currencyCreator(let m) = current {v = m}
+          if case .reserve(let m) = current {v = m}
         }
         try decoder.decodeSingularMessageField(value: &v)
         if let v = v {
           if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.kind = .currencyCreator(v)
+          self.kind = .reserve(v)
         }
       }()
       default: break
@@ -5565,7 +5807,7 @@ extension Ocp_Transaction_V1_VerifiedSwapMetadata: SwiftProtobuf.Message, SwiftP
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
     // https://github.com/apple/swift-protobuf/issues/1182
-    try { if case .currencyCreator(let v)? = self.kind {
+    try { if case .reserve(let v)? = self.kind {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
     } }()
     try unknownFields.traverse(visitor: &visitor)
@@ -5578,8 +5820,8 @@ extension Ocp_Transaction_V1_VerifiedSwapMetadata: SwiftProtobuf.Message, SwiftP
   }
 }
 
-extension Ocp_Transaction_V1_VerifiedCurrencyCreatorSwapMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".VerifiedCurrencyCreatorSwapMetadata"
+extension Ocp_Transaction_V1_VerifiedReserveSwapMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".VerifiedReserveSwapMetadata"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}client_parameters\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -5605,7 +5847,7 @@ extension Ocp_Transaction_V1_VerifiedCurrencyCreatorSwapMetadata: SwiftProtobuf.
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Ocp_Transaction_V1_VerifiedCurrencyCreatorSwapMetadata, rhs: Ocp_Transaction_V1_VerifiedCurrencyCreatorSwapMetadata) -> Bool {
+  public static func ==(lhs: Ocp_Transaction_V1_VerifiedReserveSwapMetadata, rhs: Ocp_Transaction_V1_VerifiedReserveSwapMetadata) -> Bool {
     if lhs._clientParameters != rhs._clientParameters {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true

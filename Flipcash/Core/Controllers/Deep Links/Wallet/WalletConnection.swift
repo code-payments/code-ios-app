@@ -22,12 +22,48 @@ public final class WalletConnection {
 
     var dialogItem: DialogItem?
 
-    /// Current swap processing context. When set, the processing screen should be shown.
-    var processing: ExternalSwapProcessing?
+    /// Single source of truth for external-wallet processing state. Invalid
+    /// combinations — "cancelled flag set with no active context", "both
+    /// buy-existing and launch contexts populated simultaneously" — are
+    /// unrepresentable by construction.
+    var state: WalletProcessingState = .idle
 
-    /// Set when the user cancels in the external wallet. The processing screen
-    /// observes this to switch to the failed display state.
-    var isProcessingCancelled = false
+    /// Buy-existing context, exposed for `.fullScreenCover(item:)`. Writing
+    /// `nil` (SwiftUI dismiss) transitions to `.idle` only if currently buying.
+    var processing: ExternalSwapProcessing? {
+        get {
+            if case .buying(let p, _) = state { return p }
+            return nil
+        }
+        set {
+            if newValue == nil, case .buying = state {
+                state = .idle
+            }
+        }
+    }
+
+    /// Launch context, exposed for `.fullScreenCover(item:)`. Writing `nil`
+    /// (SwiftUI dismiss) transitions to `.idle` only if currently launching.
+    var launchProcessing: ExternalLaunchProcessing? {
+        get {
+            if case .launching(let l, _) = state { return l }
+            return nil
+        }
+        set {
+            if newValue == nil, case .launching = state {
+                state = .idle
+            }
+        }
+    }
+
+    /// True iff the current context is marked failed. `SwapProcessingScreen`
+    /// observes this via `.onChange(of:)` to flip its display to cancelled.
+    var isProcessingCancelled: Bool {
+        switch state {
+        case .idle: return false
+        case .buying(_, let isFailed), .launching(_, let isFailed): return isFailed
+        }
+    }
 
     private(set) var session: ConnectedWalletSession?
 
@@ -51,10 +87,24 @@ public final class WalletConnection {
     /// Pending swap info to use when Phantom returns with signed transaction
     private var pendingSwap: PendingSwap?
 
+    /// Awaiting continuation for `connect()`. Resumed by `didConnect` on
+    /// success or by the errorCode branch of `didReceiveURL` on failure.
+    private var pendingConnect: CheckedContinuation<Void, Swift.Error>?
+
+    /// What the signed-transaction handler should do after the user returns
     private struct PendingSwap {
-        let swapId: SwapId
+        /// Funding-leg swap id (USDC→USDF) — used in the Phantom memo.
+        let fundingSwapId: SwapId
         let amount: ExchangedFiat
-        let token: MintMetadata
+        let displayName: String
+        let onCompleted: @MainActor @Sendable (FlipcashCore.Signature, ExchangedFiat) async throws -> SignedSwapResult
+    }
+
+    /// Whether the user has previously linked a Phantom wallet via
+    /// `connectToPhantom`. Once true it stays true for the lifetime of the
+    /// keychain entry; users can clear by uninstalling Phantom or wiping app data.
+    var isConnected: Bool {
+        Keychain.connectedWalletSession != nil
     }
 
     // MARK: - Init -
@@ -77,27 +127,61 @@ public final class WalletConnection {
 
     func didReceiveURL(url: URL) {
         if let code = url.queryItemValue(for: "errorCode") {
-            if code == "4001" {
-                Analytics.track(event: Analytics.WalletEvent.cancel)
-                pendingSwap = nil
+            Analytics.track(event: Analytics.WalletEvent.cancel)
+            pendingSwap = nil
 
-                if processing != nil {
-                    isProcessingCancelled = true
+            let isUserCancel = code == "4001"
+            if !isUserCancel {
+                logger.error("Wallet returned error", metadata: [
+                    "code": "\(code)",
+                    "url": "\(url.sanitizedForAnalytics)",
+                ])
+                // Non-cancel errors commonly mean the stored session is no
+                // longer recognised by Phantom (uninstall, user-disconnect,
+                // server revocation). Drop the keychain entry so the next
+                // attempt forces a fresh connect instead of looping on a
+                // dead session.
+                Keychain.connectedWalletSession = nil
+                session = nil
+            }
+
+            // If the error came from the connect deeplink and an async
+            // awaiter is present, propagate the failure to them instead of
+            // showing the transaction-oriented dialog. 4001 (user-cancel)
+            // becomes a CancellationError so callers can silently abort;
+            // every other code becomes `connectFailed` so callers can
+            // surface an error.
+            if url.pathComponents.last == "walletConnected", let continuation = pendingConnect {
+                pendingConnect = nil
+                if isUserCancel {
+                    continuation.resume(throwing: CancellationError())
                 } else {
-                    dialogItem = .init(
-                        style: .destructive,
-                        title: "Transaction Cancelled",
-                        subtitle: "The transaction was cancelled in your wallet",
-                        dismissable: true
-                    ) {
-                        .okay(kind: .destructive)
-                    }
+                    continuation.resume(throwing: WalletConnectionError.connectFailed(code: code))
                 }
+                return
+            }
+
+            if case .idle = state {
+                dialogItem = .init(
+                    style: .destructive,
+                    title: isUserCancel ? "Transaction Cancelled" : "Transaction Failed",
+                    subtitle: isUserCancel
+                        ? "The transaction was cancelled in your wallet"
+                        : "Your wallet returned an error. Please try again.",
+                    dismissable: true
+                ) {
+                    .okay(kind: .destructive)
+                }
+            } else {
+                markCurrentStateFailed()
             }
             return
         }
-        
+
         guard var encryptedResponse = try? EncryptedWalletResponse(url: url) else {
+            logger.warning("Wallet callback URL did not contain an encrypted response", metadata: [
+                "url": "\(url.sanitizedForAnalytics)",
+            ])
             return
         }
         
@@ -157,16 +241,26 @@ public final class WalletConnection {
                 sessionToken: walletSession.sessionToken,
                 phantomEncryptionPublicKey: encryptionPublicKey
             )
-            
+
             Keychain.connectedWalletSession = session
             self.session = session
 
-            isShowingAmountEntry = true
+            if let continuation = pendingConnect {
+                pendingConnect = nil
+                continuation.resume(returning: ())
+            } else {
+                // Legacy path — the connect was initiated from a non-async
+                // caller (e.g. CurrencyInfoScreen's Phantom entry point),
+                // which expects the amount-entry sheet to appear after
+                // connect. Callers using `connect()` handle the follow-up
+                // themselves.
+                isShowingAmountEntry = true
+            }
         }
     }
     
     private func didSignTransaction(_ signedTx: String) {
-        Task { [solanaClient, client, weak self] in
+        Task { [solanaClient, weak self] in
             let pending = self?.pendingSwap
             self?.pendingSwap = nil
 
@@ -175,46 +269,71 @@ public final class WalletConnection {
                 return
             }
 
-            self.processing = ExternalSwapProcessing(
-                swapId: pending.swapId,
-                currencyName: pending.token.name,
-                amount: pending.amount
+            // Present the generic processing screen immediately. The server callback
+            // below transitions to a launch context when the caller is launching a
+            // new currency; early-exit failures transition back to `.idle` so no
+            // cover presents for a swap the server never recorded.
+            self.state = .buying(
+                ExternalSwapProcessing(
+                    swapId: pending.fundingSwapId,
+                    currencyName: pending.displayName,
+                    amount: pending.amount
+                ),
+                isFailed: false
             )
 
             let swapMetadata: [String: String] = [
-                "swapId": pending.swapId.publicKey.base58,
-                "token": pending.token.symbol,
+                "swapId": pending.fundingSwapId.publicKey.base58,
                 "amount": pending.amount.converted.formatted(),
-                "mint": pending.token.address.base58
+                "name": pending.displayName,
             ]
 
             let rawData = Data(Base58.toBytes(signedTx))
             guard let tx = SolanaTransaction(data: rawData) else {
                 logger.error("Failed to decode signed transaction")
                 ErrorReporting.captureError(Error.invalidURL, reason: "Failed to decode signed transaction", metadata: swapMetadata)
-                self.isProcessingCancelled = true
+                self.state = .idle
                 return
             }
 
             // Notify server before submitting to chain — if the server rejects,
             // skip chain submission entirely so no USDC is spent without a swap state.
             do {
-                try await client.buyWithExternalFunding(
-                    swapId: pending.swapId,
-                    amount: pending.amount,
-                    of: pending.token,
-                    owner: self.owner,
-                    transactionSignature: tx.identifier
-                )
-                logger.info("Server notified of swap funding via buyWithExternalFunding()")
+                let result = try await pending.onCompleted(tx.identifier, pending.amount)
+                switch result {
+                case .buyExisting(let swapId):
+                    if swapId != pending.fundingSwapId {
+                        self.state = .buying(
+                            ExternalSwapProcessing(
+                                swapId: swapId,
+                                currencyName: pending.displayName,
+                                amount: pending.amount
+                            ),
+                            isFailed: false
+                        )
+                    }
+                case .launch(let swapId, let mint):
+                    self.state = .launching(
+                        ExternalLaunchProcessing(
+                            swapId: swapId,
+                            launchedMint: mint,
+                            currencyName: pending.displayName,
+                            amount: pending.amount
+                        ),
+                        isFailed: false
+                    )
+                }
+                logger.info("Server notified of swap funding")
             } catch {
                 logger.error("Server notification failed", metadata: ["error": "\(error)"])
                 ErrorReporting.captureError(error, reason: "Server notification failed", metadata: swapMetadata)
-                self.isProcessingCancelled = true
+                self.state = .idle
                 return
             }
 
-            // Server accepted — submit transaction to chain
+            // Server accepted — submit transaction to chain. The swap id is
+            // server-recorded at this point, so on failure we keep the context
+            // and flip `isFailed` so the processing screen surfaces the error.
             do {
                 let txBase64 = rawData.base64EncodedString()
                 let signature = try await solanaClient.apiClient.sendTransaction(
@@ -226,7 +345,7 @@ public final class WalletConnection {
             } catch {
                 logger.error("Chain submission failed", metadata: ["error": "\(error)"])
                 ErrorReporting.captureError(error, reason: "Chain submission failed", metadata: swapMetadata)
-                self.isProcessingCancelled = true
+                self.markCurrentStateFailed()
             }
         }
     }
@@ -236,21 +355,72 @@ public final class WalletConnection {
         url.openWithApplication()
     }
 
-    /// Requests an external swap: builds the transaction and opens Phantom.
+    /// Requests an external swap to fund a buy of an existing launchpad currency.
     /// The processing screen is deferred until the user returns with a signed transaction.
     func requestSwap(usdc: Quarks, token: MintMetadata) async throws {
-        try await requestUsdcToUsdfSwap(usdc: usdc, token: token)
+        let fundingSwapId = SwapId.generate()
+        try await requestUsdcToUsdfSwap(
+            fundingSwapId: fundingSwapId,
+            usdc: usdc,
+            displayName: token.name,
+            onCompleted: { [client, owner] signature, amount in
+                try await client.buyWithExternalFunding(
+                    swapId: fundingSwapId,
+                    amount: amount,
+                    of: token,
+                    owner: owner,
+                    transactionSignature: signature
+                )
+                return .buyExisting(swapId: fundingSwapId)
+            }
+        )
         isShowingAmountEntry = false
+    }
+
+    /// Requests an external USDC→USDF swap for the currency-creation launch flow.
+    /// `onCompleted` runs after Phantom signs and must execute
+    /// `Session.launchCurrency` + `Session.buyNewCurrencyWithExternalFunding`,
+    /// returning the swap id from the buy so the processing screen polls the
+    /// right swap state (the funding swap id is unrelated).
+    func requestSwapForLaunch(
+        usdc: Quarks,
+        displayName: String,
+        onCompleted: @escaping @MainActor @Sendable (FlipcashCore.Signature, ExchangedFiat) async throws -> SignedSwapResult
+    ) async throws {
+        try await requestUsdcToUsdfSwap(
+            fundingSwapId: SwapId.generate(),
+            usdc: usdc,
+            displayName: displayName,
+            onCompleted: onCompleted
+        )
     }
 
     /// Dismisses the processing screen and clears any pending wallet dialogs.
     func dismissProcessing() {
         dialogItem = nil
-        isProcessingCancelled = false
-        processing = nil
+        state = .idle
+    }
+
+    /// Flips the current active context's `isFailed` flag. No-op for `.idle`.
+    private func markCurrentStateFailed() {
+        state = state.markedFailed()
     }
 
     // MARK: - Actions -
+
+    /// Async wrapper around `connectToPhantom()`. Returns immediately if
+    /// already connected. Otherwise opens Phantom and suspends until the
+    /// connect deeplink arrives (success) or an errorCode callback does
+    /// (throws `WalletConnectionError.connectFailed`). A second call while
+    /// the first is in flight cancels the first waiter.
+    func connect() async throws {
+        guard !isConnected else { return }
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Swift.Error>) in
+            pendingConnect?.resume(throwing: CancellationError())
+            pendingConnect = continuation
+            connectToPhantom()
+        }
+    }
 
     func connectToPhantom() {
         let nonce = UUID().uuidString
@@ -268,27 +438,21 @@ public final class WalletConnection {
         openExternalWallet(c.url!)
     }
 
-    /// Initiates USDC→USDF swap via Phantom wallet
-    /// 1. Generate swapId and build transaction (with swapId in memo)
-    /// 2. Send to Phantom for signing
-    /// 3. After signing: notify server via buyWithExternalFunding(), then submit TX to chain
-    ///
-    /// - Parameters:
-    ///   - usdc: Amount of USDC to swap (in quarks)
-    ///   - token: The token to buy with the swapped USDF
-    @discardableResult
-    func requestUsdcToUsdfSwap(usdc: Quarks, token: MintMetadata) async throws -> (swapId: SwapId, amount: ExchangedFiat) {
+    /// Builds + sends a USDC→USDF transaction to Phantom for signing. Stashes
+    /// the supplied `onCompleted` closure so `didSignTransaction` can run it
+    /// once the signed transaction comes back via deeplink.
+    private func requestUsdcToUsdfSwap(
+        fundingSwapId: SwapId,
+        usdc: Quarks,
+        displayName: String,
+        onCompleted: @escaping @MainActor @Sendable (FlipcashCore.Signature, ExchangedFiat) async throws -> SignedSwapResult
+    ) async throws {
         guard let connectedSession = Keychain.connectedWalletSession else {
             throw Error.noSession
         }
 
-        // 1. Generate swapId (will be used in memo AND in buy() call)
-        let swapId = SwapId.generate()
+        let amount = ExchangedFiat(underlying: usdc, converted: usdc, mint: .usdf)
 
-        // Create ExchangedFiat for the buy() call (USDC/USDF are 1:1)
-        let amount = ExchangedFiat(underlying: usdc, converted: usdc, mint: token.address)
-
-        // 2. Build transaction with swapId in memo
         let externalWallet = try FlipcashCore.PublicKey(base58: connectedSession.walletPublicKey.base58)
         let flipcashOwner = owner.authorityPublicKey
 
@@ -297,20 +461,19 @@ public final class WalletConnection {
             owner: flipcashOwner,
             amount: usdc.quarks,
             pool: .usdf,
-            swapId: swapId.publicKey
+            swapId: fundingSwapId.publicKey
         )
 
-        // Convert FlipcashCore instructions to SolanaSwift
-        let instructionsConverted = instructions.map { instruction in
+        let instructionsConverted = try instructions.map { instruction in
             TransactionInstruction(
-                keys: instruction.accounts.map { meta in
+                keys: try instruction.accounts.map { meta in
                     SolanaSwift.AccountMeta(
-                        publicKey: try! SolanaSwift.PublicKey(string: meta.publicKey.base58),
+                        publicKey: try SolanaSwift.PublicKey(string: meta.publicKey.base58),
                         isSigner: meta.isSigner,
                         isWritable: meta.isWritable
                     )
                 },
-                programId: try! SolanaSwift.PublicKey(string: instruction.program.base58),
+                programId: try SolanaSwift.PublicKey(string: instruction.program.base58),
                 data: [UInt8](instruction.data)
             )
         }
@@ -323,10 +486,13 @@ public final class WalletConnection {
             feePayer: try SolanaSwift.PublicKey(string: externalWallet.base58)
         )
 
-        // 3. Store pending swap info (to use when Phantom returns)
-        pendingSwap = PendingSwap(swapId: swapId, amount: amount, token: token)
+        pendingSwap = PendingSwap(
+            fundingSwapId: fundingSwapId,
+            amount: amount,
+            displayName: displayName,
+            onCompleted: onCompleted
+        )
 
-        // 4. Serialize and send to Phantom
         let txEncoded = Base58.fromBytes(Array(try transaction.serialize()))
 
         let payload: [String: Any] = [
@@ -358,13 +524,10 @@ public final class WalletConnection {
         openExternalWallet(url)
         logger.info("Requested USDC→USDF swap", metadata: [
             "amount": "\(amount.underlying)",
-            "token": "\(token.symbol)",
-            "swapId": "\(swapId.publicKey.base58)",
+            "swapId": "\(fundingSwapId.publicKey.base58)",
+            "name": "\(displayName)",
         ])
-
-        return (swapId: swapId, amount: amount)
     }
-
 }
 
 /// NaCl “box” with an ephemeral X25519 keypair for one Phantom session.
@@ -483,6 +646,7 @@ public enum WalletConnectionError: Error, LocalizedError {
     case decryptionFailed
     case jsonDecodingFailed(underlying: Error)
     case noSession
+    case connectFailed(code: String)
 
     public var errorDescription: String? {
         switch self {
@@ -490,6 +654,7 @@ public enum WalletConnectionError: Error, LocalizedError {
         case .decryptionFailed:          return "Failed to decrypt payload (MAC check failed)."
         case .jsonDecodingFailed(let e): return "Failed to decode JSON: \(e.localizedDescription)"
         case .noSession:                 return "No connected wallet session."
+        case .connectFailed(let code):   return "Wallet connection failed (code: \(code))."
         }
     }
 }
@@ -499,6 +664,29 @@ extension WalletConnection {
         case noSession
         case missingVerifiedState
         case invalidURL
+    }
+}
+
+/// External-wallet processing state. Variants differ by flow (buy-existing vs
+/// currency launch) and each carries an `isFailed` flag that drives the
+/// processing screen's "cancelled" display without requiring a separate flag
+/// that could drift out of sync with the active context.
+enum WalletProcessingState: Hashable {
+    case idle
+    case buying(ExternalSwapProcessing, isFailed: Bool)
+    case launching(ExternalLaunchProcessing, isFailed: Bool)
+
+    /// Returns the state with the active context's `isFailed` flipped to true.
+    /// `.idle` is a fixed point. Idempotent on already-failed states.
+    func markedFailed() -> WalletProcessingState {
+        switch self {
+        case .idle:
+            return .idle
+        case .buying(let context, _):
+            return .buying(context, isFailed: true)
+        case .launching(let context, _):
+            return .launching(context, isFailed: true)
+        }
     }
 }
 

@@ -52,9 +52,11 @@ class OnrampViewModel {
 
     var dialogItem: DialogItem?
 
-    /// The token the user is buying. Fixed at init time — this view model
-    /// is scoped to a single presentation of the Onramp sheet.
-    let destination: BuyDestination
+    /// Display name shown on the SwapProcessing step and surfaced in logs.
+    /// For buy-existing flows this is the target currency's name; for
+    /// launch-new flows it's the user-chosen name of the currency being
+    /// created. Fixed at init time.
+    let displayName: String
 
     var enteredCode: String = ""
     var enteredEmail: String = ""
@@ -132,6 +134,23 @@ class OnrampViewModel {
     @ObservationIgnored private let owner: KeyPair
     @ObservationIgnored private let onDismiss: () -> Void
 
+    /// Internal dispatch for the post-onramp step. Paired with the matching
+    /// factory init (see `forBuying` / `forLaunching`), so cases carry exactly
+    /// the data they need.
+    private enum Mode {
+        case buyExistingCurrency(mint: PublicKey)
+        case launchNewCurrency(onUsdfReady: @MainActor @Sendable (Signature, ExchangedFiat) async throws -> SignedSwapResult)
+
+        var logKind: String {
+            switch self {
+            case .buyExistingCurrency: "buy_existing"
+            case .launchNewCurrency:   "launch_new"
+            }
+        }
+    }
+
+    @ObservationIgnored private let mode: Mode
+
     @ObservationIgnored private var coinbase: Coinbase!
 
     @ObservationIgnored private let coinbaseApiKey: String?
@@ -155,13 +174,47 @@ class OnrampViewModel {
 
     // MARK: - Init -
 
-    init(
-        destination: BuyDestination,
+    static func forBuying(
+        mint: PublicKey,
+        displayName: String,
+        session: Session,
+        flipClient: FlipClient,
+        onDismiss: @escaping () -> Void
+    ) -> OnrampViewModel {
+        OnrampViewModel(
+            displayName: displayName,
+            mode: .buyExistingCurrency(mint: mint),
+            session: session,
+            flipClient: flipClient,
+            onDismiss: onDismiss
+        )
+    }
+
+    static func forLaunching(
+        displayName: String,
+        session: Session,
+        flipClient: FlipClient,
+        onDismiss: @escaping () -> Void,
+        onUsdfReady: @escaping @MainActor @Sendable (Signature, ExchangedFiat) async throws -> SignedSwapResult
+    ) -> OnrampViewModel {
+        OnrampViewModel(
+            displayName: displayName,
+            mode: .launchNewCurrency(onUsdfReady: onUsdfReady),
+            session: session,
+            flipClient: flipClient,
+            onDismiss: onDismiss
+        )
+    }
+
+    private init(
+        displayName: String,
+        mode: Mode,
         session: Session,
         flipClient: FlipClient,
         onDismiss: @escaping () -> Void
     ) {
-        self.destination = destination
+        self.displayName = displayName
+        self.mode = mode
         self.session = session
         self.flipClient = flipClient
         self.owner = session.ownerKeyPair
@@ -822,8 +875,8 @@ class OnrampViewModel {
 
     private func handleCoinbaseFundingSuccess() async {
         logger.info("Coinbase funding succeeded", metadata: [
-            "destination_mint": "\(destination.mint.base58)",
-            "destination_name": "\(destination.name)"
+            "destination_kind": "\(mode.logKind)",
+            "destination_name": "\(displayName)"
         ])
 
         guard let orderId = coinbaseOrder?.order.orderId else {
@@ -891,22 +944,48 @@ class OnrampViewModel {
         }
 
         do {
-            let swapId = try await session.buyWithExternalFunding(
-                amount: exchangedFiat,
-                of: destination.mint,
-                transactionSignature: signature
-            )
+            let appendPath: OnrampAmountPath
+            switch mode {
+            case .buyExistingCurrency(let mint):
+                let swapId = try await session.buyWithExternalFunding(
+                    amount: exchangedFiat,
+                    of: mint,
+                    transactionSignature: signature
+                )
+                appendPath = .swapProcessing(
+                    swapId: swapId,
+                    currencyName: displayName,
+                    amount: exchangedFiat
+                )
+
+            case .launchNewCurrency(let onUsdfReady):
+                let result = try await onUsdfReady(signature, exchangedFiat)
+                switch result {
+                case .launch(let swapId, let mint):
+                    appendPath = .launchProcessing(
+                        swapId: swapId,
+                        launchedMint: mint,
+                        currencyName: displayName,
+                        amount: exchangedFiat
+                    )
+                case .buyExisting(let swapId):
+                    // Launch callers should always return .launch; fall back to
+                    // the generic processing path if they don't.
+                    logger.warning("Launch onUsdfReady returned .buyExisting result")
+                    appendPath = .swapProcessing(
+                        swapId: swapId,
+                        currencyName: displayName,
+                        amount: exchangedFiat
+                    )
+                }
+            }
             coinbaseOrder = nil
             Analytics.onrampCompleted(
                 amount: exchangedFiat.underlying,
                 successful: true,
                 error: nil
             )
-            amountPath.append(.swapProcessing(
-                swapId: swapId,
-                currencyName: destination.name,
-                amount: exchangedFiat
-            ))
+            amountPath.append(appendPath)
         } catch {
             logger.error("Buy failed", metadata: ["error": "\(error)"])
             ErrorReporting.captureError(error)
@@ -1046,6 +1125,7 @@ class OnrampViewModel {
 /// never bind the same `[Path]` array.
 enum OnrampAmountPath: Hashable {
     case swapProcessing(swapId: SwapId, currencyName: String, amount: ExchangedFiat)
+    case launchProcessing(swapId: SwapId, launchedMint: PublicKey, currencyName: String, amount: ExchangedFiat)
 }
 
 /// Navigation path for `VerifyInfoScreen`'s NavigationStack.
@@ -1079,16 +1159,6 @@ private extension CharacterSet {
     static let numbers: CharacterSet = CharacterSet(charactersIn: "0123456789")
 }
 
-// MARK: - BuyDestination -
-
-extension OnrampViewModel {
-    struct BuyDestination: Equatable, Identifiable, Sendable, Hashable {
-        let mint: PublicKey
-        let name: String
-
-        var id: String { mint.base58 }
-    }
-}
 
 // MARK: - OnrampError -
 

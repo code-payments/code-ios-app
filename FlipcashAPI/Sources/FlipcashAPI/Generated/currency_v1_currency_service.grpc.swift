@@ -51,6 +51,11 @@ public protocol Ocp_Currency_V1_CurrencyClientProtocol: GRPCClient {
     callOptions: CallOptions?,
     handler: @escaping (Ocp_Currency_V1_DiscoverResponse) -> Void
   ) -> ServerStreamingCall<Ocp_Currency_V1_DiscoverRequest, Ocp_Currency_V1_DiscoverResponse>
+
+  func checkAvailability(
+    _ request: Ocp_Currency_V1_CheckAvailabilityRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Ocp_Currency_V1_CheckAvailabilityRequest, Ocp_Currency_V1_CheckAvailabilityResponse>
 }
 
 extension Ocp_Currency_V1_CurrencyClientProtocol {
@@ -189,6 +194,24 @@ extension Ocp_Currency_V1_CurrencyClientProtocol {
       handler: handler
     )
   }
+
+  /// CheckAvailability checks whether a currency name is available for launch
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to CheckAvailability.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func checkAvailability(
+    _ request: Ocp_Currency_V1_CheckAvailabilityRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Ocp_Currency_V1_CheckAvailabilityRequest, Ocp_Currency_V1_CheckAvailabilityResponse> {
+    return self.makeUnaryCall(
+      path: Ocp_Currency_V1_CurrencyClientMetadata.Methods.checkAvailability.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeCheckAvailabilityInterceptors() ?? []
+    )
+  }
 }
 
 @available(*, deprecated)
@@ -286,6 +309,11 @@ public protocol Ocp_Currency_V1_CurrencyAsyncClientProtocol: GRPCClient {
     _ request: Ocp_Currency_V1_DiscoverRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncServerStreamingCall<Ocp_Currency_V1_DiscoverRequest, Ocp_Currency_V1_DiscoverResponse>
+
+  func makeCheckAvailabilityCall(
+    _ request: Ocp_Currency_V1_CheckAvailabilityRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Ocp_Currency_V1_CheckAvailabilityRequest, Ocp_Currency_V1_CheckAvailabilityResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -377,6 +405,18 @@ extension Ocp_Currency_V1_CurrencyAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeDiscoverInterceptors() ?? []
+    )
+  }
+
+  public func makeCheckAvailabilityCall(
+    _ request: Ocp_Currency_V1_CheckAvailabilityRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Ocp_Currency_V1_CheckAvailabilityRequest, Ocp_Currency_V1_CheckAvailabilityResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Ocp_Currency_V1_CurrencyClientMetadata.Methods.checkAvailability.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeCheckAvailabilityInterceptors() ?? []
     )
   }
 }
@@ -478,6 +518,18 @@ extension Ocp_Currency_V1_CurrencyAsyncClientProtocol {
       interceptors: self.interceptors?.makeDiscoverInterceptors() ?? []
     )
   }
+
+  public func checkAvailability(
+    _ request: Ocp_Currency_V1_CheckAvailabilityRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Ocp_Currency_V1_CheckAvailabilityResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Ocp_Currency_V1_CurrencyClientMetadata.Methods.checkAvailability.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeCheckAvailabilityInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -519,6 +571,9 @@ public protocol Ocp_Currency_V1_CurrencyClientInterceptorFactoryProtocol: Sendab
 
   /// - Returns: Interceptors to use when invoking 'discover'.
   func makeDiscoverInterceptors() -> [ClientInterceptor<Ocp_Currency_V1_DiscoverRequest, Ocp_Currency_V1_DiscoverResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'checkAvailability'.
+  func makeCheckAvailabilityInterceptors() -> [ClientInterceptor<Ocp_Currency_V1_CheckAvailabilityRequest, Ocp_Currency_V1_CheckAvailabilityResponse>]
 }
 
 public enum Ocp_Currency_V1_CurrencyClientMetadata {
@@ -533,6 +588,7 @@ public enum Ocp_Currency_V1_CurrencyClientMetadata {
       Ocp_Currency_V1_CurrencyClientMetadata.Methods.updateIcon,
       Ocp_Currency_V1_CurrencyClientMetadata.Methods.updateMetadata,
       Ocp_Currency_V1_CurrencyClientMetadata.Methods.discover,
+      Ocp_Currency_V1_CurrencyClientMetadata.Methods.checkAvailability,
     ]
   )
 
@@ -578,6 +634,12 @@ public enum Ocp_Currency_V1_CurrencyClientMetadata {
       path: "/ocp.currency.v1.Currency/Discover",
       type: GRPCCallType.serverStreaming
     )
+
+    public static let checkAvailability = GRPCMethodDescriptor(
+      name: "CheckAvailability",
+      path: "/ocp.currency.v1.Currency/CheckAvailability",
+      type: GRPCCallType.unary
+    )
   }
 }
 
@@ -605,6 +667,9 @@ public protocol Ocp_Currency_V1_CurrencyProvider: CallHandlerProvider {
 
   /// Discover returns a set of currencies to discover
   func discover(request: Ocp_Currency_V1_DiscoverRequest, context: StreamingResponseCallContext<Ocp_Currency_V1_DiscoverResponse>) -> EventLoopFuture<GRPCStatus>
+
+  /// CheckAvailability checks whether a currency name is available for launch
+  func checkAvailability(request: Ocp_Currency_V1_CheckAvailabilityRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Ocp_Currency_V1_CheckAvailabilityResponse>
 }
 
 extension Ocp_Currency_V1_CurrencyProvider {
@@ -682,6 +747,15 @@ extension Ocp_Currency_V1_CurrencyProvider {
         userFunction: self.discover(request:context:)
       )
 
+    case "CheckAvailability":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Ocp_Currency_V1_CheckAvailabilityRequest>(),
+        responseSerializer: ProtobufSerializer<Ocp_Currency_V1_CheckAvailabilityResponse>(),
+        interceptors: self.interceptors?.makeCheckAvailabilityInterceptors() ?? [],
+        userFunction: self.checkAvailability(request:context:)
+      )
+
     default:
       return nil
     }
@@ -737,6 +811,12 @@ public protocol Ocp_Currency_V1_CurrencyAsyncProvider: CallHandlerProvider, Send
     responseStream: GRPCAsyncResponseStreamWriter<Ocp_Currency_V1_DiscoverResponse>,
     context: GRPCAsyncServerCallContext
   ) async throws
+
+  /// CheckAvailability checks whether a currency name is available for launch
+  func checkAvailability(
+    request: Ocp_Currency_V1_CheckAvailabilityRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Ocp_Currency_V1_CheckAvailabilityResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -821,6 +901,15 @@ extension Ocp_Currency_V1_CurrencyAsyncProvider {
         wrapping: { try await self.discover(request: $0, responseStream: $1, context: $2) }
       )
 
+    case "CheckAvailability":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Ocp_Currency_V1_CheckAvailabilityRequest>(),
+        responseSerializer: ProtobufSerializer<Ocp_Currency_V1_CheckAvailabilityResponse>(),
+        interceptors: self.interceptors?.makeCheckAvailabilityInterceptors() ?? [],
+        wrapping: { try await self.checkAvailability(request: $0, context: $1) }
+      )
+
     default:
       return nil
     }
@@ -856,6 +945,10 @@ public protocol Ocp_Currency_V1_CurrencyServerInterceptorFactoryProtocol: Sendab
   /// - Returns: Interceptors to use when handling 'discover'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeDiscoverInterceptors() -> [ServerInterceptor<Ocp_Currency_V1_DiscoverRequest, Ocp_Currency_V1_DiscoverResponse>]
+
+  /// - Returns: Interceptors to use when handling 'checkAvailability'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeCheckAvailabilityInterceptors() -> [ServerInterceptor<Ocp_Currency_V1_CheckAvailabilityRequest, Ocp_Currency_V1_CheckAvailabilityResponse>]
 }
 
 public enum Ocp_Currency_V1_CurrencyServerMetadata {
@@ -870,6 +963,7 @@ public enum Ocp_Currency_V1_CurrencyServerMetadata {
       Ocp_Currency_V1_CurrencyServerMetadata.Methods.updateIcon,
       Ocp_Currency_V1_CurrencyServerMetadata.Methods.updateMetadata,
       Ocp_Currency_V1_CurrencyServerMetadata.Methods.discover,
+      Ocp_Currency_V1_CurrencyServerMetadata.Methods.checkAvailability,
     ]
   )
 
@@ -914,6 +1008,12 @@ public enum Ocp_Currency_V1_CurrencyServerMetadata {
       name: "Discover",
       path: "/ocp.currency.v1.Currency/Discover",
       type: GRPCCallType.serverStreaming
+    )
+
+    public static let checkAvailability = GRPCMethodDescriptor(
+      name: "CheckAvailability",
+      path: "/ocp.currency.v1.Currency/CheckAvailability",
+      type: GRPCCallType.unary
     )
   }
 }

@@ -64,13 +64,30 @@ public struct AssociatedTokenAccount: Codable, Hashable, Equatable, Sendable {
 }
 
 public struct ProgramDerivedAccount: Codable, Hashable, Equatable, Sendable  {
-    
+
     public let publicKey: PublicKey
     public let bump: Byte
-    
+
     init(publicKey: PublicKey, bump: Byte) {
         self.publicKey = publicKey
         self.bump = bump
+    }
+
+    /// Finds a program-derived address for the given program and seeds, iterating
+    /// bumps from 255 down until a valid off-curve address is produced.
+    /// Mirrors the Solana SDK's `find_program_address`.
+    public static func findProgramAddress(seeds: [Data], program: PublicKey) -> ProgramDerivedAccount? {
+        for i in 0...Byte.max {
+            let bumpValue = Byte.max - i
+            let bumpSeed = Data([bumpValue])
+            if let publicKey = PublicKey.deriveProgramAddress(program: program, seeds: seeds + [bumpSeed]) {
+                return ProgramDerivedAccount(
+                    publicKey: publicKey,
+                    bump: bumpValue
+                )
+            }
+        }
+        return nil
     }
 }
 

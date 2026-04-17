@@ -30,6 +30,7 @@ public class FlipClient: ObservableObject {
     internal let emailService: EmailService
     internal let profileService: ProfileService
     internal let settingsService: SettingsService
+    internal let moderationService: ModerationService
 
     // MARK: - Init -
 
@@ -50,6 +51,7 @@ public class FlipClient: ObservableObject {
         self.emailService      = EmailService(channel: channel, queue: queue)
         self.profileService    = ProfileService(channel: channel, queue: queue)
         self.settingsService   = SettingsService(channel: channel, queue: queue)
+        self.moderationService = ModerationService(channel: channel, queue: queue)
 
         self.channel.connectivity.delegate = self
     }

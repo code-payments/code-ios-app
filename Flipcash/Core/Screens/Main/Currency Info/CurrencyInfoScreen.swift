@@ -27,7 +27,14 @@ struct CurrencyInfoScreen: View {
     @State private var isShowingGive: Bool = false
     /// Non-nil while the Onramp sheet is presented. Setting it presents the
     /// sheet with a fresh `OnrampViewModel`; nil'ing it dismisses.
-    @State private var onrampDestination: OnrampViewModel.BuyDestination?
+    @State private var onrampDestination: BuyTarget?
+
+    /// Identifying data for the Coinbase onramp sheet trigger.
+    private struct BuyTarget: Identifiable, Hashable {
+        let mint: PublicKey
+        let displayName: String
+        var id: String { mint.base58 }
+    }
 
     let session: Session
 
@@ -244,9 +251,9 @@ struct CurrencyInfoScreen: View {
                     },
                     onSelectCoinbase: {
                         Analytics.buttonTapped(name: .buyWithCoinbase)
-                        onrampDestination = .init(
+                        onrampDestination = BuyTarget(
                             mint: metadata.mint,
-                            name: metadata.name
+                            displayName: metadata.name
                         )
                         isShowingFundingSelection = false
                     },
@@ -261,9 +268,10 @@ struct CurrencyInfoScreen: View {
                 )
             }
         }
-        .sheet(item: $onrampDestination) { destination in
-            OnrampAmountScreen(
-                destination: destination,
+        .sheet(item: $onrampDestination) { target in
+            OnrampAmountScreen.forBuying(
+                mint: target.mint,
+                displayName: target.displayName,
                 session: sessionContainer.session,
                 flipClient: sessionContainer.flipClient,
                 deeplinkInbox: sessionContainer.onrampDeeplinkInbox,

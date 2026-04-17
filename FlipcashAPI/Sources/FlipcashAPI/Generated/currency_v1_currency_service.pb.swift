@@ -952,12 +952,70 @@ public struct Ocp_Currency_V1_LaunchRequest: Sendable {
   /// Clears the value of `signature`. Subsequent reads from it will return its default value.
   public mutating func clearSignature() {self._signature = nil}
 
-  /// The name of the currency to launch
+  /// The name of the currency to launch. Must be printable ASCII with no
+  /// leading or trailing spaces.
   public var name: String = String()
 
-  /// The ticker symbol for the currency. If not provided, a default will be
-  /// generated using the currency name.
+  /// The ticker symbol for the currency. Must be printable ASCII with no
+  /// spaces. If not provided, a default will be generated using the currency
+  /// name.
   public var symbol: String = String()
+
+  /// Optional description
+  public var description_p: String = String()
+
+  /// Optional bill customization. If not provided, a default will be set.
+  public var billCustomization: Ocp_Currency_V1_BillCustomization {
+    get {_billCustomization ?? Ocp_Currency_V1_BillCustomization()}
+    set {_billCustomization = newValue}
+  }
+  /// Returns true if `billCustomization` has been explicitly set.
+  public var hasBillCustomization: Bool {self._billCustomization != nil}
+  /// Clears the value of `billCustomization`. Subsequent reads from it will return its default value.
+  public mutating func clearBillCustomization() {self._billCustomization = nil}
+
+  /// The raw image data for the icon. If not provided, a default will be set.
+  public var icon: Data = Data()
+
+  /// Attestation that the name passed moderation
+  public var nameModerationAttestation: Ocp_Currency_V1_ModerationAttestation {
+    get {_nameModerationAttestation ?? Ocp_Currency_V1_ModerationAttestation()}
+    set {_nameModerationAttestation = newValue}
+  }
+  /// Returns true if `nameModerationAttestation` has been explicitly set.
+  public var hasNameModerationAttestation: Bool {self._nameModerationAttestation != nil}
+  /// Clears the value of `nameModerationAttestation`. Subsequent reads from it will return its default value.
+  public mutating func clearNameModerationAttestation() {self._nameModerationAttestation = nil}
+
+  /// Attestation that the symbol, if provided, passed moderation
+  public var symbolModerationAttestation: Ocp_Currency_V1_ModerationAttestation {
+    get {_symbolModerationAttestation ?? Ocp_Currency_V1_ModerationAttestation()}
+    set {_symbolModerationAttestation = newValue}
+  }
+  /// Returns true if `symbolModerationAttestation` has been explicitly set.
+  public var hasSymbolModerationAttestation: Bool {self._symbolModerationAttestation != nil}
+  /// Clears the value of `symbolModerationAttestation`. Subsequent reads from it will return its default value.
+  public mutating func clearSymbolModerationAttestation() {self._symbolModerationAttestation = nil}
+
+  /// Attestation that the descritpion, if provided, passed moderation
+  public var descriptionModerationAttestation: Ocp_Currency_V1_ModerationAttestation {
+    get {_descriptionModerationAttestation ?? Ocp_Currency_V1_ModerationAttestation()}
+    set {_descriptionModerationAttestation = newValue}
+  }
+  /// Returns true if `descriptionModerationAttestation` has been explicitly set.
+  public var hasDescriptionModerationAttestation: Bool {self._descriptionModerationAttestation != nil}
+  /// Clears the value of `descriptionModerationAttestation`. Subsequent reads from it will return its default value.
+  public mutating func clearDescriptionModerationAttestation() {self._descriptionModerationAttestation = nil}
+
+  /// Attestation that the icon image, if provided, passed moderation
+  public var iconModerationAttestation: Ocp_Currency_V1_ModerationAttestation {
+    get {_iconModerationAttestation ?? Ocp_Currency_V1_ModerationAttestation()}
+    set {_iconModerationAttestation = newValue}
+  }
+  /// Returns true if `iconModerationAttestation` has been explicitly set.
+  public var hasIconModerationAttestation: Bool {self._iconModerationAttestation != nil}
+  /// Clears the value of `iconModerationAttestation`. Subsequent reads from it will return its default value.
+  public mutating func clearIconModerationAttestation() {self._iconModerationAttestation = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -965,6 +1023,11 @@ public struct Ocp_Currency_V1_LaunchRequest: Sendable {
 
   fileprivate var _owner: Ocp_Common_V1_SolanaAccountId? = nil
   fileprivate var _signature: Ocp_Common_V1_Signature? = nil
+  fileprivate var _billCustomization: Ocp_Currency_V1_BillCustomization? = nil
+  fileprivate var _nameModerationAttestation: Ocp_Currency_V1_ModerationAttestation? = nil
+  fileprivate var _symbolModerationAttestation: Ocp_Currency_V1_ModerationAttestation? = nil
+  fileprivate var _descriptionModerationAttestation: Ocp_Currency_V1_ModerationAttestation? = nil
+  fileprivate var _iconModerationAttestation: Ocp_Currency_V1_ModerationAttestation? = nil
 }
 
 public struct Ocp_Currency_V1_LaunchResponse: Sendable {
@@ -994,7 +1057,10 @@ public struct Ocp_Currency_V1_LaunchResponse: Sendable {
     case denied // = 1
 
     /// A similar currency already exists
-    case exists // = 2
+    case nameExists // = 2
+
+    /// Provided icon is invalid
+    case invalidIcon // = 3
     case UNRECOGNIZED(Int)
 
     public init() {
@@ -1005,7 +1071,8 @@ public struct Ocp_Currency_V1_LaunchResponse: Sendable {
       switch rawValue {
       case 0: self = .ok
       case 1: self = .denied
-      case 2: self = .exists
+      case 2: self = .nameExists
+      case 3: self = .invalidIcon
       default: self = .UNRECOGNIZED(rawValue)
       }
     }
@@ -1014,7 +1081,8 @@ public struct Ocp_Currency_V1_LaunchResponse: Sendable {
       switch self {
       case .ok: return 0
       case .denied: return 1
-      case .exists: return 2
+      case .nameExists: return 2
+      case .invalidIcon: return 3
       case .UNRECOGNIZED(let i): return i
       }
     }
@@ -1023,7 +1091,8 @@ public struct Ocp_Currency_V1_LaunchResponse: Sendable {
     public static let allCases: [Ocp_Currency_V1_LaunchResponse.Result] = [
       .ok,
       .denied,
-      .exists,
+      .nameExists,
+      .invalidIcon,
     ]
 
   }
@@ -1073,6 +1142,16 @@ public struct Ocp_Currency_V1_UpdateIconRequest: Sendable {
   /// The raw image data for the icon
   public var icon: Data = Data()
 
+  /// Attestation that the icon image passed moderation
+  public var moderationAttestation: Ocp_Currency_V1_ModerationAttestation {
+    get {_moderationAttestation ?? Ocp_Currency_V1_ModerationAttestation()}
+    set {_moderationAttestation = newValue}
+  }
+  /// Returns true if `moderationAttestation` has been explicitly set.
+  public var hasModerationAttestation: Bool {self._moderationAttestation != nil}
+  /// Clears the value of `moderationAttestation`. Subsequent reads from it will return its default value.
+  public mutating func clearModerationAttestation() {self._moderationAttestation = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1080,6 +1159,7 @@ public struct Ocp_Currency_V1_UpdateIconRequest: Sendable {
   fileprivate var _owner: Ocp_Common_V1_SolanaAccountId? = nil
   fileprivate var _signature: Ocp_Common_V1_Signature? = nil
   fileprivate var _mint: Ocp_Common_V1_SolanaAccountId? = nil
+  fileprivate var _moderationAttestation: Ocp_Currency_V1_ModerationAttestation? = nil
 }
 
 public struct Ocp_Currency_V1_UpdateIconResponse: Sendable {
@@ -1213,9 +1293,21 @@ public struct Ocp_Currency_V1_UpdateMetadataRequest: Sendable {
 
     public var value: String = String()
 
+    /// Attestation that the description passed moderation
+    public var moderationAttestation: Ocp_Currency_V1_ModerationAttestation {
+      get {_moderationAttestation ?? Ocp_Currency_V1_ModerationAttestation()}
+      set {_moderationAttestation = newValue}
+    }
+    /// Returns true if `moderationAttestation` has been explicitly set.
+    public var hasModerationAttestation: Bool {self._moderationAttestation != nil}
+    /// Clears the value of `moderationAttestation`. Subsequent reads from it will return its default value.
+    public mutating func clearModerationAttestation() {self._moderationAttestation = nil}
+
     public var unknownFields = SwiftProtobuf.UnknownStorage()
 
     public init() {}
+
+    fileprivate var _moderationAttestation: Ocp_Currency_V1_ModerationAttestation? = nil
   }
 
   public struct BillCustomizationUpdate: Sendable {
@@ -1401,6 +1493,76 @@ public struct Ocp_Currency_V1_DiscoverResponse: Sendable {
     ]
 
   }
+
+  public init() {}
+}
+
+public struct Ocp_Currency_V1_CheckAvailabilityRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The currency name to check availability for
+  public var name: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Ocp_Currency_V1_CheckAvailabilityResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var result: Ocp_Currency_V1_CheckAvailabilityResponse.Result = .ok
+
+  /// Whether the name is available for use
+  public var isAvailable: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Result: SwiftProtobuf.Enum, Swift.CaseIterable {
+    public typealias RawValue = Int
+    case ok // = 0
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .ok
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .ok
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .ok: return 0
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+    // The compiler won't synthesize support with the UNRECOGNIZED case.
+    public static let allCases: [Ocp_Currency_V1_CheckAvailabilityResponse.Result] = [
+      .ok,
+    ]
+
+  }
+
+  public init() {}
+}
+
+public struct Ocp_Currency_V1_ModerationAttestation: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var rawValue: Data = Data()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 }
@@ -2696,7 +2858,7 @@ extension Ocp_Currency_V1_HolderMetrics.DeltaHolders: SwiftProtobuf.Message, Swi
 
 extension Ocp_Currency_V1_LaunchRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".LaunchRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}owner\0\u{1}signature\0\u{1}name\0\u{1}symbol\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}owner\0\u{1}signature\0\u{1}name\0\u{1}symbol\0\u{1}description\0\u{3}bill_customization\0\u{1}icon\0\u{3}name_moderation_attestation\0\u{3}symbol_moderation_attestation\0\u{3}description_moderation_attestation\0\u{3}icon_moderation_attestation\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -2708,6 +2870,13 @@ extension Ocp_Currency_V1_LaunchRequest: SwiftProtobuf.Message, SwiftProtobuf._M
       case 2: try { try decoder.decodeSingularMessageField(value: &self._signature) }()
       case 3: try { try decoder.decodeSingularStringField(value: &self.name) }()
       case 4: try { try decoder.decodeSingularStringField(value: &self.symbol) }()
+      case 5: try { try decoder.decodeSingularStringField(value: &self.description_p) }()
+      case 6: try { try decoder.decodeSingularMessageField(value: &self._billCustomization) }()
+      case 7: try { try decoder.decodeSingularBytesField(value: &self.icon) }()
+      case 8: try { try decoder.decodeSingularMessageField(value: &self._nameModerationAttestation) }()
+      case 9: try { try decoder.decodeSingularMessageField(value: &self._symbolModerationAttestation) }()
+      case 10: try { try decoder.decodeSingularMessageField(value: &self._descriptionModerationAttestation) }()
+      case 11: try { try decoder.decodeSingularMessageField(value: &self._iconModerationAttestation) }()
       default: break
       }
     }
@@ -2730,6 +2899,27 @@ extension Ocp_Currency_V1_LaunchRequest: SwiftProtobuf.Message, SwiftProtobuf._M
     if !self.symbol.isEmpty {
       try visitor.visitSingularStringField(value: self.symbol, fieldNumber: 4)
     }
+    if !self.description_p.isEmpty {
+      try visitor.visitSingularStringField(value: self.description_p, fieldNumber: 5)
+    }
+    try { if let v = self._billCustomization {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+    } }()
+    if !self.icon.isEmpty {
+      try visitor.visitSingularBytesField(value: self.icon, fieldNumber: 7)
+    }
+    try { if let v = self._nameModerationAttestation {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+    } }()
+    try { if let v = self._symbolModerationAttestation {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
+    } }()
+    try { if let v = self._descriptionModerationAttestation {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
+    } }()
+    try { if let v = self._iconModerationAttestation {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 11)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -2738,6 +2928,13 @@ extension Ocp_Currency_V1_LaunchRequest: SwiftProtobuf.Message, SwiftProtobuf._M
     if lhs._signature != rhs._signature {return false}
     if lhs.name != rhs.name {return false}
     if lhs.symbol != rhs.symbol {return false}
+    if lhs.description_p != rhs.description_p {return false}
+    if lhs._billCustomization != rhs._billCustomization {return false}
+    if lhs.icon != rhs.icon {return false}
+    if lhs._nameModerationAttestation != rhs._nameModerationAttestation {return false}
+    if lhs._symbolModerationAttestation != rhs._symbolModerationAttestation {return false}
+    if lhs._descriptionModerationAttestation != rhs._descriptionModerationAttestation {return false}
+    if lhs._iconModerationAttestation != rhs._iconModerationAttestation {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -2783,12 +2980,12 @@ extension Ocp_Currency_V1_LaunchResponse: SwiftProtobuf.Message, SwiftProtobuf._
 }
 
 extension Ocp_Currency_V1_LaunchResponse.Result: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0OK\0\u{1}DENIED\0\u{1}EXISTS\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0OK\0\u{1}DENIED\0\u{1}NAME_EXISTS\0\u{1}INVALID_ICON\0")
 }
 
 extension Ocp_Currency_V1_UpdateIconRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UpdateIconRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}owner\0\u{1}signature\0\u{1}mint\0\u{1}icon\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}owner\0\u{1}signature\0\u{1}mint\0\u{1}icon\0\u{3}moderation_attestation\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -2800,6 +2997,7 @@ extension Ocp_Currency_V1_UpdateIconRequest: SwiftProtobuf.Message, SwiftProtobu
       case 2: try { try decoder.decodeSingularMessageField(value: &self._signature) }()
       case 3: try { try decoder.decodeSingularMessageField(value: &self._mint) }()
       case 4: try { try decoder.decodeSingularBytesField(value: &self.icon) }()
+      case 5: try { try decoder.decodeSingularMessageField(value: &self._moderationAttestation) }()
       default: break
       }
     }
@@ -2822,6 +3020,9 @@ extension Ocp_Currency_V1_UpdateIconRequest: SwiftProtobuf.Message, SwiftProtobu
     if !self.icon.isEmpty {
       try visitor.visitSingularBytesField(value: self.icon, fieldNumber: 4)
     }
+    try { if let v = self._moderationAttestation {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -2830,6 +3031,7 @@ extension Ocp_Currency_V1_UpdateIconRequest: SwiftProtobuf.Message, SwiftProtobu
     if lhs._signature != rhs._signature {return false}
     if lhs._mint != rhs._mint {return false}
     if lhs.icon != rhs.icon {return false}
+    if lhs._moderationAttestation != rhs._moderationAttestation {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -2930,7 +3132,7 @@ extension Ocp_Currency_V1_UpdateMetadataRequest: SwiftProtobuf.Message, SwiftPro
 
 extension Ocp_Currency_V1_UpdateMetadataRequest.DescriptionUpdate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = Ocp_Currency_V1_UpdateMetadataRequest.protoMessageName + ".DescriptionUpdate"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}value\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}value\0\u{3}moderation_attestation\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -2939,20 +3141,29 @@ extension Ocp_Currency_V1_UpdateMetadataRequest.DescriptionUpdate: SwiftProtobuf
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.value) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._moderationAttestation) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
     if !self.value.isEmpty {
       try visitor.visitSingularStringField(value: self.value, fieldNumber: 1)
     }
+    try { if let v = self._moderationAttestation {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Ocp_Currency_V1_UpdateMetadataRequest.DescriptionUpdate, rhs: Ocp_Currency_V1_UpdateMetadataRequest.DescriptionUpdate) -> Bool {
     if lhs.value != rhs.value {return false}
+    if lhs._moderationAttestation != rhs._moderationAttestation {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -3127,4 +3338,103 @@ extension Ocp_Currency_V1_DiscoverResponse: SwiftProtobuf.Message, SwiftProtobuf
 
 extension Ocp_Currency_V1_DiscoverResponse.Result: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0OK\0\u{1}NOT_FOUND\0")
+}
+
+extension Ocp_Currency_V1_CheckAvailabilityRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CheckAvailabilityRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.name) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.name.isEmpty {
+      try visitor.visitSingularStringField(value: self.name, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Currency_V1_CheckAvailabilityRequest, rhs: Ocp_Currency_V1_CheckAvailabilityRequest) -> Bool {
+    if lhs.name != rhs.name {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Currency_V1_CheckAvailabilityResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CheckAvailabilityResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}result\0\u{3}is_available\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.isAvailable) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.result != .ok {
+      try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
+    }
+    if self.isAvailable != false {
+      try visitor.visitSingularBoolField(value: self.isAvailable, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Currency_V1_CheckAvailabilityResponse, rhs: Ocp_Currency_V1_CheckAvailabilityResponse) -> Bool {
+    if lhs.result != rhs.result {return false}
+    if lhs.isAvailable != rhs.isAvailable {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Currency_V1_CheckAvailabilityResponse.Result: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0OK\0")
+}
+
+extension Ocp_Currency_V1_ModerationAttestation: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ModerationAttestation"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}raw_value\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBytesField(value: &self.rawValue) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.rawValue.isEmpty {
+      try visitor.visitSingularBytesField(value: self.rawValue, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Currency_V1_ModerationAttestation, rhs: Ocp_Currency_V1_ModerationAttestation) -> Bool {
+    if lhs.rawValue != rhs.rawValue {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
 }

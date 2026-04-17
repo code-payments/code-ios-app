@@ -18,21 +18,56 @@ struct OnrampAmountScreen: View {
 
     // MARK: - Init -
 
-    init(
-        destination: OnrampViewModel.BuyDestination,
+    static func forBuying(
+        mint: PublicKey,
+        displayName: String,
         session: Session,
         flipClient: FlipClient,
         deeplinkInbox: OnrampDeeplinkInbox,
         onDismiss: @escaping () -> Void
+    ) -> OnrampAmountScreen {
+        OnrampAmountScreen(
+            viewModel: .forBuying(
+                mint: mint,
+                displayName: displayName,
+                session: session,
+                flipClient: flipClient,
+                onDismiss: onDismiss
+            ),
+            onDismiss: onDismiss,
+            deeplinkInbox: deeplinkInbox
+        )
+    }
+
+    static func forLaunching(
+        displayName: String,
+        session: Session,
+        flipClient: FlipClient,
+        deeplinkInbox: OnrampDeeplinkInbox,
+        onDismiss: @escaping () -> Void,
+        onUsdfReady: @escaping @MainActor @Sendable (Signature, ExchangedFiat) async throws -> SignedSwapResult
+    ) -> OnrampAmountScreen {
+        OnrampAmountScreen(
+            viewModel: .forLaunching(
+                displayName: displayName,
+                session: session,
+                flipClient: flipClient,
+                onDismiss: onDismiss,
+                onUsdfReady: onUsdfReady
+            ),
+            onDismiss: onDismiss,
+            deeplinkInbox: deeplinkInbox
+        )
+    }
+
+    private init(
+        viewModel: OnrampViewModel,
+        onDismiss: @escaping () -> Void,
+        deeplinkInbox: OnrampDeeplinkInbox
     ) {
+        _viewModel = State(wrappedValue: viewModel)
         self.onDismiss = onDismiss
         self.deeplinkInbox = deeplinkInbox
-        _viewModel = State(wrappedValue: OnrampViewModel(
-            destination: destination,
-            session: session,
-            flipClient: flipClient,
-            onDismiss: onDismiss
-        ))
     }
 
     // MARK: - Body -
@@ -77,6 +112,14 @@ struct OnrampAmountScreen: View {
                         swapType: .buyWithCoinbase,
                         currencyName: currencyName,
                         amount: amount
+                    )
+                case .launchProcessing(let swapId, let launchedMint, let currencyName, let amount):
+                    CurrencyLaunchProcessingScreen(
+                        swapId: swapId,
+                        launchedMint: launchedMint,
+                        currencyName: currencyName,
+                        launchAmount: amount,
+                        fundingMethod: .coinbase
                     )
                 }
             }

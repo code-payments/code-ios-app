@@ -113,6 +113,89 @@ class CurrencyService: CodeService<Ocp_Currency_V1_CurrencyNIOClient>, @unchecke
         streamReference.stream = stream
         return streamReference
     }
+
+    func checkAvailability(
+        name: String,
+        completion: @Sendable @escaping (Result<Bool, Error>) -> Void
+    ) {
+        logger.info("Checking currency name availability")
+
+        var request = Ocp_Currency_V1_CheckAvailabilityRequest()
+        request.name = name
+
+        let call = service.checkAvailability(request)
+        call.handle(on: queue) { response in
+            switch response.result {
+            case .ok:
+                logger.info("Currency availability check", metadata: ["is_available": "\(response.isAvailable)"])
+                completion(.success(response.isAvailable))
+            case .UNRECOGNIZED:
+                logger.error("Availability check returned unrecognized result")
+                completion(.failure(ErrorGeneric.unknown))
+            }
+        } failure: { error in
+            logger.error("Availability check gRPC error", metadata: ["error": "\(error)"])
+            completion(.failure(error))
+        }
+    }
+
+    func launch(
+        name: String,
+        description: String?,
+        billCustomization: Ocp_Currency_V1_BillCustomization?,
+        icon: Data?,
+        nameAttestation: ModerationAttestation,
+        descriptionAttestation: ModerationAttestation?,
+        iconAttestation: ModerationAttestation?,
+        owner: KeyPair,
+        completion: @Sendable @escaping (Result<PublicKey, ErrorLaunchCurrency>) -> Void
+    ) {
+        logger.info("Launching currency")
+
+        var request = Ocp_Currency_V1_LaunchRequest()
+        request.owner = owner.publicKey.solanaAccountID
+        request.name = name
+        if let description { request.description_p = description }
+        if let billCustomization { request.billCustomization = billCustomization }
+        if let icon { request.icon = icon }
+        request.nameModerationAttestation = nameAttestation.currencyProto
+        if let descriptionAttestation { request.descriptionModerationAttestation = descriptionAttestation.currencyProto }
+        if let iconAttestation { request.iconModerationAttestation = iconAttestation.currencyProto }
+        request.signature = request.sign(with: owner)
+
+        let call = service.launch(request)
+        call.handle(on: queue) { response in
+            switch response.result {
+            case .ok:
+                guard let mint = try? PublicKey(response.mint.value) else {
+                    logger.error("Launch succeeded but mint key invalid")
+                    completion(.failure(.unknown))
+                    return
+                }
+                logger.info("Currency launched", metadata: ["mint": "\(mint.base58)"])
+                completion(.success(mint))
+
+            case .denied:
+                logger.error("Currency launch denied")
+                completion(.failure(.denied))
+
+            case .nameExists:
+                logger.info("Currency launch: name exists")
+                completion(.failure(.nameExists))
+
+            case .invalidIcon:
+                logger.error("Currency launch: invalid icon")
+                completion(.failure(.invalidIcon))
+
+            case .UNRECOGNIZED:
+                logger.error("Launch returned unrecognized result")
+                completion(.failure(.unknown))
+            }
+        } failure: { error in
+            logger.error("Launch gRPC error", metadata: ["error": "\(error)"])
+            completion(.failure(.network(error)))
+        }
+    }
 }
 
 // MARK: - Types -
@@ -130,6 +213,14 @@ public enum ErrorRateHistory: Int, Error {
     case ok
     case notFound
     case unknown
+}
+
+public enum ErrorLaunchCurrency: Error, Sendable {
+    case denied
+    case nameExists
+    case invalidIcon
+    case unknown
+    case network(Error)
 }
 
 // MARK: - Interceptors -
@@ -160,6 +251,10 @@ extension InterceptorFactory: Ocp_Currency_V1_CurrencyClientInterceptorFactoryPr
     }
 
     func makeDiscoverInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Currency_V1_DiscoverRequest, FlipcashAPI.Ocp_Currency_V1_DiscoverResponse>] {
+        makeInterceptors()
+    }
+
+    func makeCheckAvailabilityInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Currency_V1_CheckAvailabilityRequest, FlipcashAPI.Ocp_Currency_V1_CheckAvailabilityResponse>] {
         makeInterceptors()
     }
 }

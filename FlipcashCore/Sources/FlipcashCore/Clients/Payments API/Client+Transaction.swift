@@ -150,6 +150,52 @@ extension Client {
             transactionService.sell(amount: amount, verifiedState: verifiedState, in: token, owner: owner) { c.resume(with: $0) }
         }
     }
+
+    /// Buys the first tokens on a newly-launched currency using reserves funding
+    /// (Phase 1 stateful swap + Phase 2 `IntentFundSwap`). Without the Phase 2
+    /// funding intent the server-side swap sits at `CREATED` and is cancelled
+    /// once the blockhash expires.
+    @discardableResult
+    public func buyNewCurrency(
+        swapId: SwapId,
+        amount: ExchangedFiat,
+        verifiedState: VerifiedState,
+        mint: PublicKey,
+        owner: AccountCluster
+    ) async throws -> SwapMetadata {
+        try await withCheckedThrowingContinuation { c in
+            transactionService.buyNewCurrency(
+                swapId: swapId,
+                amount: amount,
+                verifiedState: verifiedState,
+                mint: mint,
+                owner: owner
+            ) { c.resume(with: $0) }
+        }
+    }
+
+    /// Same launch-first-buy atomic flow as ``buyNewCurrency`` but funded by
+    /// an externally-settled USDF deposit (e.g. Coinbase onramp). The caller
+    /// supplies the Solana signature proving the external USDF transfer.
+    @discardableResult
+    public func buyNewCurrencyWithExternalFunding(
+        swapId: SwapId,
+        amount: ExchangedFiat,
+        mint: PublicKey,
+        owner: KeyPair,
+        transactionSignature: Signature
+    ) async throws -> SwapMetadata {
+        return try await withCheckedThrowingContinuation { c in
+            transactionService.swapService.swap(
+                swapId: swapId,
+                direction: .buy(mint: .launchStub(address: mint)),
+                amount: amount.underlying,
+                fundingSource: .externalWallet(transactionSignature: transactionSignature),
+                owner: owner,
+                isNewCurrencyLaunch: true
+            ) { c.resume(with: $0) }
+        }
+    }
     
     // MARK: - Status -
     
@@ -214,17 +260,12 @@ extension Client {
         var lastState: SwapState?
 
         for i in 0..<maxAttempts {
-            // Backoff strategy: start at 500ms, increase by 100ms every 10 polls
-            // Poll 0-9: 500ms, Poll 10-19: 600ms, Poll 20-29: 700ms, etc.
-            let delay = 500 + (100 * (i / 10))
-
             if i > 0 {
-                try await Task.delay(milliseconds: delay)
+                try await Task.delay(milliseconds: 1_000)
             }
 
             logger.debug("Polling swap state", metadata: [
                 "attempt": "\(i + 1)/\(maxAttempts)",
-                "delay": "\(delay)ms",
                 "swapId": "\(swapId.publicKey.base58)"
             ])
 
@@ -247,8 +288,8 @@ extension Client {
                     continue
                 }
             } catch ErrorGetSwap.notFound {
-                // Swap not yet visible, continue polling
-                logger.warning("Swap not found yet, continuing poll")
+                // Swap not yet visible — service layer already logs this at
+                // debug level. Continue polling.
                 continue
             } catch {
                 // Log but continue polling for transient errors

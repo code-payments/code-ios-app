@@ -44,6 +44,11 @@ public struct SwapInstructionBuilder {
                 memoryAccount: params.memoryAccount,
                 memoryIndex: params.memoryIndex,
             )
+        case .newCurrency:
+            // New-currency launches use a dedicated builder
+            // (SwapInstructionBuilder.newCurrencyLaunch) that consumes the
+            // ReserveNewCurrency params directly and never calls this helper.
+            fatalError("extractServerParameters cannot be used with a new-currency launch")
         }
     }
 }
