@@ -123,27 +123,38 @@ public final class WalletConnection {
 
     func didReceiveURL(url: URL) {
         if let code = url.queryItemValue(for: "errorCode") {
-            if code == "4001" {
-                Analytics.track(event: Analytics.WalletEvent.cancel)
-                pendingSwap = nil
+            Analytics.track(event: Analytics.WalletEvent.cancel)
+            pendingSwap = nil
 
-                if case .idle = state {
-                    dialogItem = .init(
-                        style: .destructive,
-                        title: "Transaction Cancelled",
-                        subtitle: "The transaction was cancelled in your wallet",
-                        dismissable: true
-                    ) {
-                        .okay(kind: .destructive)
-                    }
-                } else {
-                    markCurrentStateFailed()
+            let isUserCancel = code == "4001"
+            if !isUserCancel {
+                logger.error("Wallet returned error", metadata: [
+                    "code": "\(code)",
+                    "url": "\(url.sanitizedForAnalytics)",
+                ])
+            }
+
+            if case .idle = state {
+                dialogItem = .init(
+                    style: .destructive,
+                    title: isUserCancel ? "Transaction Cancelled" : "Transaction Failed",
+                    subtitle: isUserCancel
+                        ? "The transaction was cancelled in your wallet"
+                        : "Your wallet returned an error. Please try again.",
+                    dismissable: true
+                ) {
+                    .okay(kind: .destructive)
                 }
+            } else {
+                markCurrentStateFailed()
             }
             return
         }
-        
+
         guard var encryptedResponse = try? EncryptedWalletResponse(url: url) else {
+            logger.warning("Wallet callback URL did not contain an encrypted response", metadata: [
+                "url": "\(url.sanitizedForAnalytics)",
+            ])
             return
         }
         
