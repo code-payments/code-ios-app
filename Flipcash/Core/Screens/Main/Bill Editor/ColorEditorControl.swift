@@ -19,7 +19,7 @@ public struct ColorEditorControl: View {
     @State private var bouncingSwatchIndex: Int?
     @State private var mode: PickerMode = .presets
     
-    private let maxStops: Int = 3
+    static let maxStops: Int = 3
     
     // MARK: - Init -
     
@@ -41,15 +41,16 @@ public struct ColorEditorControl: View {
     }
     
     public init(colors: Binding<[Color]>) {
-        let initialColors = Array(colors.wrappedValue.prefix(3).reversed())
-        self._colors      = colors
-        self._stops       = State(
-            initialValue: initialColors.isEmpty ? [
-                GradientStop(hue: 0.6, saturation: 0.7, brightness: 0.9)
-            ] : initialColors.map {
-                GradientStop(from: $0)
-            }
-        )
+        self._colors = colors
+        self._stops  = State(initialValue: Self.initialStops(from: colors.wrappedValue))
+    }
+
+    static func initialStops(from colors: [Color]) -> [GradientStop] {
+        let initialColors = Array(colors.prefix(maxStops))
+        if initialColors.isEmpty {
+            return [GradientStop(hue: 0.6, saturation: 0.7, brightness: 0.9)]
+        }
+        return initialColors.map { GradientStop(from: $0) }
     }
     
     public var body: some View {
@@ -72,7 +73,7 @@ public struct ColorEditorControl: View {
         }
         .padding(20)
         .onChange(of: stops) { _, newStops in
-            colors = newStops.map(\.color).reversed()
+            colors = newStops.map(\.color)
         }
     }
 }
@@ -176,7 +177,7 @@ private extension ColorEditorControl {
     
     var addButton: some View {
         Button {
-            if stops.count < maxStops {
+            if stops.count < Self.maxStops {
                 let base = stops[selectedIndex]
                 withAnimation(.spring(response: 0.45, dampingFraction: 0.9)) {
                     stops.append(
@@ -192,11 +193,11 @@ private extension ColorEditorControl {
         } label: {
             ColorPickerButton(
                 systemName: "plus",
-                isEnabled: stops.count < maxStops
+                isEnabled: stops.count < Self.maxStops
             )
         }
         .buttonStyle(.plain)
-        .disabled(stops.count >= maxStops)
+        .disabled(stops.count >= Self.maxStops)
     }
     
     var swatchRow: some View {
