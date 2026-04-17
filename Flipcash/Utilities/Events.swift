@@ -260,10 +260,10 @@ extension Analytics {
 // MARK: - Currency Launch -
 
 extension Analytics {
-    static func currencyLaunch(event: CurrencyLaunchEvent, exchangedFiat: ExchangedFiat, successful: Bool, error: Error? = nil) {
+    static func currencyLaunch(event: CurrencyLaunchEvent, launchedMint: PublicKey, exchangedFiat: ExchangedFiat, successful: Bool, error: Error? = nil) {
         let properties: [Property: AnalyticsValue] = [
             .state: successful ? String.success : String.failure,
-            .mint: exchangedFiat.mint.base58,
+            .mint: launchedMint.base58,
             .fiat: exchangedFiat.converted.doubleValue,
             .currency: exchangedFiat.rate.currency.rawValue,
         ]

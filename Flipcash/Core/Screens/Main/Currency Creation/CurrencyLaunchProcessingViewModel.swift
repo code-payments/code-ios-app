@@ -120,20 +120,20 @@ class CurrencyLaunchProcessingViewModel {
                 // immediately rather than racing the streamed wallet update.
                 if await awaitBalance(session: session) {
                     displayState = .success
-                    Analytics.currencyLaunch(event: analyticsEvent, exchangedFiat: launchAmount, successful: true)
+                    Analytics.currencyLaunch(event: analyticsEvent, launchedMint: launchedMint, exchangedFiat: launchAmount, successful: true)
                 } else {
                     reportLaunchFailure(state: metadata.state, reason: "Launched currency balance did not land within budget")
                     displayState = .failed
-                    Analytics.currencyLaunch(event: analyticsEvent, exchangedFiat: launchAmount, successful: false)
+                    Analytics.currencyLaunch(event: analyticsEvent, launchedMint: launchedMint, exchangedFiat: launchAmount, successful: false)
                 }
             case .failed, .cancelled:
                 reportLaunchFailure(state: metadata.state, reason: "Launch swap completed with failure state")
                 displayState = .failed
-                Analytics.currencyLaunch(event: analyticsEvent, exchangedFiat: launchAmount, successful: false)
+                Analytics.currencyLaunch(event: analyticsEvent, launchedMint: launchedMint, exchangedFiat: launchAmount, successful: false)
             case .unknown, .created, .funding, .funded, .submitting, .cancelling:
                 reportLaunchFailure(state: metadata.state, reason: "Launch swap timed out in intermediate state")
                 displayState = .failed
-                Analytics.currencyLaunch(event: analyticsEvent, exchangedFiat: launchAmount, successful: false)
+                Analytics.currencyLaunch(event: analyticsEvent, launchedMint: launchedMint, exchangedFiat: launchAmount, successful: false)
             }
         } catch is CancellationError {
             // Task was cancelled (e.g., by SwiftUI during navigation
@@ -141,7 +141,7 @@ class CurrencyLaunchProcessingViewModel {
             // will restart the task if still visible.
         } catch {
             displayState = .failed
-            Analytics.currencyLaunch(event: analyticsEvent, exchangedFiat: launchAmount, successful: false, error: error)
+            Analytics.currencyLaunch(event: analyticsEvent, launchedMint: launchedMint, exchangedFiat: launchAmount, successful: false, error: error)
         }
 
         isPolling = false
