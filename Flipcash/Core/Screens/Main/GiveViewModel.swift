@@ -58,9 +58,11 @@ class GiveViewModel {
                 amount: amount,
                 rate: rate,
                 mint: mint,
-                supplyQuarks: supplyQuarks
+                supplyQuarks: supplyQuarks,
+                balance: selectedBalance.stored.usdf,
+                tokenBalanceQuarks: selectedBalance.stored.quarks
             )
-            
+
         } else {
             let rate = ratesController.rateForEntryCurrency()
             return try! ExchangedFiat(

@@ -50,12 +50,14 @@ struct StoredBalance: Identifiable, Sendable, Equatable, Hashable {
                 throw Error.missingStoredCoreMintForNonReserveToken
             }
 
+            // Floor so the stored USDF stays ≤ the curve's
+            // exact BigDecimal TVL.
             self.usdf = try! Quarks(
-                fiatDecimal: sellEstimate.netUSDF.asDecimal(),
+                fiatDecimal: sellEstimate.netUSDF.asDecimal().roundedDown(to: PublicKey.usdf.mintDecimals),
                 currencyCode: .usd,
-                decimals: 6
+                decimals: PublicKey.usdf.mintDecimals
             )
-            
+
         } else {
             guard symbol == "USDF" else {
                 throw Error.missingStoredCoreMintForNonReserveToken
