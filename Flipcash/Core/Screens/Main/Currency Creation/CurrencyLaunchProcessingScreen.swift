@@ -161,8 +161,8 @@ private struct LaunchStatusIcon: View {
         Group {
             switch displayState {
             case .processing:
-                // 180 s swap polling + 240 s balance-landing budget.
-                CircularLoadingView(duration: 420)
+                // Long enough for Swap and Balance polling
+                CircularLoadingView(duration: 300)
 
             case .success:
                 Image("IconCircleCheck")
