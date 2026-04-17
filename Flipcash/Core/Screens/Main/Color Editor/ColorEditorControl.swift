@@ -55,20 +55,12 @@ public struct ColorEditorControl: View {
     
     public var body: some View {
         VStack(spacing: 15) {
-            
-            // Preview
-//            previewView
-//                .frame(maxHeight: 100)
-//                .overlay(previewBorder)
-            
-            // Gradient stops row
             HStack(spacing: 8) {
                 removeButton
                 swatchRow
                 addButton
             }
-            
-            // Sliding panels
+
             panelContainer
         }
         .padding(20)
@@ -132,29 +124,7 @@ internal enum PanelMetrics {
 // MARK: - ColorPickerComponent Implementation
 
 private extension ColorEditorControl {
-    
-    var previewView: some View {
-        Group {
-            if stops.count == 1 {
-                RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius, style: .continuous)
-                    .fill(stops[0].color)
-            } else {
-                let gradient = LinearGradient(
-                    colors: stops.map(\.color),
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius, style: .continuous)
-                    .fill(gradient)
-            }
-        }
-    }
-    
-    var previewBorder: some View {
-        RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius, style: .continuous)
-            .strokeBorder(.quaternary, lineWidth: 1)
-    }
-    
+
     var removeButton: some View {
         Button {
             if stops.count > 1 {
@@ -435,12 +405,12 @@ private struct PresetTileView: View {
 // MARK: - Extensions
 
 extension ColorEditorControl {
-    /// Returns `count` random colors sampled without replacement from
-    /// the solid presets. Default 3 matches `maxStops`.
-    public static func randomColors(count: Int = 3) -> [Color] {
+    /// Returns `maxStops` random colors sampled without replacement from
+    /// the solid presets.
+    public static func randomColors() -> [Color] {
         GradientStop.solidPresets
             .shuffled()
-            .prefix(count)
+            .prefix(maxStops)
             .map(\.color)
     }
 }
