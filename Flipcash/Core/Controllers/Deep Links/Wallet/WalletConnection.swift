@@ -22,17 +22,48 @@ public final class WalletConnection {
 
     var dialogItem: DialogItem?
 
-    /// Buy-existing processing context. When set, `CurrencyInfoScreen` shows the
-    /// generic `SwapProcessingScreen`.
-    var processing: ExternalSwapProcessing?
+    /// Single source of truth for external-wallet processing state. Invalid
+    /// combinations — "cancelled flag set with no active context", "both
+    /// buy-existing and launch contexts populated simultaneously" — are
+    /// unrepresentable by construction.
+    var state: WalletProcessingState = .idle
 
-    /// Currency-launch processing context. When set, the currency-creation wizard
-    /// shows `CurrencyLaunchProcessingScreen` (distinct UI + bill handoff).
-    var launchProcessing: ExternalLaunchProcessing?
+    /// Buy-existing context, exposed for `.fullScreenCover(item:)`. Writing
+    /// `nil` (SwiftUI dismiss) transitions to `.idle` only if currently buying.
+    var processing: ExternalSwapProcessing? {
+        get {
+            if case .buying(let p, _) = state { return p }
+            return nil
+        }
+        set {
+            if newValue == nil, case .buying = state {
+                state = .idle
+            }
+        }
+    }
 
-    /// Set when the user cancels in the external wallet. The processing screen
-    /// observes this to switch to the failed display state.
-    var isProcessingCancelled = false
+    /// Launch context, exposed for `.fullScreenCover(item:)`. Writing `nil`
+    /// (SwiftUI dismiss) transitions to `.idle` only if currently launching.
+    var launchProcessing: ExternalLaunchProcessing? {
+        get {
+            if case .launching(let l, _) = state { return l }
+            return nil
+        }
+        set {
+            if newValue == nil, case .launching = state {
+                state = .idle
+            }
+        }
+    }
+
+    /// True iff the current context is marked failed. `SwapProcessingScreen`
+    /// observes this via `.onChange(of:)` to flip its display to cancelled.
+    var isProcessingCancelled: Bool {
+        switch state {
+        case .idle: return false
+        case .buying(_, let isFailed), .launching(_, let isFailed): return isFailed
+        }
+    }
 
     private(set) var session: ConnectedWalletSession?
 
@@ -96,9 +127,7 @@ public final class WalletConnection {
                 Analytics.track(event: Analytics.WalletEvent.cancel)
                 pendingSwap = nil
 
-                if processing != nil {
-                    isProcessingCancelled = true
-                } else {
+                if case .idle = state {
                     dialogItem = .init(
                         style: .destructive,
                         title: "Transaction Cancelled",
@@ -107,6 +136,8 @@ public final class WalletConnection {
                     ) {
                         .okay(kind: .destructive)
                     }
+                } else {
+                    markCurrentStateFailed()
                 }
             }
             return
@@ -191,12 +222,16 @@ public final class WalletConnection {
             }
 
             // Present the generic processing screen immediately. The server callback
-            // below may swap this for a launch-processing context if the caller is
-            // launching a new currency; buy-existing callers leave this in place.
-            self.processing = ExternalSwapProcessing(
-                swapId: pending.fundingSwapId,
-                currencyName: pending.displayName,
-                amount: pending.amount
+            // below transitions to a launch context when the caller is launching a
+            // new currency; early-exit failures transition back to `.idle` so no
+            // cover presents for a swap the server never recorded.
+            self.state = .buying(
+                ExternalSwapProcessing(
+                    swapId: pending.fundingSwapId,
+                    currencyName: pending.displayName,
+                    amount: pending.amount
+                ),
+                isFailed: false
             )
 
             let swapMetadata: [String: String] = [
@@ -209,7 +244,7 @@ public final class WalletConnection {
             guard let tx = SolanaTransaction(data: rawData) else {
                 logger.error("Failed to decode signed transaction")
                 ErrorReporting.captureError(Error.invalidURL, reason: "Failed to decode signed transaction", metadata: swapMetadata)
-                self.isProcessingCancelled = true
+                self.state = .idle
                 return
             }
 
@@ -220,32 +255,37 @@ public final class WalletConnection {
                 switch result {
                 case .buyExisting(let swapId):
                     if swapId != pending.fundingSwapId {
-                        self.processing = ExternalSwapProcessing(
-                            swapId: swapId,
-                            currencyName: pending.displayName,
-                            amount: pending.amount
+                        self.state = .buying(
+                            ExternalSwapProcessing(
+                                swapId: swapId,
+                                currencyName: pending.displayName,
+                                amount: pending.amount
+                            ),
+                            isFailed: false
                         )
                     }
                 case .launch(let swapId, let mint):
-                    // Swap the buy-existing scaffold for the launch context so the
-                    // currency-creation wizard routes to CurrencyLaunchProcessingScreen.
-                    self.processing = nil
-                    self.launchProcessing = ExternalLaunchProcessing(
-                        swapId: swapId,
-                        launchedMint: mint,
-                        currencyName: pending.displayName,
-                        amount: pending.amount
+                    self.state = .launching(
+                        ExternalLaunchProcessing(
+                            swapId: swapId,
+                            launchedMint: mint,
+                            currencyName: pending.displayName,
+                            amount: pending.amount
+                        ),
+                        isFailed: false
                     )
                 }
                 logger.info("Server notified of swap funding")
             } catch {
                 logger.error("Server notification failed", metadata: ["error": "\(error)"])
                 ErrorReporting.captureError(error, reason: "Server notification failed", metadata: swapMetadata)
-                self.isProcessingCancelled = true
+                self.state = .idle
                 return
             }
 
-            // Server accepted — submit transaction to chain
+            // Server accepted — submit transaction to chain. The swap id is
+            // server-recorded at this point, so on failure we keep the context
+            // and flip `isFailed` so the processing screen surfaces the error.
             do {
                 let txBase64 = rawData.base64EncodedString()
                 let signature = try await solanaClient.apiClient.sendTransaction(
@@ -257,7 +297,7 @@ public final class WalletConnection {
             } catch {
                 logger.error("Chain submission failed", metadata: ["error": "\(error)"])
                 ErrorReporting.captureError(error, reason: "Chain submission failed", metadata: swapMetadata)
-                self.isProcessingCancelled = true
+                self.markCurrentStateFailed()
             }
         }
     }
@@ -310,9 +350,12 @@ public final class WalletConnection {
     /// Dismisses the processing screen and clears any pending wallet dialogs.
     func dismissProcessing() {
         dialogItem = nil
-        isProcessingCancelled = false
-        processing = nil
-        launchProcessing = nil
+        state = .idle
+    }
+
+    /// Flips the current active context's `isFailed` flag. No-op for `.idle`.
+    private func markCurrentStateFailed() {
+        state = state.markedFailed()
     }
 
     // MARK: - Actions -
@@ -359,16 +402,16 @@ public final class WalletConnection {
             swapId: fundingSwapId.publicKey
         )
 
-        let instructionsConverted = instructions.map { instruction in
+        let instructionsConverted = try instructions.map { instruction in
             TransactionInstruction(
-                keys: instruction.accounts.map { meta in
+                keys: try instruction.accounts.map { meta in
                     SolanaSwift.AccountMeta(
-                        publicKey: try! SolanaSwift.PublicKey(string: meta.publicKey.base58),
+                        publicKey: try SolanaSwift.PublicKey(string: meta.publicKey.base58),
                         isSigner: meta.isSigner,
                         isWritable: meta.isWritable
                     )
                 },
-                programId: try! SolanaSwift.PublicKey(string: instruction.program.base58),
+                programId: try SolanaSwift.PublicKey(string: instruction.program.base58),
                 data: [UInt8](instruction.data)
             )
         }
@@ -557,6 +600,29 @@ extension WalletConnection {
         case noSession
         case missingVerifiedState
         case invalidURL
+    }
+}
+
+/// External-wallet processing state. Variants differ by flow (buy-existing vs
+/// currency launch) and each carries an `isFailed` flag that drives the
+/// processing screen's "cancelled" display without requiring a separate flag
+/// that could drift out of sync with the active context.
+enum WalletProcessingState: Hashable {
+    case idle
+    case buying(ExternalSwapProcessing, isFailed: Bool)
+    case launching(ExternalLaunchProcessing, isFailed: Bool)
+
+    /// Returns the state with the active context's `isFailed` flipped to true.
+    /// `.idle` is a fixed point. Idempotent on already-failed states.
+    func markedFailed() -> WalletProcessingState {
+        switch self {
+        case .idle:
+            return .idle
+        case .buying(let context, _):
+            return .buying(context, isFailed: true)
+        case .launching(let context, _):
+            return .launching(context, isFailed: true)
+        }
     }
 }
 
