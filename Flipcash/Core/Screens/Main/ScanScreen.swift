@@ -28,8 +28,7 @@ struct ScanScreen: View {
     
     @State private var sendButtonState: ButtonState = .normal
     @State private var sendButtonTask: Task<Void, Never>?
-    @State private var billEditorColors: [Color] = ColorEditorControl.randomColors(count: 1)
-    
+
     private var toast: String? {
         if let toast = session.toast {
             let formatted = toast.amount.formatted()
@@ -120,18 +119,10 @@ struct ScanScreen: View {
                     .zIndex(1)
                     .transition(.opacity)
             }
-
-            // Bill Editor Overlay
-            if session.isShowingBillEditor {
-                billEditorOverlay()
-                    .zIndex(2)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
         }
         .background(Color.backgroundMain)
         .animation(.easeInOut(duration: 0.15), value: showControls)
         .animation(.easeInOut(duration: 0.3), value: preferences.cameraEnabled)
-        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: session.isShowingBillEditor)
         .ignoresSafeArea(.keyboard)
         .sheet(item: $session.valuation) { valuation in
             PartialSheet(background: .clear, canAccessBackground: true) {
@@ -247,7 +238,6 @@ struct ScanScreen: View {
             Spacer()
             bottomBar()
         }
-        .opacity(session.isShowingBillEditor ? 0 : 1)
     }
     
     @ViewBuilder private func billActions() -> some View {
@@ -376,36 +366,6 @@ struct ScanScreen: View {
             }
         }
         .padding(.bottom, 10)
-    }
-
-    @ViewBuilder private func billEditorOverlay() -> some View {
-        VStack(spacing: 0) {
-            HStack {
-                Spacer()
-
-                GlassButton(.doc, size: .regular) {
-                    copyBillColors()
-                }
-                .padding(.trailing, 8)
-
-                GlassButton(asset: .close, size: .regular) {
-                    session.isShowingBillEditor = false
-                }
-                .padding(.trailing, 8)
-                .padding(.top, 8)
-            }
-            .padding(.horizontal, 10)
-
-            BillEditor(backgroundColors: $billEditorColors)
-                .frame(maxWidth: .infinity)
-        }
-        .background(.clear)
-    }
-
-    private func copyBillColors() {
-        let hexColors = billEditorColors.map { $0.hexString }
-        let colorString = hexColors.joined(separator: ", ")
-        UIPasteboard.general.string = colorString
     }
 
     private var billActionButtons: some View {

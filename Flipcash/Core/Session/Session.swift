@@ -65,9 +65,6 @@ class Session {
     /// Active Coinbase onramp order, if any.
     var coinbaseOrder: OnrampOrderResponse?
 
-    /// Whether the bill color picker is visible.
-    var isShowingBillEditor: Bool = false
-
     /// Navigation trigger for deep-linking to a currency info screen.
     var pendingCurrencyInfoMint: PublicKey? = nil
 
