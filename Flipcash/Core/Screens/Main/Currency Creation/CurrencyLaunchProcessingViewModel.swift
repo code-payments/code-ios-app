@@ -148,23 +148,32 @@ class CurrencyLaunchProcessingViewModel {
     }
 
     /// Polls `session.balance(for: launchedMint)` until the launched currency
-    /// appears in the user's local wallet state. Budget: 120 × 2 s = 4 min,
-    /// comfortably covering the observed ~70 s streamed-update latency.
+    /// has fully materialised — both non-zero `quarks` and bonding supply
+    /// populated. Budget: 120 × 2 s = 4 min, comfortably covering the observed
+    /// ~70 s streamed-update latency.
+    ///
+    /// Checking only for presence is insufficient: the stream can land a
+    /// zero-quarks entry before the real balance/supply values follow,
+    /// which causes downstream bill creation to build a $0 bill that the
+    /// server rejects with "Quarks must be greater than 0".
     private func awaitBalance(session: Session, maxAttempts: Int = 120, interval: Duration = .seconds(2)) async -> Bool {
         for i in 0..<maxAttempts {
             if Task.isCancelled { return false }
             if i > 0 {
                 try? await Task.sleep(for: interval)
             }
-            if session.balance(for: launchedMint) != nil {
+            if let stored = session.balance(for: launchedMint),
+               stored.quarks > 0,
+               stored.supplyFromBonding != nil {
                 logger.info("Launched currency balance landed", metadata: [
                     "mint": "\(launchedMint.base58)",
                     "attempt": "\(i + 1)/\(maxAttempts)",
+                    "quarks": "\(stored.quarks)",
                 ])
                 return true
             }
         }
-        logger.warning("Launched currency balance did not land in budget", metadata: [
+        logger.warning("Launched currency balance did not materialise in budget", metadata: [
             "mint": "\(launchedMint.base58)",
             "maxAttempts": "\(maxAttempts)",
         ])
@@ -196,14 +205,24 @@ class CurrencyLaunchProcessingViewModel {
             return nil
         }
 
-        guard let stored = session.balance(for: launchedMint) else {
-            logger.warning("Launched currency balance missing at handoff; skipping bill", metadata: [
+        guard let stored = session.balance(for: launchedMint),
+              stored.quarks > 0,
+              stored.supplyFromBonding != nil else {
+            logger.warning("Launched currency balance missing or not materialised at handoff; skipping bill", metadata: [
                 "mint": "\(launchedMint.base58)"
             ])
             return nil
         }
 
         let balanceFiat = stored.computeExchangedValue(with: ratesController.rateForBalanceCurrency())
+
+        guard balanceFiat.converted.quarks > 0 else {
+            logger.warning("Launched currency bill computed to zero fiat; skipping bill", metadata: [
+                "mint": "\(launchedMint.base58)",
+                "storedQuarks": "\(stored.quarks)",
+            ])
+            return nil
+        }
 
         return Session.BillDescription(
             kind: .cash,
