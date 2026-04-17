@@ -19,7 +19,7 @@ public struct ColorEditorControl: View {
     @State private var bouncingSwatchIndex: Int?
     @State private var mode: PickerMode = .presets
     
-    private let maxStops: Int = 3
+    static let maxStops: Int = 3
     
     // MARK: - Init -
     
@@ -41,38 +41,31 @@ public struct ColorEditorControl: View {
     }
     
     public init(colors: Binding<[Color]>) {
-        let initialColors = Array(colors.wrappedValue.prefix(3).reversed())
-        self._colors      = colors
-        self._stops       = State(
-            initialValue: initialColors.isEmpty ? [
-                GradientStop(hue: 0.6, saturation: 0.7, brightness: 0.9)
-            ] : initialColors.map {
-                GradientStop(from: $0)
-            }
-        )
+        self._colors = colors
+        self._stops  = State(initialValue: Self.initialStops(from: colors.wrappedValue))
+    }
+
+    static func initialStops(from colors: [Color]) -> [GradientStop] {
+        let initialColors = Array(colors.prefix(maxStops))
+        if initialColors.isEmpty {
+            return [GradientStop(hue: 0.6, saturation: 0.7, brightness: 0.9)]
+        }
+        return initialColors.map { GradientStop(from: $0) }
     }
     
     public var body: some View {
         VStack(spacing: 15) {
-            
-            // Preview
-//            previewView
-//                .frame(maxHeight: 100)
-//                .overlay(previewBorder)
-            
-            // Gradient stops row
             HStack(spacing: 8) {
                 removeButton
                 swatchRow
                 addButton
             }
-            
-            // Sliding panels
+
             panelContainer
         }
         .padding(20)
         .onChange(of: stops) { _, newStops in
-            colors = newStops.map(\.color).reversed()
+            colors = newStops.map(\.color)
         }
     }
 }
@@ -131,29 +124,7 @@ internal enum PanelMetrics {
 // MARK: - ColorPickerComponent Implementation
 
 private extension ColorEditorControl {
-    
-    var previewView: some View {
-        Group {
-            if stops.count == 1 {
-                RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius, style: .continuous)
-                    .fill(stops[0].color)
-            } else {
-                let gradient = LinearGradient(
-                    colors: stops.map(\.color),
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius, style: .continuous)
-                    .fill(gradient)
-            }
-        }
-    }
-    
-    var previewBorder: some View {
-        RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius, style: .continuous)
-            .strokeBorder(.quaternary, lineWidth: 1)
-    }
-    
+
     var removeButton: some View {
         Button {
             if stops.count > 1 {
@@ -176,7 +147,7 @@ private extension ColorEditorControl {
     
     var addButton: some View {
         Button {
-            if stops.count < maxStops {
+            if stops.count < Self.maxStops {
                 let base = stops[selectedIndex]
                 withAnimation(.spring(response: 0.45, dampingFraction: 0.9)) {
                     stops.append(
@@ -192,11 +163,11 @@ private extension ColorEditorControl {
         } label: {
             ColorPickerButton(
                 systemName: "plus",
-                isEnabled: stops.count < maxStops
+                isEnabled: stops.count < Self.maxStops
             )
         }
         .buttonStyle(.plain)
-        .disabled(stops.count >= maxStops)
+        .disabled(stops.count >= Self.maxStops)
     }
     
     var swatchRow: some View {
@@ -434,12 +405,12 @@ private struct PresetTileView: View {
 // MARK: - Extensions
 
 extension ColorEditorControl {
-    /// Returns `count` random colors sampled without replacement from
-    /// the solid presets. Default 3 matches `maxStops`.
-    public static func randomColors(count: Int = 3) -> [Color] {
+    /// Returns `maxStops` random colors sampled without replacement from
+    /// the solid presets.
+    public static func randomColors() -> [Color] {
         GradientStop.solidPresets
             .shuffled()
-            .prefix(count)
+            .prefix(maxStops)
             .map(\.color)
     }
 }
