@@ -15,6 +15,13 @@ extension Decimal {
         return rounded
     }
 
+    public func roundedDown(to decimalPlaces: Int) -> Decimal {
+        var current = self
+        var rounded = Decimal()
+        NSDecimalRound(&rounded, &current, decimalPlaces, .down)
+        return rounded
+    }
+
     func roundedInt() -> Int {
         (rounded(to: 0) as NSDecimalNumber).intValue
     }

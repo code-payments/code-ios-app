@@ -50,12 +50,17 @@ struct StoredBalance: Identifiable, Sendable, Equatable, Hashable {
                 throw Error.missingStoredCoreMintForNonReserveToken
             }
 
+            // Floor — not HALF-UP — so the stored USDF stays ≤ the curve's
+            // exact BigDecimal TVL. Downstream `tokensForValueExchange`
+            // strictly rejects `usdcValue > currentTVL`, and
+            // `Quarks.init(fiatDecimal:)` otherwise rounds HALF-UP and can
+            // push the cap above the TVL for certain residues.
             self.usdf = try! Quarks(
-                fiatDecimal: sellEstimate.netUSDF.asDecimal(),
+                fiatDecimal: sellEstimate.netUSDF.asDecimal().roundedDown(to: PublicKey.usdf.mintDecimals),
                 currencyCode: .usd,
-                decimals: 6
+                decimals: PublicKey.usdf.mintDecimals
             )
-            
+
         } else {
             guard symbol == "USDF" else {
                 throw Error.missingStoredCoreMintForNonReserveToken
