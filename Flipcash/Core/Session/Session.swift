@@ -637,12 +637,10 @@ class Session {
 
         let mint = try await client.launch(
             name: name,
-            symbol: nil,
             description: description,
             billColors: billColors,
             icon: icon,
             nameAttestation: nameAttestation,
-            symbolAttestation: nil,
             descriptionAttestation: descriptionAttestation,
             iconAttestation: iconAttestation,
             owner: ownerKeyPair

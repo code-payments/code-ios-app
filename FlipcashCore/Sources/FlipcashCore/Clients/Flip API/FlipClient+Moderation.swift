@@ -7,19 +7,6 @@ import Foundation
 import FlipcashCoreAPI
 
 extension FlipClient {
-
-    public func moderateText(_ text: String, auth: Flipcash_Common_V1_Auth) async throws -> ModerationAttestation {
-        try await withCheckedThrowingContinuation { c in
-            moderationService.moderateText(text, auth: auth) { c.resume(with: $0) }
-        }
-    }
-
-    public func moderateImage(_ imageData: Data, auth: Flipcash_Common_V1_Auth) async throws -> ModerationAttestation {
-        try await withCheckedThrowingContinuation { c in
-            moderationService.moderateImage(imageData, auth: auth) { c.resume(with: $0) }
-        }
-    }
-
     /// Convenience overload that builds `auth` from the owning key pair, so
     /// callers at the view layer don't need to import `FlipcashCoreAPI` to
     /// construct an `Auth` proto.
@@ -27,7 +14,9 @@ extension FlipClient {
         var request = Flipcash_Moderation_V1_ModerateTextRequest()
         request.text = text
         let auth = owner.authFor(message: request)
-        return try await moderateText(text, auth: auth)
+        return try await withCheckedThrowingContinuation { c in
+            moderationService.moderateText(text, auth: auth) { c.resume(with: $0) }
+        }
     }
 
     /// Convenience overload that builds `auth` from the owning key pair, so
@@ -37,6 +26,8 @@ extension FlipClient {
         var request = Flipcash_Moderation_V1_ModerateImageRequest()
         request.imageData = imageData
         let auth = owner.authFor(message: request)
-        return try await moderateImage(imageData, auth: auth)
+        return try await withCheckedThrowingContinuation { c in
+            moderationService.moderateImage(imageData, auth: auth) { c.resume(with: $0) }
+        }
     }
 }

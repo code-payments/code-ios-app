@@ -141,12 +141,10 @@ class CurrencyService: CodeService<Ocp_Currency_V1_CurrencyNIOClient>, @unchecke
 
     func launch(
         name: String,
-        symbol: String?,
         description: String?,
         billCustomization: Ocp_Currency_V1_BillCustomization?,
         icon: Data?,
         nameAttestation: ModerationAttestation,
-        symbolAttestation: ModerationAttestation?,
         descriptionAttestation: ModerationAttestation?,
         iconAttestation: ModerationAttestation?,
         owner: KeyPair,
@@ -157,12 +155,10 @@ class CurrencyService: CodeService<Ocp_Currency_V1_CurrencyNIOClient>, @unchecke
         var request = Ocp_Currency_V1_LaunchRequest()
         request.owner = owner.publicKey.solanaAccountID
         request.name = name
-        //if let symbol { request.symbol = symbol }
         if let description { request.description_p = description }
         if let billCustomization { request.billCustomization = billCustomization }
         if let icon { request.icon = icon }
         request.nameModerationAttestation = nameAttestation.currencyProto
-        //if let symbolAttestation { request.symbolModerationAttestation = symbolAttestation.currencyProto }
         if let descriptionAttestation { request.descriptionModerationAttestation = descriptionAttestation.currencyProto }
         if let iconAttestation { request.iconModerationAttestation = iconAttestation.currencyProto }
         request.signature = request.sign(with: owner)

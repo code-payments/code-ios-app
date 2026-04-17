@@ -66,12 +66,10 @@ extension Client {
 
     public func launch(
         name: String,
-        symbol: String?,
         description: String?,
         billCustomization: Ocp_Currency_V1_BillCustomization?,
         icon: Data?,
         nameAttestation: ModerationAttestation,
-        symbolAttestation: ModerationAttestation?,
         descriptionAttestation: ModerationAttestation?,
         iconAttestation: ModerationAttestation?,
         owner: KeyPair
@@ -79,12 +77,10 @@ extension Client {
         try await withCheckedThrowingContinuation { c in
             currencyService.launch(
                 name: name,
-                symbol: symbol,
                 description: description,
                 billCustomization: billCustomization,
                 icon: icon,
                 nameAttestation: nameAttestation,
-                symbolAttestation: symbolAttestation,
                 descriptionAttestation: descriptionAttestation,
                 iconAttestation: iconAttestation,
                 owner: owner
@@ -97,12 +93,10 @@ extension Client {
     /// `FlipcashAPI` to construct the proto `BillCustomization` directly.
     public func launch(
         name: String,
-        symbol: String?,
         description: String?,
         billColors: [String],
         icon: Data?,
         nameAttestation: ModerationAttestation,
-        symbolAttestation: ModerationAttestation?,
         descriptionAttestation: ModerationAttestation?,
         iconAttestation: ModerationAttestation?,
         owner: KeyPair
@@ -114,12 +108,10 @@ extension Client {
         }
         return try await launch(
             name: name,
-            symbol: symbol,
             description: description,
             billCustomization: billCustomization,
             icon: icon,
             nameAttestation: nameAttestation,
-            symbolAttestation: symbolAttestation,
             descriptionAttestation: descriptionAttestation,
             iconAttestation: iconAttestation,
             owner: owner
