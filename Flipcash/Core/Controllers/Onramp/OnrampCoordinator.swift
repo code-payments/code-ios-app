@@ -29,6 +29,8 @@ final class OnrampCoordinator {
     @ObservationIgnored private let session: Session
     @ObservationIgnored private let flipClient: FlipClient
     @ObservationIgnored private let owner: KeyPair
+    @ObservationIgnored private let coinbaseApiKey: String?
+    @ObservationIgnored private var coinbase: Coinbase!
 
     // MARK: - Init -
 
@@ -36,6 +38,24 @@ final class OnrampCoordinator {
         self.session = session
         self.flipClient = flipClient
         self.owner = session.ownerKeyPair
+        self.coinbaseApiKey = try? InfoPlist.value(for: "coinbase").value(for: "apiKey").string()
+
+        self.coinbase = Coinbase(configuration: .init(bearerTokenProvider: fetchCoinbaseJWT))
+    }
+
+    // MARK: - Coinbase JWT -
+
+    private func fetchCoinbaseJWT(method: String, path: String) async throws -> String {
+        guard let coinbaseApiKey else {
+            throw OnrampError.missingCoinbaseApiKey
+        }
+
+        return try await flipClient.fetchCoinbaseOnrampJWT(
+            apiKey: coinbaseApiKey,
+            owner: owner,
+            method: method,
+            path: path
+        )
     }
 
     // MARK: - Public API (fleshed out in later tasks) -
