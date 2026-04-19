@@ -3,7 +3,9 @@
 //  Flipcash
 //
 
+import UIKit
 import SwiftUI
+import FlipcashUI
 import FlipcashCore
 
 private let logger = Logger(label: "flipcash.onramp-coordinator")
@@ -24,6 +26,39 @@ final class OnrampCoordinator {
     /// screen's processing-screen cover.
     var completion: OnrampCompletion?
 
+    // MARK: - Verification state -
+
+    /// Drives the verification sheet at the root. `VerifyInfoScreen` binds to
+    /// this flag to close itself via the toolbar close button.
+    var isShowingVerificationFlow: Bool = false
+
+    /// Navigation stack for the verification sub-flow sheet. When the path
+    /// transitions from non-empty to empty (sheet dismissed mid-flight),
+    /// the coordinator resets the transient verification state.
+    var verificationPath: [OnrampVerificationPath] = [] {
+        didSet {
+            if verificationPath.isEmpty && !oldValue.isEmpty {
+                resetVerificationState()
+            }
+        }
+    }
+
+    var enteredPhone: String = ""
+    var enteredCode: String = ""
+    var enteredEmail: String = ""
+
+    private(set) var region: Region
+    private(set) var isResending: Bool = false
+
+    var sendCodeButtonState: ButtonState = .normal
+    var sendEmailCodeState: ButtonState = .normal
+    var confirmCodeButtonState: ButtonState = .normal
+    var confirmEmailButtonState: ButtonState = .normal
+
+    var dialogItem: DialogItem?
+
+    let codeLength = 6
+
     // MARK: - Dependencies -
 
     @ObservationIgnored private let session: Session
@@ -36,15 +71,138 @@ final class OnrampCoordinator {
     @ObservationIgnored private var pendingAmount: ExchangedFiat?
     @ObservationIgnored private var fundingTask: Task<Void, Never>?
 
+    @ObservationIgnored private let phoneFormatter = PhoneFormatter()
+
     // MARK: - Init -
 
     init(session: Session, flipClient: FlipClient) {
         self.session = session
         self.flipClient = flipClient
         self.owner = session.ownerKeyPair
+        self.region = phoneFormatter.currentRegion
         self.coinbaseApiKey = try? InfoPlist.value(for: "coinbase").value(for: "apiKey").string()
 
         self.coinbase = Coinbase(configuration: .init(bearerTokenProvider: fetchCoinbaseJWT))
+    }
+
+    // MARK: - Verification derived state -
+
+    var regionFlagStyle: Flag.Style {
+        .fiat(region)
+    }
+
+    var countryCode: String {
+        "+\(phoneFormatter.countryCode(for: region)!)"
+    }
+
+    var phone: Phone? {
+        Phone(enteredPhone)
+    }
+
+    var canSendVerificationCode: Bool {
+        phone != nil
+    }
+
+    var canSendEmailVerification: Bool {
+        isEmailValid
+    }
+
+    var isCodeComplete: Bool {
+        enteredCode.count >= codeLength
+    }
+
+    var isEmailValid: Bool {
+        let e = enteredEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !e.isEmpty, e.utf8.count <= 254 else {
+            return false
+        }
+
+        return e.range(of: #"^[^\s@]+@[^\s@]+\.[^\s@]+$"#, options: .regularExpression) != nil
+    }
+
+    private var isPhoneVerified: Bool {
+        session.profile?.isPhoneVerified ?? false
+    }
+
+    private var isEmailVerified: Bool {
+        session.profile?.isEmailVerified ?? false
+    }
+
+    private var isAccountVerified: Bool {
+        isPhoneVerified && isEmailVerified
+    }
+
+    // MARK: - Verification setters & bindings -
+
+    private func resetVerificationState() {
+        enteredPhone = ""
+        enteredCode = ""
+        enteredEmail = ""
+        isResending = false
+    }
+
+    func setRegion(_ region: Region) {
+        self.region = region
+    }
+
+    var adjustingPhoneNumberBinding: Binding<String> {
+        Binding { [weak self] in
+            guard let self = self else { return "" }
+            return self.enteredPhone
+
+        } set: { [weak self] newValue in
+            guard let self = self else { return }
+            let cleanPhoneNumber = newValue.filter { character in
+                CharacterSet.numbers.contains(character.unicodeScalars.first!)
+            }
+
+            let countryCode = self.phoneFormatter.countryCode(for: self.region)!
+            self.enteredPhone = self.phoneFormatter.format("+\(countryCode)\(cleanPhoneNumber)")
+        }
+    }
+
+    var adjustingCodeBinding: Binding<String> {
+        Binding { [weak self] in
+            guard let self = self else { return "" }
+            return self.enteredCode
+
+        } set: { [weak self] newValue in
+            guard let self = self else { return }
+
+            if newValue.count > self.codeLength {
+                self.enteredCode = String(newValue.prefix(self.codeLength))
+            } else {
+                self.enteredCode = newValue
+            }
+        }
+    }
+
+    // MARK: - Clipboard -
+
+    func pasteCodeFromClipboardIfPossible() {
+        guard let code = codeFromClipboard() else {
+            return
+        }
+
+        enteredCode = code
+    }
+
+    private func codeFromClipboard() -> String? {
+        if let codeString = UIPasteboard.general.string, codeString.count == codeLength {
+            let digits: [Int] = codeString.utf8.compactMap { char in
+                let digit = Int(char)
+                if digit >= 48 && digit <= 57 {
+                    return digit
+                }
+                return nil
+            }
+
+            if digits.count == codeLength {
+                return codeString
+            }
+        }
+        return nil
     }
 
     // MARK: - Coinbase JWT -
@@ -73,7 +231,7 @@ final class OnrampCoordinator {
         let operation = OnrampOperation.buy(mint: mint, displayName: displayName, onCompleted: onCompleted)
         pendingOperation = operation
         pendingAmount = amount
-        Task { await createOrder(amount: amount, operation: operation) }
+        navigateToVerificationOrPurchase(for: operation, amount: amount)
     }
 
     func startLaunch(
@@ -84,7 +242,7 @@ final class OnrampCoordinator {
         let operation = OnrampOperation.launch(displayName: displayName, onCompleted: onCompleted)
         pendingOperation = operation
         pendingAmount = amount
-        Task { await createOrder(amount: amount, operation: operation) }
+        navigateToVerificationOrPurchase(for: operation, amount: amount)
     }
 
     func cancel() {
@@ -94,6 +252,334 @@ final class OnrampCoordinator {
         pendingAmount = nil
         coinbaseOrder = nil
         verificationSheet = nil
+    }
+
+    // MARK: - Verification navigation -
+
+    /// Entry point invoked by `VerifyInfoScreen`'s Next button.
+    func navigateToInitialVerification() {
+        navigateToAmount(from: .info)
+    }
+
+    private func navigateToAmount(from origin: Origin) {
+        if origin.rawValue < Origin.info.rawValue, (!isPhoneVerified || !isEmailVerified) {
+            verificationPath.append(.info)
+            return
+        }
+
+        if origin.rawValue < Origin.phone.rawValue, !isPhoneVerified {
+            Analytics.track(event: Analytics.OnrampEvent.showEnterPhone)
+            verificationPath.append(.enterPhoneNumber)
+            return
+        }
+
+        if origin.rawValue < Origin.email.rawValue, !isEmailVerified {
+            Analytics.track(event: Analytics.OnrampEvent.showEnterEmail)
+            verificationPath.append(.enterEmail)
+            return
+        }
+
+        // Verification complete — drop the sheet and kick off the order.
+        guard let operation = pendingOperation, let amount = pendingAmount else {
+            logger.warning("Verification completed without a pending operation")
+            isShowingVerificationFlow = false
+            return
+        }
+        isShowingVerificationFlow = false
+        Task { await createOrder(amount: amount, operation: operation) }
+    }
+
+    private func navigateToVerificationOrPurchase(for operation: OnrampOperation, amount: ExchangedFiat) {
+        if isAccountVerified {
+            Task { await createOrder(amount: amount, operation: operation) }
+        } else {
+            Analytics.track(event: Analytics.OnrampEvent.showVerificationInfo)
+            isShowingVerificationFlow = true
+        }
+    }
+
+    // MARK: - Verification actions -
+
+    func sendPhoneNumberCodeAction() {
+        guard let phone else {
+            return
+        }
+
+        Task {
+            sendCodeButtonState = .loading
+            defer {
+                sendCodeButtonState = .normal
+            }
+
+            do {
+                try await flipClient.sendVerificationCode(
+                    phone: phone.e164,
+                    owner: owner
+                )
+                try await Task.delay(milliseconds: 500)
+                sendCodeButtonState = .success
+
+                try await Task.delay(milliseconds: 500)
+                verificationPath.append(.confirmPhoneNumberCode)
+
+                Analytics.track(event: Analytics.OnrampEvent.showConfirmPhone)
+
+                try await Task.delay(milliseconds: 500)
+            }
+
+            catch
+                ErrorSendVerificationCode.invalidPhoneNumber,
+                ErrorSendVerificationCode.unsupportedPhoneType
+            {
+                showUnsupportedPhoneNumberError()
+            }
+
+            catch {
+                ErrorReporting.captureError(error)
+                showGenericError()
+            }
+        }
+    }
+
+    func resendCodeAction() async throws {
+        guard let phone else {
+            return
+        }
+
+        isResending = true
+        defer {
+            isResending = false
+        }
+
+        do {
+            try await flipClient.sendVerificationCode(
+                phone: phone.e164,
+                owner: owner
+            )
+        } catch {
+            ErrorReporting.captureError(error)
+        }
+    }
+
+    func confirmPhoneNumberCodeAction() {
+        guard let phone else {
+            return
+        }
+
+        guard isCodeComplete else {
+            return
+        }
+
+        Task {
+            confirmCodeButtonState = .loading
+            defer {
+                confirmCodeButtonState = .normal
+            }
+
+            do {
+                try await flipClient.checkVerificationCode(
+                    phone: phone.e164,
+                    code: enteredCode,
+                    owner: owner
+                )
+
+                try? await session.updateProfile()
+
+                try await Task.delay(milliseconds: 500)
+                confirmCodeButtonState = .success
+
+                try await Task.delay(milliseconds: 500)
+                navigateToAmount(from: .phone)
+
+                try await Task.delay(milliseconds: 500)
+            } catch ErrorCheckVerificationCode.invalidCode {
+                showInvalidCodeError()
+            } catch ErrorCheckVerificationCode.noVerification {
+                showGenericError()
+            } catch {
+                ErrorReporting.captureError(error)
+            }
+        }
+    }
+
+    func sendEmailCodeAction() {
+        guard isEmailValid else {
+            return
+        }
+
+        Task {
+            sendEmailCodeState = .loading
+            defer {
+                sendEmailCodeState = .normal
+            }
+
+            do {
+                try await flipClient.sendEmailVerification(
+                    email: enteredEmail,
+                    owner: owner
+                )
+                try await Task.delay(milliseconds: 500)
+                sendEmailCodeState = .success
+
+                try await Task.delay(milliseconds: 500)
+                verificationPath.append(.confirmEmailCode)
+
+                Analytics.track(event: Analytics.OnrampEvent.showConfirmEmail)
+
+                try await Task.delay(milliseconds: 500)
+            } catch ErrorSendEmailCode.invalidEmailAddress {
+                showInvalidEmailError()
+            } catch {
+                ErrorReporting.captureError(error)
+                showGenericError()
+            }
+        }
+    }
+
+    func resendEmailCodeAction() async throws {
+        guard isEmailValid else {
+            return
+        }
+
+        isResending = true
+        defer {
+            isResending = false
+        }
+
+        do {
+            try await flipClient.sendEmailVerification(
+                email: enteredEmail,
+                owner: owner
+            )
+        } catch {
+            ErrorReporting.captureError(error)
+        }
+    }
+
+    func applyDeeplinkVerification(_ verification: VerificationDescription) {
+        // If the user isn't already parked on the confirm-code screen, jump
+        // them there so the API call's result has somewhere to surface.
+        if !isShowingVerificationFlow {
+            verificationPath = [.confirmEmailCode]
+            enteredEmail = verification.email
+            isShowingVerificationFlow = true
+        }
+
+        Task {
+            confirmEmailButtonState = .loading
+            defer {
+                confirmEmailButtonState = .normal
+            }
+
+            do {
+                if !isEmailVerified {
+                    try await flipClient.checkEmailCode(
+                        email: verification.email,
+                        code: verification.code,
+                        owner: owner
+                    )
+
+                    try? await session.updateProfile()
+                }
+
+                try await Task.delay(milliseconds: 500)
+                confirmEmailButtonState = .success
+
+                try await Task.delay(milliseconds: 500)
+                navigateToAmount(from: .email)
+            } catch ErrorCheckEmailCode.invalidCode {
+                showInvalidVerificationLinkError { [weak self] in
+                    Task {
+                        try await self?.resendEmailCodeAction()
+                    }
+                }
+            } catch ErrorCheckEmailCode.noVerification {
+                showExpiredVerificationLinkError { [weak self] in
+                    Task {
+                        try await self?.resendEmailCodeAction()
+                    }
+                }
+            } catch {
+                ErrorReporting.captureError(error)
+                showGenericError()
+            }
+        }
+    }
+
+    // MARK: - Dialog factories -
+
+    private func presentDestructiveDialog(
+        title: String,
+        subtitle: String,
+        action: @escaping DialogAction.DialogActionHandler = {}
+    ) {
+        dialogItem = .init(
+            style: .destructive,
+            title: title,
+            subtitle: subtitle,
+            dismissable: true,
+        ) {
+            .okay(kind: .destructive, action: action)
+        }
+    }
+
+    private func presentResendOrCancelDialog(title: String, subtitle: String, resendAction: @escaping () -> Void) {
+        dialogItem = .init(
+            style: .destructive,
+            title: title,
+            subtitle: subtitle,
+            dismissable: true,
+        ) {
+            .destructive("Resend Verification Code") {
+                resendAction()
+            };
+            .cancel()
+        }
+    }
+
+    private func showGenericError(action: @escaping DialogAction.DialogActionHandler = {}) {
+        presentDestructiveDialog(
+            title: "Something Went Wrong",
+            subtitle: "Please try again later",
+            action: action
+        )
+    }
+
+    private func showUnsupportedPhoneNumberError() {
+        presentDestructiveDialog(
+            title: "Unsupported Phone Number",
+            subtitle: "Please use a different phone number and try again"
+        )
+    }
+
+    private func showInvalidEmailError() {
+        presentDestructiveDialog(
+            title: "Invalid Email",
+            subtitle: "Please enter a different email and try again"
+        )
+    }
+
+    private func showInvalidCodeError() {
+        presentDestructiveDialog(
+            title: "Invalid Code",
+            subtitle: "Please enter the verification code that was sent to your phone number or request a new code"
+        )
+    }
+
+    private func showInvalidVerificationLinkError(resendAction: @escaping () -> Void) {
+        presentResendOrCancelDialog(
+            title: "Verification Link Invalid",
+            subtitle: "This verification link is invalid. Please try again",
+            resendAction: resendAction
+        )
+    }
+
+    private func showExpiredVerificationLinkError(resendAction: @escaping () -> Void) {
+        presentResendOrCancelDialog(
+            title: "Verification Link Expired",
+            subtitle: "This verification link has expired. Please try again",
+            resendAction: resendAction
+        )
     }
 
     // MARK: - Coinbase order -
@@ -432,4 +918,16 @@ extension OnrampOperation {
     struct LogKindWrapper: Hashable {
         let value: String
     }
+}
+
+private enum Origin: Int {
+    case root
+    case info
+    case phone
+    case email
+    case payment
+}
+
+private extension CharacterSet {
+    static let numbers: CharacterSet = CharacterSet(charactersIn: "0123456789")
 }
