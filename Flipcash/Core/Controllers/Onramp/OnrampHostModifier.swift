@@ -4,7 +4,6 @@
 //
 
 import SwiftUI
-import FlipcashUI
 import FlipcashCore
 
 /// Root-level host for the invisible Coinbase Apple Pay WebView. Attach once
