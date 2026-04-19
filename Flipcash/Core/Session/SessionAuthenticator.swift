@@ -447,6 +447,7 @@ struct SessionContainer {
             .environment(pushController)
             .environment(walletConnection)
             .environment(onrampCoordinator)
+            .environment(onrampDeeplinkInbox)
     }
 
     @MainActor

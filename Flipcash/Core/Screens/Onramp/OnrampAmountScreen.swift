@@ -125,12 +125,6 @@ struct OnrampAmountScreen: View {
             }
         }
         .dialog(item: $viewModel.dialogItem)
-        .onChange(of: deeplinkInbox.pendingEmailVerification, initial: true) { _, verification in
-            if let verification {
-                viewModel.applyDeeplinkVerification(verification)
-                deeplinkInbox.pendingEmailVerification = nil
-            }
-        }
     }
 }
 
