@@ -124,9 +124,6 @@ struct OnrampAmountScreen: View {
                 }
             }
         }
-        .sheet(isPresented: $viewModel.isShowingVerificationFlow) {
-            VerifyInfoScreen(viewModel: viewModel)
-        }
         .dialog(item: $viewModel.dialogItem)
         .onChange(of: deeplinkInbox.pendingEmailVerification, initial: true) { _, verification in
             if let verification {
