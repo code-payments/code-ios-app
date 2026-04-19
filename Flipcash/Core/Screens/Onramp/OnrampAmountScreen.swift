@@ -142,7 +142,7 @@ struct OnrampAmountScreen: View {
 /// flow in the background) and explicitly excluded from hit testing and
 /// accessibility so the covered region of the amount keypad remains tappable
 /// and VoiceOver users don't land on a silent 300×300 zone.
-private struct ApplePayOverlay: View {
+struct ApplePayOverlay: View {
 
     let order: OnrampOrderResponse?
     let onEvent: (ApplePayEvent) -> Void
