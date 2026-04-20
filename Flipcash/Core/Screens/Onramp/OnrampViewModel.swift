@@ -42,9 +42,7 @@ class OnrampViewModel {
     var dialogItem: DialogItem?
 
     /// Display name shown on the SwapProcessing step and surfaced in logs.
-    /// For buy-existing flows this is the target currency's name; for
-    /// launch-new flows it's the user-chosen name of the currency being
-    /// created. Fixed at init time.
+    /// The target currency's name. Fixed at init time.
     let displayName: String
 
     var enteredCode: String = ""
@@ -123,26 +121,15 @@ class OnrampViewModel {
     @ObservationIgnored private let owner: KeyPair
     @ObservationIgnored private let onDismiss: () -> Void
 
-    /// Internal dispatch for the post-onramp step. Paired with the matching
-    /// factory init (see `forBuying`), so cases carry exactly the data they
-    /// need.
-    private enum Mode {
-        case buyExistingCurrency(mint: PublicKey)
+    /// Target mint for the buy. Captured at init time by `forBuying`.
+    @ObservationIgnored private let mint: PublicKey
 
-        var logKind: String {
-            switch self {
-            case .buyExistingCurrency: "buy_existing"
-            }
-        }
-    }
-
-    @ObservationIgnored private let mode: Mode
-
-    /// Set only when created via `forBuying`. The buy flow hands the validated
-    /// amount to the coordinator, which drives the Coinbase order and Apple Pay
-    /// flow at root. Launch flows still use the VM-internal path through `mode`.
-    @ObservationIgnored private let coordinator: OnrampCoordinator?
-    @ObservationIgnored private let onUsdfReady: (@MainActor @Sendable (Signature, ExchangedFiat) async throws -> SignedSwapResult)?
+    /// Coordinator that drives the Coinbase order and Apple Pay flow at root.
+    /// The VM hands off the validated amount via `startBuy`; the coordinator
+    /// publishes a `.buyProcessing` completion once the post-onramp swap is
+    /// submitted.
+    @ObservationIgnored private let coordinator: OnrampCoordinator
+    @ObservationIgnored private let onUsdfReady: @MainActor @Sendable (Signature, ExchangedFiat) async throws -> SignedSwapResult
 
     @ObservationIgnored private var coinbase: Coinbase!
 
@@ -178,7 +165,7 @@ class OnrampViewModel {
     ) -> OnrampViewModel {
         OnrampViewModel(
             displayName: displayName,
-            mode: .buyExistingCurrency(mint: mint),
+            mint: mint,
             session: session,
             flipClient: flipClient,
             coordinator: coordinator,
@@ -189,15 +176,15 @@ class OnrampViewModel {
 
     private init(
         displayName: String,
-        mode: Mode,
+        mint: PublicKey,
         session: Session,
         flipClient: FlipClient,
-        coordinator: OnrampCoordinator?,
-        onUsdfReady: (@MainActor @Sendable (Signature, ExchangedFiat) async throws -> SignedSwapResult)?,
+        coordinator: OnrampCoordinator,
+        onUsdfReady: @escaping @MainActor @Sendable (Signature, ExchangedFiat) async throws -> SignedSwapResult,
         onDismiss: @escaping () -> Void
     ) {
         self.displayName = displayName
-        self.mode = mode
+        self.mint = mint
         self.session = session
         self.flipClient = flipClient
         self.coordinator = coordinator
@@ -340,16 +327,12 @@ class OnrampViewModel {
             return
         }
 
-        switch mode {
-        case .buyExistingCurrency(let mint):
-            guard let coordinator, let onUsdfReady else { return }
-            coordinator.startBuy(
-                amount: exchangedFiat,
-                mint: mint,
-                displayName: displayName,
-                onCompleted: onUsdfReady
-            )
-        }
+        coordinator.startBuy(
+            amount: exchangedFiat,
+            mint: mint,
+            displayName: displayName,
+            onCompleted: onUsdfReady
+        )
     }
     
     func sendPhoneNumberCodeAction() {
@@ -864,7 +847,6 @@ class OnrampViewModel {
 
     private func handleCoinbaseFundingSuccess() async {
         logger.info("Coinbase funding succeeded", metadata: [
-            "destination_kind": "\(mode.logKind)",
             "destination_name": "\(displayName)"
         ])
 
@@ -933,27 +915,22 @@ class OnrampViewModel {
         }
 
         do {
-            let appendPath: OnrampAmountPath
-            switch mode {
-            case .buyExistingCurrency(let mint):
-                let swapId = try await session.buyWithExternalFunding(
-                    amount: exchangedFiat,
-                    of: mint,
-                    transactionSignature: signature
-                )
-                appendPath = .swapProcessing(
-                    swapId: swapId,
-                    currencyName: displayName,
-                    amount: exchangedFiat
-                )
-            }
+            let swapId = try await session.buyWithExternalFunding(
+                amount: exchangedFiat,
+                of: mint,
+                transactionSignature: signature
+            )
             coinbaseOrder = nil
             Analytics.onrampCompleted(
                 amount: exchangedFiat.underlying,
                 successful: true,
                 error: nil
             )
-            amountPath.append(appendPath)
+            amountPath.append(.swapProcessing(
+                swapId: swapId,
+                currencyName: displayName,
+                amount: exchangedFiat
+            ))
         } catch {
             logger.error("Buy failed", metadata: ["error": "\(error)"])
             ErrorReporting.captureError(error)
