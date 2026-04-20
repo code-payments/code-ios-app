@@ -57,6 +57,17 @@ final class OnrampCoordinator {
 
     var dialogItem: DialogItem?
 
+    /// True once Coinbase has accepted the order and remains true through the
+    /// full committed flow: Apple Pay commit, on-chain settlement, the poll
+    /// loop, the downstream `buyWithExternalFunding` swap, and while the
+    /// processing screen is presented. Drives the sheet-level dismiss lock —
+    /// the USDF destination is a staging ATA that only `buyWithExternalFunding`
+    /// can drain, so dismissing mid-flight would strand funds with no recovery
+    /// path through normal UI.
+    var isProcessingPayment: Bool {
+        coinbaseOrder != nil || pendingOperation != nil
+    }
+
     let codeLength = 6
 
     // MARK: - Dependencies -
@@ -545,6 +556,20 @@ final class OnrampCoordinator {
         )
     }
 
+    private func showCoinbaseError(title: String, subtitle: String, onDismiss: (() -> Void)? = nil) {
+        presentDestructiveDialog(title: title, subtitle: subtitle) {
+            onDismiss?()
+        }
+    }
+
+    private func showBuyFailedDialog() {
+        coinbaseOrder = nil
+        presentDestructiveDialog(
+            title: "Couldn't Buy Token",
+            subtitle: "Your USDF is in your wallet. Try again from the currency screen."
+        )
+    }
+
     private func showUnsupportedPhoneNumberError() {
         presentDestructiveDialog(
             title: "Unsupported Phone Number",
@@ -642,6 +667,16 @@ final class OnrampCoordinator {
             ErrorReporting.captureError(error)
             pendingOperation = nil
             pendingAmount = nil
+
+            if error.errorType == .guestRegionForbidden {
+                showCoinbaseError(title: error.title, subtitle: error.subtitle) { [weak self] in
+                    Task {
+                        try? await self?.session.unlinkProfile()
+                    }
+                }
+            } else {
+                showCoinbaseError(title: error.title, subtitle: error.subtitle)
+            }
         }
 
         catch {
@@ -666,6 +701,20 @@ final class OnrampCoordinator {
             coinbaseOrder = nil
             pendingOperation = nil
             pendingAmount = nil
+
+            // Prefer the Coinbase-provided reason if we have one — users hitting
+            // a region mismatch or card decline shouldn't see "Something went wrong".
+            let title: String
+            let subtitle: String
+            if let message = event.data?.errorMessage, !message.isEmpty {
+                title = "Payment Failed"
+                subtitle = message
+            } else {
+                title = "Something Went Wrong"
+                subtitle = "Please try again later"
+            }
+            presentDestructiveDialog(title: title, subtitle: subtitle)
+
             ErrorReporting.captureError(kind)
         }
 
@@ -809,6 +858,7 @@ final class OnrampCoordinator {
 
         guard let orderId = coinbaseOrder?.order.orderId else {
             logger.error("pollingSuccess fired with no active Coinbase order")
+            showBuyFailedDialog()
             return
         }
 
@@ -824,6 +874,7 @@ final class OnrampCoordinator {
         } catch {
             logger.error("Coinbase order poll failed", metadata: ["error": "\(error)"])
             ErrorReporting.captureError(error)
+            showBuyFailedDialog()
             return
         }
 
@@ -845,6 +896,7 @@ final class OnrampCoordinator {
                 "order_id": "\(orderId)",
                 "status": "\(order.status)"
             ])
+            showBuyFailedDialog()
             return
         }
 
@@ -853,6 +905,7 @@ final class OnrampCoordinator {
                 "tx_hash": "\(txHash)",
                 "tx_hash_length": "\(txHash.count)"
             ])
+            showBuyFailedDialog()
             return
         }
 
@@ -860,6 +913,7 @@ final class OnrampCoordinator {
             logger.error("Failed to construct swap amount from order", metadata: [
                 "order_id": "\(orderId)"
             ])
+            showBuyFailedDialog()
             return
         }
 
@@ -898,6 +952,7 @@ final class OnrampCoordinator {
         } catch {
             logger.error("Buy failed", metadata: ["error": "\(error)"])
             ErrorReporting.captureError(error)
+            showBuyFailedDialog()
         }
     }
 }

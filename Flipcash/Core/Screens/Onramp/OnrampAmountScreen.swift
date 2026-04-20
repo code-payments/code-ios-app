@@ -12,6 +12,7 @@ import FlipcashCore
 struct OnrampAmountScreen: View {
 
     @State private var viewModel: OnrampViewModel
+    @Environment(OnrampCoordinator.self) private var coordinator
 
     private let onDismiss: () -> Void
     private let deeplinkInbox: OnrampDeeplinkInbox
@@ -73,58 +74,37 @@ struct OnrampAmountScreen: View {
     // MARK: - Body -
 
     var body: some View {
-        NavigationStack(path: $viewModel.amountPath) {
+        @Bindable var viewModel = viewModel
+        NavigationStack {
             Background(color: .backgroundMain) {
                 EnterAmountView(
                     mode: .onramp,
                     enteredAmount: $viewModel.enteredAmount,
                     subtitle: .singleTransactionLimit,
                     actionState: $viewModel.payButtonState,
-                    actionEnabled: { _ in
-                        viewModel.enteredFiat != nil
-                    },
+                    actionEnabled: { _ in viewModel.enteredFiat != nil },
                     action: viewModel.customAmountEnteredAction,
                     currencySelectionAction: nil,
                 )
                 .foregroundColor(.textMain)
                 .padding(20)
-                .overlay {
-                    ApplePayOverlay(order: viewModel.coinbaseOrder) { event in
-                        viewModel.receiveApplePayEvent(event)
-                    }
-                }
             }
             .navigationTitle("Amount to Add")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                if !viewModel.isProcessingPayment {
+                if !coordinator.isProcessingPayment {
                     ToolbarItem(placement: .navigationBarTrailing) {
                         ToolbarCloseButton { onDismiss() }
                     }
                 }
             }
-            .interactiveDismissDisabled(viewModel.isProcessingPayment)
-            .navigationDestination(for: OnrampAmountPath.self) { path in
-                switch path {
-                case .swapProcessing(let swapId, let currencyName, let amount):
-                    SwapProcessingScreen(
-                        swapId: swapId,
-                        swapType: .buyWithCoinbase,
-                        currencyName: currencyName,
-                        amount: amount
-                    )
-                case .launchProcessing(let swapId, let launchedMint, let currencyName, let amount):
-                    CurrencyLaunchProcessingScreen(
-                        swapId: swapId,
-                        launchedMint: launchedMint,
-                        currencyName: currencyName,
-                        launchAmount: amount,
-                        fundingMethod: .coinbase
-                    )
-                }
-            }
+            .interactiveDismissDisabled(coordinator.isProcessingPayment)
         }
         .dialog(item: $viewModel.dialogItem)
+        .onChange(of: coordinator.completion) { _, completion in
+            guard case .buyProcessing = completion else { return }
+            onDismiss()
+        }
     }
 }
 

@@ -39,17 +39,6 @@ class OnrampViewModel {
 
     var coinbaseOrder: OnrampOrderResponse?
 
-    /// True once Coinbase has accepted the order and remains true through the
-    /// full committed flow: Apple Pay commit, on-chain settlement, the poll
-    /// loop, the downstream `buyWithExternalFunding` swap, and while
-    /// `SwapProcessingScreen` is on the nav stack. Drives the sheet-level
-    /// dismiss lock — the USDF destination is a VM-owned staging ATA that only
-    /// `buyWithExternalFunding` can drain, so dismissing mid-flight would
-    /// strand funds with no recovery path through normal UI.
-    var isProcessingPayment: Bool {
-        coinbaseOrder != nil || !amountPath.isEmpty
-    }
-
     var dialogItem: DialogItem?
 
     /// Display name shown on the SwapProcessing step and surfaced in logs.
