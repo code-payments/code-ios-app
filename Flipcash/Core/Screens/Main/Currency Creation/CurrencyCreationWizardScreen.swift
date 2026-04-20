@@ -171,6 +171,9 @@ struct CurrencyCreationWizardScreen: View {
         .dialog(item: $errorDialog)
         .dialog(item: Bindable(walletConnection).dialogItem)
         .dialog(item: Bindable(onrampCoordinator).dialogItem)
+        .sheet(isPresented: Bindable(onrampCoordinator).isShowingVerificationFlow) {
+            VerifyInfoScreen(onrampCoordinator: onrampCoordinator)
+        }
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .interactiveDismissDisabled()

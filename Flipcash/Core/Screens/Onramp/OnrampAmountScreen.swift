@@ -78,6 +78,9 @@ struct OnrampAmountScreen: View {
         }
         .dialog(item: $viewModel.dialogItem)
         .dialog(item: $onrampCoordinator.dialogItem)
+        .sheet(isPresented: $onrampCoordinator.isShowingVerificationFlow) {
+            VerifyInfoScreen(onrampCoordinator: onrampCoordinator)
+        }
         .onChange(of: onrampCoordinator.completion) { _, completion in
             guard case .buyProcessing = completion else { return }
             onDismiss()
