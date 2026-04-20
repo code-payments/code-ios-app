@@ -274,6 +274,7 @@ final class OnrampCoordinator {
         displayName: String,
         onCompleted: @escaping @MainActor @Sendable (Signature, ExchangedFiat) async throws -> SignedSwapResult
     ) {
+        guard !isProcessingPayment else { return }
         let operation = OnrampOperation.buy(mint: mint, displayName: displayName, onCompleted: onCompleted)
         pendingOperation = operation
         pendingAmount = amount
@@ -285,6 +286,7 @@ final class OnrampCoordinator {
         displayName: String,
         onCompleted: @escaping @MainActor @Sendable (Signature, ExchangedFiat) async throws -> SignedSwapResult
     ) {
+        guard !isProcessingPayment else { return }
         let operation = OnrampOperation.launch(displayName: displayName, onCompleted: onCompleted)
         pendingOperation = operation
         pendingAmount = amount
@@ -874,6 +876,17 @@ final class OnrampCoordinator {
     }
 
     private func handleCoinbaseFundingSuccess() async {
+        // Always release the transient onramp state when this method exits,
+        // regardless of success / error / sandbox short-circuit. Without this
+        // the user is stranded with `isProcessingPayment == true` and no way
+        // to retry.
+        defer {
+            pendingOperation = nil
+            pendingAmount = nil
+            coinbaseOrder = nil
+            fundingTask = nil
+        }
+
         guard let operation = pendingOperation else {
             logger.error("pollingSuccess fired with no pending operation")
             return
@@ -973,10 +986,6 @@ final class OnrampCoordinator {
                 successful: true,
                 error: nil
             )
-
-            pendingOperation = nil
-            pendingAmount = nil
-            coinbaseOrder = nil
         } catch {
             logger.error("Buy failed", metadata: ["error": "\(error)"])
             ErrorReporting.captureError(error)

@@ -58,7 +58,7 @@ struct OnrampAmountScreen: View {
                     enteredAmount: $viewModel.enteredAmount,
                     subtitle: .singleTransactionLimit,
                     actionState: .constant(onrampCoordinator.isProcessingPayment ? .loading : .normal),
-                    actionEnabled: { _ in viewModel.enteredFiat != nil && !onrampCoordinator.isProcessingPayment },
+                    actionEnabled: { _ in viewModel.enteredFiat != nil },
                     action: viewModel.customAmountEnteredAction,
                     currencySelectionAction: nil,
                 )
