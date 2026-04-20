@@ -478,6 +478,29 @@ struct RatesControllerTests {
         #expect(persistedCAD.fx == Decimal(string: "1.4"))
     }
 
+    // MARK: - supplyFromBonding -
+
+    @Test("supplyFromBonding reflects the latest reserveStatesPublisher emission")
+    @MainActor
+    func supplyFromBonding_tracksPublisher() async throws {
+        let controller = makeController()
+        let mint = PublicKey.jeffy
+
+        #expect(controller.supplyFromBonding(for: mint) == nil)
+
+        await controller.verifiedProtoService.saveReserveStates([
+            .makeTest(mint: mint, supplyFromBonding: 1_000)
+        ])
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(controller.supplyFromBonding(for: mint) == 1_000)
+
+        await controller.verifiedProtoService.saveReserveStates([
+            .makeTest(mint: mint, supplyFromBonding: 2_000)
+        ])
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(controller.supplyFromBonding(for: mint) == 2_000)
+    }
+
     // MARK: - Helpers -
 
     /// NOTE: RatesController.init reads `balanceCurrency` / `entryCurrency`

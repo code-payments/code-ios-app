@@ -47,7 +47,11 @@ class WithdrawViewModel {
 
         // Only applies for bonded tokens
         if mint != .usdf {
-            guard let supplyQuarks = selectedBalance.stored.supplyFromBonding else {
+            // Read supply live from the RatesController cache that mirrors
+            // VerifiedProtoService, not from the StoredBalance snapshot —
+            // otherwise the on-wire (quarks, nativeAmount) is computed with
+            // a stale supply and diverges from the proof attached at submit.
+            guard let supplyQuarks = ratesController.supplyFromBonding(for: mint) else {
                 return nil
             }
 
@@ -191,7 +195,7 @@ class WithdrawViewModel {
             return nil
         }
         
-        guard let supplyQuarks = selectedBalance.stored.supplyFromBonding else {
+        guard let supplyQuarks = ratesController.supplyFromBonding(for: enteredFiat.mint) else {
             return nil
         }
 

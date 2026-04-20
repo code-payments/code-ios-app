@@ -31,6 +31,23 @@ struct GiveViewModelTests {
         return viewModel
     }
 
+    /// Select a currency and, for bonded tokens, drive the matching reserve
+    /// state through the publisher path so `ratesController.supplyFromBonding(for:)`
+    /// is populated — the source `GiveViewModel.enteredFiat` actually reads.
+    @MainActor
+    static func selectAndSeed(
+        viewModel: GiveViewModel,
+        balance: ExchangedBalance
+    ) async {
+        viewModel.selectCurrencyAction(exchangedBalance: balance)
+        if let supply = balance.stored.supplyFromBonding {
+            await viewModel.ratesController.deliverTestReserveState(
+                mint: balance.stored.mint,
+                supplyFromBonding: supply
+            )
+        }
+    }
+
     /// Helper to create ExchangedBalance
     static func createExchangedBalance(
         mint: PublicKey = .usdf,
@@ -259,7 +276,7 @@ struct GiveViewModelTests {
     // MARK: - enteredFiat Calculation Tests (Bonded Tokens)
 
     @Test
-    func testEnteredFiat_BondedToken_CalculatesCorrectly() {
+    func testEnteredFiat_BondedToken_CalculatesCorrectly() async {
         // Given: View model with bonded token
         // 10,000 tokens supply supports reasonable exchange amounts
         let viewModel = Self.createViewModel()
@@ -268,7 +285,7 @@ struct GiveViewModelTests {
             quarks: 1_000_000_000_000, // 100 tokens (10 decimals)
             supplyQuarks: 10_000 * 10_000_000_000 // 10,000 tokens supply
         )
-        viewModel.selectCurrencyAction(exchangedBalance: balance)
+        await Self.selectAndSeed(viewModel: viewModel, balance: balance)
         viewModel.enteredAmount = "0.50"
 
         // When: Checking if can give
@@ -279,7 +296,7 @@ struct GiveViewModelTests {
     }
 
     @Test
-    func testEnteredFiat_BondedToken_AmountAtMaxBalance() {
+    func testEnteredFiat_BondedToken_AmountAtMaxBalance() async {
         // Given: View model with bonded token where user has significant balance
         let viewModel = Self.createViewModel()
         let balance = Self.createExchangedBalance(
@@ -287,7 +304,7 @@ struct GiveViewModelTests {
             quarks: 5_000_000_000_000, // 500 tokens (10 decimals)
             supplyQuarks: 50_000 * 10_000_000_000 // 50,000 tokens supply
         )
-        viewModel.selectCurrencyAction(exchangedBalance: balance)
+        await Self.selectAndSeed(viewModel: viewModel, balance: balance)
         viewModel.enteredAmount = "5.00"
 
         // When: Checking if can give
@@ -298,7 +315,7 @@ struct GiveViewModelTests {
     }
 
     @Test
-    func testEnteredFiat_BondedToken_LargeSupply() {
+    func testEnteredFiat_BondedToken_LargeSupply() async {
         // Given: View model with large supply (100,000 tokens)
         let viewModel = Self.createViewModel()
         let balance = Self.createExchangedBalance(
@@ -306,7 +323,7 @@ struct GiveViewModelTests {
             quarks: 10_000_000_000_000, // 1,000 tokens
             supplyQuarks: 100_000 * 10_000_000_000 // 100,000 tokens supply
         )
-        viewModel.selectCurrencyAction(exchangedBalance: balance)
+        await Self.selectAndSeed(viewModel: viewModel, balance: balance)
         viewModel.enteredAmount = "25.00"
 
         // When: Checking if can give
@@ -364,7 +381,7 @@ struct GiveViewModelTests {
     // These integration tests verify the successful path through GiveViewModel.
 
     @Test
-    func testEnteredFiat_BondedToken_ModestSupply_SmallAmount_Succeeds() {
+    func testEnteredFiat_BondedToken_ModestSupply_SmallAmount_Succeeds() async {
         // Given: View model with bonded token and modest supply
         // 1,000 tokens supply, user tries to exchange $100 (valid)
         let viewModel = Self.createViewModel()
@@ -373,7 +390,7 @@ struct GiveViewModelTests {
             quarks: 10_000_000_000_000, // 1,000 tokens
             supplyQuarks: 1_000 * 10_000_000_000 // 1,000 tokens supply
         )
-        viewModel.selectCurrencyAction(exchangedBalance: balance)
+        await Self.selectAndSeed(viewModel: viewModel, balance: balance)
         viewModel.enteredAmount = "1.00"  // $1 is valid for this supply
 
         // When: Checking if can give
@@ -384,7 +401,7 @@ struct GiveViewModelTests {
     }
 
     @Test
-    func testEnteredFiat_BondedToken_AmountWellUnderMaxSupply_Succeeds() {
+    func testEnteredFiat_BondedToken_AmountWellUnderMaxSupply_Succeeds() async {
         // Given: View model where entered amount is well under max supply value
         let viewModel = Self.createViewModel()
         let balance = Self.createExchangedBalance(
@@ -392,7 +409,7 @@ struct GiveViewModelTests {
             quarks: 100_000_000_000_000, // 10,000 tokens
             supplyQuarks: 50_000 * 10_000_000_000 // 50,000 tokens supply
         )
-        viewModel.selectCurrencyAction(exchangedBalance: balance)
+        await Self.selectAndSeed(viewModel: viewModel, balance: balance)
         viewModel.enteredAmount = "10.00"  // $10 well within available
 
         // When: Checking if can give

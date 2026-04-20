@@ -31,4 +31,16 @@ extension RatesController {
             }
         }
     }
+
+    /// Drive a reserve-state update through the same publisher path that
+    /// live streaming uses, then wait long enough for the Combine main-queue
+    /// hop to populate `cachedReserveSupply`. Mirrors `updateRates(_:)`'s
+    /// role for rates.
+    @MainActor
+    func deliverTestReserveState(mint: PublicKey, supplyFromBonding: UInt64) async {
+        await verifiedProtoService.saveReserveStates([
+            .makeTest(mint: mint, supplyFromBonding: supplyFromBonding)
+        ])
+        try? await Task.sleep(for: .milliseconds(50))
+    }
 }

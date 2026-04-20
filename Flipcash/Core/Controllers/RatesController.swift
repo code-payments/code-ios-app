@@ -139,11 +139,18 @@ class RatesController {
             }
             .store(in: &cancellables)
 
-        // Subscribe to reserve state updates and persist live supply to database
+        // Subscribe to reserve state updates. Mirror supply into an in-memory
+        // `@Observable` dict so read paths (entry-screen fiat computation) stay
+        // symmetric with `cachedRates` — both live, both main-actor, both
+        // driven by the same stream tick. The SQLite write-through keeps the
+        // existing persisted display path (balance list, cold-launch) working.
         verifiedProtoService.reserveStatesPublisher
             .receive(on: DispatchQueue.main)
             .sink { [weak self] updates in
                 guard let self else { return }
+                for update in updates {
+                    self.cachedReserveSupply[update.mint] = update.supplyFromBonding
+                }
                 do {
                     try self.database.updateLiveSupply(updates: updates, date: .now)
                 } catch {
@@ -244,6 +251,12 @@ class RatesController {
     /// Cache of rates from streaming. Tracked by `@Observable` so views update automatically.
     private(set) var cachedRates: [CurrencyCode: Rate] = [:]
 
+    /// Live cache of bonded-token supply from streaming reserve states. Mirrors
+    /// the source of truth used by `VerifiedProtoService.getVerifiedState`, so
+    /// reads here are consistent with the proof that will be attached at intent
+    /// submission. Populated on the main actor alongside the SQLite write.
+    private(set) var cachedReserveSupply: [PublicKey: UInt64] = [:]
+
     func rateForBalanceCurrency() -> Rate {
         rate(for: balanceCurrency) ?? .oneToOne
     }
@@ -254,6 +267,10 @@ class RatesController {
 
     func rate(for currency: CurrencyCode) -> Rate? {
         cachedRates[currency]
+    }
+
+    func supplyFromBonding(for mint: PublicKey) -> UInt64? {
+        cachedReserveSupply[mint]
     }
 
     func exchangedFiat(for amount: Quarks) throws -> ExchangedFiat {
