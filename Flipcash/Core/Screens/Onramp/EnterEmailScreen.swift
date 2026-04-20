@@ -11,14 +11,14 @@ import FlipcashCore
 
 struct EnterEmailScreen: View {
 
-    @Bindable private var coordinator: OnrampCoordinator
+    @Bindable private var onrampCoordinator: OnrampCoordinator
 
     @FocusState private var isFocused: Bool
 
     // MARK: - Init -
 
-    init(coordinator: OnrampCoordinator) {
-        self.coordinator = coordinator
+    init(onrampCoordinator: OnrampCoordinator) {
+        self.onrampCoordinator = onrampCoordinator
     }
 
     // MARK: - Body -
@@ -28,7 +28,7 @@ struct EnterEmailScreen: View {
             VStack(alignment: .center, spacing: 15) {
                 Spacer()
                 InputContainer(size: .regular) {
-                    TextField("Email", text: $coordinator.enteredEmail)
+                    TextField("Email", text: $onrampCoordinator.enteredEmail)
                         .font(.appTextXL)
                         .keyboardType(.emailAddress)
                         .textContentType(.emailAddress)
@@ -47,19 +47,19 @@ struct EnterEmailScreen: View {
                 Spacer()
 
                 CodeButton(
-                    state: coordinator.sendEmailCodeState,
+                    state: onrampCoordinator.sendEmailCodeState,
                     style: .filled,
                     title: "Next",
-                    disabled: !coordinator.canSendEmailVerification
+                    disabled: !onrampCoordinator.canSendEmailVerification
                 ) {
                     isFocused = false
-                    coordinator.sendEmailCodeAction()
+                    onrampCoordinator.sendEmailCodeAction()
                 }
             }
             .padding(20)
             .foregroundColor(.textMain)
         }
-        .dialog(item: $coordinator.dialogItem)
+        .dialog(item: $onrampCoordinator.dialogItem)
         .navigationTitle("Verify Email")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {

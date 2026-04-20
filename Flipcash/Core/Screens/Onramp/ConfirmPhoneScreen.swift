@@ -13,13 +13,13 @@ struct ConfirmPhoneScreen: View {
 
     @Environment(NotificationController.self) private var notificationController
     @State private var countdownEnd: Date?
-    @Bindable private var coordinator: OnrampCoordinator
+    @Bindable private var onrampCoordinator: OnrampCoordinator
     @FocusState private var isFocused: Bool
 
     // MARK: - Init -
 
-    init(coordinator: OnrampCoordinator) {
-        self.coordinator = coordinator
+    init(onrampCoordinator: OnrampCoordinator) {
+        self.onrampCoordinator = onrampCoordinator
     }
 
     // MARK: - Body -
@@ -32,8 +32,8 @@ struct ConfirmPhoneScreen: View {
                     isFocused = true
                 } label: {
                     ZStack {
-                        TwoFactorCodeView(digitCount: coordinator.codeLength, content: $coordinator.enteredCode)
-                        TextField("", text: coordinator.adjustingCodeBinding)
+                        TwoFactorCodeView(digitCount: onrampCoordinator.codeLength, content: $onrampCoordinator.enteredCode)
+                        TextField("", text: onrampCoordinator.adjustingCodeBinding)
                             .foregroundColor(.backgroundMain)
                             .keyboardType(.numberPad)
                             .textContentType(.oneTimeCode)
@@ -49,7 +49,7 @@ struct ConfirmPhoneScreen: View {
                         VStack(spacing: 15) {
                             Text(text)
                             VStack(spacing: 0) {
-                                Text("Didn't get an SMS at \(coordinator.phone?.national ?? "")?")
+                                Text("Didn't get an SMS at \(onrampCoordinator.phone?.national ?? "")?")
                                 (Text("Request a new one in ") + Text(timerInterval: .now...countdownEnd, countsDown: true))
                                     .contentTransition(.numericText())
                             }
@@ -61,12 +61,12 @@ struct ConfirmPhoneScreen: View {
                             Button {
                                 Task {
                                     do {
-                                        try await coordinator.resendCodeAction()
+                                        try await onrampCoordinator.resendCodeAction()
                                         countdownEnd = Date.now.addingTimeInterval(60)
                                     }
                                 }
                             } label: {
-                                Loadable(isLoading: coordinator.isResending, color: .textSecondary) {
+                                Loadable(isLoading: onrampCoordinator.isResending, color: .textSecondary) {
                                     VStack(spacing: 0) {
                                         Text("Didn't get an SMS? Resend")
                                         Text(" ") // Offset to match the two line layout above
@@ -84,18 +84,18 @@ struct ConfirmPhoneScreen: View {
 
                 Spacer()
                 CodeButton(
-                    state: coordinator.confirmCodeButtonState,
+                    state: onrampCoordinator.confirmCodeButtonState,
                     style: .filled,
                     title: "Confirm",
-                    disabled: !coordinator.isCodeComplete
+                    disabled: !onrampCoordinator.isCodeComplete
                 ) {
-                    coordinator.confirmPhoneNumberCodeAction()
+                    onrampCoordinator.confirmPhoneNumberCodeAction()
                 }
             }
             .padding(20)
             .foregroundColor(.textMain)
         }
-        .dialog(item: $coordinator.dialogItem)
+        .dialog(item: $onrampCoordinator.dialogItem)
         .navigationTitle("Verify Phone Number")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
@@ -114,13 +114,13 @@ struct ConfirmPhoneScreen: View {
                 self.countdownEnd = nil
             }
         }
-        .onChange(of: coordinator.enteredCode) { _, _ in
-            if coordinator.isCodeComplete {
-                coordinator.confirmPhoneNumberCodeAction()
+        .onChange(of: onrampCoordinator.enteredCode) { _, _ in
+            if onrampCoordinator.isCodeComplete {
+                onrampCoordinator.confirmPhoneNumberCodeAction()
             }
         }
         .onChange(of: notificationController.didBecomeActive) { _, _ in
-            coordinator.pasteCodeFromClipboardIfPossible()
+            onrampCoordinator.pasteCodeFromClipboardIfPossible()
         }
     }
 }

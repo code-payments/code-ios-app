@@ -13,14 +13,14 @@ struct EnterPhoneScreen: View {
 
     @State private var isShowingRegionSelection = false
 
-    @Bindable private var coordinator: OnrampCoordinator
+    @Bindable private var onrampCoordinator: OnrampCoordinator
 
     @FocusState private var isFocused: Bool
 
     // MARK: - Init -
 
-    init(coordinator: OnrampCoordinator) {
-        self.coordinator = coordinator
+    init(onrampCoordinator: OnrampCoordinator) {
+        self.onrampCoordinator = onrampCoordinator
     }
 
     // MARK: - Body -
@@ -35,8 +35,8 @@ struct EnterPhoneScreen: View {
                             isShowingRegionSelection = true
                         } label: {
                             HStack(spacing: 10) {
-                                Flag(style: coordinator.regionFlagStyle)
-                                Text(coordinator.countryCode)
+                                Flag(style: onrampCoordinator.regionFlagStyle)
+                                Text(onrampCoordinator.countryCode)
                                     .font(.appTextXL)
                             }
                             .padding([.leading, .trailing], 15)
@@ -53,7 +53,7 @@ struct EnterPhoneScreen: View {
                             )
                         }
 
-                        TextField("Phone Number", text: coordinator.adjustingPhoneNumberBinding)
+                        TextField("Phone Number", text: onrampCoordinator.adjustingPhoneNumberBinding)
                             .font(.appTextXL)
                             .keyboardType(.phonePad)
                             .textContentType(.telephoneNumber)
@@ -72,19 +72,19 @@ struct EnterPhoneScreen: View {
                 Spacer()
 
                 CodeButton(
-                    state: coordinator.sendCodeButtonState,
+                    state: onrampCoordinator.sendCodeButtonState,
                     style: .filled,
                     title: "Next",
-                    disabled: !coordinator.canSendVerificationCode
+                    disabled: !onrampCoordinator.canSendVerificationCode
                 ) {
                     isFocused = false
-                    coordinator.sendPhoneNumberCodeAction()
+                    onrampCoordinator.sendPhoneNumberCodeAction()
                 }
             }
             .padding(20)
             .foregroundColor(.textMain)
         }
-        .dialog(item: $coordinator.dialogItem)
+        .dialog(item: $onrampCoordinator.dialogItem)
         .navigationTitle("Verify Phone Number")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
@@ -95,7 +95,7 @@ struct EnterPhoneScreen: View {
     // MARK: - Actions -
 
     private func didSelectRegion(region: Region) {
-        coordinator.setRegion(region)
+        onrampCoordinator.setRegion(region)
         isShowingRegionSelection = false
     }
 }

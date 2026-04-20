@@ -47,7 +47,7 @@ struct CurrencyInfoScreen: View {
     }
 
     @Environment(WalletConnection.self) private var walletConnection
-    @Environment(OnrampCoordinator.self) private var coordinator
+    @Environment(OnrampCoordinator.self) private var onrampCoordinator
 
     private let mint: PublicKey
     private let container: Container
@@ -201,7 +201,7 @@ struct CurrencyInfoScreen: View {
                 })
             }
         }
-        .fullScreenCover(item: coordinator.buyCompletionBinding) { completion in
+        .fullScreenCover(item: onrampCoordinator.buyCompletionBinding) { completion in
             if case .buyProcessing(let swapId, let name, let amount) = completion {
                 NavigationStack {
                     SwapProcessingScreen(
@@ -211,7 +211,7 @@ struct CurrencyInfoScreen: View {
                         amount: amount
                     )
                     .environment(\.dismissParentContainer, {
-                        coordinator.completion = nil
+                        onrampCoordinator.completion = nil
                     })
                 }
             }
@@ -289,7 +289,7 @@ struct CurrencyInfoScreen: View {
                 mint: target.mint,
                 displayName: target.displayName,
                 session: sessionContainer.session,
-                coordinator: coordinator,
+                onrampCoordinator: onrampCoordinator,
                 onUsdfReady: { signature, amount in
                     let swapId = try await sessionContainer.session.buyWithExternalFunding(
                         amount: amount,

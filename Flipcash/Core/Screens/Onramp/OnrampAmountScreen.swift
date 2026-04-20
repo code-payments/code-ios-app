@@ -12,7 +12,7 @@ import FlipcashCore
 struct OnrampAmountScreen: View {
 
     @State private var viewModel: OnrampViewModel
-    @Environment(OnrampCoordinator.self) private var coordinator
+    @Environment(OnrampCoordinator.self) private var onrampCoordinator
 
     private let onDismiss: () -> Void
 
@@ -22,7 +22,7 @@ struct OnrampAmountScreen: View {
         mint: PublicKey,
         displayName: String,
         session: Session,
-        coordinator: OnrampCoordinator,
+        onrampCoordinator: OnrampCoordinator,
         onUsdfReady: @escaping @MainActor @Sendable (Signature, ExchangedFiat) async throws -> SignedSwapResult,
         onDismiss: @escaping () -> Void
     ) -> OnrampAmountScreen {
@@ -31,7 +31,7 @@ struct OnrampAmountScreen: View {
                 mint: mint,
                 displayName: displayName,
                 session: session,
-                coordinator: coordinator,
+                onrampCoordinator: onrampCoordinator,
                 onUsdfReady: onUsdfReady
             ),
             onDismiss: onDismiss
@@ -50,7 +50,7 @@ struct OnrampAmountScreen: View {
 
     var body: some View {
         @Bindable var viewModel = viewModel
-        @Bindable var coordinator = coordinator
+        @Bindable var onrampCoordinator = onrampCoordinator
         NavigationStack {
             Background(color: .backgroundMain) {
                 EnterAmountView(
@@ -68,17 +68,17 @@ struct OnrampAmountScreen: View {
             .navigationTitle("Amount to Add")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                if !coordinator.isProcessingPayment {
+                if !onrampCoordinator.isProcessingPayment {
                     ToolbarItem(placement: .navigationBarTrailing) {
                         ToolbarCloseButton { onDismiss() }
                     }
                 }
             }
-            .interactiveDismissDisabled(coordinator.isProcessingPayment)
+            .interactiveDismissDisabled(onrampCoordinator.isProcessingPayment)
         }
         .dialog(item: $viewModel.dialogItem)
-        .dialog(item: $coordinator.dialogItem)
-        .onChange(of: coordinator.completion) { _, completion in
+        .dialog(item: $onrampCoordinator.dialogItem)
+        .onChange(of: onrampCoordinator.completion) { _, completion in
             guard case .buyProcessing = completion else { return }
             onDismiss()
         }

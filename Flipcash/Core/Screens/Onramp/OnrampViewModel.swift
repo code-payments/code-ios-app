@@ -31,7 +31,7 @@ class OnrampViewModel {
 
     var dialogItem: DialogItem?
 
-    /// Display name forwarded to the coordinator when a buy is kicked off.
+    /// Display name forwarded to the onrampCoordinator when a buy is kicked off.
     let displayName: String
 
     var enteredFiat: ExchangedFiat? {
@@ -60,10 +60,10 @@ class OnrampViewModel {
     @ObservationIgnored private let mint: PublicKey
 
     /// Coordinator that drives the Coinbase order and Apple Pay flow at root.
-    /// The VM hands off the validated amount via `startBuy`; the coordinator
+    /// The VM hands off the validated amount via `startBuy`; the onrampCoordinator
     /// publishes a `.buyProcessing` completion once the post-onramp swap is
     /// submitted.
-    @ObservationIgnored private let coordinator: OnrampCoordinator
+    @ObservationIgnored private let onrampCoordinator: OnrampCoordinator
     @ObservationIgnored private let onUsdfReady: @MainActor @Sendable (Signature, ExchangedFiat) async throws -> SignedSwapResult
 
     // MARK: - Init -
@@ -72,14 +72,14 @@ class OnrampViewModel {
         mint: PublicKey,
         displayName: String,
         session: Session,
-        coordinator: OnrampCoordinator,
+        onrampCoordinator: OnrampCoordinator,
         onUsdfReady: @escaping @MainActor @Sendable (Signature, ExchangedFiat) async throws -> SignedSwapResult
     ) -> OnrampViewModel {
         OnrampViewModel(
             displayName: displayName,
             mint: mint,
             session: session,
-            coordinator: coordinator,
+            onrampCoordinator: onrampCoordinator,
             onUsdfReady: onUsdfReady
         )
     }
@@ -88,13 +88,13 @@ class OnrampViewModel {
         displayName: String,
         mint: PublicKey,
         session: Session,
-        coordinator: OnrampCoordinator,
+        onrampCoordinator: OnrampCoordinator,
         onUsdfReady: @escaping @MainActor @Sendable (Signature, ExchangedFiat) async throws -> SignedSwapResult
     ) {
         self.displayName = displayName
         self.mint = mint
         self.session = session
-        self.coordinator = coordinator
+        self.onrampCoordinator = onrampCoordinator
         self.onUsdfReady = onUsdfReady
     }
 
@@ -124,7 +124,7 @@ class OnrampViewModel {
             return
         }
 
-        coordinator.startBuy(
+        onrampCoordinator.startBuy(
             amount: exchangedFiat,
             mint: mint,
             displayName: displayName,

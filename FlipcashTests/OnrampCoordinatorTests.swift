@@ -13,39 +13,39 @@ struct OnrampCoordinatorTests {
 
     @Test("cancel clears order and verification state")
     func cancelClearsState() {
-        let coordinator = OnrampCoordinator(session: .mock, flipClient: .mock)
-        coordinator.cancel()
-        #expect(coordinator.coinbaseOrder == nil)
-        #expect(coordinator.completion == nil)
+        let onrampCoordinator = OnrampCoordinator(session: .mock, flipClient: .mock)
+        onrampCoordinator.cancel()
+        #expect(onrampCoordinator.coinbaseOrder == nil)
+        #expect(onrampCoordinator.completion == nil)
     }
 
     @Test("startLaunch with a verified user does not open the verification sheet")
     func startLaunch_verified_doesNotOpenVerification() {
-        let coordinator = OnrampCoordinator(session: .verifiedMock, flipClient: .mock)
-        coordinator.startLaunch(
+        let onrampCoordinator = OnrampCoordinator(session: .verifiedMock, flipClient: .mock)
+        onrampCoordinator.startLaunch(
             amount: .mockOne,
             displayName: "Test",
             onCompleted: { _, _ in .launch(swapId: .generate(), mint: .jeffy) }
         )
-        #expect(coordinator.isShowingVerificationFlow == false)
+        #expect(onrampCoordinator.isShowingVerificationFlow == false)
     }
 
     @Test("startLaunch with an unverified user opens the verification sheet")
     func startLaunch_unverified_opensVerification() {
-        let coordinator = OnrampCoordinator(session: .unverifiedMock, flipClient: .mock)
-        coordinator.startLaunch(
+        let onrampCoordinator = OnrampCoordinator(session: .unverifiedMock, flipClient: .mock)
+        onrampCoordinator.startLaunch(
             amount: .mockOne,
             displayName: "Test",
             onCompleted: { _, _ in .launch(swapId: .generate(), mint: .jeffy) }
         )
-        #expect(coordinator.isShowingVerificationFlow == true)
+        #expect(onrampCoordinator.isShowingVerificationFlow == true)
     }
 
     @Test("applyDeeplinkVerification sets the confirm-email path and stashes the email")
     func applyDeeplinkVerification_setsConfirmEmailPath() {
-        let coordinator = OnrampCoordinator(session: .unverifiedMock, flipClient: .mock)
-        coordinator.applyDeeplinkVerification(VerificationDescription(email: "a@b.c", code: "123456"))
-        #expect(coordinator.verificationPath == [.confirmEmailCode])
-        #expect(coordinator.enteredEmail == "a@b.c")
+        let onrampCoordinator = OnrampCoordinator(session: .unverifiedMock, flipClient: .mock)
+        onrampCoordinator.applyDeeplinkVerification(VerificationDescription(email: "a@b.c", code: "123456"))
+        #expect(onrampCoordinator.verificationPath == [.confirmEmailCode])
+        #expect(onrampCoordinator.enteredEmail == "a@b.c")
     }
 }

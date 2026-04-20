@@ -12,24 +12,24 @@ import FlipcashCore
 /// or the verification flow.
 struct OnrampHostModifier: ViewModifier {
 
-    @Environment(OnrampCoordinator.self) private var coordinator
+    @Environment(OnrampCoordinator.self) private var onrampCoordinator
     @Environment(OnrampDeeplinkInbox.self) private var deeplinkInbox
 
     func body(content: Content) -> some View {
-        @Bindable var coordinator = coordinator
+        @Bindable var onrampCoordinator = onrampCoordinator
         @Bindable var deeplinkInbox = deeplinkInbox
         return content
             .overlay {
-                ApplePayOverlay(order: coordinator.coinbaseOrder) { event in
-                    coordinator.receiveApplePayEvent(event)
+                ApplePayOverlay(order: onrampCoordinator.coinbaseOrder) { event in
+                    onrampCoordinator.receiveApplePayEvent(event)
                 }
             }
-            .sheet(isPresented: $coordinator.isShowingVerificationFlow) {
-                VerifyInfoScreen(coordinator: coordinator)
+            .sheet(isPresented: $onrampCoordinator.isShowingVerificationFlow) {
+                VerifyInfoScreen(onrampCoordinator: onrampCoordinator)
             }
             .onChange(of: deeplinkInbox.pendingEmailVerification, initial: true) { _, verification in
                 if let verification {
-                    coordinator.applyDeeplinkVerification(verification)
+                    onrampCoordinator.applyDeeplinkVerification(verification)
                     deeplinkInbox.pendingEmailVerification = nil
                 }
             }

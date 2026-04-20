@@ -22,7 +22,7 @@ struct CurrencyCreationWizardScreen: View {
     @Environment(Session.self) private var session
     @Environment(RatesController.self) private var ratesController
     @Environment(WalletConnection.self) private var walletConnection
-    @Environment(OnrampCoordinator.self) private var coordinator
+    @Environment(OnrampCoordinator.self) private var onrampCoordinator
 
     @State private var step: WizardStep = .name
     @State private var direction: Direction = .forward
@@ -169,7 +169,7 @@ struct CurrencyCreationWizardScreen: View {
         }
         .dialog(item: $errorDialog)
         .dialog(item: Bindable(walletConnection).dialogItem)
-        .dialog(item: Bindable(coordinator).dialogItem)
+        .dialog(item: Bindable(onrampCoordinator).dialogItem)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .interactiveDismissDisabled()
@@ -217,7 +217,7 @@ struct CurrencyCreationWizardScreen: View {
                 onSelectCoinbase: {
                     isShowingFundingSheet = false
                     isValidating = true
-                    coordinator.startLaunch(
+                    onrampCoordinator.startLaunch(
                         amount: launchAmount,
                         displayName: state.currencyName,
                         onCompleted: { signature, amount in
@@ -247,11 +247,11 @@ struct CurrencyCreationWizardScreen: View {
                 })
             }
         }
-        // Coinbase launch flow: coordinator publishes `.launchProcessing`
+        // Coinbase launch flow: the onrampCoordinator publishes `.launchProcessing`
         // once the post-onramp swap has been submitted. The cover presents
         // `CurrencyLaunchProcessingScreen` and its Done button tears down
         // the wizard so the user lands back in the discovery stack.
-        .fullScreenCover(item: coordinator.launchCompletionBinding) { completion in
+        .fullScreenCover(item: onrampCoordinator.launchCompletionBinding) { completion in
             if case .launchProcessing(let swapId, let launchedMint, let name, let amount) = completion {
                 NavigationStack {
                     CurrencyLaunchProcessingScreen(
@@ -262,7 +262,7 @@ struct CurrencyCreationWizardScreen: View {
                         fundingMethod: .coinbase
                     )
                     .environment(\.dismissParentContainer, {
-                        coordinator.completion = nil
+                        onrampCoordinator.completion = nil
                         isValidating = false
                         dismiss()
                     })
@@ -292,13 +292,13 @@ struct CurrencyCreationWizardScreen: View {
         .onAppear {
             if step == .name { focusedField = .name }
         }
-        // On a coordinator error the Coinbase flow resets to idle without
+        // On an onrampCoordinator error the Coinbase flow resets to idle without
         // publishing a completion. Mirror that by clearing `isValidating`
         // so the confirmation screen becomes interactive again. The success
         // path runs through the `.launchProcessing` cover, whose
         // `dismissParentContainer` already resets `isValidating`.
-        .onChange(of: coordinator.isProcessingPayment) { _, isProcessing in
-            if !isProcessing && coordinator.completion == nil {
+        .onChange(of: onrampCoordinator.isProcessingPayment) { _, isProcessing in
+            if !isProcessing && onrampCoordinator.completion == nil {
                 isValidating = false
             }
         }
