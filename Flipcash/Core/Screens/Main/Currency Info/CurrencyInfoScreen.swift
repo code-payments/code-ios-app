@@ -201,6 +201,21 @@ struct CurrencyInfoScreen: View {
                 })
             }
         }
+        .fullScreenCover(item: Bindable(coordinator).completion) { completion in
+            if case .buyProcessing(let swapId, let name, let amount) = completion {
+                NavigationStack {
+                    SwapProcessingScreen(
+                        swapId: swapId,
+                        swapType: .buyWithCoinbase,
+                        currencyName: name,
+                        amount: amount
+                    )
+                    .environment(\.dismissParentContainer, {
+                        coordinator.completion = nil
+                    })
+                }
+            }
+        }
         .navigationDestination(isPresented: $isShowingGive) {
             GiveScreen(viewModel: giveViewModel)
         }
