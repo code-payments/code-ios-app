@@ -24,7 +24,9 @@ struct OnrampAmountScreen: View {
         displayName: String,
         session: Session,
         flipClient: FlipClient,
+        coordinator: OnrampCoordinator,
         deeplinkInbox: OnrampDeeplinkInbox,
+        onUsdfReady: @escaping @MainActor @Sendable (Signature, ExchangedFiat) async throws -> SignedSwapResult,
         onDismiss: @escaping () -> Void
     ) -> OnrampAmountScreen {
         OnrampAmountScreen(
@@ -33,6 +35,8 @@ struct OnrampAmountScreen: View {
                 displayName: displayName,
                 session: session,
                 flipClient: flipClient,
+                coordinator: coordinator,
+                onUsdfReady: onUsdfReady,
                 onDismiss: onDismiss
             ),
             onDismiss: onDismiss,

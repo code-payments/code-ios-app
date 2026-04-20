@@ -140,6 +140,12 @@ class OnrampViewModel {
 
     @ObservationIgnored private let mode: Mode
 
+    /// Set only when created via `forBuying`. The buy flow hands the validated
+    /// amount to the coordinator, which drives the Coinbase order and Apple Pay
+    /// flow at root. Launch flows still use the VM-internal path through `mode`.
+    @ObservationIgnored private let coordinator: OnrampCoordinator?
+    @ObservationIgnored private let onUsdfReady: (@MainActor @Sendable (Signature, ExchangedFiat) async throws -> SignedSwapResult)?
+
     @ObservationIgnored private var coinbase: Coinbase!
 
     @ObservationIgnored private let coinbaseApiKey: String?
@@ -168,6 +174,8 @@ class OnrampViewModel {
         displayName: String,
         session: Session,
         flipClient: FlipClient,
+        coordinator: OnrampCoordinator,
+        onUsdfReady: @escaping @MainActor @Sendable (Signature, ExchangedFiat) async throws -> SignedSwapResult,
         onDismiss: @escaping () -> Void
     ) -> OnrampViewModel {
         OnrampViewModel(
@@ -175,6 +183,8 @@ class OnrampViewModel {
             mode: .buyExistingCurrency(mint: mint),
             session: session,
             flipClient: flipClient,
+            coordinator: coordinator,
+            onUsdfReady: onUsdfReady,
             onDismiss: onDismiss
         )
     }
@@ -191,6 +201,8 @@ class OnrampViewModel {
             mode: .launchNewCurrency(onUsdfReady: onUsdfReady),
             session: session,
             flipClient: flipClient,
+            coordinator: nil,
+            onUsdfReady: nil,
             onDismiss: onDismiss
         )
     }
@@ -200,12 +212,16 @@ class OnrampViewModel {
         mode: Mode,
         session: Session,
         flipClient: FlipClient,
+        coordinator: OnrampCoordinator?,
+        onUsdfReady: (@MainActor @Sendable (Signature, ExchangedFiat) async throws -> SignedSwapResult)?,
         onDismiss: @escaping () -> Void
     ) {
         self.displayName = displayName
         self.mode = mode
         self.session = session
         self.flipClient = flipClient
+        self.coordinator = coordinator
+        self.onUsdfReady = onUsdfReady
         self.owner = session.ownerKeyPair
         self.onDismiss = onDismiss
         self.region = phoneFormatter.currentRegion
@@ -344,12 +360,24 @@ class OnrampViewModel {
             return
         }
 
-        // `reset()` clears `enteredAmount` along with verification fields,
-        // so stash and restore it.
-        let amount = enteredAmount
-        reset()
-        enteredAmount = amount
-        navigateToVerificationOrPurchase()
+        switch mode {
+        case .buyExistingCurrency(let mint):
+            guard let coordinator, let onUsdfReady else { return }
+            coordinator.startBuy(
+                amount: exchangedFiat,
+                mint: mint,
+                displayName: displayName,
+                onCompleted: onUsdfReady
+            )
+
+        case .launchNewCurrency:
+            // `reset()` clears `enteredAmount` along with verification fields,
+            // so stash and restore it.
+            let amount = enteredAmount
+            reset()
+            enteredAmount = amount
+            navigateToVerificationOrPurchase()
+        }
     }
     
     func sendPhoneNumberCodeAction() {

@@ -47,6 +47,7 @@ struct CurrencyInfoScreen: View {
     }
 
     @Environment(WalletConnection.self) private var walletConnection
+    @Environment(OnrampCoordinator.self) private var coordinator
 
     private let mint: PublicKey
     private let container: Container
@@ -274,7 +275,16 @@ struct CurrencyInfoScreen: View {
                 displayName: target.displayName,
                 session: sessionContainer.session,
                 flipClient: sessionContainer.flipClient,
+                coordinator: coordinator,
                 deeplinkInbox: sessionContainer.onrampDeeplinkInbox,
+                onUsdfReady: { signature, amount in
+                    let swapId = try await sessionContainer.session.buyWithExternalFunding(
+                        amount: amount,
+                        of: target.mint,
+                        transactionSignature: signature
+                    )
+                    return .buyExisting(swapId: swapId)
+                },
                 onDismiss: { onrampDestination = nil }
             )
         }
