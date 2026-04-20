@@ -10,20 +10,20 @@ import FlipcashUI
 import FlipcashCore
 
 struct ConfirmPhoneScreen: View {
-    
+
     @Environment(NotificationController.self) private var notificationController
     @State private var countdownEnd: Date?
-    @Bindable private var viewModel: OnrampViewModel
+    @Bindable private var onrampCoordinator: OnrampCoordinator
     @FocusState private var isFocused: Bool
-    
+
     // MARK: - Init -
-    
-    init(viewModel: OnrampViewModel) {
-        self.viewModel = viewModel
+
+    init(onrampCoordinator: OnrampCoordinator) {
+        self.onrampCoordinator = onrampCoordinator
     }
-    
+
     // MARK: - Body -
-    
+
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(spacing: 5) {
@@ -32,8 +32,8 @@ struct ConfirmPhoneScreen: View {
                     isFocused = true
                 } label: {
                     ZStack {
-                        TwoFactorCodeView(digitCount: viewModel.codeLength, content: $viewModel.enteredCode)
-                        TextField("", text: viewModel.adjustingCodeBinding)
+                        TwoFactorCodeView(digitCount: onrampCoordinator.codeLength, content: $onrampCoordinator.enteredCode)
+                        TextField("", text: onrampCoordinator.adjustingCodeBinding)
                             .foregroundColor(.backgroundMain)
                             .keyboardType(.numberPad)
                             .textContentType(.oneTimeCode)
@@ -41,15 +41,15 @@ struct ConfirmPhoneScreen: View {
                             .focused($isFocused)
                     }
                 }
-                
+
                 let text = "An SMS message was sent to your phone number with a verification code. Please enter the verification code above."
-                
+
                 Group {
                     if let countdownEnd, countdownEnd > .now {
                         VStack(spacing: 15) {
                             Text(text)
                             VStack(spacing: 0) {
-                                Text("Didn't get an SMS at \(viewModel.phone?.national ?? "")?")
+                                Text("Didn't get an SMS at \(onrampCoordinator.phone?.national ?? "")?")
                                 (Text("Request a new one in ") + Text(timerInterval: .now...countdownEnd, countsDown: true))
                                     .contentTransition(.numericText())
                             }
@@ -61,12 +61,12 @@ struct ConfirmPhoneScreen: View {
                             Button {
                                 Task {
                                     do {
-                                        try await viewModel.resendCodeAction()
+                                        try await onrampCoordinator.resendCodeAction()
                                         countdownEnd = Date.now.addingTimeInterval(60)
                                     }
                                 }
                             } label: {
-                                Loadable(isLoading: viewModel.isResending, color: .textSecondary) {
+                                Loadable(isLoading: onrampCoordinator.isResending, color: .textSecondary) {
                                     VStack(spacing: 0) {
                                         Text("Didn't get an SMS? Resend")
                                         Text(" ") // Offset to match the two line layout above
@@ -84,18 +84,18 @@ struct ConfirmPhoneScreen: View {
 
                 Spacer()
                 CodeButton(
-                    state: viewModel.confirmCodeButtonState,
+                    state: onrampCoordinator.confirmCodeButtonState,
                     style: .filled,
                     title: "Confirm",
-                    disabled: !viewModel.isCodeComplete
+                    disabled: !onrampCoordinator.isCodeComplete
                 ) {
-                    viewModel.confirmPhoneNumberCodeAction()
+                    onrampCoordinator.confirmPhoneNumberCodeAction()
                 }
             }
             .padding(20)
             .foregroundColor(.textMain)
         }
-        .dialog(item: $viewModel.dialogItem)
+        .dialog(item: $onrampCoordinator.dialogItem)
         .navigationTitle("Verify Phone Number")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
@@ -114,13 +114,13 @@ struct ConfirmPhoneScreen: View {
                 self.countdownEnd = nil
             }
         }
-        .onChange(of: viewModel.enteredCode) { _, _ in
-            if viewModel.isCodeComplete {
-                viewModel.confirmPhoneNumberCodeAction()
+        .onChange(of: onrampCoordinator.enteredCode) { _, _ in
+            if onrampCoordinator.isCodeComplete {
+                onrampCoordinator.confirmPhoneNumberCodeAction()
             }
         }
         .onChange(of: notificationController.didBecomeActive) { _, _ in
-            viewModel.pasteCodeFromClipboardIfPossible()
+            onrampCoordinator.pasteCodeFromClipboardIfPossible()
         }
     }
 }

@@ -43,6 +43,7 @@ struct ContainerScreen: View {
                         container: container,
                         sessionContainer: sessionContainer
                     )
+                    .modifier(OnrampHostModifier())
                     .injectingEnvironment(from: sessionContainer)
                     .transition(.opacity)
                 }

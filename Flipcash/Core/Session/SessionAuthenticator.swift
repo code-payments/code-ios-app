@@ -416,6 +416,7 @@ struct SessionContainer {
     let pushController: PushController
     let flipClient: FlipClient
     let onrampDeeplinkInbox: OnrampDeeplinkInbox
+    let onrampCoordinator: OnrampCoordinator
 
     @MainActor
     init(
@@ -435,6 +436,7 @@ struct SessionContainer {
         self.pushController = pushController
         self.flipClient = flipClient
         self.onrampDeeplinkInbox = OnrampDeeplinkInbox()
+        self.onrampCoordinator = OnrampCoordinator(session: session, flipClient: flipClient)
     }
 
     fileprivate func injectingEnvironment<SomeView>(into view: SomeView) -> some View where SomeView: View {
@@ -444,6 +446,8 @@ struct SessionContainer {
             .environment(historyController)
             .environment(pushController)
             .environment(walletConnection)
+            .environment(onrampCoordinator)
+            .environment(onrampDeeplinkInbox)
     }
 
     @MainActor

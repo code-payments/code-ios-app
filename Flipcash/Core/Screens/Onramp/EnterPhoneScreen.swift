@@ -10,21 +10,21 @@ import FlipcashUI
 import FlipcashCore
 
 struct EnterPhoneScreen: View {
-    
+
     @State private var isShowingRegionSelection = false
-    
-    @Bindable private var viewModel: OnrampViewModel
-    
+
+    @Bindable private var onrampCoordinator: OnrampCoordinator
+
     @FocusState private var isFocused: Bool
-    
+
     // MARK: - Init -
-    
-    init(viewModel: OnrampViewModel) {
-        self.viewModel = viewModel
+
+    init(onrampCoordinator: OnrampCoordinator) {
+        self.onrampCoordinator = onrampCoordinator
     }
-    
+
     // MARK: - Body -
-    
+
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(alignment: .center, spacing: 15) {
@@ -35,8 +35,8 @@ struct EnterPhoneScreen: View {
                             isShowingRegionSelection = true
                         } label: {
                             HStack(spacing: 10) {
-                                Flag(style: viewModel.regionFlagStyle)
-                                Text(viewModel.countryCode)
+                                Flag(style: onrampCoordinator.regionFlagStyle)
+                                Text(onrampCoordinator.countryCode)
                                     .font(.appTextXL)
                             }
                             .padding([.leading, .trailing], 15)
@@ -52,8 +52,8 @@ struct EnterPhoneScreen: View {
                                 didSelectRegion: didSelectRegion
                             )
                         }
-                        
-                        TextField("Phone Number", text: viewModel.adjustingPhoneNumberBinding)
+
+                        TextField("Phone Number", text: onrampCoordinator.adjustingPhoneNumberBinding)
                             .font(.appTextXL)
                             .keyboardType(.phonePad)
                             .textContentType(.telephoneNumber)
@@ -63,39 +63,39 @@ struct EnterPhoneScreen: View {
                             .focused($isFocused)
                     }
                 }
-                
+
                 Text("Please enter your phone number to continue")
                     .foregroundColor(.textSecondary)
                     .font(.appTextSmall)
                     .multilineTextAlignment(.center)
-                
+
                 Spacer()
-                
+
                 CodeButton(
-                    state: viewModel.sendCodeButtonState,
+                    state: onrampCoordinator.sendCodeButtonState,
                     style: .filled,
                     title: "Next",
-                    disabled: !viewModel.canSendVerificationCode
+                    disabled: !onrampCoordinator.canSendVerificationCode
                 ) {
                     isFocused = false
-                    viewModel.sendPhoneNumberCodeAction()
+                    onrampCoordinator.sendPhoneNumberCodeAction()
                 }
             }
             .padding(20)
             .foregroundColor(.textMain)
         }
-        .dialog(item: $viewModel.dialogItem)
+        .dialog(item: $onrampCoordinator.dialogItem)
         .navigationTitle("Verify Phone Number")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             isFocused = true
         }
     }
-    
+
     // MARK: - Actions -
-    
+
     private func didSelectRegion(region: Region) {
-        viewModel.setRegion(region)
+        onrampCoordinator.setRegion(region)
         isShowingRegionSelection = false
     }
 }

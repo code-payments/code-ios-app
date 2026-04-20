@@ -12,9 +12,9 @@ import FlipcashCore
 struct OnrampAmountScreen: View {
 
     @State private var viewModel: OnrampViewModel
+    @Environment(OnrampCoordinator.self) private var onrampCoordinator
 
     private let onDismiss: () -> Void
-    private let deeplinkInbox: OnrampDeeplinkInbox
 
     // MARK: - Init -
 
@@ -22,8 +22,8 @@ struct OnrampAmountScreen: View {
         mint: PublicKey,
         displayName: String,
         session: Session,
-        flipClient: FlipClient,
-        deeplinkInbox: OnrampDeeplinkInbox,
+        onrampCoordinator: OnrampCoordinator,
+        onUsdfReady: @escaping @MainActor @Sendable (Signature, ExchangedFiat) async throws -> SignedSwapResult,
         onDismiss: @escaping () -> Void
     ) -> OnrampAmountScreen {
         OnrampAmountScreen(
@@ -31,108 +31,59 @@ struct OnrampAmountScreen: View {
                 mint: mint,
                 displayName: displayName,
                 session: session,
-                flipClient: flipClient,
-                onDismiss: onDismiss
-            ),
-            onDismiss: onDismiss,
-            deeplinkInbox: deeplinkInbox
-        )
-    }
-
-    static func forLaunching(
-        displayName: String,
-        session: Session,
-        flipClient: FlipClient,
-        deeplinkInbox: OnrampDeeplinkInbox,
-        onDismiss: @escaping () -> Void,
-        onUsdfReady: @escaping @MainActor @Sendable (Signature, ExchangedFiat) async throws -> SignedSwapResult
-    ) -> OnrampAmountScreen {
-        OnrampAmountScreen(
-            viewModel: .forLaunching(
-                displayName: displayName,
-                session: session,
-                flipClient: flipClient,
-                onDismiss: onDismiss,
+                onrampCoordinator: onrampCoordinator,
                 onUsdfReady: onUsdfReady
             ),
-            onDismiss: onDismiss,
-            deeplinkInbox: deeplinkInbox
+            onDismiss: onDismiss
         )
     }
 
     private init(
         viewModel: OnrampViewModel,
-        onDismiss: @escaping () -> Void,
-        deeplinkInbox: OnrampDeeplinkInbox
+        onDismiss: @escaping () -> Void
     ) {
         _viewModel = State(wrappedValue: viewModel)
         self.onDismiss = onDismiss
-        self.deeplinkInbox = deeplinkInbox
     }
 
     // MARK: - Body -
 
     var body: some View {
-        NavigationStack(path: $viewModel.amountPath) {
+        @Bindable var viewModel = viewModel
+        @Bindable var onrampCoordinator = onrampCoordinator
+        NavigationStack {
             Background(color: .backgroundMain) {
                 EnterAmountView(
                     mode: .onramp,
                     enteredAmount: $viewModel.enteredAmount,
                     subtitle: .singleTransactionLimit,
-                    actionState: $viewModel.payButtonState,
-                    actionEnabled: { _ in
-                        viewModel.enteredFiat != nil
-                    },
+                    actionState: .constant(onrampCoordinator.isProcessingPayment ? .loading : .normal),
+                    actionEnabled: { _ in viewModel.enteredFiat != nil },
                     action: viewModel.customAmountEnteredAction,
                     currencySelectionAction: nil,
                 )
                 .foregroundColor(.textMain)
                 .padding(20)
-                .overlay {
-                    ApplePayOverlay(order: viewModel.coinbaseOrder) { event in
-                        viewModel.receiveApplePayEvent(event)
-                    }
-                }
             }
             .navigationTitle("Amount to Add")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                if !viewModel.isProcessingPayment {
+                if !onrampCoordinator.isProcessingPayment {
                     ToolbarItem(placement: .navigationBarTrailing) {
                         ToolbarCloseButton { onDismiss() }
                     }
                 }
             }
-            .interactiveDismissDisabled(viewModel.isProcessingPayment)
-            .navigationDestination(for: OnrampAmountPath.self) { path in
-                switch path {
-                case .swapProcessing(let swapId, let currencyName, let amount):
-                    SwapProcessingScreen(
-                        swapId: swapId,
-                        swapType: .buyWithCoinbase,
-                        currencyName: currencyName,
-                        amount: amount
-                    )
-                case .launchProcessing(let swapId, let launchedMint, let currencyName, let amount):
-                    CurrencyLaunchProcessingScreen(
-                        swapId: swapId,
-                        launchedMint: launchedMint,
-                        currencyName: currencyName,
-                        launchAmount: amount,
-                        fundingMethod: .coinbase
-                    )
-                }
-            }
-        }
-        .sheet(isPresented: $viewModel.isShowingVerificationFlow) {
-            VerifyInfoScreen(viewModel: viewModel)
+            .interactiveDismissDisabled(onrampCoordinator.isProcessingPayment)
         }
         .dialog(item: $viewModel.dialogItem)
-        .onChange(of: deeplinkInbox.pendingEmailVerification, initial: true) { _, verification in
-            if let verification {
-                viewModel.applyDeeplinkVerification(verification)
-                deeplinkInbox.pendingEmailVerification = nil
-            }
+        .dialog(item: $onrampCoordinator.dialogItem)
+        .sheet(isPresented: $onrampCoordinator.isShowingVerificationFlow) {
+            VerifyInfoScreen(onrampCoordinator: onrampCoordinator)
+        }
+        .onChange(of: onrampCoordinator.completion) { _, completion in
+            guard case .buyProcessing = completion else { return }
+            onDismiss()
         }
     }
 }
@@ -142,7 +93,7 @@ struct OnrampAmountScreen: View {
 /// flow in the background) and explicitly excluded from hit testing and
 /// accessibility so the covered region of the amount keypad remains tappable
 /// and VoiceOver users don't land on a silent 300×300 zone.
-private struct ApplePayOverlay: View {
+struct ApplePayOverlay: View {
 
     let order: OnrampOrderResponse?
     let onEvent: (ApplePayEvent) -> Void

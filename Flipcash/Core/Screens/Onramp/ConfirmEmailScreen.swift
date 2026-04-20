@@ -12,50 +12,50 @@ import FlipcashCore
 struct ConfirmEmailScreen: View {
 
     @State private var countdownEnd: Date?
-    
-    @Bindable private var viewModel: OnrampViewModel
-    
+
+    @Bindable private var onrampCoordinator: OnrampCoordinator
+
     // MARK: - Init -
-    
-    init(viewModel: OnrampViewModel) {
-        self.viewModel = viewModel
+
+    init(onrampCoordinator: OnrampCoordinator) {
+        self.onrampCoordinator = onrampCoordinator
     }
-    
+
     // MARK: - Body -
-    
+
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(spacing: 5) {
-                
+
                 Spacer()
-                
+
                 // Placeholder to offset the bottom part
                 VStack(spacing: 0) {
                     Text(" ")
                     Text(" ")
                 }
                 .font(.appTextSmall)
-                
+
                 Spacer()
-                
+
                 VStack(spacing: 30) {
                     Image.asset(.emailSent)
-                    
+
                     Text("Check your inbox")
                         .font(.appDisplaySmall)
                         .foregroundStyle(Color.textMain)
-                    
+
                     VStack {
                         Text("Tap the link we sent to")
                             .foregroundStyle(Color.textSecondary)
-                        Text(viewModel.enteredEmail)
+                        Text(onrampCoordinator.enteredEmail)
                             .foregroundStyle(Color.textMain)
                     }
                     .font(.appTextSmall)
                 }
-                
+
                 Spacer()
-                
+
                 Group {
                     if let countdownEnd, countdownEnd > .now {
                         VStack(spacing: 0) {
@@ -69,11 +69,11 @@ struct ConfirmEmailScreen: View {
                             Button {
                                 Task {
                                     do {
-                                        try await viewModel.resendEmailCodeAction()
+                                        try await onrampCoordinator.resendEmailCodeAction()
                                     }
                                 }
                             } label: {
-                                Loadable(isLoading: viewModel.isResending, color: .textSecondary) {
+                                Loadable(isLoading: onrampCoordinator.isResending, color: .textSecondary) {
                                     VStack(spacing: 0) {
                                         Text("Didn't get an email? Resend")
                                         Text(" ") // Offset to match the two line layout above
@@ -90,9 +90,9 @@ struct ConfirmEmailScreen: View {
                 .padding(20)
 
                 Spacer()
-                
+
                 CodeButton(
-                    state: viewModel.confirmEmailButtonState,
+                    state: onrampCoordinator.confirmEmailButtonState,
                     style: .filled,
                     title: "Open Mail",
                     disabled: false
@@ -103,7 +103,7 @@ struct ConfirmEmailScreen: View {
             .padding(20)
             .foregroundColor(.textMain)
         }
-        .dialog(item: $viewModel.dialogItem)
+        .dialog(item: $onrampCoordinator.dialogItem)
         .navigationTitle("Verify Email")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
@@ -121,7 +121,7 @@ struct ConfirmEmailScreen: View {
                 self.countdownEnd = nil
             }
         }
-        .onChange(of: viewModel.isResending) { _, isResending in
+        .onChange(of: onrampCoordinator.isResending) { _, isResending in
             if !isResending {
                 countdownEnd = Date.now.addingTimeInterval(60)
             }

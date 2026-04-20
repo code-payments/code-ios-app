@@ -10,60 +10,60 @@ import FlipcashUI
 import FlipcashCore
 
 struct EnterEmailScreen: View {
-    
-    @Bindable private var viewModel: OnrampViewModel
-    
+
+    @Bindable private var onrampCoordinator: OnrampCoordinator
+
     @FocusState private var isFocused: Bool
-    
+
     // MARK: - Init -
-    
-    init(viewModel: OnrampViewModel) {
-        self.viewModel = viewModel
+
+    init(onrampCoordinator: OnrampCoordinator) {
+        self.onrampCoordinator = onrampCoordinator
     }
-    
+
     // MARK: - Body -
-    
+
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(alignment: .center, spacing: 15) {
                 Spacer()
                 InputContainer(size: .regular) {
-                    TextField("Email", text: $viewModel.enteredEmail)
+                    TextField("Email", text: $onrampCoordinator.enteredEmail)
                         .font(.appTextXL)
                         .keyboardType(.emailAddress)
                         .textContentType(.emailAddress)
-                        .autocapitalization(.none)
+                        .textInputAutocapitalization(.never)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .multilineTextAlignment(.leading)
                         .padding([.leading, .trailing], 15)
                         .focused($isFocused)
                 }
-                
+
                 Text("Please enter your email to continue")
                     .foregroundColor(.textSecondary)
                     .font(.appTextSmall)
                     .multilineTextAlignment(.center)
-                
+
                 Spacer()
-                
+
                 CodeButton(
-                    state: viewModel.sendEmailCodeState,
+                    state: onrampCoordinator.sendEmailCodeState,
                     style: .filled,
                     title: "Next",
-                    disabled: !viewModel.canSendEmailVerification
+                    disabled: !onrampCoordinator.canSendEmailVerification
                 ) {
                     isFocused = false
-                    viewModel.sendEmailCodeAction()
+                    onrampCoordinator.sendEmailCodeAction()
                 }
             }
             .padding(20)
             .foregroundColor(.textMain)
         }
-        .dialog(item: $viewModel.dialogItem)
+        .dialog(item: $onrampCoordinator.dialogItem)
         .navigationTitle("Verify Email")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
-            isFocused.toggle()
+            isFocused = true
         }
     }
 }

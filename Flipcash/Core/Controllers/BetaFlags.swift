@@ -98,7 +98,6 @@ extension BetaFlags {
         case transactionDetails
         case vibrateOnScan
         case enableCoinbase
-        case coinbaseSandbox
         case currencyCreation
 
         var id: String {
@@ -113,8 +112,6 @@ extension BetaFlags {
                 return "Vibrate on scan"
             case .enableCoinbase:
                 return "Enable Coinbase"
-            case .coinbaseSandbox:
-                return "Coinbase Sandbox"
             case .currencyCreation:
                 return "Currency Creation"
             }
@@ -128,8 +125,6 @@ extension BetaFlags {
                 return "If enabled, the device will vibrate to indicate that the camera has registered the code on the bill"
             case .enableCoinbase:
                 return "If enabled, Coinbase onramp will be available regardless of region"
-            case .coinbaseSandbox:
-                return "If enabled, all Coinbase transactions will go through the sandbox environment"
             case .currencyCreation:
                 return "If enabled, shows a button to create your own currency in the discovery screen"
             }

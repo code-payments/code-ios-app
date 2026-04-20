@@ -10,19 +10,19 @@ import FlipcashUI
 import FlipcashCore
 
 struct VerifyInfoScreen: View {
-    
-    @Bindable private var viewModel: OnrampViewModel
-    
+
+    @Bindable private var onrampCoordinator: OnrampCoordinator
+
     // MARK: - Init -
-    
-    init(viewModel: OnrampViewModel) {
-        self.viewModel = viewModel
+
+    init(onrampCoordinator: OnrampCoordinator) {
+        self.onrampCoordinator = onrampCoordinator
     }
-    
+
     // MARK: - Body -
-    
+
     var body: some View {
-        NavigationStack(path: $viewModel.verificationPath) {
+        NavigationStack(path: $onrampCoordinator.verificationPath) {
             Background(color: .backgroundMain) {
                 VStack(alignment: .center, spacing: 20) {
                     Spacer()
@@ -44,7 +44,7 @@ struct VerifyInfoScreen: View {
                     Spacer()
 
                     Button("Next") {
-                        viewModel.navigateToInitialVerification()
+                        onrampCoordinator.navigateToInitialVerification()
                     }
                     .buttonStyle(.filled)
                 }
@@ -55,24 +55,24 @@ struct VerifyInfoScreen: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    ToolbarCloseButton(binding: $viewModel.isShowingVerificationFlow)
+                    ToolbarCloseButton(binding: $onrampCoordinator.isShowingVerificationFlow)
                 }
             }
             .navigationDestination(for: OnrampVerificationPath.self) { path in
                 switch path {
                 case .info:
-                    VerifyInfoScreen(viewModel: viewModel)
+                    VerifyInfoScreen(onrampCoordinator: onrampCoordinator)
                 case .enterPhoneNumber:
-                    EnterPhoneScreen(viewModel: viewModel)
+                    EnterPhoneScreen(onrampCoordinator: onrampCoordinator)
                         .interactiveDismissDisabled()
                 case .confirmPhoneNumberCode:
-                    ConfirmPhoneScreen(viewModel: viewModel)
+                    ConfirmPhoneScreen(onrampCoordinator: onrampCoordinator)
                         .interactiveDismissDisabled()
                 case .enterEmail:
-                    EnterEmailScreen(viewModel: viewModel)
+                    EnterEmailScreen(onrampCoordinator: onrampCoordinator)
                         .interactiveDismissDisabled()
                 case .confirmEmailCode:
-                    ConfirmEmailScreen(viewModel: viewModel)
+                    ConfirmEmailScreen(onrampCoordinator: onrampCoordinator)
                         .interactiveDismissDisabled()
                 }
             }
