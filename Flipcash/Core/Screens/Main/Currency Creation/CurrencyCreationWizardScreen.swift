@@ -29,6 +29,7 @@ struct CurrencyCreationWizardScreen: View {
     @State private var compressTask: Task<Void, Never>?
     @State private var validationTask: Task<Void, Never>?
     @State private var isValidating: Bool = false
+    @State private var pendingCoinbaseLaunch: Bool = false
     @State private var errorDialog: DialogItem?
     @FocusState private var focusedField: Field?
 
@@ -206,7 +207,21 @@ struct CurrencyCreationWizardScreen: View {
         ) { result in
             handleFileImport(result)
         }
-        .sheet(isPresented: $isShowingFundingSheet) {
+        .sheet(isPresented: $isShowingFundingSheet, onDismiss: {
+            // SwiftUI allows only one modal sheet at a time. If the user picked
+            // Coinbase and they're unverified, the coordinator needs to present
+            // its own verification sheet — defer the kickoff until the funding
+            // sheet has fully dismissed so the two sheets don't collide.
+            guard pendingCoinbaseLaunch else { return }
+            pendingCoinbaseLaunch = false
+            onrampCoordinator.startLaunch(
+                amount: launchAmount,
+                displayName: state.currencyName,
+                onCompleted: { signature, amount in
+                    try await launchAfterOnramp(signature: signature, amount: amount)
+                }
+            )
+        }) {
             FundingSelectionSheet(
                 reserveBalance: reserveBalance,
                 isCoinbaseAvailable: session.hasCoinbaseOnramp,
@@ -215,15 +230,9 @@ struct CurrencyCreationWizardScreen: View {
                     launchAndBuyWithReserves()
                 },
                 onSelectCoinbase: {
-                    isShowingFundingSheet = false
+                    pendingCoinbaseLaunch = true
                     isValidating = true
-                    onrampCoordinator.startLaunch(
-                        amount: launchAmount,
-                        displayName: state.currencyName,
-                        onCompleted: { signature, amount in
-                            try await launchAfterOnramp(signature: signature, amount: amount)
-                        }
-                    )
+                    isShowingFundingSheet = false
                 },
                 onSelectPhantom: {
                     isShowingFundingSheet = false

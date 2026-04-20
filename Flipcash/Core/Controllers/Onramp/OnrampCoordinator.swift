@@ -64,8 +64,18 @@ final class OnrampCoordinator {
     // MARK: - Verification state -
 
     /// Drives the verification sheet at the root. `VerifyInfoScreen` binds to
-    /// this flag to close itself via the toolbar close button.
-    var isShowingVerificationFlow: Bool = false
+    /// this flag to close itself via the toolbar close button. When the sheet
+    /// dismisses without the user having completed verification (e.g. they
+    /// tapped close), the pending operation is abandoned so callers aren't
+    /// stranded in `isProcessingPayment`.
+    var isShowingVerificationFlow: Bool = false {
+        didSet {
+            if oldValue && !isShowingVerificationFlow && !isAccountVerified {
+                pendingOperation = nil
+                pendingAmount = nil
+            }
+        }
+    }
 
     /// Navigation stack for the verification sub-flow sheet. When the path
     /// transitions from non-empty to empty (sheet dismissed mid-flight),
