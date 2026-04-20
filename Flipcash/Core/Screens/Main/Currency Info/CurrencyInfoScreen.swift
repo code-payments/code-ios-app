@@ -28,6 +28,7 @@ struct CurrencyInfoScreen: View {
     /// Non-nil while the Onramp sheet is presented. Setting it presents the
     /// sheet with a fresh `OnrampViewModel`; nil'ing it dismisses.
     @State private var onrampDestination: BuyTarget?
+    @State private var pendingOnrampTarget: BuyTarget?
 
     /// Identifying data for the Coinbase onramp sheet trigger.
     private struct BuyTarget: Identifiable, Hashable {
@@ -250,7 +251,15 @@ struct CurrencyInfoScreen: View {
                 ratesController: ratesController
             )
         }
-        .sheet(isPresented: $isShowingFundingSelection) {
+        .sheet(isPresented: $isShowingFundingSelection, onDismiss: {
+            // SwiftUI allows only one modal sheet at a time, so we can't set
+            // `onrampDestination` in the same frame as dismissing the funding
+            // sheet — the second sheet gets swallowed. Defer the handoff until
+            // the funding sheet has fully dismissed.
+            guard let target = pendingOnrampTarget else { return }
+            pendingOnrampTarget = nil
+            onrampDestination = target
+        }) {
             if let metadata = viewModel.mintMetadata {
                 FundingSelectionSheet(
                     reserveBalance: viewModel.reserveBalance,
@@ -267,7 +276,7 @@ struct CurrencyInfoScreen: View {
                     },
                     onSelectCoinbase: {
                         Analytics.buttonTapped(name: .buyWithCoinbase)
-                        onrampDestination = BuyTarget(
+                        pendingOnrampTarget = BuyTarget(
                             mint: metadata.mint,
                             displayName: metadata.name
                         )
