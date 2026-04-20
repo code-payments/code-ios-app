@@ -22,6 +22,7 @@ struct CurrencyCreationWizardScreen: View {
     @Environment(Session.self) private var session
     @Environment(RatesController.self) private var ratesController
     @Environment(WalletConnection.self) private var walletConnection
+    @Environment(OnrampCoordinator.self) private var coordinator
 
     @State private var step: WizardStep = .name
     @State private var direction: Direction = .forward
@@ -34,10 +35,6 @@ struct CurrencyCreationWizardScreen: View {
     @State private var isShowingPhotoPicker = false
     @State private var isShowingFilePicker = false
     @State private var isShowingFundingSheet = false
-    /// Non-nil while the Coinbase onramp sheet is presented for a launch flow.
-    /// Carries the user-chosen currency name (used as the sheet identity and
-    /// for SwapProcessing's display label).
-    @State private var launchOnrampName: LaunchSheetIdentity?
     /// Non-nil while the Reserves-funded launch is in flight. Drives a
     /// `fullScreenCover` that presents `CurrencyLaunchProcessingScreen`.
     @State private var reservesLaunchContext: ReservesLaunchContext?
@@ -49,11 +46,6 @@ struct CurrencyCreationWizardScreen: View {
     private struct CreatedMintRecord {
         let mint: PublicKey
         let name: String
-    }
-
-    private struct LaunchSheetIdentity: Identifiable, Hashable {
-        let displayName: String
-        var id: String { displayName }
     }
 
     private struct ReservesLaunchContext: Identifiable, Hashable {
@@ -177,6 +169,7 @@ struct CurrencyCreationWizardScreen: View {
         }
         .dialog(item: $errorDialog)
         .dialog(item: Bindable(walletConnection).dialogItem)
+        .dialog(item: Bindable(coordinator).dialogItem)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .interactiveDismissDisabled()
@@ -224,7 +217,13 @@ struct CurrencyCreationWizardScreen: View {
                 onSelectCoinbase: {
                     isShowingFundingSheet = false
                     isValidating = true
-                    launchOnrampName = LaunchSheetIdentity(displayName: state.currencyName)
+                    coordinator.startLaunch(
+                        amount: launchAmount,
+                        displayName: state.currencyName,
+                        onCompleted: { signature, amount in
+                            try await launchAfterOnramp(signature: signature, amount: amount)
+                        }
+                    )
                 },
                 onSelectPhantom: {
                     isShowingFundingSheet = false
@@ -248,27 +247,27 @@ struct CurrencyCreationWizardScreen: View {
                 })
             }
         }
-        .sheet(item: $launchOnrampName) { identity in
-            OnrampAmountScreen.forLaunching(
-                displayName: identity.displayName,
-                session: sessionContainer.session,
-                flipClient: sessionContainer.flipClient,
-                deeplinkInbox: sessionContainer.onrampDeeplinkInbox,
-                onDismiss: {
-                    launchOnrampName = nil
-                    isValidating = false
-                },
-                onUsdfReady: { signature, amount in
-                    try await launchAfterOnramp(signature: signature, amount: amount)
+        // Coinbase launch flow: coordinator publishes `.launchProcessing`
+        // once the post-onramp swap has been submitted. The cover presents
+        // `CurrencyLaunchProcessingScreen` and its Done button tears down
+        // the wizard so the user lands back in the discovery stack.
+        .fullScreenCover(item: Bindable(coordinator).completion) { completion in
+            if case .launchProcessing(let swapId, let launchedMint, let name, let amount) = completion {
+                NavigationStack {
+                    CurrencyLaunchProcessingScreen(
+                        swapId: swapId,
+                        launchedMint: launchedMint,
+                        currencyName: name,
+                        launchAmount: amount,
+                        fundingMethod: .coinbase
+                    )
+                    .environment(\.dismissParentContainer, {
+                        coordinator.completion = nil
+                        isValidating = false
+                        dismiss()
+                    })
                 }
-            )
-            // Done button on SwapProcessingScreen tears down both the onramp
-            // sheet and the wizard so the user lands back in the discovery stack.
-            .environment(\.dismissParentContainer, {
-                launchOnrampName = nil
-                isValidating = false
-                dismiss()
-            })
+            }
         }
         // Phantom launch flow: `WalletConnection.launchProcessing` is set
         // inside `didSignTransaction` after the user returns from signing.
@@ -292,6 +291,16 @@ struct CurrencyCreationWizardScreen: View {
         }
         .onAppear {
             if step == .name { focusedField = .name }
+        }
+        // On a coordinator error the Coinbase flow resets to idle without
+        // publishing a completion. Mirror that by clearing `isValidating`
+        // so the confirmation screen becomes interactive again. The success
+        // path runs through the `.launchProcessing` cover, whose
+        // `dismissParentContainer` already resets `isValidating`.
+        .onChange(of: coordinator.isProcessingPayment) { _, isProcessing in
+            if !isProcessing && coordinator.completion == nil {
+                isValidating = false
+            }
         }
         .onChange(of: step) { _, newStep in
             switch newStep {
