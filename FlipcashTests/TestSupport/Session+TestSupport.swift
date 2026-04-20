@@ -13,7 +13,7 @@ extension Session {
     /// `isEmailVerified` read as `false`. Use when a test needs to drive
     /// a flow that branches on unverified state.
     @MainActor
-    static func makeUnverifiedMock() -> Session {
+    static var unverifiedMock: Session {
         Session(
             container: .mock,
             historyController: .mock,
@@ -32,27 +32,13 @@ extension Session {
     /// A session with a fully-verified profile (both phone and email set).
     /// Use when a test needs to drive a flow that branches on verified state.
     @MainActor
-    static func makeVerifiedMock() -> Session {
-        let session = makeUnverifiedMock()
+    static var verifiedMock: Session {
+        let session = unverifiedMock
         session.profile = Profile(
             displayName: "Test User",
             phone: .mock,
             email: "test@example.com"
         )
         return session
-    }
-
-    /// Alias for `makeUnverifiedMock()` — exposes the session as a property so
-    /// tests read as `.unverifiedMock` at the call site.
-    @MainActor
-    static var unverifiedMock: Session {
-        makeUnverifiedMock()
-    }
-
-    /// Alias for `makeVerifiedMock()` — exposes the session as a property so
-    /// tests read as `.verifiedMock` at the call site.
-    @MainActor
-    static var verifiedMock: Session {
-        makeVerifiedMock()
     }
 }
