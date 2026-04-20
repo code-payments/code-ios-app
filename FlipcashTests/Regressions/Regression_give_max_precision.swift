@@ -21,7 +21,7 @@ struct Regression_give_max_precision {
         "Giving the displayed max on a newly-minted currency does not disable Next",
         arguments: Regression_sell_max_precision.sampledSupplies
     )
-    func canGive_atDisplayedMax_returnsTrue(tokens: Int) throws {
+    func canGive_atDisplayedMax_returnsTrue(tokens: Int) async throws {
         let supply = UInt64(tokens) * UInt64(DiscreteBondingCurve.quarksPerToken)
 
         let viewModel = GiveViewModelTests.createViewModel()
@@ -30,7 +30,7 @@ struct Regression_give_max_precision {
             quarks: supply,
             supplyQuarks: supply
         )
-        viewModel.selectCurrencyAction(exchangedBalance: balance)
+        await GiveViewModelTests.selectAndSeed(viewModel: viewModel, balance: balance)
 
         // What the keypad sends after the user taps the displayed max.
         let displayedMaxString = balance.exchangedFiat.converted.formatted()

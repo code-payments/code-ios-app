@@ -488,16 +488,10 @@ struct RatesControllerTests {
 
         #expect(controller.supplyFromBonding(for: mint) == nil)
 
-        await controller.verifiedProtoService.saveReserveStates([
-            .makeTest(mint: mint, supplyFromBonding: 1_000)
-        ])
-        try await Task.sleep(for: .milliseconds(50))
+        await controller.deliverTestReserveState(mint: mint, supplyFromBonding: 1_000)
         #expect(controller.supplyFromBonding(for: mint) == 1_000)
 
-        await controller.verifiedProtoService.saveReserveStates([
-            .makeTest(mint: mint, supplyFromBonding: 2_000)
-        ])
-        try await Task.sleep(for: .milliseconds(50))
+        await controller.deliverTestReserveState(mint: mint, supplyFromBonding: 2_000)
         #expect(controller.supplyFromBonding(for: mint) == 2_000)
     }
 
