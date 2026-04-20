@@ -162,6 +162,7 @@ struct CurrencyCreationWizardScreen: View {
                         state: state,
                         previewFiat: previewFiat,
                         launchAmount: launchAmount,
+                        isValidating: isValidating,
                         onBuy: { isShowingFundingSheet = true }
                     )
                     .transition(direction.slide)
@@ -969,6 +970,7 @@ private struct ConfirmationStep: View {
     let state: CurrencyCreationState
     let previewFiat: Quarks
     let launchAmount: ExchangedFiat
+    let isValidating: Bool
     let onBuy: () -> Void
 
     var body: some View {
@@ -996,10 +998,17 @@ private struct ConfirmationStep: View {
             .padding(.top, 32)
             .padding(.horizontal, 20)
 
-            Button("Buy \(launchAmount.converted.formatted()) to Create Your Currency", action: onBuy)
-                .buttonStyle(.filled)
-                .padding(.top, 20)
-                .padding(.bottom, 20)
+            Button(action: onBuy) {
+                if isValidating {
+                    ProgressView().progressViewStyle(.circular)
+                } else {
+                    Text("Buy \(launchAmount.converted.formatted()) to Create Your Currency")
+                }
+            }
+            .buttonStyle(.filled)
+            .disabled(isValidating)
+            .padding(.top, 20)
+            .padding(.bottom, 20)
         }
         .padding(.horizontal, 20)
     }
