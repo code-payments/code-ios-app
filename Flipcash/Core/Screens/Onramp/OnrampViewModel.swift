@@ -124,16 +124,14 @@ class OnrampViewModel {
     @ObservationIgnored private let onDismiss: () -> Void
 
     /// Internal dispatch for the post-onramp step. Paired with the matching
-    /// factory init (see `forBuying` / `forLaunching`), so cases carry exactly
-    /// the data they need.
+    /// factory init (see `forBuying`), so cases carry exactly the data they
+    /// need.
     private enum Mode {
         case buyExistingCurrency(mint: PublicKey)
-        case launchNewCurrency(onUsdfReady: @MainActor @Sendable (Signature, ExchangedFiat) async throws -> SignedSwapResult)
 
         var logKind: String {
             switch self {
             case .buyExistingCurrency: "buy_existing"
-            case .launchNewCurrency:   "launch_new"
             }
         }
     }
@@ -185,24 +183,6 @@ class OnrampViewModel {
             flipClient: flipClient,
             coordinator: coordinator,
             onUsdfReady: onUsdfReady,
-            onDismiss: onDismiss
-        )
-    }
-
-    static func forLaunching(
-        displayName: String,
-        session: Session,
-        flipClient: FlipClient,
-        onDismiss: @escaping () -> Void,
-        onUsdfReady: @escaping @MainActor @Sendable (Signature, ExchangedFiat) async throws -> SignedSwapResult
-    ) -> OnrampViewModel {
-        OnrampViewModel(
-            displayName: displayName,
-            mode: .launchNewCurrency(onUsdfReady: onUsdfReady),
-            session: session,
-            flipClient: flipClient,
-            coordinator: nil,
-            onUsdfReady: nil,
             onDismiss: onDismiss
         )
     }
@@ -369,14 +349,6 @@ class OnrampViewModel {
                 displayName: displayName,
                 onCompleted: onUsdfReady
             )
-
-        case .launchNewCurrency:
-            // `reset()` clears `enteredAmount` along with verification fields,
-            // so stash and restore it.
-            let amount = enteredAmount
-            reset()
-            enteredAmount = amount
-            navigateToVerificationOrPurchase()
         }
     }
     
@@ -974,27 +946,6 @@ class OnrampViewModel {
                     currencyName: displayName,
                     amount: exchangedFiat
                 )
-
-            case .launchNewCurrency(let onUsdfReady):
-                let result = try await onUsdfReady(signature, exchangedFiat)
-                switch result {
-                case .launch(let swapId, let mint):
-                    appendPath = .launchProcessing(
-                        swapId: swapId,
-                        launchedMint: mint,
-                        currencyName: displayName,
-                        amount: exchangedFiat
-                    )
-                case .buyExisting(let swapId):
-                    // Launch callers should always return .launch; fall back to
-                    // the generic processing path if they don't.
-                    logger.warning("Launch onUsdfReady returned .buyExisting result")
-                    appendPath = .swapProcessing(
-                        swapId: swapId,
-                        currencyName: displayName,
-                        amount: exchangedFiat
-                    )
-                }
             }
             coinbaseOrder = nil
             Analytics.onrampCompleted(
@@ -1142,7 +1093,6 @@ class OnrampViewModel {
 /// never bind the same `[Path]` array.
 enum OnrampAmountPath: Hashable {
     case swapProcessing(swapId: SwapId, currencyName: String, amount: ExchangedFiat)
-    case launchProcessing(swapId: SwapId, launchedMint: PublicKey, currencyName: String, amount: ExchangedFiat)
 }
 
 /// Navigation path for `VerifyInfoScreen`'s NavigationStack.

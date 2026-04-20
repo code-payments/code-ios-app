@@ -44,27 +44,6 @@ struct OnrampAmountScreen: View {
         )
     }
 
-    static func forLaunching(
-        displayName: String,
-        session: Session,
-        flipClient: FlipClient,
-        deeplinkInbox: OnrampDeeplinkInbox,
-        onDismiss: @escaping () -> Void,
-        onUsdfReady: @escaping @MainActor @Sendable (Signature, ExchangedFiat) async throws -> SignedSwapResult
-    ) -> OnrampAmountScreen {
-        OnrampAmountScreen(
-            viewModel: .forLaunching(
-                displayName: displayName,
-                session: session,
-                flipClient: flipClient,
-                onDismiss: onDismiss,
-                onUsdfReady: onUsdfReady
-            ),
-            onDismiss: onDismiss,
-            deeplinkInbox: deeplinkInbox
-        )
-    }
-
     private init(
         viewModel: OnrampViewModel,
         onDismiss: @escaping () -> Void,
