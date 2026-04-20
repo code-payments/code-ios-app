@@ -661,13 +661,11 @@ final class OnrampCoordinator {
         let id       = UUID()
         let userRef  = "\(email):\(phone)"
         let orderRef = "\(userRef):\(id)"
-        let ref = BetaFlags.shared.hasEnabled(.coinbaseSandbox) ? "sandbox-\(userRef)" : userRef
 
         do {
             logger.info("Creating Coinbase order", metadata: [
                 "currency": "\(amount.converted.currencyCode)",
                 "purchase_quarks": "\(amount.underlying.quarks)",
-                "sandbox": "\(BetaFlags.shared.hasEnabled(.coinbaseSandbox))",
                 "destination_kind": "\(operation.logKind)",
             ])
 
@@ -684,7 +682,7 @@ final class OnrampCoordinator {
                 email: email,
                 phoneNumber: phone,
                 partnerOrderRef: orderRef,
-                partnerUserRef: ref,
+                partnerUserRef: userRef,
                 phoneNumberVerifiedAt: .now,
                 agreementAcceptedAt: .now
             ))
@@ -922,19 +920,6 @@ final class OnrampCoordinator {
             logger.error("Coinbase order poll failed", metadata: ["error": "\(error)"])
             ErrorReporting.captureError(error)
             showBuyFailedDialog()
-            return
-        }
-
-        // Sandbox short-circuits the on-chain settlement — Coinbase returns a
-        // placeholder tx_hash that isn't a real Solana signature. We skip the
-        // buy (`buyWithExternalFunding` would reject the placeholder) but only
-        // AFTER exercising the full Coinbase order polling pipeline above.
-        if BetaFlags.shared.hasEnabled(.coinbaseSandbox) {
-            logger.info("Sandbox order — skipping buy", metadata: [
-                "order_id": "\(orderId)",
-                "status": "\(order.status)",
-                "tx_hash": "\(order.txHash ?? "nil")"
-            ])
             return
         }
 
