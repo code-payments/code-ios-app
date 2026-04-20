@@ -201,7 +201,7 @@ struct CurrencyInfoScreen: View {
                 })
             }
         }
-        .fullScreenCover(item: Bindable(coordinator).completion) { completion in
+        .fullScreenCover(item: coordinator.buyCompletionBinding) { completion in
             if case .buyProcessing(let swapId, let name, let amount) = completion {
                 NavigationStack {
                     SwapProcessingScreen(

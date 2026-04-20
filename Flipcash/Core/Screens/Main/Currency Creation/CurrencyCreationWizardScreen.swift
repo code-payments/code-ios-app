@@ -251,7 +251,7 @@ struct CurrencyCreationWizardScreen: View {
         // once the post-onramp swap has been submitted. The cover presents
         // `CurrencyLaunchProcessingScreen` and its Done button tears down
         // the wizard so the user lands back in the discovery stack.
-        .fullScreenCover(item: Bindable(coordinator).completion) { completion in
+        .fullScreenCover(item: coordinator.launchCompletionBinding) { completion in
             if case .launchProcessing(let swapId, let launchedMint, let name, let amount) = completion {
                 NavigationStack {
                     CurrencyLaunchProcessingScreen(

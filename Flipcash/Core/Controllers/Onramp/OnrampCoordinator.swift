@@ -26,6 +26,44 @@ final class OnrampCoordinator {
     /// screen's processing-screen cover.
     var completion: OnrampCompletion?
 
+    /// Binding that surfaces only `.buyProcessing` completions so the
+    /// buy-flow cover does not flash empty content when a `.launchProcessing`
+    /// completion is published.
+    var buyCompletionBinding: Binding<OnrampCompletion?> {
+        Binding(
+            get: {
+                if case .buyProcessing = self.completion {
+                    return self.completion
+                }
+                return nil
+            },
+            set: { newValue in
+                if newValue == nil {
+                    self.completion = nil
+                }
+            }
+        )
+    }
+
+    /// Binding that surfaces only `.launchProcessing` completions so the
+    /// launch-flow cover does not flash empty content when a `.buyProcessing`
+    /// completion is published.
+    var launchCompletionBinding: Binding<OnrampCompletion?> {
+        Binding(
+            get: {
+                if case .launchProcessing = self.completion {
+                    return self.completion
+                }
+                return nil
+            },
+            set: { newValue in
+                if newValue == nil {
+                    self.completion = nil
+                }
+            }
+        )
+    }
+
     // MARK: - Verification state -
 
     /// Drives the verification sheet at the root. `VerifyInfoScreen` binds to
