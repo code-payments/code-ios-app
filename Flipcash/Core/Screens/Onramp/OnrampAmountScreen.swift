@@ -79,6 +79,7 @@ struct OnrampAmountScreen: View {
 
     var body: some View {
         @Bindable var viewModel = viewModel
+        @Bindable var coordinator = coordinator
         NavigationStack {
             Background(color: .backgroundMain) {
                 EnterAmountView(
@@ -105,6 +106,7 @@ struct OnrampAmountScreen: View {
             .interactiveDismissDisabled(coordinator.isProcessingPayment)
         }
         .dialog(item: $viewModel.dialogItem)
+        .dialog(item: $coordinator.dialogItem)
         .onChange(of: coordinator.completion) { _, completion in
             guard case .buyProcessing = completion else { return }
             onDismiss()
