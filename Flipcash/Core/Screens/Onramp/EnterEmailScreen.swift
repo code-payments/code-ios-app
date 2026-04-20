@@ -32,7 +32,7 @@ struct EnterEmailScreen: View {
                         .font(.appTextXL)
                         .keyboardType(.emailAddress)
                         .textContentType(.emailAddress)
-                        .autocapitalization(.none)
+                        .textInputAutocapitalization(.never)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .multilineTextAlignment(.leading)
                         .padding([.leading, .trailing], 15)
@@ -63,7 +63,7 @@ struct EnterEmailScreen: View {
         .navigationTitle("Verify Email")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
-            isFocused.toggle()
+            isFocused = true
         }
     }
 }

@@ -19,24 +19,28 @@ struct OnrampCoordinatorTests {
         #expect(onrampCoordinator.completion == nil)
     }
 
-    @Test("startLaunch with a verified user does not open the verification sheet")
-    func startLaunch_verified_doesNotOpenVerification() {
+    @Test("start with a verified user does not open the verification sheet")
+    func start_verified_doesNotOpenVerification() {
         let onrampCoordinator = OnrampCoordinator(session: .verifiedMock, flipClient: .mock)
-        onrampCoordinator.startLaunch(
-            amount: .mockOne,
-            displayName: "Test",
-            onCompleted: { _, _ in .launch(swapId: .generate(), mint: .jeffy) }
+        onrampCoordinator.start(
+            .launch(
+                displayName: "Test",
+                onCompleted: { _, _ in .launch(swapId: .generate(), mint: .jeffy) }
+            ),
+            amount: .mockOne
         )
         #expect(onrampCoordinator.isShowingVerificationFlow == false)
     }
 
-    @Test("startLaunch with an unverified user opens the verification sheet")
-    func startLaunch_unverified_opensVerification() {
+    @Test("start with an unverified user opens the verification sheet")
+    func start_unverified_opensVerification() {
         let onrampCoordinator = OnrampCoordinator(session: .unverifiedMock, flipClient: .mock)
-        onrampCoordinator.startLaunch(
-            amount: .mockOne,
-            displayName: "Test",
-            onCompleted: { _, _ in .launch(swapId: .generate(), mint: .jeffy) }
+        onrampCoordinator.start(
+            .launch(
+                displayName: "Test",
+                onCompleted: { _, _ in .launch(swapId: .generate(), mint: .jeffy) }
+            ),
+            amount: .mockOne
         )
         #expect(onrampCoordinator.isShowingVerificationFlow == true)
     }

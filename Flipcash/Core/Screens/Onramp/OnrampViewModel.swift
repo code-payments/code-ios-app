@@ -29,7 +29,6 @@ class OnrampViewModel {
 
     var dialogItem: DialogItem?
 
-    /// Display name forwarded to the onrampCoordinator when a buy is kicked off.
     let displayName: String
 
     var enteredFiat: ExchangedFiat? {
@@ -53,14 +52,7 @@ class OnrampViewModel {
     }
 
     @ObservationIgnored private let session: Session
-
-    /// Target mint for the buy. Captured at init time by `forBuying`.
     @ObservationIgnored private let mint: PublicKey
-
-    /// Coordinator that drives the Coinbase order and Apple Pay flow at root.
-    /// The VM hands off the validated amount via `startBuy`; the onrampCoordinator
-    /// publishes a `.buyProcessing` completion once the post-onramp swap is
-    /// submitted.
     @ObservationIgnored private let onrampCoordinator: OnrampCoordinator
     @ObservationIgnored private let onUsdfReady: @MainActor @Sendable (Signature, ExchangedFiat) async throws -> SignedSwapResult
 
@@ -122,11 +114,9 @@ class OnrampViewModel {
             return
         }
 
-        onrampCoordinator.startBuy(
-            amount: exchangedFiat,
-            mint: mint,
-            displayName: displayName,
-            onCompleted: onUsdfReady
+        onrampCoordinator.start(
+            .buy(mint: mint, displayName: displayName, onCompleted: onUsdfReady),
+            amount: exchangedFiat
         )
     }
 

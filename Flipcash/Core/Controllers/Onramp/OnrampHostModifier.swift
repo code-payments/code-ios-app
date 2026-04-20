@@ -23,8 +23,7 @@ struct OnrampHostModifier: ViewModifier {
     @Environment(OnrampDeeplinkInbox.self) private var deeplinkInbox
 
     func body(content: Content) -> some View {
-        @Bindable var deeplinkInbox = deeplinkInbox
-        return content
+        content
             .overlay {
                 ApplePayOverlay(order: onrampCoordinator.coinbaseOrder) { event in
                     onrampCoordinator.receiveApplePayEvent(event)

@@ -14,7 +14,7 @@ private let logger = Logger(label: "flipcash.onramp-coordinator")
 @Observable
 final class OnrampCoordinator {
 
-    // MARK: - Published state -
+    // MARK: - State -
 
     /// Apple Pay order — drives the invisible WebView overlay hosted at root.
     private(set) var coinbaseOrder: OnrampOrderResponse?
@@ -123,7 +123,11 @@ final class OnrampCoordinator {
     @ObservationIgnored private let coinbaseApiKey: String?
     @ObservationIgnored private var coinbase: Coinbase!
 
-    @ObservationIgnored private var pendingOperation: OnrampOperation?
+    /// Set when `start(_:amount:)` is invoked; cleared when the flow resolves
+    /// (success, cancel, or verification-sheet close). Must be observable so
+    /// `isProcessingPayment` propagates the verification-cancel transition
+    /// (no `coinbaseOrder` change) to its callers.
+    private var pendingOperation: OnrampOperation?
     @ObservationIgnored private var pendingAmount: ExchangedFiat?
     @ObservationIgnored private var fundingTask: Task<Void, Never>?
 
@@ -138,7 +142,15 @@ final class OnrampCoordinator {
         self.region = phoneFormatter.currentRegion
         self.coinbaseApiKey = try? InfoPlist.value(for: "coinbase").value(for: "apiKey").string()
 
-        self.coinbase = Coinbase(configuration: .init(bearerTokenProvider: fetchCoinbaseJWT))
+        // Weak capture breaks the retain cycle between the coordinator and
+        // the Coinbase client (which stores this closure for the lifetime of
+        // the session).
+        self.coinbase = Coinbase(configuration: .init(bearerTokenProvider: { [weak self] method, path in
+            guard let self else {
+                throw OnrampError.missingCoinbaseApiKey
+            }
+            return try await self.fetchCoinbaseJWT(method: method, path: path)
+        }))
     }
 
     // MARK: - Verification derived state -
@@ -174,8 +186,10 @@ final class OnrampCoordinator {
             return false
         }
 
-        return e.range(of: #"^[^\s@]+@[^\s@]+\.[^\s@]+$"#, options: .regularExpression) != nil
+        return e.wholeMatch(of: Self.emailRegex) != nil
     }
+
+    private static let emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
     private var isPhoneVerified: Bool {
         session.profile?.isPhoneVerified ?? false
@@ -278,26 +292,8 @@ final class OnrampCoordinator {
 
     // MARK: - Public API -
 
-    func startBuy(
-        amount: ExchangedFiat,
-        mint: PublicKey,
-        displayName: String,
-        onCompleted: @escaping @MainActor @Sendable (Signature, ExchangedFiat) async throws -> SignedSwapResult
-    ) {
+    func start(_ operation: OnrampOperation, amount: ExchangedFiat) {
         guard !isProcessingPayment else { return }
-        let operation = OnrampOperation.buy(mint: mint, displayName: displayName, onCompleted: onCompleted)
-        pendingOperation = operation
-        pendingAmount = amount
-        navigateToVerificationOrPurchase(for: operation, amount: amount)
-    }
-
-    func startLaunch(
-        amount: ExchangedFiat,
-        displayName: String,
-        onCompleted: @escaping @MainActor @Sendable (Signature, ExchangedFiat) async throws -> SignedSwapResult
-    ) {
-        guard !isProcessingPayment else { return }
-        let operation = OnrampOperation.launch(displayName: displayName, onCompleted: onCompleted)
         pendingOperation = operation
         pendingAmount = amount
         navigateToVerificationOrPurchase(for: operation, amount: amount)

@@ -218,12 +218,14 @@ struct CurrencyCreationWizardScreen: View {
             // sheet has fully dismissed so the two sheets don't collide.
             guard pendingCoinbaseLaunch else { return }
             pendingCoinbaseLaunch = false
-            onrampCoordinator.startLaunch(
-                amount: launchAmount,
-                displayName: state.currencyName,
-                onCompleted: { signature, amount in
-                    try await launchAfterOnramp(signature: signature, amount: amount)
-                }
+            onrampCoordinator.start(
+                .launch(
+                    displayName: state.currencyName,
+                    onCompleted: { signature, amount in
+                        try await launchAfterOnramp(signature: signature, amount: amount)
+                    }
+                ),
+                amount: launchAmount
             )
         }) {
             FundingSelectionSheet(
@@ -260,10 +262,6 @@ struct CurrencyCreationWizardScreen: View {
                 })
             }
         }
-        // Coinbase launch flow: the onrampCoordinator publishes `.launchProcessing`
-        // once the post-onramp swap has been submitted. The cover presents
-        // `CurrencyLaunchProcessingScreen` and its Done button tears down
-        // the wizard so the user lands back in the discovery stack.
         .fullScreenCover(item: onrampCoordinator.launchCompletionBinding) { completion in
             if case .launchProcessing(let swapId, let launchedMint, let name, let amount) = completion {
                 NavigationStack {
@@ -282,10 +280,8 @@ struct CurrencyCreationWizardScreen: View {
                 }
             }
         }
-        // Phantom launch flow: `WalletConnection.launchProcessing` is set
-        // inside `didSignTransaction` after the user returns from signing.
-        // The wizard only ever hosts launches here — buy-existing Phantom
-        // flows present their own cover from `CurrencyInfoScreen`.
+        // The wizard only hosts launch covers — buy-existing Phantom flows
+        // present their own cover from `CurrencyInfoScreen`.
         .fullScreenCover(item: Bindable(walletConnection).launchProcessing) { processing in
             NavigationStack {
                 CurrencyLaunchProcessingScreen(
