@@ -523,6 +523,11 @@ Payments & Operations:
 - FlipcashCore/Sources/FlipcashCore/Models/VerifiedState.swift
 - FlipcashCore/Sources/FlipcashCore/Clients/Payments API/Services/VerifiedProtoService.swift
 
+Onramp & Coinbase:
+- Flipcash/Core/Controllers/Onramp/OnrampCoordinator.swift
+- Flipcash/Core/Controllers/Onramp/OnrampHostModifier.swift
+- Flipcash/Core/Screens/Onramp/OnrampAmountScreen.swift (buy-existing amount entry only)
+
 Multi-Currency:
 - FlipcashCore/Sources/FlipcashCore/Models/Fiat.swift (Quarks)
 - FlipcashCore/Sources/FlipcashCore/Models/ExchangedFiat.swift
