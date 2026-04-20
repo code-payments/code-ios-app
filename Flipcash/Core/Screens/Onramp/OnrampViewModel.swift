@@ -27,8 +27,6 @@ class OnrampViewModel {
 
     var enteredAmount: String = ""
 
-    var payButtonState: ButtonState = .normal
-
     var dialogItem: DialogItem?
 
     /// Display name forwarded to the onrampCoordinator when a buy is kicked off.
