@@ -289,9 +289,7 @@ struct CurrencyInfoScreen: View {
                 mint: target.mint,
                 displayName: target.displayName,
                 session: sessionContainer.session,
-                flipClient: sessionContainer.flipClient,
                 coordinator: coordinator,
-                deeplinkInbox: sessionContainer.onrampDeeplinkInbox,
                 onUsdfReady: { signature, amount in
                     let swapId = try await sessionContainer.session.buyWithExternalFunding(
                         amount: amount,

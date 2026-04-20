@@ -16,7 +16,6 @@ struct OnrampCoordinatorTests {
         let coordinator = OnrampCoordinator(session: .mock, flipClient: .mock)
         coordinator.cancel()
         #expect(coordinator.coinbaseOrder == nil)
-        #expect(coordinator.verificationSheet == nil)
         #expect(coordinator.completion == nil)
     }
 

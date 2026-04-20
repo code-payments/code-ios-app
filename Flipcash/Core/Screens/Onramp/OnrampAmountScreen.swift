@@ -15,7 +15,6 @@ struct OnrampAmountScreen: View {
     @Environment(OnrampCoordinator.self) private var coordinator
 
     private let onDismiss: () -> Void
-    private let deeplinkInbox: OnrampDeeplinkInbox
 
     // MARK: - Init -
 
@@ -23,9 +22,7 @@ struct OnrampAmountScreen: View {
         mint: PublicKey,
         displayName: String,
         session: Session,
-        flipClient: FlipClient,
         coordinator: OnrampCoordinator,
-        deeplinkInbox: OnrampDeeplinkInbox,
         onUsdfReady: @escaping @MainActor @Sendable (Signature, ExchangedFiat) async throws -> SignedSwapResult,
         onDismiss: @escaping () -> Void
     ) -> OnrampAmountScreen {
@@ -34,24 +31,19 @@ struct OnrampAmountScreen: View {
                 mint: mint,
                 displayName: displayName,
                 session: session,
-                flipClient: flipClient,
                 coordinator: coordinator,
-                onUsdfReady: onUsdfReady,
-                onDismiss: onDismiss
+                onUsdfReady: onUsdfReady
             ),
-            onDismiss: onDismiss,
-            deeplinkInbox: deeplinkInbox
+            onDismiss: onDismiss
         )
     }
 
     private init(
         viewModel: OnrampViewModel,
-        onDismiss: @escaping () -> Void,
-        deeplinkInbox: OnrampDeeplinkInbox
+        onDismiss: @escaping () -> Void
     ) {
         _viewModel = State(wrappedValue: viewModel)
         self.onDismiss = onDismiss
-        self.deeplinkInbox = deeplinkInbox
     }
 
     // MARK: - Body -

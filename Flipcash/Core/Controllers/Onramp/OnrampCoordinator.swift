@@ -19,9 +19,6 @@ final class OnrampCoordinator {
     /// Apple Pay order — drives the invisible WebView overlay hosted at root.
     private(set) var coinbaseOrder: OnrampOrderResponse?
 
-    /// Non-nil when a verification sub-flow needs to present at root.
-    var verificationSheet: VerificationSheetContext?
-
     /// Non-nil once the post-onramp swap succeeds. Drives the calling
     /// screen's processing-screen cover.
     var completion: OnrampCompletion?
@@ -300,7 +297,6 @@ final class OnrampCoordinator {
         pendingOperation = nil
         pendingAmount = nil
         coinbaseOrder = nil
-        verificationSheet = nil
     }
 
     // MARK: - Verification navigation -
@@ -594,12 +590,6 @@ final class OnrampCoordinator {
         )
     }
 
-    private func showCoinbaseError(title: String, subtitle: String, onDismiss: (() -> Void)? = nil) {
-        presentDestructiveDialog(title: title, subtitle: subtitle) {
-            onDismiss?()
-        }
-    }
-
     private func showBuyFailedDialog() {
         coinbaseOrder = nil
         presentDestructiveDialog(
@@ -707,13 +697,13 @@ final class OnrampCoordinator {
             pendingAmount = nil
 
             if error.errorType == .guestRegionForbidden {
-                showCoinbaseError(title: error.title, subtitle: error.subtitle) { [weak self] in
+                presentDestructiveDialog(title: error.title, subtitle: error.subtitle) { [weak self] in
                     Task {
                         try? await self?.session.unlinkProfile()
                     }
                 }
             } else {
-                showCoinbaseError(title: error.title, subtitle: error.subtitle)
+                presentDestructiveDialog(title: error.title, subtitle: error.subtitle)
             }
         }
 
@@ -996,22 +986,6 @@ final class OnrampCoordinator {
 }
 
 // MARK: - Supporting types -
-
-struct VerificationSheetContext: Identifiable, Hashable {
-    enum Entry { case info, phone, email }
-
-    let id: UUID = UUID()
-    let entry: Entry
-    let reason: OnrampOperation.LogKindWrapper  // placeholder hashable wrapper
-}
-
-extension OnrampOperation {
-    /// Hashable wrapper so `OnrampOperation` itself (which carries closures)
-    /// doesn't need Hashable conformance.
-    struct LogKindWrapper: Hashable {
-        let value: String
-    }
-}
 
 private enum Origin: Int {
     case root
