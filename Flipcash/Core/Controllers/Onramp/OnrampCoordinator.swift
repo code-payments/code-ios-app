@@ -457,6 +457,8 @@ final class OnrampCoordinator {
     }
 
     func applyDeeplinkVerification(_ verification: VerificationDescription) {
+        guard !isEmailVerified else { return }
+
         // If the user isn't already parked on the confirm-code screen, jump
         // them there so the API call's result has somewhere to surface.
         if !isShowingVerificationFlow {
@@ -472,15 +474,13 @@ final class OnrampCoordinator {
             }
 
             do {
-                if !isEmailVerified {
-                    try await flipClient.checkEmailCode(
-                        email: verification.email,
-                        code: verification.code,
-                        owner: owner
-                    )
+                try await flipClient.checkEmailCode(
+                    email: verification.email,
+                    code: verification.code,
+                    owner: owner
+                )
 
-                    try? await session.updateProfile()
-                }
+                try? await session.updateProfile()
 
                 try await Task.delay(milliseconds: 500)
                 confirmEmailButtonState = .success
