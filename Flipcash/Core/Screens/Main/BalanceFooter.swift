@@ -63,11 +63,11 @@ private struct CashReservesRow: View {
 
                     Spacer()
 
-                    Text(reservesBalance.exchangedFiat.converted.formatted())
+                    Text(reservesBalance.exchangedFiat.nativeAmount.formatted())
                         .font(.appTextMedium)
                         .foregroundStyle(Color.textMain)
                         .contentTransition(.numericText())
-                        .animation(.default, value: reservesBalance.exchangedFiat.converted)
+                        .animation(.default, value: reservesBalance.exchangedFiat.nativeAmount)
                 }
             }
             .listRowBackground(Color.clear)

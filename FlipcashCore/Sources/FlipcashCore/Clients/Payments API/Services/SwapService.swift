@@ -27,14 +27,14 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
     /// - Parameters:
     ///   - swapId: Unique identifier for this swap
     ///   - direction: Buy or sell direction with mint metadata
-    ///   - amount: Amount to swap in quarks
+    ///   - amount: Source-mint-native token amount to swap
     ///   - fundingSource: How the swap will be funded (.submitIntent or .externalWallet)
     ///   - owner: The owner's keypair for signing
     ///   - completion: Callback with result
     func swap(
         swapId: SwapId,
         direction: SwapDirection,
-        amount: Quarks,
+        amount: TokenAmount,
         fundingSource: FundingSource,
         owner: KeyPair,
         isNewCurrencyLaunch: Bool = false,
@@ -46,7 +46,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
             "swapId": "\(swapId.publicKey.base58)",
             "from": "\(fromMint.base58)",
             "to": "\(toMint.base58)",
-            "amount": "\(amount.formatted())",
+            "amountQuarks": "\(amount.quarks)",
             "isNewCurrencyLaunch": "\(isNewCurrencyLaunch)"
         ])
 

@@ -47,10 +47,9 @@ extension CashCode.Payload {
                 }
                 
                 value = .fiat(
-                    Quarks(
-                        quarks: quarks,
-                        currencyCode: currencyCode,
-                        decimals: 6 // We don't have any other info at this point
+                    FiatAmount(
+                        value: quarks.scaleDown(CashCode.Payload.wireDecimals),
+                        currency: currencyCode
                     )
                 )
             }
@@ -70,28 +69,28 @@ extension CashCode.Payload {
         )
     }
     
-    static func encode(kind: Kind, fiat: Quarks, nonce: Data) -> Data {
+    static func encode(kind: Kind, fiat: FiatAmount, nonce: Data) -> Data {
         var data = Data(count: CashCode.Payload.length)
-        
-        let amount = fiat.quarks
-        
+
+        let amount = fiat.value.scaleUpInt(CashCode.Payload.wireDecimals)
+
         data.withUnsafeMutableBytes { (buffer: UnsafeMutableRawBufferPointer) in
             let base = buffer.baseAddress!
-            
+
             var k = kind.rawValue
             base.advanced(by: 0).copyMemory(from: &k, byteCount: MemoryLayout<UInt8>.stride)
-            
-            var c = fiat.currencyCode.index
+
+            var c = fiat.currency.index
             base.advanced(by: 1).copyMemory(from: &c, byteCount: MemoryLayout<UInt8>.stride)
-            
+
             var f = amount
             base.advanced(by: 2).copyMemory(from: &f, byteCount: MemoryLayout<UInt64>.stride - 1)
-            
+
             nonce.withUnsafeBytes { (pointer: UnsafeRawBufferPointer) in
                 base.advanced(by: 10).copyMemory(from: pointer.baseAddress!, byteCount: Data.nonceLength)
             }
         }
-        
+
         return data
     }
     
@@ -143,17 +142,17 @@ extension CashCode.Payload {
  Fiat Amount (8 bytes)
 
  This field indicates the fiat amount, denominated in `Currency` above. The amount
- is an integer value calculated as follows: $5.00 x 100 = 500. The decimals are
- offset by multiplying by 100 and encoding the integer result. When decoding, the
- amount should be divided by 100 again to return the original value.
+ is an unsigned integer scaled by 10^`wireDecimals` (currently 6) regardless of
+ currency: $5.00 → 5,000,000; JPY 1000 → 1,000,000,000. On decode, divide by the
+ same factor to recover the original decimal value.
 
  Nonce (10 bytes)
 
- This field is an 11-byte randomly-generated nonce. It should be regenerated
+ This field is a 10-byte randomly-generated nonce. It should be regenerated
  each time a new payment is initiated.
- 
- 
- 
+
+
+
  --- Legacy Layouts ---
 
  

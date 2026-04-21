@@ -40,14 +40,9 @@ class OnrampViewModel {
             return nil
         }
 
-        guard let converted = try? Quarks(fiatDecimal: amount, currencyCode: .usd, decimals: PublicKey.usdf.mintDecimals) else {
-            return nil
-        }
-
-        return try? ExchangedFiat(
-            converted: converted,
-            rate: .oneToOne,
-            mint: .usdf
+        return ExchangedFiat(
+            nativeAmount: FiatAmount(value: amount, currency: .usd),
+            rate: .oneToOne
         )
     }
 
@@ -95,21 +90,21 @@ class OnrampViewModel {
             return
         }
 
-        guard let maxPerDay = session.sendLimitFor(currency: exchangedFiat.converted.currencyCode)?.maxPerDay else {
+        guard let maxPerDay = session.sendLimitFor(currency: exchangedFiat.nativeAmount.currency)?.maxPerDay else {
             return
         }
 
-        guard exchangedFiat.converted <= maxPerDay else {
+        guard exchangedFiat.nativeAmount.value <= maxPerDay.value else {
             logger.info("Onramp rejected: amount exceeds limit", metadata: [
-                "amount": "\(exchangedFiat.converted.formatted())",
-                "max_per_day": "\(maxPerDay.decimalValue)",
-                "currency": "\(exchangedFiat.converted.currencyCode)",
+                "amount": "\(exchangedFiat.nativeAmount.formatted())",
+                "max_per_day": "\(maxPerDay.value)",
+                "currency": "\(exchangedFiat.nativeAmount.currency)",
             ])
             showAmountTooLargeError()
             return
         }
 
-        guard exchangedFiat.converted.decimalValue >= 5.00 else {
+        guard exchangedFiat.nativeAmount.value >= 5.00 else {
             showAmountTooSmallError()
             return
         }

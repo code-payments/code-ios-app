@@ -47,7 +47,7 @@ final class IntentFundSwap: IntentType {
         self.destinationOwner = timelockAccounts.pda.publicKey
 
         let transfer = ActionTransfer(
-            amount: amount.underlying,
+            amount: amount.onChainAmount,
             sourceCluster: sourceCluster,
             destination: destination,
             mint: fromMint.address
@@ -71,8 +71,8 @@ extension IntentFundSwap {
                 // Use clientExchangeData with embedded proofs for submitting intents
                 $0.clientExchangeData = .with {
                     $0.mint = amount.mint.solanaAccountID
-                    $0.quarks = amount.underlying.quarks
-                    $0.nativeAmount = amount.converted.doubleValue
+                    $0.quarks = amount.onChainAmount.quarks
+                    $0.nativeAmount = amount.nativeAmount.doubleValue
                     $0.coreMintFiatExchangeRate = verifiedState.rateProto
                     if let reserveProto = verifiedState.reserveProto {
                         $0.launchpadCurrencyReserveState = reserveProto

@@ -17,17 +17,13 @@ struct WithdrawSummaryScreen: View {
     
     private var withdrawAmount: String {
         if let withdrawableAmount = viewModel.withdrawableAmount {
-            return withdrawableAmount.converted.formatted()
-            
+            return withdrawableAmount.nativeAmount.formatted()
+
         } else if let negativeDelta = viewModel.negativeWithdrawableAmount {
             return "-\(negativeDelta.formatted())"
-            
+
         } else {
-            return Quarks(
-                quarks: 0 as UInt64,
-                currencyCode: .usd,
-                decimals: PublicKey.usdf.mintDecimals
-            ).formatted()
+            return FiatAmount.zero(in: .usd).formatted()
         }
     }
     
@@ -49,34 +45,34 @@ struct WithdrawSummaryScreen: View {
                         let enteredAmount = viewModel.enteredFiat,
                         let metadata = viewModel.destinationMetadata
                     {
-                        let originalFiat = enteredAmount.converted
+                        let originalFiat = enteredAmount.nativeAmount
                         let fee          = metadata.fee
                         let displayFee   = viewModel.displayFee
-                        
+
                         BorderedContainer {
                             VStack(spacing: 20) {
-                                
+
                                 Spacer()
-                                
+
                                 AmountText(
-                                    flagStyle: originalFiat.currencyCode.flagStyle,
+                                    flagStyle: originalFiat.currency.flagStyle,
                                     content: withdrawAmount,
                                     showChevron: false,
                                     canScale: false
                                 )
                                 .font(.appDisplayMedium)
                                 .foregroundStyle(Color.textMain)
-                                
+
                                 Spacer()
-                                
-                                if originalFiat.currencyCode != .usd || fee.quarks > 0 {
+
+                                if originalFiat.currency != .usd || fee.quarks > 0 {
                                     VStack(alignment: .leading, spacing: 10) {
                                         lineItem(
                                             title: Text("Withdrawal amount"),
                                             value: originalFiat.formatted()
                                         )
                                         
-                                        if let displayFee, displayFee.quarks > 0 {
+                                        if let displayFee, displayFee.isPositive {
                                             lineItem(
                                                 title: Text("Less one time fee").underline() + Text(" \(Image.asset(.info))").baselineOffset(-2),
                                                 value: "-\(displayFee.formatted())"

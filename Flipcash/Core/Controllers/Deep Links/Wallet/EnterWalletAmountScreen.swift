@@ -18,32 +18,28 @@ struct EnterWalletAmountScreen: View {
     
 //    @State private var isShowingCurrencySelection: Bool = false
     
-    private var fiat: Quarks? {
+    private var fiat: FiatAmount? {
         guard !enteredAmount.isEmpty else {
             return nil
         }
-        
+
         guard let amount = NumberFormatter.decimal(from: enteredAmount) else {
             return nil
         }
-        
-        return try! Quarks(
-            fiatDecimal: amount,
-            currencyCode: .usd,
-            decimals: PublicKey.usdf.mintDecimals
-        )
+
+        return FiatAmount(value: amount, currency: .usd)
     }
-    
-    private let amountEntered: (Quarks) async throws -> Void
-    
+
+    private let amountEntered: (TokenAmount) async throws -> Void
+
     // MARK: - Init -
-    
-    init(amountEntered: @escaping (Quarks) async throws -> Void) {
+
+    init(amountEntered: @escaping (TokenAmount) async throws -> Void) {
         self.amountEntered = amountEntered
     }
-    
+
     // MARK: - Body -
-    
+
     var body: some View {
         Background(color: .backgroundMain) {
             EnterAmountView(
@@ -52,7 +48,7 @@ struct EnterWalletAmountScreen: View {
                 subtitle: .singleTransactionLimit,
                 actionState: $actionState,
                 actionEnabled: { enteredAmount in
-                    guard let fiat, fiat.quarks > 0 else { return false }
+                    guard let fiat, fiat.isPositive else { return false }
                     guard let maxPerDay = session.sendLimitFor(currency: .usd)?.maxPerDay else { return false }
                     return EnterAmountCalculator.isWithinDisplayLimit(enteredAmount: enteredAmount, max: maxPerDay)
                 },
@@ -72,21 +68,22 @@ struct EnterWalletAmountScreen: View {
         .navigationTitle("Amount to Buy")
         .navigationBarTitleDisplayMode(.inline)
     }
-    
+
     // MARK: - Actions -
-    
+
     private func nextAction() {
         guard let fiat = fiat else {
             return
         }
-        
+
         Task {
             actionState = .loading
             defer {
                 actionState = .normal
             }
-            
-            try await amountEntered(fiat)
+
+            let usdc = TokenAmount(wholeTokens: fiat.value, mint: .usdf)
+            try await amountEntered(usdc)
         }
     }
     

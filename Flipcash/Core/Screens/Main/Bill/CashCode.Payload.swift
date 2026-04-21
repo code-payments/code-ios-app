@@ -12,33 +12,37 @@ enum CashCode {}
 
 extension CashCode {
     struct Payload: Equatable {
-        
+
+        /// Decimal precision used by the on-the-wire `fiat` UInt64 field,
+        /// regardless of the currency. Encode/decode scale by this constant.
+        static let wireDecimals: Int = 6
+
         let kind: Kind
         let value: Value
         let nonce: Data
-        
+
         let rendezvous: KeyPair
-        
-        init(kind: Kind, fiat: Quarks, nonce: Data) {
+
+        init(kind: Kind, fiat: FiatAmount, nonce: Data) {
             self.init(
                 kind: kind,
                 value: .fiat(fiat),
                 nonce: nonce
             )
         }
-        
+
         init(kind: Kind, value: Value, nonce: Data) {
             self.kind = kind
             self.value = value
             self.nonce = nonce
-            
+
             switch value {
             case .fiat(let fiat):
                 self.rendezvous = KeyPair.deriveRendezvousKey(from: Self.encode(kind: kind, fiat: fiat, nonce: nonce))
             }
         }
-        
-        var fiat: Quarks {
+
+        var fiat: FiatAmount {
             switch value {
             case .fiat(let fiat):
                 return fiat
@@ -51,7 +55,7 @@ extension CashCode {
 
 extension CashCode.Payload {
     enum Value: Equatable {
-        case fiat(Quarks)
+        case fiat(FiatAmount)
     }
 }
 

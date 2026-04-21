@@ -14,19 +14,24 @@ import FlipcashCore
 
     // MARK: - Test Helpers
 
+    /// Helper to build an USDF-minted ExchangedFiat directly.
+    ///
+    /// - Parameters:
+    ///   - usdQuarks: raw USDF quarks (6 decimals) backing the on-chain side.
+    ///   - nativeDecimalValue: the native-currency value (already converted). If
+    ///     nil, defaults to `usdQuarks / 10^6` at fx 1 — i.e. same value in the
+    ///     entry currency.
     static func createExchangedFiat(
-        underlyingQuarks: UInt64,
-        convertedQuarks: UInt64,
+        usdQuarks: UInt64,
+        nativeDecimalValue: Decimal? = nil,
         currency: CurrencyCode = .usd
     ) -> ExchangedFiat {
-        let underlying = Quarks(quarks: underlyingQuarks, currencyCode: .usd, decimals: 6)
-        let converted = Quarks(quarks: convertedQuarks, currencyCode: currency, decimals: 6)
-
+        let usdValue = Decimal(usdQuarks) / Decimal(1_000_000)
+        let native = FiatAmount(value: nativeDecimalValue ?? usdValue, currency: currency)
         return ExchangedFiat(
-            underlying: underlying,
-            converted: converted,
-            rate: Rate(fx: 1, currency: currency),
-            mint: .usdf
+            onChainAmount: TokenAmount(quarks: usdQuarks, mint: .usdf),
+            nativeAmount: native,
+            currencyRate: Rate(fx: 1, currency: currency)
         )
     }
 
@@ -37,9 +42,9 @@ import FlipcashCore
         currency: CurrencyCode = .usd
     ) -> SendLimit {
         SendLimit(
-            nextTransaction: Quarks(quarks: nextTransaction, currencyCode: currency, decimals: 6),
-            maxPerTransaction: Quarks(quarks: maxPerTransaction, currencyCode: currency, decimals: 6),
-            maxPerDay: Quarks(quarks: maxPerDay, currencyCode: currency, decimals: 6)
+            nextTransaction: FiatAmount(value: Decimal(nextTransaction) / 1_000_000, currency: currency),
+            maxPerTransaction: FiatAmount(value: Decimal(maxPerTransaction) / 1_000_000, currency: currency),
+            maxPerDay: FiatAmount(value: Decimal(maxPerDay) / 1_000_000, currency: currency)
         )
     }
 
@@ -188,7 +193,7 @@ import FlipcashCore
 
         // Must equal the server-provided CAD value, not double-converted via fx.
         #expect(calculator.maxTransactionAmount == sendLimit.maxPerTransaction)
-        #expect(calculator.maxTransactionAmount?.currencyCode == .cad)
+        #expect(calculator.maxTransactionAmount?.currency == .cad)
     }
 
     // MARK: - Buy-Style Mode Limit Tests
@@ -235,7 +240,7 @@ import FlipcashCore
 
     @Test("Unbounded modes cap maxEnterAmount at balance only", arguments: unboundedModes)
     func maxEnterAmount_unboundedModes_returnsFullBalance(mode: EnterAmountView.Mode) {
-        let balance = Self.createExchangedFiat(underlyingQuarks: 2_000_000_000, convertedQuarks: 2_000_000_000)
+        let balance = Self.createExchangedFiat(usdQuarks: 2_000_000_000)
         let sendLimit = Self.sendLimit(nextTransaction: 100_000_000, maxPerTransaction: 250_000_000, maxPerDay: 1_000_000_000)
 
         let calculator = EnterAmountCalculator(
@@ -244,59 +249,59 @@ import FlipcashCore
             sendLimitProvider: { _ in sendLimit }
         )
 
-        #expect(calculator.maxEnterAmount(maxBalance: balance) == balance.converted)
+        #expect(calculator.maxEnterAmount(maxBalance: balance).value == 2_000)
     }
 
     // MARK: - isWithinDisplayLimit Tests
 
     @Test func isWithinDisplayLimit_emptyAmount_returnsFalse() {
-        let max = Quarks(quarks: 1_000_000 as UInt64, currencyCode: .usd, decimals: 6)
+        let max = FiatAmount(value: 1, currency: .usd)
         #expect(EnterAmountCalculator.isWithinDisplayLimit(enteredAmount: "", max: max) == false)
     }
 
     @Test func isWithinDisplayLimit_zeroAmount_returnsFalse() {
-        let max = Quarks(quarks: 1_000_000 as UInt64, currencyCode: .usd, decimals: 6)
+        let max = FiatAmount(value: 1, currency: .usd)
         #expect(EnterAmountCalculator.isWithinDisplayLimit(enteredAmount: "0", max: max) == false)
     }
 
     @Test func isWithinDisplayLimit_invalidAmount_returnsFalse() {
-        let max = Quarks(quarks: 1_000_000 as UInt64, currencyCode: .usd, decimals: 6)
+        let max = FiatAmount(value: 1, currency: .usd)
         #expect(EnterAmountCalculator.isWithinDisplayLimit(enteredAmount: "abc", max: max) == false)
     }
 
     @Test func isWithinDisplayLimit_amountBelowMax_returnsTrue() {
-        let max = Quarks(quarks: 1_000_000 as UInt64, currencyCode: .usd, decimals: 6)
+        let max = FiatAmount(value: 1, currency: .usd)
         #expect(EnterAmountCalculator.isWithinDisplayLimit(enteredAmount: "0.50", max: max) == true)
     }
 
     @Test func isWithinDisplayLimit_amountEqualToMax_returnsTrue() {
-        let max = Quarks(quarks: 1_000_000 as UInt64, currencyCode: .usd, decimals: 6)
+        let max = FiatAmount(value: 1, currency: .usd)
         #expect(EnterAmountCalculator.isWithinDisplayLimit(enteredAmount: "1.00", max: max) == true)
     }
 
     @Test func isWithinDisplayLimit_amountAboveMax_returnsFalse() {
-        let max = Quarks(quarks: 1_000_000 as UInt64, currencyCode: .usd, decimals: 6)
+        let max = FiatAmount(value: 1, currency: .usd)
         #expect(EnterAmountCalculator.isWithinDisplayLimit(enteredAmount: "1.01", max: max) == false)
     }
 
     @Test("Amount matching the display-rounded max is allowed")
     func isWithinDisplayLimit_roundedDisplayBoundary_returnsTrue() {
-        // 986700 quarks / 10^6 = 0.9867 USD, which formats as "$0.99" (halfUp)
-        let max = Quarks(quarks: 986_700 as UInt64, currencyCode: .usd, decimals: 6)
+        // 0.9867 USD formats as "$0.99" (halfUp)
+        let max = FiatAmount(value: Decimal(string: "0.9867")!, currency: .usd)
         #expect(EnterAmountCalculator.isWithinDisplayLimit(enteredAmount: "0.99", max: max) == true)
     }
 
     @Test("Amount above the display-rounded max is rejected")
     func isWithinDisplayLimit_aboveRoundedDisplay_returnsFalse() {
-        // 986700 quarks formats as "$0.99", so $1.00 should be rejected
-        let max = Quarks(quarks: 986_700 as UInt64, currencyCode: .usd, decimals: 6)
+        // 0.9867 USD formats as "$0.99", so $1.00 should be rejected
+        let max = FiatAmount(value: Decimal(string: "0.9867")!, currency: .usd)
         #expect(EnterAmountCalculator.isWithinDisplayLimit(enteredAmount: "1.00", max: max) == false)
     }
 
     // MARK: - Max Enter Amount Tests
 
     @Test func maxEnterAmount_whenLimitIsNil_returnsBalance() {
-        let balance = Self.createExchangedFiat(underlyingQuarks: 500_000, convertedQuarks: 500_000)
+        let balance = Self.createExchangedFiat(usdQuarks: 500_000)
 
         let calculator = EnterAmountCalculator(
             mode: .currency,
@@ -304,11 +309,11 @@ import FlipcashCore
             sendLimitProvider: { _ in return nil }
         )
 
-        #expect(calculator.maxEnterAmount(maxBalance: balance) == balance.converted)
+        #expect(calculator.maxEnterAmount(maxBalance: balance).value == Decimal(string: "0.5"))
     }
 
     @Test func maxEnterAmount_whenBalanceLessThanLimit_returnsBalance() {
-        let balance = Self.createExchangedFiat(underlyingQuarks: 500_000, convertedQuarks: 500_000)
+        let balance = Self.createExchangedFiat(usdQuarks: 500_000)
         let sendLimit = Self.sendLimit(nextTransaction: 1_000_000, maxPerTransaction: 1_000_000, maxPerDay: 5_000_000)
 
         let calculator = EnterAmountCalculator(
@@ -317,11 +322,11 @@ import FlipcashCore
             sendLimitProvider: { _ in return sendLimit }
         )
 
-        #expect(calculator.maxEnterAmount(maxBalance: balance) == balance.converted)
+        #expect(calculator.maxEnterAmount(maxBalance: balance).value == Decimal(string: "0.5"))
     }
 
     @Test func maxEnterAmount_whenLimitLessThanBalance_returnsLimitDirectly() {
-        let balance = Self.createExchangedFiat(underlyingQuarks: 2_000_000, convertedQuarks: 2_000_000)
+        let balance = Self.createExchangedFiat(usdQuarks: 2_000_000)
         let sendLimit = Self.sendLimit(nextTransaction: 1_000_000, maxPerTransaction: 1_000_000, maxPerDay: 5_000_000)
 
         let calculator = EnterAmountCalculator(
@@ -338,8 +343,8 @@ import FlipcashCore
     func maxEnterAmount_giveMode_CAD_returnsLocalizedLimit() {
         // Balance: $500 CAD. Limit: $250 CAD (server already localized).
         let balance = Self.createExchangedFiat(
-            underlyingQuarks: 500_000_000,
-            convertedQuarks: 500_000_000,
+            usdQuarks: 500_000_000,
+            nativeDecimalValue: 500,
             currency: .cad
         )
         let sendLimit = Self.sendLimit(
@@ -358,12 +363,12 @@ import FlipcashCore
         // Must equal $250 CAD exactly, not ~$346 from fx double-multiplication.
         let result = calculator.maxEnterAmount(maxBalance: balance)
         #expect(result == sendLimit.maxPerTransaction)
-        #expect(result.currencyCode == .cad)
+        #expect(result.currency == .cad)
     }
 
     @Test("maxEnterAmount for buy mode caps at maxPerDay, not maxPerTransaction")
     func maxEnterAmount_buyMode_capsAtMaxPerDay() {
-        let balance = Self.createExchangedFiat(underlyingQuarks: 2_000_000, convertedQuarks: 2_000_000)
+        let balance = Self.createExchangedFiat(usdQuarks: 2_000_000)
         // $0.10 remaining, $0.25 per-tx cap, $1.00 daily (used as buy per-tx)
         let sendLimit = Self.sendLimit(nextTransaction: 100_000, maxPerTransaction: 250_000, maxPerDay: 1_000_000)
 

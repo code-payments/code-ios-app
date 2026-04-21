@@ -27,9 +27,9 @@ class SwapProcessingViewModel {
         case .success:
             if let exchangedFiat {
                 if swapType.isBuy {
-                    return "\(exchangedFiat.converted.formatted()) of \(currencyName)"
+                    return "\(exchangedFiat.nativeAmount.formatted()) of \(currencyName)"
                 } else {
-                    return "\(exchangedFiat.converted.formatted()) of USDF"
+                    return "\(exchangedFiat.nativeAmount.formatted()) of USDF"
                 }
             }
             return "Transaction Complete"
@@ -160,8 +160,8 @@ class SwapProcessingViewModel {
                 "swapId": swapId.publicKey.base58,
                 "swapType": "\(swapType)",
                 "finalState": "\(state)",
-                "amount": amount.converted.formatted(),
-                "quarks": "\(amount.underlying.quarks)",
+                "amount": amount.nativeAmount.formatted(),
+                "quarks": "\(amount.onChainAmount.quarks)",
             ]
         )
     }

@@ -22,12 +22,6 @@ extension Client {
         }
     }
     
-    public func fetchLinkedAccountBalance(owner: KeyPair, account: PublicKey) async throws -> Quarks {
-        try await withCheckedThrowingContinuation { c in
-            accountService.fetchLinkedAccountBalance(owner: owner, account: account) { c.resume(with: $0) }
-        }
-    }
-    
 //    public func fetchIsCodeAccount(owner: KeyPair) async throws -> Bool {
 //        try await withCheckedThrowingContinuation { c in
 //            accountService.fetchIsCodeAccount(owner: owner) { c.resume(with: $0) }

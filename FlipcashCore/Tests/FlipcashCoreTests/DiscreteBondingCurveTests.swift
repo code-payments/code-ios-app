@@ -1940,22 +1940,21 @@ struct DiscreteSellDirectionConsistencyTests {
         sourceLocation: SourceLocation = #_sourceLocation
     ) {
         // fiat → tokens (what the ViewModel does)
-        guard let fromEntered = ExchangedFiat.computeFromEntered(
-            amount: fiatAmount,
+        guard let fromEntered = ExchangedFiat.compute(
+            fromEntered: FiatAmount(value: fiatAmount, currency: rate.currency),
             rate: rate,
             mint: testMint,
             supplyQuarks: UInt64(supplyQuarks)
         ) else {
-            Issue.record("computeFromEntered returned nil for \(fiatAmount)", sourceLocation: sourceLocation)
+            Issue.record("compute(fromEntered:) returned nil for \(fiatAmount)", sourceLocation: sourceLocation)
             return
         }
 
-        let tokenQuarks = fromEntered.underlying.quarks
+        let tokenQuarks = fromEntered.onChainAmount.quarks
 
-        // tokens → fiat (what Session.sell() does via computeFromQuarks)
-        let fromQuarks = ExchangedFiat.computeFromQuarks(
-            quarks: tokenQuarks,
-            mint: testMint,
+        // tokens → fiat (what Session.sell() does)
+        let fromQuarks = ExchangedFiat.compute(
+            onChainAmount: TokenAmount(quarks: tokenQuarks, mint: testMint),
             rate: rate,
             supplyQuarks: UInt64(supplyQuarks)
         )
@@ -1970,23 +1969,20 @@ struct DiscreteSellDirectionConsistencyTests {
             return
         }
 
-        // computeFromQuarks USD value should match bondingCurve.sell
+        // compute(onChainAmount:) USD value should match bondingCurve.sell
         let sellUSD = sellEstimation.netUSDF
-        let fromQuarksUSD = BigDecimal(fromQuarks.converted.decimalValue).divide(
-            BigDecimal(rate.fx),
-            DiscreteBondingCurve.rounding
-        )
+        let fromQuarksUSD = BigDecimal(fromQuarks.usdfValue.value)
 
         #expect(
             isApproximatelyEqual(fromQuarksUSD, sellUSD, tolerance: BigDecimal("0.000001")),
-            "computeFromQuarks USD ≠ bondingCurve.sell for \(fiatAmount) \(rate.currency)",
+            "compute(onChainAmount:) USD ≠ bondingCurve.sell for \(fiatAmount) \(rate.currency)",
             sourceLocation: sourceLocation
         )
 
         // Token quarks must be preserved through the round-trip
         #expect(
-            fromQuarks.underlying.quarks == tokenQuarks,
-            "computeFromQuarks must preserve token quarks",
+            fromQuarks.onChainAmount.quarks == tokenQuarks,
+            "compute(onChainAmount:) must preserve token quarks",
             sourceLocation: sourceLocation
         )
     }

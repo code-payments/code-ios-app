@@ -98,10 +98,9 @@ extension IntentTransferTests {
             rateProto: .makeTest(currencyCode: "usd", rate: 1.0)
         )
     ) throws -> IntentTransfer {
-        let exchangedFiat = try ExchangedFiat(
-            converted: Quarks(fiatDecimal: Decimal(quarks) / 1_000_000, currencyCode: .usd, decimals: 6),
-            rate: .oneToOne,
-            mint: .usdf
+        let exchangedFiat = ExchangedFiat(
+            nativeAmount: FiatAmount.usd(Decimal(quarks) / 1_000_000),
+            rate: .oneToOne
         )
 
         return IntentTransfer(

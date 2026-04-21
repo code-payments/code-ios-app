@@ -20,7 +20,7 @@ struct StoredBalance: Identifiable, Sendable, Equatable, Hashable {
     let imageURL: URL?
     let costBasis: Double
 
-    let usdf: Quarks
+    let usdf: FiatAmount
 
     var id: PublicKey {
         mint
@@ -52,29 +52,26 @@ struct StoredBalance: Identifiable, Sendable, Equatable, Hashable {
 
             // Floor so the stored USDF stays ≤ the curve's
             // exact BigDecimal TVL.
-            self.usdf = try! Quarks(
-                fiatDecimal: sellEstimate.netUSDF.asDecimal().roundedDown(to: PublicKey.usdf.mintDecimals),
-                currencyCode: .usd,
-                decimals: PublicKey.usdf.mintDecimals
+            self.usdf = FiatAmount(
+                value: sellEstimate.netUSDF.asDecimal().roundedDown(to: PublicKey.usdf.mintDecimals),
+                currency: .usd
             )
 
         } else {
             guard symbol == "USDF" else {
                 throw Error.missingStoredCoreMintForNonReserveToken
             }
-            
-            self.usdf = Quarks(
-                quarks: quarks,
-                currencyCode: .usd,
-                decimals: PublicKey.usdf.mintDecimals
+
+            self.usdf = FiatAmount(
+                value: quarks.scaleDown(PublicKey.usdf.mintDecimals),
+                currency: .usd
             )
         }
     }
     
     func computeExchangedValue(with rate: Rate) -> ExchangedFiat {
-        .computeFromQuarks(
-            quarks: quarks,
-            mint: mint,
+        .compute(
+            onChainAmount: TokenAmount(quarks: quarks, mint: mint),
             rate: rate,
             supplyQuarks: supplyFromBonding
         )
@@ -83,18 +80,15 @@ struct StoredBalance: Identifiable, Sendable, Equatable, Hashable {
     /// Computes the appreciation/depreciation of this balance.
     /// Returns a tuple with the ExchangedFiat (absolute value) and whether it's positive.
     func computeAppreciation(with rate: Rate) -> (value: ExchangedFiat, isPositive: Bool) {
-        let appreciationUSD = usdf.decimalValue - Decimal(costBasis)
+        let appreciationUSD = usdf.value - Decimal(costBasis)
+        let usdAbs = FiatAmount.usd(abs(appreciationUSD))
 
-        let underlying = try! Quarks(
-            fiatDecimal: abs(appreciationUSD),
-            currencyCode: .usd,
-            decimals: PublicKey.usdf.mintDecimals
-        )
+        let onChain = TokenAmount(wholeTokens: usdAbs.value, mint: .usdf)
 
-        let exchangedFiat = try! ExchangedFiat(
-            underlying: underlying,
-            rate: rate,
-            mint: .usdf
+        let exchangedFiat = ExchangedFiat(
+            onChainAmount: onChain,
+            nativeAmount: usdAbs.converting(to: rate),
+            currencyRate: rate,
         )
 
         return (exchangedFiat, appreciationUSD >= 0)

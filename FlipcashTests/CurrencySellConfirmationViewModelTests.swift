@@ -16,24 +16,25 @@ import FlipcashUI
 struct CurrencySellConfirmationViewModelTests {
     
     // MARK: - Test Helpers -
-    
-    /// Helper to create ExchangedFiat for testing
-    /// Uses USD→CAD rate of 1.35 to demonstrate underlying vs converted relationship
+
+    /// USD→CAD rate of 1.35 — native (CAD) is derived as `usdValue * 1.35`.
     static let testRate = Rate(fx: 1.35, currency: .cad)
-    
+
+    /// Helper to create ExchangedFiat for testing. USDF-minted fixtures bypass
+    /// the bonding curve so `onChainAmount.quarks` equals `usdfValue.value * 10^6`
+    /// and `nativeAmount.value` equals `usdfValue.value * rate.fx`.
+    ///
+    /// - Parameter onChainQuarks: raw token-native integer going into
+    ///   `onChainAmount.quarks`. For USDF this is 6-decimal USD quarks; for a
+    ///   bonded mint this is 10-decimal token quarks.
     static func createExchangedFiat(
-        underlyingQuarks: UInt64 = 10_000_000_000_000,  // 10,000 USD (9 decimals)
-        convertedQuarks: UInt64 = 13_500_000_000,       // 13,500 CAD (6 decimals) = 10,000 * 1.35
+        onChainQuarks: UInt64 = 10_000_000_000,         // 10,000 USDF (6 decimals)
         mint: PublicKey = .usdf
     ) -> ExchangedFiat {
-        let underlying = Quarks(quarks: underlyingQuarks, currencyCode: .usd, decimals: 9)
-        let converted = Quarks(quarks: convertedQuarks, currencyCode: .cad, decimals: 6)
-        
-        return ExchangedFiat(
-            underlying: underlying,
-            converted: converted,
+        ExchangedFiat.compute(
+            onChainAmount: TokenAmount(quarks: onChainQuarks, mint: mint),
             rate: testRate,
-            mint: mint
+            supplyQuarks: nil
         )
     }
     
@@ -63,93 +64,142 @@ struct CurrencySellConfirmationViewModelTests {
     
     @Test
     func testFee_CalculatesOnePercent() {
-        // Given: Amount of 10,000 USD / 13,500 CAD
+        // Given: 10,000 USDF on-chain. 1% fee → 100 USDF.
         let amount = Self.createExchangedFiat(
-            underlyingQuarks: 10_000_000_000_000,  // 10,000 USD
-            convertedQuarks: 13_500_000_000        // 13,500 CAD
+            onChainQuarks: 10_000_000_000  // 10,000 USDF (6 decimals)
         )
         let viewModel = Self.createViewModel(amount: amount)
-        
+
         // When: Getting fee
         let fee = viewModel.fee
-        
-        // Then: Fee should be 1% (100 bps)
-        // 13_500_000_000 * 100 / 10_000 = 135_000_000 (135 CAD)
-        #expect(fee.converted.quarks == 135_000_000)
-        // 10_000_000_000_000 * 100 / 10_000 = 100_000_000_000 (100 USD)
-        #expect(fee.underlying.quarks == 100_000_000_000)
+
+        // Then: Fee token-native math: 10_000_000_000 * 100 / 10_000 = 100_000_000 quarks
+        #expect(fee.onChainAmount.quarks == 100_000_000)
+        // USDF bypasses the bonding curve, so usdfValue == onChainAmount.decimalValue.
+        #expect(fee.usdfValue.value == 100)
+        // Native at rate 1.35 CAD/USD: 100 * 1.35 = 135 CAD
+        #expect(fee.nativeAmount.value == 135)
     }
-    
+
     @Test
     func testFee_LargeAmount_CalculatesCorrectly() {
-        // Given: Large amount - 1,000,000 USD = 1,350,000 CAD at 1.35 rate
+        // Given: 1,000,000 USDF on-chain. 1% fee → 10,000 USDF.
         let amount = Self.createExchangedFiat(
-            underlyingQuarks: 1_000_000_000_000_000,   // 1,000,000 USD (9 decimals)
-            convertedQuarks: 1_350_000_000_000         // 1,350,000 CAD (6 decimals)
+            onChainQuarks: 1_000_000_000_000   // 1,000,000 USDF (6 decimals)
         )
         let viewModel = Self.createViewModel(amount: amount)
-        
+
         // When: Getting fee
         let fee = viewModel.fee
-        
-        // Then: Fee should be 1%
-        #expect(fee.converted.quarks == 13_500_000_000)  // 13,500 CAD
-        #expect(fee.underlying.quarks == 10_000_000_000_000)  // 10,000 USD
+
+        // Then: 1% fee in raw token quarks.
+        #expect(fee.onChainAmount.quarks == 10_000_000_000)    // 10,000 USDF
+        #expect(fee.usdfValue.value == 10_000)
+        #expect(fee.nativeAmount.value == 13_500)              // 10,000 * 1.35 CAD
     }
-    
+
     @Test
     func testFee_SmallAmount_RoundsDown() {
-        // Given: Small amount where 1% would be fractional
+        // Given: Small amount where 1% would be fractional.
         // 50 quarks * 100 / 10_000 = 0 (integer division rounds down)
-        let amount = Self.createExchangedFiat(
-            underlyingQuarks: 50,
-            convertedQuarks: 50
-        )
+        let amount = Self.createExchangedFiat(onChainQuarks: 50)
         let viewModel = Self.createViewModel(amount: amount)
-        
+
         // When: Getting fee
         let fee = viewModel.fee
-        
-        // Then: Fee rounds down to 0
-        #expect(fee.converted.quarks == 0)
-        #expect(fee.underlying.quarks == 0)
+
+        // Then: Fee rounds down to 0 quarks.
+        #expect(fee.onChainAmount.quarks == 0)
+        #expect(fee.usdfValue.value == 0)
+        #expect(fee.nativeAmount.value == 0)
     }
-    
+
     @Test
     func testFee_PreservesCurrencyMetadata() {
-        // Given: Amount with specific currency codes
+        // Given: Amount with specific currency / mint.
         let amount = Self.createExchangedFiat()
         let viewModel = Self.createViewModel(amount: amount)
-        
+
         // When: Getting fee
         let fee = viewModel.fee
-        
-        // Then: Currency metadata should be preserved
-        #expect(fee.underlying.currencyCode == amount.underlying.currencyCode)
-        #expect(fee.converted.currencyCode == amount.converted.currencyCode)
-        #expect(fee.rate.currency == amount.rate.currency)
+
+        // Then: Currency / rate / mint should be preserved through compute().
+        #expect(fee.nativeAmount.currency == amount.nativeAmount.currency)
+        #expect(fee.currencyRate.currency == amount.currencyRate.currency)
         #expect(fee.mint == amount.mint)
     }
-    
+
+    @Test
+    func testFee_BondedMint_ScalesNativeProportionally() {
+        // Given: A bonded-mint amount of 5 whole Jeffy at $13.50 CAD native.
+        // Construct directly to bypass the curve (which would need supply).
+        let amount = ExchangedFiat(
+            onChainAmount: TokenAmount(quarks: 50_000_000_000, mint: .jeffy), // 5 Jeffy at 10 decimals
+            nativeAmount: FiatAmount(value: Decimal(string: "13.50")!, currency: .cad),
+            currencyRate: Self.testRate
+        )
+        let viewModel = Self.createViewModel(mint: .jeffy, amount: amount)
+
+        // When: Getting fee
+        let fee = viewModel.fee
+
+        // Then: On-chain side: 50_000_000_000 * 100 / 10_000 = 500_000_000 Jeffy quarks
+        #expect(fee.onChainAmount.quarks == 500_000_000)
+        #expect(fee.onChainAmount.mint == .jeffy)
+        // Native side: scaled by the exact on-chain ratio (500M / 50B = 0.01).
+        // 13.50 CAD * 0.01 = 0.135 CAD
+        #expect(fee.nativeAmount.value == Decimal(string: "0.135")!)
+        #expect(fee.nativeAmount.currency == .cad)
+    }
+
+    @Test
+    func testFeeFormatted_ZeroOnChainFee_DropsTildePrefix() {
+        // Given: Amount small enough that 1% on-chain rounds to 0 quarks.
+        // The fee is literally zero — display should be $0.00, NOT ~$0.00.
+        let amount = Self.createExchangedFiat(onChainQuarks: 50)
+        let viewModel = Self.createViewModel(amount: amount)
+
+        // When: Formatting the fee
+        let formatted = viewModel.feeFormatted
+
+        // Then: No tilde — fee is exactly zero, not approximately zero.
+        #expect(!formatted.contains("~"))
+    }
+
+    @Test
+    func testFeeFormatted_NonZeroButSubCentFee_KeepsTildePrefix() {
+        // Given: On-chain fee is 1+ quarks (non-zero) but converts to a
+        // sub-cent native amount (e.g. 100 USDF quarks → 1 quark fee → tiny CAD).
+        // This is the "~$0.00" display case — the fee *exists*, just below
+        // the currency's display precision.
+        let amount = Self.createExchangedFiat(onChainQuarks: 100)
+        let viewModel = Self.createViewModel(amount: amount)
+
+        // When: Formatting the fee
+        let formatted = viewModel.feeFormatted
+
+        // Then: Tilde present — non-zero but approximately zero.
+        #expect(formatted.contains("~"))
+    }
+
     // MARK: - Amount After Fee Tests -
-    
+
     @Test
     func testAmountAfterFee_SubtractsFeeCorrectly() {
-        // Given: Amount of 10,000 USD (underlying) = 13,500 CAD (converted) at 1.35 rate
+        // Given: 10,000 USDF on-chain, 1% fee → 9,900 USDF remaining.
         let amount = Self.createExchangedFiat(
-            underlyingQuarks: 10_000_000_000_000,  // 10,000 USD
-            convertedQuarks: 13_500_000_000        // 13,500 CAD
+            onChainQuarks: 10_000_000_000
         )
         let viewModel = Self.createViewModel(amount: amount)
-        
+
         // When: Getting amount after fee
         let afterFee = viewModel.amountAfterFee
-        
-        // Then: Should be original minus 1% fee
-        // Underlying: 10,000,000,000,000 - 100,000,000,000 = 9,900,000,000,000 (9,900 USD)
-        #expect(afterFee.underlying.quarks == 9_900_000_000_000)
-        // Converted is recalculated: 9,900 USD * 1.35 = 13,365 CAD = 13,365,000,000 quarks
-        #expect(afterFee.converted.quarks == 13_365_000_000)
+
+        // Then: 10_000_000_000 - 100_000_000 = 9_900_000_000 quarks (9,900 USDF)
+        #expect(afterFee.onChainAmount.quarks == 9_900_000_000)
+        #expect(afterFee.usdfValue.value == 9_900)
+        // 9,900 * 1.35 = 13,365 CAD
+        #expect(afterFee.nativeAmount.value == 13_365)
     }
         
     // MARK: - Sheet Dismissal Tests -
@@ -213,18 +263,15 @@ struct CurrencySellConfirmationViewModelTests {
         // Given: Very large but safe amount (avoiding overflow in multiplication)
         // Max safe: UInt64.max / 100 to avoid overflow
         let safeMax = UInt64.max / 100
-        let amount = Self.createExchangedFiat(
-            underlyingQuarks: safeMax,
-            convertedQuarks: safeMax
-        )
+        let amount = Self.createExchangedFiat(onChainQuarks: safeMax)
         let viewModel = Self.createViewModel(amount: amount)
-        
+
         // When: Getting fee
         let fee = viewModel.fee
-        
+
         // Then: Should calculate without overflow
         let expectedFee = safeMax * 100 / 10_000
-        #expect(fee.converted.quarks == expectedFee)
+        #expect(fee.onChainAmount.quarks == expectedFee)
     }
     
     @Test

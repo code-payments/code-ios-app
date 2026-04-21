@@ -9,17 +9,17 @@ import SwiftUI
 import FlipcashCore
 
 public struct ValueAppreciation: View {
-    public let amount: Quarks
+    public let amount: FiatAmount
     public let isPositive: Bool
     private let isNegligible: Bool
     private var prefix: String {
         guard !isNegligible else { return "" }
         return isPositive ? "+" : "-"
     }
-        
-    public init(amount: Quarks, isPositive: Bool) {
+
+    public init(amount: FiatAmount, isPositive: Bool) {
         self.amount = amount
-        self.isNegligible = amount.decimalValue < 0.01
+        self.isNegligible = amount.value < 0.01
         // Amounts smaller than one cent (e.g. 0.001) are treated as positive
         // to avoid displaying negligible negative rounding artifacts.
         if isNegligible {

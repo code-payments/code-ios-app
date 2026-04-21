@@ -10,8 +10,8 @@ import FlipcashUI
 import FlipcashCore
 
 struct CurrencyInfoHeaderSection: View {
-    let balance: Quarks
-    let appreciation: (amount: Quarks, isPositive: Bool)
+    let balance: FiatAmount
+    let appreciation: (amount: FiatAmount, isPositive: Bool)
     let isUSDF: Bool
     let onCurrencySelection: () -> Void
     let onViewTransaction: () -> Void
@@ -22,7 +22,7 @@ struct CurrencyInfoHeaderSection: View {
                 onCurrencySelection()
             } label: {
                 AmountText(
-                    flagStyle: balance.currencyCode.flagStyle,
+                    flagStyle: balance.currency.flagStyle,
                     content: balance.formatted(),
                     showChevron: true
                 )
@@ -34,7 +34,7 @@ struct CurrencyInfoHeaderSection: View {
             .frame(maxWidth: .infinity)
             .animation(.default, value: balance)
 
-            if !isUSDF && balance.quarks > 0 {
+            if !isUSDF && balance.isPositive {
                 ValueAppreciation(amount: appreciation.amount, isPositive: appreciation.isPositive)
                     .padding(.top, 8)
 

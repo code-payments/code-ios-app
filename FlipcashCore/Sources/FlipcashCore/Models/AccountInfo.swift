@@ -248,18 +248,7 @@ extension AccountInfo {
         let exchangedFiat: ExchangedFiat?
         
         if info.hasOriginalExchangeData {
-            exchangedFiat = try ExchangedFiat(
-                underlying: Quarks(
-                    quarks: info.originalExchangeData.quarks,
-                    currencyCode: .usd,
-                    decimals: mint.mintDecimals
-                ),
-                rate: .init(
-                    fx: Decimal(info.originalExchangeData.exchangeRate),
-                    currency: try CurrencyCode(currencyCode: info.originalExchangeData.currency)
-                ),
-                mint: mint
-            )
+            exchangedFiat = try ExchangedFiat(info.originalExchangeData)
         } else {
             exchangedFiat = nil
         }

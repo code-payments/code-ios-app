@@ -33,10 +33,10 @@ struct Regression_give_max_precision {
         viewModel.selectCurrencyAction(exchangedBalance: balance)
 
         // What the keypad sends after the user taps the displayed max.
-        let displayedMaxString = balance.exchangedFiat.converted.formatted()
+        let displayedMaxString = balance.exchangedFiat.nativeAmount.formatted()
         let parser = NumberFormatter.fiat(
-            currency: balance.exchangedFiat.converted.currencyCode,
-            minimumFractionDigits: balance.exchangedFiat.converted.currencyCode.maximumFractionDigits
+            currency: balance.exchangedFiat.nativeAmount.currency,
+            minimumFractionDigits: balance.exchangedFiat.nativeAmount.currency.maximumFractionDigits
         )
         let typedAmountDecimal = try #require(parser.number(from: displayedMaxString)?.decimalValue)
         viewModel.enteredAmount = "\(typedAmountDecimal)"

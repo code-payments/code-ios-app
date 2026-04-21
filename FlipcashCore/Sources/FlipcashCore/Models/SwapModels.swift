@@ -150,14 +150,14 @@ public struct VerifiedSwapMetadata: Sendable {
         public let id: SwapId
         public let fromMint: PublicKey
         public let toMint: PublicKey
-        public let amount: Quarks
+        public let amount: TokenAmount
         public let fundingSource: FundingSource
 
         public init(
             id: SwapId,
             fromMint: PublicKey,
             toMint: PublicKey,
-            amount: Quarks,
+            amount: TokenAmount,
             fundingSource: FundingSource
         ) {
             self.id = id
@@ -197,7 +197,7 @@ extension VerifiedSwapMetadata.ClientParameters {
             id: swapId,
             fromMint: fromMint,
             toMint: toMint,
-            amount: Quarks(integerLiteral: proto.amount),
+            amount: TokenAmount(quarks: proto.amount, mint: fromMint),
             fundingSource: fundingSource
         )
     }
@@ -312,7 +312,7 @@ public struct SwapMetadata: Sendable {
         verifiedMetadata.clientParameters.toMint
     }
     
-    public var amount: Quarks {
+    public var amount: TokenAmount {
         verifiedMetadata.clientParameters.amount
     }
     

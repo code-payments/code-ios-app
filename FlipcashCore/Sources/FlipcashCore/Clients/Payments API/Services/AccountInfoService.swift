@@ -96,43 +96,6 @@ final class AccountInfoService: CodeService<Ocp_Account_V1_AccountNIOClient> {
         }
     }
 
-    func fetchLinkedAccountBalance(owner: KeyPair, account: PublicKey, completion: @Sendable @escaping (Result<Quarks, ErrorFetchBalance>) -> Void) {
-//        trace(.send, components: "Owner: \(owner.publicKey.base58)")
-        
-        let request = Ocp_Account_V1_GetTokenAccountInfosRequest.with {
-            $0.owner = owner.publicKey.solanaAccountID
-            $0.signature = $0.sign(with: owner)
-        }
-        
-        let call = service.getTokenAccountInfos(request)
-        call.handle(on: queue) { response in
-            
-            let error = ErrorFetchBalance(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok {
-                let account = response.tokenAccountInfos.filter {
-                    $0.key == account.base58
-                }.first
-                
-                if let account {
-                    let balance = Quarks(
-                        quarks: account.value.balance,
-                        currencyCode: .usd,
-                        decimals: 6
-                    )
-                    completion(.success(balance))
-                } else {
-                    completion(.failure(.accountNotInList))
-                }
-                
-            } else {
-                logger.error("Failed to fetch linked account balance", metadata: ["owner": "\(owner.publicKey.base58)"])
-                completion(.failure(error))
-            }
-
-        } failure: { error in
-            completion(.failure(.unknown))
-        }
-    }
 }
 
 // MARK: - Types -

@@ -29,8 +29,8 @@ struct CompactMessage {
         data.append(publicKey.data)
     }
     
-    mutating func append(fiat: Quarks) {
-        data.append(contentsOf: fiat.quarks.bytes)
+    mutating func append(amount: TokenAmount) {
+        data.append(contentsOf: amount.quarks.bytes)
     }
     
     func signature(owner: KeyPair) -> Signature {

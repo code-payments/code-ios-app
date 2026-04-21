@@ -31,14 +31,9 @@ class CurrencyBuyViewModel: Identifiable {
         let mint: PublicKey = .usdf
         let rate = ratesController.rateForEntryCurrency()
 
-        let entered = try! ExchangedFiat(
-            converted: .init(
-                fiatDecimal: amount,
-                currencyCode: rate.currency,
-                decimals: mint.mintDecimals
-            ),
-            rate: rate,
-            mint: mint
+        let entered = ExchangedFiat(
+            nativeAmount: FiatAmount(value: amount, currency: rate.currency),
+            rate: rate
         )
 
         // Cap to balance to handle rounding differences between display and entry. Since our display rounds HALF_UP
@@ -46,22 +41,18 @@ class CurrencyBuyViewModel: Identifiable {
             return entered
         }
 
-        // If entered underlying exceeds balance, cap it to the balance
-        if entered.underlying.quarks > balance.quarks {
-            return try? ExchangedFiat(
-                underlying: Quarks(
-                    quarks: balance.quarks,
-                    currencyCode: .usd,
-                    decimals: mint.mintDecimals
-                ),
+        // If entered USDF value exceeds balance, cap it to the balance
+        if entered.usdfValue.value > balance.usdf.value {
+            return ExchangedFiat.compute(
+                onChainAmount: TokenAmount(quarks: balance.quarks, mint: mint),
                 rate: rate,
-                mint: mint
+                supplyQuarks: nil
             )
         }
 
         return entered
     }
-        
+
     var canPerformAction: Bool {
         guard enteredFiat != nil else {
             return false
@@ -69,22 +60,26 @@ class CurrencyBuyViewModel: Identifiable {
 
         return EnterAmountCalculator.isWithinDisplayLimit(
             enteredAmount: enteredAmount,
-            max: maxPossibleAmount.converted
+            max: maxPossibleAmount.nativeAmount
         )
     }
-    
+
     var screenTitle: String {
         return "Amount To Buy"
     }
-    
+
     var maxPossibleAmount: ExchangedFiat {
         let entryRate = ratesController.rateForEntryCurrency()
-        let zero = try! ExchangedFiat(underlying: 0, rate: entryRate, mint: .usdf)
-        
+        let zero = ExchangedFiat.compute(
+            onChainAmount: .zero(mint: .usdf),
+            rate: entryRate,
+            supplyQuarks: nil
+        )
+
         guard let balance = session.balance(for: .usdf) else {
             return zero
         }
-        
+
         return balance.computeExchangedValue(with: entryRate)
     }
     
@@ -115,13 +110,13 @@ class CurrencyBuyViewModel: Identifiable {
     private func performBuy() {
         guard let buyAmount = enteredFiat else { return }
 
-        let sendLimit = session.sendLimitFor(currency: buyAmount.converted.currencyCode) ?? .zero
+        let sendLimit = session.sendLimitFor(currency: buyAmount.nativeAmount.currency) ?? .zero
 
-        guard buyAmount.converted <= sendLimit.maxPerDay else {
+        guard buyAmount.nativeAmount.value <= sendLimit.maxPerDay.value else {
             logger.info("Buy rejected: amount exceeds limit", metadata: [
-                "amount": "\(buyAmount.converted.formatted())",
-                "max_per_day": "\(sendLimit.maxPerDay.decimalValue)",
-                "currency": "\(buyAmount.converted.currencyCode)",
+                "amount": "\(buyAmount.nativeAmount.formatted())",
+                "max_per_day": "\(sendLimit.maxPerDay.value)",
+                "currency": "\(buyAmount.nativeAmount.currency)",
             ])
             showLimitsError()
             return
@@ -147,8 +142,7 @@ class CurrencyBuyViewModel: Identifiable {
                     reason: "Failed to buy currency",
                     metadata: [
                         "mint": destination.base58,
-                        "amount": buyAmount.converted.formatted(),
-                        "quarks": "\(buyAmount.underlying.quarks)",
+                        "amount": buyAmount.nativeAmount.formatted(),
                     ]
                 )
                 await MainActor.run {

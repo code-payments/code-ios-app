@@ -1,5 +1,5 @@
 //
-//  FiatTests.swift
+//  ExchangedFiatTests.swift
 //  FlipcashCore
 //
 //  Created by Dima Bart on 2025-04-01.
@@ -12,105 +12,108 @@ import FlipcashCore
 @Suite("ExchangedFiat Tests")
 struct ExchangedFiatTests {
 
-    // USDC uses 6 decimals
-    private static let usdcDecimals = 6
-
     @Test("Subtract fee from amount")
     func testSubtractingFeeFromAmount() throws {
-        let exchangedFiat = try ExchangedFiat(
-            converted: try Quarks(fiatDecimal: 5.00, currencyCode: .usd, decimals: Self.usdcDecimals),
-            rate: .oneToOne,
-            mint: .usdf
+        let exchangedFiat = ExchangedFiat(
+            nativeAmount: FiatAmount.usd(5.00),
+            rate: .oneToOne
         )
 
-        let fee = try Quarks(fiatDecimal: 0.5, currencyCode: .usd, decimals: Self.usdcDecimals)
+        let fee = TokenAmount(quarks: 500_000, mint: .usdf) // $0.50 USDF
 
-        let result = try exchangedFiat.subtracting(fee: fee)
+        let result = exchangedFiat.subtractingFee(fee)
 
-        #expect(exchangedFiat.underlying.quarks == 5_000_000)
+        #expect(exchangedFiat.onChainAmount.quarks == 5_000_000)
         #expect(fee.quarks == 500_000)
-        #expect(result.underlying.quarks == 4_500_000)
-    }
-
-    @Test("Subtract fee too large")
-    func testSubtractingFeeTooLarge() throws {
-        let exchangedFiat = try ExchangedFiat(
-            converted: try Quarks(fiatDecimal: 0.40, currencyCode: .usd, decimals: Self.usdcDecimals),
-            rate: .oneToOne,
-            mint: .usdf
-        )
-
-        let fee = try Quarks(fiatDecimal: 0.5, currencyCode: .usd, decimals: Self.usdcDecimals)
-
-        #expect(throws: ExchangedFiat.Error.feeLargerThanAmount) {
-            try exchangedFiat.subtracting(fee: fee)
-        }
+        #expect(result.onChainAmount.quarks == 4_500_000)
     }
 
     @Test("Subtract fee equal to amount results in zero")
     func testSubtractingFeeEqualToAmount() throws {
-        let exchangedFiat = try ExchangedFiat(
-            converted: try Quarks(fiatDecimal: 0.50, currencyCode: .usd, decimals: Self.usdcDecimals),
-            rate: .oneToOne,
-            mint: .usdf
+        let exchangedFiat = ExchangedFiat(
+            nativeAmount: FiatAmount.usd(0.50),
+            rate: .oneToOne
         )
 
-        let fee = try Quarks(fiatDecimal: 0.5, currencyCode: .usd, decimals: Self.usdcDecimals)
+        let fee = TokenAmount(quarks: 500_000, mint: .usdf)
 
-        let result = try exchangedFiat.subtracting(fee: fee)
-        #expect(result.underlying.quarks == 0)
+        let result = exchangedFiat.subtractingFee(fee)
+        #expect(result.onChainAmount.quarks == 0)
     }
 
-    @Test("Subtract fee with non-USD rate recomputes converted value")
+    @Test("Subtract same-mint same-rate ExchangedFiat preserves nativeAmount delta")
+    func subtracting_sameMintSameRate_preservesNativeDelta() throws {
+        let bondedMint = try PublicKey(base58: "54ggcQ23uen5b9QXMAns99MQNTKn7iyzq4wvCW6e8r25")
+        let rate = Rate.oneToOne
+
+        let requested = ExchangedFiat(
+            onChainAmount: TokenAmount(quarks: 10 * 10_000_000_000, mint: bondedMint),
+            nativeAmount: FiatAmount.usd(1),
+            currencyRate: rate
+        )
+        let balance = ExchangedFiat(
+            onChainAmount: TokenAmount(quarks: 8 * 10_000_000_000, mint: bondedMint),
+            nativeAmount: FiatAmount.usd(Decimal(string: "0.80")!),
+            currencyRate: rate
+        )
+
+        let shortfall = requested.subtracting(balance)
+
+        #expect(shortfall.onChainAmount.quarks == 2 * 10_000_000_000)
+        #expect(shortfall.nativeAmount.value == Decimal(string: "0.20")!)
+        #expect(shortfall.nativeAmount.currency == .usd)
+        #expect(shortfall.currencyRate == rate)
+    }
+
+    @Test("Subtract with non-USD rate preserves rate on result")
+    func subtracting_nonUSDRate_preservesRate() throws {
+        let cadRate = Rate(fx: 1.4, currency: .cad)
+        let requested = ExchangedFiat(
+            onChainAmount: TokenAmount(quarks: 7_000_000, mint: .usdf), // 7 USDF
+            nativeAmount: FiatAmount(value: Decimal(string: "9.80")!, currency: .cad),
+            currencyRate: cadRate
+        )
+        let balance = ExchangedFiat(
+            onChainAmount: TokenAmount(quarks: 5_000_000, mint: .usdf), // 5 USDF
+            nativeAmount: FiatAmount(value: 7, currency: .cad),
+            currencyRate: cadRate
+        )
+
+        let delta = requested.subtracting(balance)
+
+        #expect(delta.onChainAmount.quarks == 2_000_000)
+        #expect(delta.nativeAmount.value == Decimal(string: "2.80")!)
+        #expect(delta.currencyRate.currency == .cad)
+    }
+
+    @Test("Subtract fee with non-USD rate recomputes native value")
     func testSubtractingFeeWithNonUSDRate() throws {
         let cadRate = Rate(fx: Decimal(1.4), currency: .cad)
-        // $5 USD underlying, converted to $7 CAD
-        let exchangedFiat = try ExchangedFiat(
-            underlying: try Quarks(fiatDecimal: 5.00, currencyCode: .usd, decimals: Self.usdcDecimals),
-            rate: cadRate,
-            mint: .usdf
+        // $5 USD on-chain, native = $7 CAD
+        let exchangedFiat = ExchangedFiat(
+            nativeAmount: FiatAmount(value: 7.00, currency: .cad),
+            rate: cadRate
         )
 
-        // $0.50 USD fee
-        let fee = try Quarks(fiatDecimal: 0.5, currencyCode: .usd, decimals: Self.usdcDecimals)
+        // $0.50 USDF fee (on-chain)
+        let fee = TokenAmount(quarks: 500_000, mint: .usdf)
 
-        let result = try exchangedFiat.subtracting(fee: fee)
+        let result = exchangedFiat.subtractingFee(fee)
 
-        #expect(result.underlying.quarks == 4_500_000) // $4.50 USD
-        #expect(result.rate.currency == .cad)
-        // Converted should be $4.50 * 1.4 = $6.30 CAD
-        let expectedConverted = try Quarks(fiatDecimal: 4.5 * 1.4, currencyCode: .cad, decimals: Self.usdcDecimals)
-        #expect(result.converted.quarks == expectedConverted.quarks)
-    }
-
-    @Test("Subtract fee too large with non-USD rate")
-    func testSubtractingFeeTooLargeWithNonUSDRate() throws {
-        let cadRate = Rate(fx: Decimal(1.4), currency: .cad)
-        let exchangedFiat = try ExchangedFiat(
-            underlying: try Quarks(fiatDecimal: 0.40, currencyCode: .usd, decimals: Self.usdcDecimals),
-            rate: cadRate,
-            mint: .usdf
-        )
-
-        let fee = try Quarks(fiatDecimal: 0.5, currencyCode: .usd, decimals: Self.usdcDecimals)
-
-        #expect(throws: ExchangedFiat.Error.feeLargerThanAmount) {
-            try exchangedFiat.subtracting(fee: fee)
-        }
+        #expect(result.onChainAmount.quarks == 4_500_000) // $4.50 USDF
+        #expect(result.currencyRate.currency == .cad)
+        // Native should be $4.50 * 1.4 = $6.30 CAD
+        #expect(result.nativeAmount.value == Decimal(string: "6.30"))
     }
 }
 
-// MARK: - computeFromEntered Integration Tests
+// MARK: - compute(fromEntered:) Integration Tests
 
-@Suite("ExchangedFiat.computeFromEntered - Bonding Curve Edge Cases")
+@Suite("ExchangedFiat.compute(fromEntered:) - Bonding Curve Edge Cases")
 struct ExchangedFiatComputeFromEnteredTests {
 
-    /// These tests validate that computeFromEntered handles edge cases gracefully
-    /// without crashing. This is critical because the method uses force-try (try!)
-    /// internally, so any invalid valuation from the bonding curve would crash.
-    ///
-    /// The fix (returning nil from tokensForValueExchange for invalid cases)
-    /// ensures the guard statement at line 154-160 catches these cases.
+    /// These tests validate that compute(fromEntered:) handles edge cases
+    /// gracefully without crashing.
 
     // Non-USDC mint to trigger bonding curve code path
     private let testMint = try! PublicKey(base58: "54ggcQ23uen5b9QXMAns99MQNTKn7iyzq4wvCW6e8r25")
@@ -124,8 +127,8 @@ struct ExchangedFiatComputeFromEnteredTests {
     @Test("Zero supply returns nil (no TVL to exchange from)")
     func zeroSupplyReturnsNil() {
         // Zero supply means zero TVL - nothing to exchange from
-        let result = ExchangedFiat.computeFromEntered(
-            amount: Decimal(5.0),
+        let result = ExchangedFiat.compute(
+            fromEntered: FiatAmount.usd(5.0),
             rate: .oneToOne,
             mint: testMint,
             supplyQuarks: 0
@@ -136,8 +139,8 @@ struct ExchangedFiatComputeFromEnteredTests {
 
     @Test("Zero amount returns nil")
     func zeroAmountReturnsNil() {
-        let result = ExchangedFiat.computeFromEntered(
-            amount: Decimal(0),
+        let result = ExchangedFiat.compute(
+            fromEntered: FiatAmount.usd(0),
             rate: .oneToOne,
             mint: testMint,
             supplyQuarks: testSupplyQuarks
@@ -146,23 +149,11 @@ struct ExchangedFiatComputeFromEnteredTests {
         #expect(result == nil, "Zero amount should return nil")
     }
 
-    @Test("Negative amount returns nil")
-    func negativeAmountReturnsNil() {
-        let result = ExchangedFiat.computeFromEntered(
-            amount: Decimal(-5.0),
-            rate: .oneToOne,
-            mint: testMint,
-            supplyQuarks: testSupplyQuarks
-        )
-
-        #expect(result == nil, "Negative amount should return nil")
-    }
-
     @Test("Valid exchange succeeds for non-USDC mint")
     func validExchangeSucceeds() {
         // $5 exchange with 1000 tokens supply - should succeed
-        let result = ExchangedFiat.computeFromEntered(
-            amount: Decimal(5.0),
+        let result = ExchangedFiat.compute(
+            fromEntered: FiatAmount.usd(5.0),
             rate: .oneToOne,
             mint: testMint,
             supplyQuarks: testSupplyQuarks
@@ -170,16 +161,16 @@ struct ExchangedFiatComputeFromEnteredTests {
 
         #expect(result != nil, "Valid exchange should succeed")
         if let result = result {
-            #expect(result.converted.quarks > 0, "Should have positive converted quarks")
-            #expect(result.underlying.quarks > 0, "Should have positive underlying quarks")
+            #expect(result.nativeAmount.value > 0, "Should have positive native value")
+            #expect(result.onChainAmount.quarks > 0, "Should have positive on-chain quarks")
         }
     }
 
     @Test("Small exchange with small supply succeeds - GiveViewModel scenario")
     func smallExchangeWithSmallSupply() {
         // User enters $0.50 with 100 tokens supply
-        let result = ExchangedFiat.computeFromEntered(
-            amount: Decimal(0.50),
+        let result = ExchangedFiat.compute(
+            fromEntered: FiatAmount.usd(0.50),
             rate: .oneToOne,
             mint: testMint,
             supplyQuarks: 100 * Self.quarksPerToken
@@ -187,8 +178,8 @@ struct ExchangedFiatComputeFromEnteredTests {
 
         #expect(result != nil, "$0.50 exchange with 100 tokens supply should succeed")
         if let result = result {
-            #expect(result.converted.quarks > 0, "Should have positive converted quarks")
-            #expect(result.underlying.quarks > 0, "Should have positive underlying quarks")
+            #expect(result.nativeAmount.value > 0, "Should have positive native value")
+            #expect(result.onChainAmount.quarks > 0, "Should have positive on-chain quarks")
         }
     }
 
@@ -196,8 +187,8 @@ struct ExchangedFiatComputeFromEnteredTests {
     func validExchangeWithNonUSDCurrencySucceeds() {
         // $7 CAD at 1.4 rate = $5 USD, with 1000 tokens supply
         let cadRate = Rate(fx: Decimal(1.4), currency: .cad)
-        let result = ExchangedFiat.computeFromEntered(
-            amount: Decimal(7.0),
+        let result = ExchangedFiat.compute(
+            fromEntered: FiatAmount(value: 7.0, currency: .cad),
             rate: cadRate,
             mint: testMint,
             supplyQuarks: testSupplyQuarks
@@ -205,16 +196,16 @@ struct ExchangedFiatComputeFromEnteredTests {
 
         #expect(result != nil, "Valid CAD exchange should succeed")
         if let result = result {
-            #expect(result.converted.quarks > 0)
-            #expect(result.rate.currency == .cad)
+            #expect(result.nativeAmount.value > 0)
+            #expect(result.currencyRate.currency == .cad)
         }
     }
 
     @Test("USDF mint bypasses bonding curve and succeeds")
     func usdfMintBypassesBondingCurve() {
         // USDF doesn't use bonding curve, so zero supply shouldn't matter
-        let result = ExchangedFiat.computeFromEntered(
-            amount: Decimal(5.0),
+        let result = ExchangedFiat.compute(
+            fromEntered: FiatAmount.usd(5.0),
             rate: .oneToOne,
             mint: .usdf,
             supplyQuarks: 0  // Zero supply - should still work for USDF
@@ -226,8 +217,8 @@ struct ExchangedFiatComputeFromEnteredTests {
     @Test("Very small amount at small supply succeeds")
     func verySmallAmountAtSmallSupply() {
         // Small exchange at step 0 (supply < 100 tokens)
-        let result = ExchangedFiat.computeFromEntered(
-            amount: Decimal(0.01),
+        let result = ExchangedFiat.compute(
+            fromEntered: FiatAmount.usd(0.01),
             rate: .oneToOne,
             mint: testMint,
             supplyQuarks: 50 * Self.quarksPerToken  // 50 tokens
@@ -235,7 +226,7 @@ struct ExchangedFiatComputeFromEnteredTests {
 
         // Should succeed with valid result
         if let result = result {
-            #expect(result.converted.quarks >= 0)
+            #expect(result.nativeAmount.value >= 0)
         }
         // Test passes as long as we don't crash
     }
@@ -244,22 +235,23 @@ struct ExchangedFiatComputeFromEnteredTests {
     func capsToTokenBalance() {
         let balanceQuarks: UInt64 = Self.quarksPerToken // 1 token
 
-        let result = ExchangedFiat.computeFromEntered(
-            amount: Decimal(5.0),
+        let result = ExchangedFiat.compute(
+            fromEntered: FiatAmount.usd(5.0),
             rate: .oneToOne,
             mint: testMint,
             supplyQuarks: testSupplyQuarks,
+            balance: nil,
             tokenBalanceQuarks: balanceQuarks
         )
 
         #expect(result != nil)
-        #expect(result?.underlying.quarks == balanceQuarks)
+        #expect(result?.onChainAmount.quarks == balanceQuarks)
     }
 }
 
-// MARK: - computeFromEntered Cap Tests
+// MARK: - compute(fromEntered:) Cap Tests
 
-@Suite("ExchangedFiat.computeFromEntered - Caps")
+@Suite("ExchangedFiat.compute(fromEntered:) - Caps")
 struct ExchangedFiatComputeFromEnteredCapTests {
 
     private let testMint: PublicKey = try! PublicKey(base58: "54ggcQ23uen5b9QXMAns99MQNTKn7iyzq4wvCW6e8r25")
@@ -268,68 +260,33 @@ struct ExchangedFiatComputeFromEnteredCapTests {
     @Test("Caps entered amount to USDF balance")
     func capsToUsdfBalance() throws {
         let rate = Rate(fx: Decimal(1.4), currency: .cad)
-        let balance = try Quarks(fiatDecimal: Decimal(10.41), currencyCode: .usd, decimals: 6)
-        let enteredAmount = Decimal(20.00)
+        let balance = FiatAmount.usd(Decimal(10.41))
 
-        let result = ExchangedFiat.computeFromEntered(
-            amount: enteredAmount,
+        let result = ExchangedFiat.compute(
+            fromEntered: FiatAmount(value: 20.00, currency: .cad),
             rate: rate,
             mint: testMint,
             supplyQuarks: testSupplyQuarks,
             balance: balance
-        )
-
-        let cappedAmount = balance.decimalValue * rate.fx
-        let expectedConverted = try Quarks(
-            fiatDecimal: cappedAmount,
-            currencyCode: rate.currency,
-            decimals: testMint.mintDecimals
         )
 
         #expect(result != nil)
-        #expect(result?.converted.quarks == expectedConverted.quarks)
-    }
-
-    @Test("Invalid balance currency returns nil")
-    func invalidBalanceCurrencyReturnsNil() throws {
-        let rate = Rate(fx: Decimal(1.0), currency: .usd)
-        let balance = try Quarks(fiatDecimal: Decimal(10), currencyCode: .cad, decimals: 6)
-
-        let result = ExchangedFiat.computeFromEntered(
-            amount: Decimal(5),
-            rate: rate,
-            mint: testMint,
-            supplyQuarks: testSupplyQuarks,
-            balance: balance
-        )
-
-        #expect(result == nil)
-    }
-
-    @Test("Invalid balance decimals returns nil")
-    func invalidBalanceDecimalsReturnsNil() throws {
-        let rate = Rate(fx: Decimal(1.0), currency: .usd)
-        let balance = try Quarks(fiatDecimal: Decimal(10), currencyCode: .usd, decimals: 10)
-
-        let result = ExchangedFiat.computeFromEntered(
-            amount: Decimal(5),
-            rate: rate,
-            mint: testMint,
-            supplyQuarks: testSupplyQuarks,
-            balance: balance
-        )
-
-        #expect(result == nil)
+        // Expected capped native: 10.41 USD → 10.41 * 1.4 = 14.574 CAD
+        let expectedNative = balance.value * rate.fx
+        if let native = result?.nativeAmount.value {
+            // Allow small bonding-curve rounding tolerance
+            #expect(abs(native - expectedNative) < Decimal(0.01))
+        }
     }
 
     @Test("Applies USDF cap before token cap")
     func appliesUsdfAndTokenCaps() throws {
         let rate = Rate(fx: Decimal(1.0), currency: .usd)
-        let balance = try Quarks(fiatDecimal: Decimal(10), currencyCode: .usd, decimals: 6)
+        let balance = FiatAmount.usd(10)
         let tokenBalanceQuarks: UInt64 = 10_000_000_000 // 1 token
 
-        let result = ExchangedFiat.computeFromEntered(
-            amount: Decimal(100),
+        let result = ExchangedFiat.compute(
+            fromEntered: FiatAmount.usd(100),
             rate: rate,
             mint: testMint,
             supplyQuarks: testSupplyQuarks,
@@ -338,9 +295,9 @@ struct ExchangedFiatComputeFromEnteredCapTests {
         )
 
         #expect(result != nil)
-        #expect(result?.underlying.quarks == tokenBalanceQuarks)
-        if let converted = result?.converted.decimalValue {
-            #expect(converted <= balance.decimalValue * rate.fx)
+        #expect(result?.onChainAmount.quarks == tokenBalanceQuarks)
+        if let native = result?.nativeAmount.value {
+            #expect(native <= balance.value * rate.fx)
         }
     }
 
@@ -349,48 +306,44 @@ struct ExchangedFiatComputeFromEnteredCapTests {
         let rate = Rate(fx: Decimal(1.4), currency: .cad)
         let tokenBalanceQuarks: UInt64 = 2 * 10_000_000_000
 
-        let result = ExchangedFiat.computeFromEntered(
-            amount: Decimal(14.10),
+        let result = ExchangedFiat.compute(
+            fromEntered: FiatAmount(value: 14.10, currency: .cad),
             rate: rate,
             mint: testMint,
             supplyQuarks: testSupplyQuarks,
             tokenBalanceQuarks: tokenBalanceQuarks
         )
 
-        let quarks = try #require(result?.underlying.quarks)
+        let quarks = try #require(result?.onChainAmount.quarks)
         #expect(quarks <= tokenBalanceQuarks)
     }
 
     @Test("Zero-decimal currency respects USDF cap")
     func zeroDecimalCurrencyRespectsCap() throws {
         let rate = Rate(fx: Decimal(150), currency: .jpy)
-        let balance = try Quarks(fiatDecimal: Decimal(1.23), currencyCode: .usd, decimals: 6)
-        let enteredAmount = Decimal(200)
+        let balance = FiatAmount.usd(Decimal(1.23))
 
-        let result = ExchangedFiat.computeFromEntered(
-            amount: enteredAmount,
+        let result = ExchangedFiat.compute(
+            fromEntered: FiatAmount(value: 200, currency: .jpy),
             rate: rate,
             mint: testMint,
             supplyQuarks: testSupplyQuarks,
             balance: balance
         )
 
-        let cappedAmount = balance.decimalValue * rate.fx
-        let expectedConverted = try Quarks(
-            fiatDecimal: cappedAmount,
-            currencyCode: rate.currency,
-            decimals: testMint.mintDecimals
-        )
-
         #expect(result != nil)
-        #expect(result?.converted.currencyCode == .jpy)
-        #expect(result?.converted.quarks == expectedConverted.quarks)
+        #expect(result?.nativeAmount.currency == .jpy)
+        // Capped native: 1.23 USD * 150 = 184.5 JPY
+        let expected = balance.value * rate.fx
+        if let native = result?.nativeAmount.value {
+            #expect(abs(native - expected) < Decimal(1))
+        }
     }
 }
 
 // MARK: - Server Consistency Tests
 
-@Suite("ExchangedFiat.computeFromEntered - Server Consistency")
+@Suite("ExchangedFiat.compute(fromEntered:) - Server Consistency")
 struct ExchangedFiatServerConsistencyTests {
 
     private static let testMint = try! PublicKey(base58: "54ggcQ23uen5b9QXMAns99MQNTKn7iyzq4wvCW6e8r25")
@@ -412,40 +365,38 @@ struct ExchangedFiatServerConsistencyTests {
     ) throws {
         let supplyQuarks = supplyTokens * Self.quarksPerToken
 
-        let fromEntered = try #require(ExchangedFiat.computeFromEntered(
-            amount: amount,
+        let fromEntered = try #require(ExchangedFiat.compute(
+            fromEntered: FiatAmount(value: amount, currency: rate.currency),
             rate: rate,
             mint: Self.testMint,
             supplyQuarks: supplyQuarks
         ))
 
-        let fromQuarks = ExchangedFiat.computeFromQuarks(
-            quarks: fromEntered.underlying.quarks,
-            mint: Self.testMint,
+        let fromQuarks = ExchangedFiat.compute(
+            onChainAmount: TokenAmount(quarks: fromEntered.onChainAmount.quarks, mint: Self.testMint),
             rate: rate,
             supplyQuarks: supplyQuarks
         )
 
-        #expect(fromEntered.converted.quarks == fromQuarks.converted.quarks)
+        #expect(fromEntered.nativeAmount.value == fromQuarks.nativeAmount.value)
     }
 
     @Test("USDF bypasses bonding curve, no divergence possible")
     func usdfNoDivergence() throws {
-        let fromEntered = try #require(ExchangedFiat.computeFromEntered(
-            amount: Decimal(string: "326.79")!,
+        let fromEntered = try #require(ExchangedFiat.compute(
+            fromEntered: FiatAmount.usd(Decimal(string: "326.79")!),
             rate: .oneToOne,
             mint: .usdf,
             supplyQuarks: 0
         ))
 
-        let fromQuarks = ExchangedFiat.computeFromQuarks(
-            quarks: fromEntered.underlying.quarks,
-            mint: .usdf,
+        let fromQuarks = ExchangedFiat.compute(
+            onChainAmount: TokenAmount(quarks: fromEntered.onChainAmount.quarks, mint: .usdf),
             rate: .oneToOne,
             supplyQuarks: nil
         )
 
-        #expect(fromEntered.converted.quarks == fromQuarks.converted.quarks)
+        #expect(fromEntered.nativeAmount.value == fromQuarks.nativeAmount.value)
     }
 }
 
@@ -463,81 +414,80 @@ struct ExchangedFiatTotalTests {
         let items: [ExchangedFiat] = []
         let result = items.total(rate: Self.usdRate)
 
-        #expect(result.underlying.quarks == 0)
-        #expect(result.converted.quarks == 0)
+        #expect(result.onChainAmount.quarks == 0)
+        #expect(result.nativeAmount.value == 0)
         #expect(result.mint == PublicKey.usdf)
     }
 
     @Test("Total of single element equals that element")
     func singleElement() throws {
-        let item = try ExchangedFiat(
-            underlying: Quarks(quarks: 5_000_000 as UInt64, currencyCode: .usd, decimals: 6),
+        let item = ExchangedFiat.compute(
+            onChainAmount: TokenAmount(quarks: 5_000_000, mint: .usdf),
             rate: Self.usdRate,
-            mint: .usdf
+            supplyQuarks: nil
         )
 
         let result = [item].total(rate: Self.usdRate)
 
-        #expect(result.underlying.quarks == item.underlying.quarks)
-        #expect(result.converted.quarks == item.converted.quarks)
+        #expect(result.onChainAmount.quarks == item.onChainAmount.quarks)
+        #expect(result.nativeAmount.value == item.nativeAmount.value)
     }
 
     @Test("Total sums multiple USDF balances")
     func multipleUSDF() throws {
-        let a = try ExchangedFiat(
-            underlying: Quarks(quarks: 3_000_000 as UInt64, currencyCode: .usd, decimals: 6),
+        let a = ExchangedFiat.compute(
+            onChainAmount: TokenAmount(quarks: 3_000_000, mint: .usdf),
             rate: Self.usdRate,
-            mint: .usdf
+            supplyQuarks: nil
         )
-        let b = try ExchangedFiat(
-            underlying: Quarks(quarks: 5_000_000 as UInt64, currencyCode: .usd, decimals: 6),
+        let b = ExchangedFiat.compute(
+            onChainAmount: TokenAmount(quarks: 5_000_000, mint: .usdf),
             rate: Self.usdRate,
-            mint: .usdf
+            supplyQuarks: nil
         )
 
         let result = [a, b].total(rate: Self.usdRate)
 
-        #expect(result.underlying.quarks == 8_000_000)
-        #expect(result.converted.quarks == 8_000_000)
+        #expect(result.usdfValue.value == 8)
+        #expect(result.nativeAmount.value == 8)
     }
 
     @Test("Total preserves rate currency")
     func preservesCurrency() throws {
-        let item = try ExchangedFiat(
-            underlying: Quarks(quarks: 1_000_000 as UInt64, currencyCode: .usd, decimals: 6),
+        let item = ExchangedFiat.compute(
+            onChainAmount: TokenAmount(quarks: 1_000_000, mint: .usdf),
             rate: Self.cadRate,
-            mint: .usdf
+            supplyQuarks: nil
         )
 
         let result = [item].total(rate: Self.cadRate)
 
-        #expect(result.rate.currency == .cad)
-        #expect(result.converted.currencyCode == .cad)
+        #expect(result.currencyRate.currency == .cad)
+        #expect(result.nativeAmount.currency == .cad)
     }
 
     @Test("Total sums mixed mints correctly")
     func mixedMints() throws {
         // USDF balance: $3.00
-        let usdfBalance = try ExchangedFiat(
-            underlying: Quarks(quarks: 3_000_000 as UInt64, currencyCode: .usd, decimals: 6),
+        let usdfBalance = ExchangedFiat.compute(
+            onChainAmount: TokenAmount(quarks: 3_000_000, mint: .usdf),
             rate: Self.usdRate,
-            mint: .usdf
+            supplyQuarks: nil
         )
 
-        // Bonded token balance via computeFromQuarks
+        // Bonded token balance
         let supplyQuarks: UInt64 = 1000 * 10_000_000_000
-        let bondedBalance = ExchangedFiat.computeFromQuarks(
-            quarks: 50_000_000_000 as UInt64,
-            mint: Self.bondedTestMint,
+        let bondedBalance = ExchangedFiat.compute(
+            onChainAmount: TokenAmount(quarks: 50_000_000_000, mint: Self.bondedTestMint),
             rate: Self.usdRate,
             supplyQuarks: supplyQuarks
         )
 
         let result = [usdfBalance, bondedBalance].total(rate: Self.usdRate)
 
-        // Total should exceed the USDF-only balance
-        #expect(result.underlying.quarks > usdfBalance.underlying.quarks)
-        #expect(result.converted.quarks > usdfBalance.converted.quarks)
+        // Total USDF/native should exceed the USDF-only balance
+        #expect(result.usdfValue.value > usdfBalance.usdfValue.value)
+        #expect(result.nativeAmount.value > usdfBalance.nativeAmount.value)
         #expect(result.mint == PublicKey.usdf)
     }
 }

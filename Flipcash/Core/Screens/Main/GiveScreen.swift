@@ -36,7 +36,11 @@ struct GiveScreen: View {
 
     private var maxLimit: ExchangedFiat {
         let entryRate = ratesController.rateForEntryCurrency()
-        let zero      = try! ExchangedFiat(underlying: 0, rate: entryRate, mint: .usdf)
+        let zero      = ExchangedFiat.compute(
+            onChainAmount: .zero(mint: .usdf),
+            rate: entryRate,
+            supplyQuarks: nil
+        )
 
         guard let mint = viewModel.selectedBalance?.stored.mint else {
             return zero

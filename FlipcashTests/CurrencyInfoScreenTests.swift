@@ -68,22 +68,18 @@ struct CurrencyInfoScreenTests {
             return
         }
 
-        // Convert to Quarks (using USDC decimals = 6)
-        let usdc = try Quarks(
-            fiatDecimal: mCap,
-            currencyCode: .usd,
-            decimals: 6  // USDC decimals
-        )
+        // Convert the USD market cap to USDF on-chain quarks (6 decimals).
+        let usdcQuarks = mCap.scaleUpInt(PublicKey.usdf.mintDecimals)
 
-        // Convert to ExchangedFiat
-        let exchanged = try ExchangedFiat(
-            underlying: usdc,
+        // Convert to ExchangedFiat (USDF bypasses the bonding curve)
+        let exchanged = ExchangedFiat.compute(
+            onChainAmount: TokenAmount(quarks: usdcQuarks, mint: .usdf),
             rate: .oneToOne,  // 1:1 rate for USD
-            mint: .usdf
+            supplyQuarks: nil
         )
 
-        #expect(exchanged.converted.quarks > 0, "Converted quarks should be positive")
-        #expect(exchanged.underlying.quarks > 0, "Underlying quarks should be positive")
+        #expect(exchanged.nativeAmount.value > 0, "Native amount should be positive")
+        #expect(exchanged.onChainAmount.quarks > 0, "On-chain quarks should be positive")
     }
 
     @Test("Market cap with non-USD rate converts correctly")
@@ -95,27 +91,23 @@ struct CurrencyInfoScreenTests {
         }
 
         // USD value
-        let usdQuarks = try Quarks(
-            fiatDecimal: mCap,
-            currencyCode: .usd,
-            decimals: 6
-        )
-        let usdExchanged = try ExchangedFiat(
-            underlying: usdQuarks,
+        let usdcQuarks = mCap.scaleUpInt(PublicKey.usdf.mintDecimals)
+        let usdExchanged = ExchangedFiat.compute(
+            onChainAmount: TokenAmount(quarks: usdcQuarks, mint: .usdf),
             rate: .oneToOne,
-            mint: .usdf
+            supplyQuarks: nil
         )
 
         // CAD value (1.4x rate)
         let cadRate = Rate(fx: 1.4, currency: .cad)
-        let cadExchanged = try ExchangedFiat(
-            underlying: usdQuarks,
+        let cadExchanged = ExchangedFiat.compute(
+            onChainAmount: TokenAmount(quarks: usdcQuarks, mint: .usdf),
             rate: cadRate,
-            mint: .usdf
+            supplyQuarks: nil
         )
 
-        // CAD converted value should be ~1.4x USD
-        let ratio = Decimal(cadExchanged.converted.quarks) / Decimal(usdExchanged.converted.quarks)
+        // CAD native value should be ~1.4x USD native
+        let ratio = cadExchanged.nativeAmount.value / usdExchanged.nativeAmount.value
         #expect(ratio > 1.35 && ratio < 1.45, "CAD should be ~1.4x USD")
     }
 

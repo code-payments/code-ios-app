@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import FlipcashCore
 import FlipcashUI
 
 struct BillCanvas: UIViewControllerRepresentable {
@@ -113,7 +114,7 @@ private class _BillCanvasController: UIViewController {
 
         } else {
             BillView(
-                fiat: 0,
+                fiat: .zero(in: .usd),
                 data: Data(),
                 canvasSize: canvasSize(),
                 action: action

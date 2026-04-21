@@ -227,8 +227,8 @@ class MessagingService: CodeService<Ocp_Messaging_V1_MessagingNIOClient> {
         if let verifiedState {
             exchangeData = Ocp_Transaction_V1_VerifiedExchangeData.with {
                 $0.mint = exchangedFiat.mint.solanaAccountID
-                $0.quarks = exchangedFiat.underlying.quarks
-                $0.nativeAmount = exchangedFiat.converted.doubleValue
+                $0.quarks = exchangedFiat.onChainAmount.quarks
+                $0.nativeAmount = exchangedFiat.nativeAmount.doubleValue
                 $0.coreMintFiatExchangeRate = verifiedState.rateProto
                 if let reserveProto = verifiedState.reserveProto {
                     $0.launchpadCurrencyReserveState = reserveProto

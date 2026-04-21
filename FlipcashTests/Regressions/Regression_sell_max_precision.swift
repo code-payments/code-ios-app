@@ -54,7 +54,7 @@ struct Regression_sell_max_precision {
         )
         let stored = try makeStoredBalance(supply: supply)
 
-        let usdf: Foundation.Decimal = stored.usdf.decimalValue
+        let usdf: Foundation.Decimal = stored.usdf.value
         let tvl: Foundation.Decimal = sell.netUSDF.asDecimal()
 
         #expect(usdf <= tvl)
@@ -88,8 +88,8 @@ struct Regression_sell_max_precision {
 
         let stored = try makeStoredBalance(supply: UInt64(supplyQuarks))
 
-        let entered = ExchangedFiat.computeFromEntered(
-            amount: stored.usdf.decimalValue,
+        let entered = ExchangedFiat.compute(
+            fromEntered: FiatAmount(value: stored.usdf.value, currency: rate.currency),
             rate: rate,
             mint: mint,
             supplyQuarks: UInt64(supplyQuarks),

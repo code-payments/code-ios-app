@@ -12,8 +12,8 @@ extension ExchangedFiat {
     /// Use in tests that only need a well-formed amount — coordinator routing,
     /// enum case checks, and similar tests that do not exercise amount math.
     static let mockOne = ExchangedFiat(
-        underlying: 1_000_000,
-        converted: 1_000_000,
-        mint: .usdf
+        onChainAmount: TokenAmount(quarks: 1_000_000, mint: .usdf),
+        nativeAmount: .usd(1),
+        currencyRate: .oneToOne
     )
 }

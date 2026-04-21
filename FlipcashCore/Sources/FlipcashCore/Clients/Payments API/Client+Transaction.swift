@@ -59,7 +59,7 @@ extension Client {
         }
     }
 
-    public func withdraw(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, fee: Quarks, owner: AccountCluster, destinationMetadata: DestinationMetadata) async throws {
+    public func withdraw(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, fee: TokenAmount, owner: AccountCluster, destinationMetadata: DestinationMetadata) async throws {
         _ = try await withCheckedThrowingContinuation { c in
             transactionService.withdraw(
                 exchangedFiat: exchangedFiat,
@@ -84,7 +84,7 @@ extension Client {
         }
     }
     
-    public func receiveCashLink(usdf: Quarks, ownerCluster: AccountCluster, giftCard: GiftCardCluster) async throws {
+    public func receiveCashLink(usdf: TokenAmount, ownerCluster: AccountCluster, giftCard: GiftCardCluster) async throws {
         _ = try await withCheckedThrowingContinuation { c in
             transactionService.receiveCashLink(
                 usdf: usdf,
@@ -189,7 +189,7 @@ extension Client {
             transactionService.swapService.swap(
                 swapId: swapId,
                 direction: .buy(mint: .launchStub(address: mint)),
-                amount: amount.underlying,
+                amount: amount.onChainAmount,
                 fundingSource: .externalWallet(transactionSignature: transactionSignature),
                 owner: owner,
                 isNewCurrencyLaunch: true

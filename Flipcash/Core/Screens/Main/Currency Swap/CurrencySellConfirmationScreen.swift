@@ -37,7 +37,7 @@ struct CurrencySellConfirmationScreen: View {
                         HStack {
                             Text("Sell amount")
                             Spacer()
-                            Text(viewModel.amount.converted.formatted())
+                            Text(viewModel.amount.nativeAmount.formatted())
                                 .font(.appTextMedium)
                                 .foregroundStyle(Color.textMain)
                         }
@@ -59,8 +59,8 @@ struct CurrencySellConfirmationScreen: View {
                             .font(.appTextSmall)
                             .foregroundStyle(Color.textSecondary)
                         AmountText(
-                            flagStyle: viewModel.amountAfterFee.converted.currencyCode.flagStyle,
-                            content: viewModel.amountAfterFee.converted.formatted(),
+                            flagStyle: viewModel.amountAfterFee.nativeAmount.currency.flagStyle,
+                            content: viewModel.amountAfterFee.nativeAmount.formatted(),
                             showChevron: false,
                             canScale: false
                         )
@@ -106,6 +106,10 @@ struct CurrencySellConfirmationScreen: View {
 
 #Preview {
     @Previewable @State var path: [CurrencySellPath] = []
-    let amount = try! ExchangedFiat(underlying: 10_000_000_000_000, rate: .oneToOne, mint: .usdf)
+    let amount = ExchangedFiat.compute(
+        onChainAmount: TokenAmount(quarks: 10_000_000_000_000, mint: .usdf),
+        rate: .oneToOne,
+        supplyQuarks: nil
+    )
     CurrencySellConfirmationScreen(mint: .usdf, currencyName: "USDF", amount: amount, path: $path)
 }

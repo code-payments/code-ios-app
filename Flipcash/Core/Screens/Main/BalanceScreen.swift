@@ -51,23 +51,18 @@ struct BalanceScreen: View {
         balances.first { $0.stored.mint == .usdf && $0.stored.quarks > 0 }
     }
     
-    private var appreciation: (amount: Quarks, isPositive: Bool) {
+    private var appreciation: (amount: FiatAmount, isPositive: Bool) {
         var totalAppreciation: Decimal = 0
 
         for balance in currencyBalances {
             let (value, isPositive) = balance.stored.computeAppreciation(with: balanceRate)
-            let amount = value.converted.decimalValue
+            let amount = value.nativeAmount.value
             totalAppreciation += isPositive ? amount : -amount
         }
 
         let isPositive = totalAppreciation >= 0
-        let quarks = try! Quarks(
-            fiatDecimal: abs(totalAppreciation),
-            currencyCode: balanceRate.currency,
-            decimals: PublicKey.usdf.mintDecimals
-        )
-
-        return (quarks, isPositive)
+        let amount = FiatAmount(value: abs(totalAppreciation), currency: balanceRate.currency)
+        return (amount, isPositive)
     }
     
     // MARK: - Init -
@@ -217,8 +212,8 @@ struct BalanceScreen: View {
                 isShowingCurrencySelection.toggle()
             } label: {
                 AmountText(
-                    flagStyle: balance.converted.currencyCode.flagStyle,
-                    content: balance.converted.formatted(),
+                    flagStyle: balance.nativeAmount.currency.flagStyle,
+                    content: balance.nativeAmount.formatted(),
                     showChevron: true
                 )
                 .font(.appDisplayLarge)
@@ -252,7 +247,7 @@ struct BalanceScreen: View {
     private func cancelCashLinkAction(activity: Activity, metadata: Activity.CashLinkMetadata) {
         dialogItem = .init(
             style: .destructive,
-            title: "Cancel \(activity.exchangedFiat.converted.formatted()) Transfer?",
+            title: "Cancel \(activity.exchangedFiat.nativeAmount.formatted()) Transfer?",
             subtitle: "The money will be returned to your wallet.",
             dismissable: true
         ) {

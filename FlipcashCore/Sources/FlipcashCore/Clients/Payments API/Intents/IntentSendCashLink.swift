@@ -36,15 +36,15 @@ final class IntentSendCashLink: IntentType {
         )
         
         let transferAction = ActionTransfer(
-            amount: exchangedFiat.underlying,
+            amount: exchangedFiat.onChainAmount,
             sourceCluster: sourceCluster,
             destination: giftCard.cluster.vaultPublicKey,
             mint: exchangedFiat.mint
         )
-        
+
         let autoReturnAction = ActionWithdraw(
             kind: .cashLinkWithdraw(.init(isAutoReturn: true)),
-            amount: exchangedFiat.underlying,
+            amount: exchangedFiat.onChainAmount,
             mint: giftCard.mint,
             sourceCluster: giftCard.cluster,
             destination: sourceCluster.vaultPublicKey
@@ -71,8 +71,8 @@ extension IntentSendCashLink {
                 // Use clientExchangeData with embedded proofs for submitting intents
                 $0.clientExchangeData = .with {
                     $0.mint = exchangedFiat.mint.solanaAccountID
-                    $0.quarks = exchangedFiat.underlying.quarks
-                    $0.nativeAmount = exchangedFiat.converted.doubleValue
+                    $0.quarks = exchangedFiat.onChainAmount.quarks
+                    $0.nativeAmount = exchangedFiat.nativeAmount.doubleValue
                     $0.coreMintFiatExchangeRate = verifiedState.rateProto
                     if let reserveProto = verifiedState.reserveProto {
                         $0.launchpadCurrencyReserveState = reserveProto

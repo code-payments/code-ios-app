@@ -14,14 +14,14 @@ struct WalletConnectionStateTests {
     private static let buyingContext = ExternalSwapProcessing(
         swapId: .generate(),
         currencyName: "Test Coin",
-        amount: ExchangedFiat(underlying: 10_00_00, converted: 10_00_00, mint: .usdf)
+        amount: ExchangedFiat.mockOne
     )
 
     private static let launchingContext = ExternalLaunchProcessing(
         swapId: .generate(),
         launchedMint: .jeffy,
         currencyName: "New Coin",
-        amount: ExchangedFiat(underlying: 10_00_00, converted: 10_00_00, mint: .usdf)
+        amount: ExchangedFiat.mockOne
     )
 
     private func makeConnection() -> WalletConnection {

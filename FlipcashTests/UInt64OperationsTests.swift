@@ -26,7 +26,7 @@ struct UInt64ScaleDownTests {
 
     @Test("Preserves precision for high-rate currency quarks")
     func highRateCurrencyQuarks() {
-        // CLP-scale quarks used in Quarks.converting(to:decimals:)
+        // CLP-scale quarks (6-decimal wire encoding at high FX rates).
         #expect((475_000_000_000_000 as UInt64).scaleDown(6) == Decimal(475_000_000))
     }
 

@@ -121,9 +121,9 @@ class SendCashOperation {
         self.owner           = owner
         self.exchangedFiat   = exchangedFiat
         self.providedVerifiedState = verifiedState
-        self.payload      = .init(
+        self.payload = .init(
             kind: .cashMulticurrency,
-            fiat: exchangedFiat.converted,
+            fiat: exchangedFiat.nativeAmount,
             nonce: .nonce
         )
         logger.info("SendCashOperation opened", metadata: ["rendezvous": "\(payload.rendezvous.publicKey.base58)"])
@@ -164,7 +164,7 @@ class SendCashOperation {
                     verifiedState = provided
                 } else {
                     verifiedState = await self.ratesController.getVerifiedState(
-                        for: exchangedFiat.converted.currencyCode,
+                        for: exchangedFiat.nativeAmount.currency,
                         mint: exchangedFiat.mint
                     )
                 }
@@ -232,7 +232,7 @@ class SendCashOperation {
                         if let resolved = self.resolvedVerifiedState {
                             verifiedState = resolved
                         } else if let cached = await self.ratesController.getVerifiedState(
-                            for: exchangedFiat.converted.currencyCode,
+                            for: exchangedFiat.nativeAmount.currency,
                             mint: exchangedFiat.mint
                         ) {
                             verifiedState = cached

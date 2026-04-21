@@ -110,7 +110,7 @@ struct CurrencyBalanceRow: View {
             CurrencyLabel(
                 imageURL: exchangedBalance.stored.imageURL,
                 name: exchangedBalance.stored.name,
-                amount: exchangedBalance.exchangedFiat.converted,
+                amount: exchangedBalance.exchangedFiat.nativeAmount,
                 isSelected: showSelected,
             )
         }
@@ -125,7 +125,7 @@ struct CurrencyLabel: View {
     
     let imageURL: URL?
     let name: String
-    let amount: Quarks?
+    let amount: FiatAmount?
     var isSelected: Bool? = nil
     
     var body: some View {

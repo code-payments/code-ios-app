@@ -48,17 +48,20 @@ class CurrencyInfoViewModel {
     // MARK: - Computed Properties -
 
     /// The current balance for this currency converted to the user's
-    /// selected display currency. Returns zero quarks when metadata
-    /// hasn't loaded or the user holds no balance for this mint.
-    var balance: Quarks {
+    /// selected display currency. Returns zero when metadata hasn't
+    /// loaded or the user holds no balance for this mint.
+    var balance: FiatAmount {
         let rate = ratesController.rateForBalanceCurrency()
-        let zero = Quarks.zero(currencyCode: rate.currency, decimals: PublicKey.usdf.mintDecimals)
+        let zero = FiatAmount.zero(in: rate.currency)
 
         guard let mintMetadata else { return zero }
         guard let stored = session.balance(for: mintMetadata.mint) else { return zero }
 
-        let exchanged = try? ExchangedFiat(underlying: stored.usdf, rate: rate, mint: .usdf)
-        return exchanged?.converted ?? zero
+        return ExchangedFiat.compute(
+            onChainAmount: TokenAmount(wholeTokens: stored.usdf.value, mint: .usdf),
+            rate: rate,
+            supplyQuarks: nil
+        ).nativeAmount
     }
 
     /// The user's USDF reserve balance converted to the display currency.
@@ -67,50 +70,51 @@ class CurrencyInfoViewModel {
         guard let stored = session.balance(for: .usdf) else { return nil }
 
         let rate = ratesController.rateForBalanceCurrency()
-        return try? ExchangedFiat(underlying: stored.usdf, rate: rate, mint: .usdf)
+        return ExchangedFiat.compute(
+            onChainAmount: TokenAmount(wholeTokens: stored.usdf.value, mint: .usdf),
+            rate: rate,
+            supplyQuarks: nil
+        )
     }
 
     /// The absolute appreciation (or depreciation) of this currency's balance
     /// relative to its cost basis, converted to the display currency.
     /// Returns zero with `isPositive: true` when
     /// metadata or balance is unavailable.
-    var appreciation: (amount: Quarks, isPositive: Bool) {
+    var appreciation: (amount: FiatAmount, isPositive: Bool) {
         let rate = ratesController.rateForBalanceCurrency()
-        let zero = Quarks.zero(currencyCode: rate.currency, decimals: PublicKey.usdf.mintDecimals)
+        let zero = FiatAmount.zero(in: rate.currency)
 
         guard let mintMetadata, let balance = session.balance(for: mintMetadata.mint) else {
             return (zero, true)
         }
         let (appreciationValue, isPositive) = balance.computeAppreciation(with: rate)
-        return (appreciationValue.converted, isPositive)
+        return (appreciationValue.nativeAmount, isPositive)
     }
 
     /// The market capitalisation of this currency (supply × spot price on the
     /// bonding curve), converted to the user's display currency. Returns zero
     /// when metadata is missing or the supply exceeds the curve's max.
-    var marketCap: Quarks {
-        guard let mintMetadata else { return 0 }
+    var marketCap: FiatAmount {
+        let rate = ratesController.rateForBalanceCurrency()
+        let zero = FiatAmount.zero(in: rate.currency)
+
+        guard let mintMetadata else { return zero }
 
         let supply = Int(mintMetadata.supplyFromBonding ?? 0)
 
         let curve = DiscreteBondingCurve()
         guard let mCap = curve.marketCap(for: supply) else {
-            return 0
+            return zero
         }
 
-        let usdc = try! Quarks(
-            fiatDecimal: mCap,
-            currencyCode: .usd,
-            decimals: mintMetadata.mint.mintDecimals
-        )
-
-        let exchanged = try! ExchangedFiat(
-            underlying: usdc,
-            rate: ratesController.rateForBalanceCurrency(),
-            mint: .usdf
-        )
-
-        return exchanged.converted
+        // `mCap` is a USD decimal. The USDF mint has 6 decimals; using the
+        // bonded mint's 10 decimals here would overshoot by 10⁴.
+        return ExchangedFiat.compute(
+            onChainAmount: TokenAmount(wholeTokens: mCap, mint: .usdf),
+            rate: rate,
+            supplyQuarks: nil
+        ).nativeAmount
     }
 
     // MARK: - Init -

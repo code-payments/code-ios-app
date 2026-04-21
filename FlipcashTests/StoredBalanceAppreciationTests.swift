@@ -39,7 +39,7 @@ struct StoredBalanceAppreciationTests {
         let (value, isPositive) = balance.computeAppreciation(with: .oneToOne)
 
         #expect(isPositive == true)
-        #expect(value.converted.quarks == 5_000_000)
+        #expect(value.nativeAmount.value == 5)
     }
 
     @Test("Negative appreciation when cost basis exceeds value")
@@ -49,7 +49,7 @@ struct StoredBalanceAppreciationTests {
         let (value, isPositive) = balance.computeAppreciation(with: .oneToOne)
 
         #expect(isPositive == false)
-        #expect(value.converted.quarks == 2_000_000)
+        #expect(value.nativeAmount.value == 2)
     }
 
     @Test("Zero appreciation when value equals cost basis")
@@ -58,7 +58,7 @@ struct StoredBalanceAppreciationTests {
         let (value, isPositive) = balance.computeAppreciation(with: .oneToOne)
 
         #expect(isPositive == true, "Zero appreciation is treated as positive")
-        #expect(value.converted.quarks == 0)
+        #expect(value.nativeAmount.value == 0)
     }
 
     @Test("Zero cost basis treats entire value as appreciation")
@@ -67,7 +67,7 @@ struct StoredBalanceAppreciationTests {
         let (value, isPositive) = balance.computeAppreciation(with: .oneToOne)
 
         #expect(isPositive == true)
-        #expect(value.converted.quarks == 7_000_000)
+        #expect(value.nativeAmount.value == 7)
     }
 
     @Test("Zero balance reports entire cost basis as depreciation")
@@ -76,7 +76,7 @@ struct StoredBalanceAppreciationTests {
         let (value, isPositive) = balance.computeAppreciation(with: .oneToOne)
 
         #expect(isPositive == false)
-        #expect(value.converted.quarks == 10_000_000)
+        #expect(value.nativeAmount.value == 10)
     }
 
     @Test("Zero balance with zero cost basis shows no appreciation")
@@ -85,7 +85,7 @@ struct StoredBalanceAppreciationTests {
         let (value, isPositive) = balance.computeAppreciation(with: .oneToOne)
 
         #expect(isPositive == true)
-        #expect(value.converted.quarks == 0)
+        #expect(value.nativeAmount.value == 0)
     }
 
     @Test("Appreciation converts correctly with non-USD rate")
@@ -96,6 +96,6 @@ struct StoredBalanceAppreciationTests {
         let (value, isPositive) = balance.computeAppreciation(with: cadRate)
 
         #expect(isPositive == true)
-        #expect(value.converted.quarks == 7_000_000)
+        #expect(value.nativeAmount.value == 7)
     }
 }

@@ -128,7 +128,7 @@ struct ScanScreen: View {
             PartialSheet(background: .clear, canAccessBackground: true) {
                 ModalCashReceived(
                     title: "You received",
-                    fiat: valuation.exchangedFiat.converted,
+                    fiat: valuation.exchangedFiat.nativeAmount,
                     currencyName: valuation.mintMetadata?.name ?? "currency",
                     currencyImageURL: valuation.mintMetadata?.imageURL,
                     actionTitle: "Put in Wallet",

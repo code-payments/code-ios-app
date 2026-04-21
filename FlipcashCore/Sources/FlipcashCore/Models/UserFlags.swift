@@ -16,8 +16,8 @@ public struct UserFlags: Sendable {
     public let preferredOnrampProvider: OnRampProvider
     public let minBuildNumber: Int
     public let billExchangeDataTimeout: TimeInterval?
-    /// USDF quarks that must be purchased when launching a new currency.
-    public let newCurrencyPurchaseAmount: Quarks
+    /// USDF amount that must be purchased when launching a new currency.
+    public let newCurrencyPurchaseAmount: TokenAmount
 
     public var hasPreferredOnrampProvider: Bool {
         preferredOnrampProvider != .unknown
@@ -59,10 +59,9 @@ extension UserFlags {
             preferredOnrampProvider: OnRampProvider(proto.preferredOnRampProvider),
             minBuildNumber: Int(proto.minBuildNumber),
             billExchangeDataTimeout: proto.hasBillExchangeDataTimeout ? TimeInterval(proto.billExchangeDataTimeout.seconds) : nil,
-            newCurrencyPurchaseAmount: Quarks(
+            newCurrencyPurchaseAmount: TokenAmount(
                 quarks: proto.newCurrencyPurchaseAmount,
-                currencyCode: .usd,
-                decimals: 6
+                mint: .usdf
             )
         )
     }

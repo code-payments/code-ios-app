@@ -30,7 +30,7 @@ final class IntentTransfer: IntentType {
         self.destination      = destination
 
         let transfer = ActionTransfer(
-            amount: exchangedFiat.underlying,
+            amount: exchangedFiat.onChainAmount,
             sourceCluster: sourceCluster,
             destination: destination,
             mint: exchangedFiat.mint
@@ -53,8 +53,8 @@ extension IntentTransfer {
                 // Use clientExchangeData with embedded proofs for submitting intents
                 $0.clientExchangeData = .with {
                     $0.mint = exchangedFiat.mint.solanaAccountID
-                    $0.quarks = exchangedFiat.underlying.quarks
-                    $0.nativeAmount = exchangedFiat.converted.doubleValue
+                    $0.quarks = exchangedFiat.onChainAmount.quarks
+                    $0.nativeAmount = exchangedFiat.nativeAmount.doubleValue
                     $0.coreMintFiatExchangeRate = verifiedState.rateProto
                     if let reserveProto = verifiedState.reserveProto {
                         $0.launchpadCurrencyReserveState = reserveProto
