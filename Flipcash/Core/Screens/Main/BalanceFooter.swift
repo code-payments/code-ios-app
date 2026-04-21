@@ -12,7 +12,6 @@ struct BalanceFooter: View {
     let showDiscoverCurrencies: Bool
     let isOnlyRow: Bool
     @Binding var selectedMint: PublicKey?
-    @Binding var isShowingCurrencyDiscovery: Bool
 
     var body: some View {
         VStack {
@@ -25,11 +24,9 @@ struct BalanceFooter: View {
             }
 
             if showDiscoverCurrencies {
-                Button("Discover Currencies") {
-                    isShowingCurrencyDiscovery = true
-                }
-                .buttonStyle(.filled10)
-                .padding(20)
+                NavigationLink("Discover Currencies", value: CurrencyDiscoveryRoute.open)
+                    .buttonStyle(.filled10)
+                    .padding(20)
             }
         }
     }

@@ -21,7 +21,6 @@ struct BalanceScreen: View {
     let session: Session
 
     @State private var isShowingCurrencySelection: Bool  = false
-    @State private var isShowingCurrencyDiscovery: Bool = false
     @State private var dialogItem: DialogItem?
     @State private var selectedActivity: Activity?
     @State private var selectedMint: PublicKey?
@@ -119,7 +118,7 @@ struct BalanceScreen: View {
                     sessionContainer: sessionContainer
                 )
             }
-            .navigationDestination(isPresented: $isShowingCurrencyDiscovery) {
+            .navigationDestination(for: CurrencyDiscoveryRoute.self) { _ in
                 CurrencyDiscoveryScreen(
                     container: container,
                     sessionContainer: sessionContainer
@@ -149,8 +148,14 @@ struct BalanceScreen: View {
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity, alignment: .center)
 
-            BubbleButton(text: "Discover Currencies") {
-                isShowingCurrencyDiscovery = true
+            NavigationLink(value: CurrencyDiscoveryRoute.open) {
+                TextBubble(
+                    style: .filled,
+                    font: .appTextMedium,
+                    text: "Discover Currencies",
+                    paddingVertical: 5,
+                    paddingHorizontal: 15
+                )
             }
             .padding(.top, 8)
         }
@@ -192,8 +197,7 @@ struct BalanceScreen: View {
                         reservesBalance: reservesBalance,
                         showDiscoverCurrencies: hasBalances,
                         isOnlyRow: currencyBalances.isEmpty,
-                        selectedMint: $selectedMint,
-                        isShowingCurrencyDiscovery: $isShowingCurrencyDiscovery
+                        selectedMint: $selectedMint
                     )
                 }
                 .listRowInsets(EdgeInsets())
@@ -277,6 +281,10 @@ struct BalanceScreen: View {
             }
         }
     }
+}
+
+enum CurrencyDiscoveryRoute: Hashable {
+    case open
 }
 
 struct ExchangedBalance: Identifiable, Hashable {
