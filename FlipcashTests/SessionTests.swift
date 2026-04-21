@@ -18,9 +18,8 @@ struct SessionTests {
     static let mint = PublicKey.usdf
     static let rate = Rate(fx: 1.0, currency: .usd)
 
-    /// Helper: build a USDF-minted `ExchangedFiat` with the given 6-decimal
-    /// USD quarks and rate. Mirrors the old
-    /// `ExchangedFiat(underlying: Quarks(.usd, decimals: 6), rate:, mint: .usdf)` init.
+    /// Helper: build a USDF-minted `ExchangedFiat` from a 6-decimal USD quark
+    /// integer and a rate.
     static func makeUSDFExchangedFiat(usdQuarks: UInt64, rate: Rate) -> ExchangedFiat {
         ExchangedFiat.compute(
             onChainAmount: TokenAmount(quarks: usdQuarks, mint: .usdf),
@@ -41,35 +40,29 @@ struct SessionTests {
     @Test
     static func testSufficientFunds_ExactMatch() throws {
         // Given: User has exactly $1.00 USDC
-        let balanceQuarks: UInt64 = 1_000_000 // $1.00 (6 decimals)
-        let requestedQuarks: UInt64 = 1_000_000 // $1.00
-
-        let balance = Quarks(quarks: balanceQuarks, currencyCode: .usd, decimals: 6)
-        let requested = Quarks(quarks: requestedQuarks, currencyCode: .usd, decimals: 6)
+        let balance = FiatAmount(value: 1, currency: .usd)
+        let requested = FiatAmount(value: 1, currency: .usd)
 
         // When: Comparing balance to requested
         let hasFunds = balance >= requested
 
         // Then: Should have sufficient funds
         #expect(hasFunds == true)
-        #expect(balance.quarks == requested.quarks)
+        #expect(balance.value == requested.value)
     }
 
     @Test
     static func testSufficientFunds_UserHasMore() throws {
         // Given: User has $5.00, wants to send $1.00
-        let balanceQuarks: UInt64 = 5_000_000 // $5.00
-        let requestedQuarks: UInt64 = 1_000_000 // $1.00
-
-        let balance = Quarks(quarks: balanceQuarks, currencyCode: .usd, decimals: 6)
-        let requested = Quarks(quarks: requestedQuarks, currencyCode: .usd, decimals: 6)
+        let balance = FiatAmount(value: 5, currency: .usd)
+        let requested = FiatAmount(value: 1, currency: .usd)
 
         // When: Comparing balance to requested
         let hasFunds = balance >= requested
 
         // Then: Should have sufficient funds
         #expect(hasFunds == true)
-        #expect(balance.quarks > requested.quarks)
+        #expect(balance.value > requested.value)
     }
 
     // MARK: - Insufficient Funds Tests
@@ -77,20 +70,17 @@ struct SessionTests {
     @Test
     static func testInsufficientFunds_ClearShortfall() throws {
         // Given: User has $1.00, wants to send $5.00
-        let balanceQuarks: UInt64 = 1_000_000 // $1.00
-        let requestedQuarks: UInt64 = 5_000_000 // $5.00
-
-        let balance = Quarks(quarks: balanceQuarks, currencyCode: .usd, decimals: 6)
-        let requested = Quarks(quarks: requestedQuarks, currencyCode: .usd, decimals: 6)
+        let balance = FiatAmount(value: 1, currency: .usd)
+        let requested = FiatAmount(value: 5, currency: .usd)
 
         // When: Comparing balance to requested
         let hasFunds = balance >= requested
-        let shortfall = try requested.subtracting(balance)
+        let shortfall = requested - balance
 
         // Then: Should be insufficient with $4.00 shortfall
         #expect(hasFunds == false)
-        #expect(shortfall.quarks == 4_000_000) // $4.00
-        #expect(shortfall.decimalValue.formatted(to: 2) == "4.00")
+        #expect(shortfall.value == 4) // $4.00
+        #expect(shortfall.value.formatted(to: 2) == "4.00")
     }
 
     // MARK: - Tolerance Logic Tests (Half-Penny Rule)
@@ -99,16 +89,11 @@ struct SessionTests {
     static func testTolerance_WithinHalfPenny_ShouldBeAllowed() throws {
         // Given: User has $0.0071 (0.71 cents), wants to send $0.01 (1 cent)
         // Delta = 0.0029 cents, which is < 0.005 tolerance
-        let balanceQuarks: UInt64 = 7_100 // $0.0071
-        let requestedQuarks: UInt64 = 10_000 // $0.01
-
-        let balance = Quarks(quarks: balanceQuarks, currencyCode: .usd, decimals: 6)
-        let requested = Quarks(quarks: requestedQuarks, currencyCode: .usd, decimals: 6)
+        let balance = FiatAmount(value: Decimal(string: "0.0071")!, currency: .usd)
+        let requested = FiatAmount(value: Decimal(string: "0.01")!, currency: .usd)
 
         // When: Calculating delta
-        let balanceDecimal = balance.decimalValue
-        let requestedDecimal = requested.decimalValue
-        let delta = abs(balanceDecimal - requestedDecimal)
+        let delta = abs(balance.value - requested.value)
 
         // Then: Delta should be within tolerance
         #expect(balance < requested) // Balance is less than requested
@@ -120,14 +105,11 @@ struct SessionTests {
     static func testTolerance_ExactlyHalfPenny_ShouldBeAllowed() throws {
         // Given: User has $0.0095, wants to send $0.01
         // Delta = 0.0005 cents, which is exactly the tolerance threshold
-        let balanceQuarks: UInt64 = 9_500 // $0.0095
-        let requestedQuarks: UInt64 = 10_000 // $0.01
-
-        let balance = Quarks(quarks: balanceQuarks, currencyCode: .usd, decimals: 6)
-        let requested = Quarks(quarks: requestedQuarks, currencyCode: .usd, decimals: 6)
+        let balance = FiatAmount(value: Decimal(string: "0.0095")!, currency: .usd)
+        let requested = FiatAmount(value: Decimal(string: "0.01")!, currency: .usd)
 
         // When: Calculating delta
-        let delta = abs(balance.decimalValue - requested.decimalValue)
+        let delta = abs(balance.value - requested.value)
 
         // Then: Delta should equal tolerance threshold
         #expect(delta <= 0.005)
@@ -138,14 +120,11 @@ struct SessionTests {
     static func testTolerance_JustOutsideHalfPenny_ShouldFail() throws {
         // Given: User has $0.0049, wants to send $0.01
         // Delta = 0.0051 cents, which is > 0.005 tolerance
-        let balanceQuarks: UInt64 = 4_900 // $0.0049
-        let requestedQuarks: UInt64 = 10_000 // $0.01
-
-        let balance = Quarks(quarks: balanceQuarks, currencyCode: .usd, decimals: 6)
-        let requested = Quarks(quarks: requestedQuarks, currencyCode: .usd, decimals: 6)
+        let balance = FiatAmount(value: Decimal(string: "0.0049")!, currency: .usd)
+        let requested = FiatAmount(value: Decimal(string: "0.01")!, currency: .usd)
 
         // When: Calculating delta
-        let delta = abs(balance.decimalValue - requested.decimalValue)
+        let delta = abs(balance.value - requested.value)
 
         // Then: Delta should exceed tolerance
         #expect(delta > 0.005)
@@ -156,14 +135,11 @@ struct SessionTests {
     static func testTolerance_LargeAmounts_StillApplies() throws {
         // Given: User has $100.0049, wants to send $100.01
         // Delta = 0.0051 cents (tolerance still applies regardless of magnitude)
-        let balanceQuarks: UInt64 = 100_004_900 // $100.0049
-        let requestedQuarks: UInt64 = 100_010_000 // $100.01
-
-        let balance = Quarks(quarks: balanceQuarks, currencyCode: .usd, decimals: 6)
-        let requested = Quarks(quarks: requestedQuarks, currencyCode: .usd, decimals: 6)
+        let balance = FiatAmount(value: Decimal(string: "100.0049")!, currency: .usd)
+        let requested = FiatAmount(value: Decimal(string: "100.01")!, currency: .usd)
 
         // When: Calculating delta
-        let delta = abs(balance.decimalValue - requested.decimalValue)
+        let delta = abs(balance.value - requested.value)
 
         // Then: Delta should exceed tolerance (tolerance is absolute, not percentage)
         #expect(delta > 0.005)
@@ -175,13 +151,10 @@ struct SessionTests {
     @Test
     static func testZeroQuarks_ShouldBeInsufficient() throws {
         // Given: Requested amount is zero
-        let requestedQuarks: UInt64 = 0
+        let requested = FiatAmount(value: 0, currency: .usd)
 
-        let requested = Quarks(quarks: requestedQuarks, currencyCode: .usd, decimals: 6)
-
-        // Then: Zero quarks should be rejected
-        #expect(requested.quarks == 0)
-        #expect(requested.decimalValue == 0)
+        // Then: Zero should be rejected
+        #expect(requested.value == 0)
     }
 
     @Test
@@ -212,18 +185,14 @@ struct SessionTests {
     static func testCustomCurrency_WithBondingCurve() throws {
         // Given: Custom token with 10 decimals
         // User has 65.52 tokens worth $0.0071 USD (from your debug log)
-        let tokenQuarks: UInt64 = 6_552_205_892 // 0.6552205892 tokens (10 decimals)
-        let requestedTokenQuarks: UInt64 = 9_193_567_061 // 0.9193567061 tokens
 
         // Simulate USDC values from bonding curve
-        let balanceUSDC: UInt64 = 7_127 // $0.0071269471 (6 decimals)
-        let requestedUSDC: UInt64 = 10_000 // $0.01 (6 decimals)
-
-        let balance = Quarks(quarks: balanceUSDC, currencyCode: .usd, decimals: 6)
-        let requested = Quarks(quarks: requestedUSDC, currencyCode: .usd, decimals: 6)
+        // $0.007127 - rounded to a 4-decimal delta of 0.0029 vs $0.01
+        let balance = FiatAmount(value: Decimal(string: "0.007127")!, currency: .usd)
+        let requested = FiatAmount(value: Decimal(string: "0.01")!, currency: .usd)
 
         // When: Checking tolerance
-        let delta = abs(balance.decimalValue - requested.decimalValue)
+        let delta = abs(balance.value - requested.value)
 
         // Then: Should be within tolerance
         #expect(balance < requested)
@@ -231,14 +200,14 @@ struct SessionTests {
         #expect(delta <= 0.005) // Within tolerance
 
         // The amount to send should be the balance (not the requested amount)
-        #expect(balance.quarks == balanceUSDC)
+        #expect(balance.value == Decimal(string: "0.007127")!)
     }
 
     @Test
     static func testComparisonLogic_Fiat() throws {
         // Given: Two Fiat values
-        let smaller = Quarks(quarks: 1_000_000 as UInt64, currencyCode: .usd, decimals: 6) // $1.00
-        let larger = Quarks(quarks: 5_000_000 as UInt64, currencyCode: .usd, decimals: 6)  // $5.00
+        let smaller = FiatAmount(value: 1, currency: .usd) // $1.00
+        let larger = FiatAmount(value: 5, currency: .usd)  // $5.00
 
         // When/Then: Test comparison operators
         #expect(smaller < larger)

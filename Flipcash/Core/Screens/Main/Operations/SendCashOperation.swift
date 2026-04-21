@@ -123,7 +123,7 @@ class SendCashOperation {
         self.providedVerifiedState = verifiedState
         self.payload = .init(
             kind: .cashMulticurrency,
-            fiat: exchangedFiat.nativeAmount.asQuarks,
+            fiat: exchangedFiat.nativeAmount,
             nonce: .nonce
         )
         logger.info("SendCashOperation opened", metadata: ["rendezvous": "\(payload.rendezvous.publicKey.base58)"])

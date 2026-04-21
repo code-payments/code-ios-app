@@ -164,14 +164,14 @@ extension Analytics {
         )
     }
 
-    static func transfer(event: TransferEvent, fiat: Quarks?, successful: Bool, error: Error?) {
+    static func transfer(event: TransferEvent, fiat: FiatAmount?, successful: Bool, error: Error?) {
         var properties: [Property: AnalyticsValue] = [
             .state: successful ? String.success : String.failure,
         ]
 
         if let fiat {
-            properties[.usdc]   = fiat.doubleValue
-            properties[.quarks] = fiat.quarks.analyticsValue
+            properties[.usdc]     = fiat.doubleValue
+            properties[.currency] = fiat.currency.rawValue
         }
 
         track(
@@ -185,23 +185,23 @@ extension Analytics {
 // MARK: - Onramp -
 
 extension Analytics {
-    static func onrampInvokePayment(amount: Quarks) {
+    static func onrampInvokePayment(amount: FiatAmount) {
         var properties: [Property: AnalyticsValue] = [:]
 
         properties[.fiat]     = amount.doubleValue
-        properties[.currency] = amount.currencyCode.rawValue
+        properties[.currency] = amount.currency.rawValue
 
         track(event: OnrampEvent.invokePayment, properties: properties)
     }
 
-    static func onrampCompleted(amount: Quarks?, successful: Bool, error: Error?) {
+    static func onrampCompleted(amount: FiatAmount?, successful: Bool, error: Error?) {
         var properties: [Property: AnalyticsValue] = [
             .state: successful ? String.success : String.failure,
         ]
 
         if let amount {
             properties[.fiat]     = amount.doubleValue
-            properties[.currency] = amount.currencyCode.rawValue
+            properties[.currency] = amount.currency.rawValue
         }
 
         track(
@@ -215,11 +215,11 @@ extension Analytics {
 // MARK: - Wallet -
 
 extension Analytics {
-    static func walletRequestAmount(amount: Quarks) {
+    static func walletRequestAmount(amount: FiatAmount) {
         var properties: [Property: AnalyticsValue] = [:]
 
         properties[.fiat]     = amount.doubleValue
-        properties[.currency] = amount.currencyCode.rawValue
+        properties[.currency] = amount.currency.rawValue
 
         track(event: WalletEvent.requestAmount, properties: properties)
     }

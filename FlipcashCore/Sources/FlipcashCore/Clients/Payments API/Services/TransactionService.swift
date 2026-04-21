@@ -707,17 +707,6 @@ extension TransactionService: @unchecked Sendable {}
 
 // MARK: - Types -
 
-public struct PoolDistribution {
-    
-    public let destination: PublicKey
-    public var amount: Quarks
-    
-    public init(destination: PublicKey, amount: Quarks) {
-        self.destination = destination
-        self.amount = amount
-    }
-}
-
 public struct DestinationMetadata: Sendable {
 
     public let destination: Destination

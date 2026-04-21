@@ -27,7 +27,7 @@ class CurrencySellViewModel: Identifiable {
             rate: rate,
             mint: currencyMetadata.mint,
             supplyQuarks: supplyQuarks,
-            balance: balance.map { FiatAmount.usd($0.usdf.decimalValue) },
+            balance: balance.map(\.usdf),
             tokenBalanceQuarks: balance?.quarks
         )
     }
@@ -39,7 +39,7 @@ class CurrencySellViewModel: Identifiable {
 
         return EnterAmountCalculator.isWithinDisplayLimit(
             enteredAmount: enteredAmount,
-            max: maxPossibleAmount.nativeAmount.asQuarks
+            max: maxPossibleAmount.nativeAmount
         )
     }
 

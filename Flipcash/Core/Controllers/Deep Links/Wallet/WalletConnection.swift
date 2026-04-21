@@ -357,7 +357,7 @@ public final class WalletConnection {
 
     /// Requests an external swap to fund a buy of an existing launchpad currency.
     /// The processing screen is deferred until the user returns with a signed transaction.
-    func requestSwap(usdc: Quarks, token: MintMetadata) async throws {
+    func requestSwap(usdc: FlipcashCore.TokenAmount, token: MintMetadata) async throws {
         let fundingSwapId = SwapId.generate()
         try await requestUsdcToUsdfSwap(
             fundingSwapId: fundingSwapId,
@@ -383,7 +383,7 @@ public final class WalletConnection {
     /// returning the swap id from the buy so the processing screen polls the
     /// right swap state (the funding swap id is unrelated).
     func requestSwapForLaunch(
-        usdc: Quarks,
+        usdc: FlipcashCore.TokenAmount,
         displayName: String,
         onCompleted: @escaping @MainActor @Sendable (FlipcashCore.Signature, ExchangedFiat) async throws -> SignedSwapResult
     ) async throws {
@@ -443,7 +443,7 @@ public final class WalletConnection {
     /// once the signed transaction comes back via deeplink.
     private func requestUsdcToUsdfSwap(
         fundingSwapId: SwapId,
-        usdc: Quarks,
+        usdc: FlipcashCore.TokenAmount,
         displayName: String,
         onCompleted: @escaping @MainActor @Sendable (FlipcashCore.Signature, ExchangedFiat) async throws -> SignedSwapResult
     ) async throws {
@@ -452,7 +452,7 @@ public final class WalletConnection {
         }
 
         let amount = ExchangedFiat.compute(
-            onChainAmount: TokenAmount(quarks: usdc.quarks, mint: .usdf),
+            onChainAmount: usdc,
             rate: .oneToOne,
             supplyQuarks: nil
         )
@@ -524,11 +524,7 @@ public final class WalletConnection {
             throw Error.invalidURL
         }
 
-        Analytics.walletRequestAmount(amount: Quarks(
-            quarks: amount.onChainAmount.quarks,
-            currencyCode: .usd,
-            decimals: PublicKey.usdf.mintDecimals
-        ))
+        Analytics.walletRequestAmount(amount: amount.usdfValue)
         openExternalWallet(url)
         logger.info("Requested USDC→USDF swap", metadata: [
             "amount": "\(amount.usdfValue.formatted())",

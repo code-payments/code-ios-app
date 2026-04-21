@@ -47,10 +47,9 @@ extension CashCode.Payload {
                 }
                 
                 value = .fiat(
-                    Quarks(
-                        quarks: quarks,
-                        currencyCode: currencyCode,
-                        decimals: 6 // We don't have any other info at this point
+                    FiatAmount(
+                        value: quarks.scaleDown(CashCode.Payload.wireDecimals),
+                        currency: currencyCode
                     )
                 )
             }
@@ -70,28 +69,28 @@ extension CashCode.Payload {
         )
     }
     
-    static func encode(kind: Kind, fiat: Quarks, nonce: Data) -> Data {
+    static func encode(kind: Kind, fiat: FiatAmount, nonce: Data) -> Data {
         var data = Data(count: CashCode.Payload.length)
-        
-        let amount = fiat.quarks
-        
+
+        let amount = fiat.value.scaleUpInt(CashCode.Payload.wireDecimals)
+
         data.withUnsafeMutableBytes { (buffer: UnsafeMutableRawBufferPointer) in
             let base = buffer.baseAddress!
-            
+
             var k = kind.rawValue
             base.advanced(by: 0).copyMemory(from: &k, byteCount: MemoryLayout<UInt8>.stride)
-            
-            var c = fiat.currencyCode.index
+
+            var c = fiat.currency.index
             base.advanced(by: 1).copyMemory(from: &c, byteCount: MemoryLayout<UInt8>.stride)
-            
+
             var f = amount
             base.advanced(by: 2).copyMemory(from: &f, byteCount: MemoryLayout<UInt64>.stride - 1)
-            
+
             nonce.withUnsafeBytes { (pointer: UnsafeRawBufferPointer) in
                 base.advanced(by: 10).copyMemory(from: pointer.baseAddress!, byteCount: Data.nonceLength)
             }
         }
-        
+
         return data
     }
     

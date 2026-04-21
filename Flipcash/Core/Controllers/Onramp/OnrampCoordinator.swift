@@ -656,11 +656,7 @@ final class OnrampCoordinator {
             return
         }
 
-        Analytics.onrampInvokePayment(amount: Quarks(
-            quarks: amount.onChainAmount.quarks,
-            currencyCode: .usd,
-            decimals: PublicKey.usdf.mintDecimals
-        ))
+        Analytics.onrampInvokePayment(amount: amount.usdfValue)
 
         let id       = UUID()
         let userRef  = "\(email):\(phone)"
@@ -968,11 +964,7 @@ final class OnrampCoordinator {
             }
 
             Analytics.onrampCompleted(
-                amount: Quarks(
-                    quarks: amount.onChainAmount.quarks,
-                    currencyCode: .usd,
-                    decimals: PublicKey.usdf.mintDecimals
-                ),
+                amount: amount.usdfValue,
                 successful: true,
                 error: nil
             )

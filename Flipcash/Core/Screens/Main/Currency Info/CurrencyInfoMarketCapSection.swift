@@ -12,7 +12,7 @@ import FlipcashCore
 struct CurrencyInfoMarketCapSection: View {
     @State private var chartViewModel: ChartViewModel?
 
-    let marketCap: Quarks
+    let marketCap: FiatAmount
     let currencyCode: CurrencyCode
     let marketCapController: MarketCapController
 

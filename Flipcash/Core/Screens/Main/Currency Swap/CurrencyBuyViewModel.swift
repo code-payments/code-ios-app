@@ -42,7 +42,7 @@ class CurrencyBuyViewModel: Identifiable {
         }
 
         // If entered USDF value exceeds balance, cap it to the balance
-        if entered.usdfValue.value > balance.usdf.decimalValue {
+        if entered.usdfValue.value > balance.usdf.value {
             return ExchangedFiat.compute(
                 onChainAmount: TokenAmount(quarks: balance.quarks, mint: mint),
                 rate: rate,
@@ -60,7 +60,7 @@ class CurrencyBuyViewModel: Identifiable {
 
         return EnterAmountCalculator.isWithinDisplayLimit(
             enteredAmount: enteredAmount,
-            max: maxPossibleAmount.nativeAmount.asQuarks
+            max: maxPossibleAmount.nativeAmount
         )
     }
 
@@ -112,10 +112,10 @@ class CurrencyBuyViewModel: Identifiable {
 
         let sendLimit = session.sendLimitFor(currency: buyAmount.nativeAmount.currency) ?? .zero
 
-        guard buyAmount.nativeAmount.value <= sendLimit.maxPerDay.decimalValue else {
+        guard buyAmount.nativeAmount.value <= sendLimit.maxPerDay.value else {
             logger.info("Buy rejected: amount exceeds limit", metadata: [
                 "amount": "\(buyAmount.nativeAmount.formatted())",
-                "max_per_day": "\(sendLimit.maxPerDay.decimalValue)",
+                "max_per_day": "\(sendLimit.maxPerDay.value)",
                 "currency": "\(buyAmount.nativeAmount.currency)",
             ])
             showLimitsError()

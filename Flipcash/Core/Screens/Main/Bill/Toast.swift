@@ -52,8 +52,8 @@ struct ToastQueue {
 /// gap between consecutive toasts, pausing while a bill is on screen.
 struct Toast: Equatable, Hashable {
 
-    /// The transaction amount in quarks.
-    let amount: Quarks
+    /// The transaction amount.
+    let amount: FiatAmount
 
     /// `true` when the user received funds, `false` when they sent funds.
     let isDeposit: Bool

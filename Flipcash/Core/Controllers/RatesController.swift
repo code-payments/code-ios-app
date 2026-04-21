@@ -256,13 +256,12 @@ class RatesController {
         cachedRates[currency]
     }
 
-    func exchangedFiat(for amount: Quarks) throws -> ExchangedFiat {
-        guard let rate = rate(for: amount.currencyCode) else {
+    func exchangedFiat(for amount: FiatAmount) throws -> ExchangedFiat {
+        guard let rate = rate(for: amount.currency) else {
             throw Error.exchangeRateUnavailable
         }
 
-        let nativeAmount = FiatAmount(value: amount.decimalValue, currency: amount.currencyCode)
-        return ExchangedFiat(nativeAmount: nativeAmount, rate: rate)
+        return ExchangedFiat(nativeAmount: amount, rate: rate)
     }
 
     /// Called when streaming delivers new rates. `VerifiedProtoService`

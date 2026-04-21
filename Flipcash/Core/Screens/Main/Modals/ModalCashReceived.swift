@@ -13,15 +13,15 @@ import FlipcashUI
 public struct ModalCashReceived: View {
     
     public let title: String
-    public let fiat: Quarks
+    public let fiat: FiatAmount
     public let currencyName: String
     public let currencyImageURL: URL?
     public let actionTitle: String
     public let dismissAction: VoidAction
-    
+
     // MARK: - Init -
-    
-    public init(title: String, fiat: Quarks, currencyName: String, currencyImageURL: URL?, actionTitle: String, dismissAction: @escaping VoidAction) {
+
+    public init(title: String, fiat: FiatAmount, currencyName: String, currencyImageURL: URL?, actionTitle: String, dismissAction: @escaping VoidAction) {
         self.title = title
         self.fiat = fiat
         self.currencyName = currencyName
@@ -29,17 +29,17 @@ public struct ModalCashReceived: View {
         self.actionTitle = actionTitle
         self.dismissAction = dismissAction
     }
-    
+
     // MARK: - Body -
-    
+
     public var body: some View {
         VStack(spacing: 10) {
             Text(title)
                 .font(.appTitle)
-            
+
             VStack(spacing: 6) {
                 AmountText(
-                    flagStyle: fiat.currencyCode.flagStyle,
+                    flagStyle: fiat.currency.flagStyle,
                     content: fiat.formatted(),
                     canScale: false
                 )
@@ -73,7 +73,7 @@ public struct ModalCashReceived: View {
     Background(color: .white) {
         ModalCashReceived(
             title: "Received",
-            fiat: Quarks(fiatUnsigned: 5, currencyCode: .usd, decimals: 6),
+            fiat: FiatAmount(value: 5, currency: .usd),
             currencyName: "Jeffy",
             currencyImageURL: nil,
             actionTitle: "Cancel",

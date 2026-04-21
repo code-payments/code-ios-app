@@ -51,7 +51,7 @@ struct BalanceScreen: View {
         balances.first { $0.stored.mint == .usdf && $0.stored.quarks > 0 }
     }
     
-    private var appreciation: (amount: Quarks, isPositive: Bool) {
+    private var appreciation: (amount: FiatAmount, isPositive: Bool) {
         var totalAppreciation: Decimal = 0
 
         for balance in currencyBalances {
@@ -61,13 +61,8 @@ struct BalanceScreen: View {
         }
 
         let isPositive = totalAppreciation >= 0
-        let quarks = try! Quarks(
-            fiatDecimal: abs(totalAppreciation),
-            currencyCode: balanceRate.currency,
-            decimals: PublicKey.usdf.mintDecimals
-        )
-
-        return (quarks, isPositive)
+        let amount = FiatAmount(value: abs(totalAppreciation), currency: balanceRate.currency)
+        return (amount, isPositive)
     }
     
     // MARK: - Init -

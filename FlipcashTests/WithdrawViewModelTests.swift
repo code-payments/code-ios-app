@@ -61,6 +61,6 @@ struct WithdrawViewModelTests {
         #expect(result?.nativeAmount.value == Decimal(string: "6.30"))
 
         // Display fee: $7.00 CAD − $6.30 CAD = $0.70 CAD
-        #expect(viewModel.displayFee?.quarks == 700_000)
+        #expect(viewModel.displayFee?.value == Decimal(string: "0.70"))
     }
 }

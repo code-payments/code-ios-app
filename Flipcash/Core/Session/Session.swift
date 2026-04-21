@@ -452,9 +452,9 @@ class Session {
 
         if let usdLimit = fetchedLimits.sendLimitFor(currency: .usd) {
             logger.info("Limits updated", metadata: [
-                "usd_max_per_tx": "\(usdLimit.maxPerTransaction.decimalValue)",
-                "usd_next_tx": "\(usdLimit.nextTransaction.decimalValue)",
-                "usd_max_per_day": "\(usdLimit.maxPerDay.decimalValue)",
+                "usd_max_per_tx": "\(usdLimit.maxPerTransaction.value)",
+                "usd_next_tx": "\(usdLimit.nextTransaction.value)",
+                "usd_max_per_day": "\(usdLimit.maxPerDay.value)",
             ])
         }
     }
@@ -835,7 +835,7 @@ class Session {
         // it to the rendezvous
         grabStarts[payload.rendezvous.publicKey] = .now
         
-        print("Scanned: \(payload.fiat.formatted()) \(payload.fiat.currencyCode)")
+        print("Scanned: \(payload.fiat.formatted()) \(payload.fiat.currency)")
         
         guard scanOperation == nil else {
             return
@@ -865,7 +865,7 @@ class Session {
 
                 // Toast: user grabbed cash by scanning a bill (+amount)
                 enqueue(toast: .init(
-                    amount: metadata.exchangedFiat.nativeAmount.asQuarks,
+                    amount: metadata.exchangedFiat.nativeAmount,
                     isDeposit: true
                 ))
 
@@ -1043,7 +1043,7 @@ class Session {
             case .success:
                 // Toast: someone grabbed the user's bill (-amount)
                 self?.enqueue(toast: .init(
-                    amount: billDescription.exchangedFiat.nativeAmount.asQuarks,
+                    amount: billDescription.exchangedFiat.nativeAmount,
                     isDeposit: false
                 ))
                 
@@ -1118,7 +1118,7 @@ class Session {
 
                     // Toast: user confirmed sending a cash link (-amount)
                     self.enqueue(toast: .init(
-                        amount: exchangedFiat.nativeAmount.asQuarks,
+                        amount: exchangedFiat.nativeAmount,
                         isDeposit: false
                     ))
                     
@@ -1384,7 +1384,7 @@ class Session {
 
                 // Toast: user redeemed a cash link (+amount)
                 enqueue(toast: .init(
-                    amount: exchangedFiat.nativeAmount.asQuarks,
+                    amount: exchangedFiat.nativeAmount,
                     isDeposit: true
                 ))
 

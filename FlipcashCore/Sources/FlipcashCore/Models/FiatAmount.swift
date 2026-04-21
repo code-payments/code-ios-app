@@ -9,8 +9,7 @@ import Foundation
 
 /// Fiat monetary value. Mirrors the proto `(currency, nativeAmount)` pair.
 ///
-/// No decimals field — scaling is not a fiat concern. Callers that formerly
-/// worked with `Quarks(.usd, decimals: 6)` now use `FiatAmount(currency: .usd)`.
+/// No decimals field — scaling is not a fiat concern.
 public struct FiatAmount: Equatable, Hashable, Codable, Sendable {
 
     public let value: Decimal
@@ -91,19 +90,6 @@ extension FiatAmount {
             truncated: false,
             suffix: suffix,
         ).string(from: value as NSDecimalNumber)!
-    }
-}
-
-// MARK: - Quarks Bridge -
-
-extension FiatAmount {
-    /// Render this fiat value as a `Quarks` at the currency's display precision.
-    /// Negative values clamp to a zero `Quarks` to preserve the legacy
-    /// `try?/?? zero` consumer pattern.
-    public var asQuarks: Quarks {
-        let decimals = currency.maximumFractionDigits
-        return (try? Quarks(fiatDecimal: value, currencyCode: currency, decimals: decimals))
-            ?? Quarks.zero(currencyCode: currency, decimals: decimals)
     }
 }
 

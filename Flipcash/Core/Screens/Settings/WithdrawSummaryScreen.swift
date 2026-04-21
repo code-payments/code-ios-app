@@ -23,11 +23,7 @@ struct WithdrawSummaryScreen: View {
             return "-\(negativeDelta.formatted())"
 
         } else {
-            return Quarks(
-                quarks: 0 as UInt64,
-                currencyCode: .usd,
-                decimals: PublicKey.usdf.mintDecimals
-            ).formatted()
+            return FiatAmount.zero(in: .usd).formatted()
         }
     }
     
@@ -76,7 +72,7 @@ struct WithdrawSummaryScreen: View {
                                             value: originalFiat.formatted()
                                         )
                                         
-                                        if let displayFee, displayFee.quarks > 0 {
+                                        if let displayFee, displayFee.isPositive {
                                             lineItem(
                                                 title: Text("Less one time fee").underline() + Text(" \(Image.asset(.info))").baselineOffset(-2),
                                                 value: "-\(displayFee.formatted())"

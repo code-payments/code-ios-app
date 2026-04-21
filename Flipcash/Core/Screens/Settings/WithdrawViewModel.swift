@@ -56,7 +56,7 @@ class WithdrawViewModel {
                 rate: rate,
                 mint: mint,
                 supplyQuarks: supplyQuarks,
-                balance: FiatAmount.usd(selectedBalance.stored.usdf.decimalValue)
+                balance: selectedBalance.stored.usdf
             )
         } else {
             return ExchangedFiat(
@@ -65,19 +65,23 @@ class WithdrawViewModel {
             )
         }
     }
-    
-    var displayFee: Quarks? {
+
+    var displayFee: FiatAmount? {
         guard let enteredFiat, let withdrawableAmount else {
             return nil
         }
-        return try? enteredFiat.nativeAmount.asQuarks
-            .subtracting(withdrawableAmount.nativeAmount.asQuarks)
+        let entered = enteredFiat.nativeAmount
+        let withdrawable = withdrawableAmount.nativeAmount
+        guard entered.currency == withdrawable.currency, entered >= withdrawable else {
+            return nil
+        }
+        return entered - withdrawable
     }
 
     /// Returns the amount by which the fee exceeds the entered amount, or nil if the fee is covered.
     /// Used by `completeWithdrawalAction` to block withdrawals where the initialization fee exceeds the amount,
     /// and by the summary screen to display the negative delta.
-    var negativeWithdrawableAmount: Quarks? {
+    var negativeWithdrawableAmount: FiatAmount? {
         guard let enteredFiat = enteredFiat else {
             return nil
         }
@@ -105,7 +109,7 @@ class WithdrawViewModel {
         let feeOnChainOverflow = TokenAmount(quarks: fee.quarks - enteredFiat.onChainAmount.quarks, mint: fee.mint)
         let nativeOverflow = FiatAmount.usd(feeOnChainOverflow.decimalValue)
             .converting(to: enteredFiat.currencyRate)
-        return nativeOverflow.asQuarks
+        return nativeOverflow
     }
     
     var withdrawableAmount: ExchangedFiat? {
@@ -202,7 +206,7 @@ class WithdrawViewModel {
             rate: .oneToOne,
             mint: enteredFiat.mint,
             supplyQuarks: supplyQuarks,
-            balance: FiatAmount.usd(selectedBalance.stored.usdf.decimalValue)
+            balance: selectedBalance.stored.usdf
         )
     }
     

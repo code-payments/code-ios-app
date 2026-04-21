@@ -68,16 +68,12 @@ struct CurrencyInfoScreenTests {
             return
         }
 
-        // Convert to Quarks (using USDC decimals = 6)
-        let usdc = try Quarks(
-            fiatDecimal: mCap,
-            currencyCode: .usd,
-            decimals: 6  // USDC decimals
-        )
+        // Convert the USD market cap to USDF on-chain quarks (6 decimals).
+        let usdcQuarks = mCap.scaleUpInt(PublicKey.usdf.mintDecimals)
 
         // Convert to ExchangedFiat (USDF bypasses the bonding curve)
         let exchanged = ExchangedFiat.compute(
-            onChainAmount: TokenAmount(quarks: usdc.quarks, mint: .usdf),
+            onChainAmount: TokenAmount(quarks: usdcQuarks, mint: .usdf),
             rate: .oneToOne,  // 1:1 rate for USD
             supplyQuarks: nil
         )
@@ -95,13 +91,9 @@ struct CurrencyInfoScreenTests {
         }
 
         // USD value
-        let usdQuarks = try Quarks(
-            fiatDecimal: mCap,
-            currencyCode: .usd,
-            decimals: 6
-        )
+        let usdcQuarks = mCap.scaleUpInt(PublicKey.usdf.mintDecimals)
         let usdExchanged = ExchangedFiat.compute(
-            onChainAmount: TokenAmount(quarks: usdQuarks.quarks, mint: .usdf),
+            onChainAmount: TokenAmount(quarks: usdcQuarks, mint: .usdf),
             rate: .oneToOne,
             supplyQuarks: nil
         )
@@ -109,7 +101,7 @@ struct CurrencyInfoScreenTests {
         // CAD value (1.4x rate)
         let cadRate = Rate(fx: 1.4, currency: .cad)
         let cadExchanged = ExchangedFiat.compute(
-            onChainAmount: TokenAmount(quarks: usdQuarks.quarks, mint: .usdf),
+            onChainAmount: TokenAmount(quarks: usdcQuarks, mint: .usdf),
             rate: cadRate,
             supplyQuarks: nil
         )

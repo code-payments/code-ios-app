@@ -13,7 +13,7 @@ import FlipcashCore
 
 public struct BillView: View {
 
-    public let fiat: Quarks
+    public let fiat: FiatAmount
     public let data: Data
     public let canvasSize: CGSize
     public let billSize: CGSize
@@ -31,7 +31,7 @@ public struct BillView: View {
     /// Euro:      0.510
     /// Code:      0.555
     ///
-    public init(fiat: Quarks, data: Data, canvasSize: CGSize, aspectRatio: CGFloat = 0.555, backgroundColors: [Color]? = nil, mint: PublicKey? = nil, action: VoidAction? = nil) {
+    public init(fiat: FiatAmount, data: Data, canvasSize: CGSize, aspectRatio: CGFloat = 0.555, backgroundColors: [Color]? = nil, mint: PublicKey? = nil, action: VoidAction? = nil) {
         self.fiat       = fiat
         self.data       = data
         self.canvasSize = canvasSize
@@ -471,7 +471,7 @@ struct BillView_Previews: PreviewProvider {
     static var previews: some View {
         Group {
             ForEach(sizes, id: \.width) { size in
-                BillView(fiat: Quarks(fiatUnsigned: 5_00, currencyCode: .usd, decimals: 6), data: .placeholder35, canvasSize: size)
+                BillView(fiat: FiatAmount(value: 5, currency: .usd), data: .placeholder35, canvasSize: size)
                     .previewLayout(.fixed(width: size.width, height: size.height))
             }
         }

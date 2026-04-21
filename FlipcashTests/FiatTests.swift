@@ -10,43 +10,21 @@ import Testing
 import FlipcashCore
 
 struct FiatTests {
-    
-    static let value = Quarks(
-        quarks: 123_456_789 as UInt64,
-        currencyCode: .cad,
-        decimals: 6
+
+    static let value = FiatAmount(
+        value: Decimal(string: "123.456789")!,
+        currency: .cad
     )
-    
-    static let coinValue = Quarks(
-        quarks: 123_456_789_000 as UInt64,
-        currencyCode: .cad,
-        decimals: 10
-    )
-    
+
     // MARK: - Core -
-    
-    @Test
-    static func testDecimalConversion() {
-        #expect(value.quarks       == 123_456_789)
-        #expect(value.currencyCode == .cad)
-        #expect(value.decimals     == 6)
-        
-        #expect(value.decimalValue.formatted(to: 6) == "123.456789")
-        #expect(value.doubleValue.formatted(to: 6)  == "123.456789")
-    }
-    
-    @Test
-    static func testInvalidValues() throws {
-        #expect(throws: Quarks.Error.invalidNegativeValue) {
-            try Quarks(fiatDecimal: -0.01 as Decimal, currencyCode: .cad, decimals: 6)
-        }
-    }
 
     @Test
-    static func testMathThrows() throws {
-        #expect(throws: Quarks.Error.decimalMismatch) {
-            try value.subtracting(coinValue)
-        }
+    static func testDecimalConversion() {
+        #expect(value.value       == Decimal(string: "123.456789"))
+        #expect(value.currency    == .cad)
+
+        #expect(value.value.formatted(to: 6)      == "123.456789")
+        #expect(value.doubleValue.formatted(to: 6) == "123.456789")
     }
 
     // MARK: - Currency Decimal Places -
@@ -90,7 +68,7 @@ struct FiatTests {
     @Test
     static func testFiatFormatting_JPY() {
         // JPY should format without decimal places
-        let jpy = Quarks(quarks: 1000 as UInt64, currencyCode: .jpy, decimals: 0)
+        let jpy = FiatAmount(value: 1000, currency: .jpy)
         let formatted = jpy.formatted()
 
         // Should show ¥1,000 not ¥1,000.00
@@ -100,7 +78,7 @@ struct FiatTests {
     @Test
     static func testFiatFormatting_USD() {
         // USD can show decimals when needed
-        let usd = Quarks(quarks: 1_234_560 as UInt64, currencyCode: .usd, decimals: 6)
+        let usd = FiatAmount(value: Decimal(string: "1.23456")!, currency: .usd)
         let formatted = usd.formatted()
 
         // Should show $1.23 (rounded, with decimals)
@@ -108,18 +86,18 @@ struct FiatTests {
     }
 
     @Test
-    static func testFiatFormatting_JPY_WithDecimals() {
-        // Even if JPY Fiat has fractional quarks, formatting should truncate
-        let jpy = Quarks(quarks: 1000 as UInt64, currencyCode: .jpy, decimals: 2)
+    static func testFiatFormatting_JPY_fractionalTruncates() {
+        // Even if JPY FiatAmount has a fractional value, formatting should truncate
+        let jpy = FiatAmount(value: 10, currency: .jpy)
         let formatted = jpy.formatted()
 
-        // Should show ¥10 (1000 quarks / 100 decimals = 10), no decimal places
+        // Should show ¥10, no decimal places
         #expect(!formatted.contains("."))
     }
 
     @Test
     static func testFiatFormatting_suffix() {
-        let usd = Quarks(quarks: 1_000_000 as UInt64, currencyCode: .usd, decimals: 6)
+        let usd = FiatAmount(value: 1, currency: .usd)
         let formatted = usd.formatted(suffix: "USD")
         #expect(formatted.contains("USD"))
     }

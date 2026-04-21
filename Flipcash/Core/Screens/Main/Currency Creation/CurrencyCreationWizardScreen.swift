@@ -74,19 +74,18 @@ struct CurrencyCreationWizardScreen: View {
         )
     }
 
-    private var previewFiat: Quarks {
-        Quarks(
-            quarks: launchAmount.onChainAmount.quarks,
-            currencyCode: .usd,
-            decimals: PublicKey.usdf.mintDecimals
+    private var previewFiat: FiatAmount {
+        FiatAmount(
+            value: launchAmount.onChainAmount.decimalValue,
+            currency: .usd
         )
     }
 
     private var reserveBalance: ExchangedFiat? {
         guard let stored = session.balance(for: .usdf) else { return nil }
-        guard stored.usdf.quarks >= launchAmount.onChainAmount.quarks else { return nil }
+        guard stored.usdf.value >= launchAmount.onChainAmount.decimalValue else { return nil }
         return ExchangedFiat.compute(
-            onChainAmount: TokenAmount(quarks: stored.usdf.quarks, mint: .usdf),
+            onChainAmount: TokenAmount(wholeTokens: stored.usdf.value, mint: .usdf),
             rate: ratesController.rateForBalanceCurrency(),
             supplyQuarks: nil
         )
@@ -681,11 +680,7 @@ struct CurrencyCreationWizardScreen: View {
                     try await Task.sleep(for: .seconds(1))
                 }
                 try await walletConnection.requestSwapForLaunch(
-                    usdc: Quarks(
-                        quarks: launchAmount.onChainAmount.quarks,
-                        currencyCode: .usd,
-                        decimals: PublicKey.usdf.mintDecimals
-                    ),
+                    usdc: launchAmount.onChainAmount,
                     displayName: displayName,
                     onCompleted: { signature, amount in
                         try await launchAfterPhantom(signature: signature, amount: amount)
@@ -942,7 +937,7 @@ private struct DescriptionStep: View {
 
 private struct BillCreationStep: View {
     @Bindable var state: CurrencyCreationState
-    let previewFiat: Quarks
+    let previewFiat: FiatAmount
 
     var body: some View {
         VStack(spacing: 0) {
@@ -971,7 +966,7 @@ private struct BillCreationStep: View {
 
 private struct ConfirmationStep: View {
     let state: CurrencyCreationState
-    let previewFiat: Quarks
+    let previewFiat: FiatAmount
     let launchAmount: ExchangedFiat
     let isValidating: Bool
     let onBuy: () -> Void

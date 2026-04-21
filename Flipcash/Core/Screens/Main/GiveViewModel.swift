@@ -59,7 +59,7 @@ class GiveViewModel {
                 rate: rate,
                 mint: mint,
                 supplyQuarks: supplyQuarks,
-                balance: FiatAmount.usd(selectedBalance.stored.usdf.decimalValue),
+                balance: selectedBalance.stored.usdf,
                 tokenBalanceQuarks: selectedBalance.stored.quarks
             )
 
@@ -125,10 +125,10 @@ class GiveViewModel {
         case .sufficient(let amountToSend):
             let sendLimit = session.sendLimitFor(currency: amountToSend.nativeAmount.currency) ?? .zero
 
-            guard amountToSend.nativeAmount.value <= sendLimit.nextTransaction.decimalValue else {
+            guard amountToSend.nativeAmount.value <= sendLimit.nextTransaction.value else {
                 logger.info("Give rejected: amount exceeds limit", metadata: [
                     "amount": "\(amountToSend.nativeAmount.formatted())",
-                    "next_tx": "\(sendLimit.nextTransaction.decimalValue)",
+                    "next_tx": "\(sendLimit.nextTransaction.value)",
                     "currency": "\(amountToSend.nativeAmount.currency)",
                 ])
                 showLimitsError()
