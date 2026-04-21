@@ -41,6 +41,51 @@ struct ExchangedFiatTests {
         #expect(result.onChainAmount.quarks == 0)
     }
 
+    @Test("Subtract same-mint same-rate ExchangedFiat preserves nativeAmount delta")
+    func subtracting_sameMintSameRate_preservesNativeDelta() throws {
+        let bondedMint = try PublicKey(base58: "54ggcQ23uen5b9QXMAns99MQNTKn7iyzq4wvCW6e8r25")
+        let rate = Rate.oneToOne
+
+        let requested = ExchangedFiat(
+            onChainAmount: TokenAmount(quarks: 10 * 10_000_000_000, mint: bondedMint),
+            nativeAmount: FiatAmount.usd(1),
+            currencyRate: rate
+        )
+        let balance = ExchangedFiat(
+            onChainAmount: TokenAmount(quarks: 8 * 10_000_000_000, mint: bondedMint),
+            nativeAmount: FiatAmount.usd(Decimal(string: "0.80")!),
+            currencyRate: rate
+        )
+
+        let shortfall = requested.subtracting(balance)
+
+        #expect(shortfall.onChainAmount.quarks == 2 * 10_000_000_000)
+        #expect(shortfall.nativeAmount.value == Decimal(string: "0.20")!)
+        #expect(shortfall.nativeAmount.currency == .usd)
+        #expect(shortfall.currencyRate == rate)
+    }
+
+    @Test("Subtract with non-USD rate preserves rate on result")
+    func subtracting_nonUSDRate_preservesRate() throws {
+        let cadRate = Rate(fx: 1.4, currency: .cad)
+        let requested = ExchangedFiat(
+            onChainAmount: TokenAmount(quarks: 7_000_000, mint: .usdf), // 7 USDF
+            nativeAmount: FiatAmount(value: Decimal(string: "9.80")!, currency: .cad),
+            currencyRate: cadRate
+        )
+        let balance = ExchangedFiat(
+            onChainAmount: TokenAmount(quarks: 5_000_000, mint: .usdf), // 5 USDF
+            nativeAmount: FiatAmount(value: 7, currency: .cad),
+            currencyRate: cadRate
+        )
+
+        let delta = requested.subtracting(balance)
+
+        #expect(delta.onChainAmount.quarks == 2_000_000)
+        #expect(delta.nativeAmount.value == Decimal(string: "2.80")!)
+        #expect(delta.currencyRate.currency == .cad)
+    }
+
     @Test("Subtract fee with non-USD rate recomputes native value")
     func testSubtractingFeeWithNonUSDRate() throws {
         let cadRate = Rate(fx: Decimal(1.4), currency: .cad)

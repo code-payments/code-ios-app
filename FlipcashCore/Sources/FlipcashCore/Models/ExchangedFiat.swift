@@ -208,6 +208,21 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
 
     // MARK: - Operations -
 
+    /// Subtract another `ExchangedFiat` of the same mint and currency rate.
+    /// Uses the direct `nativeAmount` delta — suitable when both sides are
+    /// already exchanged (e.g. requested vs. balance) and re-running the
+    /// bonding curve via `compute` would either drift on rounding or, if no
+    /// supply is available, erase the delta into `safeZero`.
+    public func subtracting(_ other: ExchangedFiat) -> ExchangedFiat {
+        precondition(mint == other.mint, "Cannot subtract ExchangedFiats with different mints")
+        precondition(currencyRate == other.currencyRate, "Cannot subtract ExchangedFiats with different currency rates")
+        return ExchangedFiat(
+            onChainAmount: onChainAmount - other.onChainAmount,
+            nativeAmount: nativeAmount - other.nativeAmount,
+            currencyRate: currencyRate,
+        )
+    }
+
     /// Subtract an on-chain fee, scaling `nativeAmount` proportionally.
     /// For bonded mints this is a linear approximation of the bonding curve;
     /// at typical fee bps the deviation is below display rounding.

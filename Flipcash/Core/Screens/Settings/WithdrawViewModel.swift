@@ -82,60 +82,41 @@ class WithdrawViewModel {
     /// Used by `completeWithdrawalAction` to block withdrawals where the initialization fee exceeds the amount,
     /// and by the summary screen to display the negative delta.
     var negativeWithdrawableAmount: FiatAmount? {
-        guard let enteredFiat = enteredFiat else {
+        guard let enteredFiat, let destinationMetadata, destinationMetadata.requiresInitialization else {
             return nil
         }
-
-        guard let destinationMetadata, destinationMetadata.requiresInitialization, destinationMetadata.fee.quarks > 0 else {
-            return nil
-        }
-
-        // USDF fee is charged directly in USDC; bonded tokens need
-        // the fee converted through the bonding curve (exchangedFee).
-        let fee: TokenAmount
-        if enteredFiat.mint == .usdf {
-            fee = TokenAmount(quarks: destinationMetadata.fee.quarks, mint: .usdf)
-        } else {
-            guard let exchangedFee else {
-                return nil
-            }
-            fee = exchangedFee.onChainAmount
-        }
-
-        guard fee.quarks >= enteredFiat.onChainAmount.quarks else {
-            return nil
-        }
-
-        let feeOnChainOverflow = TokenAmount(quarks: fee.quarks - enteredFiat.onChainAmount.quarks, mint: fee.mint)
-        let nativeOverflow = FiatAmount.usd(feeOnChainOverflow.decimalValue)
-            .converting(to: enteredFiat.currencyRate)
-        return nativeOverflow
+        guard let fee = resolvedFee else { return nil }
+        guard fee.onChain >= enteredFiat.onChainAmount else { return nil }
+        return (fee.usd - enteredFiat.usdfValue).converting(to: enteredFiat.currencyRate)
     }
-    
-    var withdrawableAmount: ExchangedFiat? {
-        guard let enteredFiat = enteredFiat else {
-            return nil
-        }
-        
-        guard let destinationMetadata else {
-            return nil
-        }
-        
-        if destinationMetadata.requiresInitialization && destinationMetadata.fee.quarks > 0 {
-            if enteredFiat.mint == .usdf {
-                return enteredFiat.subtractingFee(
-                    TokenAmount(quarks: destinationMetadata.fee.quarks, mint: .usdf)
-                )
-            } else {
-                guard let exchangedFee else {
-                    return nil
-                }
 
-                return enteredFiat.subtractingFee(exchangedFee.onChainAmount)
-            }
-        } else {
+    var withdrawableAmount: ExchangedFiat? {
+        guard let enteredFiat, let destinationMetadata else { return nil }
+        guard destinationMetadata.requiresInitialization, destinationMetadata.fee.quarks > 0 else {
             return enteredFiat
         }
+        guard let fee = resolvedFee else { return nil }
+        // subtractingFee would underflow TokenAmount; nil signals overflow.
+        guard fee.onChain <= enteredFiat.onChainAmount else { return nil }
+        return enteredFiat.subtractingFee(fee.onChain)
+    }
+
+    /// Destination fee resolved against the entered mint. USDF users pay in
+    /// USDC directly; bonded users pay via the bonding curve, so the on-chain
+    /// fee is in bonded tokens and needs the curve's USD valuation for any
+    /// fiat arithmetic against the entered amount.
+    private var resolvedFee: (onChain: TokenAmount, usd: FiatAmount)? {
+        guard let enteredFiat, let destinationMetadata, destinationMetadata.fee.quarks > 0 else {
+            return nil
+        }
+        if enteredFiat.mint == .usdf {
+            return (
+                onChain: destinationMetadata.fee,
+                usd: FiatAmount.usd(destinationMetadata.fee.decimalValue)
+            )
+        }
+        guard let exchangedFee else { return nil }
+        return (onChain: exchangedFee.onChainAmount, usd: exchangedFee.usdfValue)
     }
     
     var canCompleteWithdrawal: Bool {

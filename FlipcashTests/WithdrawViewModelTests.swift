@@ -41,6 +41,37 @@ struct WithdrawViewModelTests {
         #expect(viewModel.withdrawableAmount?.onChainAmount.quarks == 4_500_000)
     }
 
+    @Test("Regression: returns nil (no crash) when fee exceeds entered amount")
+    func withdrawableAmount_feeExceedsEntered_returnsNil() {
+        let viewModel = WithdrawViewModelTestHelpers.createViewModel()
+        viewModel.selectedBalance = WithdrawViewModelTestHelpers.createExchangedBalance()
+        viewModel.enteredAmount = "0.50"
+        viewModel.destinationMetadata = WithdrawViewModelTestHelpers.createDestinationMetadata(
+            requiresInitialization: true,
+            fee: TokenAmount(quarks: 1_000_000, mint: .usdf)
+        )
+
+        #expect(viewModel.withdrawableAmount == nil)
+    }
+
+    @Test("Regression: bonded-mint negative delta is a USD value, not a raw token count")
+    func negativeWithdrawableAmount_bondedMint_isUSDDelta() throws {
+        let viewModel = WithdrawViewModelTestHelpers.createViewModel()
+        viewModel.selectedBalance = WithdrawViewModelTestHelpers.createBondedBalance()
+        viewModel.enteredAmount = "0.50"
+        viewModel.destinationMetadata = WithdrawViewModelTestHelpers.createDestinationMetadata(
+            requiresInitialization: true,
+            fee: TokenAmount(quarks: 1_000_000, mint: .usdf)
+        )
+
+        let delta = try #require(viewModel.negativeWithdrawableAmount)
+
+        // Overflow above $1 USD means token count is leaking through as a fiat value.
+        #expect(delta.currency == .usd)
+        #expect(delta.value > 0)
+        #expect(delta.value <= Decimal(1))
+    }
+
     @Test("Non-USD rate: subtracts fee in USD and recomputes native amount")
     func withdrawableAmount_withFeeAndCADRate() {
         let cadRate = Rate(fx: 1.4, currency: .cad)

@@ -402,12 +402,7 @@ class Session {
                 print("Attempt max send, within error tolerance")
                 return .sufficient(amountToSend: exchangedBalance)
             } else {
-                let shortfall = ExchangedFiat.compute(
-                    onChainAmount: exchangedFiat.onChainAmount - exchangedBalance.onChainAmount,
-                    rate: exchangedFiat.currencyRate,
-                    supplyQuarks: nil
-                )
-                return .insufficient(shortfall: shortfall)
+                return .insufficient(shortfall: exchangedFiat.subtracting(exchangedBalance))
             }
         }
     }
