@@ -22,14 +22,19 @@ class CurrencySellConfirmationViewModel {
 
     var fee: ExchangedFiat {
         let bps: UInt64 = 100
+        let feeQuarks = amount.onChainAmount.quarks * bps / 10_000
         let feeOnChain = TokenAmount(
-            quarks: amount.onChainAmount.quarks * bps / 10_000,
+            quarks: feeQuarks,
             mint: amount.onChainAmount.mint
         )
-        let feeScale = Decimal(bps) / Decimal(10_000)
+        // Scale native by the *actual* on-chain ratio (not the static bps),
+        // so a fee that rounds down to 0 quarks also displays as 0 fiat.
+        let scale: Decimal = amount.onChainAmount.quarks > 0
+            ? Decimal(feeQuarks) / Decimal(amount.onChainAmount.quarks)
+            : 0
         return ExchangedFiat(
             onChainAmount: feeOnChain,
-            nativeAmount: amount.nativeAmount * feeScale,
+            nativeAmount: amount.nativeAmount * scale,
             currencyRate: amount.currencyRate,
         )
     }
