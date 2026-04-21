@@ -40,19 +40,11 @@ public struct TokenAmount: Equatable, Hashable, Codable, Sendable {
 // MARK: - Arithmetic -
 
 extension TokenAmount {
-    public static func + (lhs: TokenAmount, rhs: TokenAmount) -> TokenAmount {
-        precondition(lhs.mint == rhs.mint, "Cannot add TokenAmounts with different mints")
-        return TokenAmount(quarks: lhs.quarks + rhs.quarks, mint: lhs.mint)
-    }
-
     public static func - (lhs: TokenAmount, rhs: TokenAmount) -> TokenAmount {
         precondition(lhs.mint == rhs.mint, "Cannot subtract TokenAmounts with different mints")
         precondition(lhs.quarks >= rhs.quarks, "TokenAmount subtraction underflow — check sufficient funds before subtracting")
         return TokenAmount(quarks: lhs.quarks - rhs.quarks, mint: lhs.mint)
     }
-
-    public static func += (lhs: inout TokenAmount, rhs: TokenAmount) { lhs = lhs + rhs }
-    public static func -= (lhs: inout TokenAmount, rhs: TokenAmount) { lhs = lhs - rhs }
 }
 
 // MARK: - Comparable -

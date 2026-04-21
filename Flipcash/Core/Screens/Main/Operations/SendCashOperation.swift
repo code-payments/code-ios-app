@@ -121,17 +121,9 @@ class SendCashOperation {
         self.owner           = owner
         self.exchangedFiat   = exchangedFiat
         self.providedVerifiedState = verifiedState
-        let nativeAsQuarks = (try? Quarks(
-            fiatDecimal: exchangedFiat.nativeAmount.value,
-            currencyCode: exchangedFiat.nativeAmount.currency,
-            decimals: exchangedFiat.nativeAmount.currency.maximumFractionDigits
-        )) ?? Quarks.zero(
-            currencyCode: exchangedFiat.nativeAmount.currency,
-            decimals: exchangedFiat.nativeAmount.currency.maximumFractionDigits
-        )
-        self.payload      = .init(
+        self.payload = .init(
             kind: .cashMulticurrency,
-            fiat: nativeAsQuarks,
+            fiat: exchangedFiat.nativeAmount.asQuarks,
             nonce: .nonce
         )
         logger.info("SendCashOperation opened", metadata: ["rendezvous": "\(payload.rendezvous.publicKey.base58)"])

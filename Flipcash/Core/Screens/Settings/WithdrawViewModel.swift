@@ -70,23 +70,8 @@ class WithdrawViewModel {
         guard let enteredFiat, let withdrawableAmount else {
             return nil
         }
-
-        let enteredAsQuarks = try? Quarks(
-            fiatDecimal: enteredFiat.nativeAmount.value,
-            currencyCode: enteredFiat.nativeAmount.currency,
-            decimals: enteredFiat.nativeAmount.currency.maximumFractionDigits
-        )
-        let withdrawableAsQuarks = try? Quarks(
-            fiatDecimal: withdrawableAmount.nativeAmount.value,
-            currencyCode: withdrawableAmount.nativeAmount.currency,
-            decimals: withdrawableAmount.nativeAmount.currency.maximumFractionDigits
-        )
-
-        guard let enteredAsQuarks, let withdrawableAsQuarks else {
-            return nil
-        }
-
-        return try? enteredAsQuarks.subtracting(withdrawableAsQuarks)
+        return try? enteredFiat.nativeAmount.asQuarks
+            .subtracting(withdrawableAmount.nativeAmount.asQuarks)
     }
 
     /// Returns the amount by which the fee exceeds the entered amount, or nil if the fee is covered.
@@ -117,15 +102,10 @@ class WithdrawViewModel {
             return nil
         }
 
-        // TODO: `invert: true` case (fee > enteredFiat): compute `fee - enteredFiat`
-        // in native currency. Preserve old semantics manually.
-        let feeNativeAmount = TokenAmount(quarks: fee.quarks - enteredFiat.onChainAmount.quarks, mint: fee.mint)
-            .decimalValue * enteredFiat.currencyRate.fx
-        return try? Quarks(
-            fiatDecimal: feeNativeAmount,
-            currencyCode: enteredFiat.currencyRate.currency,
-            decimals: enteredFiat.currencyRate.currency.maximumFractionDigits
-        )
+        let feeOnChainOverflow = TokenAmount(quarks: fee.quarks - enteredFiat.onChainAmount.quarks, mint: fee.mint)
+        let nativeOverflow = FiatAmount.usd(feeOnChainOverflow.decimalValue)
+            .converting(to: enteredFiat.currencyRate)
+        return nativeOverflow.asQuarks
     }
     
     var withdrawableAmount: ExchangedFiat? {

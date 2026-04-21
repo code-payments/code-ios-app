@@ -471,7 +471,7 @@ struct BillView_Previews: PreviewProvider {
     static var previews: some View {
         Group {
             ForEach(sizes, id: \.width) { size in
-                BillView(fiat: 5_00, data: .placeholder35, canvasSize: size)
+                BillView(fiat: Quarks(fiatUnsigned: 5_00, currencyCode: .usd, decimals: 6), data: .placeholder35, canvasSize: size)
                     .previewLayout(.fixed(width: size.width, height: size.height))
             }
         }

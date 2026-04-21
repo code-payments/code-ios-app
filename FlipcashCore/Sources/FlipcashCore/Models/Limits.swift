@@ -39,7 +39,11 @@ public struct Limits: Codable, Equatable, Hashable, Sendable {
 
 public struct SendLimit: Codable, Equatable, Hashable, Sendable {
     
-    public static let zero = SendLimit(nextTransaction: 0, maxPerTransaction: 0, maxPerDay: 0)
+    public static let zero = SendLimit(
+        nextTransaction: .zero(currencyCode: .usd, decimals: 6),
+        maxPerTransaction: .zero(currencyCode: .usd, decimals: 6),
+        maxPerDay: .zero(currencyCode: .usd, decimals: 6)
+    )
     
     /// Remaining limit to apply on the next transaction
     public var nextTransaction: Quarks

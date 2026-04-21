@@ -113,7 +113,7 @@ private class _BillCanvasController: UIViewController {
 
         } else {
             BillView(
-                fiat: 0,
+                fiat: .zero(currencyCode: .usd, decimals: 6),
                 data: Data(),
                 canvasSize: canvasSize(),
                 action: action

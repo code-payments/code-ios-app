@@ -33,7 +33,6 @@ public struct FiatAmount: Equatable, Hashable, Codable, Sendable {
     public var doubleValue: Double { value.doubleValue }
 
     public var isPositive: Bool { value > 0 }
-    public var isZero: Bool     { value == 0 }
 }
 
 // MARK: - Arithmetic -
@@ -49,15 +48,8 @@ extension FiatAmount {
         return FiatAmount(value: lhs.value - rhs.value, currency: lhs.currency)
     }
 
-    public static func += (lhs: inout FiatAmount, rhs: FiatAmount) { lhs = lhs + rhs }
-    public static func -= (lhs: inout FiatAmount, rhs: FiatAmount) { lhs = lhs - rhs }
-
     public static func * (lhs: FiatAmount, rhs: Decimal) -> FiatAmount {
         FiatAmount(value: lhs.value * rhs, currency: lhs.currency)
-    }
-
-    public static func / (lhs: FiatAmount, rhs: Decimal) -> FiatAmount {
-        FiatAmount(value: lhs.value / rhs, currency: lhs.currency)
     }
 }
 
@@ -102,16 +94,28 @@ extension FiatAmount {
     }
 }
 
+// MARK: - Quarks Bridge -
+
+extension FiatAmount {
+    /// Render this fiat value as a `Quarks` at the currency's display precision.
+    /// Negative values clamp to a zero `Quarks` to preserve the legacy
+    /// `try?/?? zero` consumer pattern.
+    public var asQuarks: Quarks {
+        let decimals = currency.maximumFractionDigits
+        return (try? Quarks(fiatDecimal: value, currencyCode: currency, decimals: decimals))
+            ?? Quarks.zero(currencyCode: currency, decimals: decimals)
+    }
+}
+
 // MARK: - Display Threshold -
 
 extension FiatAmount {
-    /// The smallest fractional value this currency can display as non-zero.
-    /// Example: USD with 2 fraction digits → 0.01.
-    public var minimumDisplayableValue: Decimal {
-        Decimal(sign: .plus, exponent: -currency.maximumFractionDigits, significand: 1)
+    /// Whether this value would format as non-zero in `currency`.
+    public var hasDisplayableValue: Bool {
+        // Smallest fractional value the currency can render (e.g. USD → 0.01).
+        let minimum = Decimal(sign: .plus, exponent: -currency.maximumFractionDigits, significand: 1)
+        return value >= minimum
     }
-
-    public var hasDisplayableValue: Bool { value >= minimumDisplayableValue }
 
     /// Non-zero but too small to display (would format as the currency's zero).
     public var isApproximatelyZero: Bool { value > 0 && !hasDisplayableValue }
@@ -122,18 +126,4 @@ extension FiatAmount {
 extension FiatAmount: CustomStringConvertible, CustomDebugStringConvertible {
     public var description: String      { formatted(suffix: nil) }
     public var debugDescription: String { description }
-}
-
-// MARK: - Expressible by Literal -
-
-extension FiatAmount: ExpressibleByIntegerLiteral {
-    public init(integerLiteral value: Int) {
-        self.init(value: Decimal(value), currency: .usd)
-    }
-}
-
-extension FiatAmount: ExpressibleByFloatLiteral {
-    public init(floatLiteral value: Double) {
-        self.init(value: Decimal(value), currency: .usd)
-    }
 }

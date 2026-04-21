@@ -38,39 +38,15 @@ struct FiatTests {
     @Test
     static func testInvalidValues() throws {
         #expect(throws: Quarks.Error.invalidNegativeValue) {
-            try Quarks(quarks: -1 as Int64, currencyCode: .cad, decimals: 6)
-        }
-        
-        #expect(throws: Quarks.Error.invalidNegativeValue) {
-            try Quarks(fiatInt: -1 as Int, currencyCode: .cad, decimals: 6)
-        }
-        
-        #expect(throws: Quarks.Error.invalidNegativeValue) {
             try Quarks(fiatDecimal: -0.01 as Decimal, currencyCode: .cad, decimals: 6)
         }
     }
-    
+
     @Test
     static func testMathThrows() throws {
         #expect(throws: Quarks.Error.decimalMismatch) {
             try value.subtracting(coinValue)
         }
-        
-        #expect(throws: Quarks.Error.decimalMismatch) {
-            try value.adding(coinValue)
-        }
-    }
-    
-    @Test
-    static func testAdditionMatchingDecimals() throws {
-        let lhs = Quarks(quarks: 111_111 as UInt64, currencyCode: .cad, decimals: 6)
-        let rhs = Quarks(quarks: 222_222 as UInt64, currencyCode: .cad, decimals: 6)
-        
-        let result = try lhs.adding(rhs)
-        
-        #expect(result.quarks       == 333_333)
-        #expect(result.currencyCode == .cad)
-        #expect(result.decimals     == 6)
     }
 
     // MARK: - Currency Decimal Places -

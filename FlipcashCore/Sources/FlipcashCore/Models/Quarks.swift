@@ -9,51 +9,39 @@
 import Foundation
 
 public struct Quarks: Equatable, Hashable, Codable, Sendable {
-    
+
     public let quarks: UInt64
     public let currencyCode: CurrencyCode
     public let decimals: Int
-    
+
     public var decimalValue: Decimal {
         quarks.scaleDown(decimals)
     }
-    
+
     public var doubleValue: Double {
         decimalValue.doubleValue
     }
-    
+
     // MARK: - Init -
-    
+
     public init(quarks: UInt64, currencyCode: CurrencyCode, decimals: Int) {
         self.quarks = quarks
         self.currencyCode = currencyCode
         self.decimals = decimals
     }
-    
+
     public init(fiatDecimal: Decimal, currencyCode: CurrencyCode, decimals: Int) throws {
         guard fiatDecimal >= 0 else {
             throw Error.invalidNegativeValue
         }
-        
+
         self.init(
             quarks: fiatDecimal.scaleUpInt(decimals),
             currencyCode: currencyCode,
             decimals: decimals
         )
     }
-    
-    public init(fiatInt: Int, currencyCode: CurrencyCode, decimals: Int) throws {
-        guard fiatInt >= 0 else {
-            throw Error.invalidNegativeValue
-        }
-        
-        self.init(
-            fiatUnsigned: UInt64(fiatInt),
-            currencyCode: currencyCode,
-            decimals: decimals
-        )
-    }
-    
+
     public init(fiatUnsigned: UInt64, currencyCode: CurrencyCode, decimals: Int) {
         self.init(
             quarks: fiatUnsigned.scaleDownInt(decimals),
@@ -61,19 +49,7 @@ public struct Quarks: Equatable, Hashable, Codable, Sendable {
             decimals: decimals
         )
     }
-    
-    public init(quarks: Int64, currencyCode: CurrencyCode, decimals: Int) throws {
-        guard quarks >= 0 else {
-            throw Error.invalidNegativeValue
-        }
-        
-        self.init(
-            quarks: UInt64(quarks),
-            currencyCode: currencyCode,
-            decimals: decimals
-        )
-    }
-    
+
     public static func zero(currencyCode: CurrencyCode, decimals: Int) -> Quarks {
         Quarks(
             quarks: 0 as UInt64,
@@ -81,82 +57,26 @@ public struct Quarks: Equatable, Hashable, Codable, Sendable {
             decimals: decimals
         )
     }
-    
+
     // MARK: - Operations -
-    
-    public func adding(_ value: Quarks) throws -> Quarks {
-        guard value.currencyCode == currencyCode else {
-            throw Error.currencyCodeMismatch
-        }
-        
-        guard value.decimals == decimals else {
-            throw Error.decimalMismatch
-        }
-        
-        return .init(
-            quarks: quarks + value.quarks,
-            currencyCode: currencyCode,
-            decimals: decimals
-        )
-    }
-    
+
     public func subtracting(_ value: Quarks) throws -> Quarks {
         guard value.currencyCode == currencyCode else {
             throw Error.currencyCodeMismatch
         }
-        
+
         guard value.decimals == decimals else {
             throw Error.decimalMismatch
         }
-        
+
         guard quarks >= value.quarks else {
             throw Error.invalidNegativeValue
         }
-        
+
         return Quarks(
             quarks: quarks - value.quarks,
             currencyCode: currencyCode,
             decimals: decimals
-        )
-    }
-        
-    /// Returns a copy of this Fiat scaled to `targetDecimals`.
-    /// If `targetDecimals` is greater than `decimals`, quarks are scaled up.
-    /// If smaller, quarks are scaled down. Currency code is preserved.
-    private func scaled(to targetDecimals: Int) -> Quarks {
-        if targetDecimals == decimals {
-            return self
-        } else if targetDecimals > decimals {
-            let diff = targetDecimals - decimals
-            return Quarks(
-                quarks: quarks.scaleUp(diff),
-                currencyCode: currencyCode,
-                decimals: targetDecimals
-            )
-        } else {
-            let diff = decimals - targetDecimals
-            return Quarks(
-                quarks: quarks.scaleDownInt(diff),
-                currencyCode: currencyCode,
-                decimals: targetDecimals
-            )
-        }
-    }
-
-    /// Aligns `self` and `other` to a common decimal precision (the maximum of the two).
-    /// - Returns: `(lhs, rhs, targetDecimals)` where both amounts are scaled to `targetDecimals`.
-    /// - Throws: `Error.currencyCodeMismatch` if the currency codes differ.
-    private func align(with other: Quarks) throws -> (lhs: Quarks, rhs: Quarks, decimals: Int) {
-        guard other.currencyCode == currencyCode else {
-            throw Error.currencyCodeMismatch
-        }
-        
-        let target = max(self.decimals, other.decimals)
-        
-        return (
-            self.scaled(to: target),
-            other.scaled(to: target),
-            target
         )
     }
 }
@@ -174,19 +94,14 @@ extension Quarks {
 // MARK: - Display Threshold -
 
 extension Quarks {
-    /// The smallest quark count that produces a non-zero formatted string for this currency.
-    /// For example: USD (2 fraction digits, 6 decimals) → 10,000 quarks ($0.01).
-    public var minimumDisplayableQuarks: UInt64 {
-        UInt64(pow(10.0, Double(decimals - currencyCode.maximumFractionDigits)))
-    }
-
-    /// Whether this value would display as non-zero when formatted.
+    /// Whether this value would format as non-zero in `currencyCode`.
     public var hasDisplayableValue: Bool {
-        quarks >= minimumDisplayableQuarks
+        // Smallest quark count the currency can render (e.g. USD 6-decimal → 10_000).
+        let minimum = UInt64(pow(10.0, Double(decimals - currencyCode.maximumFractionDigits)))
+        return quarks >= minimum
     }
 
-    /// Whether this value is non-zero but too small to display
-    /// (i.e. it would format as the currency's zero).
+    /// Non-zero but too small to display (would format as the currency's zero).
     public var isApproximatelyZero: Bool {
         quarks > 0 && !hasDisplayableValue
     }
@@ -212,35 +127,9 @@ extension Quarks: CustomStringConvertible, CustomDebugStringConvertible {
     public var description: String {
         formatted(suffix: nil)
     }
-    
+
     public var debugDescription: String {
         description
-    }
-}
-
-// MARK: - Fiat -
-
-extension Quarks {
-    public func converting(to rate: Rate, decimals: Int) -> Quarks {
-        try! Quarks(
-            fiatDecimal: Decimal(quarks).scaleDown(decimals) * rate.fx,
-            currencyCode: rate.currency,
-            decimals: decimals
-        )
-    }
-}
-
-// MARK: - ExpressibleByIntegerLiteral -
-
-extension Quarks: ExpressibleByIntegerLiteral {
-    public init(integerLiteral value: UInt64) {
-        self.init(fiatUnsigned: value, currencyCode: .usd, decimals: 6)
-    }
-}
-
-extension Quarks: ExpressibleByFloatLiteral {
-    public init(floatLiteral value: FloatLiteralType) {
-        try! self.init(fiatDecimal: Decimal(value), currencyCode: .usd, decimals: 6)
     }
 }
 
@@ -253,9 +142,8 @@ extension Quarks: Comparable {
             return false
         }
 
-        // Compare using Decimal to avoid UInt64 overflow when scaling
-        // quarks up to a common precision (e.g. high-rate currencies
-        // like CLP, VND, IRR can overflow UInt64 during scaleUp).
+        // Compare via decimalValue to avoid UInt64 overflow when scaling quarks
+        // up to a common precision (high-rate currencies like CLP, VND, IRR).
         return lhs.decimalValue < rhs.decimalValue
     }
 }

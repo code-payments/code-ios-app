@@ -37,18 +37,9 @@ class CurrencySellViewModel: Identifiable {
             return false
         }
 
-        let maxAsQuarks = (try? Quarks(
-            fiatDecimal: maxPossibleAmount.nativeAmount.value,
-            currencyCode: maxPossibleAmount.nativeAmount.currency,
-            decimals: maxPossibleAmount.nativeAmount.currency.maximumFractionDigits
-        )) ?? Quarks.zero(
-            currencyCode: maxPossibleAmount.nativeAmount.currency,
-            decimals: maxPossibleAmount.nativeAmount.currency.maximumFractionDigits
-        )
-
         return EnterAmountCalculator.isWithinDisplayLimit(
             enteredAmount: enteredAmount,
-            max: maxAsQuarks
+            max: maxPossibleAmount.nativeAmount.asQuarks
         )
     }
 

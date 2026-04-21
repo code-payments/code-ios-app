@@ -58,18 +58,9 @@ class CurrencyBuyViewModel: Identifiable {
             return false
         }
 
-        let maxAsQuarks = (try? Quarks(
-            fiatDecimal: maxPossibleAmount.nativeAmount.value,
-            currencyCode: maxPossibleAmount.nativeAmount.currency,
-            decimals: maxPossibleAmount.nativeAmount.currency.maximumFractionDigits
-        )) ?? Quarks.zero(
-            currencyCode: maxPossibleAmount.nativeAmount.currency,
-            decimals: maxPossibleAmount.nativeAmount.currency.maximumFractionDigits
-        )
-
         return EnterAmountCalculator.isWithinDisplayLimit(
             enteredAmount: enteredAmount,
-            max: maxAsQuarks
+            max: maxPossibleAmount.nativeAmount.asQuarks
         )
     }
 
@@ -152,7 +143,7 @@ class CurrencyBuyViewModel: Identifiable {
                     metadata: [
                         "mint": destination.base58,
                         "amount": buyAmount.nativeAmount.formatted(),
-                        "quarks": "\(buyAmount.usdfValue.value)",
+                        "usdf": "\(buyAmount.usdfValue.value)",
                     ]
                 )
                 await MainActor.run {

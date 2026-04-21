@@ -52,21 +52,16 @@ class CurrencyInfoViewModel {
     /// hasn't loaded or the user holds no balance for this mint.
     var balance: Quarks {
         let rate = ratesController.rateForBalanceCurrency()
-        let zero = Quarks.zero(currencyCode: rate.currency, decimals: PublicKey.usdf.mintDecimals)
+        let zero = FiatAmount.zero(in: rate.currency).asQuarks
 
         guard let mintMetadata else { return zero }
         guard let stored = session.balance(for: mintMetadata.mint) else { return zero }
 
-        let exchanged = ExchangedFiat.compute(
+        return ExchangedFiat.compute(
             onChainAmount: TokenAmount(quarks: stored.usdf.quarks, mint: .usdf),
             rate: rate,
             supplyQuarks: nil
-        )
-        return (try? Quarks(
-            fiatDecimal: exchanged.nativeAmount.value,
-            currencyCode: exchanged.nativeAmount.currency,
-            decimals: exchanged.nativeAmount.currency.maximumFractionDigits
-        )) ?? zero
+        ).nativeAmount.asQuarks
     }
 
     /// The user's USDF reserve balance converted to the display currency.
@@ -88,48 +83,38 @@ class CurrencyInfoViewModel {
     /// metadata or balance is unavailable.
     var appreciation: (amount: Quarks, isPositive: Bool) {
         let rate = ratesController.rateForBalanceCurrency()
-        let zero = Quarks.zero(currencyCode: rate.currency, decimals: PublicKey.usdf.mintDecimals)
+        let zero = FiatAmount.zero(in: rate.currency).asQuarks
 
         guard let mintMetadata, let balance = session.balance(for: mintMetadata.mint) else {
             return (zero, true)
         }
         let (appreciationValue, isPositive) = balance.computeAppreciation(with: rate)
-        let appreciationAsQuarks = (try? Quarks(
-            fiatDecimal: appreciationValue.nativeAmount.value,
-            currencyCode: appreciationValue.nativeAmount.currency,
-            decimals: appreciationValue.nativeAmount.currency.maximumFractionDigits
-        )) ?? zero
-        return (appreciationAsQuarks, isPositive)
+        return (appreciationValue.nativeAmount.asQuarks, isPositive)
     }
 
     /// The market capitalisation of this currency (supply × spot price on the
     /// bonding curve), converted to the user's display currency. Returns zero
     /// when metadata is missing or the supply exceeds the curve's max.
     var marketCap: Quarks {
-        guard let mintMetadata else { return 0 }
+        let rate = ratesController.rateForBalanceCurrency()
+        let zero = FiatAmount.zero(in: rate.currency).asQuarks
+
+        guard let mintMetadata else { return zero }
 
         let supply = Int(mintMetadata.supplyFromBonding ?? 0)
 
         let curve = DiscreteBondingCurve()
         guard let mCap = curve.marketCap(for: supply) else {
-            return 0
+            return zero
         }
 
-        // `mCap` is a USD decimal. Build a USDF TokenAmount so the on-chain
-        // and USDF sides agree at 6 decimals; using `mintMetadata.mint.mintDecimals`
-        // here would scale a USDF value at the bonded mint's 10 decimals and
-        // overshoot by 10⁴.
-        let exchanged = ExchangedFiat.compute(
+        // `mCap` is a USD decimal. The USDF mint has 6 decimals; using the
+        // bonded mint's 10 decimals here would overshoot by 10⁴.
+        return ExchangedFiat.compute(
             onChainAmount: TokenAmount(wholeTokens: mCap, mint: .usdf),
-            rate: ratesController.rateForBalanceCurrency(),
+            rate: rate,
             supplyQuarks: nil
-        )
-
-        return (try? Quarks(
-            fiatDecimal: exchanged.nativeAmount.value,
-            currencyCode: exchanged.nativeAmount.currency,
-            decimals: exchanged.nativeAmount.currency.maximumFractionDigits
-        )) ?? 0
+        ).nativeAmount.asQuarks
     }
 
     // MARK: - Init -

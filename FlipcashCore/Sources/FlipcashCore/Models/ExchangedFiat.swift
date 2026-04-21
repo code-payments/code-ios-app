@@ -52,12 +52,6 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
         nativeAmount.convertingToUSD(rate: currencyRate)
     }
 
-    /// For bonded mints, USD price per whole token (display-only). `nil` for USDF or empty amounts.
-    public var tokenPriceInUSD: Foundation.Decimal? {
-        guard mint != .usdf, onChainAmount.decimalValue > 0 else { return nil }
-        return usdfValue.value / onChainAmount.decimalValue
-    }
-
     // MARK: - Init -
 
     public init(

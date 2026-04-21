@@ -865,14 +865,7 @@ class Session {
 
                 // Toast: user grabbed cash by scanning a bill (+amount)
                 enqueue(toast: .init(
-                    amount: (try? Quarks(
-                        fiatDecimal: metadata.exchangedFiat.nativeAmount.value,
-                        currencyCode: metadata.exchangedFiat.nativeAmount.currency,
-                        decimals: metadata.exchangedFiat.nativeAmount.currency.maximumFractionDigits
-                    )) ?? Quarks.zero(
-                        currencyCode: metadata.exchangedFiat.nativeAmount.currency,
-                        decimals: metadata.exchangedFiat.nativeAmount.currency.maximumFractionDigits
-                    ),
+                    amount: metadata.exchangedFiat.nativeAmount.asQuarks,
                     isDeposit: true
                 ))
 
@@ -1050,14 +1043,7 @@ class Session {
             case .success:
                 // Toast: someone grabbed the user's bill (-amount)
                 self?.enqueue(toast: .init(
-                    amount: (try? Quarks(
-                        fiatDecimal: billDescription.exchangedFiat.nativeAmount.value,
-                        currencyCode: billDescription.exchangedFiat.nativeAmount.currency,
-                        decimals: billDescription.exchangedFiat.nativeAmount.currency.maximumFractionDigits
-                    )) ?? Quarks.zero(
-                        currencyCode: billDescription.exchangedFiat.nativeAmount.currency,
-                        decimals: billDescription.exchangedFiat.nativeAmount.currency.maximumFractionDigits
-                    ),
+                    amount: billDescription.exchangedFiat.nativeAmount.asQuarks,
                     isDeposit: false
                 ))
                 
@@ -1132,14 +1118,7 @@ class Session {
 
                     // Toast: user confirmed sending a cash link (-amount)
                     self.enqueue(toast: .init(
-                        amount: (try? Quarks(
-                            fiatDecimal: exchangedFiat.nativeAmount.value,
-                            currencyCode: exchangedFiat.nativeAmount.currency,
-                            decimals: exchangedFiat.nativeAmount.currency.maximumFractionDigits
-                        )) ?? Quarks.zero(
-                            currencyCode: exchangedFiat.nativeAmount.currency,
-                            decimals: exchangedFiat.nativeAmount.currency.maximumFractionDigits
-                        ),
+                        amount: exchangedFiat.nativeAmount.asQuarks,
                         isDeposit: false
                     ))
                     
@@ -1405,14 +1384,7 @@ class Session {
 
                 // Toast: user redeemed a cash link (+amount)
                 enqueue(toast: .init(
-                    amount: (try? Quarks(
-                        fiatDecimal: exchangedFiat.nativeAmount.value,
-                        currencyCode: exchangedFiat.nativeAmount.currency,
-                        decimals: exchangedFiat.nativeAmount.currency.maximumFractionDigits
-                    )) ?? Quarks.zero(
-                        currencyCode: exchangedFiat.nativeAmount.currency,
-                        decimals: exchangedFiat.nativeAmount.currency.maximumFractionDigits
-                    ),
+                    amount: exchangedFiat.nativeAmount.asQuarks,
                     isDeposit: true
                 ))
 

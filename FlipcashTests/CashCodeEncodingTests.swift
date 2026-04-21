@@ -16,7 +16,7 @@ struct CashCodeEncodingTests {
     private static let data = Data([0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x10])
     
     @Test static func roundTrip() throws {
-        let payload = CashCode.Payload(kind: .cash, fiat: 5, nonce: data)
+        let payload = CashCode.Payload(kind: .cash, fiat: Quarks(fiatUnsigned: 5, currencyCode: .usd, decimals: 6), nonce: data)
         let encoded = payload.encode()
         
         let decoded = try CashCode.Payload(data: encoded)

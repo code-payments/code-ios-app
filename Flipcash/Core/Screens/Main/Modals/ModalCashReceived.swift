@@ -73,7 +73,7 @@ public struct ModalCashReceived: View {
     Background(color: .white) {
         ModalCashReceived(
             title: "Received",
-            fiat: 5,
+            fiat: Quarks(fiatUnsigned: 5, currencyCode: .usd, decimals: 6),
             currencyName: "Jeffy",
             currencyImageURL: nil,
             actionTitle: "Cancel",
