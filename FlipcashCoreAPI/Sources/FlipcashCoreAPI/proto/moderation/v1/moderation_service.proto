@@ -31,8 +31,9 @@ message ModerateTextRequest {
 message ModerateTextResponse {
     Result result = 1;
     enum Result {
-        OK     = 0;
-        DENIED = 1;
+        OK                   = 0;
+        DENIED               = 1;
+        UNSUPPORTED_LANGUAGE = 2;
     }
 
     // Whether the text content is allowed

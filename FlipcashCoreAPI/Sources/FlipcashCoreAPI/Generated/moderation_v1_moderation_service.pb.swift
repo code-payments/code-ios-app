@@ -126,6 +126,7 @@ public struct Flipcash_Moderation_V1_ModerateTextResponse: Sendable {
     public typealias RawValue = Int
     case ok // = 0
     case denied // = 1
+    case unsupportedLanguage // = 2
     case UNRECOGNIZED(Int)
 
     public init() {
@@ -136,6 +137,7 @@ public struct Flipcash_Moderation_V1_ModerateTextResponse: Sendable {
       switch rawValue {
       case 0: self = .ok
       case 1: self = .denied
+      case 2: self = .unsupportedLanguage
       default: self = .UNRECOGNIZED(rawValue)
       }
     }
@@ -144,6 +146,7 @@ public struct Flipcash_Moderation_V1_ModerateTextResponse: Sendable {
       switch self {
       case .ok: return 0
       case .denied: return 1
+      case .unsupportedLanguage: return 2
       case .UNRECOGNIZED(let i): return i
       }
     }
@@ -152,6 +155,7 @@ public struct Flipcash_Moderation_V1_ModerateTextResponse: Sendable {
     public static let allCases: [Flipcash_Moderation_V1_ModerateTextResponse.Result] = [
       .ok,
       .denied,
+      .unsupportedLanguage,
     ]
 
   }
@@ -410,7 +414,7 @@ extension Flipcash_Moderation_V1_ModerateTextResponse: SwiftProtobuf.Message, Sw
 }
 
 extension Flipcash_Moderation_V1_ModerateTextResponse.Result: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0OK\0\u{1}DENIED\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0OK\0\u{1}DENIED\0\u{1}UNSUPPORTED_LANGUAGE\0")
 }
 
 extension Flipcash_Moderation_V1_ModerateImageRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {

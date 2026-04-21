@@ -907,7 +907,7 @@ public struct Ocp_Transaction_V1_StatefulSwapRequest: Sendable {
       public mutating func clearToMint() {self._toMint = nil}
 
       /// The amount to swap from the source mint in quarks.
-      public var amount: UInt64 = 0
+      public var swapAmount: UInt64 = 0
 
       /// Where "amount" of "from_mint" will be sent from to the VM swap PDA
       public var fundingSource: Ocp_Transaction_V1_FundingSource = .unknown
@@ -917,6 +917,9 @@ public struct Ocp_Transaction_V1_StatefulSwapRequest: Sendable {
       /// For FUNDING_SOURCE_SUBMIT_INTENT, this value is the base58 encoded intent ID.
       /// For FUNDING_SOURCE_EXTERNAL_WALLET, this value is the base58 encoded transaction signature.
       public var fundingID: String = String()
+
+      /// The fee amount to pay for this swap
+      public var feeAmount: UInt64 = 0
 
       public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1155,7 +1158,7 @@ public struct Ocp_Transaction_V1_StatefulSwapResponse: Sendable {
     ///  7. VM::InitializeVm
     ///  8. AssociatedTokenAccount::CreateIdempotent (open owner's Core Mint ATA)
     ///  9. AssociatedTokenAccount::CreateIdempotent (open owner's to_mint VM Deposit ATA)
-    /// 10. VM::TransferForSwap (Core Mint VM swap ATA -> owner's Core Mint ATA)
+    /// 10. VM::TransferForSwapWithFee (Core Mint VM swap ATA -> owner's Core Mint ATA (swap amount) and fee destination (fee amount))
     /// 11. Reserve::BuyTokens (limited buy transferring to_mint tokens into the to_mint VM Deposit ATA)
     /// 12. Token::CloseAccount (closes owner's Core Mint ATA)
     ///
@@ -1243,6 +1246,16 @@ public struct Ocp_Transaction_V1_StatefulSwapResponse: Sendable {
       /// The VM lock duration
       public var vmLockDurationInDays: UInt32 = 0
 
+      /// Destination account where fee should be paid
+      public var feeDestination: Ocp_Common_V1_SolanaAccountId {
+        get {_feeDestination ?? Ocp_Common_V1_SolanaAccountId()}
+        set {_feeDestination = newValue}
+      }
+      /// Returns true if `feeDestination` has been explicitly set.
+      public var hasFeeDestination: Bool {self._feeDestination != nil}
+      /// Clears the value of `feeDestination`. Subsequent reads from it will return its default value.
+      public mutating func clearFeeDestination() {self._feeDestination = nil}
+
       public var unknownFields = SwiftProtobuf.UnknownStorage()
 
       public init() {}
@@ -1252,6 +1265,7 @@ public struct Ocp_Transaction_V1_StatefulSwapResponse: Sendable {
       fileprivate var _blockhash: Ocp_Common_V1_Blockhash? = nil
       fileprivate var _authority: Ocp_Common_V1_SolanaAccountId? = nil
       fileprivate var _seed: Ocp_Common_V1_SolanaAccountId? = nil
+      fileprivate var _feeDestination: Ocp_Common_V1_SolanaAccountId? = nil
     }
 
     public init() {}
@@ -3714,7 +3728,7 @@ extension Ocp_Transaction_V1_StatefulSwapRequest.Initiate: SwiftProtobuf.Message
 
 extension Ocp_Transaction_V1_StatefulSwapRequest.Initiate.ReserveSwapClientParameters: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = Ocp_Transaction_V1_StatefulSwapRequest.Initiate.protoMessageName + ".ReserveSwapClientParameters"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}from_mint\0\u{3}to_mint\0\u{1}amount\0\u{3}funding_source\0\u{3}funding_id\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}from_mint\0\u{3}to_mint\0\u{3}swap_amount\0\u{3}funding_source\0\u{3}funding_id\0\u{3}fee_amount\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -3725,9 +3739,10 @@ extension Ocp_Transaction_V1_StatefulSwapRequest.Initiate.ReserveSwapClientParam
       case 1: try { try decoder.decodeSingularMessageField(value: &self._id) }()
       case 2: try { try decoder.decodeSingularMessageField(value: &self._fromMint) }()
       case 3: try { try decoder.decodeSingularMessageField(value: &self._toMint) }()
-      case 4: try { try decoder.decodeSingularUInt64Field(value: &self.amount) }()
+      case 4: try { try decoder.decodeSingularUInt64Field(value: &self.swapAmount) }()
       case 5: try { try decoder.decodeSingularEnumField(value: &self.fundingSource) }()
       case 6: try { try decoder.decodeSingularStringField(value: &self.fundingID) }()
+      case 7: try { try decoder.decodeSingularUInt64Field(value: &self.feeAmount) }()
       default: break
       }
     }
@@ -3747,14 +3762,17 @@ extension Ocp_Transaction_V1_StatefulSwapRequest.Initiate.ReserveSwapClientParam
     try { if let v = self._toMint {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
     } }()
-    if self.amount != 0 {
-      try visitor.visitSingularUInt64Field(value: self.amount, fieldNumber: 4)
+    if self.swapAmount != 0 {
+      try visitor.visitSingularUInt64Field(value: self.swapAmount, fieldNumber: 4)
     }
     if self.fundingSource != .unknown {
       try visitor.visitSingularEnumField(value: self.fundingSource, fieldNumber: 5)
     }
     if !self.fundingID.isEmpty {
       try visitor.visitSingularStringField(value: self.fundingID, fieldNumber: 6)
+    }
+    if self.feeAmount != 0 {
+      try visitor.visitSingularUInt64Field(value: self.feeAmount, fieldNumber: 7)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -3763,9 +3781,10 @@ extension Ocp_Transaction_V1_StatefulSwapRequest.Initiate.ReserveSwapClientParam
     if lhs._id != rhs._id {return false}
     if lhs._fromMint != rhs._fromMint {return false}
     if lhs._toMint != rhs._toMint {return false}
-    if lhs.amount != rhs.amount {return false}
+    if lhs.swapAmount != rhs.swapAmount {return false}
     if lhs.fundingSource != rhs.fundingSource {return false}
     if lhs.fundingID != rhs.fundingID {return false}
+    if lhs.feeAmount != rhs.feeAmount {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -4028,7 +4047,7 @@ extension Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveExisti
 
 extension Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveNewCurrencyServerParameter: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.protoMessageName + ".ReserveNewCurrencyServerParameter"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}payer\0\u{1}nonce\0\u{1}blockhash\0\u{1}alts\0\u{3}compute_unit_limit\0\u{3}compute_unit_price\0\u{3}memo_value\0\u{1}authority\0\u{1}name\0\u{1}symbol\0\u{1}seed\0\u{3}sell_fee_bps\0\u{3}vm_lock_duration_in_days\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}payer\0\u{1}nonce\0\u{1}blockhash\0\u{1}alts\0\u{3}compute_unit_limit\0\u{3}compute_unit_price\0\u{3}memo_value\0\u{1}authority\0\u{1}name\0\u{1}symbol\0\u{1}seed\0\u{3}sell_fee_bps\0\u{3}vm_lock_duration_in_days\0\u{3}fee_destination\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -4049,6 +4068,7 @@ extension Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveNewCur
       case 11: try { try decoder.decodeSingularMessageField(value: &self._seed) }()
       case 12: try { try decoder.decodeSingularUInt32Field(value: &self.sellFeeBps) }()
       case 13: try { try decoder.decodeSingularUInt32Field(value: &self.vmLockDurationInDays) }()
+      case 14: try { try decoder.decodeSingularMessageField(value: &self._feeDestination) }()
       default: break
       }
     }
@@ -4098,6 +4118,9 @@ extension Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveNewCur
     if self.vmLockDurationInDays != 0 {
       try visitor.visitSingularUInt32Field(value: self.vmLockDurationInDays, fieldNumber: 13)
     }
+    try { if let v = self._feeDestination {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 14)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -4115,6 +4138,7 @@ extension Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveNewCur
     if lhs._seed != rhs._seed {return false}
     if lhs.sellFeeBps != rhs.sellFeeBps {return false}
     if lhs.vmLockDurationInDays != rhs.vmLockDurationInDays {return false}
+    if lhs._feeDestination != rhs._feeDestination {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
