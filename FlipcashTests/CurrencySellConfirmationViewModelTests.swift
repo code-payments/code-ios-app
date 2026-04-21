@@ -129,6 +129,59 @@ struct CurrencySellConfirmationViewModelTests {
         #expect(fee.mint == amount.mint)
     }
 
+    @Test
+    func testFee_BondedMint_ScalesNativeProportionally() {
+        // Given: A bonded-mint amount of 5 whole Jeffy at $13.50 CAD native.
+        // Construct directly to bypass the curve (which would need supply).
+        let amount = ExchangedFiat(
+            onChainAmount: TokenAmount(quarks: 50_000_000_000, mint: .jeffy), // 5 Jeffy at 10 decimals
+            nativeAmount: FiatAmount(value: Decimal(string: "13.50")!, currency: .cad),
+            currencyRate: Self.testRate
+        )
+        let viewModel = Self.createViewModel(mint: .jeffy, amount: amount)
+
+        // When: Getting fee
+        let fee = viewModel.fee
+
+        // Then: On-chain side: 50_000_000_000 * 100 / 10_000 = 500_000_000 Jeffy quarks
+        #expect(fee.onChainAmount.quarks == 500_000_000)
+        #expect(fee.onChainAmount.mint == .jeffy)
+        // Native side: scaled by the exact on-chain ratio (500M / 50B = 0.01).
+        // 13.50 CAD * 0.01 = 0.135 CAD
+        #expect(fee.nativeAmount.value == Decimal(string: "0.135")!)
+        #expect(fee.nativeAmount.currency == .cad)
+    }
+
+    @Test
+    func testFeeFormatted_ZeroOnChainFee_DropsTildePrefix() {
+        // Given: Amount small enough that 1% on-chain rounds to 0 quarks.
+        // The fee is literally zero — display should be $0.00, NOT ~$0.00.
+        let amount = Self.createExchangedFiat(onChainQuarks: 50)
+        let viewModel = Self.createViewModel(amount: amount)
+
+        // When: Formatting the fee
+        let formatted = viewModel.feeFormatted
+
+        // Then: No tilde — fee is exactly zero, not approximately zero.
+        #expect(!formatted.contains("~"))
+    }
+
+    @Test
+    func testFeeFormatted_NonZeroButSubCentFee_KeepsTildePrefix() {
+        // Given: On-chain fee is 1+ quarks (non-zero) but converts to a
+        // sub-cent native amount (e.g. 100 USDF quarks → 1 quark fee → tiny CAD).
+        // This is the "~$0.00" display case — the fee *exists*, just below
+        // the currency's display precision.
+        let amount = Self.createExchangedFiat(onChainQuarks: 100)
+        let viewModel = Self.createViewModel(amount: amount)
+
+        // When: Formatting the fee
+        let formatted = viewModel.feeFormatted
+
+        // Then: Tilde present — non-zero but approximately zero.
+        #expect(formatted.contains("~"))
+    }
+
     // MARK: - Amount After Fee Tests -
 
     @Test
