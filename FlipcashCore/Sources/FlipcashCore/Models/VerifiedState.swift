@@ -44,6 +44,10 @@ extension VerifiedState {
         rateProto.exchangeRate.timestamp.date
     }
 
+    public var reserveTimestamp: Date? {
+        reserveProto?.reserveState.timestamp.date
+    }
+
     public var supplyFromBonding: UInt64? {
         reserveProto?.reserveState.supplyFromBonding
     }

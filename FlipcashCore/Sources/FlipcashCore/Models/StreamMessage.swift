@@ -13,13 +13,40 @@ public struct StreamMessage: Sendable {
         case paymentRequest(PaymentRequest)
         case requestToGiveBill(PublicKey, Ocp_Transaction_V1_VerifiedExchangeData?, MintMetadata?)
     }
-    
+
     public let id: ID
     public let kind: Kind
-    
+
     public init(id: ID, kind: Kind) {
         self.id = id
         self.kind = kind
+    }
+}
+
+/// Decoded contents of a `requestToGiveBill` stream message — the
+/// sender-side advertisement that a receiver scans for.
+public struct GiveRequest: Sendable {
+    public let mint: PublicKey
+    public let verifiedState: VerifiedState?
+    public let mintMetadata: MintMetadata?
+
+    public init(mint: PublicKey, verifiedState: VerifiedState?, mintMetadata: MintMetadata?) {
+        self.mint = mint
+        self.verifiedState = verifiedState
+        self.mintMetadata = mintMetadata
+    }
+}
+
+extension StreamMessage {
+    /// Extracts the decoded `GiveRequest` if this message is a give-bill
+    /// advertisement, otherwise `nil`.
+    public var giveRequest: GiveRequest? {
+        guard case .requestToGiveBill(let mint, _, _) = kind else { return nil }
+        return GiveRequest(
+            mint: mint,
+            verifiedState: giveVerifiedState,
+            mintMetadata: giveMintMetadata
+        )
     }
 }
 
