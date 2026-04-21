@@ -75,8 +75,8 @@ class CurrencySellConfirmationViewModel {
                     metadata: [
                         "mint": mint.base58,
                         "amount": amount.nativeAmount.formatted(),
-                        "fee": "\(fee.usdfValue.value)",
-                        "amountAfterFees": "\(amountAfterFee.nativeAmount.formatted())",
+                        "fee": fee.nativeAmount.formatted(),
+                        "amountAfterFees": amountAfterFee.nativeAmount.formatted(),
                         "quarks": "\(amount.onChainAmount.quarks)",
                     ]
                 )

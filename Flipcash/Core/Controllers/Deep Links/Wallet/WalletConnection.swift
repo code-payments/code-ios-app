@@ -524,10 +524,10 @@ public final class WalletConnection {
             throw Error.invalidURL
         }
 
-        Analytics.walletRequestAmount(amount: amount.usdfValue)
+        Analytics.walletRequestAmount(amount: amount.nativeAmount)
         openExternalWallet(url)
         logger.info("Requested USDC→USDF swap", metadata: [
-            "amount": "\(amount.usdfValue.formatted())",
+            "amount": "\(amount.nativeAmount.formatted())",
             "swapId": "\(fundingSwapId.publicKey.base58)",
             "name": "\(displayName)",
         ])

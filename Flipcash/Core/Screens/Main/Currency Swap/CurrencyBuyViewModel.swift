@@ -143,7 +143,6 @@ class CurrencyBuyViewModel: Identifiable {
                     metadata: [
                         "mint": destination.base58,
                         "amount": buyAmount.nativeAmount.formatted(),
-                        "usdf": "\(buyAmount.usdfValue.value)",
                     ]
                 )
                 await MainActor.run {

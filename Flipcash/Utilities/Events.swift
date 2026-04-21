@@ -124,7 +124,6 @@ extension Analytics {
         ]
 
         if let exchangedFiat {
-            properties[.usdc]     = exchangedFiat.usdfValue.doubleValue
             properties[.mint]     = exchangedFiat.mint.base58
             properties[.quarks]   = exchangedFiat.onChainAmount.quarks.analyticsValue
             properties[.fiat]     = exchangedFiat.nativeAmount.doubleValue
@@ -145,7 +144,6 @@ extension Analytics {
         ]
 
         if let exchangedFiat {
-            properties[.usdc]     = exchangedFiat.usdfValue.doubleValue
             properties[.mint]     = exchangedFiat.mint.base58
             properties[.quarks]   = exchangedFiat.onChainAmount.quarks.analyticsValue
             properties[.fiat]     = exchangedFiat.nativeAmount.doubleValue
@@ -170,7 +168,7 @@ extension Analytics {
         ]
 
         if let fiat {
-            properties[.usdc]     = fiat.doubleValue
+            properties[.fiat]     = fiat.doubleValue
             properties[.currency] = fiat.currency.rawValue
         }
 
@@ -316,7 +314,6 @@ extension Analytics {
 
         case state             = "State"
         case quarks            = "Quarks"
-        case usdc              = "USDC"
         case mint              = "Mint"
         case fiat              = "Fiat"
         case currency          = "Currency"
