@@ -11,405 +11,287 @@ import FlipcashCoreAPI
 import BigDecimal
 
 /**
- * Represents a monetary value bridge between an on-chain token amount and its localized
- * fiat representation.
+ * Represents a monetary value bridge between an on-chain token amount and its
+ * localized fiat representation.
  *
- * This maps the relationship between the blockchain reality (USD value for the core mint)
- * and the user's perception (Converted Fiat value or non-USDC token value).
+ * Mirrors the server's `ExchangeData` proto: `(mint, quarks, nativeAmount,
+ * currency, exchangeRate)`.
  *
- * @property underlying The raw amount of the core mint token (always denominated in USD for USDC).
- * @property converted The converted value of the specific token in the user's selected currency (e.g., EUR, GBP, CAD).
- * @property rate The exchange rate used to convert between the [underlying] and the [converted].
- * @property mint The Mint address of the token being represented.
+ * - `onChainAmount` carries the mint-native integer that goes into the Solana
+ *   SPL token transfer instruction and the `quarks` field of
+ *   `Ocp_Transaction_V1_ExchangeData`.
+ * - `nativeAmount` carries the user's fiat amount (e.g. CAD).
+ * - `currencyRate.fx` is native-per-USD; combined with `nativeAmount` it yields
+ *   the USD equivalent (see `usdfValue`).
  *
- * If the user wants to send, for example, $5 CAD of Jeffy, this will look like:
+ * Example — sending $5 CAD worth of Jeffy at a 1.4 CAD/USD rate:
  *
  * ```
- * underlying: (USD value amount for $5 CAD worth of Jeffy in USDC)
- * converted: (5 CAD in Jeffy)
- * rate: (fx determined by bonding curve for $5 CAD of Jeffy)
- * mint: (Mint address for Jeffy)
+ * onChainAmount: Jeffy quarks being moved on-chain
+ * nativeAmount:  5 CAD
+ * currencyRate:  Rate(fx: 1.4, currency: .cad)
+ * usdfValue:     ≈ $3.57 USD (computed: 5 / 1.4)
  * ```
  */
 public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
-    
-    public let underlying: Quarks
-    public let converted: Quarks
-    public let rate: Rate
-    public let mint: PublicKey
-    
-    public init(converted: Quarks, rate: Rate, mint: PublicKey) throws {
-        assert(converted.currencyCode == rate.currency, "Rate currency must match Fiat currency")
-        
-        let equivalentUSD = converted.decimalValue / rate.fx
-        
-        let underlying = try Quarks(
-            fiatDecimal: equivalentUSD,
-            currencyCode: .usd,
-            decimals: mint.mintDecimals
+
+    /// The on-chain amount. Goes into `proto.quarks` and the SPL transfer.
+    public let onChainAmount: TokenAmount
+
+    /// The user's fiat amount in `currencyRate.currency`.
+    public let nativeAmount: FiatAmount
+
+    /// Currency FX rate: native-per-USD. Always. No per-token variant.
+    public let currencyRate: Rate
+
+    /// The mint of the on-chain token. Shorthand for `onChainAmount.mint`.
+    public var mint: PublicKey { onChainAmount.mint }
+
+    /// USD-denominated equivalent, derived from `nativeAmount` and `currencyRate`.
+    public var usdfValue: FiatAmount {
+        nativeAmount.convertingToUSD(rate: currencyRate)
+    }
+
+    /// For bonded mints, USD price per whole token (display-only). `nil` for USDF or empty amounts.
+    public var tokenPriceInUSD: Foundation.Decimal? {
+        guard mint != .usdf, onChainAmount.decimalValue > 0 else { return nil }
+        return usdfValue.value / onChainAmount.decimalValue
+    }
+
+    // MARK: - Init -
+
+    public init(
+        onChainAmount: TokenAmount,
+        nativeAmount: FiatAmount,
+        currencyRate: Rate,
+    ) {
+        precondition(
+            nativeAmount.currency == currencyRate.currency,
+            "nativeAmount.currency must match currencyRate.currency",
         )
-        
+        self.onChainAmount = onChainAmount
+        self.nativeAmount = nativeAmount
+        self.currencyRate = currencyRate
+    }
+
+    /// Build from a user's native fiat amount for a USDF transfer.
+    /// For bonded mints, use `compute(fromEntered:rate:mint:supplyQuarks:)`.
+    public init(nativeAmount: FiatAmount, rate: Rate) {
+        precondition(nativeAmount.currency == rate.currency)
+        let usdfValue = nativeAmount.convertingToUSD(rate: rate)
         self.init(
-            underlying: underlying,
-            converted: converted,
-            rate: rate,
-            mint: mint
+            onChainAmount: TokenAmount(wholeTokens: usdfValue.value, mint: .usdf),
+            nativeAmount: nativeAmount,
+            currencyRate: rate,
         )
     }
-    
-    public init(underlying: Quarks, rate: Rate, mint: PublicKey) throws {
-        self.init(
-            underlying: underlying,
-            converted: try Quarks(
-                fiatDecimal: underlying.decimalValue * rate.fx,
-                currencyCode: rate.currency,
-                decimals: mint.mintDecimals
-            ),
-            rate: rate,
-            mint: mint
-        )
-    }
-    
-    public init(underlying: Quarks, converted: Quarks, mint: PublicKey) {
-        self.init(
-            underlying: underlying,
-            converted: converted,
-            rate: Rate(
-                fx: converted.decimalValue / underlying.decimalValue,
-                currency: converted.currencyCode
-            ),
-            mint: mint
-        )
-    }
-    
-    public init(underlying: Quarks, converted: Quarks, rate: Rate, mint: PublicKey) {
-        assert(underlying.currencyCode == .usd, "ExchangeFiat usdc must be in USD")
-        
-        self.underlying = underlying
-        self.converted = converted
-        self.rate = rate
-        self.mint = mint
-    }
-    
+
+    // MARK: - Factories -
+
     private static let bondingCurve = DiscreteBondingCurve()
-    nonisolated(unsafe) private static let rounding = Rounding(.toNearestOrEven, 36)
 
-    public static func computeFromQuarks(quarks: UInt64, mint: PublicKey, rate: Rate, supplyQuarks: UInt64?) -> ExchangedFiat {
-        // `quarks` are expected to be either USDF
-        // or custom currency quarks that we'll need
-        // to run through the bonding curve to get a
-        // valuation
+    /// Build an `ExchangedFiat` from an on-chain amount. For bonded mints the
+    /// USD-equivalent `nativeAmount` is resolved via the bonding curve using
+    /// `supplyQuarks`; passing a nil/zero supply produces a safe zero.
+    public static func compute(
+        onChainAmount: TokenAmount,
+        rate: Rate,
+        supplyQuarks: UInt64?,
+    ) -> ExchangedFiat {
+        let mint = onChainAmount.mint
 
-        let exchanged: ExchangedFiat
-
-        if mint != PublicKey.usdf {
-            // We can't pass 0 quarks into the sell function
-            // because we won't get an accurate rate. In the
-            // event that there's a 0 quark balance, we'll
-            // pass 1 quark just to get the fx rate.
-            let quarksToSell = quarks == 0 ? 1 : quarks
-
-            guard let valuation = bondingCurve.sell(
-                tokenQuarks: Int(quarksToSell),
-                feeBps: 0,
-                supplyQuarks: Int(supplyQuarks!)
-            ) else {
-                // Fallback to USDC if curve calculation fails
-                return try! ExchangedFiat(
-                    underlying: Quarks(
-                        quarks: quarks,
-                        currencyCode: .usd,
-                        decimals: mint.mintDecimals
-                    ),
-                    rate: rate,
-                    mint: mint
-                )
-            }
-
-            let decimalQuarks = BigDecimal(Int(quarksToSell))
-            let fiatRate = BigDecimal(rate.fx)
-            let fx = valuation.netUSDF
-                // Division need to divide by tokens, not quarks
-                .divide(decimalQuarks.scaleDown(mint.mintDecimals), Self.rounding)
-                // Premultiply the fiat rate (ie. CAD, etc)
-                .multiply(fiatRate, Self.rounding)
-
-            exchanged = try! ExchangedFiat(
-                underlying: Quarks(
-                    quarks: quarks,
-                    currencyCode: .usd, // USDF value
-                    decimals: mint.mintDecimals
-                ),
-                rate: .init(
-                    fx: fx.asDecimal(),
-                    currency: rate.currency
-                ),
-                mint: mint
-            )
-
-        } else {
-            exchanged = try! ExchangedFiat(
-                underlying: Quarks(
-                    quarks: quarks,
-                    currencyCode: .usd,
-                    decimals: PublicKey.usdf.mintDecimals
-                ),
-                rate: rate,
-                mint: mint
+        if mint == .usdf {
+            let usdfValue = FiatAmount.usd(onChainAmount.decimalValue)
+            return ExchangedFiat(
+                onChainAmount: onChainAmount,
+                nativeAmount: usdfValue.converting(to: rate),
+                currencyRate: rate,
             )
         }
 
-        return exchanged
+        // Bonded: resolve USD equivalent via curve sell.
+        guard let supplyQuarks, supplyQuarks > 0 else {
+            return safeZero(mint: mint, rate: rate)
+        }
+        let quarksToSell = onChainAmount.quarks == 0 ? 1 : onChainAmount.quarks
+        guard let valuation = bondingCurve.sell(
+            tokenQuarks: Int(quarksToSell),
+            feeBps: 0,
+            supplyQuarks: Int(supplyQuarks),
+        ) else {
+            return safeZero(mint: mint, rate: rate)
+        }
+
+        let usdDecimal = onChainAmount.quarks == 0 ? .zero : valuation.netUSDF.asDecimal()
+        let nativeAmount = FiatAmount.usd(usdDecimal).converting(to: rate)
+
+        return ExchangedFiat(
+            onChainAmount: onChainAmount,
+            nativeAmount: nativeAmount,
+            currencyRate: rate,
+        )
     }
-    
-    /// Computes a token valuation from a user-entered fiat amount.
+
+    /// Build an `ExchangedFiat` from a user-entered fiat amount.
     ///
     /// - Parameters:
     ///   - amount: User-entered fiat amount (in `rate.currency`).
     ///   - rate: Fiat FX rate for the entry currency.
     ///   - mint: Target token mint.
     ///   - supplyQuarks: Current token supply in quarks (10 decimals).
-    ///   - balance: Optional USDF-equivalent balance (6 decimals). When provided, the
-    ///     entered amount is **silently capped** to this balance. Use this in flows
-    ///     like Buy/Sell where FX rounding can cause the entered fiat to slightly
+    ///   - balance: Optional USDF-equivalent balance cap. When provided the entered
+    ///     amount is **silently capped** to this USD value. Use this for flows
+    ///     (Buy/Sell) where FX rounding can cause the entered fiat to slightly
     ///     exceed the displayed balance. Do **not** pass a balance when the flow
     ///     should surface an insufficient-funds error instead of capping.
-    ///   - tokenBalanceQuarks: Optional token balance in quarks (mint decimals). Use this
-    ///     when the final computed token amount must never exceed the on-chain token
-    ///     balance (ex: sell flow where bonding-curve math/rounding can slightly exceed
-    ///     the available token balance).
-    ///
-    /// If both `balance` and `tokenBalanceQuarks` are provided, both caps are enforced:
-    /// the fiat amount is capped first, and the resulting token amount is capped second.
-    public static func computeFromEntered(
-        amount: Foundation.Decimal,
+    ///   - tokenBalanceQuarks: Optional on-chain token balance cap (mint decimals).
+    ///     Use this when the final token amount must never exceed the on-chain
+    ///     balance (ex: sell flow where bonding-curve math can slightly overshoot).
+    public static func compute(
+        fromEntered amount: FiatAmount,
         rate: Rate,
         mint: PublicKey,
         supplyQuarks: UInt64,
-        balance: Quarks? = nil,
-        tokenBalanceQuarks: UInt64? = nil
+        balance: FiatAmount? = nil,
+        tokenBalanceQuarks: UInt64? = nil,
     ) -> ExchangedFiat? {
-        guard amount > 0 else {
-            return nil
-        }
+        guard amount.isPositive else { return nil }
+        precondition(amount.currency == rate.currency)
+        if let balance { precondition(balance.currency == .usd) }
 
-        if let balance {
-            guard balance.currencyCode == .usd else {
-                return nil
-            }
-            guard balance.decimals == PublicKey.usdf.mintDecimals else {
-                return nil
-            }
-        }
+        // Cap the entered amount to the USDF balance if provided.
+        let usdRequested = amount.convertingToUSD(rate: rate)
+        let cappedUSD: FiatAmount = {
+            guard let balance else { return usdRequested }
+            return usdRequested.value > balance.value ? balance : usdRequested
+        }()
 
-        let cappedAmount: Foundation.Decimal
-        if let balance, rate.fx > 0 {
-            let usdAmount = amount / rate.fx
-            if usdAmount > balance.decimalValue {
-                cappedAmount = balance.decimalValue * rate.fx
-            } else {
-                cappedAmount = amount
-            }
-        } else {
-            cappedAmount = amount
-        }
-
-        let valuation: DiscreteBondingCurve.Valuation
-        let decimals = mint.mintDecimals
-
-        if mint != PublicKey.usdf {
-            guard let computed = bondingCurve.tokensForValueExchange(
-                fiat: BigDecimal(cappedAmount),
-                fiatRate: BigDecimal(rate.fx),
-                supplyQuarks: Int(supplyQuarks)
-            ) else {
-                return nil
-            }
-            valuation = computed
-        } else {
-            valuation = .init(
-                tokens: BigDecimal(amount),
-                fx: BigDecimal(rate.fx)
+        // USDF-only path: onChain equals usdfValue (both at 6 decimals).
+        if mint == .usdf {
+            let onChain = TokenAmount(wholeTokens: cappedUSD.value, mint: .usdf)
+            return ExchangedFiat(
+                onChainAmount: onChain,
+                nativeAmount: cappedUSD.converting(to: rate),
+                currencyRate: rate,
             )
         }
 
-        // The rate for the underlying token
-        // represented as the 'region' of Rate
-        // so in the below example - CAD
-        let underlyingRate = Rate(
-            fx: valuation.fx.asDecimal(),
-            currency: rate.currency
-        )
+        // Bonded: resolve token quarks via curve.
+        let cappedNative = cappedUSD.converting(to: rate)
+        guard let valuation = bondingCurve.tokensForValueExchange(
+            fiat: BigDecimal(cappedNative.value),
+            fiatRate: BigDecimal(rate.fx),
+            supplyQuarks: Int(supplyQuarks),
+        ) else { return nil }
 
-        // This a new fx rate for the token valued in USDC
-        // so if the spot price for a token is $0.01 this
-        // is an example of CAD -> Tokens:
-        // - $5.00 CAD
-        // - Rate: 1.40
-        // - $3.57 USD
-        // - 3.57 / 0.01 = # of tokens
+        let tokenQuarks = valuation.tokens.asDecimal().scaleUpInt(mint.mintDecimals)
 
-        // For bonded tokens, valuation.tokens is the number of whole tokens.
-        // We need to scale it to quarks.
-        let tokenQuarks = valuation.tokens.asDecimal().scaleUpInt(decimals)
-
+        // Cap to on-chain balance if provided (sell flow).
         if let tokenBalanceQuarks, tokenQuarks > tokenBalanceQuarks {
-            return computeFromQuarks(
-                quarks: tokenBalanceQuarks,
-                mint: mint,
+            return compute(
+                onChainAmount: TokenAmount(quarks: tokenBalanceQuarks, mint: mint),
                 rate: rate,
-                supplyQuarks: supplyQuarks
+                supplyQuarks: supplyQuarks,
             )
         }
 
-        // For bonded tokens, round-trip through computeFromQuarks so the
-        // fiat side uses the tokens→fiat direction (bondingCurve.sell),
-        // matching the server's intent validation.
-        if mint != .usdf {
-            return computeFromQuarks(
-                quarks: tokenQuarks,
-                mint: mint,
-                rate: rate,
-                supplyQuarks: supplyQuarks
-            )
-        }
-
-        let exchanged = ExchangedFiat(
-            underlying: Quarks(
-                quarks: tokenQuarks,
-                currencyCode: .usd,
-                decimals: decimals
-            ),
-            converted: try! Quarks(
-                fiatDecimal: cappedAmount,
-                currencyCode: rate.currency,
-                decimals: decimals
-            ),
-            rate: underlyingRate,
-            mint: mint
-        )
-
-        return exchanged
-    }
-    
-    public func subtracting(_ exchangedFiat: ExchangedFiat) throws -> ExchangedFiat {
-        guard mint == exchangedFiat.mint else {
-            throw Error.mismatchedMint
-        }
-        
-        guard rate.currency == exchangedFiat.rate.currency else {
-            throw Error.mismatchedRate
-        }
-        
-        return try ExchangedFiat(
-            underlying: try underlying.subtracting(exchangedFiat.underlying),
+        // Round-trip through `compute(onChainAmount:)` so the fiat side matches
+        // the server's intent validation (tokens → fiat via curve sell).
+        return compute(
+            onChainAmount: TokenAmount(quarks: tokenQuarks, mint: mint),
             rate: rate,
-            mint: mint
-        )
-    }
-    
-    public func subtracting(fee: Quarks, invert: Bool = false) throws -> ExchangedFiat {
-        let feeInQuarks = fee.quarks
-
-        let isValidOperation: () -> Bool = {
-            if invert {
-                underlying.quarks <= feeInQuarks
-            } else {
-                feeInQuarks <= underlying.quarks
-            }
-        }
-        
-        guard isValidOperation() else {
-            throw Error.feeLargerThanAmount
-        }
-        
-        let remainingQuarks = invert ? feeInQuarks - underlying.quarks : underlying.quarks - feeInQuarks
-        
-        return try ExchangedFiat(
-            underlying: Quarks(
-                quarks: remainingQuarks,
-                currencyCode: .usd,
-                decimals: mint.mintDecimals
-            ),
-            rate: rate,
-            mint: mint
-        )
-    }
-    
-    public func convert(to rate: Rate) -> ExchangedFiat {
-        try! ExchangedFiat(
-            underlying: underlying,
-            rate: rate,
-            mint: mint
+            supplyQuarks: supplyQuarks,
         )
     }
 
-    /// Returns true if the converted fiat value would display as non-zero when formatted.
-    public func hasDisplayableValue() -> Bool {
-        converted.hasDisplayableValue
+    private static func safeZero(mint: PublicKey, rate: Rate) -> ExchangedFiat {
+        ExchangedFiat(
+            onChainAmount: .zero(mint: mint),
+            nativeAmount: .zero(in: rate.currency),
+            currencyRate: rate,
+        )
     }
 
-    /// Returns true when the converted value is non-zero but too small to display
-    /// (i.e. it would format as the currency's zero). Use this to decide whether
-    /// to prefix the formatted string with "~".
-    public func isApproximatelyZero() -> Bool {
-        converted.isApproximatelyZero
+    // MARK: - Operations -
+
+    /// Subtract an on-chain fee, scaling `nativeAmount` proportionally.
+    /// For bonded mints this is a linear approximation of the bonding curve;
+    /// at typical fee bps the deviation is below display rounding.
+    public func subtractingFee(_ fee: TokenAmount) -> ExchangedFiat {
+        let remaining = onChainAmount - fee
+        let scale: Foundation.Decimal = onChainAmount.quarks > 0
+            ? Foundation.Decimal(remaining.quarks) / Foundation.Decimal(onChainAmount.quarks)
+            : 0
+        return ExchangedFiat(
+            onChainAmount: remaining,
+            nativeAmount: nativeAmount * scale,
+            currencyRate: currencyRate,
+        )
     }
+
+    /// Re-render this ExchangedFiat against a different currency rate.
+    public func convert(to newRate: Rate) -> ExchangedFiat {
+        ExchangedFiat(
+            onChainAmount: onChainAmount,
+            nativeAmount: usdfValue.converting(to: newRate),
+            currencyRate: newRate,
+        )
+    }
+
+    /// True if the `nativeAmount` would display as non-zero.
+    public func hasDisplayableValue() -> Bool { nativeAmount.hasDisplayableValue }
+
+    /// Non-zero but too small to display — use to decide whether to prefix with "~".
+    public func isApproximatelyZero() -> Bool { nativeAmount.isApproximatelyZero }
 }
 
 // MARK: - Proto -
 
 extension ExchangedFiat {
-    init(_ proto: Ocp_Transaction_V1_ExchangeData) throws {
+    /// Decode from proto exchange data. The proto carries the exchange rate
+    /// directly, so no supply / curve is needed.
+    public init(_ proto: Ocp_Transaction_V1_ExchangeData) throws {
         let currency = try CurrencyCode(currencyCode: proto.currency)
         let mint     = try PublicKey(proto.mint.value)
         self.init(
-            underlying: Quarks(
-                quarks: proto.quarks,
-                currencyCode: .usd,
-                decimals: mint.mintDecimals
-            ),
-            converted: try Quarks(
-                fiatDecimal: Decimal(proto.nativeAmount),
-                currencyCode: currency,
-                decimals: mint.mintDecimals
-            ),
-            rate: Rate(
-                fx: Decimal(proto.exchangeRate),
-                currency: currency
-            ),
-            mint: mint
+            onChainAmount: TokenAmount(quarks: proto.quarks, mint: mint),
+            nativeAmount: FiatAmount(value: Decimal(proto.nativeAmount), currency: currency),
+            currencyRate: Rate(fx: Decimal(proto.exchangeRate), currency: currency),
         )
     }
-    
-    init(_ proto: Flipcash_Common_V1_CryptoPaymentAmount) throws {
+
+    /// Decode from `CryptoPaymentAmount`. This proto has no explicit exchange
+    /// rate, so we synthesize one from `nativeAmount / onChainAmount.decimalValue`.
+    /// For USDF mints that is the correct native-per-USD FX. For bonded mints
+    /// it is a per-token rate; this matches the pre-existing behaviour and
+    /// only the rate-display surface is affected.
+    public init(_ proto: Flipcash_Common_V1_CryptoPaymentAmount) throws {
         let currency = try CurrencyCode(currencyCode: proto.currency)
         let mint     = try PublicKey(proto.mint.value)
+        let onChain  = TokenAmount(quarks: proto.quarks, mint: mint)
+        let native   = FiatAmount(value: Decimal(proto.nativeAmount), currency: currency)
+        let fx: Foundation.Decimal = onChain.decimalValue > 0
+            ? native.value / onChain.decimalValue
+            : 1
         self.init(
-            underlying: Quarks(
-                quarks: proto.quarks,
-                currencyCode: .usd,
-                decimals: mint.mintDecimals
-            ),
-            // Rate is auto-calculated based on converted / underlying
-            converted: try Quarks(
-                fiatDecimal: Decimal(proto.nativeAmount),
-                currencyCode: currency,
-                decimals: mint.mintDecimals
-            ),
-            mint: mint
+            onChainAmount: onChain,
+            nativeAmount: native,
+            currencyRate: Rate(fx: fx, currency: currency),
         )
     }
 }
 
+// MARK: - Description -
+
 extension ExchangedFiat {
     public var descriptionDictionary: [String: String] {
         [
-            "usdc": underlying.formatted(suffix: nil),
-            "quarks": "\(underlying.quarks)",
-            "fx": rate.fx.formatted(),
-            "converted": converted.formatted(suffix: nil),
-            "currency": rate.currency.rawValue.uppercased(),
+            "usdf": usdfValue.formatted(suffix: nil),
+            "onChainQuarks": "\(onChainAmount.quarks)",
+            "mint": onChainAmount.mint.base58,
+            "fx": currencyRate.fx.formatted(),
+            "native": nativeAmount.formatted(suffix: nil),
+            "currency": currencyRate.currency.rawValue.uppercased(),
         ]
     }
 }
@@ -417,39 +299,20 @@ extension ExchangedFiat {
 // MARK: - Collection -
 
 extension Collection where Element == ExchangedFiat {
+    /// Sum a collection of ExchangedFiats. Totals are summed in the provided
+    /// display currency. `onChainAmount` is a USDF-minted placeholder since
+    /// cross-mint totals have no meaningful single-mint representation.
     public func total(rate: Rate) -> ExchangedFiat {
-        var totalConverted: Foundation.Decimal = 0
-        var totalUnderlying: Foundation.Decimal = 0
-
-        forEach { exchanged in
-            totalConverted += exchanged.converted.decimalValue
-            totalUnderlying += exchanged.underlying.decimalValue
+        let nativeTotal = reduce(FiatAmount.zero(in: rate.currency)) { acc, ef in
+            // Elements may have different currency rates; normalize by
+            // converting each `usdfValue` through the provided rate.
+            acc + ef.usdfValue.converting(to: rate)
         }
-
+        let usdfTotal = nativeTotal.convertingToUSD(rate: rate)
         return ExchangedFiat(
-            underlying: try! Quarks(
-                fiatDecimal: totalUnderlying,
-                currencyCode: .usd,
-                decimals: PublicKey.usdf.mintDecimals
-            ),
-            converted: try! Quarks(
-                fiatDecimal: totalConverted,
-                currencyCode: rate.currency,
-                decimals: PublicKey.usdf.mintDecimals
-            ),
-            rate: rate,
-            mint: .usdf
+            onChainAmount: TokenAmount(wholeTokens: usdfTotal.value, mint: .usdf),
+            nativeAmount: nativeTotal,
+            currencyRate: rate,
         )
-    }
-}
-
-extension ExchangedFiat {
-    public enum Error: Swift.Error {
-        case invalidCurrency
-        case invalidNativeAmount
-        case invalidMint
-        case feeLargerThanAmount
-        case mismatchedMint
-        case mismatchedRate
     }
 }

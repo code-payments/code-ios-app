@@ -14,31 +14,30 @@ final class IntentWithdraw: IntentType {
 
     let id: PublicKey
     let sourceCluster: AccountCluster
-    let fee: Quarks
+    let fee: TokenAmount
     let destinationMetadata: DestinationMetadata
     let exchangedFiat: ExchangedFiat
     let verifiedState: VerifiedState
 
     var actionGroup: ActionGroup
 
-    init(sourceCluster: AccountCluster, fee: Quarks, destinationMetadata: DestinationMetadata, exchangedFiat: ExchangedFiat, verifiedState: VerifiedState) throws {
+    init(sourceCluster: AccountCluster, fee: TokenAmount, destinationMetadata: DestinationMetadata, exchangedFiat: ExchangedFiat, verifiedState: VerifiedState) throws {
         self.id                  = PublicKey.generate()!
         self.sourceCluster       = sourceCluster
         self.fee                 = fee
         self.exchangedFiat       = exchangedFiat
         self.verifiedState       = verifiedState
         self.destinationMetadata = destinationMetadata
-        
+
         let destination = destinationMetadata.destination.token
-//        let fee = destinationMetadata.fee
-        
+
         var group = ActionGroup()
-        
+
         if destinationMetadata.requiresInitialization, fee.quarks > 0 {
-            let amountToWithdraw = try exchangedFiat.subtracting(fee: fee)
+            let amountToWithdraw = exchangedFiat.subtractingFee(fee)
             group.append(
                 ActionTransfer(
-                    amount: amountToWithdraw.underlying,
+                    amount: amountToWithdraw.onChainAmount,
                     sourceCluster: sourceCluster,
                     destination: destination,
                     mint: exchangedFiat.mint
@@ -51,18 +50,18 @@ final class IntentWithdraw: IntentType {
                     sourceCluster: sourceCluster
                 )
             )
-            
+
         } else {
             group.append(
                 ActionTransfer(
-                    amount: exchangedFiat.underlying,
+                    amount: exchangedFiat.onChainAmount,
                     sourceCluster: sourceCluster,
                     destination: destination,
                     mint: exchangedFiat.mint
                 )
             )
         }
-        
+
         self.actionGroup = group
     }
 }
@@ -80,8 +79,8 @@ extension IntentWithdraw {
                 // Use clientExchangeData with embedded proofs for submitting intents
                 $0.clientExchangeData = .with {
                     $0.mint = exchangedFiat.mint.solanaAccountID
-                    $0.quarks = exchangedFiat.underlying.quarks
-                    $0.nativeAmount = exchangedFiat.converted.doubleValue
+                    $0.quarks = exchangedFiat.onChainAmount.quarks
+                    $0.nativeAmount = exchangedFiat.nativeAmount.doubleValue
                     $0.coreMintFiatExchangeRate = verifiedState.rateProto
                     if let reserveProto = verifiedState.reserveProto {
                         $0.launchpadCurrencyReserveState = reserveProto

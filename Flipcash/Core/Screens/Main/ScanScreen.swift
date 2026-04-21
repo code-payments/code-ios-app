@@ -128,7 +128,14 @@ struct ScanScreen: View {
             PartialSheet(background: .clear, canAccessBackground: true) {
                 ModalCashReceived(
                     title: "You received",
-                    fiat: valuation.exchangedFiat.converted,
+                    fiat: (try? Quarks(
+                        fiatDecimal: valuation.exchangedFiat.nativeAmount.value,
+                        currencyCode: valuation.exchangedFiat.nativeAmount.currency,
+                        decimals: valuation.exchangedFiat.nativeAmount.currency.maximumFractionDigits
+                    )) ?? Quarks.zero(
+                        currencyCode: valuation.exchangedFiat.nativeAmount.currency,
+                        decimals: valuation.exchangedFiat.nativeAmount.currency.maximumFractionDigits
+                    ),
                     currencyName: valuation.mintMetadata?.name ?? "currency",
                     currencyImageURL: valuation.mintMetadata?.imageURL,
                     actionTitle: "Put in Wallet",

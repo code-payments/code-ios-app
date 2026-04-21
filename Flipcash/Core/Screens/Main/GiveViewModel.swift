@@ -22,7 +22,7 @@ class GiveViewModel {
     var depositMint: PublicKey?
 
     var canGive: Bool {
-        enteredFiat != nil && (enteredFiat?.underlying.quarks ?? 0) > 0
+        enteredFiat != nil && (enteredFiat?.onChainAmount.quarks ?? 0) > 0
     }
 
     @ObservationIgnored let container: Container
@@ -54,25 +54,20 @@ class GiveViewModel {
             }
 
             let rate = ratesController.rateForEntryCurrency()
-            return ExchangedFiat.computeFromEntered(
-                amount: amount,
+            return ExchangedFiat.compute(
+                fromEntered: FiatAmount(value: amount, currency: rate.currency),
                 rate: rate,
                 mint: mint,
                 supplyQuarks: supplyQuarks,
-                balance: selectedBalance.stored.usdf,
+                balance: FiatAmount.usd(selectedBalance.stored.usdf.decimalValue),
                 tokenBalanceQuarks: selectedBalance.stored.quarks
             )
 
         } else {
             let rate = ratesController.rateForEntryCurrency()
-            return try! ExchangedFiat(
-                converted: .init(
-                    fiatDecimal: amount,
-                    currencyCode: rate.currency,
-                    decimals: mint.mintDecimals
-                ),
-                rate: rate,
-                mint: mint
+            return ExchangedFiat(
+                nativeAmount: FiatAmount(value: amount, currency: rate.currency),
+                rate: rate
             )
         }
     }
@@ -128,13 +123,13 @@ class GiveViewModel {
         let result = session.hasSufficientFunds(for: exchangedFiat)
         switch result {
         case .sufficient(let amountToSend):
-            let sendLimit = session.sendLimitFor(currency: amountToSend.converted.currencyCode) ?? .zero
+            let sendLimit = session.sendLimitFor(currency: amountToSend.nativeAmount.currency) ?? .zero
 
-            guard amountToSend.converted <= sendLimit.nextTransaction else {
+            guard amountToSend.nativeAmount.value <= sendLimit.nextTransaction.decimalValue else {
                 logger.info("Give rejected: amount exceeds limit", metadata: [
-                    "amount": "\(amountToSend.converted.formatted())",
+                    "amount": "\(amountToSend.nativeAmount.formatted())",
                     "next_tx": "\(sendLimit.nextTransaction.decimalValue)",
-                    "currency": "\(amountToSend.converted.currencyCode)",
+                    "currency": "\(amountToSend.nativeAmount.currency)",
                 ])
                 showLimitsError()
                 return
@@ -208,7 +203,7 @@ class GiveViewModel {
     private func showYoureShortError(amount: ExchangedFiat) {
         dialogItem = .init(
             style: .destructive,
-            title: "You're \(amount.converted.formatted()) Short",
+            title: "You're \(amount.nativeAmount.formatted()) Short",
             subtitle: "Add more cash, or try again with a lower amount",
             dismissable: true
         ) {

@@ -284,7 +284,7 @@ public final class WalletConnection {
 
             let swapMetadata: [String: String] = [
                 "swapId": pending.fundingSwapId.publicKey.base58,
-                "amount": pending.amount.converted.formatted(),
+                "amount": pending.amount.nativeAmount.formatted(),
                 "name": pending.displayName,
             ]
 
@@ -451,7 +451,11 @@ public final class WalletConnection {
             throw Error.noSession
         }
 
-        let amount = ExchangedFiat(underlying: usdc, converted: usdc, mint: .usdf)
+        let amount = ExchangedFiat.compute(
+            onChainAmount: TokenAmount(quarks: usdc.quarks, mint: .usdf),
+            rate: .oneToOne,
+            supplyQuarks: nil
+        )
 
         let externalWallet = try FlipcashCore.PublicKey(base58: connectedSession.walletPublicKey.base58)
         let flipcashOwner = owner.authorityPublicKey
@@ -520,10 +524,14 @@ public final class WalletConnection {
             throw Error.invalidURL
         }
 
-        Analytics.walletRequestAmount(amount: amount.underlying)
+        Analytics.walletRequestAmount(amount: Quarks(
+            quarks: amount.onChainAmount.quarks,
+            currencyCode: .usd,
+            decimals: PublicKey.usdf.mintDecimals
+        ))
         openExternalWallet(url)
         logger.info("Requested USDC→USDF swap", metadata: [
-            "amount": "\(amount.underlying)",
+            "amount": "\(amount.usdfValue.formatted())",
             "swapId": "\(fundingSwapId.publicKey.base58)",
             "name": "\(displayName)",
         ])

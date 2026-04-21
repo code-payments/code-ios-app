@@ -70,7 +70,7 @@ extension Database {
             a.currency,
             a.mint,
             a.date,
-            
+
             c.vault,
             c.canCancel
             
@@ -89,23 +89,28 @@ extension Database {
         let activities = try statement.map { row in
             let kind = Activity.Kind(rawValue: row[a.kind])!
             let mint = row[a.mint]
+            let currency = row[a.currency]
+            let onChain = TokenAmount(quarks: row[a.quarks], mint: mint)
+            let nativeAmount = FiatAmount(
+                value: Decimal(row[a.nativeAmount]),
+                currency: currency,
+            )
+            // Synthesize the FX rate from the stored amounts. For USDF this is
+            // the correct native-per-USD FX; for bonded mints it is a per-token
+            // rate (the proto doesn't carry an exchange rate on this surface,
+            // and storing one is out of scope for this fix).
+            let fx: Decimal = onChain.decimalValue > 0
+                ? nativeAmount.value / onChain.decimalValue
+                : 1
             return Activity.init(
                 id: row[a.id],
                 state: .init(rawValue: row[a.state]) ?? .unknown,
                 kind: kind,
                 title: row[a.title],
                 exchangedFiat: ExchangedFiat(
-                    underlying: Quarks(
-                        quarks: row[a.quarks],
-                        currencyCode: .usd,
-                        decimals: mint.mintDecimals
-                    ),
-                    converted: try Quarks(
-                        fiatDecimal: Decimal(row[a.nativeAmount]),
-                        currencyCode: row[a.currency],
-                        decimals: mint.mintDecimals
-                    ),
-                    mint: mint
+                    onChainAmount: onChain,
+                    nativeAmount: nativeAmount,
+                    currencyRate: Rate(fx: fx, currency: currency),
                 ),
                 date: row[a.date],
                 metadata: metadata(for: kind, row: row)
@@ -146,9 +151,9 @@ extension Database {
                 table.kind         <- activity.kind.rawValue,
                 table.state        <- activity.state.rawValue,
                 table.title        <- activity.title,
-                table.quarks       <- activity.exchangedFiat.underlying.quarks,
-                table.nativeAmount <- activity.exchangedFiat.converted.doubleValue,
-                table.currency     <- activity.exchangedFiat.converted.currencyCode,
+                table.quarks       <- activity.exchangedFiat.onChainAmount.quarks,
+                table.nativeAmount <- activity.exchangedFiat.nativeAmount.doubleValue,
+                table.currency     <- activity.exchangedFiat.nativeAmount.currency,
                 table.mint         <- activity.exchangedFiat.mint,
                 table.date         <- activity.date,
                 

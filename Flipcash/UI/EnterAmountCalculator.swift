@@ -70,18 +70,27 @@ struct EnterAmountCalculator {
     // MARK: - Methods
 
     func maxEnterAmount(maxBalance: ExchangedFiat) -> Quarks {
+        let balanceAsQuarks = (try? Quarks(
+            fiatDecimal: maxBalance.nativeAmount.value,
+            currencyCode: maxBalance.nativeAmount.currency,
+            decimals: maxBalance.nativeAmount.currency.maximumFractionDigits
+        )) ?? Quarks.zero(
+            currencyCode: maxBalance.nativeAmount.currency,
+            decimals: maxBalance.nativeAmount.currency.maximumFractionDigits
+        )
+
         // Unbounded flows (sell, withdraw, deposit): cap at balance only.
         guard let limit = maxTransactionAmount else {
-            return maxBalance.converted
+            return balanceAsQuarks
         }
 
         // Server-provided limits are already localized to the entry currency,
-        // and `maxBalance.converted` is also in the entry currency, so we can
-        // compare directly. No fx conversion needed.
-        guard limit.currencyCode == maxBalance.converted.currencyCode else {
-            return maxBalance.converted
+        // and the balance is also in the entry currency, so we can compare
+        // directly. No fx conversion needed.
+        guard limit.currencyCode == balanceAsQuarks.currencyCode else {
+            return balanceAsQuarks
         }
 
-        return min(maxBalance.converted, limit)
+        return min(balanceAsQuarks, limit)
     }
 }

@@ -72,9 +72,8 @@ struct StoredBalance: Identifiable, Sendable, Equatable, Hashable {
     }
     
     func computeExchangedValue(with rate: Rate) -> ExchangedFiat {
-        .computeFromQuarks(
-            quarks: quarks,
-            mint: mint,
+        .compute(
+            onChainAmount: TokenAmount(quarks: quarks, mint: mint),
             rate: rate,
             supplyQuarks: supplyFromBonding
         )
@@ -84,17 +83,14 @@ struct StoredBalance: Identifiable, Sendable, Equatable, Hashable {
     /// Returns a tuple with the ExchangedFiat (absolute value) and whether it's positive.
     func computeAppreciation(with rate: Rate) -> (value: ExchangedFiat, isPositive: Bool) {
         let appreciationUSD = usdf.decimalValue - Decimal(costBasis)
+        let usdAbs = FiatAmount.usd(abs(appreciationUSD))
 
-        let underlying = try! Quarks(
-            fiatDecimal: abs(appreciationUSD),
-            currencyCode: .usd,
-            decimals: PublicKey.usdf.mintDecimals
-        )
+        let onChain = TokenAmount(wholeTokens: usdAbs.value, mint: .usdf)
 
-        let exchangedFiat = try! ExchangedFiat(
-            underlying: underlying,
-            rate: rate,
-            mint: .usdf
+        let exchangedFiat = ExchangedFiat(
+            onChainAmount: onChain,
+            nativeAmount: usdAbs.converting(to: rate),
+            currencyRate: rate,
         )
 
         return (exchangedFiat, appreciationUSD >= 0)

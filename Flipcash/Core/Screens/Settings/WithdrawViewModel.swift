@@ -51,22 +51,17 @@ class WithdrawViewModel {
                 return nil
             }
 
-            return ExchangedFiat.computeFromEntered(
-                amount: amount,
+            return ExchangedFiat.compute(
+                fromEntered: FiatAmount(value: amount, currency: rate.currency),
                 rate: rate,
                 mint: mint,
                 supplyQuarks: supplyQuarks,
-                balance: selectedBalance.stored.usdf
+                balance: FiatAmount.usd(selectedBalance.stored.usdf.decimalValue)
             )
         } else {
-            return try! ExchangedFiat(
-                converted: .init(
-                    fiatDecimal: amount,
-                    currencyCode: rate.currency,
-                    decimals: mint.mintDecimals
-                ),
-                rate: rate,
-                mint: mint
+            return ExchangedFiat(
+                nativeAmount: FiatAmount(value: amount, currency: rate.currency),
+                rate: rate
             )
         }
     }
@@ -76,7 +71,22 @@ class WithdrawViewModel {
             return nil
         }
 
-        return try? enteredFiat.converted.subtracting(withdrawableAmount.converted)
+        let enteredAsQuarks = try? Quarks(
+            fiatDecimal: enteredFiat.nativeAmount.value,
+            currencyCode: enteredFiat.nativeAmount.currency,
+            decimals: enteredFiat.nativeAmount.currency.maximumFractionDigits
+        )
+        let withdrawableAsQuarks = try? Quarks(
+            fiatDecimal: withdrawableAmount.nativeAmount.value,
+            currencyCode: withdrawableAmount.nativeAmount.currency,
+            decimals: withdrawableAmount.nativeAmount.currency.maximumFractionDigits
+        )
+
+        guard let enteredAsQuarks, let withdrawableAsQuarks else {
+            return nil
+        }
+
+        return try? enteredAsQuarks.subtracting(withdrawableAsQuarks)
     }
 
     /// Returns the amount by which the fee exceeds the entered amount, or nil if the fee is covered.
@@ -93,24 +103,29 @@ class WithdrawViewModel {
 
         // USDF fee is charged directly in USDC; bonded tokens need
         // the fee converted through the bonding curve (exchangedFee).
-        let fee: Quarks
+        let fee: TokenAmount
         if enteredFiat.mint == .usdf {
-            fee = destinationMetadata.fee
+            fee = TokenAmount(quarks: destinationMetadata.fee.quarks, mint: .usdf)
         } else {
             guard let exchangedFee else {
                 return nil
             }
-            fee = exchangedFee.underlying
+            fee = exchangedFee.onChainAmount
         }
 
-        guard fee.quarks >= enteredFiat.underlying.quarks else {
+        guard fee.quarks >= enteredFiat.onChainAmount.quarks else {
             return nil
         }
 
-        return try! enteredFiat.subtracting(
-            fee: fee,
-            invert: true // fee - enteredFiat
-        ).converted
+        // TODO: `invert: true` case (fee > enteredFiat): compute `fee - enteredFiat`
+        // in native currency. Preserve old semantics manually.
+        let feeNativeAmount = TokenAmount(quarks: fee.quarks - enteredFiat.onChainAmount.quarks, mint: fee.mint)
+            .decimalValue * enteredFiat.currencyRate.fx
+        return try? Quarks(
+            fiatDecimal: feeNativeAmount,
+            currencyCode: enteredFiat.currencyRate.currency,
+            decimals: enteredFiat.currencyRate.currency.maximumFractionDigits
+        )
     }
     
     var withdrawableAmount: ExchangedFiat? {
@@ -124,13 +139,15 @@ class WithdrawViewModel {
         
         if destinationMetadata.requiresInitialization && destinationMetadata.fee.quarks > 0 {
             if enteredFiat.mint == .usdf {
-                return try? enteredFiat.subtracting(fee: destinationMetadata.fee)
+                return enteredFiat.subtractingFee(
+                    TokenAmount(quarks: destinationMetadata.fee.quarks, mint: .usdf)
+                )
             } else {
                 guard let exchangedFee else {
                     return nil
                 }
-                
-                return try? enteredFiat.subtracting(fee: exchangedFee.underlying)
+
+                return enteredFiat.subtractingFee(exchangedFee.onChainAmount)
             }
         } else {
             return enteredFiat
@@ -165,10 +182,10 @@ class WithdrawViewModel {
     
     var maxWithdrawLimit: ExchangedFiat {
         let rate = ratesController.rateForEntryCurrency()
-        let zero = try! ExchangedFiat(
-            underlying: 0,
+        let zero = ExchangedFiat.compute(
+            onChainAmount: .zero(mint: .usdf),
             rate: rate,
-            mint: .usdf
+            supplyQuarks: nil
         )
 
         guard let mint = selectedBalance?.stored.mint else {
@@ -200,12 +217,12 @@ class WithdrawViewModel {
         }
 
         // Fee is charged in USDC, so use oneToOne
-        return ExchangedFiat.computeFromEntered(
-            amount: destinationMetadata.fee.decimalValue,
+        return ExchangedFiat.compute(
+            fromEntered: FiatAmount(value: destinationMetadata.fee.decimalValue, currency: Rate.oneToOne.currency),
             rate: .oneToOne,
             mint: enteredFiat.mint,
             supplyQuarks: supplyQuarks,
-            balance: selectedBalance.stored.usdf
+            balance: FiatAmount.usd(selectedBalance.stored.usdf.decimalValue)
         )
     }
     
@@ -247,11 +264,11 @@ class WithdrawViewModel {
             return
         }
 
-        let fee: Quarks
+        let fee: TokenAmount
         if amountToWithdraw.mint == .usdf {
             fee = destinationMetadata.fee
         } else {
-            fee = exchangedFee?.underlying ?? 0
+            fee = exchangedFee?.onChainAmount ?? .zero(mint: .usdf)
         }
 
         withdrawButtonState = .loading
@@ -262,21 +279,21 @@ class WithdrawViewModel {
                     fee: fee,
                     to: destinationMetadata
                 )
-                
+
                 try await Task.delay(milliseconds: 500)
                 withdrawButtonState = .success
-                
+
                 try await Task.delay(milliseconds: 500)
                 showSuccessfulWithdrawalDialog()
-                
+
             } catch {
                 ErrorReporting.captureError(
                     error,
                     reason: "Failed to withdraw",
                     metadata: [
                         "mint": amountToWithdraw.mint.base58,
-                        "amount": amountToWithdraw.converted.formatted(),
-                        "quarks": "\(amountToWithdraw.underlying.quarks)",
+                        "amount": amountToWithdraw.nativeAmount.formatted(),
+                        "quarks": "\(amountToWithdraw.onChainAmount.quarks)",
                         "fee": "\(fee.quarks)",
                         "destination": destinationMetadata.destination.token.base58,
                         "requiresInit": "\(destinationMetadata.requiresInitialization)",

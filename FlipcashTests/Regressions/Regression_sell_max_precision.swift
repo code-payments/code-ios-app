@@ -88,12 +88,12 @@ struct Regression_sell_max_precision {
 
         let stored = try makeStoredBalance(supply: UInt64(supplyQuarks))
 
-        let entered = ExchangedFiat.computeFromEntered(
-            amount: stored.usdf.decimalValue,
+        let entered = ExchangedFiat.compute(
+            fromEntered: FiatAmount(value: stored.usdf.decimalValue, currency: rate.currency),
             rate: rate,
             mint: mint,
             supplyQuarks: UInt64(supplyQuarks),
-            balance: stored.usdf,
+            balance: FiatAmount.usd(stored.usdf.decimalValue),
             tokenBalanceQuarks: stored.quarks
         )
 

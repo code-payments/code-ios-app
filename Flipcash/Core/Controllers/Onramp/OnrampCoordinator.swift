@@ -656,7 +656,11 @@ final class OnrampCoordinator {
             return
         }
 
-        Analytics.onrampInvokePayment(amount: amount.underlying)
+        Analytics.onrampInvokePayment(amount: Quarks(
+            quarks: amount.onChainAmount.quarks,
+            currencyCode: .usd,
+            decimals: PublicKey.usdf.mintDecimals
+        ))
 
         let id       = UUID()
         let userRef  = "\(email):\(phone)"
@@ -664,8 +668,8 @@ final class OnrampCoordinator {
 
         do {
             logger.info("Creating Coinbase order", metadata: [
-                "currency": "\(amount.converted.currencyCode)",
-                "purchase_quarks": "\(amount.underlying.quarks)",
+                "currency": "\(amount.nativeAmount.currency)",
+                "purchase_quarks": "\(amount.onChainAmount.quarks)",
                 "destination_kind": "\(operation.logKind)",
             ])
 
@@ -674,7 +678,7 @@ final class OnrampCoordinator {
             }
 
             let response = try await coinbase.createOrder(request: .init(
-                purchaseAmount: "\(amount.underlying.decimalValue)",
+                purchaseAmount: "\(amount.usdfValue.value)",
                 paymentCurrency: "USD",
                 purchaseCurrency: "USDF",
                 isQuote: false,
@@ -864,18 +868,9 @@ final class OnrampCoordinator {
             return nil
         }
 
-        guard let underlying = try? Quarks(
-            fiatDecimal: decimal,
-            currencyCode: .usd,
-            decimals: PublicKey.usdf.mintDecimals
-        ) else {
-            return nil
-        }
-
-        return try? ExchangedFiat(
-            underlying: underlying,
-            rate: .oneToOne,
-            mint: .usdf
+        return ExchangedFiat(
+            nativeAmount: FiatAmount(value: decimal, currency: .usd),
+            rate: .oneToOne
         )
     }
 
@@ -973,7 +968,11 @@ final class OnrampCoordinator {
             }
 
             Analytics.onrampCompleted(
-                amount: amount.underlying,
+                amount: Quarks(
+                    quarks: amount.onChainAmount.quarks,
+                    currencyCode: .usd,
+                    decimals: PublicKey.usdf.mintDecimals
+                ),
                 successful: true,
                 error: nil
             )

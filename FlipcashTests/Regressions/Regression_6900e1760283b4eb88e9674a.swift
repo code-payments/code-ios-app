@@ -31,7 +31,7 @@ struct Regression_6900e17 {
         viewModel.enteredAmount = "0.46" // ~462,922 quarks ($0.46 USDC)
         viewModel.destinationMetadata = WithdrawViewModelTestHelpers.createDestinationMetadata(
             requiresInitialization: true,
-            fee: Quarks(quarks: 1_000_000 as UInt64, currencyCode: .usd, decimals: 6) // $1.00 fee
+            fee: TokenAmount(quarks: 1_000_000, mint: .usdf) // $1.00 fee
         )
 
         // Before fix: nil (guard passes → crash in IntentWithdraw)
@@ -49,7 +49,7 @@ struct Regression_6900e17 {
         viewModel.enteredAmount = "5.00" // $5.00 USDC
         viewModel.destinationMetadata = WithdrawViewModelTestHelpers.createDestinationMetadata(
             requiresInitialization: true,
-            fee: Quarks(quarks: 500_000 as UInt64, currencyCode: .usd, decimals: 6) // $0.50 fee
+            fee: TokenAmount(quarks: 500_000, mint: .usdf) // $0.50 fee
         )
 
         // Fee ($0.50) < amount ($5.00) — no problem, should be nil
@@ -66,7 +66,7 @@ struct Regression_6900e17 {
         viewModel.enteredAmount = "0.46"
         viewModel.destinationMetadata = WithdrawViewModelTestHelpers.createDestinationMetadata(
             requiresInitialization: false,
-            fee: Quarks(quarks: 0 as UInt64, currencyCode: .usd, decimals: 6)
+            fee: TokenAmount(quarks: 0, mint: .usdf)
         )
 
         // No initialization fee — should always be nil

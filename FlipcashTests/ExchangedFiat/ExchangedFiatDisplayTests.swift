@@ -17,10 +17,10 @@ struct ExchangedFiatDisplayTests {
     func testHasDisplayableValue_WithExchangeRate_USD_CalculatesCorrectly() throws {
         // Given: Small USD amount converted to CAD at 1.4 rate
         // $0.007 USD * 1.4 = C$0.0098 CAD (below C$0.01 threshold)
-        let exchangedFiat = try ExchangedFiat(
-            underlying: Quarks(quarks: 7_000 as UInt64, currencyCode: .usd, decimals: 6),
+        let exchangedFiat = ExchangedFiat.compute(
+            onChainAmount: TokenAmount(quarks: 7_000, mint: .usdf),
             rate: Rate(fx: 1.4, currency: .cad),
-            mint: .usdf
+            supplyQuarks: nil
         )
 
         // When/Then: Should not be displayable (below C$0.01)
@@ -31,10 +31,10 @@ struct ExchangedFiatDisplayTests {
     func testHasDisplayableValue_WithExchangeRate_CAD_CalculatesCorrectly() throws {
         // Given: Small USD amount converted to CAD at 1.4 rate
         // $0.008 USD * 1.4 = C$0.0112 CAD (above C$0.01 threshold)
-        let exchangedFiat = try ExchangedFiat(
-            underlying: Quarks(quarks: 8_000 as UInt64, currencyCode: .usd, decimals: 6),
+        let exchangedFiat = ExchangedFiat.compute(
+            onChainAmount: TokenAmount(quarks: 8_000, mint: .usdf),
             rate: Rate(fx: 1.4, currency: .cad),
-            mint: .usdf
+            supplyQuarks: nil
         )
 
         // When/Then: Should be displayable (above C$0.01)
@@ -47,9 +47,8 @@ struct ExchangedFiatDisplayTests {
     func testHasDisplayableValue_BondedToken_WithSupply_CalculatesCorrectly() throws {
         // Given: Bonded token with small value
         // Using a non-USDF mint with supply quarks (100 tokens = 100 * 10^10 quarks)
-        let exchangedFiat = ExchangedFiat.computeFromQuarks(
-            quarks: 5_000 as UInt64,
-            mint: .jeffy, // Use a non-USDF mint to trigger bonding curve
+        let exchangedFiat = ExchangedFiat.compute(
+            onChainAmount: TokenAmount(quarks: 5_000, mint: .jeffy), // non-USDF mint
             rate: Rate(fx: 1.0, currency: .usd),
             supplyQuarks: 100 * 10_000_000_000 as UInt64 // 100 tokens supply
         )

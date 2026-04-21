@@ -124,12 +124,12 @@ extension Analytics {
         ]
 
         if let exchangedFiat {
-            properties[.usdc]     = exchangedFiat.underlying.doubleValue
+            properties[.usdc]     = exchangedFiat.usdfValue.doubleValue
             properties[.mint]     = exchangedFiat.mint.base58
-            properties[.quarks]   = exchangedFiat.underlying.quarks.analyticsValue
-            properties[.fiat]     = exchangedFiat.converted.doubleValue
-            properties[.fx]       = exchangedFiat.rate.fx.analyticsValue
-            properties[.currency] = exchangedFiat.rate.currency.rawValue
+            properties[.quarks]   = exchangedFiat.onChainAmount.quarks.analyticsValue
+            properties[.fiat]     = exchangedFiat.nativeAmount.doubleValue
+            properties[.fx]       = exchangedFiat.currencyRate.fx.analyticsValue
+            properties[.currency] = exchangedFiat.currencyRate.currency.rawValue
         }
 
         track(
@@ -145,12 +145,12 @@ extension Analytics {
         ]
 
         if let exchangedFiat {
-            properties[.usdc]     = exchangedFiat.underlying.doubleValue
+            properties[.usdc]     = exchangedFiat.usdfValue.doubleValue
             properties[.mint]     = exchangedFiat.mint.base58
-            properties[.quarks]   = exchangedFiat.underlying.quarks.analyticsValue
-            properties[.fiat]     = exchangedFiat.converted.doubleValue
-            properties[.fx]       = exchangedFiat.rate.fx.analyticsValue
-            properties[.currency] = exchangedFiat.rate.currency.rawValue
+            properties[.quarks]   = exchangedFiat.onChainAmount.quarks.analyticsValue
+            properties[.fiat]     = exchangedFiat.nativeAmount.doubleValue
+            properties[.fx]       = exchangedFiat.currencyRate.fx.analyticsValue
+            properties[.currency] = exchangedFiat.currencyRate.currency.rawValue
         }
 
         if let grabTime {
@@ -240,8 +240,8 @@ extension Analytics {
         let properties: [Property: AnalyticsValue] = [
             .state: successful ? String.success : String.failure,
             .mint: exchangedFiat.mint.base58,
-            .fiat: exchangedFiat.converted.doubleValue,
-            .currency: exchangedFiat.rate.currency.rawValue,
+            .fiat: exchangedFiat.nativeAmount.doubleValue,
+            .currency: exchangedFiat.currencyRate.currency.rawValue,
         ]
         track(event: method, properties: properties, error: error)
     }
@@ -250,8 +250,8 @@ extension Analytics {
         let properties: [Property: AnalyticsValue] = [
             .state: successful ? String.success : String.failure,
             .mint: exchangedFiat.mint.base58,
-            .fiat: exchangedFiat.converted.doubleValue,
-            .currency: exchangedFiat.rate.currency.rawValue,
+            .fiat: exchangedFiat.nativeAmount.doubleValue,
+            .currency: exchangedFiat.currencyRate.currency.rawValue,
         ]
         track(event: TokenTransactionEvent.sell, properties: properties, error: error)
     }
@@ -264,8 +264,8 @@ extension Analytics {
         let properties: [Property: AnalyticsValue] = [
             .state: successful ? String.success : String.failure,
             .mint: launchedMint.base58,
-            .fiat: exchangedFiat.converted.doubleValue,
-            .currency: exchangedFiat.rate.currency.rawValue,
+            .fiat: exchangedFiat.nativeAmount.doubleValue,
+            .currency: exchangedFiat.currencyRate.currency.rawValue,
         ]
         track(event: event, properties: properties, error: error)
     }

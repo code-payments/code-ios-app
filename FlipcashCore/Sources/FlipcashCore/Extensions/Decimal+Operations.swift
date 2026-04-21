@@ -34,15 +34,15 @@ extension Decimal {
         return result
     }
 
-    func scaleDown(_ d: Int) -> Decimal {
+    public func scaleDown(_ d: Int) -> Decimal {
         return self / pow10(d)
     }
-    
-    func scaleUp(_ d: Int) -> Decimal {
+
+    public func scaleUp(_ d: Int) -> Decimal {
         self * pow10(d)
     }
 
-    func scaleUpInt(_ d: Int) -> UInt64 {
+    public func scaleUpInt(_ d: Int) -> UInt64 {
         let scaled = scaleUp(d)
         var rounded = Foundation.Decimal()
         var current = scaled

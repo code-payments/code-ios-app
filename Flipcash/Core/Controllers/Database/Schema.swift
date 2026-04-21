@@ -56,13 +56,13 @@ struct MintTable: Sendable {
 
 struct ActivityTable: Sendable {
     static let name = "activity"
-    
+
     let table        = Table(Self.name)
     let id           = Expression <PublicKey>    ("id")
     let kind         = Expression <Int>          ("kind")
     let state        = Expression <Int>          ("state")
     let title        = Expression <String>       ("title")
-    let quarks       = Expression <UInt64>       ("quarks")
+    let quarks       = Expression <UInt64>       ("quarks")       // on-chain mint-native quarks
     let nativeAmount = Expression <Double>       ("nativeAmount")
     let currency     = Expression <CurrencyCode> ("currency")
     let mint         = Expression <PublicKey>    ("mint")

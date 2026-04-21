@@ -19,44 +19,33 @@ class CurrencySellConfirmationViewModel {
     var pendingSwapId: SwapId?
 
     var canDismissSheet: Bool = false
-    
+
     var fee: ExchangedFiat {
         let bps: UInt64 = 100
-        let underlying = Quarks(
-            quarks: amount.underlying.quarks * bps / 10_000,
-            currencyCode: amount.underlying.currencyCode,
-            decimals: amount.underlying.decimals
+        let feeOnChain = TokenAmount(
+            quarks: amount.onChainAmount.quarks * bps / 10_000,
+            mint: amount.onChainAmount.mint
         )
-        let converted = Quarks(
-            quarks: amount.converted.quarks * bps / 10_000,
-            currencyCode: amount.converted.currencyCode,
-            decimals: amount.converted.decimals
-        )
-        
+        let feeScale = Decimal(bps) / Decimal(10_000)
         return ExchangedFiat(
-            underlying: underlying,
-            converted: converted,
-            rate: amount.rate,
-            mint: amount.mint
+            onChainAmount: feeOnChain,
+            nativeAmount: amount.nativeAmount * feeScale,
+            currencyRate: amount.currencyRate,
         )
     }
-    
+
     /// Formats the fee for display, prefixing with "~" when the value is
     /// too small for the currency's display precision (e.g. "~$0.00" for USD,
     /// "~¥0" for JPY) to indicate a non-zero but negligible fee.
     var feeFormatted: String {
         let prefix = fee.isApproximatelyZero() ? "~" : ""
-        return "\(prefix)\(fee.converted.formatted())"
+        return "\(prefix)\(fee.nativeAmount.formatted())"
     }
-    
+
     var amountAfterFee: ExchangedFiat {
-        do {
-            return try amount.subtracting(fee)
-        } catch {
-            return amount
-        }
+        amount.subtractingFee(fee.onChainAmount)
     }
-    
+
     // MARK: - Init -
 
     init(mint: PublicKey, amount: ExchangedFiat) {
@@ -80,10 +69,10 @@ class CurrencySellConfirmationViewModel {
                     reason: "Failed to sell currency",
                     metadata: [
                         "mint": mint.base58,
-                        "amount": amount.converted.formatted(),
-                        "fee": "\(fee.underlying.quarks)",
-                        "amountAfterFees": "\(amountAfterFee.converted.formatted())",
-                        "quarks": "\(amount.underlying.quarks)",
+                        "amount": amount.nativeAmount.formatted(),
+                        "fee": "\(fee.usdfValue.value)",
+                        "amountAfterFees": "\(amountAfterFee.nativeAmount.formatted())",
+                        "quarks": "\(amount.onChainAmount.quarks)",
                     ]
                 )
                 actionButtonState = .normal

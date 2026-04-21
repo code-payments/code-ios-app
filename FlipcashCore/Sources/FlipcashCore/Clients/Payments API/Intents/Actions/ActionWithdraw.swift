@@ -16,15 +16,15 @@ struct ActionWithdraw: ActionType {
     var signer: KeyPair?
     
     let kind: Kind
-    let amount: Quarks
+    let amount: TokenAmount
     let mint: PublicKey
     let sourceCluster: AccountCluster
     let source: PublicKey
     let destination: PublicKey
 
     static let configCountRequirement: Int = 1
-    
-    init(kind: Kind, amount: Quarks, mint: PublicKey, sourceCluster: AccountCluster, destination: PublicKey) {
+
+    init(kind: Kind, amount: TokenAmount, mint: PublicKey, sourceCluster: AccountCluster, destination: PublicKey) {
         self.id = 0
         self.signer = sourceCluster.authority.keyPair
         

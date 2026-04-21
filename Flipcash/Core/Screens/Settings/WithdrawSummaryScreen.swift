@@ -17,11 +17,11 @@ struct WithdrawSummaryScreen: View {
     
     private var withdrawAmount: String {
         if let withdrawableAmount = viewModel.withdrawableAmount {
-            return withdrawableAmount.converted.formatted()
-            
+            return withdrawableAmount.nativeAmount.formatted()
+
         } else if let negativeDelta = viewModel.negativeWithdrawableAmount {
             return "-\(negativeDelta.formatted())"
-            
+
         } else {
             return Quarks(
                 quarks: 0 as UInt64,
@@ -49,27 +49,27 @@ struct WithdrawSummaryScreen: View {
                         let enteredAmount = viewModel.enteredFiat,
                         let metadata = viewModel.destinationMetadata
                     {
-                        let originalFiat = enteredAmount.converted
+                        let originalFiat = enteredAmount.nativeAmount
                         let fee          = metadata.fee
                         let displayFee   = viewModel.displayFee
-                        
+
                         BorderedContainer {
                             VStack(spacing: 20) {
-                                
+
                                 Spacer()
-                                
+
                                 AmountText(
-                                    flagStyle: originalFiat.currencyCode.flagStyle,
+                                    flagStyle: originalFiat.currency.flagStyle,
                                     content: withdrawAmount,
                                     showChevron: false,
                                     canScale: false
                                 )
                                 .font(.appDisplayMedium)
                                 .foregroundStyle(Color.textMain)
-                                
+
                                 Spacer()
-                                
-                                if originalFiat.currencyCode != .usd || fee.quarks > 0 {
+
+                                if originalFiat.currency != .usd || fee.quarks > 0 {
                                     VStack(alignment: .leading, spacing: 10) {
                                         lineItem(
                                             title: Text("Withdrawal amount"),

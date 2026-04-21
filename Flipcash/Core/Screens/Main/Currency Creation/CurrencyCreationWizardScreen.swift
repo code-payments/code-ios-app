@@ -67,25 +67,28 @@ struct CurrencyCreationWizardScreen: View {
     /// zero quarks until flags are loaded.
     private var launchAmount: ExchangedFiat {
         let quarks = session.userFlags?.newCurrencyPurchaseAmount.quarks ?? 0
-        return ExchangedFiat.computeFromQuarks(
-            quarks: quarks,
-            mint: .usdf,
+        return ExchangedFiat.compute(
+            onChainAmount: TokenAmount(quarks: quarks, mint: .usdf),
             rate: .oneToOne,
             supplyQuarks: 0
         )
     }
 
     private var previewFiat: Quarks {
-        launchAmount.underlying
+        Quarks(
+            quarks: launchAmount.onChainAmount.quarks,
+            currencyCode: .usd,
+            decimals: PublicKey.usdf.mintDecimals
+        )
     }
 
     private var reserveBalance: ExchangedFiat? {
         guard let stored = session.balance(for: .usdf) else { return nil }
-        guard stored.usdf >= launchAmount.underlying else { return nil }
-        return try? ExchangedFiat(
-            underlying: stored.usdf,
+        guard stored.usdf.quarks >= launchAmount.onChainAmount.quarks else { return nil }
+        return ExchangedFiat.compute(
+            onChainAmount: TokenAmount(quarks: stored.usdf.quarks, mint: .usdf),
             rate: ratesController.rateForBalanceCurrency(),
-            mint: .usdf
+            supplyQuarks: nil
         )
     }
 
@@ -536,7 +539,7 @@ struct CurrencyCreationWizardScreen: View {
                 logger.info("Insufficient balance to complete currency purchase")
                 errorDialog = makeDestructiveDialog(
                     title: "Not Enough Funds",
-                    subtitle: "You need \(launchAmount.converted.formatted()) to create this currency."
+                    subtitle: "You need \(launchAmount.nativeAmount.formatted()) to create this currency."
                 )
                 isValidating = false
                 return
@@ -678,7 +681,11 @@ struct CurrencyCreationWizardScreen: View {
                     try await Task.sleep(for: .seconds(1))
                 }
                 try await walletConnection.requestSwapForLaunch(
-                    usdc: launchAmount.underlying,
+                    usdc: Quarks(
+                        quarks: launchAmount.onChainAmount.quarks,
+                        currencyCode: .usd,
+                        decimals: PublicKey.usdf.mintDecimals
+                    ),
                     displayName: displayName,
                     onCompleted: { signature, amount in
                         try await launchAfterPhantom(signature: signature, amount: amount)
@@ -998,7 +1005,7 @@ private struct ConfirmationStep: View {
                 if isValidating {
                     ProgressView().progressViewStyle(.circular)
                 } else {
-                    Text("Buy \(launchAmount.converted.formatted()) to Create Your Currency")
+                    Text("Buy \(launchAmount.nativeAmount.formatted()) to Create Your Currency")
                 }
             }
             .buttonStyle(.filled)

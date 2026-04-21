@@ -66,9 +66,8 @@ struct GiveViewModelTests {
         )
         return ExchangedBalance(
             stored: stored,
-            exchangedFiat: ExchangedFiat.computeFromQuarks(
-                quarks: quarks,
-                mint: mint,
+            exchangedFiat: ExchangedFiat.compute(
+                onChainAmount: TokenAmount(quarks: quarks, mint: mint),
                 rate: .oneToOne,
                 supplyQuarks: effectiveSupplyQuarks
             )

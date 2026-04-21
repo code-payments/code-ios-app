@@ -76,7 +76,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
         }
     }
 
-    func withdraw(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, fee: Quarks, sourceCluster: AccountCluster, destinationMetadata: DestinationMetadata, owner: KeyPair, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
+    func withdraw(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, fee: TokenAmount, sourceCluster: AccountCluster, destinationMetadata: DestinationMetadata, owner: KeyPair, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
         logger.info("Sending withdrawal")
 
         do {
@@ -109,7 +109,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
     func sendCashLink(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, ownerCluster: AccountCluster, giftCard: GiftCardCluster, rendezvous: PublicKey, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
         logger.info("Sending cash link", metadata: [
             "giftCardVault": "\(giftCard.cluster.vaultPublicKey.base58)",
-            "amount": "\(exchangedFiat.underlying.formatted(suffix: " USDF"))"
+            "amount": "\(exchangedFiat.usdfValue.formatted(suffix: " USDF"))"
         ])
 
         let intent = IntentSendCashLink(
@@ -133,10 +133,10 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
         }
     }
     
-    func receiveCashLink(usdf: Quarks, ownerCluster: AccountCluster, giftCard: GiftCardCluster, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
+    func receiveCashLink(usdf: TokenAmount, ownerCluster: AccountCluster, giftCard: GiftCardCluster, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
         logger.info("Receiving cash link", metadata: [
             "giftCardVault": "\(giftCard.cluster.vaultPublicKey.base58)",
-            "amount": "\(usdf.formatted(suffix: " USDF"))"
+            "amount": "\(FiatAmount.usd(usdf.decimalValue).formatted(suffix: " USDF"))"
         ])
 
         let intent = IntentReceiveCashLink(
@@ -192,7 +192,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
         let ownerKeyPair = owner.authority.keyPair
 
         logger.info("Starting buy", metadata: [
-            "amount": "\(amount.converted.formatted())",
+            "amount": "\(amount.nativeAmount.formatted())",
             "symbol": "\(token.symbol)"
         ])
 
@@ -200,7 +200,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
         swapService.swap(
             swapId: swapId,
             direction: .buy(mint: token),
-            amount: amount.underlying,
+            amount: amount.onChainAmount,
             fundingSource: .submitIntent(id: fundingIntentID),
             owner: ownerKeyPair
         ) { result in
@@ -249,7 +249,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
         completion: @Sendable @escaping (Result<SwapId, ErrorSwap>) -> Void
     ) {
         logger.info("Starting externally-funded buy", metadata: [
-            "amount": "\(amount.converted.formatted())",
+            "amount": "\(amount.nativeAmount.formatted())",
             "symbol": "\(token.symbol)",
             "swapId": "\(swapId.publicKey.base58)"
         ])
@@ -257,7 +257,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
         swapService.swap(
             swapId: swapId,
             direction: .buy(mint: token),
-            amount: amount.underlying,
+            amount: amount.onChainAmount,
             fundingSource: .externalWallet(transactionSignature: transactionSignature),
             owner: owner
         ) { result in
@@ -291,7 +291,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
         let ownerKeyPair = owner.authority.keyPair
 
         logger.info("Starting new-currency buy", metadata: [
-            "amount": "\(amount.converted.formatted())",
+            "amount": "\(amount.nativeAmount.formatted())",
             "mint": "\(mint.base58)",
             "swapId": "\(swapId.publicKey.base58)",
         ])
@@ -300,7 +300,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
         swapService.swap(
             swapId: swapId,
             direction: .buy(mint: .launchStub(address: mint)),
-            amount: amount.underlying,
+            amount: amount.onChainAmount,
             fundingSource: .submitIntent(id: fundingIntentID),
             owner: ownerKeyPair,
             isNewCurrencyLaunch: true
@@ -347,7 +347,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
     func sell(amount: ExchangedFiat, verifiedState: VerifiedState, in token: MintMetadata, owner: AccountCluster, completion: @Sendable @escaping (Result<SwapId, ErrorSwap>) -> Void) {
         logger.info("Starting sell", metadata: [
             "symbol": "\(token.symbol)",
-            "amount": "\(amount.converted.formatted())"
+            "amount": "\(amount.nativeAmount.formatted())"
         ])
 
         // Generate unique identifiers for this swap
@@ -368,7 +368,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
         swapService.swap(
             swapId: swapId,
             direction: .sell(mint: token),
-            amount: amount.underlying,
+            amount: amount.onChainAmount,
             fundingSource: .submitIntent(id: fundingIntentID),
             owner: owner.authority.keyPair
         ) { [weak self] result in
@@ -678,24 +678,23 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
                 mint: mint,
                 isValid: response.isValidPaymentDestination,
                 requiresInitialization: response.requiresInitialization,
-                fee: response.requiresInitialization ? try! Quarks(
-                    fiatDecimal: Decimal(response.feeAmount.nativeAmount),
-                    currencyCode: .usd,
-                    decimals: mint.mintDecimals
-                ) : 0
+                fee: response.requiresInitialization ? TokenAmount(
+                    wholeTokens: Decimal(response.feeAmount.nativeAmount),
+                    mint: mint,
+                ) : .zero(mint: mint)
             )
-            
+
             completion(.success(metadata))
-            
+
         } failure: { _ in
-            
+
             let metadata = DestinationMetadata(
                 kind: .unknown,
                 destination: destination,
                 mint: mint,
                 isValid: false,
                 requiresInitialization: false,
-                fee: 0
+                fee: .zero(mint: mint)
             )
             
             completion(.success(metadata))
@@ -720,15 +719,15 @@ public struct PoolDistribution {
 }
 
 public struct DestinationMetadata: Sendable {
-    
+
     public let destination: Destination
     public let isValid: Bool
     public let kind: Kind
-    public let fee: Quarks
-    
+    public let fee: TokenAmount
+
     public let requiresInitialization: Bool
-    
-    init(kind: Kind, destination: PublicKey, mint: PublicKey, isValid: Bool, requiresInitialization: Bool, fee: Quarks) {
+
+    init(kind: Kind, destination: PublicKey, mint: PublicKey, isValid: Bool, requiresInitialization: Bool, fee: TokenAmount) {
         switch kind {
         case .unknown, .token:
             self.destination = .init(token: destination)

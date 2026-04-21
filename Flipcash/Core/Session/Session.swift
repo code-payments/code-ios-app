@@ -369,7 +369,7 @@ class Session {
     
     
     func hasSufficientFunds(for exchangedFiat: ExchangedFiat) -> SufficientFundsResult {
-        guard exchangedFiat.underlying.quarks > 0 else {
+        guard exchangedFiat.onChainAmount.quarks > 0 else {
             return .insufficient(shortfall: nil)
         }
 
@@ -380,17 +380,17 @@ class Session {
         let entryRate = ratesController.rateForEntryCurrency()
         let exchangedBalance = balance.computeExchangedValue(with: entryRate)
 
-        if exchangedFiat.underlying <= exchangedBalance.underlying {
+        if exchangedFiat.onChainAmount <= exchangedBalance.onChainAmount {
             // Sufficient funds - send the requested amount
             return .sufficient(amountToSend: exchangedFiat)
         } else {
-            let deltaToBalanceInFiat = abs(exchangedBalance.converted.decimalValue - exchangedFiat.converted.decimalValue)
+            let deltaToBalanceInFiat = abs(exchangedBalance.nativeAmount.value - exchangedFiat.nativeAmount.value)
 
             // Calculate tolerance as half the smallest denomination for this currency
             // USD (2 decimals): 0.01 / 2 = 0.005 (half a penny)
             // JPY (0 decimals): 1.0 / 2 = 0.5 (half a yen)
             // BHD (3 decimals): 0.001 / 2 = 0.0005 (half a fils)
-            let decimals = exchangedFiat.converted.currencyCode.maximumFractionDigits
+            let decimals = exchangedFiat.nativeAmount.currency.maximumFractionDigits
             let smallestDenomination = pow(10.0, -Double(decimals))
             let tolerance = smallestDenomination / 2.0
 
@@ -402,7 +402,11 @@ class Session {
                 print("Attempt max send, within error tolerance")
                 return .sufficient(amountToSend: exchangedBalance)
             } else {
-                let shortfall = try? exchangedFiat.subtracting(exchangedBalance)
+                let shortfall = ExchangedFiat.compute(
+                    onChainAmount: exchangedFiat.onChainAmount - exchangedBalance.onChainAmount,
+                    rate: exchangedFiat.currencyRate,
+                    supplyQuarks: nil
+                )
                 return .insufficient(shortfall: shortfall)
             }
         }
@@ -591,13 +595,13 @@ class Session {
 
         // Get verified state for intent construction
         guard let verifiedState = await ratesController.getVerifiedState(
-            for: amount.converted.currencyCode,
+            for: amount.nativeAmount.currency,
             mint: amount.mint
         ) else {
             throw Error.missingVerifiedState
         }
 
-        logger.info("buying", metadata: ["amount": "\(amount.converted.formatted())", "symbol": "\(token.symbol)"])
+        logger.info("buying", metadata: ["amount": "\(amount.nativeAmount.formatted())", "symbol": "\(token.symbol)"])
 
         return try await client.buy(amount: amount, verifiedState: verifiedState, of: token.metadata, owner: owner)
     }
@@ -650,7 +654,7 @@ class Session {
     @discardableResult
     func buyNewCurrency(amount: ExchangedFiat, mint: PublicKey, swapId: SwapId = .generate()) async throws -> SwapId {
         logger.info("Buying new currency", metadata: [
-            "amount": "\(amount.converted.formatted())",
+            "amount": "\(amount.nativeAmount.formatted())",
             "mint": "\(mint.base58)",
             "swapId": "\(swapId.publicKey.base58)"
         ])
@@ -658,7 +662,7 @@ class Session {
         // Phase 2 funding (IntentFundSwap) requires a verified state for the
         // source mint — USDF for a reserves-funded launch.
         guard let verifiedState = await ratesController.getVerifiedState(
-            for: amount.converted.currencyCode,
+            for: amount.nativeAmount.currency,
             mint: amount.mint
         ) else {
             throw Error.missingVerifiedState
@@ -694,7 +698,7 @@ class Session {
         transactionSignature: Signature
     ) async throws -> SwapId {
         logger.info("Buying new currency (external funding)", metadata: [
-            "amount": "\(amount.converted.formatted())",
+            "amount": "\(amount.nativeAmount.formatted())",
             "mint": "\(mint.base58)"
         ])
 
@@ -722,7 +726,7 @@ class Session {
 
         // Get verified state for intent construction
         guard let verifiedState = await ratesController.getVerifiedState(
-            for: amount.converted.currencyCode,
+            for: amount.nativeAmount.currency,
             mint: amount.mint
         ) else {
             throw Error.missingVerifiedState
@@ -733,15 +737,14 @@ class Session {
         }
 
         // Cap to the on-chain balance when rounding pushed quarks above it.
-        // computeFromEntered already round-trips through computeFromQuarks
+        // compute(fromEntered:) already round-trips through compute(onChainAmount:)
         // for server consistency, so we only need to recompute when capping.
         let amountForIntent: ExchangedFiat
         if let balance = balance(for: mint),
-           amount.underlying.quarks > balance.quarks,
+           amount.onChainAmount.quarks > balance.quarks,
            mint != .usdf {
-            amountForIntent = ExchangedFiat.computeFromQuarks(
-                quarks: balance.quarks,
-                mint: mint,
+            amountForIntent = ExchangedFiat.compute(
+                onChainAmount: TokenAmount(quarks: balance.quarks, mint: mint),
                 rate: ratesController.rateForEntryCurrency(),
                 supplyQuarks: supply
             )
@@ -749,14 +752,14 @@ class Session {
             amountForIntent = amount
         }
 
-        logger.info("selling", metadata: ["amount": "\(amountForIntent.converted.formatted())", "symbol": "\(token.symbol)"])
+        logger.info("selling", metadata: ["amount": "\(amountForIntent.nativeAmount.formatted())", "symbol": "\(token.symbol)"])
 
         return try await client.sell(amount: amountForIntent, verifiedState: verifiedState, in: token.metadata, owner: owner)
     }
     
     // MARK: - Withdrawals -
     
-    func withdraw(exchangedFiat: ExchangedFiat, fee: Quarks, to destinationMetadata: DestinationMetadata) async throws {
+    func withdraw(exchangedFiat: ExchangedFiat, fee: TokenAmount, to destinationMetadata: DestinationMetadata) async throws {
         let rendezvous = PublicKey.generate()!
         let mint = exchangedFiat.mint
         do {
@@ -766,7 +769,7 @@ class Session {
 
             // Get verified state for intent construction
             guard let verifiedState = await ratesController.getVerifiedState(
-                for: exchangedFiat.converted.currencyCode,
+                for: exchangedFiat.nativeAmount.currency,
                 mint: mint
             ) else {
                 throw Error.missingVerifiedState
@@ -862,7 +865,14 @@ class Session {
 
                 // Toast: user grabbed cash by scanning a bill (+amount)
                 enqueue(toast: .init(
-                    amount: metadata.exchangedFiat.converted,
+                    amount: (try? Quarks(
+                        fiatDecimal: metadata.exchangedFiat.nativeAmount.value,
+                        currencyCode: metadata.exchangedFiat.nativeAmount.currency,
+                        decimals: metadata.exchangedFiat.nativeAmount.currency.maximumFractionDigits
+                    )) ?? Quarks.zero(
+                        currencyCode: metadata.exchangedFiat.nativeAmount.currency,
+                        decimals: metadata.exchangedFiat.nativeAmount.currency.maximumFractionDigits
+                    ),
                     isDeposit: true
                 ))
 
@@ -1040,7 +1050,14 @@ class Session {
             case .success:
                 // Toast: someone grabbed the user's bill (-amount)
                 self?.enqueue(toast: .init(
-                    amount: billDescription.exchangedFiat.converted,
+                    amount: (try? Quarks(
+                        fiatDecimal: billDescription.exchangedFiat.nativeAmount.value,
+                        currencyCode: billDescription.exchangedFiat.nativeAmount.currency,
+                        decimals: billDescription.exchangedFiat.nativeAmount.currency.maximumFractionDigits
+                    )) ?? Quarks.zero(
+                        currencyCode: billDescription.exchangedFiat.nativeAmount.currency,
+                        decimals: billDescription.exchangedFiat.nativeAmount.currency.maximumFractionDigits
+                    ),
                     isDeposit: false
                 ))
                 
@@ -1115,7 +1132,14 @@ class Session {
 
                     // Toast: user confirmed sending a cash link (-amount)
                     self.enqueue(toast: .init(
-                        amount: exchangedFiat.converted,
+                        amount: (try? Quarks(
+                            fiatDecimal: exchangedFiat.nativeAmount.value,
+                            currencyCode: exchangedFiat.nativeAmount.currency,
+                            decimals: exchangedFiat.nativeAmount.currency.maximumFractionDigits
+                        )) ?? Quarks.zero(
+                            currencyCode: exchangedFiat.nativeAmount.currency,
+                            decimals: exchangedFiat.nativeAmount.currency.maximumFractionDigits
+                        ),
                         isDeposit: false
                     ))
                     
@@ -1203,7 +1227,7 @@ class Session {
             // below and avoids a spurious error when the user taps Send within
             // the first few seconds of relaunching the app.
             guard let verifiedState = await ratesController.awaitVerifiedState(
-                for: exchangedFiat.converted.currencyCode,
+                for: exchangedFiat.nativeAmount.currency,
                 mint: exchangedFiat.mint
             ) else {
                 throw Error.missingVerifiedState
@@ -1299,7 +1323,7 @@ class Session {
                 if giftCardAccountInfo.isGiftCardIssuer && !claimIfOwned {
                     logger.info("Cash link self-claim detected", metadata: [
                         "giftCardAuthority": "\(giftCardKeyPair.publicKey.base58)",
-                        "currency": "\(exchangedFiat.rate.currency.rawValue)",
+                        "currency": "\(exchangedFiat.currencyRate.currency.rawValue)",
                     ])
                     showCollectOwnCashConfirmation(
                         mnemonic: mnemonic,
@@ -1361,7 +1385,7 @@ class Session {
 
                 // Deposit the gift card
                 try await client.receiveCashLink(
-                    usdf: exchangedFiat.underlying,
+                    usdf: exchangedFiat.onChainAmount,
                     ownerCluster: owner.use(
                         mint: vmMint,
                         timeAuthority: vmAuthority
@@ -1373,7 +1397,7 @@ class Session {
                 // above, so data should arrive during the blocking calls.
                 // Required for launchpad currencies in the quick-give-and-grab chain.
                 let verifiedState = await ratesController.awaitVerifiedState(
-                    for: exchangedFiat.converted.currencyCode,
+                    for: exchangedFiat.nativeAmount.currency,
                     mint: vmMint
                 )
 
@@ -1381,7 +1405,14 @@ class Session {
 
                 // Toast: user redeemed a cash link (+amount)
                 enqueue(toast: .init(
-                    amount: exchangedFiat.converted,
+                    amount: (try? Quarks(
+                        fiatDecimal: exchangedFiat.nativeAmount.value,
+                        currencyCode: exchangedFiat.nativeAmount.currency,
+                        decimals: exchangedFiat.nativeAmount.currency.maximumFractionDigits
+                    )) ?? Quarks.zero(
+                        currencyCode: exchangedFiat.nativeAmount.currency,
+                        decimals: exchangedFiat.nativeAmount.currency.maximumFractionDigits
+                    ),
                     isDeposit: true
                 ))
 

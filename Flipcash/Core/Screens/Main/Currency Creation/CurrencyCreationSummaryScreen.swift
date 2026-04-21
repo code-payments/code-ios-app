@@ -13,12 +13,11 @@ struct CurrencyCreationSummaryScreen: View {
 
     private var launchAmountText: String {
         let quarks = session.userFlags?.newCurrencyPurchaseAmount.quarks ?? 0
-        return ExchangedFiat.computeFromQuarks(
-            quarks: quarks,
-            mint: .usdf,
+        return ExchangedFiat.compute(
+            onChainAmount: TokenAmount(quarks: quarks, mint: .usdf),
             rate: .oneToOne,
             supplyQuarks: 0
-        ).converted.formatted()
+        ).nativeAmount.formatted()
     }
 
     var body: some View {

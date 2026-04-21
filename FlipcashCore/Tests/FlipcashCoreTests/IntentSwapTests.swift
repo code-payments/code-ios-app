@@ -54,7 +54,7 @@ extension IntentSwapTests {
             id: id,
             fromMint: .usdf,
             toMint: PublicKey.generate()!,
-            amount: Quarks(quarks: amount, currencyCode: .usd, decimals: 6),
+            amount: TokenAmount(quarks: amount, mint: .usdf),
             fundingSource: .submitIntent(id: PublicKey.generate()!)
         )
 

@@ -20,40 +20,54 @@ class CurrencySellViewModel: Identifiable {
         guard let amount = NumberFormatter.decimal(from: enteredAmount) else { return nil }
         guard let supplyQuarks = currencyMetadata.supplyFromBonding else { return nil }
         let balance = session.balance(for: currencyMetadata.mint)
+        let rate = ratesController.rateForEntryCurrency()
 
-        return ExchangedFiat.computeFromEntered(
-            amount: amount,
-            rate: ratesController.rateForEntryCurrency(),
+        return ExchangedFiat.compute(
+            fromEntered: FiatAmount(value: amount, currency: rate.currency),
+            rate: rate,
             mint: currencyMetadata.mint,
             supplyQuarks: supplyQuarks,
-            balance: balance?.usdf,
+            balance: balance.map { FiatAmount.usd($0.usdf.decimalValue) },
             tokenBalanceQuarks: balance?.quarks
         )
     }
-        
+
     var canPerformAction: Bool {
         guard enteredFiat != nil else {
             return false
         }
 
+        let maxAsQuarks = (try? Quarks(
+            fiatDecimal: maxPossibleAmount.nativeAmount.value,
+            currencyCode: maxPossibleAmount.nativeAmount.currency,
+            decimals: maxPossibleAmount.nativeAmount.currency.maximumFractionDigits
+        )) ?? Quarks.zero(
+            currencyCode: maxPossibleAmount.nativeAmount.currency,
+            decimals: maxPossibleAmount.nativeAmount.currency.maximumFractionDigits
+        )
+
         return EnterAmountCalculator.isWithinDisplayLimit(
             enteredAmount: enteredAmount,
-            max: maxPossibleAmount.converted
+            max: maxAsQuarks
         )
     }
-    
+
     var screenTitle: String {
         return "Amount To Sell"
     }
-    
+
     var maxPossibleAmount: ExchangedFiat {
         let entryRate = ratesController.rateForEntryCurrency()
-        let zero = try! ExchangedFiat(underlying: 0, rate: entryRate, mint: currencyMetadata.mint)
-        
+        let zero = ExchangedFiat.compute(
+            onChainAmount: .zero(mint: currencyMetadata.mint),
+            rate: entryRate,
+            supplyQuarks: nil
+        )
+
         guard let balance = session.balance(for: currencyMetadata.mint) else {
             return zero
         }
-        
+
         return balance.computeExchangedValue(with: entryRate)
     }
     

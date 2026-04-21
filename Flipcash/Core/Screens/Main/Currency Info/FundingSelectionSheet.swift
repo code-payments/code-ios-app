@@ -42,7 +42,7 @@ struct FundingSelectionSheet: View {
                 }
                 
                 if let reserveBalance, reserveBalance.hasDisplayableValue() {
-                    Button("USDF (\(reserveBalance.converted.formatted()))") {
+                    Button("USDF (\(reserveBalance.nativeAmount.formatted()))") {
                         onSelectReserves()
                     }
                     .buttonStyle(.filled)

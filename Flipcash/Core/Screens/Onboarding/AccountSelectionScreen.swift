@@ -86,9 +86,9 @@ struct AccountSelectionScreen: View {
 
                         if let balance = account.totalBalance {
                             AmountText(
-                                flagStyle: balance.converted.currencyCode.flagStyle,
+                                flagStyle: balance.nativeAmount.currency.flagStyle,
                                 flagSize: .small,
-                                content: balance.converted.formatted(),
+                                content: balance.nativeAmount.formatted(),
                                 canScale: false
                             )
                             .font(.appTextMedium)
@@ -222,9 +222,8 @@ struct AccountSelectionScreen: View {
 
                             let totalBalance = accountInfos
                                 .map { info in
-                                    ExchangedFiat.computeFromQuarks(
-                                        quarks: info.quarks,
-                                        mint: info.mint,
+                                    ExchangedFiat.compute(
+                                        onChainAmount: TokenAmount(quarks: info.quarks, mint: info.mint),
                                         rate: rate,
                                         supplyQuarks: mintMetadata[info.mint]?.launchpadMetadata?.supplyFromBonding
                                     )

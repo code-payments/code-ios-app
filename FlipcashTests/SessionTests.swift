@@ -18,6 +18,17 @@ struct SessionTests {
     static let mint = PublicKey.usdf
     static let rate = Rate(fx: 1.0, currency: .usd)
 
+    /// Helper: build a USDF-minted `ExchangedFiat` with the given 6-decimal
+    /// USD quarks and rate. Mirrors the old
+    /// `ExchangedFiat(underlying: Quarks(.usd, decimals: 6), rate:, mint: .usdf)` init.
+    static func makeUSDFExchangedFiat(usdQuarks: UInt64, rate: Rate) -> ExchangedFiat {
+        ExchangedFiat.compute(
+            onChainAmount: TokenAmount(quarks: usdQuarks, mint: .usdf),
+            rate: rate,
+            supplyQuarks: nil
+        )
+    }
+
     /// Helper to create a mock session with a specific balance
     static func createMockSession(balanceQuarks: UInt64) -> Session {
         // Note: This is a simplified mock. In production, you'd use proper dependency injection
@@ -179,28 +190,20 @@ struct SessionTests {
         let balanceQuarks: UInt64 = 7_100 // $0.0071
         let requestedQuarks: UInt64 = 10_000 // $0.01
 
-        let balance = try ExchangedFiat(
-            underlying: Quarks(quarks: balanceQuarks, currencyCode: .usd, decimals: 6),
-            rate: rate,
-            mint: mint
-        )
+        let balance = Self.makeUSDFExchangedFiat(usdQuarks: balanceQuarks, rate: rate)
 
-        let requested = try ExchangedFiat(
-            underlying: Quarks(quarks: requestedQuarks, currencyCode: .usd, decimals: 6),
-            rate: rate,
-            mint: mint
-        )
+        let requested = Self.makeUSDFExchangedFiat(usdQuarks: requestedQuarks, rate: rate)
 
         // When: Checking if within tolerance
-        let delta = abs(balance.converted.decimalValue - requested.converted.decimalValue)
+        let delta = abs(balance.nativeAmount.value - requested.nativeAmount.value)
 
         // Then: Should be within tolerance and return balance amount
         #expect(delta <= 0.005)
 
         // If within tolerance, the actual send amount should be the balance
         let amountToSend = balance
-        #expect(amountToSend.underlying.quarks == balanceQuarks)
-        #expect(amountToSend.underlying.quarks < requestedQuarks)
+        #expect(amountToSend.onChainAmount.quarks == balanceQuarks)
+        #expect(amountToSend.onChainAmount.quarks < requestedQuarks)
     }
 
     // MARK: - Custom Currency Tests
@@ -255,21 +258,13 @@ struct SessionTests {
         // Balance: $0.996, Requested: $1.00, Delta: $0.004
         let usdRate = Rate(fx: 1.0, currency: .usd)
 
-        let balance = try ExchangedFiat(
-            underlying: Quarks(quarks: 996_000 as UInt64, currencyCode: .usd, decimals: 6), // $0.996
-            rate: usdRate,
-            mint: mint
-        )
+        let balance = Self.makeUSDFExchangedFiat(usdQuarks: 996_000, rate: usdRate)  // $0.996
 
-        let requested = try ExchangedFiat(
-            underlying: Quarks(quarks: 1_000_000 as UInt64, currencyCode: .usd, decimals: 6), // $1.00
-            rate: usdRate,
-            mint: mint
-        )
+        let requested = Self.makeUSDFExchangedFiat(usdQuarks: 1_000_000, rate: usdRate) // $1.00
 
         // When: Calculating delta and tolerance
-        let delta = abs(balance.converted.decimalValue - requested.converted.decimalValue)
-        let decimals = requested.converted.currencyCode.maximumFractionDigits
+        let delta = abs(balance.nativeAmount.value - requested.nativeAmount.value)
+        let decimals = requested.nativeAmount.currency.maximumFractionDigits
         let tolerance = Decimal(pow(10.0, -Double(decimals))) / 2
 
         // Then: Should be within tolerance
@@ -286,21 +281,13 @@ struct SessionTests {
         // Balance: ¥0.6, Requested: ¥1.0, Delta: ¥0.4
         let jpyRate = Rate(fx: 149.0, currency: .jpy) // ~149 JPY per USD
 
-        let balance = try ExchangedFiat(
-            underlying: Quarks(quarks: 4_027 as UInt64, currencyCode: .usd, decimals: 6), // ~$0.004027 = ¥0.6
-            rate: jpyRate,
-            mint: mint
-        )
+        let balance = Self.makeUSDFExchangedFiat(usdQuarks: 4_027, rate: jpyRate)  // ~$0.004027 = ¥0.6
 
-        let requested = try ExchangedFiat(
-            underlying: Quarks(quarks: 6_711 as UInt64, currencyCode: .usd, decimals: 6), // ~$0.006711 = ¥1.0
-            rate: jpyRate,
-            mint: mint
-        )
+        let requested = Self.makeUSDFExchangedFiat(usdQuarks: 6_711, rate: jpyRate) // ~$0.006711 = ¥1.0
 
         // When: Calculating delta and tolerance
-        let delta = abs(balance.converted.decimalValue - requested.converted.decimalValue)
-        let decimals = requested.converted.currencyCode.maximumFractionDigits
+        let delta = abs(balance.nativeAmount.value - requested.nativeAmount.value)
+        let decimals = requested.nativeAmount.currency.maximumFractionDigits
         let tolerance = Decimal(pow(10.0, -Double(decimals))) / 2
 
         // Then: Should be within tolerance
@@ -316,21 +303,13 @@ struct SessionTests {
         // Balance: ¥0.4, Requested: ¥1.0, Delta: ¥0.6 (exceeds tolerance)
         let jpyRate = Rate(fx: 149.0, currency: .jpy)
 
-        let balance = try ExchangedFiat(
-            underlying: Quarks(quarks: 2_685 as UInt64, currencyCode: .usd, decimals: 6), // ~$0.002685 = ¥0.4
-            rate: jpyRate,
-            mint: mint
-        )
+        let balance = Self.makeUSDFExchangedFiat(usdQuarks: 2_685, rate: jpyRate) // ~$0.002685 = ¥0.4
 
-        let requested = try ExchangedFiat(
-            underlying: Quarks(quarks: 6_711 as UInt64, currencyCode: .usd, decimals: 6), // ~$0.006711 = ¥1.0
-            rate: jpyRate,
-            mint: mint
-        )
+        let requested = Self.makeUSDFExchangedFiat(usdQuarks: 6_711, rate: jpyRate) // ~$0.006711 = ¥1.0
 
         // When: Calculating delta and tolerance
-        let delta = abs(balance.converted.decimalValue - requested.converted.decimalValue)
-        let decimals = requested.converted.currencyCode.maximumFractionDigits
+        let delta = abs(balance.nativeAmount.value - requested.nativeAmount.value)
+        let decimals = requested.nativeAmount.currency.maximumFractionDigits
         let tolerance = Decimal(pow(10.0, -Double(decimals))) / 2
 
         // Then: Should exceed tolerance
@@ -346,21 +325,13 @@ struct SessionTests {
         // Balance: BD 0.9996, Requested: BD 1.000, Delta: BD 0.0004
         let bhdRate = Rate(fx: 0.376, currency: .bhd) // ~0.376 BHD per USD
 
-        let balance = try ExchangedFiat(
-            underlying: Quarks(quarks: 2_658_511 as UInt64, currencyCode: .usd, decimals: 6), // ~$2.658511 = BD 0.9996
-            rate: bhdRate,
-            mint: mint
-        )
+        let balance = Self.makeUSDFExchangedFiat(usdQuarks: 2_658_511, rate: bhdRate) // ~$2.658511 = BD 0.9996
 
-        let requested = try ExchangedFiat(
-            underlying: Quarks(quarks: 2_659_574 as UInt64, currencyCode: .usd, decimals: 6), // ~$2.659574 = BD 1.000
-            rate: bhdRate,
-            mint: mint
-        )
+        let requested = Self.makeUSDFExchangedFiat(usdQuarks: 2_659_574, rate: bhdRate) // ~$2.659574 = BD 1.000
 
         // When: Calculating delta and tolerance
-        let delta = abs(balance.converted.decimalValue - requested.converted.decimalValue)
-        let decimals = requested.converted.currencyCode.maximumFractionDigits
+        let delta = abs(balance.nativeAmount.value - requested.nativeAmount.value)
+        let decimals = requested.nativeAmount.currency.maximumFractionDigits
         let tolerance = Decimal(pow(10.0, -Double(decimals))) / 2
 
         // Then: Should be within tolerance
@@ -375,21 +346,13 @@ struct SessionTests {
         // Balance: $0.995, Requested: $1.00, Delta: $0.005 (exactly at tolerance)
         let usdRate = Rate(fx: 1.0, currency: .usd)
 
-        let balance = try ExchangedFiat(
-            underlying: Quarks(quarks: 995_000 as UInt64, currencyCode: .usd, decimals: 6),
-            rate: usdRate,
-            mint: mint
-        )
+        let balance = Self.makeUSDFExchangedFiat(usdQuarks: 995_000, rate: usdRate)
 
-        let requested = try ExchangedFiat(
-            underlying: Quarks(quarks: 1_000_000 as UInt64, currencyCode: .usd, decimals: 6),
-            rate: usdRate,
-            mint: mint
-        )
+        let requested = Self.makeUSDFExchangedFiat(usdQuarks: 1_000_000, rate: usdRate)
 
         // When: Calculating delta and tolerance
-        let delta = abs(balance.converted.decimalValue - requested.converted.decimalValue)
-        let decimals = requested.converted.currencyCode.maximumFractionDigits
+        let delta = abs(balance.nativeAmount.value - requested.nativeAmount.value)
+        let decimals = requested.nativeAmount.currency.maximumFractionDigits
         let tolerance = Decimal(pow(10.0, -Double(decimals))) / 2
 
         // Then: Should be exactly at tolerance (should pass with <=)
@@ -404,21 +367,13 @@ struct SessionTests {
         // Balance: ¥0.5, Requested: ¥1.0, Delta: ¥~0.5 (at tolerance)
         let jpyRate = Rate(fx: 149.0, currency: .jpy)
 
-        let balance = try ExchangedFiat(
-            underlying: Quarks(quarks: 3_356 as UInt64, currencyCode: .usd, decimals: 6), // ~$0.003356 = ¥0.5
-            rate: jpyRate,
-            mint: mint
-        )
+        let balance = Self.makeUSDFExchangedFiat(usdQuarks: 3_356, rate: jpyRate) // ~$0.003356 = ¥0.5
 
-        let requested = try ExchangedFiat(
-            underlying: Quarks(quarks: 6_711 as UInt64, currencyCode: .usd, decimals: 6), // ~$0.006711 = ¥1.0
-            rate: jpyRate,
-            mint: mint
-        )
+        let requested = Self.makeUSDFExchangedFiat(usdQuarks: 6_711, rate: jpyRate) // ~$0.006711 = ¥1.0
 
         // When: Calculating delta and tolerance
-        let delta = abs(balance.converted.decimalValue - requested.converted.decimalValue)
-        let decimals = requested.converted.currencyCode.maximumFractionDigits
+        let delta = abs(balance.nativeAmount.value - requested.nativeAmount.value)
+        let decimals = requested.nativeAmount.currency.maximumFractionDigits
         let tolerance = Decimal(pow(10.0, -Double(decimals))) / 2
 
         // Then: Should be at or very near tolerance boundary (within tolerance due to floating-point precision)
@@ -433,21 +388,13 @@ struct SessionTests {
         // Balance: $0.9949, Requested: $1.00, Delta: $0.0051 (exceeds tolerance)
         let usdRate = Rate(fx: 1.0, currency: .usd)
 
-        let balance = try ExchangedFiat(
-            underlying: Quarks(quarks: 994_900 as UInt64, currencyCode: .usd, decimals: 6),
-            rate: usdRate,
-            mint: mint
-        )
+        let balance = Self.makeUSDFExchangedFiat(usdQuarks: 994_900, rate: usdRate)
 
-        let requested = try ExchangedFiat(
-            underlying: Quarks(quarks: 1_000_000 as UInt64, currencyCode: .usd, decimals: 6),
-            rate: usdRate,
-            mint: mint
-        )
+        let requested = Self.makeUSDFExchangedFiat(usdQuarks: 1_000_000, rate: usdRate)
 
         // When: Calculating delta and tolerance
-        let delta = abs(balance.converted.decimalValue - requested.converted.decimalValue)
-        let decimals = requested.converted.currencyCode.maximumFractionDigits
+        let delta = abs(balance.nativeAmount.value - requested.nativeAmount.value)
+        let decimals = requested.nativeAmount.currency.maximumFractionDigits
         let tolerance = Decimal(pow(10.0, -Double(decimals))) / 2
 
         // Then: Should exceed tolerance
@@ -494,22 +441,14 @@ struct SessionTests {
         let jpyRate = Rate(fx: 149.0, currency: .jpy)
 
         // User's actual balance: worth ¥0.6
-        let actualBalance = try ExchangedFiat(
-            underlying: Quarks(quarks: 4_027 as UInt64, currencyCode: .usd, decimals: 6),
-            rate: jpyRate,
-            mint: mint
-        )
+        let actualBalance = Self.makeUSDFExchangedFiat(usdQuarks: 4_027, rate: jpyRate)
 
         // User tries to send: ¥1.0 (what UI shows after rounding)
-        let requestedAmount = try ExchangedFiat(
-            underlying: Quarks(quarks: 6_711 as UInt64, currencyCode: .usd, decimals: 6),
-            rate: jpyRate,
-            mint: mint
-        )
+        let requestedAmount = Self.makeUSDFExchangedFiat(usdQuarks: 6_711, rate: jpyRate)
 
         // When: Checking if within tolerance
-        let delta = abs(actualBalance.converted.decimalValue - requestedAmount.converted.decimalValue)
-        let decimals = requestedAmount.converted.currencyCode.maximumFractionDigits
+        let delta = abs(actualBalance.nativeAmount.value - requestedAmount.nativeAmount.value)
+        let decimals = requestedAmount.nativeAmount.currency.maximumFractionDigits
         let tolerance = Decimal(pow(10.0, -Double(decimals))) / 2
 
         // Then: Should pass tolerance check (delta ≈ ¥0.4, tolerance = ¥0.5)
@@ -537,25 +476,25 @@ struct SessionTests {
 
         // Create individual ExchangedFiat values (USDF balances with 6 decimals)
         let balances: [ExchangedFiat] = [
-            try ExchangedFiat(underlying: Quarks(quarks: 3_500_000 as UInt64, currencyCode: .usd, decimals: 6), rate: cadRate, mint: .usdf),
-            try ExchangedFiat(underlying: Quarks(quarks: 2_290_000 as UInt64, currencyCode: .usd, decimals: 6), rate: cadRate, mint: .usdf),
+            Self.makeUSDFExchangedFiat(usdQuarks: 3_500_000, rate: cadRate),
+            Self.makeUSDFExchangedFiat(usdQuarks: 2_290_000, rate: cadRate),
         ]
 
         // Compute total using the Collection extension (same code path as Session.totalBalance)
         let total = balances.total(rate: cadRate)
 
-        // Sum individual converted values
-        let sumOfConverted = balances.reduce(Decimal(0)) { sum, balance in
-            sum + balance.converted.decimalValue
+        // Sum individual native values
+        let sumOfNative = balances.reduce(Decimal(0)) { sum, balance in
+            sum + balance.nativeAmount.value
         }
 
         // Verify total is non-zero
-        #expect(total.converted.decimalValue > 0, "Total should be non-zero to be a meaningful test")
+        #expect(total.nativeAmount.value > 0, "Total should be non-zero to be a meaningful test")
 
-        // The total's converted value should equal the sum of individual converted values
+        // The total's native value should equal the sum of individual native values
         #expect(
-            total.converted.decimalValue == sumOfConverted,
-            "total(rate:) (\(total.converted.decimalValue)) should equal sum of converted values (\(sumOfConverted))"
+            total.nativeAmount.value == sumOfNative,
+            "total(rate:) (\(total.nativeAmount.value)) should equal sum of native values (\(sumOfNative))"
         )
     }
 }

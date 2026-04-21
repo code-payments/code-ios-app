@@ -19,7 +19,7 @@ struct CurrencyLaunchProcessingViewModelTests {
             swapId: .generate(),
             launchedMint: .usdf,
             currencyName: currencyName,
-            launchAmount: ExchangedFiat(underlying: 10_00_00, converted: 10_00_00, mint: .usdf),
+            launchAmount: ExchangedFiat.mockOne,
             fundingMethod: fundingMethod
         )
     }

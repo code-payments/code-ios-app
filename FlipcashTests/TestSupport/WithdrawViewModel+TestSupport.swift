@@ -53,9 +53,8 @@ enum WithdrawViewModelTestHelpers {
 
         return ExchangedBalance(
             stored: stored,
-            exchangedFiat: ExchangedFiat.computeFromQuarks(
-                quarks: quarks,
-                mint: mint,
+            exchangedFiat: ExchangedFiat.compute(
+                onChainAmount: TokenAmount(quarks: quarks, mint: mint),
                 rate: .oneToOne,
                 supplyQuarks: nil
             )
@@ -64,7 +63,7 @@ enum WithdrawViewModelTestHelpers {
 
     static func createDestinationMetadata(
         requiresInitialization: Bool = false,
-        fee: Quarks = Quarks(quarks: 0 as UInt64, currencyCode: .usd, decimals: 6)
+        fee: TokenAmount = TokenAmount(quarks: 0, mint: .usdf)
     ) -> DestinationMetadata {
         DestinationMetadata(
             kind: .token,

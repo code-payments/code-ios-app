@@ -39,15 +39,15 @@ struct TransactionDetailsModal: View {
             ),
             DetailRow(
                 title: "Exchange Rate",
-                subtitle: activity.exchangedFiat.rate.fx.formatted()
+                subtitle: activity.exchangedFiat.currencyRate.fx.formatted()
             ),
             DetailRow(
                 title: "Currency",
-                subtitle: activity.exchangedFiat.converted.currencyCode.rawValue.uppercased()
+                subtitle: activity.exchangedFiat.nativeAmount.currency.rawValue.uppercased()
             ),
             DetailRow(
                 title: "USDC",
-                subtitle: activity.exchangedFiat.underlying.formatted()
+                subtitle: activity.exchangedFiat.usdfValue.formatted()
             ),
         ]
     }
@@ -60,9 +60,9 @@ struct TransactionDetailsModal: View {
                 Text(activity.title)
                     .font(.appTextLarge)
                 AmountText(
-                    flagStyle: activity.exchangedFiat.converted.currencyCode.flagStyle,
+                    flagStyle: activity.exchangedFiat.nativeAmount.currency.flagStyle,
                     flagSize: .regular,
-                    content: activity.exchangedFiat.converted.formatted(),
+                    content: activity.exchangedFiat.nativeAmount.formatted(),
                     canScale: false
                 )
                 .font(.appDisplaySmall)

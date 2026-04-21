@@ -52,28 +52,28 @@ struct CurrencyBuyViewModelTests {
     // MARK: - Entered Fiat Direction Tests -
     
     @Test
-    func testEnteredFiat_WithCADEntry_ConvertedIsCAD_UnderlyingIsUSD() throws {
+    func testEnteredFiat_WithCADEntry_NativeIsCAD_USDFValueIsUSD() throws {
         // Given: A view model with 1 CAD entered
-        // Rate is 1.35 (1 USD = 1.35 CAD), so 1 CAD = ~0.74 USD underlying
+        // Rate is 1.35 (1 USD = 1.35 CAD), so 1 CAD = ~0.74 USD usdf value
         let viewModel = Self.createViewModel()
         viewModel.enteredAmount = "1"
-        
+
         // When: Getting the enteredFiat from the viewModel
         let exchangedFiat = try #require(viewModel.enteredFiat)
-        
-        // Then: Converted should be in CAD (the entry currency)
-        #expect(exchangedFiat.converted.currencyCode == .cad)
-        
-        // Then: Underlying should be in USD (the base currency)
-        #expect(exchangedFiat.underlying.currencyCode == .usd)
-        
+
+        // Then: Native should be in CAD (the entry currency)
+        #expect(exchangedFiat.nativeAmount.currency == .cad)
+
+        // Then: USDF value should be in USD (the base currency)
+        #expect(exchangedFiat.usdfValue.currency == .usd)
+
         // Then: Rate should match our configured CAD rate
-        #expect(exchangedFiat.rate.currency == .cad)
-        #expect(exchangedFiat.rate.fx == Self.cadRate.fx)
-        
-        // Then: The underlying USD value should be less than converted CAD value
+        #expect(exchangedFiat.currencyRate.currency == .cad)
+        #expect(exchangedFiat.currencyRate.fx == Self.cadRate.fx)
+
+        // Then: The USD value should be less than the native CAD value
         // because 1 CAD < 1 USD (1 CAD ≈ 0.74 USD at 1.35 rate)
-        #expect(exchangedFiat.underlying.quarks < exchangedFiat.converted.quarks)
+        #expect(exchangedFiat.usdfValue.value < exchangedFiat.nativeAmount.value)
     }
-    
+
 }

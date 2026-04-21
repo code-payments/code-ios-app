@@ -14,19 +14,24 @@ import FlipcashCore
 
     // MARK: - Test Helpers
 
+    /// Helper to build an USDF-minted ExchangedFiat directly.
+    ///
+    /// - Parameters:
+    ///   - usdQuarks: raw USDF quarks (6 decimals) backing the on-chain side.
+    ///   - nativeDecimalValue: the native-currency value (already converted). If
+    ///     nil, defaults to `usdQuarks / 10^6` at fx 1 — i.e. same value in the
+    ///     entry currency.
     static func createExchangedFiat(
-        underlyingQuarks: UInt64,
-        convertedQuarks: UInt64,
+        usdQuarks: UInt64,
+        nativeDecimalValue: Decimal? = nil,
         currency: CurrencyCode = .usd
     ) -> ExchangedFiat {
-        let underlying = Quarks(quarks: underlyingQuarks, currencyCode: .usd, decimals: 6)
-        let converted = Quarks(quarks: convertedQuarks, currencyCode: currency, decimals: 6)
-
+        let usdValue = Decimal(usdQuarks) / Decimal(1_000_000)
+        let native = FiatAmount(value: nativeDecimalValue ?? usdValue, currency: currency)
         return ExchangedFiat(
-            underlying: underlying,
-            converted: converted,
-            rate: Rate(fx: 1, currency: currency),
-            mint: .usdf
+            onChainAmount: TokenAmount(quarks: usdQuarks, mint: .usdf),
+            nativeAmount: native,
+            currencyRate: Rate(fx: 1, currency: currency)
         )
     }
 
@@ -235,7 +240,7 @@ import FlipcashCore
 
     @Test("Unbounded modes cap maxEnterAmount at balance only", arguments: unboundedModes)
     func maxEnterAmount_unboundedModes_returnsFullBalance(mode: EnterAmountView.Mode) {
-        let balance = Self.createExchangedFiat(underlyingQuarks: 2_000_000_000, convertedQuarks: 2_000_000_000)
+        let balance = Self.createExchangedFiat(usdQuarks: 2_000_000_000)
         let sendLimit = Self.sendLimit(nextTransaction: 100_000_000, maxPerTransaction: 250_000_000, maxPerDay: 1_000_000_000)
 
         let calculator = EnterAmountCalculator(
@@ -244,7 +249,7 @@ import FlipcashCore
             sendLimitProvider: { _ in sendLimit }
         )
 
-        #expect(calculator.maxEnterAmount(maxBalance: balance) == balance.converted)
+        #expect(calculator.maxEnterAmount(maxBalance: balance).quarks == 2_000_000_000)
     }
 
     // MARK: - isWithinDisplayLimit Tests
@@ -296,7 +301,7 @@ import FlipcashCore
     // MARK: - Max Enter Amount Tests
 
     @Test func maxEnterAmount_whenLimitIsNil_returnsBalance() {
-        let balance = Self.createExchangedFiat(underlyingQuarks: 500_000, convertedQuarks: 500_000)
+        let balance = Self.createExchangedFiat(usdQuarks: 500_000)
 
         let calculator = EnterAmountCalculator(
             mode: .currency,
@@ -304,11 +309,11 @@ import FlipcashCore
             sendLimitProvider: { _ in return nil }
         )
 
-        #expect(calculator.maxEnterAmount(maxBalance: balance) == balance.converted)
+        #expect(calculator.maxEnterAmount(maxBalance: balance).quarks == 500_000)
     }
 
     @Test func maxEnterAmount_whenBalanceLessThanLimit_returnsBalance() {
-        let balance = Self.createExchangedFiat(underlyingQuarks: 500_000, convertedQuarks: 500_000)
+        let balance = Self.createExchangedFiat(usdQuarks: 500_000)
         let sendLimit = Self.sendLimit(nextTransaction: 1_000_000, maxPerTransaction: 1_000_000, maxPerDay: 5_000_000)
 
         let calculator = EnterAmountCalculator(
@@ -317,11 +322,11 @@ import FlipcashCore
             sendLimitProvider: { _ in return sendLimit }
         )
 
-        #expect(calculator.maxEnterAmount(maxBalance: balance) == balance.converted)
+        #expect(calculator.maxEnterAmount(maxBalance: balance).quarks == 500_000)
     }
 
     @Test func maxEnterAmount_whenLimitLessThanBalance_returnsLimitDirectly() {
-        let balance = Self.createExchangedFiat(underlyingQuarks: 2_000_000, convertedQuarks: 2_000_000)
+        let balance = Self.createExchangedFiat(usdQuarks: 2_000_000)
         let sendLimit = Self.sendLimit(nextTransaction: 1_000_000, maxPerTransaction: 1_000_000, maxPerDay: 5_000_000)
 
         let calculator = EnterAmountCalculator(
@@ -338,8 +343,8 @@ import FlipcashCore
     func maxEnterAmount_giveMode_CAD_returnsLocalizedLimit() {
         // Balance: $500 CAD. Limit: $250 CAD (server already localized).
         let balance = Self.createExchangedFiat(
-            underlyingQuarks: 500_000_000,
-            convertedQuarks: 500_000_000,
+            usdQuarks: 500_000_000,
+            nativeDecimalValue: 500,
             currency: .cad
         )
         let sendLimit = Self.sendLimit(
@@ -363,7 +368,7 @@ import FlipcashCore
 
     @Test("maxEnterAmount for buy mode caps at maxPerDay, not maxPerTransaction")
     func maxEnterAmount_buyMode_capsAtMaxPerDay() {
-        let balance = Self.createExchangedFiat(underlyingQuarks: 2_000_000, convertedQuarks: 2_000_000)
+        let balance = Self.createExchangedFiat(usdQuarks: 2_000_000)
         // $0.10 remaining, $0.25 per-tx cap, $1.00 daily (used as buy per-tx)
         let sendLimit = Self.sendLimit(nextTransaction: 100_000, maxPerTransaction: 250_000, maxPerDay: 1_000_000)
 

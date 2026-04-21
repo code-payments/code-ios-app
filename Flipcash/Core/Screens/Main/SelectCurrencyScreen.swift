@@ -110,7 +110,11 @@ struct CurrencyBalanceRow: View {
             CurrencyLabel(
                 imageURL: exchangedBalance.stored.imageURL,
                 name: exchangedBalance.stored.name,
-                amount: exchangedBalance.exchangedFiat.converted,
+                amount: try? Quarks(
+                    fiatDecimal: exchangedBalance.exchangedFiat.nativeAmount.value,
+                    currencyCode: exchangedBalance.exchangedFiat.nativeAmount.currency,
+                    decimals: exchangedBalance.exchangedFiat.nativeAmount.currency.maximumFractionDigits
+                ),
                 isSelected: showSelected,
             )
         }

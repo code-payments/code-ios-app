@@ -38,16 +38,9 @@ struct IntentWithdrawTests {
         #expect(transfer.amount.quarks == 0)
     }
 
-    @Test("Fee larger than amount throws feeLargerThanAmount")
-    func withdrawFeeExceedsAmount() {
-        #expect(throws: ExchangedFiat.Error.feeLargerThanAmount) {
-            try makeIntent(
-                quarks: 400_000,
-                feeQuarks: 500_000,
-                requiresInitialization: true
-            )
-        }
-    }
+    // Note: a fee larger than the amount is now a precondition-fail in
+    // TokenAmount subtraction, not a throwable error — callers are expected to
+    // validate sufficient-funds before constructing a withdraw intent.
 
     @Test("Single transfer when fee condition is not met", arguments: [
         (feeQuarks: 500_000 as UInt64, requiresInit: false),
@@ -138,13 +131,12 @@ extension IntentWithdrawTests {
         ),
         destinationKind: DestinationMetadata.Kind = .token
     ) throws -> IntentWithdraw {
-        let exchangedFiat = try ExchangedFiat(
-            converted: Quarks(fiatDecimal: Decimal(quarks) / 1_000_000, currencyCode: .usd, decimals: 6),
-            rate: .oneToOne,
-            mint: .usdf
+        let exchangedFiat = ExchangedFiat(
+            nativeAmount: FiatAmount.usd(Decimal(quarks) / 1_000_000),
+            rate: .oneToOne
         )
 
-        let fee = Quarks(quarks: feeQuarks, currencyCode: .usd, decimals: 6)
+        let fee = TokenAmount(quarks: feeQuarks, mint: .usdf)
 
         let destinationMetadata = DestinationMetadata(
             kind: destinationKind,

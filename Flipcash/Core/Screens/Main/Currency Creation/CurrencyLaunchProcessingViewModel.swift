@@ -196,7 +196,7 @@ class CurrencyLaunchProcessingViewModel {
         ratesController.ensureMintSubscribed(launchedMint)
 
         guard let state = await ratesController.awaitVerifiedState(
-            for: launchAmount.converted.currencyCode,
+            for: launchAmount.nativeAmount.currency,
             mint: launchedMint
         ) else {
             logger.warning("Verified state unavailable for launched mint; skipping bill handoff", metadata: [
@@ -216,7 +216,7 @@ class CurrencyLaunchProcessingViewModel {
 
         let balanceFiat = stored.computeExchangedValue(with: ratesController.rateForBalanceCurrency())
 
-        guard balanceFiat.converted.quarks > 0 else {
+        guard balanceFiat.onChainAmount.quarks > 0 else {
             logger.warning("Launched currency bill computed to zero fiat; skipping bill", metadata: [
                 "mint": "\(launchedMint.base58)",
                 "storedQuarks": "\(stored.quarks)",
@@ -243,7 +243,7 @@ class CurrencyLaunchProcessingViewModel {
                 "fundingMethod": "\(fundingMethod)",
                 "finalState": "\(state)",
                 "mint": launchedMint.base58,
-                "amount": launchAmount.converted.formatted(),
+                "amount": launchAmount.nativeAmount.formatted(),
             ]
         )
     }

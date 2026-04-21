@@ -56,7 +56,7 @@ struct BalanceScreen: View {
 
         for balance in currencyBalances {
             let (value, isPositive) = balance.stored.computeAppreciation(with: balanceRate)
-            let amount = value.converted.decimalValue
+            let amount = value.nativeAmount.value
             totalAppreciation += isPositive ? amount : -amount
         }
 
@@ -217,8 +217,8 @@ struct BalanceScreen: View {
                 isShowingCurrencySelection.toggle()
             } label: {
                 AmountText(
-                    flagStyle: balance.converted.currencyCode.flagStyle,
-                    content: balance.converted.formatted(),
+                    flagStyle: balance.nativeAmount.currency.flagStyle,
+                    content: balance.nativeAmount.formatted(),
                     showChevron: true
                 )
                 .font(.appDisplayLarge)
@@ -252,7 +252,7 @@ struct BalanceScreen: View {
     private func cancelCashLinkAction(activity: Activity, metadata: Activity.CashLinkMetadata) {
         dialogItem = .init(
             style: .destructive,
-            title: "Cancel \(activity.exchangedFiat.converted.formatted()) Transfer?",
+            title: "Cancel \(activity.exchangedFiat.nativeAmount.formatted()) Transfer?",
             subtitle: "The money will be returned to your wallet.",
             dismissable: true
         ) {

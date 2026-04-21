@@ -261,13 +261,8 @@ class RatesController {
             throw Error.exchangeRateUnavailable
         }
 
-        let exchangedFiat = try ExchangedFiat(
-            converted: amount,
-            rate: rate,
-            mint: .usdf
-        )
-
-        return exchangedFiat
+        let nativeAmount = FiatAmount(value: amount.decimalValue, currency: amount.currencyCode)
+        return ExchangedFiat(nativeAmount: nativeAmount, rate: rate)
     }
 
     /// Called when streaming delivers new rates. `VerifiedProtoService`

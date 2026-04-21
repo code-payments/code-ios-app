@@ -57,8 +57,16 @@ class CurrencyInfoViewModel {
         guard let mintMetadata else { return zero }
         guard let stored = session.balance(for: mintMetadata.mint) else { return zero }
 
-        let exchanged = try? ExchangedFiat(underlying: stored.usdf, rate: rate, mint: .usdf)
-        return exchanged?.converted ?? zero
+        let exchanged = ExchangedFiat.compute(
+            onChainAmount: TokenAmount(quarks: stored.usdf.quarks, mint: .usdf),
+            rate: rate,
+            supplyQuarks: nil
+        )
+        return (try? Quarks(
+            fiatDecimal: exchanged.nativeAmount.value,
+            currencyCode: exchanged.nativeAmount.currency,
+            decimals: exchanged.nativeAmount.currency.maximumFractionDigits
+        )) ?? zero
     }
 
     /// The user's USDF reserve balance converted to the display currency.
@@ -67,7 +75,11 @@ class CurrencyInfoViewModel {
         guard let stored = session.balance(for: .usdf) else { return nil }
 
         let rate = ratesController.rateForBalanceCurrency()
-        return try? ExchangedFiat(underlying: stored.usdf, rate: rate, mint: .usdf)
+        return ExchangedFiat.compute(
+            onChainAmount: TokenAmount(quarks: stored.usdf.quarks, mint: .usdf),
+            rate: rate,
+            supplyQuarks: nil
+        )
     }
 
     /// The absolute appreciation (or depreciation) of this currency's balance
@@ -82,7 +94,12 @@ class CurrencyInfoViewModel {
             return (zero, true)
         }
         let (appreciationValue, isPositive) = balance.computeAppreciation(with: rate)
-        return (appreciationValue.converted, isPositive)
+        let appreciationAsQuarks = (try? Quarks(
+            fiatDecimal: appreciationValue.nativeAmount.value,
+            currencyCode: appreciationValue.nativeAmount.currency,
+            decimals: appreciationValue.nativeAmount.currency.maximumFractionDigits
+        )) ?? zero
+        return (appreciationAsQuarks, isPositive)
     }
 
     /// The market capitalisation of this currency (supply × spot price on the
@@ -98,19 +115,21 @@ class CurrencyInfoViewModel {
             return 0
         }
 
-        let usdc = try! Quarks(
-            fiatDecimal: mCap,
-            currencyCode: .usd,
-            decimals: mintMetadata.mint.mintDecimals
-        )
-
-        let exchanged = try! ExchangedFiat(
-            underlying: usdc,
+        // `mCap` is a USD decimal. Build a USDF TokenAmount so the on-chain
+        // and USDF sides agree at 6 decimals; using `mintMetadata.mint.mintDecimals`
+        // here would scale a USDF value at the bonded mint's 10 decimals and
+        // overshoot by 10⁴.
+        let exchanged = ExchangedFiat.compute(
+            onChainAmount: TokenAmount(wholeTokens: mCap, mint: .usdf),
             rate: ratesController.rateForBalanceCurrency(),
-            mint: .usdf
+            supplyQuarks: nil
         )
 
-        return exchanged.converted
+        return (try? Quarks(
+            fiatDecimal: exchanged.nativeAmount.value,
+            currencyCode: exchanged.nativeAmount.currency,
+            decimals: exchanged.nativeAmount.currency.maximumFractionDigits
+        )) ?? 0
     }
 
     // MARK: - Init -

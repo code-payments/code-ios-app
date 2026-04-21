@@ -13,16 +13,16 @@ final class IntentReceiveCashLink: IntentType {
     let id: PublicKey
     let ownerCluster: AccountCluster
     let giftCard: GiftCardCluster
-    let usdf: Quarks
-    
+    let usdf: TokenAmount
+
     var actionGroup: ActionGroup
-    
-    init(ownerCluster: AccountCluster, giftCard: GiftCardCluster, usdf: Quarks) {
+
+    init(ownerCluster: AccountCluster, giftCard: GiftCardCluster, usdf: TokenAmount) {
         self.id           = PublicKey.generate()!
         self.ownerCluster = ownerCluster
         self.giftCard     = giftCard
         self.usdf         = usdf
-        
+
         self.actionGroup = ActionGroup(actions: [
             ActionWithdraw(
                 kind: .cashLinkWithdraw(.init(isAutoReturn: false)),
