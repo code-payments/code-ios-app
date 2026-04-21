@@ -142,17 +142,17 @@ extension CashCode.Payload {
  Fiat Amount (8 bytes)
 
  This field indicates the fiat amount, denominated in `Currency` above. The amount
- is an integer value calculated as follows: $5.00 x 100 = 500. The decimals are
- offset by multiplying by 100 and encoding the integer result. When decoding, the
- amount should be divided by 100 again to return the original value.
+ is an unsigned integer scaled by 10^`wireDecimals` (currently 6) regardless of
+ currency: $5.00 → 5,000,000; JPY 1000 → 1,000,000,000. On decode, divide by the
+ same factor to recover the original decimal value.
 
  Nonce (10 bytes)
 
- This field is an 11-byte randomly-generated nonce. It should be regenerated
+ This field is a 10-byte randomly-generated nonce. It should be regenerated
  each time a new payment is initiated.
- 
- 
- 
+
+
+
  --- Legacy Layouts ---
 
  
