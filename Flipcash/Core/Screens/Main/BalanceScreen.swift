@@ -119,6 +119,12 @@ struct BalanceScreen: View {
                     sessionContainer: sessionContainer
                 )
             }
+            .navigationDestination(isPresented: $isShowingCurrencyDiscovery) {
+                CurrencyDiscoveryScreen(
+                    container: container,
+                    sessionContainer: sessionContainer
+                )
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     ToolbarCloseButton(binding: $isPresented)
@@ -130,12 +136,6 @@ struct BalanceScreen: View {
             }
         }
         .dialog(item: $dialogItem)
-        .sheet(isPresented: $isShowingCurrencyDiscovery) {
-            CurrencyDiscoveryScreen(
-                container: container,
-                sessionContainer: sessionContainer
-            )
-        }
     }
     
     @ViewBuilder private func emptyState(geometry: GeometryProxy) -> some View {
