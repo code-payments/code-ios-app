@@ -7,7 +7,6 @@
 
 import Foundation
 import FlipcashCore
-import Combine
 
 private let logger = Logger(label: "flipcash.scan-cash")
 
@@ -19,10 +18,11 @@ private let logger = Logger(label: "flipcash.scan-cash")
 /// - Listens for a grab request on the same channel
 ///
 /// ## Device B (Receiver — this class)
-/// 1. **Listen for mint** — Poll the rendezvous channel until the sender's
-///    `requestToGiveBill` message arrives. Extract the mint address,
+/// 1. **Listen for mint** — Subscribe to the rendezvous stream and wait for
+///    the sender's `requestToGiveBill` message. Extract the mint address,
 ///    `VerifiedState` (exchange rate + reserve state proofs), and
-///    `MintMetadata` (server-provided via `additionalContext`) from the message.
+///    `MintMetadata` (server-provided via `additionalContext`) from the
+///    message.
 /// 2. **Resolve VM authority** — Use the mint metadata from the message
 ///    when available (zero network cost). Falls back to a database lookup
 ///    or `fetchMints()` call for older servers that don't populate
@@ -38,17 +38,17 @@ private let logger = Logger(label: "flipcash.scan-cash")
 /// when Device B has never synced this currency.
 @MainActor
 class ScanCashOperation {
-    
+
     private let client: Client
     private let flipClient: FlipClient
     private let database: Database
     private let owner: AccountCluster
     private let payload: CashCode.Payload
-    
-    private var messageStream: AnyCancellable? = nil
-    
+
+    private var runTask: Task<PaymentMetadata, Swift.Error>?
+
     // MARK: - Init -
-    
+
     init(client: Client, flipClient: FlipClient, database: Database, owner: AccountCluster, payload: CashCode.Payload) {
         self.client     = client
         self.flipClient = flipClient
@@ -60,146 +60,128 @@ class ScanCashOperation {
 
     deinit {
         logger.info("ScanCashOperation closed", metadata: ["rendezvous": "\(payload.rendezvous.publicKey.base58)"])
-        messageStream?.cancel()
-        messageStream = nil
+        runTask?.cancel()
     }
-    
+
+    // MARK: - Lifecycle -
+
     func start() async throws -> PaymentMetadata {
+        let task = Task { try await self.run() }
+        runTask = task
+        return try await withTaskCancellationHandler {
+            try await task.value
+        } onCancel: {
+            task.cancel()
+        }
+    }
+
+    func cancel() {
+        runTask?.cancel()
+    }
+
+    // MARK: - Run -
+
+    private func run() async throws -> PaymentMetadata {
         let rendezvous = payload.rendezvous
         let owner = owner
 
-        let (mint, verifiedState, mintMetadata) = try await listenForMint(
-            rendezvous: rendezvous
-        )
+        logger.info("Polling for give request", metadata: ["rendezvous": "\(rendezvous.publicKey.base58)"])
+        let giveRequest = try await client.awaitGiveRequest(rendezvous: rendezvous)
+
+        logger.info("Received give request", metadata: [
+            "rendezvous": "\(rendezvous.publicKey.base58)",
+            "mint": "\(giveRequest.mint.base58)",
+            "hasVerifiedState": "\(giveRequest.verifiedState != nil)",
+            "hasMintMetadata": "\(giveRequest.mintMetadata != nil)",
+        ])
 
         let vmAuthority: PublicKey
-        if let mintMetadata, let authority = mintMetadata.vmMetadata?.authority {
+        if let mintMetadata = giveRequest.mintMetadata, let authority = mintMetadata.vmMetadata?.authority {
             // Persist the metadata so downstream operations (e.g.
             // SendCashOperation for the quick give-and-grab chain)
             // can look it up from the database immediately.
             try? database.insert(mints: [mintMetadata], date: .now)
+            logger.debug("VM authority resolved from give-request metadata", metadata: ["mint": "\(giveRequest.mint.base58)"])
             vmAuthority = authority
         } else {
-            vmAuthority = try await pullMintIfNeeded(for: mint)
+            vmAuthority = try await pullMintIfNeeded(for: giveRequest.mint)
         }
 
         let mintCurrencyCluster = AccountCluster(
             authority: owner.authority,
-            mint: mint,
+            mint: giveRequest.mint,
             timeAuthority: vmAuthority
         )
-        
-        // We need to ensure the accounts for this mint
-        // are created. This call is a no-op is the
-        // account already exists
+
+        // No-op when the account already exists.
         try await client.createAccounts(
             owner: owner.authority.keyPair,
-            mint: mint,
+            mint: giveRequest.mint,
             cluster: mintCurrencyCluster,
             kind: .primary,
             derivationIndex: 0
         )
-        
+
         return try await completePayment(
             destination: mintCurrencyCluster.vaultPublicKey,
             rendezvous: rendezvous,
-            verifiedState: verifiedState
+            verifiedState: giveRequest.verifiedState
         )
     }
-    
+
+    // MARK: - Helpers -
+
     private func pullMintIfNeeded(for mint: PublicKey) async throws -> PublicKey {
         if let vmAuthority = try database.getVMAuthority(mint: mint) {
+            logger.debug("VM authority resolved from database", metadata: ["mint": "\(mint.base58)"])
             return vmAuthority
-        } else {
-            let mints = try await client.fetchMints(mints: [mint])
-            guard let mintMetadata = mints[mint] else {
-                throw Error.failedToFetchMint
-            }
-            
-            try database.insert(mints: [mintMetadata], date: .now)
-            
-            guard let authority = mintMetadata.vmMetadata?.authority else {
-                throw Error.failedToFetchMint
-            }
-            
-            return authority
-        }
-    }
-    
-    private func listenForMint(rendezvous: KeyPair) async throws -> (PublicKey, VerifiedState?, MintMetadata?) {
-        let maxAttempts = 10
-
-        for i in 0..<maxAttempts {
-            if i > 0 {
-                try await Task.delay(milliseconds: 300)
-            }
-
-            do {
-                let messages = try await client.fetchMessages(rendezvous: rendezvous)
-                let result = messages.compactMap { message -> (PublicKey, VerifiedState?, MintMetadata?)? in
-                    if case .requestToGiveBill(let mint, _, _) = message.kind {
-                        return (mint, message.giveVerifiedState, message.giveMintMetadata)
-                    }
-                    return nil
-                }.first
-
-                if let result {
-                    return result
-                }
-            } catch {
-                logger.warning("Failed to fetch messages", metadata: ["attempt": "\(i + 1)/\(maxAttempts)", "error": "\(error)"])
-                throw Error.connectionFailed
-            }
         }
 
-        throw Error.mintMessageNotFound
+        logger.info("Fetching mint metadata from server", metadata: ["mint": "\(mint.base58)"])
+        let mints = try await client.fetchMints(mints: [mint])
+        guard let mintMetadata = mints[mint] else {
+            throw Error.failedToFetchMint
+        }
+
+        try database.insert(mints: [mintMetadata], date: .now)
+
+        guard let authority = mintMetadata.vmMetadata?.authority else {
+            throw Error.failedToFetchMint
+        }
+
+        return authority
     }
-    
+
     private func completePayment(destination: PublicKey, rendezvous: KeyPair, verifiedState: VerifiedState?) async throws -> PaymentMetadata {
-        do {
-            let isStreamOpen = try await client.sendRequestToGrabBill(
-                destination: destination,
-                rendezvous: rendezvous
-            )
+        let isStreamOpen = try await client.sendRequestToGrabBill(
+            destination: destination,
+            rendezvous: rendezvous
+        )
 
-            guard isStreamOpen else {
-                throw Error.noOpenStreamForRendezvous
-            }
-
-            let metadata = try await client.pollIntentMetadata(
-                owner: owner.authority.keyPair,
-                intentID: rendezvous.publicKey
-            )
-
-            if case .sendPayment(let paymentMetadata) = metadata {
-                return PaymentMetadata(
-                    exchangedFiat: paymentMetadata.exchangedFiat,
-                    verifiedState: verifiedState
-                )
-            }
-
-            if case .receivePayment(let paymentMetadata) = metadata {
-                return PaymentMetadata(
-                    exchangedFiat: paymentMetadata.exchangedFiat,
-                    verifiedState: verifiedState
-                )
-            }
-
-            throw Error.sendPaymentMetadataNotFound
-            
-        } catch Error.noOpenStreamForRendezvous {
-            throw Error.noOpenStreamForRendezvous // Avoid capture
-
-        } catch ClientError.pollLimitReached {
-            throw ClientError.pollLimitReached // Avoid capture
-
-        } catch ClientError.denied {
-            throw ClientError.denied // Avoid capture
-
-        } catch {
-//            ErrorReporting.captureError(error)
-            throw error
+        guard isStreamOpen else {
+            throw Error.noOpenStreamForRendezvous
         }
+
+        let metadata = try await client.pollIntentMetadata(
+            owner: owner.authority.keyPair,
+            intentID: rendezvous.publicKey
+        )
+
+        if case .sendPayment(let paymentMetadata) = metadata {
+            return PaymentMetadata(
+                exchangedFiat: paymentMetadata.exchangedFiat,
+                verifiedState: verifiedState
+            )
+        }
+
+        if case .receivePayment(let paymentMetadata) = metadata {
+            return PaymentMetadata(
+                exchangedFiat: paymentMetadata.exchangedFiat,
+                verifiedState: verifiedState
+            )
+        }
+
+        throw Error.sendPaymentMetadataNotFound
     }
 }
 
@@ -208,11 +190,5 @@ extension ScanCashOperation {
         case noOpenStreamForRendezvous
         case sendPaymentMetadataNotFound
         case failedToFetchMint
-        case missingVMAuthority
-        case mintMessageNotFound
-
-        /// A network error prevented fetching messages from the
-        /// rendezvous channel (e.g. no internet connection).
-        case connectionFailed
     }
 }

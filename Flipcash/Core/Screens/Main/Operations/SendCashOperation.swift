@@ -7,7 +7,6 @@
 
 import Foundation
 import FlipcashCore
-import Combine
 
 private let logger = Logger(label: "flipcash.send-cash")
 
@@ -32,54 +31,40 @@ private let logger = Logger(label: "flipcash.send-cash")
 ///
 /// ## Lifecycle
 ///
-/// Calling ``start(completion:)`` kicks off two concurrent paths:
-///
-/// **Path 1 — Advertise (fire-and-forget Task)**
-/// 1. Resolve the exchange-rate proof (`VerifiedState`), preferring the
-///    value provided at init over the `RatesController` cache.
-/// 2. Publish the bill on the rendezvous channel so the receiver knows
-///    which mint and exchange data to expect.
-///
-/// **Path 2 — Listen (message stream)**
-/// 1. Open a persistent gRPC stream on the rendezvous channel.
-/// 2. When the receiver's grab request arrives, verify the destination
-///    signature to prevent tampering.
-/// 3. Transfer funds to the verified destination.
-/// 4. Poll until on-chain settlement is confirmed.
-///
-/// Both paths share the resolved `VerifiedState` through
-/// ``resolvedVerifiedState``. Path 2 reads this value when it's time to
-/// transfer, falling back to the `RatesController` cache if Path 1 hasn't
-/// written it yet. For brand-new currencies whose rate isn't cached, the
-/// provided `verifiedState` at init is the only source of truth.
-///
-/// ## Completion Guarantee
-///
-/// The ``complete(with:completion:)`` method ensures the completion handler
-/// fires exactly once. This guards against double-delivery from gRPC stream
-/// reconnections (see `MessagingService.openMessageStream`) or overlapping
-/// error paths (e.g. advertisement failure racing with a stream disconnect).
+/// ``start()`` runs the whole flow imperatively — advertise, await grab,
+/// verify, transfer, poll settlement. The operation owns a `Task` internally
+/// so callers can invoke ``cancel()`` to tear it down without having to
+/// track the outer Task themselves.
 ///
 /// ## Not Recoverable
 ///
 /// If ``sendRequestToGiveBill`` fails (network error, server down), the
 /// operation terminates immediately. There is no retry — the receiver never
 /// got the advertisement, so the stream will never deliver a grab request.
-/// The bill is dismissed and the user sees an error.
 ///
 /// ## Owned By
 ///
 /// `Session` creates, stores (`sendOperation`), and tears down this
 /// operation. The `ignoresStream` flag is toggled by Session when presenting
-/// a share sheet to prevent stream events from dismissing the bill.
+/// a share sheet to suppress grab-request processing underneath it.
 @MainActor
 class SendCashOperation {
 
+    /// Submitting a proof older than this is rejected as stale, so we pre-flight the check
+    /// to fail fast and surface a specific error in logs and Bugsnag.
+    static let maxReserveAge: TimeInterval = 15 * 60
+
+    enum FailurePath: String {
+        case advertisement
+        case stream
+        case transfer
+    }
+
     let payload: CashCode.Payload
 
-    /// When `true`, incoming stream messages are silently dropped. Session
-    /// sets this while a share sheet is presented to prevent the bill from
-    /// being dismissed underneath it.
+    /// When `true`, incoming rendezvous-stream messages are silently dropped.
+    /// Session sets this while a share sheet is presented to prevent a grab
+    /// request from being processed while the user is mid-share-sheet.
     var ignoresStream = false
 
     private let client: Client
@@ -87,30 +72,9 @@ class SendCashOperation {
     private let ratesController: RatesController
     private let owner: AccountCluster
     private let exchangedFiat: ExchangedFiat
-
-    /// The exchange-rate proof passed at init. Preferred over the
-    /// `RatesController` cache because new currencies may not have a
-    /// cached rate yet.
     private let providedVerifiedState: VerifiedState?
 
-    private var messageStream: AnyCancellable? = nil
-
-    /// Guards against processing more than one grab request per operation.
-    private var hasProcessedPayment = false
-
-    /// Guards against delivering the completion handler more than once.
-    /// See ``complete(with:completion:)`` for details.
-    private var hasCompleted = false
-
-    /// Which path failed — used for error reporting to distinguish
-    /// advertisement failures (Path 1) from transfer failures (Path 2).
-    private(set) var failurePath: String?
-
-    /// The verified state resolved during Path 1 (advertisement). Path 2
-    /// (transfer) reads this to avoid a redundant cache lookup. For new
-    /// currencies this may be the only available source since the cache
-    /// can be empty.
-    private(set) var resolvedVerifiedState: VerifiedState?
+    private var runTask: Task<Void, Swift.Error>?
 
     // MARK: - Init -
 
@@ -131,159 +95,197 @@ class SendCashOperation {
 
     deinit {
         logger.info("SendCashOperation closed", metadata: ["rendezvous": "\(payload.rendezvous.publicKey.base58)"])
-        messageStream?.cancel()
-        messageStream = nil
+        runTask?.cancel()
     }
-    
-    func start(completion: @escaping (Result<Void, Swift.Error>) -> Void) {
+
+    // MARK: - Lifecycle -
+
+    func start() async throws {
+        let task = Task { try await self.run() }
+        runTask = task
+        try await withTaskCancellationHandler {
+            try await task.value
+        } onCancel: {
+            task.cancel()
+        }
+    }
+
+    func cancel() {
+        runTask?.cancel()
+    }
+
+    // MARK: - Run -
+    //
+    // 1. Resolve verified state (one proof used for the whole op)
+    // 2. Advertise bill on rendezvous channel
+    // 3. Await grab request from receiver
+    // 4. Verify destination signature
+    // 5. Transfer funds + poll settlement
+    //
+    // The same proof is used for advertise and transfer on purpose. `exchangedFiat`
+    // bakes in (quarks, nativeAmount) at bill creation time; switching to a
+    // different-rate proof for transfer would make the server's
+    // `quarks × rate ≈ nativeAmount` check fail with
+    // `invalidIntent(native amount does not match expected sell value)`.
+
+    private func run() async throws {
         let rendezvous = payload.rendezvous
         let exchangedFiat = exchangedFiat
         var owner = owner
-        
-        // Ensure that our outgoing (source) account mint
-        // matches the mint of the funds being sent
+
         if owner.timelock.mint != exchangedFiat.mint {
             guard let vmAuthority = try? database.getVMAuthority(mint: exchangedFiat.mint) else {
-                completion(.failure(Error.missingMintMetadata))
-                return
+                throw Error.missingMintMetadata
             }
-            
-            owner = owner.use(
+            owner = owner.use(mint: exchangedFiat.mint, timeAuthority: vmAuthority)
+        }
+
+        let resolution = await resolveAndLogVerifiedState(
+            currency: exchangedFiat.nativeAmount.currency,
+            mint: exchangedFiat.mint
+        )
+
+        do {
+            _ = try await client.sendRequestToGiveBill(
                 mint: exchangedFiat.mint,
-                timeAuthority: vmAuthority
+                exchangedFiat: exchangedFiat,
+                verifiedState: resolution.state,
+                rendezvous: rendezvous
             )
-        }
-        
-        // Send a message to the receiver with the mint and exchange
-        // data so they can create the correct incoming accounts
-        // on their end
-        Task {
-            do {
-                let verifiedState: VerifiedState?
-                if let provided = self.providedVerifiedState {
-                    verifiedState = provided
-                } else {
-                    verifiedState = await self.ratesController.getVerifiedState(
-                        for: exchangedFiat.nativeAmount.currency,
-                        mint: exchangedFiat.mint
-                    )
-                }
-
-                self.resolvedVerifiedState = verifiedState
-
-                _ = try await client.sendRequestToGiveBill(
-                    mint: exchangedFiat.mint,
-                    exchangedFiat: exchangedFiat,
-                    verifiedState: verifiedState,
-                    rendezvous: rendezvous
-                )
-            } catch {
-                logger.error("Advertisement failed", metadata: ["rendezvous": "\(rendezvous.publicKey.base58)", "error": "\(error)"])
-                self.failurePath = "advertisement"
-                self.complete(with: .failure(error), completion: completion)
-            }
+        } catch {
+            try Task.checkCancellation()
+            handleFailure(error, path: .advertisement, resolution: resolution)
+            throw error
         }
 
-        messageStream = self.client.openMessageStream(rendezvous: rendezvous) { [weak self] result in
-            guard let self = self else { return }
-
-            guard !self.ignoresStream else {
-                return
-            }
-
-            // Prevent processing duplicate payment requests
-            guard !self.hasProcessedPayment else {
-                logger.warning("Ignoring duplicate payment request", metadata: ["rendezvous": "\(rendezvous.publicKey.base58)"])
-                return
-            }
-
-            switch result {
-            case .success(let messages):
-                // Ignore non-payment metadata messages
-                guard let paymentMetadata = messages.compactMap({ $0.paymentRequest }).first else {
-                    return
+        let paymentRequest: PaymentRequest
+        do {
+            paymentRequest = try await client.awaitGrabRequest(
+                rendezvous: rendezvous,
+                shouldIgnore: { [weak self] in
+                    // Hops to MainActor to read the flag safely — this closure
+                    // is invoked from the cooperative executor inside the
+                    // stream wait, not from the owning actor.
+                    await self?.ignoresStream ?? false
                 }
+            )
+        } catch {
+            try Task.checkCancellation()
+            handleFailure(error, path: .stream, resolution: resolution)
+            throw error
+        }
 
-                // 1. Validate that destination hasn't been tampered with by
-                // verifying the signature matches one that has been signed
-                // with the rendezvous key.
+        // Rejects tampered grab requests by checking the rendezvous signature.
+        let isValid = client.verifyRequestToGrabBill(
+            destination: paymentRequest.account,
+            rendezvous: rendezvous.publicKey,
+            signature: paymentRequest.signature
+        )
 
-                let isValid = client.verifyRequestToGrabBill(
-                    destination: paymentMetadata.account,
-                    rendezvous: rendezvous.publicKey,
-                    signature: paymentMetadata.signature
-                )
+        guard isValid else {
+            let error = Error.invalidPaymentDestinationSignature
+            handleFailure(error, path: .transfer, resolution: resolution)
+            throw error
+        }
 
-                guard isValid else {
-                    self.complete(with: .failure(Error.invalidPaymentDestinationSignature), completion: completion)
-                    return
-                }
+        guard let transferState = resolution.state else {
+            let error = Error.missingVerifiedState
+            handleFailure(error, path: .transfer, resolution: resolution)
+            throw error
+        }
 
-                // Mark payment as processed to prevent duplicate submissions
-                self.hasProcessedPayment = true
-
-                // 2. Send the funds to destination
-                Task {
-                    do {
-                        // Use the verified state already resolved when the bill
-                        // was created, falling back to the cache only if needed.
-                        // New currencies may not be in the cache yet.
-                        let verifiedState: VerifiedState
-                        if let resolved = self.resolvedVerifiedState {
-                            verifiedState = resolved
-                        } else if let cached = await self.ratesController.getVerifiedState(
-                            for: exchangedFiat.nativeAmount.currency,
-                            mint: exchangedFiat.mint
-                        ) {
-                            verifiedState = cached
-                        } else {
-                            throw Error.missingVerifiedState
-                        }
-
-                        try await self.client.transfer(
-                            exchangedFiat: exchangedFiat,
-                            verifiedState: verifiedState,
-                            owner: owner,
-                            destination: paymentMetadata.account,
-                            rendezvous: rendezvous.publicKey
-                        )
-
-                        _ = try await self.client.pollIntentMetadata(
-                            owner: owner.authority.keyPair,
-                            intentID: rendezvous.publicKey
-                        )
-
-                        self.complete(with: .success(()), completion: completion)
-
-                    } catch {
-                        logger.error("Transfer failed", metadata: ["rendezvous": "\(rendezvous.publicKey.base58)", "error": "\(error)"])
-                        self.failurePath = "transfer"
-                        self.complete(with: .failure(error), completion: completion)
-                    }
-                }
-
-            case .failure(let error):
-                logger.error("Stream failed", metadata: ["rendezvous": "\(rendezvous.publicKey.base58)", "error": "\(error)"])
-                self.failurePath = "stream"
-                self.complete(with: .failure(error), completion: completion)
+        if let reserveTimestamp = transferState.reserveTimestamp {
+            let reserveAge = Date().timeIntervalSince(reserveTimestamp)
+            if reserveAge >= Self.maxReserveAge {
+                let error = Error.reserveProofStale(ageSeconds: reserveAge)
+                handleFailure(error, path: .transfer, resolution: resolution)
+                throw error
             }
+        }
+
+        do {
+            try await client.transfer(
+                exchangedFiat: exchangedFiat,
+                verifiedState: transferState,
+                owner: owner,
+                destination: paymentRequest.account,
+                rendezvous: rendezvous.publicKey
+            )
+
+            _ = try await client.pollIntentMetadata(
+                owner: owner.authority.keyPair,
+                intentID: rendezvous.publicKey
+            )
+        } catch {
+            try Task.checkCancellation()
+            handleFailure(error, path: .transfer, resolution: resolution)
+            throw error
         }
     }
-    
-    /// Delivers a result to the caller exactly once. Subsequent calls are
-    /// no-ops, preventing double-completion from stream reconnections or
-    /// overlapping error paths.
-    private func complete(with result: Result<Void, Swift.Error>, completion: @escaping (Result<Void, Swift.Error>) -> Void) {
-        guard !hasCompleted else { return }
-        hasCompleted = true
-        invalidateMessageStream()
-        completion(result)
+
+    // MARK: - Helpers -
+
+    /// Resolves verified state via the shared helper and logs the source +
+    /// rate proof age. Logging the source is the primary diagnostic for the
+    /// recurring `invalidIntent(native amount does not match expected sell value)`
+    /// error — it lets us see where the submitted proof came from on any
+    /// given recurrence.
+    private func resolveAndLogVerifiedState(currency: CurrencyCode, mint: PublicKey) async -> VerifiedStateResolution {
+        let resolution = await resolveVerifiedState(
+            provided: providedVerifiedState,
+            currency: currency,
+            mint: mint,
+            cacheLookup: { [ratesController] c, m in
+                await ratesController.getVerifiedState(for: c, mint: m)
+            }
+        )
+
+        var metadata: Logger.Metadata = [
+            "source": "\(resolution.sourceLabel)",
+            "currency": "\(currency.rawValue)",
+            "mint": "\(mint.base58)",
+        ]
+        if let state = resolution.state {
+            let rateAge = Date().timeIntervalSince(state.timestamp)
+            metadata["rate"] = "\(state.exchangeRate)"
+            metadata["rateAgeSec"] = "\(String(format: "%.1f", rateAge))"
+            metadata["hasReserveProof"] = "\(state.reserveProto != nil)"
+            if let reserveTimestamp = state.reserveTimestamp {
+                let reserveAge = Date().timeIntervalSince(reserveTimestamp)
+                metadata["reserveAgeSec"] = "\(String(format: "%.1f", reserveAge))"
+            }
+        }
+
+        switch resolution {
+        case .cacheMiss:
+            // TODO: Fall back to `RatesController.ensureMintSubscribed` +
+            // `awaitVerifiedState` to recover when a brand-new currency
+            // hasn't populated the cache yet.
+            logger.warning("Verified state resolution failed", metadata: metadata)
+        case .provided, .cacheHit:
+            logger.info("Resolved verified state", metadata: metadata)
+        }
+
+        return resolution
     }
 
-    private func invalidateMessageStream() {
-        logger.info("Closed message stream")
-        messageStream?.cancel()
-        messageStream = nil
+    private func handleFailure(_ error: Swift.Error, path: FailurePath, resolution: VerifiedStateResolution) {
+        // Log before capturing so the entry lands in the trace buffer
+        // Bugsnag attaches to the report.
+        logger.error("SendCashOperation failed", metadata: [
+            "rendezvous": "\(payload.rendezvous.publicKey.base58)",
+            "path": "\(path.rawValue)",
+            "verifiedStateSource": "\(resolution.sourceLabel)",
+            "error": "\(error)",
+        ])
+
+        ErrorReporting.capturePayment(
+            error: error,
+            rendezvous: payload.rendezvous.publicKey,
+            exchangedFiat: exchangedFiat,
+            verifiedState: resolution.state,
+            reason: path.rawValue
+        )
     }
 }
 
@@ -301,5 +303,10 @@ extension SendCashOperation {
         /// value at init or the `RatesController` cache. Common for
         /// brand-new currencies that haven't been rate-cached yet.
         case missingVerifiedState
+
+        /// The resolved `VerifiedState` has a reserve-state proof older than
+        /// the server tolerates. Submitting it would be rejected — we reject
+        /// client-side to surface a specific error.
+        case reserveProofStale(ageSeconds: TimeInterval)
     }
 }

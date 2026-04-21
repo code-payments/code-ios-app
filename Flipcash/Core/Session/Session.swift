@@ -902,9 +902,10 @@ class Session {
                 // so the user can retry by scanning again.
                 completion(.failed)
 
-            } catch ScanCashOperation.Error.connectionFailed {
-                // Network error while fetching the bill's mint data.
-                showCashLinkConnectionError()
+            } catch MessagingWaitError.timedOut {
+                // No advertisement arrived on the rendezvous stream within
+                // the wait window — the bill is stale or the sender is gone.
+                // Silently reset so the user can retry by scanning again.
                 completion(.failed)
 
             } catch {
@@ -944,8 +945,8 @@ class Session {
         
         var primaryAction: BillState.PrimaryAction? = .init(asset: .airplane, title: "Send as a Link") { [weak self, weak operation] in
             if let operation, let self {
-                // Disable scanning of the bill
-                // while the share sheet is up
+                // Suppress grab-request processing on the rendezvous stream
+                // while the share sheet is up (keeps the bill alive underneath).
                 operation.ignoresStream = true
                 
                 let payload       = operation.payload
@@ -1033,19 +1034,20 @@ class Session {
             Analytics.transferStart(event: .giveBillStart)
         }
 
-        operation.start { [weak self] result in
-            switch result {
-            case .success:
+        Task { [weak self] in
+            do {
+                try await operation.start()
+
                 // Toast: someone grabbed the user's bill (-amount)
                 self?.enqueue(toast: .init(
                     amount: billDescription.exchangedFiat.nativeAmount,
                     isDeposit: false
                 ))
-                
+
                 self?.updatePostTransaction()
-                
+
                 self?.dismissCashBill(style: .pop)
-                
+
                 Analytics.transfer(
                     event: .giveBill,
                     exchangedFiat: billDescription.exchangedFiat,
@@ -1053,28 +1055,14 @@ class Session {
                     successful: true,
                     error: nil
                 )
-                
-            case .failure(let error):
-                let verifiedState = self?.sendOperation?.resolvedVerifiedState
-                let failurePath = self?.sendOperation?.failurePath
-
-                logger.error("SendCashOperation failed", metadata: [
-                    "rendezvous": "\(payload.rendezvous.publicKey.base58)",
-                    "path": "\(failurePath ?? "unknown")",
-                    "error": "\(error)"
-                ])
-
-                ErrorReporting.capturePayment(
-                    error: error,
-                    rendezvous: payload.rendezvous.publicKey,
-                    exchangedFiat: billDescription.exchangedFiat,
-                    verifiedState: verifiedState,
-                    reason: failurePath
-                )
-
+            } catch is CancellationError {
+                // Cancelled by dismissCashBill — no error UI, no analytics.
+                return
+            } catch {
+                // Diagnostics + ErrorReporting happen inside SendCashOperation.
                 self?.dismissCashBill(style: .slide)
                 self?.showCashReturnedError()
-                
+
                 Analytics.transfer(
                     event: .giveBill,
                     exchangedFiat: billDescription.exchangedFiat,
@@ -1159,6 +1147,7 @@ class Session {
     }
     
     func dismissCashBill(style: PresentationState.Style) {
+        sendOperation?.cancel()
         sendOperation = nil
         presentationState = .hidden(style)
         billState = .default()
