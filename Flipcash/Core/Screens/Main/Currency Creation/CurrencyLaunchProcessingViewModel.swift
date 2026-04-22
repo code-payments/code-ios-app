@@ -181,19 +181,18 @@ class CurrencyLaunchProcessingViewModel {
                 ])
                 return true
             }
-            // Heartbeat every 5 attempts (~10s) so the console isn't silent
-            // for minutes if the stream stalls.
-            if i > 0 && i % 5 == 0 {
-                logger.debug("Awaiting launched currency balance", metadata: [
-                    "mint": "\(launchedMint.base58)",
-                    "attempt": "\(i + 1)/\(maxAttempts)",
-                ])
-            }
+
+            logger.debug("Awaiting launched currency balance", metadata: [
+                "mint": "\(launchedMint.base58)",
+                "attempt": "\(i + 1)/\(maxAttempts)",
+            ])
         }
+        
         logger.warning("Launched currency balance did not materialise in budget", metadata: [
             "mint": "\(launchedMint.base58)",
             "maxAttempts": "\(maxAttempts)",
         ])
+        
         return false
     }
 
