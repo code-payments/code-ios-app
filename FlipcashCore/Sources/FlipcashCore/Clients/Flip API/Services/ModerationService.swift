@@ -40,6 +40,10 @@ class ModerationService: CodeService<Flipcash_Moderation_V1_ModerationNIOClient>
                 logger.info("Text moderation denied", metadata: ["category": "\(response.flaggedCategory)"])
                 completion(.failure(.denied(response.flaggedCategory)))
 
+            case .unsupportedLanguage:
+                logger.info("Text moderation reported unsupported language")
+                completion(.failure(.unsupportedLanguage))
+
             case .UNRECOGNIZED:
                 logger.error("Text moderation returned unrecognized result")
                 completion(.failure(.unknown))
@@ -98,6 +102,7 @@ class ModerationService: CodeService<Flipcash_Moderation_V1_ModerationNIOClient>
 public enum ErrorModeration: Error, Sendable {
     case denied(Flipcash_Moderation_V1_FlaggedCategory)
     case unsupportedFormat
+    case unsupportedLanguage
     case unknown
     case network(Error)
 }

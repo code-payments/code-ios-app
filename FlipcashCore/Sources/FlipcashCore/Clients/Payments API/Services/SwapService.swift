@@ -28,6 +28,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
     ///   - swapId: Unique identifier for this swap
     ///   - direction: Buy or sell direction with mint metadata
     ///   - amount: Source-mint-native token amount to swap
+    ///   - feeAmount: Source-mint-native fee amount paid on the swap (0 for buy/sell on existing currencies)
     ///   - fundingSource: How the swap will be funded (.submitIntent or .externalWallet)
     ///   - owner: The owner's keypair for signing
     ///   - completion: Callback with result
@@ -35,6 +36,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
         swapId: SwapId,
         direction: SwapDirection,
         amount: TokenAmount,
+        feeAmount: TokenAmount? = nil,
         fundingSource: FundingSource,
         owner: KeyPair,
         isNewCurrencyLaunch: Bool = false,
@@ -42,11 +44,13 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
     ) {
         let fromMint = direction.sourceMint.address
         let toMint = direction.destinationMint.address
+        let resolvedFeeAmount = feeAmount ?? TokenAmount(quarks: 0, mint: fromMint)
         logger.info("Starting swap", metadata: [
             "swapId": "\(swapId.publicKey.base58)",
             "from": "\(fromMint.base58)",
             "to": "\(toMint.base58)",
             "amountQuarks": "\(amount.quarks)",
+            "feeQuarks": "\(resolvedFeeAmount.quarks)",
             "isNewCurrencyLaunch": "\(isNewCurrencyLaunch)"
         ])
 
@@ -108,6 +112,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
             fromMint: fromMint,
             toMint: toMint,
             amount: amount,
+            feeAmount: resolvedFeeAmount,
             fundingSource: fundingSource
         )
 
@@ -226,7 +231,8 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                     let transaction = TransactionBuilder.swapNewCurrency(
                         responseParams: params,
                         authority: owner.publicKey,
-                        amount: amount.quarks
+                        swapAmount: amount.quarks,
+                        feeAmount: resolvedFeeAmount.quarks
                     )
 
                     // Log the serialized transaction so it can be diffed against

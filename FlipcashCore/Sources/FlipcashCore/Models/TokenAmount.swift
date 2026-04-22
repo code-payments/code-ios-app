@@ -45,6 +45,13 @@ extension TokenAmount {
         precondition(lhs.quarks >= rhs.quarks, "TokenAmount subtraction underflow — check sufficient funds before subtracting")
         return TokenAmount(quarks: lhs.quarks - rhs.quarks, mint: lhs.mint)
     }
+
+    public static func + (lhs: TokenAmount, rhs: TokenAmount) -> TokenAmount {
+        precondition(lhs.mint == rhs.mint, "Cannot add TokenAmounts with different mints")
+        let (sum, overflow) = lhs.quarks.addingReportingOverflow(rhs.quarks)
+        precondition(!overflow, "TokenAmount addition overflow")
+        return TokenAmount(quarks: sum, mint: lhs.mint)
+    }
 }
 
 // MARK: - Comparable -

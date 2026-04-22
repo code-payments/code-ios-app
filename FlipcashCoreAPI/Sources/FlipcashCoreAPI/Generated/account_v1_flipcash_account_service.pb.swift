@@ -427,6 +427,9 @@ public struct Flipcash_Account_V1_UserFlags: Sendable {
   /// USDF amount, in quarks, that must be purchased when launching a new currency
   public var newCurrencyPurchaseAmount: UInt64 = 0
 
+  /// USDF amount, in quarks, that must be paid in a fee when launching a new currency
+  public var newCurrencyFeeAmount: UInt64 = 0
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OnRampProvider: SwiftProtobuf.Enum, Swift.CaseIterable {
@@ -840,7 +843,7 @@ extension Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse.Result: SwiftP
 
 extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UserFlags"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}is_registered_account\0\u{3}is_staff\0\u{3}requires_iap_for_registration\0\u{3}supported_on_ramp_providers\0\u{3}preferred_on_ramp_provider\0\u{3}min_build_number\0\u{3}bill_exchange_data_timeout\0\u{3}new_currency_purchase_amount\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}is_registered_account\0\u{3}is_staff\0\u{3}requires_iap_for_registration\0\u{3}supported_on_ramp_providers\0\u{3}preferred_on_ramp_provider\0\u{3}min_build_number\0\u{3}bill_exchange_data_timeout\0\u{3}new_currency_purchase_amount\0\u{3}new_currency_fee_amount\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -856,6 +859,7 @@ extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
       case 6: try { try decoder.decodeSingularUInt32Field(value: &self.minBuildNumber) }()
       case 7: try { try decoder.decodeSingularMessageField(value: &self._billExchangeDataTimeout) }()
       case 8: try { try decoder.decodeSingularUInt64Field(value: &self.newCurrencyPurchaseAmount) }()
+      case 9: try { try decoder.decodeSingularUInt64Field(value: &self.newCurrencyFeeAmount) }()
       default: break
       }
     }
@@ -890,6 +894,9 @@ extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
     if self.newCurrencyPurchaseAmount != 0 {
       try visitor.visitSingularUInt64Field(value: self.newCurrencyPurchaseAmount, fieldNumber: 8)
     }
+    if self.newCurrencyFeeAmount != 0 {
+      try visitor.visitSingularUInt64Field(value: self.newCurrencyFeeAmount, fieldNumber: 9)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -902,6 +909,7 @@ extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
     if lhs.minBuildNumber != rhs.minBuildNumber {return false}
     if lhs._billExchangeDataTimeout != rhs._billExchangeDataTimeout {return false}
     if lhs.newCurrencyPurchaseAmount != rhs.newCurrencyPurchaseAmount {return false}
+    if lhs.newCurrencyFeeAmount != rhs.newCurrencyFeeAmount {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

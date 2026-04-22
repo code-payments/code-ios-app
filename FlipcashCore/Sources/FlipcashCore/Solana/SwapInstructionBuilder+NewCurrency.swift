@@ -11,7 +11,7 @@ extension SwapInstructionBuilder {
     /// launchpad currency. Per the ReserveNewCurrencyServerParameter proto
     /// comment, the transaction interleaves Reserve::InitializeCurrency +
     /// InitializePool + VM::InitializeVm with the standard ATA creates /
-    /// VM::TransferForSwap / Reserve::BuyTokens / close-account sequence.
+    /// VM::TransferForSwapWithFee / Reserve::BuyTokens / close-account sequence.
     ///
     /// Only the creator (owner == swap_authority == serverParams.authority) can
     /// execute this path; the caller must enforce that.
@@ -19,12 +19,14 @@ extension SwapInstructionBuilder {
     /// - Parameters:
     ///   - serverParams: ReserveNewCurrency server-provided parameters
     ///   - authority: The owner/authority signing the transaction (also the VM/currency authority)
-    ///   - amount: Amount of Core Mint (USDF) quarks to spend on the first-ever buy
+    ///   - swapAmount: Amount of Core Mint (USDF) quarks that will be spent on the first-ever buy (becomes tokens)
+    ///   - feeAmount: Amount of Core Mint (USDF) quarks paid as a launch fee to `serverParams.feeDestination`
     /// - Returns: Ordered list of instructions for the launch-and-first-buy transaction
     static func newCurrencyLaunch(
         serverParams: SwapResponseServerParameters.ReserveNewCurrency,
         authority: PublicKey,
-        amount: UInt64
+        swapAmount: UInt64,
+        feeAmount: UInt64
     ) -> [Instruction] {
         let coreMint = MintMetadata.usdf
         guard let coreVM = coreMint.vmMetadata else {
@@ -207,16 +209,19 @@ extension SwapInstructionBuilder {
             ).instruction()
         )
 
-        // 10. VM::TransferForSwap — existing USDF VM swap ATA -> owner's Core Mint ATA
+        // 10. VM::TransferForSwapWithFee — existing USDF VM swap ATA splits into
+        //     swap destination (owner's Core Mint ATA) and fee destination.
         instructions.append(
-            VMProgram.TransferForSwap(
+            VMProgram.TransferForSwapWithFee(
                 vmAuthority: coreVM.authority,
                 vm: coreVM.vm,
                 swapper: authority,
                 swapPda: coreSwapAccounts.pda.publicKey,
                 swapAta: coreSwapAccounts.ata.publicKey,
-                destination: ownerCoreMintATA.publicKey,
-                amount: amount,
+                swapDestination: ownerCoreMintATA.publicKey,
+                feeDestination: serverParams.feeDestination,
+                swapAmount: swapAmount,
+                feeAmount: feeAmount,
                 bump: coreSwapAccounts.pda.bump
             ).instruction()
         )
@@ -234,7 +239,7 @@ extension SwapInstructionBuilder {
                 vaultB: vaultB,
                 buyerTarget: ownerTargetVMDepositATA.publicKey,
                 buyerBase: ownerCoreMintATA.publicKey,
-                amount: amount,
+                amount: swapAmount,
                 minOutAmount: 0
             ).instruction()
         )

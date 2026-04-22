@@ -151,6 +151,7 @@ public struct VerifiedSwapMetadata: Sendable {
         public let fromMint: PublicKey
         public let toMint: PublicKey
         public let amount: TokenAmount
+        public let feeAmount: TokenAmount
         public let fundingSource: FundingSource
 
         public init(
@@ -158,12 +159,14 @@ public struct VerifiedSwapMetadata: Sendable {
             fromMint: PublicKey,
             toMint: PublicKey,
             amount: TokenAmount,
+            feeAmount: TokenAmount? = nil,
             fundingSource: FundingSource
         ) {
             self.id = id
             self.fromMint = fromMint
             self.toMint = toMint
             self.amount = amount
+            self.feeAmount = feeAmount ?? TokenAmount(quarks: 0, mint: fromMint)
             self.fundingSource = fundingSource
         }
     }
@@ -197,7 +200,8 @@ extension VerifiedSwapMetadata.ClientParameters {
             id: swapId,
             fromMint: fromMint,
             toMint: toMint,
-            amount: TokenAmount(quarks: proto.amount, mint: fromMint),
+            amount: TokenAmount(quarks: proto.swapAmount, mint: fromMint),
+            feeAmount: TokenAmount(quarks: proto.feeAmount, mint: fromMint),
             fundingSource: fundingSource
         )
     }
@@ -207,7 +211,8 @@ extension VerifiedSwapMetadata.ClientParameters {
             $0.id = id.codeSwapID
             $0.fromMint = fromMint.solanaAccountID
             $0.toMint = toMint.solanaAccountID
-            $0.amount = amount.quarks
+            $0.swapAmount = amount.quarks
+            $0.feeAmount = feeAmount.quarks
             $0.fundingSource = fundingSource.protoSource
             $0.fundingID = fundingSource.fundingID
         }
@@ -434,6 +439,7 @@ public struct SwapResponseServerParameters {
         public let seed: PublicKey
         public let sellFeeBps: UInt32
         public let vmLockDurationInDays: UInt32
+        public let feeDestination: PublicKey
 
         public init(
             payer: PublicKey,
@@ -448,7 +454,8 @@ public struct SwapResponseServerParameters {
             symbol: String,
             seed: PublicKey,
             sellFeeBps: UInt32,
-            vmLockDurationInDays: UInt32
+            vmLockDurationInDays: UInt32,
+            feeDestination: PublicKey
         ) {
             self.payer = payer
             self.nonce = nonce
@@ -463,6 +470,7 @@ public struct SwapResponseServerParameters {
             self.seed = seed
             self.sellFeeBps = sellFeeBps
             self.vmLockDurationInDays = vmLockDurationInDays
+            self.feeDestination = feeDestination
         }
     }
 }
@@ -537,7 +545,8 @@ extension SwapResponseServerParameters.ReserveNewCurrency {
             let nonce = try? PublicKey(proto.nonce.value),
             let blockhash = try? Hash(proto.blockhash.value),
             let authority = try? PublicKey(proto.authority.value),
-            let seed = try? PublicKey(proto.seed.value)
+            let seed = try? PublicKey(proto.seed.value),
+            let feeDestination = try? PublicKey(proto.feeDestination.value)
         else {
             return nil
         }
@@ -557,7 +566,8 @@ extension SwapResponseServerParameters.ReserveNewCurrency {
             symbol: proto.symbol,
             seed: seed,
             sellFeeBps: proto.sellFeeBps,
-            vmLockDurationInDays: proto.vmLockDurationInDays
+            vmLockDurationInDays: proto.vmLockDurationInDays,
+            feeDestination: feeDestination
         )
     }
 }

@@ -18,6 +18,8 @@ public struct UserFlags: Sendable {
     public let billExchangeDataTimeout: TimeInterval?
     /// USDF amount that must be purchased when launching a new currency.
     public let newCurrencyPurchaseAmount: TokenAmount
+    /// USDF amount that must be paid as a fee when launching a new currency.
+    public let newCurrencyFeeAmount: TokenAmount
 
     public var hasPreferredOnrampProvider: Bool {
         preferredOnrampProvider != .unknown
@@ -61,6 +63,10 @@ extension UserFlags {
             billExchangeDataTimeout: proto.hasBillExchangeDataTimeout ? TimeInterval(proto.billExchangeDataTimeout.seconds) : nil,
             newCurrencyPurchaseAmount: TokenAmount(
                 quarks: proto.newCurrencyPurchaseAmount,
+                mint: .usdf
+            ),
+            newCurrencyFeeAmount: TokenAmount(
+                quarks: proto.newCurrencyFeeAmount,
                 mint: .usdf
             )
         )

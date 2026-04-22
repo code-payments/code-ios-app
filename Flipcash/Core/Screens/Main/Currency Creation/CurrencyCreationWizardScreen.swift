@@ -62,9 +62,9 @@ struct CurrencyCreationWizardScreen: View {
     static let descriptionCharLimit = 500
     static let iconCircleSize: CGFloat = 150
 
-    /// USDF amount the user must buy to launch the currency. Driven by the
+    /// USDF amount the user buys to mint their first bill. Driven by the
     /// server-supplied `newCurrencyPurchaseAmount` user flag and falls back to
-    /// zero quarks until flags are loaded.
+    /// zero quarks until flags are loaded. Displayed on the preview bill.
     private var launchAmount: ExchangedFiat {
         let quarks = session.userFlags?.newCurrencyPurchaseAmount.quarks ?? 0
         return ExchangedFiat.compute(
@@ -72,6 +72,24 @@ struct CurrencyCreationWizardScreen: View {
             rate: .oneToOne,
             supplyQuarks: 0
         )
+    }
+
+    /// USDF amount the user pays as a launch fee, on top of `launchAmount`.
+    /// Defaults to zero until flags load.
+    private var launchFee: ExchangedFiat {
+        let quarks = session.userFlags?.newCurrencyFeeAmount.quarks ?? 0
+        return ExchangedFiat.compute(
+            onChainAmount: TokenAmount(quarks: quarks, mint: .usdf),
+            rate: .oneToOne,
+            supplyQuarks: 0
+        )
+    }
+
+    /// Total USDF charged to the user to launch the currency
+    /// (`launchAmount + launchFee`). Used for the CTA button copy, the
+    /// reserves-affordability check, and every funding flow.
+    private var totalLaunchCost: ExchangedFiat {
+        launchAmount.adding(launchFee)
     }
 
     private var previewFiat: FiatAmount {
@@ -83,7 +101,7 @@ struct CurrencyCreationWizardScreen: View {
 
     private var reserveBalance: ExchangedFiat? {
         guard let stored = session.balance(for: .usdf) else { return nil }
-        guard stored.usdf.value >= launchAmount.onChainAmount.decimalValue else { return nil }
+        guard stored.usdf.value >= totalLaunchCost.onChainAmount.decimalValue else { return nil }
         return ExchangedFiat.compute(
             onChainAmount: TokenAmount(wholeTokens: stored.usdf.value, mint: .usdf),
             rate: ratesController.rateForBalanceCurrency(),
@@ -163,7 +181,7 @@ struct CurrencyCreationWizardScreen: View {
                     ConfirmationStep(
                         state: state,
                         previewFiat: previewFiat,
-                        launchAmount: launchAmount,
+                        totalLaunchCost: totalLaunchCost,
                         isValidating: isValidating,
                         onBuy: { isShowingFundingSheet = true }
                     )
@@ -223,11 +241,11 @@ struct CurrencyCreationWizardScreen: View {
             onrampCoordinator.start(
                 .launch(
                     displayName: state.currencyName,
-                    onCompleted: { signature, amount in
-                        try await launchAfterOnramp(signature: signature, amount: amount)
+                    onCompleted: { signature, _ in
+                        try await launchAfterExternalFunding(signature: signature, source: .coinbase)
                     }
                 ),
-                amount: launchAmount
+                amount: totalLaunchCost
             )
         }) {
             FundingSelectionSheet(
@@ -265,13 +283,17 @@ struct CurrencyCreationWizardScreen: View {
             }
         }
         .fullScreenCover(item: onrampCoordinator.launchCompletionBinding) { completion in
-            if case .launchProcessing(let swapId, let launchedMint, let name, let amount) = completion {
+            // The processing screen's `launchAmount` represents the amount
+            // minted as new-currency tokens (the bill). Use `self.launchAmount`
+            // rather than the coordinator's `total` amount, so analytics and
+            // logs match the reserves-funded path.
+            if case .launchProcessing(let swapId, let launchedMint, let name, _) = completion {
                 NavigationStack {
                     CurrencyLaunchProcessingScreen(
                         swapId: swapId,
                         launchedMint: launchedMint,
                         currencyName: name,
-                        launchAmount: amount,
+                        launchAmount: launchAmount,
                         fundingMethod: .coinbase
                     )
                     .environment(\.dismissParentContainer, {
@@ -290,7 +312,7 @@ struct CurrencyCreationWizardScreen: View {
                     swapId: processing.swapId,
                     launchedMint: processing.launchedMint,
                     currencyName: processing.currencyName,
-                    launchAmount: processing.amount,
+                    launchAmount: launchAmount,
                     fundingMethod: .phantom
                 )
                 .environment(\.dismissParentContainer, {
@@ -408,6 +430,13 @@ struct CurrencyCreationWizardScreen: View {
                     subtitle: "Try a different currency name"
                 )
                 return
+            } catch ErrorModeration.unsupportedLanguage {
+                logger.info("Currency name moderation: unsupported language")
+                errorDialog = makeDestructiveDialog(
+                    title: "Couldn't Check This Name",
+                    subtitle: "Try a different name."
+                )
+                return
             } catch {
                 if Task.isCancelled { return }
                 logger.error("Currency name moderation failed", metadata: ["error": "\(error)"])
@@ -496,6 +525,13 @@ struct CurrencyCreationWizardScreen: View {
                     subtitle: "Try a different description"
                 )
                 return
+            } catch ErrorModeration.unsupportedLanguage {
+                logger.info("Currency description moderation: unsupported language")
+                errorDialog = makeDestructiveDialog(
+                    title: "Couldn't Check This Description",
+                    subtitle: "Try a different description."
+                )
+                return
             } catch {
                 if Task.isCancelled { return }
                 logger.error("Currency description moderation failed", metadata: ["error": "\(error)"])
@@ -517,6 +553,8 @@ struct CurrencyCreationWizardScreen: View {
             isValidating = true
 
             let launchAmount = self.launchAmount
+            let launchFee = self.launchFee
+            let totalLaunchCost = self.totalLaunchCost
             let displayName = state.currencyName
 
             // 1. Launch — must be awaited inline; its error routing (denied /
@@ -533,12 +571,16 @@ struct CurrencyCreationWizardScreen: View {
             // that would poll a swap id the server never registered.
             let swapId: SwapId
             do {
-                swapId = try await session.buyNewCurrency(amount: launchAmount, mint: mint)
+                swapId = try await session.buyNewCurrency(
+                    amount: launchAmount,
+                    feeAmount: launchFee,
+                    mint: mint
+                )
             } catch Session.Error.insufficientBalance {
                 logger.info("Insufficient balance to complete currency purchase")
                 errorDialog = makeDestructiveDialog(
                     title: "Not Enough Funds",
-                    subtitle: "You need \(launchAmount.nativeAmount.formatted()) to create this currency."
+                    subtitle: "You need \(totalLaunchCost.nativeAmount.formatted()) to create this currency."
                 )
                 isValidating = false
                 return
@@ -639,24 +681,28 @@ struct CurrencyCreationWizardScreen: View {
         }
     }
 
-    /// Called by the Coinbase onramp after a successful USDF deposit. Runs
-    /// the same Launch + error-routing helper used by the reserves flow,
-    /// then buys the new currency with the external-funding signature.
-    /// Returns the resulting `SwapId` so the onramp view model can push its
-    /// `SwapProcessing` step. Throws `CancellationError` on launch failure —
-    /// the wizard has already shown its own step-routed dialog, so this
-    /// signals "stop" to OnrampViewModel without surfacing a second one.
-    private func launchAfterOnramp(signature: Signature, amount: ExchangedFiat) async throws -> SignedSwapResult {
+    /// Shared implementation for Coinbase- and Phantom-funded launches: both
+    /// deposit the full total (`launchAmount + launchFee`) of USDF via an
+    /// external signature, and the server splits it into swap + fee via
+    /// `TransferForSwapWithFee`. Runs the same Launch + error-routing helper
+    /// used by the reserves flow, then completes the buy with the external
+    /// signature. Throws `CancellationError` on launch failure — the wizard
+    /// has already shown its own step-routed dialog.
+    private func launchAfterExternalFunding(
+        signature: Signature,
+        source: CurrencyLaunchProcessingViewModel.FundingMethod
+    ) async throws -> SignedSwapResult {
         guard let mint = await launchCurrencyWithPreflightRouting() else {
             throw CancellationError()
         }
 
         let swapId = try await session.buyNewCurrencyWithExternalFunding(
-            amount: amount,
+            amount: launchAmount,
+            feeAmount: launchFee,
             mint: mint,
             transactionSignature: signature
         )
-        logger.info("New currency purchased (external funding)")
+        logger.info("New currency purchased (external funding)", metadata: ["source": "\(source.rawValue)"])
         return .launch(swapId: swapId, mint: mint)
     }
 
@@ -680,10 +726,10 @@ struct CurrencyCreationWizardScreen: View {
                     try await Task.sleep(for: .seconds(1))
                 }
                 try await walletConnection.requestSwapForLaunch(
-                    usdc: launchAmount.onChainAmount,
+                    usdc: totalLaunchCost.onChainAmount,
                     displayName: displayName,
-                    onCompleted: { signature, amount in
-                        try await launchAfterPhantom(signature: signature, amount: amount)
+                    onCompleted: { signature, _ in
+                        try await launchAfterExternalFunding(signature: signature, source: .phantom)
                     }
                 )
             } catch is CancellationError {
@@ -703,27 +749,6 @@ struct CurrencyCreationWizardScreen: View {
         }
     }
 
-    /// Called by `WalletConnection` after Phantom returns with a signed swap.
-    /// Runs the same Launch + error-routing helper used by the reserves and
-    /// Coinbase flows, then tells the server to complete the buy with the
-    /// external-funding signature. Returns the resulting `SwapId` so the
-    /// processing screen polls the right swap state. Throws `CancellationError`
-    /// on launch failure — the wizard has already shown its step-routed
-    /// dialog, so this signals "stop" to `WalletConnection.didSignTransaction`
-    /// without surfacing a second one.
-    private func launchAfterPhantom(signature: Signature, amount: ExchangedFiat) async throws -> SignedSwapResult {
-        guard let mint = await launchCurrencyWithPreflightRouting() else {
-            throw CancellationError()
-        }
-
-        let swapId = try await session.buyNewCurrencyWithExternalFunding(
-            amount: amount,
-            mint: mint,
-            transactionSignature: signature
-        )
-        logger.info("New currency purchased (Phantom funding)")
-        return .launch(swapId: swapId, mint: mint)
-    }
 
     // MARK: - Dialogs
 
@@ -967,7 +992,7 @@ private struct BillCreationStep: View {
 private struct ConfirmationStep: View {
     let state: CurrencyCreationState
     let previewFiat: FiatAmount
-    let launchAmount: ExchangedFiat
+    let totalLaunchCost: ExchangedFiat
     let isValidating: Bool
     let onBuy: () -> Void
 
@@ -1000,7 +1025,7 @@ private struct ConfirmationStep: View {
                 if isValidating {
                     ProgressView().progressViewStyle(.circular)
                 } else {
-                    Text("Buy \(launchAmount.nativeAmount.formatted()) to Create Your Currency")
+                    Text("Buy \(totalLaunchCost.nativeAmount.formatted()) to Create Your Currency")
                 }
             }
             .buttonStyle(.filled)

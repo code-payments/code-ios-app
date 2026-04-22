@@ -67,7 +67,8 @@ struct CurrencyLaunchProcessingScreen: View {
         .task {
             await viewModel.startPolling(
                 client: client,
-                session: session
+                session: session,
+                ratesController: ratesController
             )
 
             if viewModel.isSuccess {
@@ -161,8 +162,8 @@ private struct LaunchStatusIcon: View {
         Group {
             switch displayState {
             case .processing:
-                // Long enough for Swap and Balance polling
-                CircularLoadingView(duration: 300)
+                // Covers swap polling (120 × 1 s) + awaitBalance (60 × 2 s) worst case.
+                CircularLoadingView(duration: 240)
 
             case .success:
                 Image("IconCircleCheck")

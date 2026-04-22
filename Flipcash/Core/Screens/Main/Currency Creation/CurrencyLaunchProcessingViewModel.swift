@@ -96,15 +96,23 @@ class CurrencyLaunchProcessingViewModel {
 
     // MARK: - Polling -
 
-    func startPolling(client: Client, session: Session) async {
+    func startPolling(client: Client, session: Session, ratesController: RatesController) async {
         guard !isPolling, displayState == .processing else { return }
         isPolling = true
+
+        // Subscribe the launched mint to the live streamer before we start
+        // polling its balance. Without this, `awaitBalance` polls an in-memory
+        // channel the streamer is never writing to, and the balance only
+        // arrives when an unrelated server push (activity fetch) happens to
+        // refresh the subscription list. Subscribing here makes the stream
+        // deliver the balance directly, cutting the wait from ~70s → a few.
+        ratesController.ensureMintSubscribed(launchedMint)
 
         do {
             let metadata = try await client.pollSwapState(
                 swapId: swapId,
                 owner: session.ownerKeyPair,
-                maxAttempts: 180
+                maxAttempts: 120
             ) { [weak self] state in
                 Task { @MainActor in
                     self?.currentState = state
@@ -113,11 +121,11 @@ class CurrencyLaunchProcessingViewModel {
 
             switch metadata.state {
             case .finalized:
-                // Swap settled on-chain, but the user's balance update may still
-                // be in transit through the streaming layer — typically another
-                // ~60s. Wait for the balance to actually land before signalling
-                // success so the "Receive My X" handoff can advertise the bill
-                // immediately rather than racing the streamed wallet update.
+                // Swap settled on-chain. The streamer is already subscribed
+                // (see top of this function), so the balance/supply update
+                // typically arrives within a few seconds. Gate success on
+                // the real balance landing so the "Receive My X" handoff
+                // doesn't race the streamed wallet update.
                 if await awaitBalance(session: session) {
                     displayState = .success
                     Analytics.currencyLaunch(event: analyticsEvent, launchedMint: launchedMint, exchangedFiat: launchAmount, successful: true)
@@ -149,14 +157,15 @@ class CurrencyLaunchProcessingViewModel {
 
     /// Polls `session.balance(for: launchedMint)` until the launched currency
     /// has fully materialised — both non-zero `quarks` and bonding supply
-    /// populated. Budget: 120 × 2 s = 4 min, comfortably covering the observed
-    /// ~70 s streamed-update latency.
+    /// populated. Budget: 60 × 2 s = 2 min. With proactive subscription in
+    /// `startPolling`, the stream typically delivers within a few seconds,
+    /// so 2 min is generous headroom for slow-server conditions.
     ///
     /// Checking only for presence is insufficient: the stream can land a
     /// zero-quarks entry before the real balance/supply values follow,
     /// which causes downstream bill creation to build a $0 bill that the
     /// server rejects with "Quarks must be greater than 0".
-    private func awaitBalance(session: Session, maxAttempts: Int = 120, interval: Duration = .seconds(2)) async -> Bool {
+    private func awaitBalance(session: Session, maxAttempts: Int = 60, interval: Duration = .seconds(2)) async -> Bool {
         for i in 0..<maxAttempts {
             if Task.isCancelled { return false }
             if i > 0 {
@@ -172,11 +181,18 @@ class CurrencyLaunchProcessingViewModel {
                 ])
                 return true
             }
+
+            logger.debug("Awaiting launched currency balance", metadata: [
+                "mint": "\(launchedMint.base58)",
+                "attempt": "\(i + 1)/\(maxAttempts)",
+            ])
         }
+        
         logger.warning("Launched currency balance did not materialise in budget", metadata: [
             "mint": "\(launchedMint.base58)",
             "maxAttempts": "\(maxAttempts)",
         ])
+        
         return false
     }
 
@@ -195,8 +211,13 @@ class CurrencyLaunchProcessingViewModel {
 
         ratesController.ensureMintSubscribed(launchedMint)
 
+        // Launch bills are always USD — the entire launch flow is USD-anchored
+        // (purchase + fee come from `userFlags` in USDF quarks and the wizard
+        // renders them as USD). Forcing USD here also eliminates the
+        // rate-drift class of the "native amount does not match expected sell
+        // value" bug: `.oneToOne` is trivially consistent with any USD proof.
         guard let state = await ratesController.awaitVerifiedState(
-            for: launchAmount.nativeAmount.currency,
+            for: .usd,
             mint: launchedMint
         ) else {
             logger.warning("Verified state unavailable for launched mint; skipping bill handoff", metadata: [
@@ -214,7 +235,15 @@ class CurrencyLaunchProcessingViewModel {
             return nil
         }
 
-        let balanceFiat = stored.computeExchangedValue(with: ratesController.rateForBalanceCurrency())
+        // Use the proof's supply so `quarks × bondingCurve.sell(..., supply)`
+        // on both client and server agree. The rate is `.oneToOne` — USD/USDF
+        // carry no FX drift.
+        let proofSupply = state.supplyFromBonding ?? stored.supplyFromBonding
+        let balanceFiat = ExchangedFiat.compute(
+            onChainAmount: TokenAmount(quarks: stored.quarks, mint: launchedMint),
+            rate: .oneToOne,
+            supplyQuarks: proofSupply
+        )
 
         guard balanceFiat.onChainAmount.quarks > 0 else {
             logger.warning("Launched currency bill computed to zero fiat; skipping bill", metadata: [

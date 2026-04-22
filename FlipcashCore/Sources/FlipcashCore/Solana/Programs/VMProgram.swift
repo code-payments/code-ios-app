@@ -22,6 +22,7 @@ extension VMProgram {
         case initializeVm = 1
         case transferForSwap = 17
         case closeSwapAccountIfEmpty = 19
+        case transferForSwapWithFee = 20
     }
 }
 

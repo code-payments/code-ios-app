@@ -332,7 +332,7 @@ message StatefulSwapRequest {
             common.v1.SolanaAccountId to_mint = 3 [(validate.rules).message.required = true];
 
             // The amount to swap from the source mint in quarks.
-            uint64 amount = 4 [(validate.rules).uint64.gt = 0];
+            uint64 swap_amount = 4 [(validate.rules).uint64.gt = 0];
 
             // Where "amount" of "from_mint" will be sent from to the VM swap PDA
             FundingSource funding_source = 5 [(validate.rules).enum = {
@@ -347,6 +347,9 @@ message StatefulSwapRequest {
                 min_len: 32,
                 max_len: 88,
             }];
+
+              // The fee amount to pay for this swap
+            uint64 fee_amount = 7;
         }
 
         // The owner account starting the swap
@@ -485,7 +488,7 @@ message StatefulSwapResponse {
         //  7. VM::InitializeVm
         //  8. AssociatedTokenAccount::CreateIdempotent (open owner's Core Mint ATA)
         //  9. AssociatedTokenAccount::CreateIdempotent (open owner's to_mint VM Deposit ATA)
-        // 10. VM::TransferForSwap (Core Mint VM swap ATA -> owner's Core Mint ATA)
+        // 10. VM::TransferForSwapWithFee (Core Mint VM swap ATA -> owner's Core Mint ATA (swap amount) and fee destination (fee amount))
         // 11. Reserve::BuyTokens (limited buy transferring to_mint tokens into the to_mint VM Deposit ATA)
         // 12. Token::CloseAccount (closes owner's Core Mint ATA)
         //
@@ -539,6 +542,9 @@ message StatefulSwapResponse {
 
             // The VM lock duration
             uint32 vm_lock_duration_in_days = 13 [(validate.rules).uint32.const = 21];
+
+            // Destination account where fee should be paid
+            common.v1.SolanaAccountId fee_destination = 14 [(validate.rules).message.required = true];
         }
     }
 

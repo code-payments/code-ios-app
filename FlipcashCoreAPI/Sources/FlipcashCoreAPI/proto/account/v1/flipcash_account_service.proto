@@ -142,4 +142,7 @@ message UserFlags {
 
 	// USDF amount, in quarks, that must be purchased when launching a new currency
 	uint64 new_currency_purchase_amount = 8;
+
+	// USDF amount, in quarks, that must be paid in a fee when launching a new currency
+	uint64 new_currency_fee_amount = 9;
 }

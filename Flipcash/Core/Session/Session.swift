@@ -647,9 +647,15 @@ class Session {
     }
 
     @discardableResult
-    func buyNewCurrency(amount: ExchangedFiat, mint: PublicKey, swapId: SwapId = .generate()) async throws -> SwapId {
+    func buyNewCurrency(
+        amount: ExchangedFiat,
+        feeAmount: ExchangedFiat,
+        mint: PublicKey,
+        swapId: SwapId = .generate()
+    ) async throws -> SwapId {
         logger.info("Buying new currency", metadata: [
             "amount": "\(amount.nativeAmount.formatted())",
+            "feeAmount": "\(feeAmount.nativeAmount.formatted())",
             "mint": "\(mint.base58)",
             "swapId": "\(swapId.publicKey.base58)"
         ])
@@ -672,6 +678,7 @@ class Session {
         let metadata = try await client.buyNewCurrency(
             swapId: swapId,
             amount: amount,
+            feeAmount: feeAmount,
             verifiedState: verifiedState,
             mint: mint,
             owner: owner
@@ -689,11 +696,13 @@ class Session {
     @discardableResult
     func buyNewCurrencyWithExternalFunding(
         amount: ExchangedFiat,
+        feeAmount: ExchangedFiat,
         mint: PublicKey,
         transactionSignature: Signature
     ) async throws -> SwapId {
         logger.info("Buying new currency (external funding)", metadata: [
             "amount": "\(amount.nativeAmount.formatted())",
+            "feeAmount": "\(feeAmount.nativeAmount.formatted())",
             "mint": "\(mint.base58)"
         ])
 
@@ -701,6 +710,7 @@ class Session {
         let metadata = try await client.buyNewCurrencyWithExternalFunding(
             swapId: swapId,
             amount: amount,
+            feeAmount: feeAmount,
             mint: mint,
             owner: ownerKeyPair,
             transactionSignature: transactionSignature
