@@ -400,4 +400,101 @@ struct GiveViewModelTests {
         // Then: Should be able to give
         #expect(canGive == true, "Should allow exchange amount well under max supply value")
     }
+
+    // MARK: - refreshSelectedBalance (presentation) Tests
+
+    @Test("Presenting with a selected token resolves to that mint")
+    func testPresentation_WithSelectedToken_ResolvesRequestedMint() throws {
+        let container = try SessionContainer.makeTest(holdings: [
+            .init(
+                mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: 10_000 * 10_000_000_000),
+                quarks: 1_000_000_000_000
+            ),
+        ])
+        let viewModel = GiveViewModel(container: .mock, sessionContainer: container)
+
+        container.ratesController.selectToken(.jeffy)
+
+        viewModel.isPresented = true
+
+        #expect(viewModel.selectedBalance?.stored.mint == .jeffy)
+        #expect(container.ratesController.selectedTokenMint == .jeffy)
+    }
+
+    @Test("Presenting with no prior selection picks highest-value non-USDF and persists it")
+    func testPresentation_FirstTime_PicksHighestAndPersists() throws {
+        // Same supply for both mints (so per-token curve price is equal), but
+        // Jeffy has 100× the holding in quarks → 100× the USDF-equivalent,
+        // putting Jeffy first in the `usdf`-desc sort.
+        let container = try SessionContainer.makeTest(holdings: [
+            .init(
+                mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: 100_000 * 10_000_000_000),
+                quarks: 10_000_000_000_000
+            ),
+            .init(
+                mint: .makeLaunchpad(address: .usdcAuthority, supplyFromBonding: 100_000 * 10_000_000_000),
+                quarks: 100_000_000_000
+            ),
+        ])
+        let viewModel = GiveViewModel(container: .mock, sessionContainer: container)
+
+        container.ratesController.selectedTokenMint = nil
+
+        viewModel.isPresented = true
+
+        #expect(viewModel.selectedBalance?.stored.mint == .jeffy)
+        #expect(container.ratesController.selectedTokenMint == .jeffy)
+    }
+
+    @Test("Presenting with a remembered selection resolves to that mint, not the highest")
+    func testPresentation_Subsequent_UsesRememberedSelection() throws {
+        let container = try SessionContainer.makeTest(holdings: [
+            .init(
+                mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: 50_000 * 10_000_000_000),
+                quarks: 100_000_000_000
+            ),
+            .init(
+                mint: .makeLaunchpad(address: .usdcAuthority, supplyFromBonding: 5_000 * 10_000_000_000),
+                quarks: 10_000_000_000_000
+            ),
+        ])
+        let viewModel = GiveViewModel(container: .mock, sessionContainer: container)
+
+        container.ratesController.selectToken(.jeffy)
+
+        viewModel.isPresented = true
+
+        #expect(viewModel.selectedBalance?.stored.mint == .jeffy)
+        #expect(container.ratesController.selectedTokenMint == .jeffy)
+    }
+
+    @Test("Presenting with a stale sub-threshold selection falls back to the highest displayable balance")
+    func testPresentation_SubThresholdRememberedMint_FallsBackToHighest() throws {
+        let staleHolding = SessionContainer.Holding(
+            mint: .makeLaunchpad(
+                address: .jeffy,
+                supplyFromBonding: 10_000_000 * 10_000_000_000
+            ),
+            quarks: 100
+        )
+        let displayableHolding = SessionContainer.Holding(
+            mint: .makeLaunchpad(
+                address: .usdcAuthority,
+                supplyFromBonding: 10_000 * 10_000_000_000
+            ),
+            quarks: 1_000_000_000_000
+        )
+        let container = try SessionContainer.makeTest(holdings: [
+            staleHolding,
+            displayableHolding,
+        ])
+        let viewModel = GiveViewModel(container: .mock, sessionContainer: container)
+
+        container.ratesController.selectToken(.jeffy)
+
+        viewModel.isPresented = true
+
+        #expect(viewModel.selectedBalance?.stored.mint == .usdcAuthority)
+        #expect(container.ratesController.selectedTokenMint == .usdcAuthority)
+    }
 }
