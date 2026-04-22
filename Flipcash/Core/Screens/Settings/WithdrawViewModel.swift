@@ -51,12 +51,27 @@ class WithdrawViewModel {
                 return nil
             }
 
-            return ExchangedFiat.compute(
-                fromEntered: FiatAmount(value: amount, currency: rate.currency),
+            let entered = FiatAmount(value: amount, currency: rate.currency)
+
+            if let viaCurve = ExchangedFiat.compute(
+                fromEntered: entered,
                 rate: rate,
                 mint: mint,
-                supplyQuarks: supplyQuarks,
-                balance: selectedBalance.stored.usdf
+                supplyQuarks: supplyQuarks
+            ) {
+                return viaCurve
+            }
+
+            // Curve could not price the entered amount (requested > TVL).
+            // Synthesize so the amount screen's `canProceedToAddress` flips
+            // false and `EnterAmountView` turns the subtitle red.
+            return ExchangedFiat(
+                onChainAmount: TokenAmount(
+                    quarks: selectedBalance.stored.quarks + 1,
+                    mint: mint
+                ),
+                nativeAmount: entered,
+                currencyRate: rate
             )
         } else {
             return ExchangedFiat(
@@ -119,6 +134,17 @@ class WithdrawViewModel {
         return (onChain: exchangedFee.onChainAmount, usd: exchangedFee.usdfValue)
     }
     
+    /// Gate for the Enter-Amount screen's Next button. Disables when the
+    /// entered amount exceeds the displayed balance cap so `EnterAmountView`
+    /// turns the subtitle red.
+    var canProceedToAddress: Bool {
+        guard enteredFiat != nil else { return false }
+        return EnterAmountCalculator.isWithinDisplayLimit(
+            enteredAmount: enteredAmount,
+            max: maxWithdrawLimit.nativeAmount
+        )
+    }
+
     var canCompleteWithdrawal: Bool {
         guard
             let enteredFiat = enteredFiat,

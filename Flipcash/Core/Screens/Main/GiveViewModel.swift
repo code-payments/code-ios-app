@@ -54,13 +54,29 @@ class GiveViewModel {
             }
 
             let rate = ratesController.rateForEntryCurrency()
-            return ExchangedFiat.compute(
-                fromEntered: FiatAmount(value: amount, currency: rate.currency),
+            let entered = FiatAmount(value: amount, currency: rate.currency)
+
+            if let viaCurve = ExchangedFiat.compute(
+                fromEntered: entered,
                 rate: rate,
                 mint: mint,
-                supplyQuarks: supplyQuarks,
-                balance: selectedBalance.stored.usdf,
-                tokenBalanceQuarks: selectedBalance.stored.quarks
+                supplyQuarks: supplyQuarks
+            ) {
+                return viaCurve
+            }
+
+            // Curve could not price the entered amount (requested > TVL).
+            // Build a synthetic ExchangedFiat so `hasSufficientFunds` sees an
+            // over-balance request and returns `.insufficient` with a shortfall
+            // derived from `nativeAmount`. The onChainAmount is a sentinel —
+            // this ExchangedFiat is never transported.
+            return ExchangedFiat(
+                onChainAmount: TokenAmount(
+                    quarks: selectedBalance.stored.quarks + 1,
+                    mint: mint
+                ),
+                nativeAmount: entered,
+                currencyRate: rate
             )
 
         } else {

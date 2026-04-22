@@ -34,7 +34,7 @@ struct WithdrawAmountScreen: View {
                 subtitle: .balanceWithLimit(viewModel.maxWithdrawLimit),
                 actionState: .constant(.normal),
                 actionEnabled: { _ in
-                    viewModel.enteredFiat != nil
+                    viewModel.canProceedToAddress
                 },
                 action: viewModel.amountEnteredAction,
                 currencySelectionAction: showCurrencySelection

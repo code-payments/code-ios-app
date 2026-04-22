@@ -72,6 +72,62 @@ struct WithdrawViewModelTests {
         #expect(delta.value <= Decimal(1))
     }
 
+    // MARK: - canProceedToAddress
+
+    @Test("Over-balance bonded entry disables Next via canProceedToAddress")
+    func canProceedToAddress_overBalanceBonded_isFalse() throws {
+        let (viewModel, balance) = try makeBondedSetup()
+        let balanceValue = balance.exchangedFiat.nativeAmount.value
+
+        viewModel.enteredAmount = "\(balanceValue * 100)"
+
+        // enteredFiat stays non-nil so EnterAmountView's isExceedingLimit can
+        // flip the subtitle red.
+        #expect(viewModel.enteredFiat != nil)
+        #expect(viewModel.canProceedToAddress == false)
+    }
+
+    @Test("At-or-below balance leaves canProceedToAddress enabled")
+    func canProceedToAddress_withinBalanceBonded_isTrue() throws {
+        let (viewModel, balance) = try makeBondedSetup()
+        let balanceValue = balance.exchangedFiat.nativeAmount.value
+
+        viewModel.enteredAmount = "\(balanceValue / 10)"
+
+        #expect(viewModel.canProceedToAddress == true)
+    }
+
+    // MARK: - Helpers
+
+    /// Builds a `WithdrawViewModel` backed by an in-memory session whose
+    /// `session.balance(for:)` is populated, so `maxWithdrawLimit` returns a
+    /// real cap rather than zero.
+    private func makeBondedSetup() throws -> (WithdrawViewModel, ExchangedBalance) {
+        let mint: PublicKey = .jeffy
+        let container = try SessionContainer.makeTest(holdings: [
+            .init(
+                mint: .makeLaunchpad(
+                    address: mint,
+                    supplyFromBonding: 1_000_000 * 10_000_000_000
+                ),
+                quarks: 10 * 10_000_000_000
+            ),
+        ])
+        let stored = try #require(container.session.balance(for: mint))
+        let rate = container.ratesController.rateForEntryCurrency()
+        let balance = ExchangedBalance(
+            stored: stored,
+            exchangedFiat: stored.computeExchangedValue(with: rate)
+        )
+        let viewModel = WithdrawViewModel(
+            isPresented: .constant(true),
+            container: .mock,
+            sessionContainer: container
+        )
+        viewModel.selectedBalance = balance
+        return (viewModel, balance)
+    }
+
     @Test("Non-USD rate: subtracts fee in USD and recomputes native amount")
     func withdrawableAmount_withFeeAndCADRate() {
         let cadRate = Rate(fx: 1.4, currency: .cad)

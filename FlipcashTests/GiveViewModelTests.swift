@@ -468,6 +468,50 @@ struct GiveViewModelTests {
         #expect(container.ratesController.selectedTokenMint == .jeffy)
     }
 
+    // MARK: - Over-balance (insufficient funds)
+
+    @Test("Over-balance bonded entry fires 'Short' dialog with a real shortfall, stays on screen")
+    func giveAction_overBalanceBonded_firesShortDialogWithRealShortfall() throws {
+        let container = try SessionContainer.makeTest(holdings: [
+            .init(
+                mint: .makeLaunchpad(
+                    address: .jeffy,
+                    supplyFromBonding: 1_000_000 * 10_000_000_000
+                ),
+                quarks: 10 * 10_000_000_000
+            ),
+        ])
+        let viewModel = GiveViewModel(container: .mock, sessionContainer: container)
+        container.ratesController.selectToken(.jeffy)
+        viewModel.isPresented = true
+
+        let balance = try #require(viewModel.selectedBalance)
+        // 100× the displayed balance — unambiguously over and may exceed curve TVL.
+        let overAmount = balance.exchangedFiat.nativeAmount.value * 100
+        viewModel.enteredAmount = "\(overAmount)"
+
+        // Next must stay tappable so the dialog can fire on tap.
+        #expect(viewModel.canGive == true)
+        #expect(viewModel.dialogItem == nil)
+
+        viewModel.giveAction()
+
+        let dialog = try #require(viewModel.dialogItem)
+        let title = try #require(dialog.title)
+
+        // "You're $X Short" — not "You Need More Cash" and not "Transaction Limit Reached".
+        #expect(title.hasPrefix("You're"))
+        #expect(title.hasSuffix("Short"))
+        // Previous bug rendered the amount as $0.00 — guard against regression.
+        // The `$` anchor avoids a false positive on legitimate shortfalls
+        // like "$10.00 Short", whose "0.00 Short" substring would otherwise
+        // match.
+        #expect(!title.contains("$0.00"))
+
+        // Flow did not proceed to the bill.
+        #expect(viewModel.isPresented == true)
+    }
+
     @Test("Presenting with a stale sub-threshold selection falls back to the highest displayable balance")
     func testPresentation_SubThresholdRememberedMint_FallsBackToHighest() throws {
         let staleHolding = SessionContainer.Holding(
