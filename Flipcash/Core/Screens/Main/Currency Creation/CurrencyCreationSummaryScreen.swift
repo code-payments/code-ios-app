@@ -11,24 +11,26 @@ struct CurrencyCreationSummaryScreen: View {
     @Environment(Session.self) private var session
     @Environment(RatesController.self) private var ratesController
 
-    private var launchAmountText: String {
-        let purchaseAmount = session.userFlags?.newCurrencyPurchaseAmount.quarks ?? 0
-        let feeAmount = session.userFlags?.newCurrencyFeeAmount.quarks ?? 0
-        let totalQuarks = purchaseAmount + feeAmount
-        return ExchangedFiat.compute(
-            onChainAmount: TokenAmount(quarks: totalQuarks, mint: .usdf),
-            rate: .oneToOne,
-            supplyQuarks: 0
-        ).nativeAmount.formatted()
-    }
-    
-    private var receiveAmountText: String {
+    private var purchaseAmount: ExchangedFiat {
         let quarks = session.userFlags?.newCurrencyPurchaseAmount.quarks ?? 0
         return ExchangedFiat.compute(
             onChainAmount: TokenAmount(quarks: quarks, mint: .usdf),
             rate: .oneToOne,
             supplyQuarks: 0
-        ).nativeAmount.formatted()
+        )
+    }
+
+    private var feeAmount: ExchangedFiat {
+        let quarks = session.userFlags?.newCurrencyFeeAmount.quarks ?? 0
+        return ExchangedFiat.compute(
+            onChainAmount: TokenAmount(quarks: quarks, mint: .usdf),
+            rate: .oneToOne,
+            supplyQuarks: 0
+        )
+    }
+
+    private var totalLaunchCost: ExchangedFiat {
+        purchaseAmount.adding(feeAmount)
     }
 
     var body: some View {
@@ -39,7 +41,10 @@ struct CurrencyCreationSummaryScreen: View {
                     .foregroundStyle(Color.textSecondary)
                     .multilineTextAlignment(.center)
 
-                CreationStepsList(launchAmount: launchAmountText, receiveAmountText: receiveAmountText)
+                CreationStepsList(
+                    totalCost: totalLaunchCost.nativeAmount.formatted(),
+                    purchaseAmount: purchaseAmount.nativeAmount.formatted()
+                )
                     .padding(.top, 45)
 
                 Spacer()
@@ -58,8 +63,8 @@ struct CurrencyCreationSummaryScreen: View {
 // MARK: - CreationStepsList
 
 private struct CreationStepsList: View {
-    let launchAmount: String
-    let receiveAmountText: String
+    let totalCost: String
+    let purchaseAmount: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -69,13 +74,13 @@ private struct CreationStepsList: View {
             StepRow(icon: .CurrencyCreation.cash, title: "Cash Design", subtitle: "Customize the look")
             StepRow(
                 icon: .CurrencyCreation.purchase,
-                title: "Pay \(launchAmount) USD Fee",
+                title: "Pay \(totalCost) USD Fee",
                 subtitle: "Pay to create your currency"
             )
             StepRow(
                 icon: .CurrencyCreation.gift,
-                title: "Limited Time: Get \(receiveAmountText) Free",
-                subtitle: "Get the first \(receiveAmountText) of your currency",
+                title: "Limited Time: Get \(purchaseAmount) Free",
+                subtitle: "Get the first \(purchaseAmount) of your currency",
                 isLast: true
             )
         }

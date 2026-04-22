@@ -242,7 +242,7 @@ struct CurrencyCreationWizardScreen: View {
                 .launch(
                     displayName: state.currencyName,
                     onCompleted: { signature, _ in
-                        try await launchAfterExternalFunding(signature: signature, source: "coinbase")
+                        try await launchAfterExternalFunding(signature: signature, source: .coinbase)
                     }
                 ),
                 amount: totalLaunchCost
@@ -688,7 +688,10 @@ struct CurrencyCreationWizardScreen: View {
     /// used by the reserves flow, then completes the buy with the external
     /// signature. Throws `CancellationError` on launch failure — the wizard
     /// has already shown its own step-routed dialog.
-    private func launchAfterExternalFunding(signature: Signature, source: String) async throws -> SignedSwapResult {
+    private func launchAfterExternalFunding(
+        signature: Signature,
+        source: CurrencyLaunchProcessingViewModel.FundingMethod
+    ) async throws -> SignedSwapResult {
         guard let mint = await launchCurrencyWithPreflightRouting() else {
             throw CancellationError()
         }
@@ -699,7 +702,7 @@ struct CurrencyCreationWizardScreen: View {
             mint: mint,
             transactionSignature: signature
         )
-        logger.info("New currency purchased (external funding)", metadata: ["source": "\(source)"])
+        logger.info("New currency purchased (external funding)", metadata: ["source": "\(source.rawValue)"])
         return .launch(swapId: swapId, mint: mint)
     }
 
@@ -726,7 +729,7 @@ struct CurrencyCreationWizardScreen: View {
                     usdc: totalLaunchCost.onChainAmount,
                     displayName: displayName,
                     onCompleted: { signature, _ in
-                        try await launchAfterExternalFunding(signature: signature, source: "phantom")
+                        try await launchAfterExternalFunding(signature: signature, source: .phantom)
                     }
                 )
             } catch is CancellationError {
