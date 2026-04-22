@@ -468,16 +468,16 @@ struct GiveViewModelTests {
         #expect(container.ratesController.selectedTokenMint == .jeffy)
     }
 
-    @Test("Presenting with a sub-threshold selected mint still resolves that mint, not the fallback")
-    func testPresentation_SubThresholdExplicitMint_StillResolves() throws {
-        let tinyHolding = SessionContainer.Holding(
+    @Test("Presenting with a stale sub-threshold selection falls back to the highest displayable balance")
+    func testPresentation_SubThresholdRememberedMint_FallsBackToHighest() throws {
+        let staleHolding = SessionContainer.Holding(
             mint: .makeLaunchpad(
                 address: .jeffy,
                 supplyFromBonding: 10_000_000 * 10_000_000_000
             ),
             quarks: 100
         )
-        let largerHolding = SessionContainer.Holding(
+        let displayableHolding = SessionContainer.Holding(
             mint: .makeLaunchpad(
                 address: .usdcAuthority,
                 supplyFromBonding: 10_000 * 10_000_000_000
@@ -485,17 +485,16 @@ struct GiveViewModelTests {
             quarks: 1_000_000_000_000
         )
         let container = try SessionContainer.makeTest(holdings: [
-            tinyHolding,
-            largerHolding,
+            staleHolding,
+            displayableHolding,
         ])
-
         let viewModel = GiveViewModel(container: .mock, sessionContainer: container)
 
         container.ratesController.selectToken(.jeffy)
 
         viewModel.isPresented = true
 
-        #expect(viewModel.selectedBalance?.stored.mint == .jeffy)
-        #expect(container.ratesController.selectedTokenMint == .jeffy)
+        #expect(viewModel.selectedBalance?.stored.mint == .usdcAuthority)
+        #expect(container.ratesController.selectedTokenMint == .usdcAuthority)
     }
 }

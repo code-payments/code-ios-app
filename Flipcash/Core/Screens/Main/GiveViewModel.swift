@@ -101,23 +101,13 @@ class GiveViewModel {
 
     private func refreshSelectedBalance() {
         let rate = ratesController.rateForEntryCurrency()
-
-        // Resolve from the raw balance list so a sub-display-threshold
-        // holding isn't silently replaced by the top-sorted balance.
-        if let selectedTokenMint = ratesController.selectedTokenMint,
-           selectedTokenMint != .usdf,
-           let stored = session.balance(for: selectedTokenMint) {
-            selectedBalance = ExchangedBalance(
-                stored: stored,
-                exchangedFiat: stored.computeExchangedValue(with: rate)
-            )
-            return
-        }
-
         let availableBalances = session.balances(for: rate)
             .filter { $0.stored.mint != .usdf }
 
-        if let first = availableBalances.first {
+        if let selectedTokenMint = ratesController.selectedTokenMint,
+           let match = availableBalances.first(where: { $0.stored.mint == selectedTokenMint }) {
+            selectedBalance = match
+        } else if let first = availableBalances.first {
             selectedBalance = first
             ratesController.selectToken(first.stored.mint)
         }
