@@ -12,7 +12,6 @@ struct CurrencyDiscoveryScreen: View {
     let sessionContainer: SessionContainer
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(BetaFlags.self) private var betaFlags
 
     @State private var mintsByCategory: [DiscoverCategory: [MintMetadata]] = [:]
     @State private var selectedCategory: DiscoverCategory = .popular
@@ -29,7 +28,7 @@ struct CurrencyDiscoveryScreen: View {
                     selectedMint: $selectedMint
                 )
 
-                if mintsByCategory[selectedCategory] != nil, betaFlags.hasEnabled(.currencyCreation) {
+                if mintsByCategory[selectedCategory] != nil {
                     CurrencyInfoFooter {
                         NavigationLink("Create Your Own Currency", value: CurrencyCreationStep.summary)
                             .buttonStyle(.filled)

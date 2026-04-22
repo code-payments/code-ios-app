@@ -9,7 +9,6 @@ import FlipcashCore
 struct CurrencyDiscoveryList: View {
     let container: Container
 
-    @Environment(BetaFlags.self) private var betaFlags
     @Binding var mintsByCategory: [DiscoverCategory: [MintMetadata]]
     @Binding var selectedCategory: DiscoverCategory
     @Binding var selectedMint: PublicKey?
@@ -52,12 +51,10 @@ struct CurrencyDiscoveryList: View {
                         .listRowInsets(EdgeInsets())
                     }
 
-                    if betaFlags.hasEnabled(.currencyCreation) {
-                        Color.clear
-                            .frame(height: 80)
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
-                    }
+                    Color.clear
+                        .frame(height: 80)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                 }
             }
             .listSectionSeparator(.hidden)
