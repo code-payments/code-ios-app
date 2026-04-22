@@ -304,15 +304,6 @@ class RatesController {
         selectedTokenMint = mint
     }
     
-    /// Get the currently selected token, or a default if none is selected
-    /// - Parameter defaultMint: The default mint to return if none is selected. Defaults to USDC.
-    /// - Returns: The selected token or the default
-    func getSelectedToken(default defaultMint: PublicKey = .usdf) -> StoredMintMetadata? {
-        let mint = selectedTokenMint ?? defaultMint
-        
-        return try? database.getMintMetadata(mint: mint)
-    }
-    
     /// Check if a given mint is currently selected
     /// - Parameter mint: The mint to check
     /// - Returns: True if the mint is selected
