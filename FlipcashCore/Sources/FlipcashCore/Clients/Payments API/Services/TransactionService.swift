@@ -276,9 +276,14 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
     /// (Phase 1 + Phase 2 via IntentFundSwap). Mirrors `buy(...)` but takes a
     /// raw `mint: PublicKey` because the currency is too new to have
     /// `MintMetadata` hydrated locally.
+    ///
+    /// The funding intent transfers `amount + feeAmount` USDF to the VM swap
+    /// PDA; the server splits that total into the swap (minting tokens) and
+    /// the launch fee via `TransferForSwapWithFee`.
     func buyNewCurrency(
         swapId: SwapId,
         amount: ExchangedFiat,
+        feeAmount: ExchangedFiat,
         verifiedState: VerifiedState,
         mint: PublicKey,
         owner: AccountCluster,
@@ -290,8 +295,12 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
         }
         let ownerKeyPair = owner.authority.keyPair
 
+        let fundingAmount = amount.adding(feeAmount)
+
         logger.info("Starting new-currency buy", metadata: [
             "amount": "\(amount.nativeAmount.formatted())",
+            "feeAmount": "\(feeAmount.nativeAmount.formatted())",
+            "fundingAmount": "\(fundingAmount.nativeAmount.formatted())",
             "mint": "\(mint.base58)",
             "swapId": "\(swapId.publicKey.base58)",
         ])
@@ -301,6 +310,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
             swapId: swapId,
             direction: .buy(mint: .launchStub(address: mint)),
             amount: amount.onChainAmount,
+            feeAmount: feeAmount.onChainAmount,
             fundingSource: .submitIntent(id: fundingIntentID),
             owner: ownerKeyPair,
             isNewCurrencyLaunch: true
@@ -312,12 +322,12 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
                     "swapId": "\(metadata.swapId.publicKey.base58)",
                 ])
 
-                // Phase 2: Fund the VM swap PDA via IntentFundSwap
+                // Phase 2: Fund the VM swap PDA via IntentFundSwap.
                 let fundingIntent = IntentFundSwap(
                     intentID: fundingIntentID,
                     swapId: metadata.swapId,
                     sourceCluster: owner,
-                    amount: amount,
+                    amount: fundingAmount,
                     verifiedState: verifiedState,
                     fromMint: .usdf,
                     toMint: .usdf

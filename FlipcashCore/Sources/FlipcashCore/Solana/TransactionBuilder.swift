@@ -98,12 +98,14 @@ extension TransactionBuilder {
     static func swapNewCurrency(
         responseParams: SwapResponseServerParameters.ReserveNewCurrency,
         authority: PublicKey,
-        amount: UInt64
+        swapAmount: UInt64,
+        feeAmount: UInt64
     ) -> SolanaTransaction {
         let instructions = SwapInstructionBuilder.newCurrencyLaunch(
             serverParams: responseParams,
             authority: authority,
-            amount: amount
+            swapAmount: swapAmount,
+            feeAmount: feeAmount
         )
 
         return SolanaTransaction(

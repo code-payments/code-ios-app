@@ -159,6 +159,7 @@ extension Client {
     public func buyNewCurrency(
         swapId: SwapId,
         amount: ExchangedFiat,
+        feeAmount: ExchangedFiat,
         verifiedState: VerifiedState,
         mint: PublicKey,
         owner: AccountCluster
@@ -167,6 +168,7 @@ extension Client {
             transactionService.buyNewCurrency(
                 swapId: swapId,
                 amount: amount,
+                feeAmount: feeAmount,
                 verifiedState: verifiedState,
                 mint: mint,
                 owner: owner
@@ -177,10 +179,14 @@ extension Client {
     /// Same launch-first-buy atomic flow as ``buyNewCurrency`` but funded by
     /// an externally-settled USDF deposit (e.g. Coinbase onramp). The caller
     /// supplies the Solana signature proving the external USDF transfer.
+    ///
+    /// `amount` is the swap/mint portion and `feeAmount` is the launch fee;
+    /// the external deposit must have covered `amount + feeAmount`.
     @discardableResult
     public func buyNewCurrencyWithExternalFunding(
         swapId: SwapId,
         amount: ExchangedFiat,
+        feeAmount: ExchangedFiat,
         mint: PublicKey,
         owner: KeyPair,
         transactionSignature: Signature
@@ -190,6 +196,7 @@ extension Client {
                 swapId: swapId,
                 direction: .buy(mint: .launchStub(address: mint)),
                 amount: amount.onChainAmount,
+                feeAmount: feeAmount.onChainAmount,
                 fundingSource: .externalWallet(transactionSignature: transactionSignature),
                 owner: owner,
                 isNewCurrencyLaunch: true

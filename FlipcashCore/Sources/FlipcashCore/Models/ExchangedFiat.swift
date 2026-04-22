@@ -223,6 +223,19 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
         )
     }
 
+    /// Add another `ExchangedFiat` of the same mint and currency rate.
+    /// Symmetric to `subtracting(_:)` — uses direct `nativeAmount` addition to
+    /// avoid re-running the bonding curve via `compute`.
+    public func adding(_ other: ExchangedFiat) -> ExchangedFiat {
+        precondition(mint == other.mint, "Cannot add ExchangedFiats with different mints")
+        precondition(currencyRate == other.currencyRate, "Cannot add ExchangedFiats with different currency rates")
+        return ExchangedFiat(
+            onChainAmount: onChainAmount + other.onChainAmount,
+            nativeAmount: nativeAmount + other.nativeAmount,
+            currencyRate: currencyRate,
+        )
+    }
+
     /// Subtract an on-chain fee, scaling `nativeAmount` proportionally.
     /// For bonded mints this is a linear approximation of the bonding curve;
     /// at typical fee bps the deviation is below display rounding.
