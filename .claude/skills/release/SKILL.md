@@ -3,7 +3,7 @@ name: release
 description: Use when the user wants to cut a release, ship a version, prepare for release, or invokes /release
 disable-model-invocation: true
 argument-hint: [major|minor|patch]
-allowed-tools: Bash(git log *), Bash(git checkout *), Bash(git tag *), Bash(git push *), Bash(xcodebuild *), Bash(gh *), Read, Agent, Grep
+allowed-tools: Bash(git log *), Bash(git checkout *), Bash(git tag *), Bash(git push *), Bash(git cherry-pick *), Bash(git add *), Bash(git commit *), Bash(xcodebuild *), Bash(gh *), Read, Edit, Agent, Grep
 ---
 
 # Release
@@ -40,6 +40,33 @@ Confirm with user: "Bumping {type}: flipcash-{current} → flipcash-{next} — c
   git checkout release/flipcash-{current-version}
   ```
 
+### 3a. Cherry-pick commits (patch only)
+Show commits on `main` that aren't on the release branch yet:
+```bash
+git log release/flipcash-{current-version}..main --oneline --no-merges
+```
+Ask the user which SHAs to pick (oldest first). Then:
+```bash
+git cherry-pick <sha> <sha> ...
+```
+If a cherry-pick conflicts, STOP and hand off to the user — do not resolve conflicts autonomously.
+
+Skip this step if the user says there are no commits to pick (rare — usually means the branch already has them applied manually).
+
+### 3b. Bump MARKETING_VERSION (patch only)
+The release branch's `Code.xcodeproj/project.pbxproj` is still pinned at `{current-version}`. The binary produced from this branch needs the patched version or TestFlight/App Store will reject it as a duplicate. Use the Edit tool with `replace_all: true`:
+
+- **old_string**: `MARKETING_VERSION = {current-version};`
+- **new_string**: `MARKETING_VERSION = {next-version};`
+
+Other targets in the pbxproj use different `MARKETING_VERSION` values (legacy apps, test targets), so `replace_all` is safe — it only hits the Flipcash target.
+
+Then commit:
+```bash
+git add Code.xcodeproj/project.pbxproj
+git commit -m "chore: bump version to {next-version}"
+```
+
 ### 4. What's shipping
 ```bash
 git log {base-tag}..HEAD --format="- %s" --no-merges
@@ -71,14 +98,12 @@ Use the Agent tool with `model: "haiku"`. Pass the commit list with this prompt:
 Show to user for approval.
 
 ### 7. Branch and tag
-The version in `Code.xcodeproj/project.pbxproj` is already bumped ahead for TestFlight — do NOT modify it.
-
-For **patch**: already on `release/flipcash-X.Y.Z` from step 3 — skip branch creation.
-
-For **major / minor**:
+For **major / minor**: the version in `Code.xcodeproj/project.pbxproj` is already bumped ahead for TestFlight — do NOT modify it. Create the branch:
 ```bash
 git checkout -b release/flipcash-{next-version}
 ```
+
+For **patch**: already on `release/flipcash-X.Y.Z` from step 3; the version bump commit from step 3b is already on the branch. Skip branch creation.
 
 Then tag:
 ```bash
@@ -120,3 +145,5 @@ gh release create flipcash-{version} --title "Flipcash {version}" --notes "{chan
 - Commit changelog files
 - Skip the dogfooding gate
 - Proceed past the gate without explicit user confirmation
+- Tag a patch without bumping `MARKETING_VERSION` on the release branch (step 3b) — TestFlight rejects duplicate build versions
+- Resolve cherry-pick conflicts autonomously — stop and hand off to the user
