@@ -1596,7 +1596,7 @@ extension Session {
         case missingVerifiedState
         case missingSupply
         case unableToConvertToFiat
-        
+        case verifiedStateStale(ageSeconds: TimeInterval)
     }
 }
 
