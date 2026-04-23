@@ -51,4 +51,23 @@ extension VerifiedState {
     public var supplyFromBonding: UInt64? {
         reserveProto?.reserveState.supplyFromBonding
     }
+
+    /// Server-signed timestamp for this proof bundle. When both protos are present,
+    /// the older of the two drives staleness (closest to its server-side expiry).
+    public var serverTimestamp: Date {
+        guard let reserveDate = reserveTimestamp else { return timestamp }
+        return min(timestamp, reserveDate)
+    }
+
+    /// Client-side freshness ceiling. Server accepts proofs up to 15 minutes old;
+    /// we stop at 13 to leave a 2-minute buffer for RTT and clock skew.
+    public static let clientMaxAge: TimeInterval = 13 * 60
+
+    public var age: TimeInterval {
+        Date().timeIntervalSince(serverTimestamp)
+    }
+
+    public var isStale: Bool {
+        age >= Self.clientMaxAge
+    }
 }
