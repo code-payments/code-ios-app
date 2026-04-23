@@ -18,6 +18,9 @@ extension Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRate {
         return proto
     }
 
+    /// `currencyCode` matches `CurrencyCode.rawValue`; the service indexes rates by
+    /// this value, not by mint.
+    ///
     /// A rate whose server-signed timestamp is well inside the 13-minute freshness window.
     static func freshRate(currencyCode: String = "USD", rate: Double = 1.0) -> Self {
         var proto = Self()
@@ -27,6 +30,9 @@ extension Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRate {
         return proto
     }
 
+    /// `currencyCode` matches `CurrencyCode.rawValue`; the service indexes rates by
+    /// this value, not by mint.
+    ///
     /// A rate whose server-signed timestamp is older than `clientMaxAge` (13 minutes).
     static func staleRate(currencyCode: String = "USD", rate: Double = 1.0) -> Self {
         var proto = Self()
@@ -51,6 +57,15 @@ extension Ocp_Currency_V1_VerifiedLaunchpadCurrencyReserveState {
         proto.reserveState.mint = mint.solanaAccountID
         proto.reserveState.supplyFromBonding = supplyFromBonding
         proto.reserveState.timestamp = Google_Protobuf_Timestamp(date: Date())
+        return proto
+    }
+
+    /// A reserve state whose server-signed timestamp is older than `clientMaxAge` (13 minutes).
+    static func staleReserve(mint: PublicKey = .jeffy, supplyFromBonding: UInt64 = 0) -> Self {
+        var proto = Self()
+        proto.reserveState.mint = mint.solanaAccountID
+        proto.reserveState.supplyFromBonding = supplyFromBonding
+        proto.reserveState.timestamp = Google_Protobuf_Timestamp(date: Date().addingTimeInterval(-(VerifiedState.clientMaxAge + 60)))
         return proto
     }
 }
