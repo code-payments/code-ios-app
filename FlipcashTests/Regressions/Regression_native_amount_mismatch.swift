@@ -32,18 +32,22 @@ struct Regression_native_amount_mismatch {
             reserveTimestamp: nil
         )
 
-        // Construct the VM with that pin.
+        // Use a per-test isolated Database so saveReserveStates does not pollute
+        // the shared Database.mock that every other test in the process reads from.
+        let isolatedController = RatesController(container: .mock, database: Self.makeIsolatedDatabase())
+
         let sessionContainer = SessionContainer.mock
         let vm = CurrencyBuyViewModel(
             currencyPublicKey: .usdf,
             currencyName: "USDF",
             pinnedState: pinnedState,
             session: sessionContainer.session,
-            ratesController: sessionContainer.ratesController
+            ratesController: isolatedController
         )
 
-        // Stream delivers a newer reserve state (a different supply).
-        await sessionContainer.ratesController.verifiedProtoService.saveReserveStates([
+        // Stream delivers a newer reserve state (a different supply) into THIS
+        // controller's verifiedProtoService — the same one the VM is bound to.
+        await isolatedController.verifiedProtoService.saveReserveStates([
             .freshReserve(mint: .jeffy, supplyFromBonding: 2_000_000)
         ])
 
@@ -58,7 +62,9 @@ struct Regression_native_amount_mismatch {
 
     @Test("Scenario B: a stale cached pin cannot be used to construct a ViewModel (currentPinnedState returns nil)")
     func scenarioB_stalePinBlocksOpeningFlow() async {
-        let controller = RatesController(container: .mock, database: .mock)
+        // Per-test isolated Database — saveRates / saveReserveStates persist via
+        // VerifiedProtoService and would pollute Database.mock otherwise.
+        let controller = RatesController(container: .mock, database: Self.makeIsolatedDatabase())
 
         // Seed the service with stale protos for both rate and reserve.
         await controller.verifiedProtoService.saveRates([
@@ -73,6 +79,16 @@ struct Regression_native_amount_mismatch {
 
         // Stale protos must not produce a pin — navigation stays blocked.
         #expect(pin == nil)
+    }
+
+    // MARK: - Helpers
+
+    /// Per-test SQLite file. Prevents writes to Database.mock from leaking
+    /// across the whole test process (parallel tests share Database.mock and
+    /// VerifiedProtoService warm-loads each instance from disk).
+    private static func makeIsolatedDatabase() -> Database {
+        let path = NSTemporaryDirectory() + UUID().uuidString + ".sqlite"
+        return try! Database(url: URL(fileURLWithPath: path))
     }
 
     // MARK: - Scenario C

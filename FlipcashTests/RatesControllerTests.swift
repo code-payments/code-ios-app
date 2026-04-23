@@ -518,8 +518,17 @@ struct RatesControllerTests {
     /// test that does `controller.balanceCurrency = .xxx` would require
     /// `.serialized` on the suite or a proper UserDefaults isolation seam.
     @MainActor
-    private func makeController(database: Database = .mock) -> RatesController {
-        RatesController(container: .mock, database: database)
+    private func makeController(database: Database? = nil) -> RatesController {
+        // Default to a per-test isolated SQLite file. Sharing Database.mock here
+        // used to be safe when saveRates/saveReserveStates were in-memory only —
+        // since VerifiedProtoService now persists every save through the store,
+        // sharing would let one test's seeded protos warm-load into the next
+        // test's controller and break "empty cache" expectations.
+        let isolated = database ?? (try! Database(
+            url: URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent("ratescontroller-\(UUID().uuidString).sqlite")
+        ))
+        return RatesController(container: .mock, database: isolated)
     }
 
     /// Creates an on-disk temp SQLite database. Callers are responsible
