@@ -35,7 +35,15 @@ extension Database {
 
     func readAllVerifiedRates() throws -> [StoredVerifiedRate] {
         let table = VerifiedRateTable()
-        return try reader.prepare(table.table).map { row in
+        let rows = try reader.prepareRowIterator("""
+        SELECT
+            currency,
+            rateProto,
+            receivedAt
+        FROM
+            verified_rate;
+        """)
+        return try rows.map { row in
             StoredVerifiedRate(
                 currency:   row[table.currency],
                 rateProto:  row[table.rateProto],
@@ -71,7 +79,15 @@ extension Database {
 
     func readAllVerifiedReserves() throws -> [StoredVerifiedReserve] {
         let table = VerifiedReserveTable()
-        return try reader.prepare(table.table).map { row in
+        let rows = try reader.prepareRowIterator("""
+        SELECT
+            mint,
+            reserveProto,
+            receivedAt
+        FROM
+            verified_reserve;
+        """)
+        return try rows.map { row in
             StoredVerifiedReserve(
                 mint:         row[table.mint],
                 reserveProto: row[table.reserveProto],
