@@ -27,15 +27,23 @@ final class InMemoryVerifiedProtoStore: VerifiedProtoStore, @unchecked Sendable 
     }
 
     func writeRate(_ row: StoredRateRow) throws {
-        if let writeRateError { throw writeRateError }
-        lock.lock(); defer { lock.unlock() }
+        lock.lock()
+        if let writeRateError {
+            lock.unlock()
+            throw writeRateError
+        }
+        defer { lock.unlock() }
         rates[row.currency] = row
         writeRateCalls.append(row)
     }
 
     func writeReserve(_ row: StoredReserveRow) throws {
-        if let writeReserveError { throw writeReserveError }
-        lock.lock(); defer { lock.unlock() }
+        lock.lock()
+        if let writeReserveError {
+            lock.unlock()
+            throw writeReserveError
+        }
+        defer { lock.unlock() }
         reserves[row.mint] = row
         writeReserveCalls.append(row)
     }
