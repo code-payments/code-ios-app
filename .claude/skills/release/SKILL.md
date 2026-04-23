@@ -135,10 +135,14 @@ git push -u origin release/flipcash-{version}
 git push origin flipcash-{version}
 ```
 
-### 9. GitHub Release
+### 9. GitHub Release (draft)
+Always create the release as a draft. Publish it manually from the GitHub UI once the App Store rollout is live — publishing fires webhooks and "Latest release" badges, so it should reflect what's actually available to users.
+
 ```bash
-gh release create flipcash-{version} --title "Flipcash {version}" --notes "{changelog}"
+gh release create flipcash-{version} --draft --title "Flipcash {version}" --notes "{changelog}"
 ```
+
+Remind the user at the end: *"Release drafted. Promote it in the GitHub UI once the App Store rollout is live."*
 
 ## Never
 - Merge the release branch into main
