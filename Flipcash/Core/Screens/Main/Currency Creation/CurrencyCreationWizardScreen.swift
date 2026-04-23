@@ -1025,7 +1025,7 @@ private struct ConfirmationStep: View {
                 if isValidating {
                     ProgressView().progressViewStyle(.circular)
                 } else {
-                    Text("Buy \(totalLaunchCost.nativeAmount.formatted()) to Create Your Currency")
+                    Text("Pay \(totalLaunchCost.nativeAmount.formatted()) to Create")
                 }
             }
             .buttonStyle(.filled)

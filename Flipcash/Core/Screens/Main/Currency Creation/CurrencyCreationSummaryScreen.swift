@@ -96,7 +96,7 @@ private struct StepRow: View {
     var isLast: Bool = false
 
     var body: some View {
-        HStack(alignment: .top, spacing: 20) {
+        HStack(alignment: .top, spacing: 30) {
             VStack(spacing: 0) {
                 RoundedRectangle(cornerRadius: 6)
                     .fill(.white.opacity(0.16))
