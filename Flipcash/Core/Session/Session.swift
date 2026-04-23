@@ -754,6 +754,12 @@ class Session {
         if let balance = balance(for: mint),
            amount.onChainAmount.quarks > balance.quarks,
            mint != .usdf {
+            logger.error("Sell workaround branch fired — pinning should have prevented this", metadata: [
+                "currency": "\(amount.nativeAmount.currency.rawValue)",
+                "mint": "\(mint.base58)",
+                "enteredQuarks": "\(amount.onChainAmount.quarks)",
+                "balanceQuarks": "\(balance.quarks)"
+            ])
             amountForIntent = ExchangedFiat.compute(
                 onChainAmount: TokenAmount(quarks: balance.quarks, mint: mint),
                 rate: ratesController.rateForEntryCurrency(),
