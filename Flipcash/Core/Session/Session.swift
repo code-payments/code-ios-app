@@ -585,16 +585,18 @@ class Session {
     // MARK: - Swaps -
 
     @discardableResult
-    func buy(amount: ExchangedFiat, of mint: PublicKey) async throws -> SwapId {
-        let token = try await fetchMintMetadata(mint: mint)
-
-        // Get verified state for intent construction
-        guard let verifiedState = await ratesController.getVerifiedState(
-            for: amount.nativeAmount.currency,
-            mint: amount.mint
-        ) else {
-            throw Error.missingVerifiedState
+    func buy(amount: ExchangedFiat, verifiedState: VerifiedState, of mint: PublicKey) async throws -> SwapId {
+        if verifiedState.isStale {
+            logger.info("Rejected stale verifiedState at buy", metadata: [
+                "currency": "\(amount.nativeAmount.currency.rawValue)",
+                "mint": "\(amount.mint.base58)",
+                "ageSeconds": "\(verifiedState.age)",
+                "clientMaxAge": "\(VerifiedState.clientMaxAge)"
+            ])
+            throw Error.verifiedStateStale(ageSeconds: verifiedState.age)
         }
+
+        let token = try await fetchMintMetadata(mint: mint)
 
         logger.info("buying", metadata: ["amount": "\(amount.nativeAmount.formatted())", "symbol": "\(token.symbol)"])
 
@@ -650,24 +652,26 @@ class Session {
     func buyNewCurrency(
         amount: ExchangedFiat,
         feeAmount: ExchangedFiat,
+        verifiedState: VerifiedState,
         mint: PublicKey,
         swapId: SwapId = .generate()
     ) async throws -> SwapId {
+        if verifiedState.isStale {
+            logger.info("Rejected stale verifiedState at buyNewCurrency", metadata: [
+                "currency": "\(amount.nativeAmount.currency.rawValue)",
+                "mint": "\(amount.mint.base58)",
+                "ageSeconds": "\(verifiedState.age)",
+                "clientMaxAge": "\(VerifiedState.clientMaxAge)"
+            ])
+            throw Error.verifiedStateStale(ageSeconds: verifiedState.age)
+        }
+
         logger.info("Buying new currency", metadata: [
             "amount": "\(amount.nativeAmount.formatted())",
             "feeAmount": "\(feeAmount.nativeAmount.formatted())",
             "mint": "\(mint.base58)",
             "swapId": "\(swapId.publicKey.base58)"
         ])
-
-        // Phase 2 funding (IntentFundSwap) requires a verified state for the
-        // source mint — USDF for a reserves-funded launch.
-        guard let verifiedState = await ratesController.getVerifiedState(
-            for: amount.nativeAmount.currency,
-            mint: amount.mint
-        ) else {
-            throw Error.missingVerifiedState
-        }
 
         // Intentionally no fetchMintMetadata: a freshly-launched currency isn't
         // yet in the local DB, and in dry-run mode the server doesn't surface it

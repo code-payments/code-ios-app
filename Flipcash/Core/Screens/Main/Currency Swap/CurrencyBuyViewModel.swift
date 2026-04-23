@@ -126,7 +126,15 @@ class CurrencyBuyViewModel: Identifiable {
 
         Task {
             do {
-                let swapId = try await session.buy(amount: buyAmount, of: destination)
+                // TODO: pin upstream (Task 12)
+                guard let verifiedState = await ratesController.getVerifiedState(
+                    for: buyAmount.nativeAmount.currency,
+                    mint: buyAmount.mint
+                ) else {
+                    throw Session.Error.missingVerifiedState
+                }
+
+                let swapId = try await session.buy(amount: buyAmount, verifiedState: verifiedState, of: destination)
 
                 await MainActor.run {
                     path.append(.processing(swapId: swapId, currencyName: currencyName, amount: buyAmount))

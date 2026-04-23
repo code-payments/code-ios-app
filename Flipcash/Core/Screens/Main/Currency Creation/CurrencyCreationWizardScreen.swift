@@ -571,9 +571,18 @@ struct CurrencyCreationWizardScreen: View {
             // that would poll a swap id the server never registered.
             let swapId: SwapId
             do {
+                // TODO: pin upstream (Task 12)
+                guard let verifiedState = await ratesController.getVerifiedState(
+                    for: launchAmount.nativeAmount.currency,
+                    mint: launchAmount.mint
+                ) else {
+                    throw Session.Error.missingVerifiedState
+                }
+
                 swapId = try await session.buyNewCurrency(
                     amount: launchAmount,
                     feeAmount: launchFee,
+                    verifiedState: verifiedState,
                     mint: mint
                 )
             } catch Session.Error.insufficientBalance {
