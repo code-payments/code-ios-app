@@ -193,6 +193,20 @@ class RatesController {
         await verifiedProtoService.getVerifiedState(for: currency, mint: mint)
     }
 
+    /// Returns a non-stale `VerifiedState` if one is currently cached — otherwise nil.
+    /// Does not poll, does not wait. Navigation handlers call this right before
+    /// opening an amount-entry flow; if nil, they should silently decline to open
+    /// the flow (per the zero-UX-changes rule — the stream + DB warm-load should
+    /// keep the cache populated in practice).
+    func currentPinnedState(for currency: CurrencyCode, mint: PublicKey) async -> VerifiedState? {
+        guard let state = await verifiedProtoService.getVerifiedState(for: currency, mint: mint),
+              !state.isStale
+        else {
+            return nil
+        }
+        return state
+    }
+
     /// Ensure a mint is included in the live stream subscription.
     /// The verified state will arrive asynchronously through the existing
     /// streaming pipeline. No-op if the mint is already subscribed.

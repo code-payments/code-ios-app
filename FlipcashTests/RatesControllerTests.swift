@@ -478,6 +478,36 @@ struct RatesControllerTests {
         #expect(persistedCAD.fx == Decimal(string: "1.4"))
     }
 
+    // MARK: - currentPinnedState -
+
+    @Test("Returns nil when nothing is cached")
+    @MainActor
+    func currentPinnedState_nothingCached_returnsNil() async {
+        let controller = makeController()
+        let state = await controller.currentPinnedState(for: .usd, mint: .jeffy)
+        #expect(state == nil)
+    }
+
+    @Test("Returns nil when the cached rate is older than clientMaxAge")
+    @MainActor
+    func currentPinnedState_staleRate_returnsNil() async {
+        let controller = makeController()
+        await controller.verifiedProtoService.saveRates([.staleRate()])
+        await controller.verifiedProtoService.saveReserveStates([.freshReserve(mint: .jeffy)])
+        let state = await controller.currentPinnedState(for: .usd, mint: .jeffy)
+        #expect(state == nil)
+    }
+
+    @Test("Returns the cached state when inside the freshness window")
+    @MainActor
+    func currentPinnedState_freshRate_returnsState() async {
+        let controller = makeController()
+        await controller.verifiedProtoService.saveRates([.freshRate()])
+        await controller.verifiedProtoService.saveReserveStates([.freshReserve(mint: .jeffy)])
+        let state = await controller.currentPinnedState(for: .usd, mint: .jeffy)
+        #expect(state?.isStale == false)
+    }
+
     // MARK: - Helpers -
 
     /// NOTE: RatesController.init reads `balanceCurrency` / `entryCurrency`
