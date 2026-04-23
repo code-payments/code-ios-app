@@ -28,7 +28,7 @@ struct CurrencyLaunchProcessingViewModelTests {
     func processingCopy() {
         let vm = makeViewModel()
         #expect(vm.navigationTitle == "Creating Test Coin")
-        #expect(vm.title == "This Will Take a Minute")
+        #expect(vm.title == "This Will Take a Few Minutes")
         #expect(vm.subtitle == "This transaction typically takes a few minutes. You may leave the app while it completes")
         #expect(vm.actionTitle == "Notify Me When Complete")
     }
