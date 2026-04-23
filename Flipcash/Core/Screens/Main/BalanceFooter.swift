@@ -28,7 +28,7 @@ struct BalanceFooter: View {
                 Button("Discover Currencies") {
                     isShowingCurrencyDiscovery = true
                 }
-                .buttonStyle(.filled10)
+                .buttonStyle(.filled)
                 .padding(20)
             }
         }

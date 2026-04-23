@@ -55,7 +55,7 @@ class CurrencyLaunchProcessingViewModel {
 
     var title: String {
         switch displayState {
-        case .processing: "This Will Take a Minute"
+        case .processing: "This Will Take a Few Minutes"
         case .success:    "\(currencyName) Is Live"
         case .failed:     "Something Went Wrong"
         }
