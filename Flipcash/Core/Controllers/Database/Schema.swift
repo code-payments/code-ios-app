@@ -94,6 +94,26 @@ struct RateTable: Sendable {
     let data     = Expression <Data>         ("data")
 }
 
+// Verified exchange-rate proofs, one per fiat currency.
+struct VerifiedRateTable: Sendable {
+    static let name = "verified_rate"
+
+    let table      = Table(Self.name)
+    let currency   = Expression <String> ("currency")
+    let rateProto  = Expression <Data>   ("rateProto")
+    let receivedAt = Expression <Date>   ("receivedAt")
+}
+
+// Verified reserve-state proofs, one per mint.
+struct VerifiedReserveTable: Sendable {
+    static let name = "verified_reserve"
+
+    let table        = Table(Self.name)
+    let mint         = Expression <String> ("mint")
+    let reserveProto = Expression <Data>   ("reserveProto")
+    let receivedAt   = Expression <Date>   ("receivedAt")
+}
+
 extension Expression {
     func alias(_ alias: String) -> Expression<Datatype> {
         Expression(alias)
@@ -194,6 +214,26 @@ extension Database {
             try writer.run(rateTable.table.create(ifNotExists: true, withoutRowid: true) { t in
                 t.column(rateTable.currency, primaryKey: true)
                 t.column(rateTable.data)
+            })
+        }
+
+        let verifiedRateTable = VerifiedRateTable()
+
+        try writer.transaction {
+            try writer.run(verifiedRateTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                t.column(verifiedRateTable.currency, primaryKey: true)
+                t.column(verifiedRateTable.rateProto)
+                t.column(verifiedRateTable.receivedAt)
+            })
+        }
+
+        let verifiedReserveTable = VerifiedReserveTable()
+
+        try writer.transaction {
+            try writer.run(verifiedReserveTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                t.column(verifiedReserveTable.mint, primaryKey: true)
+                t.column(verifiedReserveTable.reserveProto)
+                t.column(verifiedReserveTable.receivedAt)
             })
         }
 
