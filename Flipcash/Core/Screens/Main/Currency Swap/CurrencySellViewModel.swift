@@ -8,12 +8,16 @@
 import SwiftUI
 import FlipcashCore
 import FlipcashUI
+import Logging
+
+private let logger = Logger(label: "flipcash.swap-service")
 
 @MainActor @Observable
 class CurrencySellViewModel: Identifiable {
     var enteredAmount: String = ""
     var path: [CurrencySellPath] = []
     @ObservationIgnored let currencyMetadata: StoredMintMetadata
+    @ObservationIgnored var pinnedState: VerifiedState?
         
     var enteredFiat: ExchangedFiat? {
         guard !enteredAmount.isEmpty else { return nil }
@@ -74,14 +78,26 @@ class CurrencySellViewModel: Identifiable {
     }
         
     // MARK: - Actions -
-        
+
     func showConfirmationScreen() {
         guard enteredFiat != nil else {
             return
         }
 
-        // Navigate to the next screen
-        path.append(.confirmation)
+        let mint = currencyMetadata.mint
+        let currency = ratesController.entryCurrency
+
+        Task {
+            guard let pinned = await ratesController.currentPinnedState(for: currency, mint: mint) else {
+                logger.warning("Sell: no verified state available at confirmation entry", metadata: [
+                    "mint": "\(mint.base58)",
+                    "currency": "\(currency)",
+                ])
+                return
+            }
+            pinnedState = pinned
+            path.append(.confirmation)
+        }
     }
                     
 }

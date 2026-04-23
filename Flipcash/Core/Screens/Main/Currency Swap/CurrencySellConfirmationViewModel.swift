@@ -8,17 +8,25 @@
 import SwiftUI
 import FlipcashUI
 import FlipcashCore
+import Logging
+
+private let logger = Logger(label: "flipcash.swap-service")
 
 @MainActor @Observable
 class CurrencySellConfirmationViewModel {
     @ObservationIgnored let mint: PublicKey
     @ObservationIgnored let amount: ExchangedFiat
+    @ObservationIgnored let pinnedState: VerifiedState
 
     var dialogItem: DialogItem?
     private(set) var actionButtonState: ButtonState = .normal
     var pendingSwapId: SwapId?
 
     var canDismissSheet: Bool = false
+
+    var canPerformAction: Bool {
+        !pinnedState.isStale
+    }
 
     var fee: ExchangedFiat {
         let bps: UInt64 = 100
@@ -53,29 +61,28 @@ class CurrencySellConfirmationViewModel {
 
     // MARK: - Init -
 
-    init(mint: PublicKey, amount: ExchangedFiat) {
-        self.mint = mint
-        self.amount = amount
+    init(mint: PublicKey, amount: ExchangedFiat, pinnedState: VerifiedState) {
+        self.mint        = mint
+        self.amount      = amount
+        self.pinnedState = pinnedState
     }
     
     // MARK: - Actions -
 
-    func performSell(using session: Session, ratesController: RatesController) {
+    func performSell(using session: Session) {
         actionButtonState = .loading
 
         Task {
             do {
-                // TODO: pin upstream (Task 14)
-                guard let verifiedState = await ratesController.getVerifiedState(
-                    for: amount.nativeAmount.currency,
-                    mint: amount.mint
-                ) else {
-                    throw Session.Error.missingVerifiedState
-                }
-
-                let swapId = try await session.sell(amount: amount, verifiedState: verifiedState, in: mint)
+                let swapId = try await session.sell(amount: amount, verifiedState: pinnedState, in: mint)
                 // Navigate to processing screen
                 pendingSwapId = swapId
+            } catch Session.Error.verifiedStateStale {
+                logger.warning("Sell rejected: pinned verified state became stale", metadata: [
+                    "ageSeconds": "\(pinnedState.age)",
+                    "mint": "\(mint.base58)",
+                ])
+                actionButtonState = .normal
             } catch {
                 ErrorReporting.captureError(
                     error,

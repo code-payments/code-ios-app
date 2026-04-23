@@ -17,15 +17,14 @@ struct CurrencySellConfirmationScreen: View {
     @State private var viewModel: CurrencySellConfirmationViewModel
 
     @Environment(Session.self) private var session
-    @Environment(RatesController.self) private var ratesController
 
     // MARK: - Init -
 
-    init(mint: PublicKey, currencyName: String, amount: ExchangedFiat, path: Binding<[CurrencySellPath]>) {
+    init(mint: PublicKey, currencyName: String, amount: ExchangedFiat, pinnedState: VerifiedState, path: Binding<[CurrencySellPath]>) {
         self.currencyName = currencyName
         self.amount = amount
         self._path = path
-        self.viewModel = CurrencySellConfirmationViewModel(mint: mint, amount: amount)
+        self.viewModel = CurrencySellConfirmationViewModel(mint: mint, amount: amount, pinnedState: pinnedState)
     }
         
     var body: some View {
@@ -81,6 +80,7 @@ struct CurrencySellConfirmationScreen: View {
                     CodeButton(state: viewModel.actionButtonState,
                         style: .filled,
                         title: "Sell",
+                        disabled: !viewModel.canPerformAction,
                         action: performSell
                     )
                         .padding(.top, 20)
@@ -101,16 +101,6 @@ struct CurrencySellConfirmationScreen: View {
     // MARK: - Actions -
 
     private func performSell() {
-        viewModel.performSell(using: session, ratesController: ratesController)
+        viewModel.performSell(using: session)
     }
-}
-
-#Preview {
-    @Previewable @State var path: [CurrencySellPath] = []
-    let amount = ExchangedFiat.compute(
-        onChainAmount: TokenAmount(quarks: 10_000_000_000_000, mint: .usdf),
-        rate: .oneToOne,
-        supplyQuarks: nil
-    )
-    CurrencySellConfirmationScreen(mint: .usdf, currencyName: "USDF", amount: amount, path: $path)
 }

@@ -10,15 +10,30 @@ import Testing
 import SwiftUI
 import FlipcashCore
 import FlipcashUI
+@testable import FlipcashCore
 @testable import Flipcash
 
 @MainActor
 struct CurrencySellConfirmationViewModelTests {
-    
+
     // MARK: - Test Helpers -
 
     /// USD→CAD rate of 1.35 — native (CAD) is derived as `usdValue * 1.35`.
     static let testRate = Rate(fx: 1.35, currency: .cad)
+
+    static func makeFreshPinnedState() -> VerifiedState {
+        VerifiedState.makeForTest(
+            rateTimestamp: Date(),
+            reserveTimestamp: Date()
+        )
+    }
+
+    static func makeStalePinnedState() -> VerifiedState {
+        VerifiedState.makeForTest(
+            rateTimestamp: Date().addingTimeInterval(-VerifiedState.clientMaxAge - 1),
+            reserveTimestamp: Date().addingTimeInterval(-VerifiedState.clientMaxAge - 1)
+        )
+    }
 
     /// Helper to create ExchangedFiat for testing. USDF-minted fixtures bypass
     /// the bonding curve so `onChainAmount.quarks` equals `usdfValue.value * 10^6`
@@ -37,14 +52,19 @@ struct CurrencySellConfirmationViewModelTests {
             supplyQuarks: nil
         )
     }
-    
+
     /// Helper to create a test view model
     static func createViewModel(
         mint: PublicKey = .usdf,
-        amount: ExchangedFiat? = nil
+        amount: ExchangedFiat? = nil,
+        pinnedState: VerifiedState? = nil
     ) -> CurrencySellConfirmationViewModel {
         let exchangedFiat = amount ?? createExchangedFiat(mint: mint)
-        return CurrencySellConfirmationViewModel(mint: mint, amount: exchangedFiat)
+        return CurrencySellConfirmationViewModel(
+            mint: mint,
+            amount: exchangedFiat,
+            pinnedState: pinnedState ?? makeFreshPinnedState()
+        )
     }
     
     // MARK: - Initialization Tests -
@@ -279,11 +299,39 @@ struct CurrencySellConfirmationViewModelTests {
         // Given: Amount with specific mint
         let mint = PublicKey.usdf
         let viewModel = Self.createViewModel(mint: mint)
-        
+
         // When: Getting amount after fee
         let afterFee = viewModel.amountAfterFee
-        
+
         // Then: Mint should be preserved
         #expect(afterFee.mint == mint)
+    }
+
+    // MARK: - Pinned State Tests -
+
+    @Test("canPerformAction is false when pinnedState is stale")
+    func canPerformAction_stalePinnedState_returnsFalse() {
+        let viewModel = Self.createViewModel(pinnedState: Self.makeStalePinnedState())
+
+        #expect(viewModel.canPerformAction == false)
+    }
+
+    @Test("canPerformAction is true when pinnedState is fresh")
+    func canPerformAction_freshPinnedState_returnsTrue() {
+        let viewModel = Self.createViewModel(pinnedState: Self.makeFreshPinnedState())
+
+        #expect(viewModel.canPerformAction == true)
+    }
+
+    @Test("pinnedState with both rate and reserve timestamps is treated as bonded-sell fresh state")
+    func canPerformAction_freshBondedPinnedState_returnsTrue() {
+        // Sell is bonded-only; both protos should be present. Both timestamps fresh.
+        let pinnedState = VerifiedState.makeForTest(
+            rateTimestamp: Date(),
+            reserveTimestamp: Date()
+        )
+        let viewModel = Self.createViewModel(pinnedState: pinnedState)
+
+        #expect(viewModel.canPerformAction == true)
     }
 }
