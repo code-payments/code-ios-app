@@ -17,7 +17,8 @@ enum WithdrawViewModelTestHelpers {
 
     static func createViewModel(
         entryCurrency: CurrencyCode = .usd,
-        rates: [Rate] = [.oneToOne]
+        rates: [Rate] = [.oneToOne],
+        pinnedState: VerifiedState? = nil
     ) -> WithdrawViewModel {
         let container = Container.mock
         let sessionContainer = SessionContainer.mock
@@ -27,11 +28,14 @@ enum WithdrawViewModelTestHelpers {
             rates: rates
         )
 
-        return WithdrawViewModel(
+        let viewModel = WithdrawViewModel(
             isPresented: .constant(true),
             container: container,
             sessionContainer: sessionContainer
         )
+
+        viewModel.pinnedState = pinnedState
+        return viewModel
     }
 
     static func createExchangedBalance(

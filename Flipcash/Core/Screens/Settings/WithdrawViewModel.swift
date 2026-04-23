@@ -8,6 +8,9 @@
 import SwiftUI
 import FlipcashCore
 import FlipcashUI
+import Logging
+
+private let logger = Logger(label: "flipcash.withdraw")
 
 @MainActor @Observable
 class WithdrawViewModel {
@@ -154,7 +157,11 @@ class WithdrawViewModel {
         else {
             return false
         }
-        
+
+        guard let pinned = pinnedState, !pinned.isStale else {
+            return false
+        }
+
         switch session.hasSufficientFunds(for: enteredFiat) {
         case .sufficient:
             return true
@@ -218,6 +225,7 @@ class WithdrawViewModel {
     }
     
     @ObservationIgnored private var amountToWithdraw: ExchangedFiat?
+    @ObservationIgnored var pinnedState: VerifiedState?
     @ObservationIgnored private let isPresented: Binding<Bool>
     @ObservationIgnored private let container: Container
     @ObservationIgnored private let client: Client
@@ -255,6 +263,10 @@ class WithdrawViewModel {
             return
         }
 
+        guard let verifiedState = pinnedState else {
+            return
+        }
+
         let fee: TokenAmount
         if amountToWithdraw.mint == .usdf {
             fee = destinationMetadata.fee
@@ -265,14 +277,6 @@ class WithdrawViewModel {
         withdrawButtonState = .loading
         Task {
             do {
-                // TODO: pin upstream (Task 13)
-                guard let verifiedState = await ratesController.getVerifiedState(
-                    for: amountToWithdraw.nativeAmount.currency,
-                    mint: amountToWithdraw.mint
-                ) else {
-                    throw Session.Error.missingVerifiedState
-                }
-
                 try await session.withdraw(
                     exchangedFiat: amountToWithdraw,
                     verifiedState: verifiedState,
@@ -286,6 +290,12 @@ class WithdrawViewModel {
                 try await Task.delay(milliseconds: 500)
                 showSuccessfulWithdrawalDialog()
 
+            } catch Session.Error.verifiedStateStale {
+                logger.warning("Withdraw rejected: pinned verified state became stale", metadata: [
+                    "ageSeconds": "\(verifiedState.age)",
+                    "mint": "\(amountToWithdraw.mint.base58)",
+                ])
+                withdrawButtonState = .normal
             } catch {
                 ErrorReporting.captureError(
                     error,
@@ -312,7 +322,21 @@ class WithdrawViewModel {
         enteredAddress = ""
         destinationMetadata = nil
         withdrawButtonState = .normal
+        pinnedState = nil
         pushEnterAmountScreen()
+
+        let mint = balance.stored.mint
+        let currency = ratesController.entryCurrency
+        Task {
+            guard let pinned = await ratesController.currentPinnedState(for: currency, mint: mint) else {
+                logger.warning("Withdraw: no verified state available at currency selection", metadata: [
+                    "mint": "\(mint.base58)",
+                    "currency": "\(currency)",
+                ])
+                return
+            }
+            pinnedState = pinned
+        }
     }
 
     func amountEnteredAction() {

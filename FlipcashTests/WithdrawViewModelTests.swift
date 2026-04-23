@@ -128,6 +128,64 @@ struct WithdrawViewModelTests {
         return (viewModel, balance)
     }
 
+    // MARK: - canCompleteWithdrawal / Pinned State
+
+    @Test("canCompleteWithdrawal is false when pinnedState is nil")
+    func canCompleteWithdrawal_noPinnedState_returnsFalse() {
+        let viewModel = WithdrawViewModelTestHelpers.createViewModel(pinnedState: nil)
+        viewModel.selectedBalance = WithdrawViewModelTestHelpers.createExchangedBalance(quarks: 10_000_000)
+        viewModel.enteredAmount = "5.00"
+        viewModel.enteredAddress = "11111111111111111111111111111111"
+        viewModel.destinationMetadata = WithdrawViewModelTestHelpers.createDestinationMetadata()
+
+        #expect(viewModel.canCompleteWithdrawal == false)
+    }
+
+    @Test("canCompleteWithdrawal is false when pinnedState is stale")
+    func canCompleteWithdrawal_stalePinnedState_returnsFalse() {
+        let stale = VerifiedState.makeForTest(
+            rateTimestamp: Date().addingTimeInterval(-VerifiedState.clientMaxAge - 1),
+            reserveTimestamp: nil
+        )
+        let viewModel = WithdrawViewModelTestHelpers.createViewModel(pinnedState: stale)
+        viewModel.selectedBalance = WithdrawViewModelTestHelpers.createExchangedBalance(quarks: 10_000_000)
+        viewModel.enteredAmount = "5.00"
+        viewModel.enteredAddress = "11111111111111111111111111111111"
+        viewModel.destinationMetadata = WithdrawViewModelTestHelpers.createDestinationMetadata()
+
+        #expect(viewModel.canCompleteWithdrawal == false)
+    }
+
+    @Test("canCompleteWithdrawal is true when pinnedState is fresh and all fields valid")
+    func canCompleteWithdrawal_freshPinnedState_returnsTrue() throws {
+        let fresh = VerifiedState.makeForTest(
+            rateTimestamp: Date(),
+            reserveTimestamp: nil
+        )
+        let container = try SessionContainer.makeTest(holdings: [
+            .init(mint: MintMetadata.usdf, quarks: 10_000_000)
+        ])
+        let balance = try #require(container.session.balance(for: .usdf))
+        let rate = container.ratesController.rateForEntryCurrency()
+        let exchangedBalance = ExchangedBalance(
+            stored: balance,
+            exchangedFiat: balance.computeExchangedValue(with: rate)
+        )
+
+        let viewModel = WithdrawViewModel(
+            isPresented: .constant(true),
+            container: .mock,
+            sessionContainer: container
+        )
+        viewModel.pinnedState = fresh
+        viewModel.selectedBalance = exchangedBalance
+        viewModel.enteredAmount = "5.00"
+        viewModel.enteredAddress = "11111111111111111111111111111111"
+        viewModel.destinationMetadata = WithdrawViewModelTestHelpers.createDestinationMetadata()
+
+        #expect(viewModel.canCompleteWithdrawal == true)
+    }
+
     @Test("Non-USD rate: subtracts fee in USD and recomputes native amount")
     func withdrawableAmount_withFeeAndCADRate() {
         let cadRate = Rate(fx: 1.4, currency: .cad)
