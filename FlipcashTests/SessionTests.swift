@@ -560,3 +560,39 @@ struct SessionSellVerifiedStateTests {
         }
     }
 }
+
+// MARK: -
+
+@MainActor
+@Suite("Session.withdraw verified state")
+struct SessionWithdrawVerifiedStateTests {
+
+    private static let amount = ExchangedFiat(
+        onChainAmount: TokenAmount(quarks: 1_000_000, mint: .usdf),
+        nativeAmount: .usd(1),
+        currencyRate: .oneToOne
+    )
+
+    @Test("withdraw throws verifiedStateStale when the provided state is past clientMaxAge")
+    func withdraw_throwsStale() async {
+        let session = Session.unverifiedMock
+        let stale = VerifiedState.makeForTest(
+            rateTimestamp: Date().addingTimeInterval(-VerifiedState.clientMaxAge - 1),
+            reserveTimestamp: nil
+        )
+
+        do {
+            try await session.withdraw(
+                exchangedFiat: Self.amount,
+                verifiedState: stale,
+                fee: .zero(mint: .usdf),
+                to: WithdrawViewModelTestHelpers.createDestinationMetadata()
+            )
+            Issue.record("Expected verifiedStateStale to be thrown")
+        } catch Session.Error.verifiedStateStale {
+            // expected
+        } catch {
+            Issue.record("Unexpected error thrown: \(error)")
+        }
+    }
+}

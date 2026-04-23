@@ -770,20 +770,22 @@ class Session {
     
     // MARK: - Withdrawals -
     
-    func withdraw(exchangedFiat: ExchangedFiat, fee: TokenAmount, to destinationMetadata: DestinationMetadata) async throws {
+    func withdraw(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, fee: TokenAmount, to destinationMetadata: DestinationMetadata) async throws {
+        if verifiedState.isStale {
+            logger.info("Rejected stale verifiedState at withdraw", metadata: [
+                "currency": "\(exchangedFiat.nativeAmount.currency.rawValue)",
+                "mint": "\(exchangedFiat.mint.base58)",
+                "ageSeconds": "\(verifiedState.age)",
+                "clientMaxAge": "\(VerifiedState.clientMaxAge)"
+            ])
+            throw Error.verifiedStateStale(ageSeconds: verifiedState.age)
+        }
+
         let rendezvous = PublicKey.generate()!
         let mint = exchangedFiat.mint
         do {
             guard let vmAuthority = try database.getVMAuthority(mint: mint) else {
                 throw Error.vmMetadataMissing
-            }
-
-            // Get verified state for intent construction
-            guard let verifiedState = await ratesController.getVerifiedState(
-                for: exchangedFiat.nativeAmount.currency,
-                mint: mint
-            ) else {
-                throw Error.missingVerifiedState
             }
 
             try await self.client.withdraw(

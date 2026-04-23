@@ -265,8 +265,17 @@ class WithdrawViewModel {
         withdrawButtonState = .loading
         Task {
             do {
+                // TODO: pin upstream (Task 13)
+                guard let verifiedState = await ratesController.getVerifiedState(
+                    for: amountToWithdraw.nativeAmount.currency,
+                    mint: amountToWithdraw.mint
+                ) else {
+                    throw Session.Error.missingVerifiedState
+                }
+
                 try await session.withdraw(
                     exchangedFiat: amountToWithdraw,
+                    verifiedState: verifiedState,
                     fee: fee,
                     to: destinationMetadata
                 )
