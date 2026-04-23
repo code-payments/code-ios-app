@@ -266,13 +266,20 @@ struct CurrencyInfoScreen: View {
                     isCoinbaseAvailable: session.hasCoinbaseOnramp,
                     onSelectReserves: {
                         Analytics.buttonTapped(name: .buyWithReserves)
-                        presentedBuyViewModel = CurrencyBuyViewModel(
-                            currencyPublicKey: metadata.mint,
-                            currencyName: metadata.name,
-                            session: session,
-                            ratesController: ratesController
-                        )
-                        isShowingFundingSelection = false
+                        Task { @MainActor in
+                            let currency = ratesController.entryCurrency
+                            guard let pinned = await ratesController.currentPinnedState(for: currency, mint: .usdf) else {
+                                return
+                            }
+                            presentedBuyViewModel = CurrencyBuyViewModel(
+                                currencyPublicKey: metadata.mint,
+                                currencyName: metadata.name,
+                                pinnedState: pinned,
+                                session: session,
+                                ratesController: ratesController
+                            )
+                            isShowingFundingSelection = false
+                        }
                     },
                     onSelectCoinbase: {
                         Analytics.buttonTapped(name: .buyWithCoinbase)

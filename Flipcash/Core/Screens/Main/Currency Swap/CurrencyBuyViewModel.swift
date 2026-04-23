@@ -58,6 +58,10 @@ class CurrencyBuyViewModel: Identifiable {
             return false
         }
 
+        guard !pinnedState.isStale else {
+            return false
+        }
+
         return EnterAmountCalculator.isWithinDisplayLimit(
             enteredAmount: enteredAmount,
             max: maxPossibleAmount.nativeAmount
@@ -87,12 +91,14 @@ class CurrencyBuyViewModel: Identifiable {
     @ObservationIgnored private let ratesController: RatesController
     @ObservationIgnored private let destination: PublicKey
     @ObservationIgnored private let currencyName: String
+    @ObservationIgnored let pinnedState: VerifiedState
 
     // MARK: - Init -
 
-    init(currencyPublicKey: PublicKey, currencyName: String, session: Session, ratesController: RatesController) {
+    init(currencyPublicKey: PublicKey, currencyName: String, pinnedState: VerifiedState, session: Session, ratesController: RatesController) {
         self.destination     = currencyPublicKey
         self.currencyName    = currencyName
+        self.pinnedState     = pinnedState
         self.session         = session
         self.ratesController = ratesController
     }
@@ -126,15 +132,7 @@ class CurrencyBuyViewModel: Identifiable {
 
         Task {
             do {
-                // TODO: pin upstream (Task 12)
-                guard let verifiedState = await ratesController.getVerifiedState(
-                    for: buyAmount.nativeAmount.currency,
-                    mint: buyAmount.mint
-                ) else {
-                    throw Session.Error.missingVerifiedState
-                }
-
-                let swapId = try await session.buy(amount: buyAmount, verifiedState: verifiedState, of: destination)
+                let swapId = try await session.buy(amount: buyAmount, verifiedState: pinnedState, of: destination)
 
                 await MainActor.run {
                     path.append(.processing(swapId: swapId, currencyName: currencyName, amount: buyAmount))
@@ -143,6 +141,14 @@ class CurrencyBuyViewModel: Identifiable {
                 await MainActor.run {
                     actionButtonState = .normal
                     showInsufficientBalanceError()
+                }
+            } catch Session.Error.verifiedStateStale {
+                logger.warning("Buy rejected: pinned verified state became stale", metadata: [
+                    "ageSeconds": "\(pinnedState.age)",
+                    "mint": "\(destination.base58)",
+                ])
+                await MainActor.run {
+                    actionButtonState = .normal
                 }
             } catch {
                 ErrorReporting.captureError(
