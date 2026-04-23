@@ -83,7 +83,7 @@ class RatesController {
     init(container: Container, database: Database) {
         self.client   = container.client
         self.database = database
-        self.verifiedProtoService = VerifiedProtoService()
+        self.verifiedProtoService = VerifiedProtoService(store: database)
 
         if LocalDefaults.entryCurrency == nil {
             LocalDefaults.entryCurrency = .local() ?? .usd
