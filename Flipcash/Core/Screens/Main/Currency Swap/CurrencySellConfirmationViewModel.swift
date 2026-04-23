@@ -60,12 +60,20 @@ class CurrencySellConfirmationViewModel {
     
     // MARK: - Actions -
 
-    func performSell(using session: Session) {
+    func performSell(using session: Session, ratesController: RatesController) {
         actionButtonState = .loading
 
         Task {
             do {
-                let swapId = try await session.sell(amount: amount, in: mint)
+                // TODO: pin upstream (Task 14)
+                guard let verifiedState = await ratesController.getVerifiedState(
+                    for: amount.nativeAmount.currency,
+                    mint: amount.mint
+                ) else {
+                    throw Session.Error.missingVerifiedState
+                }
+
+                let swapId = try await session.sell(amount: amount, verifiedState: verifiedState, in: mint)
                 // Navigate to processing screen
                 pendingSwapId = swapId
             } catch {

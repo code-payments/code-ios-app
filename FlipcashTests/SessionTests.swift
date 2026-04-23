@@ -525,3 +525,38 @@ struct SessionBuyVerifiedStateTests {
         }
     }
 }
+
+// MARK: -
+
+@MainActor
+@Suite("Session.sell verified state")
+struct SessionSellVerifiedStateTests {
+
+    private static let amount = ExchangedFiat(
+        onChainAmount: TokenAmount(quarks: 1_000_000, mint: .usdf),
+        nativeAmount: .usd(1),
+        currencyRate: .oneToOne
+    )
+
+    @Test("sell throws verifiedStateStale when the provided state is past clientMaxAge")
+    func sell_throwsStale() async {
+        let session = Session.unverifiedMock
+        let stale = VerifiedState.makeForTest(
+            rateTimestamp: Date().addingTimeInterval(-VerifiedState.clientMaxAge - 1),
+            reserveTimestamp: nil
+        )
+
+        do {
+            _ = try await session.sell(
+                amount: Self.amount,
+                verifiedState: stale,
+                in: .usdf
+            )
+            Issue.record("Expected verifiedStateStale to be thrown")
+        } catch Session.Error.verifiedStateStale {
+            // expected
+        } catch {
+            Issue.record("Unexpected error thrown: \(error)")
+        }
+    }
+}

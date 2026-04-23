@@ -730,16 +730,18 @@ class Session {
     }
 
     @discardableResult
-    func sell(amount: ExchangedFiat, in mint: PublicKey) async throws -> SwapId {
-        let token = try await fetchMintMetadata(mint: mint)
-
-        // Get verified state for intent construction
-        guard let verifiedState = await ratesController.getVerifiedState(
-            for: amount.nativeAmount.currency,
-            mint: amount.mint
-        ) else {
-            throw Error.missingVerifiedState
+    func sell(amount: ExchangedFiat, verifiedState: VerifiedState, in mint: PublicKey) async throws -> SwapId {
+        if verifiedState.isStale {
+            logger.info("Rejected stale verifiedState at sell", metadata: [
+                "currency": "\(amount.nativeAmount.currency.rawValue)",
+                "mint": "\(mint.base58)",
+                "ageSeconds": "\(verifiedState.age)",
+                "clientMaxAge": "\(VerifiedState.clientMaxAge)"
+            ])
+            throw Error.verifiedStateStale(ageSeconds: verifiedState.age)
         }
+
+        let token = try await fetchMintMetadata(mint: mint)
 
         guard let supply = verifiedState.supplyFromBonding else {
             throw Error.missingSupply

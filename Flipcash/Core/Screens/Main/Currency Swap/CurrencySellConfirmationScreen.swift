@@ -17,6 +17,7 @@ struct CurrencySellConfirmationScreen: View {
     @State private var viewModel: CurrencySellConfirmationViewModel
 
     @Environment(Session.self) private var session
+    @Environment(RatesController.self) private var ratesController
 
     // MARK: - Init -
 
@@ -100,7 +101,7 @@ struct CurrencySellConfirmationScreen: View {
     // MARK: - Actions -
 
     private func performSell() {
-        viewModel.performSell(using: session)
+        viewModel.performSell(using: session, ratesController: ratesController)
     }
 }
 
