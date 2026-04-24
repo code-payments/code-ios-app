@@ -1585,7 +1585,7 @@ class Session {
             "ageSeconds": "\(verifiedState.age)",
             "clientMaxAge": "\(VerifiedState.clientMaxAge)"
         ])
-        throw Error.verifiedStateStale(ageSeconds: verifiedState.age)
+        throw Error.verifiedStateStale
     }
 }
 
@@ -1600,7 +1600,7 @@ extension Session {
         case missingVerifiedState
         case missingSupply
         case unableToConvertToFiat
-        case verifiedStateStale(ageSeconds: TimeInterval)
+        case verifiedStateStale
     }
 }
 

@@ -14,7 +14,6 @@ final class InMemoryVerifiedProtoStore: VerifiedProtoStore, @unchecked Sendable 
     private(set) var writeReserveCalls: [[StoredReserveRow]] = []
 
     var writeRateError: Error?
-    var writeReserveError: Error?
 
     func allRates() throws -> [StoredRateRow] {
         lock.lock(); defer { lock.unlock() }
@@ -40,12 +39,7 @@ final class InMemoryVerifiedProtoStore: VerifiedProtoStore, @unchecked Sendable 
     }
 
     func writeReserves(_ rows: [StoredReserveRow]) throws {
-        lock.lock()
-        if let writeReserveError {
-            lock.unlock()
-            throw writeReserveError
-        }
-        defer { lock.unlock() }
+        lock.lock(); defer { lock.unlock() }
         for row in rows {
             reserves[row.mint] = row
         }
