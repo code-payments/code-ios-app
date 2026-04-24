@@ -7,10 +7,14 @@
 //  used to compute amounts, causing the intent to be built with a different state than
 //  the one reflected in the UI. The fix pins the state at flow-open time.
 //
-//  Three invariants are proven here:
-//  A) A pinned state is immutable across stream deliveries.
+//  Invariants proven here:
+//  A) Stream deliveries do not mutate a VM's pinned state.
 //  B) Stale cached protos block flow-open (currentPinnedState returns nil).
 //  C) A stale pin already held by a VM disables submit (canPerformAction = false).
+//  D) Amount-entry compute sources rate (and supply) from the pinned proof,
+//     not the live cache — the original root cause of the server error.
+//  E) Swapping pinnedState re-renders the VM's computed properties, so an
+//     entry-currency switch mid-flow updates the screen.
 //
 
 import Foundation
@@ -45,14 +49,15 @@ struct Regression_native_amount_mismatch {
 
         // Stream delivers a newer reserve state (a different supply) into THIS
         // controller's verifiedProtoService — the same one the VM is bound to.
+        // `saveReserveStates` is actor-isolated, so by the time `await`
+        // returns the service has finished applying the update.
         await sessionContainer.ratesController.verifiedProtoService.saveReserveStates([
             .freshReserve(mint: .jeffy, supplyFromBonding: 2_000_000)
         ])
 
-        // Give any hypothetical stream-subscriber a chance to (incorrectly) re-pin.
-        try? await Task.sleep(nanoseconds: 100_000_000)
-
-        // The VM's pinned state MUST be unchanged — it is a `let`, captured at init.
+        // Nothing in the stream path writes to the VM; only the screen's
+        // `.onChange` does. The VM's pinned state must still be the one
+        // captured at init.
         #expect(vm.pinnedState == pinnedState)
     }
 
@@ -228,7 +233,7 @@ struct Regression_native_amount_mismatch {
     /// that makes that assignment actually re-render — `pinnedState` is
     /// observed, and the computed properties that read it re-evaluate.
     @Test("Scenario E (buy): swapping pinnedState flips the computed currency")
-    func scenarioE_buyVMReactsToPinSwap() {
+    func scenarioE_buyVMReactsToPinSwap() throws {
         let usdPin = VerifiedState.fresh(bonded: false, currencyCode: "USD", exchangeRate: 1.0)
         let cadPin = VerifiedState.fresh(bonded: false, currencyCode: "CAD", exchangeRate: 1.35)
 
@@ -241,12 +246,14 @@ struct Regression_native_amount_mismatch {
         )
         vm.enteredAmount = "1"
 
-        #expect(vm.enteredFiat?.currencyRate.fx == Decimal(1.0))
+        let enteredBefore = try #require(vm.enteredFiat)
+        #expect(enteredBefore.currencyRate.fx == Decimal(1.0))
         #expect(vm.maxPossibleAmount.nativeAmount.currency == .usd)
 
         vm.pinnedState = cadPin
 
-        #expect(vm.enteredFiat?.currencyRate.fx == Decimal(1.35))
+        let enteredAfter = try #require(vm.enteredFiat)
+        #expect(enteredAfter.currencyRate.fx == Decimal(1.35))
         #expect(vm.maxPossibleAmount.nativeAmount.currency == .cad)
     }
 
