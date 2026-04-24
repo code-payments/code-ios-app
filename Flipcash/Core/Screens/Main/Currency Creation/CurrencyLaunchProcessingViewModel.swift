@@ -72,7 +72,7 @@ class CurrencyLaunchProcessingViewModel {
     var actionTitle: String {
         switch displayState {
         case .processing: "Notify Me When Complete"
-        case .success:    "Receive My \(currencyName)"
+        case .success:    "Get The First \(launchAmount.nativeAmount.formatted()) of Your Currency Free"
         case .failed:     "OK"
         }
     }
