@@ -16,8 +16,7 @@ struct DatabaseMintUpsertTests {
     // MARK: - Helpers
 
     private static func makeDatabase() throws -> Database {
-        try Database(url: URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("test-\(UUID().uuidString).sqlite"))
+        try Database.makeTemp()
     }
 
     /// A mint WITHOUT launchpadMetadata — simulates what fetchMints()

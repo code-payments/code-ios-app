@@ -17,8 +17,7 @@ struct DatabaseLiveSupplyTests {
     // MARK: - Helpers
 
     private static func makeDatabase() -> Database {
-        try! Database(url: URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("test-\(UUID().uuidString).sqlite"))
+        try! Database.makeTemp()
     }
 
     private static func makeLaunchpadMint(

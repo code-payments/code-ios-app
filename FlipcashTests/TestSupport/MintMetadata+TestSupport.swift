@@ -35,4 +35,23 @@ extension MintMetadata {
             )
         )
     }
+
+    static func makeBasic(
+        address: PublicKey = .jeffy,
+        socialLinks: [SocialLink] = [],
+        billColors: [String] = []
+    ) -> MintMetadata {
+        MintMetadata(
+            address: address,
+            decimals: 10,
+            name: "Test Token",
+            symbol: "TEST",
+            description: "A test token",
+            imageURL: nil,
+            vmMetadata: nil,
+            launchpadMetadata: nil,
+            socialLinks: socialLinks,
+            billColors: billColors
+        )
+    }
 }

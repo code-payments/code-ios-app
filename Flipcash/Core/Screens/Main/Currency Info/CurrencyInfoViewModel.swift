@@ -13,7 +13,12 @@ class CurrencyInfoViewModel {
 
     enum LoadingState {
         case loading
-        case loaded(StoredMintMetadata)
+        // Carries both the stored DB row and its pre-decoded MintMetadata.
+        // `StoredMintMetadata.metadata` runs two JSONDecoder.decode calls on
+        // every access — reading it from a SwiftUI view body was a confirmed
+        // main-thread hang source. Decoding at the transition into this case
+        // gives callers a ready-made value and guarantees the two stay in sync.
+        case loaded(StoredMintMetadata, MintMetadata)
         case error(Error)
     }
 
@@ -28,8 +33,17 @@ class CurrencyInfoViewModel {
 
     var mintMetadata: StoredMintMetadata? {
         switch loadingState {
-        case .loaded(let metadata):
+        case .loaded(let metadata, _):
             return metadata
+        case .loading, .error:
+            return nil
+        }
+    }
+
+    var decodedMintMetadata: MintMetadata? {
+        switch loadingState {
+        case .loaded(_, let decoded):
+            return decoded
         case .loading, .error:
             return nil
         }
@@ -130,7 +144,7 @@ class CurrencyInfoViewModel {
         // Load from database immediately if available (fast path)
         if let cachedMetadata = try? database.getMintMetadata(mint: mint) {
             setupUpdateable(with: cachedMetadata)
-            loadingState = .loaded(cachedMetadata)
+            loadingState = .loaded(cachedMetadata, cachedMetadata.metadata)
         }
     }
 
@@ -145,7 +159,7 @@ class CurrencyInfoViewModel {
 
         let stored = StoredMintMetadata(metadata)
         setupUpdateable(with: stored)
-        loadingState = .loaded(stored)
+        loadingState = .loaded(stored, metadata)
     }
 
     func loadMintMetadata() async {
@@ -155,7 +169,7 @@ class CurrencyInfoViewModel {
         do {
             let metadata = try await session.fetchMintMetadata(mint: mint)
             setupUpdateable(with: metadata)
-            loadingState = .loaded(metadata)
+            loadingState = .loaded(metadata, metadata.metadata)
         } catch Session.Error.mintNotFound {
             // Only show error if we didn't have cached data
             if !wasAlreadyLoaded {
@@ -177,10 +191,10 @@ class CurrencyInfoViewModel {
             // Skip redundant updates — @Observable fires on every set,
             // even with the same value, which would re-evaluate every
             // view observing loadingState on each poll cycle.
-            if case .loaded(let current) = self.loadingState, current == updateable.value {
+            if case .loaded(let current, _) = self.loadingState, current == updateable.value {
                 return
             }
-            self.loadingState = .loaded(updateable.value)
+            self.loadingState = .loaded(updateable.value, updateable.value.metadata)
         }
     }
 }

@@ -15,7 +15,7 @@ struct CurrencyInfoScreen: View {
 
     @Environment(\.dismiss) private var dismiss
 
-    @State private var transactionHistoryMetadata: StoredMintMetadata?
+    @State private var transactionHistoryMint: PublicKey?
     @State private var isShowingFundingSelection: Bool = false
     @State private var presentedBuyViewModel: CurrencyBuyViewModel?
     @State private var presentedSellViewModel: CurrencySellViewModel?
@@ -128,13 +128,14 @@ struct CurrencyInfoScreen: View {
             switch viewModel.loadingState {
             case .loading:
                 CurrencyInfoLoadingView()
-            case .loaded(let metadata):
+            case .loaded(let metadata, let decodedMetadata):
                 LoadedContent(
                     metadata: metadata,
+                    decodedMetadata: decodedMetadata,
                     viewModel: viewModel,
                     ratesController: ratesController,
                     marketCapController: marketCapController,
-                    onShowTransactionHistory: { transactionHistoryMetadata = metadata },
+                    onShowTransactionHistory: { transactionHistoryMint = metadata.mint },
                     onShowCurrencySelection: { isShowingCurrencySelection = true },
                     onBuy: { isShowingFundingSelection = true },
                     onGive: {
@@ -183,9 +184,9 @@ struct CurrencyInfoScreen: View {
                 isShowingFundingSelection = true
             }
         }
-        .navigationDestinationCompat(item: $transactionHistoryMetadata) { metadata in
+        .navigationDestinationCompat(item: $transactionHistoryMint) { mint in
             TransactionHistoryScreen(
-                mintMetadata: metadata,
+                mint: mint,
                 database: sessionContainer.database
             )
         }
@@ -340,6 +341,9 @@ struct CurrencyInfoScreen: View {
 /// when poll-driven rate/balance changes occur every ~10 seconds.
 private struct LoadedContent: View {
     let metadata: StoredMintMetadata
+    /// Pre-decoded `MintMetadata` from the view model. Passed in ready-made
+    /// so the body doesn't JSON-decode on every observation-churn re-eval.
+    let decodedMetadata: MintMetadata
     let viewModel: CurrencyInfoViewModel
     let ratesController: RatesController
     let marketCapController: MarketCapController
@@ -396,8 +400,8 @@ private struct LoadedContent: View {
                             .foregroundStyle(Color.textSecondary)
                             .font(.appTextSmall)
 
-                        if !isUSDF && !metadata.metadata.socialLinks.isEmpty {
-                            CurrencyInfoSocialLinksSection(socialLinks: metadata.metadata.socialLinks)
+                        if !isUSDF && !decodedMetadata.socialLinks.isEmpty {
+                            CurrencyInfoSocialLinksSection(socialLinks: decodedMetadata.socialLinks)
                         }
                     }
 

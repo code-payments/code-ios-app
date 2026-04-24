@@ -50,6 +50,24 @@ extension Database {
         return ids
     }
     
+    /// Async wrapper that runs the synchronous ``getActivities(mint:)`` off
+    /// the main thread. The underlying SQLite.swift `Connection` already
+    /// serialises access through its own dispatch queue; this wrapper only
+    /// hops off main so the caller's actor isn't blocked on up-to-1024
+    /// `NSDateFormatter.dateFromString(_:)` calls.
+    func getActivities(mint: PublicKey?) async throws -> [Activity] {
+        try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    let activities = try self.getActivities(mint: mint)
+                    continuation.resume(returning: activities)
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
     func getActivities(mint: PublicKey?) throws -> [Activity] {
         
         var filter: String = ""
