@@ -10,28 +10,27 @@ import FlipcashUI
 import FlipcashCore
 
 struct WithdrawAmountScreen: View {
-    
-    @Environment(Session.self) private var session
+
     @Environment(RatesController.self) private var ratesController
-    
+
     @Bindable private var viewModel: WithdrawViewModel
-    
+
     @State private var isShowingCurrencySelection: Bool = false
-    
+
     // MARK: - Init -
-    
+
     init(viewModel: WithdrawViewModel) {
         self.viewModel = viewModel
     }
-    
+
     // MARK: - Body -
-    
+
     var body: some View {
         Background(color: .backgroundMain) {
             EnterAmountView(
                 mode: .withdraw,
                 enteredAmount: $viewModel.enteredAmount,
-                subtitle: viewModel.subtitle,
+                subtitle: .balanceWithLimit(viewModel.maxWithdrawLimit),
                 actionState: .constant(.normal),
                 actionEnabled: { _ in
                     viewModel.canProceedToAddress
@@ -52,16 +51,10 @@ struct WithdrawAmountScreen: View {
         .navigationTitle(viewModel.withdrawTitle)
         .navigationBarTitleDisplayMode(.inline)
         .dialog(item: $viewModel.dialogItem)
-        .onChange(of: ratesController.entryCurrency) { _, _ in
-            // Pin is captured for a specific (currency, mint); re-fetch so
-            // the amount screen reflects the switched currency instead of
-            // silently continuing on the old one.
-            viewModel.rePinForEntryCurrency()
-        }
     }
-    
+
     // MARK: - Actions -
-    
+
     private func showCurrencySelection() {
         isShowingCurrencySelection.toggle()
     }

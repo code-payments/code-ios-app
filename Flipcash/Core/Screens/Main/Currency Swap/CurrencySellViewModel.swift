@@ -13,40 +13,15 @@ import FlipcashUI
 class CurrencySellViewModel: Identifiable {
     var enteredAmount: String = ""
     var path: [CurrencySellPath] = []
+    var dialogItem: DialogItem?
     @ObservationIgnored let currencyMetadata: StoredMintMetadata
-    /// Pinned at construction; the screen swaps this when the user switches
-    /// entry currency mid-flow. Observed so the computed properties below
-    /// re-evaluate on swap.
-    var pinnedState: VerifiedState
 
     var enteredFiat: ExchangedFiat? {
-        guard !enteredAmount.isEmpty else { return nil }
-        guard let amount = NumberFormatter.decimal(from: enteredAmount) else { return nil }
-        // Pinned supply and rate are the single source of truth — using the
-        // live cache here lets the stream deliver a fresh supply/rate mid-entry
-        // and produce "native amount and quark value mismatch" at submit.
-        guard let supplyQuarks = pinnedState.supplyFromBonding else { return nil }
-        let rate = pinnedState.rate
-        let balance = session.balance(for: currencyMetadata.mint)
-
-        return ExchangedFiat.compute(
-            fromEntered: FiatAmount(value: amount, currency: rate.currency),
-            rate: rate,
-            mint: currencyMetadata.mint,
-            supplyQuarks: supplyQuarks,
-            balance: balance.map(\.usdf),
-            tokenBalanceQuarks: balance?.quarks
-        )
+        computeAmount(using: ratesController.rateForEntryCurrency())
     }
 
     var canPerformAction: Bool {
         guard enteredFiat != nil else {
-            return false
-        }
-        // The pin may age past `clientMaxAge` while the user is on the entry
-        // screen — gate Next so the user doesn't tap into a sell that will
-        // bounce off Session's `assertFresh`.
-        guard !pinnedState.isStale else {
             return false
         }
 
@@ -61,7 +36,7 @@ class CurrencySellViewModel: Identifiable {
     }
 
     var maxPossibleAmount: ExchangedFiat {
-        let entryRate = pinnedState.rate
+        let entryRate = ratesController.rateForEntryCurrency()
         let zero = ExchangedFiat.compute(
             onChainAmount: .zero(mint: currencyMetadata.mint),
             rate: entryRate,
@@ -75,32 +50,70 @@ class CurrencySellViewModel: Identifiable {
         return balance.computeExchangedValue(with: entryRate)
     }
 
-    var subtitle: EnterAmountView.Subtitle {
-        if pinnedState.isStale {
-            return .errorMessage("Rate expired. Please try again.")
-        }
-        return .balanceWithLimit(maxPossibleAmount)
-    }
-
     @ObservationIgnored private let session: Session
+    @ObservationIgnored private let ratesController: RatesController
 
     // MARK: - Init -
 
-    init(currencyMetadata: StoredMintMetadata, pinnedState: VerifiedState, session: Session) {
+    init(currencyMetadata: StoredMintMetadata, session: Session, ratesController: RatesController) {
         self.currencyMetadata = currencyMetadata
-        self.pinnedState = pinnedState
         self.session = session
+        self.ratesController = ratesController
     }
 
     // MARK: - Actions -
 
     func showConfirmationScreen() {
         guard enteredFiat != nil else { return }
-        path.append(.confirmation)
+
+        Task {
+            guard let (amount, pin) = await prepareSubmission() else {
+                dialogItem = .staleRate
+                return
+            }
+            path.append(.confirmation(amount: amount, pinnedState: pin))
+        }
     }
+
+    /// Resolves the pinned state and computes the `ExchangedFiat` that will be
+    /// carried into the confirmation screen. One fetch, one rate — the
+    /// confirmation screen and `Session.sell` receive the same pin so the
+    /// submitted quarks can't drift from the rate the server validates against.
+    func prepareSubmission() async -> (amount: ExchangedFiat, pinnedState: VerifiedState)? {
+        let currency = ratesController.entryCurrency
+        guard let pin = await ratesController.currentPinnedState(for: currency, mint: currencyMetadata.mint) else {
+            return nil
+        }
+        guard let amount = computeAmount(using: pin.rate, pinnedSupplyQuarks: pin.supplyFromBonding) else {
+            return nil
+        }
+        return (amount, pin)
+    }
+
+    /// Shared compute used by the display preview and the submit path. The
+    /// preview passes `nil` for `pinnedSupplyQuarks` so supply falls back to the
+    /// live metadata; submit passes the pinned supply so both inputs the server
+    /// validates against come from the same proof.
+    private func computeAmount(using rate: Rate, pinnedSupplyQuarks: UInt64? = nil) -> ExchangedFiat? {
+        guard !enteredAmount.isEmpty else { return nil }
+        guard let amount = NumberFormatter.decimal(from: enteredAmount) else { return nil }
+        guard let supplyQuarks = pinnedSupplyQuarks ?? currencyMetadata.supplyFromBonding else { return nil }
+
+        let balance = session.balance(for: currencyMetadata.mint)
+
+        return ExchangedFiat.compute(
+            fromEntered: FiatAmount(value: amount, currency: rate.currency),
+            rate: rate,
+            mint: currencyMetadata.mint,
+            supplyQuarks: supplyQuarks,
+            balance: balance.map(\.usdf),
+            tokenBalanceQuarks: balance?.quarks
+        )
+    }
+
 }
 
 enum CurrencySellPath: Hashable {
-    case confirmation
+    case confirmation(amount: ExchangedFiat, pinnedState: VerifiedState)
     case processing(swapId: SwapId, currencyName: String, amount: ExchangedFiat)
 }

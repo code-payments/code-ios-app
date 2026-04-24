@@ -164,9 +164,9 @@ class Session {
     }
     
     func balance(for mint: PublicKey) -> StoredBalance? {
-        balances.filter {
-            $0.mint == mint
-        }.first
+        // Avoid the display-ordered sort in `balances` — this is called per
+        // SwiftUI body re-eval from amount-entry computed props.
+        updateableBalances.value.first { $0.mint == mint }
     }
     
     @ObservationIgnored private let container: Container
@@ -231,8 +231,11 @@ class Session {
         observeBalanceCurrencyChanges()
     }
 
-    /// Start streaming live mint data for exchange rates
+    /// Start streaming live mint data for exchange rates. Skipped under unit
+    /// tests so tests that seed `VerifiedProtoService` directly aren't racing
+    /// a live-rate delivery that would overwrite the seed.
     private func startStreaming() {
+        guard !Container.isRunningUnitTests else { return }
         let mints = balances.filter { $0.quarks > 0 }.map { $0.mint }
         ratesController.startStreaming(mints: mints)
     }

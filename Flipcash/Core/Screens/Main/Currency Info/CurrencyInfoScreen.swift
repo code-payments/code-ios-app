@@ -145,22 +145,11 @@ struct CurrencyInfoScreen: View {
                     },
                     onSell: {
                         Analytics.buttonTapped(name: .sell)
-                        Task { @MainActor in
-                            // Mirror the buy flow: resolve the pinned state
-                            // before the VM is created so every compute on the
-                            // sell entry screen runs against the same rate +
-                            // bonded supply the intent will carry.
-                            // `currentPinnedState` logs the nil-case itself.
-                            let currency = ratesController.entryCurrency
-                            guard let pinned = await ratesController.currentPinnedState(for: currency, mint: metadata.mint) else {
-                                return
-                            }
-                            presentedSellViewModel = CurrencySellViewModel(
-                                currencyMetadata: metadata,
-                                pinnedState: pinned,
-                                session: session
-                            )
-                        }
+                        presentedSellViewModel = CurrencySellViewModel(
+                            currencyMetadata: metadata,
+                            session: session,
+                            ratesController: ratesController
+                        )
                     }
                 )
             case .error(let error):
@@ -277,25 +266,13 @@ struct CurrencyInfoScreen: View {
                     isCoinbaseAvailable: session.hasCoinbaseOnramp,
                     onSelectReserves: {
                         Analytics.buttonTapped(name: .buyWithReserves)
-                        Task { @MainActor in
-                            // Source mint for reserves-funded buys is always USDF
-                            // (the user funds from their USDF balance), regardless
-                            // of the destination currency. `currentPinnedState`
-                            // logs the nil-case itself; we just dismiss the
-                            // funding sheet so the user isn't stuck.
-                            let currency = ratesController.entryCurrency
-                            guard let pinned = await ratesController.currentPinnedState(for: currency, mint: .usdf) else {
-                                isShowingFundingSelection = false
-                                return
-                            }
-                            presentedBuyViewModel = CurrencyBuyViewModel(
-                                currencyPublicKey: metadata.mint,
-                                currencyName: metadata.name,
-                                pinnedState: pinned,
-                                session: session
-                            )
-                            isShowingFundingSelection = false
-                        }
+                        presentedBuyViewModel = CurrencyBuyViewModel(
+                            currencyPublicKey: metadata.mint,
+                            currencyName: metadata.name,
+                            session: session,
+                            ratesController: ratesController
+                        )
+                        isShowingFundingSelection = false
                     },
                     onSelectCoinbase: {
                         Analytics.buttonTapped(name: .buyWithCoinbase)

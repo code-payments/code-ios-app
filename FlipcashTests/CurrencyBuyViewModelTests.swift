@@ -20,35 +20,24 @@ struct CurrencyBuyViewModelTests {
     /// CAD rate: 1 USD = 1.35 CAD
     static let cadRate = Rate(fx: 1.35, currency: .cad)
 
-    /// Default pinned state matching `cadRate` — the VM now sources its rate
-    /// from `pinnedState.rate` (not the live cache), so the pinned proof and
-    /// the configured live rate MUST agree for tests that aren't specifically
-    /// exercising a pinned-vs-live divergence.
-    static let cadPinnedState = VerifiedState.fresh(
-        bonded: false,
-        currencyCode: "CAD",
-        exchangeRate: 1.35
-    )
-
-    /// Helper to create a test view model with CAD as the entry currency and a fresh pinned state.
+    /// Helper to create a test view model with CAD as the entry currency.
     /// Uses the mock SessionContainer which has no seeded balance.
-    static func createViewModel(pinnedState: VerifiedState? = nil) -> CurrencyBuyViewModel {
+    static func createViewModel() -> CurrencyBuyViewModel {
         let sessionContainer = SessionContainer.mock
 
-        // Configure entry currency and inject the CAD rate for deterministic tests
         sessionContainer.ratesController.configureTestRates(entryCurrency: .cad, rates: [cadRate])
 
         return CurrencyBuyViewModel(
             currencyPublicKey: .usdf,
             currencyName: "USDF",
-            pinnedState: pinnedState ?? cadPinnedState,
-            session: sessionContainer.session
+            session: sessionContainer.session,
+            ratesController: sessionContainer.ratesController
         )
     }
 
     /// Helper to create a view model backed by a real database seeded with USDF balance,
     /// so `canPerformAction` can reach the display-limit check.
-    static func createViewModelWithBalance(pinnedState: VerifiedState? = nil) throws -> CurrencyBuyViewModel {
+    static func createViewModelWithBalance() throws -> CurrencyBuyViewModel {
         // 10 USDF (10_000_000 quarks at 6 decimals)
         let container = try SessionContainer.makeTest(holdings: [
             .init(mint: MintMetadata.usdf, quarks: 10_000_000)
@@ -59,8 +48,8 @@ struct CurrencyBuyViewModelTests {
         return CurrencyBuyViewModel(
             currencyPublicKey: .jeffy,
             currencyName: "Test",
-            pinnedState: pinnedState ?? cadPinnedState,
-            session: container.session
+            session: container.session,
+            ratesController: container.ratesController
         )
     }
 
@@ -105,22 +94,20 @@ struct CurrencyBuyViewModelTests {
         #expect(exchangedFiat.usdfValue.value < exchangedFiat.nativeAmount.value)
     }
 
-    // MARK: - Pinned State Tests -
+    // MARK: - canPerformAction -
 
-    @Test("canPerformAction is false when pinnedState is stale, even with a valid amount entered")
-    func canPerformAction_stalePinnedState_returnsFalse() {
-        let viewModel = Self.createViewModel(pinnedState: .stale(bonded: false))
-        viewModel.enteredAmount = "1"
+    @Test("canPerformAction is false when enteredAmount is empty")
+    func canPerformAction_emptyAmount_returnsFalse() {
+        let viewModel = Self.createViewModel()
 
         #expect(viewModel.canPerformAction == false)
     }
 
-    @Test("canPerformAction is true when pinnedState is fresh and a valid amount is entered")
-    func canPerformAction_freshPinnedState_returnsTrue() throws {
-        let viewModel = try Self.createViewModelWithBalance(pinnedState: .fresh(bonded: false))
+    @Test("canPerformAction is true when a valid amount is within the display cap")
+    func canPerformAction_validAmount_returnsTrue() throws {
+        let viewModel = try Self.createViewModelWithBalance()
         viewModel.enteredAmount = "1"
 
         #expect(viewModel.canPerformAction == true)
     }
-
 }

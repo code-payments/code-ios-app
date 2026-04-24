@@ -63,15 +63,7 @@ public struct EnterAmountView: View {
     }
 
     private var subtitleColor: Color {
-        switch subtitle {
-        case .errorMessage:
-            // Caller (typically a ViewModel) produced this case specifically
-            // to surface an error state — always red, regardless of the
-            // typed amount.
-            return .textError
-        case .singleTransactionLimit, .balanceWithLimit, .custom:
-            return isExceedingLimit ? .textError : .textSecondary
-        }
+        isExceedingLimit ? .textError : .textSecondary
     }
 
     // MARK: - Body -
@@ -112,12 +104,6 @@ public struct EnterAmountView: View {
                             .font(.appTextMedium)
 
                     case .custom(let text):
-                        Text(text)
-                            .fixedSize()
-                            .foregroundColor(subtitleColor)
-                            .font(.appTextMedium)
-
-                    case .errorMessage(let text):
                         Text(text)
                             .fixedSize()
                             .foregroundColor(subtitleColor)
@@ -213,11 +199,6 @@ extension EnterAmountView {
         case singleTransactionLimit
         case balanceWithLimit(ExchangedFiat)
         case custom(String)
-        /// Rendered in the same slot as the other subtitles, always in the
-        /// error color. Use when the caller's state is already wrong for
-        /// reasons unrelated to the entered amount (e.g. a pinned exchange
-        /// rate that has aged past its freshness ceiling).
-        case errorMessage(String)
     }
 }
 

@@ -22,74 +22,15 @@ class WithdrawViewModel {
             }
         }
     }
-    
+
     var destinationMetadata: DestinationMetadata?
     var dialogItem: DialogItem?
     var enteredDestination: PublicKey? {
         try? PublicKey(base58: enteredAddress)
     }
-    
+
     var enteredFiat: ExchangedFiat? {
-        guard !enteredAmount.isEmpty else {
-            return nil
-        }
-
-        guard let selectedBalance else {
-            return nil
-        }
-
-        guard let amount = NumberFormatter.decimal(from: enteredAmount) else {
-            return nil
-        }
-
-        let mint = selectedBalance.stored.mint
-        // Source rate and bonded supply from the pinned proof so the quarks the
-        // server validates against `pinnedState.rateProto`/`reserveProto` match
-        // what we computed. Live cache values drift as the stream delivers new
-        // proofs mid-entry, producing native/quark mismatches.
-        //
-        // Unlike Buy/Sell, the pin isn't resolved at sheet open — it's fetched
-        // asynchronously per-balance in `selectCurrency(_:)`, so there's a
-        // window where `selectedBalance != nil && pinnedState == nil`. Falling
-        // back to the live rate here lets the amount input show a preview
-        // during that window. Submission itself is still gated — see
-        // `canCompleteWithdrawal`, which requires a non-stale `pinnedState`.
-        let rate = pinnedState?.rate ?? ratesController.rateForEntryCurrency()
-
-        // Only applies for bonded tokens
-        if mint != .usdf {
-            guard let supplyQuarks = pinnedState?.supplyFromBonding ?? selectedBalance.stored.supplyFromBonding else {
-                return nil
-            }
-
-            let entered = FiatAmount(value: amount, currency: rate.currency)
-
-            if let viaCurve = ExchangedFiat.compute(
-                fromEntered: entered,
-                rate: rate,
-                mint: mint,
-                supplyQuarks: supplyQuarks
-            ) {
-                return viaCurve
-            }
-
-            // Curve could not price the entered amount (requested > TVL).
-            // Synthesize so the amount screen's `canProceedToAddress` flips
-            // false and `EnterAmountView` turns the subtitle red.
-            return ExchangedFiat(
-                onChainAmount: TokenAmount(
-                    quarks: selectedBalance.stored.quarks + 1,
-                    mint: mint
-                ),
-                nativeAmount: entered,
-                currencyRate: rate
-            )
-        } else {
-            return ExchangedFiat(
-                nativeAmount: FiatAmount(value: amount, currency: rate.currency),
-                rate: rate
-            )
-        }
+        computeAmount(using: ratesController.rateForEntryCurrency(), pinnedSupplyQuarks: nil)
     }
 
     var displayFee: FiatAmount? {
@@ -144,7 +85,7 @@ class WithdrawViewModel {
         guard let exchangedFee else { return nil }
         return (onChain: exchangedFee.onChainAmount, usd: exchangedFee.usdfValue)
     }
-    
+
     /// Gate for the Enter-Amount screen's Next button. Disables when the
     /// entered amount exceeds the displayed balance cap so `EnterAmountView`
     /// turns the subtitle red.
@@ -166,10 +107,6 @@ class WithdrawViewModel {
             return false
         }
 
-        guard let pinned = pinnedState, !pinned.isStale else {
-            return false
-        }
-
         switch session.hasSufficientFunds(for: enteredFiat) {
         case .sufficient:
             return true
@@ -177,7 +114,7 @@ class WithdrawViewModel {
             return false
         }
     }
-    
+
     var withdrawTitle: String {
         if let balance = selectedBalance {
             return "Withdraw \(balance.stored.name)"
@@ -185,11 +122,9 @@ class WithdrawViewModel {
             return "Withdraw"
         }
     }
-    
+
     var maxWithdrawLimit: ExchangedFiat {
-        // Match `enteredFiat`'s rate source so the displayed cap uses the same
-        // rate the entered amount is computed against.
-        let rate = pinnedState?.rate ?? ratesController.rateForEntryCurrency()
+        let rate = ratesController.rateForEntryCurrency()
         let zero = ExchangedFiat.compute(
             onChainAmount: .zero(mint: .usdf),
             rate: rate,
@@ -207,16 +142,6 @@ class WithdrawViewModel {
         return balance.computeExchangedValue(with: rate)
     }
 
-    var subtitle: EnterAmountView.Subtitle {
-        // Only flip to the error message when the pin is *present and* stale —
-        // the pre-fetch nil window shows the balance cap computed against the
-        // live rate, which is still a reasonable preview for the user.
-        if pinnedState?.isStale == true {
-            return .errorMessage("Rate expired. Please try again.")
-        }
-        return .balanceWithLimit(maxWithdrawLimit)
-    }
-
     private var exchangedFee: ExchangedFiat? {
         guard let enteredFiat = enteredFiat else {
             return nil
@@ -226,10 +151,7 @@ class WithdrawViewModel {
             return nil
         }
 
-        // Prefer the pinned bonding supply for the same reason enteredFiat does
-        // — fee math against a drifted supply would misreport the on-chain fee
-        // equivalent.
-        guard let supplyQuarks = pinnedState?.supplyFromBonding ?? selectedBalance.stored.supplyFromBonding else {
+        guard let supplyQuarks = selectedBalance.stored.supplyFromBonding else {
             return nil
         }
 
@@ -246,20 +168,15 @@ class WithdrawViewModel {
             balance: selectedBalance.stored.usdf
         )
     }
-    
-    @ObservationIgnored private var amountToWithdraw: ExchangedFiat?
-    /// Observed (no `@ObservationIgnored`) so the submit button's enabled state
-    /// re-evaluates when the async `pinFetchTask` resolves the pin.
-    var pinnedState: VerifiedState?
-    @ObservationIgnored private var pinFetchTask: Task<Void, Never>?
+
     @ObservationIgnored private let isPresented: Binding<Bool>
     @ObservationIgnored private let container: Container
     @ObservationIgnored private let client: Client
     @ObservationIgnored private let session: Session
     @ObservationIgnored private let ratesController: RatesController
-    
+
     // MARK: - Init -
-    
+
     init(isPresented: Binding<Bool>, container: Container, sessionContainer: SessionContainer) {
         self.isPresented     = isPresented
         self.container       = container
@@ -267,41 +184,177 @@ class WithdrawViewModel {
         self.session         = sessionContainer.session
         self.ratesController = sessionContainer.ratesController
     }
-    
+
     // MARK: - Metadata -
-    
+
     private func fetchDestinationMetadata() {
         guard let enteredDestination else {
             return
         }
-        
+
         guard let mint = selectedBalance?.stored.mint else {
             return
         }
-        
+
         Task {
             destinationMetadata = await client.fetchDestinationMetadata(destination: enteredDestination, mint: mint)
         }
     }
-    
-    private func completeWithdrawal() {
-        guard let amountToWithdraw, let destinationMetadata else {
-            return
+
+    /// Resolves the pinned state for the selected balance's mint and computes
+    /// the `ExchangedFiat` that will be submitted. One fetch, one rate — the
+    /// quarks and the `VerifiedState` handed to `Session.withdraw` come from
+    /// the same local so the submitted quarks can't drift from the rate the
+    /// server validates against.
+    func prepareSubmission() async -> (amount: ExchangedFiat, pinnedState: VerifiedState)? {
+        guard let mint = selectedBalance?.stored.mint else { return nil }
+        let currency = ratesController.entryCurrency
+        guard let pin = await ratesController.currentPinnedState(for: currency, mint: mint) else {
+            return nil
+        }
+        guard let amount = computeAmount(using: pin.rate, pinnedSupplyQuarks: pin.supplyFromBonding) else {
+            return nil
+        }
+        return (amount, pin)
+    }
+
+    /// Shared compute used by the display preview and the submit path. The
+    /// preview passes `nil` for `pinnedSupplyQuarks` so supply falls back to
+    /// the live balance; submit passes the pinned supply so both inputs the
+    /// server validates against come from the same proof.
+    private func computeAmount(using rate: Rate, pinnedSupplyQuarks: UInt64?) -> ExchangedFiat? {
+        guard !enteredAmount.isEmpty else {
+            return nil
         }
 
-        guard let verifiedState = pinnedState else {
-            return
+        guard let selectedBalance else {
+            return nil
         }
 
-        let fee: TokenAmount
-        if amountToWithdraw.mint == .usdf {
-            fee = destinationMetadata.fee
+        guard let amount = NumberFormatter.decimal(from: enteredAmount) else {
+            return nil
+        }
+
+        let mint = selectedBalance.stored.mint
+
+        // Only applies for bonded tokens
+        if mint != .usdf {
+            guard let supplyQuarks = pinnedSupplyQuarks ?? selectedBalance.stored.supplyFromBonding else {
+                return nil
+            }
+
+            let entered = FiatAmount(value: amount, currency: rate.currency)
+
+            if let viaCurve = ExchangedFiat.compute(
+                fromEntered: entered,
+                rate: rate,
+                mint: mint,
+                supplyQuarks: supplyQuarks
+            ) {
+                return viaCurve
+            }
+
+            // Curve could not price the entered amount (requested > TVL).
+            // Synthesize so the amount screen's `canProceedToAddress` flips
+            // false and `EnterAmountView` turns the subtitle red.
+            return ExchangedFiat(
+                onChainAmount: TokenAmount(
+                    quarks: selectedBalance.stored.quarks + 1,
+                    mint: mint
+                ),
+                nativeAmount: entered,
+                currencyRate: rate
+            )
         } else {
-            fee = exchangedFee?.onChainAmount ?? .zero(mint: .usdf)
+            return ExchangedFiat(
+                nativeAmount: FiatAmount(value: amount, currency: rate.currency),
+                rate: rate
+            )
+        }
+    }
+
+    // MARK: - Actions -
+
+    func selectCurrency(_ balance: ExchangedBalance) {
+        selectedBalance = balance
+        enteredAmount = ""
+        enteredAddress = ""
+        destinationMetadata = nil
+        withdrawButtonState = .normal
+        pushEnterAmountScreen()
+    }
+
+    func amountEnteredAction() {
+        guard let exchangedFiat = enteredFiat else {
+            return
+        }
+
+        let result = session.hasSufficientFunds(for: exchangedFiat)
+
+        // Use switch for exhaustive checking - compiler will error if new cases are added
+        switch result {
+        case .sufficient:
+            pushEnterAddressScreen()
+
+        case .insufficient:
+            showInsufficientBalanceError()
+        }
+    }
+
+    func addressEnteredAction() {
+        pushConfirmationScreen()
+    }
+
+    func completeWithdrawalAction() {
+        guard negativeWithdrawableAmount == nil else {
+            dialogItem = .init(
+                style: .destructive,
+                title: "Withdrawal Amount Too Small",
+                subtitle: "Your withdrawal amount is too small to cover the one time fee. Please try a different amount",
+                dismissable: true
+            ) {
+                .okay(kind: .standard) { [weak self] in
+                    self?.resetEnteredAmount()
+                    self?.popToEnterAmount()
+                }
+            }
+            return
+        }
+
+        dialogItem = .init(
+            style: .destructive,
+            title: "Are You Sure?",
+            subtitle: "Withdrawals are irreversible and cannot be undone once initiated",
+            dismissable: true,
+            actions: {
+                .destructive("Withdraw") { [weak self] in
+                    self?.completeWithdrawal()
+                };
+                .cancel()
+            }
+        )
+    }
+
+    private func completeWithdrawal() {
+        guard let destinationMetadata else {
+            return
         }
 
         withdrawButtonState = .loading
         Task {
+            guard let (amountToWithdraw, verifiedState) = await prepareSubmission() else {
+                withdrawButtonState = .normal
+                dialogItem = .staleRate
+                return
+            }
+
+            let fee: TokenAmount
+            if amountToWithdraw.mint == .usdf {
+                fee = destinationMetadata.fee
+            } else {
+                fee = exchangedFee?.onChainAmount ?? .zero(mint: .usdf)
+            }
+
             do {
                 try await session.withdraw(
                     exchangedFiat: amountToWithdraw,
@@ -336,100 +389,7 @@ class WithdrawViewModel {
             }
         }
     }
-    
-    // MARK: - Actions -
 
-    func selectCurrency(_ balance: ExchangedBalance) {
-        selectedBalance = balance
-        enteredAmount = ""
-        enteredAddress = ""
-        destinationMetadata = nil
-        withdrawButtonState = .normal
-        pinnedState = nil
-        pushEnterAmountScreen()
-
-        refreshPin(for: balance.stored.mint)
-    }
-
-    /// Called when `ratesController.entryCurrency` changes while the screen
-    /// is open. Re-fetches the pin for the currently-selected balance
-    /// against the new currency so the amount-entry screen updates instead
-    /// of silently continuing to display the old currency's math.
-    func rePinForEntryCurrency() {
-        guard let mint = selectedBalance?.stored.mint else { return }
-        if let pinned = pinnedState, pinned.currencyCode == ratesController.entryCurrency { return }
-        pinnedState = nil
-        refreshPin(for: mint)
-    }
-
-    private func refreshPin(for mint: PublicKey) {
-        // Cancel any in-flight pin fetch so a stale result can't clobber the
-        // current selection's pinnedState.
-        pinFetchTask?.cancel()
-
-        let currency = ratesController.entryCurrency
-        pinFetchTask = Task {
-            // currentPinnedState logs the nil-case itself.
-            guard let pinned = await ratesController.currentPinnedState(for: currency, mint: mint) else {
-                return
-            }
-            guard !Task.isCancelled else { return }
-            pinnedState = pinned
-        }
-    }
-
-    func amountEnteredAction() {
-        guard let exchangedFiat = enteredFiat else {
-            return
-        }
-
-        let result = session.hasSufficientFunds(for: exchangedFiat)
-
-        // Use switch for exhaustive checking - compiler will error if new cases are added
-        switch result {
-        case .sufficient(let amountToSend):
-            amountToWithdraw = amountToSend
-            pushEnterAddressScreen()
-
-        case .insufficient:
-            showInsufficientBalanceError()
-        }
-    }
-    
-    func addressEnteredAction() {
-        pushConfirmationScreen()
-    }
-    
-    func completeWithdrawalAction() {
-        guard negativeWithdrawableAmount == nil else {
-            dialogItem = .init(
-                style: .destructive,
-                title: "Withdrawal Amount Too Small",
-                subtitle: "Your withdrawal amount is too small to cover the one time fee. Please try a different amount",
-                dismissable: true
-            ) {
-                .okay(kind: .standard) { [weak self] in
-                    self?.resetEnteredAmount()
-                    self?.popToEnterAmount()
-                }
-            }
-            return
-        }
-        
-        dialogItem = .init(
-            style: .destructive,
-            title: "Are You Sure?",
-            subtitle: "Withdrawals are irreversible and cannot be undone once initiated",
-            dismissable: true,
-            actions: {
-                .destructive("Withdraw") { [weak self] in
-                    self?.completeWithdrawal()
-                };
-                .cancel()
-            }
-        )
-    }
-    
     func pasteFromClipboardAction() {
         guard
             let string = UIPasteboard.general.string,
@@ -437,36 +397,36 @@ class WithdrawViewModel {
         else {
             return
         }
-        
+
         enteredAddress = address.base58
     }
-    
+
     // MARK: - Reset -
-    
+
     private func resetEnteredAmount() {
         enteredAmount = ""
     }
-    
+
     // MARK: - Navigation -
-    
+
     private func popToEnterAmount() {
         path = [.enterAmount]
     }
-    
+
     func pushEnterAmountScreen() {
         path.append(.enterAmount)
     }
-    
+
     private func pushEnterAddressScreen() {
         path.append(.enterAddress)
     }
-    
+
     private func pushConfirmationScreen() {
         path.append(.confirmation)
     }
-    
+
     // MARK: - Dialogs -
-    
+
     private func showSuccessfulWithdrawalDialog() {
         dialogItem = .init(
             style: .success,
@@ -479,7 +439,7 @@ class WithdrawViewModel {
             }
         }
     }
-    
+
     private func showInsufficientBalanceError() {
         dialogItem = .init(
             style: .destructive,

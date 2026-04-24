@@ -11,7 +11,7 @@ import FlipcashAPI
 
 /// Bundles verified proofs for intent construction.
 /// Contains server-signed exchange rate and optional reserve state for launchpad currencies.
-public struct VerifiedState: Equatable, Sendable {
+public struct VerifiedState: Hashable, Sendable {
 
     /// Exchange rate proof (always required for payments)
     public let rateProto: Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRate
@@ -38,6 +38,18 @@ public struct VerifiedState: Equatable, Sendable {
         } else {
             self.serverTimestamp = rateDate
         }
+    }
+
+    /// Hashes a lightweight fingerprint rather than the full proto tree.
+    /// `VerifiedState` is embedded in `CurrencySellPath.confirmation`, which
+    /// `NavigationStack` hashes when diffing; the default synthesized
+    /// `hash(into:)` would walk the proto signature bytes on every diff.
+    /// Collisions are allowed by `Hashable` — `==` still compares the full
+    /// struct.
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(serverTimestamp)
+        hasher.combine(rateProto.exchangeRate.exchangeRate)
+        hasher.combine(reserveProto?.reserveState.supplyFromBonding)
     }
 }
 

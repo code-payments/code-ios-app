@@ -30,7 +30,7 @@ struct CurrencyBuyAmountScreen: View {
                 EnterAmountView(
                     mode: .buy,
                     enteredAmount: $viewModel.enteredAmount,
-                    subtitle: viewModel.subtitle,
+                    subtitle: .balanceWithLimit(viewModel.maxPossibleAmount),
                     actionState: $viewModel.actionButtonState,
                     actionEnabled: { _ in
                         viewModel.canPerformAction
@@ -64,20 +64,6 @@ struct CurrencyBuyAmountScreen: View {
                     kind: .entry,
                     ratesController: ratesController
                 )
-            }
-            .onChange(of: ratesController.entryCurrency) { _, newCurrency in
-                // The pin is captured for a specific currency at flow open;
-                // without this hook the display would stay on the old
-                // currency's math after the user switches. Guard on
-                // assignment so a slow fetch for a no-longer-selected
-                // currency can't clobber a newer pick.
-                Task {
-                    guard newCurrency != viewModel.pinnedState.currencyCode,
-                          let newPin = await ratesController.currentPinnedState(for: newCurrency, mint: .usdf),
-                          ratesController.entryCurrency == newCurrency
-                    else { return }
-                    viewModel.pinnedState = newPin
-                }
             }
         }
     }
