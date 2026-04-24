@@ -49,7 +49,14 @@ public struct PatternRedactor: LogMiddleware {
         }
 
         // Phone: ***-***-<last 4 digits>. Shortest valid format is 7 digits.
-        if value.count >= 7, let match = value.wholeMatch(of: Self.phonePattern) {
+        // Require at least one non-digit character (a `+` prefix or a
+        // separator) — PhoneNumberKit always outputs E.164 (`+`-prefixed) and
+        // human-typed phones carry parens/dashes/spaces, so a bare
+        // all-digit string is almost always an integer amount (quarks,
+        // counts, IDs) that we do NOT want reshaped as `***-***-nnnn`.
+        if value.count >= 7,
+           value.contains(where: { !$0.isNumber }),
+           let match = value.wholeMatch(of: Self.phonePattern) {
             return "***-***-\(match.output.1)"
         }
 
