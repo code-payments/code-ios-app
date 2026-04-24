@@ -92,6 +92,13 @@ class CurrencyBuyViewModel: Identifiable {
 
         return balance.computeExchangedValue(with: entryRate)
     }
+
+    var subtitle: EnterAmountView.Subtitle {
+        if pinnedState.isStale {
+            return .errorMessage("Rate expired. Please try again.")
+        }
+        return .balanceWithLimit(maxPossibleAmount)
+    }
     
     @ObservationIgnored private let session: Session
     @ObservationIgnored private let destination: PublicKey

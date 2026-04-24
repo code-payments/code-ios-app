@@ -15,6 +15,8 @@
 //     not the live cache — the original root cause of the server error.
 //  E) Swapping pinnedState re-renders the VM's computed properties, so an
 //     entry-currency switch mid-flow updates the screen.
+//  F) When the pin is stale, the VM's subtitle is the error message, not
+//     the misleading "Enter up to …" cap.
 //
 
 import Foundation
@@ -276,5 +278,71 @@ struct Regression_native_amount_mismatch {
         vm.pinnedState = cadPin
 
         #expect(vm.maxPossibleAmount.nativeAmount.currency == .cad)
+    }
+
+    // MARK: - Scenario F
+
+    /// Before the fix, a stale pin left the subtitle showing "Enter up to $100"
+    /// in red — misleading, because the issue wasn't the amount. The VM now
+    /// produces `.errorMessage` directly in that case so the subtitle says
+    /// what's actually wrong.
+    @Test("Scenario F (buy): stale pin flips subtitle to errorMessage; fresh stays balanceWithLimit")
+    func scenarioF_buyVMSubtitleFlipsOnStale() {
+        let fresh = VerifiedState.fresh(bonded: false)
+        let stale = VerifiedState.stale(bonded: false)
+
+        let sessionContainer = SessionContainer.mock
+        let freshVM = CurrencyBuyViewModel(
+            currencyPublicKey: .usdf,
+            currencyName: "USDF",
+            pinnedState: fresh,
+            session: sessionContainer.session
+        )
+        if case .balanceWithLimit = freshVM.subtitle {} else { Issue.record("Fresh pin should yield .balanceWithLimit") }
+
+        let staleVM = CurrencyBuyViewModel(
+            currencyPublicKey: .usdf,
+            currencyName: "USDF",
+            pinnedState: stale,
+            session: sessionContainer.session
+        )
+        guard case .errorMessage(let text) = staleVM.subtitle else {
+            Issue.record("Stale pin should yield .errorMessage")
+            return
+        }
+        #expect(!text.isEmpty)
+    }
+
+    @Test("Scenario F (sell): stale pin flips subtitle to errorMessage")
+    func scenarioF_sellVMSubtitleFlipsOnStale() {
+        let metadata = StoredMintMetadata(MintMetadata.makeLaunchpad(supplyFromBonding: 1_000_000 * 10_000_000_000))
+        let sessionContainer = SessionContainer.mock
+
+        let stale = VerifiedState.stale(bonded: true)
+        let vm = CurrencySellViewModel(
+            currencyMetadata: metadata,
+            pinnedState: stale,
+            session: sessionContainer.session
+        )
+        if case .errorMessage = vm.subtitle {} else { Issue.record("Stale pin should yield .errorMessage") }
+    }
+
+    @Test("Scenario F (withdraw): nil pin still previews as balanceWithLimit (not errored)")
+    func scenarioF_withdrawVMSubtitleDuringPreFetch() {
+        // Pre-fetch window: selectedBalance is set but pinnedState is nil.
+        // The subtitle should stay on the live-rate preview — only flip to
+        // error once we have a pin AND it's stale.
+        let viewModel = WithdrawViewModelTestHelpers.createViewModel(pinnedState: nil)
+        viewModel.selectedBalance = WithdrawViewModelTestHelpers.createExchangedBalance(quarks: 10_000_000)
+        if case .balanceWithLimit = viewModel.subtitle {} else { Issue.record("Nil pin should preview as .balanceWithLimit") }
+    }
+
+    @Test("Scenario F (withdraw): stale pin flips subtitle to errorMessage")
+    func scenarioF_withdrawVMSubtitleFlipsOnStale() {
+        let viewModel = WithdrawViewModelTestHelpers.createViewModel(
+            pinnedState: VerifiedState.stale(bonded: false)
+        )
+        viewModel.selectedBalance = WithdrawViewModelTestHelpers.createExchangedBalance(quarks: 10_000_000)
+        if case .errorMessage = viewModel.subtitle {} else { Issue.record("Stale pin should yield .errorMessage") }
     }
 }

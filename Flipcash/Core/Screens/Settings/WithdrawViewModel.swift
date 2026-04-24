@@ -207,6 +207,16 @@ class WithdrawViewModel {
         return balance.computeExchangedValue(with: rate)
     }
 
+    var subtitle: EnterAmountView.Subtitle {
+        // Only flip to the error message when the pin is *present and* stale —
+        // the pre-fetch nil window shows the balance cap computed against the
+        // live rate, which is still a reasonable preview for the user.
+        if pinnedState?.isStale == true {
+            return .errorMessage("Rate expired. Please try again.")
+        }
+        return .balanceWithLimit(maxWithdrawLimit)
+    }
+
     private var exchangedFee: ExchangedFiat? {
         guard let enteredFiat = enteredFiat else {
             return nil

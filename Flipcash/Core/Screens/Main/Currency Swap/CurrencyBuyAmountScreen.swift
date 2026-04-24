@@ -30,7 +30,7 @@ struct CurrencyBuyAmountScreen: View {
                 EnterAmountView(
                     mode: .buy,
                     enteredAmount: $viewModel.enteredAmount,
-                    subtitle: .balanceWithLimit(viewModel.maxPossibleAmount),
+                    subtitle: viewModel.subtitle,
                     actionState: $viewModel.actionButtonState,
                     actionEnabled: { _ in
                         viewModel.canPerformAction

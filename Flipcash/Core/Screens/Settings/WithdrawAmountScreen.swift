@@ -31,7 +31,7 @@ struct WithdrawAmountScreen: View {
             EnterAmountView(
                 mode: .withdraw,
                 enteredAmount: $viewModel.enteredAmount,
-                subtitle: .balanceWithLimit(viewModel.maxWithdrawLimit),
+                subtitle: viewModel.subtitle,
                 actionState: .constant(.normal),
                 actionEnabled: { _ in
                     viewModel.canProceedToAddress
