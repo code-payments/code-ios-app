@@ -338,11 +338,25 @@ class WithdrawViewModel {
         pinnedState = nil
         pushEnterAmountScreen()
 
-        // Cancel any in-flight pin fetch from a prior selection so a stale
-        // result can't clobber the current selection's pinnedState.
+        refreshPin(for: balance.stored.mint)
+    }
+
+    /// Called when `ratesController.entryCurrency` changes while the screen
+    /// is open. Re-fetches the pin for the currently-selected balance
+    /// against the new currency so the amount-entry screen updates instead
+    /// of silently continuing to display the old currency's math.
+    func rePinForEntryCurrency() {
+        guard let mint = selectedBalance?.stored.mint else { return }
+        if let pinned = pinnedState, pinned.currencyCode == ratesController.entryCurrency { return }
+        pinnedState = nil
+        refreshPin(for: mint)
+    }
+
+    private func refreshPin(for mint: PublicKey) {
+        // Cancel any in-flight pin fetch so a stale result can't clobber the
+        // current selection's pinnedState.
         pinFetchTask?.cancel()
 
-        let mint = balance.stored.mint
         let currency = ratesController.entryCurrency
         pinFetchTask = Task {
             // currentPinnedState logs the nil-case itself.

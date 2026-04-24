@@ -14,10 +14,10 @@ class CurrencySellViewModel: Identifiable {
     var enteredAmount: String = ""
     var path: [CurrencySellPath] = []
     @ObservationIgnored let currencyMetadata: StoredMintMetadata
-    /// Pinned at construction so every `ExchangedFiat.compute` on this VM uses
-    /// the same rate and bonded supply the intent will be validated against.
-    /// Mirrors the `CurrencyBuyViewModel` contract.
-    @ObservationIgnored let pinnedState: VerifiedState
+    /// Pinned at construction; the screen swaps this when the user switches
+    /// entry currency mid-flow. Observed so the computed properties below
+    /// re-evaluate on swap.
+    var pinnedState: VerifiedState
 
     var enteredFiat: ExchangedFiat? {
         guard !enteredAmount.isEmpty else { return nil }

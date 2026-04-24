@@ -77,6 +77,19 @@ struct CurrencySellAmountScreen: View {
                     ratesController: ratesController
                 )
             }
+            .onChange(of: ratesController.entryCurrency) { _, newCurrency in
+                // Pin is captured at flow open for a specific currency; re-fetch
+                // here so the amount screen reflects the switched currency.
+                // Guard on assignment so a slow fetch for a no-longer-selected
+                // currency can't clobber a newer pick.
+                Task {
+                    guard newCurrency != viewModel.pinnedState.currencyCode,
+                          let newPin = await ratesController.currentPinnedState(for: newCurrency, mint: viewModel.currencyMetadata.mint),
+                          ratesController.entryCurrency == newCurrency
+                    else { return }
+                    viewModel.pinnedState = newPin
+                }
+            }
         }
     }
     

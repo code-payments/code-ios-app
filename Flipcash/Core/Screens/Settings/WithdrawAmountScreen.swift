@@ -52,6 +52,12 @@ struct WithdrawAmountScreen: View {
         .navigationTitle(viewModel.withdrawTitle)
         .navigationBarTitleDisplayMode(.inline)
         .dialog(item: $viewModel.dialogItem)
+        .onChange(of: ratesController.entryCurrency) { _, _ in
+            // Pin is captured for a specific (currency, mint); re-fetch so
+            // the amount screen reflects the switched currency instead of
+            // silently continuing on the old one.
+            viewModel.rePinForEntryCurrency()
+        }
     }
     
     // MARK: - Actions -

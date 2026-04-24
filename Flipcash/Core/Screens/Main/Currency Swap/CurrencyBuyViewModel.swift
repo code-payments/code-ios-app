@@ -96,7 +96,10 @@ class CurrencyBuyViewModel: Identifiable {
     @ObservationIgnored private let session: Session
     @ObservationIgnored private let destination: PublicKey
     @ObservationIgnored private let currencyName: String
-    @ObservationIgnored let pinnedState: VerifiedState
+    /// Pinned at flow open; the screen swaps this when the user switches
+    /// entry currency mid-flow. Observed so the computed properties below
+    /// re-evaluate on swap.
+    var pinnedState: VerifiedState
 
     // MARK: - Init -
 

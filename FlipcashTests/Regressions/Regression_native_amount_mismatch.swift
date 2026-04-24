@@ -218,4 +218,56 @@ struct Regression_native_amount_mismatch {
         #expect(entered.currencyRate.fx == Decimal(1.35))
         #expect(entered.currencyRate.fx != Decimal(1.37))
     }
+
+    // MARK: - Scenario E
+
+    /// Entry-currency switch mid-flow: the bug was that the screen's math
+    /// (subtitle, max, quarks) kept showing the original currency's values
+    /// because `pinnedState` was `@ObservationIgnored let`. The screen now
+    /// fetches a new pin and assigns it; this test guards the VM contract
+    /// that makes that assignment actually re-render — `pinnedState` is
+    /// observed, and the computed properties that read it re-evaluate.
+    @Test("Scenario E (buy): swapping pinnedState flips the computed currency")
+    func scenarioE_buyVMReactsToPinSwap() {
+        let usdPin = VerifiedState.fresh(bonded: false, currencyCode: "USD", exchangeRate: 1.0)
+        let cadPin = VerifiedState.fresh(bonded: false, currencyCode: "CAD", exchangeRate: 1.35)
+
+        let sessionContainer = SessionContainer.mock
+        let vm = CurrencyBuyViewModel(
+            currencyPublicKey: .usdf,
+            currencyName: "USDF",
+            pinnedState: usdPin,
+            session: sessionContainer.session
+        )
+        vm.enteredAmount = "1"
+
+        #expect(vm.enteredFiat?.currencyRate.fx == Decimal(1.0))
+        #expect(vm.maxPossibleAmount.nativeAmount.currency == .usd)
+
+        vm.pinnedState = cadPin
+
+        #expect(vm.enteredFiat?.currencyRate.fx == Decimal(1.35))
+        #expect(vm.maxPossibleAmount.nativeAmount.currency == .cad)
+    }
+
+    @Test("Scenario E (sell): swapping pinnedState flips the computed currency")
+    func scenarioE_sellVMReactsToPinSwap() {
+        let usdPin = VerifiedState.fresh(bonded: true, currencyCode: "USD", exchangeRate: 1.0, supplyFromBonding: 1_000_000 * 10_000_000_000)
+        let cadPin = VerifiedState.fresh(bonded: true, currencyCode: "CAD", exchangeRate: 1.35, supplyFromBonding: 1_000_000 * 10_000_000_000)
+
+        let metadata = StoredMintMetadata(MintMetadata.makeLaunchpad(supplyFromBonding: 1_000_000 * 10_000_000_000))
+        let sessionContainer = SessionContainer.mock
+
+        let vm = CurrencySellViewModel(
+            currencyMetadata: metadata,
+            pinnedState: usdPin,
+            session: sessionContainer.session
+        )
+
+        #expect(vm.maxPossibleAmount.nativeAmount.currency == .usd)
+
+        vm.pinnedState = cadPin
+
+        #expect(vm.maxPossibleAmount.nativeAmount.currency == .cad)
+    }
 }
