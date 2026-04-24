@@ -188,6 +188,9 @@ public enum Asset: String, Sendable {
     
     // Third-Party
     
+    case telegram
+    case discord
+    
     case twitter
     case twitterBlue
     case twitterGold
