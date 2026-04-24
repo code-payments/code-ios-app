@@ -1576,7 +1576,8 @@ class Session {
         mint: PublicKey
     ) throws {
         guard verifiedState.isStale else { return }
-        logger.warning("Rejected stale verifiedState at \(operation)", metadata: [
+        logger.warning("Rejected stale verifiedState", metadata: [
+            "operation": "\(operation)",
             "currency": "\(currency.rawValue)",
             "mint": "\(mint.base58)",
             "ageSeconds": "\(verifiedState.age)",

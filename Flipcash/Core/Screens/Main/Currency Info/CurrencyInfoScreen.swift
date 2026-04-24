@@ -267,8 +267,16 @@ struct CurrencyInfoScreen: View {
                     onSelectReserves: {
                         Analytics.buttonTapped(name: .buyWithReserves)
                         Task { @MainActor in
+                            // Source mint for reserves-funded buys is always USDF
+                            // (the user funds from their USDF balance), regardless
+                            // of the destination currency.
                             let currency = ratesController.entryCurrency
                             guard let pinned = await ratesController.currentPinnedState(for: currency, mint: .usdf) else {
+                                // Cache empty/stale: dismiss the funding sheet so
+                                // the user gets out of the dead end. The next tap
+                                // will retry — by then the stream should have
+                                // delivered fresh state.
+                                isShowingFundingSelection = false
                                 return
                             }
                             presentedBuyViewModel = CurrencyBuyViewModel(

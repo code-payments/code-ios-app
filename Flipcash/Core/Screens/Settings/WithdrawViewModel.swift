@@ -225,7 +225,9 @@ class WithdrawViewModel {
     }
     
     @ObservationIgnored private var amountToWithdraw: ExchangedFiat?
-    @ObservationIgnored var pinnedState: VerifiedState?
+    /// Observed (no `@ObservationIgnored`) so the submit button's enabled state
+    /// re-evaluates when the async `pinFetchTask` resolves the pin.
+    var pinnedState: VerifiedState?
     @ObservationIgnored private var pinFetchTask: Task<Void, Never>?
     @ObservationIgnored private let isPresented: Binding<Bool>
     @ObservationIgnored private let container: Container

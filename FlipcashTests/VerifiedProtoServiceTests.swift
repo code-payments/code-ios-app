@@ -11,7 +11,11 @@ import Combine
 import FlipcashCore
 import FlipcashAPI
 
-@Suite("VerifiedProtoService")
+/// Several tests rely on Task.sleep to give the actor's fire-and-forget
+/// `persistRate` / `warmLoadFromStore` paths time to complete. The 1-minute
+/// time limit is a safety net so a hung warm-load surfaces as a named
+/// failure instead of timing out the whole test invocation silently.
+@Suite("VerifiedProtoService", .timeLimit(.minutes(1)))
 struct VerifiedProtoServiceTests {
 
     // MARK: - saveRates dedupe -

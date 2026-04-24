@@ -45,7 +45,6 @@ struct CurrencyBuyViewModelTests {
             .init(mint: MintMetadata.usdf, quarks: 10_000_000)
         ])
 
-
         container.ratesController.configureTestRates(entryCurrency: .cad, rates: [cadRate])
 
         return CurrencyBuyViewModel(

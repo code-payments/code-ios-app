@@ -19,7 +19,10 @@ import Testing
 @testable import FlipcashCore
 
 @MainActor
-@Suite("Regression: native amount mismatch — pinning prevents drift between UI and intent")
+@Suite(
+    "Regression: native amount mismatch — pinning prevents drift between UI and intent",
+    .timeLimit(.minutes(1))
+)
 struct Regression_native_amount_mismatch {
 
     // MARK: - Scenario A
@@ -77,8 +80,6 @@ struct Regression_native_amount_mismatch {
         // Stale protos must not produce a pin — navigation stays blocked.
         #expect(pin == nil)
     }
-
-    // MARK: - Helpers
 
     // MARK: - Scenario C
 

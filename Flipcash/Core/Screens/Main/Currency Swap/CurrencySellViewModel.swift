@@ -17,7 +17,10 @@ class CurrencySellViewModel: Identifiable {
     var enteredAmount: String = ""
     var path: [CurrencySellPath] = []
     @ObservationIgnored let currencyMetadata: StoredMintMetadata
-    @ObservationIgnored private(set) var pinnedState: VerifiedState?
+    /// Observed so `canPerformAction`'s stale gate re-evaluates when the async
+    /// pin fetch resolves. `private(set)` because only `showConfirmationScreen`
+    /// writes to it.
+    private(set) var pinnedState: VerifiedState?
         
     var enteredFiat: ExchangedFiat? {
         guard !enteredAmount.isEmpty else { return nil }

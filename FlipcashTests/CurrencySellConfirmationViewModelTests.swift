@@ -49,7 +49,7 @@ struct CurrencySellConfirmationViewModelTests {
         return CurrencySellConfirmationViewModel(
             mint: mint,
             amount: exchangedFiat,
-            pinnedState: pinnedState ?? .fresh()
+            pinnedState: pinnedState ?? .fresh(bonded: false)
         )
     }
     

@@ -133,21 +133,14 @@ class CurrencyBuyViewModel: Identifiable {
         Task {
             do {
                 let swapId = try await session.buy(amount: buyAmount, verifiedState: pinnedState, of: destination)
-
-                await MainActor.run {
-                    path.append(.processing(swapId: swapId, currencyName: currencyName, amount: buyAmount))
-                }
+                path.append(.processing(swapId: swapId, currencyName: currencyName, amount: buyAmount))
             } catch Session.Error.insufficientBalance {
-                await MainActor.run {
-                    actionButtonState = .normal
-                    showInsufficientBalanceError()
-                }
+                actionButtonState = .normal
+                showInsufficientBalanceError()
             } catch Session.Error.verifiedStateStale {
                 // Session.assertFresh already logged this at .warning. The catch
                 // exists only to reset the button so the user can retry.
-                await MainActor.run {
-                    actionButtonState = .normal
-                }
+                actionButtonState = .normal
             } catch {
                 ErrorReporting.captureError(
                     error,
@@ -157,10 +150,8 @@ class CurrencyBuyViewModel: Identifiable {
                         "amount": buyAmount.nativeAmount.formatted(),
                     ]
                 )
-                await MainActor.run {
-                    actionButtonState = .normal
-                    showGenericError()
-                }
+                actionButtonState = .normal
+                showGenericError()
             }
         }
     }
