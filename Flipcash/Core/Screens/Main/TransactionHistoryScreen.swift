@@ -9,23 +9,24 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
+private let logger = Logger(label: "flipcash.transaction-history")
+
 struct TransactionHistoryScreen: View {
 
     @Environment(Session.self) private var session
 
-    @State private var activities: Updateable<[Activity]>
+    @State private var activities: [Activity]?
 
     @State private var dialogItem: DialogItem?
 
-    private let mintMetadata: StoredMintMetadata
+    private let mint: PublicKey
+    private let database: Database
 
     // MARK: - Init -
 
-    init(mintMetadata: StoredMintMetadata, database: Database) {
-        self.mintMetadata = mintMetadata
-        self.activities = Updateable {
-            (try? database.getActivities(mint: mintMetadata.mint)) ?? []
-        }
+    init(mint: PublicKey, database: Database) {
+        self.mint = mint
+        self.database = database
     }
 
     // MARK: - Body -
@@ -34,10 +35,17 @@ struct TransactionHistoryScreen: View {
         Background(color: .backgroundMain) {
             List {
                 Section {
-                    ForEach(activities.value) { activity in
-                        ActivityRow(activity: activity) {
-                            rowAction(activity: activity)
+                    if let activities {
+                        ForEach(activities) { activity in
+                            ActivityRow(activity: activity) {
+                                rowAction(activity: activity)
+                            }
                         }
+                    } else {
+                        ProgressView()
+                            .frame(maxWidth: .infinity, minHeight: 200)
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
                     }
                 }
                 .listRowInsets(EdgeInsets())
@@ -48,6 +56,19 @@ struct TransactionHistoryScreen: View {
             .navigationTitle("Transaction History")
         }
         .dialog(item: $dialogItem)
+        .task(id: mint) {
+            do {
+                activities = try await database.getActivities(mint: mint)
+            } catch is CancellationError {
+                // Superseded by a newer .task — don't clobber `activities`.
+                return
+            } catch {
+                logger.error("Failed to load activities", metadata: [
+                    "mint": "\(mint.base58)",
+                ])
+                activities = []
+            }
+        }
     }
 
     // MARK: - Action -

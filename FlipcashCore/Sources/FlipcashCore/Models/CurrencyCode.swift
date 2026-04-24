@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import os
 
 public enum CurrencyCode: String, CaseIterable, Codable, Equatable, Hashable, Sendable {
     case aed
@@ -259,16 +260,34 @@ extension CurrencyCode: Identifiable {
 // MARK: - Decimal Places -
 
 extension CurrencyCode {
+    // Building the NumberFormatter triggers ICU locale data loading
+    // (`_ures_getAllItemsWithFallback`), which was a confirmed source of
+    // main-thread hangs on iOS 17/18 when called per-row in activity lists.
+    // Safe to share: NumberFormatter reads are thread-safe since iOS 7, and
+    // the cache only stores the resolved Int.
+    private static let fractionDigitsCache = OSAllocatedUnfairLock(initialState: [CurrencyCode: Int]())
+
     public var maximumFractionDigits: Int {
-        let locale   = Locale.currentUsing(currency: self)
-        let decimals = locale.currencyCode.flatMap { code in
+        // Fast path: check cache under lock.
+        if let cached = Self.fractionDigitsCache.withLock({ $0[self] }) {
+            return cached
+        }
+
+        // Slow path: build outside the lock so the ICU load doesn't
+        // serialize concurrent misses on different currencies.
+        let locale = Locale.currentUsing(currency: self)
+        let resolved: Int = locale.currencyCode.flatMap { _ -> Int? in
             let formatter = NumberFormatter()
             formatter.numberStyle = .currency
             formatter.locale = locale
             return formatter.maximumFractionDigits
+        } ?? 2
+
+        return Self.fractionDigitsCache.withLock { cache in
+            if let existing = cache[self] { return existing }
+            cache[self] = resolved
+            return resolved
         }
-        
-        return decimals ?? 2 // Default to 2 if unable to determine
     }
 }
 

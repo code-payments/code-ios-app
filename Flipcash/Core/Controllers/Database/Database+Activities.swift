@@ -50,15 +50,25 @@ extension Database {
         return ids
     }
     
-    func getActivities(mint: PublicKey?) throws -> [Activity] {
-        
-        var filter: String = ""
-        var blob: Blob? = nil
-        if let mint {
-            filter = "WHERE a.mint = ?"
-            blob = Blob(bytes: mint.bytes)
+    /// Async wrapper that runs the synchronous ``getActivities(mint:)`` off
+    /// the main thread. The underlying SQLite.swift `Connection` already
+    /// serialises access through its own dispatch queue; this wrapper only
+    /// hops off main so the caller's actor isn't blocked on up-to-1024
+    /// `NSDateFormatter.dateFromString(_:)` calls.
+    func getActivities(mint: PublicKey) async throws -> [Activity] {
+        try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    let activities = try self.getActivities(mint: mint)
+                    continuation.resume(returning: activities)
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
         }
-        
+    }
+
+    func getActivities(mint: PublicKey) throws -> [Activity] {
         let statement = try reader.prepareRowIterator("""
         SELECT
             a.id,
@@ -73,16 +83,16 @@ extension Database {
 
             c.vault,
             c.canCancel
-            
+
         FROM activity a
-        
+
         LEFT JOIN cashLinkMetadata c ON c.id = a.id
-        
-        \(filter)
-        
+
+        WHERE a.mint = ?
+
         ORDER BY a.date DESC
         LIMIT 1024;
-        """, bindings: blob)
+        """, bindings: Blob(bytes: mint.bytes))
         
         let a = ActivityTable()
         

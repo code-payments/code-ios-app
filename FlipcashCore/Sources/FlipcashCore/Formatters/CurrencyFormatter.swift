@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import os
 
 extension NumberFormatter {
     
@@ -46,26 +47,64 @@ extension NumberFormatter {
         NumberFormatter()
     }()
     
+    // Configured formatters are cached and reused across callers. ICU
+    // locale-data loading on `NumberFormatter()` init was a confirmed
+    // main-thread hang source on iOS 17/18 in activity lists that format
+    // thousands of rows per render. After first build, instances are never
+    // mutated — NumberFormatter reads are thread-safe since iOS 7.
+    private struct FiatCacheKey: Hashable {
+        let currency: CurrencyCode
+        let minimumFractionDigits: Int
+        let maximumFractionDigits: Int
+        let truncated: Bool
+        let suffix: String
+    }
+
+    // `NumberFormatter` isn't `Sendable`, but the lock guards every mutation
+    // and cached instances are never mutated after first build. Reads are
+    // thread-safe per Apple's iOS 7+ contract for `NSFormatter` subclasses.
+    nonisolated(unsafe) private static let fiatCache = OSAllocatedUnfairLock(initialState: [FiatCacheKey: NumberFormatter]())
+
     public static func fiat(currency: CurrencyCode, minimumFractionDigits: Int = 2, maximumFractionDigits: Int? = nil, truncated: Bool = false, suffix: String? = nil) -> NumberFormatter {
+        let resolvedMax = maximumFractionDigits ?? currency.maximumFractionDigits
+        let resolvedSuffix = suffix ?? ""
+        let key = FiatCacheKey(
+            currency: currency,
+            minimumFractionDigits: minimumFractionDigits,
+            maximumFractionDigits: resolvedMax,
+            truncated: truncated,
+            suffix: resolvedSuffix,
+        )
+
+        // Fast path: most calls are cache hits.
+        if let cached = fiatCache.withLock({ $0[key] }) {
+            return cached
+        }
+
+        // Slow path: build outside the lock so concurrent misses don't serialize
+        // on ICU init. Build is idempotent, so a racy duplicate build is fine —
+        // last writer wins and both callers get a valid formatter.
         let f = NumberFormatter()
         f.locale = .current
         f.numberStyle = .currency
         f.minimumFractionDigits = minimumFractionDigits
-        f.maximumFractionDigits = maximumFractionDigits ?? currency.maximumFractionDigits
+        f.maximumFractionDigits = resolvedMax
         f.generatesDecimalNumbers = true
         f.roundingMode = truncated ? .down : .halfUp
 
         let prefix = currency.singleCharacterCurrencySymbols ?? ""
-        let suffix = (suffix ?? "")
-
         f.positivePrefix = prefix
         f.negativePrefix = prefix
-        f.positiveSuffix = suffix
-        f.negativeSuffix = suffix
+        f.positiveSuffix = resolvedSuffix
+        f.negativeSuffix = resolvedSuffix
 
         f.currencySymbol = ""
 
-        return f
+        return fiatCache.withLock { cache in
+            if let existing = cache[key] { return existing }
+            cache[key] = f
+            return f
+        }
     }
 }
 
