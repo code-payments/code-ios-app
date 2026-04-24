@@ -8,9 +8,6 @@
 import SwiftUI
 import FlipcashCore
 import FlipcashUI
-import Logging
-
-private let logger = Logger(label: "flipcash.withdraw")
 
 @MainActor @Observable
 class WithdrawViewModel {
@@ -36,21 +33,32 @@ class WithdrawViewModel {
         guard !enteredAmount.isEmpty else {
             return nil
         }
-        
+
         guard let selectedBalance else {
             return nil
         }
-        
+
         guard let amount = NumberFormatter.decimal(from: enteredAmount) else {
             return nil
         }
-        
+
         let mint = selectedBalance.stored.mint
-        let rate = ratesController.rateForEntryCurrency()
+        // Source rate and bonded supply from the pinned proof so the quarks the
+        // server validates against `pinnedState.rateProto`/`reserveProto` match
+        // what we computed. Live cache values drift as the stream delivers new
+        // proofs mid-entry, producing native/quark mismatches.
+        //
+        // Unlike Buy/Sell, the pin isn't resolved at sheet open — it's fetched
+        // asynchronously per-balance in `selectCurrency(_:)`, so there's a
+        // window where `selectedBalance != nil && pinnedState == nil`. Falling
+        // back to the live rate here lets the amount input show a preview
+        // during that window. Submission itself is still gated — see
+        // `canCompleteWithdrawal`, which requires a non-stale `pinnedState`.
+        let rate = pinnedState?.rate ?? ratesController.rateForEntryCurrency()
 
         // Only applies for bonded tokens
         if mint != .usdf {
-            guard let supplyQuarks = selectedBalance.stored.supplyFromBonding else {
+            guard let supplyQuarks = pinnedState?.supplyFromBonding ?? selectedBalance.stored.supplyFromBonding else {
                 return nil
             }
 
@@ -179,7 +187,9 @@ class WithdrawViewModel {
     }
     
     var maxWithdrawLimit: ExchangedFiat {
-        let rate = ratesController.rateForEntryCurrency()
+        // Match `enteredFiat`'s rate source so the displayed cap uses the same
+        // rate the entered amount is computed against.
+        let rate = pinnedState?.rate ?? ratesController.rateForEntryCurrency()
         let zero = ExchangedFiat.compute(
             onChainAmount: .zero(mint: .usdf),
             rate: rate,
@@ -196,17 +206,20 @@ class WithdrawViewModel {
 
         return balance.computeExchangedValue(with: rate)
     }
-    
+
     private var exchangedFee: ExchangedFiat? {
         guard let enteredFiat = enteredFiat else {
             return nil
         }
-        
+
         guard let selectedBalance else {
             return nil
         }
-        
-        guard let supplyQuarks = selectedBalance.stored.supplyFromBonding else {
+
+        // Prefer the pinned bonding supply for the same reason enteredFiat does
+        // — fee math against a drifted supply would misreport the on-chain fee
+        // equivalent.
+        guard let supplyQuarks = pinnedState?.supplyFromBonding ?? selectedBalance.stored.supplyFromBonding else {
             return nil
         }
 
@@ -332,11 +345,8 @@ class WithdrawViewModel {
         let mint = balance.stored.mint
         let currency = ratesController.entryCurrency
         pinFetchTask = Task {
+            // currentPinnedState logs the nil-case itself.
             guard let pinned = await ratesController.currentPinnedState(for: currency, mint: mint) else {
-                logger.warning("Withdraw: no verified state available at currency selection", metadata: [
-                    "mint": "\(mint.base58)",
-                    "currency": "\(currency)",
-                ])
                 return
             }
             guard !Task.isCancelled else { return }

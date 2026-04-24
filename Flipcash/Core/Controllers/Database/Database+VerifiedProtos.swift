@@ -11,16 +11,24 @@ extension Database: VerifiedProtoStore {
 
     // MARK: - Verified Rates -
 
-    public func writeRate(_ row: StoredRateRow) throws {
+    /// Stream ticks deliver ~200 currencies at a time; wrap the upserts in one
+    /// transaction so we commit once per tick instead of once per row.
+    /// `silent: true` because the `verified_rate` table has no UI listeners —
+    /// the service's `ratesPublisher` already drives downstream updates.
+    public func writeRates(_ rows: [StoredRateRow]) throws {
+        guard !rows.isEmpty else { return }
         let table = VerifiedRateTable()
-        try writer.run(
-            table.table.upsert(
-                table.currency   <- row.currency,
-                table.rateProto  <- row.rateProto,
-                table.receivedAt <- row.receivedAt,
-                onConflictOf: table.currency
-            )
-        )
+        try transaction(silent: true) { _ in
+            for row in rows {
+                try writer.run(
+                    table.table.upsert(
+                        table.currency <- row.currency,
+                        table.rateProto <- row.rateProto,
+                        onConflictOf: table.currency
+                    )
+                )
+            }
+        }
     }
 
     public func allRates() throws -> [StoredRateRow] {
@@ -28,43 +36,34 @@ extension Database: VerifiedProtoStore {
         let rows = try reader.prepareRowIterator("""
         SELECT
             currency,
-            rateProto,
-            receivedAt
+            rateProto
         FROM
             verified_rate;
         """)
         return try rows.map { row in
             StoredRateRow(
-                currency:   row[table.currency],
-                rateProto:  row[table.rateProto],
-                receivedAt: row[table.receivedAt]
+                currency: row[table.currency],
+                rateProto: row[table.rateProto]
             )
         }
     }
 
-    func readVerifiedRate(currency: String) throws -> StoredRateRow? {
-        let table = VerifiedRateTable()
-        let query = table.table.filter(table.currency == currency)
-        guard let row = try reader.pluck(query) else { return nil }
-        return StoredRateRow(
-            currency:   row[table.currency],
-            rateProto:  row[table.rateProto],
-            receivedAt: row[table.receivedAt]
-        )
-    }
-
     // MARK: - Verified Reserves -
 
-    public func writeReserve(_ row: StoredReserveRow) throws {
+    public func writeReserves(_ rows: [StoredReserveRow]) throws {
+        guard !rows.isEmpty else { return }
         let table = VerifiedReserveTable()
-        try writer.run(
-            table.table.upsert(
-                table.mint         <- row.mint,
-                table.reserveProto <- row.reserveProto,
-                table.receivedAt   <- row.receivedAt,
-                onConflictOf: table.mint
-            )
-        )
+        try transaction(silent: true) { _ in
+            for row in rows {
+                try writer.run(
+                    table.table.upsert(
+                        table.mint <- row.mint,
+                        table.reserveProto <- row.reserveProto,
+                        onConflictOf: table.mint
+                    )
+                )
+            }
+        }
     }
 
     public func allReserves() throws -> [StoredReserveRow] {
@@ -72,28 +71,15 @@ extension Database: VerifiedProtoStore {
         let rows = try reader.prepareRowIterator("""
         SELECT
             mint,
-            reserveProto,
-            receivedAt
+            reserveProto
         FROM
             verified_reserve;
         """)
         return try rows.map { row in
             StoredReserveRow(
-                mint:         row[table.mint],
-                reserveProto: row[table.reserveProto],
-                receivedAt:   row[table.receivedAt]
+                mint: row[table.mint],
+                reserveProto: row[table.reserveProto]
             )
         }
-    }
-
-    func readVerifiedReserve(mint: String) throws -> StoredReserveRow? {
-        let table = VerifiedReserveTable()
-        let query = table.table.filter(table.mint == mint)
-        guard let row = try reader.pluck(query) else { return nil }
-        return StoredReserveRow(
-            mint:         row[table.mint],
-            reserveProto: row[table.reserveProto],
-            receivedAt:   row[table.receivedAt]
-        )
     }
 }

@@ -8,9 +8,6 @@
 import SwiftUI
 import FlipcashUI
 import FlipcashCore
-import Logging
-
-private let logger = Logger(label: "flipcash.swap-service")
 
 @MainActor @Observable
 class CurrencySellConfirmationViewModel {

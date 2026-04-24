@@ -101,7 +101,6 @@ struct VerifiedRateTable: Sendable {
     let table      = Table(Self.name)
     let currency   = Expression <String> ("currency")
     let rateProto  = Expression <Data>   ("rateProto")
-    let receivedAt = Expression <Date>   ("receivedAt")
 }
 
 // Verified reserve-state proofs, one per mint.
@@ -111,7 +110,6 @@ struct VerifiedReserveTable: Sendable {
     let table        = Table(Self.name)
     let mint         = Expression <String> ("mint")
     let reserveProto = Expression <Data>   ("reserveProto")
-    let receivedAt   = Expression <Date>   ("receivedAt")
 }
 
 extension Expression {
@@ -223,7 +221,6 @@ extension Database {
             try writer.run(verifiedRateTable.table.create(ifNotExists: true, withoutRowid: true) { t in
                 t.column(verifiedRateTable.currency, primaryKey: true)
                 t.column(verifiedRateTable.rateProto)
-                t.column(verifiedRateTable.receivedAt)
             })
         }
 
@@ -233,7 +230,6 @@ extension Database {
             try writer.run(verifiedReserveTable.table.create(ifNotExists: true, withoutRowid: true) { t in
                 t.column(verifiedReserveTable.mint, primaryKey: true)
                 t.column(verifiedReserveTable.reserveProto)
-                t.column(verifiedReserveTable.receivedAt)
             })
         }
 

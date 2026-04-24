@@ -113,34 +113,30 @@ struct VerifiedProtoServiceTests {
 
     // MARK: - Persistence -
 
-    @Test("saveRates persists each rate to the store")
+    @Test("saveRates persists the batch to the store in a single call")
     func saveRates_persists() async throws {
         let store = InMemoryVerifiedProtoStore()
-        let fixedDate = Date(timeIntervalSince1970: 1_000)
-        let service = VerifiedProtoService(store: store, clock: { fixedDate })
+        let service = VerifiedProtoService(store: store)
 
         await service.saveRates([.makeTest(currencyCode: "usd", rate: 1.0)])
 
         try await Task.sleep(for: .milliseconds(50))
 
         #expect(store.writeRateCalls.count == 1)
-        #expect(store.writeRateCalls.first?.currency == "usd")
-        #expect(store.writeRateCalls.first?.receivedAt == fixedDate)
+        #expect(store.writeRateCalls.first?.map(\.currency) == ["usd"])
     }
 
-    @Test("saveReserveStates persists each reserve to the store")
+    @Test("saveReserveStates persists the batch to the store in a single call")
     func saveReserves_persists() async throws {
         let store = InMemoryVerifiedProtoStore()
-        let fixedDate = Date(timeIntervalSince1970: 500)
-        let service = VerifiedProtoService(store: store, clock: { fixedDate })
+        let service = VerifiedProtoService(store: store)
 
         await service.saveReserveStates([.makeTest(mint: .usdf)])
 
         try await Task.sleep(for: .milliseconds(50))
 
         #expect(store.writeReserveCalls.count == 1)
-        #expect(store.writeReserveCalls.first?.mint == PublicKey.usdf.base58)
-        #expect(store.writeReserveCalls.first?.receivedAt == fixedDate)
+        #expect(store.writeReserveCalls.first?.map(\.mint) == [PublicKey.usdf.base58])
     }
 
     @Test("init warm-loads rates from the store into the in-memory cache")
@@ -150,9 +146,9 @@ struct VerifiedProtoServiceTests {
         // Pre-seed the store with a serialized rate proto.
         let rateProto = Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRate.makeTest(currencyCode: "usd", rate: 1.0)
         let data = try rateProto.serializedData()
-        try store.writeRate(StoredRateRow(currency: "usd", rateProto: data, receivedAt: Date()))
+        try store.writeRates([StoredRateRow(currency: "usd", rateProto: data)])
 
-        let service = VerifiedProtoService(store: store, clock: { Date() })
+        let service = VerifiedProtoService(store: store)
 
         // Allow warm-load task a turn.
         try await Task.sleep(for: .milliseconds(150))
@@ -167,9 +163,9 @@ struct VerifiedProtoServiceTests {
         // Pre-seed the store with a serialized reserve proto.
         let reserveProto = Ocp_Currency_V1_VerifiedLaunchpadCurrencyReserveState.makeTest(mint: .usdf)
         let data = try reserveProto.serializedData()
-        try store.writeReserve(StoredReserveRow(mint: PublicKey.usdf.base58, reserveProto: data, receivedAt: Date()))
+        try store.writeReserves([StoredReserveRow(mint: PublicKey.usdf.base58, reserveProto: data)])
 
-        let service = VerifiedProtoService(store: store, clock: { Date() })
+        let service = VerifiedProtoService(store: store)
 
         // Allow warm-load task a turn.
         try await Task.sleep(for: .milliseconds(150))
@@ -177,11 +173,32 @@ struct VerifiedProtoServiceTests {
         #expect(await service.getVerifiedReserveState(for: .usdf) != nil)
     }
 
+    @Test("warm-load does not clobber keys already populated by a concurrent stream delivery")
+    func init_warmLoadSkipsAlreadyPopulatedKeys() async throws {
+        let store = InMemoryVerifiedProtoStore()
+
+        // Pre-seed the store with an OLDER proto.
+        let oldProto = Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRate.makeTest(currencyCode: "usd", rate: 0.5)
+        try store.writeRates([StoredRateRow(currency: "usd", rateProto: try oldProto.serializedData())])
+
+        let service = VerifiedProtoService(store: store)
+
+        // Simulate the stream delivering a fresher rate before warm-load runs.
+        await service.saveRates([.makeTest(currencyCode: "usd", rate: 1.0)])
+
+        // Give warm-load time to finish.
+        try await Task.sleep(for: .milliseconds(150))
+
+        // The fresh stream value must win.
+        let rate = await service.rate(for: .usd)
+        #expect(rate?.fx == Decimal(1.0))
+    }
+
     @Test("write failure logs but does not prevent in-memory update")
     func writeFailure_fallsThrough() async throws {
         let store = InMemoryVerifiedProtoStore()
         store.writeRateError = NSError(domain: "test", code: 1)
-        let service = VerifiedProtoService(store: store, clock: { Date() })
+        let service = VerifiedProtoService(store: store)
 
         await service.saveRates([.makeTest(currencyCode: "usd", rate: 1.0)])
 

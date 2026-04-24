@@ -450,38 +450,6 @@ struct SessionContainer {
             .environment(onrampDeeplinkInbox)
     }
 
-    /// Computed so each access builds a fresh graph sharing ONE Database
-    /// across session / ratesController / historyController, matching what
-    /// production wires up. `static let` would have each `.mock` evaluate
-    /// its own Database at init and diverge.
-    @MainActor
-    static var mock: SessionContainer {
-        let database = Database.mock
-        let ratesController = RatesController(container: .mock, database: database)
-        let historyController = HistoryController(container: .mock, database: database, owner: .mock)
-        let session = Session(
-            container: .mock,
-            historyController: historyController,
-            ratesController: ratesController,
-            database: database,
-            keyAccount: .mock,
-            owner: .init(
-                authority: .derive(using: .primary(), mnemonic: .mock),
-                mint: .mock,
-                timeAuthority: .usdcAuthority
-            ),
-            userID: UUID()
-        )
-        return .init(
-            session: session,
-            database: database,
-            walletConnection: .mock,
-            ratesController: ratesController,
-            historyController: historyController,
-            pushController: .mock,
-            flipClient: Container.mock.flipClient
-        )
-    }
 }
 
 extension View {

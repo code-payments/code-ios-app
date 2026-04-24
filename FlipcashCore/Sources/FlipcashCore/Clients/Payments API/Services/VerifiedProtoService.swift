@@ -40,27 +40,29 @@ public actor VerifiedProtoService {
     public nonisolated let reserveStatesPublisher = PassthroughSubject<[ReserveStateUpdate], Never>()
 
     private let store: VerifiedProtoStore
-    private let clock: @Sendable () -> Date
 
-    public init(
-        store: VerifiedProtoStore,
-        clock: @Sendable @escaping () -> Date = Date.init
-    ) {
+    public init(store: VerifiedProtoStore) {
         self.store = store
-        self.clock = clock
         Task { await self.warmLoadFromStore() }
     }
 
+    /// Warm-load is kicked off from init as an unstructured Task, so it can
+    /// interleave with concurrent `saveRates`/`saveReserveStates` deliveries
+    /// from the stream. Newer data must win: if a key is already populated
+    /// when warm-load arrives at it, leave it alone — the in-memory value
+    /// came from the stream and is fresher than whatever the store has.
     private func warmLoadFromStore() async {
         do {
             for row in try store.allRates() {
-                guard let currency = try? CurrencyCode(currencyCode: row.currency) else { continue }
+                guard let currency = try? CurrencyCode(currencyCode: row.currency),
+                      exchangeRates[currency] == nil else { continue }
                 if let proto = try? Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRate(serializedBytes: row.rateProto) {
                     exchangeRates[currency] = proto
                 }
             }
             for row in try store.allReserves() {
-                guard let key = try? PublicKey(base58: row.mint) else { continue }
+                guard let key = try? PublicKey(base58: row.mint),
+                      reserveStates[key] == nil else { continue }
                 if let proto = try? Ocp_Currency_V1_VerifiedLaunchpadCurrencyReserveState(serializedBytes: row.reserveProto) {
                     reserveStates[key] = proto
                 }
@@ -72,16 +74,16 @@ public actor VerifiedProtoService {
 
     // MARK: - Save Methods
 
-    /// Save verified exchange rates from streaming batch.
+    /// Save verified exchange rates from a streaming batch.
     /// Only publishes updates for currencies whose `fx` actually changed,
-    /// avoiding no-op downstream work (SwiftUI re-renders, DB writes).
+    /// avoiding no-op downstream work (SwiftUI re-renders).
     /// The full proto is still stored on every call so intent submission
-    /// always uses the freshest signed rate proof, even when the
-    /// numeric exchange rate is unchanged.
+    /// always uses the freshest signed rate proof, even when the numeric
+    /// exchange rate is unchanged.
     public func saveRates(_ rates: [Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRate]) {
-        let now = clock()
         var parsedRates: [Rate] = []
         var unknownCodes: [String] = []
+        var rowsToPersist: [StoredRateRow] = []
 
         for rate in rates {
             guard let currency = try? CurrencyCode(currencyCode: rate.exchangeRate.currencyCode) else {
@@ -90,7 +92,9 @@ public actor VerifiedProtoService {
             }
             let fxChanged = exchangeRates[currency]?.exchangeRate.exchangeRate != rate.exchangeRate.exchangeRate
             exchangeRates[currency] = rate
-            persistRate(currency: currency, proto: rate, receivedAt: now)
+            if let data = try? rate.serializedData() {
+                rowsToPersist.append(StoredRateRow(currency: currency.rawValue, rateProto: data))
+            }
             if fxChanged {
                 parsedRates.append(Rate(
                     fx: Decimal(rate.exchangeRate.exchangeRate),
@@ -98,6 +102,8 @@ public actor VerifiedProtoService {
                 ))
             }
         }
+
+        persistRates(rowsToPersist)
 
         if !unknownCodes.isEmpty {
             logger.warning("Skipped exchange rates with unknown codes", metadata: [
@@ -116,35 +122,32 @@ public actor VerifiedProtoService {
         }
     }
 
-    private func persistRate(
-        currency: CurrencyCode,
-        proto: Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRate,
-        receivedAt: Date
-    ) {
+    private func persistRates(_ rows: [StoredRateRow]) {
+        guard !rows.isEmpty else { return }
         do {
-            let data = try proto.serializedData()
-            try store.writeRate(StoredRateRow(currency: currency.rawValue, rateProto: data, receivedAt: receivedAt))
+            try store.writeRates(rows)
         } catch {
-            logger.warning("Failed to persist verified rate", metadata: [
-                "currency": "\(currency.rawValue)",
+            logger.warning("Failed to persist verified rates", metadata: [
+                "count": "\(rows.count)",
                 "error": "\(error)"
             ])
         }
     }
 
-    /// Save verified reserve states from streaming batch.
+    /// Save verified reserve states from a streaming batch.
     /// Only publishes updates for mints whose supply actually changed,
-    /// avoiding no-op DB writes and cascading UI refreshes.
+    /// avoiding cascading UI refreshes.
     public func saveReserveStates(_ states: [Ocp_Currency_V1_VerifiedLaunchpadCurrencyReserveState]) {
-        let now = clock()
         var updates: [ReserveStateUpdate] = []
+        var rowsToPersist: [StoredReserveRow] = []
+
         for state in states {
-            guard let mint = try? PublicKey(state.reserveState.mint.value) else {
-                continue
-            }
+            guard let mint = try? PublicKey(state.reserveState.mint.value) else { continue }
             let supplyChanged = reserveStates[mint]?.reserveState.supplyFromBonding != state.reserveState.supplyFromBonding
             reserveStates[mint] = state
-            persistReserve(mint: mint, proto: state, receivedAt: now)
+            if let data = try? state.serializedData() {
+                rowsToPersist.append(StoredReserveRow(mint: mint.base58, reserveProto: data))
+            }
             if supplyChanged {
                 updates.append(ReserveStateUpdate(
                     mint: mint,
@@ -153,22 +156,20 @@ public actor VerifiedProtoService {
             }
         }
 
+        persistReserves(rowsToPersist)
+
         if !updates.isEmpty {
             reserveStatesPublisher.send(updates)
         }
     }
 
-    private func persistReserve(
-        mint: PublicKey,
-        proto: Ocp_Currency_V1_VerifiedLaunchpadCurrencyReserveState,
-        receivedAt: Date
-    ) {
+    private func persistReserves(_ rows: [StoredReserveRow]) {
+        guard !rows.isEmpty else { return }
         do {
-            let data = try proto.serializedData()
-            try store.writeReserve(StoredReserveRow(mint: mint.base58, reserveProto: data, receivedAt: receivedAt))
+            try store.writeReserves(rows)
         } catch {
-            logger.warning("Failed to persist verified reserve", metadata: [
-                "mint": "\(mint.base58)",
+            logger.warning("Failed to persist verified reserves", metadata: [
+                "count": "\(rows.count)",
                 "error": "\(error)"
             ])
         }
@@ -185,7 +186,10 @@ public actor VerifiedProtoService {
     /// - Returns: VerifiedState with exchange rate proof and optional reserve state proof
     public func getVerifiedState(for currency: CurrencyCode, mint: PublicKey) -> VerifiedState? {
         guard let rateProto = exchangeRates[currency] else {
-            logger.warning("No verified exchange rate for currency", metadata: ["currency": "\(currency.rawValue)"])
+            // Debug-level because `awaitVerifiedState` polls up to 25× on a
+            // cold cache — warn-level here would flood telemetry for what is
+            // ultimately just "cache warming, please wait".
+            logger.debug("No verified exchange rate for currency", metadata: ["currency": "\(currency.rawValue)"])
             return nil
         }
 

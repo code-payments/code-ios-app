@@ -46,12 +46,12 @@ struct CurrencySellAmountScreen: View {
             .navigationDestination(for: CurrencySellPath.self) { step in
                 switch step {
                 case .confirmation:
-                    if let amount = viewModel.enteredFiat, let pinnedState = viewModel.pinnedState {
+                    if let amount = viewModel.enteredFiat {
                         CurrencySellConfirmationScreen(
                             mint: viewModel.currencyMetadata.mint,
                             currencyName: viewModel.currencyMetadata.name,
                             amount: amount,
-                            pinnedState: pinnedState,
+                            pinnedState: viewModel.pinnedState,
                             path: $viewModel.path
                         )
                         .environment(\.dismissParentContainer, {

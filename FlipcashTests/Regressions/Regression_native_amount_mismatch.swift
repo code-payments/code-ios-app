@@ -40,8 +40,7 @@ struct Regression_native_amount_mismatch {
             currencyPublicKey: .usdf,
             currencyName: "USDF",
             pinnedState: pinnedState,
-            session: sessionContainer.session,
-            ratesController: sessionContainer.ratesController
+            session: sessionContainer.session
         )
 
         // Stream delivers a newer reserve state (a different supply) into THIS
@@ -92,8 +91,7 @@ struct Regression_native_amount_mismatch {
             currencyPublicKey: .usdf,
             currencyName: "USDF",
             pinnedState: stalePin,
-            session: sessionContainer.session,
-            ratesController: sessionContainer.ratesController
+            session: sessionContainer.session
         )
 
         // Enter an amount that would otherwise be valid.
@@ -101,5 +99,123 @@ struct Regression_native_amount_mismatch {
 
         // canPerformAction must be false — staleness check gates submission.
         #expect(vm.canPerformAction == false)
+    }
+
+    // MARK: - Scenario D
+
+    /// This is the invariant the earlier scenarios missed: even when the VM's
+    /// `pinnedState` reference is preserved, the UI math has to USE it. If
+    /// `enteredFiat` sources its rate from the live cache while the intent
+    /// carries the pinned `rateProto`, the server will see (quarks, nativeAmount)
+    /// that don't match its rate proof — exactly the production error.
+    @Test("Scenario D: enteredFiat computes quarks from the PINNED rate, not the live cache")
+    func scenarioD_enteredFiatUsesPinnedRate_buyFlow() throws {
+        // Pinned rate: 1 USD = 1.35 CAD. Live rate has drifted to 1.37 after
+        // the pin was captured.
+        let pinned = VerifiedState.fresh(bonded: false, currencyCode: "CAD", exchangeRate: 1.35)
+
+        let sessionContainer = SessionContainer.mock
+        sessionContainer.ratesController.configureTestRates(
+            entryCurrency: .cad,
+            rates: [Rate(fx: 1.37, currency: .cad)]
+        )
+
+        let vm = CurrencyBuyViewModel(
+            currencyPublicKey: .usdf,
+            currencyName: "USDF",
+            pinnedState: pinned,
+            session: sessionContainer.session
+        )
+        vm.enteredAmount = "1"
+
+        // $1 CAD / 1.35 × 10^6, HALF_UP rounded via scaleUpInt → 740_741 USDF quarks.
+        // The buggy path (live rate 1.37) would round to 729_927 quarks — the
+        // value the server already rejected in production.
+        let entered = try #require(vm.enteredFiat)
+        #expect(entered.onChainAmount.quarks == 740_741)
+        #expect(entered.onChainAmount.quarks != 729_927)
+    }
+
+    @Test("Scenario D (withdraw): enteredFiat.currencyRate is the PINNED rate, not the live cache")
+    func scenarioD_enteredFiatUsesPinnedRate_withdrawFlow() throws {
+        // Pinned CAD rate is 1.35; live cache has drifted to 1.37.
+        let pinned = VerifiedState.fresh(
+            bonded: true,
+            currencyCode: "CAD",
+            exchangeRate: 1.35,
+            supplyFromBonding: 1_000_000 * 10_000_000_000
+        )
+
+        let viewModel = WithdrawViewModelTestHelpers.createViewModel(
+            entryCurrency: .cad,
+            rates: [Rate(fx: 1.37, currency: .cad)],
+            pinnedState: pinned
+        )
+        viewModel.selectedBalance = WithdrawViewModelTestHelpers.createBondedBalance(
+            supplyFromBonding: 1_500_000 * 10_000_000_000
+        )
+        viewModel.enteredAmount = "1"
+
+        let entered = try #require(viewModel.enteredFiat)
+        #expect(entered.currencyRate.fx == Decimal(1.35))
+        #expect(entered.currencyRate.fx != Decimal(1.37))
+    }
+
+    @Test("Scenario D (withdraw): falls back to live rate when pinnedState is nil, but submit stays gated")
+    func scenarioD_withdrawFallbackWhenPinnedStateNil() throws {
+        // No pinned state yet (still being fetched). enteredFiat must remain
+        // usable for display, but canCompleteWithdrawal must be false — the
+        // submit gate is what keeps an intent with a live-rate amount from
+        // reaching Session.withdraw.
+        let liveRate = Rate(fx: 1.37, currency: .cad)
+        let viewModel = WithdrawViewModelTestHelpers.createViewModel(
+            entryCurrency: .cad,
+            rates: [liveRate],
+            pinnedState: nil
+        )
+        viewModel.selectedBalance = WithdrawViewModelTestHelpers.createExchangedBalance(quarks: 10_000_000)
+        viewModel.enteredAmount = "1"
+        viewModel.enteredAddress = "11111111111111111111111111111111"
+        viewModel.destinationMetadata = WithdrawViewModelTestHelpers.createDestinationMetadata()
+
+        let entered = try #require(viewModel.enteredFiat)
+        #expect(entered.currencyRate.fx == Decimal(1.37))
+        #expect(viewModel.canCompleteWithdrawal == false)
+    }
+
+    @Test("Scenario D (sell): enteredFiat.currencyRate is the PINNED rate, not the live cache")
+    func scenarioD_enteredFiatUsesPinnedRate_sellFlow() throws {
+        // Pinned CAD rate is 1.35; live cache has drifted to 1.37.
+        let pinned = VerifiedState.fresh(
+            bonded: true,
+            currencyCode: "CAD",
+            exchangeRate: 1.35,
+            supplyFromBonding: 1_000_000 * 10_000_000_000
+        )
+
+        let metadata = StoredMintMetadata(MintMetadata.makeLaunchpad(
+            supplyFromBonding: 1_500_000 * 10_000_000_000
+        ))
+
+        let sessionContainer = SessionContainer.mock
+        sessionContainer.ratesController.configureTestRates(
+            entryCurrency: .cad,
+            rates: [Rate(fx: 1.37, currency: .cad)]
+        )
+
+        let vm = CurrencySellViewModel(
+            currencyMetadata: metadata,
+            pinnedState: pinned,
+            session: sessionContainer.session
+        )
+        vm.enteredAmount = "1"
+
+        // `currencyRate` on the output ExchangedFiat is the rate that was
+        // passed into `compute(fromEntered:rate:…)`. With the fix in place it
+        // is the pinned rate (1.35); before the fix it was the live cache
+        // (1.37). Comparing `.fx` via Decimal proves which source was used.
+        let entered = try #require(vm.enteredFiat)
+        #expect(entered.currencyRate.fx == Decimal(1.35))
+        #expect(entered.currencyRate.fx != Decimal(1.37))
     }
 }

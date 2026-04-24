@@ -571,14 +571,11 @@ struct CurrencyCreationWizardScreen: View {
             // that would poll a swap id the server never registered.
             let swapId: SwapId
             do {
+                // currentPinnedState logs the nil-case itself.
                 guard let verifiedState = await ratesController.currentPinnedState(
                     for: launchAmount.nativeAmount.currency,
                     mint: launchAmount.mint
                 ) else {
-                    logger.warning("Currency launch blocked: no fresh verified state cached", metadata: [
-                        "mint": "\(launchAmount.mint.base58)",
-                        "currency": "\(launchAmount.nativeAmount.currency)",
-                    ])
                     throw Session.Error.missingVerifiedState
                 }
 

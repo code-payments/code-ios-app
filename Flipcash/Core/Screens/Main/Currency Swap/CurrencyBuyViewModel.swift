@@ -29,7 +29,10 @@ class CurrencyBuyViewModel: Identifiable {
         }
 
         let mint: PublicKey = .usdf
-        let rate = ratesController.rateForEntryCurrency()
+        // MUST use the pinned rate — the server validates (quarks, nativeAmount)
+        // against `pinnedState.rateProto`, so quarks computed against any other
+        // rate will be rejected as a native/quark mismatch.
+        let rate = pinnedState.rate
 
         let entered = ExchangedFiat(
             nativeAmount: FiatAmount(value: amount, currency: rate.currency),
@@ -73,7 +76,10 @@ class CurrencyBuyViewModel: Identifiable {
     }
 
     var maxPossibleAmount: ExchangedFiat {
-        let entryRate = ratesController.rateForEntryCurrency()
+        // Use the pinned rate so the displayed max matches the rate the submit
+        // will be validated against; otherwise the cap comparison in
+        // `canPerformAction` uses a different rate than the intent.
+        let entryRate = pinnedState.rate
         let zero = ExchangedFiat.compute(
             onChainAmount: .zero(mint: .usdf),
             rate: entryRate,
@@ -88,19 +94,17 @@ class CurrencyBuyViewModel: Identifiable {
     }
     
     @ObservationIgnored private let session: Session
-    @ObservationIgnored private let ratesController: RatesController
     @ObservationIgnored private let destination: PublicKey
     @ObservationIgnored private let currencyName: String
     @ObservationIgnored let pinnedState: VerifiedState
 
     // MARK: - Init -
 
-    init(currencyPublicKey: PublicKey, currencyName: String, pinnedState: VerifiedState, session: Session, ratesController: RatesController) {
-        self.destination     = currencyPublicKey
-        self.currencyName    = currencyName
-        self.pinnedState     = pinnedState
-        self.session         = session
-        self.ratesController = ratesController
+    init(currencyPublicKey: PublicKey, currencyName: String, pinnedState: VerifiedState, session: Session) {
+        self.destination = currencyPublicKey
+        self.currencyName = currencyName
+        self.pinnedState = pinnedState
+        self.session = session
     }
         
     // MARK: - Actions -

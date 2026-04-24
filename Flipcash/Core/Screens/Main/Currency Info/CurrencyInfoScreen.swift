@@ -145,11 +145,22 @@ struct CurrencyInfoScreen: View {
                     },
                     onSell: {
                         Analytics.buttonTapped(name: .sell)
-                        presentedSellViewModel = CurrencySellViewModel(
-                            currencyMetadata: metadata,
-                            session: session,
-                            ratesController: ratesController
-                        )
+                        Task { @MainActor in
+                            // Mirror the buy flow: resolve the pinned state
+                            // before the VM is created so every compute on the
+                            // sell entry screen runs against the same rate +
+                            // bonded supply the intent will carry.
+                            // `currentPinnedState` logs the nil-case itself.
+                            let currency = ratesController.entryCurrency
+                            guard let pinned = await ratesController.currentPinnedState(for: currency, mint: metadata.mint) else {
+                                return
+                            }
+                            presentedSellViewModel = CurrencySellViewModel(
+                                currencyMetadata: metadata,
+                                pinnedState: pinned,
+                                session: session
+                            )
+                        }
                     }
                 )
             case .error(let error):
@@ -269,13 +280,11 @@ struct CurrencyInfoScreen: View {
                         Task { @MainActor in
                             // Source mint for reserves-funded buys is always USDF
                             // (the user funds from their USDF balance), regardless
-                            // of the destination currency.
+                            // of the destination currency. `currentPinnedState`
+                            // logs the nil-case itself; we just dismiss the
+                            // funding sheet so the user isn't stuck.
                             let currency = ratesController.entryCurrency
                             guard let pinned = await ratesController.currentPinnedState(for: currency, mint: .usdf) else {
-                                // Cache empty/stale: dismiss the funding sheet so
-                                // the user gets out of the dead end. The next tap
-                                // will retry — by then the stream should have
-                                // delivered fresh state.
                                 isShowingFundingSelection = false
                                 return
                             }
@@ -283,8 +292,7 @@ struct CurrencyInfoScreen: View {
                                 currencyPublicKey: metadata.mint,
                                 currencyName: metadata.name,
                                 pinnedState: pinned,
-                                session: session,
-                                ratesController: ratesController
+                                session: session
                             )
                             isShowingFundingSelection = false
                         }

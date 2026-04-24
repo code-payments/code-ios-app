@@ -198,10 +198,21 @@ class RatesController {
     /// opening an amount-entry flow; if nil, they should silently decline to open
     /// the flow (per the zero-UX-changes rule — the stream + DB warm-load should
     /// keep the cache populated in practice).
+    ///
+    /// Cache-empty is already logged inside `VerifiedProtoService.getVerifiedState`.
+    /// The stale branch is the one that would otherwise be silent, so that's
+    /// where we emit. The AppRouter's navigation trail supplies the flow
+    /// context, so we don't carry a per-call tag here.
     func currentPinnedState(for currency: CurrencyCode, mint: PublicKey) async -> VerifiedState? {
-        guard let state = await verifiedProtoService.getVerifiedState(for: currency, mint: mint),
-              !state.isStale
-        else {
+        guard let state = await verifiedProtoService.getVerifiedState(for: currency, mint: mint) else {
+            return nil
+        }
+        guard !state.isStale else {
+            logger.warning("No pinned state: stale", metadata: [
+                "mint": "\(mint.base58)",
+                "currency": "\(currency)",
+                "ageSeconds": "\(state.age)",
+            ])
             return nil
         }
         return state
@@ -357,11 +368,3 @@ private enum LocalDefaults {
     static var storedTokenMint: String?
 }
 
-extension RatesController {
-    /// Fresh per access. Each `.mock` returns a new `RatesController` with a
-    /// new underlying `Database`; read it once and bind to a local if you
-    /// need the same instance across multiple calls.
-    static var mock: RatesController {
-        RatesController(container: .mock, database: .mock)
-    }
-}

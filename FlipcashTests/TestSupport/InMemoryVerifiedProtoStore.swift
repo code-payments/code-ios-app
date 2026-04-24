@@ -10,8 +10,8 @@ final class InMemoryVerifiedProtoStore: VerifiedProtoStore, @unchecked Sendable 
     private let lock = NSLock()
     private var rates: [String: StoredRateRow] = [:]
     private var reserves: [String: StoredReserveRow] = [:]
-    private(set) var writeRateCalls: [StoredRateRow] = []
-    private(set) var writeReserveCalls: [StoredReserveRow] = []
+    private(set) var writeRateCalls: [[StoredRateRow]] = []
+    private(set) var writeReserveCalls: [[StoredReserveRow]] = []
 
     var writeRateError: Error?
     var writeReserveError: Error?
@@ -26,25 +26,29 @@ final class InMemoryVerifiedProtoStore: VerifiedProtoStore, @unchecked Sendable 
         return Array(reserves.values)
     }
 
-    func writeRate(_ row: StoredRateRow) throws {
+    func writeRates(_ rows: [StoredRateRow]) throws {
         lock.lock()
         if let writeRateError {
             lock.unlock()
             throw writeRateError
         }
         defer { lock.unlock() }
-        rates[row.currency] = row
-        writeRateCalls.append(row)
+        for row in rows {
+            rates[row.currency] = row
+        }
+        writeRateCalls.append(rows)
     }
 
-    func writeReserve(_ row: StoredReserveRow) throws {
+    func writeReserves(_ rows: [StoredReserveRow]) throws {
         lock.lock()
         if let writeReserveError {
             lock.unlock()
             throw writeReserveError
         }
         defer { lock.unlock() }
-        reserves[row.mint] = row
-        writeReserveCalls.append(row)
+        for row in rows {
+            reserves[row.mint] = row
+        }
+        writeReserveCalls.append(rows)
     }
 }

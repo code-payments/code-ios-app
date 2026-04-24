@@ -20,6 +20,16 @@ struct CurrencyBuyViewModelTests {
     /// CAD rate: 1 USD = 1.35 CAD
     static let cadRate = Rate(fx: 1.35, currency: .cad)
 
+    /// Default pinned state matching `cadRate` — the VM now sources its rate
+    /// from `pinnedState.rate` (not the live cache), so the pinned proof and
+    /// the configured live rate MUST agree for tests that aren't specifically
+    /// exercising a pinned-vs-live divergence.
+    static let cadPinnedState = VerifiedState.fresh(
+        bonded: false,
+        currencyCode: "CAD",
+        exchangeRate: 1.35
+    )
+
     /// Helper to create a test view model with CAD as the entry currency and a fresh pinned state.
     /// Uses the mock SessionContainer which has no seeded balance.
     static func createViewModel(pinnedState: VerifiedState? = nil) -> CurrencyBuyViewModel {
@@ -31,9 +41,8 @@ struct CurrencyBuyViewModelTests {
         return CurrencyBuyViewModel(
             currencyPublicKey: .usdf,
             currencyName: "USDF",
-            pinnedState: pinnedState ?? .fresh(bonded: false),
-            session: sessionContainer.session,
-            ratesController: sessionContainer.ratesController
+            pinnedState: pinnedState ?? cadPinnedState,
+            session: sessionContainer.session
         )
     }
 
@@ -50,9 +59,8 @@ struct CurrencyBuyViewModelTests {
         return CurrencyBuyViewModel(
             currencyPublicKey: .jeffy,
             currencyName: "Test",
-            pinnedState: pinnedState ?? .fresh(bonded: false),
-            session: container.session,
-            ratesController: container.ratesController
+            pinnedState: pinnedState ?? cadPinnedState,
+            session: container.session
         )
     }
 

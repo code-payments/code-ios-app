@@ -13,29 +13,23 @@ struct DatabaseVerifiedProtosTests {
 
     // MARK: - Rate Tests
 
-    @Test("writeRate then read returns the same row")
+    @Test("writeRates then read returns the same row")
     func rate_roundTrip() throws {
         let db = Database.mock
-        let proto = Data([0x01, 0x02, 0x03])
-        let received = Date(timeIntervalSince1970: 1_000)
+        let row = StoredRateRow(currency: "USD", rateProto: Data([0x01, 0x02, 0x03]))
 
-        try db.writeRate(
-            StoredRateRow(currency: "USD", rateProto: proto, receivedAt: received)
-        )
+        try db.writeRates([row])
 
-        let loaded = try db.readVerifiedRate(currency: "USD")
-        #expect(loaded == StoredRateRow(currency: "USD", rateProto: proto, receivedAt: received))
+        #expect(try db.readVerifiedRate(currency: "USD") == row)
     }
 
-    @Test("writeRate upserts on the currency key")
+    @Test("writeRates upserts on the currency key")
     func rate_upsert() throws {
         let db = Database.mock
-        try db.writeRate(StoredRateRow(currency: "USD", rateProto: Data([0x01]), receivedAt: Date(timeIntervalSince1970: 1_000)))
-        try db.writeRate(StoredRateRow(currency: "USD", rateProto: Data([0x02]), receivedAt: Date(timeIntervalSince1970: 2_000)))
+        try db.writeRates([StoredRateRow(currency: "USD", rateProto: Data([0x01]))])
+        try db.writeRates([StoredRateRow(currency: "USD", rateProto: Data([0x02]))])
 
-        let loaded = try db.readVerifiedRate(currency: "USD")
-        #expect(loaded?.rateProto == Data([0x02]))
-        #expect(loaded?.receivedAt == Date(timeIntervalSince1970: 2_000))
+        #expect(try db.readVerifiedRate(currency: "USD")?.rateProto == Data([0x02]))
     }
 
     @Test("readVerifiedRate returns nil for missing currency")
@@ -47,48 +41,44 @@ struct DatabaseVerifiedProtosTests {
     @Test("allRates returns every row")
     func rate_readAll() throws {
         let db = Database.mock
-        try db.writeRate(StoredRateRow(currency: "USD", rateProto: Data([0x01]), receivedAt: Date(timeIntervalSince1970: 1_000)))
-        try db.writeRate(StoredRateRow(currency: "EUR", rateProto: Data([0x02]), receivedAt: Date(timeIntervalSince1970: 2_000)))
+        try db.writeRates([
+            StoredRateRow(currency: "USD", rateProto: Data([0x01])),
+            StoredRateRow(currency: "EUR", rateProto: Data([0x02])),
+        ])
 
-        let all = try db.allRates()
-        #expect(Set(all.map(\.currency)) == ["USD", "EUR"])
+        #expect(Set(try db.allRates().map(\.currency)) == ["USD", "EUR"])
     }
 
     // MARK: - Reserve Tests
 
-    @Test("writeReserve then read returns the same row")
+    @Test("writeReserves then read returns the same row")
     func reserve_roundTrip() throws {
         let db = Database.mock
-        let proto = Data([0xaa, 0xbb])
-        let received = Date(timeIntervalSince1970: 500)
-        let mint = "SomeBase58MintAddress"
+        let row = StoredReserveRow(mint: "SomeBase58MintAddress", reserveProto: Data([0xaa, 0xbb]))
 
-        try db.writeReserve(
-            StoredReserveRow(mint: mint, reserveProto: proto, receivedAt: received)
-        )
+        try db.writeReserves([row])
 
-        let loaded = try db.readVerifiedReserve(mint: mint)
-        #expect(loaded == StoredReserveRow(mint: mint, reserveProto: proto, receivedAt: received))
+        #expect(try db.readVerifiedReserve(mint: row.mint) == row)
     }
 
-    @Test("writeReserve upserts on mint")
+    @Test("writeReserves upserts on mint")
     func reserve_upsert() throws {
         let db = Database.mock
         let mint = "MintX"
-        try db.writeReserve(StoredReserveRow(mint: mint, reserveProto: Data([0x01]), receivedAt: Date(timeIntervalSince1970: 1_000)))
-        try db.writeReserve(StoredReserveRow(mint: mint, reserveProto: Data([0x02]), receivedAt: Date(timeIntervalSince1970: 2_000)))
+        try db.writeReserves([StoredReserveRow(mint: mint, reserveProto: Data([0x01]))])
+        try db.writeReserves([StoredReserveRow(mint: mint, reserveProto: Data([0x02]))])
 
-        let loaded = try db.readVerifiedReserve(mint: mint)
-        #expect(loaded?.reserveProto == Data([0x02]))
+        #expect(try db.readVerifiedReserve(mint: mint)?.reserveProto == Data([0x02]))
     }
 
     @Test("allReserves returns every row")
     func reserve_readAll() throws {
         let db = Database.mock
-        try db.writeReserve(StoredReserveRow(mint: "A", reserveProto: Data([0x01]), receivedAt: Date()))
-        try db.writeReserve(StoredReserveRow(mint: "B", reserveProto: Data([0x02]), receivedAt: Date()))
+        try db.writeReserves([
+            StoredReserveRow(mint: "A", reserveProto: Data([0x01])),
+            StoredReserveRow(mint: "B", reserveProto: Data([0x02])),
+        ])
 
-        let all = try db.allReserves()
-        #expect(Set(all.map(\.mint)) == ["A", "B"])
+        #expect(Set(try db.allReserves().map(\.mint)) == ["A", "B"])
     }
 }

@@ -11,24 +11,10 @@ extension Session {
 
     /// A session whose profile is `nil`, so both `isPhoneVerified` and
     /// `isEmailVerified` read as `false`. Use when a test needs to drive
-    /// a flow that branches on unverified state.
+    /// a flow that branches on unverified state. Identical to `Session.mock`
+    /// today — kept as a named alias so test intent stays self-documenting.
     @MainActor
-    static var unverifiedMock: Session {
-        let database = Database.mock
-        return Session(
-            container: .mock,
-            historyController: HistoryController(container: .mock, database: database, owner: .mock),
-            ratesController: RatesController(container: .mock, database: database),
-            database: database,
-            keyAccount: .mock,
-            owner: .init(
-                authority: .derive(using: .primary(), mnemonic: .mock),
-                mint: .mock,
-                timeAuthority: .usdcAuthority
-            ),
-            userID: UUID()
-        )
-    }
+    static var unverifiedMock: Session { .mock }
 
     /// A session with a fully-verified profile (both phone and email set).
     /// Use when a test needs to drive a flow that branches on verified state.
