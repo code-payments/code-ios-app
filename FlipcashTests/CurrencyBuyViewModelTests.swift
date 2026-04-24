@@ -20,20 +20,6 @@ struct CurrencyBuyViewModelTests {
     /// CAD rate: 1 USD = 1.35 CAD
     static let cadRate = Rate(fx: 1.35, currency: .cad)
 
-    static func makeFreshPinnedState() -> VerifiedState {
-        VerifiedState.makeForTest(
-            rateTimestamp: Date(),
-            reserveTimestamp: nil
-        )
-    }
-
-    static func makeStalePinnedState() -> VerifiedState {
-        VerifiedState.makeForTest(
-            rateTimestamp: Date().addingTimeInterval(-VerifiedState.clientMaxAge - 1),
-            reserveTimestamp: nil
-        )
-    }
-
     /// Helper to create a test view model with CAD as the entry currency and a fresh pinned state.
     /// Uses the mock SessionContainer which has no seeded balance.
     static func createViewModel(pinnedState: VerifiedState? = nil) -> CurrencyBuyViewModel {
@@ -45,7 +31,7 @@ struct CurrencyBuyViewModelTests {
         return CurrencyBuyViewModel(
             currencyPublicKey: .usdf,
             currencyName: "USDF",
-            pinnedState: pinnedState ?? makeFreshPinnedState(),
+            pinnedState: pinnedState ?? .fresh(bonded: false),
             session: sessionContainer.session,
             ratesController: sessionContainer.ratesController
         )
@@ -65,7 +51,7 @@ struct CurrencyBuyViewModelTests {
         return CurrencyBuyViewModel(
             currencyPublicKey: .jeffy,
             currencyName: "Test",
-            pinnedState: pinnedState ?? makeFreshPinnedState(),
+            pinnedState: pinnedState ?? .fresh(bonded: false),
             session: container.session,
             ratesController: container.ratesController
         )
@@ -116,7 +102,7 @@ struct CurrencyBuyViewModelTests {
 
     @Test("canPerformAction is false when pinnedState is stale, even with a valid amount entered")
     func canPerformAction_stalePinnedState_returnsFalse() {
-        let viewModel = Self.createViewModel(pinnedState: Self.makeStalePinnedState())
+        let viewModel = Self.createViewModel(pinnedState: .stale(bonded: false))
         viewModel.enteredAmount = "1"
 
         #expect(viewModel.canPerformAction == false)
@@ -124,7 +110,7 @@ struct CurrencyBuyViewModelTests {
 
     @Test("canPerformAction is true when pinnedState is fresh and a valid amount is entered")
     func canPerformAction_freshPinnedState_returnsTrue() throws {
-        let viewModel = try Self.createViewModelWithBalance(pinnedState: Self.makeFreshPinnedState())
+        let viewModel = try Self.createViewModelWithBalance(pinnedState: .fresh(bonded: false))
         viewModel.enteredAmount = "1"
 
         #expect(viewModel.canPerformAction == true)

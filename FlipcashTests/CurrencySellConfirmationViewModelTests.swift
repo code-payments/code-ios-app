@@ -21,20 +21,6 @@ struct CurrencySellConfirmationViewModelTests {
     /// USD→CAD rate of 1.35 — native (CAD) is derived as `usdValue * 1.35`.
     static let testRate = Rate(fx: 1.35, currency: .cad)
 
-    static func makeFreshPinnedState() -> VerifiedState {
-        VerifiedState.makeForTest(
-            rateTimestamp: Date(),
-            reserveTimestamp: Date()
-        )
-    }
-
-    static func makeStalePinnedState() -> VerifiedState {
-        VerifiedState.makeForTest(
-            rateTimestamp: Date().addingTimeInterval(-VerifiedState.clientMaxAge - 1),
-            reserveTimestamp: Date().addingTimeInterval(-VerifiedState.clientMaxAge - 1)
-        )
-    }
-
     /// Helper to create ExchangedFiat for testing. USDF-minted fixtures bypass
     /// the bonding curve so `onChainAmount.quarks` equals `usdfValue.value * 10^6`
     /// and `nativeAmount.value` equals `usdfValue.value * rate.fx`.
@@ -63,7 +49,7 @@ struct CurrencySellConfirmationViewModelTests {
         return CurrencySellConfirmationViewModel(
             mint: mint,
             amount: exchangedFiat,
-            pinnedState: pinnedState ?? makeFreshPinnedState()
+            pinnedState: pinnedState ?? .fresh()
         )
     }
     
@@ -311,26 +297,14 @@ struct CurrencySellConfirmationViewModelTests {
 
     @Test("canPerformAction is false when pinnedState is stale")
     func canPerformAction_stalePinnedState_returnsFalse() {
-        let viewModel = Self.createViewModel(pinnedState: Self.makeStalePinnedState())
+        let viewModel = Self.createViewModel(pinnedState: .stale())
 
         #expect(viewModel.canPerformAction == false)
     }
 
     @Test("canPerformAction is true when pinnedState is fresh")
     func canPerformAction_freshPinnedState_returnsTrue() {
-        let viewModel = Self.createViewModel(pinnedState: Self.makeFreshPinnedState())
-
-        #expect(viewModel.canPerformAction == true)
-    }
-
-    @Test("pinnedState with both rate and reserve timestamps is treated as bonded-sell fresh state")
-    func canPerformAction_freshBondedPinnedState_returnsTrue() {
-        // Sell is bonded-only; both protos should be present. Both timestamps fresh.
-        let pinnedState = VerifiedState.makeForTest(
-            rateTimestamp: Date(),
-            reserveTimestamp: Date()
-        )
-        let viewModel = Self.createViewModel(pinnedState: pinnedState)
+        let viewModel = Self.createViewModel(pinnedState: .fresh())
 
         #expect(viewModel.canPerformAction == true)
     }

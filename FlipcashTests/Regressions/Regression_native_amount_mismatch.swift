@@ -27,14 +27,11 @@ struct Regression_native_amount_mismatch {
     @Test("Scenario A: stream delivers a newer state mid-flow; the ViewModel's pinned state never swaps")
     func scenarioA_streamUpdateIgnoredMidFlow() async {
         // Make a fresh pinned state at a specific rate.
-        let pinnedState = VerifiedState.makeForTest(
-            rateTimestamp: Date(),
-            reserveTimestamp: nil
-        )
+        let pinnedState = VerifiedState.fresh(bonded: false)
 
         // Use a per-test isolated Database so saveReserveStates does not pollute
         // the shared Database.mock that every other test in the process reads from.
-        let isolatedController = RatesController(container: .mock, database: Self.makeIsolatedDatabase())
+        let isolatedController = RatesController(container: .mock, database: try! Database.makeIsolated())
 
         let sessionContainer = SessionContainer.mock
         let vm = CurrencyBuyViewModel(
@@ -64,7 +61,7 @@ struct Regression_native_amount_mismatch {
     func scenarioB_stalePinBlocksOpeningFlow() async {
         // Per-test isolated Database — saveRates / saveReserveStates persist via
         // VerifiedProtoService and would pollute Database.mock otherwise.
-        let controller = RatesController(container: .mock, database: Self.makeIsolatedDatabase())
+        let controller = RatesController(container: .mock, database: try! Database.makeIsolated())
 
         // Seed the service with stale protos for both rate and reserve.
         await controller.verifiedProtoService.saveRates([
@@ -83,23 +80,12 @@ struct Regression_native_amount_mismatch {
 
     // MARK: - Helpers
 
-    /// Per-test SQLite file. Prevents writes to Database.mock from leaking
-    /// across the whole test process (parallel tests share Database.mock and
-    /// VerifiedProtoService warm-loads each instance from disk).
-    private static func makeIsolatedDatabase() -> Database {
-        let path = NSTemporaryDirectory() + UUID().uuidString + ".sqlite"
-        return try! Database(url: URL(fileURLWithPath: path))
-    }
-
     // MARK: - Scenario C
 
     @Test("Scenario C: once the pin ages past clientMaxAge while the screen is open, canSubmit becomes false")
     func scenarioC_pinAgesOutMidFlow_disablesSubmit() {
         // Simulate a pin that became stale while the screen was open.
-        let stalePin = VerifiedState.makeForTest(
-            rateTimestamp: Date().addingTimeInterval(-VerifiedState.clientMaxAge - 1),
-            reserveTimestamp: nil
-        )
+        let stalePin = VerifiedState.stale(bonded: false)
 
         let sessionContainer = SessionContainer.mock
         let vm = CurrencyBuyViewModel(

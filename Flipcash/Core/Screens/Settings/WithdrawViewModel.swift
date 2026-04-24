@@ -226,6 +226,7 @@ class WithdrawViewModel {
     
     @ObservationIgnored private var amountToWithdraw: ExchangedFiat?
     @ObservationIgnored var pinnedState: VerifiedState?
+    @ObservationIgnored private var pinFetchTask: Task<Void, Never>?
     @ObservationIgnored private let isPresented: Binding<Bool>
     @ObservationIgnored private let container: Container
     @ObservationIgnored private let client: Client
@@ -291,10 +292,7 @@ class WithdrawViewModel {
                 showSuccessfulWithdrawalDialog()
 
             } catch Session.Error.verifiedStateStale {
-                logger.warning("Withdraw rejected: pinned verified state became stale", metadata: [
-                    "ageSeconds": "\(verifiedState.age)",
-                    "mint": "\(amountToWithdraw.mint.base58)",
-                ])
+                // Session.assertFresh already logged this. Reset button only.
                 withdrawButtonState = .normal
             } catch {
                 ErrorReporting.captureError(
@@ -325,9 +323,13 @@ class WithdrawViewModel {
         pinnedState = nil
         pushEnterAmountScreen()
 
+        // Cancel any in-flight pin fetch from a prior selection so a stale
+        // result can't clobber the current selection's pinnedState.
+        pinFetchTask?.cancel()
+
         let mint = balance.stored.mint
         let currency = ratesController.entryCurrency
-        Task {
+        pinFetchTask = Task {
             guard let pinned = await ratesController.currentPinnedState(for: currency, mint: mint) else {
                 logger.warning("Withdraw: no verified state available at currency selection", metadata: [
                     "mint": "\(mint.base58)",
@@ -335,6 +337,7 @@ class WithdrawViewModel {
                 ])
                 return
             }
+            guard !Task.isCancelled else { return }
             pinnedState = pinned
         }
     }

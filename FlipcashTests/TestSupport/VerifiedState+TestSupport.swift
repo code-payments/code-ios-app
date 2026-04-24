@@ -25,4 +25,23 @@ extension VerifiedState {
 
         return VerifiedState(rateProto: rate, reserveProto: reserve)
     }
+
+    /// A non-stale test fixture. Reserve is included by default since most
+    /// flows that pin state are bonded — pass `bonded: false` for non-bonded
+    /// (USDF) flows.
+    static func fresh(bonded: Bool = true) -> VerifiedState {
+        makeForTest(
+            rateTimestamp: Date(),
+            reserveTimestamp: bonded ? Date() : nil
+        )
+    }
+
+    /// A stale test fixture (1 second past `clientMaxAge`).
+    static func stale(bonded: Bool = true) -> VerifiedState {
+        let pastCutoff = Date().addingTimeInterval(-VerifiedState.clientMaxAge - 1)
+        return makeForTest(
+            rateTimestamp: pastCutoff,
+            reserveTimestamp: bonded ? pastCutoff : nil
+        )
+    }
 }

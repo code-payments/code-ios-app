@@ -17,7 +17,7 @@ class CurrencySellViewModel: Identifiable {
     var enteredAmount: String = ""
     var path: [CurrencySellPath] = []
     @ObservationIgnored let currencyMetadata: StoredMintMetadata
-    @ObservationIgnored var pinnedState: VerifiedState?
+    @ObservationIgnored private(set) var pinnedState: VerifiedState?
         
     var enteredFiat: ExchangedFiat? {
         guard !enteredAmount.isEmpty else { return nil }
@@ -38,6 +38,11 @@ class CurrencySellViewModel: Identifiable {
 
     var canPerformAction: Bool {
         guard enteredFiat != nil else {
+            return false
+        }
+        // If the pin is fetched but stale, the confirmation submit will reject —
+        // gate Next here too so the user doesn't tap into a dead end.
+        if let pinned = pinnedState, pinned.isStale {
             return false
         }
 

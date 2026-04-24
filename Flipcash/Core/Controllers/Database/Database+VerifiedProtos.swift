@@ -4,13 +4,14 @@
 //
 
 import Foundation
+import FlipcashCore
 import SQLite
 
-extension Database {
+extension Database: VerifiedProtoStore {
 
     // MARK: - Verified Rates -
 
-    func writeVerifiedRate(_ row: StoredVerifiedRate) throws {
+    public func writeRate(_ row: StoredRateRow) throws {
         let table = VerifiedRateTable()
         try writer.run(
             table.table.upsert(
@@ -22,18 +23,7 @@ extension Database {
         )
     }
 
-    func readVerifiedRate(currency: String) throws -> StoredVerifiedRate? {
-        let table = VerifiedRateTable()
-        let query = table.table.filter(table.currency == currency)
-        guard let row = try reader.pluck(query) else { return nil }
-        return StoredVerifiedRate(
-            currency:   row[table.currency],
-            rateProto:  row[table.rateProto],
-            receivedAt: row[table.receivedAt]
-        )
-    }
-
-    func readAllVerifiedRates() throws -> [StoredVerifiedRate] {
+    public func allRates() throws -> [StoredRateRow] {
         let table = VerifiedRateTable()
         let rows = try reader.prepareRowIterator("""
         SELECT
@@ -44,7 +34,7 @@ extension Database {
             verified_rate;
         """)
         return try rows.map { row in
-            StoredVerifiedRate(
+            StoredRateRow(
                 currency:   row[table.currency],
                 rateProto:  row[table.rateProto],
                 receivedAt: row[table.receivedAt]
@@ -52,9 +42,20 @@ extension Database {
         }
     }
 
+    func readVerifiedRate(currency: String) throws -> StoredRateRow? {
+        let table = VerifiedRateTable()
+        let query = table.table.filter(table.currency == currency)
+        guard let row = try reader.pluck(query) else { return nil }
+        return StoredRateRow(
+            currency:   row[table.currency],
+            rateProto:  row[table.rateProto],
+            receivedAt: row[table.receivedAt]
+        )
+    }
+
     // MARK: - Verified Reserves -
 
-    func writeVerifiedReserve(_ row: StoredVerifiedReserve) throws {
+    public func writeReserve(_ row: StoredReserveRow) throws {
         let table = VerifiedReserveTable()
         try writer.run(
             table.table.upsert(
@@ -66,18 +67,7 @@ extension Database {
         )
     }
 
-    func readVerifiedReserve(mint: String) throws -> StoredVerifiedReserve? {
-        let table = VerifiedReserveTable()
-        let query = table.table.filter(table.mint == mint)
-        guard let row = try reader.pluck(query) else { return nil }
-        return StoredVerifiedReserve(
-            mint:         row[table.mint],
-            reserveProto: row[table.reserveProto],
-            receivedAt:   row[table.receivedAt]
-        )
-    }
-
-    func readAllVerifiedReserves() throws -> [StoredVerifiedReserve] {
+    public func allReserves() throws -> [StoredReserveRow] {
         let table = VerifiedReserveTable()
         let rows = try reader.prepareRowIterator("""
         SELECT
@@ -88,11 +78,22 @@ extension Database {
             verified_reserve;
         """)
         return try rows.map { row in
-            StoredVerifiedReserve(
+            StoredReserveRow(
                 mint:         row[table.mint],
                 reserveProto: row[table.reserveProto],
                 receivedAt:   row[table.receivedAt]
             )
         }
+    }
+
+    func readVerifiedReserve(mint: String) throws -> StoredReserveRow? {
+        let table = VerifiedReserveTable()
+        let query = table.table.filter(table.mint == mint)
+        guard let row = try reader.pluck(query) else { return nil }
+        return StoredReserveRow(
+            mint:         row[table.mint],
+            reserveProto: row[table.reserveProto],
+            receivedAt:   row[table.receivedAt]
+        )
     }
 }

@@ -78,10 +78,7 @@ class CurrencySellConfirmationViewModel {
                 // Navigate to processing screen
                 pendingSwapId = swapId
             } catch Session.Error.verifiedStateStale {
-                logger.warning("Sell rejected: pinned verified state became stale", metadata: [
-                    "ageSeconds": "\(pinnedState.age)",
-                    "mint": "\(mint.base58)",
-                ])
+                // Session.assertFresh already logged this. Reset button only.
                 actionButtonState = .normal
             } catch {
                 ErrorReporting.captureError(

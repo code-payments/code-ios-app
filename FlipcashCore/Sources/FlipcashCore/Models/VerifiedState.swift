@@ -19,12 +19,25 @@ public struct VerifiedState: Equatable, Sendable {
     /// Reserve state proof (only for launchpad currencies, nil for core mint)
     public let reserveProto: Ocp_Currency_V1_VerifiedLaunchpadCurrencyReserveState?
 
+    /// Server-signed timestamp for this proof bundle, computed at construction.
+    /// When both protos are present, the older of the two drives staleness
+    /// (closest to its server-side expiry). Cached as a stored property so
+    /// `isStale` (called per SwiftUI body re-evaluation) doesn't walk the
+    /// proto chain on every read.
+    public let serverTimestamp: Date
+
     public init(
         rateProto: Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRate,
         reserveProto: Ocp_Currency_V1_VerifiedLaunchpadCurrencyReserveState? = nil
     ) {
         self.rateProto = rateProto
         self.reserveProto = reserveProto
+        let rateDate = rateProto.exchangeRate.timestamp.date
+        if let reserveProto {
+            self.serverTimestamp = min(rateDate, reserveProto.reserveState.timestamp.date)
+        } else {
+            self.serverTimestamp = rateDate
+        }
     }
 }
 
@@ -50,13 +63,6 @@ extension VerifiedState {
 
     public var supplyFromBonding: UInt64? {
         reserveProto?.reserveState.supplyFromBonding
-    }
-
-    /// Server-signed timestamp for this proof bundle. When both protos are present,
-    /// the older of the two drives staleness (closest to its server-side expiry).
-    public var serverTimestamp: Date {
-        guard let reserveDate = reserveTimestamp else { return timestamp }
-        return min(timestamp, reserveDate)
     }
 
     /// Client-side freshness ceiling. Server accepts proofs up to 15 minutes old;

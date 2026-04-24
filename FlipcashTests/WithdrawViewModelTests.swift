@@ -143,11 +143,7 @@ struct WithdrawViewModelTests {
 
     @Test("canCompleteWithdrawal is false when pinnedState is stale")
     func canCompleteWithdrawal_stalePinnedState_returnsFalse() {
-        let stale = VerifiedState.makeForTest(
-            rateTimestamp: Date().addingTimeInterval(-VerifiedState.clientMaxAge - 1),
-            reserveTimestamp: nil
-        )
-        let viewModel = WithdrawViewModelTestHelpers.createViewModel(pinnedState: stale)
+        let viewModel = WithdrawViewModelTestHelpers.createViewModel(pinnedState: .stale(bonded: false))
         viewModel.selectedBalance = WithdrawViewModelTestHelpers.createExchangedBalance(quarks: 10_000_000)
         viewModel.enteredAmount = "5.00"
         viewModel.enteredAddress = "11111111111111111111111111111111"
@@ -158,10 +154,7 @@ struct WithdrawViewModelTests {
 
     @Test("canCompleteWithdrawal is true when pinnedState is fresh and all fields valid")
     func canCompleteWithdrawal_freshPinnedState_returnsTrue() throws {
-        let fresh = VerifiedState.makeForTest(
-            rateTimestamp: Date(),
-            reserveTimestamp: nil
-        )
+        let fresh = VerifiedState.fresh(bonded: false)
         let container = try SessionContainer.makeTest(holdings: [
             .init(mint: MintMetadata.usdf, quarks: 10_000_000)
         ])

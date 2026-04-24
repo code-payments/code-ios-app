@@ -483,10 +483,7 @@ struct SessionBuyVerifiedStateTests {
     @Test("buy throws verifiedStateStale when the provided state is past clientMaxAge")
     func buy_throwsStale() async {
         let session = Session.unverifiedMock
-        let stale = VerifiedState.makeForTest(
-            rateTimestamp: Date().addingTimeInterval(-VerifiedState.clientMaxAge - 1),
-            reserveTimestamp: nil
-        )
+        let stale = VerifiedState.stale(bonded: false)
 
         do {
             _ = try await session.buy(
@@ -505,10 +502,7 @@ struct SessionBuyVerifiedStateTests {
     @Test("buyNewCurrency throws verifiedStateStale when the provided state is past clientMaxAge")
     func buyNewCurrency_throwsStale() async {
         let session = Session.unverifiedMock
-        let stale = VerifiedState.makeForTest(
-            rateTimestamp: Date().addingTimeInterval(-VerifiedState.clientMaxAge - 1),
-            reserveTimestamp: nil
-        )
+        let stale = VerifiedState.stale(bonded: false)
 
         do {
             _ = try await session.buyNewCurrency(
@@ -541,10 +535,7 @@ struct SessionSellVerifiedStateTests {
     @Test("sell throws verifiedStateStale when the provided state is past clientMaxAge")
     func sell_throwsStale() async {
         let session = Session.unverifiedMock
-        let stale = VerifiedState.makeForTest(
-            rateTimestamp: Date().addingTimeInterval(-VerifiedState.clientMaxAge - 1),
-            reserveTimestamp: nil
-        )
+        let stale = VerifiedState.stale(bonded: false)
 
         do {
             _ = try await session.sell(
@@ -576,10 +567,7 @@ struct SessionWithdrawVerifiedStateTests {
     @Test("withdraw throws verifiedStateStale when the provided state is past clientMaxAge")
     func withdraw_throwsStale() async {
         let session = Session.unverifiedMock
-        let stale = VerifiedState.makeForTest(
-            rateTimestamp: Date().addingTimeInterval(-VerifiedState.clientMaxAge - 1),
-            reserveTimestamp: nil
-        )
+        let stale = VerifiedState.stale(bonded: false)
 
         do {
             try await session.withdraw(

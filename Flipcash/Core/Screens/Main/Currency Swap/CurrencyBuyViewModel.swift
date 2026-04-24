@@ -143,10 +143,8 @@ class CurrencyBuyViewModel: Identifiable {
                     showInsufficientBalanceError()
                 }
             } catch Session.Error.verifiedStateStale {
-                logger.warning("Buy rejected: pinned verified state became stale", metadata: [
-                    "ageSeconds": "\(pinnedState.age)",
-                    "mint": "\(destination.base58)",
-                ])
+                // Session.assertFresh already logged this at .warning. The catch
+                // exists only to reset the button so the user can retry.
                 await MainActor.run {
                     actionButtonState = .normal
                 }

@@ -586,15 +586,7 @@ class Session {
 
     @discardableResult
     func buy(amount: ExchangedFiat, verifiedState: VerifiedState, of mint: PublicKey) async throws -> SwapId {
-        if verifiedState.isStale {
-            logger.info("Rejected stale verifiedState at buy", metadata: [
-                "currency": "\(amount.nativeAmount.currency.rawValue)",
-                "mint": "\(amount.mint.base58)",
-                "ageSeconds": "\(verifiedState.age)",
-                "clientMaxAge": "\(VerifiedState.clientMaxAge)"
-            ])
-            throw Error.verifiedStateStale(ageSeconds: verifiedState.age)
-        }
+        try assertFresh(verifiedState, operation: "buy", currency: amount.nativeAmount.currency, mint: amount.mint)
 
         let token = try await fetchMintMetadata(mint: mint)
 
@@ -656,15 +648,7 @@ class Session {
         mint: PublicKey,
         swapId: SwapId = .generate()
     ) async throws -> SwapId {
-        if verifiedState.isStale {
-            logger.info("Rejected stale verifiedState at buyNewCurrency", metadata: [
-                "currency": "\(amount.nativeAmount.currency.rawValue)",
-                "mint": "\(amount.mint.base58)",
-                "ageSeconds": "\(verifiedState.age)",
-                "clientMaxAge": "\(VerifiedState.clientMaxAge)"
-            ])
-            throw Error.verifiedStateStale(ageSeconds: verifiedState.age)
-        }
+        try assertFresh(verifiedState, operation: "buyNewCurrency", currency: amount.nativeAmount.currency, mint: amount.mint)
 
         logger.info("Buying new currency", metadata: [
             "amount": "\(amount.nativeAmount.formatted())",
@@ -731,15 +715,7 @@ class Session {
 
     @discardableResult
     func sell(amount: ExchangedFiat, verifiedState: VerifiedState, in mint: PublicKey) async throws -> SwapId {
-        if verifiedState.isStale {
-            logger.info("Rejected stale verifiedState at sell", metadata: [
-                "currency": "\(amount.nativeAmount.currency.rawValue)",
-                "mint": "\(mint.base58)",
-                "ageSeconds": "\(verifiedState.age)",
-                "clientMaxAge": "\(VerifiedState.clientMaxAge)"
-            ])
-            throw Error.verifiedStateStale(ageSeconds: verifiedState.age)
-        }
+        try assertFresh(verifiedState, operation: "sell", currency: amount.nativeAmount.currency, mint: mint)
 
         let token = try await fetchMintMetadata(mint: mint)
 
@@ -777,15 +753,7 @@ class Session {
     // MARK: - Withdrawals -
     
     func withdraw(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, fee: TokenAmount, to destinationMetadata: DestinationMetadata) async throws {
-        if verifiedState.isStale {
-            logger.info("Rejected stale verifiedState at withdraw", metadata: [
-                "currency": "\(exchangedFiat.nativeAmount.currency.rawValue)",
-                "mint": "\(exchangedFiat.mint.base58)",
-                "ageSeconds": "\(verifiedState.age)",
-                "clientMaxAge": "\(VerifiedState.clientMaxAge)"
-            ])
-            throw Error.verifiedStateStale(ageSeconds: verifiedState.age)
-        }
+        try assertFresh(verifiedState, operation: "withdraw", currency: exchangedFiat.nativeAmount.currency, mint: exchangedFiat.mint)
 
         let rendezvous = PublicKey.generate()!
         let mint = exchangedFiat.mint
@@ -1596,6 +1564,25 @@ class Session {
 
         // Unreachable: the loop always returns or throws on the last attempt
         throw ErrorFetchBalance.unknown
+    }
+
+    /// Throws `Error.verifiedStateStale` if the proof is past `clientMaxAge`.
+    /// Logs at `.warning` because the canPerformAction gate in the VM should
+    /// have prevented this — reaching here means the gate has a hole.
+    private func assertFresh(
+        _ verifiedState: VerifiedState,
+        operation: String,
+        currency: CurrencyCode,
+        mint: PublicKey
+    ) throws {
+        guard verifiedState.isStale else { return }
+        logger.warning("Rejected stale verifiedState at \(operation)", metadata: [
+            "currency": "\(currency.rawValue)",
+            "mint": "\(mint.base58)",
+            "ageSeconds": "\(verifiedState.age)",
+            "clientMaxAge": "\(VerifiedState.clientMaxAge)"
+        ])
+        throw Error.verifiedStateStale(ageSeconds: verifiedState.age)
     }
 }
 
