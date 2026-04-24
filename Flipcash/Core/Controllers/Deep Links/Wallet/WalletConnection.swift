@@ -75,14 +75,7 @@ public final class WalletConnection {
     private let owner: AccountCluster
     private let client: Client
 
-    private let solanaClient = BlockchainClient(
-        apiClient: JSONRPCAPIClient(
-            endpoint: .init(
-                address: "https://api.mainnet-beta.solana.com",
-                network: .mainnetBeta
-            )
-        )
-    )
+    private let rpc: WalletRPC
 
     /// Pending swap info to use when Phantom returns with signed transaction
     private var pendingSwap: PendingSwap?
@@ -92,7 +85,7 @@ public final class WalletConnection {
     private var pendingConnect: CheckedContinuation<Void, Swift.Error>?
 
     /// What the signed-transaction handler should do after the user returns
-    private struct PendingSwap {
+    struct PendingSwap {
         /// Funding-leg swap id (USDC→USDF) — used in the Phantom memo.
         let fundingSwapId: SwapId
         let amount: ExchangedFiat
@@ -109,9 +102,15 @@ public final class WalletConnection {
 
     // MARK: - Init -
 
-    init(owner: AccountCluster, client: Client) {
+    init(owner: AccountCluster, client: Client, rpc: WalletRPC? = nil) {
         self.owner = owner
         self.client = client
+        self.rpc = rpc ?? JSONRPCAPIClient(
+            endpoint: .init(
+                address: "https://api.mainnet-beta.solana.com",
+                network: .mainnetBeta
+            )
+        )
 
         if let connectedWalletSession = Keychain.connectedWalletSession {
             self.session = connectedWalletSession
@@ -260,27 +259,25 @@ public final class WalletConnection {
     }
     
     private func didSignTransaction(_ signedTx: String) {
-        Task { [solanaClient, weak self] in
-            let pending = self?.pendingSwap
-            self?.pendingSwap = nil
+        let pending = pendingSwap
+        pendingSwap = nil
+        completeSwap(signedTx: signedTx, pending: pending)
+    }
 
+    /// `pending` is passed explicitly (rather than read inside the Task) so
+    /// callers read+clear `self.pendingSwap` synchronously before the async
+    /// work begins — avoids a race if a second deep-link callback arrives
+    /// while the first is mid-flight.
+    @discardableResult
+    func completeSwap(
+        signedTx: String,
+        pending: PendingSwap?
+    ) -> Task<Void, Never> {
+        Task { [rpc, weak self] in
             guard let pending, let self else {
                 logger.warning("Received signed transaction but no pending swap context")
                 return
             }
-
-            // Present the generic processing screen immediately. The server callback
-            // below transitions to a launch context when the caller is launching a
-            // new currency; early-exit failures transition back to `.idle` so no
-            // cover presents for a swap the server never recorded.
-            self.state = .buying(
-                ExternalSwapProcessing(
-                    swapId: pending.fundingSwapId,
-                    currencyName: pending.displayName,
-                    amount: pending.amount
-                ),
-                isFailed: false
-            )
 
             let swapMetadata: [String: String] = [
                 "swapId": pending.fundingSwapId.publicKey.base58,
@@ -292,9 +289,33 @@ public final class WalletConnection {
             guard let tx = SolanaTransaction(data: rawData) else {
                 logger.error("Failed to decode signed transaction")
                 ErrorReporting.captureError(Error.invalidURL, reason: "Failed to decode signed transaction", metadata: swapMetadata)
-                self.state = .idle
                 return
             }
+
+            // Preflight before server-notify + chain-submit so a tx that can't
+            // land (stale account state, unpayable fee) surfaces a user dialog
+            // instead of burning through the full flow.
+            let txBase64 = rawData.base64EncodedString()
+            switch await self.simulateSignedTransaction(txBase64, swapMetadata: swapMetadata) {
+            case .proceed:
+                break
+            case .blocked(let dialog):
+                self.dialogItem = dialog
+                return
+            }
+
+            // Present the generic processing screen. The server callback below
+            // transitions to a launch context when the caller is launching a
+            // new currency; early-exit failures transition back to `.idle` so no
+            // cover presents for a swap the server never recorded.
+            self.state = .buying(
+                ExternalSwapProcessing(
+                    swapId: pending.fundingSwapId,
+                    currencyName: pending.displayName,
+                    amount: pending.amount
+                ),
+                isFailed: false
+            )
 
             // Notify server before submitting to chain — if the server rejects,
             // skip chain submission entirely so no USDC is spent without a swap state.
@@ -335,8 +356,7 @@ public final class WalletConnection {
             // server-recorded at this point, so on failure we keep the context
             // and flip `isFailed` so the processing screen surfaces the error.
             do {
-                let txBase64 = rawData.base64EncodedString()
-                let signature = try await solanaClient.apiClient.sendTransaction(
+                let signature = try await rpc.sendTransaction(
                     transaction: txBase64,
                     configs: .init(encoding: "base64")!
                 )
@@ -353,6 +373,80 @@ public final class WalletConnection {
     /// Opens the external wallet via deep link.
     private func openExternalWallet(_ url: URL) {
         url.openWithApplication()
+    }
+
+    /// Transport failures (URL errors, decode errors) pass through as
+    /// `.proceed` — a flaky RPC blip must not block a user with valid funds.
+    /// Only explicit RPC rejections block.
+    func simulateSignedTransaction(
+        _ txBase64: String,
+        swapMetadata: [String: String]
+    ) async -> SimulationOutcome {
+        do {
+            _ = try await rpc.simulateTransaction(
+                transaction: txBase64,
+                configs: RequestConfiguration(
+                    commitment: "confirmed",
+                    encoding: "base64",
+                    replaceRecentBlockhash: true
+                )!
+            )
+            return .proceed
+        } catch APIClientError.transactionSimulationError(let logs) {
+            return blockedOutcome(
+                reason: "Phantom signed transaction failed simulation",
+                logs: logs,
+                extraMetadata: ["kind": "simulationErr"],
+                swapMetadata: swapMetadata
+            )
+        } catch APIClientError.responseError(let response) {
+            var extra: [String: String] = ["kind": "preflightRejection"]
+            if let code = response.code { extra["code"] = "\(code)" }
+            if let message = response.message { extra["message"] = message }
+            return blockedOutcome(
+                reason: "Phantom signed transaction rejected at preflight",
+                logs: response.data?.logs ?? [],
+                extraMetadata: extra,
+                swapMetadata: swapMetadata
+            )
+        } catch {
+            logger.warning("Simulation RPC failed, proceeding to submit", metadata: [
+                "error": "\(error)",
+            ])
+            return .proceed
+        }
+    }
+
+    private func blockedOutcome(
+        reason: String,
+        logs: [String],
+        extraMetadata: [String: String],
+        swapMetadata: [String: String]
+    ) -> SimulationOutcome {
+        logger.error("Blocking signed transaction after RPC rejection", metadata: [
+            "kind": "\(extraMetadata["kind"] ?? "unknown")",
+            "code": "\(extraMetadata["code"] ?? "")",
+            "message": "\(extraMetadata["message"] ?? "")",
+            "logs": "\(logs.suffix(5).joined(separator: " | "))",
+        ])
+        ErrorReporting.captureError(
+            Error.simulationFailed(logs: logs),
+            reason: reason,
+            metadata: swapMetadata.merging(extraMetadata) { current, _ in current }
+        )
+        return .blocked(.init(
+            style: .destructive,
+            title: "Transaction Failed",
+            subtitle: "The Solana network wouldn't accept this transaction from your wallet. No funds were moved. Please try again.",
+            dismissable: true
+        ) {
+            .okay(kind: .destructive)
+        })
+    }
+
+    enum SimulationOutcome {
+        case proceed
+        case blocked(DialogItem)
     }
 
     /// Requests an external swap to fund a buy of an existing launchpad currency.
@@ -482,7 +576,7 @@ public final class WalletConnection {
             )
         }
 
-        let recentBlockhash = try await solanaClient.apiClient.getLatestBlockhash(commitment: "finalized")
+        let recentBlockhash = try await rpc.getLatestBlockhash(commitment: "finalized")
 
         var transaction = Transaction(
             instructions: instructionsConverted,
@@ -668,6 +762,7 @@ extension WalletConnection {
         case noSession
         case missingVerifiedState
         case invalidURL
+        case simulationFailed(logs: [String])
     }
 }
 
@@ -749,3 +844,16 @@ private extension FlipcashCore.Keychain {
 extension WalletConnection {
     static let mock = WalletConnection(owner: .mock, client: .mock)
 }
+
+// MARK: - WalletRPC -
+
+/// The slice of Solana RPC that `WalletConnection` depends on. A narrow
+/// protocol (instead of the full `SolanaAPIClient` surface) keeps test stubs
+/// small and makes the dependency honest at the call site.
+protocol WalletRPC {
+    func getLatestBlockhash(commitment: Commitment?) async throws -> String
+    func sendTransaction(transaction: String, configs: RequestConfiguration) async throws -> TransactionID
+    func simulateTransaction(transaction: String, configs: RequestConfiguration) async throws -> SimulationResult
+}
+
+extension JSONRPCAPIClient: WalletRPC {}
