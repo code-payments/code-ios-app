@@ -83,7 +83,7 @@ class RatesController {
     init(container: Container, database: Database) {
         self.client   = container.client
         self.database = database
-        self.verifiedProtoService = VerifiedProtoService()
+        self.verifiedProtoService = VerifiedProtoService(store: database)
 
         if LocalDefaults.entryCurrency == nil {
             LocalDefaults.entryCurrency = .local() ?? .usd
@@ -191,6 +191,31 @@ class RatesController {
     /// Returns nil if no verified exchange rate is available.
     func getVerifiedState(for currency: CurrencyCode, mint: PublicKey) async -> VerifiedState? {
         await verifiedProtoService.getVerifiedState(for: currency, mint: mint)
+    }
+
+    /// Returns a non-stale `VerifiedState` if one is currently cached — otherwise nil.
+    /// Does not poll, does not wait. Navigation handlers call this right before
+    /// opening an amount-entry flow; if nil, they should silently decline to open
+    /// the flow (per the zero-UX-changes rule — the stream + DB warm-load should
+    /// keep the cache populated in practice).
+    ///
+    /// Cache-empty is already logged inside `VerifiedProtoService.getVerifiedState`.
+    /// The stale branch is the one that would otherwise be silent, so that's
+    /// where we emit. The AppRouter's navigation trail supplies the flow
+    /// context, so we don't carry a per-call tag here.
+    func currentPinnedState(for currency: CurrencyCode, mint: PublicKey) async -> VerifiedState? {
+        guard let state = await verifiedProtoService.getVerifiedState(for: currency, mint: mint) else {
+            return nil
+        }
+        guard !state.isStale else {
+            logger.warning("No pinned state: stale", metadata: [
+                "mint": "\(mint.base58)",
+                "currency": "\(currency)",
+                "ageSeconds": "\(state.age)",
+            ])
+            return nil
+        }
+        return state
     }
 
     /// Ensure a mint is included in the live stream subscription.
@@ -343,6 +368,3 @@ private enum LocalDefaults {
     static var storedTokenMint: String?
 }
 
-extension RatesController {
-    static let mock = RatesController(container: .mock, database: .mock)
-}

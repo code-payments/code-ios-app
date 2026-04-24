@@ -18,39 +18,9 @@ class CurrencyBuyViewModel: Identifiable {
     var enteredAmount: String = ""
     var dialogItem: DialogItem?
     var path: [CurrencyBuyPath] = []
-        
+
     var enteredFiat: ExchangedFiat? {
-        guard !enteredAmount.isEmpty else {
-            return nil
-        }
-
-        guard let amount = NumberFormatter.decimal(from: enteredAmount) else {
-            return nil
-        }
-
-        let mint: PublicKey = .usdf
-        let rate = ratesController.rateForEntryCurrency()
-
-        let entered = ExchangedFiat(
-            nativeAmount: FiatAmount(value: amount, currency: rate.currency),
-            rate: rate
-        )
-
-        // Cap to balance to handle rounding differences between display and entry. Since our display rounds HALF_UP
-        guard let balance = session.balance(for: .usdf) else {
-            return entered
-        }
-
-        // If entered USDF value exceeds balance, cap it to the balance
-        if entered.usdfValue.value > balance.usdf.value {
-            return ExchangedFiat.compute(
-                onChainAmount: TokenAmount(quarks: balance.quarks, mint: mint),
-                rate: rate,
-                supplyQuarks: nil
-            )
-        }
-
-        return entered
+        computeAmount(using: ratesController.rateForEntryCurrency())
     }
 
     var canPerformAction: Bool {
@@ -82,7 +52,7 @@ class CurrencyBuyViewModel: Identifiable {
 
         return balance.computeExchangedValue(with: entryRate)
     }
-    
+
     @ObservationIgnored private let session: Session
     @ObservationIgnored private let ratesController: RatesController
     @ObservationIgnored private let destination: PublicKey
@@ -91,12 +61,12 @@ class CurrencyBuyViewModel: Identifiable {
     // MARK: - Init -
 
     init(currencyPublicKey: PublicKey, currencyName: String, session: Session, ratesController: RatesController) {
-        self.destination     = currencyPublicKey
-        self.currencyName    = currencyName
-        self.session         = session
+        self.destination = currencyPublicKey
+        self.currencyName = currencyName
+        self.session = session
         self.ratesController = ratesController
     }
-        
+
     // MARK: - Actions -
 
     func amountEnteredAction() {
@@ -106,36 +76,85 @@ class CurrencyBuyViewModel: Identifiable {
 
         performBuy()
     }
-            
-    private func performBuy() {
-        guard let buyAmount = enteredFiat else { return }
 
-        let sendLimit = session.sendLimitFor(currency: buyAmount.nativeAmount.currency) ?? .zero
+    /// Resolves the pin and computes the submission amount against it — one
+    /// fetch for both, so quarks can't drift from the submitted pin.
+    func prepareSubmission() async -> (amount: ExchangedFiat, pinnedState: VerifiedState)? {
+        let currency = ratesController.entryCurrency
+        guard let pin = await ratesController.currentPinnedState(for: currency, mint: .usdf) else {
+            return nil
+        }
+        guard let amount = computeAmount(using: pin.rate) else {
+            return nil
+        }
+        return (amount, pin)
+    }
 
-        guard buyAmount.nativeAmount.value <= sendLimit.maxPerDay.value else {
-            logger.info("Buy rejected: amount exceeds limit", metadata: [
-                "amount": "\(buyAmount.nativeAmount.formatted())",
-                "max_per_day": "\(sendLimit.maxPerDay.value)",
-                "currency": "\(buyAmount.nativeAmount.currency)",
-            ])
-            showLimitsError()
-            return
+    /// Used by the display preview (live rate) and the submit path (pinned rate).
+    private func computeAmount(using rate: Rate) -> ExchangedFiat? {
+        guard !enteredAmount.isEmpty else {
+            return nil
         }
 
+        guard let amount = NumberFormatter.decimal(from: enteredAmount) else {
+            return nil
+        }
+
+        let mint: PublicKey = .usdf
+        let entered = ExchangedFiat(
+            nativeAmount: FiatAmount(value: amount, currency: rate.currency),
+            rate: rate
+        )
+
+        // Cap to balance to handle rounding differences between display and entry. Since our display rounds HALF_UP
+        guard let balance = session.balance(for: .usdf) else {
+            return entered
+        }
+
+        // If entered USDF value exceeds balance, cap it to the balance
+        if entered.usdfValue.value > balance.usdf.value {
+            return ExchangedFiat.compute(
+                onChainAmount: TokenAmount(quarks: balance.quarks, mint: mint),
+                rate: rate,
+                supplyQuarks: nil
+            )
+        }
+
+        return entered
+    }
+
+    private func performBuy() {
         actionButtonState = .loading
 
         Task {
-            do {
-                let swapId = try await session.buy(amount: buyAmount, of: destination)
+            guard let (buyAmount, pin) = await prepareSubmission() else {
+                actionButtonState = .normal
+                dialogItem = .staleRate
+                return
+            }
 
-                await MainActor.run {
-                    path.append(.processing(swapId: swapId, currencyName: currencyName, amount: buyAmount))
-                }
+            let sendLimit = session.sendLimitFor(currency: buyAmount.nativeAmount.currency) ?? .zero
+
+            guard buyAmount.nativeAmount.value <= sendLimit.maxPerDay.value else {
+                logger.info("Buy rejected: amount exceeds limit", metadata: [
+                    "amount": "\(buyAmount.nativeAmount.formatted())",
+                    "max_per_day": "\(sendLimit.maxPerDay.value)",
+                    "currency": "\(buyAmount.nativeAmount.currency)",
+                ])
+                actionButtonState = .normal
+                showLimitsError()
+                return
+            }
+
+            do {
+                let swapId = try await session.buy(amount: buyAmount, verifiedState: pin, of: destination)
+                path.append(.processing(swapId: swapId, currencyName: currencyName, amount: buyAmount))
             } catch Session.Error.insufficientBalance {
-                await MainActor.run {
-                    actionButtonState = .normal
-                    showInsufficientBalanceError()
-                }
+                actionButtonState = .normal
+                showInsufficientBalanceError()
+            } catch Session.Error.verifiedStateStale {
+                // Session.assertFresh already logged; reset the button so the user can retry.
+                actionButtonState = .normal
             } catch {
                 ErrorReporting.captureError(
                     error,
@@ -145,20 +164,18 @@ class CurrencyBuyViewModel: Identifiable {
                         "amount": buyAmount.nativeAmount.formatted(),
                     ]
                 )
-                await MainActor.run {
-                    actionButtonState = .normal
-                    showGenericError()
-                }
+                actionButtonState = .normal
+                showGenericError()
             }
         }
     }
-        
+
     // MARK: - Reset -
-    
+
     private func resetEnteredAmount() {
         enteredAmount = ""
     }
-        
+
     // MARK: - Dialogs -
 
     private func showInsufficientBalanceError() {

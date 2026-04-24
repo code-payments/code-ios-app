@@ -21,9 +21,9 @@ struct CurrencySellAmountScreen: View {
     init(viewModel: CurrencySellViewModel) {
         self.viewModel = viewModel
     }
-    
+
     // MARK: - Body -
-    
+
     var body: some View {
         NavigationStack(path: $viewModel.path) {
             Background(color: .backgroundMain) {
@@ -45,18 +45,17 @@ struct CurrencySellAmountScreen: View {
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(for: CurrencySellPath.self) { step in
                 switch step {
-                case .confirmation:
-                    if let amount = viewModel.enteredFiat {
-                        CurrencySellConfirmationScreen(
-                            mint: viewModel.currencyMetadata.mint,
-                            currencyName: viewModel.currencyMetadata.name,
-                            amount: amount,
-                            path: $viewModel.path
-                        )
-                        .environment(\.dismissParentContainer, {
-                            dismissAction()
-                        })
-                    }
+                case .confirmation(let amount, let pinnedState):
+                    CurrencySellConfirmationScreen(
+                        mint: viewModel.currencyMetadata.mint,
+                        currencyName: viewModel.currencyMetadata.name,
+                        amount: amount,
+                        pinnedState: pinnedState,
+                        path: $viewModel.path
+                    )
+                    .environment(\.dismissParentContainer, {
+                        dismissAction()
+                    })
                 case .processing(let swapId, let currencyName, let amount):
                     SwapProcessingScreen(swapId: swapId, swapType: .sell, currencyName: currencyName, amount: amount)
                         .environment(\.dismissParentContainer, {
@@ -69,6 +68,7 @@ struct CurrencySellAmountScreen: View {
                     dismissAction()
                 }
             }
+            .dialog(item: $viewModel.dialogItem)
             .sheet(isPresented: $isShowingCurrencySelection) {
                 CurrencySelectionScreen(
                     isPresented: $isShowingCurrencySelection,
@@ -78,7 +78,7 @@ struct CurrencySellAmountScreen: View {
             }
         }
     }
-    
+
     private func showCurrencySelection() {
         isShowingCurrencySelection.toggle()
     }

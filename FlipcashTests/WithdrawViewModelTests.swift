@@ -97,6 +97,42 @@ struct WithdrawViewModelTests {
         #expect(viewModel.canProceedToAddress == true)
     }
 
+    // MARK: - canCompleteWithdrawal
+
+    @Test("canCompleteWithdrawal is false without a destination")
+    func canCompleteWithdrawal_noDestination_returnsFalse() {
+        let viewModel = WithdrawViewModelTestHelpers.createViewModel()
+        viewModel.selectedBalance = WithdrawViewModelTestHelpers.createExchangedBalance(quarks: 10_000_000)
+        viewModel.enteredAmount = "5.00"
+
+        #expect(viewModel.canCompleteWithdrawal == false)
+    }
+
+    @Test("canCompleteWithdrawal is true when all required fields are valid")
+    func canCompleteWithdrawal_allValid_returnsTrue() throws {
+        let container = try SessionContainer.makeTest(holdings: [
+            .init(mint: MintMetadata.usdf, quarks: 10_000_000)
+        ])
+        let stored = try #require(container.session.balance(for: .usdf))
+        let rate = container.ratesController.rateForEntryCurrency()
+        let exchangedBalance = ExchangedBalance(
+            stored: stored,
+            exchangedFiat: stored.computeExchangedValue(with: rate)
+        )
+
+        let viewModel = WithdrawViewModel(
+            isPresented: .constant(true),
+            container: .mock,
+            sessionContainer: container
+        )
+        viewModel.selectedBalance = exchangedBalance
+        viewModel.enteredAmount = "5.00"
+        viewModel.enteredAddress = "11111111111111111111111111111111"
+        viewModel.destinationMetadata = WithdrawViewModelTestHelpers.createDestinationMetadata()
+
+        #expect(viewModel.canCompleteWithdrawal == true)
+    }
+
     // MARK: - Helpers
 
     /// Builds a `WithdrawViewModel` backed by an in-memory session whose

@@ -101,7 +101,10 @@ struct LogMiddlewareTests {
 
         #expect(entry.metadata?["withParens"] == "***-***-4321")
         #expect(entry.metadata?["withCountry"] == "***-***-1234")
-        #expect(entry.metadata?["digitsOnly"] == "***-***-1234")
+        // Pure-digit strings are intentionally NOT redacted — the regex requires
+        // at least one non-digit character (space, dash, paren, plus) so that
+        // large integer quark values aren't misidentified as phone numbers.
+        #expect(entry.metadata?["digitsOnly"] == "4155551234")
         #expect(entry.metadata?["code"] == "USD")
     }
 

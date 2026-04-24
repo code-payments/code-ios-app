@@ -10,22 +10,21 @@ import FlipcashUI
 import FlipcashCore
 
 struct WithdrawAmountScreen: View {
-    
-    @Environment(Session.self) private var session
+
     @Environment(RatesController.self) private var ratesController
-    
+
     @Bindable private var viewModel: WithdrawViewModel
-    
+
     @State private var isShowingCurrencySelection: Bool = false
-    
+
     // MARK: - Init -
-    
+
     init(viewModel: WithdrawViewModel) {
         self.viewModel = viewModel
     }
-    
+
     // MARK: - Body -
-    
+
     var body: some View {
         Background(color: .backgroundMain) {
             EnterAmountView(
@@ -53,9 +52,9 @@ struct WithdrawAmountScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .dialog(item: $viewModel.dialogItem)
     }
-    
+
     // MARK: - Actions -
-    
+
     private func showCurrencySelection() {
         isShowingCurrencySelection.toggle()
     }

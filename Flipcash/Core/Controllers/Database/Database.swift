@@ -153,6 +153,3 @@ extension Notification.Name {
     static let databaseDidChange = Notification.Name("databaseDidChange")
 }
 
-extension Database {
-    static let mock = try! Database(url: .temporaryDirectory.appendingPathComponent("mock.sqlite"))
-}

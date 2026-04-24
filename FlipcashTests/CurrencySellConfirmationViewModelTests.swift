@@ -10,11 +10,12 @@ import Testing
 import SwiftUI
 import FlipcashCore
 import FlipcashUI
+@testable import FlipcashCore
 @testable import Flipcash
 
 @MainActor
 struct CurrencySellConfirmationViewModelTests {
-    
+
     // MARK: - Test Helpers -
 
     /// USD→CAD rate of 1.35 — native (CAD) is derived as `usdValue * 1.35`.
@@ -37,14 +38,19 @@ struct CurrencySellConfirmationViewModelTests {
             supplyQuarks: nil
         )
     }
-    
+
     /// Helper to create a test view model
     static func createViewModel(
         mint: PublicKey = .usdf,
-        amount: ExchangedFiat? = nil
+        amount: ExchangedFiat? = nil,
+        pinnedState: VerifiedState? = nil
     ) -> CurrencySellConfirmationViewModel {
         let exchangedFiat = amount ?? createExchangedFiat(mint: mint)
-        return CurrencySellConfirmationViewModel(mint: mint, amount: exchangedFiat)
+        return CurrencySellConfirmationViewModel(
+            mint: mint,
+            amount: exchangedFiat,
+            pinnedState: pinnedState ?? .fresh(bonded: false)
+        )
     }
     
     // MARK: - Initialization Tests -
@@ -279,11 +285,27 @@ struct CurrencySellConfirmationViewModelTests {
         // Given: Amount with specific mint
         let mint = PublicKey.usdf
         let viewModel = Self.createViewModel(mint: mint)
-        
+
         // When: Getting amount after fee
         let afterFee = viewModel.amountAfterFee
-        
+
         // Then: Mint should be preserved
         #expect(afterFee.mint == mint)
+    }
+
+    // MARK: - Pinned State Tests -
+
+    @Test("canPerformAction is false when pinnedState is stale")
+    func canPerformAction_stalePinnedState_returnsFalse() {
+        let viewModel = Self.createViewModel(pinnedState: .stale())
+
+        #expect(viewModel.canPerformAction == false)
+    }
+
+    @Test("canPerformAction is true when pinnedState is fresh")
+    func canPerformAction_freshPinnedState_returnsTrue() {
+        let viewModel = Self.createViewModel(pinnedState: .fresh())
+
+        #expect(viewModel.canPerformAction == true)
     }
 }

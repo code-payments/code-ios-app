@@ -18,7 +18,7 @@ struct CurrencyInfoMarketCapSection: View {
 
     var body: some View {
         VStack(alignment: .leading) {
-            Text("Circulating Supply")
+            Text("Circulating Value")
                 .foregroundStyle(Color.textSecondary)
                 .font(.appTextMedium)
                 .padding(.horizontal, 20)

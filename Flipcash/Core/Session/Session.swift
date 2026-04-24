@@ -164,9 +164,9 @@ class Session {
     }
     
     func balance(for mint: PublicKey) -> StoredBalance? {
-        balances.filter {
-            $0.mint == mint
-        }.first
+        // Avoid the display-ordered sort in `balances` — this is called per
+        // SwiftUI body re-eval from amount-entry computed props.
+        updateableBalances.value.first { $0.mint == mint }
     }
     
     @ObservationIgnored private let container: Container
@@ -231,8 +231,10 @@ class Session {
         observeBalanceCurrencyChanges()
     }
 
-    /// Start streaming live mint data for exchange rates
+    /// Skipped under unit tests so seeded `VerifiedProtoService` data isn't
+    /// raced by a live stream delivery.
     private func startStreaming() {
+        guard !Container.isRunningUnitTests else { return }
         let mints = balances.filter { $0.quarks > 0 }.map { $0.mint }
         ratesController.startStreaming(mints: mints)
     }
@@ -585,16 +587,10 @@ class Session {
     // MARK: - Swaps -
 
     @discardableResult
-    func buy(amount: ExchangedFiat, of mint: PublicKey) async throws -> SwapId {
-        let token = try await fetchMintMetadata(mint: mint)
+    func buy(amount: ExchangedFiat, verifiedState: VerifiedState, of mint: PublicKey) async throws -> SwapId {
+        try assertFresh(verifiedState, operation: "buy", currency: amount.nativeAmount.currency, mint: amount.mint)
 
-        // Get verified state for intent construction
-        guard let verifiedState = await ratesController.getVerifiedState(
-            for: amount.nativeAmount.currency,
-            mint: amount.mint
-        ) else {
-            throw Error.missingVerifiedState
-        }
+        let token = try await fetchMintMetadata(mint: mint)
 
         logger.info("buying", metadata: ["amount": "\(amount.nativeAmount.formatted())", "symbol": "\(token.symbol)"])
 
@@ -650,24 +646,18 @@ class Session {
     func buyNewCurrency(
         amount: ExchangedFiat,
         feeAmount: ExchangedFiat,
+        verifiedState: VerifiedState,
         mint: PublicKey,
         swapId: SwapId = .generate()
     ) async throws -> SwapId {
+        try assertFresh(verifiedState, operation: "buyNewCurrency", currency: amount.nativeAmount.currency, mint: amount.mint)
+
         logger.info("Buying new currency", metadata: [
             "amount": "\(amount.nativeAmount.formatted())",
             "feeAmount": "\(feeAmount.nativeAmount.formatted())",
             "mint": "\(mint.base58)",
             "swapId": "\(swapId.publicKey.base58)"
         ])
-
-        // Phase 2 funding (IntentFundSwap) requires a verified state for the
-        // source mint — USDF for a reserves-funded launch.
-        guard let verifiedState = await ratesController.getVerifiedState(
-            for: amount.nativeAmount.currency,
-            mint: amount.mint
-        ) else {
-            throw Error.missingVerifiedState
-        }
 
         // Intentionally no fetchMintMetadata: a freshly-launched currency isn't
         // yet in the local DB, and in dry-run mode the server doesn't surface it
@@ -726,16 +716,10 @@ class Session {
     }
 
     @discardableResult
-    func sell(amount: ExchangedFiat, in mint: PublicKey) async throws -> SwapId {
-        let token = try await fetchMintMetadata(mint: mint)
+    func sell(amount: ExchangedFiat, verifiedState: VerifiedState, in mint: PublicKey) async throws -> SwapId {
+        try assertFresh(verifiedState, operation: "sell", currency: amount.nativeAmount.currency, mint: mint)
 
-        // Get verified state for intent construction
-        guard let verifiedState = await ratesController.getVerifiedState(
-            for: amount.nativeAmount.currency,
-            mint: amount.mint
-        ) else {
-            throw Error.missingVerifiedState
-        }
+        let token = try await fetchMintMetadata(mint: mint)
 
         guard let supply = verifiedState.supplyFromBonding else {
             throw Error.missingSupply
@@ -748,9 +732,17 @@ class Session {
         if let balance = balance(for: mint),
            amount.onChainAmount.quarks > balance.quarks,
            mint != .usdf {
+            logger.error("Sell workaround branch fired — pinning should have prevented this", metadata: [
+                "currency": "\(amount.nativeAmount.currency.rawValue)",
+                "mint": "\(mint.base58)",
+                "enteredQuarks": "\(amount.onChainAmount.quarks)",
+                "balanceQuarks": "\(balance.quarks)"
+            ])
+            // If the cap ever fires, the recompute MUST use the pinned rate
+            // and supply — otherwise we replace one mismatch with another.
             amountForIntent = ExchangedFiat.compute(
                 onChainAmount: TokenAmount(quarks: balance.quarks, mint: mint),
-                rate: ratesController.rateForEntryCurrency(),
+                rate: verifiedState.rate,
                 supplyQuarks: supply
             )
         } else {
@@ -764,20 +756,14 @@ class Session {
     
     // MARK: - Withdrawals -
     
-    func withdraw(exchangedFiat: ExchangedFiat, fee: TokenAmount, to destinationMetadata: DestinationMetadata) async throws {
+    func withdraw(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, fee: TokenAmount, to destinationMetadata: DestinationMetadata) async throws {
+        try assertFresh(verifiedState, operation: "withdraw", currency: exchangedFiat.nativeAmount.currency, mint: exchangedFiat.mint)
+
         let rendezvous = PublicKey.generate()!
         let mint = exchangedFiat.mint
         do {
             guard let vmAuthority = try database.getVMAuthority(mint: mint) else {
                 throw Error.vmMetadataMissing
-            }
-
-            // Get verified state for intent construction
-            guard let verifiedState = await ratesController.getVerifiedState(
-                for: exchangedFiat.nativeAmount.currency,
-                mint: mint
-            ) else {
-                throw Error.missingVerifiedState
             }
 
             try await self.client.withdraw(
@@ -1583,6 +1569,26 @@ class Session {
         // Unreachable: the loop always returns or throws on the last attempt
         throw ErrorFetchBalance.unknown
     }
+
+    /// Throws `Error.verifiedStateStale` if the proof is past `clientMaxAge`.
+    /// Logs at `.warning` because the canPerformAction gate in the VM should
+    /// have prevented this — reaching here means the gate has a hole.
+    private func assertFresh(
+        _ verifiedState: VerifiedState,
+        operation: String,
+        currency: CurrencyCode,
+        mint: PublicKey
+    ) throws {
+        guard verifiedState.isStale else { return }
+        logger.warning("Rejected stale verifiedState", metadata: [
+            "operation": "\(operation)",
+            "currency": "\(currency.rawValue)",
+            "mint": "\(mint.base58)",
+            "ageSeconds": "\(verifiedState.age)",
+            "clientMaxAge": "\(VerifiedState.clientMaxAge)"
+        ])
+        throw Error.verifiedStateStale
+    }
 }
 
 // MARK: - Errors -
@@ -1596,7 +1602,7 @@ extension Session {
         case missingVerifiedState
         case missingSupply
         case unableToConvertToFiat
-        
+        case verifiedStateStale
     }
 }
 
@@ -1646,20 +1652,3 @@ extension Session {
     }
 }
 
-// MARK: - Mock -
-
-extension Session {
-    static let mock = Session(
-        container: .mock,
-        historyController: .mock,
-        ratesController: .mock,
-        database: .mock,
-        keyAccount: .mock,
-        owner: .init(
-            authority: .derive(using: .primary(), mnemonic: .mock),
-            mint: .mock,
-            timeAuthority: .usdcAuthority
-        ),
-        userID: UUID()
-    )
-}

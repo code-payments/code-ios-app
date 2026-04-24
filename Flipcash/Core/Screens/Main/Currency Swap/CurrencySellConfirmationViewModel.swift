@@ -13,12 +13,17 @@ import FlipcashCore
 class CurrencySellConfirmationViewModel {
     @ObservationIgnored let mint: PublicKey
     @ObservationIgnored let amount: ExchangedFiat
+    @ObservationIgnored let pinnedState: VerifiedState
 
     var dialogItem: DialogItem?
     private(set) var actionButtonState: ButtonState = .normal
     var pendingSwapId: SwapId?
 
     var canDismissSheet: Bool = false
+
+    var canPerformAction: Bool {
+        !pinnedState.isStale
+    }
 
     var fee: ExchangedFiat {
         let bps: UInt64 = 100
@@ -53,9 +58,10 @@ class CurrencySellConfirmationViewModel {
 
     // MARK: - Init -
 
-    init(mint: PublicKey, amount: ExchangedFiat) {
-        self.mint = mint
-        self.amount = amount
+    init(mint: PublicKey, amount: ExchangedFiat, pinnedState: VerifiedState) {
+        self.mint        = mint
+        self.amount      = amount
+        self.pinnedState = pinnedState
     }
     
     // MARK: - Actions -
@@ -65,9 +71,12 @@ class CurrencySellConfirmationViewModel {
 
         Task {
             do {
-                let swapId = try await session.sell(amount: amount, in: mint)
+                let swapId = try await session.sell(amount: amount, verifiedState: pinnedState, in: mint)
                 // Navigate to processing screen
                 pendingSwapId = swapId
+            } catch Session.Error.verifiedStateStale {
+                // Session.assertFresh already logged this. Reset button only.
+                actionButtonState = .normal
             } catch {
                 ErrorReporting.captureError(
                     error,

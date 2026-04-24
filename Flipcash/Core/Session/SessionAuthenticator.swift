@@ -450,16 +450,6 @@ struct SessionContainer {
             .environment(onrampDeeplinkInbox)
     }
 
-    @MainActor
-    static let mock: SessionContainer = .init(
-        session: .mock,
-        database: .mock,
-        walletConnection: .mock,
-        ratesController: .mock,
-        historyController: .mock,
-        pushController: .mock,
-        flipClient: Container.mock.flipClient
-    )
 }
 
 extension View {

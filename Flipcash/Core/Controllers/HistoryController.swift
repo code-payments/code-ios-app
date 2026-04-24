@@ -99,6 +99,3 @@ class HistoryController {
     }
 }
 
-extension HistoryController {
-    static let mock = HistoryController(container: .mock, database: .mock, owner: .mock)
-}

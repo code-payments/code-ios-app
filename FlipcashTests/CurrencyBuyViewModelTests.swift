@@ -14,17 +14,17 @@ import FlipcashUI
 
 @MainActor
 struct CurrencyBuyViewModelTests {
-    
+
     // MARK: - Test Helpers -
-    
+
     /// CAD rate: 1 USD = 1.35 CAD
     static let cadRate = Rate(fx: 1.35, currency: .cad)
-    
-    /// Helper to create a test view model with CAD as the entry currency
+
+    /// Helper to create a test view model with CAD as the entry currency.
+    /// Uses the mock SessionContainer which has no seeded balance.
     static func createViewModel() -> CurrencyBuyViewModel {
         let sessionContainer = SessionContainer.mock
 
-        // Configure entry currency and inject the CAD rate for deterministic tests
         sessionContainer.ratesController.configureTestRates(entryCurrency: .cad, rates: [cadRate])
 
         return CurrencyBuyViewModel(
@@ -34,23 +34,41 @@ struct CurrencyBuyViewModelTests {
             ratesController: sessionContainer.ratesController
         )
     }
-    
+
+    /// Helper to create a view model backed by a real database seeded with USDF balance,
+    /// so `canPerformAction` can reach the display-limit check.
+    static func createViewModelWithBalance() throws -> CurrencyBuyViewModel {
+        // 10 USDF (10_000_000 quarks at 6 decimals)
+        let container = try SessionContainer.makeTest(holdings: [
+            .init(mint: MintMetadata.usdf, quarks: 10_000_000)
+        ])
+
+        container.ratesController.configureTestRates(entryCurrency: .cad, rates: [cadRate])
+
+        return CurrencyBuyViewModel(
+            currencyPublicKey: .jeffy,
+            currencyName: "Test",
+            session: container.session,
+            ratesController: container.ratesController
+        )
+    }
+
     // MARK: - Initialization Tests -
-    
+
     @Test
     func testInitialization_DefaultValues() {
         // Given/When: Creating a new view model
         let viewModel = Self.createViewModel()
-        
+
         // Then: Initial state should be correct
         #expect(viewModel.actionButtonState == .normal)
         #expect(viewModel.enteredAmount == "")
         #expect(viewModel.dialogItem == nil)
         #expect(viewModel.canPerformAction == false)
     }
-    
+
     // MARK: - Entered Fiat Direction Tests -
-    
+
     @Test
     func testEnteredFiat_WithCADEntry_NativeIsCAD_USDFValueIsUSD() throws {
         // Given: A view model with 1 CAD entered
@@ -76,4 +94,20 @@ struct CurrencyBuyViewModelTests {
         #expect(exchangedFiat.usdfValue.value < exchangedFiat.nativeAmount.value)
     }
 
+    // MARK: - canPerformAction -
+
+    @Test("canPerformAction is false when enteredAmount is empty")
+    func canPerformAction_emptyAmount_returnsFalse() {
+        let viewModel = Self.createViewModel()
+
+        #expect(viewModel.canPerformAction == false)
+    }
+
+    @Test("canPerformAction is true when a valid amount is within the display cap")
+    func canPerformAction_validAmount_returnsTrue() throws {
+        let viewModel = try Self.createViewModelWithBalance()
+        viewModel.enteredAmount = "1"
+
+        #expect(viewModel.canPerformAction == true)
+    }
 }
