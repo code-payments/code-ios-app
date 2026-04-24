@@ -77,10 +77,8 @@ class CurrencyBuyViewModel: Identifiable {
         performBuy()
     }
 
-    /// Resolves the pinned state and computes the `ExchangedFiat` that will be
-    /// submitted. One fetch, one rate — the quarks and the `VerifiedState`
-    /// carried into `Session.buy` come from the same local so the submitted
-    /// quarks can't drift from the rate the server validates against.
+    /// Resolves the pin and computes the submission amount against it — one
+    /// fetch for both, so quarks can't drift from the submitted pin.
     func prepareSubmission() async -> (amount: ExchangedFiat, pinnedState: VerifiedState)? {
         let currency = ratesController.entryCurrency
         guard let pin = await ratesController.currentPinnedState(for: currency, mint: .usdf) else {
@@ -92,8 +90,7 @@ class CurrencyBuyViewModel: Identifiable {
         return (amount, pin)
     }
 
-    /// Shared compute used by the display preview (live rate) and the submit
-    /// path (pinned rate). Same quark math, different rate source.
+    /// Used by the display preview (live rate) and the submit path (pinned rate).
     private func computeAmount(using rate: Rate) -> ExchangedFiat? {
         guard !enteredAmount.isEmpty else {
             return nil
@@ -156,8 +153,7 @@ class CurrencyBuyViewModel: Identifiable {
                 actionButtonState = .normal
                 showInsufficientBalanceError()
             } catch Session.Error.verifiedStateStale {
-                // Session.assertFresh already logged this at .warning. The catch
-                // exists only to reset the button so the user can retry.
+                // Session.assertFresh already logged; reset the button so the user can retry.
                 actionButtonState = .normal
             } catch {
                 ErrorReporting.captureError(

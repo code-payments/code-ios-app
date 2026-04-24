@@ -201,11 +201,8 @@ class WithdrawViewModel {
         }
     }
 
-    /// Resolves the pinned state for the selected balance's mint and computes
-    /// the `ExchangedFiat` that will be submitted. One fetch, one rate — the
-    /// quarks and the `VerifiedState` handed to `Session.withdraw` come from
-    /// the same local so the submitted quarks can't drift from the rate the
-    /// server validates against.
+    /// Resolves the pin for the selected balance's mint and computes the
+    /// submission amount against it — one fetch for both.
     func prepareSubmission() async -> (amount: ExchangedFiat, pinnedState: VerifiedState)? {
         guard let mint = selectedBalance?.stored.mint else { return nil }
         let currency = ratesController.entryCurrency
@@ -218,10 +215,8 @@ class WithdrawViewModel {
         return (amount, pin)
     }
 
-    /// Shared compute used by the display preview and the submit path. The
-    /// preview passes `nil` for `pinnedSupplyQuarks` so supply falls back to
-    /// the live balance; submit passes the pinned supply so both inputs the
-    /// server validates against come from the same proof.
+    /// Preview passes `nil` for `pinnedSupplyQuarks` (falls back to live balance);
+    /// submit passes the pinned supply so rate and supply come from one proof.
     private func computeAmount(using rate: Rate, pinnedSupplyQuarks: UInt64?) -> ExchangedFiat? {
         guard !enteredAmount.isEmpty else {
             return nil

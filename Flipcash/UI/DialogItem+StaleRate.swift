@@ -8,9 +8,7 @@
 import FlipcashUI
 
 extension DialogItem {
-    /// Presented when a submit-time pin fetch can't resolve a fresh verified
-    /// exchange rate. Asks the user to try again; shared across the buy,
-    /// sell, and withdraw flows so the copy can't drift.
+    /// Shown when a submit-time pin fetch can't resolve a fresh rate.
     static var staleRate: DialogItem {
         .init(
             style: .destructive,

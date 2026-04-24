@@ -75,10 +75,8 @@ class CurrencySellViewModel: Identifiable {
         }
     }
 
-    /// Resolves the pinned state and computes the `ExchangedFiat` that will be
-    /// carried into the confirmation screen. One fetch, one rate — the
-    /// confirmation screen and `Session.sell` receive the same pin so the
-    /// submitted quarks can't drift from the rate the server validates against.
+    /// Resolves the pin and computes the amount carried into the confirmation
+    /// screen — confirmation and `Session.sell` receive the same pin.
     func prepareSubmission() async -> (amount: ExchangedFiat, pinnedState: VerifiedState)? {
         let currency = ratesController.entryCurrency
         guard let pin = await ratesController.currentPinnedState(for: currency, mint: currencyMetadata.mint) else {
@@ -90,10 +88,8 @@ class CurrencySellViewModel: Identifiable {
         return (amount, pin)
     }
 
-    /// Shared compute used by the display preview and the submit path. The
-    /// preview passes `nil` for `pinnedSupplyQuarks` so supply falls back to the
-    /// live metadata; submit passes the pinned supply so both inputs the server
-    /// validates against come from the same proof.
+    /// Preview passes `nil` for `pinnedSupplyQuarks` (falls back to live metadata);
+    /// submit passes the pinned supply so rate and supply come from one proof.
     private func computeAmount(using rate: Rate, pinnedSupplyQuarks: UInt64? = nil) -> ExchangedFiat? {
         guard !enteredAmount.isEmpty else { return nil }
         guard let amount = NumberFormatter.decimal(from: enteredAmount) else { return nil }

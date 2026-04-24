@@ -2,24 +2,12 @@
 //  Regression_native_amount_mismatch.swift
 //  FlipcashTests
 //
-//  Regression coverage for the "native amount does not match sell amount" server error.
-//  The root bug: the amount-entry VMs computed quarks against one rate source
-//  (the live stream cache) while the submitted intent carried a different rate
-//  (the pinned proof). Any drift between the two produced a native/quark
-//  mismatch at the server.
-//
-//  Under pin-at-compute, the VM holds no pin while the user types; display math
-//  reads from the live cache. At the moment the user commits (Buy / Next for
-//  sell / Withdraw), `prepareSubmission()` fetches the pin and computes the
-//  `ExchangedFiat` against *that* pin — one fetch, one rate, handed unchanged
-//  to `Session.*`. The two-source problem cannot reappear.
-//
-//  Invariants proven here:
-//  D) `prepareSubmission` computes quarks against the PINNED rate (and the
-//     pinned bonded supply where applicable), not the live cache.
-//  E) When no fresh pin is cached, `prepareSubmission` returns nil so the
-//     submit path bails with the "rate unavailable" dialog instead of silently
-//     submitting an intent the server would reject.
+//  Regression coverage for the "native amount does not match sell amount"
+//  server error. Invariants:
+//  - `prepareSubmission` computes quarks against the pinned rate (and supply
+//    where applicable), not the live cache.
+//  - When no fresh pin is cached, `prepareSubmission` returns nil so submit
+//    bails with a dialog instead of submitting an intent the server rejects.
 //
 
 import Foundation

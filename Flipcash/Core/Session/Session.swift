@@ -231,9 +231,8 @@ class Session {
         observeBalanceCurrencyChanges()
     }
 
-    /// Start streaming live mint data for exchange rates. Skipped under unit
-    /// tests so tests that seed `VerifiedProtoService` directly aren't racing
-    /// a live-rate delivery that would overwrite the seed.
+    /// Skipped under unit tests so seeded `VerifiedProtoService` data isn't
+    /// raced by a live stream delivery.
     private func startStreaming() {
         guard !Container.isRunningUnitTests else { return }
         let mints = balances.filter { $0.quarks > 0 }.map { $0.mint }

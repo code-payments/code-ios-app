@@ -40,12 +40,8 @@ public struct VerifiedState: Hashable, Sendable {
         }
     }
 
-    /// Hashes a lightweight fingerprint rather than the full proto tree.
-    /// `VerifiedState` is embedded in `CurrencySellPath.confirmation`, which
-    /// `NavigationStack` hashes when diffing; the default synthesized
-    /// `hash(into:)` would walk the proto signature bytes on every diff.
-    /// Collisions are allowed by `Hashable` — `==` still compares the full
-    /// struct.
+    /// Fingerprint-only hash — default synthesis would walk proto signature
+    /// bytes on every `NavigationStack` diff (see `CurrencySellPath.confirmation`).
     public func hash(into hasher: inout Hasher) {
         hasher.combine(serverTimestamp)
         hasher.combine(rateProto.exchangeRate.exchangeRate)
