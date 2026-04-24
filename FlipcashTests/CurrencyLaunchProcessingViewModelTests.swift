@@ -40,7 +40,7 @@ struct CurrencyLaunchProcessingViewModelTests {
         #expect(vm.navigationTitle == "Success")
         #expect(vm.title == "Test Coin Is Live")
         #expect(vm.subtitle == "Your currency is ready to receive and use")
-        #expect(vm.actionTitle == "Receive My Test Coin")
+        #expect(vm.actionTitle == "Get The First $1.00 of Your Currency Free")
     }
 
     @Test("Failed state copy")
