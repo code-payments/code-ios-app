@@ -31,12 +31,12 @@ struct CurrencyInfoSocialLinksSection: View {
                         Button("Telegram") {
                             UIApplication.shared.open(URL(string: "https://t.me/\(username)")!)
                         }
-                        .buttonStyle(.icon(.chat))
+                        .buttonStyle(.icon(.telegram))
                     case .discord(let inviteCode):
                         Button("Discord") {
                             UIApplication.shared.open(URL(string: "https://discord.gg/\(inviteCode)")!)
                         }
-                        .buttonStyle(.icon(.chat))
+                        .buttonStyle(.icon(.discord))
                     }
                 }
             }
