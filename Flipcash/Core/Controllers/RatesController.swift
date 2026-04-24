@@ -358,5 +358,10 @@ private enum LocalDefaults {
 }
 
 extension RatesController {
-    static let mock = RatesController(container: .mock, database: .mock)
+    /// Fresh per access. Each `.mock` returns a new `RatesController` with a
+    /// new underlying `Database`; read it once and bind to a local if you
+    /// need the same instance across multiple calls.
+    static var mock: RatesController {
+        RatesController(container: .mock, database: .mock)
+    }
 }

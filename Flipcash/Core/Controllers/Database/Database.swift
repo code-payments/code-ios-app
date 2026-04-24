@@ -154,5 +154,14 @@ extension Notification.Name {
 }
 
 extension Database {
-    static let mock = try! Database(url: .temporaryDirectory.appendingPathComponent("mock.sqlite"))
+    /// Fresh, per-access SQLite file. Each read of `.mock` returns a new
+    /// `Database` backed by a unique temp path, so previews and tests never
+    /// share state through a long-lived singleton file. Callers that need a
+    /// single `Database` across multiple child constructions should bind it
+    /// to a local (e.g. `let db = Database.mock`) and pass that local down.
+    static var mock: Database {
+        let url = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("mock-\(UUID().uuidString).sqlite")
+        return try! Database(url: url)
+    }
 }

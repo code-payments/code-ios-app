@@ -1651,17 +1651,24 @@ extension Session {
 // MARK: - Mock -
 
 extension Session {
-    static let mock = Session(
-        container: .mock,
-        historyController: .mock,
-        ratesController: .mock,
-        database: .mock,
-        keyAccount: .mock,
-        owner: .init(
-            authority: .derive(using: .primary(), mnemonic: .mock),
-            mint: .mock,
-            timeAuthority: .usdcAuthority
-        ),
-        userID: UUID()
-    )
+    /// Computed so each access builds a fresh object graph sharing ONE
+    /// Database across the session, rates controller, and history controller
+    /// (rather than each child pulling its own `.mock` and ending up with
+    /// three inconsistent databases).
+    static var mock: Session {
+        let database = Database.mock
+        return Session(
+            container: .mock,
+            historyController: HistoryController(container: .mock, database: database, owner: .mock),
+            ratesController: RatesController(container: .mock, database: database),
+            database: database,
+            keyAccount: .mock,
+            owner: .init(
+                authority: .derive(using: .primary(), mnemonic: .mock),
+                mint: .mock,
+                timeAuthority: .usdcAuthority
+            ),
+            userID: UUID()
+        )
+    }
 }

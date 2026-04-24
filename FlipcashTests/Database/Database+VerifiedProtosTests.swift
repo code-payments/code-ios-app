@@ -15,7 +15,7 @@ struct DatabaseVerifiedProtosTests {
 
     @Test("writeRate then read returns the same row")
     func rate_roundTrip() throws {
-        let db = try Database.makeIsolated()
+        let db = Database.mock
         let proto = Data([0x01, 0x02, 0x03])
         let received = Date(timeIntervalSince1970: 1_000)
 
@@ -29,7 +29,7 @@ struct DatabaseVerifiedProtosTests {
 
     @Test("writeRate upserts on the currency key")
     func rate_upsert() throws {
-        let db = try Database.makeIsolated()
+        let db = Database.mock
         try db.writeRate(StoredRateRow(currency: "USD", rateProto: Data([0x01]), receivedAt: Date(timeIntervalSince1970: 1_000)))
         try db.writeRate(StoredRateRow(currency: "USD", rateProto: Data([0x02]), receivedAt: Date(timeIntervalSince1970: 2_000)))
 
@@ -40,13 +40,13 @@ struct DatabaseVerifiedProtosTests {
 
     @Test("readVerifiedRate returns nil for missing currency")
     func rate_missing() throws {
-        let db = try Database.makeIsolated()
+        let db = Database.mock
         #expect(try db.readVerifiedRate(currency: "EUR") == nil)
     }
 
     @Test("allRates returns every row")
     func rate_readAll() throws {
-        let db = try Database.makeIsolated()
+        let db = Database.mock
         try db.writeRate(StoredRateRow(currency: "USD", rateProto: Data([0x01]), receivedAt: Date(timeIntervalSince1970: 1_000)))
         try db.writeRate(StoredRateRow(currency: "EUR", rateProto: Data([0x02]), receivedAt: Date(timeIntervalSince1970: 2_000)))
 
@@ -58,7 +58,7 @@ struct DatabaseVerifiedProtosTests {
 
     @Test("writeReserve then read returns the same row")
     func reserve_roundTrip() throws {
-        let db = try Database.makeIsolated()
+        let db = Database.mock
         let proto = Data([0xaa, 0xbb])
         let received = Date(timeIntervalSince1970: 500)
         let mint = "SomeBase58MintAddress"
@@ -73,7 +73,7 @@ struct DatabaseVerifiedProtosTests {
 
     @Test("writeReserve upserts on mint")
     func reserve_upsert() throws {
-        let db = try Database.makeIsolated()
+        let db = Database.mock
         let mint = "MintX"
         try db.writeReserve(StoredReserveRow(mint: mint, reserveProto: Data([0x01]), receivedAt: Date(timeIntervalSince1970: 1_000)))
         try db.writeReserve(StoredReserveRow(mint: mint, reserveProto: Data([0x02]), receivedAt: Date(timeIntervalSince1970: 2_000)))
@@ -84,7 +84,7 @@ struct DatabaseVerifiedProtosTests {
 
     @Test("allReserves returns every row")
     func reserve_readAll() throws {
-        let db = try Database.makeIsolated()
+        let db = Database.mock
         try db.writeReserve(StoredReserveRow(mint: "A", reserveProto: Data([0x01]), receivedAt: Date()))
         try db.writeReserve(StoredReserveRow(mint: "B", reserveProto: Data([0x02]), receivedAt: Date()))
 

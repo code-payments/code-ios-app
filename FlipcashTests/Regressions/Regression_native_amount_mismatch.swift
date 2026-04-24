@@ -32,22 +32,21 @@ struct Regression_native_amount_mismatch {
         // Make a fresh pinned state at a specific rate.
         let pinnedState = VerifiedState.fresh(bonded: false)
 
-        // Use a per-test isolated Database so saveReserveStates does not pollute
-        // the shared Database.mock that every other test in the process reads from.
-        let isolatedController = RatesController(container: .mock, database: try! Database.makeIsolated())
-
+        // SessionContainer.mock is a computed `static var`, so this gives us a
+        // fresh, internally-consistent Database / RatesController / Session.
+        // saveReserveStates will not leak into any other test.
         let sessionContainer = SessionContainer.mock
         let vm = CurrencyBuyViewModel(
             currencyPublicKey: .usdf,
             currencyName: "USDF",
             pinnedState: pinnedState,
             session: sessionContainer.session,
-            ratesController: isolatedController
+            ratesController: sessionContainer.ratesController
         )
 
         // Stream delivers a newer reserve state (a different supply) into THIS
         // controller's verifiedProtoService — the same one the VM is bound to.
-        await isolatedController.verifiedProtoService.saveReserveStates([
+        await sessionContainer.ratesController.verifiedProtoService.saveReserveStates([
             .freshReserve(mint: .jeffy, supplyFromBonding: 2_000_000)
         ])
 
@@ -62,9 +61,9 @@ struct Regression_native_amount_mismatch {
 
     @Test("Scenario B: a stale cached pin cannot be used to construct a ViewModel (currentPinnedState returns nil)")
     func scenarioB_stalePinBlocksOpeningFlow() async {
-        // Per-test isolated Database — saveRates / saveReserveStates persist via
-        // VerifiedProtoService and would pollute Database.mock otherwise.
-        let controller = RatesController(container: .mock, database: try! Database.makeIsolated())
+        // RatesController.mock is now computed — each access builds a fresh
+        // graph, so seeding stale protos here can't leak into other suites.
+        let controller = RatesController.mock
 
         // Seed the service with stale protos for both rate and reserve.
         await controller.verifiedProtoService.saveRates([

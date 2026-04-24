@@ -14,11 +14,12 @@ extension Session {
     /// a flow that branches on unverified state.
     @MainActor
     static var unverifiedMock: Session {
-        Session(
+        let database = Database.mock
+        return Session(
             container: .mock,
-            historyController: .mock,
-            ratesController: .mock,
-            database: .mock,
+            historyController: HistoryController(container: .mock, database: database, owner: .mock),
+            ratesController: RatesController(container: .mock, database: database),
+            database: database,
             keyAccount: .mock,
             owner: .init(
                 authority: .derive(using: .primary(), mnemonic: .mock),
