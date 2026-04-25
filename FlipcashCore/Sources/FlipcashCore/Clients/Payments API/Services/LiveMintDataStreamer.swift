@@ -30,6 +30,8 @@ public actor LiveMintDataStreamer {
     private var isReconnecting = false
     private var reconnectAttempts = 0
     private var reconnectTask: Task<Void, Never>?
+    private var pingTimeoutTask: Task<Void, Never>?
+    private var pingTracker = PingTracker()
     /// Set when a subscription update is sent on the existing stream.
     /// The server typically aborts the stream in response, so the next
     /// close should reconnect immediately without backoff.
@@ -45,6 +47,7 @@ public actor LiveMintDataStreamer {
     }
 
     deinit {
+        pingTimeoutTask?.cancel()
         reconnectTask?.cancel()
         streamReference?.destroy()
     }
@@ -73,7 +76,7 @@ public actor LiveMintDataStreamer {
         guard isStreaming, !subscribedMints.isEmpty else { return }
 
         // If the stream is alive and has received a recent ping, nothing to do
-        if let ref = streamReference, ref.isLikelyHealthy, !isReconnecting {
+        if isLikelyHealthy, !isReconnecting {
             return
         }
 
@@ -82,12 +85,19 @@ public actor LiveMintDataStreamer {
         openStream()
     }
 
+    private var isLikelyHealthy: Bool {
+        streamReference?.stream != nil && pingTracker.hasRecentPing
+    }
+
     /// Stop the stream
     public func stop() {
         isStreaming = false
         isReconnecting = false
         sentSubscriptionUpdate = false
         reconnectAttempts = 0
+        pingTimeoutTask?.cancel()
+        pingTimeoutTask = nil
+        pingTracker = PingTracker()
         reconnectTask?.cancel()
         reconnectTask = nil
         streamReference?.destroy()
@@ -134,6 +144,9 @@ public actor LiveMintDataStreamer {
             existing.destroy()
             streamReference = nil
         }
+        pingTimeoutTask?.cancel()
+        pingTimeoutTask = nil
+        pingTracker = PingTracker()
 
         // Reset reconnect state on successful stream open
         isReconnecting = false
@@ -143,12 +156,6 @@ public actor LiveMintDataStreamer {
 
         let reference = StreamReference()
         reference.retain()
-
-        // Set timeout handler for reconnection
-        reference.timeoutHandler = { [weak self] in
-            guard let self else { return }
-            Task { await self.handleTimeout() }
-        }
 
         let stream = service.service.streamLiveMintData(callOptions: .streaming) { [weak self] response in
             guard let self else { return }
@@ -172,6 +179,8 @@ public actor LiveMintDataStreamer {
 
         self.streamReference = reference
         reference.stream = stream
+
+        schedulePingTimeout(seconds: pingTracker.timeoutSeconds)
     }
 
     private func handleResponse(_ response: Ocp_Currency_V1_StreamLiveMintDataResponse) async {
@@ -204,10 +213,9 @@ public actor LiveMintDataStreamer {
     }
 
     private func handlePing(_ ping: Ocp_Common_V1_ServerPing) {
-        // Update timeout based on server's ping interval
-        streamReference?.receivedPing(updatedTimeout: Int(ping.pingDelay.seconds))
+        let timeout = pingTracker.receivedPing(updatedTimeout: Int(ping.pingDelay.seconds))
+        schedulePingTimeout(seconds: timeout)
 
-        // Send pong response
         let pongRequest = Ocp_Currency_V1_StreamLiveMintDataRequest.with {
             $0.pong = Ocp_Common_V1_ClientPong.with {
                 $0.timestamp = .init(seconds: Int64(Date().timeIntervalSince1970))
@@ -260,12 +268,25 @@ public actor LiveMintDataStreamer {
     /// Cancel any pending backoff, tear down the current stream, and
     /// reset reconnection counters so the next `openStream()` starts fresh.
     private func resetAndTeardown() {
+        pingTimeoutTask?.cancel()
+        pingTimeoutTask = nil
+        pingTracker = PingTracker()
         reconnectTask?.cancel()
         reconnectTask = nil
         isReconnecting = false
         reconnectAttempts = 0
         streamReference?.destroy()
         streamReference = nil
+    }
+
+    private func schedulePingTimeout(seconds: Int) {
+        pingTimeoutTask?.cancel()
+        pingTimeoutTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(seconds))
+            guard !Task.isCancelled else { return }
+            guard let self else { return }
+            await self.handleTimeout()
+        }
     }
 
     /// Reconnect immediately without backoff. Used when the server closes
@@ -287,6 +308,9 @@ public actor LiveMintDataStreamer {
         isReconnecting = true
 
         // Clean up previous streams
+        pingTimeoutTask?.cancel()
+        pingTimeoutTask = nil
+        pingTracker = PingTracker()
         streamReference?.destroy()
         streamReference = nil
 
