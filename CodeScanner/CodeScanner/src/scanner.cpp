@@ -766,8 +766,10 @@ bool detectKikCode(Mat &greyscale, Mat *out_progress, uint32_t device_quality, u
             int x = 0.9 * (point.x - candidate_center.center.x) + candidate_center.center.x;
             int y = 0.9 * (point.y - candidate_center.center.y) + candidate_center.center.y;
 
-            if (whitish.at<char>(y, x) == 0) {
-                ++dark_count;
+            if (x >= 0 && y >= 0 && x < whitish.cols && y < whitish.rows) {
+                if (whitish.at<char>(y, x) == 0) {
+                    ++dark_count;
+                }
             }
         }
 
