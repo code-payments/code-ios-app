@@ -355,22 +355,18 @@ struct SessionTests {
 }
 ```
 
-### Running Tests
+### Running the App & Tests
 
-Simulator device names and OS versions in test commands change with Xcode releases. Update destinations as new simulators become available.
+Use the project scripts — they encode the correct scheme, simulator, and destination:
 
-```bash
-# Run all tests
-xcodebuild test -scheme Flipcash -destination 'platform=iOS Simulator,name=iPhone 17' -testPlan AllTargets
+- **Build the app:** `./Scripts/build.sh`
+- **Targeted tests (for your changes):** `./Scripts/test.sh <Target>/<Suite>[/<TestName>] [...]`
+  - One suite: `./Scripts/test.sh FlipcashCoreTests/ExchangedFiatTests`
+  - Multiple suites: `./Scripts/test.sh FlipcashCoreTests/ExchangedFiatTests FlipcashCoreTests/FiatTests`
+  - One test: `./Scripts/test.sh FlipcashCoreTests/ExchangedFiatTests/myTestCase`
+- **Full `AllTargets` suite is the user's job** — don't run it. If you think it's required before declaring work done, ask the user to run it.
 
-# Run UI tests on current and previous OS
-xcodebuild test -scheme Flipcash -only-testing:FlipcashUITests \
-  -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.6' \
-  -destination 'platform=iOS Simulator,name=iPhone 17'
-
-# Run specific test suite
-xcodebuild test -scheme Flipcash -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:FlipcashTests/SessionTests
-```
+**Never run `swift test` in a package directory** (`FlipcashCore`, `FlipcashUI`, etc.). Packages are iOS-only; `swift test` targets the macOS host and fails with code-signing errors. Always go through `./Scripts/test.sh` (which routes through the `Flipcash` scheme on the iOS Simulator).
 
 ### Test Naming
 
@@ -463,8 +459,8 @@ Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
 
 ### Before Committing
 
-1. Code compiles without errors and no new warnings: `xcodebuild build -scheme Flipcash`
-2. Tests pass: `xcodebuild test -scheme Flipcash -destination 'platform=iOS Simulator,name=iPhone 17' -testPlan AllTargets`
+1. Code compiles without errors and no new warnings: `./Scripts/build.sh`
+2. Targeted tests pass for the changed areas: `./Scripts/test.sh <your-suites>` — the user runs the full `AllTargets` suite themselves before approving the commit
 3. Review changes with `git diff`
 4. Module boundaries respected (no `CodeServices` in Flipcash)
 5. Switch statements are exhaustive (no unnecessary `default` cases)
@@ -532,19 +528,4 @@ BondingCurve.maxSupply   // 21,000,000 tokens
 
 **Prefer Xcode MCP tools over `xcodebuild` shell commands** when the Xcode MCP server is available. It provides direct integration with the open Xcode workspace for building, testing, reading/writing project files, rendering SwiftUI previews, and searching Apple documentation.
 
-**Fall back to `xcodebuild`** when the MCP server is not connected or when you need CLI-specific options (e.g., `-testPlan`, `-only-testing`).
-
-### Build Commands
-
-Fallback `xcodebuild` commands (when MCP is unavailable):
-
-```bash
-# Build
-xcodebuild build -scheme Flipcash -destination 'generic/platform=iOS'
-
-# Test
-xcodebuild test -scheme Flipcash -destination 'platform=iOS Simulator,name=iPhone 17'
-
-# Clean
-xcodebuild clean -scheme Flipcash
-```
+**Fall back to `./Scripts/build.sh` and `./Scripts/test.sh`** when the MCP server is not connected. See [Running the App & Tests](#running-the-app--tests) for usage. For edge cases the scripts don't cover (e.g., a one-off destination, `xcodebuild clean`), drop down to raw `xcodebuild`.
