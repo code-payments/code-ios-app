@@ -32,6 +32,11 @@ public actor LiveMintDataStreamer {
     private var reconnectTask: Task<Void, Never>?
     private var pingTimeoutTask: Task<Void, Never>?
     private var pingTracker = PingTracker()
+    /// Bumped on every `openStream()`. gRPC response and status callbacks
+    /// capture the value at open time and pass it back; handlers ignore
+    /// callbacks whose generation doesn't match the current stream so a
+    /// torn-down stream's late `.cancelled` can't tear down its replacement.
+    private var streamGeneration: UInt = 0
     /// Set when a subscription update is sent on the existing stream.
     /// The server typically aborts the stream in response, so the next
     /// close should reconnect immediately without backoff.
@@ -154,12 +159,15 @@ public actor LiveMintDataStreamer {
 
         logger.info("Opening live mint data stream", metadata: ["count": "\(subscribedMints.count)"])
 
+        streamGeneration += 1
+        let generation = streamGeneration
+
         let reference = StreamReference()
         reference.retain()
 
         let stream = service.service.streamLiveMintData(callOptions: .streaming) { [weak self] response in
             guard let self else { return }
-            Task { await self.handleResponse(response) }
+            Task { await self.handleResponse(response, generation: generation) }
         }
 
         // Send initial request with mints
@@ -174,16 +182,21 @@ public actor LiveMintDataStreamer {
         // Handle stream status changes
         stream.status.whenComplete { [weak self] result in
             guard let self else { return }
-            Task { await self.handleStreamStatus(result) }
+            Task { await self.handleStreamStatus(result, generation: generation) }
         }
 
         self.streamReference = reference
         reference.stream = stream
 
         schedulePingTimeout(seconds: pingTracker.timeoutSeconds)
+        // Treat stream open as a liveness signal so `ensureConnected` doesn't
+        // tear down a fresh stream that hasn't received its first ping yet.
+        pingTracker.lastPing = .now
     }
 
-    private func handleResponse(_ response: Ocp_Currency_V1_StreamLiveMintDataResponse) async {
+    private func handleResponse(_ response: Ocp_Currency_V1_StreamLiveMintDataResponse, generation: UInt) async {
+        guard generation == streamGeneration else { return }
+
         guard let type = response.type else {
             logger.warning("Received empty stream response")
             return
@@ -230,7 +243,15 @@ public actor LiveMintDataStreamer {
         reconnect()
     }
 
-    private func handleStreamStatus(_ result: Result<GRPCStatus, Error>) {
+    private func handleStreamStatus(_ result: Result<GRPCStatus, Error>, generation: UInt) {
+        guard generation == streamGeneration else {
+            logger.debug("Ignoring status from previous stream generation", metadata: [
+                "generation": "\(generation)",
+                "current": "\(streamGeneration)",
+            ])
+            return
+        }
+
         let wasSubscriptionUpdate = sentSubscriptionUpdate
         sentSubscriptionUpdate = false
 
