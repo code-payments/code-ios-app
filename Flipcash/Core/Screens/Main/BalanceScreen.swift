@@ -26,10 +26,14 @@ struct BalanceScreen: View {
     @State private var selectedActivity: Activity?
     @State private var selectedMint: PublicKey?
 
-    /// Owned, mutable source for the List. `List` row reorder animations only
-    /// fire reliably when the data source is mutated inside an active animation
-    /// transaction — a body-time computed property doesn't satisfy that.
+    /// Owned, mutable source for the LazyVStack. Reorder animations only fire
+    /// when the data source is mutated inside an active animation transaction —
+    /// a body-time computed property doesn't satisfy that.
     @State private var sortedBalances: [ExchangedBalance] = []
+
+    /// Synchronizes per-row geometry across reorders so rows slide to their new
+    /// positions instead of popping when the sort order shuffles.
+    @Namespace private var balanceRowNamespace
 
     /// USDF is surfaced separately via `reservesBalance`.
     private var currencyBalances: [ExchangedBalance] {
@@ -49,8 +53,6 @@ struct BalanceScreen: View {
     private var balance: ExchangedFiat {
         sortedBalances.map(\.exchangedFiat).total(rate: balanceRate)
     }
-
-    private let proportion: CGFloat = 0.4
 
     private let container: Container
     private let sessionContainer: SessionContainer
@@ -150,7 +152,7 @@ struct BalanceScreen: View {
         }
     }
     
-    @ViewBuilder private func emptyState(geometry: GeometryProxy) -> some View {
+    @ViewBuilder private func emptyState() -> some View {
         VStack(spacing: 10) {
             Text("No Balance Yet")
                 .font(.appTextLarge)
@@ -166,61 +168,78 @@ struct BalanceScreen: View {
             }
             .padding(.top, 8)
         }
-        .listRowBackground(Color.clear)
-        .frame(height: geometry.size.height * (1 - proportion - 0.1))
         .padding(.horizontal, 20)
+        .containerRelativeFrame(.vertical) { length, _ in length * 0.5 }
     }
-    
+
     @ViewBuilder private func list() -> some View {
         let appreciation = computeAppreciation(for: currencyBalances)
 
-        GeometryReader { g in
-            List {
-                Section {
-                    if hasBalances {
-                        ForEach(currencyBalances) { balance in
-                            CurrencyBalanceRow(exchangedBalance: balance) {
-                                Analytics.tokenInfoOpened(from: .openedFromWallet, mint: balance.stored.mint)
-                                selectedMint = balance.stored.mint
+        // ScrollView ignores the bottom safe area so the section footer pins to
+        // the very bottom of the screen — the gradient can then fade out
+        // content scrolling under the home-indicator region. The button itself
+        // is pushed back into the safe area via `safeAreaInsets.bottom`.
+        GeometryReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 0, pinnedViews: [.sectionFooters]) {
+                    Section {
+                        VStack {
+                            header()
+                                .frame(height: 60)
+
+                            ValueAppreciation(amount: appreciation.amount, isPositive: appreciation.isPositive)
+                                .padding(.top, 4)
+                        }
+                        .padding(.vertical, 30)
+
+                        if hasBalances {
+                            ForEach(currencyBalances) { balance in
+                                CurrencyBalanceRow(exchangedBalance: balance) {
+                                    Analytics.tokenInfoOpened(from: .openedFromWallet, mint: balance.stored.mint)
+                                    selectedMint = balance.stored.mint
+                                }
+                                .vSeparator(color: .rowSeparator)
+                                .matchedGeometryEffect(id: balance.id, in: balanceRowNamespace)
+                            }
+
+                            if let reservesBalance, reservesBalance.exchangedFiat.hasDisplayableValue() {
+                                CashReservesRow(
+                                    reservesBalance: reservesBalance,
+                                    showTopDivider: currencyBalances.isEmpty,
+                                    selectedMint: $selectedMint
+                                )
+                            }
+                        } else {
+                            emptyState()
+                        }
+                    } footer: {
+                        if hasBalances {
+                            Button("Discover Currencies") {
+                                isShowingCurrencyDiscovery = true
+                            }
+                            .buttonStyle(.filled)
+                            .padding(.horizontal, 20)
+                            .padding(.top, 20)
+                            .padding(.bottom, 20 + proxy.safeAreaInsets.bottom)
+                            .frame(maxWidth: .infinity)
+                            .background {
+                                LinearGradient(
+                                    gradient: Gradient(colors: [Color.backgroundMain, Color.backgroundMain, .clear]),
+                                    startPoint: .bottom,
+                                    endPoint: .top
+                                )
                             }
                         }
-                    } else {
-                        emptyState(geometry: g)
                     }
-
-                } header: {
-                    VStack {
-                        header()
-                            .frame(height: 60)
-
-                        ValueAppreciation(amount: appreciation.amount, isPositive: appreciation.isPositive)
-                            .padding(.top, 4)
-                    }
-                    // iOS 18.6 and earlier: List section headers default to .textCase(.uppercase),
-                    // which propagates into child views and sheets presented from within the header.
-                    .textCase(.none)
-                    .padding(.vertical, 30)
-                } footer: {
-                    BalanceFooter(
-                        reservesBalance: reservesBalance,
-                        showDiscoverCurrencies: hasBalances,
-                        isOnlyRow: currencyBalances.isEmpty,
-                        selectedMint: $selectedMint,
-                        isShowingCurrencyDiscovery: $isShowingCurrencyDiscovery
-                    )
                 }
-                .listRowInsets(EdgeInsets())
-                .listRowSeparator(hasBalances ? .automatic : .hidden)
-                .listRowSeparatorTint(.rowSeparator)
             }
-            .listStyle(.grouped)
-            .scrollContentBackground(.hidden)
+            .ignoresSafeArea(.container, edges: .bottom)
         }
     }
 
-    /// Wrapped in `withAnimation` so the List diff joins an animation
-    /// transaction — that's what makes row reorders slide rather than pop when
-    /// prices shuffle the sort order.
+    /// Wrapped in `withAnimation` so the LazyVStack diff joins an animation
+    /// transaction — `matchedGeometryEffect` then interpolates each row to its
+    /// new slot when the sort order shuffles.
     private func refreshSortedBalances() {
         let next = session.balances(for: balanceRate)
         guard next != sortedBalances else { return }
