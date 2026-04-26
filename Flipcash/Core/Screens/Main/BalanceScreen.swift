@@ -25,36 +25,46 @@ struct BalanceScreen: View {
     @State private var dialogItem: DialogItem?
     @State private var selectedActivity: Activity?
     @State private var selectedMint: PublicKey?
-    
-    private var balance: ExchangedFiat {
-        balances.map(\.exchangedFiat).total(rate: balanceRate)
+
+    /// Owned, mutable source for the List. `List` row reorder animations only
+    /// fire reliably when the data source is mutated inside an active animation
+    /// transaction — a body-time computed property doesn't satisfy that.
+    @State private var sortedBalances: [ExchangedBalance] = []
+
+    /// USDF is surfaced separately via `reservesBalance`.
+    private var currencyBalances: [ExchangedBalance] {
+        sortedBalances.filter { $0.stored.mint != .usdf }
     }
-    
+
+    /// `nil` for a zero balance so the reserves row is hidden when there's
+    /// nothing to show.
+    private var reservesBalance: ExchangedBalance? {
+        sortedBalances.first { $0.stored.mint == .usdf && $0.stored.quarks > 0 }
+    }
+
+    private var hasBalances: Bool {
+        !currencyBalances.isEmpty || reservesBalance != nil
+    }
+
+    private var balance: ExchangedFiat {
+        sortedBalances.map(\.exchangedFiat).total(rate: balanceRate)
+    }
+
     private let proportion: CGFloat = 0.4
-    
+
     private let container: Container
     private let sessionContainer: SessionContainer
-    
+
     private var balanceRate: Rate {
         ratesController.rateForBalanceCurrency()
     }
-    
-    private var balances: [ExchangedBalance] {
-        session.balances(for: balanceRate)
-    }
 
-    private var currencyBalances: [ExchangedBalance] {
-        balances.filter { $0.stored.mint != .usdf }
-    }
-
-    private var reservesBalance: ExchangedBalance? {
-        balances.first { $0.stored.mint == .usdf && $0.stored.quarks > 0 }
-    }
-    
-    private var appreciation: (amount: FiatAmount, isPositive: Bool) {
+    /// Takes balances by parameter so callers can pass a cached snapshot and
+    /// avoid re-filtering `currencyBalances` on every body evaluation.
+    private func computeAppreciation(for balances: [ExchangedBalance]) -> (amount: FiatAmount, isPositive: Bool) {
         var totalAppreciation: Decimal = 0
 
-        for balance in currencyBalances {
+        for balance in balances {
             let (value, isPositive) = balance.stored.computeAppreciation(with: balanceRate)
             let amount = value.nativeAmount.value
             totalAppreciation += isPositive ? amount : -amount
@@ -104,6 +114,8 @@ struct BalanceScreen: View {
                 }
             }
             .onAppear(perform: onAppear)
+            .onChange(of: session.balances, initial: true) { _, _ in refreshSortedBalances() }
+            .onChange(of: balanceRate) { _, _ in refreshSortedBalances() }
             .onChange(of: session.pendingCurrencyInfoMint, initial: true) { _, mint in
                 guard let mint else { return }
                 Analytics.tokenInfoOpened(from: .openedFromDeeplink, mint: mint)
@@ -160,7 +172,8 @@ struct BalanceScreen: View {
     }
     
     @ViewBuilder private func list() -> some View {
-        let hasBalances = !currencyBalances.isEmpty || reservesBalance != nil
+        let appreciation = computeAppreciation(for: currencyBalances)
+
         GeometryReader { g in
             List {
                 Section {
@@ -205,7 +218,17 @@ struct BalanceScreen: View {
         }
     }
 
-    
+    /// Wrapped in `withAnimation` so the List diff joins an animation
+    /// transaction — that's what makes row reorders slide rather than pop when
+    /// prices shuffle the sort order.
+    private func refreshSortedBalances() {
+        let next = session.balances(for: balanceRate)
+        guard next != sortedBalances else { return }
+        withAnimation(.smooth) {
+            sortedBalances = next
+        }
+    }
+
     @ViewBuilder private func header() -> some View {
         VStack(spacing: 10) {
             Button {
