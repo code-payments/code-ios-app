@@ -749,7 +749,9 @@ final class OnrampCoordinator {
             }
             presentDestructiveDialog(title: title, subtitle: subtitle)
 
-            ErrorReporting.captureError(kind)
+            ErrorReporting.captureError(kind, id: kind.rawValue, metadata: [
+                "error_code": event.data?.errorCode ?? "nil"
+            ])
         }
 
         switch event.event {
