@@ -678,7 +678,7 @@ final class OnrampCoordinator {
                 paymentCurrency: "USD",
                 purchaseCurrency: "USDF",
                 isQuote: false,
-                destinationAddress: usdfSwapAccounts.ata.publicKey,
+                destinationAddress: usdfSwapAccounts.pda.publicKey,
                 email: email,
                 phoneNumber: phone,
                 partnerOrderRef: orderRef,
