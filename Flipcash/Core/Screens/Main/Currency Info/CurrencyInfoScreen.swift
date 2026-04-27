@@ -185,10 +185,7 @@ struct CurrencyInfoScreen: View {
             }
         }
         .navigationDestinationCompat(item: $transactionHistoryMint) { mint in
-            TransactionHistoryScreen(
-                mint: mint,
-                database: sessionContainer.database
-            )
+            TransactionHistoryScreen(mint: mint)
         }
         .fullScreenCover(item: Bindable(walletConnection).processing) { processing in
             NavigationStack {
