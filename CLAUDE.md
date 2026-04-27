@@ -47,7 +47,7 @@ When adding new information, place it in the appropriate existing section. Remov
 
 ### Working Style
 
-- **Understand the context.** Take your time to understand how the changes _should_ fit into the complete project. Perhaps a refactor is required. Perhaps the current structure is not ideal. Take your time to indetify this.
+- **Understand the context.** Take your time to understand how the changes _should_ fit into the complete project. Perhaps a refactor is required. Perhaps the current structure is not ideal. Take your time to identify this.
 - **Double-check your work.** Verify changes compile and don't break existing functionality.
 - **Ask clarifying questions.** When requirements are ambiguous or something is unclear or can have multiple meanings, don't assume. Ask clarifying questions where needed but try to keep these as concise and as minimal as possible.
 
@@ -127,7 +127,7 @@ case .insufficient(let shortfall):
 | `@AppStorage` wrapping `UserDefaults` manually | `@AppStorage` directly | For simple per-screen preferences |
 | `onChange(of:perform:)` (deprecated) | `onChange(of:initial:_:)` | Use `initial: true` when the handler should also fire on appear |
 
-Existing `ObservableObject` classes (`Session`, `Client`, controllers) stay as-is until their dependents are migrated. A single class must use one system — either `ObservableObject` with `@Published`, or `@Observable`. Mixing causes silent observation failures.
+Existing `ObservableObject` classes (`Client`, `FlipClient`) stay as-is until their dependents are migrated. A single class must use one system — either `ObservableObject` with `@Published`, or `@Observable`. Mixing causes silent observation failures.
 
 ### Generated Files
 
@@ -223,7 +223,7 @@ Container (DI)
 ├── FlipClient (Flipcash APIs)
 ├── AccountManager (Keychain)
 └── SessionContainer (when logged in)
-    ├── Session (main state, ObservableObject)
+    ├── Session (main state, @Observable)
     ├── RatesController
     │   ├── VerifiedProtoService (actor – caches verified exchange rate + reserve state proofs)
     │   └── LiveMintDataStreamer (actor – bidirectional streaming for rates/reserves)
@@ -253,6 +253,16 @@ let stream = service.openMessageStream(request) { response in ... }
 // ✅ GOOD: No timeout — stream stays open, managed by keepalive
 let stream = service.openMessageStream(request, callOptions: .streaming) { response in ... }
 ```
+
+### Navigation: AppRouter
+
+All navigation flows through `AppRouter` — a single `@Observable @MainActor` class on `SessionContainer`, injected via `@Environment(AppRouter.self)`. **Don't add screen-level `@State` sheet flags or `selectedXxx` bindings for navigation** — mutate the router instead. Deeplinks and push notifications call `router.navigate(to:)`; in-screen pushes call `router.push(_:on:)`.
+
+Top-level sheets (`Balance`, `Settings`, `Give`) each own a `NavigationStack(path: $router[.<stack>])` and register destinations via the `.appRouterDestinations(...)` modifier on their root content. Per-stack paths are `NavigationPath` (type-erased), so sub-flow destinations (e.g., `WithdrawNavigationPath`) coexist with top-level `Destination` cases on the same stack — register `.navigationDestination(for: SubFlowPath.self)` on the sub-flow root view and push via `router.pushAny(_:on:)`. **Don't nest a `NavigationStack` inside another stack's destination** — push/pop/push corrupts SwiftUI's stack state with `comparisonTypeMismatch`.
+
+**Local interaction sheets stay local.** Transient pickers (currency selection, buy/sell amount, funding selection) belong on the screen that owns them as `.sheet(...)` modifiers — they're interactions, not navigation. Only the navigation graph goes through the router.
+
+Every router mutation logs one INFO entry under `flipcash.router` — filter by that label to trace any navigation interaction.
 
 ### Key Architectural Concepts
 
@@ -392,7 +402,7 @@ Use the project scripts — they encode the correct scheme, simulator, and desti
 ### Test Naming
 
 - Use descriptive names that explain the scenario
-- Format: `func testMethodName_scenario_expectedResult()` or use `@Test("description")`
+- Format: `func methodName_scenario_expectedResult()` paired with `@Test("description")` for the display name
 
 ### Test the Actual Implementation
 
@@ -500,6 +510,8 @@ Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
 | Canceling/modifying `SendCashOperation` in `dismissCashBill` | **Never** explicitly call `cancel()` or `invalidateMessageStream()` on `SendCashOperation` from `dismissCashBill`. After a grab, the received bill is a **live** `SendCashOperation` that others can scan ("quick give and grab" chain). Setting `sendOperation = nil` is fine (deinit cleans up), but explicit teardown kills a live bill. The operation's `complete()` method handles stream teardown on success/failure. |
 | Using default `CallOptions` for streaming RPCs | Streaming RPCs (`openMessageStream`, `submitIntent`, `streamLiveMintData`, `statefulSwap`) must use `callOptions: .streaming`. The default 15s timeout silently kills long-lived streams. See [gRPC Call Options](#grpc-call-options). |
 | Showing a received bill without `verifiedState` | Every call to `showCashBill` must pass `verifiedState` — even for `received: true` bills. The received bill creates a live `SendCashOperation` for the "quick give and grab" chain. Without `verifiedState`, launchpad currency transfers fail with "reserve state is required". Both `receiveCash` (scan) and `receiveCashLink` (deep link) must provide it. |
+| Nesting a `NavigationStack` inside another stack's destination | Crashes with `SwiftUI.AnyNavigationPath.Error.comparisonTypeMismatch` on push/pop/push. Drop the inner stack; register `.navigationDestination(for: SubFlowPath.self)` on the destination's root view and push sub-flow steps via `router.pushAny(_:on:)`. The parent stack's `NavigationPath` carries both the typed `Destination` cases and the sub-flow's Hashable values. |
+| Cross-stack `navigate(to:)` shows stale leaf data | When two destinations have the same case but different associated values (e.g., `.currencyInfo(A)` → `.currencyInfo(B)`), SwiftUI keeps the existing view at the same path depth and `@State` survives — the leaf renders with old data. Add `.id(value)` to the destination view in `DestinationView` so each value forces a fresh view identity. |
 | `matchedGeometryEffect` applied after `.frame` | **`.matchedGeometryEffect` must come BEFORE `.frame` in the modifier chain.** Wrong order causes hero animations to fail silently: you see two separate views fading in/out at their own static positions instead of one morphing element. Paul Hudson's hackingwithswift example uses the wrong order and does not work on current iOS. Correct: `Rectangle().fill(.red).matchedGeometryEffect(id:in:).frame(width:height:)`. Incorrect: `Rectangle().fill(.red).frame(width:height:).matchedGeometryEffect(id:in:)`. Also note: `.transition(.identity)` on a parent containing matched views **kills the animation entirely** — matched geometry needs the parent view to remain in the tree briefly for interpolation, and `.identity` removes it instantly. |
 
 ---
@@ -509,6 +521,13 @@ Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
 ### Key Files
 
 ```
+Navigation:
+- Flipcash/Core/Navigation/AppRouter.swift (class + mutators + logging)
+- Flipcash/Core/Navigation/AppRouter+Destination.swift (push targets)
+- Flipcash/Core/Navigation/AppRouter+SheetPresentation.swift (top-level sheets)
+- Flipcash/Core/Navigation/AppRouter+Stack.swift (per-sheet stacks)
+- Flipcash/Core/Navigation/AppRouter+DestinationView.swift (destination → view map)
+
 Session & Auth:
 - Flipcash/Core/Session/Session.swift
 - Flipcash/Core/Session/SessionAuthenticator.swift
