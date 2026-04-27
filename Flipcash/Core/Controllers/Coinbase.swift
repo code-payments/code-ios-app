@@ -255,9 +255,9 @@ public struct OnrampErrorResponse: Error, Decodable, Sendable {
                 case .invalidCard:
                     return "This transaction was declined. Please make sure you are using a debit card and the billing address is correct"
                 case .transactionLimit:
-                    return "You can only add up to $1,800 per week"
+                    return "You can only add up to $1,000 per week"
                 case .transactionCount:
-                    return "Each user is limited to 5 purchases total. To add more funds, please purchase USDC on an exchange and deposit it into your account"
+                    return "Each user is limited to 15 purchases total."
                 case .cardRiskDeclined, .permissionDenied:
                     return "Something went wrong. Please contact support"
                 case .guestRegionMismatch, .guestRegionForbidden, .networkNotTradable:
