@@ -121,7 +121,6 @@ struct WithdrawViewModelTests {
         )
 
         let viewModel = WithdrawViewModel(
-            isPresented: .constant(true),
             container: .mock,
             sessionContainer: container
         )
@@ -156,7 +155,6 @@ struct WithdrawViewModelTests {
             exchangedFiat: stored.computeExchangedValue(with: rate)
         )
         let viewModel = WithdrawViewModel(
-            isPresented: .constant(true),
             container: .mock,
             sessionContainer: container
         )

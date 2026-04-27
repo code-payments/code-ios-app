@@ -11,8 +11,8 @@ import FlipcashCore
 
 struct WithdrawScreen: View {
 
-    @Binding var isPresented: Bool
-
+    @Environment(\.dismiss) private var dismiss
+    @Environment(AppRouter.self) private var router
     @Environment(Session.self) private var session
     @Environment(RatesController.self) private var ratesController
 
@@ -27,12 +27,10 @@ struct WithdrawScreen: View {
 
     // MARK: - Init -
 
-    init(isPresented: Binding<Bool>, container: Container, sessionContainer: SessionContainer) {
-        self._isPresented     = isPresented
+    init(container: Container, sessionContainer: SessionContainer) {
         self.container        = container
         self.sessionContainer = sessionContainer
         self.viewModel        = WithdrawViewModel(
-            isPresented: isPresented,
             container: container,
             sessionContainer: sessionContainer
         )
@@ -41,39 +39,49 @@ struct WithdrawScreen: View {
     // MARK: - Body -
 
     var body: some View {
-        NavigationStack(path: $viewModel.path) {
-            Background(color: .backgroundMain) {
-                List {
-                    Section {
-                        ForEach(balances) { balance in
-                            CurrencyBalanceRow(
-                                exchangedBalance: balance
-                            ) {
-                                viewModel.selectCurrency(balance)
-                            }
+        Background(color: .backgroundMain) {
+            List {
+                Section {
+                    ForEach(balances) { balance in
+                        CurrencyBalanceRow(
+                            exchangedBalance: balance
+                        ) {
+                            viewModel.selectCurrency(balance)
                         }
                     }
-                    .listRowInsets(EdgeInsets())
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
+                .listRowInsets(EdgeInsets())
             }
-            .navigationTitle("Select Currency")
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationDestination(for: WithdrawNavigationPath.self) { path in
-                switch path {
-                case .enterAmount:
-                    WithdrawAmountScreen(viewModel: viewModel)
-                case .enterAddress:
-                    WithdrawAddressScreen(viewModel: viewModel)
-                case .confirmation:
-                    WithdrawSummaryScreen(viewModel: viewModel)
-                }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+        }
+        .navigationTitle("Select Currency")
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(for: WithdrawNavigationPath.self) { path in
+            switch path {
+            case .enterAmount:
+                WithdrawAmountScreen(viewModel: viewModel)
+            case .enterAddress:
+                WithdrawAddressScreen(viewModel: viewModel)
+            case .confirmation:
+                WithdrawSummaryScreen(viewModel: viewModel)
             }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    ToolbarCloseButton(binding: $isPresented)
-                }
+        }
+        .onAppear {
+            // Wire the view model's navigation callbacks. Push substeps onto
+            // the parent (Settings) NavigationStack via the router; pops
+            // remove that many items from the top.
+            viewModel.pushSubstep = { step in
+                router.pushAny(step, on: .settings)
+            }
+            viewModel.popSubsteps = { count in
+                router.popLast(count, on: .settings)
+            }
+            viewModel.onComplete = {
+                // Successful withdrawal: unwind the entire flow back to
+                // Settings root by popping `.withdraw` and any substeps
+                // pushed on top.
+                dismiss()
             }
         }
     }

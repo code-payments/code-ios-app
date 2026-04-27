@@ -103,24 +103,6 @@ struct CurrencyInfoScreen: View {
         )
     }
 
-    /// Creates the screen with pre-fetched metadata for instant display.
-    /// The title and icon render immediately; a background refresh still runs
-    /// via ``CurrencyInfoViewModel/loadMintMetadata()`` to pick up any updates.
-    init(metadata: MintMetadata, container: Container, sessionContainer: SessionContainer) {
-        self.init(
-            mint: metadata.address,
-            viewModel: CurrencyInfoViewModel(
-                metadata: metadata,
-                session: sessionContainer.session,
-                database: sessionContainer.database,
-                ratesController: sessionContainer.ratesController
-            ),
-            container: container,
-            sessionContainer: sessionContainer,
-            showFundingOnAppear: false
-        )
-    }
-
     // MARK: - Body -
 
     var body: some View {

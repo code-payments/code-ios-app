@@ -28,7 +28,6 @@ enum WithdrawViewModelTestHelpers {
         )
 
         return WithdrawViewModel(
-            isPresented: .constant(true),
             container: container,
             sessionContainer: sessionContainer
         )

@@ -65,9 +65,6 @@ class Session {
     /// Active Coinbase onramp order, if any.
     var coinbaseOrder: OnrampOrderResponse?
 
-    /// Navigation trigger for deep-linking to a currency info screen.
-    var pendingCurrencyInfoMint: PublicKey? = nil
-
     @ObservationIgnored private var grabStarts: [PublicKey: Date] = [:]
 
     @ObservationIgnored let keyAccount: KeyAccount
@@ -924,10 +921,6 @@ class Session {
     }
     
     func showCashBill(_ billDescription: BillDescription) {
-        // Clear pending navigation so deep link triggers don't
-        // re-present sheets after the bill dismisses them.
-        pendingCurrencyInfoMint = nil
-
         let operation = SendCashOperation(
             client: client,
             database: database,

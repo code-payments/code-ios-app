@@ -113,7 +113,6 @@ struct Regression_native_amount_mismatch {
         ])
 
         let vm = WithdrawViewModel(
-            isPresented: .constant(true),
             container: .mock,
             sessionContainer: sessionContainer
         )
@@ -192,7 +191,6 @@ struct Regression_native_amount_mismatch {
         )
 
         let vm = WithdrawViewModel(
-            isPresented: .constant(true),
             container: .mock,
             sessionContainer: sessionContainer
         )

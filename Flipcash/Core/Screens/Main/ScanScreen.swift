@@ -14,18 +14,16 @@ struct ScanScreen: View {
     @Environment(SessionAuthenticator.self) private var sessionAuthenticator
     @Environment(Preferences.self) private var preferences
     @Environment(BetaFlags.self) private var betaFlags
-    
+    @Environment(AppRouter.self) private var router
+
     @Bindable private var session: Session
-    
+
     @State private var viewModel: ScanViewModel
 
     @State private var giveViewModel: GiveViewModel
-    
+
     @State private var cameraAuthorizer = CameraAuthorizer()
-    
-    @State private var isShowingBalance: Bool = false
-    @State private var isShowingSettings: Bool = false
-    
+
     @State private var sendButtonState: ButtonState = .normal
     @State private var sendButtonTask: Task<Void, Never>?
 
@@ -137,6 +135,24 @@ struct ScanScreen: View {
             }
             .interactiveDismissDisabled()
         }
+        // Swipe-to-dismiss writes nil through this binding; route through
+        // `dismissSheet()` so the dismissal is logged. Programmatic presentations
+        // go through `router.present(_:)` directly and never write through here.
+        .sheet(item: Binding(
+            get: { router.presentedSheet },
+            set: { newValue in
+                if newValue == nil {
+                    router.dismissSheet()
+                }
+            }
+        )) { sheet in
+            RoutedSheet(
+                sheet: sheet,
+                container: container,
+                sessionContainer: sessionContainer,
+                giveViewModel: giveViewModel
+            )
+        }
         .dialog(item: $giveViewModel.dialogItem)
         // Dismiss all presented sheets when a bill is about to appear.
         // Bills render in ScanScreen's ZStack, so any sheet on top
@@ -145,9 +161,18 @@ struct ScanScreen: View {
         // are always visible regardless of the current navigation state.
         .onChange(of: session.presentationState.isPresenting) { _, isPresenting in
             guard isPresenting else { return }
-            isShowingSettings = false
-            isShowingBalance = false
+            router.dismissSheet()
             giveViewModel.isPresented = false
+        }
+        // Mirror GiveViewModel's business-logic flag to the router. The model
+        // owns "should the give flow be open" (it falls back to false on
+        // no-balance); the router owns presentation. Sync them here.
+        .onChange(of: giveViewModel.isPresented) { _, isPresented in
+            if isPresented {
+                router.present(.give)
+            } else if router.presentedSheet == .give {
+                router.dismissSheet()
+            }
         }
         // Reset button state on bill dismissal — `sendButtonState` outlives individual bills.
         .onChange(of: session.billState.bill) { _, newBill in
@@ -260,23 +285,14 @@ struct ScanScreen: View {
 
             Spacer()
 
-            GlassButton(
-                asset: .hamburger,
-                size: .regular,
-                binding: $isShowingSettings
-            )
-            .accessibilityLabel("Settings")
-            .sheet(isPresented: $isShowingSettings) {
-                SettingsScreen(
-                    isPresented: $isShowingSettings,
-                    container: container,
-                    sessionContainer: sessionContainer
-                )
+            GlassButton(asset: .hamburger, size: .regular) {
+                router.present(.settings)
             }
+            .accessibilityLabel("Settings")
         }
         .padding(.horizontal, 20)
     }
-    
+
     @ViewBuilder private func bottomBar() -> some View {
         HStack(alignment: .bottom) {
             LargeButton(
@@ -286,57 +302,13 @@ struct ScanScreen: View {
                 maxWidth: 80,
                 maxHeight: 80,
                 fullWidth: true,
-                aligment: .bottom,
-                binding: $giveViewModel.isPresented
-            )
-            .sheet(isPresented: $giveViewModel.isPresented) {
-                NavigationStack {
-                    GiveScreen(viewModel: giveViewModel)
-                        .toolbar {
-                            ToolbarItem(placement: .navigationBarTrailing) {
-                                ToolbarCloseButton(
-                                    binding: $giveViewModel.isPresented
-                                )
-                            }
-                        }
-                }
+                aligment: .bottom
+            ) {
+                // Setting the model flag triggers the in-model balance check;
+                // the .onChange in `body` mirrors success to the router.
+                giveViewModel.isPresented = true
             }
-            
-//            LargeButton(
-//                title: "Send",
-//                image: .asset(.airplane),
-//                spacing: 12,
-//                maxWidth: 80,
-//                maxHeight: 80,
-//                fullWidth: true,
-//                badgeInsets: .init(top: 0, leading: 0, bottom: 0, trailing: 5),
-//                aligment: .bottom,
-//                binding: $isShowingSend
-//            )
-//            .sheet(isPresented: $isShowingSend) {
-//                GiveScreen(
-//                    isPresented: $isShowingSend,
-//                    kind: .cashLink
-//                )
-//            }
-            
-//            LargeButton(
-//                title: "Pool",
-//                image: .asset(.pools),
-//                spacing: 12,
-//                maxWidth: 80,
-//                maxHeight: 80,
-//                fullWidth: true,
-//                aligment: .bottom,
-//                binding: $poolViewModel.isShowingPoolList
-//            )
-//            .sheet(isPresented: $poolViewModel.isShowingPoolList) {
-//                PoolsScreen(
-//                    container: container,
-//                    sessionContainer: sessionContainer
-//                )
-//            }
-            
+
             ToastContainer(toast: toast) {
                 LargeButton(
                     title: "Wallet",
@@ -345,23 +317,9 @@ struct ScanScreen: View {
                     maxWidth: 80,
                     maxHeight: 80,
                     fullWidth: true,
-                    aligment: .bottom,
-                    binding: $isShowingBalance
-                )
-                .sheet(isPresented: $isShowingBalance) {
-                    BalanceScreen(
-                        isPresented: $isShowingBalance,
-                        container: container,
-                        sessionContainer: sessionContainer
-                    )
-                    .environment(\.dismissParentContainer, {
-                        isShowingBalance = false
-                    })
-                }
-                .onChange(of: session.pendingCurrencyInfoMint, initial: true) { _, mint in
-                    if mint != nil {
-                        isShowingBalance = true
-                    }
+                    aligment: .bottom
+                ) {
+                    router.present(.balance)
                 }
             }
         }
@@ -414,6 +372,46 @@ struct ScanScreen: View {
 extension String: @retroactive Identifiable {
     public var id: String {
         self
+    }
+}
+
+// MARK: - RoutedSheet -
+
+/// Renders the modal sheet currently selected by `AppRouter.presentedSheet`.
+/// Each case is a top-level modal; switching between them is a sheet swap.
+private struct RoutedSheet: View {
+
+    let sheet: AppRouter.SheetPresentation
+    let container: Container
+    let sessionContainer: SessionContainer
+    let giveViewModel: GiveViewModel
+
+    var body: some View {
+        switch sheet {
+        case .balance:
+            BalanceScreen(
+                container: container,
+                sessionContainer: sessionContainer
+            )
+        case .settings:
+            SettingsScreen(
+                container: container,
+                sessionContainer: sessionContainer
+            )
+        case .give:
+            NavigationStack {
+                GiveScreen(viewModel: giveViewModel)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            ToolbarCloseButton {
+                                // Mirrored back to the router via the
+                                // `.onChange(of: giveViewModel.isPresented)` in ScanScreen.
+                                giveViewModel.isPresented = false
+                            }
+                        }
+                    }
+            }
+        }
     }
 }
 

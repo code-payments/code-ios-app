@@ -148,20 +148,6 @@ class CurrencyInfoViewModel {
         }
     }
 
-    /// Initializes with pre-fetched metadata for instant display. Converts
-    /// the ``MintMetadata`` to ``StoredMintMetadata`` and starts in the
-    /// `.loaded` state — no loading spinner is shown.
-    init(metadata: MintMetadata, session: Session, database: Database, ratesController: RatesController) {
-        self.mint = metadata.address
-        self.session = session
-        self.database = database
-        self.ratesController = ratesController
-
-        let stored = StoredMintMetadata(metadata)
-        setupUpdateable(with: stored)
-        loadingState = .loaded(stored, metadata)
-    }
-
     func loadMintMetadata() async {
         // If already loaded from cache, no need to show loading state
         let wasAlreadyLoaded = isLoaded
