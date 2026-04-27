@@ -29,12 +29,14 @@ struct SettingsAppSettingsScreen: View {
     @ViewBuilder
     private func list() -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            SettingsToggle(
-                image: .asset(.camera),
-                title: "Auto Start Camera",
-                isEnabled: cameraAutoStartDisabledBinding(),
-                insets: insets
-            )
+            Row(insets: insets) {
+                Image.asset(.camera).frame(minWidth: 45)
+                Toggle("Auto Start Camera", isOn: cameraAutoStartDisabledBinding())
+                    .multilineTextAlignment(.leading)
+                    .truncationMode(.tail)
+                    .padding(.trailing, 2)
+                    .tint(.textSuccess)
+            }
         }
         .font(.appDisplayXS)
         .foregroundColor(.textMain)

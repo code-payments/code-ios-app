@@ -82,32 +82,41 @@ struct AppRouterCrossStackTests {
         #expect(router[.balance] == AppRouter.navigationPath(.currencyInfo(.usdc)))
     }
 
-    @Test("owningStack maps wallet destinations to .balance")
-    func owningStack_walletDestinations_mapToBalance() {
-        #expect(AppRouter.Destination.currencyInfo(.usdc).owningStack == .balance)
-        #expect(AppRouter.Destination.discoverCurrencies.owningStack == .balance)
-        #expect(AppRouter.Destination.currencyCreationSummary.owningStack == .balance)
-        #expect(AppRouter.Destination.currencyCreationWizard.owningStack == .balance)
-        #expect(AppRouter.Destination.transactionHistory(.usdc).owningStack == .balance)
+    @Test(
+        "Destination maps to its owning stack",
+        arguments: [
+            (AppRouter.Destination.currencyInfo(.usdc),       AppRouter.Stack.balance),
+            (AppRouter.Destination.discoverCurrencies,        AppRouter.Stack.balance),
+            (AppRouter.Destination.currencyCreationSummary,   AppRouter.Stack.balance),
+            (AppRouter.Destination.currencyCreationWizard,    AppRouter.Stack.balance),
+            (AppRouter.Destination.transactionHistory(.usdc), AppRouter.Stack.balance),
+            (AppRouter.Destination.settingsMyAccount,         AppRouter.Stack.settings),
+            (AppRouter.Destination.settingsAdvancedFeatures,  AppRouter.Stack.settings),
+            (AppRouter.Destination.settingsAppSettings,       AppRouter.Stack.settings),
+            (AppRouter.Destination.settingsBetaFlags,         AppRouter.Stack.settings),
+            (AppRouter.Destination.settingsAccountSelection,  AppRouter.Stack.settings),
+            (AppRouter.Destination.settingsApplicationLogs,   AppRouter.Stack.settings),
+            (AppRouter.Destination.accessKey,                 AppRouter.Stack.settings),
+            (AppRouter.Destination.depositCurrencyList,       AppRouter.Stack.settings),
+            (AppRouter.Destination.withdraw,                  AppRouter.Stack.settings),
+        ]
+    )
+    func destination_hasCorrectOwningStack(
+        _ destination: AppRouter.Destination,
+        expected: AppRouter.Stack
+    ) {
+        #expect(destination.owningStack == expected)
     }
 
-    @Test("owningStack maps settings destinations to .settings")
-    func owningStack_settingsDestinations_mapToSettings() {
-        #expect(AppRouter.Destination.settingsMyAccount.owningStack == .settings)
-        #expect(AppRouter.Destination.settingsAdvancedFeatures.owningStack == .settings)
-        #expect(AppRouter.Destination.settingsAppSettings.owningStack == .settings)
-        #expect(AppRouter.Destination.settingsBetaFlags.owningStack == .settings)
-        #expect(AppRouter.Destination.settingsAccountSelection.owningStack == .settings)
-        #expect(AppRouter.Destination.settingsApplicationLogs.owningStack == .settings)
-        #expect(AppRouter.Destination.accessKey.owningStack == .settings)
-        #expect(AppRouter.Destination.depositCurrencyList.owningStack == .settings)
-        #expect(AppRouter.Destination.withdraw.owningStack == .settings)
-    }
-
-    @Test("Stack.sheet maps each stack to its corresponding sheet")
-    func stackSheet_isOneToOne() {
-        #expect(AppRouter.Stack.balance.sheet == .balance)
-        #expect(AppRouter.Stack.settings.sheet == .settings)
-        #expect(AppRouter.Stack.give.sheet == .give)
+    @Test(
+        "Stack maps to its sheet presentation",
+        arguments: [
+            (AppRouter.Stack.balance,  AppRouter.SheetPresentation.balance),
+            (AppRouter.Stack.settings, AppRouter.SheetPresentation.settings),
+            (AppRouter.Stack.give,     AppRouter.SheetPresentation.give),
+        ]
+    )
+    func stack_mapsToSheet(_ stack: AppRouter.Stack, expected: AppRouter.SheetPresentation) {
+        #expect(stack.sheet == expected)
     }
 }
