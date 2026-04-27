@@ -218,6 +218,7 @@ final class SessionAuthenticator {
             database: database,
             owner: owner
         )
+        historyController.sync()
         
         let ratesController = RatesController(
             container: container,

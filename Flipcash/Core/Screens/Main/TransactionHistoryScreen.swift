@@ -9,24 +9,19 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-private let logger = Logger(label: "flipcash.transaction-history")
-
 struct TransactionHistoryScreen: View {
 
     @Environment(Session.self) private var session
-
-    @State private var activities: [Activity]?
+    @Environment(HistoryController.self) private var historyController
 
     @State private var dialogItem: DialogItem?
 
     private let mint: PublicKey
-    private let database: Database
 
     // MARK: - Init -
 
-    init(mint: PublicKey, database: Database) {
+    init(mint: PublicKey) {
         self.mint = mint
-        self.database = database
     }
 
     // MARK: - Body -
@@ -35,13 +30,14 @@ struct TransactionHistoryScreen: View {
         Background(color: .backgroundMain) {
             List {
                 Section {
-                    if let activities {
+                    switch historyController.loadingState {
+                    case .loaded(let activities):
                         ForEach(activities) { activity in
                             ActivityRow(activity: activity) {
                                 rowAction(activity: activity)
                             }
                         }
-                    } else {
+                    case .loading:
                         ProgressView()
                             .frame(maxWidth: .infinity, minHeight: 200)
                             .listRowBackground(Color.clear)
@@ -57,17 +53,7 @@ struct TransactionHistoryScreen: View {
         }
         .dialog(item: $dialogItem)
         .task(id: mint) {
-            do {
-                activities = try await database.getActivities(mint: mint)
-            } catch is CancellationError {
-                // Superseded by a newer .task — don't clobber `activities`.
-                return
-            } catch {
-                logger.error("Failed to load activities", metadata: [
-                    "mint": "\(mint.base58)",
-                ])
-                activities = []
-            }
+            await historyController.setActiveMint(mint)
         }
     }
 
