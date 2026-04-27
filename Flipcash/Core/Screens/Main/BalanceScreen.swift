@@ -21,8 +21,6 @@ struct BalanceScreen: View {
     let session: Session
 
     @State private var isShowingCurrencyDiscovery: Bool = false
-    @State private var dialogItem: DialogItem?
-    @State private var selectedActivity: Activity?
     @State private var selectedMint: PublicKey?
 
     /// Owned, mutable source for the LazyVStack. Reorder animations only fire
@@ -99,20 +97,6 @@ struct BalanceScreen: View {
                 VStack(spacing: 0) {
                     list()
                 }
-                .sheet(item: $selectedActivity) { activity in
-                    PartialSheet(background: .backgroundMain) {
-                        TransactionDetailsModal(
-                            isPresented: Binding {
-                                selectedActivity != nil
-                            } set: { _ in
-                                selectedActivity = nil
-                            },
-                            activity: activity
-                        ) { metadata in
-                            cancelCashLinkAction(activity: activity, metadata: metadata)
-                        }
-                    }
-                }
             }
             .onAppear(perform: onAppear)
             .onChange(of: session.balances, initial: true) { _, _ in refreshSortedBalances() }
@@ -142,7 +126,6 @@ struct BalanceScreen: View {
                 historyController.sync()
             }
         }
-        .dialog(item: $dialogItem)
         .sheet(isPresented: $isShowingCurrencyDiscovery) {
             CurrencyDiscoveryScreen(
                 container: container,
@@ -247,50 +230,6 @@ struct BalanceScreen: View {
         }
     }
 
-    // MARK: - Action -
-        
-    private func rowAction(activity: Activity) {
-        if let cashLinkMetadata = activity.cancellableCashLinkMetadata {
-            cancelCashLinkAction(
-                activity: activity,
-                metadata: cashLinkMetadata
-            )
-        }
-    }
-    
-    private func cancelCashLinkAction(activity: Activity, metadata: Activity.CashLinkMetadata) {
-        dialogItem = .init(
-            style: .destructive,
-            title: "Cancel \(activity.exchangedFiat.nativeAmount.formatted()) Transfer?",
-            subtitle: "The money will be returned to your wallet.",
-            dismissable: true
-        ) {
-            .destructive("Cancel Transfer") {
-                cancelCashLink(metadata: metadata)
-            };
-            .cancel()
-        }
-    }
-    
-    private func cancelCashLink(metadata: Activity.CashLinkMetadata) {
-        Task {
-            do {
-                try await session.cancelCashLink(giftCardVault: metadata.vault)
-            } catch {
-                ErrorReporting.captureError(error, reason: "Failed to cancel cash link", metadata: [
-                    "vault": metadata.vault.base58,
-                ])
-                dialogItem = .init(
-                    style: .destructive,
-                    title: "Failed to Cancel Transfer",
-                    subtitle: "Something went wrong. Please try again later",
-                    dismissable: true
-                ) {
-                    .okay(kind: .destructive)
-                }
-            }
-        }
-    }
 }
 
 struct ExchangedBalance: Identifiable, Hashable {
