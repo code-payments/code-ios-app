@@ -60,7 +60,7 @@ struct CurrencyDiscoveryList: View {
             .listSectionSeparator(.hidden)
         }
         .overlay {
-            if isFailed {
+            if isFailed, mints.isEmpty {
                 VStack(spacing: 10) {
                     Text("Something Went Wrong")
                         .font(.appTextLarge)
@@ -99,7 +99,7 @@ struct CurrencyDiscoveryList: View {
                     mintsByCategory[category] = []
                 }
             } catch {
-                if !Task.isCancelled {
+                if !Task.isCancelled, mintsByCategory[category] == nil {
                     failedCategories.insert(category)
                 }
             }
