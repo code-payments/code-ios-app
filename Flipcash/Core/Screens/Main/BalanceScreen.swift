@@ -20,7 +20,6 @@ struct BalanceScreen: View {
 
     let session: Session
 
-    @State private var isShowingCurrencySelection: Bool  = false
     @State private var isShowingCurrencyDiscovery: Bool = false
     @State private var dialogItem: DialogItem?
     @State private var selectedActivity: Activity?
@@ -184,7 +183,7 @@ struct BalanceScreen: View {
                 LazyVStack(spacing: 0, pinnedViews: [.sectionFooters]) {
                     Section {
                         VStack {
-                            header()
+                            BalanceHeaderButton(balance: balance)
                                 .frame(height: 60)
 
                             ValueAppreciation(amount: appreciation.amount, isPositive: appreciation.isPositive)
@@ -248,33 +247,6 @@ struct BalanceScreen: View {
         }
     }
 
-    @ViewBuilder private func header() -> some View {
-        VStack(spacing: 10) {
-            Button {
-                isShowingCurrencySelection.toggle()
-            } label: {
-                AmountText(
-                    flagStyle: balance.nativeAmount.currency.flagStyle,
-                    content: balance.nativeAmount.formatted(),
-                    showChevron: true
-                )
-                .font(.appDisplayLarge)
-                .foregroundStyle(Color.textMain)
-                .contentTransition(.numericText())
-            }
-            .accessibilityIdentifier("balance-header")
-            .frame(maxWidth: .infinity)
-            .animation(.default, value: balance)
-            .sheet(isPresented: $isShowingCurrencySelection) {
-                CurrencySelectionScreen(
-                    isPresented: $isShowingCurrencySelection,
-                    kind: .balance,
-                    ratesController: ratesController
-                )
-            }
-        }
-    }
-    
     // MARK: - Action -
         
     private func rowAction(activity: Activity) {
@@ -327,5 +299,39 @@ struct ExchangedBalance: Identifiable, Hashable {
 
     var id: PublicKey {
         stored.id
+    }
+}
+
+private struct BalanceHeaderButton: View {
+    let balance: ExchangedFiat
+
+    @Environment(RatesController.self) private var ratesController
+    @State private var isShowingCurrencySelection = false
+
+    var body: some View {
+        VStack(spacing: 10) {
+            Button {
+                isShowingCurrencySelection.toggle()
+            } label: {
+                AmountText(
+                    flagStyle: balance.nativeAmount.currency.flagStyle,
+                    content: balance.nativeAmount.formatted(),
+                    showChevron: true
+                )
+                .font(.appDisplayLarge)
+                .foregroundStyle(Color.textMain)
+                .contentTransition(.numericText())
+            }
+            .accessibilityIdentifier("balance-header")
+            .frame(maxWidth: .infinity)
+            .animation(.default, value: balance)
+            .sheet(isPresented: $isShowingCurrencySelection) {
+                CurrencySelectionScreen(
+                    isPresented: $isShowingCurrencySelection,
+                    kind: .balance,
+                    ratesController: ratesController
+                )
+            }
+        }
     }
 }
