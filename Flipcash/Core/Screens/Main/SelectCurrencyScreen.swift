@@ -114,6 +114,7 @@ struct CurrencyBalanceRow: View {
                 isSelected: showSelected,
             )
         }
+        .accessibilityIdentifier("currency-row")
         .disabled(action == nil)
         .listRowBackground(Color.clear)
         .padding(.horizontal, 20)

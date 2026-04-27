@@ -18,9 +18,12 @@ struct WalletScreen {
 
     // MARK: - Elements
 
-    /// The first actual currency row. Index 0 is the List section header
-    /// (total balance + appreciation); currency rows start at index 1.
-    var firstCurrencyRow: XCUIElement { app.cells.element(boundBy: 1) }
+    /// The first currency row. Identified by the row's accessibility identifier
+    /// rather than `app.cells`, since the wallet uses a `ScrollView` + `LazyVStack`
+    /// rather than a `List`.
+    var firstCurrencyRow: XCUIElement {
+        app.buttons.matching(identifier: "currency-row").firstMatch
+    }
 
     /// The balance header button that shows the flag + total amount + chevron.
     var balanceHeader: XCUIElement { app.buttons["balance-header"] }
