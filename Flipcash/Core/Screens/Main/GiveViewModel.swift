@@ -87,21 +87,26 @@ class GiveViewModel {
         }
     }
     
-    var isPresented = false {
-        didSet {
-            if isPresented {
-                let rate = ratesController.rateForBalanceCurrency()
-                let hasGiveableBalance = session.balances(for: rate).contains { $0.stored.mint != .usdf }
+    var isPresented = false
 
-                if hasGiveableBalance {
-                    refreshSelectedBalance()
-                    self.enteredAmount = ""
-                } else {
-                    self.isPresented = false
-                    showNoBalanceError()
-                }
-            }
+    /// Validates that the user has a giveable balance and primes the view model
+    /// for entry. Returns `true` if the give sheet should be presented; on
+    /// `false`, `session.dialogItem` carries the explanation. Callers must gate
+    /// `router.present(.give)` on this return — otherwise the sheet renders
+    /// behind the dialog with a $0 amount entry.
+    func attemptPresent() -> Bool {
+        let rate = ratesController.rateForBalanceCurrency()
+        let hasGiveableBalance = session.balances(for: rate).contains { $0.stored.mint != .usdf }
+
+        guard hasGiveableBalance else {
+            showNoBalanceError()
+            return false
         }
+
+        refreshSelectedBalance()
+        enteredAmount = ""
+        isPresented = true
+        return true
     }
 
     // MARK: - Init -

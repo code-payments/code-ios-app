@@ -293,12 +293,13 @@ struct ScanScreen: View {
                 fullWidth: true,
                 aligment: .bottom
             ) {
-                // `isPresented = true` runs the viewModel's didSet (balance
-                // check + entered-amount reset). Present the sheet directly
-                // — no .onChange relay, so swipe-down dismiss can't desync
-                // the flag from the router and stall the next tap.
-                giveViewModel.isPresented = true
-                router.present(.give)
+                // Gate the router on the balance check — if `attemptPresent`
+                // returns false it has already raised a "No Balance Yet"
+                // dialog through `session.dialogItem`, and presenting the
+                // sheet anyway would render an empty $0 amount entry behind it.
+                if giveViewModel.attemptPresent() {
+                    router.present(.give)
+                }
             }
 
             ToastContainer(toast: toast) {

@@ -91,12 +91,13 @@ struct GiveViewModelTests {
 
     // MARK: - Presentation Tests
 
-    @Test("Presenting with no giveable balances dismisses and shows error")
-    func testPresentation_NoBalances_DismissesAndShowsError() {
+    @Test("attemptPresent with no giveable balances returns false and shows error")
+    func testAttemptPresent_NoBalances_RejectsAndShowsError() {
         let viewModel = Self.createViewModel()
 
-        viewModel.isPresented = true
+        let presented = viewModel.attemptPresent()
 
+        #expect(presented == false)
         #expect(viewModel.isPresented == false)
         #expect(viewModel.session.dialogItem != nil)
         #expect(viewModel.selectedBalance == nil)
@@ -415,7 +416,7 @@ struct GiveViewModelTests {
 
         container.ratesController.selectToken(.jeffy)
 
-        viewModel.isPresented = true
+        #expect(viewModel.attemptPresent() == true)
 
         #expect(viewModel.selectedBalance?.stored.mint == .jeffy)
         #expect(container.ratesController.selectedTokenMint == .jeffy)
@@ -440,7 +441,7 @@ struct GiveViewModelTests {
 
         container.ratesController.selectedTokenMint = nil
 
-        viewModel.isPresented = true
+        #expect(viewModel.attemptPresent() == true)
 
         #expect(viewModel.selectedBalance?.stored.mint == .jeffy)
         #expect(container.ratesController.selectedTokenMint == .jeffy)
@@ -462,7 +463,7 @@ struct GiveViewModelTests {
 
         container.ratesController.selectToken(.jeffy)
 
-        viewModel.isPresented = true
+        #expect(viewModel.attemptPresent() == true)
 
         #expect(viewModel.selectedBalance?.stored.mint == .jeffy)
         #expect(container.ratesController.selectedTokenMint == .jeffy)
@@ -483,7 +484,7 @@ struct GiveViewModelTests {
         ])
         let viewModel = GiveViewModel(container: .mock, sessionContainer: container)
         container.ratesController.selectToken(.jeffy)
-        viewModel.isPresented = true
+        #expect(viewModel.attemptPresent() == true)
 
         let balance = try #require(viewModel.selectedBalance)
         // 100× the displayed balance — unambiguously over and may exceed curve TVL.
@@ -536,7 +537,7 @@ struct GiveViewModelTests {
 
         container.ratesController.selectToken(.jeffy)
 
-        viewModel.isPresented = true
+        #expect(viewModel.attemptPresent() == true)
 
         #expect(viewModel.selectedBalance?.stored.mint == .usdcAuthority)
         #expect(container.ratesController.selectedTokenMint == .usdcAuthority)
