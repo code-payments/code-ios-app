@@ -144,9 +144,15 @@ final class AppRouter {
         ])
     }
 
+    /// Dismisses the active sheet and clears its stack's path so a future
+    /// re-presentation starts at root. Other stacks' paths are untouched —
+    /// only `present(_:)`-driven sheet swaps preserve the dismissed sheet's
+    /// own path; an outright dismiss (close button or interactive swipe-down)
+    /// is treated as the user closing that flow.
     func dismissSheet() {
         guard let dismissing = presentedSheet else { return }
         presentedSheet = nil
+        paths[dismissing.stack] = NavigationPath()
         logger.info("Dismissed sheet", metadata: ["sheet": "\(dismissing)"])
     }
 

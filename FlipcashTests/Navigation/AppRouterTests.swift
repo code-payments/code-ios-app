@@ -140,4 +140,29 @@ struct AppRouterTests {
         router.dismissSheet()
         #expect(router.presentedSheet == nil)
     }
+
+    @Test("dismissSheet clears the dismissed stack's path")
+    func dismissSheet_clearsDismissedStackPath() {
+        let router = AppRouter()
+        router.present(.balance)
+        router.push(.currencyInfo(.usdc), on: .balance)
+
+        router.dismissSheet()
+
+        #expect(router[.balance].isEmpty,
+                "re-presenting the sheet must start at root, not restore the stale leaf")
+    }
+
+    @Test("dismissSheet preserves other stacks' paths")
+    func dismissSheet_preservesOtherStackPaths() {
+        let router = AppRouter()
+        router.present(.balance)
+        router.push(.currencyInfo(.usdc), on: .balance)
+        router.setPath([.settingsMyAccount], on: .settings)
+
+        router.dismissSheet()
+
+        #expect(router[.settings] == AppRouter.navigationPath(.settingsMyAccount),
+                "only the dismissed stack should be cleared")
+    }
 }

@@ -18,6 +18,17 @@ extension AppRouter {
 
         var id: Self { self }
 
+        /// The stack hosted inside this sheet. Inverse of `Stack.sheet`.
+        /// Used by `dismissSheet` to clear the dismissed stack's path so a
+        /// re-presentation starts at root rather than restoring the stale leaf.
+        var stack: Stack {
+            switch self {
+            case .balance:  .balance
+            case .settings: .settings
+            case .give:     .give
+            }
+        }
+
         var description: String {
             switch self {
             case .balance:  "balance"
