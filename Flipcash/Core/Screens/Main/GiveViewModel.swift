@@ -18,7 +18,6 @@ class GiveViewModel {
     var enteredAmount: String = ""
     var actionState: ButtonState = .normal
 
-    var dialogItem: DialogItem?
     var depositMint: PublicKey?
 
     var canGive: Bool {
@@ -141,7 +140,7 @@ class GiveViewModel {
         case .sufficient:
             Task {
                 guard let (amountToSend, pinnedState) = await prepareSubmission() else {
-                    dialogItem = .staleRate
+                    session.dialogItem = .staleRate
                     return
                 }
 
@@ -231,7 +230,7 @@ class GiveViewModel {
     // MARK: - Errors -
     
     private func showNoBalanceError() {
-        dialogItem = .init(
+        session.dialogItem = .init(
             style: .destructive,
             title: "No Balance Yet",
             subtitle: "Get another Flipcash user to give you some cash to get a balance",
@@ -242,7 +241,7 @@ class GiveViewModel {
     }
 
     private func showInsufficientBalanceError() {
-        dialogItem = .init(
+        session.dialogItem = .init(
             style: .destructive,
             title: "You Need More Cash",
             subtitle: "Please add more cash, or try again with a lower amount",
@@ -254,9 +253,9 @@ class GiveViewModel {
             .dismiss(kind: .subtle)
         }
     }
-    
+
     private func showYoureShortError(amount: ExchangedFiat) {
-        dialogItem = .init(
+        session.dialogItem = .init(
             style: .destructive,
             title: "You're \(amount.nativeAmount.formatted()) Short",
             subtitle: "Add more cash, or try again with a lower amount",
@@ -268,9 +267,9 @@ class GiveViewModel {
             .dismiss(kind: .subtle)
         }
     }
-    
+
     private func showLimitsError() {
-        dialogItem = .init(
+        session.dialogItem = .init(
             style: .destructive,
             title: "Transaction Limit Reached",
             subtitle: "Flipcash is designed for small, every day transactions. Send limits reset daily",

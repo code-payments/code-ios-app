@@ -84,7 +84,7 @@ struct GiveViewModelTests {
         // Then: Initial state should be correct
         #expect(viewModel.enteredAmount == "")
         #expect(viewModel.actionState == .normal)
-        #expect(viewModel.dialogItem == nil)
+        #expect(viewModel.session.dialogItem == nil)
         #expect(viewModel.selectedBalance == nil)
         #expect(viewModel.canGive == false)
     }
@@ -98,7 +98,7 @@ struct GiveViewModelTests {
         viewModel.isPresented = true
 
         #expect(viewModel.isPresented == false)
-        #expect(viewModel.dialogItem != nil)
+        #expect(viewModel.session.dialogItem != nil)
         #expect(viewModel.selectedBalance == nil)
     }
 
@@ -492,11 +492,11 @@ struct GiveViewModelTests {
 
         // Next must stay tappable so the dialog can fire on tap.
         #expect(viewModel.canGive == true)
-        #expect(viewModel.dialogItem == nil)
+        #expect(viewModel.session.dialogItem == nil)
 
         viewModel.giveAction()
 
-        let dialog = try #require(viewModel.dialogItem)
+        let dialog = try #require(viewModel.session.dialogItem)
         let title = try #require(dialog.title)
 
         // "You're $X Short" — not "You Need More Cash" and not "Transaction Limit Reached".

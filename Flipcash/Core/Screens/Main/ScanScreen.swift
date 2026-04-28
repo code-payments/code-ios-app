@@ -153,7 +153,6 @@ struct ScanScreen: View {
                 giveViewModel: giveViewModel
             )
         }
-        .dialog(item: $giveViewModel.dialogItem)
         // Dismiss all presented sheets when a bill is about to appear.
         // Bills render in ScanScreen's ZStack, so any sheet on top
         // (Settings, Balance, Give) would obscure them. This ensures

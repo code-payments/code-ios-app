@@ -114,7 +114,6 @@ struct GiveScreen: View {
             )
         }
         .dialog(item: $dialogItem)
-        .dialog(item: $viewModel.dialogItem)
         .onChange(of: viewModel.isPresented) { _, isPresented in
             if !isPresented {
                 dismissParentContainer()
