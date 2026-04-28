@@ -36,6 +36,15 @@ struct DestinationView: View {
             )
             .id(mint)
 
+        case .currencyInfoForDeposit(let mint):
+            CurrencyInfoScreen(
+                mint: mint,
+                container: container,
+                sessionContainer: sessionContainer,
+                showFundingOnAppear: true
+            )
+            .id(mint)
+
         case .discoverCurrencies:
             CurrencyDiscoveryScreen(
                 container: container,
@@ -53,6 +62,19 @@ struct DestinationView: View {
 
         case .transactionHistory(let mint):
             TransactionHistoryScreen(mint: mint)
+
+        case .give(let mint):
+            // Builds a fresh `GiveViewModel` and primes its presentation
+            // lifecycle (`isPresented = true`) so `refreshSelectedBalance`
+            // and the entered-amount reset run before first render. The
+            // wrapper survives recomposition via `@State`, so the viewModel
+            // lasts the destination's lifetime.
+            GiveDestinationView(
+                mint: mint,
+                container: container,
+                sessionContainer: sessionContainer
+            )
+            .id(mint)
 
         // MARK: - Settings flow
 
@@ -96,6 +118,23 @@ struct DestinationView: View {
         case .depositCurrencyList:
             DepositCurrencyListScreen()
 
+        case .deposit(let mint):
+            // Resolves the cluster from the live `session.balance(for:)` lookup
+            // — the destination only carries the mint so it stays Hashable +
+            // Sendable. If the balance vanished between push and render
+            // (shouldn't happen from the in-app picker, but possible from a
+            // future deeplink), render an empty placeholder rather than crash.
+            if let balance = sessionContainer.session.balance(for: mint),
+               let vmAuthority = balance.vmAuthority {
+                DepositScreen(
+                    cluster: sessionContainer.session.owner.use(
+                        mint: mint,
+                        timeAuthority: vmAuthority
+                    ),
+                    name: balance.name
+                )
+            }
+
         case .withdraw:
             WithdrawScreen(
                 container: container,
@@ -118,5 +157,29 @@ extension View {
                 sessionContainer: sessionContainer
             )
         }
+    }
+}
+
+/// Owns the `GiveViewModel` for the `.give(mint)` destination. Constructing
+/// the viewModel inline in `DestinationView`'s switch would lose `@State`
+/// semantics — every body evaluation would create a fresh instance — so the
+/// dedicated wrapper preserves the same instance across recomposition.
+///
+/// On creation, the viewModel's `isPresented = true` setter fires its didSet
+/// (which calls `refreshSelectedBalance` and resets the entered amount). That
+/// matches the previous behaviour where `CurrencyInfoScreen.onGive` set
+/// `giveViewModel.isPresented = true` immediately before the navigation push.
+private struct GiveDestinationView: View {
+    @State private var viewModel: GiveViewModel
+
+    init(mint: PublicKey, container: Container, sessionContainer: SessionContainer) {
+        sessionContainer.ratesController.selectToken(mint)
+        let viewModel = GiveViewModel(container: container, sessionContainer: sessionContainer)
+        viewModel.isPresented = true
+        _viewModel = State(initialValue: viewModel)
+    }
+
+    var body: some View {
+        GiveScreen(viewModel: viewModel)
     }
 }

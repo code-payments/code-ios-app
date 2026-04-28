@@ -164,16 +164,6 @@ struct ScanScreen: View {
             router.dismissSheet()
             giveViewModel.isPresented = false
         }
-        // Mirror GiveViewModel's business-logic flag to the router. The model
-        // owns "should the give flow be open" (it falls back to false on
-        // no-balance); the router owns presentation. Sync them here.
-        .onChange(of: giveViewModel.isPresented) { _, isPresented in
-            if isPresented {
-                router.present(.give)
-            } else if router.presentedSheet == .give {
-                router.dismissSheet()
-            }
-        }
         // Reset button state on bill dismissal — `sendButtonState` outlives individual bills.
         .onChange(of: session.billState.bill) { _, newBill in
             guard newBill == nil else { return }
@@ -304,9 +294,12 @@ struct ScanScreen: View {
                 fullWidth: true,
                 aligment: .bottom
             ) {
-                // Setting the model flag triggers the in-model balance check;
-                // the .onChange in `body` mirrors success to the router.
+                // `isPresented = true` runs the viewModel's didSet (balance
+                // check + entered-amount reset). Present the sheet directly
+                // — no .onChange relay, so swipe-down dismiss can't desync
+                // the flag from the router and stall the next tap.
                 giveViewModel.isPresented = true
+                router.present(.give)
             }
 
             ToastContainer(toast: toast) {
@@ -386,7 +379,10 @@ private struct RoutedSheet: View {
     let sessionContainer: SessionContainer
     let giveViewModel: GiveViewModel
 
+    @Environment(AppRouter.self) private var router
+
     var body: some View {
+        @Bindable var router = router
         switch sheet {
         case .balance:
             BalanceScreen(
@@ -399,14 +395,16 @@ private struct RoutedSheet: View {
                 sessionContainer: sessionContainer
             )
         case .give:
-            NavigationStack {
+            // Stack bound to the router so deposit-mint pushes from inside
+            // GiveScreen (`.currencyInfoForDeposit`) actually render.
+            NavigationStack(path: $router[.give]) {
                 GiveScreen(viewModel: giveViewModel)
+                    .appRouterDestinations(container: container, sessionContainer: sessionContainer)
                     .toolbar {
                         ToolbarItem(placement: .navigationBarTrailing) {
                             ToolbarCloseButton {
-                                // Mirrored back to the router via the
-                                // `.onChange(of: giveViewModel.isPresented)` in ScanScreen.
                                 giveViewModel.isPresented = false
+                                router.dismissSheet()
                             }
                         }
                     }

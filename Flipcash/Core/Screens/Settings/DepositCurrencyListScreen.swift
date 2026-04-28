@@ -13,8 +13,8 @@ struct DepositCurrencyListScreen: View {
 
     @Environment(Session.self) private var session
     @Environment(RatesController.self) private var ratesController
+    @Environment(AppRouter.self) private var router
 
-    @State private var selectedBalance: ExchangedBalance?
     @State private var selectedMint: PublicKey?
 
     // Skip session.balances(for:) to avoid filtering out zero-balance currencies.
@@ -52,12 +52,6 @@ struct DepositCurrencyListScreen: View {
         }
         .navigationTitle("Select Currency")
         .navigationBarTitleDisplayMode(.inline)
-        .navigationDestination(item: $selectedBalance) { balance in
-            DepositScreen(
-                cluster: depositCluster(for: balance.stored),
-                name: balance.stored.name
-            )
-        }
         .onAppear {
             handleAutoSelect()
         }
@@ -66,19 +60,13 @@ struct DepositCurrencyListScreen: View {
     // MARK: - Actions -
 
     private func selectCurrency(_ balance: ExchangedBalance) {
-        selectedBalance = balance
+        router.push(.deposit(balance.stored.mint), on: .settings)
     }
 
     private func handleAutoSelect() {
-        guard let mint = selectedMint else { return }
+        guard let mint = selectedMint,
+              balances.contains(where: { $0.stored.mint == mint }) else { return }
         selectedMint = nil
-        selectedBalance = balances.first(where: { $0.stored.mint == mint })
-    }
-
-    private func depositCluster(for balance: StoredBalance) -> AccountCluster {
-        session.owner.use(
-            mint: balance.mint,
-            timeAuthority: balance.vmAuthority!
-        )
+        router.push(.deposit(mint), on: .settings)
     }
 }
