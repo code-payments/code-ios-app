@@ -260,7 +260,11 @@ All navigation flows through `AppRouter` — a single `@Observable @MainActor` c
 
 Top-level sheets (`Balance`, `Settings`, `Give`) each own a `NavigationStack(path: $router[.<stack>])` and register destinations via the `.appRouterDestinations(...)` modifier on their root content. Per-stack paths are `NavigationPath` (type-erased), so sub-flow destinations (e.g., `WithdrawNavigationPath`) coexist with top-level `Destination` cases on the same stack — register `.navigationDestination(for: SubFlowPath.self)` on the sub-flow root view and push via `router.pushAny(_:on:)`. **Don't nest a `NavigationStack` inside another stack's destination** — push/pop/push corrupts SwiftUI's stack state with `comparisonTypeMismatch`.
 
-**Local interaction sheets stay local.** Transient pickers (currency selection, buy/sell amount, funding selection) belong on the screen that owns them as `.sheet(...)` modifiers — they're interactions, not navigation. Only the navigation graph goes through the router.
+**Local interaction sheets stay local.** Transient pickers (currency selection, buy/sell amount, funding selection) and operation-bound modals (swap/launch processing covers) belong on the screen that owns them as `.sheet(...)` / `.fullScreenCover(...)` modifiers — they're interactions or in-flight status, not navigation.
+
+**The test:** if a deeplink could reasonably land the user here, it's a destination — route through `AppRouter`. If not, keep it local.
+
+**Sheet path lifecycle.** `dismissSheet` leaves the dismissed sheet's `NavigationPath` populated so the closing animation runs with its current contents. The path is cleared on the next `present(_:)` of that same sheet, so re-opens land at root. Sheet swaps (presenting another sheet without dismissing first) preserve both paths for swap-back. Don't add manual `popToRoot` calls around your own dismissal — let the router handle it.
 
 Every router mutation logs one INFO entry under `flipcash.router` — filter by that label to trace any navigation interaction.
 
