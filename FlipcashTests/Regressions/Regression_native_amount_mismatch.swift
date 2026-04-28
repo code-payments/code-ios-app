@@ -203,4 +203,75 @@ struct Regression_native_amount_mismatch {
 
         #expect(submission == nil)
     }
+
+    // MARK: - Scenario G (give)
+
+    @Test("Scenario G (give): prepareSubmission computes quarks from the PINNED rate AND supply")
+    func scenarioG_givePrepareSubmissionUsesPinnedRateAndSupply() async throws {
+        // Pinned: rate 1.35, supply 1M. Live cache: rate 1.37, supply 1.5M.
+        let pinnedSupply: UInt64 = 1_000_000 * 10_000_000_000
+        let liveSupply: UInt64 = 1_500_000 * 10_000_000_000
+
+        let sessionContainer = SessionContainer.mock
+        sessionContainer.ratesController.configureTestRates(
+            entryCurrency: .cad,
+            rates: [Rate(fx: 1.37, currency: .cad)]
+        )
+        await sessionContainer.ratesController.verifiedProtoService.saveRates([
+            .freshRate(currencyCode: "CAD", rate: 1.35)
+        ])
+        await sessionContainer.ratesController.verifiedProtoService.saveReserveStates([
+            .freshReserve(mint: .jeffy, supplyFromBonding: pinnedSupply)
+        ])
+
+        let vm = GiveViewModel(
+            container: .mock,
+            sessionContainer: sessionContainer
+        )
+        vm.selectCurrencyAction(
+            exchangedBalance: WithdrawViewModelTestHelpers.createBondedBalance(
+                supplyFromBonding: liveSupply
+            )
+        )
+        vm.enteredAmount = "1"
+
+        let submission = try #require(await vm.prepareSubmission())
+
+        // The rate baked into the submitted ExchangedFiat must be the pinned
+        // one (1.35), not the live cache (1.37).
+        #expect(submission.amount.currencyRate.fx == Decimal(1.35))
+        #expect(submission.amount.currencyRate.fx != Decimal(1.37))
+
+        // And the VerifiedState carried into Session.showCashBill →
+        // SendCashOperation / createCashLink must be the pinned proof — with
+        // pinned supply, not the live `selectedBalance.stored.supplyFromBonding`.
+        #expect(submission.pinnedState.exchangeRate == 1.35)
+        #expect(submission.pinnedState.supplyFromBonding == pinnedSupply)
+    }
+
+    @Test("Scenario G (give): prepareSubmission returns nil when no fresh pin is cached")
+    func scenarioG_givePrepareSubmissionReturnsNilWhenNoPin() async {
+        // Live rate is configured, but nothing is seeded in the verified proto
+        // service — the submit path has no pin to use and must bail.
+        let sessionContainer = SessionContainer.mock
+        sessionContainer.ratesController.configureTestRates(
+            entryCurrency: .cad,
+            rates: [Rate(fx: 1.35, currency: .cad)]
+        )
+
+        let vm = GiveViewModel(
+            container: .mock,
+            sessionContainer: sessionContainer
+        )
+        vm.selectCurrencyAction(
+            exchangedBalance: WithdrawViewModelTestHelpers.createBondedBalance(
+                supplyFromBonding: 1_000_000 * 10_000_000_000
+            )
+        )
+        vm.enteredAmount = "1"
+
+        let submission = await vm.prepareSubmission()
+
+        #expect(submission == nil)
+    }
 }

@@ -130,7 +130,7 @@ class GiveViewModel {
     }
 
     // MARK: - Action -
-    
+
     func giveAction() {
         guard let exchangedFiat = enteredFiat else {
             return
@@ -138,29 +138,35 @@ class GiveViewModel {
 
         let result = session.hasSufficientFunds(for: exchangedFiat)
         switch result {
-        case .sufficient(let amountToSend):
-            let sendLimit = session.sendLimitFor(currency: amountToSend.nativeAmount.currency) ?? .zero
-
-            guard amountToSend.nativeAmount.value <= sendLimit.nextTransaction.value else {
-                logger.info("Give rejected: amount exceeds limit", metadata: [
-                    "amount": "\(amountToSend.nativeAmount.formatted())",
-                    "next_tx": "\(sendLimit.nextTransaction.value)",
-                    "currency": "\(amountToSend.nativeAmount.currency)",
-                ])
-                showLimitsError()
-                return
-            }
-
-            isPresented = false
-
+        case .sufficient:
             Task {
+                guard let (amountToSend, pinnedState) = await prepareSubmission() else {
+                    dialogItem = .staleRate
+                    return
+                }
+
+                let sendLimit = session.sendLimitFor(currency: amountToSend.nativeAmount.currency) ?? .zero
+
+                guard amountToSend.nativeAmount.value <= sendLimit.nextTransaction.value else {
+                    logger.info("Give rejected: amount exceeds limit", metadata: [
+                        "amount": "\(amountToSend.nativeAmount.formatted())",
+                        "next_tx": "\(sendLimit.nextTransaction.value)",
+                        "currency": "\(amountToSend.nativeAmount.currency)",
+                    ])
+                    showLimitsError()
+                    return
+                }
+
+                isPresented = false
+
                 try await Task.delay(milliseconds: 50)
 
                 session.showCashBill(
                     .init(
                         kind: .cash,
                         exchangedFiat: amountToSend,
-                        received: false
+                        received: false,
+                        verifiedState: pinnedState
                     )
                 )
             }
@@ -172,6 +178,39 @@ class GiveViewModel {
                 showInsufficientBalanceError()
             }
         }
+    }
+
+    /// Resolves the pin and computes the bill amount against it — one fetch
+    /// for both, so quarks can't drift from the submitted pin. Returns nil
+    /// when no fresh pin is cached; caller surfaces `.staleRate`.
+    func prepareSubmission() async -> (amount: ExchangedFiat, pinnedState: VerifiedState)? {
+        guard let selectedBalance else { return nil }
+        let mint = selectedBalance.stored.mint
+
+        guard let pin = await ratesController.currentPinnedState(
+            for: ratesController.entryCurrency,
+            mint: mint
+        ) else { return nil }
+
+        guard !enteredAmount.isEmpty,
+              let entered = NumberFormatter.decimal(from: enteredAmount),
+              entered > 0 else { return nil }
+
+        guard let pinnedSupply = pin.supplyFromBonding else { return nil }
+
+        let nativeEntered = FiatAmount(value: entered, currency: pin.rate.currency)
+        let balance = session.balance(for: mint)
+
+        guard let amount = ExchangedFiat.compute(
+            fromEntered: nativeEntered,
+            rate: pin.rate,
+            mint: mint,
+            supplyQuarks: pinnedSupply,
+            balance: balance.map(\.usdf),
+            tokenBalanceQuarks: balance?.quarks
+        ) else { return nil }
+
+        return (amount, pin)
     }
     
     func selectCurrencyAction(exchangedBalance: ExchangedBalance) {
