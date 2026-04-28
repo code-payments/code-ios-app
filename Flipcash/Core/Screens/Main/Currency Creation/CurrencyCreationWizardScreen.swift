@@ -23,6 +23,7 @@ struct CurrencyCreationWizardScreen: View {
     @Environment(RatesController.self) private var ratesController
     @Environment(WalletConnection.self) private var walletConnection
     @Environment(OnrampCoordinator.self) private var onrampCoordinator
+    @Environment(AppRouter.self) private var router
 
     @State private var step: WizardStep = .name
     @State private var direction: Direction = .forward
@@ -278,7 +279,7 @@ struct CurrencyCreationWizardScreen: View {
                 )
                 .environment(\.dismissParentContainer, {
                     reservesLaunchContext = nil
-                    dismiss()
+                    router.dismissSheet()
                 })
             }
         }
@@ -299,7 +300,7 @@ struct CurrencyCreationWizardScreen: View {
                     .environment(\.dismissParentContainer, {
                         onrampCoordinator.completion = nil
                         isValidating = false
-                        dismiss()
+                        router.dismissSheet()
                     })
                 }
             }
@@ -318,7 +319,7 @@ struct CurrencyCreationWizardScreen: View {
                 .environment(\.dismissParentContainer, {
                     walletConnection.dismissProcessing()
                     isValidating = false
-                    dismiss()
+                    router.dismissSheet()
                 })
             }
         }

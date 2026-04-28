@@ -11,7 +11,7 @@ struct CurrencyDiscoveryList: View {
 
     @Binding var mintsByCategory: [DiscoverCategory: [MintMetadata]]
     @Binding var selectedCategory: DiscoverCategory
-    @Binding var selectedMint: PublicKey?
+    let onSelectMint: (PublicKey) -> Void
 
     @State private var failedCategories: Set<DiscoverCategory> = []
 
@@ -43,7 +43,7 @@ struct CurrencyDiscoveryList: View {
                 } else {
                     ForEach(mints.indexed(), id: \.element.address) { item in
                         Button {
-                            selectedMint = item.element.address
+                            onSelectMint(item.element.address)
                         } label: {
                             CurrencyDiscoveryRow(rank: item.index + 1, mint: item.element)
                         }

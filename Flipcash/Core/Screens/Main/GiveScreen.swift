@@ -24,6 +24,7 @@ struct GiveScreen: View {
 
     @Environment(Session.self) private var session
     @Environment(RatesController.self) private var ratesController
+    @Environment(AppRouter.self) private var router
 
     @Bindable private var viewModel: GiveViewModel
 
@@ -97,13 +98,11 @@ struct GiveScreen: View {
                 .id(viewModel.selectedBalance?.stored.mint)
             }
         }
-        .navigationDestination(item: $viewModel.depositMint) { mint in
-            CurrencyInfoScreen(
-                mint: mint,
-                container: viewModel.container,
-                sessionContainer: viewModel.sessionContainer,
-                showFundingOnAppear: true
-            )
+        .onChange(of: viewModel.depositMint) { _, mint in
+            guard let mint else { return }
+            // Clear the trigger so a subsequent tap re-fires the push.
+            viewModel.depositMint = nil
+            router.push(.currencyInfoForDeposit(mint))
         }
         .sheet(isPresented: $isShowingTokenSelection) {
             SelectCurrencyScreen(

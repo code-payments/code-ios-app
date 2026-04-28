@@ -8,6 +8,7 @@ import FlipcashCore
 import FlipcashUI
 
 struct CurrencyCreationSummaryScreen: View {
+    @Environment(AppRouter.self) private var router
     @Environment(Session.self) private var session
     @Environment(RatesController.self) private var ratesController
 
@@ -49,9 +50,11 @@ struct CurrencyCreationSummaryScreen: View {
 
                 Spacer()
 
-                NavigationLink("Get Started", value: CurrencyCreationStep.wizard)
-                    .buttonStyle(.filled)
-                    .padding(.bottom, 20)
+                Button("Get Started") {
+                    router.push(.currencyCreationWizard, on: .balance)
+                }
+                .buttonStyle(.filled)
+                .padding(.bottom, 20)
             }
             .padding(.horizontal, 20)
         }

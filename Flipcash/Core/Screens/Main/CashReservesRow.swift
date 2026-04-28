@@ -10,12 +10,12 @@ import FlipcashUI
 struct CashReservesRow: View {
     let reservesBalance: ExchangedBalance
     let showTopDivider: Bool
-    @Binding var selectedMint: PublicKey?
+    let onTap: () -> Void
 
     var body: some View {
         Button {
             Analytics.tokenInfoOpened(from: .openedFromWallet, mint: reservesBalance.stored.mint)
-            selectedMint = reservesBalance.stored.mint
+            onTap()
         } label: {
             HStack(spacing: 8) {
                 Text("USDF")

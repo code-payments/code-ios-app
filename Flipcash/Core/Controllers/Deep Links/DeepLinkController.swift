@@ -212,7 +212,7 @@ struct DeepLinkAction {
         case .currencyInfo(let mint):
             if case .loggedIn(let container) = sessionAuthenticator.state {
                 Analytics.deeplinkRouted(kind: kind)
-                container.session.pendingCurrencyInfoMint = mint
+                container.appRouter.navigate(to: .currencyInfo(mint))
             }
         }
     }

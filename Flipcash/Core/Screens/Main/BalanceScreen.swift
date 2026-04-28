@@ -10,18 +10,14 @@ import FlipcashUI
 import FlipcashCore
 
 struct BalanceScreen: View {
-    
-    @Binding var isPresented: Bool
-    
+
+    @Environment(AppRouter.self) private var router
     @Environment(RatesController.self) private var ratesController
     @Environment(HistoryController.self) private var historyController
     @Environment(NotificationController.self) private var notificationController
 
 
     let session: Session
-
-    @State private var isShowingCurrencyDiscovery: Bool = false
-    @State private var selectedMint: PublicKey?
 
     /// Owned, mutable source for the LazyVStack. Reorder animations only fire
     /// when the data source is mutated inside an active animation transaction —
@@ -73,26 +69,26 @@ struct BalanceScreen: View {
         let amount = FiatAmount(value: abs(totalAppreciation), currency: balanceRate.currency)
         return (amount, isPositive)
     }
-    
+
     // MARK: - Init -
-    
-    init(isPresented: Binding<Bool>, container: Container, sessionContainer: SessionContainer) {
-        self._isPresented     = isPresented
+
+    init(container: Container, sessionContainer: SessionContainer) {
         self.container        = container
         self.sessionContainer = sessionContainer
         self.session          = sessionContainer.session
     }
-    
+
     // MARK: - Lifecycle -
 
     private func onAppear() {
         historyController.sync()
     }
-    
+
     // MARK: - Body -
-    
+
     var body: some View {
-        NavigationStack {
+        @Bindable var router = router
+        NavigationStack(path: $router[.balance]) {
             Background(color: .backgroundMain) {
                 VStack(spacing: 0) {
                     list()
@@ -101,24 +97,14 @@ struct BalanceScreen: View {
             .onAppear(perform: onAppear)
             .onChange(of: session.balances, initial: true) { _, _ in refreshSortedBalances() }
             .onChange(of: balanceRate) { _, _ in refreshSortedBalances() }
-            .onChange(of: session.pendingCurrencyInfoMint, initial: true) { _, mint in
-                guard let mint else { return }
-                Analytics.tokenInfoOpened(from: .openedFromDeeplink, mint: mint)
-                selectedMint = mint
-                session.pendingCurrencyInfoMint = nil
-            }
             .navigationTitle("Wallet")
             .navigationBarTitleDisplayMode(.inline)
-            .navigationDestination(item: $selectedMint) { mint in
-                CurrencyInfoScreen(
-                    mint: mint,
-                    container: container,
-                    sessionContainer: sessionContainer
-                )
-            }
+            .appRouterDestinations(container: container, sessionContainer: sessionContainer)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    ToolbarCloseButton(binding: $isPresented)
+                    ToolbarCloseButton {
+                        router.dismissSheet()
+                    }
                 }
             }
             .onChange(of: notificationController.pushWillPresent) { _, _ in
@@ -126,14 +112,8 @@ struct BalanceScreen: View {
                 historyController.sync()
             }
         }
-        .sheet(isPresented: $isShowingCurrencyDiscovery) {
-            CurrencyDiscoveryScreen(
-                container: container,
-                sessionContainer: sessionContainer
-            )
-        }
     }
-    
+
     @ViewBuilder private func emptyState() -> some View {
         VStack(spacing: 10) {
             Text("No Balance Yet")
@@ -146,7 +126,7 @@ struct BalanceScreen: View {
                 .frame(maxWidth: .infinity, alignment: .center)
 
             BubbleButton(text: "Discover Currencies") {
-                isShowingCurrencyDiscovery = true
+                router.push(.discoverCurrencies, on: .balance)
             }
             .padding(.top, 8)
         }
@@ -178,7 +158,7 @@ struct BalanceScreen: View {
                             ForEach(currencyBalances) { balance in
                                 CurrencyBalanceRow(exchangedBalance: balance) {
                                     Analytics.tokenInfoOpened(from: .openedFromWallet, mint: balance.stored.mint)
-                                    selectedMint = balance.stored.mint
+                                    router.push(.currencyInfo(balance.stored.mint), on: .balance)
                                 }
                                 .vSeparator(color: .rowSeparator)
                                 .matchedGeometryEffect(id: balance.id, in: balanceRowNamespace)
@@ -188,7 +168,9 @@ struct BalanceScreen: View {
                                 CashReservesRow(
                                     reservesBalance: reservesBalance,
                                     showTopDivider: currencyBalances.isEmpty,
-                                    selectedMint: $selectedMint
+                                    onTap: {
+                                        router.push(.currencyInfo(reservesBalance.stored.mint), on: .balance)
+                                    }
                                 )
                             }
                         } else {
@@ -197,7 +179,7 @@ struct BalanceScreen: View {
                     } footer: {
                         if hasBalances {
                             Button("Discover Currencies") {
-                                isShowingCurrencyDiscovery = true
+                                router.push(.discoverCurrencies, on: .balance)
                             }
                             .buttonStyle(.filled)
                             .padding(.horizontal, 20)

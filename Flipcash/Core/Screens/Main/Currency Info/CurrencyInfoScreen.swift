@@ -11,20 +11,14 @@ import FlipcashCore
 
 struct CurrencyInfoScreen: View {
     @State private var viewModel: CurrencyInfoViewModel
-    @State private var giveViewModel: GiveViewModel
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppRouter.self) private var router
 
-    @State private var transactionHistoryMint: PublicKey?
     @State private var isShowingFundingSelection: Bool = false
     @State private var presentedBuyViewModel: CurrencyBuyViewModel?
     @State private var presentedSellViewModel: CurrencySellViewModel?
     @State private var isShowingCurrencySelection: Bool = false
-    /// Drives the navigation push to `GiveScreen`. Separate from
-    /// `giveViewModel.isPresented` (which triggers business logic only)
-    /// so that `dismissParentContainer` can tear down the sheet without
-    /// an intermediate pop animation.
-    @State private var isShowingGive: Bool = false
     /// Non-nil while the Onramp sheet is presented. Setting it presents the
     /// sheet with a fresh `OnrampViewModel`; nil'ing it dismisses.
     @State private var onrampDestination: BuyTarget?
@@ -74,11 +68,6 @@ struct CurrencyInfoScreen: View {
         self.showFundingOnAppear = showFundingOnAppear
         self.viewModel           = viewModel
 
-        self.giveViewModel = GiveViewModel(
-            container: container,
-            sessionContainer: sessionContainer
-        )
-
         self.marketCapController = MarketCapController(
             mint: mint,
             ratesController: sessionContainer.ratesController,
@@ -103,24 +92,6 @@ struct CurrencyInfoScreen: View {
         )
     }
 
-    /// Creates the screen with pre-fetched metadata for instant display.
-    /// The title and icon render immediately; a background refresh still runs
-    /// via ``CurrencyInfoViewModel/loadMintMetadata()`` to pick up any updates.
-    init(metadata: MintMetadata, container: Container, sessionContainer: SessionContainer) {
-        self.init(
-            mint: metadata.address,
-            viewModel: CurrencyInfoViewModel(
-                metadata: metadata,
-                session: sessionContainer.session,
-                database: sessionContainer.database,
-                ratesController: sessionContainer.ratesController
-            ),
-            container: container,
-            sessionContainer: sessionContainer,
-            showFundingOnAppear: false
-        )
-    }
-
     // MARK: - Body -
 
     var body: some View {
@@ -135,14 +106,12 @@ struct CurrencyInfoScreen: View {
                     viewModel: viewModel,
                     ratesController: ratesController,
                     marketCapController: marketCapController,
-                    onShowTransactionHistory: { transactionHistoryMint = metadata.mint },
+                    onShowTransactionHistory: { router.push(.transactionHistory(metadata.mint), on: .balance) },
                     onShowCurrencySelection: { isShowingCurrencySelection = true },
                     onBuy: { isShowingFundingSelection = true },
                     onGive: {
                         Analytics.buttonTapped(name: .give)
-                        ratesController.selectToken(mint)
-                        giveViewModel.isPresented = true
-                        isShowingGive = true
+                        router.push(.give(mint), on: .balance)
                     },
                     onSell: {
                         Analytics.buttonTapped(name: .sell)
@@ -184,9 +153,6 @@ struct CurrencyInfoScreen: View {
                 isShowingFundingSelection = true
             }
         }
-        .navigationDestinationCompat(item: $transactionHistoryMint) { mint in
-            TransactionHistoryScreen(mint: mint)
-        }
         .fullScreenCover(item: Bindable(walletConnection).processing) { processing in
             NavigationStack {
                 SwapProcessingScreen(
@@ -215,9 +181,6 @@ struct CurrencyInfoScreen: View {
                 }
             }
         }
-        .navigationDestination(isPresented: $isShowingGive) {
-            GiveScreen(viewModel: giveViewModel)
-        }
         .sheet(isPresented: Bindable(walletConnection).isShowingAmountEntry) {
             if let metadata = viewModel.mintMetadata {
                 NavigationStack {
@@ -235,7 +198,6 @@ struct CurrencyInfoScreen: View {
                 }
             }
         }
-        .dialog(item: $giveViewModel.dialogItem)
         .sheet(item: $presentedBuyViewModel) { buyViewModel in
             CurrencyBuyAmountScreen(viewModel: buyViewModel)
         }

@@ -11,7 +11,20 @@ import FlipcashUI
 
 @MainActor @Observable
 class WithdrawViewModel {
-    var path: [WithdrawNavigationPath] = []
+    /// Tracks which sub-step screens have been pushed. Mirrors the
+    /// `WithdrawNavigationPath` items the model has appended to the parent
+    /// navigation stack via the `pushSubstep` callback. Used by
+    /// `popToEnterAmount` to compute how many items to pop.
+    @ObservationIgnored private var substepStack: [WithdrawNavigationPath] = []
+
+    /// Pushes a sub-step onto the parent NavigationStack. Wired by
+    /// `WithdrawScreen` to call `router.pushAny(_:on: .settings)`.
+    @ObservationIgnored var pushSubstep: (WithdrawNavigationPath) -> Void = { _ in }
+
+    /// Pops the given number of items from the parent NavigationStack.
+    /// Wired by `WithdrawScreen` to call `router.popLast(_:on: .settings)`.
+    @ObservationIgnored var popSubsteps: (Int) -> Void = { _ in }
+
     var withdrawButtonState: ButtonState = .normal
     var selectedBalance: ExchangedBalance?
     var enteredAmount: String = ""
@@ -169,7 +182,9 @@ class WithdrawViewModel {
         )
     }
 
-    @ObservationIgnored private let isPresented: Binding<Bool>
+    /// Set by `WithdrawScreen` from `@Environment(\.dismiss)` once the view
+    /// is on screen. Invoked by the success dialog to unwind the entire flow.
+    @ObservationIgnored var onComplete: () -> Void = {}
     @ObservationIgnored private let container: Container
     @ObservationIgnored private let client: Client
     @ObservationIgnored private let session: Session
@@ -177,8 +192,7 @@ class WithdrawViewModel {
 
     // MARK: - Init -
 
-    init(isPresented: Binding<Bool>, container: Container, sessionContainer: SessionContainer) {
-        self.isPresented     = isPresented
+    init(container: Container, sessionContainer: SessionContainer) {
         self.container       = container
         self.client          = container.client
         self.session         = sessionContainer.session
@@ -405,19 +419,30 @@ class WithdrawViewModel {
     // MARK: - Navigation -
 
     private func popToEnterAmount() {
-        path = [.enterAmount]
+        // Pop everything above `.enterAmount`, leaving it as the top substep.
+        // If we're already there or the stack is empty, this is a no-op.
+        guard let firstAmountIndex = substepStack.firstIndex(of: .enterAmount) else {
+            return
+        }
+        let popsNeeded = substepStack.count - (firstAmountIndex + 1)
+        guard popsNeeded > 0 else { return }
+        popSubsteps(popsNeeded)
+        substepStack.removeLast(popsNeeded)
     }
 
     func pushEnterAmountScreen() {
-        path.append(.enterAmount)
+        pushSubstep(.enterAmount)
+        substepStack.append(.enterAmount)
     }
 
     private func pushEnterAddressScreen() {
-        path.append(.enterAddress)
+        pushSubstep(.enterAddress)
+        substepStack.append(.enterAddress)
     }
 
     private func pushConfirmationScreen() {
-        path.append(.confirmation)
+        pushSubstep(.confirmation)
+        substepStack.append(.confirmation)
     }
 
     // MARK: - Dialogs -
@@ -430,7 +455,7 @@ class WithdrawViewModel {
             dismissable: false
         ) {
             .okay(kind: .standard) { [weak self] in
-                self?.isPresented.wrappedValue = false
+                self?.onComplete()
             }
         }
     }
