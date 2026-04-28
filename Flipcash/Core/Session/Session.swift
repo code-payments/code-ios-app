@@ -944,14 +944,29 @@ class Session {
                 // Suppress grab-request processing on the rendezvous stream
                 // while the share sheet is up (keeps the bill alive underneath).
                 operation.ignoresStream = true
-                
+
                 let payload       = operation.payload
                 let exchangedFiat = billDescription.exchangedFiat
-                
+
+                // Outgoing bills always carry the pin from `GiveViewModel.prepareSubmission`.
+                // Re-fetching a fresh proof here would reintroduce the native-amount
+                // mismatch that pinning prevents, so this is structurally unreachable —
+                // crash debug builds and fail closed in release.
+                guard let verifiedState = billDescription.verifiedState else {
+                    logger.error("Missing verifiedState for outgoing cash link", metadata: [
+                        "rendezvous": "\(payload.rendezvous.publicKey.base58)",
+                        "mint": "\(exchangedFiat.mint.base58)",
+                    ])
+                    assertionFailure("Outgoing BillDescription must carry a pinned VerifiedState")
+                    self.showSomethingWentWrongError()
+                    return
+                }
+
                 do {
                     let giftCard = try await self.createCashLink(
                         payload: payload,
-                        exchangedFiat: exchangedFiat
+                        exchangedFiat: exchangedFiat,
+                        verifiedState: verifiedState
                     )
 
                     guard self.isShowingBill && self.sendOperation === operation else {
@@ -1156,41 +1171,29 @@ class Session {
     
     // MARK: - Cash Links -
     
-    private func createCashLink(payload: CashCode.Payload, exchangedFiat: ExchangedFiat) async throws -> GiftCardCluster {
+    private func createCashLink(payload: CashCode.Payload, exchangedFiat: ExchangedFiat, verifiedState: VerifiedState) async throws -> GiftCardCluster {
         do {
             var vmAuthority = PublicKey.usdcAuthority
             var owner = owner
-            
+
             // Ensure that our outgoing (source) account mint
             // matches the mint of the funds being sent
             if owner.timelock.mint != exchangedFiat.mint {
                 guard let authority = try? database.getVMAuthority(mint: exchangedFiat.mint) else {
                     throw Error.vmMetadataMissing
                 }
-                
+
                 vmAuthority = authority
                 owner = owner.use(
                     mint: exchangedFiat.mint,
                     timeAuthority: authority
                 )
             }
-            
+
             let giftCard = GiftCardCluster(
                 mint: exchangedFiat.mint,
                 timeAuthority: vmAuthority
             )
-
-            // Wait for verified state. The in-memory cache is empty on cold
-            // launch until the live mint stream delivers the first batch, so
-            // polling matches the receive path's behavior at `receiveCashLink`
-            // below and avoids a spurious error when the user taps Send within
-            // the first few seconds of relaunching the app.
-            guard let verifiedState = await ratesController.awaitVerifiedState(
-                for: exchangedFiat.nativeAmount.currency,
-                mint: exchangedFiat.mint
-            ) else {
-                throw Error.missingVerifiedState
-            }
 
             try await client.sendCashLink(
                 exchangedFiat: exchangedFiat,
