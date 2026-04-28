@@ -657,9 +657,9 @@ final class OnrampCoordinator {
         }
 
         Analytics.onrampInvokePayment(amount: amount.usdfValue)
-
+        
         let id       = UUID()
-        let userRef  = "\(email):\(phone)"
+        let userRef  = session.ownerKeyPair.publicKey.base58
         let orderRef = "\(userRef):\(id)"
 
         do {
