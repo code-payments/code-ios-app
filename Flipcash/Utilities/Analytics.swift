@@ -50,7 +50,6 @@ enum Analytics {
     }
         
     private static func track(_ name: String, properties: [String: AnalyticsValue]? = nil) {
-        logger.debug("Track", metadata: ["event": "\(name)", "properties": "\(properties ?? [:])"])
         mixpanel.track(event: name, properties: properties)
     }
 }
