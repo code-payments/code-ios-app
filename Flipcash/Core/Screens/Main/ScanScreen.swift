@@ -153,7 +153,6 @@ struct ScanScreen: View {
                 giveViewModel: giveViewModel
             )
         }
-        .dialog(item: $giveViewModel.dialogItem)
         // Dismiss all presented sheets when a bill is about to appear.
         // Bills render in ScanScreen's ZStack, so any sheet on top
         // (Settings, Balance, Give) would obscure them. This ensures
@@ -294,12 +293,9 @@ struct ScanScreen: View {
                 fullWidth: true,
                 aligment: .bottom
             ) {
-                // `isPresented = true` runs the viewModel's didSet (balance
-                // check + entered-amount reset). Present the sheet directly
-                // — no .onChange relay, so swipe-down dismiss can't desync
-                // the flag from the router and stall the next tap.
-                giveViewModel.isPresented = true
-                router.present(.give)
+                if giveViewModel.attemptPresent() {
+                    router.present(.give)
+                }
             }
 
             ToastContainer(toast: toast) {

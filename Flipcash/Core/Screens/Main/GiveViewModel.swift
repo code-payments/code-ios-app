@@ -18,7 +18,6 @@ class GiveViewModel {
     var enteredAmount: String = ""
     var actionState: ButtonState = .normal
 
-    var dialogItem: DialogItem?
     var depositMint: PublicKey?
 
     var canGive: Bool {
@@ -88,21 +87,26 @@ class GiveViewModel {
         }
     }
     
-    var isPresented = false {
-        didSet {
-            if isPresented {
-                let rate = ratesController.rateForBalanceCurrency()
-                let hasGiveableBalance = session.balances(for: rate).contains { $0.stored.mint != .usdf }
+    var isPresented = false
 
-                if hasGiveableBalance {
-                    refreshSelectedBalance()
-                    self.enteredAmount = ""
-                } else {
-                    self.isPresented = false
-                    showNoBalanceError()
-                }
-            }
+    /// Validates that the user has a giveable balance and primes the view model
+    /// for entry. Returns `true` if the give sheet should be presented; on
+    /// `false`, `session.dialogItem` carries the explanation. Callers must gate
+    /// `router.present(.give)` on this return — otherwise the sheet renders
+    /// behind the dialog with a $0 amount entry.
+    func attemptPresent() -> Bool {
+        let rate = ratesController.rateForBalanceCurrency()
+        let hasGiveableBalance = session.balances(for: rate).contains { $0.stored.mint != .usdf }
+
+        guard hasGiveableBalance else {
+            showNoBalanceError()
+            return false
         }
+
+        refreshSelectedBalance()
+        enteredAmount = ""
+        isPresented = true
+        return true
     }
 
     // MARK: - Init -
@@ -141,7 +145,7 @@ class GiveViewModel {
         case .sufficient:
             Task {
                 guard let (amountToSend, pinnedState) = await prepareSubmission() else {
-                    dialogItem = .staleRate
+                    session.dialogItem = .staleRate
                     return
                 }
 
@@ -231,7 +235,7 @@ class GiveViewModel {
     // MARK: - Errors -
     
     private func showNoBalanceError() {
-        dialogItem = .init(
+        session.dialogItem = .init(
             style: .destructive,
             title: "No Balance Yet",
             subtitle: "Get another Flipcash user to give you some cash to get a balance",
@@ -242,7 +246,7 @@ class GiveViewModel {
     }
 
     private func showInsufficientBalanceError() {
-        dialogItem = .init(
+        session.dialogItem = .init(
             style: .destructive,
             title: "You Need More Cash",
             subtitle: "Please add more cash, or try again with a lower amount",
@@ -254,9 +258,9 @@ class GiveViewModel {
             .dismiss(kind: .subtle)
         }
     }
-    
+
     private func showYoureShortError(amount: ExchangedFiat) {
-        dialogItem = .init(
+        session.dialogItem = .init(
             style: .destructive,
             title: "You're \(amount.nativeAmount.formatted()) Short",
             subtitle: "Add more cash, or try again with a lower amount",
@@ -268,9 +272,9 @@ class GiveViewModel {
             .dismiss(kind: .subtle)
         }
     }
-    
+
     private func showLimitsError() {
-        dialogItem = .init(
+        session.dialogItem = .init(
             style: .destructive,
             title: "Transaction Limit Reached",
             subtitle: "Flipcash is designed for small, every day transactions. Send limits reset daily",

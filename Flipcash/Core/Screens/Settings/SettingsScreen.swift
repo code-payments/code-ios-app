@@ -85,28 +85,28 @@ struct SettingsScreen: View {
         VStack(alignment: .leading, spacing: 0) {
 
             SettingsRow(asset: .myAccount, title: "My Account", insets: insets) {
-                router.push(.settingsMyAccount, on: .settings)
+                router.push(.settingsMyAccount)
             }
 
             SettingsRow(asset: .settings, title: "App Settings", insets: insets) {
-                router.push(.settingsAppSettings, on: .settings)
+                router.push(.settingsAppSettings)
             }
 
             SettingsRow(asset: .withdraw, title: "Withdraw Funds", insets: insets) {
-                router.push(.withdraw, on: .settings)
+                router.push(.withdraw)
             }
 
             SettingsRow(asset: .sliders, title: "Advanced Features", insets: insets) {
-                router.push(.settingsAdvancedFeatures, on: .settings)
+                router.push(.settingsAdvancedFeatures)
             }
 
             if betaFlags.accessGranted {
                 SettingsRow(asset: .debug, title: "Beta Features", badge: betaBadge(), insets: insets) {
-                    router.push(.settingsBetaFlags, on: .settings)
+                    router.push(.settingsBetaFlags)
                 }
 
                 SettingsRow(asset: .switchAccounts, title: "Switch Accounts", badge: betaBadge(), insets: insets) {
-                    router.push(.settingsAccountSelection, on: .settings)
+                    router.push(.settingsAccountSelection)
                 }
             }
 

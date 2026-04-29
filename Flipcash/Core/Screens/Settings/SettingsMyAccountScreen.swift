@@ -45,7 +45,7 @@ struct SettingsMyAccountScreen: View {
                     dismissable: true
                 ) {
                     DialogAction.destructive("View Access Key") {
-                        router.push(.accessKey, on: .settings)
+                        router.push(.accessKey)
                     }
                     DialogAction.cancel {}
                 }

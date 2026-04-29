@@ -72,7 +72,7 @@ struct WithdrawScreen: View {
             // the parent (Settings) NavigationStack via the router; pops
             // remove that many items from the top.
             viewModel.pushSubstep = { step in
-                router.pushAny(step, on: .settings)
+                router.pushAny(step)
             }
             viewModel.popSubsteps = { count in
                 router.popLast(count, on: .settings)

@@ -278,7 +278,11 @@ struct CurrencyCreationWizardScreen: View {
                     fundingMethod: .reserves
                 )
                 .environment(\.dismissParentContainer, {
-                    reservesLaunchContext = nil
+                    // Sheet dismiss unmounts the wizard, taking the
+                    // fullScreenCover with it as a single animation.
+                    // Nilling the cover binding here would stage a separate
+                    // cover-dismiss before the sheet animation; the @State
+                    // is freed automatically when the wizard unmounts.
                     router.dismissSheet()
                 })
             }
@@ -298,9 +302,16 @@ struct CurrencyCreationWizardScreen: View {
                         fundingMethod: .coinbase
                     )
                     .environment(\.dismissParentContainer, {
-                        onrampCoordinator.completion = nil
-                        isValidating = false
+                        // Single-motion dismiss: sheet animation carries the
+                        // cover off. Cleanup of shared coordinator state is
+                        // deferred past the animation so it doesn't trigger
+                        // a separate cover-dismiss in front of the sheet.
+                        // `isValidating` is @State and self-cleans on unmount.
                         router.dismissSheet()
+                        Task { @MainActor in
+                            try? await Task.sleep(for: AppRouter.dismissAnimationDuration)
+                            onrampCoordinator.completion = nil
+                        }
                     })
                 }
             }
@@ -317,9 +328,16 @@ struct CurrencyCreationWizardScreen: View {
                     fundingMethod: .phantom
                 )
                 .environment(\.dismissParentContainer, {
-                    walletConnection.dismissProcessing()
-                    isValidating = false
+                    // Single-motion dismiss: sheet animation carries the
+                    // cover off. Cleanup of shared wallet state is deferred
+                    // past the animation so it doesn't trigger a separate
+                    // cover-dismiss in front of the sheet. `isValidating`
+                    // is @State and self-cleans on unmount.
                     router.dismissSheet()
+                    Task { @MainActor in
+                        try? await Task.sleep(for: AppRouter.dismissAnimationDuration)
+                        walletConnection.dismissProcessing()
+                    }
                 })
             }
         }

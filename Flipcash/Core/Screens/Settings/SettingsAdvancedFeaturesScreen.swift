@@ -29,10 +29,10 @@ struct SettingsAdvancedFeaturesScreen: View {
     private func list() -> some View {
         VStack(alignment: .leading, spacing: 0) {
             SettingsRow(asset: .deposit, title: "Deposit Funds", insets: insets) {
-                router.push(.depositCurrencyList, on: .settings)
+                router.push(.depositCurrencyList)
             }
             SettingsRow(systemImage: "doc.text", title: "Application Logs", insets: insets) {
-                router.push(.settingsApplicationLogs, on: .settings)
+                router.push(.settingsApplicationLogs)
             }
         }
         .font(.appDisplayXS)

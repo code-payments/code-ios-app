@@ -175,7 +175,13 @@ private struct GiveDestinationView: View {
     init(mint: PublicKey, container: Container, sessionContainer: SessionContainer) {
         sessionContainer.ratesController.selectToken(mint)
         let viewModel = GiveViewModel(container: container, sessionContainer: sessionContainer)
-        viewModel.isPresented = true
+        // Runs the same gate + state priming the ScanScreen Give button uses,
+        // so `selectedBalance` is resolved and `enteredAmount` is cleared
+        // before first render. If the user has no giveable balance, the
+        // viewmodel raises a "No Balance Yet" dialog through
+        // `session.dialogItem`; the destination still mounts but stays empty
+        // behind the dialog until dismissed.
+        _ = viewModel.attemptPresent()
         _viewModel = State(initialValue: viewModel)
     }
 

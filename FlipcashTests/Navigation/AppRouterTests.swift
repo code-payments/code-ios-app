@@ -19,23 +19,26 @@ struct AppRouterTests {
     @Test("push appends destination to the stack")
     func push_appendsDestination() {
         let router = AppRouter()
-        router.push(.discoverCurrencies, on: .balance)
+        router.present(.balance)
+        router.push(.discoverCurrencies)
         #expect(router[.balance] == AppRouter.navigationPath(.discoverCurrencies))
     }
 
     @Test("push appends in order across multiple calls")
     func push_appendsInOrder() {
         let router = AppRouter()
-        router.push(.currencyInfo(.usdc), on: .balance)
-        router.push(.transactionHistory(.usdc), on: .balance)
+        router.present(.balance)
+        router.push(.currencyInfo(.usdc))
+        router.push(.transactionHistory(.usdc))
         #expect(router[.balance] == AppRouter.navigationPath(.currencyInfo(.usdc), .transactionHistory(.usdc)))
     }
 
     @Test("pop removes the top destination")
     func pop_removesTop() {
         let router = AppRouter()
-        router.push(.currencyInfo(.usdc), on: .balance)
-        router.push(.transactionHistory(.usdc), on: .balance)
+        router.present(.balance)
+        router.push(.currencyInfo(.usdc))
+        router.push(.transactionHistory(.usdc))
         router.pop(on: .balance)
         #expect(router[.balance] == AppRouter.navigationPath(.currencyInfo(.usdc)))
     }
@@ -50,8 +53,9 @@ struct AppRouterTests {
     @Test("popToRoot clears the stack")
     func popToRoot_clearsStack() {
         let router = AppRouter()
-        router.push(.currencyInfo(.usdc), on: .balance)
-        router.push(.transactionHistory(.usdc), on: .balance)
+        router.present(.balance)
+        router.push(.currencyInfo(.usdc))
+        router.push(.transactionHistory(.usdc))
         router.popToRoot(on: .balance)
         #expect(router[.balance].isEmpty)
     }
@@ -59,9 +63,10 @@ struct AppRouterTests {
     @Test("popLast removes the requested number of items")
     func popLast_removesCount() {
         let router = AppRouter()
-        router.push(.currencyInfo(.usdc), on: .balance)
-        router.push(.transactionHistory(.usdc), on: .balance)
-        router.push(.discoverCurrencies, on: .balance)
+        router.present(.balance)
+        router.push(.currencyInfo(.usdc))
+        router.push(.transactionHistory(.usdc))
+        router.push(.discoverCurrencies)
         router.popLast(2, on: .balance)
         #expect(router[.balance] == AppRouter.navigationPath(.currencyInfo(.usdc)))
     }
@@ -69,7 +74,8 @@ struct AppRouterTests {
     @Test("popLast clamps to available depth")
     func popLast_clampsToDepth() {
         let router = AppRouter()
-        router.push(.currencyInfo(.usdc), on: .balance)
+        router.present(.balance)
+        router.push(.currencyInfo(.usdc))
         router.popLast(10, on: .balance)
         #expect(router[.balance].isEmpty)
     }
@@ -77,7 +83,8 @@ struct AppRouterTests {
     @Test("setPath replaces the entire path")
     func setPath_replacesPath() {
         let router = AppRouter()
-        router.push(.currencyInfo(.usdc), on: .balance)
+        router.present(.balance)
+        router.push(.currencyInfo(.usdc))
         router.setPath([.discoverCurrencies, .currencyCreationSummary], on: .balance)
         #expect(router[.balance] == AppRouter.navigationPath(.discoverCurrencies, .currencyCreationSummary))
     }
@@ -93,32 +100,68 @@ struct AppRouterTests {
     @Test("pushAny accepts non-Destination Hashable types")
     func pushAny_acceptsHashable() {
         let router = AppRouter()
-        router.push(.withdraw, on: .settings)
-        router.pushAny(WithdrawNavigationPath.enterAmount, on: .settings)
+        router.present(.settings)
+        router.push(.withdraw)
+        router.pushAny(WithdrawNavigationPath.enterAmount)
         #expect(router[.settings].count == 2)
     }
 
-    @Test("paths on different stacks are independent")
-    func stacks_areIndependent() {
-        let router = AppRouter()
-        router.push(.currencyInfo(.usdc), on: .balance)
-        router.push(.settingsMyAccount, on: .settings)
-        #expect(router[.balance] == AppRouter.navigationPath(.currencyInfo(.usdc)))
-        #expect(router[.settings] == AppRouter.navigationPath(.settingsMyAccount))
-    }
+    // MARK: - Stack inference
 
-    @Test("push(_:) derives the stack from the presented sheet")
-    func push_inferredStack_usesPresentedSheet() {
+    @Test("push lands on the currently-presented sheet's stack")
+    func push_landsOnPresentedStack() {
         let router = AppRouter()
         router.present(.balance)
         router.push(.currencyInfo(.usdc))
         #expect(router[.balance] == AppRouter.navigationPath(.currencyInfo(.usdc)))
+        #expect(router[.settings].isEmpty)
+        #expect(router[.give].isEmpty)
     }
 
-    @Test("push(_:) is a no-op when no sheet is presented")
-    func push_inferredStack_noopWhenNoSheet() {
+    @Test("push is a no-op when no sheet is presented")
+    func push_noopWhenNoSheet() {
         let router = AppRouter()
         router.push(.currencyInfo(.usdc))
+        #expect(router[.balance].isEmpty)
+        #expect(router[.settings].isEmpty)
+        #expect(router[.give].isEmpty)
+    }
+
+    @Test("push routes to the current presented stack across sheet swaps")
+    func push_acrossSheetSwap_landsOnCurrentStack() {
+        // Regression guard: a hardcoded explicit-stack push is exactly the
+        // bug shape this collapse closed. Pushing while `.give` is presented
+        // must land on `.give`, even if the destination's "natural home" is
+        // `.balance` (e.g. `.currencyInfoForDeposit` opened from inside the
+        // give flow's "Add More Cash" path).
+        let router = AppRouter()
+
+        router.present(.balance)
+        router.push(.currencyInfo(.usdc))
+        #expect(router[.balance].count == 1)
+
+        router.present(.give)
+        router.push(.currencyInfoForDeposit(.usdc))
+
+        #expect(router[.balance].count == 1, "balance path preserved across swap")
+        #expect(router[.give].count == 1, "new push lands on the current sheet's stack")
+        #expect(router[.settings].isEmpty)
+    }
+
+    @Test("pushAny lands on the currently-presented sheet's stack")
+    func pushAny_landsOnPresentedStack() {
+        let router = AppRouter()
+        router.present(.settings)
+        router.pushAny(WithdrawNavigationPath.enterAmount)
+        #expect(router[.settings].count == 1)
+        #expect(router[.balance].isEmpty)
+        #expect(router[.give].isEmpty)
+    }
+
+    @Test("pushAny is a no-op when no sheet is presented")
+    func pushAny_noopWhenNoSheet() {
+        let router = AppRouter()
+        router.pushAny(WithdrawNavigationPath.enterAmount)
         #expect(router[.balance].isEmpty)
         #expect(router[.settings].isEmpty)
         #expect(router[.give].isEmpty)
@@ -162,7 +205,7 @@ struct AppRouterTests {
     func dismissSheet_leavesPathIntact() {
         let router = AppRouter()
         router.present(.balance)
-        router.push(.currencyInfo(.usdc), on: .balance)
+        router.push(.currencyInfo(.usdc))
 
         router.dismissSheet()
 
@@ -174,7 +217,7 @@ struct AppRouterTests {
     func present_afterDismiss_clearsPath() {
         let router = AppRouter()
         router.present(.balance)
-        router.push(.currencyInfo(.usdc), on: .balance)
+        router.push(.currencyInfo(.usdc))
         router.dismissSheet()
 
         router.present(.balance)
@@ -187,7 +230,7 @@ struct AppRouterTests {
     func present_afterDismissAndIntermediate_stillClearsOnReturn() {
         let router = AppRouter()
         router.present(.balance)
-        router.push(.currencyInfo(.usdc), on: .balance)
+        router.push(.currencyInfo(.usdc))
         router.dismissSheet()
         router.present(.settings)
 
@@ -201,7 +244,7 @@ struct AppRouterTests {
     func present_swap_preservesPaths() {
         let router = AppRouter()
         router.present(.balance)
-        router.push(.currencyInfo(.usdc), on: .balance)
+        router.push(.currencyInfo(.usdc))
         router.setPath([.settingsMyAccount], on: .settings)
 
         router.present(.settings)

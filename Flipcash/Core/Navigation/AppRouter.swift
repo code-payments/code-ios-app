@@ -30,6 +30,13 @@ private let logger = Logger(label: "flipcash.router")
 @Observable
 final class AppRouter {
 
+    /// Approximate duration of a SwiftUI `.sheet` / `.fullScreenCover` dismiss
+    /// animation. Used to sequence state mutations that must land *after* a
+    /// dismiss has fully cleared the view tree — e.g. nilling a cover's
+    /// `item` binding without staging a separate cover-dismiss animation, or
+    /// mutating bill state so it enters fresh on the revealed ScanScreen.
+    static let dismissAnimationDuration: Duration = .milliseconds(400)
+
     private(set) var presentedSheet: SheetPresentation?
 
     private var paths: [Stack: NavigationPath] = [:]
@@ -54,16 +61,12 @@ final class AppRouter {
 
     // MARK: - Stack mutators
 
-    func push(_ destination: Destination, on stack: Stack) {
-        paths[stack, default: NavigationPath()].append(destination)
-        logger.info("Push", metadata: navigationMetadata(stack: stack, destination: destination))
-    }
-
     /// Pushes onto whatever stack is currently presented (`presentedSheet?.stack`).
-    /// Convenience for views hosted in more than one sheet (e.g. `GiveScreen`,
-    /// which appears as both the `.give` sheet root and a push inside `.balance`)
-    /// so they don't need to thread the owning stack down through their init.
-    /// No-op with a warning if no sheet is presented.
+    /// No-op with a warning if no sheet is presented — pushes onto a hidden
+    /// stack would silently corrupt that stack's path until the user later
+    /// presents that sheet.
+    ///
+    /// Cross-stack navigation is `navigate(to:)`'s job, not `push`'s.
     func push(_ destination: Destination) {
         guard let stack = presentedSheet?.stack else {
             logger.warning("Push attempted with no sheet presented", metadata: [
@@ -71,14 +74,22 @@ final class AppRouter {
             ])
             return
         }
-        push(destination, on: stack)
+        paths[stack, default: NavigationPath()].append(destination)
+        logger.info("Push", metadata: navigationMetadata(stack: stack, destination: destination))
     }
 
-    /// Pushes any Hashable value onto the stack. Used by sub-flows whose
-    /// destination types live outside `AppRouter.Destination` (e.g.,
-    /// `WithdrawNavigationPath`), so a single stack can carry mixed types
-    /// without nesting `NavigationStack`s.
-    func pushAny<H: Hashable>(_ value: H, on stack: Stack) {
+    /// Pushes any Hashable value onto the currently-presented stack. Used by
+    /// sub-flows whose destination types live outside `AppRouter.Destination`
+    /// (e.g., `WithdrawNavigationPath`), so a single stack can carry mixed
+    /// types without nesting `NavigationStack`s. No-op with a warning if no
+    /// sheet is presented.
+    func pushAny<H: Hashable>(_ value: H) {
+        guard let stack = presentedSheet?.stack else {
+            logger.warning("Push (sub-flow) attempted with no sheet presented", metadata: [
+                "type": "\(type(of: value))",
+            ])
+            return
+        }
         paths[stack, default: NavigationPath()].append(value)
         logger.info("Push (sub-flow)", metadata: [
             "stack": "\(stack)",

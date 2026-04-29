@@ -31,8 +31,6 @@ struct GiveScreen: View {
     @State private var isShowingCurrencySelection: Bool = false
     @State private var isShowingTokenSelection: Bool = false
 
-    @State private var dialogItem: DialogItem?
-
     @Environment(\.dismissParentContainer) private var dismissParentContainer
 
     private var maxLimit: ExchangedFiat {
@@ -113,8 +111,6 @@ struct GiveScreen: View {
                 fixedRate: nil,
             )
         }
-        .dialog(item: $dialogItem)
-        .dialog(item: $viewModel.dialogItem)
         .onChange(of: viewModel.isPresented) { _, isPresented in
             if !isPresented {
                 dismissParentContainer()
