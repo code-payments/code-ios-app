@@ -861,6 +861,21 @@ public enum ErrorSubmitIntent: Error, CustomStringConvertible, CustomDebugString
     public var debugDescription: String {
         description
     }
+
+    /// `true` when this is `.staleState` and any reason string contains
+    /// one of `fragments` (case-insensitive substring match).
+    ///
+    /// Lets call sites disambiguate benign server races (e.g. "already
+    /// claimed") from real desyncs without introducing a per-flow
+    /// classifier or an enum just for pattern matching.
+    public func staleState(matchingAny fragments: String...) -> Bool {
+        guard case .staleState(let reasons) = self else { return false }
+        let needles = fragments.map { $0.lowercased() }
+        return reasons.contains { reason in
+            let haystack = reason.lowercased()
+            return needles.contains { haystack.contains($0) }
+        }
+    }
 }
 
 public enum ErrorVoidGiftCard: Int, Error {

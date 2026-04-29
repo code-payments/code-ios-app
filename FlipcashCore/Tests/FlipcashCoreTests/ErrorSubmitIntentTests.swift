@@ -138,6 +138,48 @@ struct ErrorSubmitIntentTests {
         }
     }
 
+    // MARK: - staleState(matchingAny:)
+
+    @Test("staleState matches a fragment present in any reason")
+    func staleStateMatchesPresentFragment() {
+        let error = ErrorSubmitIntent.staleState([
+            "gift card balance has already been claimed"
+        ])
+        #expect(error.staleState(matchingAny: "already been claimed"))
+    }
+
+    @Test("staleState matches case-insensitively on both sides")
+    func staleStateCaseInsensitive() {
+        let error = ErrorSubmitIntent.staleState(["BALANCE Already Claimed"])
+        #expect(error.staleState(matchingAny: "already claimed"))
+    }
+
+    @Test("staleState returns true when any of multiple fragments match")
+    func staleStateAnyOfMany() {
+        let error = ErrorSubmitIntent.staleState(["cached balance version is stale"])
+        #expect(error.staleState(
+            matchingAny: "already claimed", "cached balance version is stale"
+        ))
+    }
+
+    @Test("staleState returns false when no fragment is present")
+    func staleStateNoMatch() {
+        let error = ErrorSubmitIntent.staleState(["unrelated reason"])
+        #expect(!error.staleState(matchingAny: "already claimed"))
+    }
+
+    @Test("staleState returns false on a non-staleState case")
+    func staleStateOnDifferentCase() {
+        let error = ErrorSubmitIntent.denied([], messages: ["already claimed"])
+        #expect(!error.staleState(matchingAny: "already claimed"))
+    }
+
+    @Test("staleState returns false on an empty reasons array")
+    func staleStateEmptyReasons() {
+        let error = ErrorSubmitIntent.staleState([])
+        #expect(!error.staleState(matchingAny: "already claimed"))
+    }
+
     // MARK: - Fixture helpers
 
     private func makeError(

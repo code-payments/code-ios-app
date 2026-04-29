@@ -1399,7 +1399,7 @@ class Session {
                     error: nil
                 )
 
-            } catch let error as ErrorSubmitIntent where error.cashLinkStaleStateReason == .alreadyClaimed {
+            } catch let error as ErrorSubmitIntent where error.staleState(matchingAny: "already been claimed", "already claimed") {
                 // Server-side race: another device claimed first.
                 // Benign — surface the dialog without Bugsnag.
                 logger.info("Cash link already claimed (server race)", metadata: [
@@ -1414,7 +1414,7 @@ class Session {
                     error: error
                 )
 
-            } catch let error as ErrorSubmitIntent where error.isDenied {
+            } catch ErrorSubmitIntent.denied(let reasons, let messages) {
                 // Server-side guard refusal (spam, AML, rate/policy).
                 // Not a bug — surface the generic dialog without Bugsnag.
                 logger.info("Cash link denied by guard", metadata: [
@@ -1426,7 +1426,7 @@ class Session {
                     exchangedFiat: nil,
                     grabTime: nil,
                     successful: false,
-                    error: error
+                    error: ErrorSubmitIntent.denied(reasons, messages: messages)
                 )
 
             } catch {
