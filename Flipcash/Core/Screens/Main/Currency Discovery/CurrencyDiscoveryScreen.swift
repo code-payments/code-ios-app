@@ -24,14 +24,14 @@ struct CurrencyDiscoveryScreen: View {
                 mintsByCategory: $mintsByCategory,
                 selectedCategory: $selectedCategory,
                 onSelectMint: { mint in
-                    router.push(.currencyInfo(mint), on: .balance)
+                    router.push(.currencyInfo(mint))
                 }
             )
 
             if mintsByCategory[selectedCategory] != nil {
                 CurrencyInfoFooter {
                     Button("Create Your Own Currency") {
-                        router.push(.currencyCreationSummary, on: .balance)
+                        router.push(.currencyCreationSummary)
                     }
                     .buttonStyle(.filled)
                 }

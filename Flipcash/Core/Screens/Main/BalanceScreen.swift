@@ -126,7 +126,7 @@ struct BalanceScreen: View {
                 .frame(maxWidth: .infinity, alignment: .center)
 
             BubbleButton(text: "Discover Currencies") {
-                router.push(.discoverCurrencies, on: .balance)
+                router.push(.discoverCurrencies)
             }
             .padding(.top, 8)
         }
@@ -158,7 +158,7 @@ struct BalanceScreen: View {
                             ForEach(currencyBalances) { balance in
                                 CurrencyBalanceRow(exchangedBalance: balance) {
                                     Analytics.tokenInfoOpened(from: .openedFromWallet, mint: balance.stored.mint)
-                                    router.push(.currencyInfo(balance.stored.mint), on: .balance)
+                                    router.push(.currencyInfo(balance.stored.mint))
                                 }
                                 .vSeparator(color: .rowSeparator)
                                 .matchedGeometryEffect(id: balance.id, in: balanceRowNamespace)
@@ -169,7 +169,7 @@ struct BalanceScreen: View {
                                     reservesBalance: reservesBalance,
                                     showTopDivider: currencyBalances.isEmpty,
                                     onTap: {
-                                        router.push(.currencyInfo(reservesBalance.stored.mint), on: .balance)
+                                        router.push(.currencyInfo(reservesBalance.stored.mint))
                                     }
                                 )
                             }
@@ -179,7 +179,7 @@ struct BalanceScreen: View {
                     } footer: {
                         if hasBalances {
                             Button("Discover Currencies") {
-                                router.push(.discoverCurrencies, on: .balance)
+                                router.push(.discoverCurrencies)
                             }
                             .buttonStyle(.filled)
                             .padding(.horizontal, 20)

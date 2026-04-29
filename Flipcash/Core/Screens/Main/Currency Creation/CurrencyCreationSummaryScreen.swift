@@ -51,7 +51,7 @@ struct CurrencyCreationSummaryScreen: View {
                 Spacer()
 
                 Button("Get Started") {
-                    router.push(.currencyCreationWizard, on: .balance)
+                    router.push(.currencyCreationWizard)
                 }
                 .buttonStyle(.filled)
                 .padding(.bottom, 20)
