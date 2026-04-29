@@ -111,7 +111,7 @@ message UserFlags {
 	bool requires_iap_for_registration = 3;
 
 	enum OnRampProvider {
-		UNKNOWN                  = 0;
+		UNKNOWN_ON_RAMP_PROVIDER = 0;
 		COINBASE_VIRTUAL         = 1;
 		COINBASE_PHYSICAL_DEBIT  = 2;
 		COINBASE_PHYSICAL_CREDIT = 3;
@@ -145,4 +145,16 @@ message UserFlags {
 
 	// USDF amount, in quarks, that must be paid in a fee when launching a new currency
 	uint64 new_currency_fee_amount = 9;
+
+	// USDF amount, in quarks, that must be paid when doing a withdrawal with a swap to USDC
+	uint64 usdc_withdrawal_fee_amount = 10;
+
+	enum UsdcLiquidityPool {
+		UNKNOWN_USDC_LIQUIDITY_POOL = 0;
+		FLIPCASH                    = 1;
+		COINBASE_STABLE_SWAPPER     = 2;
+	}
+
+	// The preferred USDC liquidity pool for external wallet on ramp flows
+	UsdcLiquidityPool preferred_on_ramp_usdc_liquidity_pool = 11;
 }
