@@ -83,11 +83,10 @@ struct CurrencyLaunchProcessingScreen: View {
             ratesController: ratesController
         )
         dismissParentContainer()
-        // Wait for the launch-cover and balance-sheet dismiss animations to
-        // finish before mutating bill state, so ScanScreen renders the bill
-        // as a fresh entrance instead of revealing it underneath the closing
-        // sheet.
-        try? await Task.sleep(for: .milliseconds(400))
+        // Wait for the dismiss animation to finish before mutating bill state,
+        // so ScanScreen renders the bill as a fresh entrance instead of
+        // revealing it underneath the closing sheet.
+        try? await Task.sleep(for: AppRouter.dismissAnimationDuration)
         if let description {
             session.showCashBill(description)
         }

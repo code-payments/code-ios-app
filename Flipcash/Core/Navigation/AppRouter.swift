@@ -30,6 +30,13 @@ private let logger = Logger(label: "flipcash.router")
 @Observable
 final class AppRouter {
 
+    /// Approximate duration of a SwiftUI `.sheet` / `.fullScreenCover` dismiss
+    /// animation. Used to sequence state mutations that must land *after* a
+    /// dismiss has fully cleared the view tree — e.g. nilling a cover's
+    /// `item` binding without staging a separate cover-dismiss animation, or
+    /// mutating bill state so it enters fresh on the revealed ScanScreen.
+    static let dismissAnimationDuration: Duration = .milliseconds(400)
+
     private(set) var presentedSheet: SheetPresentation?
 
     private var paths: [Stack: NavigationPath] = [:]
