@@ -777,6 +777,23 @@ public enum ErrorSubmitIntent: Error, CustomStringConvertible, CustomDebugString
         case unspecified // = 0
     }
 
+    /// Semantic categorization of staleState reason strings. Extended
+    /// whenever a call site needs to branch on a specific server message.
+    public enum StaleStateKind: Sendable, Equatable {
+        /// Server reports the gift card was already claimed/voided/expired —
+        /// a benign race when another device redeemed first.
+        case alreadyClaimed
+
+        public init?(serverReason: String) {
+            let reason = serverReason.lowercased()
+            if reason.contains("already been claimed") || reason.contains("already claimed") {
+                self = .alreadyClaimed
+                return
+            }
+            return nil
+        }
+    }
+
     /// Denied by a guard (spam, money laundering, etc)
     case denied([DeniedReason], messages: [String])
     /// The intent is invalid.
@@ -784,7 +801,7 @@ public enum ErrorSubmitIntent: Error, CustomStringConvertible, CustomDebugString
     /// There is an issue with provided signatures.
     case signatureError
     /// Server detected client has stale state.
-    case staleState([String])
+    case staleState([String], kinds: Set<StaleStateKind>)
     /// Unknown reason
     case unknown //= -1
     /// Device token unavailable
@@ -826,7 +843,13 @@ public enum ErrorSubmitIntent: Error, CustomStringConvertible, CustomDebugString
             self = .signatureError
 
         case .staleState:
-            self = .staleState(reasonStrings)
+            var kinds: Set<StaleStateKind> = []
+            for reason in reasonStrings {
+                if let kind = StaleStateKind(serverReason: reason) {
+                    kinds.insert(kind)
+                }
+            }
+            self = .staleState(reasonStrings, kinds: kinds)
 
         case .UNRECOGNIZED:
             self = .unknown
@@ -845,7 +868,7 @@ public enum ErrorSubmitIntent: Error, CustomStringConvertible, CustomDebugString
             return "invalidIntent(\(reasons.joined(separator: ", ")))"
         case .signatureError:
             return "signatureError"
-        case .staleState(let reasons):
+        case .staleState(let reasons, _):
             return "staleState(\(reasons.joined(separator: ", ")))"
         case .unknown:
             return "unknown"

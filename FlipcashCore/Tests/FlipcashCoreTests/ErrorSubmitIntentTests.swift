@@ -110,20 +110,16 @@ struct ErrorSubmitIntentTests {
         }
     }
 
-    @Test("staleState collects reasonString messages")
-    func staleStateWithReasons() {
+    @Test("staleState collects reasonString messages and produces no kinds when nothing matches")
+    func staleStateWithReasons() throws {
         var details = Ocp_Transaction_V1_ErrorDetails()
         details.reasonString = .with { $0.reason = "balance changed" }
 
         let proto = makeError(code: .staleState, details: [details])
 
-        let error = ErrorSubmitIntent(error: proto)
-
-        guard case let .staleState(reasons) = error else {
-            Issue.record("Expected .staleState, got \(error)")
-            return
-        }
-        #expect(reasons == ["balance changed"])
+        let payload = try #require(ErrorSubmitIntent(error: proto).staleStatePayload)
+        #expect(payload.reasons == ["balance changed"])
+        #expect(payload.kinds.isEmpty)
     }
 
     @Test("UNRECOGNIZED top-level code maps to .unknown")
@@ -136,6 +132,45 @@ struct ErrorSubmitIntentTests {
             Issue.record("Expected .unknown, got \(error)")
             return
         }
+    }
+
+    // MARK: - StaleStateKind
+
+    @Test(
+        "staleState parses .alreadyClaimed across server phrasings (case-insensitive)",
+        arguments: [
+            "gift card balance has already been claimed",
+            "Already Claimed",
+            "Gift Card BALANCE Has Already Been CLAIMED",
+        ]
+    )
+    func staleStateParsesAlreadyClaimed(reason: String) throws {
+        var details = Ocp_Transaction_V1_ErrorDetails()
+        details.reasonString = .with { $0.reason = reason }
+
+        let proto = makeError(code: .staleState, details: [details])
+
+        let payload = try #require(ErrorSubmitIntent(error: proto).staleStatePayload)
+        #expect(payload.kinds == [.alreadyClaimed])
+    }
+
+    @Test("StaleStateKind.init returns nil for an unrecognized reason")
+    func staleStateKindReturnsNilForUnknownReason() {
+        #expect(ErrorSubmitIntent.StaleStateKind(serverReason: "something unrelated") == nil)
+    }
+
+    @Test("staleState dedupes kinds across multiple matching reasons")
+    func staleStateDedupesKinds() throws {
+        var first = Ocp_Transaction_V1_ErrorDetails()
+        first.reasonString = .with { $0.reason = "gift card balance has already been claimed" }
+        var second = Ocp_Transaction_V1_ErrorDetails()
+        second.reasonString = .with { $0.reason = "already claimed by another wallet" }
+
+        let proto = makeError(code: .staleState, details: [first, second])
+
+        let payload = try #require(ErrorSubmitIntent(error: proto).staleStatePayload)
+        #expect(payload.reasons.count == 2)
+        #expect(payload.kinds == [.alreadyClaimed])
     }
 
     // MARK: - Fixture helpers
@@ -170,5 +205,10 @@ extension ErrorSubmitIntent {
     fileprivate var deniedPayload: (reasons: [DeniedReason], messages: [String])? {
         guard case let .denied(reasons, messages) = self else { return nil }
         return (reasons, messages)
+    }
+
+    fileprivate var staleStatePayload: (reasons: [String], kinds: Set<StaleStateKind>)? {
+        guard case let .staleState(reasons, kinds) = self else { return nil }
+        return (reasons, kinds)
     }
 }

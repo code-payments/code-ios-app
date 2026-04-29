@@ -39,7 +39,7 @@ final class IntentCreateAccount: IntentType {
     }
 }
 
-public enum AccountKind {
+public enum AccountKind: Sendable {
     case primary
     case giftCard
     case pool

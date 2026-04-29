@@ -72,25 +72,37 @@ extension Client {
         }
     }
 
-    public func sendCashLink(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, ownerCluster: AccountCluster, giftCard: GiftCardCluster, rendezvous: PublicKey) async throws {
-        _ = try await withCheckedThrowingContinuation { c in
-            transactionService.sendCashLink(
-                exchangedFiat: exchangedFiat,
-                verifiedState: verifiedState,
-                ownerCluster: ownerCluster,
-                giftCard: giftCard,
-                rendezvous: rendezvous
-            ) { c.resume(with: $0) }
+    public func sendCashLink(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, ownerCluster: AccountCluster, giftCard: GiftCardCluster, rendezvous: PublicKey) async throws(ErrorSubmitIntent) {
+        do {
+            _ = try await withCheckedThrowingContinuation { c in
+                transactionService.sendCashLink(
+                    exchangedFiat: exchangedFiat,
+                    verifiedState: verifiedState,
+                    ownerCluster: ownerCluster,
+                    giftCard: giftCard,
+                    rendezvous: rendezvous
+                ) { c.resume(with: $0) }
+            }
+        } catch let error as ErrorSubmitIntent {
+            throw error
+        } catch {
+            throw .grpcError(error)
         }
     }
-    
-    public func receiveCashLink(usdf: TokenAmount, ownerCluster: AccountCluster, giftCard: GiftCardCluster) async throws {
-        _ = try await withCheckedThrowingContinuation { c in
-            transactionService.receiveCashLink(
-                usdf: usdf,
-                ownerCluster: ownerCluster,
-                giftCard: giftCard
-            ) { c.resume(with: $0) }
+
+    public func receiveCashLink(usdf: TokenAmount, ownerCluster: AccountCluster, giftCard: GiftCardCluster) async throws(ErrorSubmitIntent) {
+        do {
+            _ = try await withCheckedThrowingContinuation { c in
+                transactionService.receiveCashLink(
+                    usdf: usdf,
+                    ownerCluster: ownerCluster,
+                    giftCard: giftCard
+                ) { c.resume(with: $0) }
+            }
+        } catch let error as ErrorSubmitIntent {
+            throw error
+        } catch {
+            throw .grpcError(error)
         }
     }
     

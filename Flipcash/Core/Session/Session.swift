@@ -914,7 +914,7 @@ class Session {
                     successful: false,
                     error: error
                 )
-                showSomethingWentWrongError()
+                dialogItem = .somethingWentWrong
                 completion(.failed)
             }
         }
@@ -951,7 +951,7 @@ class Session {
                         "mint": "\(exchangedFiat.mint.base58)",
                     ])
                     assertionFailure("Outgoing BillDescription must carry a pinned VerifiedState")
-                    self.showSomethingWentWrongError()
+                    self.dialogItem = .somethingWentWrong
                     return
                 }
 
@@ -994,7 +994,7 @@ class Session {
                     // (e.g. gRPC stream finally giving up minutes later) so they
                     // don't fire dialogs on unrelated bills the user has moved on to.
                     if self.isShowingBill && self.sendOperation === operation {
-                        self.showSomethingWentWrongError()
+                        self.dialogItem = .somethingWentWrong
                     }
                 }
             }
@@ -1065,7 +1065,7 @@ class Session {
             } catch {
                 // Diagnostics + ErrorReporting happen inside SendCashOperation.
                 self?.dismissCashBill(style: .slide)
-                self?.showCashReturnedError()
+                self?.dialogItem = .cashReturned
 
                 Analytics.transfer(
                     event: .giveBill,
@@ -1195,7 +1195,7 @@ class Session {
                 giftCard: giftCard,
                 rendezvous: payload.rendezvous.publicKey
             )
-            
+
             Analytics.transfer(
                 event: .sendCashLink,
                 exchangedFiat: exchangedFiat,
@@ -1203,12 +1203,12 @@ class Session {
                 successful: true,
                 error: nil
             )
-            
+
             return giftCard
-            
+
         } catch {
             ErrorReporting.captureError(error)
-            
+
             Analytics.transfer(
                 event: .sendCashLink,
                 exchangedFiat: exchangedFiat,
@@ -1216,9 +1216,7 @@ class Session {
                 successful: false,
                 error: error
             )
-            
-            // TODO: Show error
-            
+
             throw error
         }
     }
@@ -1256,10 +1254,20 @@ class Session {
         let giftCardKeyPair = DerivedKey.derive(using: .solana, mnemonic: mnemonic).keyPair
         Task {
             do {
-                let giftCardAccountInfo = try await fetchAccountInfoWithRetry(
-                    type: .giftCard,
-                    owner: giftCardKeyPair
-                )
+                let giftCardAccountInfo = try await Task.retry(
+                    maxAttempts: 3,
+                    delay: .milliseconds(500),
+                    shouldRetry: { error in
+                        guard let e = error as? ErrorFetchBalance else { return false }
+                        return e == .notFound || e == .unknown
+                    }
+                ) {
+                    try await client.fetchAccountInfo(
+                        type: .giftCard,
+                        owner: giftCardKeyPair,
+                        requestingOwner: ownerKeyPair
+                    )
+                }
 
                 guard let exchangedFiat = giftCardAccountInfo.exchangedFiat else {
                     logger.error("Gift card account info is missing ExchangeFiat.")
@@ -1271,7 +1279,7 @@ class Session {
                         "claimState": "\(giftCardAccountInfo.claimState)",
                         "giftCardAuthority": "\(giftCardKeyPair.publicKey.base58)",
                     ])
-                    showCashLinkNotAvailable()
+                    dialogItem = .cashLinkNotAvailable
                     return
                 }
 
@@ -1280,9 +1288,19 @@ class Session {
                         "giftCardAuthority": "\(giftCardKeyPair.publicKey.base58)",
                         "currency": "\(exchangedFiat.currencyRate.currency.rawValue)",
                     ])
-                    showCollectOwnCashConfirmation(
-                        mnemonic: mnemonic,
-                        giftCardAuthority: giftCardKeyPair.publicKey
+                    let giftCardAuthority = giftCardKeyPair.publicKey
+                    dialogItem = .collectOwnCashConfirmation(
+                        onConfirm: { [weak self] in
+                            logger.info("Cash link self-claim confirmed", metadata: [
+                                "giftCardAuthority": "\(giftCardAuthority.base58)",
+                            ])
+                            self?.receiveCashLink(mnemonic: mnemonic, claimIfOwned: true)
+                        },
+                        onCancel: {
+                            logger.info("Cash link self-claim cancelled", metadata: [
+                                "giftCardAuthority": "\(giftCardAuthority.base58)",
+                            ])
+                        }
                     )
                     return
                 }
@@ -1303,11 +1321,11 @@ class Session {
                     let mintMetadata = try await fetchMintMetadata(mint: vmMint)
                     vmAuthority = mintMetadata.vmAuthority
                 }
-                
+
                 guard let vmAuthority else {
                     throw Error.vmMetadataMissing
                 }
-                
+
                 // Now that we have a mint from account infos,
                 // we can create the account cluster
                 let giftCard = GiftCardCluster(
@@ -1315,13 +1333,13 @@ class Session {
                     mint: vmMint,
                     timeAuthority: vmAuthority
                 )
-                
+
                 let mintCurrencyCluster = AccountCluster(
                     authority: keyAccount.derivedKey,
                     mint: vmMint,
                     timeAuthority: vmAuthority
                 )
-                
+
                 // Subscribe to this mint's live data early so the stream
                 // has time to deliver verified state while we create
                 // accounts and deposit the gift card below.
@@ -1372,7 +1390,7 @@ class Session {
                         verifiedState: verifiedState
                     )
                 )
-                
+
                 Analytics.transfer(
                     event: .receiveCashLink,
                     exchangedFiat: exchangedFiat,
@@ -1380,9 +1398,41 @@ class Session {
                     successful: true,
                     error: nil
                 )
-                
+
+            } catch let ErrorSubmitIntent.staleState(reasons, kinds) where kinds.contains(.alreadyClaimed) {
+                // Server-side race: another device claimed first.
+                // Benign — surface the dialog without Bugsnag.
+                logger.info("Cash link already claimed (server race)", metadata: [
+                    "giftCardAuthority": "\(giftCardKeyPair.publicKey.base58)",
+                ])
+                dialogItem = .cashLinkNotAvailable
+                Analytics.transfer(
+                    event: .receiveCashLink,
+                    exchangedFiat: nil,
+                    grabTime: nil,
+                    successful: false,
+                    error: ErrorSubmitIntent.staleState(reasons, kinds: kinds)
+                )
+
+            } catch ErrorSubmitIntent.denied(let reasons, let messages) {
+                // Server-side guard refusal (spam, AML, rate/policy).
+                // Not a bug — surface the generic dialog without Bugsnag.
+                logger.info("Cash link denied by guard", metadata: [
+                    "giftCardAuthority": "\(giftCardKeyPair.publicKey.base58)",
+                ])
+                dialogItem = .somethingWentWrong
+                Analytics.transfer(
+                    event: .receiveCashLink,
+                    exchangedFiat: nil,
+                    grabTime: nil,
+                    successful: false,
+                    error: ErrorSubmitIntent.denied(reasons, messages: messages)
+                )
+
             } catch {
-                logger.error("Failed to receive cash link for gift card", metadata: ["public_key": "\(giftCardKeyPair.publicKey)"])
+                logger.error("Failed to receive cash link for gift card", metadata: [
+                    "public_key": "\(giftCardKeyPair.publicKey)",
+                ])
                 ErrorReporting.captureError(error)
 
                 Analytics.transfer(
@@ -1394,9 +1444,9 @@ class Session {
                 )
 
                 if error is ErrorFetchBalance {
-                    showCashLinkConnectionError()
+                    dialogItem = .cashLinkConnectionError
                 } else {
-                    showSomethingWentWrongError()
+                    dialogItem = .somethingWentWrong
                 }
             }
         }
@@ -1467,104 +1517,7 @@ class Session {
 //        }
 //    }
     
-    // MARK: - Errors -
-
-    private func showSomethingWentWrongError() {
-        dialogItem = .init(
-            style: .destructive,
-            title: "Something Went Wrong",
-            subtitle: "Please try again later",
-            dismissable: true
-        ) {
-            .okay(kind: .destructive)
-        }
-    }
-    
-    private func showCashReturnedError() {
-        dialogItem = .init(
-            style: .destructive,
-            title: "Something Went Wrong",
-            subtitle: "The cash was returned to your wallet",
-            dismissable: true
-        ) {
-            .okay(kind: .destructive)
-        }
-    }
-    
-    private func showCashLinkNotAvailable() {
-        dialogItem = .init(
-            style: .destructive,
-            title: "Cash Already Collected",
-            subtitle: "This cash has already been collected, or was cancelled by the sender",
-            dismissable: true
-        ) {
-            .okay(kind: .destructive)
-        }
-    }
-
-    private func showCashLinkConnectionError() {
-        dialogItem = .init(
-            style: .destructive,
-            title: "Unable to Find Cash",
-            subtitle: "Please check your connection and try again",
-            dismissable: true
-        ) {
-            .okay(kind: .destructive)
-        }
-    }
-
-    private func showCollectOwnCashConfirmation(
-        mnemonic: MnemonicPhrase,
-        giftCardAuthority: PublicKey
-    ) {
-        dialogItem = .init(
-            style: .destructive,
-            title: "Collect Your Own Cash?",
-            subtitle: "You tapped to collect the cash you sent. Are you sure you want to collect it yourself?",
-            dismissable: false,
-        ) {
-            .destructive("Collect") { [weak self] in
-                guard let self else { return }
-                logger.info("Cash link self-claim confirmed", metadata: [
-                    "giftCardAuthority": "\(giftCardAuthority.base58)",
-                ])
-                self.receiveCashLink(mnemonic: mnemonic, claimIfOwned: true)
-            };
-
-            .subtle("Don't Collect") {
-                logger.info("Cash link self-claim cancelled", metadata: [
-                    "giftCardAuthority": "\(giftCardAuthority.base58)",
-                ])
-            }
-        }
-    }
-
     // MARK: - Helpers -
-
-    private func fetchAccountInfoWithRetry(type: AccountInfoType, owner: KeyPair) async throws -> AccountInfo {
-        let maxAttempts = 3
-
-        for i in 0..<maxAttempts {
-            do {
-                return try await client.fetchAccountInfo(type: type, owner: owner, requestingOwner: ownerKeyPair)
-            } catch let error as ErrorFetchBalance {
-                switch error {
-                case .notFound, .unknown:
-                    if i < maxAttempts - 1 {
-                        logger.warning("fetchAccountInfo failed, retrying", metadata: ["error": "\(error)", "attempt": "\(i + 1)/\(maxAttempts)"])
-                        try await Task.delay(milliseconds: 500)
-                    } else {
-                        throw error
-                    }
-                case .accountNotInList, .parseFailed, .ok:
-                    throw error
-                }
-            }
-        }
-
-        // Unreachable: the loop always returns or throws on the last attempt
-        throw ErrorFetchBalance.unknown
-    }
 
     /// Throws `Error.verifiedStateStale` if the proof is past `clientMaxAge`.
     /// Logs at `.warning` because the canPerformAction gate in the VM should
