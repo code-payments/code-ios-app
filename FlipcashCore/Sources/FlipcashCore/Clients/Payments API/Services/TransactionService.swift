@@ -785,8 +785,8 @@ public enum ErrorSubmitIntent: Error, CustomStringConvertible, CustomDebugString
         case alreadyClaimed
 
         public init?(serverReason: String) {
-            if serverReason.range(of: "already been claimed", options: .caseInsensitive) != nil
-                || serverReason.range(of: "already claimed", options: .caseInsensitive) != nil {
+            let reason = serverReason.lowercased()
+            if reason.contains("already been claimed") || reason.contains("already claimed") {
                 self = .alreadyClaimed
                 return
             }
