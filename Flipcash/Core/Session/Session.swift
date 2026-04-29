@@ -1399,7 +1399,7 @@ class Session {
                     error: nil
                 )
 
-            } catch let error as ErrorSubmitIntent where error.staleState(matchingAny: "already been claimed", "already claimed") {
+            } catch let ErrorSubmitIntent.staleState(reasons, kinds) where kinds.contains(.alreadyClaimed) {
                 // Server-side race: another device claimed first.
                 // Benign — surface the dialog without Bugsnag.
                 logger.info("Cash link already claimed (server race)", metadata: [
@@ -1411,7 +1411,7 @@ class Session {
                     exchangedFiat: nil,
                     grabTime: nil,
                     successful: false,
-                    error: error
+                    error: ErrorSubmitIntent.staleState(reasons, kinds: kinds)
                 )
 
             } catch ErrorSubmitIntent.denied(let reasons, let messages) {

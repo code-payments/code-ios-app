@@ -110,7 +110,7 @@ struct ErrorSubmitIntentTests {
         }
     }
 
-    @Test("staleState collects reasonString messages")
+    @Test("staleState collects reasonString messages and produces no kinds when nothing matches")
     func staleStateWithReasons() {
         var details = Ocp_Transaction_V1_ErrorDetails()
         details.reasonString = .with { $0.reason = "balance changed" }
@@ -119,11 +119,12 @@ struct ErrorSubmitIntentTests {
 
         let error = ErrorSubmitIntent(error: proto)
 
-        guard case let .staleState(reasons) = error else {
+        guard case let .staleState(reasons, kinds) = error else {
             Issue.record("Expected .staleState, got \(error)")
             return
         }
         #expect(reasons == ["balance changed"])
+        #expect(kinds.isEmpty)
     }
 
     @Test("UNRECOGNIZED top-level code maps to .unknown")
@@ -138,46 +139,70 @@ struct ErrorSubmitIntentTests {
         }
     }
 
-    // MARK: - staleState(matchingAny:)
+    // MARK: - StaleStateKind
 
-    @Test("staleState matches a fragment present in any reason")
-    func staleStateMatchesPresentFragment() {
-        let error = ErrorSubmitIntent.staleState([
-            "gift card balance has already been claimed"
-        ])
-        #expect(error.staleState(matchingAny: "already been claimed"))
+    @Test("staleState parses .alreadyClaimed from 'already been claimed' phrasing")
+    func staleStateParsesAlreadyBeenClaimed() {
+        var details = Ocp_Transaction_V1_ErrorDetails()
+        details.reasonString = .with { $0.reason = "gift card balance has already been claimed" }
+
+        let proto = makeError(code: .staleState, details: [details])
+
+        guard case let .staleState(_, kinds) = ErrorSubmitIntent(error: proto) else {
+            Issue.record("Expected .staleState")
+            return
+        }
+        #expect(kinds == [.alreadyClaimed])
     }
 
-    @Test("staleState matches case-insensitively on both sides")
-    func staleStateCaseInsensitive() {
-        let error = ErrorSubmitIntent.staleState(["BALANCE Already Claimed"])
-        #expect(error.staleState(matchingAny: "already claimed"))
+    @Test("staleState parses .alreadyClaimed from 'already claimed' phrasing")
+    func staleStateParsesAlreadyClaimed() {
+        var details = Ocp_Transaction_V1_ErrorDetails()
+        details.reasonString = .with { $0.reason = "Already Claimed" }
+
+        let proto = makeError(code: .staleState, details: [details])
+
+        guard case let .staleState(_, kinds) = ErrorSubmitIntent(error: proto) else {
+            Issue.record("Expected .staleState")
+            return
+        }
+        #expect(kinds == [.alreadyClaimed])
     }
 
-    @Test("staleState returns true when any of multiple fragments match")
-    func staleStateAnyOfMany() {
-        let error = ErrorSubmitIntent.staleState(["cached balance version is stale"])
-        #expect(error.staleState(
-            matchingAny: "already claimed", "cached balance version is stale"
-        ))
+    @Test("staleState parses kinds case-insensitively")
+    func staleStateParsesCaseInsensitively() {
+        var details = Ocp_Transaction_V1_ErrorDetails()
+        details.reasonString = .with { $0.reason = "Gift Card BALANCE Has Already Been CLAIMED" }
+
+        let proto = makeError(code: .staleState, details: [details])
+
+        guard case let .staleState(_, kinds) = ErrorSubmitIntent(error: proto) else {
+            Issue.record("Expected .staleState")
+            return
+        }
+        #expect(kinds == [.alreadyClaimed])
     }
 
-    @Test("staleState returns false when no fragment is present")
-    func staleStateNoMatch() {
-        let error = ErrorSubmitIntent.staleState(["unrelated reason"])
-        #expect(!error.staleState(matchingAny: "already claimed"))
+    @Test("StaleStateKind.init returns nil for an unrecognized reason")
+    func staleStateKindReturnsNilForUnknownReason() {
+        #expect(ErrorSubmitIntent.StaleStateKind(serverReason: "something unrelated") == nil)
     }
 
-    @Test("staleState returns false on a non-staleState case")
-    func staleStateOnDifferentCase() {
-        let error = ErrorSubmitIntent.denied([], messages: ["already claimed"])
-        #expect(!error.staleState(matchingAny: "already claimed"))
-    }
+    @Test("staleState dedupes kinds across multiple matching reasons")
+    func staleStateDedupesKinds() {
+        var first = Ocp_Transaction_V1_ErrorDetails()
+        first.reasonString = .with { $0.reason = "gift card balance has already been claimed" }
+        var second = Ocp_Transaction_V1_ErrorDetails()
+        second.reasonString = .with { $0.reason = "already claimed by another wallet" }
 
-    @Test("staleState returns false on an empty reasons array")
-    func staleStateEmptyReasons() {
-        let error = ErrorSubmitIntent.staleState([])
-        #expect(!error.staleState(matchingAny: "already claimed"))
+        let proto = makeError(code: .staleState, details: [first, second])
+
+        guard case let .staleState(reasons, kinds) = ErrorSubmitIntent(error: proto) else {
+            Issue.record("Expected .staleState")
+            return
+        }
+        #expect(reasons.count == 2)
+        #expect(kinds == [.alreadyClaimed])
     }
 
     // MARK: - Fixture helpers
