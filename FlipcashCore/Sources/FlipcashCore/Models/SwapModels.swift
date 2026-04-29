@@ -587,6 +587,9 @@ extension SwapResponseServerParameters {
             }
             self.init(kind: .newCurrency(params))
 
+        case .stablecoin:
+            return nil
+
         case .none:
             return nil
         }

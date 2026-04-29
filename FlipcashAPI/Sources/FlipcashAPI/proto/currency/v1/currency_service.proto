@@ -332,7 +332,7 @@ message SocialLink {
 message BillCustomization {
     // Bill background colors (from top to bottom)
     repeated Color colors = 1 [(validate.rules).repeated = {
-        min_items: 2
+        min_items: 1
         max_items: 3
     }];
 }

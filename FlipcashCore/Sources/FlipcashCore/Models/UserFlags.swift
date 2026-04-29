@@ -76,7 +76,7 @@ extension UserFlags {
 extension UserFlags.OnRampProvider {
     init(_ proto: Flipcash_Account_V1_UserFlags.OnRampProvider) {
         switch proto {
-        case .unknown:
+        case .unknownOnRampProvider:
             self = .unknown
         case .coinbaseVirtual:
             self = .coinbaseVirtual

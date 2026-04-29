@@ -408,7 +408,7 @@ public struct Flipcash_Account_V1_UserFlags: Sendable {
 
   /// The preferred on ramp provider for this user. If the value is UNKNOWN, client
   /// should show the list of all supported providers.
-  public var preferredOnRampProvider: Flipcash_Account_V1_UserFlags.OnRampProvider = .unknown
+  public var preferredOnRampProvider: Flipcash_Account_V1_UserFlags.OnRampProvider = .unknownOnRampProvider
 
   /// The minumum build number for this user. If their build number is less than the
   /// provided value, client should show a forced upgrade screen.
@@ -430,11 +430,17 @@ public struct Flipcash_Account_V1_UserFlags: Sendable {
   /// USDF amount, in quarks, that must be paid in a fee when launching a new currency
   public var newCurrencyFeeAmount: UInt64 = 0
 
+  /// USDF amount, in quarks, that must be paid when doing a withdrawal with a swap to USDC
+  public var usdcWithdrawalFeeAmount: UInt64 = 0
+
+  /// The preferred USDC liquidity pool for external wallet on ramp flows
+  public var preferredOnRampUsdcLiquidityPool: Flipcash_Account_V1_UserFlags.UsdcLiquidityPool = .unknownUsdcLiquidityPool
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OnRampProvider: SwiftProtobuf.Enum, Swift.CaseIterable {
     public typealias RawValue = Int
-    case unknown // = 0
+    case unknownOnRampProvider // = 0
     case coinbaseVirtual // = 1
     case coinbasePhysicalDebit // = 2
     case coinbasePhysicalCredit // = 3
@@ -446,12 +452,12 @@ public struct Flipcash_Account_V1_UserFlags: Sendable {
     case UNRECOGNIZED(Int)
 
     public init() {
-      self = .unknown
+      self = .unknownOnRampProvider
     }
 
     public init?(rawValue: Int) {
       switch rawValue {
-      case 0: self = .unknown
+      case 0: self = .unknownOnRampProvider
       case 1: self = .coinbaseVirtual
       case 2: self = .coinbasePhysicalDebit
       case 3: self = .coinbasePhysicalCredit
@@ -466,7 +472,7 @@ public struct Flipcash_Account_V1_UserFlags: Sendable {
 
     public var rawValue: Int {
       switch self {
-      case .unknown: return 0
+      case .unknownOnRampProvider: return 0
       case .coinbaseVirtual: return 1
       case .coinbasePhysicalDebit: return 2
       case .coinbasePhysicalCredit: return 3
@@ -481,7 +487,7 @@ public struct Flipcash_Account_V1_UserFlags: Sendable {
 
     // The compiler won't synthesize support with the UNRECOGNIZED case.
     public static let allCases: [Flipcash_Account_V1_UserFlags.OnRampProvider] = [
-      .unknown,
+      .unknownOnRampProvider,
       .coinbaseVirtual,
       .coinbasePhysicalDebit,
       .coinbasePhysicalCredit,
@@ -490,6 +496,44 @@ public struct Flipcash_Account_V1_UserFlags: Sendable {
       .solflare,
       .backpack,
       .base,
+    ]
+
+  }
+
+  public enum UsdcLiquidityPool: SwiftProtobuf.Enum, Swift.CaseIterable {
+    public typealias RawValue = Int
+    case unknownUsdcLiquidityPool // = 0
+    case flipcash // = 1
+    case coinbaseStableSwapper // = 2
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .unknownUsdcLiquidityPool
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .unknownUsdcLiquidityPool
+      case 1: self = .flipcash
+      case 2: self = .coinbaseStableSwapper
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .unknownUsdcLiquidityPool: return 0
+      case .flipcash: return 1
+      case .coinbaseStableSwapper: return 2
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+    // The compiler won't synthesize support with the UNRECOGNIZED case.
+    public static let allCases: [Flipcash_Account_V1_UserFlags.UsdcLiquidityPool] = [
+      .unknownUsdcLiquidityPool,
+      .flipcash,
+      .coinbaseStableSwapper,
     ]
 
   }
@@ -843,7 +887,7 @@ extension Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse.Result: SwiftP
 
 extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UserFlags"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}is_registered_account\0\u{3}is_staff\0\u{3}requires_iap_for_registration\0\u{3}supported_on_ramp_providers\0\u{3}preferred_on_ramp_provider\0\u{3}min_build_number\0\u{3}bill_exchange_data_timeout\0\u{3}new_currency_purchase_amount\0\u{3}new_currency_fee_amount\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}is_registered_account\0\u{3}is_staff\0\u{3}requires_iap_for_registration\0\u{3}supported_on_ramp_providers\0\u{3}preferred_on_ramp_provider\0\u{3}min_build_number\0\u{3}bill_exchange_data_timeout\0\u{3}new_currency_purchase_amount\0\u{3}new_currency_fee_amount\0\u{3}usdc_withdrawal_fee_amount\0\u{3}preferred_on_ramp_usdc_liquidity_pool\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -860,6 +904,8 @@ extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
       case 7: try { try decoder.decodeSingularMessageField(value: &self._billExchangeDataTimeout) }()
       case 8: try { try decoder.decodeSingularUInt64Field(value: &self.newCurrencyPurchaseAmount) }()
       case 9: try { try decoder.decodeSingularUInt64Field(value: &self.newCurrencyFeeAmount) }()
+      case 10: try { try decoder.decodeSingularUInt64Field(value: &self.usdcWithdrawalFeeAmount) }()
+      case 11: try { try decoder.decodeSingularEnumField(value: &self.preferredOnRampUsdcLiquidityPool) }()
       default: break
       }
     }
@@ -882,7 +928,7 @@ extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
     if !self.supportedOnRampProviders.isEmpty {
       try visitor.visitPackedEnumField(value: self.supportedOnRampProviders, fieldNumber: 4)
     }
-    if self.preferredOnRampProvider != .unknown {
+    if self.preferredOnRampProvider != .unknownOnRampProvider {
       try visitor.visitSingularEnumField(value: self.preferredOnRampProvider, fieldNumber: 5)
     }
     if self.minBuildNumber != 0 {
@@ -897,6 +943,12 @@ extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
     if self.newCurrencyFeeAmount != 0 {
       try visitor.visitSingularUInt64Field(value: self.newCurrencyFeeAmount, fieldNumber: 9)
     }
+    if self.usdcWithdrawalFeeAmount != 0 {
+      try visitor.visitSingularUInt64Field(value: self.usdcWithdrawalFeeAmount, fieldNumber: 10)
+    }
+    if self.preferredOnRampUsdcLiquidityPool != .unknownUsdcLiquidityPool {
+      try visitor.visitSingularEnumField(value: self.preferredOnRampUsdcLiquidityPool, fieldNumber: 11)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -910,11 +962,17 @@ extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
     if lhs._billExchangeDataTimeout != rhs._billExchangeDataTimeout {return false}
     if lhs.newCurrencyPurchaseAmount != rhs.newCurrencyPurchaseAmount {return false}
     if lhs.newCurrencyFeeAmount != rhs.newCurrencyFeeAmount {return false}
+    if lhs.usdcWithdrawalFeeAmount != rhs.usdcWithdrawalFeeAmount {return false}
+    if lhs.preferredOnRampUsdcLiquidityPool != rhs.preferredOnRampUsdcLiquidityPool {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
 extension Flipcash_Account_V1_UserFlags.OnRampProvider: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0UNKNOWN\0\u{1}COINBASE_VIRTUAL\0\u{1}COINBASE_PHYSICAL_DEBIT\0\u{1}COINBASE_PHYSICAL_CREDIT\0\u{1}MANUAL_DEPOSIT\0\u{1}PHANTOM\0\u{1}SOLFLARE\0\u{1}BACKPACK\0\u{1}BASE\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0UNKNOWN_ON_RAMP_PROVIDER\0\u{1}COINBASE_VIRTUAL\0\u{1}COINBASE_PHYSICAL_DEBIT\0\u{1}COINBASE_PHYSICAL_CREDIT\0\u{1}MANUAL_DEPOSIT\0\u{1}PHANTOM\0\u{1}SOLFLARE\0\u{1}BACKPACK\0\u{1}BASE\0")
+}
+
+extension Flipcash_Account_V1_UserFlags.UsdcLiquidityPool: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0UNKNOWN_USDC_LIQUIDITY_POOL\0\u{1}FLIPCASH\0\u{1}COINBASE_STABLE_SWAPPER\0")
 }

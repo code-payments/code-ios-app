@@ -59,6 +59,7 @@ message ReceivedCryptoNotificationMetadata {
 }
 
 message WithdrewCryptoNotificationMetadata {
+    SwapState swap_state = 1 [(validate.rules).enum.not_in = 0];
 }
 
 message SentCryptoNotificationMetadata {
@@ -73,9 +74,11 @@ message DepositedCryptoNotificationMetadata {
 }
 
 message BoughtCryptoNotificationMetadata {
+    SwapState swap_state = 1 [(validate.rules).enum.not_in = 0];
 }
 
 message SoldCryptoNotificationMetadata {
+    SwapState swap_state = 1 [(validate.rules).enum.not_in = 0];
 }
 
 // ActivityFeedType enables multiple activity feeds, where notifications may be
@@ -93,4 +96,12 @@ enum NotificationState {
     NOTIFICATION_STATE_PENDING   = 1;
     // Notification state will not change
     NOTIFICATION_STATE_COMPLETED = 2;
+}
+
+enum SwapState {
+    SWAP_STATE_UNKNOWN   = 0;
+    SWAP_STATE_PENDING   = 1;
+    SWAP_STATE_SUCCEEDED = 2;
+    SWAP_STATE_FAILED    = 3;
+    SWAP_STATE_NONE      = 4;
 }

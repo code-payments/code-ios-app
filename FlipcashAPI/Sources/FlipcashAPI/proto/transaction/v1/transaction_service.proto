@@ -317,7 +317,8 @@ message StatefulSwapRequest {
         oneof kind {
             option (validate.required) = true;
 
-            ReserveSwapClientParameters reserve = 1;
+            ReserveSwapClientParameters           reserve    = 1;
+            CoinbaseStableSwapperClientParameters stablecoin = 2;
         }
 
          // Client parameters for starting swaps against the Reserve contract
@@ -348,8 +349,46 @@ message StatefulSwapRequest {
                 max_len: 88,
             }];
 
-              // The fee amount to pay for this swap
+            // The fee amount to pay for this swap
             uint64 fee_amount = 7;
+        }
+
+         // Client parameters for starting swaps against the Coinbase Stable Swaper program
+        message CoinbaseStableSwapperClientParameters {
+            // The unique ID for this swap randomly generated on client
+            common.v1.SwapId id = 1 [(validate.rules).message.required = true];
+
+            // The source mint that will be swapped from
+            //
+            // Note: Currently always the core mint
+            common.v1.SolanaAccountId from_mint = 2 [(validate.rules).message.required = true];
+
+            // The destination mint that will be swapped to
+            common.v1.SolanaAccountId to_mint = 3 [(validate.rules).message.required = true];
+
+            // The amount to swap from the source mint in quarks.
+            uint64 swap_amount = 4 [(validate.rules).uint64.gt = 0];
+
+            // Where "amount" of "from_mint" will be sent from to the VM swap PDA
+            FundingSource funding_source = 5 [(validate.rules).enum = {
+                in: [1] // FUNDING_SOURCE_SUBMIT_INTENT
+            }];
+
+            // The ID of the "transaction" to lookup funding state.
+            //
+            // For FUNDING_SOURCE_SUBMIT_INTENT, this value is the base58 encoded intent ID.
+            string funding_id = 6 [(validate.rules).string = {
+                min_len: 32,
+                max_len: 44,
+            }];
+
+            // Destination owner account where from_mint tokens will land. Use
+            // CanWithdrawToAccountResponse to determine if an account is an owner.
+            common.v1.SolanaAccountId destination_owner = 7 [(validate.rules).message.required = true];
+
+            // The fee amount to pay for this swap, which should be exactly
+            // CanWithdrawToAccountResponse.fee_amount
+            uint64 fee_amount = 8;
         }
 
         // The owner account starting the swap
@@ -359,6 +398,7 @@ message StatefulSwapRequest {
         //
         // For Reserve contract buy/sell flows against existing currencies, this must be a random one-time use account.
         // For Reserve contract buy flows against new currencies, this must be the owner account that is the currency creator.
+        // For Coinbase Stable Swapper swap flows, this must be a random one-time use account.
         common.v1.SolanaAccountId swap_authority = 10 [(validate.rules).message.required = true];
 
         // The signature of serialize(VerifiedSwapMetadata) for the swap being initiated.
@@ -396,6 +436,7 @@ message StatefulSwapResponse {
 
             ReserveExistingCurrencyServerParameters reserve_existing_currency = 1;
             ReserveNewCurrencyServerParameter       reserve_new_currency      = 2;
+            CoinbaseStableSwapperServerParameter    stablecoin                = 3;
         }
 
         // Server parameters when executing stateful buy/sell flows against the
@@ -545,6 +586,55 @@ message StatefulSwapResponse {
 
             // Destination account where fee should be paid
             common.v1.SolanaAccountId fee_destination = 14 [(validate.rules).message.required = true];
+        }
+
+        // Server parameters when executing stateful swap flows against the
+        // Coinbase Stable Swapper program.
+        //
+        // Supported Solana transaction version: v0
+        //
+        // Instruction format:
+        //  1. System::AdvanceNonce
+        //  2. [Optional] ComputeBudget::SetComputeUnitLimit
+        //  3. [Optional] ComputeBudget::SetComputeUnitPrice
+        //  4. [Optional] Memo::Memo
+        //  5. AssociatedTokenAccount::CreateIdempotent (open swap authority's from_mint ATA)
+        //  6. AssociatedTokenAccount::CreateIdempotent (open destination owner's to_mint ATA)
+        //  7. VM::TransferForSwapWithFee (from_mint VM swap ATA -> swap authority's from_mint ATA (swap amount) and fee destination (fee amount))
+        //  8. CoinbaseStableSwapper::Swap (from_mint swap authority ATA -> to_mint destination owner ATA)
+        //  9. Token::CloseAccount (closes swap authority's from_mint ATA)
+        message CoinbaseStableSwapperServerParameter {
+            // Subisdizer account that will be paying for the swap
+            common.v1.SolanaAccountId payer = 1 [(validate.rules).message.required = true];
+
+            // The nonce that is reserved for use in the swap transaction
+            common.v1.SolanaAccountId nonce = 2 [(validate.rules).message.required = true];
+
+            // The blockhash that is reserved for use in the swap transaction
+            common.v1.Blockhash blockhash = 3 [(validate.rules).message.required = true];
+
+            // ALTs that should be used when constructing the versioned transaction
+            repeated common.v1.SolanaAddressLookupTable alts = 4;
+
+            // Compute unit limit provided to the ComputeBudget::SetComputeUnitLimit
+            // instruction. If the value is 0, then the instruction can be omitted.
+            uint32 compute_unit_limit = 5;
+
+            // Compute unit price provided in the ComputeBudget::SetComputeUnitPrice
+            // instruction. If the value is 0, then the instruction can be omitted.
+            uint64 compute_unit_price = 6;
+
+            // Value provided into the Memo::Memo instruction. If the value length is 0,
+            // then the instruction can be omitted.
+            string memo_value = 7 [(validate.rules).string.max_len = 64];
+
+            // Destination account where fee should be paid
+            common.v1.SolanaAccountId fee_destination = 8 [(validate.rules).message.required = true];
+
+            // The CoinbaseStableSwapper liquidity pool's configured fee recipient,
+            // sourced from the on-chain LiquidityPool account. Required by the
+            // CoinbaseStableSwapper::Swap instruction.
+            common.v1.SolanaAccountId pool_fee_recipient = 9 [(validate.rules).message.required = true];
         }
     }
 
@@ -1078,7 +1168,8 @@ message VerifiedSwapMetadata {
     oneof kind {
         option (validate.required) = true;
 
-        VerifiedReserveSwapMetadata reserve = 1;
+        VerifiedReserveSwapMetadata               reserve    = 1;
+        VerifiedCoinbaseStableSwapperSwapMetadata stablecoin = 2;
     }
 }
 
@@ -1087,6 +1178,13 @@ message VerifiedSwapMetadata {
 message VerifiedReserveSwapMetadata {
     // Verifiable client-side parameters that were provided during the StatefulSwap RPC
     StatefulSwapRequest.Initiate.ReserveSwapClientParameters client_parameters = 1 [(validate.rules).message.required = true];
+}
+
+// VerifiedCoinbaseStableSwapperSwapMetadata is verified metadata for swaps against the
+// Coinbase Stable Swapper program
+message VerifiedCoinbaseStableSwapperSwapMetadata {
+    // Verifiable client-side parameters that were provided during the StatefulSwap RPC
+    StatefulSwapRequest.Initiate.CoinbaseStableSwapperClientParameters client_parameters = 1 [(validate.rules).message.required = true];
 }
 
 message SwapMetadata {

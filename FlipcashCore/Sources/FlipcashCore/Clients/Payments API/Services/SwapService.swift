@@ -261,6 +261,11 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                         "blockhash": "\(params.blockhash.base58)"
                     ])
 
+                case .stablecoin:
+                    logger.error("Stablecoin swap server parameters not yet supported")
+                    _ = reference.stream?.sendEnd()
+                    completion(.failure(.unknown))
+
                 case .none:
                     logger.error("Unexpected empty server parameter kind in swap")
                     _ = reference.stream?.sendEnd()

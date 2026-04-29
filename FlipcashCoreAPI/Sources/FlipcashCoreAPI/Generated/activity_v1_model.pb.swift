@@ -103,6 +103,52 @@ public enum Flipcash_Activity_V1_NotificationState: SwiftProtobuf.Enum, Swift.Ca
 
 }
 
+public enum Flipcash_Activity_V1_SwapState: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+  case unknown // = 0
+  case pending // = 1
+  case succeeded // = 2
+  case failed // = 3
+  case none // = 4
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unknown
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unknown
+    case 1: self = .pending
+    case 2: self = .succeeded
+    case 3: self = .failed
+    case 4: self = .none
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unknown: return 0
+    case .pending: return 1
+    case .succeeded: return 2
+    case .failed: return 3
+    case .none: return 4
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Flipcash_Activity_V1_SwapState] = [
+    .unknown,
+    .pending,
+    .succeeded,
+    .failed,
+    .none,
+  ]
+
+}
+
 /// The ID of the notification
 public struct Flipcash_Activity_V1_NotificationId: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
@@ -263,6 +309,8 @@ public struct Flipcash_Activity_V1_WithdrewCryptoNotificationMetadata: Sendable 
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  public var swapState: Flipcash_Activity_V1_SwapState = .unknown
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -308,6 +356,8 @@ public struct Flipcash_Activity_V1_BoughtCryptoNotificationMetadata: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  public var swapState: Flipcash_Activity_V1_SwapState = .unknown
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -317,6 +367,8 @@ public struct Flipcash_Activity_V1_SoldCryptoNotificationMetadata: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
+
+  public var swapState: Flipcash_Activity_V1_SwapState = .unknown
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -333,6 +385,10 @@ extension Flipcash_Activity_V1_ActivityFeedType: SwiftProtobuf._ProtoNameProvidi
 
 extension Flipcash_Activity_V1_NotificationState: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0NOTIFICATION_STATE_UNKNOWN\0\u{1}NOTIFICATION_STATE_PENDING\0\u{1}NOTIFICATION_STATE_COMPLETED\0")
+}
+
+extension Flipcash_Activity_V1_SwapState: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0SWAP_STATE_UNKNOWN\0\u{1}SWAP_STATE_PENDING\0\u{1}SWAP_STATE_SUCCEEDED\0\u{1}SWAP_STATE_FAILED\0\u{1}SWAP_STATE_NONE\0")
 }
 
 extension Flipcash_Activity_V1_NotificationId: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
@@ -582,18 +638,29 @@ extension Flipcash_Activity_V1_ReceivedCryptoNotificationMetadata: SwiftProtobuf
 
 extension Flipcash_Activity_V1_WithdrewCryptoNotificationMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".WithdrewCryptoNotificationMetadata"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}swap_state\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    // Load everything into unknown fields
-    while try decoder.nextFieldNumber() != nil {}
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.swapState) }()
+      default: break
+      }
+    }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.swapState != .unknown {
+      try visitor.visitSingularEnumField(value: self.swapState, fieldNumber: 1)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipcash_Activity_V1_WithdrewCryptoNotificationMetadata, rhs: Flipcash_Activity_V1_WithdrewCryptoNotificationMetadata) -> Bool {
+    if lhs.swapState != rhs.swapState {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -659,18 +726,29 @@ extension Flipcash_Activity_V1_DepositedCryptoNotificationMetadata: SwiftProtobu
 
 extension Flipcash_Activity_V1_BoughtCryptoNotificationMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".BoughtCryptoNotificationMetadata"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}swap_state\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    // Load everything into unknown fields
-    while try decoder.nextFieldNumber() != nil {}
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.swapState) }()
+      default: break
+      }
+    }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.swapState != .unknown {
+      try visitor.visitSingularEnumField(value: self.swapState, fieldNumber: 1)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipcash_Activity_V1_BoughtCryptoNotificationMetadata, rhs: Flipcash_Activity_V1_BoughtCryptoNotificationMetadata) -> Bool {
+    if lhs.swapState != rhs.swapState {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -678,18 +756,29 @@ extension Flipcash_Activity_V1_BoughtCryptoNotificationMetadata: SwiftProtobuf.M
 
 extension Flipcash_Activity_V1_SoldCryptoNotificationMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SoldCryptoNotificationMetadata"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}swap_state\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    // Load everything into unknown fields
-    while try decoder.nextFieldNumber() != nil {}
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.swapState) }()
+      default: break
+      }
+    }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.swapState != .unknown {
+      try visitor.visitSingularEnumField(value: self.swapState, fieldNumber: 1)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipcash_Activity_V1_SoldCryptoNotificationMetadata, rhs: Flipcash_Activity_V1_SoldCryptoNotificationMetadata) -> Bool {
+    if lhs.swapState != rhs.swapState {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
