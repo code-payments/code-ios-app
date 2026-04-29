@@ -26,19 +26,13 @@ final class GiveRegressionTests: BaseUITestCase {
 
         waitAndTap(app.buttons["Give"])
 
-        // The dialog hosts at `UIWindow.Level.alert`; XCUITest still reaches
-        // it through the same `app` query because both windows belong to the
-        // app's process.
         let noBalanceTitle = app.staticTexts["No Balance Yet"]
         XCTAssertTrue(
             noBalanceTitle.waitForExistence(timeout: 10),
             "Expected 'No Balance Yet' dialog after tapping Give on an empty account"
         )
 
-        // The give amount entry's "Next" action button is the cleanest proxy
-        // for "the amount entry sheet is in the hierarchy". If it exists
-        // while the dialog is up, the sheet has been presented behind it —
-        // the regression.
+        // "Next" stands in for the amount-entry sheet being in the hierarchy.
         XCTAssertFalse(
             app.buttons["Next"].exists,
             "Give amount entry must not present when the balance check fails — 'Next' button found alongside dialog"
@@ -46,12 +40,10 @@ final class GiveRegressionTests: BaseUITestCase {
 
         waitAndTap(app.buttons["OK"])
 
-        // Dismissing the dialog must land the user on the main screen, not
-        // reveal a $0 amount entry that was hiding underneath.
+        assertMainScreenReached(timeout: 5, "Expected to return to the main screen after dismissing the No Balance dialog")
         XCTAssertFalse(
-            app.buttons["Next"].waitForExistence(timeout: 3),
+            app.buttons["Next"].exists,
             "Dismissing 'No Balance Yet' revealed a hidden Give amount entry — sheet was presented behind the dialog"
         )
-        assertMainScreenReached(timeout: 5, "Expected to return to the main screen after dismissing the No Balance dialog")
     }
 }

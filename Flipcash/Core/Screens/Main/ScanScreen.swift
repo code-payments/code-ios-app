@@ -293,10 +293,6 @@ struct ScanScreen: View {
                 fullWidth: true,
                 aligment: .bottom
             ) {
-                // Gate the router on the balance check — if `attemptPresent`
-                // returns false it has already raised a "No Balance Yet"
-                // dialog through `session.dialogItem`, and presenting the
-                // sheet anyway would render an empty $0 amount entry behind it.
                 if giveViewModel.attemptPresent() {
                     router.present(.give)
                 }
