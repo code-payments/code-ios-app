@@ -344,4 +344,3 @@ public enum ClientError: Error {
     case denied
     case vmMetadataMissing
 }
-

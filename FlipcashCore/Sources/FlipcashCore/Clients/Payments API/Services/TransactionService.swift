@@ -779,15 +779,14 @@ public enum ErrorSubmitIntent: Error, CustomStringConvertible, CustomDebugString
 
     /// Semantic categorization of staleState reason strings. Extended
     /// whenever a call site needs to branch on a specific server message.
-    /// Mirrors the `ErrorStatefulSwap.DeniedKind` shape in `SwapService`.
     public enum StaleStateKind: Sendable, Equatable {
         /// Server reports the gift card was already claimed/voided/expired —
         /// a benign race when another device redeemed first.
         case alreadyClaimed
 
         public init?(serverReason: String) {
-            let reason = serverReason.lowercased()
-            if reason.contains("already been claimed") || reason.contains("already claimed") {
+            if serverReason.range(of: "already been claimed", options: .caseInsensitive) != nil
+                || serverReason.range(of: "already claimed", options: .caseInsensitive) != nil {
                 self = .alreadyClaimed
                 return
             }
