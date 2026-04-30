@@ -175,8 +175,7 @@ struct ScanScreen: View {
     @ViewBuilder private func cameraViewport() -> some View {
         CameraViewport(
             session: viewModel.cameraSession,
-            enableGestures: true,
-            reverseZoom: false
+            enableGestures: true
         )
         .navigationBarHidden(true)
         .onAppear {

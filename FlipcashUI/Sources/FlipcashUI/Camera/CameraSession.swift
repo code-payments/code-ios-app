@@ -68,54 +68,68 @@ public class CameraSession<T>: ObservableObject, AnyCameraSession where T: Camer
         }
         
         // Inputs
-        
-        guard let rearWideDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) else {
+
+        // Virtual devices first — AVFoundation handles ultrawide/wide/telephoto
+        // switching automatically as the user pinches across zoom thresholds.
+        let preferred: [AVCaptureDevice.DeviceType] = [
+            .builtInTripleCamera,
+            .builtInDualWideCamera,
+            .builtInDualCamera,
+            .builtInWideAngleCamera
+        ]
+
+        let device: AVCaptureDevice
+        if let resolved = preferred.lazy.compactMap({
+            AVCaptureDevice.default($0, for: .video, position: .back)
+        }).first {
+            device = resolved
+        } else {
             throw Error.deviceUnavailable
         }
-        
+
         // Tune the camera for close‑range, high‑speed code scanning
-        try rearWideDevice.lockForConfiguration()
-        
+        try device.lockForConfiguration()
+
         // Focus configuration
-        if rearWideDevice.isAutoFocusRangeRestrictionSupported {
-            rearWideDevice.autoFocusRangeRestriction = .near
+        if device.isAutoFocusRangeRestrictionSupported {
+            device.autoFocusRangeRestriction = .near
         }
-        if rearWideDevice.isFocusModeSupported(.continuousAutoFocus) {
-            rearWideDevice.focusMode = .continuousAutoFocus
+        if device.isFocusModeSupported(.continuousAutoFocus) {
+            device.focusMode = .continuousAutoFocus
         }
-        if rearWideDevice.isFocusPointOfInterestSupported {
-            rearWideDevice.focusPointOfInterest = CGPoint(x: 0.5, y: 0.5)
+        if device.isFocusPointOfInterestSupported {
+            device.focusPointOfInterest = CGPoint(x: 0.5, y: 0.5)
         }
-        
+
         // Exposure configuration
-        if rearWideDevice.isExposureModeSupported(.continuousAutoExposure) {
-            rearWideDevice.exposureMode = .continuousAutoExposure
+        if device.isExposureModeSupported(.continuousAutoExposure) {
+            device.exposureMode = .continuousAutoExposure
         }
-        if rearWideDevice.isExposurePointOfInterestSupported {
-            rearWideDevice.exposurePointOfInterest = CGPoint(x: 0.5, y: 0.5)
+        if device.isExposurePointOfInterestSupported {
+            device.exposurePointOfInterest = CGPoint(x: 0.5, y: 0.5)
         }
-        
+
         // White‑balance configuration
-        if rearWideDevice.isWhiteBalanceModeSupported(.continuousAutoWhiteBalance) {
-            rearWideDevice.whiteBalanceMode = .continuousAutoWhiteBalance
+        if device.isWhiteBalanceModeSupported(.continuousAutoWhiteBalance) {
+            device.whiteBalanceMode = .continuousAutoWhiteBalance
         }
-        
+
         // Low‑light boost
-        if rearWideDevice.isLowLightBoostSupported {
-            rearWideDevice.automaticallyEnablesLowLightBoostWhenAvailable = true
+        if device.isLowLightBoostSupported {
+            device.automaticallyEnablesLowLightBoostWhenAvailable = true
         }
-        
-        rearWideDevice.unlockForConfiguration()
-        
-        guard let rearWideInput = try? AVCaptureDeviceInput(device: rearWideDevice) else {
+
+        device.unlockForConfiguration()
+
+        guard let input = try? AVCaptureDeviceInput(device: device) else {
             throw Error.inputCreationFailed
         }
-        
-        guard session.canAddInput(rearWideInput) else {
+
+        guard session.canAddInput(input) else {
             throw Error.inputAddFailed
         }
-        
-        session.addInput(rearWideInput)
+
+        session.addInput(input)
         
         // Outputs
         
