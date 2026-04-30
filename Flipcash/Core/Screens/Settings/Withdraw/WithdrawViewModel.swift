@@ -286,8 +286,14 @@ class WithdrawViewModel {
         return (amount, pin)
     }
 
-    /// Preview passes `nil` for `pinnedSupplyQuarks` (falls back to live balance);
-    /// submit passes the pinned supply so rate and supply come from one proof.
+    /// Translates `enteredAmount` to an `ExchangedFiat` clamped to the on-chain
+    /// balance. The clamp absorbs display-rounding overshoot (`.halfUp`
+    /// formatter, `scaleUpInt` HALF_UP) so the submitted quarks can never
+    /// exceed `balance.stored.quarks`.
+    ///
+    /// - Parameter pinnedSupplyQuarks: pass `nil` for the display preview
+    ///   (falls back to live balance supply) and the pinned proof's supply
+    ///   for submission.
     private func computeAmount(using rate: Rate, pinnedSupplyQuarks: UInt64?) -> ExchangedFiat? {
         guard !enteredAmount.isEmpty else {
             return nil
@@ -302,41 +308,26 @@ class WithdrawViewModel {
         }
 
         let mint = balance.stored.mint
-
-        // Only applies for bonded tokens
-        if mint != .usdf {
-            guard let supplyQuarks = pinnedSupplyQuarks ?? balance.stored.supplyFromBonding else {
+        // ExchangedFiat.compute ignores supplyQuarks for USDF (no bonding curve);
+        // bonded mints require it.
+        let supplyQuarks: UInt64
+        if mint == .usdf {
+            supplyQuarks = 0
+        } else {
+            guard let bondedSupply = pinnedSupplyQuarks ?? balance.stored.supplyFromBonding else {
                 return nil
             }
-
-            let entered = FiatAmount(value: amount, currency: rate.currency)
-
-            if let viaCurve = ExchangedFiat.compute(
-                fromEntered: entered,
-                rate: rate,
-                mint: mint,
-                supplyQuarks: supplyQuarks
-            ) {
-                return viaCurve
-            }
-
-            // Curve could not price the entered amount (requested > TVL).
-            // Synthesize so the amount screen's `canProceedToAddress` flips
-            // false and `EnterAmountView` turns the subtitle red.
-            return ExchangedFiat(
-                onChainAmount: TokenAmount(
-                    quarks: balance.stored.quarks + 1,
-                    mint: mint
-                ),
-                nativeAmount: entered,
-                currencyRate: rate
-            )
-        } else {
-            return ExchangedFiat(
-                nativeAmount: FiatAmount(value: amount, currency: rate.currency),
-                rate: rate
-            )
+            supplyQuarks = bondedSupply
         }
+
+        return ExchangedFiat.compute(
+            fromEntered: FiatAmount(value: amount, currency: rate.currency),
+            rate: rate,
+            mint: mint,
+            supplyQuarks: supplyQuarks,
+            balance: balance.stored.usdf,
+            tokenBalanceQuarks: balance.stored.quarks
+        )
     }
 
     // MARK: - Actions -
@@ -462,24 +453,25 @@ class WithdrawViewModel {
                 withdrawButtonState = .normal
                 dialogItem = .staleRate
             } catch {
-                ErrorReporting.captureError(
-                    error,
-                    reason: "Failed to withdraw",
-                    metadata: [
-                        "mint": amountToWithdraw.mint.base58,
-                        "amount": amountToWithdraw.nativeAmount.formatted(),
-                        "quarks": "\(amountToWithdraw.onChainAmount.quarks)",
-                        "fee": "\(fee.quarks)",
-                        "destination": destinationMetadata.destination.token.base58,
-                        "requiresInit": "\(destinationMetadata.requiresInitialization)",
-                        "kind": "\(kind)",
-                    ]
-                )
+                // .usdfToUsdc bypasses Session and reports/emits analytics here;
+                // .sameMint flows through Session.withdraw, which owns both.
                 switch kind {
                 case .usdfToUsdc:
+                    ErrorReporting.captureError(
+                        error,
+                        reason: "Failed to withdraw",
+                        metadata: [
+                            "mint": amountToWithdraw.mint.base58,
+                            "amount": amountToWithdraw.nativeAmount.formatted(),
+                            "quarks": "\(amountToWithdraw.onChainAmount.quarks)",
+                            "fee": "\(fee.quarks)",
+                            "destination": destinationMetadata.destination.token.base58,
+                            "requiresInit": "\(destinationMetadata.requiresInitialization)",
+                        ]
+                    )
                     Analytics.withdrawal(exchangedFiat: amountToWithdraw, successful: false, error: error)
                 case .sameMint:
-                    break  // Session.withdraw emitted failure analytics internally
+                    break
                 }
                 withdrawButtonState = .normal
                 dialogItem = .somethingWentWrong
