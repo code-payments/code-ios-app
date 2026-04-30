@@ -118,6 +118,7 @@ public enum Asset: String, Sendable {
     
     // Flipcash
     
+    case flipcash
     case flipcashBrand
     case flipcashLogo
     case airplane

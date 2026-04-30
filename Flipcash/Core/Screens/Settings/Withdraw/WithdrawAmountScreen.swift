@@ -13,15 +13,14 @@ struct WithdrawAmountScreen: View {
 
     @Environment(RatesController.self) private var ratesController
 
-    @Bindable private var viewModel: WithdrawViewModel
+    let title: String
+    @Binding var enteredAmount: String
+    let subtitle: EnterAmountView.Subtitle
+    let canProceed: Bool
+    let onProceed: () -> Void
+    let showsCurrencySelection: Bool
 
     @State private var isShowingCurrencySelection: Bool = false
-
-    // MARK: - Init -
-
-    init(viewModel: WithdrawViewModel) {
-        self.viewModel = viewModel
-    }
 
     // MARK: - Body -
 
@@ -29,16 +28,14 @@ struct WithdrawAmountScreen: View {
         Background(color: .backgroundMain) {
             EnterAmountView(
                 mode: .withdraw,
-                enteredAmount: $viewModel.enteredAmount,
-                subtitle: .balanceWithLimit(viewModel.maxWithdrawLimit),
+                enteredAmount: $enteredAmount,
+                subtitle: subtitle,
                 actionState: .constant(.normal),
-                actionEnabled: { _ in
-                    viewModel.canProceedToAddress
-                },
-                action: viewModel.amountEnteredAction,
-                currencySelectionAction: showCurrencySelection
+                actionEnabled: { _ in canProceed },
+                action: onProceed,
+                currencySelectionAction: showsCurrencySelection ? showCurrencySelection : nil
             )
-            .foregroundColor(.textMain)
+            .foregroundStyle(Color.textMain)
             .padding(20)
             .sheet(isPresented: $isShowingCurrencySelection) {
                 CurrencySelectionScreen(
@@ -48,9 +45,8 @@ struct WithdrawAmountScreen: View {
                 )
             }
         }
-        .navigationTitle(viewModel.withdrawTitle)
+        .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
-        .dialog(item: $viewModel.dialogItem)
     }
 
     // MARK: - Actions -

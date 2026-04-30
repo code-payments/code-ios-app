@@ -8,8 +8,8 @@
 //         bonded tokens, allowing USDF withdrawals to reach IntentWithdraw
 //         without fee validation.
 //
-//  Fix: negativeWithdrawableAmount now falls back to destinationMetadata.fee
-//       for USDF, blocking the withdrawal before it reaches IntentWithdraw.
+//  Fix: negativeWithdrawableAmount now checks userFlags.withdrawalFeeAmount
+//       for all mints, blocking the withdrawal before it reaches IntentWithdraw.
 //
 
 import Foundation
@@ -23,16 +23,14 @@ struct Regression_6900e17 {
 
     @Test("negativeWithdrawableAmount is non-nil for USDF when fee exceeds amount")
     func negativeWithdrawableAmount_usdf_feeExceedsAmount() {
-        let viewModel = WithdrawViewModelTestHelpers.createViewModel()
-        viewModel.selectedBalance = WithdrawViewModelTestHelpers.createExchangedBalance(
+        // Fee comes from userFlags (1_000_000 quarks = $1.00)
+        let viewModel = WithdrawViewModelTestHelpers.createViewModel(withdrawalFeeQuarks: 1_000_000)
+        viewModel.kind = .sameMint(WithdrawViewModelTestHelpers.createExchangedBalance(
             mint: .usdf,
             quarks: 10_000_000 // $10.00 balance
-        )
-        viewModel.enteredAmount = "0.46" // ~462,922 quarks ($0.46 USDC)
-        viewModel.destinationMetadata = WithdrawViewModelTestHelpers.createDestinationMetadata(
-            requiresInitialization: true,
-            fee: TokenAmount(quarks: 1_000_000, mint: .usdf) // $1.00 fee
-        )
+        ))
+        viewModel.enteredAmount = "0.46" // $0.46 USDF
+        viewModel.destinationMetadata = WithdrawViewModelTestHelpers.createDestinationMetadata()
 
         // Before fix: nil (guard passes → crash in IntentWithdraw)
         // After fix: non-nil (guard blocks → "Withdrawal Amount Too Small" dialog)
@@ -41,35 +39,31 @@ struct Regression_6900e17 {
 
     @Test("negativeWithdrawableAmount is nil for USDF when fee is within amount")
     func negativeWithdrawableAmount_usdf_feeWithinAmount() {
-        let viewModel = WithdrawViewModelTestHelpers.createViewModel()
-        viewModel.selectedBalance = WithdrawViewModelTestHelpers.createExchangedBalance(
+        // Fee comes from userFlags (500_000 quarks = $0.50)
+        let viewModel = WithdrawViewModelTestHelpers.createViewModel(withdrawalFeeQuarks: 500_000)
+        viewModel.kind = .sameMint(WithdrawViewModelTestHelpers.createExchangedBalance(
             mint: .usdf,
             quarks: 10_000_000 // $10.00 balance
-        )
-        viewModel.enteredAmount = "5.00" // $5.00 USDC
-        viewModel.destinationMetadata = WithdrawViewModelTestHelpers.createDestinationMetadata(
-            requiresInitialization: true,
-            fee: TokenAmount(quarks: 500_000, mint: .usdf) // $0.50 fee
-        )
+        ))
+        viewModel.enteredAmount = "5.00" // $5.00 USDF
+        viewModel.destinationMetadata = WithdrawViewModelTestHelpers.createDestinationMetadata()
 
         // Fee ($0.50) < amount ($5.00) — no problem, should be nil
         #expect(viewModel.negativeWithdrawableAmount == nil)
     }
 
-    @Test("negativeWithdrawableAmount is nil for USDF when no initialization required")
-    func negativeWithdrawableAmount_usdf_noInitialization() {
-        let viewModel = WithdrawViewModelTestHelpers.createViewModel()
-        viewModel.selectedBalance = WithdrawViewModelTestHelpers.createExchangedBalance(
+    @Test("negativeWithdrawableAmount is nil for USDF when userFlags fee is zero")
+    func negativeWithdrawableAmount_usdf_zeroFee() {
+        // Zero fee in userFlags — no fee applies, never blocks
+        let viewModel = WithdrawViewModelTestHelpers.createViewModel(withdrawalFeeQuarks: 0)
+        viewModel.kind = .sameMint(WithdrawViewModelTestHelpers.createExchangedBalance(
             mint: .usdf,
             quarks: 10_000_000
-        )
+        ))
         viewModel.enteredAmount = "0.46"
-        viewModel.destinationMetadata = WithdrawViewModelTestHelpers.createDestinationMetadata(
-            requiresInitialization: false,
-            fee: TokenAmount(quarks: 0, mint: .usdf)
-        )
+        viewModel.destinationMetadata = WithdrawViewModelTestHelpers.createDestinationMetadata()
 
-        // No initialization fee — should always be nil
+        // Zero fee — should always be nil
         #expect(viewModel.negativeWithdrawableAmount == nil)
     }
 }

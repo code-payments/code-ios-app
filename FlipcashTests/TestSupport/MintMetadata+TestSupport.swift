@@ -54,4 +54,15 @@ extension MintMetadata {
             billColors: billColors
         )
     }
+
+    static let usdcTest: MintMetadata = MintMetadata(
+        address: .usdc,
+        decimals: 6,
+        name: "USDC",
+        symbol: "USDC",
+        description: "",
+        imageURL: nil,
+        vmMetadata: nil,
+        launchpadMetadata: nil
+    )
 }

@@ -33,7 +33,7 @@ final class IntentWithdraw: IntentType {
 
         var group = ActionGroup()
 
-        if destinationMetadata.requiresInitialization, fee.quarks > 0 {
+        if fee.quarks > 0 {
             let amountToWithdraw = exchangedFiat.subtractingFee(fee)
             group.append(
                 ActionTransfer(

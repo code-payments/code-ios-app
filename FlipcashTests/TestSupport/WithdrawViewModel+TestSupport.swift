@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftUI
+import Testing
 import FlipcashCore
 import FlipcashUI
 @testable import FlipcashCore
@@ -17,7 +18,8 @@ enum WithdrawViewModelTestHelpers {
 
     static func createViewModel(
         entryCurrency: CurrencyCode = .usd,
-        rates: [Rate] = [.oneToOne]
+        rates: [Rate] = [.oneToOne],
+        withdrawalFeeQuarks: UInt64 = 50_000
     ) -> WithdrawViewModel {
         let container = Container.mock
         let sessionContainer = SessionContainer.mock
@@ -25,6 +27,18 @@ enum WithdrawViewModelTestHelpers {
         sessionContainer.ratesController.configureTestRates(
             entryCurrency: entryCurrency,
             rates: rates
+        )
+
+        sessionContainer.session.userFlags = UserFlags(
+            isRegistered: true,
+            isStaff: false,
+            onrampProviders: [],
+            preferredOnrampProvider: .unknown,
+            minBuildNumber: 0,
+            billExchangeDataTimeout: nil,
+            newCurrencyPurchaseAmount: .zero(mint: .usdf),
+            newCurrencyFeeAmount: .zero(mint: .usdf),
+            withdrawalFeeAmount: TokenAmount(quarks: withdrawalFeeQuarks, mint: .usdf)
         )
 
         return WithdrawViewModel(
@@ -87,15 +101,55 @@ enum WithdrawViewModelTestHelpers {
         )
     }
 
+    /// Builds a `SessionContainer` seeded with a USDF holding and returns a
+    /// matching `ExchangedBalance` ready to drop into `viewModel.kind`. Use
+    /// when a test needs `session.balance(for:)` populated so
+    /// `hasSufficientFunds` returns `.sufficient` and the kind gate (not the
+    /// funds gate) is the deciding factor.
+    ///
+    /// Pass `withdrawalFeeQuarks` > 0 when the test depends on
+    /// `userFlags.withdrawalFeeAmount` (e.g. fee-gating via
+    /// `negativeWithdrawableAmount`).
+    static func makeUSDFFixture(
+        quarks: UInt64 = 10_000_000,
+        withdrawalFeeQuarks: UInt64 = 0
+    ) throws -> (container: SessionContainer, balance: ExchangedBalance) {
+        let container = try SessionContainer.makeTest(holdings: [
+            .init(mint: MintMetadata.usdf, quarks: quarks)
+        ])
+        if withdrawalFeeQuarks > 0 {
+            container.session.userFlags = UserFlags(
+                isRegistered: true,
+                isStaff: false,
+                onrampProviders: [],
+                preferredOnrampProvider: .unknown,
+                minBuildNumber: 0,
+                billExchangeDataTimeout: nil,
+                newCurrencyPurchaseAmount: .zero(mint: .usdf),
+                newCurrencyFeeAmount: .zero(mint: .usdf),
+                withdrawalFeeAmount: TokenAmount(quarks: withdrawalFeeQuarks, mint: .usdf)
+            )
+        }
+        let stored = try #require(container.session.balance(for: .usdf))
+        let rate = container.ratesController.rateForEntryCurrency()
+        let balance = ExchangedBalance(
+            stored: stored,
+            exchangedFiat: stored.computeExchangedValue(with: rate)
+        )
+        return (container, balance)
+    }
+
     static func createDestinationMetadata(
+        kind: DestinationMetadata.Kind = .owner,
+        isValid: Bool = true,
         requiresInitialization: Bool = false,
         fee: TokenAmount = TokenAmount(quarks: 0, mint: .usdf)
     ) -> DestinationMetadata {
         DestinationMetadata(
-            kind: .token,
+            kind: kind,
             destination: try! PublicKey(base58: "11111111111111111111111111111111"),
             mint: .usdf,
-            isValid: true,
+            isValid: isValid,
             requiresInitialization: requiresInitialization,
             fee: fee
         )

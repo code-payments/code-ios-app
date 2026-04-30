@@ -49,6 +49,10 @@ public struct SwapInstructionBuilder {
             // (SwapInstructionBuilder.newCurrencyLaunch) that consumes the
             // ReserveNewCurrency params directly and never calls this helper.
             fatalError("extractServerParameters cannot be used with a new-currency launch")
+        case .stablecoin:
+            // Stablecoin (USDF → USDC) withdraws use a dedicated instruction
+            // builder that is not yet implemented and never calls this helper.
+            fatalError("extractServerParameters cannot be used with a stablecoin withdraw")
         }
     }
 }

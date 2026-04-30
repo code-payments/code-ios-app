@@ -20,6 +20,8 @@ public struct UserFlags: Sendable {
     public let newCurrencyPurchaseAmount: TokenAmount
     /// USDF amount that must be paid as a fee when launching a new currency.
     public let newCurrencyFeeAmount: TokenAmount
+    /// USDF amount that must be paid as the fee for any withdrawal.
+    public let withdrawalFeeAmount: TokenAmount
 
     public var hasPreferredOnrampProvider: Bool {
         preferredOnrampProvider != .unknown
@@ -67,6 +69,10 @@ extension UserFlags {
             ),
             newCurrencyFeeAmount: TokenAmount(
                 quarks: proto.newCurrencyFeeAmount,
+                mint: .usdf
+            ),
+            withdrawalFeeAmount: TokenAmount(
+                quarks: proto.withdrawalFeeAmount,
                 mint: .usdf
             )
         )

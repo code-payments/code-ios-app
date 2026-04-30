@@ -153,6 +153,14 @@ public struct VerifiedSwapMetadata: Sendable {
         public let amount: TokenAmount
         public let feeAmount: TokenAmount
         public let fundingSource: FundingSource
+        public let kind: Kind
+
+        public enum Kind: Sendable, Hashable {
+            /// Reserve-swap path (buy/sell bonded tokens, new currency launch).
+            case reserve
+            /// Coinbase Stable Swapper path (USDF → USDC withdraw).
+            case stablecoin(destinationOwner: PublicKey)
+        }
 
         public init(
             id: SwapId,
@@ -160,7 +168,8 @@ public struct VerifiedSwapMetadata: Sendable {
             toMint: PublicKey,
             amount: TokenAmount,
             feeAmount: TokenAmount? = nil,
-            fundingSource: FundingSource
+            fundingSource: FundingSource,
+            kind: Kind = .reserve
         ) {
             self.id = id
             self.fromMint = fromMint
@@ -168,6 +177,7 @@ public struct VerifiedSwapMetadata: Sendable {
             self.amount = amount
             self.feeAmount = feeAmount ?? TokenAmount(quarks: 0, mint: fromMint)
             self.fundingSource = fundingSource
+            self.kind = kind
         }
     }
     
@@ -219,6 +229,47 @@ extension VerifiedSwapMetadata.ClientParameters {
     }
 }
 
+extension VerifiedSwapMetadata.ClientParameters {
+    public init?(_ proto: Ocp_Transaction_V1_StatefulSwapRequest.Initiate.CoinbaseStableSwapperClientParameters) {
+        guard
+            let swapId = SwapId(proto.id),
+            let fromMint = try? PublicKey(proto.fromMint.value),
+            let toMint = try? PublicKey(proto.toMint.value),
+            let destinationOwner = try? PublicKey(proto.destinationOwner.value)
+        else {
+            return nil
+        }
+
+        let fundingSource = FundingSource(proto.fundingSource, fundingID: proto.fundingID)
+
+        self.init(
+            id: swapId,
+            fromMint: fromMint,
+            toMint: toMint,
+            amount: TokenAmount(quarks: proto.swapAmount, mint: fromMint),
+            feeAmount: TokenAmount(quarks: proto.feeAmount, mint: fromMint),
+            fundingSource: fundingSource,
+            kind: .stablecoin(destinationOwner: destinationOwner)
+        )
+    }
+
+    public var stablecoinProto: Ocp_Transaction_V1_StatefulSwapRequest.Initiate.CoinbaseStableSwapperClientParameters {
+        guard case .stablecoin(let destinationOwner) = kind else {
+            preconditionFailure("stablecoinProto requires kind == .stablecoin")
+        }
+        return .with {
+            $0.id = id.codeSwapID
+            $0.fromMint = fromMint.solanaAccountID
+            $0.toMint = toMint.solanaAccountID
+            $0.swapAmount = amount.quarks
+            $0.feeAmount = feeAmount.quarks
+            $0.fundingSource = fundingSource.protoSource
+            $0.fundingID = fundingSource.fundingID
+            $0.destinationOwner = destinationOwner.solanaAccountID
+        }
+    }
+}
+
 extension VerifiedSwapMetadata.ServerParameters {
     public init?(_ proto: Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveExistingCurrencyServerParameters) {
         guard
@@ -254,19 +305,27 @@ extension VerifiedSwapMetadata.ServerParameters {
 
 extension VerifiedSwapMetadata {
     public init?(_ proto: Ocp_Transaction_V1_VerifiedSwapMetadata) {
-        guard case .reserve(let verified) = proto.kind else {
+        let clientParams: ClientParameters
+        switch proto.kind {
+        case .reserve(let verified):
+            guard let parsed = ClientParameters(verified.clientParameters) else {
+                return nil
+            }
+            clientParams = parsed
+        case .stablecoin(let verified):
+            guard let parsed = ClientParameters(verified.clientParameters) else {
+                return nil
+            }
+            clientParams = parsed
+        case .none:
             return nil
         }
-        
-        guard let clientParams = ClientParameters(verified.clientParameters) else {
-            return nil
-        }
-        
+
         // For GetSwap responses, we don't have server parameters in the proto
         // Use placeholder values that will be overwritten when executing
         let placeholderKey = try! PublicKey(Data(repeating: 0, count: 32))
         let placeholderHash = try! Hash(Data(repeating: 0, count: 32))
-        
+
         self.init(
             clientParameters: clientParams,
             serverParameters: ServerParameters(
@@ -275,11 +334,18 @@ extension VerifiedSwapMetadata {
             )
         )
     }
-    
+
     public var proto: Ocp_Transaction_V1_VerifiedSwapMetadata {
         .with {
-            $0.reserve = .with {
-                $0.clientParameters = clientParameters.proto
+            switch clientParameters.kind {
+            case .stablecoin:
+                $0.stablecoin = .with {
+                    $0.clientParameters = clientParameters.stablecoinProto
+                }
+            case .reserve:
+                $0.reserve = .with {
+                    $0.clientParameters = clientParameters.proto
+                }
             }
         }
     }
@@ -360,6 +426,7 @@ public struct SwapResponseServerParameters {
         case stateless(CurrencyCreatorStateless)
         case stateful(CurrencyCreatorStateful)
         case newCurrency(ReserveNewCurrency)
+        case stablecoin(CoinbaseStableSwapServerParameters)
     }
     
     // Server parameters for stateless buy/sell flows
@@ -420,6 +487,41 @@ public struct SwapResponseServerParameters {
             self.memoValue = memoValue
             self.memoryAccount = memoryAccount
             self.memoryIndex = memoryIndex
+        }
+    }
+
+    /// Server parameters for a Coinbase Stable Swapper swap (USDF → USDC).
+    public struct CoinbaseStableSwapServerParameters: Sendable {
+        public let payer: PublicKey
+        public let nonce: PublicKey
+        public let blockhash: Hash
+        public let alts: [AddressLookupTable]
+        public let computeUnitLimit: UInt32
+        public let computeUnitPrice: UInt64
+        public let memoValue: String
+        public let feeDestination: PublicKey
+        public let poolFeeRecipient: PublicKey
+
+        public init(
+            payer: PublicKey,
+            nonce: PublicKey,
+            blockhash: Hash,
+            alts: [AddressLookupTable],
+            computeUnitLimit: UInt32,
+            computeUnitPrice: UInt64,
+            memoValue: String,
+            feeDestination: PublicKey,
+            poolFeeRecipient: PublicKey
+        ) {
+            self.payer = payer
+            self.nonce = nonce
+            self.blockhash = blockhash
+            self.alts = alts
+            self.computeUnitLimit = computeUnitLimit
+            self.computeUnitPrice = computeUnitPrice
+            self.memoValue = memoValue
+            self.feeDestination = feeDestination
+            self.poolFeeRecipient = poolFeeRecipient
         }
     }
 
@@ -572,6 +674,34 @@ extension SwapResponseServerParameters.ReserveNewCurrency {
     }
 }
 
+extension SwapResponseServerParameters.CoinbaseStableSwapServerParameters {
+    public init?(_ proto: Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.CoinbaseStableSwapperServerParameter) {
+        guard
+            let payer = try? PublicKey(proto.payer.value),
+            let nonce = try? PublicKey(proto.nonce.value),
+            let blockhash = try? Hash(proto.blockhash.value),
+            let feeDestination = try? PublicKey(proto.feeDestination.value),
+            let poolFeeRecipient = try? PublicKey(proto.poolFeeRecipient.value)
+        else {
+            return nil
+        }
+
+        let alts = proto.alts.compactMap { AddressLookupTable($0) }
+
+        self.init(
+            payer: payer,
+            nonce: nonce,
+            blockhash: blockhash,
+            alts: alts,
+            computeUnitLimit: proto.computeUnitLimit,
+            computeUnitPrice: proto.computeUnitPrice,
+            memoValue: proto.memoValue,
+            feeDestination: feeDestination,
+            poolFeeRecipient: poolFeeRecipient
+        )
+    }
+}
+
 extension SwapResponseServerParameters {
     public init?(_ proto: Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters) {
         switch proto.kind {
@@ -587,8 +717,11 @@ extension SwapResponseServerParameters {
             }
             self.init(kind: .newCurrency(params))
 
-        case .stablecoin:
-            return nil
+        case .stablecoin(let stableServer):
+            guard let params = CoinbaseStableSwapServerParameters(stableServer) else {
+                return nil
+            }
+            self.init(kind: .stablecoin(params))
 
         case .none:
             return nil
@@ -599,22 +732,27 @@ extension SwapResponseServerParameters {
 enum SwapDirection {
     case buy(mint: MintMetadata)                 // USDF -> Bonded Token
     case sell(mint: MintMetadata)                // Bonded Token -> USDF
-    
+    case withdraw(mint: MintMetadata)            // USDF -> USDC via Coinbase Stable Swapper
+
     var sourceMint: MintMetadata {
         switch self {
         case .buy:
             return .usdf
         case .sell(let mint):
             return mint
+        case .withdraw:
+            return .usdf
         }
     }
-        
+
     var destinationMint: MintMetadata {
         switch self {
         case .buy(let mint):
             return mint
         case .sell:
             return .usdf
+        case .withdraw(let mint):
+            return mint
         }
     }
 }

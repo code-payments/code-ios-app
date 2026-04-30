@@ -84,16 +84,20 @@ struct SettingsScreen: View {
     @ViewBuilder private func list() -> some View {
         VStack(alignment: .leading, spacing: 0) {
 
+            SettingsRow(asset: .deposit, title: "Deposit Funds", insets: insets) {
+                router.push(.depositCurrencyList)
+            }
+            
+            SettingsRow(asset: .withdraw, title: "Withdraw Funds", insets: insets) {
+                router.push(.withdraw)
+            }
+
             SettingsRow(asset: .myAccount, title: "My Account", insets: insets) {
                 router.push(.settingsMyAccount)
             }
 
             SettingsRow(asset: .settings, title: "App Settings", insets: insets) {
                 router.push(.settingsAppSettings)
-            }
-
-            SettingsRow(asset: .withdraw, title: "Withdraw Funds", insets: insets) {
-                router.push(.withdraw)
             }
 
             SettingsRow(asset: .sliders, title: "Advanced Features", insets: insets) {

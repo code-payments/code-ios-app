@@ -163,6 +163,29 @@ extension Client {
         }
     }
 
+    /// Withdraws USDF to a Solana wallet as USDC via Coinbase Stable Swapper.
+    /// Phase 1 + Phase 2 mirroring `buy()` — stateful swap stream → IntentFundSwap.
+    @discardableResult
+    public func withdrawAsUSDC(
+        amount: ExchangedFiat,
+        verifiedState: VerifiedState,
+        destinationOwner: PublicKey,
+        fee: TokenAmount,
+        sourceCluster: AccountCluster
+    ) async throws -> SwapId {
+        try await withCheckedThrowingContinuation { continuation in
+            transactionService.withdrawAsUSDC(
+                amount: amount,
+                verifiedState: verifiedState,
+                destinationOwner: destinationOwner,
+                fee: fee,
+                sourceCluster: sourceCluster
+            ) { result in
+                continuation.resume(with: result)
+            }
+        }
+    }
+
     /// Buys the first tokens on a newly-launched currency using reserves funding
     /// (Phase 1 stateful swap + Phase 2 `IntentFundSwap`). Without the Phase 2
     /// funding intent the server-side swap sits at `CREATED` and is cancelled
