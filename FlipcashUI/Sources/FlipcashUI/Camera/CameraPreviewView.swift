@@ -244,6 +244,7 @@ public class _CameraPreviewView: UIView {
     private func rampToOne(device: AVCaptureDevice) {
         do {
             try device.lockForConfiguration()
+            // Rate is exponential factor/sec — 4.0 yields ~log₂(zoom)/4 s to reach 1×.
             device.ramp(toVideoZoomFactor: 1.0, withRate: 4.0)
             device.unlockForConfiguration()
         } catch {}
@@ -277,7 +278,11 @@ public class _CameraPreviewView: UIView {
     }
 
     private func clamp(_ zoomFactor: CGFloat, device: AVCaptureDevice) -> CGFloat {
-        min(max(zoomFactor, device.minAvailableVideoZoomFactor), device.maxAvailableVideoZoomFactor)
+        let lower = device.minAvailableVideoZoomFactor
+        // 10× matches Apple's Camera ceiling on single-lens devices and engages
+        // the longest optical lens on every multi-lens model.
+        let upper = min(device.maxAvailableVideoZoomFactor, 10.0)
+        return min(max(zoomFactor, lower), upper)
     }
 }
 
