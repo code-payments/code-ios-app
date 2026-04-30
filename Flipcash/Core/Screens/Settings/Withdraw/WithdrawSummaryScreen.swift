@@ -45,6 +45,7 @@ struct WithdrawSummaryScreen: View {
                                 logoURL: viewModel.destinationLogoURL,
                                 displayValue: display
                             )
+                            .padding(.top, 20)
                             .accessibilityElement(children: .combine)
                             .accessibilityLabel("You receive \(display) in \(viewModel.kind?.destinationCurrencyName ?? "tokens")")
                         }
