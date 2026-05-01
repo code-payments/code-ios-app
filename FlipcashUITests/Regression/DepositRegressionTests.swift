@@ -17,9 +17,9 @@ final class DepositRegressionTests: BaseUITestCase {
 
         assertMainScreenReached()
 
-        // Navigate: Main → Settings → Deposit Funds
+        // Navigate: Main → Settings → Deposit
         settings.open(from: self)
-        waitAndTap(settings.depositFundsRow)
+        waitAndTap(settings.depositButton)
 
         // Select the first currency
         let firstCurrency = app.cells.firstMatch
