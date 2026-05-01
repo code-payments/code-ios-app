@@ -197,6 +197,26 @@ struct WithdrawViewModelTests {
         #expect(viewModel.minimumWithdrawAmount?.value == Decimal(81))
     }
 
+    @Test("isBelowMinimumWithdraw: entering exactly the displayed minimum passes (CAD)")
+    func isBelowMinimumWithdraw_CAD_displayedMinimumPasses() {
+        // Rate 1.36 → fee in CAD = 0.68 → minimum = $0.69. Entering "$0.69"
+        // (keypad emits "0.69" with a "." separator regardless of device locale)
+        // must not fire the gate, even when the device locale uses ",".
+        let cadRate = Rate(fx: 1.36, currency: .cad)
+        let viewModel = WithdrawViewModelTestHelpers.createViewModel(
+            entryCurrency: .cad,
+            rates: [cadRate],
+            withdrawalFeeQuarks: 500_000 // $0.50
+        )
+        viewModel.kind = .sameMint(WithdrawViewModelTestHelpers.createExchangedBalance())
+
+        viewModel.enteredAmount = "0.68"
+        #expect(viewModel.isBelowMinimumWithdraw == true)
+
+        viewModel.enteredAmount = "0.69"
+        #expect(viewModel.isBelowMinimumWithdraw == false)
+    }
+
     @Test("isBelowMinimumWithdraw: blocks amounts where displayed net would be ¥0")
     func isBelowMinimumWithdraw_JPY_blocksZeroNet() {
         // Rate 157 → displayed fee ¥79 (0.5 × 157 = 78.5, half-up to ¥79).

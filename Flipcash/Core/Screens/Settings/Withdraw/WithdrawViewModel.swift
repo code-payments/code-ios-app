@@ -69,12 +69,14 @@ class WithdrawViewModel {
         return FiatAmount(value: displayFee.value + smallestUnit, currency: displayFee.currency)
     }
 
-    /// Compares the raw entered Decimal against `minimumWithdrawAmount` to
-    /// avoid the ExchangedFiat USD round-trip precision loss (e.g. ¥80 →
-    /// $0.5044… → ¥79.999…) that would otherwise reject the displayed minimum.
+    /// Compares the raw entered Decimal against `minimumWithdrawAmount`.
+    /// Uses `Decimal(string:)` (always "." separator, matching the keypad's
+    /// output and `EnterAmountView.isExceedingLimit`) instead of the
+    /// locale-aware `NumberFormatter.decimal(from:)`, which on non-"."
+    /// locales parses "0.69" as 0 and falsely fires the gate.
     var isBelowMinimumWithdraw: Bool {
         guard let minimum = minimumWithdrawAmount else { return false }
-        guard let entered = NumberFormatter.decimal(from: enteredAmount) else { return false }
+        guard let entered = Decimal(string: enteredAmount) else { return false }
         return entered < minimum.value
     }
 
