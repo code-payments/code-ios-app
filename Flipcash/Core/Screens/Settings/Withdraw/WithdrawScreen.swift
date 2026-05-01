@@ -88,14 +88,8 @@ struct WithdrawScreen: View {
             }
         }
         .onAppear {
-            // Wire the view model's navigation callbacks. Push substeps onto
-            // the parent (Settings) NavigationStack via the router; pops
-            // remove that many items from the top.
             viewModel.pushSubstep = { step in
                 router.pushAny(step)
-            }
-            viewModel.popSubsteps = { count in
-                router.popLast(count, on: .settings)
             }
             viewModel.onComplete = {
                 // Successful withdrawal: unwind the entire flow back to

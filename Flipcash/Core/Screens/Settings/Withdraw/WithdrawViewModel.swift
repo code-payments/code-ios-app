@@ -11,19 +11,9 @@ import FlipcashUI
 
 @MainActor @Observable
 class WithdrawViewModel {
-    /// Tracks which sub-step screens have been pushed. Mirrors the
-    /// `WithdrawNavigationPath` items the model has appended to the parent
-    /// navigation stack via the `pushSubstep` callback. Used by
-    /// `popToEnterAmount` to compute how many items to pop.
-    @ObservationIgnored private var substepStack: [WithdrawNavigationPath] = []
-
     /// Pushes a sub-step onto the parent NavigationStack. Wired by
     /// `WithdrawScreen` to call `router.pushAny(_:on: .settings)`.
     @ObservationIgnored var pushSubstep: (WithdrawNavigationPath) -> Void = { _ in }
-
-    /// Pops the given number of items from the parent NavigationStack.
-    /// Wired by `WithdrawScreen` to call `router.popLast(_:on: .settings)`.
-    @ObservationIgnored var popSubsteps: (Int) -> Void = { _ in }
 
     var withdrawButtonState: ButtonState = .normal
     var kind: WithdrawKind?
@@ -47,26 +37,47 @@ class WithdrawViewModel {
         computeAmount(using: ratesController.rateForEntryCurrency(), pinnedSupplyQuarks: nil)
     }
 
+    /// Fee in entry currency for the summary's "Less fee" line. Rounded
+    /// half-up to currency precision so the implied fee on the amount screen
+    /// (`minimumWithdrawAmount = displayFee + smallestUnit`) matches the
+    /// summary verbatim — no rounding drift between the two screens.
     var displayFee: FiatAmount? {
-        guard let enteredFiat, let withdrawableAmount else {
-            return nil
-        }
-        let entered = enteredFiat.nativeAmount
-        let withdrawable = withdrawableAmount.nativeAmount
-        guard entered.currency == withdrawable.currency, entered >= withdrawable else {
-            return nil
-        }
-        return entered - withdrawable
+        guard let enteredFiat, let fee = resolvedFee else { return nil }
+        let feeInEntry = fee.usd.converting(to: enteredFiat.currencyRate)
+        let rounded = feeInEntry.value.rounded(to: feeInEntry.currency.maximumFractionDigits)
+        return FiatAmount(value: rounded, currency: feeInEntry.currency)
     }
 
-    /// Returns the amount by which the fee exceeds the entered amount, or nil if the fee is covered.
-    /// Used by `completeWithdrawalAction` to block withdrawals where the fee exceeds the amount,
-    /// and by the summary screen to display the negative delta.
-    var negativeWithdrawableAmount: FiatAmount? {
+    /// Net in entry currency, derived as `entered − displayFee` so the three
+    /// summary lines (Withdrawal amount, Less fee, Net amount) form a closed
+    /// identity. Falls back to `entered` when there's no fee.
+    var displayNet: FiatAmount? {
         guard let enteredFiat else { return nil }
-        guard let fee = resolvedFee else { return nil }
-        guard fee.onChain >= enteredFiat.onChainAmount else { return nil }
-        return (fee.usd - enteredFiat.usdfValue).converting(to: enteredFiat.currencyRate)
+        let entered = enteredFiat.nativeAmount
+        guard let fee = displayFee else { return entered }
+        return entered - fee
+    }
+
+    /// Smallest amount that yields at least one displayable unit of net after
+    /// the fee. `displayFee + smallest_displayable_unit` in the entry currency.
+    /// Display and the `isBelowMinimumWithdraw` gate use the same number by
+    /// construction.
+    var minimumWithdrawAmount: FiatAmount? {
+        guard let displayFee else { return nil }
+        let precision = displayFee.currency.maximumFractionDigits
+        let smallestUnit = Decimal(sign: .plus, exponent: -precision, significand: 1)
+        return FiatAmount(value: displayFee.value + smallestUnit, currency: displayFee.currency)
+    }
+
+    /// Compares the raw entered Decimal against `minimumWithdrawAmount`.
+    /// Uses `Decimal(string:)` (always "." separator, matching the keypad's
+    /// output and `EnterAmountView.isExceedingLimit`) instead of the
+    /// locale-aware `NumberFormatter.decimal(from:)`, which on non-"."
+    /// locales parses "0.69" as 0 and falsely fires the gate.
+    var isBelowMinimumWithdraw: Bool {
+        guard let minimum = minimumWithdrawAmount else { return false }
+        guard let entered = Decimal(string: enteredAmount) else { return false }
+        return entered < minimum.value
     }
 
     var withdrawableAmount: ExchangedFiat? {
@@ -99,10 +110,10 @@ class WithdrawViewModel {
 
     /// Gate for the Enter-Amount screen's Next button. Disables when the
     /// entered amount exceeds the displayed balance cap (so `EnterAmountView`
-    /// turns the subtitle red) or fails to cover the withdrawal fee.
+    /// turns the subtitle red). Below-fee entries keep the button enabled so
+    /// `amountEnteredAction` can surface the dialog explaining the floor.
     var canProceedToAddress: Bool {
         guard enteredFiat != nil else { return false }
-        guard negativeWithdrawableAmount == nil else { return false }
         return EnterAmountCalculator.isWithinDisplayLimit(
             enteredAmount: enteredAmount,
             max: maxWithdrawLimit.nativeAmount
@@ -153,15 +164,15 @@ class WithdrawViewModel {
     }
 
     /// Single string rendered inside the "You Receive" box on the summary.
-    /// USDF: native fiat amount (e.g. "$49.50"). Bonded: scaled token quantity
-    /// (matches `amountInTokenText` — same number, different framing on screen).
+    /// USDF: net fiat (matches the summary's `Net amount` line). Bonded:
+    /// scaled token quantity (matches `amountInTokenText` — same number,
+    /// different framing on screen).
     var youReceiveDisplayValue: String? {
-        guard let withdrawableAmount else { return nil }
         switch kind {
         case .sameMint:
-            return withdrawableAmount.onChainAmount.decimalValue.formatted()
+            return withdrawableAmount?.onChainAmount.decimalValue.formatted()
         case .usdfToUsdc:
-            return withdrawableAmount.nativeAmount.formatted()
+            return displayNet?.formatted()
         case .none:
             return nil
         }
@@ -181,15 +192,13 @@ class WithdrawViewModel {
         }
     }
 
-    /// Subtitle for the amount-entry screen. "Enter more than $X.XX" when the
-    /// entered amount is at or below the fee (a hard gate that disables Next).
+    /// Subtitle for the amount-entry screen. "Minimum withdrawal $X.XX" when
+    /// the entered amount is at or below the fee, hinting at the floor without
+    /// disabling Next — the gating dialog fires from `amountEnteredAction`.
     /// Otherwise the "Enter up to $Y.YY" balance-with-limit copy.
     var amountSubtitle: EnterAmountView.Subtitle {
-        if let enteredFiat,
-           negativeWithdrawableAmount != nil,
-           let fee = resolvedFee {
-            let feeInEntryCurrency = fee.usd.converting(to: enteredFiat.currencyRate)
-            return .custom("Enter more than \(feeInEntryCurrency.formatted())")
+        if isBelowMinimumWithdraw, let minimum = minimumWithdrawAmount {
+            return .error("Minimum withdrawal \(minimum.formatted())")
         }
         return .balanceWithLimit(maxWithdrawLimit)
     }
@@ -350,6 +359,11 @@ class WithdrawViewModel {
     }
 
     func amountEnteredAction() {
+        if isBelowMinimumWithdraw {
+            showWithdrawalTooSmallError()
+            return
+        }
+
         guard let exchangedFiat = enteredFiat else {
             return
         }
@@ -371,21 +385,6 @@ class WithdrawViewModel {
     }
 
     func completeWithdrawalAction() {
-        guard negativeWithdrawableAmount == nil else {
-            dialogItem = .init(
-                style: .destructive,
-                title: "Withdrawal Amount Too Small",
-                subtitle: "Your withdrawal amount is too small to cover the fee. Please try a different amount",
-                dismissable: true
-            ) {
-                .okay(kind: .standard) { [weak self] in
-                    self?.resetEnteredAmount()
-                    self?.popToEnterAmount()
-                }
-            }
-            return
-        }
-
         dialogItem = .init(
             style: .destructive,
             title: "Are You Sure?",
@@ -490,44 +489,22 @@ class WithdrawViewModel {
         enteredAddress = address.base58
     }
 
-    // MARK: - Reset -
-
-    private func resetEnteredAmount() {
-        enteredAmount = ""
-    }
-
     // MARK: - Navigation -
-
-    private func popToEnterAmount() {
-        // Pop everything above `.enterAmount`, leaving it as the top substep.
-        // If we're already there or the stack is empty, this is a no-op.
-        guard let firstAmountIndex = substepStack.firstIndex(of: .enterAmount) else {
-            return
-        }
-        let popsNeeded = substepStack.count - (firstAmountIndex + 1)
-        guard popsNeeded > 0 else { return }
-        popSubsteps(popsNeeded)
-        substepStack.removeLast(popsNeeded)
-    }
 
     private func pushIntroScreen() {
         pushSubstep(.intro)
-        substepStack.append(.intro)
     }
 
     func pushEnterAmountScreen() {
         pushSubstep(.enterAmount)
-        substepStack.append(.enterAmount)
     }
 
     private func pushEnterAddressScreen() {
         pushSubstep(.enterAddress)
-        substepStack.append(.enterAddress)
     }
 
     private func pushConfirmationScreen() {
         pushSubstep(.confirmation)
-        substepStack.append(.confirmation)
     }
 
     // MARK: - Dialogs -
@@ -553,6 +530,17 @@ class WithdrawViewModel {
             dismissable: true
         ) {
             .okay(kind: .destructive)
+        }
+    }
+
+    private func showWithdrawalTooSmallError() {
+        dialogItem = .init(
+            style: .destructive,
+            title: "Withdrawal Amount Too Small",
+            subtitle: "Your withdrawal amount is too small to cover the fee. Please try a different amount",
+            dismissable: true
+        ) {
+            .okay(kind: .standard)
         }
     }
 }

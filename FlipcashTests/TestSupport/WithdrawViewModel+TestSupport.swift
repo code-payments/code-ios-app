@@ -109,7 +109,7 @@ enum WithdrawViewModelTestHelpers {
     ///
     /// Pass `withdrawalFeeQuarks` > 0 when the test depends on
     /// `userFlags.withdrawalFeeAmount` (e.g. fee-gating via
-    /// `negativeWithdrawableAmount`).
+    /// `isBelowMinimumWithdraw`).
     static func makeUSDFFixture(
         quarks: UInt64 = 10_000_000,
         withdrawalFeeQuarks: UInt64 = 0
