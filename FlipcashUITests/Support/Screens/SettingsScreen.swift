@@ -19,10 +19,10 @@ struct SettingsUIScreen {
     // MARK: - Elements
 
     var myAccountRow: XCUIElement { app.buttons["My Account"] }
-    var withdrawFundsRow: XCUIElement { app.buttons["Withdraw Funds"] }
+    var withdrawButton: XCUIElement { app.buttons["Withdraw"] }
     var advancedFeaturesRow: XCUIElement { app.buttons["Advanced Features"] }
     var accessKeyRow: XCUIElement { app.buttons["Access Key"] }
-    var depositFundsRow: XCUIElement { app.buttons["Deposit Funds"] }
+    var depositButton: XCUIElement { app.buttons["Deposit"] }
     var applicationLogsRow: XCUIElement { app.buttons["Application Logs"] }
 
     // MARK: - Actions

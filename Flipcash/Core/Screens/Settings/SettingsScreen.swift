@@ -39,119 +39,113 @@ struct SettingsScreen: View {
         @Bindable var router = router
         NavigationStack(path: $router[.settings]) {
             Background(color: .backgroundMain) {
-                VStack(alignment: .center, spacing: 0) {
-                    ScrollView(showsIndicators: false) {
-                        list()
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 20) {
+                        HStack(spacing: 10) {
+                            Button("Deposit") {
+                                router.push(.depositCurrencyList)
+                            }
+                            .buttonStyle(.card(icon: .deposit))
+
+                            Button("Withdraw") {
+                                router.push(.withdraw)
+                            }
+                            .buttonStyle(.card(icon: .withdraw))
+                        }
+
+                        VStack(alignment: .leading, spacing: 0) {
+                            SettingsRow(asset: .myAccount, title: "My Account", insets: insets) {
+                                router.push(.settingsMyAccount)
+                            }
+
+                            SettingsRow(asset: .settings, title: "App Settings", insets: insets) {
+                                router.push(.settingsAppSettings)
+                            }
+
+                            SettingsRow(asset: .sliders, title: "Advanced Features", insets: insets) {
+                                router.push(.settingsAdvancedFeatures)
+                            }
+
+                            if betaFlags.accessGranted {
+                                SettingsRow(asset: .debug, title: "Beta Features", badge: betaBadge, insets: insets) {
+                                    router.push(.settingsBetaFlags)
+                                }
+
+                                SettingsRow(asset: .switchAccounts, title: "Switch Accounts", badge: betaBadge, insets: insets) {
+                                    router.push(.settingsAccountSelection)
+                                }
+                            }
+                        }
+                        .font(.appDisplayXS)
+                        .foregroundStyle(Color.textMain)
                     }
-                    footer()
+                    .padding(.horizontal, 20)
+                    .padding(.top, 10)
                 }
-                .padding(.vertical, 10)
-                .padding(.horizontal, 20)
+                .safeAreaInset(edge: .bottom) {
+                    VStack(spacing: 0) {
+                        Button {
+                            dialogItem = logoutDialog
+                        } label: {
+                            HStack(spacing: 10) {
+                                Image.asset(.logout)
+                                    .renderingMode(.template)
+                                Text("Log Out")
+                            }
+                        }
+                        .buttonStyle(.subtle)
+
+                        Button {
+                            handleVersionTap()
+                        } label: {
+                            Text("Version \(AppMeta.version) • Build \(AppMeta.build)")
+                                .lineLimit(1)
+                                .font(.appTextHeading)
+                                .foregroundStyle(Color.textSecondary)
+                                .padding(.vertical, 12)
+                                .frame(maxWidth: .infinity)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 20)
+                }
             }
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     ToolbarCloseButton {
                         router.dismissSheet()
                     }
                 }
-                ToolbarItem(placement: .principal) {
-                    logoHeader()
-                }
             }
             .navigationTitle("Settings")
+            .dialog(item: $dialogItem)
             .appRouterDestinations(container: container, sessionContainer: sessionContainer)
         }
     }
 
-    // MARK: - Header Components -
+    // MARK: - Helpers -
 
-    @ViewBuilder private func logoHeader() -> some View {
-        Button {
-            handleLogoTap()
-        } label: {
-            Image.asset(.flipcashBrand)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(maxHeight: 34)
+    private let betaBadge = Badge(decoration: .circle(.textWarning), text: "Beta")
+
+    private var logoutDialog: DialogItem {
+        DialogItem(
+            style: .destructive,
+            title: "Are You Sure You Want To Log Out?",
+            subtitle: "You can get into this account using your Access Key",
+            dismissable: true
+        ) {
+            DialogAction.destructive("Log Out") {
+                logout()
+            }
+            DialogAction.cancel {}
         }
-        .buttonStyle(.plain)
-    }
-
-    // MARK: - Lists -
-
-    @ViewBuilder private func list() -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-
-            SettingsRow(asset: .deposit, title: "Deposit Funds", insets: insets) {
-                router.push(.depositCurrencyList)
-            }
-            
-            SettingsRow(asset: .withdraw, title: "Withdraw Funds", insets: insets) {
-                router.push(.withdraw)
-            }
-
-            SettingsRow(asset: .myAccount, title: "My Account", insets: insets) {
-                router.push(.settingsMyAccount)
-            }
-
-            SettingsRow(asset: .settings, title: "App Settings", insets: insets) {
-                router.push(.settingsAppSettings)
-            }
-
-            SettingsRow(asset: .sliders, title: "Advanced Features", insets: insets) {
-                router.push(.settingsAdvancedFeatures)
-            }
-
-            if betaFlags.accessGranted {
-                SettingsRow(asset: .debug, title: "Beta Features", badge: betaBadge(), insets: insets) {
-                    router.push(.settingsBetaFlags)
-                }
-
-                SettingsRow(asset: .switchAccounts, title: "Switch Accounts", badge: betaBadge(), insets: insets) {
-                    router.push(.settingsAccountSelection)
-                }
-            }
-
-            SettingsRow(asset: .logout, title: "Log Out", insets: insets) {
-                dialogItem = .init(
-                    style: .destructive,
-                    title: "Are You Sure You Want To Log Out?",
-                    subtitle: "You can get into this account using your Access Key",
-                    dismissable: true
-                ) {
-                    DialogAction.destructive("Log Out") {
-                        logout()
-                    }
-                    DialogAction.cancel {}
-                }
-            }
-
-            Spacer()
-        }
-        .font(.appDisplayXS)
-        .foregroundColor(.textMain)
-        .dialog(item: $dialogItem)
-    }
-
-    @ViewBuilder private func footer() -> some View {
-        VStack {
-            Text("Version \(AppMeta.version) • Build \(AppMeta.build)")
-                .lineLimit(1)
-                .font(.appTextHeading)
-                .foregroundColor(.textSecondary)
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private func betaBadge() -> Badge {
-        Badge(decoration: .circle(.textWarning), text: "Beta")
     }
 
     // MARK: - Actions -
 
-    private func handleLogoTap() {
+    private func handleVersionTap() {
         if debugTapCount >= 9 {
             betaFlags.setAccessGranted(!betaFlags.accessGranted)
             debugTapCount = 0
