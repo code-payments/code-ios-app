@@ -15,7 +15,7 @@ struct WithdrawSummaryScreen: View {
         Background(color: .backgroundMain) {
             VStack(spacing: 20) {
                 if let entered = viewModel.enteredFiat,
-                   let net = viewModel.withdrawableAmount,
+                   let net = viewModel.displayNet,
                    let display = viewModel.youReceiveDisplayValue {
                     BorderedContainer {
                         VStack(spacing: 20) {
@@ -30,7 +30,7 @@ struct WithdrawSummaryScreen: View {
                                 )
                                 SummaryLineItem(
                                     title: "Net amount",
-                                    value: net.nativeAmount.formatted()
+                                    value: net.formatted()
                                 )
                                 if let amountText = viewModel.amountInTokenText,
                                    let kind = viewModel.kind {

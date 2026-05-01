@@ -51,20 +51,15 @@ struct WithdrawViewModelTests {
         #expect(viewModel.withdrawableAmount == nil)
     }
 
-    @Test("Regression: bonded-mint negative delta is a USD value, not a raw token count")
-    func negativeWithdrawableAmount_bondedMint_isUSDDelta() throws {
+    @Test("Bonded mint below the fee gates the amount-entry screen")
+    func isBelowMinimumWithdraw_bondedMint_belowFee_isTrue() throws {
         // Fee comes from userFlags (1_000_000 quarks = $1.00)
         let viewModel = WithdrawViewModelTestHelpers.createViewModel(withdrawalFeeQuarks: 1_000_000)
         viewModel.kind = .sameMint(WithdrawViewModelTestHelpers.createBondedBalance())
         viewModel.enteredAmount = "0.50"
         viewModel.destinationMetadata = WithdrawViewModelTestHelpers.createDestinationMetadata()
 
-        let delta = try #require(viewModel.negativeWithdrawableAmount)
-
-        // Overflow above $1 USD means token count is leaking through as a fiat value.
-        #expect(delta.currency == .usd)
-        #expect(delta.value > 0)
-        #expect(delta.value <= Decimal(1))
+        #expect(viewModel.isBelowMinimumWithdraw == true)
     }
 
     // MARK: - canProceedToAddress
@@ -82,8 +77,8 @@ struct WithdrawViewModelTests {
         #expect(viewModel.canProceedToAddress == false)
     }
 
-    @Test("Below-fee entry disables Next for USDF kind")
-    func canProceedToAddress_usdfBelowFee_isFalse() throws {
+    @Test("Below-fee entry keeps Next enabled for USDF kind so the dialog can fire")
+    func canProceedToAddress_usdfBelowFee_isTrue() throws {
         let (container, usdf) = try WithdrawViewModelTestHelpers.makeUSDFFixture(
             quarks: 100_000_000,
             withdrawalFeeQuarks: 500_000 // $0.50
@@ -92,7 +87,7 @@ struct WithdrawViewModelTests {
         viewModel.kind = .usdfToUsdc(usdf)
         viewModel.enteredAmount = "0.10"
 
-        #expect(viewModel.canProceedToAddress == false)
+        #expect(viewModel.canProceedToAddress == true)
     }
 
     @Test("Above-fee entry allows Next for USDF kind")
@@ -108,12 +103,118 @@ struct WithdrawViewModelTests {
         #expect(viewModel.canProceedToAddress == true)
     }
 
-    @Test("Below-fee entry disables Next for sameMint (bonded) kind")
-    func canProceedToAddress_bondedBelowFee_isFalse() throws {
+    @Test("Below-fee entry keeps Next enabled for sameMint (bonded) kind")
+    func canProceedToAddress_bondedBelowFee_isTrue() throws {
         let (viewModel, _) = try makeBondedSetup(withdrawalFeeQuarks: 500_000)
         viewModel.enteredAmount = "0.10" // below the $0.50 fee priced via curve
 
-        #expect(viewModel.canProceedToAddress == false)
+        #expect(viewModel.canProceedToAddress == true)
+    }
+
+    // MARK: - amountEnteredAction below-fee gate
+
+    @Test("amountEnteredAction below the fee surfaces the too-small dialog instead of advancing")
+    func amountEnteredAction_belowFee_showsTooSmallDialog() throws {
+        let (container, usdf) = try WithdrawViewModelTestHelpers.makeUSDFFixture(
+            quarks: 100_000_000,
+            withdrawalFeeQuarks: 500_000 // $0.50
+        )
+        var pushed: [WithdrawNavigationPath] = []
+        let viewModel = WithdrawViewModel(container: .mock, sessionContainer: container)
+        viewModel.pushSubstep = { pushed.append($0) }
+        viewModel.kind = .usdfToUsdc(usdf)
+        viewModel.enteredAmount = "0.10"
+
+        viewModel.amountEnteredAction()
+
+        #expect(viewModel.dialogItem?.title == "Withdrawal Amount Too Small")
+        #expect(pushed.isEmpty)
+    }
+
+    @Test("amountEnteredAction at-or-above fee pushes the address screen")
+    func amountEnteredAction_aboveFee_pushesAddressScreen() throws {
+        let (container, usdf) = try WithdrawViewModelTestHelpers.makeUSDFFixture(
+            quarks: 100_000_000,
+            withdrawalFeeQuarks: 500_000
+        )
+        var pushed: [WithdrawNavigationPath] = []
+        let viewModel = WithdrawViewModel(container: .mock, sessionContainer: container)
+        viewModel.pushSubstep = { pushed.append($0) }
+        viewModel.kind = .usdfToUsdc(usdf)
+        viewModel.enteredAmount = "5.00"
+
+        viewModel.amountEnteredAction()
+
+        #expect(viewModel.dialogItem == nil)
+        #expect(pushed == [.enterAddress])
+    }
+
+    // MARK: - minimumWithdrawAmount
+
+    @Test("minimumWithdrawAmount: USD = fee + $0.01")
+    func minimumWithdrawAmount_USD_returnsFeePlusOneCent() throws {
+        let (container, usdf) = try WithdrawViewModelTestHelpers.makeUSDFFixture(
+            quarks: 100_000_000,
+            withdrawalFeeQuarks: 500_000 // $0.50
+        )
+        let viewModel = WithdrawViewModel(container: .mock, sessionContainer: container)
+        viewModel.kind = .usdfToUsdc(usdf)
+        viewModel.enteredAmount = "0.10"
+
+        let minimum = try #require(viewModel.minimumWithdrawAmount)
+        #expect(minimum.currency == .usd)
+        #expect(minimum.value == Decimal(string: "0.51"))
+    }
+
+    @Test("minimumWithdrawAmount: JPY 158.6 → displayed fee ¥79 + ¥1 = ¥80")
+    func minimumWithdrawAmount_JPY_158_6() {
+        let jpyRate = Rate(fx: 158.6, currency: .jpy)
+        let viewModel = WithdrawViewModelTestHelpers.createViewModel(
+            entryCurrency: .jpy,
+            rates: [jpyRate],
+            withdrawalFeeQuarks: 500_000 // $0.50
+        )
+        viewModel.kind = .sameMint(WithdrawViewModelTestHelpers.createExchangedBalance())
+        viewModel.enteredAmount = "10"
+
+        // 0.50 × 158.6 = 79.3 → half-up to 0dp = ¥79; + ¥1 = ¥80
+        #expect(viewModel.minimumWithdrawAmount?.currency == .jpy)
+        #expect(viewModel.minimumWithdrawAmount?.value == Decimal(80))
+    }
+
+    @Test("minimumWithdrawAmount: JPY 159.4 → displayed fee ¥80 + ¥1 = ¥81")
+    func minimumWithdrawAmount_JPY_159_4_displayedFeeRoundsUp() {
+        let jpyRate = Rate(fx: 159.4, currency: .jpy)
+        let viewModel = WithdrawViewModelTestHelpers.createViewModel(
+            entryCurrency: .jpy,
+            rates: [jpyRate],
+            withdrawalFeeQuarks: 500_000
+        )
+        viewModel.kind = .sameMint(WithdrawViewModelTestHelpers.createExchangedBalance())
+        viewModel.enteredAmount = "10"
+
+        // 0.50 × 159.4 = 79.7 → half-up to 0dp = ¥80; + ¥1 = ¥81
+        #expect(viewModel.minimumWithdrawAmount?.value == Decimal(81))
+    }
+
+    @Test("isBelowMinimumWithdraw: blocks amounts where displayed net would be ¥0")
+    func isBelowMinimumWithdraw_JPY_blocksZeroNet() {
+        // Rate 157 → displayed fee ¥79 (0.5 × 157 = 78.5, half-up to ¥79).
+        // ¥79 entered yields displayed net ¥0 (entered − fee = ¥79 − ¥79 = ¥0)
+        // — useless, so the gate must block it.
+        let jpyRate = Rate(fx: 157, currency: .jpy)
+        let viewModel = WithdrawViewModelTestHelpers.createViewModel(
+            entryCurrency: .jpy,
+            rates: [jpyRate],
+            withdrawalFeeQuarks: 500_000
+        )
+        viewModel.kind = .sameMint(WithdrawViewModelTestHelpers.createExchangedBalance())
+
+        viewModel.enteredAmount = "79"
+        #expect(viewModel.isBelowMinimumWithdraw == true)
+
+        viewModel.enteredAmount = "80"
+        #expect(viewModel.isBelowMinimumWithdraw == false)
     }
 
     @Test("At-or-below balance leaves canProceedToAddress enabled")
@@ -507,13 +608,13 @@ struct WithdrawViewModelSummaryHelpersTests {
         switch viewModel.amountSubtitle {
         case .balanceWithLimit:
             break
-        case .singleTransactionLimit, .custom:
+        case .singleTransactionLimit, .error:
             Issue.record("Expected .balanceWithLimit subtitle for valid amount")
         }
     }
 
-    @Test("amountSubtitle returns custom 'Enter more than' when entered amount is at or below the fee")
-    func amountSubtitle_belowFee_returnsCustomCopy() {
+    @Test("amountSubtitle returns 'Minimum withdrawal' error copy when entered amount is at or below the fee")
+    func amountSubtitle_belowFee_returnsMinimumWithdrawalErrorCopy() {
         let usdf = WithdrawViewModelTestHelpers.createExchangedBalance(mint: .usdf, quarks: 100_000_000)
         let viewModel = WithdrawViewModelTestHelpers.createViewModel(withdrawalFeeQuarks: 500_000) // $0.50
         viewModel.kind = .usdfToUsdc(usdf)
@@ -521,11 +622,11 @@ struct WithdrawViewModelSummaryHelpersTests {
         viewModel.destinationMetadata = WithdrawViewModelTestHelpers.createDestinationMetadata()
 
         switch viewModel.amountSubtitle {
-        case .custom(let copy):
-            #expect(copy.contains("Enter more than"))
-            #expect(copy.contains("0.50"))
+        case .error(let copy):
+            #expect(copy.contains("Minimum withdrawal"))
+            #expect(copy.contains("0.51"))
         case .balanceWithLimit, .singleTransactionLimit:
-            Issue.record("Expected .custom subtitle for amount below fee")
+            Issue.record("Expected .error subtitle for amount below fee")
         }
     }
 }

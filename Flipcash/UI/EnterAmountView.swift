@@ -103,10 +103,10 @@ public struct EnterAmountView: View {
                             .foregroundColor(subtitleColor)
                             .font(.appTextMedium)
 
-                    case .custom(let text):
+                    case .error(let text):
                         Text(text)
                             .fixedSize()
-                            .foregroundColor(subtitleColor)
+                            .foregroundColor(.textError)
                             .font(.appTextMedium)
                     }
                 }
@@ -198,7 +198,9 @@ extension EnterAmountView {
     enum Subtitle {
         case singleTransactionLimit
         case balanceWithLimit(ExchangedFiat)
-        case custom(String)
+        /// Always rendered in `textError`. Use for soft-validation copy where
+        /// Next stays enabled and the caller surfaces a dialog on tap.
+        case error(String)
     }
 }
 

@@ -4,12 +4,11 @@
 //
 //  Crash: ExchangedFiat.subtracting(fee:) throws feeLargerThanAmount
 //         when USDF withdrawal fee exceeds a small entered amount.
-//         The ViewModel guard (negativeWithdrawableAmount) only covered
-//         bonded tokens, allowing USDF withdrawals to reach IntentWithdraw
-//         without fee validation.
+//         The ViewModel guard only covered bonded tokens, allowing USDF
+//         withdrawals to reach IntentWithdraw without fee validation.
 //
-//  Fix: negativeWithdrawableAmount now checks userFlags.withdrawalFeeAmount
-//       for all mints, blocking the withdrawal before it reaches IntentWithdraw.
+//  Fix: the amount-entry gate (isBelowMinimumWithdraw) now applies for
+//       all mints, blocking the withdrawal before it reaches IntentWithdraw.
 //
 
 import Foundation
@@ -21,49 +20,62 @@ import FlipcashCore
 @Suite("Regression: 6900e17 – feeLargerThanAmount crash on USDF withdrawal", .bug("6900e1760283b4eb88e9674a"))
 struct Regression_6900e17 {
 
-    @Test("negativeWithdrawableAmount is non-nil for USDF when fee exceeds amount")
-    func negativeWithdrawableAmount_usdf_feeExceedsAmount() {
-        // Fee comes from userFlags (1_000_000 quarks = $1.00)
-        let viewModel = WithdrawViewModelTestHelpers.createViewModel(withdrawalFeeQuarks: 1_000_000)
-        viewModel.kind = .sameMint(WithdrawViewModelTestHelpers.createExchangedBalance(
-            mint: .usdf,
-            quarks: 10_000_000 // $10.00 balance
-        ))
-        viewModel.enteredAmount = "0.46" // $0.46 USDF
+    @Test("USDF below the fee surfaces the dialog and never advances toward IntentWithdraw")
+    func usdf_belowFee_showsDialogAndBlocksAdvance() throws {
+        let (container, usdf) = try WithdrawViewModelTestHelpers.makeUSDFFixture(
+            quarks: 100_000_000, // $100 balance
+            withdrawalFeeQuarks: 1_000_000 // $1.00 fee
+        )
+        var pushed: [WithdrawNavigationPath] = []
+        let viewModel = WithdrawViewModel(container: .mock, sessionContainer: container)
+        viewModel.pushSubstep = { pushed.append($0) }
+        viewModel.kind = .sameMint(usdf)
+        viewModel.enteredAmount = "0.46" // below the $1.00 fee
         viewModel.destinationMetadata = WithdrawViewModelTestHelpers.createDestinationMetadata()
 
-        // Before fix: nil (guard passes → crash in IntentWithdraw)
-        // After fix: non-nil (guard blocks → "Withdrawal Amount Too Small" dialog)
-        #expect(viewModel.negativeWithdrawableAmount != nil)
+        viewModel.amountEnteredAction()
+
+        // Before fix: gate didn't fire → user reached IntentWithdraw → crash.
+        // After fix: gate fires → dialog shown, no navigation.
+        #expect(viewModel.dialogItem?.title == "Withdrawal Amount Too Small")
+        #expect(pushed.isEmpty)
     }
 
-    @Test("negativeWithdrawableAmount is nil for USDF when fee is within amount")
-    func negativeWithdrawableAmount_usdf_feeWithinAmount() {
-        // Fee comes from userFlags (500_000 quarks = $0.50)
-        let viewModel = WithdrawViewModelTestHelpers.createViewModel(withdrawalFeeQuarks: 500_000)
-        viewModel.kind = .sameMint(WithdrawViewModelTestHelpers.createExchangedBalance(
-            mint: .usdf,
-            quarks: 10_000_000 // $10.00 balance
-        ))
-        viewModel.enteredAmount = "5.00" // $5.00 USDF
+    @Test("USDF above the fee advances to the address screen")
+    func usdf_aboveFee_advances() throws {
+        let (container, usdf) = try WithdrawViewModelTestHelpers.makeUSDFFixture(
+            quarks: 100_000_000, // $100 balance
+            withdrawalFeeQuarks: 500_000 // $0.50 fee
+        )
+        var pushed: [WithdrawNavigationPath] = []
+        let viewModel = WithdrawViewModel(container: .mock, sessionContainer: container)
+        viewModel.pushSubstep = { pushed.append($0) }
+        viewModel.kind = .sameMint(usdf)
+        viewModel.enteredAmount = "5.00"
         viewModel.destinationMetadata = WithdrawViewModelTestHelpers.createDestinationMetadata()
 
-        // Fee ($0.50) < amount ($5.00) — no problem, should be nil
-        #expect(viewModel.negativeWithdrawableAmount == nil)
+        viewModel.amountEnteredAction()
+
+        #expect(viewModel.dialogItem == nil)
+        #expect(pushed == [.enterAddress])
     }
 
-    @Test("negativeWithdrawableAmount is nil for USDF when userFlags fee is zero")
-    func negativeWithdrawableAmount_usdf_zeroFee() {
-        // Zero fee in userFlags — no fee applies, never blocks
-        let viewModel = WithdrawViewModelTestHelpers.createViewModel(withdrawalFeeQuarks: 0)
-        viewModel.kind = .sameMint(WithdrawViewModelTestHelpers.createExchangedBalance(
-            mint: .usdf,
-            quarks: 10_000_000
-        ))
+    @Test("USDF with a zero fee advances regardless of amount")
+    func usdf_zeroFee_advances() throws {
+        let (container, usdf) = try WithdrawViewModelTestHelpers.makeUSDFFixture(
+            quarks: 100_000_000,
+            withdrawalFeeQuarks: 0
+        )
+        var pushed: [WithdrawNavigationPath] = []
+        let viewModel = WithdrawViewModel(container: .mock, sessionContainer: container)
+        viewModel.pushSubstep = { pushed.append($0) }
+        viewModel.kind = .sameMint(usdf)
         viewModel.enteredAmount = "0.46"
         viewModel.destinationMetadata = WithdrawViewModelTestHelpers.createDestinationMetadata()
 
-        // Zero fee — should always be nil
-        #expect(viewModel.negativeWithdrawableAmount == nil)
+        viewModel.amountEnteredAction()
+
+        #expect(viewModel.dialogItem == nil)
+        #expect(pushed == [.enterAddress])
     }
 }
