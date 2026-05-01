@@ -2,7 +2,7 @@
 //  WithdrawAddressScreen.swift
 //  Code
 //
-//  Created by Dima Bart on 2022-08-04.
+//  Created by Raul Riera on 2026-04-30.
 //
 
 import SwiftUI
@@ -10,7 +10,6 @@ import FlipcashUI
 import FlipcashCore
 
 struct WithdrawAddressScreen: View {
-
     let promptCurrencyName: String
     @Binding var enteredAddress: String
     let destinationMetadata: DestinationMetadata?
@@ -38,7 +37,7 @@ struct WithdrawAddressScreen: View {
 
                 VStack(spacing: 10) {
                     InputContainer(size: .regular) {
-                        TextField("Enter address", text: $enteredAddress)
+                        TextField("Enter Solana address", text: $enteredAddress)
                             .font(.appTextMedium)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .truncationMode(.middle)
