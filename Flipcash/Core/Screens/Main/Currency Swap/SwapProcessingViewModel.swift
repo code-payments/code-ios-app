@@ -16,9 +16,9 @@ class SwapProcessingViewModel {
     // MARK: - State -
 
     private(set) var currentState: SwapState = .created
-    var displayState: DisplayState = .processing
+    private(set) var displayState: DisplayState = .processing
     private(set) var isPolling: Bool = false
-    var exchangedFiat: ExchangedFiat?
+    private(set) var exchangedFiat: ExchangedFiat?
 
     var title: String {
         switch displayState {
