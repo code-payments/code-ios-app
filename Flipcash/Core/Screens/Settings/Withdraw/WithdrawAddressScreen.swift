@@ -42,7 +42,15 @@ struct WithdrawAddressScreen: View {
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .truncationMode(.middle)
                             .multilineTextAlignment(.leading)
-                            .padding([.leading, .trailing], 15)
+                            .padding(.leading, 44)
+                            .padding(.trailing, 15)
+                            .overlay(alignment: .leading) {
+                                Image(.Icons.solana)
+                                    .resizable()
+                                    .frame(width: 18, height: 14)
+                                    .padding(.leading, 15)
+                                    .allowsHitTesting(false)
+                            }
                     }
                     if let destinationMetadata {
                         WithdrawAddressValidityRow(
