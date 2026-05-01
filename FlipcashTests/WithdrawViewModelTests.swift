@@ -145,8 +145,8 @@ struct WithdrawViewModelTests {
         #expect(viewModel.canCompleteWithdrawal == args.expected)
     }
 
-    @Test("canCompleteWithdrawal accepts .owner and .token for sameMint kind",
-          arguments: [DestinationMetadata.Kind.owner, .token])
+    @Test("canCompleteWithdrawal accepts every kind for sameMint when isValid=true",
+          arguments: [DestinationMetadata.Kind.owner, .token, .unknown])
     func canCompleteWithdrawal_sameMint_permissiveForValidKinds(kind: DestinationMetadata.Kind) throws {
         let (container, balance) = try WithdrawViewModelTestHelpers.makeUSDFFixture()
         let viewModel = WithdrawViewModel(container: .mock, sessionContainer: container)
