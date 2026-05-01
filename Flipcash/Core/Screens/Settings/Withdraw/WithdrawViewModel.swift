@@ -26,7 +26,8 @@ class WithdrawViewModel {
     @ObservationIgnored var popSubsteps: (Int) -> Void = { _ in }
 
     var withdrawButtonState: ButtonState = .normal
-    var selectedBalance: ExchangedBalance?
+    var kind: WithdrawKind?
+
     var enteredAmount: String = ""
     var enteredAddress: String = "" {
         didSet {
@@ -59,40 +60,37 @@ class WithdrawViewModel {
     }
 
     /// Returns the amount by which the fee exceeds the entered amount, or nil if the fee is covered.
-    /// Used by `completeWithdrawalAction` to block withdrawals where the initialization fee exceeds the amount,
+    /// Used by `completeWithdrawalAction` to block withdrawals where the fee exceeds the amount,
     /// and by the summary screen to display the negative delta.
     var negativeWithdrawableAmount: FiatAmount? {
-        guard let enteredFiat, let destinationMetadata, destinationMetadata.requiresInitialization else {
-            return nil
-        }
+        guard let enteredFiat else { return nil }
         guard let fee = resolvedFee else { return nil }
         guard fee.onChain >= enteredFiat.onChainAmount else { return nil }
         return (fee.usd - enteredFiat.usdfValue).converting(to: enteredFiat.currencyRate)
     }
 
     var withdrawableAmount: ExchangedFiat? {
-        guard let enteredFiat, let destinationMetadata else { return nil }
-        guard destinationMetadata.requiresInitialization, destinationMetadata.fee.quarks > 0 else {
+        guard let enteredFiat, destinationMetadata != nil else { return nil }
+        guard let fee = resolvedFee, fee.onChain.quarks > 0 else {
             return enteredFiat
         }
-        guard let fee = resolvedFee else { return nil }
         // subtractingFee would underflow TokenAmount; nil signals overflow.
         guard fee.onChain <= enteredFiat.onChainAmount else { return nil }
         return enteredFiat.subtractingFee(fee.onChain)
     }
 
-    /// Destination fee resolved against the entered mint. USDF users pay in
-    /// USDC directly; bonded users pay via the bonding curve, so the on-chain
-    /// fee is in bonded tokens and needs the curve's USD valuation for any
-    /// fiat arithmetic against the entered amount.
+    /// Withdrawal fee resolved against the entered mint. USDF withdrawals pay in
+    /// USDF directly; bonded token withdrawals pay via the bonding curve, so the
+    /// on-chain fee is in bonded tokens and needs the curve's USD valuation for
+    /// any fiat arithmetic against the entered amount.
     private var resolvedFee: (onChain: TokenAmount, usd: FiatAmount)? {
-        guard let enteredFiat, let destinationMetadata, destinationMetadata.fee.quarks > 0 else {
-            return nil
-        }
+        guard let enteredFiat else { return nil }
+        let withdrawalFee = session.userFlags?.withdrawalFeeAmount ?? .zero(mint: .usdf)
+        guard withdrawalFee.quarks > 0 else { return nil }
         if enteredFiat.mint == .usdf {
             return (
-                onChain: destinationMetadata.fee,
-                usd: FiatAmount.usd(destinationMetadata.fee.decimalValue)
+                onChain: withdrawalFee,
+                usd: FiatAmount.usd(withdrawalFee.decimalValue)
             )
         }
         guard let exchangedFee else { return nil }
@@ -100,10 +98,11 @@ class WithdrawViewModel {
     }
 
     /// Gate for the Enter-Amount screen's Next button. Disables when the
-    /// entered amount exceeds the displayed balance cap so `EnterAmountView`
-    /// turns the subtitle red.
+    /// entered amount exceeds the displayed balance cap (so `EnterAmountView`
+    /// turns the subtitle red) or fails to cover the withdrawal fee.
     var canProceedToAddress: Bool {
         guard enteredFiat != nil else { return false }
+        guard negativeWithdrawableAmount == nil else { return false }
         return EnterAmountCalculator.isWithinDisplayLimit(
             enteredAmount: enteredAmount,
             max: maxWithdrawLimit.nativeAmount
@@ -112,28 +111,87 @@ class WithdrawViewModel {
 
     var canCompleteWithdrawal: Bool {
         guard
-            let enteredFiat = enteredFiat,
-            let _ = enteredDestination,
-            let destinationMetadata = destinationMetadata,
+            let kind,
+            let enteredFiat,
+            enteredDestination != nil,
+            let destinationMetadata,
             destinationMetadata.isValid
         else {
             return false
         }
-
-        switch session.hasSufficientFunds(for: enteredFiat) {
-        case .sufficient:
-            return true
-        case .insufficient:
+        if !kind.acceptsTokenAccount && destinationMetadata.kind == .token {
             return false
+        }
+        switch session.hasSufficientFunds(for: enteredFiat) {
+        case .sufficient:   return true
+        case .insufficient: return false
         }
     }
 
     var withdrawTitle: String {
-        if let balance = selectedBalance {
+        if let balance = kind?.balance {
             return "Withdraw \(balance.stored.name)"
         } else {
             return "Withdraw"
         }
+    }
+
+    /// Whether the summary's layered card includes the "Amount in <name>" row
+    /// (passes through `kind.showsAmountInTokenLine`, defaulting to false when
+    /// `kind` is nil — e.g., before a balance has been picked).
+    var showsAmountInTokenLine: Bool {
+        kind?.showsAmountInTokenLine ?? false
+    }
+
+    /// On-chain token quantity formatted for the bonded summary's "Amount in <name>" row.
+    /// Uses the mint's decimal scaling (e.g. 297_902_148_685 quarks → "29.7902148685"
+    /// for a 10-decimal Jeffy token). Nil for USDF (1:1 USD peg makes this redundant).
+    var amountInTokenText: String? {
+        guard kind?.showsAmountInTokenLine == true else { return nil }
+        guard let withdrawableAmount else { return nil }
+        return withdrawableAmount.onChainAmount.decimalValue.formatted()
+    }
+
+    /// Single string rendered inside the "You Receive" box on the summary.
+    /// USDF: native fiat amount (e.g. "$49.50"). Bonded: scaled token quantity
+    /// (matches `amountInTokenText` — same number, different framing on screen).
+    var youReceiveDisplayValue: String? {
+        guard let withdrawableAmount else { return nil }
+        switch kind {
+        case .sameMint:
+            return withdrawableAmount.onChainAmount.decimalValue.formatted()
+        case .usdfToUsdc:
+            return withdrawableAmount.nativeAmount.formatted()
+        case .none:
+            return nil
+        }
+    }
+
+    /// Logo URL for the You Receive box. For both kinds the logo comes from
+    /// the destination mint's `MintMetadata.imageURL` — same `RemoteImage`
+    /// path the rest of the app uses for token avatars.
+    var destinationLogoURL: URL? {
+        switch kind {
+        case .sameMint(let balance):
+            return balance.stored.imageURL
+        case .usdfToUsdc:
+            return MintMetadata.usdc.imageURL
+        case .none:
+            return nil
+        }
+    }
+
+    /// Subtitle for the amount-entry screen. "Enter more than $X.XX" when the
+    /// entered amount is at or below the fee (a hard gate that disables Next).
+    /// Otherwise the "Enter up to $Y.YY" balance-with-limit copy.
+    var amountSubtitle: EnterAmountView.Subtitle {
+        if let enteredFiat,
+           negativeWithdrawableAmount != nil,
+           let fee = resolvedFee {
+            let feeInEntryCurrency = fee.usd.converting(to: enteredFiat.currencyRate)
+            return .custom("Enter more than \(feeInEntryCurrency.formatted())")
+        }
+        return .balanceWithLimit(maxWithdrawLimit)
     }
 
     var maxWithdrawLimit: ExchangedFiat {
@@ -144,7 +202,7 @@ class WithdrawViewModel {
             supplyQuarks: nil
         )
 
-        guard let mint = selectedBalance?.stored.mint else {
+        guard let mint = kind?.sourceMint else {
             return zero
         }
 
@@ -160,25 +218,24 @@ class WithdrawViewModel {
             return nil
         }
 
-        guard let selectedBalance else {
+        guard let balance = kind?.balance else {
             return nil
         }
 
-        guard let supplyQuarks = selectedBalance.stored.supplyFromBonding else {
+        guard let supplyQuarks = balance.stored.supplyFromBonding else {
             return nil
         }
 
-        guard let destinationMetadata else {
-            return nil
-        }
+        let withdrawalFee = session.userFlags?.withdrawalFeeAmount ?? .zero(mint: .usdf)
+        guard withdrawalFee.quarks > 0 else { return nil }
 
-        // Fee is charged in USDC, so use oneToOne
+        // Fee is charged in USDF, so use oneToOne
         return ExchangedFiat.compute(
-            fromEntered: FiatAmount(value: destinationMetadata.fee.decimalValue, currency: Rate.oneToOne.currency),
+            fromEntered: FiatAmount(value: withdrawalFee.decimalValue, currency: Rate.oneToOne.currency),
             rate: .oneToOne,
             mint: enteredFiat.mint,
             supplyQuarks: supplyQuarks,
-            balance: selectedBalance.stored.usdf
+            balance: balance.stored.usdf
         )
     }
 
@@ -206,7 +263,7 @@ class WithdrawViewModel {
             return
         }
 
-        guard let mint = selectedBalance?.stored.mint else {
+        guard let mint = kind?.destinationMint else {
             return
         }
 
@@ -218,7 +275,7 @@ class WithdrawViewModel {
     /// Resolves the pin for the selected balance's mint and computes the
     /// submission amount against it — one fetch for both.
     func prepareSubmission() async -> (amount: ExchangedFiat, pinnedState: VerifiedState)? {
-        guard let mint = selectedBalance?.stored.mint else { return nil }
+        guard let mint = kind?.sourceMint else { return nil }
         let currency = ratesController.entryCurrency
         guard let pin = await ratesController.currentPinnedState(for: currency, mint: mint) else {
             return nil
@@ -229,14 +286,20 @@ class WithdrawViewModel {
         return (amount, pin)
     }
 
-    /// Preview passes `nil` for `pinnedSupplyQuarks` (falls back to live balance);
-    /// submit passes the pinned supply so rate and supply come from one proof.
+    /// Translates `enteredAmount` to an `ExchangedFiat` clamped to the on-chain
+    /// balance. The clamp absorbs display-rounding overshoot (`.halfUp`
+    /// formatter, `scaleUpInt` HALF_UP) so the submitted quarks can never
+    /// exceed `balance.stored.quarks`.
+    ///
+    /// - Parameter pinnedSupplyQuarks: pass `nil` for the display preview
+    ///   (falls back to live balance supply) and the pinned proof's supply
+    ///   for submission.
     private func computeAmount(using rate: Rate, pinnedSupplyQuarks: UInt64?) -> ExchangedFiat? {
         guard !enteredAmount.isEmpty else {
             return nil
         }
 
-        guard let selectedBalance else {
+        guard let balance = kind?.balance else {
             return nil
         }
 
@@ -244,53 +307,46 @@ class WithdrawViewModel {
             return nil
         }
 
-        let mint = selectedBalance.stored.mint
-
-        // Only applies for bonded tokens
-        if mint != .usdf {
-            guard let supplyQuarks = pinnedSupplyQuarks ?? selectedBalance.stored.supplyFromBonding else {
+        let mint = balance.stored.mint
+        // ExchangedFiat.compute ignores supplyQuarks for USDF (no bonding curve);
+        // bonded mints require it.
+        let supplyQuarks: UInt64
+        if mint == .usdf {
+            supplyQuarks = 0
+        } else {
+            guard let bondedSupply = pinnedSupplyQuarks ?? balance.stored.supplyFromBonding else {
                 return nil
             }
-
-            let entered = FiatAmount(value: amount, currency: rate.currency)
-
-            if let viaCurve = ExchangedFiat.compute(
-                fromEntered: entered,
-                rate: rate,
-                mint: mint,
-                supplyQuarks: supplyQuarks
-            ) {
-                return viaCurve
-            }
-
-            // Curve could not price the entered amount (requested > TVL).
-            // Synthesize so the amount screen's `canProceedToAddress` flips
-            // false and `EnterAmountView` turns the subtitle red.
-            return ExchangedFiat(
-                onChainAmount: TokenAmount(
-                    quarks: selectedBalance.stored.quarks + 1,
-                    mint: mint
-                ),
-                nativeAmount: entered,
-                currencyRate: rate
-            )
-        } else {
-            return ExchangedFiat(
-                nativeAmount: FiatAmount(value: amount, currency: rate.currency),
-                rate: rate
-            )
+            supplyQuarks = bondedSupply
         }
+
+        return ExchangedFiat.compute(
+            fromEntered: FiatAmount(value: amount, currency: rate.currency),
+            rate: rate,
+            mint: mint,
+            supplyQuarks: supplyQuarks,
+            balance: balance.stored.usdf,
+            tokenBalanceQuarks: balance.stored.quarks
+        )
     }
 
     // MARK: - Actions -
 
     func selectCurrency(_ balance: ExchangedBalance) {
-        selectedBalance = balance
+        let kindForBalance: WithdrawKind = balance.stored.mint == .usdf
+            ? .usdfToUsdc(balance)
+            : .sameMint(balance)
+        self.kind = kindForBalance
         enteredAmount = ""
         enteredAddress = ""
         destinationMetadata = nil
         withdrawButtonState = .normal
-        pushEnterAmountScreen()
+
+        if kindForBalance.showsIntroScreen {
+            pushIntroScreen()
+        } else {
+            pushEnterAmountScreen()
+        }
     }
 
     func amountEnteredAction() {
@@ -319,7 +375,7 @@ class WithdrawViewModel {
             dialogItem = .init(
                 style: .destructive,
                 title: "Withdrawal Amount Too Small",
-                subtitle: "Your withdrawal amount is too small to cover the one time fee. Please try a different amount",
+                subtitle: "Your withdrawal amount is too small to cover the fee. Please try a different amount",
                 dismissable: true
             ) {
                 .okay(kind: .standard) { [weak self] in
@@ -345,9 +401,7 @@ class WithdrawViewModel {
     }
 
     private func completeWithdrawal() {
-        guard let destinationMetadata else {
-            return
-        }
+        guard let kind, let destinationMetadata else { return }
 
         withdrawButtonState = .loading
         Task {
@@ -359,42 +413,68 @@ class WithdrawViewModel {
 
             let fee: TokenAmount
             if amountToWithdraw.mint == .usdf {
-                fee = destinationMetadata.fee
+                fee = session.userFlags?.withdrawalFeeAmount ?? .zero(mint: .usdf)
             } else {
                 fee = exchangedFee?.onChainAmount ?? .zero(mint: .usdf)
             }
 
             do {
-                try await session.withdraw(
-                    exchangedFiat: amountToWithdraw,
-                    verifiedState: verifiedState,
-                    fee: fee,
-                    to: destinationMetadata
-                )
+                switch kind {
+                case .sameMint:
+                    try await session.withdraw(
+                        exchangedFiat: amountToWithdraw,
+                        verifiedState: verifiedState,
+                        fee: fee,
+                        to: destinationMetadata
+                    )
+                case .usdfToUsdc:
+                    guard let destinationOwner = enteredDestination else {
+                        withdrawButtonState = .normal
+                        dialogItem = .somethingWentWrong
+                        return
+                    }
+                    _ = try await client.withdrawAsUSDC(
+                        amount: amountToWithdraw,
+                        verifiedState: verifiedState,
+                        destinationOwner: destinationOwner,
+                        fee: fee,
+                        sourceCluster: session.owner
+                    )
+                    session.updatePostTransaction()
+                    Analytics.withdrawal(exchangedFiat: amountToWithdraw, successful: true, error: nil)
+                }
 
                 try await Task.delay(milliseconds: 500)
                 withdrawButtonState = .success
-
                 try await Task.delay(milliseconds: 500)
                 showSuccessfulWithdrawalDialog()
 
             } catch Session.Error.verifiedStateStale {
-                // Session.assertFresh already logged this. Reset button only.
                 withdrawButtonState = .normal
+                dialogItem = .staleRate
             } catch {
-                ErrorReporting.captureError(
-                    error,
-                    reason: "Failed to withdraw",
-                    metadata: [
-                        "mint": amountToWithdraw.mint.base58,
-                        "amount": amountToWithdraw.nativeAmount.formatted(),
-                        "quarks": "\(amountToWithdraw.onChainAmount.quarks)",
-                        "fee": "\(fee.quarks)",
-                        "destination": destinationMetadata.destination.token.base58,
-                        "requiresInit": "\(destinationMetadata.requiresInitialization)",
-                    ]
-                )
+                // .usdfToUsdc bypasses Session and reports/emits analytics here;
+                // .sameMint flows through Session.withdraw, which owns both.
+                switch kind {
+                case .usdfToUsdc:
+                    ErrorReporting.captureError(
+                        error,
+                        reason: "Failed to withdraw",
+                        metadata: [
+                            "mint": amountToWithdraw.mint.base58,
+                            "amount": amountToWithdraw.nativeAmount.formatted(),
+                            "quarks": "\(amountToWithdraw.onChainAmount.quarks)",
+                            "fee": "\(fee.quarks)",
+                            "destination": destinationMetadata.destination.token.base58,
+                            "requiresInit": "\(destinationMetadata.requiresInitialization)",
+                        ]
+                    )
+                    Analytics.withdrawal(exchangedFiat: amountToWithdraw, successful: false, error: error)
+                case .sameMint:
+                    break
+                }
                 withdrawButtonState = .normal
+                dialogItem = .somethingWentWrong
             }
         }
     }
@@ -428,6 +508,11 @@ class WithdrawViewModel {
         guard popsNeeded > 0 else { return }
         popSubsteps(popsNeeded)
         substepStack.removeLast(popsNeeded)
+    }
+
+    private func pushIntroScreen() {
+        pushSubstep(.intro)
+        substepStack.append(.intro)
     }
 
     func pushEnterAmountScreen() {
@@ -473,7 +558,68 @@ class WithdrawViewModel {
 }
 
 enum WithdrawNavigationPath {
+    case intro
     case enterAmount
     case enterAddress
     case confirmation
+}
+
+enum WithdrawKind: Equatable {
+    /// Source mint == destination mint. Legacy IntentWithdraw path.
+    case sameMint(ExchangedBalance)
+
+    /// USDF balance → USDC wallet via Coinbase Stable Swapper.
+    case usdfToUsdc(ExchangedBalance)
+
+    var balance: ExchangedBalance {
+        switch self {
+        case .sameMint(let b), .usdfToUsdc(let b): return b
+        }
+    }
+
+    var sourceMint: PublicKey { balance.stored.mint }
+
+    /// Mint that lands in the destination wallet. Used by `fetchDestinationMetadata`
+    /// so the server-side ATA existence check runs against the right mint.
+    var destinationMint: PublicKey {
+        switch self {
+        case .sameMint(let b): return b.stored.mint
+        case .usdfToUsdc:      return .usdc
+        }
+    }
+
+    /// Name shown on the address screen and the summary's "You Receive" box.
+    /// Always the *destination* currency.
+    var destinationCurrencyName: String {
+        switch self {
+        case .sameMint(let b): return b.stored.name
+        case .usdfToUsdc:      return "USDC"
+        }
+    }
+
+    /// Whether `accountType == .token` is accepted at the address pill. The
+    /// usdfToUsdc RPC requires a 32-byte owner pubkey — token accounts can't
+    /// be resolved server-side.
+    var acceptsTokenAccount: Bool {
+        switch self {
+        case .sameMint:    return true
+        case .usdfToUsdc:  return false
+        }
+    }
+
+    /// Whether the picker pushes the intro screen before amount entry.
+    var showsIntroScreen: Bool {
+        switch self {
+        case .sameMint:    return false
+        case .usdfToUsdc:  return true
+        }
+    }
+
+    /// Whether the summary's layered card includes the "Amount in <name>" line.
+    var showsAmountInTokenLine: Bool {
+        switch self {
+        case .sameMint:    return true
+        case .usdfToUsdc:  return false
+        }
+    }
 }

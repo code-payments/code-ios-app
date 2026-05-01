@@ -133,6 +133,18 @@ public struct MintMetadata: Equatable, Sendable {
                 lockDurationInDays: Int(TimelockDerivedAccounts.lockoutInDays)),
             launchpadMetadata: nil
         )
+
+    public static let usdc: MintMetadata =
+        .init(
+            address: PublicKey.usdc,
+            decimals: 6,
+            name: "USDC",
+            symbol: "USDC",
+            description: "",
+            imageURL: URL(string: "https://raw.githubusercontent.com/p2p-org/solana-token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png"),
+            vmMetadata: nil,
+            launchpadMetadata: nil
+        )
 }
 
 // MARK: - VMMetadata -

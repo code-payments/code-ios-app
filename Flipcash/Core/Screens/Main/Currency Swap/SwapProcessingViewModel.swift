@@ -26,9 +26,10 @@ class SwapProcessingViewModel {
             return "This Will Take a Minute"
         case .success:
             if let exchangedFiat {
-                if swapType.isBuy {
+                switch swapType {
+                case .buyWithReserves, .buyWithPhantom, .buyWithCoinbase:
                     return "\(exchangedFiat.nativeAmount.formatted()) of \(currencyName)"
-                } else {
+                case .sell:
                     return "\(exchangedFiat.nativeAmount.formatted()) of USDF"
                 }
             }
@@ -43,7 +44,10 @@ class SwapProcessingViewModel {
         case .processing:
             return "This transaction typically takes about a minute. You may leave the app while it completes"
         case .success:
-            return "was just added to your Flipcash wallet"
+            switch swapType {
+            case .buyWithReserves, .buyWithPhantom, .buyWithCoinbase, .sell:
+                return "was just added to your Flipcash wallet"
+            }
         case .failed:
             return "Please try again later"
         }
@@ -63,9 +67,10 @@ class SwapProcessingViewModel {
     var navigationTitle: String {
         switch displayState {
         case .processing:
-            if swapType.isBuy {
+            switch swapType {
+            case .buyWithReserves, .buyWithPhantom, .buyWithCoinbase:
                 "Purchasing \(currencyName)"
-            } else {
+            case .sell:
                 "Selling \(currencyName)"
             }
         case .success:
@@ -198,16 +203,9 @@ enum SwapError: Error {
 
 // MARK: - SwapType -
 
-enum SwapType {
+enum SwapType: CaseIterable {
     case buyWithReserves
     case buyWithPhantom
     case buyWithCoinbase
     case sell
-
-    var isBuy: Bool {
-        switch self {
-        case .buyWithReserves, .buyWithPhantom, .buyWithCoinbase: true
-        case .sell: false
-        }
-    }
 }

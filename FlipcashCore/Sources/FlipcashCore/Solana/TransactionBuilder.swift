@@ -52,6 +52,9 @@ extension TransactionBuilder {
             // New-currency launches go through TransactionBuilder.swapNewCurrency,
             // which consumes the ReserveNewCurrency params directly.
             fatalError("TransactionBuilder.swap cannot be used with a new-currency launch")
+        case .stablecoin:
+            // Stablecoin (USDF → USDC) withdraws go through swapUsdfToUsdc.
+            fatalError("TransactionBuilder.swap cannot be used with a stablecoin withdraw")
         }
         
         let coreMint = MintMetadata.usdf
@@ -69,7 +72,7 @@ extension TransactionBuilder {
                 minOutput: minOutput,
                 maxSlippage: slippageBasisPoints,
             )
-            
+
         case .sell(let sourceMint):
             SwapInstructionBuilder.buildSellInstructions(
                 serverParameters: responseParams,
@@ -82,12 +85,53 @@ extension TransactionBuilder {
                 minOutput: minOutput,
                 maxSlippage: slippageBasisPoints,
             )
+
+        case .withdraw:
+            // Stablecoin (USDF → USDC) withdraws go through swapUsdfToUsdc.
+            fatalError("TransactionBuilder.swap cannot build a stablecoin withdraw transaction")
         }
         
         return SolanaTransaction.init(
             payer: payer,
             recentBlockhash: blockhash,
             addressLookupTables: alts,
+            instructions: instructions
+        )
+    }
+
+    /// Builds the USDF → USDC withdraw transaction via the Coinbase Stable Swapper.
+    ///
+    /// - Parameters:
+    ///   - serverParameters: Stablecoin server params (payer, nonce, blockhash, compute budget, etc.)
+    ///   - authority: Flipcash user's public key — owner of the VM swap accounts.
+    ///   - swapAuthority: One-time ephemeral keypair public key that signs the Coinbase swap.
+    ///   - destinationOwner: Owner of the account where USDC tokens land.
+    ///   - amount: USDF quarks being swapped.
+    ///   - feeAmount: USDF quarks taken as the VM transfer fee.
+    static func swapUsdfToUsdc(
+        serverParameters: SwapResponseServerParameters.CoinbaseStableSwapServerParameters,
+        authority: PublicKey,
+        swapAuthority: PublicKey,
+        destinationOwner: PublicKey,
+        amount: UInt64,
+        feeAmount: UInt64
+    ) -> SolanaTransaction {
+        let instructions = SwapInstructionBuilder.buildUsdfToUsdcSwapInstructions(
+            serverParameters: serverParameters,
+            authority: authority,
+            swapAuthority: swapAuthority,
+            destinationOwner: destinationOwner,
+            fromMintMetadata: .usdf,
+            toMintMetadata: .usdc,
+            amount: amount,
+            feeAmount: feeAmount,
+            minOutput: amount
+        )
+
+        return SolanaTransaction(
+            payer: serverParameters.payer,
+            recentBlockhash: serverParameters.blockhash,
+            addressLookupTables: serverParameters.alts,
             instructions: instructions
         )
     }

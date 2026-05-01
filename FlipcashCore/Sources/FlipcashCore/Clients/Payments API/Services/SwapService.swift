@@ -40,6 +40,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
         fundingSource: FundingSource,
         owner: KeyPair,
         isNewCurrencyLaunch: Bool = false,
+        kind: VerifiedSwapMetadata.ClientParameters.Kind = .reserve,
         completion: @escaping (Result<SwapMetadata, ErrorSwap>) -> Void
     ) {
         let fromMint = direction.sourceMint.address
@@ -93,6 +94,10 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                     completion(.failure(.invalidSwap))
                     return
                 }
+            case .withdraw:
+                // No VM / launchpad validation: the destination is USDC (an external
+                // SPL token) and validation is server-side via CoinbaseStableSwapperSwapHandler.
+                break
             }
         }
 
@@ -113,7 +118,8 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
             toMint: toMint,
             amount: amount,
             feeAmount: resolvedFeeAmount,
-            fundingSource: fundingSource
+            fundingSource: fundingSource,
+            kind: kind
         )
 
         // Intentionally creates a retain-cycle using closures to ensure that we have
@@ -261,10 +267,56 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                         "blockhash": "\(params.blockhash.base58)"
                     ])
 
-                case .stablecoin:
-                    logger.error("Stablecoin swap server parameters not yet supported")
-                    _ = reference.stream?.sendEnd()
-                    completion(.failure(.unknown))
+                case .stablecoin(let serverParams):
+                    guard let serverParameters = SwapResponseServerParameters.CoinbaseStableSwapServerParameters(serverParams) else {
+                        logger.error("Failed to parse stablecoin swap server parameters", metadata: [
+                            "swapId": "\(swapId.publicKey.base58)"
+                        ])
+                        _ = reference.stream?.sendEnd()
+                        completion(.failure(.unknown))
+                        return
+                    }
+
+                    guard case .stablecoin(let destinationOwner) = clientParameters.kind else {
+                        logger.error("Stablecoin swap missing destinationOwner in client parameters", metadata: [
+                            "swapId": "\(swapId.publicKey.base58)"
+                        ])
+                        _ = reference.stream?.sendEnd()
+                        completion(.failure(.unknown))
+                        return
+                    }
+
+                    let stablecoinServerParams = VerifiedSwapMetadata.ServerParameters(
+                        nonce: serverParameters.nonce,
+                        blockhash: serverParameters.blockhash
+                    )
+                    receivedServerParameters = stablecoinServerParams
+
+                    let transaction = TransactionBuilder.swapUsdfToUsdc(
+                        serverParameters: serverParameters,
+                        authority: owner.publicKey,
+                        swapAuthority: swapAuthority.publicKey,
+                        destinationOwner: destinationOwner,
+                        amount: amount.quarks,
+                        feeAmount: resolvedFeeAmount.quarks
+                    )
+                    let signatures = transaction.signatures(using: owner, swapAuthority)
+                    verifiedMetadataSignature = signatures.first
+
+                    let submitSignature = Ocp_Transaction_V1_StatefulSwapRequest.with {
+                        $0.submitSignatures = .with {
+                            $0.transactionSignatures = signatures.map { $0.proto }
+                        }
+                    }
+
+                    _ = reference.stream?.sendMessage(submitSignature)
+
+                    logger.info("Stablecoin swap submitting signatures", metadata: [
+                        "signatureCount": "\(signatures.count)",
+                        "destinationOwner": "\(destinationOwner.base58)",
+                        "nonce": "\(serverParameters.nonce.base58)",
+                        "blockhash": "\(serverParameters.blockhash.base58)"
+                    ])
 
                 case .none:
                     logger.error("Unexpected empty server parameter kind in swap")
@@ -375,20 +427,27 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
         // which wraps the client parameters in:
         //   VerifiedSwapMetadata { currency_creator { client_parameters = ... } }
         do {
-            let clientProto = clientParameters.proto
-
-            // Build the full VerifiedSwapMetadata proto structure
-            let verifiedMetadataProto = Ocp_Transaction_V1_VerifiedSwapMetadata.with {
-                $0.reserve = .with {
-                    $0.clientParameters = clientProto
-                }
+            // Resolve proto representation once; both verifiedMetadataProto and
+            // startRequest.initiate.kind use the same serialized form.
+            let initiateKindProto: Ocp_Transaction_V1_StatefulSwapRequest.Initiate.OneOf_Kind
+            let verifiedMetadataProto: Ocp_Transaction_V1_VerifiedSwapMetadata
+            switch clientParameters.kind {
+            case .stablecoin:
+                let sp = clientParameters.stablecoinProto
+                initiateKindProto = .stablecoin(sp)
+                verifiedMetadataProto = .with { $0.stablecoin = .with { $0.clientParameters = sp } }
+            case .reserve:
+                let rp = clientParameters.proto
+                initiateKindProto = .reserve(rp)
+                verifiedMetadataProto = .with { $0.reserve = .with { $0.clientParameters = rp } }
             }
+
             let serialized = try verifiedMetadataProto.serializedData()
             let proof = owner.sign(serialized)
 
             let startRequest = Ocp_Transaction_V1_StatefulSwapRequest.with {
                 $0.initiate = .with {
-                    $0.kind = .reserve(clientProto)
+                    $0.kind = initiateKindProto
                     $0.owner = owner.publicKey.solanaAccountID
                     $0.swapAuthority = swapAuthority.publicKey.solanaAccountID
                     $0.proofSignature = proof.proto

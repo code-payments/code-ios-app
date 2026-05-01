@@ -16,21 +16,21 @@ public struct Activity: Identifiable, Sendable, Equatable, Hashable {
     public let exchangedFiat: ExchangedFiat
     public let date: Date
     public let metadata: Metadata?
-    
+
     public var cancellableCashLinkMetadata: CashLinkMetadata? {
         switch state {
         case .pending:
             if case .cashLink(let cashLinkMetadata) = metadata, cashLinkMetadata.canCancel {
                 return cashLinkMetadata
             }
-            
+
         case .completed, .unknown:
             break
         }
-        
+
         return nil
     }
-    
+
     public init(id: PublicKey, state: State, kind: Kind, title: String, exchangedFiat: ExchangedFiat, date: Date, metadata: Metadata?) {
         self.id = id
         self.state = state

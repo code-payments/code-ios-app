@@ -42,14 +42,32 @@ struct IntentWithdrawTests {
     // TokenAmount subtraction, not a throwable error — callers are expected to
     // validate sufficient-funds before constructing a withdraw intent.
 
-    @Test("Single transfer when fee condition is not met", arguments: [
-        (feeQuarks: 500_000 as UInt64, requiresInit: false),
-        (feeQuarks: 0 as UInt64, requiresInit: true),
-    ])
-    func singleTransferPath(feeQuarks: UInt64, requiresInit: Bool) throws {
+    @Test("With non-zero fee and no initialization required, still emits ActionTransfer (entered − fee) + ActionFeeTransfer")
+    func actionGroup_withNonZeroFee_noRequiresInit_includesFeeTransfer() throws {
         let intent = try makeIntent(
             quarks: 5_000_000,
-            feeQuarks: feeQuarks,
+            feeQuarks: 500_000,
+            requiresInitialization: false
+        )
+
+        #expect(intent.actionGroup.actions.count == 2)
+
+        let transfer = try #require(intent.actionGroup.actions[0] as? ActionTransfer)
+        let feeTransfer = try #require(intent.actionGroup.actions[1] as? ActionFeeTransfer)
+
+        // Fee subtracted from withdrawal: 5.00 - 0.50 = 4.50
+        #expect(transfer.amount.quarks == 4_500_000)
+        #expect(feeTransfer.amount.quarks == 500_000)
+    }
+
+    @Test("Single transfer when fee is zero, regardless of initialization requirement", arguments: [
+        false,
+        true,
+    ])
+    func singleTransferPath_whenZeroFee(requiresInit: Bool) throws {
+        let intent = try makeIntent(
+            quarks: 5_000_000,
+            feeQuarks: 0,
             requiresInitialization: requiresInit
         )
 
@@ -86,7 +104,10 @@ struct IntentWithdrawTests {
         let intent = try makeIntent(quarks: 5_000_000, feeQuarks: 0, requiresInitialization: false)
         let metadata = intent.metadata()
 
-        guard case .sendPublicPayment = metadata.type else {
+        switch metadata.type {
+        case .sendPublicPayment:
+            break
+        case .openAccounts, .receivePaymentsPublicly, .publicDistribution, .none:
             Issue.record("Expected sendPublicPayment metadata")
             return
         }

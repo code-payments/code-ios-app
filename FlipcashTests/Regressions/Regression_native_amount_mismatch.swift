@@ -116,7 +116,7 @@ struct Regression_native_amount_mismatch {
             container: .mock,
             sessionContainer: sessionContainer
         )
-        vm.selectedBalance = WithdrawViewModelTestHelpers.createExchangedBalance(quarks: 10_000_000)
+        vm.kind = .sameMint(WithdrawViewModelTestHelpers.createExchangedBalance(quarks: 10_000_000))
         vm.enteredAmount = "1"
 
         let submission = try #require(await vm.prepareSubmission())
@@ -194,7 +194,7 @@ struct Regression_native_amount_mismatch {
             container: .mock,
             sessionContainer: sessionContainer
         )
-        vm.selectedBalance = WithdrawViewModelTestHelpers.createExchangedBalance(quarks: 10_000_000)
+        vm.kind = .sameMint(WithdrawViewModelTestHelpers.createExchangedBalance(quarks: 10_000_000))
         vm.enteredAmount = "1"
 
         let submission = await vm.prepareSubmission()

@@ -237,6 +237,78 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
         }
     }
 
+    /// Withdraws USDF to a Solana wallet as USDC via Coinbase Stable Swapper.
+    /// Phase 1 + Phase 2 mirroring `buy()`: stateful swap stream → IntentFundSwap submission.
+    func withdrawAsUSDC(
+        amount: ExchangedFiat,
+        verifiedState: VerifiedState,
+        destinationOwner: PublicKey,
+        fee: TokenAmount,
+        sourceCluster: AccountCluster,
+        completion: @Sendable @escaping (Result<SwapId, ErrorSwap>) -> Void
+    ) {
+        let swapId = SwapId.generate()
+        let fundingIntentID = KeyPair.generate()!.publicKey
+        let ownerKeyPair = sourceCluster.authority.keyPair
+
+        logger.info("Starting USDF withdrawal", metadata: [
+            "amount": "\(amount.nativeAmount.formatted())",
+            "destinationOwner": "\(destinationOwner.base58)",
+            "fee": "\(fee.quarks)"
+        ])
+
+        // Phase 1: open the StatefulSwap stream with the stablecoin variant
+        let netSwapQuarks = amount.onChainAmount.quarks > fee.quarks
+            ? amount.onChainAmount.quarks - fee.quarks
+            : 0
+        let netSwapAmount = TokenAmount(quarks: netSwapQuarks, mint: amount.onChainAmount.mint)
+
+        swapService.swap(
+            swapId: swapId,
+            direction: .withdraw(mint: .usdc),
+            amount: netSwapAmount,
+            feeAmount: fee,
+            fundingSource: .submitIntent(id: fundingIntentID),
+            owner: ownerKeyPair,
+            kind: .stablecoin(destinationOwner: destinationOwner)
+        ) { result in
+            switch result {
+            case .success(let metadata):
+                logger.info("Swap state created", metadata: [
+                    "swapId": "\(swapId.publicKey.base58)"
+                ])
+
+                // Phase 2: fund via IntentFundSwap (same pattern as buy())
+                let fundingIntent = IntentFundSwap(
+                    intentID: fundingIntentID,
+                    swapId: metadata.swapId,
+                    sourceCluster: sourceCluster,
+                    amount: amount,
+                    verifiedState: verifiedState,
+                    fromMint: .usdf,
+                    toMint: .usdc
+                )
+
+                self.submit(intent: fundingIntent, owner: ownerKeyPair) { fundingResult in
+                    switch fundingResult {
+                    case .success:
+                        logger.info("USDF withdrawal completed", metadata: [
+                            "intentId": "\(fundingIntentID.base58)"
+                        ])
+                        completion(.success(swapId))
+                    case .failure(let error):
+                        logger.error("Failed to fund USDF withdrawal", metadata: ["error": "\(error)"])
+                        completion(.failure(.unknown))
+                    }
+                }
+
+            case .failure(let error):
+                logger.error("Failed to start USDF withdrawal", metadata: ["error": "\(error)"])
+                completion(.failure(error))
+            }
+        }
+    }
+
     /// A buy funded by an external wallet (Phase 1 only — no IntentFundSwap).
     /// The transaction signature is provided; the caller submits it to
     /// the chain after the server confirms the swap state.

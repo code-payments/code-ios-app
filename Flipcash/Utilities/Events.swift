@@ -75,6 +75,7 @@ extension Analytics {
         case purchaseWithPhantom  = "Token Purchase With Phantom"
         case purchaseWithCoinbase = "Token Purchase With Coinbase"
         case sell                 = "Token Sell"
+        case withdraw             = "Token Withdrawal"
     }
 
     enum CurrencyLaunchEvent: String, AnalyticsEvent {
@@ -253,6 +254,7 @@ extension Analytics {
         ]
         track(event: TokenTransactionEvent.sell, properties: properties, error: error)
     }
+
 }
 
 // MARK: - Currency Launch -

@@ -11,7 +11,6 @@ import FlipcashCore
 
 struct WithdrawScreen: View {
 
-    @Environment(\.dismiss) private var dismiss
     @Environment(AppRouter.self) private var router
     @Environment(Session.self) private var session
     @Environment(RatesController.self) private var ratesController
@@ -30,10 +29,10 @@ struct WithdrawScreen: View {
     init(container: Container, sessionContainer: SessionContainer) {
         self.container        = container
         self.sessionContainer = sessionContainer
-        self.viewModel        = WithdrawViewModel(
+        self._viewModel       = State(wrappedValue: WithdrawViewModel(
             container: container,
             sessionContainer: sessionContainer
-        )
+        ))
     }
 
     // MARK: - Body -
@@ -59,12 +58,33 @@ struct WithdrawScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(for: WithdrawNavigationPath.self) { path in
             switch path {
+            case .intro:
+                WithdrawIntroScreen()
+                    .dialog(item: $viewModel.dialogItem)
             case .enterAmount:
-                WithdrawAmountScreen(viewModel: viewModel)
+                WithdrawAmountScreen(
+                    title: viewModel.withdrawTitle,
+                    enteredAmount: $viewModel.enteredAmount,
+                    subtitle: viewModel.amountSubtitle,
+                    canProceed: viewModel.canProceedToAddress,
+                    onProceed: viewModel.amountEnteredAction,
+                    showsCurrencySelection: true
+                )
+                .dialog(item: $viewModel.dialogItem)
             case .enterAddress:
-                WithdrawAddressScreen(viewModel: viewModel)
+                WithdrawAddressScreen(
+                    promptCurrencyName: viewModel.kind?.destinationCurrencyName ?? "funds",
+                    enteredAddress: $viewModel.enteredAddress,
+                    destinationMetadata: viewModel.destinationMetadata,
+                    acceptsTokenAccount: viewModel.kind?.acceptsTokenAccount ?? true,
+                    canCompleteWithdrawal: viewModel.canCompleteWithdrawal,
+                    onPasteFromClipboard: viewModel.pasteFromClipboardAction,
+                    onNext: viewModel.addressEnteredAction
+                )
+                .dialog(item: $viewModel.dialogItem)
             case .confirmation:
                 WithdrawSummaryScreen(viewModel: viewModel)
+                    .dialog(item: $viewModel.dialogItem)
             }
         }
         .onAppear {
@@ -79,9 +99,9 @@ struct WithdrawScreen: View {
             }
             viewModel.onComplete = {
                 // Successful withdrawal: unwind the entire flow back to
-                // Settings root by popping `.withdraw` and any substeps
-                // pushed on top.
-                dismiss()
+                // Settings root. Using `dismiss()` here would tear down the
+                // whole Settings sheet and land the user back at Scan.
+                router.popToRoot(on: .settings)
             }
         }
     }

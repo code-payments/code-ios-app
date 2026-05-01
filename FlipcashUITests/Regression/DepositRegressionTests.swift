@@ -17,9 +17,8 @@ final class DepositRegressionTests: BaseUITestCase {
 
         assertMainScreenReached()
 
-        // Navigate: Main → Settings → Advanced Features → Deposit Funds
+        // Navigate: Main → Settings → Deposit Funds
         settings.open(from: self)
-        settings.navigateToAdvancedFeatures(from: self)
         waitAndTap(settings.depositFundsRow)
 
         // Select the first currency
