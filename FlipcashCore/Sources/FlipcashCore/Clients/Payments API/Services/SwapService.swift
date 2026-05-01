@@ -269,14 +269,18 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
 
                 case .stablecoin(let serverParams):
                     guard let serverParameters = SwapResponseServerParameters.CoinbaseStableSwapServerParameters(serverParams) else {
-                        logger.error("Failed to parse stablecoin swap server parameters")
+                        logger.error("Failed to parse stablecoin swap server parameters", metadata: [
+                            "swapId": "\(swapId.publicKey.base58)"
+                        ])
                         _ = reference.stream?.sendEnd()
                         completion(.failure(.unknown))
                         return
                     }
 
                     guard case .stablecoin(let destinationOwner) = clientParameters.kind else {
-                        logger.error("Stablecoin swap missing destinationOwner in client parameters")
+                        logger.error("Stablecoin swap missing destinationOwner in client parameters", metadata: [
+                            "swapId": "\(swapId.publicKey.base58)"
+                        ])
                         _ = reference.stream?.sendEnd()
                         completion(.failure(.unknown))
                         return

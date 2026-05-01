@@ -274,7 +274,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
         ) { result in
             switch result {
             case .success(let metadata):
-                logger.info("Stablecoin swap state created", metadata: [
+                logger.info("Swap state created", metadata: [
                     "swapId": "\(swapId.publicKey.base58)"
                 ])
 
