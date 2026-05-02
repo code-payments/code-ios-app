@@ -510,13 +510,13 @@ struct RatesControllerTests {
 
     // MARK: - Helpers -
 
-    /// NOTE: RatesController.init reads `balanceCurrency` / `entryCurrency`
-    /// from `UserDefaults.standard` (via `LocalDefaults`). Tests that
-    /// mutate those values are NOT parallel-safe with each other or with
-    /// any other test on the standard defaults suite. Current tests only
-    /// read the defaults, so parallel execution is fine — but adding any
-    /// test that does `controller.balanceCurrency = .xxx` would require
-    /// `.serialized` on the suite or a proper UserDefaults isolation seam.
+    /// NOTE: RatesController.init reads `balanceCurrency` from
+    /// `UserDefaults.standard` (via `LocalDefaults`). Tests that mutate it
+    /// are NOT parallel-safe with each other or with any other test on the
+    /// standard defaults suite. Current tests only read the defaults, so
+    /// parallel execution is fine — but adding any test that does
+    /// `controller.balanceCurrency = .xxx` would require `.serialized` on
+    /// the suite or a proper UserDefaults isolation seam.
     @MainActor
     private func makeController(database: Database? = nil) -> RatesController {
         RatesController(container: .mock, database: database ?? .mock)

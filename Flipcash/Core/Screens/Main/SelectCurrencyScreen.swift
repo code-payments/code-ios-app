@@ -19,7 +19,7 @@ struct SelectCurrencyScreen: View {
     @State private var selectedBalance: ExchangedBalance?
     
     private var balances: [ExchangedBalance] {
-        let allBalances = session.balances(for: fixedRate ?? ratesController.rateForEntryCurrency())
+        let allBalances = session.balances(for: fixedRate ?? ratesController.rateForBalanceCurrency())
         switch kind {
         case .give:
             return allBalances.filter { $0.stored.mint != .usdf }

@@ -20,7 +20,7 @@ class CurrencyBuyViewModel: Identifiable {
     var path: [CurrencyBuyPath] = []
 
     var enteredFiat: ExchangedFiat? {
-        computeAmount(using: ratesController.rateForEntryCurrency())
+        computeAmount(using: ratesController.rateForBalanceCurrency())
     }
 
     var canPerformAction: Bool {
@@ -39,10 +39,10 @@ class CurrencyBuyViewModel: Identifiable {
     }
 
     var maxPossibleAmount: ExchangedFiat {
-        let entryRate = ratesController.rateForEntryCurrency()
+        let rate = ratesController.rateForBalanceCurrency()
         let zero = ExchangedFiat.compute(
             onChainAmount: .zero(mint: .usdf),
-            rate: entryRate,
+            rate: rate,
             supplyQuarks: nil
         )
 
@@ -50,7 +50,7 @@ class CurrencyBuyViewModel: Identifiable {
             return zero
         }
 
-        return balance.computeExchangedValue(with: entryRate)
+        return balance.computeExchangedValue(with: rate)
     }
 
     @ObservationIgnored private let session: Session
@@ -80,7 +80,7 @@ class CurrencyBuyViewModel: Identifiable {
     /// Resolves the pin and computes the submission amount against it — one
     /// fetch for both, so quarks can't drift from the submitted pin.
     func prepareSubmission() async -> (amount: ExchangedFiat, pinnedState: VerifiedState)? {
-        let currency = ratesController.entryCurrency
+        let currency = ratesController.balanceCurrency
         guard let pin = await ratesController.currentPinnedState(for: currency, mint: .usdf) else {
             return nil
         }

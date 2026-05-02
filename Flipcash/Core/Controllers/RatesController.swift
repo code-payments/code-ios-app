@@ -20,14 +20,6 @@ private let logger = Logger(label: "flipcash.rates-controller")
 /// Inject via `@Environment(RatesController.self)`.
 @MainActor @Observable
 class RatesController {
-    /// The currency used for amount entry (e.g. on the Give screen).
-    /// Persisted to `UserDefaults` on change.
-    var entryCurrency: CurrencyCode = .usd {
-        willSet {
-            LocalDefaults.entryCurrency = newValue
-        }
-    }
-
     /// The currency used for displaying balances.
     /// Persisted to `UserDefaults` on change.
     var balanceCurrency: CurrencyCode = .usd {
@@ -85,22 +77,17 @@ class RatesController {
         self.database = database
         self.verifiedProtoService = VerifiedProtoService(store: database)
 
-        if LocalDefaults.entryCurrency == nil {
-            LocalDefaults.entryCurrency = .local() ?? .usd
-        }
-
         if LocalDefaults.balanceCurrency == nil {
             LocalDefaults.balanceCurrency = .local() ?? .usd
         }
 
-        entryCurrency   = LocalDefaults.entryCurrency!
         balanceCurrency = LocalDefaults.balanceCurrency!
         selectedTokenMint = loadSelectedToken()
 
         // Rehydrate last-known display rates from the database so screens
-        // that read rateFor{Balance,Entry}Currency render in the user's
-        // selected currency on cold launch instead of flashing USD while
-        // waiting for the live mint stream to deliver its first batch.
+        // that read rateForBalanceCurrency render in the user's selected
+        // currency on cold launch instead of flashing USD while waiting for
+        // the live mint stream to deliver its first batch.
         // The stream overwrites these within seconds. Display rates are
         // unsigned and have no validity window — intent submission still
         // goes through the verified-proof path (VerifiedProtoService),
@@ -273,10 +260,6 @@ class RatesController {
         rate(for: balanceCurrency) ?? .oneToOne
     }
 
-    func rateForEntryCurrency() -> Rate {
-        rate(for: entryCurrency) ?? .oneToOne
-    }
-
     func rate(for currency: CurrencyCode) -> Rate? {
         cachedRates[currency]
     }
@@ -358,9 +341,6 @@ extension RatesController {
 // MARK: - LocalDefaults -
 
 private enum LocalDefaults {
-    @Defaults(.entryCurrency)
-    static var entryCurrency: CurrencyCode?
-    
     @Defaults(.balanceCurrency)
     static var balanceCurrency: CurrencyCode?
 

@@ -247,11 +247,7 @@ private struct BalanceHeaderButton: View {
             .frame(maxWidth: .infinity)
             .animation(.default, value: balance)
             .sheet(isPresented: $isShowingCurrencySelection) {
-                CurrencySelectionScreen(
-                    isPresented: $isShowingCurrencySelection,
-                    kind: .balance,
-                    ratesController: ratesController
-                )
+                CurrencySelectionScreen(ratesController: ratesController)
             }
         }
     }

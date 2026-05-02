@@ -52,7 +52,7 @@ class GiveViewModel {
                 return nil
             }
 
-            let rate = ratesController.rateForEntryCurrency()
+            let rate = ratesController.rateForBalanceCurrency()
             let entered = FiatAmount(value: amount, currency: rate.currency)
 
             if let viaCurve = ExchangedFiat.compute(
@@ -79,7 +79,7 @@ class GiveViewModel {
             )
 
         } else {
-            let rate = ratesController.rateForEntryCurrency()
+            let rate = ratesController.rateForBalanceCurrency()
             return ExchangedFiat(
                 nativeAmount: FiatAmount(value: amount, currency: rate.currency),
                 rate: rate
@@ -120,7 +120,7 @@ class GiveViewModel {
     }
 
     private func refreshSelectedBalance() {
-        let rate = ratesController.rateForEntryCurrency()
+        let rate = ratesController.rateForBalanceCurrency()
         let availableBalances = session.balances(for: rate)
             .filter { $0.stored.mint != .usdf }
 
@@ -192,7 +192,7 @@ class GiveViewModel {
         let mint = selectedBalance.stored.mint
 
         guard let pin = await ratesController.currentPinnedState(
-            for: ratesController.entryCurrency,
+            for: ratesController.balanceCurrency,
             mint: mint
         ) else { return nil }
 

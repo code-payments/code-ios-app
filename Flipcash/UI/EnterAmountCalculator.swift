@@ -15,7 +15,7 @@ struct EnterAmountCalculator {
     // MARK: - Properties
 
     let mode: EnterAmountView.Mode
-    let entryCurrency: CurrencyCode
+    let selectedCurrency: CurrencyCode
     let sendLimitProvider: SendLimitProvider
 
     // MARK: - Computed
@@ -23,11 +23,11 @@ struct EnterAmountCalculator {
     var currency: CurrencyCode {
         switch mode {
         case .currency, .buy, .sell:
-            entryCurrency
+            selectedCurrency
         case .onramp, .walletDeposit, .phantomDeposit:
             .usd
         case .withdraw:
-            entryCurrency
+            selectedCurrency
         }
     }
 
@@ -77,9 +77,9 @@ struct EnterAmountCalculator {
             return balance
         }
 
-        // Server-provided limits are already localized to the entry currency,
-        // and the balance is also in the entry currency, so we can compare
-        // directly. No fx conversion needed.
+        // Server-provided limits are already localized to the user's selected
+        // currency, and the balance is too, so we can compare directly. No fx
+        // conversion needed.
         guard limit.currency == balance.currency else {
             return balance
         }
