@@ -33,8 +33,6 @@ extension ShapeStyle where Self == Color {
     public static var rowSeparator: Color                { Color.white.opacity(0.1) }
 
     public static var checkmarkBackground: Color         { Color.white }
-
-    public static var cameraOverlay: Color               { Color.black.opacity(0.4) }
 }
 
 extension Color {
