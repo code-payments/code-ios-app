@@ -355,7 +355,7 @@ private struct LoadedContent: View {
                             }
                         }
 
-                        Text(currencyDescription)
+                        ExpandableText(currencyDescription)
                             .foregroundStyle(Color.textSecondary)
                             .font(.appTextSmall)
 
