@@ -34,10 +34,10 @@ class WithdrawViewModel {
     }
 
     var enteredFiat: ExchangedFiat? {
-        computeAmount(using: ratesController.rateForEntryCurrency(), pinnedSupplyQuarks: nil)
+        computeAmount(using: ratesController.rateForBalanceCurrency(), pinnedSupplyQuarks: nil)
     }
 
-    /// Fee in entry currency for the summary's "Less fee" line. Rounded
+    /// Fee in the user's currency for the summary's "Less fee" line. Rounded
     /// half-up to currency precision so the implied fee on the amount screen
     /// (`minimumWithdrawAmount = displayFee + smallestUnit`) matches the
     /// summary verbatim — no rounding drift between the two screens.
@@ -48,9 +48,9 @@ class WithdrawViewModel {
         return FiatAmount(value: rounded, currency: feeInEntry.currency)
     }
 
-    /// Net in entry currency, derived as `entered − displayFee` so the three
-    /// summary lines (Withdrawal amount, Less fee, Net amount) form a closed
-    /// identity. Falls back to `entered` when there's no fee.
+    /// Net in the user's currency, derived as `entered − displayFee` so the
+    /// three summary lines (Withdrawal amount, Less fee, Net amount) form a
+    /// closed identity. Falls back to `entered` when there's no fee.
     var displayNet: FiatAmount? {
         guard let enteredFiat else { return nil }
         let entered = enteredFiat.nativeAmount
@@ -59,7 +59,7 @@ class WithdrawViewModel {
     }
 
     /// Smallest amount that yields at least one displayable unit of net after
-    /// the fee. `displayFee + smallest_displayable_unit` in the entry currency.
+    /// the fee. `displayFee + smallest_displayable_unit` in the user's currency.
     /// Display and the `isBelowMinimumWithdraw` gate use the same number by
     /// construction.
     var minimumWithdrawAmount: FiatAmount? {
@@ -204,7 +204,7 @@ class WithdrawViewModel {
     }
 
     var maxWithdrawLimit: ExchangedFiat {
-        let rate = ratesController.rateForEntryCurrency()
+        let rate = ratesController.rateForBalanceCurrency()
         let zero = ExchangedFiat.compute(
             onChainAmount: .zero(mint: .usdf),
             rate: rate,
@@ -285,7 +285,7 @@ class WithdrawViewModel {
     /// submission amount against it — one fetch for both.
     func prepareSubmission() async -> (amount: ExchangedFiat, pinnedState: VerifiedState)? {
         guard let mint = kind?.sourceMint else { return nil }
-        let currency = ratesController.entryCurrency
+        let currency = ratesController.balanceCurrency
         guard let pin = await ratesController.currentPinnedState(for: currency, mint: mint) else {
             return nil
         }

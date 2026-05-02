@@ -17,7 +17,7 @@ class CurrencySellViewModel: Identifiable {
     @ObservationIgnored let currencyMetadata: StoredMintMetadata
 
     var enteredFiat: ExchangedFiat? {
-        computeAmount(using: ratesController.rateForEntryCurrency())
+        computeAmount(using: ratesController.rateForBalanceCurrency())
     }
 
     var canPerformAction: Bool {
@@ -36,10 +36,10 @@ class CurrencySellViewModel: Identifiable {
     }
 
     var maxPossibleAmount: ExchangedFiat {
-        let entryRate = ratesController.rateForEntryCurrency()
+        let rate = ratesController.rateForBalanceCurrency()
         let zero = ExchangedFiat.compute(
             onChainAmount: .zero(mint: currencyMetadata.mint),
-            rate: entryRate,
+            rate: rate,
             supplyQuarks: nil
         )
 
@@ -47,7 +47,7 @@ class CurrencySellViewModel: Identifiable {
             return zero
         }
 
-        return balance.computeExchangedValue(with: entryRate)
+        return balance.computeExchangedValue(with: rate)
     }
 
     @ObservationIgnored private let session: Session
@@ -78,7 +78,7 @@ class CurrencySellViewModel: Identifiable {
     /// Resolves the pin and computes the amount carried into the confirmation
     /// screen — confirmation and `Session.sell` receive the same pin.
     func prepareSubmission() async -> (amount: ExchangedFiat, pinnedState: VerifiedState)? {
-        let currency = ratesController.entryCurrency
+        let currency = ratesController.balanceCurrency
         guard let pin = await ratesController.currentPinnedState(for: currency, mint: currencyMetadata.mint) else {
             return nil
         }

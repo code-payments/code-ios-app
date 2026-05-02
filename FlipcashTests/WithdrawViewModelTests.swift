@@ -18,7 +18,7 @@ struct WithdrawViewModelTests {
     @Test("Non-USD rate computes correct on-chain amount from entered amount")
     func enteredFiat_cadRate() {
         let cadRate = Rate(fx: 1.4, currency: .cad)
-        let viewModel = WithdrawViewModelTestHelpers.createViewModel(entryCurrency: .cad, rates: [cadRate])
+        let viewModel = WithdrawViewModelTestHelpers.createViewModel(balanceCurrency: .cad, rates: [cadRate])
         viewModel.kind = .sameMint(WithdrawViewModelTestHelpers.createExchangedBalance())
         viewModel.enteredAmount = "7.00" // $7 CAD
 
@@ -170,7 +170,7 @@ struct WithdrawViewModelTests {
     func minimumWithdrawAmount_JPY_158_6() {
         let jpyRate = Rate(fx: 158.6, currency: .jpy)
         let viewModel = WithdrawViewModelTestHelpers.createViewModel(
-            entryCurrency: .jpy,
+            balanceCurrency: .jpy,
             rates: [jpyRate],
             withdrawalFeeQuarks: 500_000 // $0.50
         )
@@ -186,7 +186,7 @@ struct WithdrawViewModelTests {
     func minimumWithdrawAmount_JPY_159_4_displayedFeeRoundsUp() {
         let jpyRate = Rate(fx: 159.4, currency: .jpy)
         let viewModel = WithdrawViewModelTestHelpers.createViewModel(
-            entryCurrency: .jpy,
+            balanceCurrency: .jpy,
             rates: [jpyRate],
             withdrawalFeeQuarks: 500_000
         )
@@ -204,7 +204,7 @@ struct WithdrawViewModelTests {
         // must not fire the gate, even when the device locale uses ",".
         let cadRate = Rate(fx: 1.36, currency: .cad)
         let viewModel = WithdrawViewModelTestHelpers.createViewModel(
-            entryCurrency: .cad,
+            balanceCurrency: .cad,
             rates: [cadRate],
             withdrawalFeeQuarks: 500_000 // $0.50
         )
@@ -224,7 +224,7 @@ struct WithdrawViewModelTests {
         // — useless, so the gate must block it.
         let jpyRate = Rate(fx: 157, currency: .jpy)
         let viewModel = WithdrawViewModelTestHelpers.createViewModel(
-            entryCurrency: .jpy,
+            balanceCurrency: .jpy,
             rates: [jpyRate],
             withdrawalFeeQuarks: 500_000
         )
@@ -330,7 +330,7 @@ struct WithdrawViewModelTests {
             )
         }
         let stored = try #require(container.session.balance(for: mint))
-        let rate = container.ratesController.rateForEntryCurrency()
+        let rate = container.ratesController.rateForBalanceCurrency()
         let balance = ExchangedBalance(
             stored: stored,
             exchangedFiat: stored.computeExchangedValue(with: rate)
@@ -368,7 +368,7 @@ struct WithdrawViewModelTests {
         let cadRate = Rate(fx: 1.4, currency: .cad)
         // Fee comes from userFlags (500_000 quarks = $0.50)
         let viewModel = WithdrawViewModelTestHelpers.createViewModel(
-            entryCurrency: .cad,
+            balanceCurrency: .cad,
             rates: [cadRate],
             withdrawalFeeQuarks: 500_000
         )
@@ -419,7 +419,7 @@ struct WithdrawViewModelTests {
         // Pinned: 1 USD = 1.35 CAD. Live cache drifted to 1.37 after the pin was captured.
         let sessionContainer = SessionContainer.mock
         sessionContainer.ratesController.configureTestRates(
-            entryCurrency: .cad,
+            balanceCurrency: .cad,
             rates: [Rate(fx: 1.37, currency: .cad)]
         )
         await sessionContainer.ratesController.verifiedProtoService.saveRates([
@@ -447,7 +447,7 @@ struct WithdrawViewModelTests {
 
         let sessionContainer = SessionContainer.mock
         sessionContainer.ratesController.configureTestRates(
-            entryCurrency: .cad,
+            balanceCurrency: .cad,
             rates: [Rate(fx: 1.37, currency: .cad)]
         )
         await sessionContainer.ratesController.verifiedProtoService.saveRates([

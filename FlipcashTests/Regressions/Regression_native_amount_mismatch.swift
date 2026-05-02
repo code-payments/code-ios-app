@@ -29,7 +29,7 @@ struct Regression_native_amount_mismatch {
         // Pinned rate: 1 USD = 1.35 CAD. Live cache drifted to 1.37 after the pin was captured.
         let sessionContainer = SessionContainer.mock
         sessionContainer.ratesController.configureTestRates(
-            entryCurrency: .cad,
+            balanceCurrency: .cad,
             rates: [Rate(fx: 1.37, currency: .cad)]
         )
         await sessionContainer.ratesController.verifiedProtoService.saveRates([
@@ -64,7 +64,7 @@ struct Regression_native_amount_mismatch {
 
         let sessionContainer = SessionContainer.mock
         sessionContainer.ratesController.configureTestRates(
-            entryCurrency: .cad,
+            balanceCurrency: .cad,
             rates: [Rate(fx: 1.37, currency: .cad)]
         )
         await sessionContainer.ratesController.verifiedProtoService.saveRates([
@@ -105,7 +105,7 @@ struct Regression_native_amount_mismatch {
         // Pinned CAD rate 1.35; live cache drifted to 1.37.
         let sessionContainer = SessionContainer.mock
         sessionContainer.ratesController.configureTestRates(
-            entryCurrency: .cad,
+            balanceCurrency: .cad,
             rates: [Rate(fx: 1.37, currency: .cad)]
         )
         await sessionContainer.ratesController.verifiedProtoService.saveRates([
@@ -136,7 +136,7 @@ struct Regression_native_amount_mismatch {
         // service — the submit path has no pin to use and must bail.
         let sessionContainer = SessionContainer.mock
         sessionContainer.ratesController.configureTestRates(
-            entryCurrency: .cad,
+            balanceCurrency: .cad,
             rates: [Rate(fx: 1.35, currency: .cad)]
         )
 
@@ -160,7 +160,7 @@ struct Regression_native_amount_mismatch {
         // Live rate + live metadata supply are present; no pinned proof is.
         let sessionContainer = SessionContainer.mock
         sessionContainer.ratesController.configureTestRates(
-            entryCurrency: .cad,
+            balanceCurrency: .cad,
             rates: [Rate(fx: 1.35, currency: .cad)]
         )
 
@@ -186,7 +186,7 @@ struct Regression_native_amount_mismatch {
     func scenarioE_withdrawPrepareSubmissionReturnsNilWhenNoPin() async {
         let sessionContainer = SessionContainer.mock
         sessionContainer.ratesController.configureTestRates(
-            entryCurrency: .cad,
+            balanceCurrency: .cad,
             rates: [Rate(fx: 1.35, currency: .cad)]
         )
 
@@ -212,7 +212,7 @@ struct Regression_native_amount_mismatch {
 
         let sessionContainer = SessionContainer.mock
         sessionContainer.ratesController.configureTestRates(
-            entryCurrency: .cad,
+            balanceCurrency: .cad,
             rates: [Rate(fx: 1.37, currency: .cad)]
         )
         await sessionContainer.ratesController.verifiedProtoService.saveRates([
@@ -253,7 +253,7 @@ struct Regression_native_amount_mismatch {
         // service — the submit path has no pin to use and must bail.
         let sessionContainer = SessionContainer.mock
         sessionContainer.ratesController.configureTestRates(
-            entryCurrency: .cad,
+            balanceCurrency: .cad,
             rates: [Rate(fx: 1.35, currency: .cad)]
         )
 

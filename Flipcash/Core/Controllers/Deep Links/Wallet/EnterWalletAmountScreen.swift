@@ -15,9 +15,7 @@ struct EnterWalletAmountScreen: View {
 
     @State private var actionState: ButtonState = .normal
     @State private var enteredAmount: String = ""
-    
-//    @State private var isShowingCurrencySelection: Bool = false
-    
+
     private var fiat: FiatAmount? {
         guard !enteredAmount.isEmpty else {
             return nil
@@ -53,17 +51,10 @@ struct EnterWalletAmountScreen: View {
                     return EnterAmountCalculator.isWithinDisplayLimit(enteredAmount: enteredAmount, max: maxPerDay)
                 },
                 action: nextAction,
-                currencySelectionAction: nil//showCurrencySelection
+                currencySelectionAction: nil
             )
             .foregroundColor(.textMain)
             .padding(20)
-//            .sheet(isPresented: $isShowingCurrencySelection) {
-//                CurrencySelectionScreen(
-//                    isPresented: $isShowingCurrencySelection,
-//                    kind: .entry,
-//                    ratesController: ratesController
-//                )
-//            }
         }
         .navigationTitle("Amount to Buy")
         .navigationBarTitleDisplayMode(.inline)
@@ -86,8 +77,4 @@ struct EnterWalletAmountScreen: View {
             try await amountEntered(usdc)
         }
     }
-    
-//    private func showCurrencySelection() {
-//        isShowingCurrencySelection.toggle()
-//    }
 }

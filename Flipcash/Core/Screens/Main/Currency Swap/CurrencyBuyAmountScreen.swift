@@ -59,11 +59,7 @@ struct CurrencyBuyAmountScreen: View {
             }
             .dialog(item: $viewModel.dialogItem)
             .sheet(isPresented: $isShowingCurrencySelection) {
-                CurrencySelectionScreen(
-                    isPresented: $isShowingCurrencySelection,
-                    kind: .entry,
-                    ratesController: ratesController
-                )
+                CurrencySelectionScreen(ratesController: ratesController)
             }
         }
     }
