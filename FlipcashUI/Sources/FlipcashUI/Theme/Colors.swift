@@ -92,16 +92,3 @@ extension Color {
         return String(format: "#%06X", rgb)
     }
 }
-
-extension LinearGradient {
-    public static let background = LinearGradient(
-        gradient: Gradient(stops: [
-            Gradient.Stop(color: Color(r: 22, g: 18, b: 39), location: 0.0),
-            Gradient.Stop(color: Color(r: 24, g: 21, b: 42), location: 0.495),
-            Gradient.Stop(color: Color(r: 15, g: 12, b: 31), location: 0.505),
-            Gradient.Stop(color: Color(r: 17, g: 13, b: 33), location: 1.0),
-        ]),
-        startPoint: UnitPoint(x: 1.0, y: 0.05),
-        endPoint:   UnitPoint(x: 0.0, y: 0.54)
-    )
-}
