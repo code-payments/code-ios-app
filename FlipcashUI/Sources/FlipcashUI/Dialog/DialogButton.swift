@@ -40,7 +40,7 @@ public struct DialogButton: View {
             case .subtle:
                 button()
                     .opacity(disabled ? 0.5 : 1.0)
-                    .foregroundColor(Color.textMain.opacity(0.6))
+                    .foregroundStyle(Color.textMain.opacity(0.6))
             }
         }
         .disabled(isDisabled())
@@ -70,18 +70,18 @@ public struct DialogButton: View {
                 case .success:
                     Image.asset(.checkmark)
                         .renderingMode(.template)
-                        .foregroundColor(.textSuccess)
+                        .foregroundStyle(.textSuccess)
                     
                 case .successText(let text):
                     HStack(spacing: 10) {
                         Image.asset(.checkmark)
                             .renderingMode(.template)
-                            .foregroundColor(.textSuccess)
+                            .foregroundStyle(.textSuccess)
                         Text(text)
                             .lineLimit(2)
                             .multilineTextAlignment(.center)
                             .minimumScaleFactor(0.8)
-                            .foregroundColor(.textMain)
+                            .foregroundStyle(.textMain)
                     }
                 }
             }
@@ -128,7 +128,7 @@ private extension DialogButton {
         func makeBody(configuration: Configuration) -> some View {
             configuration.label
                 .background(background(style: style))
-                .foregroundColor(textColor())
+                .foregroundStyle(textColor())
                 .overlay(overlay(isPressed: configuration.isPressed))
                 .contentShape(RoundedRectangle(cornerRadius: Metrics.buttonRadius))
         }

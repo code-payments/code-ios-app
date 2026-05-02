@@ -66,7 +66,7 @@ struct SettingsMyAccountScreen: View {
             }
         }
         .font(.appDisplayXS)
-        .foregroundColor(.textMain)
+        .foregroundStyle(.textMain)
     }
 
     private func deleteAccount() {

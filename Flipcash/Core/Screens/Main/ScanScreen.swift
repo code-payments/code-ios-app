@@ -224,7 +224,7 @@ struct ScanScreen: View {
         }
         .padding(40)
         .font(.appTextSmall)
-        .foregroundColor(.textMain)
+        .foregroundStyle(.textMain)
     }
     
     @ViewBuilder private func manualCameraStart() -> some View {
@@ -239,7 +239,7 @@ struct ScanScreen: View {
         }
         .padding(40)
         .font(.appTextSmall)
-        .foregroundColor(.textMain)
+        .foregroundStyle(.textMain)
         .onAppear {
             viewModel.stopCamera()
         }

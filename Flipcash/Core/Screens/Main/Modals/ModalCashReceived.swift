@@ -64,7 +64,7 @@ public struct ModalCashReceived: View {
             .padding(.top, 10)
         }
         .padding(20)
-        .foregroundColor(.textMain)
+        .foregroundStyle(.textMain)
         .font(.appTextMedium)
     }
 }

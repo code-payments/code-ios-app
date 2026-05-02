@@ -85,7 +85,7 @@ public struct EnterAmountView: View {
                             suffix: nil,
                             showChevron: currencySelectionAction != nil
                         )
-                        .foregroundColor(.textMain)
+                        .foregroundStyle(.textMain)
                     }
                     
                     switch subtitle {
@@ -93,20 +93,20 @@ public struct EnterAmountView: View {
                         if let limit = calculator.maxTransactionAmount {
                             Text("Enter up to \(limit.formatted())")
                                 .fixedSize()
-                                .foregroundColor(subtitleColor)
+                                .foregroundStyle(subtitleColor)
                                 .font(.appTextMedium)
                         }
 
                     case .balanceWithLimit(let maxBalance):
                         Text("Enter up to \(calculator.maxEnterAmount(maxBalance: maxBalance).formatted())")
                             .fixedSize()
-                            .foregroundColor(subtitleColor)
+                            .foregroundStyle(subtitleColor)
                             .font(.appTextMedium)
 
                     case .error(let text):
                         Text(text)
                             .fixedSize()
-                            .foregroundColor(.textError)
+                            .foregroundStyle(.textError)
                             .font(.appTextMedium)
                     }
                 }

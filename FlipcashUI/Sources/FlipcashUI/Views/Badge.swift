@@ -40,10 +40,10 @@ public struct Badge: View {
             case .checkmark:
                 Image.asset(.checkmark)
                     .renderingMode(.template)
-                    .foregroundColor(.textSuccess)
+                    .foregroundStyle(.textSuccess)
             }
             Text(text)
-                .foregroundColor(textColor(for: decoration))
+                .foregroundStyle(textColor(for: decoration))
                 .font(.appTextSmall)
         }
         .padding([.top, .bottom], verticalPadding(for: decoration))

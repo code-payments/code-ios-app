@@ -95,7 +95,7 @@ struct AccountSelectionScreen: View {
                         }
                     }
                     .font(.appTextMedium)
-                    .foregroundColor(.textMain)
+                    .foregroundStyle(.textMain)
                     .padding(.bottom, 5)
 
                     Group {
@@ -104,7 +104,7 @@ struct AccountSelectionScreen: View {
                             .truncationMode(.middle)
                     }
                     .font(.appTextHeading)
-                    .foregroundColor(.textSecondary)
+                    .foregroundStyle(.textSecondary)
                     .multilineTextAlignment(.leading)
                 }
                 .frame(maxWidth: .infinity)

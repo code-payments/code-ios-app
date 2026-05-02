@@ -429,7 +429,7 @@ private struct KeyPadRoundStyle: ButtonStyle {
             .scaleEffect(configuration.isPressed ? 1.5 : 1.0, anchor: .center)
             .frame(width: size.width, height: size.height)
             .background(configuration.isPressed ? Color.white.opacity(0.15) : Color.white.opacity(0.08))
-            .foregroundColor(configuration.isPressed ? Color.white.opacity(0.5) : .white)
+            .foregroundStyle(configuration.isPressed ? Color.white.opacity(0.5) : .white)
             .cornerRadius(45.0)
     }
 }
@@ -450,7 +450,7 @@ private struct KeyPadBorderlessStyle: ButtonStyle {
             .scaleEffect(configuration.isPressed ? 1.5 : 1.0, anchor: .center)
             .frame(width: size.width, height: size.height) // FIXME: Invalid size here sometimes
             .background(configuration.isPressed ? Color.white.opacity(0.1) : Color.backgroundMain.opacity(0.1))
-            .foregroundColor(configuration.isPressed ? Color.white.opacity(0.9) : .white)
+            .foregroundStyle(configuration.isPressed ? Color.white.opacity(0.9) : .white)
             .cornerRadius(5.0)
     }
 }

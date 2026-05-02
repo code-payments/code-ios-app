@@ -32,7 +32,7 @@ public struct TwoFactorCodeView: View {
                     if character.count > 0 {
                         Text(character)
                             .font(.appTextLarge)
-                            .foregroundColor(.textMain)
+                            .foregroundStyle(.textMain)
                             .transition(
                                 AnyTransition
                                     .opacity

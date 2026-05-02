@@ -73,7 +73,7 @@ struct GiveScreen: View {
                 action: nextAction,
                 currencySelectionAction: showCurrencySelection
             )
-            .foregroundColor(.textMain)
+            .foregroundStyle(.textMain)
             .padding(.horizontal, 20)
             .padding(.bottom, 20)
             .padding(.top, -40)
@@ -146,7 +146,7 @@ private struct TokenSelectorButton: View {
 
                 Image.system(.chevronDown)
                     .font(.default(size: 12, weight: .bold))
-                    .foregroundColor(.textMain)
+                    .foregroundStyle(.textMain)
             }
         }
     }

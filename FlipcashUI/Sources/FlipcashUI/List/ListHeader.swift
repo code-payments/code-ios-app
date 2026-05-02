@@ -20,7 +20,7 @@ public struct ListHeader: View {
         Text(title)
             .textCase(.none)
             .font(.appTextSmall)
-            .foregroundColor(.textSecondary)
+            .foregroundStyle(.textSecondary)
             .padding(.bottom, 5)
     }
 }

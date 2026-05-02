@@ -38,12 +38,12 @@ public struct ImmutableField: View {
                     state.image
                         .renderingMode(.template)
                         .frame(minWidth: 26)
-                        .foregroundColor(state.color)
+                        .foregroundStyle(state.color)
                 }
             }
             .padding(15)
             .font(.appTextMedium)
-            .foregroundColor(.textMain)
+            .foregroundStyle(.textMain)
         }
     }
 }

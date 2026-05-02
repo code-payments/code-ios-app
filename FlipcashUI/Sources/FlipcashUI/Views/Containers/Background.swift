@@ -18,29 +18,14 @@ public struct Background<Content>: View where Content: View {
         self.background = AnyView(color)
         self.content = content()
     }
-    
-    public init(gradient: LinearGradient, @ViewBuilder content: () -> Content) {
-        self.background = AnyView(gradient)
-        self.content = content()
-    }
-    
+
     // MARK: - Body -
-    
+
     public var body: some View {
         content
             .background {
                 background
                     .ignoresSafeArea()
             }
-    }
-}
-
-// MARK: - Previews -
-
-struct Background_Previews: PreviewProvider {
-    static var previews: some View {
-        Background(gradient: .background) {
-            Text("")
-        }
     }
 }

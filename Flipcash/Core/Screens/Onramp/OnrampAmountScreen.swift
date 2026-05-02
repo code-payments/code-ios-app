@@ -62,7 +62,7 @@ struct OnrampAmountScreen: View {
                     action: viewModel.customAmountEnteredAction,
                     currencySelectionAction: nil,
                 )
-                .foregroundColor(.textMain)
+                .foregroundStyle(.textMain)
                 .padding(20)
             }
             .navigationTitle("Amount to Add")

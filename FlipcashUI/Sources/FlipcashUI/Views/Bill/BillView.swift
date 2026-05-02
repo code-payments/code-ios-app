@@ -173,7 +173,7 @@ public struct BillView: View {
                                 Spacer()
                                 Text(string)
                                     .lineLimit(1)
-                                    .foregroundColor(.textMain)
+                                    .foregroundStyle(.textMain)
                                     .font(geometry.valueFont)
                                     .shadow(color: Color.black.opacity(0.2), radius: 4, x: 2, y: 2)
                                     .padding(.trailing, geometry.topStripHeight + geometry.securityStripSize.height * 0.5)
@@ -191,7 +191,7 @@ public struct BillView: View {
                             HStack {
                                 Text(string)
                                     .lineLimit(1)
-                                    .foregroundColor(.textMain)
+                                    .foregroundStyle(.textMain)
                                     .font(geometry.valueFont)
                                     .shadow(color: Color.black.opacity(0.2), radius: 4, x: 2, y: 2)
                                     .padding(.leading, geometry.topStripHeight + geometry.securityStripSize.height * 0.5)
@@ -219,7 +219,7 @@ public struct BillView: View {
                         HStack {
                             // Mint
                             Text(PublicKey.usdf.base58)
-                                .foregroundColor(.textMain.opacity(0.2))
+                                .foregroundStyle(.textMain.opacity(0.2))
                                 .font(geometry.mintFont)
                             Spacer()
                         }
@@ -231,7 +231,7 @@ public struct BillView: View {
                                     .resizable()
                                     .renderingMode(.template)
                                     .aspectRatio(contentMode: .fit)
-                                    .foregroundColor(.textMain.opacity(0.2))
+                                    .foregroundStyle(.textMain.opacity(0.2))
                                     .frame(width: geometry.brandWidth)
                                 Spacer()
                             }
@@ -256,7 +256,7 @@ public struct BillView: View {
                 
                 // Scan code
                 CodeView(data: data)
-                    .foregroundColor(.textMain)
+                    .foregroundStyle(.textMain)
                     .aspectRatio(1.0, contentMode: .fit)
                     .frame(width: geometry.codeWidth, height: geometry.codeWidth)
                     .position(x: geometry.size.width * 0.5, y: geometry.size.height * 0.5)

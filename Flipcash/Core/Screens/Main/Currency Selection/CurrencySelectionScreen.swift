@@ -97,7 +97,7 @@ struct CurrencySelectionScreen: View {
                 
                 VStack(alignment: .leading, spacing: 5) {
                     Text(description.localizedName)
-                        .foregroundColor(.textMain)
+                        .foregroundStyle(.textMain)
                         .font(.appTextMedium)
                         .multilineTextAlignment(.leading)
                         .layoutPriority(10)

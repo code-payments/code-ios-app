@@ -38,7 +38,7 @@ struct CurrencySellAmountScreen: View {
                     action: viewModel.showConfirmationScreen,
                     currencySelectionAction: showCurrencySelection
                 )
-                .foregroundColor(.textMain)
+                .foregroundStyle(.textMain)
                 .padding(20)
             }
             .navigationTitle(viewModel.screenTitle)

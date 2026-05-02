@@ -67,7 +67,7 @@ public struct QRCode: View {
                                 image
                                     .resizable()
                                     .aspectRatio(contentMode: .fit)
-                                    .foregroundColor(.white)
+                                    .foregroundStyle(.white)
                                     .frame(
                                         width:  geometry.size.width  * 0.25,
                                         height: geometry.size.height * 0.25
@@ -85,7 +85,7 @@ public struct QRCode: View {
                 if let label = label {
                     Text(label)
                         .font(.appTextSmall)
-                        .foregroundColor(labelColor)
+                        .foregroundStyle(labelColor)
                         .truncationMode(.middle)
                         .lineLimit(1)
                         .padding([.leading, .trailing], 2)

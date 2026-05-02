@@ -38,12 +38,12 @@ struct CountryCodeSelectionScreen: View {
                                 HStack(spacing: 15) {
                                     Flag(style: .fiat(regionDescription.region))
                                     Text(regionDescription.localizedName)
-                                        .foregroundColor(.textMain)
+                                        .foregroundStyle(.textMain)
                                         .lineLimit(1)
                                         .layoutPriority(10)
                                     Spacer()
                                     Text("+\(regionDescription.countryCode)")
-                                        .foregroundColor(.textSecondary)
+                                        .foregroundStyle(.textSecondary)
                                         .lineLimit(1)
                                         .layoutPriority(10)
                                 }

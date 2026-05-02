@@ -26,12 +26,12 @@ struct ForceUpgradeScreen: View {
                         
                         Text("Update Required")
                             .font(.appTextLarge)
-                            .foregroundColor(.textMain)
+                            .foregroundStyle(.textMain)
                     }
 
                     Text("The latest features of Flipcash require you to update to the latest version")
                         .font(.appTextSmall)
-                        .foregroundColor(.textSecondary)
+                        .foregroundStyle(.textSecondary)
                         .padding([.leading, .trailing], 20)
 
                     Spacer()

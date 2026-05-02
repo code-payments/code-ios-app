@@ -33,6 +33,6 @@ struct SettingsAdvancedFeaturesScreen: View {
             }
         }
         .font(.appDisplayXS)
-        .foregroundColor(.textMain)
+        .foregroundStyle(.textMain)
     }
 }

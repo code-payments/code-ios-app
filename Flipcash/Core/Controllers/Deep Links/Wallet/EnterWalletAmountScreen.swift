@@ -55,7 +55,7 @@ struct EnterWalletAmountScreen: View {
                 action: nextAction,
                 currencySelectionAction: nil//showCurrencySelection
             )
-            .foregroundColor(.textMain)
+            .foregroundStyle(.textMain)
             .padding(20)
 //            .sheet(isPresented: $isShowingCurrencySelection) {
 //                CurrencySelectionScreen(

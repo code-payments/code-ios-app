@@ -65,7 +65,7 @@ struct EnterPhoneScreen: View {
                 }
 
                 Text("Please enter your phone number to continue")
-                    .foregroundColor(.textSecondary)
+                    .foregroundStyle(.textSecondary)
                     .font(.appTextSmall)
                     .multilineTextAlignment(.center)
 
@@ -82,7 +82,7 @@ struct EnterPhoneScreen: View {
                 }
             }
             .padding(20)
-            .foregroundColor(.textMain)
+            .foregroundStyle(.textMain)
         }
         .dialog(item: $onrampCoordinator.dialogItem)
         .navigationTitle("Verify Phone Number")

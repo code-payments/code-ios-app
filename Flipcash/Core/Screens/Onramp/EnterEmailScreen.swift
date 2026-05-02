@@ -40,7 +40,7 @@ struct EnterEmailScreen: View {
                 }
 
                 Text("Please enter your email to continue")
-                    .foregroundColor(.textSecondary)
+                    .foregroundStyle(.textSecondary)
                     .font(.appTextSmall)
                     .multilineTextAlignment(.center)
 
@@ -57,7 +57,7 @@ struct EnterEmailScreen: View {
                 }
             }
             .padding(20)
-            .foregroundColor(.textMain)
+            .foregroundStyle(.textMain)
         }
         .dialog(item: $onrampCoordinator.dialogItem)
         .navigationTitle("Verify Email")

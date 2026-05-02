@@ -38,7 +38,7 @@ struct LoginScreen: View {
                             .autocapitalization(.none)
                             .disableAutocorrection(true)
                             .scrollContentBackground(.hidden)
-                            .foregroundColor(.textMain)
+                            .foregroundStyle(.textMain)
                             .font(.appTextMedium)
                             .padding(10)
                             .padding(.bottom, 20)
@@ -53,7 +53,7 @@ struct LoginScreen: View {
                                         }
                                         Spacer()
                                     }
-                                    .foregroundColor(.textSecondary)
+                                    .foregroundStyle(.textSecondary)
                                     .font(.appTextHeading)
                                     .padding(.leading, 10)
                                     .padding(.bottom, 7)
@@ -74,14 +74,14 @@ struct LoginScreen: View {
                         NavigationLink(value: OnboardingPath.accessKeyHelp) {
                             Text("Can't Find Your Access Key?")
                                 .font(.appTextMedium)
-                                .foregroundColor(Color.textMain.opacity(0.6))
+                                .foregroundStyle(Color.textMain.opacity(0.6))
                                 .frame(maxWidth: .infinity)
                                 .frame(height: Metrics.buttonHeight)
                         }
                         .disabled(!buttonState.isNormal)
                     }
                 }
-                .foregroundColor(.textMain)
+                .foregroundStyle(.textMain)
                 .padding([.leading, .trailing, .top], 20)
                 
                 Spacer()

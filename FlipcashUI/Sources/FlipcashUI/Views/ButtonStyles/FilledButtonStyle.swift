@@ -20,8 +20,8 @@ import SwiftUI
 /// .buttonStyle(.filled)
 /// ```
 ///
-/// Use the lower-opacity variants (`.filled50`, `.filled20`, `.filled10`)
-/// for secondary or de-emphasised actions.
+/// Use the lower-opacity variant `.filled20` for secondary or
+/// de-emphasised actions.
 public struct FilledButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
 
@@ -30,7 +30,7 @@ public struct FilledButtonStyle: ButtonStyle {
     private let overlayColor: Color
     private let overlayDisabledColor: Color
 
-    /// Internal only. Use the static accessors (e.g., `.filled`, `.filled50`) instead.
+    /// Internal only. Use the static accessors (e.g., `.filled`, `.filled20`) instead.
     init(
         textColor: Color,
         textDisabledColor: Color,
@@ -68,15 +68,6 @@ extension ButtonStyle where Self == FilledButtonStyle {
             overlayDisabledColor: .action.opacity(0.1)
         )
     }
-    /// A full-width filled button at 50% action color opacity.
-    public static var filled50: FilledButtonStyle {
-        .init(
-            textColor: .textMain,
-            textDisabledColor: .textMain.opacity(0.2),
-            overlayColor: .action.opacity(0.5),
-            overlayDisabledColor: .action.opacity(0.5)
-        )
-    }
     /// A full-width filled button at 20% action color opacity.
     public static var filled20: FilledButtonStyle {
         .init(
@@ -84,15 +75,6 @@ extension ButtonStyle where Self == FilledButtonStyle {
             textDisabledColor: .textMain.opacity(0.2),
             overlayColor: .action.opacity(0.2),
             overlayDisabledColor: .action.opacity(0.2)
-        )
-    }
-    /// A full-width filled button at 10% action color opacity.
-    public static var filled10: FilledButtonStyle {
-        .init(
-            textColor: .textMain,
-            textDisabledColor: .textMain.opacity(0.2),
-            overlayColor: .action.opacity(0.1),
-            overlayDisabledColor: .action.opacity(0.1)
         )
     }
 }

@@ -48,7 +48,7 @@ public struct LiquidGlassCompatibleButtonStyle: ButtonStyle {
                     .background(.ultraThinMaterial, in: Capsule())
             case .circle:
                 configuration.label
-                    .foregroundColor(Color.textMain)
+                    .foregroundStyle(Color.textMain)
                     .background(
                         Circle()
                             .fill(Color.textMain.opacity(0.07))
