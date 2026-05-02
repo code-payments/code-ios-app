@@ -55,58 +55,6 @@ public struct Row<Content>: View where Content: View {
     }
 }
 
-public struct NavigationRow<Content, Path>: View where Content: View {
-    
-    @Binding var path: [Path]
-    
-    public var insets: EdgeInsets
-    public var disabled: Bool
-    public var accessory: RowAccessory?
-    public var pathItem: Path
-    public var content: () -> Content
-    
-    // MARK: - Init -
-    
-    public init(path: Binding<[Path]>, insets: EdgeInsets, disabled: Bool = false, accessory: RowAccessory? = nil, pathItem: Path, @ViewBuilder content: @escaping () -> Content) {
-        self._path     = path
-        self.insets    = insets
-        self.disabled  = disabled
-        self.accessory = accessory
-        self.pathItem  = pathItem
-        self.content   = content
-    }
-    
-    public var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Button {
-                path.append(pathItem)
-            } label: {
-                HStack(spacing: 12) {
-                    content()
-                    if let accessory {
-                        switch accessory {
-                        case .chevron:
-                            Spacer()
-                            Image.system(.chevronRight)
-                                .renderingMode(.template)
-                        case .loader(let color):
-                            Spacer()
-                            LoadingView(color: color)
-                        }
-                    }
-                }
-                .padding(.leading, insets.leading)
-                .padding(.bottom, insets.bottom)
-                .padding(.trailing, insets.trailing)
-                .padding(.top, insets.top)
-            }
-            .disabled(disabled)
-            .vSeparator(color: .rowSeparator, position: .bottom)
-        }
-        .foregroundStyle(disabled ? .textSecondary : .textMain)
-    }
-}
-
 public enum RowAccessory {
     case chevron
     case loader(Color)
