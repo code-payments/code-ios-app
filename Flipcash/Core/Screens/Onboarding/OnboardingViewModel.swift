@@ -189,7 +189,7 @@ class OnboardingViewModel {
             subtitle: "You won't receive updates when your balance changes",
             dismissable: true
         ) {
-            .standard("OK Allow") { [weak self] in
+            .destructive("OK Allow") { [weak self] in
                 Task {
                     _ = try? await PushController.authorizeAndRegister()
                     self?.completeOnboardingAndLogin()
