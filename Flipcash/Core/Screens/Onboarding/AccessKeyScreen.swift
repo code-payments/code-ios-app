@@ -39,7 +39,7 @@ struct AccessKeyScreen: View {
                     
                     Text("Your Access Key is the only way to access your account. Please keep it private and safe.")
                         .font(.appTextSmall)
-                        .foregroundColor(.textMain)
+                        .foregroundStyle(.textMain)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 20)
                 }
@@ -59,7 +59,7 @@ struct AccessKeyScreen: View {
                     .disabled(viewModel.accessKeyButtonState != .normal)
             }
             .ignoresSafeArea(.keyboard)
-            .foregroundColor(.textMain)
+            .foregroundStyle(.textMain)
             .padding(20)
             .navigationTitle("Your Access Key")
             .navigationBarTitleDisplayMode(.inline)

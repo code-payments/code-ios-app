@@ -345,7 +345,7 @@ private struct PresetsPanelView: View {
                         .overlay(
                             Image(systemName: "slider.horizontal.3")
                                 .font(.system(size: 24, weight: .semibold))
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius, style: .continuous)

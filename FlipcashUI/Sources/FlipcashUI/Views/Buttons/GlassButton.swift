@@ -49,7 +49,7 @@ public struct GlassButton: View {
     public var body: some View {
         Button(action: action) {
             image
-                .foregroundColor(Color.textMain)
+                .foregroundStyle(Color.textMain)
                 .font(.appTextLarge)
                 .frame(width: size.width, height: size.height)
         }

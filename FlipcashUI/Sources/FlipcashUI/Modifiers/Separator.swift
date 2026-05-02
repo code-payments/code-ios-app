@@ -193,7 +193,7 @@ struct Separator_Previews: PreviewProvider {
             LazyTable {
                 ForEach(0..<100, id: \.self) { index in
                     Text("Hello")
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .padding([.top, .bottom], 20)
                         .vSeparator(color: .white, weight: .medium)
                 }

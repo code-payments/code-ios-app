@@ -36,7 +36,7 @@ public struct AccessKey: View {
             .aspectRatio(0.607, contentMode: .fit)
             .overlay(
                 Rectangle()
-                    .foregroundColor(.clear)
+                    .foregroundStyle(.clear)
                     .frame(width: 400, height: 520)
                     .background(
                         EllipticalGradient(

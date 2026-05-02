@@ -39,7 +39,7 @@ struct SettingsAppSettingsScreen: View {
             }
         }
         .font(.appDisplayXS)
-        .foregroundColor(.textMain)
+        .foregroundStyle(.textMain)
     }
 
     private func cameraAutoStartDisabledBinding() -> Binding<Bool> {

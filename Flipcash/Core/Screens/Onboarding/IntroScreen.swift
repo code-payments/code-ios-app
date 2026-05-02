@@ -88,7 +88,7 @@ struct IntroScreen: View {
                     .frame(maxWidth: .infinity)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
-                    .foregroundColor(.textSecondary)
+                    .foregroundStyle(.textSecondary)
                     .font(.appTextHeading)
                     .opacity(0.5)
                     .padding(30)

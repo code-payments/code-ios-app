@@ -19,7 +19,7 @@ struct Snapshot: View {
             
             Text("Warning! This image gives access to your Flipcash account. Do not share this image with anyone else. Keep it secure and safe.")
                 .font(.appTextSmall)
-                .foregroundColor(.textError)
+                .foregroundStyle(.textError)
                 .fixedSize(horizontal: false, vertical: true)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 255)
@@ -37,14 +37,14 @@ struct Snapshot: View {
             
             Text("Tap and hold the QR code to log in. Alternatively you can log in manually by entering the 12 words in the Flipcash Log In screen.")
                 .font(.appTextHeading)
-                .foregroundColor(.textMain)
+                .foregroundStyle(.textMain)
                 .fixedSize(horizontal: false, vertical: true)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 255)
             
             Spacer()
         }
-        .foregroundColor(.textMain)
+        .foregroundStyle(.textMain)
         .padding(30)
         .background {
             Color.backgroundMain

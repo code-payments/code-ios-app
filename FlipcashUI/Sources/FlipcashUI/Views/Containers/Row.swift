@@ -51,7 +51,7 @@ public struct Row<Content>: View where Content: View {
             .disabled(disabled)
             .vSeparator(color: .rowSeparator, position: .bottom)
         }
-        .foregroundColor(disabled ? .textSecondary : .textMain)
+        .foregroundStyle(disabled ? .textSecondary : .textMain)
     }
 }
 
@@ -103,7 +103,7 @@ public struct NavigationRow<Content, Path>: View where Content: View {
             .disabled(disabled)
             .vSeparator(color: .rowSeparator, position: .bottom)
         }
-        .foregroundColor(disabled ? .textSecondary : .textMain)
+        .foregroundStyle(disabled ? .textSecondary : .textMain)
     }
 }
 
@@ -146,7 +146,7 @@ struct Row_Previews: PreviewProvider {
                 }
                 Spacer()
             }
-            .foregroundColor(.textMain)
+            .foregroundStyle(.textMain)
         }
         .previewLayout(.fixed(width: 320, height: 550))
     }

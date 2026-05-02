@@ -260,7 +260,7 @@ struct BackButton: View {
             .fill(Color(white: 0.2))
             .overlay(
                 Image(systemName: "chevron.right")
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .font(.system(size: 20, weight: .semibold))
             )
             .overlay(

@@ -33,7 +33,7 @@ public struct CodeView: View {
                             .aspectRatio(contentMode: .fit)
                             .scaleEffect(0.6)
 //                            .font(.default(size: 150))
-                            .foregroundColor(.black)
+                            .foregroundStyle(.black)
                             .padding(.leading, 6)
                     }
                     .compositingGroup()

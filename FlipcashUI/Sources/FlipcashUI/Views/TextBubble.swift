@@ -32,7 +32,7 @@ public struct TextBubble: View {
         VStack {
             Text(text)
                 .font(font)
-                .foregroundColor(style.textColor)
+                .foregroundStyle(style.textColor)
         }
         .padding([.top, .bottom], 5 + (paddingVertical ?? 0))
         .padding([.leading, .trailing], 10 + (paddingHorizontal ?? 0))

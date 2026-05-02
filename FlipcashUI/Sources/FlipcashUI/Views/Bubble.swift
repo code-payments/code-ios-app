@@ -30,7 +30,7 @@ public struct Bubble: View {
     
     public var body: some View {
         Text("\(count)\(decoration)")
-            .foregroundColor(.textMain)
+            .foregroundStyle(.textMain)
             .font(size.font)
             .lineLimit(1)
             .padding(.vertical, 2)

@@ -67,7 +67,7 @@ public struct LargeButton<Content>: View where Content: View {
                 .frame(maxWidth: .infinity)
             }
         }
-        .foregroundColor(.textMain)
+        .foregroundStyle(.textMain)
     }
 }
 

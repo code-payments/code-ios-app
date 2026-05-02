@@ -53,7 +53,7 @@ struct BlurView_Previews: PreviewProvider {
     static var previews: some View {
         BlurView {
             Text("Sample")
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .padding(20.0)
         }
         .previewLayout(.fixed(width: 200.0, height: 100.0))

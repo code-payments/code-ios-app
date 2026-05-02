@@ -21,11 +21,11 @@ struct ForceLogoutScreen: View {
 
                     Text("Access Key No Longer Usable in Flipcash")
                         .font(.appTextLarge)
-                        .foregroundColor(.textMain)
+                        .foregroundStyle(.textMain)
 
                     Text("Your Access Key has initiated an unlock. As a result, you will no longer be able to use this Access Key in Flipcash.")
                         .font(.appTextSmall)
-                        .foregroundColor(.textSecondary)
+                        .foregroundStyle(.textSecondary)
                         .padding([.leading, .trailing], 20)
 
                     Spacer()

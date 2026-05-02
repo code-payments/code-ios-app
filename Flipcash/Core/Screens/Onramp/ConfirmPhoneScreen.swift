@@ -34,7 +34,7 @@ struct ConfirmPhoneScreen: View {
                     ZStack {
                         TwoFactorCodeView(digitCount: onrampCoordinator.codeLength, content: $onrampCoordinator.enteredCode)
                         TextField("", text: onrampCoordinator.adjustingCodeBinding)
-                            .foregroundColor(.backgroundMain)
+                            .foregroundStyle(.backgroundMain)
                             .keyboardType(.numberPad)
                             .textContentType(.oneTimeCode)
                             .offset(x: 999999, y: 999999)
@@ -77,7 +77,7 @@ struct ConfirmPhoneScreen: View {
                         .multilineTextAlignment(.center)
                     }
                 }
-                .foregroundColor(.textSecondary)
+                .foregroundStyle(.textSecondary)
                 .font(.appTextSmall)
                 .frame(minHeight: 40, alignment: .top)
                 .padding(20)
@@ -93,7 +93,7 @@ struct ConfirmPhoneScreen: View {
                 }
             }
             .padding(20)
-            .foregroundColor(.textMain)
+            .foregroundStyle(.textMain)
         }
         .dialog(item: $onrampCoordinator.dialogItem)
         .navigationTitle("Verify Phone Number")

@@ -30,7 +30,7 @@ struct AccessKeyBackupScreen: View {
                 
                 Text("Your Access Key is the only way to access your account. Please keep it private and safe.")
                     .font(.appTextSmall)
-                    .foregroundColor(.textSecondary)
+                    .foregroundStyle(.textSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
                 
@@ -56,7 +56,7 @@ struct AccessKeyBackupScreen: View {
                 )
             }
             .ignoresSafeArea(.keyboard)
-            .foregroundColor(.textMain)
+            .foregroundStyle(.textMain)
             .padding(20)
             .navigationTitle("Access Key")
             .navigationBarTitleDisplayMode(.inline)

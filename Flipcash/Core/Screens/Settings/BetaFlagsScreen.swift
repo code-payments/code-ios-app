@@ -44,10 +44,10 @@ struct BetaFlagsScreen: View {
                         Toggle(isOn: betaFlags.bindingFor(option: option)) {
                             VStack(alignment: .leading, spacing: 5) {
                                 Text(option.localizedTitle)
-                                    .foregroundColor(.textMain)
+                                    .foregroundStyle(.textMain)
                                     .font(.appTextMedium)
                                 Text(option.localizedDescription)
-                                    .foregroundColor(.textSecondary)
+                                    .foregroundStyle(.textSecondary)
                                     .font(.appTextHeading)
                                     .multilineTextAlignment(.leading)
                             }
@@ -110,7 +110,7 @@ struct BetaFlagsScreen: View {
         HStack {
             Text(title)
                 .font(.appTextHeading)
-                .foregroundColor(.textSecondary)
+                .foregroundStyle(.textSecondary)
             Spacer()
         }
         .padding(.horizontal, 20)
@@ -123,7 +123,7 @@ struct BetaFlagsScreen: View {
             HStack {
                 Text(title)
                     .font(.appTextMedium)
-                    .foregroundColor(.textMain)
+                    .foregroundStyle(.textMain)
                     .padding([.top, .bottom], 10)
                 Spacer()
             }

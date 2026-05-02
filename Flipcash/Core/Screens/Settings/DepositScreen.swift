@@ -29,7 +29,7 @@ struct DepositScreen: View {
             VStack(alignment: .leading, spacing: 20) {
                 Text("Deposit funds into your wallet by sending \(name ?? "funds") to your deposit address below. Tap to copy.")
                     .font(.appTextMedium)
-                    .foregroundColor(.textSecondary)
+                    .foregroundStyle(.textSecondary)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
                 

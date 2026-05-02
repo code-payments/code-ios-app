@@ -84,7 +84,7 @@ struct ConfirmEmailScreen: View {
                         .multilineTextAlignment(.center)
                     }
                 }
-                .foregroundColor(.textSecondary)
+                .foregroundStyle(.textSecondary)
                 .font(.appTextSmall)
                 .frame(minHeight: 40, alignment: .top)
                 .padding(20)
@@ -101,7 +101,7 @@ struct ConfirmEmailScreen: View {
                 }
             }
             .padding(20)
-            .foregroundColor(.textMain)
+            .foregroundStyle(.textMain)
         }
         .dialog(item: $onrampCoordinator.dialogItem)
         .navigationTitle("Verify Email")

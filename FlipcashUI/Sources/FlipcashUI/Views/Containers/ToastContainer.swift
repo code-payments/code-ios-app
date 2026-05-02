@@ -32,7 +32,7 @@ public struct ToastContainer<Content>: View where Content: View {
                         Text(toast)
                             .padding([.leading, .trailing], 10)
                             .padding([.top, .bottom], 6)
-                            .foregroundColor(.textMain)
+                            .foregroundStyle(.textMain)
                             .font(.appTextSmall)
                             .fixedSize()
                     }

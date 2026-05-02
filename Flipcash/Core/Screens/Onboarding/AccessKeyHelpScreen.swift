@@ -25,7 +25,7 @@ struct AccessKeyHelpScreen: View {
 
                     Text("Go to your photos app\nand search 'Flipcash'")
                         .font(.appTextSmall)
-                        .foregroundColor(.textSecondary)
+                        .foregroundStyle(.textSecondary)
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
                 }
