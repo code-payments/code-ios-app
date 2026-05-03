@@ -8,6 +8,8 @@
 
 import SwiftUI
 
+/// A glass-styled action button. Renders as a capsule when given a `title`,
+/// or as a circle when icon-only (`title == nil`).
 public struct CapsuleButton: View {
 
     private let state: ButtonState
@@ -97,7 +99,7 @@ public struct CapsuleButton: View {
             .frame(height: 57)
             .padding(.horizontal, title == nil ? 16 : 20)
         }
-        .buttonStyle(.liquidGlassCompatible)
+        .liquidGlassButtonStyle(shape: title == nil ? .circle : .capsule)
     }
 }
 
