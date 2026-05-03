@@ -7,62 +7,73 @@
 
 import SwiftUI
 
-/// A button style that applies a Liquid Glass effect on iOS 26+ and falls
-/// back to a material background on earlier versions.
-///
-/// Use the convenience accessors for the desired shape:
-/// ```swift
-/// .buttonStyle(.liquidGlassCompatible)        // capsule (default)
-/// .buttonStyle(.liquidGlassCompatibleCircle)   // circle
-/// ```
-public struct LiquidGlassCompatibleButtonStyle: ButtonStyle {
+public enum LiquidGlassButtonShape {
+    case capsule
+    case circle
+}
 
-    public enum Shape {
-        case capsule
-        case circle
-    }
-
-    private let shape: Shape
-
-    public init(shape: Shape = .capsule) {
-        self.shape = shape
-    }
-
-    public func makeBody(configuration: Configuration) -> some View {
+extension View {
+    /// Applies Apple's native `.buttonStyle(.glass)` on iOS 26+ and falls back
+    /// to a material/border style on earlier versions.
+    ///
+    /// `.buttonStyle(.glass)` is the Apple-recommended path for glass buttons
+    /// (WWDC25 session 323). Applying `.glassEffect(.interactive())` inside a
+    /// custom `ButtonStyle` stacks two gesture layers on the same view: the
+    /// glass press animation can claim a tap that arrives mid-feedback,
+    /// swallowing the `Button` action when the user taps rapidly.
+    ///
+    /// Use the convenience accessors:
+    /// ```swift
+    /// .liquidGlassButtonStyle()                 // capsule (default)
+    /// .liquidGlassButtonStyle(shape: .circle)   // circular icon
+    /// ```
+    @ViewBuilder
+    public func liquidGlassButtonStyle(shape: LiquidGlassButtonShape = .capsule) -> some View {
         if #available(iOS 26, *) {
             switch shape {
             case .capsule:
-                configuration.label
-                    .foregroundStyle(.white)
-                    .glassEffect(.regular.interactive(), in: .capsule)
+                self
+                    .buttonStyle(.glass)
+                    .buttonBorderShape(.capsule)
             case .circle:
-                configuration.label
-                    .foregroundStyle(.white)
-                    .glassEffect(.regular.interactive(), in: .circle)
+                self
+                    .buttonStyle(.glass)
+                    .buttonBorderShape(.circle)
             }
         } else {
-            switch shape {
-            case .capsule:
-                configuration.label
-                    .foregroundStyle(.white)
-                    .background(.ultraThinMaterial, in: Capsule())
-            case .circle:
-                configuration.label
-                    .foregroundStyle(Color.textMain)
-                    .background(
-                        Circle()
-                            .fill(Color.textMain.opacity(0.07))
-                            .background(
-                                Circle()
-                                    .strokeBorder(Color.textMain.opacity(0.1), lineWidth: 1)
-                            )
-                    )
-            }
+            self.buttonStyle(LiquidGlassCompatibleButtonStyle(shape: shape))
         }
     }
 }
 
-extension ButtonStyle where Self == LiquidGlassCompatibleButtonStyle {
-    public static var liquidGlassCompatible: LiquidGlassCompatibleButtonStyle { .init() }
-    public static var liquidGlassCompatibleCircle: LiquidGlassCompatibleButtonStyle { .init(shape: .circle) }
+/// Pre-iOS-26 fallback button style. Applied automatically by
+/// `liquidGlassButtonStyle(shape:)` on older systems; not intended to be used
+/// directly by callers.
+public struct LiquidGlassCompatibleButtonStyle: ButtonStyle {
+
+    private let shape: LiquidGlassButtonShape
+
+    public init(shape: LiquidGlassButtonShape = .capsule) {
+        self.shape = shape
+    }
+
+    public func makeBody(configuration: Configuration) -> some View {
+        switch shape {
+        case .capsule:
+            configuration.label
+                .foregroundStyle(.white)
+                .background(.ultraThinMaterial, in: Capsule())
+        case .circle:
+            configuration.label
+                .foregroundColor(Color.textMain)
+                .background(
+                    Circle()
+                        .fill(Color.textMain.opacity(0.07))
+                        .background(
+                            Circle()
+                                .strokeBorder(Color.textMain.opacity(0.1), lineWidth: 1)
+                        )
+                )
+        }
+    }
 }
