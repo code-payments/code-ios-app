@@ -46,18 +46,11 @@ extension View {
     }
 }
 
-/// Pre-iOS-26 fallback button style. Applied automatically by
-/// `liquidGlassButtonStyle(shape:)` on older systems; not intended to be used
-/// directly by callers.
-public struct LiquidGlassCompatibleButtonStyle: ButtonStyle {
+struct LiquidGlassCompatibleButtonStyle: ButtonStyle {
 
-    private let shape: LiquidGlassButtonShape
+    let shape: LiquidGlassButtonShape
 
-    public init(shape: LiquidGlassButtonShape = .capsule) {
-        self.shape = shape
-    }
-
-    public func makeBody(configuration: Configuration) -> some View {
+    func makeBody(configuration: Configuration) -> some View {
         switch shape {
         case .capsule:
             configuration.label

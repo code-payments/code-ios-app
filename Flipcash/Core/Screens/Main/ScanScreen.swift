@@ -285,7 +285,6 @@ struct ScanScreen: View {
                 } else {
                     Image.asset(.hamburger)
                         .foregroundStyle(Color.textMain)
-                        .font(.appTextLarge)
                         .frame(width: 44, height: 44)
                 }
             }
