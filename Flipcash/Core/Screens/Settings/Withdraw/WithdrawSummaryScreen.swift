@@ -32,11 +32,10 @@ struct WithdrawSummaryScreen: View {
                                     title: "Net amount",
                                     value: net.formatted()
                                 )
-                                if let amountText = viewModel.amountInTokenText,
-                                   let kind = viewModel.kind {
+                                if let kind = viewModel.kind {
                                     SummaryLineItem(
                                         title: "Amount in \(kind.destinationCurrencyName)",
-                                        value: amountText
+                                        value: display
                                     )
                                 }
                             }

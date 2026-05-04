@@ -25,7 +25,6 @@ struct CashReservesRow: View {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(Color.textSecondary)
-                    .padding(.top, 3)
 
                 Spacer()
 

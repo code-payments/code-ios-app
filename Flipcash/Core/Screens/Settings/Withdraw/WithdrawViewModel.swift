@@ -81,7 +81,7 @@ class WithdrawViewModel {
     }
 
     var withdrawableAmount: ExchangedFiat? {
-        guard let enteredFiat, destinationMetadata != nil else { return nil }
+        guard let enteredFiat else { return nil }
         guard let fee = resolvedFee, fee.onChain.quarks > 0 else {
             return enteredFiat
         }
@@ -139,43 +139,13 @@ class WithdrawViewModel {
         }
     }
 
-    var withdrawTitle: String {
-        if let balance = kind?.balance {
-            return "Withdraw \(balance.stored.name)"
-        } else {
-            return "Withdraw"
-        }
-    }
-
-    /// Whether the summary's layered card includes the "Amount in <name>" row
-    /// (passes through `kind.showsAmountInTokenLine`, defaulting to false when
-    /// `kind` is nil — e.g., before a balance has been picked).
-    var showsAmountInTokenLine: Bool {
-        kind?.showsAmountInTokenLine ?? false
-    }
-
-    /// On-chain token quantity formatted for the bonded summary's "Amount in <name>" row.
-    /// Uses the mint's decimal scaling (e.g. 297_902_148_685 quarks → "29.7902148685"
-    /// for a 10-decimal Jeffy token). Nil for USDF (1:1 USD peg makes this redundant).
-    var amountInTokenText: String? {
-        guard kind?.showsAmountInTokenLine == true else { return nil }
-        guard let withdrawableAmount else { return nil }
-        return withdrawableAmount.onChainAmount.decimalValue.formatted()
-    }
-
-    /// Single string rendered inside the "You Receive" box on the summary.
-    /// USDF: net fiat (matches the summary's `Net amount` line). Bonded:
-    /// scaled token quantity (matches `amountInTokenText` — same number,
-    /// different framing on screen).
+    /// Post-fee on-chain token quantity in the destination mint, formatted with
+    /// the mint's decimal scaling (e.g. 297_902_148_685 quarks → "29.7902148685"
+    /// for a 10-decimal Jeffy token; 234_784 quarks → "0.234784" for a 6-decimal
+    /// USDF). Used for both the summary's "Amount in <name>" row and the big
+    /// "You Receive" box — same value, different framing.
     var youReceiveDisplayValue: String? {
-        switch kind {
-        case .sameMint:
-            return withdrawableAmount?.onChainAmount.decimalValue.formatted()
-        case .usdfToUsdc:
-            return displayNet?.formatted()
-        case .none:
-            return nil
-        }
+        withdrawableAmount?.onChainAmount.decimalValue.formatted()
     }
 
     /// Logo URL for the You Receive box. For both kinds the logo comes from
@@ -391,7 +361,7 @@ class WithdrawViewModel {
             subtitle: "Withdrawals are irreversible and cannot be undone once initiated",
             dismissable: true,
             actions: {
-                .destructive("Withdraw") { [weak self] in
+                .destructive("Yes, Withdraw") { [weak self] in
                     self?.completeWithdrawal()
                 };
                 .cancel()
@@ -600,14 +570,6 @@ enum WithdrawKind: Equatable {
         switch self {
         case .sameMint:    return false
         case .usdfToUsdc:  return true
-        }
-    }
-
-    /// Whether the summary's layered card includes the "Amount in <name>" line.
-    var showsAmountInTokenLine: Bool {
-        switch self {
-        case .sameMint:    return true
-        case .usdfToUsdc:  return false
         }
     }
 }

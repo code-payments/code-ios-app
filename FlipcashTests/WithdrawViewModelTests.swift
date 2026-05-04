@@ -521,13 +521,6 @@ struct WithdrawKindTests {
         #expect(WithdrawKind.usdfToUsdc(usdf).showsIntroScreen == true)
     }
 
-    @Test("showsAmountInTokenLine: true for sameMint, false for usdfToUsdc")
-    func showsAmountInTokenLine() {
-        let bonded = WithdrawViewModelTestHelpers.createBondedBalance()
-        let usdf = WithdrawViewModelTestHelpers.createExchangedBalance(mint: .usdf)
-        #expect(WithdrawKind.sameMint(bonded).showsAmountInTokenLine == true)
-        #expect(WithdrawKind.usdfToUsdc(usdf).showsAmountInTokenLine == false)
-    }
 }
 
 // MARK: - WithdrawViewModel summary helpers
@@ -536,44 +529,8 @@ struct WithdrawKindTests {
 @Suite("WithdrawViewModel summary helpers")
 struct WithdrawViewModelSummaryHelpersTests {
 
-    @Test("showsAmountInTokenLine: true for sameMint, false for usdfToUsdc (VM passthrough)")
-    func showsAmountInTokenLine_passthrough() {
-        let bonded = WithdrawViewModelTestHelpers.createBondedBalance()
-        let usdf = WithdrawViewModelTestHelpers.createExchangedBalance(mint: .usdf)
-        let vmBonded = WithdrawViewModelTestHelpers.createViewModel()
-        vmBonded.kind = .sameMint(bonded)
-        let vmUsdf = WithdrawViewModelTestHelpers.createViewModel()
-        vmUsdf.kind = .usdfToUsdc(usdf)
-        #expect(vmBonded.showsAmountInTokenLine == true)
-        #expect(vmUsdf.showsAmountInTokenLine == false)
-    }
-
-    @Test("amountInTokenText: nil for usdfToUsdc")
-    func amountInTokenText_usdfToUsdc_isNil() {
-        let usdf = WithdrawViewModelTestHelpers.createExchangedBalance(mint: .usdf, quarks: 100_000_000)
-        let viewModel = WithdrawViewModelTestHelpers.createViewModel()
-        viewModel.kind = .usdfToUsdc(usdf)
-        viewModel.enteredAmount = "5.00"
-        viewModel.destinationMetadata = WithdrawViewModelTestHelpers.createDestinationMetadata()
-
-        #expect(viewModel.amountInTokenText == nil)
-    }
-
-    @Test("amountInTokenText: matches the post-fee on-chain decimal-scaled value for sameMint")
-    func amountInTokenText_sameMint_matchesPostFeeDecimalValue() throws {
-        let bonded = WithdrawViewModelTestHelpers.createBondedBalance()
-        let viewModel = WithdrawViewModelTestHelpers.createViewModel()
-        viewModel.kind = .sameMint(bonded)
-        viewModel.enteredAmount = "10.00"
-        viewModel.destinationMetadata = WithdrawViewModelTestHelpers.createDestinationMetadata()
-
-        let amountText = try #require(viewModel.amountInTokenText)
-        let withdrawable = try #require(viewModel.withdrawableAmount)
-        #expect(amountText == withdrawable.onChainAmount.decimalValue.formatted())
-    }
-
-    @Test("youReceiveDisplayValue: USDF returns fiat-formatted string")
-    func youReceiveDisplayValue_usdf_returnsFiat() throws {
+    @Test("youReceiveDisplayValue: USDF returns post-fee on-chain token amount")
+    func youReceiveDisplayValue_usdf_returnsTokenAmount() throws {
         let usdf = WithdrawViewModelTestHelpers.createExchangedBalance(mint: .usdf, quarks: 100_000_000)
         let viewModel = WithdrawViewModelTestHelpers.createViewModel(withdrawalFeeQuarks: 500_000) // $0.50
         viewModel.kind = .usdfToUsdc(usdf)
@@ -581,11 +538,54 @@ struct WithdrawViewModelSummaryHelpersTests {
         viewModel.destinationMetadata = WithdrawViewModelTestHelpers.createDestinationMetadata()
 
         let value = try #require(viewModel.youReceiveDisplayValue)
-        // $50.00 - $0.50 fee = $49.50; the formatter typically yields "$49.50".
-        #expect(value.contains("49.50"))
+        let withdrawable = try #require(viewModel.withdrawableAmount)
+        #expect(value == withdrawable.onChainAmount.decimalValue.formatted())
     }
 
-    @Test("youReceiveDisplayValue: bonded returns on-chain quark count as numeric string")
+    /// Regression: WithdrawSummaryScreen wraps the entire amount/fee/net/You-Receive
+    /// card in `if let entered, let net, let display`. When any one of those goes
+    /// nil the user sees a near-empty screen with just the address and Withdraw
+    /// button. Locks the three values together for the USDF→USDC flow with and
+    /// without destination metadata, so any future regression to the underlying
+    /// computations fails here instead of silently hiding the card.
+    @Test("summary card values are all non-nil for usdfToUsdc at 1 CAD")
+    func summaryCard_usdfToUsdc_oneCAD_allValuesNonNil() {
+        let viewModel = makeUsdfToUsdcCadViewModel()
+        viewModel.destinationMetadata = WithdrawViewModelTestHelpers.createDestinationMetadata()
+
+        #expect(viewModel.enteredFiat != nil)
+        #expect(viewModel.displayNet != nil)
+        #expect(viewModel.youReceiveDisplayValue != nil)
+    }
+
+    /// Regression: youReceiveDisplayValue and withdrawableAmount must NOT depend on
+    /// destinationMetadata. They feed the summary card; if they vanish whenever
+    /// metadata is briefly nil (initial render before async fetch settles, stale
+    /// state on re-entry, server-failed validation), the user sees a half-blank
+    /// summary. The fee-subtracted token amount is purely a function of the
+    /// entered amount and the static fee — keep it that way.
+    @Test("youReceiveDisplayValue does not depend on destinationMetadata")
+    func youReceiveDisplayValue_noMetadata_stillRenders() {
+        let viewModel = makeUsdfToUsdcCadViewModel()
+
+        #expect(viewModel.destinationMetadata == nil)
+        #expect(viewModel.withdrawableAmount != nil)
+        #expect(viewModel.youReceiveDisplayValue != nil)
+    }
+
+    private func makeUsdfToUsdcCadViewModel() -> WithdrawViewModel {
+        let usdf = WithdrawViewModelTestHelpers.createExchangedBalance(mint: .usdf, quarks: 100_000_000)
+        let viewModel = WithdrawViewModelTestHelpers.createViewModel(
+            balanceCurrency: .cad,
+            rates: [Rate(fx: 1.4, currency: .cad)],
+            withdrawalFeeQuarks: 500_000 // $0.50
+        )
+        viewModel.kind = .usdfToUsdc(usdf)
+        viewModel.enteredAmount = "1"
+        return viewModel
+    }
+
+    @Test("youReceiveDisplayValue: bonded returns post-fee on-chain token amount")
     func youReceiveDisplayValue_bonded_returnsTokenCount() throws {
         let bonded = WithdrawViewModelTestHelpers.createBondedBalance()
         let viewModel = WithdrawViewModelTestHelpers.createViewModel()
@@ -594,9 +594,8 @@ struct WithdrawViewModelSummaryHelpersTests {
         viewModel.destinationMetadata = WithdrawViewModelTestHelpers.createDestinationMetadata()
 
         let value = try #require(viewModel.youReceiveDisplayValue)
-        // Bonded path renders the same quark count as amountInTokenText —
-        // same number, different framing on screen.
-        #expect(value == viewModel.amountInTokenText)
+        let withdrawable = try #require(viewModel.withdrawableAmount)
+        #expect(value == withdrawable.onChainAmount.decimalValue.formatted())
     }
 
     @Test("destinationLogoURL: usdfToUsdc returns MintMetadata.usdc.imageURL")
