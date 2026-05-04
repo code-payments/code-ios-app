@@ -28,7 +28,7 @@ public struct EnterAmountView: View {
     private var calculator: EnterAmountCalculator {
         EnterAmountCalculator(
             mode: mode,
-            entryCurrency: rateController.entryCurrency,
+            selectedCurrency: rateController.balanceCurrency,
             sendLimitProvider: session.sendLimitFor(currency:)
         )
     }

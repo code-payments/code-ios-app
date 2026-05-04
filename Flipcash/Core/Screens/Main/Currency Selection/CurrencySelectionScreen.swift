@@ -10,31 +10,42 @@ import FlipcashUI
 import FlipcashCore
 
 struct CurrencySelectionScreen: View {
-    
+
+    @Environment(\.dismiss) private var dismiss
     @State private var viewModel: CurrencySelectionViewModel
 
     // MARK: - Init -
 
-    init(isPresented: Binding<Bool>, kind: CurrencySelectionType, ratesController: RatesController) {
-        self.viewModel = CurrencySelectionViewModel(
-            isPresented: isPresented,
-            kind: kind,
-            ratesController: ratesController
-        )
+    init(ratesController: RatesController) {
+        self._viewModel = State(initialValue: CurrencySelectionViewModel(ratesController: ratesController))
     }
-    
+
     // MARK: - Body -
-    
+
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Background(color: .backgroundMain) {
                 List {
                     Group {
                         if viewModel.isSearching {
-                            searchingCurrencies()
+                            Section(header: ListHeader("Results")) {
+                                ForEach(viewModel.searchingCurrencies) { description in
+                                    CurrencyRow(description: description, viewModel: viewModel, allowDelete: false, dismiss: dismiss)
+                                }
+                            }
                         } else {
-                            recentCurrencies()
-                            otherCurrencies()
+                            if !viewModel.availableRecentCurrencies.isEmpty {
+                                Section(header: ListHeader("Recent Regions")) {
+                                    ForEach(viewModel.availableRecentCurrencies) { description in
+                                        CurrencyRow(description: description, viewModel: viewModel, allowDelete: true, dismiss: dismiss)
+                                    }
+                                }
+                            }
+                            Section(header: ListHeader("Other Regions")) {
+                                ForEach(viewModel.availableCurrencies) { description in
+                                    CurrencyRow(description: description, viewModel: viewModel, allowDelete: false, dismiss: dismiss)
+                                }
+                            }
                         }
                     }
                     .listRowSeparatorTint(Color.rowSeparator)
@@ -46,7 +57,7 @@ struct CurrencySelectionScreen: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    ToolbarCloseButton(binding: viewModel.isPresented)
+                    ToolbarCloseButton { dismiss() }
                 }
             }
             .searchable(
@@ -56,45 +67,22 @@ struct CurrencySelectionScreen: View {
             )
             .foregroundStyle(Color.textMain)
         }
-        .onAppear {
-//            Analytics.open(screen: .currencySelection)
-//            ErrorReporting.breadcrumb(.currencyScreen)
-        }
     }
-    
-    @ViewBuilder private func searchingCurrencies() -> some View {
-        Section(header: ListHeader("Results")) {
-            ForEach(viewModel.searchingCurrencies) { description in
-                currencyRow(for: description)
-            }
-        }
-    }
-    
-    @ViewBuilder private func recentCurrencies() -> some View {
-        if !viewModel.availableRecentCurrencies.isEmpty {
-            Section(header: ListHeader("Recent Regions")) {
-                ForEach(viewModel.availableRecentCurrencies) { description in
-                    currencyRow(for: description, canDelete: true)
-                }
-            }
-        }
-    }
-    
-    @ViewBuilder private func otherCurrencies() -> some View {
-        Section(header: ListHeader("Other Regions")) {
-            ForEach(viewModel.availableCurrencies) { description in
-                currencyRow(for: description)
-            }
-        }
-    }
-    
-    @ViewBuilder private func currencyRow(for description: CurrencyDescription, canDelete: Bool = false) -> some View {
+}
+
+private struct CurrencyRow: View {
+    let description: CurrencyDescription
+    let viewModel: CurrencySelectionViewModel
+    let allowDelete: Bool
+    let dismiss: DismissAction
+
+    var body: some View {
         Button {
             viewModel.select(currency: description.currency)
+            dismiss()
         } label: {
             HStack(spacing: 15) {
                 Flag(style: description.currency.flagStyle)
-                
                 VStack(alignment: .leading, spacing: 5) {
                     Text(description.localizedName)
                         .foregroundStyle(.textMain)
@@ -102,7 +90,6 @@ struct CurrencySelectionScreen: View {
                         .multilineTextAlignment(.leading)
                         .layoutPriority(10)
                 }
-                
                 Spacer()
                 CheckView(active: viewModel.isCurrencyActive(description.currency))
             }
@@ -112,13 +99,11 @@ struct CurrencySelectionScreen: View {
         .opacity(viewModel.opacity(for: description.currency))
         .disabled(viewModel.isSelectionDisabled(for: description.currency))
         .listRowBackground(Color.backgroundMain)
-        .buttonStyle(.plain) // Allows default `Button` highlighting
-        .if(canDelete) { $0
-            .swipeActions {
+        .buttonStyle(.plain)
+        .swipeActions {
+            if allowDelete {
                 Button {
-                    withAnimation {
-                        viewModel.removeRecent(description.currency)
-                    }
+                    withAnimation { viewModel.removeRecent(description.currency) }
                 } label: {
                     Image.asset(.delete)
                 }

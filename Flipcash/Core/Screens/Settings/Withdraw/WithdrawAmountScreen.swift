@@ -38,11 +38,7 @@ struct WithdrawAmountScreen: View {
             .foregroundStyle(Color.textMain)
             .padding(20)
             .sheet(isPresented: $isShowingCurrencySelection) {
-                CurrencySelectionScreen(
-                    isPresented: $isShowingCurrencySelection,
-                    kind: .entry,
-                    ratesController: ratesController
-                )
+                CurrencySelectionScreen(ratesController: ratesController)
             }
         }
         .navigationTitle(title)

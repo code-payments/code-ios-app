@@ -34,10 +34,10 @@ struct GiveScreen: View {
     @Environment(\.dismissParentContainer) private var dismissParentContainer
 
     private var maxLimit: ExchangedFiat {
-        let entryRate = ratesController.rateForEntryCurrency()
-        let zero      = ExchangedFiat.compute(
+        let rate = ratesController.rateForBalanceCurrency()
+        let zero = ExchangedFiat.compute(
             onChainAmount: .zero(mint: .usdf),
-            rate: entryRate,
+            rate: rate,
             supplyQuarks: nil
         )
 
@@ -49,7 +49,7 @@ struct GiveScreen: View {
             return zero
         }
 
-        return balance.computeExchangedValue(with: entryRate)
+        return balance.computeExchangedValue(with: rate)
     }
 
     // MARK: - Init -
@@ -78,11 +78,7 @@ struct GiveScreen: View {
             .padding(.bottom, 20)
             .padding(.top, -40)
             .sheet(isPresented: $isShowingCurrencySelection) {
-                CurrencySelectionScreen(
-                    isPresented: $isShowingCurrencySelection,
-                    kind: .entry,
-                    ratesController: ratesController
-                )
+                CurrencySelectionScreen(ratesController: ratesController)
             }
         }
         .ignoresSafeArea(.keyboard)

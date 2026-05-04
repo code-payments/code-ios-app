@@ -376,8 +376,8 @@ class Session {
             return .insufficient(shortfall: nil)
         }
 
-        let entryRate = ratesController.rateForEntryCurrency()
-        let exchangedBalance = balance.computeExchangedValue(with: entryRate)
+        let rate = ratesController.rateForBalanceCurrency()
+        let exchangedBalance = balance.computeExchangedValue(with: rate)
 
         if exchangedFiat.onChainAmount <= exchangedBalance.onChainAmount {
             // Sufficient funds - send the requested amount

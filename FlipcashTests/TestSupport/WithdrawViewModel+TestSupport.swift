@@ -17,7 +17,7 @@ import FlipcashUI
 enum WithdrawViewModelTestHelpers {
 
     static func createViewModel(
-        entryCurrency: CurrencyCode = .usd,
+        balanceCurrency: CurrencyCode = .usd,
         rates: [Rate] = [.oneToOne],
         withdrawalFeeQuarks: UInt64 = 50_000
     ) -> WithdrawViewModel {
@@ -25,7 +25,7 @@ enum WithdrawViewModelTestHelpers {
         let sessionContainer = SessionContainer.mock
 
         sessionContainer.ratesController.configureTestRates(
-            entryCurrency: entryCurrency,
+            balanceCurrency: balanceCurrency,
             rates: rates
         )
 
@@ -131,7 +131,7 @@ enum WithdrawViewModelTestHelpers {
             )
         }
         let stored = try #require(container.session.balance(for: .usdf))
-        let rate = container.ratesController.rateForEntryCurrency()
+        let rate = container.ratesController.rateForBalanceCurrency()
         let balance = ExchangedBalance(
             stored: stored,
             exchangedFiat: stored.computeExchangedValue(with: rate)

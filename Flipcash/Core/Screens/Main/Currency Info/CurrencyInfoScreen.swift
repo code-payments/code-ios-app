@@ -205,11 +205,7 @@ struct CurrencyInfoScreen: View {
             CurrencySellAmountScreen(viewModel: sellViewModel)
         }
         .sheet(isPresented: $isShowingCurrencySelection) {
-            CurrencySelectionScreen(
-                isPresented: $isShowingCurrencySelection,
-                kind: .balance,
-                ratesController: ratesController
-            )
+            CurrencySelectionScreen(ratesController: ratesController)
         }
         .sheet(isPresented: $isShowingFundingSelection, onDismiss: {
             // SwiftUI allows only one modal sheet at a time, so we can't set

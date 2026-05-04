@@ -31,7 +31,6 @@ enum DefaultsKey: String {
     case cameraAutoStartDisabled = "com.flipcash.camera.autoStartDisabled"
     case cameraEnabledState      = "com.flipcash.camera.cameraEnabledState"
     
-    case entryCurrency      = "com.flipcash.currency.entryCurrency"
     case balanceCurrency    = "com.flipcash.currency.balanceCurrency"
     case recentCurrencies   = "com.flipcash.currency.recentCurrencies"
     case localCurrencyAdded = "com.flipcash.currency.localCurrencyAdded"

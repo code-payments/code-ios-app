@@ -130,7 +130,6 @@ class AccountManager {
         Keychain.historicalAccounts = nil
 
         let currencyKeys: [DefaultsKey] = [
-            .entryCurrency,
             .balanceCurrency,
             .recentCurrencies,
             .localCurrencyAdded,

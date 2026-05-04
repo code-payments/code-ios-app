@@ -130,7 +130,7 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
     ///
     /// - Parameters:
     ///   - amount: User-entered fiat amount (in `rate.currency`).
-    ///   - rate: Fiat FX rate for the entry currency.
+    ///   - rate: Fiat FX rate for the selected currency.
     ///   - mint: Target token mint.
     ///   - supplyQuarks: Current token supply in quarks (10 decimals).
     ///   - balance: Optional USDF-equivalent balance cap. When provided the entered

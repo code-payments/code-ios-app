@@ -39,7 +39,7 @@ struct Regression_69f39bbb {
         )
         let rate = Rate(fx: Decimal(fx), currency: currency)
         sessionContainer.ratesController.configureTestRates(
-            entryCurrency: currency,
+            balanceCurrency: currency,
             rates: [rate]
         )
         await sessionContainer.ratesController.verifiedProtoService.saveRates([
@@ -68,7 +68,7 @@ struct Regression_69f39bbb {
             )
         ])
         sessionContainer.ratesController.configureTestRates(
-            entryCurrency: .usd,
+            balanceCurrency: .usd,
             rates: [.oneToOne]
         )
         await sessionContainer.ratesController.verifiedProtoService.saveRates([

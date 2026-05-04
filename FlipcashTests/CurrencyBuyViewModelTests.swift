@@ -20,12 +20,12 @@ struct CurrencyBuyViewModelTests {
     /// CAD rate: 1 USD = 1.35 CAD
     static let cadRate = Rate(fx: 1.35, currency: .cad)
 
-    /// Helper to create a test view model with CAD as the entry currency.
+    /// Helper to create a test view model with CAD as the selected currency.
     /// Uses the mock SessionContainer which has no seeded balance.
     static func createViewModel() -> CurrencyBuyViewModel {
         let sessionContainer = SessionContainer.mock
 
-        sessionContainer.ratesController.configureTestRates(entryCurrency: .cad, rates: [cadRate])
+        sessionContainer.ratesController.configureTestRates(balanceCurrency: .cad, rates: [cadRate])
 
         return CurrencyBuyViewModel(
             currencyPublicKey: .usdf,
@@ -43,7 +43,7 @@ struct CurrencyBuyViewModelTests {
             .init(mint: MintMetadata.usdf, quarks: 10_000_000)
         ])
 
-        container.ratesController.configureTestRates(entryCurrency: .cad, rates: [cadRate])
+        container.ratesController.configureTestRates(balanceCurrency: .cad, rates: [cadRate])
 
         return CurrencyBuyViewModel(
             currencyPublicKey: .jeffy,
