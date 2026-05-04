@@ -224,7 +224,7 @@ public class _CameraPreviewView: UIView {
             setZoomFactor(gestureZoomFactor * amplified, device: device)
 
         case .ended, .cancelled:
-            setZoomFactor(wideStartZoomFactor(for: device), device: device)
+            setZoomFactor(device.wideStartZoomFactor, device: device)
 
         default:
             break
