@@ -8,7 +8,23 @@
 
 import Foundation
 import Combine
+import FlipcashCore
 @preconcurrency import AVKit
+
+private let logger = Logger(label: "flipcash.camera")
+
+/// On a virtual capture device whose first constituent is the ultrawide lens,
+/// `videoZoomFactor = 1.0` engages the ultrawide (what users perceive as 0.5×).
+/// Returns the zoom factor that engages the wide-angle lens — i.e. the user's
+/// "1×". For non-virtual devices and virtual devices that don't lead with an
+/// ultrawide, returns `1.0` unchanged.
+func wideStartZoomFactor(for device: AVCaptureDevice) -> CGFloat {
+    guard device.constituentDevices.first?.deviceType == .builtInUltraWideCamera,
+          let wideThreshold = device.virtualDeviceSwitchOverVideoZoomFactors.first else {
+        return 1.0
+    }
+    return CGFloat(truncating: wideThreshold)
+}
 
 @MainActor
 public protocol AnyCameraSession {
@@ -119,7 +135,20 @@ public class CameraSession<T>: ObservableObject, AnyCameraSession where T: Camer
             device.automaticallyEnablesLowLightBoostWhenAvailable = true
         }
 
+        // Default to the wide-angle lens on multi-lens devices that lead with
+        // an ultrawide. Without this, iPhone Pro / Plus models open at 0.5×.
+        device.videoZoomFactor = wideStartZoomFactor(for: device)
+
         device.unlockForConfiguration()
+
+        logger.info("Configured capture device", metadata: [
+            "deviceType": "\(device.deviceType.rawValue)",
+            "constituents": "\(device.constituentDevices.map(\.deviceType.rawValue).joined(separator: ","))",
+            "switchovers": "\(device.virtualDeviceSwitchOverVideoZoomFactors)",
+            "startZoom": "\(device.videoZoomFactor)",
+            "minZoom": "\(device.minAvailableVideoZoomFactor)",
+            "maxZoom": "\(device.maxAvailableVideoZoomFactor)",
+        ])
 
         guard let input = try? AVCaptureDeviceInput(device: device) else {
             throw Error.inputCreationFailed
