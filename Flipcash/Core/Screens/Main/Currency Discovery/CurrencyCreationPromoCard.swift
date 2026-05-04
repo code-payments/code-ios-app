@@ -11,29 +11,27 @@ struct CurrencyCreationPromoCard: View {
 
     var body: some View {
         Button(action: onCreate) {
-            HStack(alignment: .center, spacing: 12) {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 8) {
-                        Text("Create Your Own Currency")
-                            .font(.appTextLarge)
-                            .foregroundStyle(Color.textMain)
-                            .fixedSize(horizontal: false, vertical: true)
-                        Image.system(.arrowRight)
-                            .foregroundStyle(Color.textMain)
-                    }
-                    Text("Create a currency in minutes and immediately use it as cash")
-                        .font(.appTextSmall)
-                        .foregroundStyle(Color.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Text("Create Your Own Currency")
+                        .font(.appTextMedium)
+                        .foregroundStyle(Color.textMain)
+                    Image.system(.arrowRight)
+                        .foregroundStyle(Color.textMain)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
+                Text("Create a currency in minutes and immediately use it as cash")
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(alignment: .trailing) {
                 Image(.CurrencyDiscovery.bills)
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 120)
+                    .frame(width: 130)
             }
-            .padding(16)
             .background(Color.backgroundSecondary)
             .compositingGroup()
             .clipShape(.rect(cornerRadius: 16))
