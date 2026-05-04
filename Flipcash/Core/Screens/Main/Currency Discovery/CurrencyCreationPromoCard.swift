@@ -19,7 +19,7 @@ struct CurrencyCreationPromoCard: View {
                     Image.system(.arrowRight)
                         .foregroundStyle(Color.textMain)
                 }
-                Text("Create a currency in minutes and immediately use it as cash")
+                Text("Create a currency in minutes and\nimmediately use it as cash")
                     .font(.appTextSmall)
                     .foregroundStyle(Color.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -30,9 +30,9 @@ struct CurrencyCreationPromoCard: View {
                 Image(.CurrencyDiscovery.bills)
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 130)
+                    .frame(width: 120, height: 120)
             }
-            .background(Color.backgroundSecondary)
+            .background(Color.backgroundRow)
             .compositingGroup()
             .clipShape(.rect(cornerRadius: 16))
         }
