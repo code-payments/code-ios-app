@@ -51,7 +51,7 @@ struct CurrencyDiscoveryRow: View {
                     if let weeklyDelta = metrics.holderDeltas.first(where: { $0.range == .lastWeek }) {
                         Text(Self.formatDelta(weeklyDelta.delta))
                             .font(.appTextSmall)
-                            .foregroundStyle(weeklyDelta.delta < 0 ? Color.Sentiment.neutral : Color.Sentiment.positive)
+                            .foregroundStyle(weeklyDelta.delta > 0 ? Color.Sentiment.positive : Color.Sentiment.neutral)
                             .contentTransition(.numericText())
                     }
                 }

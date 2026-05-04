@@ -1,18 +1,21 @@
 //
-//  CurrencyDiscoveryErrorState.swift
+//  CurrencyDiscoveryStatusView.swift
 //  Flipcash
 //
 
 import SwiftUI
 import FlipcashUI
 
-struct CurrencyDiscoveryErrorState: View {
+struct CurrencyDiscoveryStatusView: View {
+    let title: String
+    let message: String
+
     var body: some View {
         VStack(spacing: 10) {
-            Text("Something Went Wrong")
+            Text(title)
                 .font(.appTextLarge)
                 .foregroundStyle(Color.textMain)
-            Text("We couldn't load currencies right now. Please try again.")
+            Text(message)
                 .font(.appTextMedium)
                 .foregroundStyle(Color.textSecondary)
                 .multilineTextAlignment(.center)
