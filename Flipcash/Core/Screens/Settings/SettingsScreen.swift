@@ -14,23 +14,18 @@ struct SettingsScreen: View {
     @Environment(AppRouter.self) private var router
     @Environment(BetaFlags.self) private var betaFlags
 
-    @State private var dialogItem: DialogItem?
     @State private var debugTapCount: Int = 0
 
     private let insets = EdgeInsets(top: 25, leading: 0, bottom: 25, trailing: 0)
 
     private let container: Container
-    private let sessionAuthenticator: SessionAuthenticator
     private let sessionContainer: SessionContainer
-    private let session: Session
 
     // MARK: - Init -
 
     init(container: Container, sessionContainer: SessionContainer) {
         self.container = container
-        self.sessionAuthenticator = container.sessionAuthenticator
         self.sessionContainer = sessionContainer
-        self.session = sessionContainer.session
     }
 
     // MARK: - Body -
@@ -83,31 +78,18 @@ struct SettingsScreen: View {
                     .padding(.top, 10)
                 }
                 .safeAreaInset(edge: .bottom) {
-                    VStack(spacing: 0) {
-                        Button {
-                            dialogItem = logoutDialog
-                        } label: {
-                            HStack(spacing: 10) {
-                                Image.asset(.logout)
-                                    .renderingMode(.template)
-                                Text("Log Out")
-                            }
-                        }
-                        .buttonStyle(.subtle)
-
-                        Button {
-                            handleVersionTap()
-                        } label: {
-                            Text("Version \(AppMeta.version) • Build \(AppMeta.build)")
-                                .lineLimit(1)
-                                .font(.appTextHeading)
-                                .foregroundStyle(Color.textSecondary)
-                                .padding(.vertical, 12)
-                                .frame(maxWidth: .infinity)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
+                    Button {
+                        handleVersionTap()
+                    } label: {
+                        Text("Version \(AppMeta.version) • Build \(AppMeta.build)")
+                            .lineLimit(1)
+                            .font(.appTextHeading)
+                            .foregroundStyle(Color.textSecondary)
+                            .padding(.vertical, 12)
+                            .frame(maxWidth: .infinity)
+                            .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
                     .padding(.horizontal, 20)
                 }
             }
@@ -120,7 +102,6 @@ struct SettingsScreen: View {
                 }
             }
             .navigationTitle("Settings")
-            .dialog(item: $dialogItem)
             .appRouterDestinations(container: container, sessionContainer: sessionContainer)
         }
     }
@@ -128,20 +109,6 @@ struct SettingsScreen: View {
     // MARK: - Helpers -
 
     private let betaBadge = Badge(decoration: .circle(.textWarning), text: "Beta")
-
-    private var logoutDialog: DialogItem {
-        DialogItem(
-            style: .destructive,
-            title: "Are You Sure You Want To Log Out?",
-            subtitle: "You can get into this account using your Access Key",
-            dismissable: true
-        ) {
-            DialogAction.destructive("Log Out") {
-                logout()
-            }
-            DialogAction.cancel {}
-        }
-    }
 
     // MARK: - Actions -
 
@@ -151,14 +118,6 @@ struct SettingsScreen: View {
             debugTapCount = 0
         } else {
             debugTapCount += 1
-        }
-    }
-
-    private func logout() {
-        Task {
-            router.dismissSheet()
-            try await Task.delay(milliseconds: 250)
-            sessionAuthenticator.logout()
         }
     }
 }

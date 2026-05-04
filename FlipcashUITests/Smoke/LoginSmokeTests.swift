@@ -24,8 +24,9 @@ final class LoginSmokeTests: BaseUITestCase {
         // Verify we're on the main screen
         assertMainScreenReached()
 
-        // Open Settings and log out
+        // Open Settings, go to My Account, and log out
         waitAndTap(app.buttons["Settings"])
+        waitAndTap(app.buttons["My Account"])
         waitAndTap(app.buttons["Log Out"])
 
         // Confirmation dialog — scoped to the dialog container
