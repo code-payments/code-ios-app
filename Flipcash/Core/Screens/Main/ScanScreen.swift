@@ -249,7 +249,16 @@ struct ScanScreen: View {
         VStack {
             ScanTopBar { router.present(.settings) }
             Spacer()
-            bottomBar()
+            ScanBottomBar(
+                toast: toast,
+                onGive: {
+                    if giveViewModel.attemptPresent() {
+                        router.present(.give)
+                    }
+                },
+                onWallet: { router.present(.balance) },
+                onDiscover: { router.present(.discover) }
+            )
         }
     }
     
@@ -264,39 +273,6 @@ struct ScanScreen: View {
         .padding(.bottom, 10)
     }
     
-    @ViewBuilder private func bottomBar() -> some View {
-        HStack(alignment: .bottom) {
-            LargeButton(
-                title: "Give",
-                image: .asset(.cash),
-                spacing: 12,
-                maxWidth: 80,
-                maxHeight: 80,
-                fullWidth: true,
-                aligment: .bottom
-            ) {
-                if giveViewModel.attemptPresent() {
-                    router.present(.give)
-                }
-            }
-
-            ToastContainer(toast: toast) {
-                LargeButton(
-                    title: "Wallet",
-                    image: .asset(.history),
-                    spacing: 12,
-                    maxWidth: 80,
-                    maxHeight: 80,
-                    fullWidth: true,
-                    aligment: .bottom
-                ) {
-                    router.present(.balance)
-                }
-            }
-        }
-        .padding(.bottom, 10)
-    }
-
     private var billActionButtons: some View {
         HStack(alignment: .center, spacing: 30) {
             if let primaryAction = session.billState.primaryAction {
