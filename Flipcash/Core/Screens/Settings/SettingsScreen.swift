@@ -20,14 +20,12 @@ struct SettingsScreen: View {
 
     private let container: Container
     private let sessionContainer: SessionContainer
-    private let session: Session
 
     // MARK: - Init -
 
     init(container: Container, sessionContainer: SessionContainer) {
         self.container = container
         self.sessionContainer = sessionContainer
-        self.session = sessionContainer.session
     }
 
     // MARK: - Body -
