@@ -51,6 +51,20 @@ struct SettingsMyAccountScreen: View {
                 }
             }
 
+            SettingsRow(asset: .logout, title: "Log Out", insets: insets) {
+                dialogItem = .init(
+                    style: .destructive,
+                    title: "Are You Sure You Want To Log Out?",
+                    subtitle: "You can get into this account using your Access Key",
+                    dismissable: true
+                ) {
+                    DialogAction.destructive("Log Out") {
+                        logout()
+                    }
+                    DialogAction.cancel {}
+                }
+            }
+
             SettingsRow(asset: .delete, title: "Delete Account", insets: insets) {
                 dialogItem = .init(
                     style: .destructive,
@@ -70,6 +84,14 @@ struct SettingsMyAccountScreen: View {
     }
 
     private func deleteAccount() {
+        Task {
+            router.dismissSheet()
+            try await Task.delay(milliseconds: 250)
+            sessionAuthenticator.logout()
+        }
+    }
+
+    private func logout() {
         Task {
             router.dismissSheet()
             try await Task.delay(milliseconds: 250)
