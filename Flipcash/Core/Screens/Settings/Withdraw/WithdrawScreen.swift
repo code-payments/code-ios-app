@@ -63,7 +63,7 @@ struct WithdrawScreen: View {
                     .dialog(item: $viewModel.dialogItem)
             case .enterAmount:
                 WithdrawAmountScreen(
-                    title: viewModel.withdrawTitle,
+                    title: "Withdraw",
                     enteredAmount: $viewModel.enteredAmount,
                     subtitle: viewModel.amountSubtitle,
                     canProceed: viewModel.canProceedToAddress,
