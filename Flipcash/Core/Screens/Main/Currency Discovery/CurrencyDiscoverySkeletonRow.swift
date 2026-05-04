@@ -14,7 +14,7 @@ struct CurrencyDiscoverySkeletonRow: View {
                 .font(.appTextMedium)
                 .foregroundStyle(Color.textMain)
                 .monospacedDigit()
-                .frame(width: 32, alignment: .center)
+                .frame(width: 52, alignment: .trailing)
                 .unredacted()
 
             Circle()
@@ -39,7 +39,7 @@ struct CurrencyDiscoverySkeletonRow: View {
                     .font(.appTextSmall)
             }
         }
-        .padding(.horizontal, 20)
+        .padding(.trailing, 20)
         .padding(.vertical, 12)
         .contentShape(Rectangle())
         .redacted(reason: .placeholder)
