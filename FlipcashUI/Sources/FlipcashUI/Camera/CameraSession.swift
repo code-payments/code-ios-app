@@ -8,10 +8,7 @@
 
 import Foundation
 import Combine
-import FlipcashCore
 @preconcurrency import AVKit
-
-private let logger = Logger(label: "flipcash.camera")
 
 extension AVCaptureDevice {
     /// On a virtual capture device whose first constituent is the ultrawide
@@ -142,15 +139,6 @@ public class CameraSession<T>: ObservableObject, AnyCameraSession where T: Camer
         device.videoZoomFactor = device.wideStartZoomFactor
 
         device.unlockForConfiguration()
-
-        logger.info("Configured capture device", metadata: [
-            "deviceType": "\(device.deviceType.rawValue)",
-            "constituents": "\(device.constituentDevices.map(\.deviceType.rawValue).joined(separator: ","))",
-            "switchovers": "\(device.virtualDeviceSwitchOverVideoZoomFactors)",
-            "startZoom": "\(device.videoZoomFactor)",
-            "minZoom": "\(device.minAvailableVideoZoomFactor)",
-            "maxZoom": "\(device.maxAvailableVideoZoomFactor)",
-        ])
 
         guard let input = try? AVCaptureDeviceInput(device: device) else {
             throw Error.inputCreationFailed
