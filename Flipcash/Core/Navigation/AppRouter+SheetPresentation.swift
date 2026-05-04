@@ -15,6 +15,7 @@ extension AppRouter {
         case balance
         case settings
         case give
+        case discover
 
         var id: Self { self }
 
@@ -26,6 +27,7 @@ extension AppRouter {
             case .balance:  .balance
             case .settings: .settings
             case .give:     .give
+            case .discover: .discover
             }
         }
 
@@ -34,6 +36,7 @@ extension AppRouter {
             case .balance:  "balance"
             case .settings: "settings"
             case .give:     "give"
+            case .discover: "discover"
             }
         }
     }

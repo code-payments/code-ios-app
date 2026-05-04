@@ -417,6 +417,21 @@ private struct RoutedSheet: View {
                         }
                     }
             }
+        case .discover:
+            NavigationStack(path: $router[.discover]) {
+                CurrencyDiscoveryScreen(
+                    container: container,
+                    sessionContainer: sessionContainer
+                )
+                .appRouterDestinations(container: container, sessionContainer: sessionContainer)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        ToolbarCloseButton {
+                            router.dismissSheet()
+                        }
+                    }
+                }
+            }
         }
     }
 }
