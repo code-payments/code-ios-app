@@ -61,25 +61,9 @@ struct CurrencyDiscoveryList: View {
         }
         .overlay {
             if isFailed, mints.isEmpty {
-                VStack(spacing: 10) {
-                    Text("Something Went Wrong")
-                        .font(.appTextLarge)
-                    Text("We couldn't load currencies right now. Please try again.")
-                        .font(.appTextMedium)
-                        .foregroundStyle(Color.textSecondary)
-                        .multilineTextAlignment(.center)
-                }
-                .padding(.horizontal, 20)
+                CurrencyDiscoveryErrorState()
             } else if !isLoading, mints.isEmpty {
-                VStack(spacing: 10) {
-                    Text("No New Currencies")
-                        .font(.appTextLarge)
-                    Text("No currencies have been created in the last week")
-                        .font(.appTextMedium)
-                        .foregroundStyle(Color.textSecondary)
-                        .multilineTextAlignment(.center)
-                }
-                .padding(.horizontal, 20)
+                CurrencyDiscoveryEmptyState()
             }
         }
         .listStyle(.plain)
