@@ -216,14 +216,15 @@ public class _CameraPreviewView: UIView {
 
         switch gesture.state {
         case .began:
-            cancelRamp(device: device)
             gestureZoomFactor = device.videoZoomFactor
 
         case .changed:
-            setZoomFactor(gestureZoomFactor * gesture.scale, device: device)
+            // Mild power curve so larger pinches cover more range per finger travel.
+            let amplified = pow(gesture.scale, 1.3)
+            setZoomFactor(gestureZoomFactor * amplified, device: device)
 
         case .ended, .cancelled:
-            rampToOne(device: device)
+            setZoomFactor(device.wideStartZoomFactor, device: device)
 
         default:
             break
@@ -237,24 +238,6 @@ public class _CameraPreviewView: UIView {
 
             device.videoZoomFactor = newZoomFactor
 
-            device.unlockForConfiguration()
-        } catch {}
-    }
-
-    private func rampToOne(device: AVCaptureDevice) {
-        do {
-            try device.lockForConfiguration()
-            // Rate is exponential factor/sec — 4.0 yields ~log₂(zoom)/4 s to reach 1×.
-            device.ramp(toVideoZoomFactor: 1.0, withRate: 4.0)
-            device.unlockForConfiguration()
-        } catch {}
-    }
-
-    private func cancelRamp(device: AVCaptureDevice) {
-        guard device.isRampingVideoZoom else { return }
-        do {
-            try device.lockForConfiguration()
-            device.cancelVideoZoomRamp()
             device.unlockForConfiguration()
         } catch {}
     }
@@ -279,9 +262,9 @@ public class _CameraPreviewView: UIView {
 
     private func clamp(_ zoomFactor: CGFloat, device: AVCaptureDevice) -> CGFloat {
         let lower = device.minAvailableVideoZoomFactor
-        // 10× matches Apple's Camera ceiling on single-lens devices and engages
-        // the longest optical lens on every multi-lens model.
-        let upper = min(device.maxAvailableVideoZoomFactor, 10.0)
+        // 20× gives meaningful headroom past the longest optical lens on every
+        // current iPhone, hard-capped by what the device actually reports.
+        let upper = min(device.maxAvailableVideoZoomFactor, 20.0)
         return min(max(zoomFactor, lower), upper)
     }
 }

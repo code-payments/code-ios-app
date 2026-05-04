@@ -10,6 +10,21 @@ import Foundation
 import Combine
 @preconcurrency import AVKit
 
+extension AVCaptureDevice {
+    /// On a virtual capture device whose first constituent is the ultrawide
+    /// lens, `videoZoomFactor = 1.0` engages the ultrawide (what users
+    /// perceive as 0.5×). Returns the zoom factor that engages the wide-angle
+    /// lens — i.e. the user's "1×". For non-virtual devices and virtual
+    /// devices that don't lead with an ultrawide, returns `1.0` unchanged.
+    var wideStartZoomFactor: CGFloat {
+        guard constituentDevices.first?.deviceType == .builtInUltraWideCamera,
+              let wideThreshold = virtualDeviceSwitchOverVideoZoomFactors.first else {
+            return 1.0
+        }
+        return CGFloat(truncating: wideThreshold)
+    }
+}
+
 @MainActor
 public protocol AnyCameraSession {
     var session: AVCaptureSession { get }
@@ -118,6 +133,10 @@ public class CameraSession<T>: ObservableObject, AnyCameraSession where T: Camer
         if device.isLowLightBoostSupported {
             device.automaticallyEnablesLowLightBoostWhenAvailable = true
         }
+
+        // Default to the wide-angle lens on multi-lens devices that lead with
+        // an ultrawide. Without this, iPhone Pro / Plus models open at 0.5×.
+        device.videoZoomFactor = device.wideStartZoomFactor
 
         device.unlockForConfiguration()
 
