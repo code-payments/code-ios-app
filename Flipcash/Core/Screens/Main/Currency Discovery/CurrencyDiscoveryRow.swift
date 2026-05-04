@@ -17,7 +17,7 @@ struct CurrencyDiscoveryRow: View {
                 .font(.appTextMedium)
                 .foregroundStyle(Color.textMain)
                 .monospacedDigit()
-                .frame(width: 52, alignment: .trailing)
+                .frame(width: 52, alignment: .center)
 
             RemoteImage(url: mint.imageURL)
                 .frame(width: 40, height: 40)
