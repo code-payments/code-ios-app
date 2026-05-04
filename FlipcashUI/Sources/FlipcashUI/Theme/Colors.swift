@@ -41,6 +41,7 @@ extension Color {
         public static let positiveSecondary = Color(r: 17,  g: 53,  b: 34)
         public static let negative          = Color(r: 228, g: 42,  b: 42)
         public static let negativeSecondary = Color(r: 60,  g: 37,  b: 37)
+        public static let neutral           = Color.textSecondary
     }
 }
 
