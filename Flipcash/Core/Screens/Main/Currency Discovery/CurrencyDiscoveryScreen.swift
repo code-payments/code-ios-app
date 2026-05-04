@@ -21,8 +21,6 @@ struct CurrencyDiscoveryScreen: View {
         ZStack {
             CurrencyDiscoveryList(
                 container: container,
-                mintsByCategory: $mintsByCategory,
-                selectedCategory: $selectedCategory,
                 onSelectMint: { mint in
                     router.push(.currencyInfo(mint))
                 }

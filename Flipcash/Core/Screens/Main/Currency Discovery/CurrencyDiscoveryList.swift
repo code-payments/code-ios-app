@@ -8,83 +8,50 @@ import FlipcashCore
 
 struct CurrencyDiscoveryList: View {
     let container: Container
-
-    @Binding var mintsByCategory: [DiscoverCategory: [MintMetadata]]
-    @Binding var selectedCategory: DiscoverCategory
     let onSelectMint: (PublicKey) -> Void
 
-    @State private var failedCategories: Set<DiscoverCategory> = []
+    @State private var mints: [MintMetadata]?
+    @State private var isFailed: Bool = false
 
-    private var mints: [MintMetadata] {
-        mintsByCategory[selectedCategory] ?? []
-    }
-
-    private var isLoading: Bool {
-        mintsByCategory[selectedCategory] == nil && !failedCategories.contains(selectedCategory)
-    }
-
-    private var isFailed: Bool {
-        failedCategories.contains(selectedCategory)
-    }
+    private var isLoading: Bool { mints == nil && !isFailed }
 
     var body: some View {
-        List {
-            Section {
-                if isLoading {
-                    ForEach(1...10, id: \.self) { rank in
-                        Button {
-                            // Intentionally left blank
-                        } label: {
-                            CurrencyDiscoverySkeletonRow(rank: rank)
-                        }
-                        .buttonStyle(.plain)
-                        .listRowInsets(EdgeInsets())
+        Group {
+            if let mints, !mints.isEmpty {
+                ForEach(mints.indexed(), id: \.element.address) { item in
+                    Button {
+                        onSelectMint(item.element.address)
+                    } label: {
+                        CurrencyDiscoveryRow(rank: item.index + 1, mint: item.element)
                     }
-                } else {
-                    ForEach(mints.indexed(), id: \.element.address) { item in
-                        Button {
-                            onSelectMint(item.element.address)
-                        } label: {
-                            CurrencyDiscoveryRow(rank: item.index + 1, mint: item.element)
-                        }
-                        .buttonStyle(.plain)
-                        .listRowInsets(EdgeInsets())
-                    }
-
-                    Color.clear
-                        .frame(height: 80)
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
+                    .buttonStyle(.plain)
                 }
-            }
-            .listSectionSeparator(.hidden)
-        }
-        .overlay {
-            if isFailed, mints.isEmpty {
+            } else if isLoading {
+                ForEach(1...10, id: \.self) { rank in
+                    CurrencyDiscoverySkeletonRow(rank: rank)
+                }
+            } else if isFailed {
                 CurrencyDiscoveryErrorState()
-            } else if !isLoading, mints.isEmpty {
+                    .padding(.vertical, 40)
+            } else {
                 CurrencyDiscoveryEmptyState()
+                    .padding(.vertical, 40)
             }
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .contentMargins(.top, 0, for: .scrollContent)
-        .task(id: selectedCategory) {
-            let category = selectedCategory
+        .task {
             do {
-                for try await batch in container.client.discoverCurrencies(category: category) {
-                    failedCategories.remove(category)
+                for try await batch in container.client.discoverCurrencies(category: .popular) {
+                    isFailed = false
                     withAnimation {
-                        mintsByCategory[category] = Array(batch.prefix(100))
+                        mints = batch
                     }
                 }
-                // Stream finished with .ok status — no yield means genuinely empty
-                if mintsByCategory[category] == nil {
-                    mintsByCategory[category] = []
+                if mints == nil {
+                    mints = []
                 }
             } catch {
-                if !Task.isCancelled, mintsByCategory[category] == nil {
-                    failedCategories.insert(category)
+                if !Task.isCancelled, mints == nil {
+                    isFailed = true
                 }
             }
         }
