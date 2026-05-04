@@ -181,7 +181,7 @@ struct BalanceScreen: View {
                             Button("Discover Currencies") {
                                 router.push(.discoverCurrencies)
                             }
-                            .buttonStyle(.filled)
+                            .buttonStyle(.filled20)
                             .padding(.horizontal, 20)
                             .padding(.top, 20)
                             .padding(.bottom, 20 + proxy.safeAreaInsets.bottom)
