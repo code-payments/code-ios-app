@@ -529,7 +529,7 @@ struct WithdrawKindTests {
 @Suite("WithdrawViewModel summary helpers")
 struct WithdrawViewModelSummaryHelpersTests {
 
-    @Test("youReceiveDisplayValue: USDF returns post-fee on-chain token amount")
+    @Test("youReceiveDisplayValue: USDF returns post-fee on-chain token amount, 2 fraction digits")
     func youReceiveDisplayValue_usdf_returnsTokenAmount() throws {
         let usdf = WithdrawViewModelTestHelpers.createExchangedBalance(mint: .usdf, quarks: 100_000_000)
         let viewModel = WithdrawViewModelTestHelpers.createViewModel(withdrawalFeeQuarks: 500_000) // $0.50
@@ -537,9 +537,21 @@ struct WithdrawViewModelSummaryHelpersTests {
         viewModel.enteredAmount = "50.00"
         viewModel.destinationMetadata = WithdrawViewModelTestHelpers.createDestinationMetadata()
 
-        let value = try #require(viewModel.youReceiveDisplayValue)
+        // $50.00 - $0.50 fee = $49.50 → 49_500_000 quarks (6 decimals) → "49.50"
         let withdrawable = try #require(viewModel.withdrawableAmount)
-        #expect(value == withdrawable.onChainAmount.decimalValue.formatted())
+        #expect(withdrawable.onChainAmount.quarks == 49_500_000)
+        #expect(viewModel.youReceiveDisplayValue == "49.50")
+    }
+
+    @Test("youReceiveDisplayValue: whole-number amount pads to 2 fraction digits")
+    func youReceiveDisplayValue_wholeNumber_padsToTwoFractionDigits() throws {
+        let usdf = WithdrawViewModelTestHelpers.createExchangedBalance(mint: .usdf, quarks: 100_000_000)
+        let viewModel = WithdrawViewModelTestHelpers.createViewModel(withdrawalFeeQuarks: 0)
+        viewModel.kind = .usdfToUsdc(usdf)
+        viewModel.enteredAmount = "5"
+        viewModel.destinationMetadata = WithdrawViewModelTestHelpers.createDestinationMetadata()
+
+        #expect(viewModel.youReceiveDisplayValue == "5.00")
     }
 
     /// Regression: WithdrawSummaryScreen wraps the entire amount/fee/net/You-Receive
@@ -585,7 +597,7 @@ struct WithdrawViewModelSummaryHelpersTests {
         return viewModel
     }
 
-    @Test("youReceiveDisplayValue: bonded returns post-fee on-chain token amount")
+    @Test("youReceiveDisplayValue: bonded returns post-fee on-chain token amount, rounded to 2 fraction digits")
     func youReceiveDisplayValue_bonded_returnsTokenCount() throws {
         let bonded = WithdrawViewModelTestHelpers.createBondedBalance()
         let viewModel = WithdrawViewModelTestHelpers.createViewModel()
@@ -595,7 +607,8 @@ struct WithdrawViewModelSummaryHelpersTests {
 
         let value = try #require(viewModel.youReceiveDisplayValue)
         let withdrawable = try #require(viewModel.withdrawableAmount)
-        #expect(value == withdrawable.onChainAmount.decimalValue.formatted())
+        #expect(value == withdrawable.onChainAmount.decimalValue
+            .formatted(.number.precision(.fractionLength(2))))
     }
 
     @Test("destinationLogoURL: usdfToUsdc returns MintMetadata.usdc.imageURL")

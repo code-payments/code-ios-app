@@ -139,13 +139,15 @@ class WithdrawViewModel {
         }
     }
 
-    /// Post-fee on-chain token quantity in the destination mint, formatted with
-    /// the mint's decimal scaling (e.g. 297_902_148_685 quarks → "29.7902148685"
-    /// for a 10-decimal Jeffy token; 234_784 quarks → "0.234784" for a 6-decimal
-    /// USDF). Used for both the summary's "Amount in <name>" row and the big
-    /// "You Receive" box — same value, different framing.
+    /// Post-fee on-chain token quantity in the destination mint, formatted to
+    /// exactly two fraction digits for display (e.g. 49_500_000 USDF quarks →
+    /// "49.50"; 297_902_148_685 Jeffy quarks → "29.79"). Used for both the
+    /// summary's "Amount in <name>" row and the big "You Receive" box. The
+    /// wire amount comes from `withdrawableAmount.onChainAmount.quarks` and
+    /// is unaffected by this rounding.
     var youReceiveDisplayValue: String? {
-        withdrawableAmount?.onChainAmount.decimalValue.formatted()
+        withdrawableAmount?.onChainAmount.decimalValue
+            .formatted(.number.precision(.fractionLength(2)))
     }
 
     /// Logo URL for the You Receive box. For both kinds the logo comes from
