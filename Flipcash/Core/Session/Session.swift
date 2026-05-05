@@ -427,20 +427,13 @@ class Session {
     }
     
     // MARK: - Poller -
-    
+
     private func registerPoller() {
         poller = Poller(seconds: 10, fireImmediately: true) { [weak self] in
-            Task {
-                try await self?.poll()
-            }
+            // Limits failure must not block balance fetch
+            try? await self?.fetchLimitsIfNeeded()
+            try? await self?.fetchBalance()
         }
-    }
-    
-    private var didAttemptBuy = false
-    private func poll() async throws {
-        // Limits failure must not block balance fetch
-        try? await fetchLimitsIfNeeded()
-        try await fetchBalance()
     }
     
     // MARK: - Limits -

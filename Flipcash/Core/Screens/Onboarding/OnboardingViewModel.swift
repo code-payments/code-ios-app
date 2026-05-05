@@ -22,7 +22,6 @@ class OnboardingViewModel {
     private(set) var inflightMnemonic: MnemonicPhrase = .generate(.words12)
 
     @ObservationIgnored private let container: Container
-    @ObservationIgnored private let flipClient: FlipClient
     @ObservationIgnored private let sessionAuthenticator: SessionAuthenticator
     @ObservationIgnored private var initializedAccount: InitializedAccount?
 
@@ -30,7 +29,6 @@ class OnboardingViewModel {
 
     init(container: Container) {
         self.container            = container
-        self.flipClient           = container.flipClient
         self.sessionAuthenticator = container.sessionAuthenticator
     }
 
@@ -145,8 +143,6 @@ class OnboardingViewModel {
         ) {
             .okay(kind: .destructive)
         }
-
-        ErrorReporting.captureError(error)
     }
 
     func recoverExistingAccount(accountDescription: AccountDescription) {
@@ -222,8 +218,6 @@ class OnboardingViewModel {
         let owner = mnemonic.solanaKeyPair()
 
         Analytics.createAccount(owner: owner.publicKey)
-
-        try await flipClient.register(owner: owner)
 
         let account = try await sessionAuthenticator.initialize(
             using: mnemonic,
