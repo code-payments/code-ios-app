@@ -226,7 +226,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
                         completion(.success(swapId))
                     case .failure(let error):
                         logger.error("Failed to fund buy swap", metadata: ["error": "\(error)"])
-                        completion(.failure(.unknown))
+                        completion(.failure(.fundingIntent(error)))
                     }
                 }
 
@@ -298,7 +298,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
                         completion(.success(swapId))
                     case .failure(let error):
                         logger.error("Failed to fund USDF withdrawal", metadata: ["error": "\(error)"])
-                        completion(.failure(.unknown))
+                        completion(.failure(.fundingIntent(error)))
                     }
                 }
 
@@ -414,7 +414,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
                         completion(.success(metadata))
                     case .failure(let error):
                         logger.error("Failed to fund new-currency swap", metadata: ["error": "\(error)"])
-                        completion(.failure(.unknown))
+                        completion(.failure(.fundingIntent(error)))
                     }
                 }
 
@@ -478,8 +478,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
 
                     case .failure(let error):
                         logger.error("Failed to fund sell swap", metadata: ["error": "\(error)"])
-                        // Map ErrorSubmitIntent to ErrorSwap
-                        completion(.failure(.unknown))
+                        completion(.failure(.fundingIntent(error)))
                     }
                 }
 

@@ -561,6 +561,8 @@ public enum ErrorSwap: Error, CustomStringConvertible, CustomDebugStringConverti
     case grpcStatus(GRPCStatus)
     /// gRPC error
     case grpcError(Error)
+    /// Phase 2 (IntentFundSwap) submission failed; preserves the underlying cause.
+    case fundingIntent(ErrorSubmitIntent)
 
     init(error: Ocp_Transaction_V1_StatefulSwapResponse.Error) {
         switch error.code {
@@ -613,9 +615,11 @@ public enum ErrorSwap: Error, CustomStringConvertible, CustomDebugStringConverti
             return "grpcStatus(\(status.code.rawValue))"
         case .grpcError(let error):
             return "grpcError(\(error.localizedDescription))"
+        case .fundingIntent(let error):
+            return "fundingIntent(\(error))"
         }
     }
-    
+
     public var debugDescription: String {
         description
     }

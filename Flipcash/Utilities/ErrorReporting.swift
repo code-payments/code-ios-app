@@ -133,8 +133,8 @@ enum ErrorReporting {
 
         Bugsnag.notifyError(customError) { event in
             if !event.errors.isEmpty {
-                event.errors[0].errorClass = "\(error)"
-                event.errors[0].errorMessage = reason ?? ""
+                event.errors[0].errorClass = reason ?? "\(error)"
+                event.errors[0].errorMessage = "\(error)"
             }
 
             event.addMetadata(
