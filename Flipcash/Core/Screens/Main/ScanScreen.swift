@@ -26,6 +26,7 @@ struct ScanScreen: View {
 
     @State private var sendButtonState: ButtonState = .normal
     @State private var sendButtonTask: Task<Void, Never>?
+    @State private var billDesignerColors: [Color] = ColorEditorControl.randomDerivedColors()
 
     private var toast: String? {
         if let toast = session.toast {
@@ -117,10 +118,17 @@ struct ScanScreen: View {
                     .zIndex(1)
                     .transition(.opacity)
             }
+
+            if session.isShowingBillDesigner {
+                BillDesignerOverlay(colors: $billDesignerColors)
+                    .zIndex(2)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
         .background(Color.backgroundMain)
         .animation(.easeInOut(duration: 0.15), value: showControls)
         .animation(.easeInOut(duration: 0.3), value: preferences.cameraEnabled)
+        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: session.isShowingBillDesigner)
         .ignoresSafeArea(.keyboard)
         .sheet(item: $session.valuation) { valuation in
             PartialSheet(background: .clear, canAccessBackground: true) {
@@ -260,6 +268,7 @@ struct ScanScreen: View {
                 onDiscover: { router.present(.discover) }
             )
         }
+        .opacity(session.isShowingBillDesigner ? 0 : 1)
     }
     
     @ViewBuilder private func billActions() -> some View {

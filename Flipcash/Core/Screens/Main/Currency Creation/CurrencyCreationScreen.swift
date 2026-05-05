@@ -46,7 +46,7 @@ final class CurrencyCreationState {
     var currencyDescription: String = "" {
         didSet { if currencyDescription != oldValue { descriptionAttestation = nil } }
     }
-    var backgroundColors: [Color] = ColorEditorControl.randomColors()
+    var backgroundColors: [Color] = ColorEditorControl.randomDerivedColors()
 
     // Attestations (cleared by the setters above when the corresponding field changes)
     var nameAttestation: ModerationAttestation?

@@ -78,7 +78,10 @@ extension Color {
 
     /// Renders the Color as a `#RRGGBB` hex string. Resolves through `UIColor`
     /// so SwiftUI's dynamic colors flatten to their current trait collection's
-    /// concrete values.
+    /// concrete values. Rounds component products to keep
+    /// `Color(hex: c.hexString)?.hexString == c.hexString` — truncating leaks
+    /// a 1-bit drift on the round-trip because `n/255 * 255` is just under `n`
+    /// in floating point.
     public var hexString: String {
         let uiColor = UIColor(self)
         var red:   CGFloat = 0
@@ -87,7 +90,10 @@ extension Color {
         var alpha: CGFloat = 0
         uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
 
-        let rgb = Int(red * 255) << 16 | Int(green * 255) << 8 | Int(blue * 255)
+        let r = Int((red   * 255).rounded())
+        let g = Int((green * 255).rounded())
+        let b = Int((blue  * 255).rounded())
+        let rgb = r << 16 | g << 8 | b
         return String(format: "#%06X", rgb)
     }
 }

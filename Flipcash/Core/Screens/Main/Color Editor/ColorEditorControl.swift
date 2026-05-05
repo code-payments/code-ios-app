@@ -8,6 +8,7 @@
 import Foundation
 import SwiftUI
 import UIKit
+import FlipcashUI
 
 public struct ColorEditorControl: View {
     
@@ -55,11 +56,7 @@ public struct ColorEditorControl: View {
     
     public var body: some View {
         VStack(spacing: 15) {
-            HStack(spacing: 8) {
-                removeButton
-                swatchRow
-                addButton
-            }
+            swatchRow
 
             panelContainer
         }
@@ -125,51 +122,6 @@ internal enum PanelMetrics {
 
 private extension ColorEditorControl {
 
-    var removeButton: some View {
-        Button {
-            if stops.count > 1 {
-                withAnimation(.spring(response: 0.45, dampingFraction: 0.9)) {
-                    stops.removeLast()
-                    if selectedIndex >= stops.count { 
-                        selectedIndex = max(0, stops.count - 1) 
-                    }
-                }
-            }
-        } label: {
-            ColorPickerButton(
-                systemName: "minus",
-                isEnabled: stops.count > 1
-            )
-        }
-        .buttonStyle(.plain)
-        .disabled(stops.count <= 1)
-    }
-    
-    var addButton: some View {
-        Button {
-            if stops.count < Self.maxStops {
-                let base = stops[selectedIndex]
-                withAnimation(.spring(response: 0.45, dampingFraction: 0.9)) {
-                    stops.append(
-                        GradientStop(
-                            hue: base.hue,
-                            saturation: base.saturation,
-                            brightness: base.brightness
-                        )
-                    )
-                    selectedIndex = stops.count - 1
-                }
-            }
-        } label: {
-            ColorPickerButton(
-                systemName: "plus",
-                isEnabled: stops.count < Self.maxStops
-            )
-        }
-        .buttonStyle(.plain)
-        .disabled(stops.count >= Self.maxStops)
-    }
-    
     var swatchRow: some View {
         HStack(spacing: 8) {
             ForEach(Array(stops.enumerated()), id: \.element.id) { index, stop in
@@ -198,8 +150,44 @@ private extension ColorEditorControl {
         }
         .animation(.spring(response: 0.45, dampingFraction: 0.9), value: stops.count)
         .animation(.spring(response: 0.45, dampingFraction: 0.9), value: selectedIndex)
+        .contextMenu {
+            // `hasStrings` is permissionless — long-press over an empty
+            // clipboard surfaces no menu, no OS prompt. The "Paste from app"
+            // alert only fires when the user actually taps Paste below.
+            // PasteButton would dodge the alert entirely but doesn't fit
+            // inside a context menu's item builder.
+            if UIPasteboard.general.hasStrings {
+                Button("Paste", systemImage: "doc.on.clipboard") {
+                    if let pasted = Self.parsePastedPalette(UIPasteboard.general.string) {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            applyPastedColors(pasted)
+                        }
+                    }
+                }
+            }
+        }
     }
-    
+
+    /// Applies a pasted palette to `stops`. When the lengths match (the
+    /// common case after a round-trip from Copy), HSB values are mutated in
+    /// place so each `GradientStop.id` is preserved and the swatches
+    /// crossfade smoothly through their identity-stable views — mirroring
+    /// the presets path. When the lengths differ, falls back to wholesale
+    /// replacement, which triggers the existing collapse/expand transitions.
+    func applyPastedColors(_ colors: [Color]) {
+        if stops.count == colors.count {
+            for (index, color) in colors.enumerated() {
+                let hsb = GradientStop(from: color)
+                stops[index].hue = hsb.hue
+                stops[index].saturation = hsb.saturation
+                stops[index].brightness = hsb.brightness
+                stops[index].alpha = hsb.alpha
+            }
+        } else {
+            stops = colors.map(GradientStop.init(from:))
+        }
+    }
+
     var panelContainer: some View {
         GeometryReader { geo in
             let width = geo.size.width
@@ -274,24 +262,6 @@ private extension ColorEditorControl {
 }
 
 // MARK: - Supporting Views
-
-private struct ColorPickerButton: View {
-    let systemName: String
-    let isEnabled: Bool
-    
-    var body: some View {
-        ZStack {
-            Color.clear
-                .frame(width: 44, height: 44)
-                .contentShape(Rectangle())
-            
-            Image(systemName: systemName)
-                .font(.system(size: 18, weight: .semibold))
-                .frame(width: 32, height: 32)
-                .foregroundStyle(.primary.opacity(isEnabled ? 1 : 0.35))
-        }
-    }
-}
 
 private struct ColorSwatch: View {
     let stop: GradientStop
@@ -405,13 +375,57 @@ private struct PresetTileView: View {
 // MARK: - Extensions
 
 extension ColorEditorControl {
-    /// Returns `maxStops` random colors sampled without replacement from
-    /// the solid presets.
-    public static func randomColors() -> [Color] {
-        GradientStop.solidPresets
-            .shuffled()
-            .prefix(maxStops)
-            .map(\.color)
+    /// Returns the three HSB-fixed colors used as the Bill Designer's
+    /// first-launch defaults: top (lightest) → bottom (darkest). The
+    /// caller-side order matches the gradient `BillView` paints after
+    /// reversing internally.
+    public static func deriveColors(fromHue hue: CGFloat) -> [Color] {
+        [
+            Color(hue: hue, saturation: 0.53, brightness: 1.00),
+            Color(hue: hue, saturation: 1.00, brightness: 0.71),
+            Color(hue: hue, saturation: 1.00, brightness: 0.23),
+        ]
+    }
+
+    /// Picks one random hue from `GradientStop.solidPresets`, skipping
+    /// the two degenerate (S:0) entries — White and Black — which would
+    /// collapse the derivation to a grayscale ramp.
+    public static func randomDerivedColors() -> [Color] {
+        let hue = GradientStop.solidPresets
+            .filter { $0.saturation > 0 }
+            .randomElement()?.hue ?? 0.6
+        return deriveColors(fromHue: hue)
+    }
+}
+
+// MARK: - Clipboard parsing
+
+extension ColorEditorControl {
+
+    /// Parses the exact format produced by the Copy button:
+    /// `"#RRGGBB, #RRGGBB, #RRGGBB"`. Returns nil if the input doesn't
+    /// contain exactly 3 valid `#RRGGBB` tokens. Tolerant of outer
+    /// whitespace, case, and whitespace around commas; rejects shorthand
+    /// `#RGB`, alpha, missing `#`, or counts ≠ 3.
+    public static func parsePastedPalette(_ string: String?) -> [Color]? {
+        guard let string else { return nil }
+
+        let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        let components = trimmed
+            .split(separator: ",", omittingEmptySubsequences: false)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+        guard components.count == 3 else { return nil }
+
+        let colors = components.compactMap { component -> Color? in
+            guard component.hasPrefix("#") else { return nil }
+            return Color(hex: component)
+        }
+
+        guard colors.count == 3 else { return nil }
+        return colors
     }
 }
 
