@@ -96,10 +96,28 @@ public struct CapsuleButton: View {
             }
             .animation(nil, value: state)
             .foregroundStyle(Color.textMain)
-            .frame(height: 57)
-            .padding(.horizontal, title == nil ? 16 : 20)
+            .frame(height: contentHeight)
+            .padding(.horizontal, contentHorizontalPadding)
         }
         .liquidGlassButtonStyle(shape: title == nil ? .circle : .capsule)
+    }
+
+    private var contentHeight: CGFloat {
+        // `.buttonStyle(.glass)` adds ~14pt vertical padding around the label.
+        // Shrink the content on iOS 26 so the rendered button matches the iOS 18 visual.
+        if #available(iOS 26, *) {
+            return 43
+        } else {
+            return 57
+        }
+    }
+
+    private var contentHorizontalPadding: CGFloat {
+        if #available(iOS 26, *) {
+            return title == nil ? 9 : 13
+        } else {
+            return title == nil ? 16 : 20
+        }
     }
 }
 
