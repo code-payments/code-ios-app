@@ -178,10 +178,9 @@ struct BalanceScreen: View {
                         }
                     } footer: {
                         if hasBalances {
-                            Button("Discover Currencies") {
+                            CodeButton(style: .filledSecondary, title: "Discover Currencies") {
                                 router.push(.discoverCurrencies)
                             }
-                            .buttonStyle(.filled20)
                             .padding(.horizontal, 20)
                             .padding(.top, 20)
                             .padding(.bottom, 20 + proxy.safeAreaInsets.bottom)
