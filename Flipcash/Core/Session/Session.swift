@@ -216,8 +216,21 @@ class Session {
         registerPoller()
         startStreaming()
 
-        Task {
+        // userFlags carries server-pinned withdrawal/launch fees; without it,
+        // those flows submit fee=0 and the server denies the intent. Each
+        // fetch retries independently so neither failure starves the other,
+        // and skips retry on definitive server denies.
+        retryingFetch(
+            label: "profile",
+            shouldRetry: { (error: any Swift.Error) in (error as? ErrorFetchProfile) == .unknown }
+        ) { [self] in
             try await updateProfile()
+        }
+
+        retryingFetch(
+            label: "user flags",
+            shouldRetry: { (error: any Swift.Error) in (error as? ErrorFetchUserFlags) == .unknown }
+        ) { [self] in
             try await updateUserFlags()
         }
 
@@ -301,6 +314,29 @@ class Session {
     
     func updateUserFlags() async throws {
         userFlags = try await flipClient.fetchUserFlags(userID: userID, owner: ownerKeyPair)
+    }
+
+    /// Spawns a fire-and-forget retry around a server fetch and logs the
+    /// final failure under `flipcash.session`. `shouldRetry` decides which
+    /// errors are worth another attempt (transport blips) versus terminal
+    /// (auth/permission denies, malformed responses).
+    private func retryingFetch(
+        label: String,
+        shouldRetry: @escaping (any Swift.Error) -> Bool,
+        operation: @escaping () async throws -> Void
+    ) {
+        Task {
+            do {
+                try await Task.retry(
+                    maxAttempts: 3,
+                    delay: .milliseconds(500),
+                    shouldRetry: shouldRetry,
+                    body: operation
+                )
+            } catch {
+                logger.error("Failed to fetch \(label) after retries", metadata: ["error": "\(error)"])
+            }
+        }
     }
 
     // MARK: - Settings Sync -
