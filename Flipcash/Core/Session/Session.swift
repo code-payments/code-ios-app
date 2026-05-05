@@ -54,6 +54,10 @@ class Session {
     /// ``DialogWindow`` in a separate `UIWindow` above all sheets.
     var dialogItem: DialogItem?
 
+    /// Whether the standalone Bill Designer overlay is presented over
+    /// the scan screen. Toggled by the Settings → Advanced Features row.
+    var isShowingBillDesigner: Bool = false
+
     // MARK: - User State -
 
     /// Server-fetched user profile.

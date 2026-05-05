@@ -55,11 +55,7 @@ public struct ColorEditorControl: View {
     
     public var body: some View {
         VStack(spacing: 15) {
-            HStack(spacing: 8) {
-                removeButton
-                swatchRow
-                addButton
-            }
+            swatchRow
 
             panelContainer
         }
@@ -125,51 +121,6 @@ internal enum PanelMetrics {
 
 private extension ColorEditorControl {
 
-    var removeButton: some View {
-        Button {
-            if stops.count > 1 {
-                withAnimation(.spring(response: 0.45, dampingFraction: 0.9)) {
-                    stops.removeLast()
-                    if selectedIndex >= stops.count { 
-                        selectedIndex = max(0, stops.count - 1) 
-                    }
-                }
-            }
-        } label: {
-            ColorPickerButton(
-                systemName: "minus",
-                isEnabled: stops.count > 1
-            )
-        }
-        .buttonStyle(.plain)
-        .disabled(stops.count <= 1)
-    }
-    
-    var addButton: some View {
-        Button {
-            if stops.count < Self.maxStops {
-                let base = stops[selectedIndex]
-                withAnimation(.spring(response: 0.45, dampingFraction: 0.9)) {
-                    stops.append(
-                        GradientStop(
-                            hue: base.hue,
-                            saturation: base.saturation,
-                            brightness: base.brightness
-                        )
-                    )
-                    selectedIndex = stops.count - 1
-                }
-            }
-        } label: {
-            ColorPickerButton(
-                systemName: "plus",
-                isEnabled: stops.count < Self.maxStops
-            )
-        }
-        .buttonStyle(.plain)
-        .disabled(stops.count >= Self.maxStops)
-    }
-    
     var swatchRow: some View {
         HStack(spacing: 8) {
             ForEach(Array(stops.enumerated()), id: \.element.id) { index, stop in
@@ -274,24 +225,6 @@ private extension ColorEditorControl {
 }
 
 // MARK: - Supporting Views
-
-private struct ColorPickerButton: View {
-    let systemName: String
-    let isEnabled: Bool
-    
-    var body: some View {
-        ZStack {
-            Color.clear
-                .frame(width: 44, height: 44)
-                .contentShape(Rectangle())
-            
-            Image(systemName: systemName)
-                .font(.system(size: 18, weight: .semibold))
-                .frame(width: 32, height: 32)
-                .foregroundStyle(.primary.opacity(isEnabled ? 1 : 0.35))
-        }
-    }
-}
 
 private struct ColorSwatch: View {
     let stop: GradientStop
@@ -405,13 +338,26 @@ private struct PresetTileView: View {
 // MARK: - Extensions
 
 extension ColorEditorControl {
-    /// Returns `maxStops` random colors sampled without replacement from
-    /// the solid presets.
-    public static func randomColors() -> [Color] {
-        GradientStop.solidPresets
-            .shuffled()
-            .prefix(maxStops)
-            .map(\.color)
+    /// Returns the three HSB-fixed colors used as the Bill Designer's
+    /// first-launch defaults: top (lightest) → bottom (darkest). The
+    /// caller-side order matches the gradient `BillView` paints after
+    /// reversing internally.
+    public static func deriveColors(fromHue hue: CGFloat) -> [Color] {
+        [
+            Color(hue: hue, saturation: 0.53, brightness: 1.00),
+            Color(hue: hue, saturation: 1.00, brightness: 0.71),
+            Color(hue: hue, saturation: 1.00, brightness: 0.23),
+        ]
+    }
+
+    /// Picks one random hue from `GradientStop.solidPresets`, skipping
+    /// the two degenerate (S:0) entries — White and Black — which would
+    /// collapse the derivation to a grayscale ramp.
+    public static func randomDerivedColors() -> [Color] {
+        let hue = GradientStop.solidPresets
+            .filter { $0.saturation > 0 }
+            .randomElement()?.hue ?? 0.6
+        return deriveColors(fromHue: hue)
     }
 }
 
