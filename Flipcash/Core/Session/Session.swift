@@ -216,9 +216,17 @@ class Session {
         registerPoller()
         startStreaming()
 
+        // Independent so a profile failure doesn't starve the user-flags fetch.
+        // userFlags carries server-pinned withdrawal/launch fees; without it,
+        // those flows submit fee=0 and the server denies the intent.
         Task {
-            try await updateProfile()
-            try await updateUserFlags()
+            do { try await updateProfile() }
+            catch { logger.error("Failed to fetch profile", metadata: ["error": "\(error)"]) }
+        }
+
+        Task {
+            do { try await updateUserFlags() }
+            catch { logger.error("Failed to fetch user flags", metadata: ["error": "\(error)"]) }
         }
 
         Task {
@@ -276,7 +284,13 @@ class Session {
     // MARK: - Info -
     
     func updateProfile() async throws {
-        profile = try await flipClient.fetchProfile(userID: userID, owner: ownerKeyPair)
+        profile = try await Task.retry(
+            maxAttempts: 3,
+            delay: .milliseconds(500),
+            shouldRetry: { (error: any Swift.Error) in (error as? ErrorFetchProfile) == .unknown }
+        ) {
+            try await flipClient.fetchProfile(userID: userID, owner: ownerKeyPair)
+        }
     }
     
     func unlinkProfile() async throws {
@@ -300,7 +314,13 @@ class Session {
     }
     
     func updateUserFlags() async throws {
-        userFlags = try await flipClient.fetchUserFlags(userID: userID, owner: ownerKeyPair)
+        userFlags = try await Task.retry(
+            maxAttempts: 3,
+            delay: .milliseconds(500),
+            shouldRetry: { (error: any Swift.Error) in (error as? ErrorFetchUserFlags) == .unknown }
+        ) {
+            try await flipClient.fetchUserFlags(userID: userID, owner: ownerKeyPair)
+        }
     }
 
     // MARK: - Settings Sync -
