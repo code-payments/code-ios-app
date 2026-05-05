@@ -8,6 +8,7 @@
 import Foundation
 import SwiftUI
 import UIKit
+import FlipcashUI
 
 public struct ColorEditorControl: View {
     
@@ -149,8 +150,44 @@ private extension ColorEditorControl {
         }
         .animation(.spring(response: 0.45, dampingFraction: 0.9), value: stops.count)
         .animation(.spring(response: 0.45, dampingFraction: 0.9), value: selectedIndex)
+        .contextMenu {
+            // `hasStrings` is permissionless — long-press over an empty
+            // clipboard surfaces no menu, no OS prompt. The "Paste from app"
+            // alert only fires when the user actually taps Paste below.
+            // PasteButton would dodge the alert entirely but doesn't fit
+            // inside a context menu's item builder.
+            if UIPasteboard.general.hasStrings {
+                Button("Paste", systemImage: "doc.on.clipboard") {
+                    if let pasted = Self.parsePastedPalette(UIPasteboard.general.string) {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            applyPastedColors(pasted)
+                        }
+                    }
+                }
+            }
+        }
     }
-    
+
+    /// Applies a pasted palette to `stops`. When the lengths match (the
+    /// common case after a round-trip from Copy), HSB values are mutated in
+    /// place so each `GradientStop.id` is preserved and the swatches
+    /// crossfade smoothly through their identity-stable views — mirroring
+    /// the presets path. When the lengths differ, falls back to wholesale
+    /// replacement, which triggers the existing collapse/expand transitions.
+    func applyPastedColors(_ colors: [Color]) {
+        if stops.count == colors.count {
+            for (index, color) in colors.enumerated() {
+                let hsb = GradientStop(from: color)
+                stops[index].hue = hsb.hue
+                stops[index].saturation = hsb.saturation
+                stops[index].brightness = hsb.brightness
+                stops[index].alpha = hsb.alpha
+            }
+        } else {
+            stops = colors.map(GradientStop.init(from:))
+        }
+    }
+
     var panelContainer: some View {
         GeometryReader { geo in
             let width = geo.size.width
@@ -358,6 +395,37 @@ extension ColorEditorControl {
             .filter { $0.saturation > 0 }
             .randomElement()?.hue ?? 0.6
         return deriveColors(fromHue: hue)
+    }
+}
+
+// MARK: - Clipboard parsing
+
+extension ColorEditorControl {
+
+    /// Parses the exact format produced by the Copy button:
+    /// `"#RRGGBB, #RRGGBB, #RRGGBB"`. Returns nil if the input doesn't
+    /// contain exactly 3 valid `#RRGGBB` tokens. Tolerant of outer
+    /// whitespace, case, and whitespace around commas; rejects shorthand
+    /// `#RGB`, alpha, missing `#`, or counts ≠ 3.
+    public static func parsePastedPalette(_ string: String?) -> [Color]? {
+        guard let string else { return nil }
+
+        let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        let components = trimmed
+            .split(separator: ",", omittingEmptySubsequences: false)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+        guard components.count == 3 else { return nil }
+
+        let colors = components.compactMap { component -> Color? in
+            guard component.hasPrefix("#") else { return nil }
+            return Color(hex: component)
+        }
+
+        guard colors.count == 3 else { return nil }
+        return colors
     }
 }
 

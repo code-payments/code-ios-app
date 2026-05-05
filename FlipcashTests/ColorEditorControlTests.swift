@@ -9,6 +9,7 @@
 
 import Testing
 import SwiftUI
+import FlipcashUI
 @testable import Flipcash
 
 @Suite("ColorEditorControl")
@@ -57,5 +58,115 @@ struct ColorEditorControlTests {
         #expect(abs(stops[0].hue - 0.6) < 0.001)
         #expect(abs(stops[0].saturation - 0.7) < 0.001)
         #expect(abs(stops[0].brightness - 0.9) < 0.001)
+    }
+}
+
+@MainActor
+@Suite("ColorEditorControl.parsePastedPalette")
+struct ColorEditorControlPasteTests {
+
+    // MARK: - Valid inputs
+
+    @Test("Exact format produced by Copy yields three colors")
+    func exactFormat() throws {
+        let pasted = try #require(
+            ColorEditorControl.parsePastedPalette("#FF0000, #00FF00, #0000FF")
+        )
+        #expect(pasted.count == 3)
+        #expect(pasted[0].hexString == "#FF0000")
+        #expect(pasted[1].hexString == "#00FF00")
+        #expect(pasted[2].hexString == "#0000FF")
+    }
+
+    @Test("Lowercase hex digits are accepted")
+    func lowercase() throws {
+        let pasted = try #require(
+            ColorEditorControl.parsePastedPalette("#ff0000, #00ff00, #0000ff")
+        )
+        #expect(pasted.count == 3)
+    }
+
+    @Test("Trailing newline is tolerated")
+    func trailingNewline() throws {
+        let pasted = try #require(
+            ColorEditorControl.parsePastedPalette("#FF0000, #00FF00, #0000FF\n")
+        )
+        #expect(pasted.count == 3)
+    }
+
+    @Test("Missing whitespace around commas is tolerated")
+    func noSpaces() throws {
+        let pasted = try #require(
+            ColorEditorControl.parsePastedPalette("#FF0000,#00FF00,#0000FF")
+        )
+        #expect(pasted.count == 3)
+    }
+
+    @Test("Outer whitespace is tolerated")
+    func outerWhitespace() throws {
+        let pasted = try #require(
+            ColorEditorControl.parsePastedPalette("  #FF0000, #00FF00, #0000FF  ")
+        )
+        #expect(pasted.count == 3)
+    }
+
+    @Test("Round-trip from Copy format yields the same hex strings")
+    func roundTripFromCopy() throws {
+        let original: [Color] = [
+            Color(hue: 0.00, saturation: 0.9, brightness: 0.95),
+            Color(hue: 0.34, saturation: 0.8, brightness: 0.90),
+            Color(hue: 0.60, saturation: 0.75, brightness: 0.85),
+        ]
+        let copyOutput = original.map(\.hexString).joined(separator: ", ")
+        let parsed = try #require(ColorEditorControl.parsePastedPalette(copyOutput))
+        #expect(parsed.map(\.hexString) == original.map(\.hexString))
+    }
+
+    // MARK: - Invalid inputs
+
+    @Test("Nil input returns nil")
+    func nilInput() {
+        #expect(ColorEditorControl.parsePastedPalette(nil) == nil)
+    }
+
+    @Test("Empty string returns nil")
+    func emptyInput() {
+        #expect(ColorEditorControl.parsePastedPalette("") == nil)
+    }
+
+    @Test(
+        "Wrong number of hexes returns nil",
+        arguments: [
+            "#FF0000",
+            "#FF0000, #00FF00",
+            "#FF0000, #00FF00, #0000FF, #FFFFFF",
+        ]
+    )
+    func wrongCount(input: String) {
+        #expect(ColorEditorControl.parsePastedPalette(input) == nil)
+    }
+
+    @Test("Non-hex content returns nil")
+    func nonHexContent() {
+        #expect(ColorEditorControl.parsePastedPalette("red, green, blue") == nil)
+    }
+
+    @Test("Shorthand hex returns nil")
+    func shorthandHex() {
+        #expect(ColorEditorControl.parsePastedPalette("#FFF, #000, #00F") == nil)
+    }
+
+    @Test("Hex with alpha (8 chars) returns nil")
+    func hexWithAlpha() {
+        #expect(
+            ColorEditorControl.parsePastedPalette("#FF0000FF, #00FF00FF, #0000FFFF") == nil
+        )
+    }
+
+    @Test("Missing # prefix returns nil")
+    func missingHashPrefix() {
+        #expect(
+            ColorEditorControl.parsePastedPalette("FF0000, 00FF00, 0000FF") == nil
+        )
     }
 }
