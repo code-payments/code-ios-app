@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "bills.png",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

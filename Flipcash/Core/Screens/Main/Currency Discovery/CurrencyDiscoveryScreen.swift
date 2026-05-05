@@ -14,30 +14,25 @@ struct CurrencyDiscoveryScreen: View {
     let container: Container
     let sessionContainer: SessionContainer
 
-    @State private var mintsByCategory: [DiscoverCategory: [MintMetadata]] = [:]
-    @State private var selectedCategory: DiscoverCategory = .popular
-
     var body: some View {
-        ZStack {
-            CurrencyDiscoveryList(
-                container: container,
-                mintsByCategory: $mintsByCategory,
-                selectedCategory: $selectedCategory,
-                onSelectMint: { mint in
-                    router.push(.currencyInfo(mint))
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                CurrencyCreationPromoCard {
+                    router.push(.currencyCreationSummary)
                 }
-            )
 
-            if mintsByCategory[selectedCategory] != nil {
-                CurrencyInfoFooter {
-                    Button("Create Your Own Currency") {
-                        router.push(.currencyCreationSummary)
+                LeaderboardSectionTitle()
+
+                CurrencyDiscoveryList(
+                    container: container,
+                    onSelectMint: { mint in
+                        router.push(.currencyInfo(mint))
                     }
-                    .buttonStyle(.filled)
-                }
+                )
             }
         }
-        .navigationTitle("Currencies")
+        .background(Color.backgroundMain)
+        .navigationTitle("Discover Currencies")
         .navigationBarTitleDisplayMode(.inline)
     }
 }

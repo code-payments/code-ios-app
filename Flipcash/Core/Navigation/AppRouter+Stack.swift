@@ -16,6 +16,7 @@ extension AppRouter {
         case balance
         case settings
         case give
+        case discover
 
         /// The sheet a stack is presented in. Cross-stack navigation uses
         /// this to know which top-level modal to surface.
@@ -24,6 +25,7 @@ extension AppRouter {
             case .balance:  .balance
             case .settings: .settings
             case .give:     .give
+            case .discover: .discover
             }
         }
 
@@ -32,6 +34,7 @@ extension AppRouter {
             case .balance:  "balance"
             case .settings: "settings"
             case .give:     "give"
+            case .discover: "discover"
             }
         }
     }

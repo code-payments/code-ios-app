@@ -8,99 +8,72 @@ import FlipcashCore
 
 struct CurrencyDiscoveryList: View {
     let container: Container
-
-    @Binding var mintsByCategory: [DiscoverCategory: [MintMetadata]]
-    @Binding var selectedCategory: DiscoverCategory
     let onSelectMint: (PublicKey) -> Void
 
-    @State private var failedCategories: Set<DiscoverCategory> = []
+    @State private var mints: [MintMetadata]?
+    @State private var isFailed: Bool = false
 
-    private var mints: [MintMetadata] {
-        mintsByCategory[selectedCategory] ?? []
+    private enum LoadState {
+        case loading
+        case failed
+        case empty
+        case loaded([MintMetadata])
     }
 
-    private var isLoading: Bool {
-        mintsByCategory[selectedCategory] == nil && !failedCategories.contains(selectedCategory)
-    }
-
-    private var isFailed: Bool {
-        failedCategories.contains(selectedCategory)
+    private var loadState: LoadState {
+        if let mints {
+            mints.isEmpty ? (isFailed ? .failed : .empty) : .loaded(mints)
+        } else {
+            isFailed ? .failed : .loading
+        }
     }
 
     var body: some View {
-        List {
-            Section {
-                if isLoading {
-                    ForEach(1...10, id: \.self) { rank in
-                        Button {
-                            // Intentionally left blank
-                        } label: {
-                            CurrencyDiscoverySkeletonRow(rank: rank)
-                        }
-                        .buttonStyle(.plain)
-                        .listRowInsets(EdgeInsets())
+        Group {
+            switch loadState {
+            case .loaded(let mints):
+                ForEach(mints.indexed(), id: \.element.address) { item in
+                    Button {
+                        onSelectMint(item.element.address)
+                    } label: {
+                        CurrencyDiscoveryRow(rank: item.index + 1, mint: item.element)
                     }
-                } else {
-                    ForEach(mints.indexed(), id: \.element.address) { item in
-                        Button {
-                            onSelectMint(item.element.address)
-                        } label: {
-                            CurrencyDiscoveryRow(rank: item.index + 1, mint: item.element)
-                        }
-                        .buttonStyle(.plain)
-                        .listRowInsets(EdgeInsets())
-                    }
-
-                    Color.clear
-                        .frame(height: 80)
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
+                    .buttonStyle(.plain)
                 }
-            }
-            .listSectionSeparator(.hidden)
-        }
-        .overlay {
-            if isFailed, mints.isEmpty {
-                VStack(spacing: 10) {
-                    Text("Something Went Wrong")
-                        .font(.appTextLarge)
-                    Text("We couldn't load currencies right now. Please try again.")
-                        .font(.appTextMedium)
-                        .foregroundStyle(Color.textSecondary)
-                        .multilineTextAlignment(.center)
+            case .loading:
+                ForEach(1...10, id: \.self) { rank in
+                    CurrencyDiscoverySkeletonRow(rank: rank)
                 }
-                .padding(.horizontal, 20)
-            } else if !isLoading, mints.isEmpty {
-                VStack(spacing: 10) {
-                    Text("No New Currencies")
-                        .font(.appTextLarge)
-                    Text("No currencies have been created in the last week")
-                        .font(.appTextMedium)
-                        .foregroundStyle(Color.textSecondary)
-                        .multilineTextAlignment(.center)
-                }
-                .padding(.horizontal, 20)
+            case .failed:
+                CurrencyDiscoveryStatusView(
+                    title: "Something Went Wrong",
+                    message: "We couldn't load currencies right now. Please try again."
+                )
+                .padding(.vertical, 40)
+            case .empty:
+                CurrencyDiscoveryStatusView(
+                    title: "No New Currencies",
+                    message: "No currencies have been created in the last week"
+                )
+                .padding(.vertical, 40)
             }
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .contentMargins(.top, 0, for: .scrollContent)
-        .task(id: selectedCategory) {
-            let category = selectedCategory
+        .task {
             do {
-                for try await batch in container.client.discoverCurrencies(category: category) {
-                    failedCategories.remove(category)
+                for try await batch in container.client.discoverCurrencies(category: .popular) {
                     withAnimation {
-                        mintsByCategory[category] = Array(batch.prefix(100))
+                        isFailed = false
+                        mints = batch
                     }
                 }
-                // Stream finished with .ok status — no yield means genuinely empty
-                if mintsByCategory[category] == nil {
-                    mintsByCategory[category] = []
+                // Stream finished `.ok` without yielding — render the empty state
+                // rather than leaving the skeleton visible forever.
+                if mints == nil {
+                    mints = []
                 }
             } catch {
-                if !Task.isCancelled, mintsByCategory[category] == nil {
-                    failedCategories.insert(category)
+                if !Task.isCancelled, mints == nil {
+                    isFailed = true
                 }
             }
         }

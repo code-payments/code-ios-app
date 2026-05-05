@@ -247,9 +247,18 @@ struct ScanScreen: View {
     
     @ViewBuilder private func interfaceView() -> some View {
         VStack {
-            topBar()
+            ScanTopBar { router.present(.settings) }
             Spacer()
-            bottomBar()
+            ScanBottomBar(
+                toast: toast,
+                onGive: {
+                    if giveViewModel.attemptPresent() {
+                        router.present(.give)
+                    }
+                },
+                onWallet: { router.present(.balance) },
+                onDiscover: { router.present(.discover) }
+            )
         }
     }
     
@@ -264,69 +273,6 @@ struct ScanScreen: View {
         .padding(.bottom, 10)
     }
     
-    @ViewBuilder private func topBar() -> some View {
-        HStack(alignment: .center) {
-            Image.asset(.flipcashBrand)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(height: 28)
-
-            Spacer()
-
-            Button {
-                router.present(.settings)
-            } label: {
-                if #available(iOS 26, *) {
-                    Image.asset(.hamburger)
-                        .resizable()
-                        .scaledToFit()
-                        .foregroundStyle(Color.textMain)
-                        .frame(width: 32, height: 32)
-                } else {
-                    Image.asset(.hamburger)
-                        .foregroundStyle(Color.textMain)
-                        .frame(width: 44, height: 44)
-                }
-            }
-            .liquidGlassButtonStyle(shape: .circle)
-            .accessibilityLabel("Settings")
-        }
-        .padding(.horizontal, 20)
-    }
-
-    @ViewBuilder private func bottomBar() -> some View {
-        HStack(alignment: .bottom) {
-            LargeButton(
-                title: "Give",
-                image: .asset(.cash),
-                spacing: 12,
-                maxWidth: 80,
-                maxHeight: 80,
-                fullWidth: true,
-                aligment: .bottom
-            ) {
-                if giveViewModel.attemptPresent() {
-                    router.present(.give)
-                }
-            }
-
-            ToastContainer(toast: toast) {
-                LargeButton(
-                    title: "Wallet",
-                    image: .asset(.history),
-                    spacing: 12,
-                    maxWidth: 80,
-                    maxHeight: 80,
-                    fullWidth: true,
-                    aligment: .bottom
-                ) {
-                    router.present(.balance)
-                }
-            }
-        }
-        .padding(.bottom, 10)
-    }
-
     private var billActionButtons: some View {
         HStack(alignment: .center, spacing: 30) {
             if let primaryAction = session.billState.primaryAction {
@@ -416,6 +362,21 @@ private struct RoutedSheet: View {
                             }
                         }
                     }
+            }
+        case .discover:
+            NavigationStack(path: $router[.discover]) {
+                CurrencyDiscoveryScreen(
+                    container: container,
+                    sessionContainer: sessionContainer
+                )
+                .appRouterDestinations(container: container, sessionContainer: sessionContainer)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        ToolbarCloseButton {
+                            router.dismissSheet()
+                        }
+                    }
+                }
             }
         }
     }
