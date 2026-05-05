@@ -305,9 +305,16 @@ final class SessionAuthenticator {
         
         do {
             let userID: UserID
-            
-            // Create VM accounts first, this is a no-op
-            // if the accounts have been previously created
+
+            // Register/login first: the OCP antispam guard for createAccounts
+            // requires the owner to already exist as a Flipcash user.
+            if isRegistration {
+                userID = try await flipClient.register(owner: keyAccount.owner)
+            } else {
+                userID = try await flipClient.login(owner: keyAccount.owner)
+            }
+
+            // No-op when accounts already exist.
             try await client.createAccounts(
                 owner: cluster.authority.keyPair,
                 mint: .usdf, // USDF is the foundation mint
@@ -315,13 +322,7 @@ final class SessionAuthenticator {
                 kind: .primary,
                 derivationIndex: 0
             )
-            
-            if isRegistration {
-                userID = try await flipClient.register(owner: keyAccount.owner)
-            } else {
-                userID = try await flipClient.login(owner: keyAccount.owner)
-            }
-            
+
             accountManager.set(
                 keyAccount: keyAccount,
                 userID: userID
