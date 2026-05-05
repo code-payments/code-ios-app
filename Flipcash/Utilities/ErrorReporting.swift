@@ -12,7 +12,9 @@ import FlipcashCore
 enum ErrorReporting {
     
     static func initialize() {
-        Bugsnag.start()
+        let config = BugsnagConfiguration.loadConfig()
+        config.maxStringValueLength = 50_000
+        Bugsnag.start(with: config)
     }
     
     static func breadcrumb(_ breadcrumb: Breadcrumb) {
