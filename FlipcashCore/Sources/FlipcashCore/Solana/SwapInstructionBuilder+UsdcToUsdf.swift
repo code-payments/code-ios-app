@@ -17,7 +17,7 @@ extension SwapInstructionBuilder {
     ///   - amount: Amount of USDC to swap (in quarks)
     ///   - pool: The liquidity pool to use for the swap
     ///   - swapId: Unique identifier for the swap (used in memo)
-    /// - Returns: Array of 7 instructions for the USDC→USDF swap
+    /// - Returns: Array of 8 instructions for the USDC→USDF swap
     public static func buildUsdcToUsdfSwapInstructions(
         sender: PublicKey,
         owner: PublicKey,
@@ -35,9 +35,14 @@ extension SwapInstructionBuilder {
             mint: .usdf
         )
 
-        guard let senderUsdcAta = PublicKey.deriveAssociatedAccount(from: sender, mint: .usdc) else {
-            fatalError("Failed to derive USDC ATA")
-        }
+        // Usdf::Swap reads `userOtherToken` as a Token-program account; an
+        // uninitialized canonical USDC ATA causes "Invalid account owner".
+        // CreateIdempotent is a no-op when the account already exists.
+        let senderUsdcAta = AssociatedTokenProgram.CreateIdempotent(
+            subsidizer: sender,
+            owner: sender,
+            mint: .usdc
+        )
 
         var instructions: [Instruction] = []
 
@@ -63,12 +68,15 @@ extension SwapInstructionBuilder {
             ).instruction()
         )
 
-        // 5. Memo::Memo (swap ID for tracking)
+        // 5. AssociatedTokenAccount::CreateIdempotent (USDC ATA for sender)
+        instructions.append(senderUsdcAta.instruction())
+
+        // 6. Memo::Memo (swap ID for tracking)
         instructions.append(
             MemoProgram.Memo(message: swapId.base58).instruction()
         )
 
-        // 6. Usdf::Swap (sender's USDC ATA → sender's USDF ATA)
+        // 7. Usdf::Swap (sender's USDC ATA → sender's USDF ATA)
         instructions.append(
             UsdfProgram.Swap(
                 amount: amount,
@@ -78,11 +86,11 @@ extension SwapInstructionBuilder {
                 usdfVault: pool.usdfVault,
                 otherVault: pool.otherVault,
                 userUsdfToken: senderUsdfAta.address,
-                userOtherToken: senderUsdcAta.publicKey
+                userOtherToken: senderUsdcAta.address
             ).instruction()
         )
 
-        // 7. Token::Transfer (sender's USDF ATA → owner's USDF swap PDA ATA)
+        // 8. Token::Transfer (sender's USDF ATA → owner's USDF swap PDA ATA)
         instructions.append(
             TokenProgram.Transfer(
                 amount: amount,
