@@ -12,8 +12,6 @@ struct SwapInstructionBuilderUsdcToUsdfTests {
 
     // MARK: - Fixtures
 
-    /// 32-byte pubkey filled entirely with the seed byte. Mirrors the existing
-    /// UsdfToUsdc test suite.
     private static func testKey(_ seed: Int) -> PublicKey {
         try! PublicKey([UInt8](repeating: UInt8(seed), count: 32))
     }
@@ -58,35 +56,40 @@ struct SwapInstructionBuilderUsdcToUsdfTests {
         #expect(ix.data.first == ComputeBudgetProgram.Command.setComputeUnitPrice.rawValue)
     }
 
-    @Test("Instruction 2 is AssociatedTokenProgram CreateIdempotent for sender's USDF ATA")
-    func instruction2_createsSenderUsdfATA() {
-        let ix = Self.makeInstructions()[2]
+    @Test(
+        "CreateIdempotent at instruction targets the expected payer/owner/mint",
+        arguments: [
+            (
+                index: 2,
+                ataOwner: SwapInstructionBuilderUsdcToUsdfTests.sender,
+                mint: PublicKey.usdf
+            ),
+            (
+                index: 3,
+                ataOwner: MintMetadata.usdf.timelockSwapAccounts(
+                    owner: SwapInstructionBuilderUsdcToUsdfTests.owner
+                )!.pda.publicKey,
+                mint: PublicKey.usdf
+            ),
+            (
+                index: 4,
+                ataOwner: SwapInstructionBuilderUsdcToUsdfTests.sender,
+                mint: PublicKey.usdc
+            ),
+        ]
+    )
+    func createIdempotent_payerOwnerMint(
+        index: Int,
+        ataOwner: PublicKey,
+        mint: PublicKey
+    ) {
+        let ix = Self.makeInstructions()[index]
         // account layout: [payer (w,s), ata (w), owner, mint, system, token, rent]
         #expect(ix.program == AssociatedTokenProgram.address)
         #expect(ix.accounts[0].publicKey == Self.sender)
-        #expect(ix.accounts[0].isSigner == true)
-        #expect(ix.accounts[2].publicKey == Self.sender)
-        #expect(ix.accounts[3].publicKey == .usdf)
-    }
-
-    @Test("Instruction 3 is AssociatedTokenProgram CreateIdempotent for swap PDA's USDF ATA")
-    func instruction3_createsSwapPdaUsdfATA() {
-        let ix = Self.makeInstructions()[3]
-        let pdaPublicKey = MintMetadata.usdf.timelockSwapAccounts(owner: Self.owner)!.pda.publicKey
-        #expect(ix.program == AssociatedTokenProgram.address)
-        #expect(ix.accounts[0].publicKey == Self.sender)
-        #expect(ix.accounts[2].publicKey == pdaPublicKey)
-        #expect(ix.accounts[3].publicKey == .usdf)
-    }
-
-    @Test("Instruction 4 is AssociatedTokenProgram CreateIdempotent for sender's USDC ATA")
-    func instruction4_createsSenderUsdcATA() {
-        let ix = Self.makeInstructions()[4]
-        #expect(ix.program == AssociatedTokenProgram.address)
-        #expect(ix.accounts[0].publicKey == Self.sender)
-        #expect(ix.accounts[0].isSigner == true)
-        #expect(ix.accounts[2].publicKey == Self.sender)
-        #expect(ix.accounts[3].publicKey == .usdc)
+        #expect(ix.accounts[0].isSigner)
+        #expect(ix.accounts[2].publicKey == ataOwner)
+        #expect(ix.accounts[3].publicKey == mint)
     }
 
     @Test("Instruction 5 is Memo carrying the swap id")
@@ -102,16 +105,16 @@ struct SwapInstructionBuilderUsdcToUsdfTests {
     }
 
     @Test("Instruction 7 is TokenProgram Transfer to swap PDA's USDF ATA")
-    func instruction7_isTransferToSwapPdaAta() {
+    func instruction7_isTransferToSwapPdaAta() throws {
         let ix = Self.makeInstructions()[7]
-        let pdaAta = MintMetadata.usdf.timelockSwapAccounts(owner: Self.owner)!.ata.publicKey
-        let senderUsdfAta = PublicKey.deriveAssociatedAccount(from: Self.sender, mint: .usdf)!.publicKey
+        let pdaAta = try #require(MintMetadata.usdf.timelockSwapAccounts(owner: Self.owner)).ata.publicKey
+        let senderUsdfAta = try #require(PublicKey.deriveAssociatedAccount(from: Self.sender, mint: .usdf)).publicKey
         #expect(ix.program == TokenProgram.address)
         // account layout: [source (w), destination (w), owner (s)]
         #expect(ix.accounts[0].publicKey == senderUsdfAta)
         #expect(ix.accounts[1].publicKey == pdaAta)
         #expect(ix.accounts[2].publicKey == Self.sender)
-        #expect(ix.accounts[2].isSigner == true)
+        #expect(ix.accounts[2].isSigner)
     }
 
     // MARK: - Usdf::Swap account verification
@@ -120,7 +123,7 @@ struct SwapInstructionBuilderUsdcToUsdfTests {
     func swap_userIsSender() {
         let ix = Self.makeInstructions()[6]
         #expect(ix.accounts[0].publicKey == Self.sender)
-        #expect(ix.accounts[0].isSigner == true)
+        #expect(ix.accounts[0].isSigner)
     }
 
     @Test("Swap pool, vaults match LiquidityPool.usdf")
@@ -132,9 +135,9 @@ struct SwapInstructionBuilderUsdcToUsdfTests {
     }
 
     @Test("Swap userUsdfToken (account 4) is sender's USDF ATA")
-    func swap_userUsdfToken() {
+    func swap_userUsdfToken() throws {
         let ix = Self.makeInstructions()[6]
-        let expected = PublicKey.deriveAssociatedAccount(from: Self.sender, mint: .usdf)!.publicKey
+        let expected = try #require(PublicKey.deriveAssociatedAccount(from: Self.sender, mint: .usdf)).publicKey
         #expect(ix.accounts[4].publicKey == expected)
     }
 
