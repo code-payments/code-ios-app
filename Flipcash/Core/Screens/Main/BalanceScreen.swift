@@ -102,9 +102,7 @@ struct BalanceScreen: View {
             .appRouterDestinations(container: container, sessionContainer: sessionContainer)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    ToolbarCloseButton {
-                        router.dismissSheet()
-                    }
+                    CloseButton(action: router.dismissSheet)
                 }
             }
             .onChange(of: notificationController.pushWillPresent) { _, _ in

@@ -54,8 +54,8 @@ struct VerifyInfoScreen: View {
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    ToolbarCloseButton(binding: $onrampCoordinator.isShowingVerificationFlow)
+                ToolbarItem(placement: .topBarTrailing) {
+                    CloseButton(binding: $onrampCoordinator.isShowingVerificationFlow)
                 }
             }
             .navigationDestination(for: OnrampVerificationPath.self) { path in

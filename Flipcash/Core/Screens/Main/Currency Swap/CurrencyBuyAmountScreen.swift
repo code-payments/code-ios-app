@@ -53,8 +53,8 @@ struct CurrencyBuyAmountScreen: View {
                 }
             }
             .toolbar {
-                ToolbarCloseButton {
-                    dismissAction()
+                ToolbarItem(placement: .topBarTrailing) {
+                    CloseButton { dismissAction() }
                 }
             }
             .dialog(item: $viewModel.dialogItem)

@@ -95,10 +95,8 @@ struct SettingsScreen: View {
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    ToolbarCloseButton {
-                        router.dismissSheet()
-                    }
+                ToolbarItem(placement: .topBarTrailing) {
+                    CloseButton(action: router.dismissSheet)
                 }
             }
             .navigationTitle("Settings")

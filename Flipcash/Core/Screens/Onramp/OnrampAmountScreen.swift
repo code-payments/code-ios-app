@@ -69,8 +69,8 @@ struct OnrampAmountScreen: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 if !onrampCoordinator.isProcessingPayment {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        ToolbarCloseButton { onDismiss() }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        CloseButton(action: onDismiss)
                     }
                 }
             }
