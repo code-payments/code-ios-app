@@ -32,7 +32,7 @@ public protocol AnyCameraSession {
 
 @MainActor
 public class CameraSession<T>: ObservableObject, AnyCameraSession where T: CameraSessionExtractor {
-    
+
     public private(set) var extraction = PassthroughSubject<T.Output?, Never>()
     /// Publishes raw string values detected from QR codes via `AVCaptureMetadataOutput`.
     /// Only fires when a new, distinct QR code is detected (duplicate consecutive frames are filtered).
@@ -82,10 +82,9 @@ public class CameraSession<T>: ObservableObject, AnyCameraSession where T: Camer
             session.sessionPreset = .hd1920x1080
         }
         
-        // Inputs
-
-        // Virtual devices first — AVFoundation handles ultrawide/wide/telephoto
-        // switching automatically as the user pinches across zoom thresholds.
+        // Resolve a virtual capture device first so AVFoundation handles
+        // ultrawide/wide/telephoto switching automatically as the user pinches
+        // across zoom thresholds.
         let preferred: [AVCaptureDevice.DeviceType] = [
             .builtInTripleCamera,
             .builtInDualWideCamera,
@@ -102,43 +101,11 @@ public class CameraSession<T>: ObservableObject, AnyCameraSession where T: Camer
             throw Error.deviceUnavailable
         }
 
-        // Tune the camera for close‑range, high‑speed code scanning
-        try device.lockForConfiguration()
-
-        // Focus configuration
-        if device.isAutoFocusRangeRestrictionSupported {
-            device.autoFocusRangeRestriction = .near
-        }
-        if device.isFocusModeSupported(.continuousAutoFocus) {
-            device.focusMode = .continuousAutoFocus
-        }
-        if device.isFocusPointOfInterestSupported {
-            device.focusPointOfInterest = CGPoint(x: 0.5, y: 0.5)
-        }
-
-        // Exposure configuration
-        if device.isExposureModeSupported(.continuousAutoExposure) {
-            device.exposureMode = .continuousAutoExposure
-        }
-        if device.isExposurePointOfInterestSupported {
-            device.exposurePointOfInterest = CGPoint(x: 0.5, y: 0.5)
-        }
-
-        // White‑balance configuration
-        if device.isWhiteBalanceModeSupported(.continuousAutoWhiteBalance) {
-            device.whiteBalanceMode = .continuousAutoWhiteBalance
-        }
-
-        // Low‑light boost
-        if device.isLowLightBoostSupported {
-            device.automaticallyEnablesLowLightBoostWhenAvailable = true
-        }
-
-        // Default to the wide-angle lens on multi-lens devices that lead with
-        // an ultrawide. Without this, iPhone Pro / Plus models open at 0.5×.
-        device.videoZoomFactor = device.wideStartZoomFactor
-
-        device.unlockForConfiguration()
+        // Add input + outputs BEFORE tuning the device. `session.addInput`
+        // and the deferred `commitConfiguration` set the device's
+        // `activeFormat` to match the session preset, which resets
+        // format-dependent properties like `videoZoomFactor`. Tuning
+        // afterwards lets the values we write be the last ones standing.
 
         guard let input = try? AVCaptureDeviceInput(device: device) else {
             throw Error.inputCreationFailed
@@ -149,19 +116,15 @@ public class CameraSession<T>: ObservableObject, AnyCameraSession where T: Camer
         }
 
         session.addInput(input)
-        
-        // Outputs
-        
+
         let output = AVCaptureVideoDataOutput()
         output.setSampleBufferDelegate(videoDelegate, queue: videoDelegate.queue)
-        
+
         guard session.canAddOutput(output) else {
             throw Error.outputAddFailed
         }
-        
-        session.addOutput(output)
 
-        // QR Code Output
+        session.addOutput(output)
 
         let metadataOutput = AVCaptureMetadataOutput()
         metadataOutput.setMetadataObjectsDelegate(metadataDelegate, queue: metadataDelegate.queue)
@@ -174,6 +137,41 @@ public class CameraSession<T>: ObservableObject, AnyCameraSession where T: Camer
                 metadataOutput.metadataObjectTypes = [.qr]
             }
         }
+
+        // Tune the camera for close-range, high-speed code scanning.
+        try device.lockForConfiguration()
+
+        if device.isAutoFocusRangeRestrictionSupported {
+            device.autoFocusRangeRestriction = .near
+        }
+        if device.isFocusModeSupported(.continuousAutoFocus) {
+            device.focusMode = .continuousAutoFocus
+        }
+        if device.isFocusPointOfInterestSupported {
+            device.focusPointOfInterest = CGPoint(x: 0.5, y: 0.5)
+        }
+
+        if device.isExposureModeSupported(.continuousAutoExposure) {
+            device.exposureMode = .continuousAutoExposure
+        }
+        if device.isExposurePointOfInterestSupported {
+            device.exposurePointOfInterest = CGPoint(x: 0.5, y: 0.5)
+        }
+
+        if device.isWhiteBalanceModeSupported(.continuousAutoWhiteBalance) {
+            device.whiteBalanceMode = .continuousAutoWhiteBalance
+        }
+
+        if device.isLowLightBoostSupported {
+            device.automaticallyEnablesLowLightBoostWhenAvailable = true
+        }
+
+        // Open at the wide-angle lens on multi-lens devices that lead with an
+        // ultrawide so the scanner starts at "1×" instead of the ultrawide
+        // constituent's "0.5×".
+        device.videoZoomFactor = device.wideStartZoomFactor
+
+        device.unlockForConfiguration()
 
         isConfigured = true
     }
