@@ -30,20 +30,24 @@ struct CurrencySelectionScreen: View {
                         if viewModel.isSearching {
                             Section(header: ListHeader("Results")) {
                                 ForEach(viewModel.searchingCurrencies) { description in
-                                    CurrencyRow(description: description, viewModel: viewModel, allowDelete: false, dismiss: dismiss)
+                                    CurrencyRow(description: description, viewModel: viewModel, allowDelete: false)
                                 }
                             }
                         } else {
                             if !viewModel.availableRecentCurrencies.isEmpty {
                                 Section(header: ListHeader("Recent Regions")) {
                                     ForEach(viewModel.availableRecentCurrencies) { description in
-                                        CurrencyRow(description: description, viewModel: viewModel, allowDelete: true, dismiss: dismiss)
+                                        CurrencyRow(
+                                            description: description,
+                                            viewModel: viewModel,
+                                            allowDelete: !viewModel.isCurrencyActive(description.currency)
+                                        )
                                     }
                                 }
                             }
                             Section(header: ListHeader("Other Regions")) {
                                 ForEach(viewModel.availableCurrencies) { description in
-                                    CurrencyRow(description: description, viewModel: viewModel, allowDelete: false, dismiss: dismiss)
+                                    CurrencyRow(description: description, viewModel: viewModel, allowDelete: false)
                                 }
                             }
                         }
@@ -74,7 +78,28 @@ private struct CurrencyRow: View {
     let description: CurrencyDescription
     let viewModel: CurrencySelectionViewModel
     let allowDelete: Bool
-    let dismiss: DismissAction
+
+    var body: some View {
+        if allowDelete {
+            CurrencyRowContent(description: description, viewModel: viewModel)
+                .swipeActions {
+                    Button {
+                        withAnimation { viewModel.removeRecent(description.currency) }
+                    } label: {
+                        Image.asset(.delete)
+                    }
+                    .tint(.bannerError)
+                }
+        } else {
+            CurrencyRowContent(description: description, viewModel: viewModel)
+        }
+    }
+}
+
+private struct CurrencyRowContent: View {
+    @Environment(\.dismiss) private var dismiss
+    let description: CurrencyDescription
+    let viewModel: CurrencySelectionViewModel
 
     var body: some View {
         Button {
@@ -100,15 +125,5 @@ private struct CurrencyRow: View {
         .disabled(viewModel.isSelectionDisabled(for: description.currency))
         .listRowBackground(Color.backgroundMain)
         .buttonStyle(.plain)
-        .swipeActions {
-            if allowDelete {
-                Button {
-                    withAnimation { viewModel.removeRecent(description.currency) }
-                } label: {
-                    Image.asset(.delete)
-                }
-                .tint(.bannerError)
-            }
-        }
     }
 }
