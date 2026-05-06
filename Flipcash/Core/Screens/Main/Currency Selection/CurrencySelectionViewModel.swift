@@ -14,19 +14,16 @@ class CurrencySelectionViewModel {
 
     var availableCurrencies: [CurrencyDescription] = []
     var availableRecentCurrencies: [CurrencyDescription] = []
+    var searchingCurrencies: [CurrencyDescription] = []
 
-    var searchText = ""
-    var isFocused = false
+    var searchText = "" {
+        didSet {
+            updateSearchingCurrencies()
+        }
+    }
 
     var isSearching: Bool {
         !searchText.isEmpty
-    }
-
-    var searchingCurrencies: [CurrencyDescription] {
-        let term = searchText.lowercased()
-        return currencies.filter {
-            $0.currency.rawValue.lowercased().contains(term) || $0.localizedName.lowercased().contains(term)
-        }
     }
 
     @ObservationIgnored private let ratesController: RatesController
@@ -79,11 +76,17 @@ class CurrencySelectionViewModel {
         }
     }
 
+    private func updateSearchingCurrencies() {
+        let term = searchText.lowercased()
+        searchingCurrencies = term.isEmpty ? [] : currencies.filter {
+            $0.currency.rawValue.lowercased().contains(term) || $0.localizedName.lowercased().contains(term)
+        }
+    }
+
     // MARK: - Selection -
 
     func select(currency: CurrencyCode) {
         ratesController.balanceCurrency = currency
-        isFocused = false
 
         Task {
             try await Task.delay(milliseconds: 200)
