@@ -41,20 +41,6 @@ public class CameraSession<T>: ObservableObject, AnyCameraSession where T: Camer
     public let extractor: T
     public let session: AVCaptureSession
 
-    /// Zoom factor in the same units the iOS Camera app shows (`0.5`, `1`, `2`, …).
-    /// On a virtual device that leads with an ultrawide constituent, `videoZoomFactor`
-    /// is in the ultrawide's units (`1.0` = ultrawide = "0.5×"); this property divides
-    /// it by the wide-angle threshold so the value matches what the user sees.
-    public var displayZoomFactor: CGFloat {
-        guard let device = activeBackDevice else { return 1.0 }
-        let denominator = device.wideStartZoomFactor
-        return denominator > 0 ? device.videoZoomFactor / denominator : device.videoZoomFactor
-    }
-
-    private var activeBackDevice: AVCaptureDevice? {
-        (session.inputs.first as? AVCaptureDeviceInput)?.device
-    }
-
     private var isConfigured: Bool = false
     private let videoDelegate: VideoDelegate
     private let metadataDelegate: MetadataDelegate

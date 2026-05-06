@@ -256,11 +256,6 @@ struct ScanScreen: View {
     @ViewBuilder private func interfaceView() -> some View {
         VStack {
             ScanTopBar { router.present(.settings) }
-            // FIXME(camera-zoom): temporary diagnostic so users can report the
-            // exact zoom level they see while we verify the half-zoom fix on
-            // multi-lens iPhones. Remove once we have a clean report.
-            ZoomDiagnosticPill(cameraSession: viewModel.cameraSession)
-                .padding(.top, 8)
             Spacer()
             ScanBottomBar(
                 toast: toast,
@@ -333,38 +328,6 @@ struct ScanScreen: View {
 extension String: @retroactive Identifiable {
     public var id: String {
         self
-    }
-}
-
-// MARK: - ZoomDiagnosticPill -
-
-/// Temporary on-screen readout of the current camera zoom, formatted in the
-/// same units the iOS Camera app shows (`0.5×`, `1×`, `1.2×`, …). Lets
-/// TestFlight users on multi-lens iPhones report exactly what zoom they see
-/// while we verify the half-zoom fix.
-private struct ZoomDiagnosticPill: View {
-
-    let cameraSession: CameraSession<CodeExtractor>
-
-    var body: some View {
-        TimelineView(.periodic(from: .now, by: 0.1)) { _ in
-            Text(formatted(cameraSession.displayZoomFactor))
-                .font(.system(size: 14, weight: .semibold).monospacedDigit())
-                .foregroundStyle(.white)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Color.black.opacity(0.55), in: Capsule())
-        }
-        .accessibilityHidden(true)
-        .allowsHitTesting(false)
-    }
-
-    private func formatted(_ value: CGFloat) -> String {
-        let rounded = (value * 10).rounded() / 10
-        if rounded == floor(rounded) {
-            return "\(Int(rounded))×"
-        }
-        return String(format: "%.1f×", rounded)
     }
 }
 
