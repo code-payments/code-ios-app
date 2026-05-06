@@ -361,15 +361,6 @@
       }
     },
     {
-      "identity" : "swift-sodium",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/jedisct1/swift-sodium",
-      "state" : {
-        "revision" : "4f9164a0a2c9a6a7ff53a2833d54a5c79c957342",
-        "version" : "0.9.1"
-      }
-    },
-    {
       "identity" : "swift-system",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-system.git",
@@ -385,15 +376,6 @@
       "state" : {
         "revision" : "b626d3002773b1a1304166643e7f118f724b2132",
         "version" : "1.0.4"
-      }
-    },
-    {
-      "identity" : "swift-url",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/karwa/swift-url",
-      "state" : {
-        "revision" : "9306a962396a50d7d88e924afcd7ec67226763db",
-        "version" : "0.4.2"
       }
     },
     {
