@@ -52,10 +52,12 @@ private struct ButtonIcon: View {
         if #available(iOS 26, *) {
             Image(systemName: systemName)
                 .foregroundStyle(Color.textMain)
+                .font(.appTextLarge)
                 .frame(width: 32, height: 32)
         } else {
             Image(systemName: systemName)
                 .foregroundStyle(Color.textMain)
+                .font(.appTextLarge)
                 .frame(width: 44, height: 44)
         }
     }

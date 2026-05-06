@@ -7,10 +7,10 @@ import SwiftUI
 import FlipcashUI
 
 struct CurrencyCreationPromoCard: View {
-    let onCreate: () -> Void
+    let action: () -> Void
 
     var body: some View {
-        Button(action: onCreate) {
+        Button(action: action) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
                     Text("Create Your Own Currency")
@@ -26,11 +26,11 @@ struct CurrencyCreationPromoCard: View {
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(alignment: .trailing) {
+            .background(alignment: .bottomTrailing) {
                 Image(.CurrencyDiscovery.bills)
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 120, height: 120)
+                    .frame(width: 120)
             }
             .background(Color.backgroundRow)
             .compositingGroup()
