@@ -35,8 +35,8 @@ struct SettingsScreen: View {
         NavigationStack(path: $router[.settings]) {
             Background(color: .backgroundMain) {
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 20) {
-                        HStack(spacing: 10) {
+                    VStack(spacing: 6) {
+                        HStack(spacing: 12) {
                             Button("Deposit") {
                                 router.push(.depositCurrencyList)
                             }
