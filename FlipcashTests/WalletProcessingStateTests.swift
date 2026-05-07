@@ -7,16 +7,21 @@ import Testing
 import FlipcashCore
 @testable import Flipcash
 
+@MainActor
 @Suite("WalletProcessingState")
 struct WalletProcessingStateTests {
 
-    private static let buyingContext = ExternalSwapProcessing(
+    // nonisolated: referenced from @Test(arguments:) array literals which
+    // must evaluate at type init, before MainActor context is available.
+    nonisolated private static let buyingContext = ExternalSwapProcessing(
         swapId: .generate(),
         currencyName: "Test Coin",
         amount: ExchangedFiat.mockOne
     )
 
-    private static let launchingContext = ExternalLaunchProcessing(
+    // nonisolated: referenced from @Test(arguments:) array literals which
+    // must evaluate at type init, before MainActor context is available.
+    nonisolated private static let launchingContext = ExternalLaunchProcessing(
         swapId: .generate(),
         launchedMint: .jeffy,
         currencyName: "New Coin",
