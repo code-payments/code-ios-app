@@ -303,25 +303,21 @@ struct RatesControllerTests {
         let controller = makeController()
         let mint = PublicKey.jeffy
 
-        var received: [ReserveStateUpdate] = []
-        let cancellable = controller.verifiedProtoService.reserveStatesPublisher
-            .receive(on: DispatchQueue.main)
-            .sink { updates in
-                received.append(contentsOf: updates)
-            }
+        await confirmation("reserveStatesPublisher emits one update") { confirm in
+            let cancellable = controller.verifiedProtoService.reserveStatesPublisher
+                .receive(on: DispatchQueue.main)
+                .sink { updates in
+                    #expect(updates.first?.mint == mint)
+                    #expect(updates.first?.supplyFromBonding == 1_000_000)
+                    confirm()
+                }
 
-        await controller.verifiedProtoService.saveReserveStates([
-            .makeTest(mint: mint, supplyFromBonding: 1_000_000)
-        ])
+            await controller.verifiedProtoService.saveReserveStates([
+                .makeTest(mint: mint, supplyFromBonding: 1_000_000)
+            ])
 
-        // Allow publisher to deliver
-        try? await Task.sleep(for: .milliseconds(50))
-
-        #expect(received.count == 1)
-        #expect(received.first?.mint == mint)
-        #expect(received.first?.supplyFromBonding == 1_000_000)
-
-        _ = cancellable
+            _ = cancellable
+        }
     }
 
     // MARK: - reserveStatesPublisher DB sync -
@@ -340,13 +336,20 @@ struct RatesControllerTests {
         try database.insert(mints: [metadata], date: .now)
         try database.insertBalance(quarks: 1_000_000_000_000, mint: mint, costBasis: 0, date: .now)
 
-        // Trigger streaming update with new supply
-        await controller.verifiedProtoService.saveReserveStates([
-            .makeTest(mint: mint, supplyFromBonding: 2_000_000)
-        ])
+        // The controller's reserveStatesPublisher subscription writes the DB
+        // synchronously inside its main-queue sink, so awaiting the publisher
+        // emit guarantees the row is written by the time confirm() returns.
+        await confirmation("reserveStatesPublisher emit triggers DB write") { confirm in
+            let cancellable = controller.verifiedProtoService.reserveStatesPublisher
+                .receive(on: DispatchQueue.main)
+                .sink { _ in confirm() }
 
-        // Allow publisher → .receive(on: main) → sink → DB write
-        try await Task.sleep(for: .milliseconds(200))
+            await controller.verifiedProtoService.saveReserveStates([
+                .makeTest(mint: mint, supplyFromBonding: 2_000_000)
+            ])
+
+            _ = cancellable
+        }
 
         // Verify the database was updated via mint_live
         let balances = try database.getBalances()
