@@ -14,6 +14,7 @@ public actor FileWriterActor {
     private var currentFileIndex: Int = 0
     private var currentFileHandle: FileHandle?
     private var currentFileSize: Int = 0
+    private var fatalFailure: Bool = false
 
     public init(directory: URL, maxFileSize: Int = 500_000, maxFileCount: Int = 3) {
         self.directory = directory
@@ -22,7 +23,7 @@ public actor FileWriterActor {
     }
 
     public func write(_ line: String) {
-        guard let data = line.data(using: .utf8) else { return }
+        guard !fatalFailure, let data = line.data(using: .utf8) else { return }
 
         if currentFileHandle == nil {
             openCurrentFile()
@@ -32,8 +33,12 @@ public actor FileWriterActor {
             rotate()
         }
 
-        currentFileHandle?.write(data)
-        currentFileSize += data.count
+        do {
+            try currentFileHandle?.write(contentsOf: data)
+            currentFileSize += data.count
+        } catch {
+            fatalFailure = true
+        }
     }
 
     public func logFileURLs() -> [URL] {
@@ -66,20 +71,29 @@ public actor FileWriterActor {
             fm.createFile(atPath: url.path, contents: nil)
         }
 
-        currentFileHandle = try? FileHandle(forWritingTo: url)
-        currentFileHandle?.seekToEndOfFile()
-        currentFileSize = Int(currentFileHandle?.offsetInFile ?? 0)
+        guard let handle = try? FileHandle(forWritingTo: url) else {
+            fatalFailure = true
+            return
+        }
+        currentFileHandle = handle
+        currentFileSize = Int((try? handle.seekToEnd()) ?? 0)
     }
 
     private func rotate() {
-        currentFileHandle?.closeFile()
+        try? currentFileHandle?.close()
         currentFileHandle = nil
         currentFileIndex = (currentFileIndex + 1) % maxFileCount
         currentFileSize = 0
 
-        // Truncate the file we're about to write to
+        // Truncate the file we're about to write to. If we can't, we'd
+        // append to stale rotated content — bail instead.
         let url = fileURL(index: currentFileIndex)
-        try? "".write(to: url, atomically: true, encoding: .utf8)
+        do {
+            try "".write(to: url, atomically: true, encoding: .utf8)
+        } catch {
+            fatalFailure = true
+            return
+        }
 
         openCurrentFile()
     }
