@@ -69,13 +69,7 @@ final class CurrencyCreationState {
 
 /// Matches server validation pattern `^[!-~]([ -~]*[!-~])?$`:
 /// printable ASCII, no leading or trailing space, 1+ chars.
-///
-/// SAFETY: `Regex` is not `Sendable` because the matcher engine has internal
-/// mutable state, but the regex value itself is read-only after construction.
-/// The let constant is loaded once at module load and only consulted via
-/// `wholeMatch` / `firstMatch` APIs — those create their own per-call match
-/// state and never mutate the regex.
-nonisolated(unsafe) private let currencyNameAllowedPattern = #/^[!-~]([ -~]*[!-~])?$/#
+private let currencyNameAllowedPattern = #/^[!-~]([ -~]*[!-~])?$/#
 
 // MARK: - CurrencyCreationFlow
 
