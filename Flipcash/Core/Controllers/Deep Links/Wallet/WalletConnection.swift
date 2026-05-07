@@ -775,7 +775,7 @@ extension WalletConnection {
 /// currency launch) and each carries an `isFailed` flag that drives the
 /// processing screen's "cancelled" display without requiring a separate flag
 /// that could drift out of sync with the active context.
-enum WalletProcessingState: Hashable {
+nonisolated enum WalletProcessingState: Hashable {
     case idle
     case buying(ExternalSwapProcessing, isFailed: Bool)
     case launching(ExternalLaunchProcessing, isFailed: Bool)

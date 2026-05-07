@@ -7,7 +7,7 @@ import Foundation
 import FlipcashCore
 import SQLite
 
-extension Database: VerifiedProtoStore {
+nonisolated extension Database: VerifiedProtoStore {
 
     // MARK: - Verified Rates -
 

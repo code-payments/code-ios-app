@@ -8,7 +8,7 @@
 import Foundation
 import FlipcashCore
 
-struct StoredBalance: Identifiable, Sendable, Equatable, Hashable {
+nonisolated struct StoredBalance: Identifiable, Sendable, Equatable, Hashable {
     let quarks: UInt64
     let symbol: String
     let name: String
@@ -101,6 +101,6 @@ extension StoredBalance {
     }
 }
 
-extension StoredBalance {
+nonisolated extension StoredBalance {
     private static let bondingCurve = DiscreteBondingCurve()
 }

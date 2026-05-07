@@ -12,7 +12,7 @@ extension AppRouter {
 
     /// A type-erased push target. Every screen reachable via a NavigationStack
     /// push (anywhere in the app) is a case here.
-    enum Destination: Hashable, Sendable, CustomStringConvertible {
+    nonisolated enum Destination: Hashable, Sendable, CustomStringConvertible {
 
         // Wallet flow
         case currencyInfo(PublicKey)

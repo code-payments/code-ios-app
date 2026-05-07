@@ -9,7 +9,7 @@ import FlipcashCore
 /// wallet (Phantom) signs a currency-launch funding transaction. Distinct from
 /// `ExternalSwapProcessing` so buy-existing and launch flows don't share a
 /// hybrid shape.
-struct ExternalLaunchProcessing: Identifiable, Hashable {
+nonisolated struct ExternalLaunchProcessing: Identifiable, Hashable {
     let swapId: SwapId
     let launchedMint: PublicKey
     let currencyName: String

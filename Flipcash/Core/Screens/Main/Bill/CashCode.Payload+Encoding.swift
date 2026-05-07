@@ -9,8 +9,8 @@ import Foundation
 import FlipcashCore
 import CodeScanner
 
-extension CashCode.Payload {
-    
+nonisolated extension CashCode.Payload {
+
     static let length: Int = 20
     
     init(data: Data) throws {
