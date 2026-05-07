@@ -463,11 +463,12 @@ extension View {
 
 // MARK: - UserDefaults -
 
+@MainActor
 extension UserDefaults {
-    
+
     @Defaults(.launchCount)
     fileprivate static var launchCount: Int?
-    
+
     @Defaults(.wasLoggedIn)
     fileprivate static var wasLoggedIn: Bool?
 }

@@ -340,6 +340,7 @@ extension RatesController {
 
 // MARK: - LocalDefaults -
 
+@MainActor
 private enum LocalDefaults {
     @Defaults(.balanceCurrency)
     static var balanceCurrency: CurrencyCode?

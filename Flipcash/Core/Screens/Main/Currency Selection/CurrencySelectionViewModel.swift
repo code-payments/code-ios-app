@@ -111,6 +111,7 @@ class CurrencySelectionViewModel {
 
 // MARK: - LocalDefaults -
 
+@MainActor
 private enum LocalDefaults {
 
     @Defaults(.recentCurrencies)
