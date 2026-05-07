@@ -147,6 +147,42 @@ public enum ErrorFetchUnauthenticatedUserFlags: Int, Error {
     case unknown = -1
 }
 
+extension ErrorRegisterAccount: ServerError {
+    public var isReportable: Bool {
+        switch self {
+        case .ok, .invalidSignature, .denied: false
+        case .unknown: true
+        }
+    }
+}
+
+extension ErrorLoginAccount: ServerError {
+    public var isReportable: Bool {
+        switch self {
+        case .ok, .invalidTimestamp, .denied: false
+        case .unknown: true
+        }
+    }
+}
+
+extension ErrorFetchUserFlags: ServerError {
+    public var isReportable: Bool {
+        switch self {
+        case .ok, .denied: false
+        case .unknown: true
+        }
+    }
+}
+
+extension ErrorFetchUnauthenticatedUserFlags: ServerError {
+    public var isReportable: Bool {
+        switch self {
+        case .ok: false
+        case .unknown: true
+        }
+    }
+}
+
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipcash_Account_V1_AccountClientInterceptorFactoryProtocol {

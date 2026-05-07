@@ -223,6 +223,24 @@ public enum ErrorLaunchCurrency: Error, Sendable {
     case network(Error)
 }
 
+extension ErrorRateHistory: ServerError {
+    public var isReportable: Bool {
+        switch self {
+        case .ok, .notFound: false
+        case .unknown: true
+        }
+    }
+}
+
+extension ErrorLaunchCurrency: ServerError {
+    public var isReportable: Bool {
+        switch self {
+        case .denied, .nameExists, .invalidIcon: false
+        case .unknown, .network: true
+        }
+    }
+}
+
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Ocp_Currency_V1_CurrencyClientInterceptorFactoryProtocol {

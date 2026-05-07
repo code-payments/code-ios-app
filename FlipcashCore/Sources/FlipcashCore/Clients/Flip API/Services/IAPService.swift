@@ -55,6 +55,15 @@ public enum ErrorCompletePurchase: Int, Error {
     case unknown = -1
 }
 
+extension ErrorCompletePurchase: ServerError {
+    public var isReportable: Bool {
+        switch self {
+        case .ok, .denied, .invalidReceipt, .invalidMetadata: false
+        case .unknown: true
+        }
+    }
+}
+
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipcash_Iap_V1_IapClientInterceptorFactoryProtocol {

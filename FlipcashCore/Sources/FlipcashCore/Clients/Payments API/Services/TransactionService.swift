@@ -978,6 +978,42 @@ public enum ErrorFetchLimits: Int, Error {
     case unknown = -1
 }
 
+extension ErrorSubmitIntent: ServerError {
+    public var isReportable: Bool {
+        switch self {
+        case .denied, .invalidIntent, .staleState: false
+        case .signatureError, .unknown, .deviceTokenUnavailable, .grpcStatus, .grpcError: true
+        }
+    }
+}
+
+extension ErrorVoidGiftCard: ServerError {
+    public var isReportable: Bool {
+        switch self {
+        case .ok, .denied, .claimed, .notFound: false
+        case .unknown: true
+        }
+    }
+}
+
+extension ErrorFetchIntentMetadata: ServerError {
+    public var isReportable: Bool {
+        switch self {
+        case .ok, .notFound, .denied: false
+        case .unknown, .failedToParse: true
+        }
+    }
+}
+
+extension ErrorFetchLimits: ServerError {
+    public var isReportable: Bool {
+        switch self {
+        case .ok: false
+        case .unknown: true
+        }
+    }
+}
+
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Ocp_Transaction_V1_TransactionClientInterceptorFactoryProtocol {

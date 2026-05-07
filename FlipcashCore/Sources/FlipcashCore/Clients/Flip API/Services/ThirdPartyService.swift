@@ -60,6 +60,15 @@ public enum ErrorFetchJWT: Int, Error {
     case unknown = -1
 }
 
+extension ErrorFetchJWT: ServerError {
+    public var isReportable: Bool {
+        switch self {
+        case .ok, .denied, .unsupportedProvider, .invalidApiKey, .phoneVerificationRequired, .emailVerificationRequired: false
+        case .unknown: true
+        }
+    }
+}
+
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipcash_Thirdparty_V1_ThirdPartyClientInterceptorFactoryProtocol {
