@@ -21,7 +21,11 @@ import Foundation
 import Testing
 @testable import Flipcash
 
-@Suite("AppRouter present/dismiss cycle", .timeLimit(.minutes(1)))
+@Suite(
+    "AppRouter present/dismiss cycle",
+    .timeLimit(.minutes(1)),
+    .tags(.concurrency, .stress)
+)
 @MainActor
 struct AppRouterStressTests {
 
@@ -46,7 +50,7 @@ struct AppRouterStressTests {
     @Test("100 rounds across all sheet cases converge on empty state")
     func cyclingAllSheets_convergesOnEmptyState() {
         let router = AppRouter()
-        let sheets: [AppRouter.SheetPresentation] = [.balance, .settings, .give, .discover]
+        let sheets = AppRouter.Stack.allCases.map(\.sheet)
 
         for i in 0..<100 {
             let sheet = sheets[i % sheets.count]

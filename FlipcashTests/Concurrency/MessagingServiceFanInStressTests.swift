@@ -24,7 +24,11 @@ import Foundation
 import Testing
 @testable import FlipcashCore
 
-@Suite("MessagingService fan-in", .timeLimit(.minutes(1)))
+@Suite(
+    "MessagingService fan-in",
+    .timeLimit(.minutes(1)),
+    .tags(.concurrency, .stress)
+)
 struct MessagingServiceFanInStressTests {
 
     private let testAccount = PublicKey.jeffy

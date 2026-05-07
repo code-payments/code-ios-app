@@ -19,7 +19,11 @@ import Testing
 import FlipcashCore
 @testable import Flipcash
 
-@Suite("RatesController concurrent updates", .timeLimit(.minutes(1)))
+@Suite(
+    "RatesController concurrent updates",
+    .timeLimit(.minutes(1)),
+    .tags(.concurrency, .stress)
+)
 @MainActor
 struct RatesControllerStressTests {
 

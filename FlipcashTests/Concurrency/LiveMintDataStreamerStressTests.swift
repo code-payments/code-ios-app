@@ -22,7 +22,11 @@ import Testing
 import FlipcashCore
 @testable import Flipcash
 
-@Suite("LiveMintDataStreamer concurrent access", .timeLimit(.minutes(1)))
+@Suite(
+    "LiveMintDataStreamer concurrent access",
+    .timeLimit(.minutes(1)),
+    .tags(.concurrency, .stress)
+)
 struct LiveMintDataStreamerStressTests {
 
     @Test("Concurrent start/stop/updateMints/ensureConnected do not crash")

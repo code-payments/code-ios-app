@@ -16,7 +16,11 @@ import FlipcashCore
 import FlipcashAPI
 @testable import Flipcash
 
-@Suite("VerifiedProtoService concurrent access", .timeLimit(.minutes(1)))
+@Suite(
+    "VerifiedProtoService concurrent access",
+    .timeLimit(.minutes(1)),
+    .tags(.concurrency, .stress)
+)
 struct VerifiedProtoServiceStressTests {
 
     @Test("100 concurrent reads + writes maintain consistency")
