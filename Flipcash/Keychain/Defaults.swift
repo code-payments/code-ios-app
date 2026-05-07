@@ -48,9 +48,12 @@ enum DefaultsKey: String {
 //    case lastSeenInviteCount = "com.code.lastSeenInviteCount"
 }
 
+private let defaultsEncoder = JSONEncoder()
+private let defaultsDecoder = JSONDecoder()
+
 @propertyWrapper
-struct Defaults<T> where T: Codable {
-    
+struct Defaults<T>: Sendable where T: Codable & Sendable {
+
     var wrappedValue: T? {
         get {
             decode(UserDefaults.standard.data(forKey: key.rawValue))
@@ -63,33 +66,30 @@ struct Defaults<T> where T: Codable {
             }
         }
     }
-    
+
     private let key: DefaultsKey
-    
-    private let encoder = JSONEncoder()
-    private let decoder = JSONDecoder()
-    
+
     // MARK: - Init -
-    
+
     init(_ key: DefaultsKey) {
         self.key = key
     }
-    
+
     // MARK: - Codable -
-    
+
     private func encode(_ value: T?) -> Data? {
         guard let value = value else {
             return nil
         }
-        
-        return try? encoder.encode(value)
+
+        return try? defaultsEncoder.encode(value)
     }
-    
+
     private func decode(_ data: Data?) -> T? {
         guard let data = data else {
             return nil
         }
-        
-        return try? decoder.decode(T.self, from: data)
+
+        return try? defaultsDecoder.decode(T.self, from: data)
     }
 }
