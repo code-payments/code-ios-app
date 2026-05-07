@@ -364,8 +364,8 @@ private struct RoutedSheet: View {
                 GiveScreen(viewModel: giveViewModel)
                     .appRouterDestinations(container: container, sessionContainer: sessionContainer)
                     .toolbar {
-                        ToolbarItem(placement: .navigationBarTrailing) {
-                            ToolbarCloseButton {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            CloseButton {
                                 giveViewModel.isPresented = false
                                 router.dismissSheet()
                             }
@@ -380,10 +380,8 @@ private struct RoutedSheet: View {
                 )
                 .appRouterDestinations(container: container, sessionContainer: sessionContainer)
                 .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        ToolbarCloseButton {
-                            router.dismissSheet()
-                        }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        CloseButton(action: router.dismissSheet)
                     }
                 }
             }

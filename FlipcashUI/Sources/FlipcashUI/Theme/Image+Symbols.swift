@@ -83,7 +83,6 @@ public enum Symbol: String {
 // MARK: - Asset -
 
 public enum Asset: String, Sendable {
-    case close
     case history
     case wallet
     case tipcard

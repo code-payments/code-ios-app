@@ -191,8 +191,8 @@ struct CurrencyInfoScreen: View {
                         )
                     }
                     .toolbar {
-                        ToolbarCloseButton {
-                            walletConnection.isShowingAmountEntry = false
+                        ToolbarItem(placement: .topBarTrailing) {
+                            CloseButton { walletConnection.isShowingAmountEntry = false }
                         }
                     }
                 }

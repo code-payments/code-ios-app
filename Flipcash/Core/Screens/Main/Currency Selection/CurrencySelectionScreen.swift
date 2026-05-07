@@ -60,8 +60,8 @@ struct CurrencySelectionScreen: View {
             .navigationTitle("Select Region")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    ToolbarCloseButton { dismiss() }
+                ToolbarItem(placement: .topBarTrailing) {
+                    CloseButton { dismiss() }
                 }
             }
             .searchable(
