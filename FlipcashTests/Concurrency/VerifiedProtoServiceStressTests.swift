@@ -58,12 +58,8 @@ struct VerifiedProtoServiceStressTests {
     func cancellation_doesNotLeakOrCrash() async {
         let service = VerifiedProtoService(store: InMemoryVerifiedProtoStore())
         let mint = PublicKey.testMint(index: 0)
-        let task = Task {
-            for _ in 0..<1_000 {
-                _ = await service.getVerifiedState(for: .usd, mint: mint)
-            }
+        await runCancellationStress {
+            _ = await service.getVerifiedState(for: .usd, mint: mint)
         }
-        task.cancel()
-        await task.value
     }
 }

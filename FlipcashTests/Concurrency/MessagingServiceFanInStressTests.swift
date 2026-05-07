@@ -79,10 +79,6 @@ struct MessagingServiceFanInStressTests {
     func firstPaymentRequest_cancellationDuringYields_doesNotCrash() async throws {
         let (stream, continuation) = AsyncThrowingStream<[StreamMessage], Error>.makeStream()
 
-        let consumer = Task {
-            try await firstPaymentRequest(in: stream, shouldIgnore: { true })
-        }
-
         let producers = Task {
             await withTaskGroup(of: Void.self) { group in
                 for _ in 0..<200 {
@@ -103,10 +99,14 @@ struct MessagingServiceFanInStressTests {
             }
         }
 
-        consumer.cancel()
+        // Single-iteration stress: the consumer is a one-shot await, so we
+        // run it once inside the helper which adds the warmup before cancel.
+        await runThrowingCancellationStress(iterations: 1) { [stream] in
+            _ = try await firstPaymentRequest(in: stream, shouldIgnore: { true })
+        }
+
         continuation.finish()
         await producers.value
-        _ = try? await consumer.value
     }
 
     // MARK: - pollForGiveRequest -
@@ -118,14 +118,15 @@ struct MessagingServiceFanInStressTests {
     /// silently completing or hanging.
     @Test("Cancellation tears down cleanly")
     func pollForGiveRequest_cancellation_doesNotLeakOrCrash() async {
-        let task = Task {
-            try await pollForGiveRequest(
+        // Single-iteration stress: the poller is one long-running call that
+        // sleeps between attempts, so we run it once inside the helper which
+        // adds the warmup before cancel.
+        await runThrowingCancellationStress(iterations: 1) {
+            _ = try await pollForGiveRequest(
                 maxAttempts: 1_000,
                 pollInterval: .milliseconds(10),
                 fetch: { [] }
             )
         }
-        task.cancel()
-        _ = try? await task.value
     }
 }

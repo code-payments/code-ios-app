@@ -55,16 +55,16 @@ struct RatesControllerStressTests {
     func cancellation_doesNotLeakOrCrash() async {
         let controller = RatesController.mock
 
-        let updater = Task.detached {
-            for i in 0..<1_000 {
-                let rate = Rate(fx: Decimal(i + 1) / 100, currency: .usd)
+        await runCancellationStress {
+            // Detach to keep the off-main → main hop shape: writes originate
+            // off-main and rendezvous on the controller's MainActor isolation.
+            await Task.detached {
+                let rate = Rate(fx: 0.01, currency: .usd)
                 await MainActor.run {
                     controller.updateRates([rate])
                 }
-            }
+            }.value
         }
-        updater.cancel()
-        await updater.value
 
         await controller.awaitPendingRateWrites()
     }

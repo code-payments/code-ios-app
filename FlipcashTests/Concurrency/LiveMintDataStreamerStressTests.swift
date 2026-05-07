@@ -61,13 +61,9 @@ struct LiveMintDataStreamerStressTests {
             verifiedProtoService: VerifiedProtoService(store: InMemoryVerifiedProtoStore())
         )
 
-        let task = Task {
-            for _ in 0..<1_000 {
-                await streamer.start(mints: [])
-                await streamer.stop()
-            }
+        await runCancellationStress {
+            await streamer.start(mints: [])
+            await streamer.stop()
         }
-        task.cancel()
-        await task.value
     }
 }
