@@ -43,7 +43,7 @@ class NotificationController {
         observe(.messageNotificationReceived)               { $0.messageReceived += 1 }
     }
 
-    deinit {
+    isolated deinit {
         for observer in observers {
             NotificationCenter.default.removeObserver(observer)
         }

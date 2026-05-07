@@ -93,7 +93,7 @@ class SendCashOperation {
         logger.info("SendCashOperation opened", metadata: ["rendezvous": "\(payload.rendezvous.publicKey.base58)"])
     }
 
-    deinit {
+    isolated deinit {
         logger.info("SendCashOperation closed", metadata: ["rendezvous": "\(payload.rendezvous.publicKey.base58)"])
         runTask?.cancel()
     }

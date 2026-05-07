@@ -74,7 +74,7 @@ class PushController {
         }
     }
 
-    deinit {
+    isolated deinit {
         if let activeObserver {
             NotificationCenter.default.removeObserver(activeObserver)
         }
