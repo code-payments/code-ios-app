@@ -33,7 +33,7 @@ struct WithdrawAmountScreen: View {
                 actionState: .constant(.normal),
                 actionEnabled: { _ in canProceed },
                 action: onProceed,
-                currencySelectionAction: showsCurrencySelection ? showCurrencySelection : nil
+                currencySelectionAction: showsCurrencySelection ? { showCurrencySelection() } : nil
             )
             .foregroundStyle(Color.textMain)
             .padding(20)
