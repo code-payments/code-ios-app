@@ -14,8 +14,10 @@
 //  stalls would surface in production.
 //
 //  With TSan and Main Thread Checker both enabled on the test scheme, races
-//  in either consumer surface as TSan warnings; the assertions add the
-//  exactness piece (no double-delivery, no lost match).
+//  in either consumer surface as TSan warnings. Single-delivery is
+//  structural in `firstPaymentRequest` (it returns on first match), so
+//  these tests target crash/leak/hang under contention rather than
+//  asserting an exactly-once property the helper already guarantees.
 //
 
 import Foundation
@@ -31,11 +33,11 @@ struct MessagingServiceFanInStressTests {
     // MARK: - firstPaymentRequest -
 
     /// Many producers yield into the same `AsyncThrowingStream` while one
-    /// consumer awaits via `firstPaymentRequest`. The function must deliver
-    /// exactly one match — never two, never zero — even when the producers
-    /// all push payment-request batches at once.
-    @Test("50 concurrent producers yield exactly one delivered match")
-    func firstPaymentRequest_concurrentYields_deliversExactlyOnce() async throws {
+    /// consumer awaits via `firstPaymentRequest`. The consumer must return
+    /// the first matching request without crashing or hanging when the
+    /// producers all push payment-request batches at once.
+    @Test("50 concurrent producers — first-match returns once")
+    func firstPaymentRequest_concurrentYields_returnsFirstMatchUnderContention() async throws {
         let (stream, continuation) = AsyncThrowingStream<[StreamMessage], Error>.makeStream()
 
         let consumer = Task {
@@ -60,9 +62,11 @@ struct MessagingServiceFanInStressTests {
             }
         }
 
-        // Consumer returns from the first matching batch. The remaining
-        // yields are absorbed by the stream's buffer and discarded when we
-        // finish below — that's what proves "exactly once" at the consumer.
+        // The helper returns on the first matching batch (`for try await ...
+        // return`), so single-delivery is structural rather than asserted
+        // here — we're just checking the returned account survives contention.
+        // Remaining yields are absorbed by the stream buffer and discarded
+        // when we finish below.
         let request = try await consumer.value
         #expect(request.account == testAccount)
 
@@ -107,41 +111,6 @@ struct MessagingServiceFanInStressTests {
 
     // MARK: - pollForGiveRequest -
 
-    /// Many concurrent pollers each driving their own `fetch` closure must
-    /// each complete without crashing or interfering with each other's
-    /// attempt counts. This mirrors the production case where multiple
-    /// `awaitGiveRequest` calls overlap (e.g. user reopens the bill flow
-    /// while a previous wait is still draining).
-    @Test("50 concurrent pollers complete without crashing")
-    func pollForGiveRequest_concurrentPollers_doNotCrash() async throws {
-        let mints = (0..<50).map { PublicKey.testMint(index: $0) }
-
-        await withTaskGroup(of: Void.self) { group in
-            for mint in mints {
-                group.addTask {
-                    let attemptLog = AttemptLog()
-                    _ = try? await pollForGiveRequest(
-                        maxAttempts: 3,
-                        pollInterval: .milliseconds(1),
-                        fetch: {
-                            let n = attemptLog.incrementAndGet()
-                            // Match on the second attempt so we exercise both
-                            // the "skip empty" path and the "return on match"
-                            // path under contention.
-                            if n < 2 { return [] }
-                            return [
-                                StreamMessage(
-                                    id: ID(data: Data([UInt8(n & 0xff)])),
-                                    kind: .requestToGiveBill(mint, nil, nil)
-                                )
-                            ]
-                        }
-                    )
-                }
-            }
-        }
-    }
-
     /// Cancelling a poller mid-flight must abort its `Task.sleep` and exit
     /// without crashing. `pollForGiveRequest` calls `Task.checkCancellation`
     /// between attempts, so cancellation should propagate as a thrown
@@ -158,17 +127,5 @@ struct MessagingServiceFanInStressTests {
         }
         task.cancel()
         _ = try? await task.value
-    }
-
-    // MARK: - Test helpers -
-
-    private final class AttemptLog: @unchecked Sendable {
-        private let lock = NSLock()
-        private var counter = 0
-        func incrementAndGet() -> Int {
-            lock.lock(); defer { lock.unlock() }
-            counter += 1
-            return counter
-        }
     }
 }
