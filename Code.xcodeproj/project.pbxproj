@@ -17,7 +17,6 @@
 		9A2396762E7DE27500D70699 /* SolanaSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 9A2396752E7DE27500D70699 /* SolanaSwift */; };
 		9A444EE72E8C414D002B1E39 /* BigDecimal in Frameworks */ = {isa = PBXBuildFile; productRef = 9A444EE62E8C414D002B1E39 /* BigDecimal */; };
 		9A780F972EDF817D009BC4D9 /* CodeScanner in Frameworks */ = {isa = PBXBuildFile; productRef = 9A780F962EDF817D009BC4D9 /* CodeScanner */; };
-		9A83DCCE2D8A653D00E38B84 /* SQLite in Frameworks */ = {isa = PBXBuildFile; productRef = 9A83DCCD2D8A653D00E38B84 /* SQLite */; };
 		9ABDD1952D9D7B61006B6CDA /* FlipcashCore in Frameworks */ = {isa = PBXBuildFile; productRef = 9ABDD1942D9D7B61006B6CDA /* FlipcashCore */; };
 		9AC011182DA4320F0030298E /* FlipcashUI in Frameworks */ = {isa = PBXBuildFile; productRef = 9AC011172DA4320F0030298E /* FlipcashUI */; };
 		9AC0156C2DA576FA0030298E /* opencv2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9AD5E64B25F2BF3E007388AE /* opencv2.framework */; };
@@ -61,14 +60,14 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		4C025B362F69DC1F00914087 /* Exceptions for "FlipcashUITests" folder in "FlipcashUITests" target */ = {
+		4C025B362F69DC1F00914087 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 			);
 			target = 9A516F922D9B12EA00AF478B /* FlipcashUITests */;
 		};
-		9AC0156E2DA579120030298E /* Exceptions for "Flipcash" folder in "Flipcash" target */ = {
+		9AC0156E2DA579120030298E /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				"Supporting Files/apple-app-site-association",
@@ -79,41 +78,9 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		9A516F7B2D9B12E900AF478B /* Flipcash */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				9AC0156E2DA579120030298E /* Exceptions for "Flipcash" folder in "Flipcash" target */,
-			);
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
-			path = Flipcash;
-			sourceTree = "<group>";
-		};
-		9A516F8C2D9B12EA00AF478B /* FlipcashTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
-			path = FlipcashTests;
-			sourceTree = "<group>";
-		};
-		9A516F962D9B12EA00AF478B /* FlipcashUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				4C025B362F69DC1F00914087 /* Exceptions for "FlipcashUITests" folder in "FlipcashUITests" target */,
-			);
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
-			path = FlipcashUITests;
-			sourceTree = "<group>";
-		};
+		9A516F7B2D9B12E900AF478B /* Flipcash */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (9AC0156E2DA579120030298E /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Flipcash; sourceTree = "<group>"; };
+		9A516F8C2D9B12EA00AF478B /* FlipcashTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = FlipcashTests; sourceTree = "<group>"; };
+		9A516F962D9B12EA00AF478B /* FlipcashUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (4C025B362F69DC1F00914087 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = FlipcashUITests; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -324,43 +291,6 @@
 						CreatedOnToolsVersion = 16.2;
 						TestTargetID = 9A516F792D9B12E800AF478B;
 					};
-					9A6BFF0C2B75667600E04EB7 = {
-						CreatedOnToolsVersion = 15.2;
-					};
-					9A7C3F4228DCEF65007DA414 = {
-						CreatedOnToolsVersion = 14.0;
-					};
-					9A83DCC32D8A650500E38B84 = {
-						CreatedOnToolsVersion = 16.2;
-					};
-					9A8DB71227D50D4800E2E883 = {
-						CreatedOnToolsVersion = 13.2.1;
-					};
-					9A9970A22CA33145006BDE08 = {
-						CreatedOnToolsVersion = 16.0;
-					};
-					9A9970B12CA33147006BDE08 = {
-						CreatedOnToolsVersion = 16.0;
-						TestTargetID = 9A9970A22CA33145006BDE08;
-					};
-					9A9970BB2CA33147006BDE08 = {
-						CreatedOnToolsVersion = 16.0;
-						TestTargetID = 9A9970A22CA33145006BDE08;
-					};
-					9AEB5FD225CDD4B8004B3680 = {
-						CreatedOnToolsVersion = 12.4;
-					};
-					9AED10FF258BE1310088D902 = {
-						CreatedOnToolsVersion = 12.3;
-					};
-					9AED1110258BE1320088D902 = {
-						CreatedOnToolsVersion = 12.3;
-						TestTargetID = 9AED10FF258BE1310088D902;
-					};
-					9AED111B258BE1320088D902 = {
-						CreatedOnToolsVersion = 12.3;
-						TestTargetID = 9AED10FF258BE1310088D902;
-					};
 				};
 			};
 			buildConfigurationList = 9AED10FB258BE1310088D902 /* Build configuration list for PBXProject "Code" */;
@@ -414,7 +344,7 @@
 				9ACE172927E6287C00ACA047 /* XCRemoteSwiftPackageReference "mixpanel-swift" */,
 				9A1A827528660A6F00A4979F /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 				9A476D482978884700C5B5CE /* XCRemoteSwiftPackageReference "bugsnag-cocoa" */,
-				9A9499D62CFB829300DC219B /* XCRemoteSwiftPackageReference "SQLite.swift" */,
+				9A9499D62CFB829300DC219B /* XCRemoteSwiftPackageReference "SQLite" */,
 				9A8D9A3D2D78C2E200E755B9 /* XCRemoteSwiftPackageReference "Kingfisher" */,
 				9A2396742E7DE27500D70699 /* XCRemoteSwiftPackageReference "solana-swift" */,
 				9A444EE52E8C414D002B1E39 /* XCRemoteSwiftPackageReference "BigDecimal" */,
@@ -1050,112 +980,6 @@
 			};
 			name = "Release Development";
 		};
-		9A83DCC92D8A650600E38B84 /* Development */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CODE_SIGN_STYLE = Automatic;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"DEBUG=1",
-					"$(inherited)",
-				);
-				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 15.2;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
-				SWIFT_VERSION = 5.0;
-			};
-			name = Development;
-		};
-		9A83DCCA2D8A650600E38B84 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CODE_SIGN_STYLE = Automatic;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"DEBUG=1",
-					"$(inherited)",
-				);
-				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 15.2;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
-				SWIFT_VERSION = 5.0;
-			};
-			name = Debug;
-		};
-		9A83DCCB2D8A650600E38B84 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CODE_SIGN_STYLE = Automatic;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
-				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 15.2;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx;
-				SWIFT_VERSION = 5.0;
-			};
-			name = Release;
-		};
-		9A83DCCC2D8A650600E38B84 /* Release Development */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CODE_SIGN_STYLE = Automatic;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
-				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 15.2;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx;
-				SWIFT_VERSION = 5.0;
-			};
-			name = "Release Development";
-		};
-		9ABDD19A2D9D7CBF006B6CDA /* Development */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-			};
-			name = Development;
-		};
-		9ABDD19B2D9D7CBF006B6CDA /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-			};
-			name = Debug;
-		};
-		9ABDD19C2D9D7CBF006B6CDA /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-			};
-			name = Release;
-		};
-		9ABDD19D2D9D7CBF006B6CDA /* Release Development */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-			};
-			name = "Release Development";
-		};
 		9AED1123258BE1320088D902 /* Development */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 9A592D762B17AF5500735BB0 /* base.xcconfig */;
@@ -1385,7 +1209,7 @@
 				minimumVersion = 8.3.0;
 			};
 		};
-		9A9499D62CFB829300DC219B /* XCRemoteSwiftPackageReference "SQLite.swift" */ = {
+		9A9499D62CFB829300DC219B /* XCRemoteSwiftPackageReference "SQLite" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/dbart01/SQLite.swift";
 			requirement = {
@@ -1433,11 +1257,6 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = CodeScanner;
 		};
-		9A83DCCD2D8A653D00E38B84 /* SQLite */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 9A9499D62CFB829300DC219B /* XCRemoteSwiftPackageReference "SQLite.swift" */;
-			productName = SQLite;
-		};
 		9ABDD1942D9D7B61006B6CDA /* FlipcashCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = FlipcashCore;
@@ -1448,7 +1267,7 @@
 		};
 		9AD1265D2DA98ADC0048141F /* SQLite */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 9A9499D62CFB829300DC219B /* XCRemoteSwiftPackageReference "SQLite.swift" */;
+			package = 9A9499D62CFB829300DC219B /* XCRemoteSwiftPackageReference "SQLite" */;
 			productName = SQLite;
 		};
 		9ADEF1D62DD627C0001B260A /* Bugsnag */ = {
