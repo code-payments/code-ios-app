@@ -74,7 +74,7 @@ private enum PickerMode {
     case custom
 }
 
-public struct GradientStop: Identifiable, Equatable {
+public struct GradientStop: Identifiable, Equatable, Sendable {
     
     public let id = UUID()
     
