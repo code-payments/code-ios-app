@@ -2,9 +2,9 @@
 //  VerifiedProtoServiceStressTests.swift
 //  FlipcashTests
 //
-//  Pre-strip baseline for the Swift 6 / `defaultIsolation = MainActor`
-//  migration. `VerifiedProtoService` is the actor that caches verified rate
-//  and reserve proofs delivered from gRPC stream callbacks; it must stay
+//  TSan + Main Thread Checker sentinel for `VerifiedProtoService`.
+//  `VerifiedProtoService` is the actor that caches verified rate and
+//  reserve proofs delivered from gRPC stream callbacks; it must stay
 //  consistent under concurrent reads + writes. With TSan and Main Thread
 //  Checker both enabled on the test scheme, a real data race here will
 //  surface as a TSan warning or actor-isolation assertion.

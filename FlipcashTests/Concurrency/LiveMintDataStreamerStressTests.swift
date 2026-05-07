@@ -2,11 +2,11 @@
 //  LiveMintDataStreamerStressTests.swift
 //  FlipcashTests
 //
-//  Pre-strip baseline for the Swift 6 / `defaultIsolation = MainActor`
-//  migration. `LiveMintDataStreamer` is the actor that bridges the
-//  bidirectional gRPC stream for rates + reserves into the rest of the app.
-//  Its public mutators (`start`, `stop`, `updateMints`, `ensureConnected`)
-//  are dispatched as fire-and-forget Tasks from `RatesController`, so they
+//  TSan + Main Thread Checker sentinel for `LiveMintDataStreamer`.
+//  `LiveMintDataStreamer` is the actor that bridges the bidirectional
+//  gRPC stream for rates + reserves into the rest of the app. Its public
+//  mutators (`start`, `stop`, `updateMints`, `ensureConnected`) are
+//  dispatched as fire-and-forget Tasks from `RatesController`, so they
 //  can race in production. With TSan and Main Thread Checker both enabled
 //  on the test scheme, a data race surfaces as a TSan warning, while an
 //  actor-isolation violation surfaces as a Swift runtime assertion (via

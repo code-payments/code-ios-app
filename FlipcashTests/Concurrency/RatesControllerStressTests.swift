@@ -2,9 +2,9 @@
 //  RatesControllerStressTests.swift
 //  FlipcashTests
 //
-//  Pre-strip baseline for the Swift 6 / `defaultIsolation = MainActor`
-//  migration. `RatesController` is `@MainActor @Observable` and drives
-//  `updateRates` from the `verifiedProtoService.ratesPublisher` chain.
+//  TSan + Main Thread Checker sentinel for `RatesController`.
+//  `RatesController` is `@MainActor @Observable` and drives `updateRates`
+//  from the `verifiedProtoService.ratesPublisher` chain.
 //
 //  The race shape stresses two paths: (1) main-actor `updateRates(_:)`
 //  writes interleaving with main-actor `cachedRates` reads, and (2) the

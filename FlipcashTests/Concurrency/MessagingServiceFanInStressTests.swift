@@ -2,8 +2,8 @@
 //  MessagingServiceFanInStressTests.swift
 //  FlipcashTests
 //
-//  Pre-strip baseline for the Swift 6 / `defaultIsolation = MainActor`
-//  migration. `MessagingService` opens the long-lived gRPC message stream
+//  TSan + Main Thread Checker sentinel for the `MessagingService` fan-in
+//  consumers. `MessagingService` opens the long-lived gRPC message stream
 //  and fans batches into a `@MainActor`-hopping completion handler. The
 //  service itself has no test seam (its public methods all dial real gRPC),
 //  so this suite stresses the hermetic seam directly above it: the
