@@ -152,13 +152,14 @@ class AccountManager {
 
 // MARK: - Keychain -
 
+@MainActor
 private extension Keychain {
     @SecureCodable(.keyAccount)
     static var keyAccount: KeyAccount?
-    
+
     @SecureCodable(.currentUserAccount)
     static var userAccount: UserAccount?
-    
+
     @SecureCodable(.historicalAccounts, sync: true)
     static var historicalAccounts: [String: AccountDescription]?
 }

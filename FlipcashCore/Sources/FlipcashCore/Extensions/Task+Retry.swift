@@ -23,8 +23,8 @@ extension Task where Success == Never, Failure == Never {
     public static func retry<T>(
         maxAttempts: Int,
         delay: Duration,
-        shouldRetry: (Error) -> Bool = { _ in true },
-        body: () async throws -> T
+        shouldRetry: sending (Error) -> Bool = { _ in true },
+        body: sending () async throws -> T
     ) async throws -> T {
         precondition(maxAttempts >= 1, "maxAttempts must be at least 1")
         var attempt = 0
