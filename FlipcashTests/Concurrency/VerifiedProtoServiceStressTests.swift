@@ -1,5 +1,5 @@
 //
-//  VerifiedProtoStoreStressTests.swift
+//  VerifiedProtoServiceStressTests.swift
 //  FlipcashTests
 //
 //  Pre-strip baseline for the Swift 6 / `defaultIsolation = MainActor`
