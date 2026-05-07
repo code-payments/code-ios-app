@@ -13,6 +13,7 @@ import UIKit
 import FlipcashUI
 @testable import Flipcash
 
+@MainActor
 @Suite("Bill Designer color derivation")
 struct BillDesignerColorsTests {
 
