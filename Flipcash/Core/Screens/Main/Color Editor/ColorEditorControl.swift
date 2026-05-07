@@ -94,6 +94,7 @@ public nonisolated struct GradientStop: Identifiable, Equatable, Sendable {
         self.alpha = alpha
     }
     
+    @MainActor
     init(from color: Color) {
         // Convert Color to HSB - this is a simplified approach
         // In production, you might want more precise color space conversion
@@ -103,7 +104,7 @@ public nonisolated struct GradientStop: Identifiable, Equatable, Sendable {
         var b: CGFloat = 0
         var a: CGFloat = 0
         uiColor.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
-        
+
         self.hue = h
         self.saturation = s
         self.brightness = b
