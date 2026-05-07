@@ -49,7 +49,7 @@ class NotificationController {
         }
     }
 
-    private func observe(_ name: Notification.Name, handler: @escaping (NotificationController) -> Void) {
+    private func observe(_ name: Notification.Name, handler: @Sendable @escaping @MainActor (NotificationController) -> Void) {
         let token = NotificationCenter.default.addObserver(
             forName: name,
             object: nil,

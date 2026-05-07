@@ -41,7 +41,7 @@ func resolveVerifiedState(
     provided: VerifiedState?,
     currency: CurrencyCode,
     mint: PublicKey,
-    cacheLookup: (CurrencyCode, PublicKey) async -> VerifiedState?
+    cacheLookup: @Sendable (CurrencyCode, PublicKey) async -> VerifiedState?
 ) async -> VerifiedStateResolution {
     if let provided {
         return .provided(provided)
