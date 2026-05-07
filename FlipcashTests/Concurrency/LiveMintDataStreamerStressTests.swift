@@ -8,8 +8,9 @@
 //  Its public mutators (`start`, `stop`, `updateMints`, `ensureConnected`)
 //  are dispatched as fire-and-forget Tasks from `RatesController`, so they
 //  can race in production. With TSan and Main Thread Checker both enabled
-//  on the test scheme, a real data race or actor-isolation violation here
-//  will surface as a TSan warning or runtime assertion.
+//  on the test scheme, a data race surfaces as a TSan warning, while an
+//  actor-isolation violation surfaces as a Swift runtime assertion (via
+//  the actor-data-race-checks frontend flag).
 //
 //  The test uses empty mint sets so `openStream()` early-returns without
 //  dialing a real gRPC stream — we're stressing the actor's serialization
@@ -50,6 +51,9 @@ struct LiveMintDataStreamerStressTests {
         // mint-subscription churn.
     }
 
+    /// Empty mints early-return out of `openStream()`, so the actor never owns
+    /// a `pingTimeoutTask` or `reconnectTask` to cancel here. This test only
+    /// asserts that rapid `start`/`stop` teardown does not crash.
     @Test("Cancellation tears down cleanly")
     @MainActor
     func cancellation_doesNotLeakOrCrash() async {
