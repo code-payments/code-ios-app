@@ -13,13 +13,13 @@ import SolanaSwift
 @Suite("WalletConnection state machine")
 struct WalletConnectionStateTests {
 
-    private static let buyingContext = ExternalSwapProcessing(
+    nonisolated private static let buyingContext = ExternalSwapProcessing(
         swapId: .generate(),
         currencyName: "Test Coin",
         amount: ExchangedFiat.mockOne
     )
 
-    private static let launchingContext = ExternalLaunchProcessing(
+    nonisolated private static let launchingContext = ExternalLaunchProcessing(
         swapId: .generate(),
         launchedMint: .jeffy,
         currencyName: "New Coin",

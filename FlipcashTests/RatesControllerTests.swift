@@ -7,7 +7,7 @@
 
 import Foundation
 import Testing
-import Combine
+@preconcurrency import Combine
 @testable import Flipcash
 import FlipcashCore
 import FlipcashAPI
