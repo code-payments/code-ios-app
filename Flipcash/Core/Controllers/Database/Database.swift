@@ -18,6 +18,7 @@ typealias Expression = SQLite.Expression
 // despite Database itself being a reference type. Marking it
 // `@unchecked Sendable` lets background write paths (e.g. RatesController's
 // rate persistence queue) capture it without escaping Swift 6 isolation.
+// FOLLOW-UP: Remove @unchecked when SQLite.swift declares Connection: Sendable.
 nonisolated class Database: @unchecked Sendable {
 
     let reader: Connection

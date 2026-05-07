@@ -864,6 +864,7 @@ protocol WalletRPC: Sendable {
 // request constructs a fresh URLRequest with no shared mutable state.
 // Verified against SolanaSwift's source at the pinned version (see
 // Package.resolved).
+// FOLLOW-UP: Remove when SolanaSwift adopts Sendable on JSONRPCAPIClient upstream.
 extension JSONRPCAPIClient: @retroactive @unchecked Sendable {}
 
 extension JSONRPCAPIClient: WalletRPC {}

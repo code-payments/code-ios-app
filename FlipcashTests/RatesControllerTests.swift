@@ -7,6 +7,9 @@
 
 import Foundation
 import Testing
+// SAFETY: See RatesController.swift's import for the rationale —
+// PassthroughSubject isn't Sendable upstream, and publishers route
+// through .receive(on: DispatchQueue.main) before any state mutation.
 @preconcurrency import Combine
 @testable import Flipcash
 import FlipcashCore

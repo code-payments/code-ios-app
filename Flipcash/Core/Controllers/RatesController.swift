@@ -6,6 +6,12 @@
 //
 
 import Foundation
+// SAFETY: PassthroughSubject (used for ratesPublisher and
+// reserveStatesPublisher) is not yet Sendable upstream. Publishers
+// route through .receive(on: DispatchQueue.main) before any state
+// mutation, so cross-isolation reads are sound today.
+// FOLLOW-UP: Remove when Combine adopts Sendable on PassthroughSubject
+// or these are migrated to AsyncSequence.
 @preconcurrency import Combine
 import FlipcashCore
 
