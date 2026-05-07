@@ -6,20 +6,6 @@
 	objectVersion = 70;
 	objects = {
 
-/* Begin PBXAggregateTarget section */
-		9ABDD1972D9D7CBF006B6CDA /* FlipcashGen */ = {
-			isa = PBXAggregateTarget;
-			buildConfigurationList = 9ABDD1992D9D7CBF006B6CDA /* Build configuration list for PBXAggregateTarget "FlipcashGen" */;
-			buildPhases = (
-				9ABDD1982D9D7CBF006B6CDA /* Generate Flipcash Services */,
-			);
-			dependencies = (
-			);
-			name = FlipcashGen;
-			productName = CodeServiceGen;
-		};
-/* End PBXAggregateTarget section */
-
 /* Begin PBXBuildFile section */
 		4CB225762F77260D0075874E /* FirebaseInstallations in Frameworks */ = {isa = PBXBuildFile; productRef = 4CB225752F77260D0075874E /* FirebaseInstallations */; };
 		4CB225782F7726500075874E /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 4CB225772F7726500075874E /* FirebaseMessaging */; };
@@ -57,18 +43,6 @@
 		};
 /* End PBXContainerItemProxy section */
 
-/* Begin PBXCopyFilesBuildPhase section */
-		9A83DCC22D8A650500E38B84 /* CopyFiles */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = /usr/share/man/man1/;
-			dstSubfolderSpec = 0;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 1;
-		};
-/* End PBXCopyFilesBuildPhase section */
-
 /* Begin PBXFileReference section */
 		88FB56DF2EE0AB2F0014EC5F /* CLAUDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CLAUDE.md; sourceTree = "<group>"; };
 		88FB56E12EE0AB810014EC5F /* 2025-11-27-swap-rpc-analysis.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2025-11-27-swap-rpc-analysis.md"; sourceTree = "<group>"; };
@@ -80,7 +54,6 @@
 		9A516F892D9B12EA00AF478B /* FlipcashTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FlipcashTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		9A516F932D9B12EA00AF478B /* FlipcashUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FlipcashUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		9A592D762B17AF5500735BB0 /* base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = base.xcconfig; sourceTree = "<group>"; };
-		9A83DCC42D8A650500E38B84 /* EmojiGenerator */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = EmojiGenerator; sourceTree = BUILT_PRODUCTS_DIR; };
 		9AA197072CE51ABB00FE1703 /* CodeCurves */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = CodeCurves; sourceTree = "<group>"; };
 		9ABDD1962D9D7C2E006B6CDA /* FlipcashAPI */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = FlipcashAPI; sourceTree = "<group>"; };
 		9AD5E64B25F2BF3E007388AE /* opencv2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = opencv2.framework; sourceTree = "<group>"; };
@@ -141,17 +114,6 @@
 			path = FlipcashUITests;
 			sourceTree = "<group>";
 		};
-		9A83DCC52D8A650600E38B84 /* EmojiGenerator */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
-			path = EmojiGenerator;
-			sourceTree = "<group>";
-		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -185,14 +147,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		9A83DCC12D8A650500E38B84 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				9A83DCCE2D8A653D00E38B84 /* SQLite in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -241,7 +195,6 @@
 				9AD5E64A25F2BF3E007388AE /* Vendor */,
 				9A592D6D2B17A7EC00735BB0 /* Configurations */,
 				9AED116C258BE3AF0088D902 /* Packages */,
-				9A83DCC52D8A650600E38B84 /* EmojiGenerator */,
 				9A516F7B2D9B12E900AF478B /* Flipcash */,
 				9A516F8C2D9B12EA00AF478B /* FlipcashTests */,
 				9A516F962D9B12EA00AF478B /* FlipcashUITests */,
@@ -252,7 +205,6 @@
 		9AED1101258BE1310088D902 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				9A83DCC42D8A650500E38B84 /* EmojiGenerator */,
 				9A516F7A2D9B12E900AF478B /* Flipcash.app */,
 				9A516F892D9B12EA00AF478B /* FlipcashTests.xctest */,
 				9A516F932D9B12EA00AF478B /* FlipcashUITests.xctest */,
@@ -350,29 +302,6 @@
 			productName = FlipcashUITests;
 			productReference = 9A516F932D9B12EA00AF478B /* FlipcashUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
-		};
-		9A83DCC32D8A650500E38B84 /* EmojiGenerator */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 9A83DCC82D8A650600E38B84 /* Build configuration list for PBXNativeTarget "EmojiGenerator" */;
-			buildPhases = (
-				9A83DCC02D8A650500E38B84 /* Sources */,
-				9A83DCC12D8A650500E38B84 /* Frameworks */,
-				9A83DCC22D8A650500E38B84 /* CopyFiles */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				9A83DCC52D8A650600E38B84 /* EmojiGenerator */,
-			);
-			name = EmojiGenerator;
-			packageProductDependencies = (
-				9A83DCCD2D8A653D00E38B84 /* SQLite */,
-			);
-			productName = EmojiGenerator;
-			productReference = 9A83DCC42D8A650500E38B84 /* EmojiGenerator */;
-			productType = "com.apple.product-type.tool";
 		};
 /* End PBXNativeTarget section */
 
@@ -495,11 +424,9 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				9A83DCC32D8A650500E38B84 /* EmojiGenerator */,
 				9A516F792D9B12E800AF478B /* Flipcash */,
 				9A516F882D9B12EA00AF478B /* FlipcashTests */,
 				9A516F922D9B12EA00AF478B /* FlipcashUITests */,
-				9ABDD1972D9D7CBF006B6CDA /* FlipcashGen */,
 			);
 		};
 /* End PBXProject section */
@@ -533,25 +460,6 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		9ABDD1982D9D7CBF006B6CDA /* Generate Flipcash Services */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Generate Flipcash Services";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "cd \"$SOURCE_ROOT/Scripts\"\n\n./run -a flipcashCore     # -s 1 # skips pull, only runs generation\n./run -a flipcashPayments # -s 1 # skips pull, only runs generation\n";
-		};
 		9ADEF1CD2DD516A5001B260A /* Generate Google */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -592,13 +500,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		9A516F8F2D9B12EA00AF478B /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		9A83DCC02D8A650500E38B84 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -1411,28 +1312,6 @@
 				9A516FA72D9B12EA00AF478B /* Debug */,
 				9A516FA82D9B12EA00AF478B /* Release */,
 				9A516FA92D9B12EA00AF478B /* Release Development */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		9A83DCC82D8A650600E38B84 /* Build configuration list for PBXNativeTarget "EmojiGenerator" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				9A83DCC92D8A650600E38B84 /* Development */,
-				9A83DCCA2D8A650600E38B84 /* Debug */,
-				9A83DCCB2D8A650600E38B84 /* Release */,
-				9A83DCCC2D8A650600E38B84 /* Release Development */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		9ABDD1992D9D7CBF006B6CDA /* Build configuration list for PBXAggregateTarget "FlipcashGen" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				9ABDD19A2D9D7CBF006B6CDA /* Development */,
-				9ABDD19B2D9D7CBF006B6CDA /* Debug */,
-				9ABDD19C2D9D7CBF006B6CDA /* Release */,
-				9ABDD19D2D9D7CBF006B6CDA /* Release Development */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
