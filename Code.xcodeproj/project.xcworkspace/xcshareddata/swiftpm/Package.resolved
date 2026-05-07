@@ -361,15 +361,6 @@
       }
     },
     {
-      "identity" : "swift-sodium",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/jedisct1/swift-sodium",
-      "state" : {
-        "revision" : "4f9164a0a2c9a6a7ff53a2833d54a5c79c957342",
-        "version" : "0.9.1"
-      }
-    },
-    {
       "identity" : "swift-system",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-system.git",
@@ -388,24 +379,6 @@
       }
     },
     {
-      "identity" : "swift-url",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/karwa/swift-url",
-      "state" : {
-        "revision" : "9306a962396a50d7d88e924afcd7ec67226763db",
-        "version" : "0.4.2"
-      }
-    },
-    {
-      "identity" : "swiftui-introspect",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/siteline/SwiftUI-Introspect",
-      "state" : {
-        "revision" : "807f73ce09a9b9723f12385e592b4e0aaebd3336",
-        "version" : "1.3.0"
-      }
-    },
-    {
       "identity" : "task-retrying-swift",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/bigearsenal/task-retrying-swift.git",
@@ -421,15 +394,6 @@
       "state" : {
         "revision" : "f8fd111642bf2336b11ef9ea828510693106e954",
         "version" : "1.1.0"
-      }
-    },
-    {
-      "identity" : "twitterapikit",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/mironal/TwitterAPIKit",
-      "state" : {
-        "revision" : "7bbdd82ee0cfd241bbe07f1f7fa1e51a0cf32244",
-        "version" : "0.2.3"
       }
     },
     {
