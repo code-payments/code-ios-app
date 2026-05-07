@@ -9,7 +9,7 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-@MainActor @Observable
+@Observable
 class CurrencySellViewModel: Identifiable {
     var enteredAmount: String = ""
     var path: [CurrencySellPath] = []

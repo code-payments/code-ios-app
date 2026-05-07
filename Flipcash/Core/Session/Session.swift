@@ -11,7 +11,6 @@ import FlipcashCore
 
 private let logger = Logger(label: "flipcash.session")
 
-@MainActor
 protocol SessionDelegate: AnyObject {
     func didDetectUnlockedAccount()
 }
@@ -25,7 +24,7 @@ protocol SessionDelegate: AnyObject {
 ///
 /// Inject via `@Environment(Session.self)`. Use `@Bindable` when bindings
 /// are needed (e.g. `$session.dialogItem` for sheets).
-@MainActor @Observable
+@Observable
 class Session {
 
     // MARK: - Database-Driven State -

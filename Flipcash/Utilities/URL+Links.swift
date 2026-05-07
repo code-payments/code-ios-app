@@ -41,25 +41,21 @@ extension URL {
 extension URL {
     
     @available(iOSApplicationExtension, unavailable)
-    @MainActor
     static func openSettings() {
         URL.settings.openWithApplication()
     }
-    
+
     @available(iOSApplicationExtension, unavailable)
-    @MainActor
     static func openMail() {
         URL.mail.openWithApplication()
     }
-    
+
     @available(iOSApplicationExtension, unavailable)
-    @MainActor
     func canOpen() -> Bool {
         UIApplication.shared.canOpenURL(self)
     }
-    
+
     @available(iOSApplicationExtension, unavailable)
-    @MainActor
     func openWithApplication() {
         if canOpen() {
             UIApplication.shared.open(self, options: [:], completionHandler: nil)

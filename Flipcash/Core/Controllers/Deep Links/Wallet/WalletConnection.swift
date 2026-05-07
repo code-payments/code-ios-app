@@ -19,7 +19,6 @@ import TweetNacl
 
 private let logger = Logger(label: "flipcash.wallet-connection")
 
-@MainActor
 @Observable
 public final class WalletConnection {
 
@@ -838,7 +837,6 @@ struct ConnectedWalletSession: Codable {
     public let phantomEncryptionPublicKey: Data
 }
 
-@MainActor
 private extension FlipcashCore.Keychain {
     @SecureCodable(.connectedWalletSession)
     static var connectedWalletSession: ConnectedWalletSession?

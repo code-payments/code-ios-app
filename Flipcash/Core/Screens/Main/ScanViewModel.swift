@@ -12,7 +12,7 @@ import Combine
 
 private let logger = Logger(label: "flipcash.scan")
 
-@MainActor @Observable
+@Observable
 class ScanViewModel {
 
     private static let qrCooldownInterval: TimeInterval = 5.0

@@ -8,7 +8,6 @@ import FlipcashCore
 
 private let logger = Logger(label: "flipcash.currency-launch-processing")
 
-@MainActor
 @Observable
 class CurrencyLaunchProcessingViewModel {
 

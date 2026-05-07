@@ -9,7 +9,7 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-@MainActor @Observable
+@Observable
 class WithdrawViewModel {
     /// Pushes a sub-step onto the parent NavigationStack. Wired by
     /// `WithdrawScreen` to call `router.pushAny(_:on: .settings)`.

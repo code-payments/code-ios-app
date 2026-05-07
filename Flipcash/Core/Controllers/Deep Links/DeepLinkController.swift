@@ -10,7 +10,6 @@ import FlipcashCore
 
 private let logger = Logger(label: "flipcash.deeplink")
 
-@MainActor
 final class DeepLinkController {
     
     private let sessionAuthenticator: SessionAuthenticator
@@ -146,7 +145,6 @@ extension DeepLinkController {
     }
 }
 
-@MainActor
 struct DeepLinkAction {
 
     let kind: Kind

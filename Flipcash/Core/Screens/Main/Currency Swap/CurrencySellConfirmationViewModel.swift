@@ -9,7 +9,7 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-@MainActor @Observable
+@Observable
 class CurrencySellConfirmationViewModel {
     @ObservationIgnored let mint: PublicKey
     @ObservationIgnored let amount: ExchangedFiat

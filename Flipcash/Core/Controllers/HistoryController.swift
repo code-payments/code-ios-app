@@ -23,7 +23,7 @@ private let logger = Logger(label: "flipcash.history-controller")
 /// then reloads the active slice so observers see the new state.
 ///
 /// Inject via `@Environment(HistoryController.self)`.
-@MainActor @Observable
+@Observable
 class HistoryController {
 
     enum LoadingState: Equatable {

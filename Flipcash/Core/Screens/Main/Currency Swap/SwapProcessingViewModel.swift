@@ -9,7 +9,6 @@
 import SwiftUI
 import FlipcashCore
 
-@MainActor
 @Observable
 class SwapProcessingViewModel {
 

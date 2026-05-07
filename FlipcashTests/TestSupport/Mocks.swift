@@ -26,6 +26,7 @@ extension Database {
 }
 
 extension HistoryController {
+    @MainActor
     static var mock: HistoryController {
         HistoryController(container: .mock, database: .mock, owner: .mock)
     }
@@ -35,6 +36,7 @@ extension RatesController {
     /// Fresh per access. Each `.mock` returns a new `RatesController` with a
     /// new underlying `Database`; bind to a local if the same instance is
     /// needed across multiple calls.
+    @MainActor
     static var mock: RatesController {
         RatesController(container: .mock, database: .mock)
     }
@@ -45,6 +47,7 @@ extension Session {
     /// Database across the session, rates controller, and history controller
     /// (rather than each child pulling its own `.mock` and ending up with
     /// three inconsistent databases).
+    @MainActor
     static var mock: Session {
         makeMock(database: .mock)
     }
@@ -53,6 +56,7 @@ extension Session {
     /// `SessionContainer.mock` inner Session — they all need the same shape
     /// but let the caller override `historyController`/`ratesController` so
     /// the container can expose the same instances it handed the Session.
+    @MainActor
     static func makeMock(
         database: Database,
         historyController: HistoryController? = nil,

@@ -16,7 +16,7 @@ import FlipcashUI
 /// disabled on background entry to avoid unexpected activation.
 ///
 /// Inject via `@Environment(Preferences.self)`.
-@MainActor @Observable
+@Observable
 class Preferences {
 
     /// Whether the camera feed is currently active.
@@ -54,7 +54,6 @@ class Preferences {
     }
 }
 
-@MainActor
 extension UserDefaults {
     @Defaults(.cameraAutoStartDisabled)
     static var cameraAutoStartDisabled: Bool?

@@ -10,7 +10,7 @@ import UserNotifications
 import FlipcashUI
 import FlipcashCore
 
-@MainActor @Observable
+@Observable
 class OnboardingViewModel {
 
     var path: [OnboardingPath] = []

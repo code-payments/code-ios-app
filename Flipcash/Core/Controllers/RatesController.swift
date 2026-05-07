@@ -18,7 +18,7 @@ private let logger = Logger(label: "flipcash.rates-controller")
 /// are persisted to `UserDefaults` via `LocalDefaults`.
 ///
 /// Inject via `@Environment(RatesController.self)`.
-@MainActor @Observable
+@Observable
 class RatesController {
     /// The currency used for displaying balances.
     /// Persisted to `UserDefaults` on change.
@@ -340,7 +340,6 @@ extension RatesController {
 
 // MARK: - LocalDefaults -
 
-@MainActor
 private enum LocalDefaults {
     @Defaults(.balanceCurrency)
     static var balanceCurrency: CurrencyCode?

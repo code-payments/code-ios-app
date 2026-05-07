@@ -13,7 +13,7 @@ import UIKit
 /// active or receives a push notification.
 ///
 /// Inject via `@Environment(NotificationController.self)`.
-@MainActor @Observable
+@Observable
 class NotificationController {
 
     /// Incremented each time the app becomes active.

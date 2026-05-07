@@ -9,7 +9,7 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-@MainActor @Observable
+@Observable
 class CurrencySelectionViewModel {
 
     var availableCurrencies: [CurrencyDescription] = []
@@ -111,7 +111,6 @@ class CurrencySelectionViewModel {
 
 // MARK: - LocalDefaults -
 
-@MainActor
 private enum LocalDefaults {
 
     @Defaults(.recentCurrencies)

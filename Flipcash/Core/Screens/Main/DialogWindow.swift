@@ -11,7 +11,6 @@ import FlipcashUI
 /// A window that presents `session.dialogItem` above all other
 /// UI, including sheets. Uses `UIWindow.Level.alert` so it sits
 /// on top of the main window regardless of SwiftUI's sheet queue.
-@MainActor
 final class DialogWindow {
 
     private var window: PassthroughWindow?

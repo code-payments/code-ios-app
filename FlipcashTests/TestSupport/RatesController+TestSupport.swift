@@ -11,6 +11,7 @@ import FlipcashCore
 
 extension RatesController {
     /// Configure balance currency and inject rates for tests.
+    @MainActor
     func configureTestRates(balanceCurrency: CurrencyCode? = nil, rates: [Rate]) {
         if let balanceCurrency {
             self.balanceCurrency = balanceCurrency
@@ -24,6 +25,7 @@ extension RatesController {
     /// to avoid blocking the main thread on I/O, so tests that read from
     /// the database immediately after calling `updateRates` need to drain
     /// the queue first.
+    @MainActor
     func awaitPendingRateWrites() async {
         await withCheckedContinuation { continuation in
             rateWriteQueue.async {

@@ -22,7 +22,7 @@ private let logger = Logger(label: "flipcash.push-controller")
 /// becomes active (e.g. after the user changes permissions in Settings).
 ///
 /// Inject via `@Environment(PushController.self)`.
-@MainActor @Observable
+@Observable
 class PushController {
 
     /// The current notification authorization status, refreshed on app activation.
@@ -172,7 +172,6 @@ extension PushController {
 
 // MARK: - UNUserNotificationCenterDelegate -
 
-@MainActor
 private class NotificationDelegate: NSObject, @preconcurrency UNUserNotificationCenterDelegate, @preconcurrency MessagingDelegate {
     
     var didReceiveFCMToken: (@MainActor (String?) async throws -> Void)?

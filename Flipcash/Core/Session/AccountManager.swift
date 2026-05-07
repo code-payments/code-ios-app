@@ -10,7 +10,6 @@ import FlipcashCore
 
 private let logger = Logger(label: "flipcash.account-manager")
 
-@MainActor
 class AccountManager {
     
     enum SortCritieria {
@@ -152,7 +151,6 @@ class AccountManager {
 
 // MARK: - Keychain -
 
-@MainActor
 private extension Keychain {
     @SecureCodable(.keyAccount)
     static var keyAccount: KeyAccount?

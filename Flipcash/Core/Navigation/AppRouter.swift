@@ -26,7 +26,6 @@ private let logger = Logger(label: "flipcash.router")
 /// All mutators log at INFO via `flipcash.router`. The bindable subscript
 /// funnels SwiftUI's automatic writes (e.g., swipe-back) through `setPath`,
 /// so every observable state change produces exactly one log line.
-@MainActor
 @Observable
 final class AppRouter {
 

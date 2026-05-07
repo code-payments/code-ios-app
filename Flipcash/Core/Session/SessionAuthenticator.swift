@@ -18,7 +18,7 @@ private let logger = Logger(label: "flipcash.session-auth")
 /// top-level view hierarchy (intro → login → scan screen).
 ///
 /// Inject via `@Environment(SessionAuthenticator.self)`.
-@MainActor @Observable
+@Observable
 final class SessionAuthenticator {
 
     @ObservationIgnored let accountManager: AccountManager
@@ -419,7 +419,6 @@ struct SessionContainer {
     let onrampCoordinator: OnrampCoordinator
     let appRouter: AppRouter
 
-    @MainActor
     init(
         session: Session,
         database: Database,
@@ -463,7 +462,6 @@ extension View {
 
 // MARK: - UserDefaults -
 
-@MainActor
 extension UserDefaults {
 
     @Defaults(.launchCount)
