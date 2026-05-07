@@ -10,7 +10,12 @@ import UIKit
 import FlipcashUI
 import FlipcashCore
 import TweetNacl
-import SolanaSwift
+// SAFETY: SolanaSwift is not yet Swift 6 / Sendable-audited at the pinned
+// version. RequestConfiguration is an Encodable value type built per call
+// from local literals, and SimulationResult is a Decodable value type
+// returned only to the caller — neither carries shared mutable state across
+// the actor hop, so demoting the Sendable diagnostics here is sound.
+@preconcurrency import SolanaSwift
 
 private let logger = Logger(label: "flipcash.wallet-connection")
 
