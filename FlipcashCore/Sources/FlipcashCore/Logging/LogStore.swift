@@ -90,7 +90,7 @@ public final class LogStore: Sendable {
 
             var chunk = try inputHandle.read(upToCount: Self.exportChunkSize) ?? Data()
             while !chunk.isEmpty {
-                outputHandle.write(chunk)
+                try outputHandle.write(contentsOf: chunk)
                 chunk = try inputHandle.read(upToCount: Self.exportChunkSize) ?? Data()
             }
         }
