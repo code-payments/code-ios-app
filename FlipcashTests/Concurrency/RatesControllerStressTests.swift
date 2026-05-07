@@ -3,18 +3,15 @@
 //  FlipcashTests
 //
 //  Pre-strip baseline for the Swift 6 / `defaultIsolation = MainActor`
-//  migration. `RatesController` is `@MainActor @Observable` and the first
-//  app-target stress test in this suite. Production code drives `updateRates`
-//  from the `verifiedProtoService.ratesPublisher` chain — the publisher hops
-//  back to main via `.receive(on: DispatchQueue.main)`, but the work that
-//  *originates* the call lives off-main, so a non-main caller racing a
-//  main-actor reader is the realistic shape here.
+//  migration. `RatesController` is `@MainActor @Observable` and drives
+//  `updateRates` from the `verifiedProtoService.ratesPublisher` chain.
 //
-//  With TSan and Main Thread Checker both enabled on the test scheme, a race
-//  in the `@Observable` registrar — or in `cachedRates` itself — surfaces as
-//  a TSan warning, while a missed actor hop surfaces as a Swift runtime
-//  isolation assertion. The test's job is to set up the read/write contention;
-//  there's no `#expect` for "values didn't tear" — that's a TSan-only contract.
+//  The race shape stresses two paths: (1) main-actor `updateRates(_:)`
+//  writes interleaving with main-actor `cachedRates` reads, and (2) the
+//  off-main `rateWriteQueue.async` block inside `updateRates` capturing
+//  `database` concurrent with the main-actor reader loop. TSan flags any
+//  unsafe access; `@Observable` registrar machinery is enforced at compile
+//  time, not exercised here.
 //
 
 import Foundation
