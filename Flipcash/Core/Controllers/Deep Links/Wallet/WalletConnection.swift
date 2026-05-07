@@ -850,10 +850,17 @@ extension WalletConnection {
 /// The slice of Solana RPC that `WalletConnection` depends on. A narrow
 /// protocol (instead of the full `SolanaAPIClient` surface) keeps test stubs
 /// small and makes the dependency honest at the call site.
-protocol WalletRPC {
+protocol WalletRPC: Sendable {
     func getLatestBlockhash(commitment: Commitment?) async throws -> String
     func sendTransaction(transaction: String, configs: RequestConfiguration) async throws -> TransactionID
     func simulateTransaction(transaction: String, configs: RequestConfiguration) async throws -> SimulationResult
 }
+
+// SAFETY: JSONRPCAPIClient holds only an immutable APIEndPoint and an
+// immutable NetworkManager (URLSession is documented thread-safe); each
+// request constructs a fresh URLRequest with no shared mutable state.
+// Verified against SolanaSwift's source at the pinned version (see
+// Package.resolved).
+extension JSONRPCAPIClient: @retroactive @unchecked Sendable {}
 
 extension JSONRPCAPIClient: WalletRPC {}
