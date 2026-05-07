@@ -51,6 +51,12 @@ enum DefaultsKey: String {
 private let defaultsEncoder = JSONEncoder()
 private let defaultsDecoder = JSONDecoder()
 
+/// `Defaults<T>` is a Sendable property wrapper around `UserDefaults.standard`.
+/// Static-var holders that use `@Defaults(...)` are concurrency-safe ONLY when
+/// the holder is `@MainActor`-isolated — typically inherited via the
+/// app target's `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`. Adding
+/// `nonisolated` to such holders is a regression: it would expose the
+/// static var as global mutable state under Swift 6 strict-concurrency.
 @propertyWrapper
 struct Defaults<T>: Sendable where T: Codable & Sendable {
 

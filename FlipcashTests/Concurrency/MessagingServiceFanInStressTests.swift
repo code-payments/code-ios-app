@@ -27,7 +27,7 @@ import Testing
 @Suite("MessagingService fan-in", .timeLimit(.minutes(1)))
 struct MessagingServiceFanInStressTests {
 
-    private let testAccount = try! PublicKey(base58: "54ggcQ23uen5b9QXMAns99MQNTKn7iyzq4wvCW6e8r25")
+    private let testAccount = PublicKey.jeffy
     private let testSignature: Signature = .mock
 
     // MARK: - firstPaymentRequest -
