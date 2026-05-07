@@ -632,3 +632,22 @@ public enum ErrorGetSwap: Int, Error {
     case unknown = -1
     case failedToParse = -2
 }
+
+extension ErrorSwap: ServerError {
+    public var isReportable: Bool {
+        switch self {
+        case .denied, .invalidSwap: false
+        case .signatureError, .failed, .unknown, .grpcStatus, .grpcError: true
+        case .fundingIntent(let inner): inner.isReportable
+        }
+    }
+}
+
+extension ErrorGetSwap: ServerError {
+    public var isReportable: Bool {
+        switch self {
+        case .ok, .notFound, .denied: false
+        case .unknown, .failedToParse: true
+        }
+    }
+}

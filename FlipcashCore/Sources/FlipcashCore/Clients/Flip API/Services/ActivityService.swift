@@ -104,6 +104,24 @@ public enum ErrorFetchTransactionHistoryItemsByID: Int, Error {
     case unknown = -1
 }
 
+extension ErrorFetchTransactionHistory: ServerError {
+    public var isReportable: Bool {
+        switch self {
+        case .ok, .denied: false
+        case .unknown: true
+        }
+    }
+}
+
+extension ErrorFetchTransactionHistoryItemsByID: ServerError {
+    public var isReportable: Bool {
+        switch self {
+        case .ok, .denied, .notFound: false
+        case .unknown: true
+        }
+    }
+}
+
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipcash_Activity_V1_ActivityFeedClientInterceptorFactoryProtocol {

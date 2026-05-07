@@ -107,6 +107,15 @@ public enum ErrorModeration: Error, Sendable {
     case network(Error)
 }
 
+extension ErrorModeration: ServerError {
+    public var isReportable: Bool {
+        switch self {
+        case .denied, .unsupportedFormat, .unsupportedLanguage: false
+        case .unknown, .network: true
+        }
+    }
+}
+
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipcash_Moderation_V1_ModerationClientInterceptorFactoryProtocol {

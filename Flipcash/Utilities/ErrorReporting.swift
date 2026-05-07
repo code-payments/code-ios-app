@@ -107,6 +107,10 @@ enum ErrorReporting {
     }
     
     private static func capture(_ error: Swift.Error, reason: String? = nil, id: String? = nil, file: String = #file, function: String = #function, line: Int = #line, buildUserInfo: (inout [String: Any]) -> Void) {
+        if let serverError = error as? ServerError, !serverError.isReportable {
+            return
+        }
+
         let swiftError = error as NSError
 
         var userInfo: [String: Any] = [:]

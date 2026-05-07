@@ -124,6 +124,33 @@ public enum ErrorUnlinkEmail: Int, Error {
     case unknown = -1
 }
 
+extension ErrorSendEmailCode: ServerError {
+    public var isReportable: Bool {
+        switch self {
+        case .ok, .denied, .rateLimited, .invalidEmailAddress: false
+        case .unknown: true
+        }
+    }
+}
+
+extension ErrorCheckEmailCode: ServerError {
+    public var isReportable: Bool {
+        switch self {
+        case .ok, .denied, .rateLimited, .invalidCode, .noVerification: false
+        case .unknown: true
+        }
+    }
+}
+
+extension ErrorUnlinkEmail: ServerError {
+    public var isReportable: Bool {
+        switch self {
+        case .ok, .denied: false
+        case .unknown: true
+        }
+    }
+}
+
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipcash_Email_V1_EmailVerificationClientInterceptorFactoryProtocol {

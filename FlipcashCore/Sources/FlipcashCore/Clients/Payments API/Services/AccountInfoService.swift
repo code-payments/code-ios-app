@@ -124,6 +124,15 @@ public enum ErrorFetchBalance: Int, Error, Equatable, Sendable {
     case parseFailed      = -3
 }
 
+extension ErrorFetchBalance: ServerError {
+    public var isReportable: Bool {
+        switch self {
+        case .ok, .notFound, .accountNotInList: false
+        case .unknown, .parseFailed: true
+        }
+    }
+}
+
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Ocp_Account_V1_AccountClientInterceptorFactoryProtocol {

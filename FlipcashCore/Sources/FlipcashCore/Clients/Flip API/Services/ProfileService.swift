@@ -57,6 +57,15 @@ public enum ErrorFetchProfile: Int, Error {
     case unknown = -1
 }
 
+extension ErrorFetchProfile: ServerError {
+    public var isReportable: Bool {
+        switch self {
+        case .ok, .notFound: false
+        case .unknown: true
+        }
+    }
+}
+
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipcash_Profile_V1_ProfileClientInterceptorFactoryProtocol {

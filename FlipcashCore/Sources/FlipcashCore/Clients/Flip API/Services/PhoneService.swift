@@ -128,6 +128,33 @@ public enum ErrorUnlinkPhone: Int, Error {
     case unknown = -1
 }
 
+extension ErrorSendVerificationCode: ServerError {
+    public var isReportable: Bool {
+        switch self {
+        case .ok, .denied, .rateLimited, .invalidPhoneNumber, .unsupportedPhoneType: false
+        case .unknown: true
+        }
+    }
+}
+
+extension ErrorCheckVerificationCode: ServerError {
+    public var isReportable: Bool {
+        switch self {
+        case .ok, .denied, .rateLimited, .invalidCode, .noVerification: false
+        case .unknown: true
+        }
+    }
+}
+
+extension ErrorUnlinkPhone: ServerError {
+    public var isReportable: Bool {
+        switch self {
+        case .ok, .denied: false
+        case .unknown: true
+        }
+    }
+}
+
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipcash_Phone_V1_PhoneVerificationClientInterceptorFactoryProtocol {

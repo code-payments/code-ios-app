@@ -53,6 +53,15 @@ public enum ErrorUpdateSettings: Int, Error {
     case unknown = -1
 }
 
+extension ErrorUpdateSettings: ServerError {
+    public var isReportable: Bool {
+        switch self {
+        case .ok, .denied, .invalidLocale, .invalidRegion: false
+        case .unknown: true
+        }
+    }
+}
+
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipcash_Settings_V1_SettingsClientInterceptorFactoryProtocol {

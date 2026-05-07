@@ -81,6 +81,24 @@ public enum ErrorDeleteToken: Int, Error, Sendable {
     case unknown = -1
 }
 
+extension ErrorAddToken: ServerError {
+    public var isReportable: Bool {
+        switch self {
+        case .ok, .invalidPushToken: false
+        case .unknown: true
+        }
+    }
+}
+
+extension ErrorDeleteToken: ServerError {
+    public var isReportable: Bool {
+        switch self {
+        case .ok: false
+        case .unknown: true
+        }
+    }
+}
+
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipcash_Push_V1_PushClientInterceptorFactoryProtocol {
