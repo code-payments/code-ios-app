@@ -39,7 +39,7 @@ class Updateable<T> {
         }
     }
 
-    deinit {
+    isolated deinit {
         if let observer {
             NotificationCenter.default.removeObserver(observer)
         }
