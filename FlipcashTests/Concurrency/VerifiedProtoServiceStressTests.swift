@@ -17,7 +17,7 @@ import FlipcashAPI
 @testable import Flipcash
 
 @Suite("VerifiedProtoService concurrent access", .timeLimit(.minutes(1)))
-struct VerifiedProtoStoreStressTests {
+struct VerifiedProtoServiceStressTests {
 
     @Test("100 concurrent reads + writes maintain consistency")
     func concurrentReadsAndWrites_doNotCrash() async {
