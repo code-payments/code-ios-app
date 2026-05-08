@@ -24,7 +24,7 @@ struct AppDelegateAutoReturnTriggerTests {
             autoReturnTimeout: .fiveMinutes
         )
 
-        #expect(result == true)
+        #expect(result)
     }
 
     @Test("shouldReturnToRoot with elapsed time below timeout returns false")
@@ -38,7 +38,7 @@ struct AppDelegateAutoReturnTriggerTests {
             autoReturnTimeout: .fiveMinutes
         )
 
-        #expect(result == false)
+        #expect(!result)
     }
 
     @Test("shouldReturnToRoot at exact timeout boundary returns true")
@@ -52,7 +52,7 @@ struct AppDelegateAutoReturnTriggerTests {
             autoReturnTimeout: .fiveMinutes
         )
 
-        #expect(result == true, "boundary uses >= so equal-elapsed satisfies the trigger")
+        #expect(result, "boundary uses >= so equal-elapsed satisfies the trigger")
     }
 
     @Test("shouldReturnToRoot with elapsed time past tenMinutes timeout returns true")
@@ -66,7 +66,7 @@ struct AppDelegateAutoReturnTriggerTests {
             autoReturnTimeout: .tenMinutes
         )
 
-        #expect(result == true)
+        #expect(result)
     }
 
     @Test("shouldReturnToRoot with never timeout returns false regardless of elapsed time")
@@ -80,7 +80,7 @@ struct AppDelegateAutoReturnTriggerTests {
             autoReturnTimeout: .never
         )
 
-        #expect(result == false, "never opts out of the auto-return trigger entirely")
+        #expect(!result, "never opts out of the auto-return trigger entirely")
     }
 
     @Test("shouldReturnToRoot with nil lastBackgroundedAt returns false")
@@ -93,7 +93,7 @@ struct AppDelegateAutoReturnTriggerTests {
             autoReturnTimeout: .fiveMinutes
         )
 
-        #expect(result == false, "no recorded background timestamp means no trigger")
+        #expect(!result, "no recorded background timestamp means no trigger")
     }
 
     @Test("shouldReturnToRoot with future lastBackgroundedAt (clock skew) returns false")
@@ -107,6 +107,6 @@ struct AppDelegateAutoReturnTriggerTests {
             autoReturnTimeout: .fiveMinutes
         )
 
-        #expect(result == false, "negative elapsed time should not satisfy >= timeout")
+        #expect(!result, "negative elapsed time should not satisfy >= timeout")
     }
 }
