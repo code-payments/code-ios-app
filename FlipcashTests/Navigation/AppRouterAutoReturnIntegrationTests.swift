@@ -1,46 +1,28 @@
 //
-//  Regression_auto_return.swift
+//  AppRouterAutoReturnIntegrationTests.swift
 //  FlipcashTests
 //
-//  Regression coverage for the legacy interface-reset pain points the v3
-//  Auto-Return-on-background feature must not reintroduce. The original
-//  reset (removed in commit `bc66ccc3`) rebuilt `UIWindow.rootViewController`
-//  after 60 seconds in the background and caused three classes of bugs:
+//  Created by Raul Riera on 2026-05-08.
 //
-//  1. Deep links arriving in the same scene-active cycle as a reset could
-//     race and double-present destinations.
-//  2. The reset could collide with a concurrent `present()` call from a
-//     push notification or QR-scan handler, leaving orphaned state.
-//  3. The reset destroyed view-state in flight, killing in-progress
-//     operations and streams.
-//
-//  v3 replaces the view-hierarchy rebuild with a router-only mutation
-//  (`AppRouter.returnToRoot()` — clears `presentedSheet` and every stack
-//  path). The tests below assert *current* properties of the implementation
-//  that prove the legacy classes of failure are no longer reachable.
-//
-//  Structural guarantee (not directly tested): `AppRouter.returnToRoot()`
-//  only touches `presentedSheet`, `dismissedSheets`, and `paths`. It cannot
-//  reach `Session`, `WalletConnection`, or any in-flight
-//  `SendCashOperation` because `AppRouter` does not own references to them
-//  — the type system enforces this. The two tests below cover the
-//  cross-component behaviour through observable `AppRouter` state.
+//  Integration coverage for `AppRouter.returnToRoot()` followed by a
+//  cross-stack `navigate(to:)` — the auto-return-on-background flow's
+//  most interesting interaction. The two tests assert that a deep link
+//  arriving immediately after the reset lands on a clean state, with no
+//  orphaned sheet or stale path.
 //
 //  Why no UI tests for the eight scenarios in plan §10.2:
 //
-//  The minimum production timeout is 5 minutes. Driving it from a UI test
-//  loop would require either (a) a launch-arg parser in
+//  The minimum production timeout is 5 minutes. Driving it from a UI
+//  test loop would require either (a) a launch-arg parser in
 //  `AppDelegate.application(_:didFinishLaunchingWithOptions:)` that
-//  overrides `Preferences.autoReturnTimeout` to a short duration, or (b) a
-//  new `BetaFlags.Option` toggling a short-duration override path.
+//  overrides `Preferences.autoReturnTimeout` to a short duration, or
+//  (b) a new `BetaFlags.Option` toggling a short-duration override path.
 //
 //  Neither pattern exists in production today. The current `--ui-testing`
 //  flag is a boolean; `BetaFlags.Option` is a fixed enum with no
-//  short-timeout case; and there is no precedent for launch-arg parsing in
-//  AppDelegate beyond the boolean. Adding either would be an invasive
-//  production hook purely to enable tests, which the implementer's
-//  instructions and CLAUDE.md forbid (visibility relaxation, test-only
-//  production code).
+//  short-timeout case; and there is no precedent for launch-arg parsing
+//  in AppDelegate beyond the boolean. Adding either would be an invasive
+//  production hook purely to enable tests.
 //
 //  Unit-level coverage lives in `AppDelegateAutoReturnTriggerTests`,
 //  `AppRouterReturnToRootTests`, and `PreferencesAutoReturnTimeoutTests`.
@@ -65,8 +47,7 @@
 //  If a UI-driven version becomes worthwhile, the cleanest seam would be
 //  a new `BetaFlags.Option` (e.g. `.shortAutoReturnForTesting`) that
 //  `AppDelegate.scenePhaseChanged` checks alongside the user preference,
-//  off by default in production. That keeps the test hook gated behind
-//  an existing pattern instead of inventing one.
+//  off by default in production.
 //
 
 import Foundation
@@ -76,8 +57,8 @@ import FlipcashCore
 @testable import Flipcash
 
 @MainActor
-@Suite("Regression: auto-return — legacy interface-reset pain points")
-struct Regression_auto_return {
+@Suite("AppRouter Auto-Return Integration")
+struct AppRouterAutoReturnIntegrationTests {
 
     // MARK: - Helpers
 
