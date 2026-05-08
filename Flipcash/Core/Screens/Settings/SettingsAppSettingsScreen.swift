@@ -11,24 +11,28 @@ import FlipcashCore
 
 struct SettingsAppSettingsScreen: View {
 
-    @Environment(AppRouter.self) private var router
-    @Environment(Preferences.self) private var preferences
-
     private let insets = EdgeInsets(top: 25, leading: 0, bottom: 25, trailing: 0)
 
     var body: some View {
         Background(color: .backgroundMain) {
             ScrollView(showsIndicators: false) {
-                list()
+                AppSettingsList(insets: insets)
             }
             .padding(.horizontal, 20)
         }
         .navigationTitle("App Settings")
         .navigationBarTitleDisplayMode(.inline)
     }
+}
 
-    @ViewBuilder
-    private func list() -> some View {
+private struct AppSettingsList: View {
+
+    @Environment(AppRouter.self) private var router
+    @Environment(Preferences.self) private var preferences
+
+    let insets: EdgeInsets
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Row(insets: insets) {
                 Image.asset(.camera).frame(minWidth: 45)
@@ -40,7 +44,7 @@ struct SettingsAppSettingsScreen: View {
             }
 
             SettingsRow(
-                systemImage: "clock",
+                systemImage: "clock.arrow.circlepath",
                 title: "Auto-Return",
                 insets: insets
             ) {

@@ -32,13 +32,14 @@ struct SettingsAutoReturnScreen: View {
         }
         .navigationTitle("Auto-Return")
         .navigationBarTitleDisplayMode(.inline)
-        .foregroundStyle(Color.textMain)
     }
 }
 
 private struct AutoReturnFooter: View {
     var body: some View {
         Text("Return to the Scanner if the app has been in the background for longer than the selected duration.")
+            .font(.appTextHeading)
+            .foregroundStyle(.textSecondary)
     }
 }
 
