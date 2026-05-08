@@ -100,6 +100,7 @@ public struct CapsuleButton: View {
             .padding(.horizontal, contentHorizontalPadding)
         }
         .liquidGlassButtonStyle(shape: title == nil ? .circle : .capsule)
+        .disabled(!state.isNormal)
     }
 
     private var contentHeight: CGFloat {
