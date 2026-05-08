@@ -11,6 +11,7 @@ import FlipcashCore
 
 struct SettingsAppSettingsScreen: View {
 
+    @Environment(AppRouter.self) private var router
     @Environment(Preferences.self) private var preferences
 
     private let insets = EdgeInsets(top: 25, leading: 0, bottom: 25, trailing: 0)
@@ -36,6 +37,14 @@ struct SettingsAppSettingsScreen: View {
                     .truncationMode(.tail)
                     .padding(.trailing, 2)
                     .tint(.textSuccess)
+            }
+
+            SettingsRow(
+                systemImage: "clock",
+                title: "Auto-Return",
+                insets: insets
+            ) {
+                router.push(.settingsAutoReturn)
             }
         }
         .font(.appDisplayXS)
