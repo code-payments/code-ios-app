@@ -24,7 +24,7 @@ extension ShapeStyle where Self == Color {
     public static var textActionSecondaryDisabled: Color { Color(r: 24,  g: 24,  b: 24) }
 
     public static var bannerError: Color                 { Color(r: 188, g: 52,  b: 52) }
-    public static var bannerInfo: Color                  { Color(r: 26,  g: 49,  b: 37) }
+    public static var bannerInfo: Color                  { Color("backgroundSecondary") }
     public static var bannerSuccess: Color               { Color("backgroundSecondary") }
 
     public static var backgroundMain: Color              { Color("background") }

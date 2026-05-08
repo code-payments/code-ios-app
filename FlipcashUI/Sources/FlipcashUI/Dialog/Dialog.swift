@@ -90,7 +90,7 @@ public struct Dialog: View {
 }
 
 extension Dialog {
-    public enum Style {
+    public enum Style: Equatable {
         case standard
         case success
         case destructive
