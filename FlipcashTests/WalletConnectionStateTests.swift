@@ -6,7 +6,6 @@
 import Foundation
 import Testing
 import FlipcashCore
-import SolanaSwift
 @testable import Flipcash
 
 @MainActor
@@ -26,7 +25,7 @@ struct WalletConnectionStateTests {
         amount: ExchangedFiat.mockOne
     )
 
-    private func makeConnection(rpc: WalletRPC? = nil) -> WalletConnection {
+    private func makeConnection(rpc: (any SolanaRPC)? = nil) -> WalletConnection {
         WalletConnection(owner: .mock, client: .mock, rpc: rpc)
     }
 
@@ -140,7 +139,7 @@ struct WalletConnectionStateTests {
     @Test("Preflight rejection returns `.blocked` with a user-facing dialog")
     func simulationRejectionBlocks() async {
         let conn = makeConnection(rpc: StubRPC(simulate: .failure(
-            APIClientError.transactionSimulationError(logs: [
+            SolanaRPCError.transactionSimulationError(logs: [
                 "Program 11111111 invoke [1]",
                 "Transfer: insufficient lamports",
                 "Program 11111111 failed: custom program error: 0x1",
@@ -185,15 +184,15 @@ struct WalletConnectionStateTests {
     @Test(
         "Any RPC-reported preflight rejection halts the flow before server + chain submit",
         arguments: [
-            APIClientError.transactionSimulationError(logs: ["insufficient funds"]),
-            APIClientError.responseError(ResponseError(
+            SolanaRPCError.transactionSimulationError(logs: ["insufficient funds"]),
+            SolanaRPCError.responseError(SolanaRPCResponseError(
                 code: -32002,
                 message: "insufficient funds",
-                data: ResponseErrorData(logs: ["Transfer: insufficient lamports"], numSlotsBehind: nil)
+                data: SolanaRPCResponseError.Payload(logs: ["Transfer: insufficient lamports"])
             )),
         ]
     )
-    func completeSwap_preflightRejectionHaltsFlow(_ rpcError: APIClientError) async {
+    func completeSwap_preflightRejectionHaltsFlow(_ rpcError: SolanaRPCError) async {
         let rpc = StubRPC(
             simulate: .failure(rpcError),
             send: .failure(TestError.shouldNotBeCalled)
@@ -232,7 +231,7 @@ struct WalletConnectionStateTests {
     @Test("Chain submit success for `.buyExisting` leaves `.buying` clean")
     func completeSwap_buyExistingSuccessStaysBuying() async {
         let swapId = SwapId.generate()
-        let rpc = StubRPC(simulate: .succeeds, send: .succeeds(signature: "sig-1"))
+        let rpc = StubRPC(simulate: .succeeds, send: .succeeds)
         let conn = makeConnection(rpc: rpc)
         let pending = Self.makePendingSwap(
             fundingSwapId: swapId,
@@ -254,7 +253,7 @@ struct WalletConnectionStateTests {
         let fundingId = SwapId.generate()
         let buyId = SwapId.generate()
         let mint = PublicKey.mock
-        let rpc = StubRPC(simulate: .succeeds, send: .succeeds(signature: "sig-2"))
+        let rpc = StubRPC(simulate: .succeeds, send: .succeeds)
         let conn = makeConnection(rpc: rpc)
         let pending = Self.makePendingSwap(
             fundingSwapId: fundingId,
@@ -332,17 +331,17 @@ struct WalletConnectionStateTests {
 
 // MARK: - StubRPC -
 
-/// Minimal `WalletRPC` for tests. Both `simulateTransaction` and
+/// Minimal `SolanaRPC` for tests. Both `simulateTransaction` and
 /// `sendTransaction` are configurable; `getLatestBlockhash` traps because no
 /// current test exercises paths that fetch a blockhash.
-private struct StubRPC: WalletRPC {
+private struct StubRPC: SolanaRPC {
     enum SimulateBehavior {
         case succeeds
         case failure(Error)
     }
 
     enum SendBehavior {
-        case succeeds(signature: String)
+        case succeeds
         case failure(Error)
     }
 
@@ -354,24 +353,23 @@ private struct StubRPC: WalletRPC {
         self.send = send
     }
 
-    func getLatestBlockhash(commitment: Commitment?) async throws -> String {
+    func getLatestBlockhash(commitment: SolanaCommitment) async throws -> Hash {
         fatalError("getLatestBlockhash not stubbed")
     }
 
-    func sendTransaction(transaction: String, configs: RequestConfiguration) async throws -> TransactionID {
+    func sendTransaction(_ base64Transaction: String, configuration: SolanaSendTransactionConfig) async throws -> Signature {
         switch send {
-        case .succeeds(let signature):
-            return signature
+        case .succeeds:
+            return .mock
         case .failure(let error):
             throw error
         }
     }
 
-    func simulateTransaction(transaction: String, configs: RequestConfiguration) async throws -> SimulationResult {
+    func simulateTransaction(_ base64Transaction: String, configuration: SolanaSimulateTransactionConfig) async throws -> SolanaSimulationResult {
         switch simulate {
         case .succeeds:
-            let payload = Data(#"{"err":null,"logs":[]}"#.utf8)
-            return try JSONDecoder().decode(SimulationResult.self, from: payload)
+            return SolanaSimulationResult(err: nil, logs: [])
         case .failure(let error):
             throw error
         }
