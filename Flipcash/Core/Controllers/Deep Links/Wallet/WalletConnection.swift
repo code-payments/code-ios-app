@@ -100,10 +100,10 @@ public final class WalletConnection {
 
     // MARK: - Init -
 
-    init(owner: AccountCluster, client: Client, rpc: (any SolanaRPC)? = nil) {
+    init(owner: AccountCluster, client: Client, rpc: any SolanaRPC = SolanaJSONRPCClient()) {
         self.owner = owner
         self.client = client
-        self.rpc = rpc ?? SolanaJSONRPCClient()
+        self.rpc = rpc
 
         if let connectedWalletSession = Keychain.connectedWalletSession {
             self.session = connectedWalletSession

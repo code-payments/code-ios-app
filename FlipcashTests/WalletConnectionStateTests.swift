@@ -25,7 +25,7 @@ struct WalletConnectionStateTests {
         amount: ExchangedFiat.mockOne
     )
 
-    private func makeConnection(rpc: (any SolanaRPC)? = nil) -> WalletConnection {
+    private func makeConnection(rpc: any SolanaRPC = SolanaJSONRPCClient()) -> WalletConnection {
         WalletConnection(owner: .mock, client: .mock, rpc: rpc)
     }
 
