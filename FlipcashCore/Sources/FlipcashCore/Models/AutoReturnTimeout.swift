@@ -1,3 +1,10 @@
+//
+//  AutoReturnTimeout.swift
+//  FlipcashCore
+//
+//  Created by Raul Riera on 2026-05-08.
+//
+
 import Foundation
 
 /// User-selected duration after which the app returns to the Scanner on

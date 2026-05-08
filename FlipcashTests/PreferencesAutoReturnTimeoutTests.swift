@@ -11,10 +11,10 @@ import Testing
 @testable import Flipcash
 
 @MainActor
-@Suite("Preferences AutoReturnTimeout")
+@Suite("Preferences AutoReturnTimeout", .serialized)
 struct PreferencesAutoReturnTimeoutTests {
 
-    private static let defaultsKey = "com.flipcash.state.autoReturnTimeout"
+    private static let defaultsKey = DefaultsKey.autoReturnTimeout.rawValue
 
     private static func clearKey() {
         UserDefaults.standard.removeObject(forKey: defaultsKey)
@@ -49,6 +49,7 @@ struct PreferencesAutoReturnTimeoutTests {
     @Test("default value when no key has been written is fiveMinutes")
     func defaultValue() {
         Self.clearKey()
+        defer { Self.clearKey() }
 
         let preferences = Preferences()
 
@@ -58,6 +59,7 @@ struct PreferencesAutoReturnTimeoutTests {
     @Test("persisting tenMinutes round-trips through a fresh Preferences")
     func persistTenMinutes() {
         Self.clearKey()
+        defer { Self.clearKey() }
 
         let writer = Preferences()
         writer.autoReturnTimeout = .tenMinutes
@@ -70,6 +72,7 @@ struct PreferencesAutoReturnTimeoutTests {
     @Test("persisting never round-trips through a fresh Preferences")
     func persistNever() {
         Self.clearKey()
+        defer { Self.clearKey() }
 
         let writer = Preferences()
         writer.autoReturnTimeout = .never

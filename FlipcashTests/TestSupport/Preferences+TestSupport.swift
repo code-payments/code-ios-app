@@ -10,12 +10,13 @@ import FlipcashCore
 @testable import Flipcash
 
 extension Preferences {
-    /// Test-only initialiser that bypasses the shared UserDefaults read
-    /// and seeds the timeout directly. Production callers go through
-    /// `init()` which reads from `UserDefaults.standard`.
+    /// Constructs a `Preferences` and seeds `autoReturnTimeout`. The seed
+    /// value is persisted via the normal `willSet` write to
+    /// `UserDefaults.standard`, so callers should clear that key in
+    /// teardown if they want isolation.
     static func forTesting(autoReturnTimeout: AutoReturnTimeout) -> Preferences {
-        let p = Preferences()
-        p.autoReturnTimeout = autoReturnTimeout
-        return p
+        let preferences = Preferences()
+        preferences.autoReturnTimeout = autoReturnTimeout
+        return preferences
     }
 }
