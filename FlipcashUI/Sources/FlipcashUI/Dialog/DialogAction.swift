@@ -94,7 +94,7 @@ public struct DialogAction {
 // MARK: - Kind -
 
 extension DialogAction {
-    public enum Kind {
+    public enum Kind: Equatable {
         case standard
         case subtle
         case destructive

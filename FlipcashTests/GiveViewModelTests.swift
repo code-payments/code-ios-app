@@ -110,23 +110,23 @@ struct GiveViewModelTests {
         _ = viewModel.attemptPresent()
 
         let dialog = try #require(viewModel.session.dialogItem)
-        let isStandard: Bool = switch dialog.style {
-        case .standard: true
-        case .success, .destructive: false
-        }
-        #expect(isStandard)
+        #expect(dialog.style == .standard)
     }
 
-    @Test("No-balance dialog exposes a Discover Currencies CTA above Cancel")
+    @Test("No-balance dialog exposes a primary Discover Currencies CTA above a subtle Cancel")
     func testAttemptPresent_NoBalances_ExposesDiscoverCTAAndCancel() throws {
         let viewModel = Self.createViewModel()
 
         _ = viewModel.attemptPresent()
 
         let actions = try #require(viewModel.session.dialogItem?.actions)
-        #expect(actions.count == 2)
-        #expect(actions.first?.title == "Discover Currencies")
-        #expect(actions.last?.title == "Cancel")
+        try #require(actions.count == 2)
+
+        #expect(actions[0].title == "Discover Currencies")
+        #expect(actions[0].kind == .standard)
+
+        #expect(actions[1].title == "Cancel")
+        #expect(actions[1].kind == .subtle)
     }
 
     @Test("Tapping Discover Currencies presents the Discover sheet")
