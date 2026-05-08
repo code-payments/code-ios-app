@@ -17,13 +17,15 @@ struct SettingsAutoReturnScreen: View {
         @Bindable var preferences = preferences
         Background(color: .backgroundMain) {
             List {
-                Section(footer: AutoReturnFooter()) {
+                Section {
                     ForEach(AutoReturnTimeout.allCases, id: \.self) { option in
                         AutoReturnTimeoutRow(
                             option: option,
                             selection: $preferences.autoReturnTimeout
                         )
                     }
+                } footer: {
+                    AutoReturnFooter()
                 }
                 .listRowSeparatorTint(Color.rowSeparator)
             }

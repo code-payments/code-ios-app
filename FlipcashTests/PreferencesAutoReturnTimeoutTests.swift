@@ -10,6 +10,9 @@ import Testing
 @testable import FlipcashCore
 @testable import Flipcash
 
+// Tests share UserDefaults.standard[autoReturnTimeout]; .serialized enforces
+// in-suite ordering. If another test target adds a writer for the same key,
+// promote this to a tag-based serial group.
 @MainActor
 @Suite("Preferences AutoReturnTimeout", .serialized)
 struct PreferencesAutoReturnTimeoutTests {
@@ -47,7 +50,7 @@ struct PreferencesAutoReturnTimeoutTests {
     // MARK: - Preferences persistence -
 
     @Test("default value when no key has been written is fiveMinutes")
-    func defaultValue() {
+    func autoReturnTimeout_noKeyPresent_returnsFiveMinutes() {
         Self.clearKey()
         defer { Self.clearKey() }
 
@@ -57,7 +60,7 @@ struct PreferencesAutoReturnTimeoutTests {
     }
 
     @Test("persisting tenMinutes round-trips through a fresh Preferences")
-    func persistTenMinutes() {
+    func autoReturnTimeout_persistTenMinutes_roundTripsAcrossInstances() {
         Self.clearKey()
         defer { Self.clearKey() }
 
@@ -70,7 +73,7 @@ struct PreferencesAutoReturnTimeoutTests {
     }
 
     @Test("persisting never round-trips through a fresh Preferences")
-    func persistNever() {
+    func autoReturnTimeout_persistNever_roundTripsAcrossInstances() {
         Self.clearKey()
         defer { Self.clearKey() }
 
