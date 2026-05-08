@@ -38,7 +38,7 @@ final class GiveRegressionTests: BaseUITestCase {
             "Give amount entry must not present when the balance check fails — 'Next' button found alongside dialog"
         )
 
-        waitAndTap(app.buttons["OK"])
+        waitAndTap(app.buttons["Cancel"])
 
         assertMainScreenReached(timeout: 5, "Expected to return to the main screen after dismissing the No Balance dialog")
         XCTAssertFalse(
