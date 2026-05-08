@@ -16,6 +16,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     let container: Container
 
+    private var lastBackgroundedAt: Date?
+
     private var inFlightDeepLinks: Set<URL> = []
 
     private var sessionContainer: SessionContainer? {
@@ -87,12 +89,22 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         switch phase {
         case .background:
             logger.info("scenePhase → background")
+            lastBackgroundedAt = .now
             sessionContainer?.session.didEnterBackground()
             container.preferences.appDidEnterBackground()
         case .active:
             logger.info("scenePhase → active")
             container.client.warmUpChannel()
             container.flipClient.warmUpChannel()
+            if let sessionContainer,
+               AppDelegate.shouldReturnToRoot(
+                   now: .now,
+                   lastBackgroundedAt: lastBackgroundedAt,
+                   autoReturnTimeout: container.preferences.autoReturnTimeout
+               ) {
+                sessionContainer.appRouter.returnToRoot()
+            }
+            lastBackgroundedAt = nil
             sessionContainer?.session.didBecomeActive()
         case .inactive:
             break
@@ -144,6 +156,29 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         logger.error("Push notification registration failed", metadata: ["error": "\(error)"])
     }
 
+}
+
+// MARK: - Auto Return -
+
+extension AppDelegate {
+
+    /// Pure-function predicate for the auto-return trigger. Returns `true`
+    /// when the app should pop back to the Scanner: a non-`nil`
+    /// `lastBackgroundedAt`, a non-`nil` timeout (i.e. not `.never`), and
+    /// elapsed time since background >= timeout. Extracted so tests can
+    /// exercise the full timeout matrix without standing up a full
+    /// `AppDelegate` + `Container` + `Session` graph.
+    static func shouldReturnToRoot(
+        now: Date,
+        lastBackgroundedAt: Date?,
+        autoReturnTimeout: AutoReturnTimeout
+    ) -> Bool {
+        guard let lastBackgroundedAt,
+              let timeout = autoReturnTimeout.duration else {
+            return false
+        }
+        return now.timeIntervalSince(lastBackgroundedAt) >= timeout
+    }
 }
 
 // MARK: - Appearance -
