@@ -19,7 +19,13 @@
 //  path). The tests below assert *current* properties of the implementation
 //  that prove the legacy classes of failure are no longer reachable.
 //
-//  ─────────────────────────────────────────────────────────────────────
+//  Structural guarantee (not directly tested): `AppRouter.returnToRoot()`
+//  only touches `presentedSheet`, `dismissedSheets`, and `paths`. It cannot
+//  reach `Session`, `WalletConnection`, or any in-flight
+//  `SendCashOperation` because `AppRouter` does not own references to them
+//  — the type system enforces this. The two tests below cover the
+//  cross-component behaviour through observable `AppRouter` state.
+//
 //  Why no UI tests for the eight scenarios in plan §10.2:
 //
 //  The minimum production timeout is 5 minutes. Driving it from a UI test
@@ -36,15 +42,8 @@
 //  instructions and CLAUDE.md forbid (visibility relaxation, test-only
 //  production code).
 //
-//  Coverage is preserved at the unit-test level:
-//   - `AppDelegateAutoReturnTriggerTests` exercises the full timeout
-//     matrix against the pure `AppDelegate.shouldReturnToRoot(...)`
-//     predicate (elapsed/below/equal/.never/nil/clock-skew).
-//   - `AppRouterReturnToRootTests` covers the action-level behaviour:
-//     stack clearing, dismissedSheets bookkeeping, idempotency, and
-//     re-presentation landing at root.
-//   - `PreferencesAutoReturnTimeoutTests` covers persistence + default.
-//   - This file covers the cross-component regressions.
+//  Unit-level coverage lives in `AppDelegateAutoReturnTriggerTests`,
+//  `AppRouterReturnToRootTests`, and `PreferencesAutoReturnTimeoutTests`.
 //
 //  Manual verification matrix (run when changing trigger or action):
 //   - Set timeout to 5 Minutes, open Settings, background ≥ 5 min,
@@ -52,7 +51,8 @@
 //   - Set timeout to 5 Minutes, open Settings, background < 5 min,
 //     return → Settings still showing.
 //   - Open Discover, background ≥ 5 min → Discover dismissed.
-//   - Open Balance → push CurrencyInfo, background ≥ 5 min → Scanner.
+//   - Open Balance → push CurrencyInfo, background ≥ 5 min → Scanner
+//     (balance sheet dismissed, path cleared).
 //   - Open Balance → push CurrencyInfo, background < 5 min →
 //     CurrencyInfo still showing.
 //   - Set timeout to Never, open Settings, background ≥ 6 min →
@@ -154,55 +154,12 @@ struct Regression_auto_return {
         #expect(router.presentedSheet == .balance)
         #expect(router[.balance] == AppRouter.navigationPath(.currencyInfo(.usdc)))
         #expect(router[.balance].count == 1)
-        // The settings stack — the previously-presented sheet — was
-        // either dismissed-and-deferred-cleared (since it was the
-        // dismissing sheet) or cleared synchronously. After the next
-        // `present(.balance)`, it remains untouched, but a re-entry
-        // into Settings would land at root via `dismissedSheets`.
-        // What matters here is that nothing leaks into the live tree:
-        // `presentedSheet` is unambiguous.
+        // The dismissing stack's path is preserved through the slide-off
+        // animation — exactly as covered in `AppRouterReturnToRootTests`.
+        // This confirms the live-tree invariant explicitly: only
+        // `presentedSheet` determines what the user sees, and the deep
+        // link's target is unambiguous.
+        #expect(router[.settings] == AppRouter.navigationPath(.settingsMyAccount, .settingsAdvancedFeatures))
     }
 
-    // MARK: - 3. returnToRoot does not touch session state
-
-    /// Legacy bug: the reset destroyed view-state in flight, killing
-    /// in-progress operations (cash bills, send/receive streams,
-    /// in-flight transactions).
-    ///
-    /// v3 contract: `returnToRoot()` only mutates `AppRouter` state —
-    /// `presentedSheet`, `dismissedSheets`, and `paths`. `Session`,
-    /// `WalletConnection`, in-flight `SendCashOperation` instances, and
-    /// every other piece of business state are untouched. This is
-    /// structurally enforced: `AppRouter` does not own or reference a
-    /// `Session`. The test below documents the guarantee at the
-    /// observable level — only `AppRouter`'s own state is mutated by
-    /// the call — since constructing a real `Session` requires the full
-    /// authenticated container graph and is not an option from a unit
-    /// test.
-    @Test("returnToRoot mutates only AppRouter state, leaving externalities untouched")
-    func returnToRoot_doesNotTouchSessionState() {
-        let router = AppRouter()
-
-        // Construct a state worth tearing down.
-        router.present(.balance)
-        router.push(.currencyInfo(.usdc))
-
-        #expect(router.presentedSheet == .balance)
-        #expect(router[.balance].count == 1)
-
-        // Sole effect: `AppRouter`'s own state changes.
-        router.returnToRoot()
-
-        #expect(router.presentedSheet == nil)
-        // The dismissing stack keeps its path through the slide-down
-        // animation; non-dismissing stacks were already empty.
-        #expect(router[.balance] == AppRouter.navigationPath(.currencyInfo(.usdc)))
-        #expect(router[.settings].isEmpty)
-        #expect(router[.give].isEmpty)
-        #expect(router[.discover].isEmpty)
-        // No `Session`, no `WalletConnection`, no `SendCashOperation`,
-        // and no `Container` reference is reachable from `AppRouter` —
-        // the type system makes a regression to the legacy "view
-        // hierarchy rebuild" mode unreachable from this code path.
-    }
 }
