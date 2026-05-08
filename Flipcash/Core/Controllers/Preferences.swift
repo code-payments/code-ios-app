@@ -31,12 +31,21 @@ class Preferences {
             cameraEnabled = !newValue
         }
     }
-    
+
+    /// Duration of background inactivity after which the app should return
+    /// to the Scanner on next foreground. Persisted to `UserDefaults`.
+    var autoReturnTimeout: AutoReturnTimeout = .fiveMinutes {
+        willSet {
+            UserDefaults.autoReturnTimeout = newValue
+        }
+    }
+
     // MARK: - Init -
-    
+
     init() {
         cameraAutoStartDisabled = UserDefaults.cameraAutoStartDisabled ?? false
         cameraEnabled = !cameraAutoStartDisabled
+        autoReturnTimeout = UserDefaults.autoReturnTimeout ?? .fiveMinutes
     }
     
     // MARK: - Lifecycle -
@@ -57,7 +66,10 @@ class Preferences {
 extension UserDefaults {
     @Defaults(.cameraAutoStartDisabled)
     static var cameraAutoStartDisabled: Bool?
-    
+
     @Defaults(.cameraEnabledState)
     static var cameraEnabled: Bool?
+
+    @Defaults(.autoReturnTimeout)
+    static var autoReturnTimeout: AutoReturnTimeout?
 }
