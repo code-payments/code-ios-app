@@ -103,6 +103,47 @@ struct GiveViewModelTests {
         #expect(viewModel.selectedBalance == nil)
     }
 
+    @Test("No-balance dialog uses the standard (non-destructive) style")
+    func testAttemptPresent_NoBalances_UsesStandardStyle() throws {
+        let viewModel = Self.createViewModel()
+
+        _ = viewModel.attemptPresent()
+
+        let dialog = try #require(viewModel.session.dialogItem)
+        let isStandard: Bool = switch dialog.style {
+        case .standard: true
+        case .success, .destructive: false
+        }
+        #expect(isStandard)
+    }
+
+    @Test("No-balance dialog exposes a Discover Currencies CTA above Cancel")
+    func testAttemptPresent_NoBalances_ExposesDiscoverCTAAndCancel() throws {
+        let viewModel = Self.createViewModel()
+
+        _ = viewModel.attemptPresent()
+
+        let actions = try #require(viewModel.session.dialogItem?.actions)
+        #expect(actions.count == 2)
+        #expect(actions.first?.title == "Discover Currencies")
+        #expect(actions.last?.title == "Cancel")
+    }
+
+    @Test("Tapping Discover Currencies presents the Discover sheet")
+    func testAttemptPresent_NoBalances_DiscoverCTAPresentsDiscover() throws {
+        let sessionContainer = SessionContainer.mock
+        let viewModel = GiveViewModel(container: .mock, sessionContainer: sessionContainer)
+
+        _ = viewModel.attemptPresent()
+
+        let action = try #require(
+            viewModel.session.dialogItem?.actions.first(where: { $0.title == "Discover Currencies" })
+        )
+        action.action()
+
+        #expect(sessionContainer.appRouter.presentedSheet == .discover)
+    }
+
     // MARK: - Currency Selection Sync Tests
 
     @Test("Selecting a currency syncs selectedBalance and ratesController")

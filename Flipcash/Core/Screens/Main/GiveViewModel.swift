@@ -236,12 +236,15 @@ class GiveViewModel {
     
     private func showNoBalanceError() {
         session.dialogItem = .init(
-            style: .destructive,
+            style: .standard,
             title: "No Balance Yet",
-            subtitle: "Get another Flipcash user to give you some cash to get a balance",
+            subtitle: "Buy a currency to get started, or get another Flipcash user to give you some cash",
             dismissable: true
         ) {
-            .okay(kind: .destructive)
+            .standard("Discover Currencies") { [weak self] in
+                self?.sessionContainer.appRouter.present(.discover)
+            };
+            .cancel()
         }
     }
 
