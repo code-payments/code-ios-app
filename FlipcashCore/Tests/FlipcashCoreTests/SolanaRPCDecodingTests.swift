@@ -147,12 +147,12 @@ struct SolanaRPCDecodingTests {
 // MARK: - URLProtocol stub
 
 /// `URLProtocol`-based stub so the suite runs hermetically — no live network,
-/// CI-compatible. Body is shared via an `OSAllocatedUnfairLock` because
-/// `URLSession` instantiates `URLProtocol` subclasses itself, leaving no
-/// constructor seam for per-instance state. The suite is `.serialized` so the
-/// lock only ever sees one writer at a time, but expressing the access through
-/// a lock instead of `nonisolated(unsafe)` keeps the suite Swift-6-clean if it
-/// ever loses the trait.
+/// CI-compatible. Body is shared via static state because `URLSession`
+/// instantiates `URLProtocol` subclasses itself, leaving no constructor seam
+/// for per-instance state. The suite is `.serialized` so the set-body →
+/// request → read-body sequence stays atomic across test methods; the lock
+/// keeps individual access Swift-6-clean and tolerates future per-test
+/// parallelism if the stub is reworked to key by request URL.
 private final class StubURLProtocol: URLProtocol {
 
     static let body = OSAllocatedUnfairLock(initialState: "")

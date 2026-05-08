@@ -9,7 +9,6 @@ import Foundation
 
 // MARK: - SolanaCommitment -
 
-/// Solana commitment level. The wire form is the lowercase enum name.
 public enum SolanaCommitment: String, Codable, Sendable {
     case processed
     case confirmed
@@ -18,8 +17,6 @@ public enum SolanaCommitment: String, Codable, Sendable {
 
 // MARK: - SolanaTransactionEncoding -
 
-/// Wire encoding for transaction bytes in `sendTransaction` /
-/// `simulateTransaction` params. Flipcash always submits base64.
 public enum SolanaTransactionEncoding: String, Codable, Sendable {
     case base64
     case base58
@@ -77,26 +74,22 @@ public struct SolanaSimulationResult: Decodable, Sendable {
 
 public enum SolanaRPCError: Error, Sendable {
 
-    /// The simulation request was accepted by the network but the simulation
-    /// itself reported an `err` payload. `logs` are forwarded as-is.
+    /// The simulation completed but reported an `err` payload — `logs` are
+    /// forwarded so callers can render them without re-decoding.
     case transactionSimulationError(logs: [String])
 
-    /// The JSON-RPC envelope returned `error: { code, message, data }`.
     case responseError(SolanaRPCResponseError)
-
-    /// HTTP layer error (timeout, DNS failure, lost connection).
     case transport(URLError)
 
-    /// HTTP returned a non-2xx response without a JSON-RPC error envelope.
+    /// HTTP returned a non-2xx response without a JSON-RPC error envelope —
+    /// shouldn't happen against a healthy Solana RPC, included so the
+    /// failure surface is exhaustive.
     case invalidHTTPStatus(code: Int)
 
     /// JSON-RPC envelope decoded without `result` or `error`. Unexpected.
     case missingResult
 
-    /// Failed to encode the outgoing request body.
     case encoding(Error)
-
-    /// Failed to decode the response body.
     case decoding(Error)
 }
 
