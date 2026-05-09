@@ -110,7 +110,18 @@ class PushController {
 
     /// Re-fetches the notification authorization status from the system.
     func refreshAuthorizationStatus() async {
-        authorizationStatus = await Self.fetchStatus()
+        let current = await Self.fetchStatus()
+        let previous = UserDefaults.lastNotificationAuthStatus
+            .flatMap(UNAuthorizationStatus.init(rawValue:))
+
+        authorizationStatus = current
+
+        if let from = current.previousIfDenied(from: previous) {
+            Analytics.pushPermissionDenied(from: from)
+        }
+        if previous != current {
+            UserDefaults.lastNotificationAuthStatus = current.rawValue
+        }
     }
     
     // MARK: - Firebase -
@@ -244,4 +255,10 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
 
 extension PushController {
     static let mock: PushController = PushController(owner: .mock, client: .mock)
+}
+
+@MainActor
+extension UserDefaults {
+    @Defaults(.lastNotificationAuthStatus)
+    static var lastNotificationAuthStatus: Int?
 }

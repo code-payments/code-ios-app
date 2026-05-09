@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UserNotifications
 import FlipcashCore
 
 // MARK: - Domain Event Enums -
@@ -88,6 +89,10 @@ extension Analytics {
         case open   = "Deeplink: Open"
         case parse  = "Deeplink: Parse"
         case routed = "Deeplink: Routed"
+    }
+
+    enum PushPermissionEvent: String, AnalyticsEvent {
+        case denied = "Push Permission Denied"
     }
 }
 
@@ -271,6 +276,37 @@ extension Analytics {
     }
 }
 
+// MARK: - Push Permission -
+
+extension Analytics {
+    static func pushPermissionDenied(from previous: UNAuthorizationStatus) {
+        track(event: PushPermissionEvent.denied, properties: [
+            .from: previous.analyticsName,
+        ])
+    }
+}
+
+extension UNAuthorizationStatus {
+    var analyticsName: String {
+        switch self {
+        case .notDetermined: "notDetermined"
+        case .denied:        "denied"
+        case .authorized:    "authorized"
+        case .provisional:   "provisional"
+        case .ephemeral:     "ephemeral"
+        @unknown default:    "unknown"
+        }
+    }
+
+    /// Silent on `nil` baseline so that shipping this update does not emit a
+    /// spurious denial event for users whose push is already denied at first
+    /// foreground after install.
+    func previousIfDenied(from previous: UNAuthorizationStatus?) -> UNAuthorizationStatus? {
+        guard let previous, previous != .denied, self == .denied else { return nil }
+        return previous
+    }
+}
+
 // MARK: - Deeplinks -
 
 extension Analytics {
@@ -326,6 +362,8 @@ extension Analytics {
         case type              = "Type"
         case error             = "Error"
         case url               = "URL"
+
+        case from              = "From"
     }
 }
 
