@@ -48,22 +48,21 @@ public struct VSeparator: ViewModifier {
 
 extension VSeparator {
     public struct Position: OptionSet, Sendable {
-        
+
         public let rawValue: UInt8
-        
+
         public static let top    = Position(rawValue: 1 << 0)
         public static let bottom = Position(rawValue: 1 << 1)
-        
+
         public init(rawValue: UInt8) {
             self.rawValue = rawValue
         }
     }
-    
-    @MainActor
+
     public enum Weight {
         case regular
         case medium
-        
+
         var pixelSize: CGFloat {
             switch self {
             case .regular: Screen.pixelSize
@@ -109,22 +108,21 @@ public struct HSeparator: ViewModifier {
 
 extension HSeparator {
     public struct Position: OptionSet, Sendable {
-        
+
         public let rawValue: UInt8
-        
+
         public static let leading  = Position(rawValue: 1 << 0)
         public static let trailing = Position(rawValue: 1 << 1)
-        
+
         public init(rawValue: UInt8) {
             self.rawValue = rawValue
         }
     }
-    
-    @MainActor
+
     public enum Weight {
         case regular
         case medium
-        
+
         var pixelSize: CGFloat {
             switch self {
             case .regular: Screen.pixelSize
@@ -134,7 +132,6 @@ extension HSeparator {
     }
 }
 
-@MainActor
 private enum Screen {
     static let pointSize: CGFloat = 1.0
     #if canImport(UIKit)

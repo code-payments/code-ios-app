@@ -1,7 +1,7 @@
 import Foundation
 
 /// A single data point for the chart
-public struct ChartDataPoint: Identifiable, Equatable, Sendable {
+public nonisolated struct ChartDataPoint: Identifiable, Equatable, Sendable {
     public let id: Int
     public let date: Date
     public let value: Double

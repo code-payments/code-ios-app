@@ -9,7 +9,6 @@
 import SwiftUI
 import AVKit
 
-@MainActor
 @Observable
 public class CameraAuthorizer {
     
