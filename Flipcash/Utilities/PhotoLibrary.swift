@@ -10,13 +10,13 @@ import FlipcashUI
 import FlipcashCore
 
 enum PhotoLibrary {
-    static func write(image: UIImage, completion: @escaping (Error?) -> Void) {
+    nonisolated static func write(image: UIImage, completion: @escaping @Sendable (Error?) -> Void) {
         let writer = Writer(completion: completion)
         writer.writeImage(image)
     }
     
     static func saveSecretRecoveryPhraseSnapshot(for mnemonic: MnemonicPhrase) async throws {
-        let snapshot = await createSnapshotImage(mnemonic: mnemonic)
+        let snapshot = createSnapshotImage(mnemonic: mnemonic)
         try await withCheckedThrowingContinuation { (c: CheckedContinuation<Void, Error>) -> Void in
             DispatchQueue.global(qos: .background).async {
                 PhotoLibrary.write(image: snapshot) { error in
@@ -48,19 +48,19 @@ enum PhotoLibrary {
 // MARK: - Writer -
 
 private extension PhotoLibrary {
-    class Writer: NSObject {
-        
-        let completion: (Error?) -> Void
-        
-        init(completion: @escaping (Error?) -> Void) {
+    nonisolated final class Writer: NSObject {
+
+        let completion: @Sendable (Error?) -> Void
+
+        init(completion: @escaping @Sendable (Error?) -> Void) {
             self.completion = completion
             super.init()
         }
-        
+
         func writeImage(_ image: UIImage) {
             UIImageWriteToSavedPhotosAlbum(image, self, #selector(saveComplete(_:didFinishSavingWithError:contextInfo:)), nil)
         }
-        
+
         @objc func saveComplete(_ image: UIImage, didFinishSavingWithError error: Error?, contextInfo: UnsafeRawPointer) {
             completion(error)
         }

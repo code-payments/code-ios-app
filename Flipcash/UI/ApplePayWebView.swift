@@ -57,9 +57,7 @@ public struct ApplePayWebView: UIViewRepresentable {
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = true
-        
-        context.coordinator.contentController = contentController
-        
+
         webView.load(URLRequest(url: url))
         
         return webView
@@ -74,9 +72,7 @@ public struct ApplePayWebView: UIViewRepresentable {
 
 extension ApplePayWebView {
     public class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
-        
-        weak var contentController: WKUserContentController?
-        
+
         private let parent: ApplePayWebView
 
         init(parent: ApplePayWebView) {
@@ -131,10 +127,6 @@ extension ApplePayWebView {
 
         public func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
             logger.error("Navigation failed", metadata: ["error": "\(error.localizedDescription)"])
-        }
-
-        deinit {
-            contentController?.removeScriptMessageHandler(forName: .messageHandlerName)
         }
     }
 }
