@@ -96,14 +96,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             logger.info("scenePhase → active")
             container.client.warmUpChannel()
             container.flipClient.warmUpChannel()
-            if let sessionContainer,
-               AppDelegate.shouldReturnToRoot(
-                   now: .now,
-                   lastBackgroundedAt: lastBackgroundedAt,
-                   autoReturnTimeout: container.preferences.autoReturnTimeout
-               ) {
-                sessionContainer.appRouter.returnToRoot()
-            }
+            applyAutoReturnIfNeeded()
             lastBackgroundedAt = nil
             sessionContainer?.session.didBecomeActive()
         case .inactive:
@@ -111,6 +104,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         @unknown default:
             break
         }
+    }
+
+    /// Pops every stack to root if the app was backgrounded long enough.
+    /// No-op when no session is active, no background timestamp exists, or
+    /// the user picked `.never`. Side-effects are confined to `AppRouter`.
+    private func applyAutoReturnIfNeeded() {
+        guard let sessionContainer,
+              AppDelegate.shouldReturnToRoot(
+                  now: .now,
+                  lastBackgroundedAt: lastBackgroundedAt,
+                  autoReturnTimeout: container.preferences.autoReturnTimeout
+              )
+        else { return }
+        sessionContainer.appRouter.returnToRoot()
     }
 
     // MARK: - Deep Links -
