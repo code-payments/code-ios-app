@@ -1,6 +1,8 @@
 ## Private assets
 Configurations/secrets.local.xcconfig
 ci_scripts/ci_post_xcodebuild.sh
+.env
+.env.local
 
 ## System files
 .DS_Store
