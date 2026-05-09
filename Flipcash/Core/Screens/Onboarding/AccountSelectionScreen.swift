@@ -247,7 +247,6 @@ struct AccountSelectionScreen: View {
         }
     }
 
-    @MainActor
     private func update(owner: PublicKey, handler: @MainActor (inout HistoricalAccount) -> Void) {
         let index = accounts.firstIndex { $0.details.account.ownerPublicKey == owner }
 
@@ -261,7 +260,6 @@ struct AccountSelectionScreen: View {
 
 // MARK: - HistoricalAccount -
 
-@MainActor
 class HistoricalAccount: Identifiable {
 
     nonisolated

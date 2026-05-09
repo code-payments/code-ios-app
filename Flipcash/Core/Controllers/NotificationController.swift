@@ -13,7 +13,7 @@ import UIKit
 /// active or receives a push notification.
 ///
 /// Inject via `@Environment(NotificationController.self)`.
-@MainActor @Observable
+@Observable
 class NotificationController {
 
     /// Incremented each time the app becomes active.
@@ -43,13 +43,13 @@ class NotificationController {
         observe(.messageNotificationReceived)               { $0.messageReceived += 1 }
     }
 
-    deinit {
+    isolated deinit {
         for observer in observers {
             NotificationCenter.default.removeObserver(observer)
         }
     }
 
-    private func observe(_ name: Notification.Name, handler: @escaping (NotificationController) -> Void) {
+    private func observe(_ name: Notification.Name, handler: @escaping @MainActor (NotificationController) -> Void) {
         let token = NotificationCenter.default.addObserver(
             forName: name,
             object: nil,

@@ -8,7 +8,7 @@
 import Foundation
 import FlipcashCore
 
-struct StoredMintMetadata: Identifiable, Sendable, Equatable, Hashable {
+nonisolated struct StoredMintMetadata: Identifiable, Sendable, Equatable, Hashable {
     
     let mint: PublicKey
     let name: String

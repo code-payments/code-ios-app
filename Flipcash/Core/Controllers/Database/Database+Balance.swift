@@ -9,9 +9,9 @@ import Foundation
 import FlipcashCore
 import SQLite
 
-private let logger = Logger(label: "flipcash.database")
+nonisolated private let logger = Logger(label: "flipcash.database")
 
-extension Database {
+nonisolated extension Database {
     
     // MARK: - Get -
     

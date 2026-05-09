@@ -12,7 +12,7 @@ import Logging
 
 private let logger = Logger(label: "flipcash.swap-service")
 
-@MainActor @Observable
+@Observable
 class CurrencyBuyViewModel: Identifiable {
     var actionButtonState: ButtonState = .normal
     var enteredAmount: String = ""

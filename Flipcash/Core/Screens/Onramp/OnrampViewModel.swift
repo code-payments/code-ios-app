@@ -17,12 +17,12 @@ private let logger = Logger(label: "flipcash.onramp")
 /// whether the link arrived before or after the sheet opened the verification
 /// is picked up through the same entry point. Lives on `SessionContainer` so
 /// it survives sheet dismissal but not logout.
-@MainActor @Observable
+@Observable
 final class OnrampDeeplinkInbox {
     var pendingEmailVerification: VerificationDescription?
 }
 
-@MainActor @Observable
+@Observable
 class OnrampViewModel {
 
     var enteredAmount: String = ""

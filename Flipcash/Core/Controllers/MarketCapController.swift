@@ -32,7 +32,6 @@ import FlipcashUI
 ///
 /// The controller does not manage any UI state - it only provides processed data.
 /// The caller is responsible for managing the `ChartViewModel` state (loading, error, loaded).
-@MainActor
 final class MarketCapController {
 
     // MARK: - Constants

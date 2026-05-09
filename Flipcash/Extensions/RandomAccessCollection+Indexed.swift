@@ -20,7 +20,7 @@
 import Foundation
 
 /// A pair of a zero-based index and its corresponding collection element.
-struct IndexedElement<Element> {
+nonisolated struct IndexedElement<Element> {
     let index: Int
     let element: Element
 }
@@ -28,7 +28,7 @@ struct IndexedElement<Element> {
 /// A `RandomAccessCollection` that pairs each element of a base collection
 /// with its zero-based integer index — equivalent to `enumerated()` but
 /// usable directly in `ForEach`.
-struct IndexedCollection<Base: RandomAccessCollection>: RandomAccessCollection {
+nonisolated struct IndexedCollection<Base: RandomAccessCollection>: RandomAccessCollection {
     let base: Base
 
     var startIndex: Base.Index { base.startIndex }
@@ -48,7 +48,7 @@ struct IndexedCollection<Base: RandomAccessCollection>: RandomAccessCollection {
     }
 }
 
-extension RandomAccessCollection {
+nonisolated extension RandomAccessCollection {
     /// Returns an `IndexedCollection` that pairs each element with its
     /// zero-based index, conforming to `RandomAccessCollection`.
     ///

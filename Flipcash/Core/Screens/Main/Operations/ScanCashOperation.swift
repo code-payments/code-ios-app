@@ -36,7 +36,6 @@ private let logger = Logger(label: "flipcash.scan-cash")
 /// Both `VerifiedState` and `MintMetadata` come from the **sender's message**
 /// (step 1), not from local caches. This means the scan path works even
 /// when Device B has never synced this currency.
-@MainActor
 class ScanCashOperation {
 
     private let client: Client
@@ -58,7 +57,7 @@ class ScanCashOperation {
         logger.info("ScanCashOperation opened", metadata: ["rendezvous": "\(payload.rendezvous.publicKey.base58)"])
     }
 
-    deinit {
+    isolated deinit {
         logger.info("ScanCashOperation closed", metadata: ["rendezvous": "\(payload.rendezvous.publicKey.base58)"])
         runTask?.cancel()
     }

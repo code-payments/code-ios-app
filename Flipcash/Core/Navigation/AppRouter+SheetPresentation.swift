@@ -11,7 +11,7 @@ extension AppRouter {
 
     /// Identifies the top-level modal sheet currently overlaying `ScanScreen`.
     /// One sheet at a time; switching sheets dismisses the previous.
-    enum SheetPresentation: Identifiable, Hashable, Sendable, CustomStringConvertible {
+    nonisolated enum SheetPresentation: Identifiable, Hashable, Sendable, CustomStringConvertible {
         case balance
         case settings
         case give

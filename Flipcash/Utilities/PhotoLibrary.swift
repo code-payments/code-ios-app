@@ -30,7 +30,6 @@ enum PhotoLibrary {
         }
     }
     
-    @MainActor
     private static func createSnapshotImage(mnemonic: MnemonicPhrase) -> UIImage {
         let controller = UIHostingController(rootView: Snapshot(mnemonic: mnemonic))
         

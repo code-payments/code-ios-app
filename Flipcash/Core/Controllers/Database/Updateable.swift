@@ -13,7 +13,7 @@ import SwiftUI
 /// Use this to keep a view or model in sync with the local database without
 /// manual refresh calls. The ``value`` property is tracked by `@Observable`,
 /// so SwiftUI views reading it will update automatically.
-@MainActor @Observable
+@Observable
 class Updateable<T> {
 
     private(set) var value: T
@@ -39,7 +39,7 @@ class Updateable<T> {
         }
     }
 
-    deinit {
+    isolated deinit {
         if let observer {
             NotificationCenter.default.removeObserver(observer)
         }

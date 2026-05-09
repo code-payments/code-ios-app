@@ -11,7 +11,7 @@ import FlipcashCore
 /// Encoded as an enum rather than `(VerifiedState?, source: Source)` so the
 /// "state is nil iff cacheMiss" invariant holds at the type level — callers
 /// can't accidentally consume `.cacheMiss` as if it had a value.
-enum VerifiedStateResolution: Equatable, Sendable {
+nonisolated enum VerifiedStateResolution: Equatable, Sendable {
     case provided(VerifiedState)
     case cacheHit(VerifiedState)
     case cacheMiss
@@ -41,7 +41,7 @@ func resolveVerifiedState(
     provided: VerifiedState?,
     currency: CurrencyCode,
     mint: PublicKey,
-    cacheLookup: (CurrencyCode, PublicKey) async -> VerifiedState?
+    cacheLookup: sending (CurrencyCode, PublicKey) async -> VerifiedState?
 ) async -> VerifiedStateResolution {
     if let provided {
         return .provided(provided)

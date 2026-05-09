@@ -12,7 +12,7 @@ import Logging
 
 private let logger = Logger(label: "flipcash.send-cash")
 
-@MainActor @Observable
+@Observable
 class GiveViewModel {
 
     var enteredAmount: String = ""

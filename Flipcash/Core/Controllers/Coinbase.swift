@@ -8,7 +8,7 @@
 import Foundation
 import FlipcashCore
 
-private let logger = Logger(label: "flipcash.coinbase")
+nonisolated private let logger = Logger(label: "flipcash.coinbase")
 
 public actor Coinbase {
     
@@ -176,7 +176,7 @@ extension Coinbase {
 
 // MARK: - Models -
 
-public struct OnrampErrorResponse: Error, Decodable, Sendable {
+public nonisolated struct OnrampErrorResponse: Error, Decodable, Sendable {
 
     public var errorCode: Int?
     public var correlationId: String
@@ -292,7 +292,7 @@ public struct OnrampErrorResponse: Error, Decodable, Sendable {
     }
 }
 
-public struct OnrampOrderRequest: Encodable, Sendable {
+public nonisolated struct OnrampOrderRequest: Encodable, Sendable {
     public var purchaseAmount: String
     public var paymentCurrency: String
     public var purchaseCurrency: String?
@@ -323,7 +323,7 @@ public struct OnrampOrderRequest: Encodable, Sendable {
     }
 }
 
-public struct OnrampOrderResponse: Decodable, Identifiable, Sendable {
+public nonisolated struct OnrampOrderResponse: Decodable, Identifiable, Sendable {
     public var id: String {
         order.id
     }
@@ -354,7 +354,7 @@ public struct OnrampOrderResponse: Decodable, Identifiable, Sendable {
 
 /// Response shape for `GET /v2/onramp/orders/{orderId}`. Unlike the create-order
 /// response, this only contains the `order` envelope — no `paymentLink`.
-public struct OnrampOrderStatusResponse: Decodable, Sendable {
+public nonisolated struct OnrampOrderStatusResponse: Decodable, Sendable {
     public let order: OnrampOrderResponse.Order
 }
 

@@ -9,7 +9,7 @@ import Foundation
 import FlipcashCore
 @preconcurrency import SQLite
 
-struct BalanceTable: Sendable {
+nonisolated struct BalanceTable: Sendable {
     static let name = "balance"
 
     let table        = Table(Self.name)
@@ -19,7 +19,7 @@ struct BalanceTable: Sendable {
     let updatedAt    = Expression <Date>      ("updatedAt")
 }
 
-struct MintTable: Sendable {
+nonisolated struct MintTable: Sendable {
     static let name = "mint"
     
     let table        = Table(Self.name)
@@ -54,7 +54,7 @@ struct MintTable: Sendable {
 }
 
 
-struct ActivityTable: Sendable {
+nonisolated struct ActivityTable: Sendable {
     static let name = "activity"
 
     let table        = Table(Self.name)
@@ -69,7 +69,7 @@ struct ActivityTable: Sendable {
     let date         = Expression <Date>         ("date")
 }
 
-struct CashLinkMetadataTable: Sendable {
+nonisolated struct CashLinkMetadataTable: Sendable {
     static let name = "cashLinkMetadata"
 
     let table        = Table(Self.name)
@@ -78,7 +78,7 @@ struct CashLinkMetadataTable: Sendable {
     let canCancel    = Expression <Bool>      ("canCancel")
 }
 
-struct LimitsTable: Sendable {
+nonisolated struct LimitsTable: Sendable {
     static let name = "limits"
 
     let table = Table(Self.name)
@@ -86,7 +86,7 @@ struct LimitsTable: Sendable {
     let data  = Expression <Data> ("data")
 }
 
-struct RateTable: Sendable {
+nonisolated struct RateTable: Sendable {
     static let name = "rate"
 
     let table    = Table(Self.name)
@@ -95,7 +95,7 @@ struct RateTable: Sendable {
 }
 
 // Verified exchange-rate proofs, one per fiat currency.
-struct VerifiedRateTable: Sendable {
+nonisolated struct VerifiedRateTable: Sendable {
     static let name = "verified_rate"
 
     let table      = Table(Self.name)
@@ -104,7 +104,7 @@ struct VerifiedRateTable: Sendable {
 }
 
 // Verified reserve-state proofs, one per mint.
-struct VerifiedReserveTable: Sendable {
+nonisolated struct VerifiedReserveTable: Sendable {
     static let name = "verified_reserve"
 
     let table        = Table(Self.name)
@@ -112,11 +112,11 @@ struct VerifiedReserveTable: Sendable {
     let reserveProto = Expression <Data>   ("reserveProto")
 }
 
-extension Expression {
+nonisolated extension Expression {
     func alias(_ alias: String) -> Expression<Datatype> {
         Expression(alias)
     }
-    
+
     func casting<T>(to type: T.Type) -> Expression<T> {
         Expression<T>(template)
     }
@@ -124,7 +124,7 @@ extension Expression {
 
 // MARK: - Tables -
 
-extension Database {
+nonisolated extension Database {
     func createTablesIfNeeded() throws {
         let balanceTable          = BalanceTable()
         let mintTable             = MintTable()
@@ -243,7 +243,7 @@ extension Database {
 
 // MARK: - Value -
 
-extension UInt64: @retroactive Value {
+nonisolated extension UInt64: @retroactive Value {
     public static var declaredDatatype: String {
         Int64.declaredDatatype
     }
@@ -257,7 +257,7 @@ extension UInt64: @retroactive Value {
     }
 }
 
-extension Key32: @retroactive Value {
+nonisolated extension Key32: @retroactive Value {
     public static var declaredDatatype: String {
         Blob.declaredDatatype
     }
@@ -271,7 +271,7 @@ extension Key32: @retroactive Value {
     }
 }
 
-extension CurrencyCode: @retroactive Value {
+nonisolated extension CurrencyCode: @retroactive Value {
     public static var declaredDatatype: String {
         String.declaredDatatype
     }

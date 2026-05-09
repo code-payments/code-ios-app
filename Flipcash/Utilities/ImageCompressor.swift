@@ -5,7 +5,7 @@
 
 import UIKit
 
-enum ImageCompressor {
+nonisolated enum ImageCompressor {
 
     /// Normalizes EXIF orientation and caps the image to `maxDimension` on its
     /// longest side. Returns the original image unchanged when already within bounds.

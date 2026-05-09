@@ -47,7 +47,6 @@ private let logger = Logger(label: "flipcash.send-cash")
 /// `Session` creates, stores (`sendOperation`), and tears down this
 /// operation. The `ignoresStream` flag is toggled by Session when presenting
 /// a share sheet to suppress grab-request processing underneath it.
-@MainActor
 class SendCashOperation {
 
     /// Submitting a proof older than this is rejected as stale, so we pre-flight the check
@@ -93,7 +92,7 @@ class SendCashOperation {
         logger.info("SendCashOperation opened", metadata: ["rendezvous": "\(payload.rendezvous.publicKey.base58)"])
     }
 
-    deinit {
+    isolated deinit {
         logger.info("SendCashOperation closed", metadata: ["rendezvous": "\(payload.rendezvous.publicKey.base58)"])
         runTask?.cancel()
     }

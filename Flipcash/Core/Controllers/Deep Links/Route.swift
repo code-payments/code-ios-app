@@ -8,7 +8,7 @@
 import Foundation
 import FlipcashCore
 
-struct Route {
+nonisolated struct Route {
 
     let path: Path
     let properties: [String: String]
@@ -78,7 +78,7 @@ struct Route {
 
 // MARK: - Path -
 
-extension Route {
+nonisolated extension Route {
     enum Path {
 
         case login
@@ -120,7 +120,7 @@ extension Route {
 
 // MARK: - Fragment -
 
-extension Route {
+nonisolated extension Route {
     struct Fragment {
         
         let key: Key
@@ -149,7 +149,7 @@ extension Route {
     }
 }
 
-extension Route.Fragment {
+nonisolated extension Route.Fragment {
     enum Key: String, CaseIterable {
         case entropy = "e"
         case payload = "p"

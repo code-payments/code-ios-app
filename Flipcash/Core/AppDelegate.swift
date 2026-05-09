@@ -97,7 +97,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     // MARK: - Deep Links -
 
-    @MainActor
     func handleOpenURL(url: URL) {
         // Drop duplicate in-flight deliveries: a concurrent second claim is
         // rejected server-side as stale state and surfaces as a false error
@@ -117,7 +116,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
     }
 
-    @MainActor
     @objc private func handleDeepLinkNotification(_ notification: Notification) {
         guard let url = notification.userInfo?["url"] as? URL else {
             return

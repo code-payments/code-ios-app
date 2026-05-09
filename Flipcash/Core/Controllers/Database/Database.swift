@@ -9,7 +9,7 @@ import Foundation
 import FlipcashCore
 import SQLite
 
-private let logger = Logger(label: "flipcash.database")
+nonisolated private let logger = Logger(label: "flipcash.database")
 
 typealias Expression = SQLite.Expression
 
@@ -18,7 +18,8 @@ typealias Expression = SQLite.Expression
 // despite Database itself being a reference type. Marking it
 // `@unchecked Sendable` lets background write paths (e.g. RatesController's
 // rate persistence queue) capture it without escaping Swift 6 isolation.
-class Database: @unchecked Sendable {
+// FOLLOW-UP: Remove @unchecked when SQLite.swift declares Connection: Sendable.
+nonisolated class Database: @unchecked Sendable {
 
     let reader: Connection
     let writer: Connection
@@ -131,25 +132,25 @@ class Database: @unchecked Sendable {
     }
 }
 
-extension URL {
+nonisolated extension URL {
     static func dataStore(owner: PublicKey) -> URL {
         URL.applicationSupportDirectory.appendingPathComponent("flipcash-\(owner.base58).sqlite")
     }
-    
+
     static func storeWAL(owner: PublicKey) -> URL {
         URL.applicationSupportDirectory.appendingPathComponent("flipcash-\(owner.base58).sqlite-wal")
     }
-    
+
     static func storeSHM(owner: PublicKey) -> URL {
         URL.applicationSupportDirectory.appendingPathComponent("flipcash-\(owner.base58).sqlite-shm")
     }
-    
+
     static func versionFile(owner: PublicKey) -> URL {
         URL.applicationSupportDirectory.appendingPathComponent("flipcash-\(owner.base58)version")
     }
 }
 
-extension Notification.Name {
+nonisolated extension Notification.Name {
     static let databaseDidChange = Notification.Name("databaseDidChange")
 }
 

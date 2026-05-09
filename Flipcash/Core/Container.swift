@@ -10,7 +10,6 @@ import FlipcashUI
 import FlipcashCore
 import Firebase
 
-@MainActor
 class Container {
     
     let client: Client

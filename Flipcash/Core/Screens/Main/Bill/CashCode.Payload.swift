@@ -8,9 +8,9 @@
 import Foundation
 import FlipcashCore
 
-enum CashCode {}
+nonisolated enum CashCode {}
 
-extension CashCode {
+nonisolated extension CashCode {
     struct Payload: Equatable {
 
         /// Decimal precision used by the on-the-wire `fiat` UInt64 field,
@@ -53,7 +53,7 @@ extension CashCode {
 
 // MARK: - Value -
 
-extension CashCode.Payload {
+nonisolated extension CashCode.Payload {
     enum Value: Equatable {
         case fiat(FiatAmount)
     }
@@ -61,17 +61,17 @@ extension CashCode.Payload {
 
 // MARK: - Kind -
 
-extension CashCode.Payload {
+nonisolated extension CashCode.Payload {
     enum Kind: UInt8 {
         case cash = 0
         case cashMulticurrency = 1
     }
 }
 
-extension Data {
-    
+nonisolated extension Data {
+
     static let nonceLength: Int = 10
-    
+
     static var nonce: Data {
         do {
             return try secRandom(nonceLength)
@@ -98,7 +98,7 @@ extension Data {
     }
 }
 
-extension Data {
+nonisolated extension Data {
     enum Error: Swift.Error {
         case randomBytesUnavailable
     }

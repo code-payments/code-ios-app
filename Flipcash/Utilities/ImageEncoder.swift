@@ -10,7 +10,7 @@ enum ImageEncoderError: Error {
     case cannotFitBudget
 }
 
-enum ImageEncoder {
+nonisolated enum ImageEncoder {
 
     /// Encodes `image` as JPEG data, guaranteeing the result is <= `maxBytes`.
     /// Progressively lowers quality and, if needed, downsizes the image until

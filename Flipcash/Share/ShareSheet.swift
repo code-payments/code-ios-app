@@ -8,7 +8,6 @@
 import SwiftUI
 import FlipcashUI
 
-@MainActor
 struct ShareSheet: UIViewControllerRepresentable {
 
     let activityItem: UIActivityItemSource

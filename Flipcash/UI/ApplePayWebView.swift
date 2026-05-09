@@ -178,6 +178,6 @@ public struct ApplePayEvent: Codable, Sendable {
     }
 }
 
-private extension String {
+private nonisolated extension String {
     static let messageHandlerName = "coinbasepayment"
 }

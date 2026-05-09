@@ -9,7 +9,7 @@ import Foundation
 import FlipcashCore
 import SQLite
 
-extension Database {
+nonisolated extension Database {
 
     // MARK: - Get -
 

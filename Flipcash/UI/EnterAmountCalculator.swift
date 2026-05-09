@@ -8,7 +8,7 @@
 import Foundation
 import FlipcashCore
 
-struct EnterAmountCalculator {
+nonisolated struct EnterAmountCalculator {
     /// Provides the full SendLimit for a given currency
     typealias SendLimitProvider = (CurrencyCode) -> SendLimit?
 

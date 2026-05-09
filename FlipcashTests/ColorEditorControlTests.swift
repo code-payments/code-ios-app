@@ -12,6 +12,7 @@ import SwiftUI
 import FlipcashUI
 @testable import Flipcash
 
+@MainActor
 @Suite("ColorEditorControl")
 struct ColorEditorControlTests {
 

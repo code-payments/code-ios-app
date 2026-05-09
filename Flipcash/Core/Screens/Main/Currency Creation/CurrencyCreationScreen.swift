@@ -30,7 +30,7 @@ enum CurrencyCreationStep: Hashable {
 
 // MARK: - CurrencyCreationState
 
-@MainActor @Observable
+@Observable
 final class CurrencyCreationState {
     var currencyName: String = "" {
         didSet { if currencyName != oldValue { nameAttestation = nil } }

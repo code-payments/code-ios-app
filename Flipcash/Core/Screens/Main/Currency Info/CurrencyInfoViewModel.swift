@@ -8,7 +8,7 @@
 import SwiftUI
 import FlipcashCore
 
-@MainActor @Observable
+@Observable
 class CurrencyInfoViewModel {
 
     enum LoadingState {

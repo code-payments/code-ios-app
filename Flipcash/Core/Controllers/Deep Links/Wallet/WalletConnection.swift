@@ -10,11 +10,15 @@ import UIKit
 import FlipcashUI
 import FlipcashCore
 import TweetNacl
-import SolanaSwift
+// SAFETY: SolanaSwift is not yet Swift 6 / Sendable-audited at the pinned
+// version. RequestConfiguration is an Encodable value type built per call
+// from local literals, and SimulationResult is a Decodable value type
+// returned only to the caller — neither carries shared mutable state across
+// the actor hop, so demoting the Sendable diagnostics here is sound.
+@preconcurrency import SolanaSwift
 
 private let logger = Logger(label: "flipcash.wallet-connection")
 
-@MainActor
 @Observable
 public final class WalletConnection {
 
@@ -833,7 +837,6 @@ struct ConnectedWalletSession: Codable {
     public let phantomEncryptionPublicKey: Data
 }
 
-@MainActor
 private extension FlipcashCore.Keychain {
     @SecureCodable(.connectedWalletSession)
     static var connectedWalletSession: ConnectedWalletSession?
@@ -850,10 +853,18 @@ extension WalletConnection {
 /// The slice of Solana RPC that `WalletConnection` depends on. A narrow
 /// protocol (instead of the full `SolanaAPIClient` surface) keeps test stubs
 /// small and makes the dependency honest at the call site.
-protocol WalletRPC {
+protocol WalletRPC: Sendable {
     func getLatestBlockhash(commitment: Commitment?) async throws -> String
     func sendTransaction(transaction: String, configs: RequestConfiguration) async throws -> TransactionID
     func simulateTransaction(transaction: String, configs: RequestConfiguration) async throws -> SimulationResult
 }
+
+// SAFETY: JSONRPCAPIClient holds only an immutable APIEndPoint and an
+// immutable NetworkManager (URLSession is documented thread-safe); each
+// request constructs a fresh URLRequest with no shared mutable state.
+// Verified against SolanaSwift's source at the pinned version (see
+// Package.resolved).
+// FOLLOW-UP: Remove when SolanaSwift adopts Sendable on JSONRPCAPIClient upstream.
+extension JSONRPCAPIClient: @retroactive @unchecked Sendable {}
 
 extension JSONRPCAPIClient: WalletRPC {}

@@ -16,7 +16,7 @@ import SwiftUI
 ///
 /// Read flags from anywhere with `BetaFlags.shared.hasEnabled(.vibrateOnScan)`.
 /// In SwiftUI views, inject via `@Environment(BetaFlags.self)`.
-@MainActor @Observable
+@Observable
 class BetaFlags {
 
     static let shared = BetaFlags()

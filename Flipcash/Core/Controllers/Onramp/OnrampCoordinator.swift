@@ -10,7 +10,6 @@ import FlipcashCore
 
 private let logger = Logger(label: "flipcash.onramp-coordinator")
 
-@MainActor
 @Observable
 final class OnrampCoordinator {
 

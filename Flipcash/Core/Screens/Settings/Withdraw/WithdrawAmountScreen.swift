@@ -33,7 +33,9 @@ struct WithdrawAmountScreen: View {
                 actionState: .constant(.normal),
                 actionEnabled: { _ in canProceed },
                 action: onProceed,
-                currencySelectionAction: showsCurrencySelection ? showCurrencySelection : nil
+                // Wrapped in a closure literal — partial-applying a @MainActor method
+                // in a ternary against `nil` trips the Swift 6 type-checker.
+                currencySelectionAction: showsCurrencySelection ? { showCurrencySelection() } : nil
             )
             .foregroundStyle(Color.textMain)
             .padding(20)
