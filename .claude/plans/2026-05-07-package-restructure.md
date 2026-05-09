@@ -235,7 +235,7 @@ Document the decision in this file under a new `## Step 4 outcome` section, then
 3. **Smoke gate** — manual exercise of high-risk flows (≥ 5 min per flow), same sanitizers on, on a Debug build. For Step 2 the high-risk flow is the **scanner** (camera path is what FlipcashUI's `@MainActor` strip touches). For Step 3 it's every **gRPC-touching flow**: send cash, receive cash, swap, currency creation, onramp, message stream.
 4. **Soak gate** — run the build for ≥ 30 min mixing flows; tail logs for warnings, dispatch-assertion crashes, TSan reports. (Replaces a dogfood window — solo developer.)
 
-If smoke surfaces a crash, treat it as a **find** (a bug previously masked by manual annotations), not a regression. Add a regression test under `FlipcashTests/Regressions/Regression_<id>.swift` per CLAUDE.md before fixing. Do not silence with `@unchecked Sendable`, `nonisolated(unsafe)`, or `@preconcurrency` without a `// SAFETY:` comment + `// FOLLOW-UP:` removal trigger.
+If smoke surfaces a crash, treat it as a **find** (a bug previously masked by manual annotations), not a regression. Do not silence with `@unchecked Sendable`, `nonisolated(unsafe)`, or `@preconcurrency` without a `// SAFETY:` comment + `// FOLLOW-UP:` removal trigger.
 
 ---
 
