@@ -9,11 +9,11 @@
 import Foundation
 import AVKit
 
-public protocol CameraSessionExtractor {
-    
+public nonisolated protocol CameraSessionExtractor {
+
     associatedtype Output
-    
+
     init()
-    
+
     func extract(output: AVCaptureOutput, sampleBuffer: CMSampleBuffer, connection: AVCaptureConnection) -> Output?
 }

@@ -1,8 +1,8 @@
 # Package Restructure — Migration Plan
 
 **Started:** 2026-05-07
-**Last updated:** 2026-05-07
-**Status:** Step 1 shipped via PR #255. Steps 2–4 pending.
+**Last updated:** 2026-05-09
+**Status:** Step 1 shipped via PR #255. Step 2 ready for review on `refactor/flipcash-ui-default-isolation` (build clean, baseline stress suites green, AllTargets green, on-device smoke passed). Steps 3–4 pending.
 
 ---
 
@@ -68,7 +68,7 @@ These can be revisited after Step 4.
 
 - [x] **Step 0 — Cleanup** — empty package skeletons (`CodeAPI/`, `FlipchatAPI/`, etc.) deleted from working tree. They were never git-tracked, so no commit was needed; the Xcode 26 pbxproj cleanup that landed alongside Step 1 (commit `adab4ccd`) covered the actual project-file detritus.
 - [x] **Step 1 — App target → Swift 6 + `defaultIsolation = MainActor` + strip 41 `@MainActor` annotations** — shipped via PR #255 (39 commits). All 5 concurrency stress baselines green under TSan + Main Thread Checker. Full smoke + soak passed clean.
-- [ ] **Step 2 — `FlipcashUI` → `defaultIsolation(MainActor.self)`** + strip 5 manual `@MainActor`. **Risk: low.** Estimated size: small PR, ~10 lines + 5 annotation strips.
+- [~] **Step 2 — `FlipcashUI` → `defaultIsolation(MainActor.self)`** + strip 8 manual `@MainActor` annotations across 5 files, plus a root-cause fix for the camera capture isolation bug the toolchain bump surfaced. Open on `refactor/flipcash-ui-default-isolation` (5 commits). Build clean, 5 baseline stress suites green, AllTargets green, on-device smoke passed (scanner + grab + transfer end-to-end).
 - [ ] **Step 3 — Extract `FlipcashClient`** — move ~59 files from `FlipcashCore/Clients/`; FlipcashAPI / FlipcashCoreAPI become its dependencies; FlipcashCore loses the `grpc-swift` dep. **Risk: medium.** Estimated size: medium PR, mostly mechanical file moves.
 - [ ] **Step 4 — Re-evaluate** — measure build time delta, preview behavior, outstanding annotations; decide whether further splits (feature packages, Solana extract) are warranted.
 
@@ -94,7 +94,50 @@ Useful context for Step 2 and Step 3 — most of these were "previously masked" 
 
 ---
 
-## Step 2 — How to execute (next up)
+## Step 2 retrospective (2026-05-09)
+
+Surfaced diagnostics that needed root-cause fixes before stripping the annotations. Useful for Step 3, where a similar package-wide isolation flip is on the menu.
+
+**FlipcashUI changes (the actual point of this step):**
+- `FlipcashUI/Package.swift` bumped to `// swift-tools-version: 6.2` (required for `.defaultIsolation`; `enableUpcomingFeature("NonisolatedNonsendingByDefault")` added alongside).
+- 8 type/function-level `@MainActor` annotations stripped across the 5 files the original plan listed.
+
+**Surfaced fixes (root-cause, not patches):**
+- `FlipcashUI/.../Bill/KikCode.swift`: `nonisolated` on the `KikCode` namespace + 3 nested-type extensions. `Shape.path(in:)` is nonisolated by protocol contract; with default-MainActor on the package, the previously-ambient `KikCode` namespace and its `Payload`/`Description`/`Error` types became MainActor and stopped being callable from `CodeShape`. They are pure math/encoding — `nonisolated` is the accurate description.
+- `FlipcashUI/.../Chart/ChartDataPoint.swift`: `nonisolated public struct`. Pure value type already declared `Sendable`; consumed by `MarketCapController.processDataPoints` (a `nonisolated` background processor in the app target) which broke the moment the struct's init went MainActor.
+- `Flipcash/Core/Controllers/MarketCapController.swift`: `nonisolated(unsafe) static let targetPointCount = 100` → `nonisolated static let`. `Int` is Sendable, no need for `unsafe`. (Pre-existing oversight from Step 1; surfaced because the rebuild was no longer incremental.)
+- `Flipcash/Core/Controllers/RatesController.swift`: file-scope `private let logger` → `private nonisolated let logger`. `Logger` is Sendable; the binding had been inferred MainActor by Step 1's app-target default, and the background `rateWriteQueue.async` closure couldn't access it.
+- `Flipcash/Utilities/PhotoLibrary.swift`: `static func write(...)` and `class Writer` marked `nonisolated`; completion closures marked `@Sendable`. The whole point of this code is to do `UIImageWriteToSavedPhotosAlbum` off-main, so MainActor inheritance was actively wrong. Also dropped a redundant `await` on a same-isolation call (now no-op under nonisolated-nonsending semantics).
+- `Flipcash/UI/ApplePayWebView.swift`: removed `Coordinator.deinit` and the unused `weak var contentController`. The deinit was redundant with the static `dismantleUIView` already removing the script handler at the SwiftUI-blessed teardown point — no warning to suppress, just dead code.
+
+**Layered-diagnostic pattern repeated.** Similar to Step 1: each fix unblocked the next batch of compiler diagnostics. Budget for at least one additional round when running Step 3.
+
+**Tests, not production, were not the broken side this time.** Step 2 only needed source fixes; no test annotation churn.
+
+**Smoke gate find — `CameraSession` capture path was always wrong, masked by `@preconcurrency import AVKit`.** First device run crashed on launch into the scanner with `_dispatch_assert_queue_fail` on `com.code.videoDelegate.queue`. AVFoundation invokes the sample-buffer / metadata delegate callbacks on the queues passed to `setSampleBufferDelegate(_:queue:)` / `setMetadataObjectsDelegate(_:queue:)` — never the main queue. The class had been `@MainActor` for years, which made the entire receive path (`captureOutput → receiveHandler → receiveSampleBuffer → extractor.extract`) cross actor boundaries every frame. `@preconcurrency import AVKit` downgraded the resulting Sendable / isolation diagnostics to warnings; under Xcode 26's Swift 6.2 runtime the MainActor check now traps via `dispatch_assert_queue`. Fix splits `CameraSession`'s isolation:
+- The class itself stays `@MainActor` (via the package default) so SwiftUI lifecycle code can call `configureDevices` / `start` / `stop` directly.
+- The receive path is `nonisolated` end-to-end: the inner `VideoDelegate` / `MetadataDelegate` classes, the `receiveHandler` closures, the `CameraSessionExtractor` protocol (so `CodeExtractor.extract` is callable from the queue), the `extraction` / `metadataExtraction` publishers, and `receiveSampleBuffer`. Storage that crosses isolation is `nonisolated(unsafe) let` since AVCaptureSession, PassthroughSubject, and the unconstrained generic `T` aren't `Sendable`.
+- Class is `@unchecked Sendable` with class-level SAFETY notes covering the once-during-init invariant for every stored ref. This is required because `DispatchQueue.main.async`'s closure parameter is `@Sendable` and ends up capturing `self`.
+
+This is exactly the "smoke surfaces a previously-masked bug" outcome the verification-gate section of this plan called out. The fix is shipped on the same Step 2 branch rather than split, since it's the same Swift 6.2 isolation correction touching the same files.
+
+Carry-forward for Step 3: any class that wraps a callback-style Apple framework (URLSession, AVFoundation, MapKit) with `@preconcurrency import` is a candidate for the same treatment — the Swift 6.2 runtime will surface what the `@preconcurrency` shim hid. Search for `@preconcurrency import` + closure-based delegates when extracting `FlipcashClient`.
+
+**Style carry-forward (from the simplify pass against the established codebase pattern):**
+
+- **`@preconcurrency import Combine` + `nonisolated let` for PassthroughSubject**, no `(unsafe)` needed. Match `FlipcashCore/Sources/FlipcashCore/Clients/Payments API/Services/VerifiedProtoService.swift:37,40` and the SAFETY block at `Flipcash/Core/Controllers/RatesController.swift:9-14`. `nonisolated(unsafe)` is reserved for storage whose underlying type genuinely has no `@preconcurrency`-coverable origin (e.g., the unconstrained generic `T` in `CameraSession`, set-once `var receiveHandler`s, serial-queue-guarded `lastString`).
+- **`nonisolated let session: AVCaptureSession`** works under `@preconcurrency import AVKit` — `(unsafe)` would be redundant.
+- **SAFETY / FOLLOW-UP comments are `//` prose, not `///` doc.** Match `Database.swift:16-22` shape: `// SAFETY: …` line, `// FOLLOW-UP: …` line, optionally a one-line `See <other site>` redirect when the same invariant applies twice. The reflection at `.claude/reflections/2026-05-09-camera-isolation-masked-by-preconcurrency.md` records the full incident; CLAUDE.md's pitfall table got a short summary entry.
+- **Logger keyword order:** `nonisolated private let logger = Logger(label: "…")` matches the existing sites (`Database.swift:12`, `Database+Balance.swift:12`, `Coinbase.swift:11`). Don't write `private nonisolated let`.
+
+**Carry-forward for Step 3.**
+- Same `nonisolated` rule of thumb for "pure data / pure compute" types in modules that flip to default MainActor.
+- `swift-tools-version: 6.2` is now a precedent — when extracting `FlipcashClient`, declare `6.2` in its `Package.swift` from the start so `.defaultIsolation` is available if we want it (Step 3 plan currently says "no default isolation" for `FlipcashClient`; reconfirm at Step 3 time).
+- `private let foo = ...` at file scope is silently MainActor-isolated under `defaultIsolation = MainActor`. Loggers, formatters, and other Sendable file-scoped constants want explicit `nonisolated`.
+
+---
+
+## Step 2 — How to execute (original plan, kept for reference)
 
 **Goal:** drop the 5 manual `@MainActor` annotations from `FlipcashUI` by setting `defaultIsolation(MainActor.self)` on the package.
 
@@ -192,7 +235,7 @@ Document the decision in this file under a new `## Step 4 outcome` section, then
 3. **Smoke gate** — manual exercise of high-risk flows (≥ 5 min per flow), same sanitizers on, on a Debug build. For Step 2 the high-risk flow is the **scanner** (camera path is what FlipcashUI's `@MainActor` strip touches). For Step 3 it's every **gRPC-touching flow**: send cash, receive cash, swap, currency creation, onramp, message stream.
 4. **Soak gate** — run the build for ≥ 30 min mixing flows; tail logs for warnings, dispatch-assertion crashes, TSan reports. (Replaces a dogfood window — solo developer.)
 
-If smoke surfaces a crash, treat it as a **find** (a bug previously masked by manual annotations), not a regression. Add a regression test under `FlipcashTests/Regressions/Regression_<id>.swift` per CLAUDE.md before fixing. Do not silence with `@unchecked Sendable`, `nonisolated(unsafe)`, or `@preconcurrency` without a `// SAFETY:` comment + `// FOLLOW-UP:` removal trigger.
+If smoke surfaces a crash, treat it as a **find** (a bug previously masked by manual annotations), not a regression. Do not silence with `@unchecked Sendable`, `nonisolated(unsafe)`, or `@preconcurrency` without a `// SAFETY:` comment + `// FOLLOW-UP:` removal trigger.
 
 ---
 

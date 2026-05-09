@@ -10,7 +10,6 @@
 
 import UIKit
 
-@MainActor
 public enum Haptics {
     
     private static let impact = UIImpactFeedbackGenerator()

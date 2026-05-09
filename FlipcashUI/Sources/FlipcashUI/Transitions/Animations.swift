@@ -48,7 +48,6 @@ extension AnyTransition {
     }
 }
 
-@MainActor
 public func withoutAnimation(block: VoidAction) {
     var transaction = Transaction(animation: .linear.speed(.greatestFiniteMagnitude))
     transaction.disablesAnimations = true

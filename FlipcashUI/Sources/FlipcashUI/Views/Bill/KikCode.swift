@@ -11,8 +11,8 @@
 import SwiftUI
 import CoreGraphics
 
-enum KikCode {
-        
+nonisolated enum KikCode {
+
     static let innerRingRatio: CGFloat = 0.32
     static let firstRingRatio: CGFloat = 0.425
     static let lastRingRatio:  CGFloat = 0.95
@@ -138,7 +138,7 @@ enum KikCode {
 
 // MARK: - Payload -
 
-extension KikCode {
+nonisolated extension KikCode {
     struct Payload {
         
         let data: Data
@@ -153,7 +153,7 @@ extension KikCode {
 
 // MARK: - Description -
 
-extension KikCode {
+nonisolated extension KikCode {
     struct Description {
         var size: CGSize
         var center: UIBezierPath
@@ -165,7 +165,7 @@ extension KikCode {
 
 // MARK: - Error -
 
-extension KikCode {
+nonisolated extension KikCode {
     enum Error: Swift.Error {
         case invalidSize
         case emptyData

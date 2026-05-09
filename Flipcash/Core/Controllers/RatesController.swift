@@ -15,7 +15,7 @@ import Foundation
 @preconcurrency import Combine
 import FlipcashCore
 
-private let logger = Logger(label: "flipcash.rates-controller")
+nonisolated private let logger = Logger(label: "flipcash.rates-controller")
 
 /// Manages currency selection, exchange rates, and live mint data streaming.
 ///
