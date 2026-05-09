@@ -106,18 +106,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
     }
 
-    /// Pops every stack to root if the app was backgrounded long enough.
-    /// No-op when no session is active, no background timestamp exists, or
-    /// the user picked `.never`. Side-effects are confined to `AppRouter`.
+    /// Globally dismisses all sheets and stacks if the app was backgrounded
+    /// long enough. No-op when no session is active, no background
+    /// timestamp exists, or the user picked `.never`. Side-effects are
+    /// confined to `AppRouter`.
     private func applyAutoReturnIfNeeded() {
         guard let sessionContainer,
-              AppDelegate.shouldReturnToRoot(
+              AppDelegate.shouldAutoReturn(
                   now: .now,
                   lastBackgroundedAt: lastBackgroundedAt,
                   autoReturnTimeout: container.preferences.autoReturnTimeout
               )
         else { return }
-        sessionContainer.appRouter.returnToRoot()
+        sessionContainer.appRouter.dismissAll()
     }
 
     // MARK: - Deep Links -
@@ -170,12 +171,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 extension AppDelegate {
 
     /// Pure-function predicate for the auto-return trigger. Returns `true`
-    /// when the app should pop back to the Scanner: a non-`nil`
+    /// when the app should fall back to the Scanner: a non-`nil`
     /// `lastBackgroundedAt`, a non-`nil` timeout (i.e. not `.never`), and
     /// elapsed time since background >= timeout. Extracted so tests can
     /// exercise the full timeout matrix without standing up a full
     /// `AppDelegate` + `Container` + `Session` graph.
-    static func shouldReturnToRoot(
+    static func shouldAutoReturn(
         now: Date,
         lastBackgroundedAt: Date?,
         autoReturnTimeout: AutoReturnTimeout

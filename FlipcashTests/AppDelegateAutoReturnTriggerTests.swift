@@ -14,7 +14,7 @@ import FlipcashCore
 struct AppDelegateAutoReturnTriggerTests {
 
     @Test(
-        "shouldReturnToRoot returns expected result for elapsed/timeout matrix",
+        "shouldAutoReturn returns expected result for elapsed/timeout matrix",
         arguments: [
             (offset: TimeInterval(-360), timeout: AutoReturnTimeout.fiveMinutes, expected: true,  description: "6m elapsed > 5m timeout"),
             (offset: TimeInterval(-240), timeout: AutoReturnTimeout.fiveMinutes, expected: false, description: "4m elapsed < 5m timeout"),
@@ -24,7 +24,7 @@ struct AppDelegateAutoReturnTriggerTests {
             (offset: TimeInterval(60),   timeout: AutoReturnTimeout.fiveMinutes, expected: false, description: "future timestamp / clock skew"),
         ]
     )
-    func shouldReturnToRoot_elapsedTimeoutMatrix(
+    func shouldAutoReturn_elapsedTimeoutMatrix(
         offset: TimeInterval,
         timeout: AutoReturnTimeout,
         expected: Bool,
@@ -33,7 +33,7 @@ struct AppDelegateAutoReturnTriggerTests {
         let now = Date()
         let lastBackgroundedAt = Date(timeInterval: offset, since: now)
 
-        let result = AppDelegate.shouldReturnToRoot(
+        let result = AppDelegate.shouldAutoReturn(
             now: now,
             lastBackgroundedAt: lastBackgroundedAt,
             autoReturnTimeout: timeout
@@ -42,10 +42,10 @@ struct AppDelegateAutoReturnTriggerTests {
         #expect(result == expected, "\(description)")
     }
 
-    @Test("shouldReturnToRoot with nil lastBackgroundedAt returns false")
-    func shouldReturnToRoot_nilLastBackgroundedAt_returnsFalse() {
+    @Test("shouldAutoReturn with nil lastBackgroundedAt returns false")
+    func shouldAutoReturn_nilLastBackgroundedAt_returnsFalse() {
         #expect(
-            !AppDelegate.shouldReturnToRoot(
+            !AppDelegate.shouldAutoReturn(
                 now: Date(),
                 lastBackgroundedAt: nil,
                 autoReturnTimeout: .fiveMinutes

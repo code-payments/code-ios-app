@@ -1,5 +1,5 @@
 //
-//  AppRouterReturnToRootTests.swift
+//  AppRouterDismissAllTests.swift
 //  FlipcashTests
 //
 //  Created by Raul Riera on 2026-05-08.
@@ -11,21 +11,21 @@ import FlipcashCore
 @testable import Flipcash
 
 @MainActor
-@Suite("AppRouter Return To Root")
-struct AppRouterReturnToRootTests {
+@Suite("AppRouter Dismiss All")
+struct AppRouterDismissAllTests {
 
-    @Test("returnToRoot with a presented sheet clears presentedSheet")
-    func returnToRoot_withPresentedSheet_clearsPresentedSheet() {
+    @Test("dismissAll with a presented sheet clears presentedSheet")
+    func dismissAll_withPresentedSheet_clearsPresentedSheet() {
         let router = AppRouter()
         router.present(.balance)
 
-        router.returnToRoot()
+        router.dismissAll()
 
         #expect(router.presentedSheet == nil)
     }
 
-    @Test("returnToRoot clears every non-dismissing stack's path synchronously")
-    func returnToRoot_withPopulatedStacks_clearsNonDismissingStacks() {
+    @Test("dismissAll clears every non-dismissing stack's path synchronously")
+    func dismissAll_withPopulatedStacks_clearsNonDismissingStacks() {
         let router = AppRouter()
 
         // Seed every stack independently of which sheet is presented so we can
@@ -38,7 +38,7 @@ struct AppRouterReturnToRootTests {
         // Present .balance so it's the dismissing sheet; .balance's path is
         // kept through the dismiss animation and cleared on next present.
         router.present(.balance)
-        router.returnToRoot()
+        router.dismissAll()
 
         #expect(router[.settings].isEmpty)
         #expect(router[.give].isEmpty)
@@ -47,42 +47,42 @@ struct AppRouterReturnToRootTests {
                 "the dismissing stack keeps its path so the slide-down animates with current contents")
     }
 
-    @Test("re-presenting the dismissed sheet after returnToRoot lands at root")
-    func returnToRoot_thenPresentSameSheet_landsAtRoot() {
+    @Test("re-presenting the dismissed sheet after dismissAll lands at root")
+    func dismissAll_thenPresentSameSheet_landsAtRoot() {
         let router = AppRouter()
         router.present(.balance)
         router.push(.currencyInfo(.usdc))
         router.push(.transactionHistory(.usdc))
 
-        router.returnToRoot()
+        router.dismissAll()
         router.present(.balance)
 
         #expect(router[.balance].isEmpty,
                 "the previously dismissed sheet's path is cleared on re-present")
     }
 
-    @Test("presenting a different sheet after returnToRoot lands at root for that stack")
-    func returnToRoot_thenPresentOtherSheet_landsAtRoot() {
+    @Test("presenting a different sheet after dismissAll lands at root for that stack")
+    func dismissAll_thenPresentOtherSheet_landsAtRoot() {
         let router = AppRouter()
         router.present(.balance)
-        // Seed another stack out-of-band before triggering returnToRoot, so the
+        // Seed another stack out-of-band before triggering dismissAll, so the
         // synchronous clear is the only thing that could empty it.
         router[.settings] = AppRouter.navigationPath(.settingsMyAccount, .settingsAdvancedFeatures)
 
-        router.returnToRoot()
+        router.dismissAll()
         router.present(.settings)
 
         #expect(router[.settings].isEmpty,
-                "non-dismissing stacks are cleared synchronously by returnToRoot")
+                "non-dismissing stacks are cleared synchronously by dismissAll")
     }
 
-    @Test("returnToRoot with no presented sheet still clears all stack paths")
-    func returnToRoot_withNoPresentedSheet_clearsAllPaths() {
+    @Test("dismissAll with no presented sheet still clears all stack paths")
+    func dismissAll_withNoPresentedSheet_clearsAllPaths() {
         let router = AppRouter()
         router[.balance]  = AppRouter.navigationPath(.currencyInfo(.usdc))
         router[.settings] = AppRouter.navigationPath(.settingsMyAccount)
 
-        router.returnToRoot()
+        router.dismissAll()
 
         #expect(router.presentedSheet == nil)
         #expect(router[.balance].isEmpty)
@@ -91,15 +91,15 @@ struct AppRouterReturnToRootTests {
         #expect(router[.discover].isEmpty)
     }
 
-    @Test("returnToRoot is idempotent across consecutive calls")
-    func returnToRoot_calledTwice_endStateMatchesSingleCall() {
+    @Test("dismissAll is idempotent across consecutive calls")
+    func dismissAll_calledTwice_endStateMatchesSingleCall() {
         let router = AppRouter()
         router.present(.balance)
         router.push(.currencyInfo(.usdc))
         router[.settings] = AppRouter.navigationPath(.settingsMyAccount)
 
-        router.returnToRoot()
-        router.returnToRoot()
+        router.dismissAll()
+        router.dismissAll()
 
         #expect(router.presentedSheet == nil)
         #expect(router[.balance].isEmpty)

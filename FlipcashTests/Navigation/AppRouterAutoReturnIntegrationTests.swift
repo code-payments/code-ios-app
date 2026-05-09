@@ -4,7 +4,7 @@
 //
 //  Created by Raul Riera on 2026-05-08.
 //
-//  Integration coverage for `AppRouter.returnToRoot()` followed by a
+//  Integration coverage for `AppRouter.dismissAll()` followed by a
 //  cross-stack `navigate(to:)` — the auto-return-on-background flow's
 //  most interesting interaction. The two tests assert that a deep link
 //  arriving immediately after the reset lands on a clean state, with no
@@ -25,7 +25,7 @@
 //  production hook purely to enable tests.
 //
 //  Unit-level coverage lives in `AppDelegateAutoReturnTriggerTests`,
-//  `AppRouterReturnToRootTests`, and `PreferencesAutoReturnTimeoutTests`.
+//  `AppRouterDismissAllTests`, and `PreferencesAutoReturnTimeoutTests`.
 //
 //  Manual verification matrix (run when changing trigger or action):
 //   - Set timeout to 5 Minutes, open Settings, background ≥ 5 min,
@@ -67,19 +67,19 @@ struct AppRouterAutoReturnIntegrationTests {
     /// observable.
     private static let otherMint = PublicKey.usdf
 
-    // MARK: - 1. Deep link after returnToRoot lands on a clean state
+    // MARK: - 1. Deep link after dismissAll lands on a clean state
 
     /// Legacy bug: the interface-reset rebuilt the view hierarchy. A deep
     /// link arriving in the same scene-active cycle could double-present —
     /// the reset's rebuilt nav stack plus the deep link's `present(_:)`
     /// both wrote into the live tree.
     ///
-    /// v3 contract: `returnToRoot()` clears `presentedSheet` and every
+    /// v3 contract: `dismissAll()` clears `presentedSheet` and every
     /// stack's path. A subsequent `navigate(to:)` from a deep link
     /// presents fresh on a clean slate — the navigated leaf is the
     /// only entry on the target stack regardless of prior depth.
-    @Test("returnToRoot clears all stacks so a deep link lands on a clean state")
-    func returnToRoot_clearsAllStacks_soDeeplinkLandsOnCleanState() {
+    @Test("dismissAll clears all stacks so a deep link lands on a clean state")
+    func dismissAll_clearsAllStacks_soDeeplinkLandsOnCleanState() {
         let router = AppRouter()
 
         // Build up real depth: present a sheet and push two destinations.
@@ -88,7 +88,7 @@ struct AppRouterAutoReturnIntegrationTests {
         router.push(.currencyInfo(.usdc))
 
         // Auto-return fires on foreground.
-        router.returnToRoot()
+        router.dismissAll()
 
         // Deep link arrives immediately after — like a push notification
         // routed through `AppRouter.navigate(to:)`.
@@ -102,7 +102,7 @@ struct AppRouterAutoReturnIntegrationTests {
         #expect(router[.balance].count == 1)
     }
 
-    // MARK: - 2. returnToRoot then navigate does not double-present
+    // MARK: - 2. dismissAll then navigate does not double-present
 
     /// Legacy bug: the reset rebuilt the view hierarchy, which could
     /// collide with a concurrent `present()` call. The classic crash mode
@@ -110,12 +110,12 @@ struct AppRouterAutoReturnIntegrationTests {
     /// from a deep link, with `presentedSheet` pointing at one but the
     /// other's path still populated underneath.
     ///
-    /// v3 contract: `returnToRoot()` clears the active sheet and every
+    /// v3 contract: `dismissAll()` clears the active sheet and every
     /// stack path. `navigate(to:)` then presents the destination's owning
     /// sheet cleanly — no orphaned reference to the previously-presented
     /// sheet, no stale path on the previous sheet's stack.
-    @Test("returnToRoot followed by navigate does not double-present any sheet")
-    func returnToRoot_thenNavigate_doesNotDoublePresent() {
+    @Test("dismissAll followed by navigate does not double-present any sheet")
+    func dismissAll_thenNavigate_doesNotDoublePresent() {
         let router = AppRouter()
 
         // User was deep in Settings when they backgrounded.
@@ -124,7 +124,7 @@ struct AppRouterAutoReturnIntegrationTests {
         router.push(.settingsAdvancedFeatures)
 
         // Auto-return fires.
-        router.returnToRoot()
+        router.dismissAll()
 
         // Deep link to a balance-stack destination arrives — analogous
         // to a push notification opening a currency.
@@ -136,7 +136,7 @@ struct AppRouterAutoReturnIntegrationTests {
         #expect(router[.balance] == AppRouter.navigationPath(.currencyInfo(.usdc)))
         #expect(router[.balance].count == 1)
         // The dismissing stack's path is preserved through the slide-off
-        // animation — exactly as covered in `AppRouterReturnToRootTests`.
+        // animation — exactly as covered in `AppRouterDismissAllTests`.
         // This confirms the live-tree invariant explicitly: only
         // `presentedSheet` determines what the user sees, and the deep
         // link's target is unambiguous.
