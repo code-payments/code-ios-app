@@ -7,10 +7,22 @@
 //
 
 import Foundation
-import Combine
+// SAFETY: PassthroughSubject (used for `extraction` and
+// `metadataExtraction`) is not yet Sendable upstream. The receive
+// path always publishes via `DispatchQueue.main.async`, so subscribers
+// observe values on the main queue and cross-isolation reads are sound.
+// FOLLOW-UP: Remove when Combine adopts Sendable on PassthroughSubject
+// or these are migrated to AsyncSequence.
+@preconcurrency import Combine
+// SAFETY: AVCaptureSession is documented thread-safe; start()/stop()
+// dispatch its mutating calls onto videoDelegate.queue, but
+// AVFoundation has not yet adopted Sendable, so capturing the session
+// in a @Sendable closure trips compile-time warnings.
+// FOLLOW-UP: Remove once AVFoundation annotates AVCaptureSession (and
+// the rest of the capture pipeline) as Sendable upstream.
 @preconcurrency import AVKit
 
-extension AVCaptureDevice {
+nonisolated extension AVCaptureDevice {
     /// On a virtual capture device whose first constituent is the ultrawide
     /// lens, `videoZoomFactor = 1.0` engages the ultrawide (what users
     /// perceive as 0.5×). Returns the zoom factor that engages the wide-angle
@@ -25,21 +37,43 @@ extension AVCaptureDevice {
     }
 }
 
-@MainActor
 public protocol AnyCameraSession {
     var session: AVCaptureSession { get }
 }
 
-@MainActor
-public class CameraSession<T>: ObservableObject, AnyCameraSession where T: CameraSessionExtractor {
+// The class stays `@MainActor` (via the package default) so SwiftUI lifecycle
+// code can call `configureDevices`, `start`, and `stop` directly. The capture
+// pipeline runs off-main: AVFoundation invokes the delegate callbacks on the
+// queues passed to `setSampleBufferDelegate(_:queue:)` /
+// `setMetadataObjectsDelegate(_:queue:)`, not the main queue. The receive path
+// therefore has to be `nonisolated` end-to-end — the delegate classes,
+// `receiveHandler` closures, extractor protocol, and `extraction` /
+// `metadataExtraction` publishers. Letting the default MainActor isolation
+// reach those members made every frame cross actor boundaries; under Swift
+// 6.2's stricter runtime that trips `dispatch_assert_queue` and crashes the
+// camera as soon as it starts.
+//
+// SAFETY (`@unchecked Sendable`): all stored properties on `CameraSession`
+// are immutable after `init`; `isConfigured` is the sole mutable exception
+// and is only flipped from inside `configureDevices`, which is `@MainActor`-
+// bound. AVCaptureSession is documented thread-safe by Apple and the Combine
+// subjects are internally synchronized, so publishing from
+// `DispatchQueue.main.async` is sound.
+// FOLLOW-UP: Drop `@unchecked` once Combine annotates `PassthroughSubject`
+// as `Sendable` and AVFoundation marks `AVCaptureSession` `Sendable`.
+public class CameraSession<T>: ObservableObject, AnyCameraSession, @unchecked Sendable where T: CameraSessionExtractor {
 
-    public private(set) var extraction = PassthroughSubject<T.Output?, Never>()
+    // The publishers, extractor, and session are reachable from the off-main
+    // delegate queue via `receiveSampleBuffer`, so they need to be nonisolated.
+    // See the class-level SAFETY note for the soundness invariant.
+    public nonisolated let extraction = PassthroughSubject<T.Output?, Never>()
     /// Publishes raw string values detected from QR codes via `AVCaptureMetadataOutput`.
     /// Only fires when a new, distinct QR code is detected (duplicate consecutive frames are filtered).
-    public private(set) var metadataExtraction = PassthroughSubject<String, Never>()
+    public nonisolated let metadataExtraction = PassthroughSubject<String, Never>()
 
-    public let extractor: T
-    public let session: AVCaptureSession
+    // `T` has no Sendable constraint, hence `nonisolated(unsafe)`.
+    public nonisolated(unsafe) let extractor: T
+    public nonisolated let session: AVCaptureSession
 
     private var isConfigured: Bool = false
     private let videoDelegate: VideoDelegate
@@ -57,9 +91,9 @@ public class CameraSession<T>: ObservableObject, AnyCameraSession where T: Camer
             self?.receiveSampleBuffer(output: output, sampleBuffer: sampleBuffer, connection: connection)
         }
 
-        self.metadataDelegate.receiveHandler = { [weak self] string in
+        self.metadataDelegate.receiveHandler = { [extraction = metadataExtraction] string in
             DispatchQueue.main.async {
-                self?.metadataExtraction.send(string)
+                extraction.send(string)
             }
         }
     }
@@ -193,16 +227,15 @@ public class CameraSession<T>: ObservableObject, AnyCameraSession where T: Camer
     }
     
     // MARK: - Sample Buffer -
-    
-    private func receiveSampleBuffer(output: AVCaptureOutput, sampleBuffer: CMSampleBuffer, connection: AVCaptureConnection) {
-        if let output = extractor.extract(output: output, sampleBuffer: sampleBuffer, connection: connection) {
-            DispatchQueue.main.async {
-                self.extraction.send(output)
-            }
-        } else {
-            DispatchQueue.main.async {
-                self.extraction.send(nil)
-            }
+
+    /// Invoked from `videoDelegate.queue`. Must stay `nonisolated` so the
+    /// extractor work runs off-main; the result is hopped to the main queue
+    /// before publishing to subscribers.
+    private nonisolated func receiveSampleBuffer(output: AVCaptureOutput, sampleBuffer: CMSampleBuffer, connection: AVCaptureConnection) {
+        let extracted = extractor.extract(output: output, sampleBuffer: sampleBuffer, connection: connection)
+        let extraction = self.extraction
+        DispatchQueue.main.async {
+            extraction.send(extracted)
         }
     }
 }
@@ -221,26 +254,35 @@ extension CameraSession {
 // MARK: - Video Delegate -
 
 extension CameraSession {
-    private class VideoDelegate: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
-        
+    /// Delegate is `nonisolated` because AVFoundation invokes the
+    /// `captureOutput` callbacks on `videoDelegate.queue`, never the main
+    /// queue. The default MainActor isolation would force every frame to
+    /// hop, which is both wrong (the work is intentionally off-main) and
+    /// fatal under Swift 6.2's runtime isolation checks.
+    fileprivate nonisolated final class VideoDelegate: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
+
         typealias ReceiveSampleBuffer = (AVCaptureOutput, CMSampleBuffer, AVCaptureConnection) -> Void
-        
+
         let queue: DispatchQueue
-        
-        var receiveHandler: ReceiveSampleBuffer?
+
+        // SAFETY: receiveHandler is set once during CameraSession.init and
+        // only read from videoDelegate.queue (a serial queue) thereafter, so
+        // there's no concurrent write contention.
+        // FOLLOW-UP: Wrap in a Mutex when adopting Synchronization.
+        nonisolated(unsafe) var receiveHandler: ReceiveSampleBuffer?
 
         // MARK: - Init -
-        
+
         override init() {
             self.queue = DispatchQueue(label: "com.code.videoDelegate.queue")
-            
+
             super.init()
         }
-        
+
         // MARK: - Delegate -
-        
+
         func captureOutput(_ output: AVCaptureOutput, didDrop sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {}
-        
+
         func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
             receiveHandler?(output, sampleBuffer, connection)
         }
@@ -250,15 +292,20 @@ extension CameraSession {
 // MARK: - Metadata Delegate -
 
 extension CameraSession {
-    private class MetadataDelegate: NSObject, AVCaptureMetadataOutputObjectsDelegate {
+    /// See `VideoDelegate` for the rationale on `nonisolated`.
+    fileprivate nonisolated final class MetadataDelegate: NSObject, AVCaptureMetadataOutputObjectsDelegate {
 
         typealias ReceiveString = (String) -> Void
 
         let queue: DispatchQueue
 
-        var receiveHandler: ReceiveString?
+        // See `VideoDelegate.receiveHandler` for the SAFETY invariant.
+        nonisolated(unsafe) var receiveHandler: ReceiveString?
 
-        private var lastString: String?
+        // SAFETY: lastString is read and written exclusively from
+        // metadataDelegate.queue (a serial queue), so writes are sequenced.
+        // FOLLOW-UP: Lift to a Mutex with the rest of this class.
+        nonisolated(unsafe) private var lastString: String?
 
         // MARK: - Init -
 
