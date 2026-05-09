@@ -2,7 +2,7 @@
 
 **Started:** 2026-05-07
 **Last updated:** 2026-05-09
-**Status:** Step 1 shipped via PR #255. Step 2 implementation done locally on `refactor/flipcash-ui-default-isolation`; awaiting user smoke + soak gates before commit/PR. Steps 3–4 pending.
+**Status:** Step 1 shipped via PR #255. Step 2 ready for review on `refactor/flipcash-ui-default-isolation` (build clean, baseline stress suites green, AllTargets green, on-device smoke passed). Steps 3–4 pending.
 
 ---
 
@@ -68,7 +68,7 @@ These can be revisited after Step 4.
 
 - [x] **Step 0 — Cleanup** — empty package skeletons (`CodeAPI/`, `FlipchatAPI/`, etc.) deleted from working tree. They were never git-tracked, so no commit was needed; the Xcode 26 pbxproj cleanup that landed alongside Step 1 (commit `adab4ccd`) covered the actual project-file detritus.
 - [x] **Step 1 — App target → Swift 6 + `defaultIsolation = MainActor` + strip 41 `@MainActor` annotations** — shipped via PR #255 (39 commits). All 5 concurrency stress baselines green under TSan + Main Thread Checker. Full smoke + soak passed clean.
-- [~] **Step 2 — `FlipcashUI` → `defaultIsolation(MainActor.self)`** + strip 8 manual `@MainActor` annotations across 5 files. Implementation complete on `refactor/flipcash-ui-default-isolation`; build clean, 5 baseline stress suites green. Pending user-side smoke (scanner) + soak gates before commit + PR.
+- [~] **Step 2 — `FlipcashUI` → `defaultIsolation(MainActor.self)`** + strip 8 manual `@MainActor` annotations across 5 files, plus a root-cause fix for the camera capture isolation bug the toolchain bump surfaced. Open on `refactor/flipcash-ui-default-isolation` (5 commits). Build clean, 5 baseline stress suites green, AllTargets green, on-device smoke passed (scanner + grab + transfer end-to-end).
 - [ ] **Step 3 — Extract `FlipcashClient`** — move ~59 files from `FlipcashCore/Clients/`; FlipcashAPI / FlipcashCoreAPI become its dependencies; FlipcashCore loses the `grpc-swift` dep. **Risk: medium.** Estimated size: medium PR, mostly mechanical file moves.
 - [ ] **Step 4 — Re-evaluate** — measure build time delta, preview behavior, outstanding annotations; decide whether further splits (feature packages, Solana extract) are warranted.
 
@@ -94,7 +94,7 @@ Useful context for Step 2 and Step 3 — most of these were "previously masked" 
 
 ---
 
-## Step 2 retrospective (in progress, 2026-05-09)
+## Step 2 retrospective (2026-05-09)
 
 Surfaced diagnostics that needed root-cause fixes before stripping the annotations. Useful for Step 3, where a similar package-wide isolation flip is on the menu.
 
