@@ -17,13 +17,23 @@ public struct LegacyMessage: Equatable, Sendable {
     // MARK: - Init -
     
     public init(accounts: [AccountMeta], recentBlockhash: Hash, instructions: [Instruction]) {
-        // Sort the account meta's based on:
-        //   1. Payer is always the first account / signer.
-        //   1. All signers are before non-signers.
-        //   2. Writable accounts before read-only accounts.
-        //   3. Programs last
-        let uniqueAccounts = accounts.filterUniqueAccounts().sorted()
-        
+        // Canonical Solana legacy-message ordering:
+        //   1. Payer first.
+        //   2. Within signer/non-signer × writable/readonly groups, lex by pubkey.
+        // The sort intentionally does NOT use `AccountMeta.isProgram`. That flag
+        // is set heuristically (only on accounts added via `.program(publicKey:)`
+        // from `instructions[i].program`) and is false for transitive program
+        // references that arrive through `instructions[i].accounts`. Splitting
+        // readonly non-signers by that heuristic produces wire bytes that
+        // disagree with the canonical Solana order — verified against
+        // SolanaSwift's encoder via a byte-level parity test.
+        let uniqueAccounts = accounts.filterUniqueAccounts().sorted { lhs, rhs in
+            if lhs.isPayer != rhs.isPayer { return lhs.isPayer }
+            if lhs.isSigner != rhs.isSigner { return lhs.isSigner }
+            if lhs.isWritable != rhs.isWritable { return lhs.isWritable }
+            return lhs.publicKey.bytes.lexicographicallyPrecedes(rhs.publicKey.bytes)
+        }
+
         let signers         = uniqueAccounts.filter { $0.isSigner }
         let readOnlySigners = uniqueAccounts.filter { !$0.isWritable && $0.isSigner }
         let readOnly        = uniqueAccounts.filter { !$0.isWritable && !$0.isSigner }

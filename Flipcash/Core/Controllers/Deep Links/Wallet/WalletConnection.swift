@@ -10,12 +10,6 @@ import UIKit
 import FlipcashUI
 import FlipcashCore
 import TweetNacl
-// SAFETY: SolanaSwift is not yet Swift 6 / Sendable-audited at the pinned
-// version. RequestConfiguration is an Encodable value type built per call
-// from local literals, and SimulationResult is a Decodable value type
-// returned only to the caller — neither carries shared mutable state across
-// the actor hop, so demoting the Sendable diagnostics here is sound.
-@preconcurrency import SolanaSwift
 
 private let logger = Logger(label: "flipcash.wallet-connection")
 
@@ -79,7 +73,7 @@ public final class WalletConnection {
     private let owner: AccountCluster
     private let client: Client
 
-    private let rpc: WalletRPC
+    private let rpc: any SolanaRPC
 
     /// Pending swap info to use when Phantom returns with signed transaction
     private var pendingSwap: PendingSwap?
@@ -106,15 +100,10 @@ public final class WalletConnection {
 
     // MARK: - Init -
 
-    init(owner: AccountCluster, client: Client, rpc: WalletRPC? = nil) {
+    init(owner: AccountCluster, client: Client, rpc: any SolanaRPC = SolanaJSONRPCClient()) {
         self.owner = owner
         self.client = client
-        self.rpc = rpc ?? JSONRPCAPIClient(
-            endpoint: .init(
-                address: "https://api.mainnet-beta.solana.com",
-                network: .mainnetBeta
-            )
-        )
+        self.rpc = rpc
 
         if let connectedWalletSession = Keychain.connectedWalletSession {
             self.session = connectedWalletSession
@@ -361,10 +350,10 @@ public final class WalletConnection {
             // and flip `isFailed` so the processing screen surfaces the error.
             do {
                 let signature = try await rpc.sendTransaction(
-                    transaction: txBase64,
-                    configs: .init(encoding: "base64")!
+                    txBase64,
+                    configuration: SolanaSendTransactionConfig()
                 )
-                logger.info("Transaction sent", metadata: ["signature": "\(signature)"])
+                logger.info("Transaction sent", metadata: ["signature": "\(signature.base58)"])
                 Analytics.track(event: Analytics.WalletEvent.transactionsSubmitted)
             } catch {
                 logger.error("Chain submission failed", metadata: ["error": "\(error)"])
@@ -388,22 +377,22 @@ public final class WalletConnection {
     ) async -> SimulationOutcome {
         do {
             _ = try await rpc.simulateTransaction(
-                transaction: txBase64,
-                configs: RequestConfiguration(
-                    commitment: "confirmed",
-                    encoding: "base64",
+                txBase64,
+                configuration: SolanaSimulateTransactionConfig(
+                    commitment: .confirmed,
+                    encoding: .base64,
                     replaceRecentBlockhash: true
-                )!
+                )
             )
             return .proceed
-        } catch APIClientError.transactionSimulationError(let logs) {
+        } catch SolanaRPCError.transactionSimulationError(let logs) {
             return blockedOutcome(
                 reason: "Phantom signed transaction failed simulation",
                 logs: logs,
                 extraMetadata: ["kind": "simulationErr"],
                 swapMetadata: swapMetadata
             )
-        } catch APIClientError.responseError(let response) {
+        } catch SolanaRPCError.responseError(let response) {
             var extra: [String: String] = ["kind": "preflightRejection"]
             if let code = response.code { extra["code"] = "\(code)" }
             if let message = response.message { extra["message"] = message }
@@ -566,26 +555,12 @@ public final class WalletConnection {
             swapId: fundingSwapId.publicKey
         )
 
-        let instructionsConverted = try instructions.map { instruction in
-            TransactionInstruction(
-                keys: try instruction.accounts.map { meta in
-                    SolanaSwift.AccountMeta(
-                        publicKey: try SolanaSwift.PublicKey(string: meta.publicKey.base58),
-                        isSigner: meta.isSigner,
-                        isWritable: meta.isWritable
-                    )
-                },
-                programId: try SolanaSwift.PublicKey(string: instruction.program.base58),
-                data: [UInt8](instruction.data)
-            )
-        }
+        let recentBlockhash = try await rpc.getLatestBlockhash(commitment: .finalized)
 
-        let recentBlockhash = try await rpc.getLatestBlockhash(commitment: "finalized")
-
-        var transaction = Transaction(
-            instructions: instructionsConverted,
+        let transaction = SolanaTransaction(
+            payer: externalWallet,
             recentBlockhash: recentBlockhash,
-            feePayer: try SolanaSwift.PublicKey(string: externalWallet.base58)
+            instructions: instructions
         )
 
         pendingSwap = PendingSwap(
@@ -595,7 +570,7 @@ public final class WalletConnection {
             onCompleted: onCompleted
         )
 
-        let txEncoded = Base58.fromBytes(Array(try transaction.serialize()))
+        let txEncoded = Base58.fromBytes(Array(transaction.encode()))
 
         let payload: [String: Any] = [
             "transaction": txEncoded,
@@ -847,24 +822,3 @@ private extension FlipcashCore.Keychain {
 extension WalletConnection {
     static let mock = WalletConnection(owner: .mock, client: .mock)
 }
-
-// MARK: - WalletRPC -
-
-/// The slice of Solana RPC that `WalletConnection` depends on. A narrow
-/// protocol (instead of the full `SolanaAPIClient` surface) keeps test stubs
-/// small and makes the dependency honest at the call site.
-protocol WalletRPC: Sendable {
-    func getLatestBlockhash(commitment: Commitment?) async throws -> String
-    func sendTransaction(transaction: String, configs: RequestConfiguration) async throws -> TransactionID
-    func simulateTransaction(transaction: String, configs: RequestConfiguration) async throws -> SimulationResult
-}
-
-// SAFETY: JSONRPCAPIClient holds only an immutable APIEndPoint and an
-// immutable NetworkManager (URLSession is documented thread-safe); each
-// request constructs a fresh URLRequest with no shared mutable state.
-// Verified against SolanaSwift's source at the pinned version (see
-// Package.resolved).
-// FOLLOW-UP: Remove when SolanaSwift adopts Sendable on JSONRPCAPIClient upstream.
-extension JSONRPCAPIClient: @retroactive @unchecked Sendable {}
-
-extension JSONRPCAPIClient: WalletRPC {}
