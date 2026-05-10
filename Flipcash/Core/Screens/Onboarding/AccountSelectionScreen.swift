@@ -42,7 +42,14 @@ struct AccountSelectionScreen: View {
             VStack(spacing: 0) {
                 List {
                     ForEach(accounts) { account in
-                        row(for: account)
+                        AccountRow(
+                            account: account,
+                            isSelected: isSelected(for: account.details),
+                            onTap: { action(account.details) },
+                            onDelete: { confirmDelete(account: account.details) },
+                            onCopyAccessKey: { copyAccessKey(description: account.details) },
+                            onCopyVaultAddress: { copyVaultAddress(description: account.details) }
+                        )
                     }
                     .listRowInsets(EdgeInsets())
                     .listRowSeparatorTint(Color.rowSeparator)
@@ -60,83 +67,11 @@ struct AccountSelectionScreen: View {
         }
         .navigationTitle("Select Account")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
+        .task {
             fetchAccounts()
-            fetchBalances()
+            await fetchBalances()
         }
         .dialog(item: $dialogItem)
-    }
-
-    @ViewBuilder private func row(for account: HistoricalAccount) -> some View {
-        Button {
-            action(account.details)
-        } label: {
-            HStack(alignment: .center, spacing: 15) {
-                CheckView(active: isSelected(for: account.details))
-
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(alignment: .bottom, spacing: 10) {
-                        Text(account.mnemonic.name)
-
-                        if account.isNotFound {
-                            Badge(decoration: .circle(.textError), text: "Not Found")
-                        }
-
-                        Spacer()
-
-                        if let balance = account.totalBalance {
-                            AmountText(
-                                flagStyle: balance.nativeAmount.currency.flagStyle,
-                                flagSize: .small,
-                                content: balance.nativeAmount.formatted(),
-                                canScale: false
-                            )
-                            .font(.appTextMedium)
-                        }
-                    }
-                    .font(.appTextMedium)
-                    .foregroundStyle(.textMain)
-                    .padding(.bottom, 5)
-
-                    Group {
-                        Text("Created \(DateFormatter.relative.string(from: account.details.creationDate))")
-                        Text(account.details.account.ownerPublicKey.base58)
-                            .truncationMode(.middle)
-                    }
-                    .font(.appTextHeading)
-                    .foregroundStyle(.textSecondary)
-                    .multilineTextAlignment(.leading)
-                }
-                .frame(maxWidth: .infinity)
-                .lineLimit(1)
-            }
-        }
-        .disabled(isSelected(for: account.details))
-        .listRowBackground(Color.backgroundMain)
-        .padding(20)
-        .swipeActions(allowsFullSwipe: false) {
-            if !isSelected(for: account.details) {
-                Button {
-                    confirmDelete(account: account.details)
-                } label: {
-                    Image.asset(.delete)
-                }
-                .tint(.bannerError)
-            }
-        }
-        .contextMenu {
-            Button {
-                copyAccessKey(description: account.details)
-            } label: {
-                Label("Copy Access Key", systemImage: SystemSymbol.doc.rawValue)
-            }
-
-            Button {
-                copyVaultAddress(description: account.details)
-            } label: {
-                Label("Copy Vault Address", systemImage: SystemSymbol.doc.rawValue)
-            }
-        }
     }
 
     private func isSelected(for description: AccountDescription) -> Bool {
@@ -198,56 +133,49 @@ struct AccountSelectionScreen: View {
 
     private func fetchAccounts() {
         accounts = accountManager.fetchHistorical()
-            .map {
-                HistoricalAccount(details: $0)
-            }
-            .filter {
-                // Don't show deleted accounts
-                $0.details.deletionDate == nil
-            }
+            .filter { $0.deletionDate == nil }
+            .map { HistoricalAccount(details: $0) }
     }
 
-    private func fetchBalances() {
+    private func fetchBalances() async {
         let rate = balanceRate
 
-        Task {
-            await withThrowingTaskGroup(of: Void.self) { group in
-                accounts.forEach { historicalAccount in
-                    group.addTask {
-                        let owner = historicalAccount.details.account.owner
-                        do {
-                            let accountInfos = try await client.fetchPrimaryAccounts(owner: owner)
-                            let mints = Set(accountInfos.map { $0.mint })
-                            let mintMetadata = try await client.fetchMints(mints: Array(mints))
+        await withThrowingTaskGroup(of: Void.self) { group in
+            accounts.forEach { historicalAccount in
+                group.addTask {
+                    let owner = historicalAccount.details.account.owner
+                    do {
+                        let accountInfos = try await client.fetchPrimaryAccounts(owner: owner)
+                        let mints = Set(accountInfos.map { $0.mint })
+                        let mintMetadata = try await client.fetchMints(mints: Array(mints))
 
-                            let totalBalance = accountInfos
-                                .map { info in
-                                    ExchangedFiat.compute(
-                                        onChainAmount: TokenAmount(quarks: info.quarks, mint: info.mint),
-                                        rate: rate,
-                                        supplyQuarks: mintMetadata[info.mint]?.launchpadMetadata?.supplyFromBonding
-                                    )
-                                }
-                                .total(rate: rate)
-
-                            await update(owner: owner.publicKey) {
-                                $0.setBalance(totalBalance)
+                        let totalBalance = accountInfos
+                            .map { info in
+                                ExchangedFiat.compute(
+                                    onChainAmount: TokenAmount(quarks: info.quarks, mint: info.mint),
+                                    rate: rate,
+                                    supplyQuarks: mintMetadata[info.mint]?.launchpadMetadata?.supplyFromBonding
+                                )
                             }
+                            .total(rate: rate)
 
-                        } catch ErrorFetchBalance.notFound {
-                            await update(owner: owner.publicKey) {
-                                $0.setNotFound()
-                            }
-                        } catch {
-                            // Silently ignore conversion errors
+                        await update(owner: owner.publicKey) {
+                            $0.setBalance(totalBalance)
                         }
+
+                    } catch ErrorFetchBalance.notFound {
+                        await update(owner: owner.publicKey) {
+                            $0.setNotFound()
+                        }
+                    } catch {
+                        // Silently ignore conversion errors
                     }
                 }
             }
         }
     }
 
-    private func update(owner: PublicKey, handler: @MainActor (inout HistoricalAccount) -> Void) {
+    private func update(owner: PublicKey, handler: (inout HistoricalAccount) -> Void) {
         let index = accounts.firstIndex { $0.details.account.ownerPublicKey == owner }
 
         guard let index = index else {
@@ -258,9 +186,85 @@ struct AccountSelectionScreen: View {
     }
 }
 
+// MARK: - AccountRow -
+
+private struct AccountRow: View {
+
+    let account: HistoricalAccount
+    let isSelected: Bool
+    let onTap: () -> Void
+    let onDelete: () -> Void
+    let onCopyAccessKey: () -> Void
+    let onCopyVaultAddress: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(alignment: .center, spacing: 15) {
+                CheckView(active: isSelected)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(alignment: .bottom, spacing: 10) {
+                        Text(account.mnemonic.name)
+
+                        if account.isNotFound {
+                            Badge(decoration: .circle(.textError), text: "Not Found")
+                        }
+
+                        Spacer()
+
+                        if let balance = account.totalBalance {
+                            AmountText(
+                                flagStyle: balance.nativeAmount.currency.flagStyle,
+                                flagSize: .small,
+                                content: balance.nativeAmount.formatted(),
+                                canScale: false
+                            )
+                            .font(.appTextMedium)
+                        }
+                    }
+                    .font(.appTextMedium)
+                    .foregroundStyle(.textMain)
+                    .padding(.bottom, 5)
+
+                    Group {
+                        Text("Created \(DateFormatter.relative.string(from: account.details.creationDate))")
+                        Text(account.details.account.ownerPublicKey.base58)
+                            .truncationMode(.middle)
+                    }
+                    .font(.appTextHeading)
+                    .foregroundStyle(.textSecondary)
+                    .multilineTextAlignment(.leading)
+                }
+                .frame(maxWidth: .infinity)
+                .lineLimit(1)
+            }
+        }
+        .disabled(isSelected)
+        .listRowBackground(Color.backgroundMain)
+        .padding(20)
+        .swipeActions(allowsFullSwipe: false) {
+            if !isSelected {
+                Button(action: onDelete) {
+                    Image.asset(.delete)
+                }
+                .tint(.bannerError)
+            }
+        }
+        .contextMenu {
+            Button(action: onCopyAccessKey) {
+                Label("Copy Access Key", systemImage: SystemSymbol.doc.rawValue)
+            }
+
+            Button(action: onCopyVaultAddress) {
+                Label("Copy Vault Address", systemImage: SystemSymbol.doc.rawValue)
+            }
+        }
+    }
+}
+
 // MARK: - HistoricalAccount -
 
-class HistoricalAccount: Identifiable {
+struct HistoricalAccount: Identifiable {
 
     nonisolated
     var id: String {
@@ -270,7 +274,6 @@ class HistoricalAccount: Identifiable {
     nonisolated
     let details: AccountDescription
 
-    let cluster: AccountCluster
     let mnemonic: MnemonicPhrase
 
     private(set) var totalBalance: ExchangedFiat?
@@ -279,18 +282,13 @@ class HistoricalAccount: Identifiable {
     init(details: AccountDescription) {
         self.details  = details
         self.mnemonic = details.account.mnemonic
-        self.cluster  = AccountCluster(
-            authority: .derive(using: .primary(), mnemonic: details.account.mnemonic),
-            mint: .usdf,
-            timeAuthority: .usdcAuthority
-        )
     }
 
-    func setBalance(_ exchangedFiat: ExchangedFiat) {
+    mutating func setBalance(_ exchangedFiat: ExchangedFiat) {
         totalBalance = exchangedFiat
     }
 
-    func setNotFound() {
+    mutating func setNotFound() {
         isNotFound = true
     }
 }
