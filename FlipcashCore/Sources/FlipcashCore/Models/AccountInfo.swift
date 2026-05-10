@@ -241,7 +241,6 @@ extension AccountInfo {
             throw Error.parseFailed
         }
         
-        let mint      = try PublicKey(info.mint.value)
         let owner     = try PublicKey(info.owner.value)
         let authority = try PublicKey(info.authority.value)
         

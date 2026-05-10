@@ -16,8 +16,6 @@ enum SecureKey: String {
     case betaFlagsEnabled   = "com.flipcash.betaFlags.enabled"
     
     case connectedWalletSession = "com.flipcash.wallet.connectedSession"
-    
-//    case restricted = "com.code.account.restricted"
 }
 
 @propertyWrapper

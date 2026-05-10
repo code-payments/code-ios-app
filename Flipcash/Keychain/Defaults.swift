@@ -8,44 +8,21 @@
 import Foundation
 
 enum DefaultsKey: String {
-    
-//    case entryCurrency      = "com.code.currency.inputCurrency"
-//    case localCurrency      = "com.code.currency.localCurrency"
-//    case recentCurrencies   = "com.code.currency.recentCurrencies"
-//    case localCurrencyAdded = "com.code.currency.localCurrencyAdded"
-    
-//    case twitterUser    = "com.code.social.twitterUser"
-//    case hasSeenTipCard = "com.code.social.hasSeenTipCard"
-    
-//    case wasPromptedPush = "com.code.state.wasPromptedForPush"
-//    
-//    case tooltipLogo = "com.code.tooltip.logo"
-    
-    // Settings
-    
-//    case biometricsEnabled = "com.code.biometrics.enabled"
-    
     case wasLoggedIn = "com.flipcash.state.wasLoggedIn"
     case launchCount = "com.flipcash.state.launchCount"
-    
+
     case cameraAutoStartDisabled = "com.flipcash.camera.autoStartDisabled"
     case cameraEnabledState      = "com.flipcash.camera.cameraEnabledState"
-    
+
     case balanceCurrency    = "com.flipcash.currency.balanceCurrency"
     case recentCurrencies   = "com.flipcash.currency.recentCurrencies"
     case localCurrencyAdded = "com.flipcash.currency.localCurrencyAdded"
-    
+
     case storedTokenMint = "com.flipcash.token.storedTokenMint"
-    
+
     case betaFlags = "com.flipcash.betaFlags"
-    
+
     case pendingPurchase = "com.flipcash.iap.pendingPurchase"
-    
-    // Legacy
-    
-//    case faqs = "com.code.faqs"
-//    case inviteCount = "com.code.inviteCount"
-//    case lastSeenInviteCount = "com.code.lastSeenInviteCount"
 }
 
 private let defaultsEncoder = JSONEncoder()
