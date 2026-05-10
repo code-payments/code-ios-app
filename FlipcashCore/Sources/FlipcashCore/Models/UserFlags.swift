@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import FlipcashCoreAPI
+import FlipcashAPI
 
 public struct UserFlags: Sendable {
     public let isRegistered: Bool

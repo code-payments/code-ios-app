@@ -4,7 +4,7 @@
 //
 
 import Foundation
-import FlipcashCoreAPI
+import FlipcashAPI
 import GRPC
 import NIO
 
@@ -119,11 +119,11 @@ extension ErrorModeration: ServerError {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipcash_Moderation_V1_ModerationClientInterceptorFactoryProtocol {
-    func makeModerateTextInterceptors() -> [GRPC.ClientInterceptor<FlipcashCoreAPI.Flipcash_Moderation_V1_ModerateTextRequest, FlipcashCoreAPI.Flipcash_Moderation_V1_ModerateTextResponse>] {
+    func makeModerateTextInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Moderation_V1_ModerateTextRequest, Flipcash_Moderation_V1_ModerateTextResponse>] {
         makeInterceptors()
     }
 
-    func makeModerateImageInterceptors() -> [GRPC.ClientInterceptor<FlipcashCoreAPI.Flipcash_Moderation_V1_ModerateImageRequest, FlipcashCoreAPI.Flipcash_Moderation_V1_ModerateImageResponse>] {
+    func makeModerateImageInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Moderation_V1_ModerateImageRequest, Flipcash_Moderation_V1_ModerateImageResponse>] {
         makeInterceptors()
     }
 }

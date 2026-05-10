@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import FlipcashCoreAPI
+import FlipcashAPI
 
 public struct UnauthenticatedUserFlags: Sendable {
     public let isStaff: Bool

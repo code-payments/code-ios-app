@@ -7,7 +7,6 @@
 
 import Foundation
 import FlipcashAPI
-import FlipcashCoreAPI
 import BigDecimal
 
 /**

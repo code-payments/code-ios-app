@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import FlipcashCoreAPI
+import FlipcashAPI
 import GRPC
 
 private let logger = Logger(label: "flipcash.phone-service")
@@ -158,15 +158,15 @@ extension ErrorUnlinkPhone: ServerError {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipcash_Phone_V1_PhoneVerificationClientInterceptorFactoryProtocol {
-    func makeUnlinkInterceptors() -> [GRPC.ClientInterceptor<FlipcashCoreAPI.Flipcash_Phone_V1_UnlinkRequest, FlipcashCoreAPI.Flipcash_Phone_V1_UnlinkResponse>] {
+    func makeUnlinkInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Phone_V1_UnlinkRequest, Flipcash_Phone_V1_UnlinkResponse>] {
         makeInterceptors()
     }
     
-    func makeSendVerificationCodeInterceptors() -> [GRPC.ClientInterceptor<FlipcashCoreAPI.Flipcash_Phone_V1_SendVerificationCodeRequest, FlipcashCoreAPI.Flipcash_Phone_V1_SendVerificationCodeResponse>] {
+    func makeSendVerificationCodeInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Phone_V1_SendVerificationCodeRequest, Flipcash_Phone_V1_SendVerificationCodeResponse>] {
         makeInterceptors()
     }
     
-    func makeCheckVerificationCodeInterceptors() -> [GRPC.ClientInterceptor<FlipcashCoreAPI.Flipcash_Phone_V1_CheckVerificationCodeRequest, FlipcashCoreAPI.Flipcash_Phone_V1_CheckVerificationCodeResponse>] {
+    func makeCheckVerificationCodeInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Phone_V1_CheckVerificationCodeRequest, Flipcash_Phone_V1_CheckVerificationCodeResponse>] {
         makeInterceptors()
     }
 }

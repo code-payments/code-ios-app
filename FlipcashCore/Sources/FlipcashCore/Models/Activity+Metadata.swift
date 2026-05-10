@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import FlipcashCoreAPI
+import FlipcashAPI
 
 extension Activity {
     public struct CashLinkMetadata: Sendable, Equatable, Hashable {

@@ -4,11 +4,11 @@
 //
 
 import Foundation
-import FlipcashCoreAPI
+import FlipcashAPI
 
 extension FlipClient {
     /// Convenience overload that builds `auth` from the owning key pair, so
-    /// callers at the view layer don't need to import `FlipcashCoreAPI` to
+    /// callers at the view layer don't need to import `FlipcashAPI` to
     /// construct an `Auth` proto.
     public func moderateText(_ text: String, owner: KeyPair) async throws -> ModerationAttestation {
         var request = Flipcash_Moderation_V1_ModerateTextRequest()
@@ -20,7 +20,7 @@ extension FlipClient {
     }
 
     /// Convenience overload that builds `auth` from the owning key pair, so
-    /// callers at the view layer don't need to import `FlipcashCoreAPI` to
+    /// callers at the view layer don't need to import `FlipcashAPI` to
     /// construct an `Auth` proto.
     public func moderateImage(_ imageData: Data, owner: KeyPair) async throws -> ModerationAttestation {
         var request = Flipcash_Moderation_V1_ModerateImageRequest()

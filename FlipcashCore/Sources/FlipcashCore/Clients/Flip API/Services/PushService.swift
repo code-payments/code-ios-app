@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import FlipcashCoreAPI
+import FlipcashAPI
 import GRPC
 
 private let logger = Logger(label: "flipcash.push-service")
@@ -102,11 +102,11 @@ extension ErrorDeleteToken: ServerError {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipcash_Push_V1_PushClientInterceptorFactoryProtocol {
-    func makeAddTokenInterceptors() -> [GRPC.ClientInterceptor<FlipcashCoreAPI.Flipcash_Push_V1_AddTokenRequest, FlipcashCoreAPI.Flipcash_Push_V1_AddTokenResponse>] {
+    func makeAddTokenInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Push_V1_AddTokenRequest, Flipcash_Push_V1_AddTokenResponse>] {
         makeInterceptors()
     }
     
-    func makeDeleteTokensInterceptors() -> [GRPC.ClientInterceptor<FlipcashCoreAPI.Flipcash_Push_V1_DeleteTokensRequest, FlipcashCoreAPI.Flipcash_Push_V1_DeleteTokensResponse>] {
+    func makeDeleteTokensInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Push_V1_DeleteTokensRequest, Flipcash_Push_V1_DeleteTokensResponse>] {
         makeInterceptors()
     }
 }

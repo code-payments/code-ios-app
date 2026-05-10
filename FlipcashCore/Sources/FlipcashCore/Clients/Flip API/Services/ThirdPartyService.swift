@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import FlipcashCoreAPI
+import FlipcashAPI
 import GRPC
 
 private let logger = Logger(label: "flipcash.third-party-service")
@@ -72,7 +72,7 @@ extension ErrorFetchJWT: ServerError {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipcash_Thirdparty_V1_ThirdPartyClientInterceptorFactoryProtocol {
-    func makeGetJwtInterceptors() -> [GRPC.ClientInterceptor<FlipcashCoreAPI.Flipcash_Thirdparty_V1_GetJwtRequest, FlipcashCoreAPI.Flipcash_Thirdparty_V1_GetJwtResponse>] {
+    func makeGetJwtInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Thirdparty_V1_GetJwtRequest, Flipcash_Thirdparty_V1_GetJwtResponse>] {
         makeInterceptors()
     }
 }

@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import FlipcashCoreAPI
+import FlipcashAPI
 
 public struct Profile: Equatable, Sendable {
     

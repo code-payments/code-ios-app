@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import FlipcashCoreAPI
+import FlipcashAPI
 
 public struct Activity: Identifiable, Sendable, Equatable, Hashable {
     public let id: PublicKey
