@@ -1,6 +1,6 @@
 import Testing
 @testable import FlipcashCore
-import FlipcashCoreAPI
+import FlipcashAPI
 
 @Suite("UserFlags.withdrawalFeeAmount")
 struct UserFlagsWithdrawalFeeTests {

@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import FlipcashCoreAPI
+import FlipcashAPI
 import GRPC
 
 private let logger = Logger(label: "flipcash.profile-service")
@@ -69,19 +69,19 @@ extension ErrorFetchProfile: ServerError {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipcash_Profile_V1_ProfileClientInterceptorFactoryProtocol {
-    func makeGetProfileInterceptors() -> [GRPC.ClientInterceptor<FlipcashCoreAPI.Flipcash_Profile_V1_GetProfileRequest, FlipcashCoreAPI.Flipcash_Profile_V1_GetProfileResponse>] {
+    func makeGetProfileInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Profile_V1_GetProfileRequest, Flipcash_Profile_V1_GetProfileResponse>] {
         makeInterceptors()
     }
     
-    func makeSetDisplayNameInterceptors() -> [GRPC.ClientInterceptor<FlipcashCoreAPI.Flipcash_Profile_V1_SetDisplayNameRequest, FlipcashCoreAPI.Flipcash_Profile_V1_SetDisplayNameResponse>] {
+    func makeSetDisplayNameInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Profile_V1_SetDisplayNameRequest, Flipcash_Profile_V1_SetDisplayNameResponse>] {
         makeInterceptors()
     }
     
-    func makeLinkSocialAccountInterceptors() -> [GRPC.ClientInterceptor<FlipcashCoreAPI.Flipcash_Profile_V1_LinkSocialAccountRequest, FlipcashCoreAPI.Flipcash_Profile_V1_LinkSocialAccountResponse>] {
+    func makeLinkSocialAccountInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Profile_V1_LinkSocialAccountRequest, Flipcash_Profile_V1_LinkSocialAccountResponse>] {
         makeInterceptors()
     }
     
-    func makeUnlinkSocialAccountInterceptors() -> [GRPC.ClientInterceptor<FlipcashCoreAPI.Flipcash_Profile_V1_UnlinkSocialAccountRequest, FlipcashCoreAPI.Flipcash_Profile_V1_UnlinkSocialAccountResponse>] {
+    func makeUnlinkSocialAccountInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Profile_V1_UnlinkSocialAccountRequest, Flipcash_Profile_V1_UnlinkSocialAccountResponse>] {
         makeInterceptors()
     }
 }

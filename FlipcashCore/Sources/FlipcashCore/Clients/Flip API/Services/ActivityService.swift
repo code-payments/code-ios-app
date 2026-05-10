@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import FlipcashCoreAPI
+import FlipcashAPI
 import GRPC
 
 private let logger = Logger(label: "flipcash.activity-service")
@@ -125,15 +125,15 @@ extension ErrorFetchTransactionHistoryItemsByID: ServerError {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipcash_Activity_V1_ActivityFeedClientInterceptorFactoryProtocol {
-    func makeGetBatchNotificationsInterceptors() -> [GRPC.ClientInterceptor<FlipcashCoreAPI.Flipcash_Activity_V1_GetBatchNotificationsRequest, FlipcashCoreAPI.Flipcash_Activity_V1_GetBatchNotificationsResponse>] {
+    func makeGetBatchNotificationsInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Activity_V1_GetBatchNotificationsRequest, Flipcash_Activity_V1_GetBatchNotificationsResponse>] {
         makeInterceptors()
     }
     
-    func makeGetPagedNotificationsInterceptors() -> [GRPC.ClientInterceptor<FlipcashCoreAPI.Flipcash_Activity_V1_GetPagedNotificationsRequest, FlipcashCoreAPI.Flipcash_Activity_V1_GetPagedNotificationsResponse>] {
+    func makeGetPagedNotificationsInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Activity_V1_GetPagedNotificationsRequest, Flipcash_Activity_V1_GetPagedNotificationsResponse>] {
         makeInterceptors()
     }
     
-    func makeGetLatestNotificationsInterceptors() -> [GRPC.ClientInterceptor<FlipcashCoreAPI.Flipcash_Activity_V1_GetLatestNotificationsRequest, FlipcashCoreAPI.Flipcash_Activity_V1_GetLatestNotificationsResponse>] {
+    func makeGetLatestNotificationsInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Activity_V1_GetLatestNotificationsRequest, Flipcash_Activity_V1_GetLatestNotificationsResponse>] {
         makeInterceptors()
     }
 }

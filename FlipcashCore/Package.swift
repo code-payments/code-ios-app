@@ -21,7 +21,6 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-log", from: "1.6.0"),
         .package(path: "../CodeCurves"),
         .package(path: "../FlipcashAPI"),
-        .package(path: "../FlipcashCoreAPI"),
     ],
     targets: [
         .target(
@@ -32,7 +31,6 @@ let package = Package(
                 .product(name: "PhoneNumberKit", package: "PhoneNumberKit"),
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "FlipcashAPI", package: "FlipcashAPI"),
-                .product(name: "FlipcashCoreAPI", package: "FlipcashCoreAPI"),
             ],
             resources: [
                 .copy("Resources/discrete_pricing_table.bin"),

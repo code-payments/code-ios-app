@@ -56,7 +56,6 @@
 		9AA197072CE51ABB00FE1703 /* CodeCurves */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = CodeCurves; sourceTree = "<group>"; };
 		9ABDD1962D9D7C2E006B6CDA /* FlipcashAPI */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = FlipcashAPI; sourceTree = "<group>"; };
 		9AD5E64B25F2BF3E007388AE /* opencv2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = opencv2.framework; sourceTree = "<group>"; };
-		9AD855432DB01563002FA9CE /* FlipcashCoreAPI */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = FlipcashCoreAPI; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -186,7 +185,6 @@
 				9A43F0102D9C357900CE8817 /* FlipcashCore */,
 				9ABDD1962D9D7C2E006B6CDA /* FlipcashAPI */,
 				9A0C7F8E2DA0379A0018C7CB /* FlipcashUI */,
-				9AD855432DB01563002FA9CE /* FlipcashCoreAPI */,
 			);
 			name = Packages;
 			sourceTree = "<group>";

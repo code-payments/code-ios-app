@@ -4,7 +4,7 @@
 //
 
 import Foundation
-import FlipcashCoreAPI
+import FlipcashAPI
 import GRPC
 
 private let logger = Logger(label: "flipcash.settings-service")
@@ -65,7 +65,7 @@ extension ErrorUpdateSettings: ServerError {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipcash_Settings_V1_SettingsClientInterceptorFactoryProtocol {
-    func makeUpdateSettingsInterceptors() -> [GRPC.ClientInterceptor<FlipcashCoreAPI.Flipcash_Settings_V1_UpdateSettingsRequest, FlipcashCoreAPI.Flipcash_Settings_V1_UpdateSettingsResponse>] {
+    func makeUpdateSettingsInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Settings_V1_UpdateSettingsRequest, Flipcash_Settings_V1_UpdateSettingsResponse>] {
         makeInterceptors()
     }
 }

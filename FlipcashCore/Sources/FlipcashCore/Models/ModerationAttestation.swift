@@ -4,7 +4,6 @@
 //
 
 import Foundation
-import FlipcashCoreAPI
 import FlipcashAPI
 
 /// A signed moderation proof returned by the Moderation service.

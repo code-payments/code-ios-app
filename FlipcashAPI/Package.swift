@@ -25,8 +25,10 @@ let package = Package(
                 .product(name: "GRPC", package: "grpc-swift"),
             ],
             exclude: [
-                "proto",
-                "proto_deps",
+                "Payments/proto",
+                "Payments/proto_deps",
+                "Core/proto",
+                "Core/proto_deps",
             ]
         ),
     ]

@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import FlipcashCoreAPI
+import FlipcashAPI
 import GRPC
 
 private let logger = Logger(label: "flipcash.account-service")
@@ -186,19 +186,19 @@ extension ErrorFetchUnauthenticatedUserFlags: ServerError {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipcash_Account_V1_AccountClientInterceptorFactoryProtocol {
-    func makeGetUnauthenticatedUserFlagsInterceptors() -> [GRPC.ClientInterceptor<FlipcashCoreAPI.Flipcash_Account_V1_GetUnauthenticatedUserFlagsRequest, FlipcashCoreAPI.Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse>] {
+    func makeGetUnauthenticatedUserFlagsInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Account_V1_GetUnauthenticatedUserFlagsRequest, Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse>] {
         makeInterceptors()
     }
     
-    func makeRegisterInterceptors() -> [GRPC.ClientInterceptor<FlipcashCoreAPI.Flipcash_Account_V1_RegisterRequest, FlipcashCoreAPI.Flipcash_Account_V1_RegisterResponse>] {
+    func makeRegisterInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Account_V1_RegisterRequest, Flipcash_Account_V1_RegisterResponse>] {
         makeInterceptors()
     }
     
-    func makeLoginInterceptors() -> [GRPC.ClientInterceptor<FlipcashCoreAPI.Flipcash_Account_V1_LoginRequest, FlipcashCoreAPI.Flipcash_Account_V1_LoginResponse>] {
+    func makeLoginInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Account_V1_LoginRequest, Flipcash_Account_V1_LoginResponse>] {
         makeInterceptors()
     }
     
-    func makeGetUserFlagsInterceptors() -> [GRPC.ClientInterceptor<FlipcashCoreAPI.Flipcash_Account_V1_GetUserFlagsRequest, FlipcashCoreAPI.Flipcash_Account_V1_GetUserFlagsResponse>] {
+    func makeGetUserFlagsInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Account_V1_GetUserFlagsRequest, Flipcash_Account_V1_GetUserFlagsResponse>] {
         makeInterceptors()
     }
 }

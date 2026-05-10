@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import FlipcashCoreAPI
+import FlipcashAPI
 import SwiftProtobuf
 
 // MARK: - Serialize -

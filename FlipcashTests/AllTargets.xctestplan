@@ -12,13 +12,17 @@
     "maximumTestExecutionTimeAllowance" : 120,
     "maximumTestRepetitions" : 3,
     "performanceAntipatternCheckerEnabled" : true,
+    "runtimeIssueDetection" : {
+      "severity" : "failure"
+    },
     "targetForVariableExpansion" : {
       "containerPath" : "container:Code.xcodeproj",
       "identifier" : "9A516F792D9B12E800AF478B",
       "name" : "Flipcash"
     },
     "testRepetitionMode" : "retryOnFailure",
-    "testTimeoutsEnabled" : true
+    "testTimeoutsEnabled" : true,
+    "threadSanitizerEnabled" : true
   },
   "testTargets" : [
     {

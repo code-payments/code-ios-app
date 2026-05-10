@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import FlipcashCoreAPI
+import FlipcashAPI
 import GRPC
 
 private let logger = Logger(label: "flipcash.email-service")
@@ -154,15 +154,15 @@ extension ErrorUnlinkEmail: ServerError {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipcash_Email_V1_EmailVerificationClientInterceptorFactoryProtocol {
-    func makeUnlinkInterceptors() -> [GRPC.ClientInterceptor<FlipcashCoreAPI.Flipcash_Email_V1_UnlinkRequest, FlipcashCoreAPI.Flipcash_Email_V1_UnlinkResponse>] {
+    func makeUnlinkInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Email_V1_UnlinkRequest, Flipcash_Email_V1_UnlinkResponse>] {
         makeInterceptors()
     }
     
-    func makeSendVerificationCodeInterceptors() -> [GRPC.ClientInterceptor<FlipcashCoreAPI.Flipcash_Email_V1_SendVerificationCodeRequest, FlipcashCoreAPI.Flipcash_Email_V1_SendVerificationCodeResponse>] {
+    func makeSendVerificationCodeInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Email_V1_SendVerificationCodeRequest, Flipcash_Email_V1_SendVerificationCodeResponse>] {
         makeInterceptors()
     }
     
-    func makeCheckVerificationCodeInterceptors() -> [GRPC.ClientInterceptor<FlipcashCoreAPI.Flipcash_Email_V1_CheckVerificationCodeRequest, FlipcashCoreAPI.Flipcash_Email_V1_CheckVerificationCodeResponse>] {
+    func makeCheckVerificationCodeInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Email_V1_CheckVerificationCodeRequest, Flipcash_Email_V1_CheckVerificationCodeResponse>] {
         makeInterceptors()
     }
 }

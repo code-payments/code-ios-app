@@ -63,19 +63,19 @@ elif [[ "$APP" == "flipchatPayments" ]]; then
     PREFIX=""
 
 elif [[ "$APP" == "flipcashCore" ]]; then
-    PROTOS_ROOT_DIR="../FlipcashCoreAPI/Sources/FlipcashCoreAPI"
-    PROTOS_DIR="../FlipcashCoreAPI/Sources/FlipcashCoreAPI/proto"
-    DEPS_DIR="../FlipcashCoreAPI/Sources/FlipcashCoreAPI/proto_deps"
-    GENERATED_DIR="../FlipcashCoreAPI/Sources/FlipcashCoreAPI/Generated"
+    PROTOS_ROOT_DIR="../FlipcashAPI/Sources/FlipcashAPI/Core"
+    PROTOS_DIR="../FlipcashAPI/Sources/FlipcashAPI/Core/proto"
+    DEPS_DIR="../FlipcashAPI/Sources/FlipcashAPI/Core/proto_deps"
+    GENERATED_DIR="../FlipcashAPI/Sources/FlipcashAPI/Core/Generated"
     PULL_REPO="code-payments/flipcash2-protobuf-api"
     PULL_BRANCH="main"
     PREFIX=""
 
 elif [[ "$APP" == "flipcashPayments" ]]; then
-    PROTOS_ROOT_DIR="../FlipcashAPI/Sources/FlipcashAPI"
-    PROTOS_DIR="../FlipcashAPI/Sources/FlipcashAPI/proto"
-    DEPS_DIR="../FlipcashAPI/Sources/FlipcashAPI/proto_deps"
-    GENERATED_DIR="../FlipcashAPI/Sources/FlipcashAPI/Generated"
+    PROTOS_ROOT_DIR="../FlipcashAPI/Sources/FlipcashAPI/Payments"
+    PROTOS_DIR="../FlipcashAPI/Sources/FlipcashAPI/Payments/proto"
+    DEPS_DIR="../FlipcashAPI/Sources/FlipcashAPI/Payments/proto_deps"
+    GENERATED_DIR="../FlipcashAPI/Sources/FlipcashAPI/Payments/Generated"
     PULL_REPO="code-payments/ocp-protobuf-api"
     PULL_BRANCH="main"
     PREFIX=""
@@ -112,3 +112,10 @@ rm -rf $GENERATED_DIR
 mkdir -p $GENERATED_DIR
 
 ./generate $PROTOS_DIR $GENERATED_DIR $PREFIX
+
+# Avoid duplicate validate_validate.pb.swift in the merged FlipcashAPI module:
+# both Payments and Core upstream protos depend on validate.proto, but a single
+# Swift module can hold only one definition. Payments owns the canonical copy.
+if [[ "$APP" == "flipcashCore" ]]; then
+    rm -f "$GENERATED_DIR/validate_validate.pb.swift"
+fi

@@ -5,7 +5,6 @@
 
 import Testing
 import Foundation
-import FlipcashCoreAPI
 import FlipcashAPI
 @testable import FlipcashCore
 

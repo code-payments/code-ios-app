@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import FlipcashCoreAPI
+import FlipcashAPI
 import GRPC
 
 private let logger = Logger(label: "flipcash.iap-service")
@@ -67,7 +67,7 @@ extension ErrorCompletePurchase: ServerError {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipcash_Iap_V1_IapClientInterceptorFactoryProtocol {
-    func makeOnPurchaseCompletedInterceptors() -> [GRPC.ClientInterceptor<FlipcashCoreAPI.Flipcash_Iap_V1_OnPurchaseCompletedRequest, FlipcashCoreAPI.Flipcash_Iap_V1_OnPurchaseCompletedResponse>] {
+    func makeOnPurchaseCompletedInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Iap_V1_OnPurchaseCompletedRequest, Flipcash_Iap_V1_OnPurchaseCompletedResponse>] {
         makeInterceptors()
     }
 }
