@@ -113,9 +113,10 @@ mkdir -p $GENERATED_DIR
 
 ./generate $PROTOS_DIR $GENERATED_DIR $PREFIX
 
-# Avoid duplicate validate_validate.pb.swift in the merged FlipcashAPI module:
-# both Payments and Core upstream protos depend on validate.proto, but a single
-# Swift module can hold only one definition. Payments owns the canonical copy.
-if [[ "$APP" == "flipcashCore" ]]; then
+# validate.proto is a transitive import for field-rule annotations consumed
+# at the descriptor level by server-side validation middleware. The generated
+# Swift mirror is unused on the client and would also create a duplicate
+# filename in the merged FlipcashAPI module. Drop it for both domains.
+if [[ "$APP" == "flipcashCore" || "$APP" == "flipcashPayments" ]]; then
     rm -f "$GENERATED_DIR/validate_validate.pb.swift"
 fi
