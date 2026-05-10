@@ -175,7 +175,7 @@ struct AccountSelectionScreen: View {
         }
     }
 
-    private func update(owner: PublicKey, handler: (inout HistoricalAccount) -> Void) {
+    private func update(owner: PublicKey, handler: @MainActor (inout HistoricalAccount) -> Void) {
         let index = accounts.firstIndex { $0.details.account.ownerPublicKey == owner }
 
         guard let index = index else {
