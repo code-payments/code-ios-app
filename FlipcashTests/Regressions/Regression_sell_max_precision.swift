@@ -9,6 +9,7 @@
 
 import Foundation
 import Testing
+// @preconcurrency: BigDecimal.Rounding not Sendable upstream.
 @preconcurrency import BigDecimal
 import FlipcashCore
 @testable import Flipcash

@@ -44,25 +44,7 @@ if [[ $MISSING -ne 0 ]]; then
 fi
 
 # Set directories based on app
-if [[ "$APP" == "flipchat" ]]; then
-    PROTOS_ROOT_DIR="../FlipchatAPI/Sources/FlipchatAPI"
-    PROTOS_DIR="../FlipchatAPI/Sources/FlipchatAPI/proto"
-    DEPS_DIR="../FlipchatAPI/Sources/FlipchatAPI/proto_deps"
-    GENERATED_DIR="../FlipchatAPI/Sources/FlipchatAPI/Generated"
-    PULL_REPO="code-payments/flipchat-protobuf-api"
-    PULL_BRANCH="main"
-    PREFIX=""
-
-elif [[ "$APP" == "flipchatPayments" ]]; then
-    PROTOS_ROOT_DIR="../FlipchatPaymentsAPI/Sources/FlipchatPaymentsAPI"
-    PROTOS_DIR="../FlipchatPaymentsAPI/Sources/FlipchatPaymentsAPI/proto"
-    DEPS_DIR="../FlipchatPaymentsAPI/Sources/FlipchatPaymentsAPI/proto_deps"
-    GENERATED_DIR="../FlipchatPaymentsAPI/Sources/FlipchatPaymentsAPI/Generated"
-    PULL_REPO="code-payments/code-protobuf-api"
-    PULL_BRANCH="fc"
-    PREFIX=""
-
-elif [[ "$APP" == "flipcashCore" ]]; then
+if [[ "$APP" == "flipcashCore" ]]; then
     PROTOS_ROOT_DIR="../FlipcashAPI/Sources/FlipcashAPI/Core"
     PROTOS_DIR="../FlipcashAPI/Sources/FlipcashAPI/Core/proto"
     DEPS_DIR="../FlipcashAPI/Sources/FlipcashAPI/Core/proto_deps"
@@ -79,18 +61,9 @@ elif [[ "$APP" == "flipcashPayments" ]]; then
     PULL_REPO="code-payments/ocp-protobuf-api"
     PULL_BRANCH="main"
     PREFIX=""
-    
-elif [[ "$APP" == "code" ]]; then
-    PROTOS_ROOT_DIR="../CodeAPI/Sources/CodeAPI"
-    PROTOS_DIR="../CodeAPI/Sources/CodeAPI/proto"
-    DEPS_DIR="../CodeAPI/Sources/CodeAPI/proto_deps"
-    GENERATED_DIR="../CodeAPI/Sources/CodeAPI/Generated"
-    PULL_REPO="code-payments/code-protobuf-api"
-    PULL_BRANCH="main"
-    PREFIX=""
-    
+
 else
-    echo "error: Unknown app type '$APP'. Use 'code' or 'flipchat'."
+    echo "error: Unknown app type '$APP'. Use 'flipcashCore' or 'flipcashPayments'."
     exit 1
 fi
 

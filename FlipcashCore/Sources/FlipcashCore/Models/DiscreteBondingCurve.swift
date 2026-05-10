@@ -6,6 +6,7 @@
 //
 
 import Foundation
+// @preconcurrency: BigDecimal.Rounding not Sendable upstream.
 @preconcurrency import BigDecimal
 
 /// A discrete step-based bonding curve implementation that uses pre-computed

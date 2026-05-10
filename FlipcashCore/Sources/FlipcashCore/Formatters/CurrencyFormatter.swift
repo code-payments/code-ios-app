@@ -63,7 +63,7 @@ extension NumberFormatter {
     // `NumberFormatter` isn't `Sendable`, but the lock guards every mutation
     // and cached instances are never mutated after first build. Reads are
     // thread-safe per Apple's iOS 7+ contract for `NSFormatter` subclasses.
-    nonisolated(unsafe) private static let fiatCache = OSAllocatedUnfairLock(initialState: [FiatCacheKey: NumberFormatter]())
+    private static let fiatCache = OSAllocatedUnfairLock(initialState: [FiatCacheKey: NumberFormatter]())
 
     public static func fiat(currency: CurrencyCode, minimumFractionDigits: Int = 2, maximumFractionDigits: Int? = nil, truncated: Bool = false, suffix: String? = nil) -> NumberFormatter {
         let resolvedMax = maximumFractionDigits ?? currency.maximumFractionDigits

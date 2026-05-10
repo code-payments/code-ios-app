@@ -7,6 +7,7 @@
 //
 
 import Foundation
+// @preconcurrency: PhoneNumberKit.PhoneNumberUtility not Sendable upstream.
 @preconcurrency import PhoneNumberKit
 
 public struct Phone: Codable, Equatable, Hashable, Sendable {
