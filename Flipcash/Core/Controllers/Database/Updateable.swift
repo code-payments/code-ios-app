@@ -14,13 +14,19 @@ import SwiftUI
 /// manual refresh calls. The ``value`` property is tracked by `@Observable`,
 /// so SwiftUI views reading it will update automatically.
 @Observable
-class Updateable<T> {
+final class Updateable<T> {
 
     private(set) var value: T
 
     @ObservationIgnored private let valueBlock: () -> T
     @ObservationIgnored private let didSet: (() -> Void)?
-    @ObservationIgnored private var observer: Any?
+    // SAFETY: observer is assigned once in init and read once in deinit;
+    // no concurrent mutation. `nonisolated(unsafe)` lets the nonisolated
+    // deinit read it without a Sendable wrapper.
+    // FOLLOW-UP: Drop `(unsafe)` once Foundation marks
+    // `NotificationCenter.addObserver`'s `(any NSObjectProtocol)` return as
+    // `Sendable`.
+    @ObservationIgnored nonisolated(unsafe) private var observer: Any?
 
     init(_ valueBlock: @escaping () -> T, didSet: (() -> Void)? = nil) {
         self.valueBlock = valueBlock
@@ -39,7 +45,10 @@ class Updateable<T> {
         }
     }
 
-    isolated deinit {
+    // nonisolated to dodge a Swift 6.3 EarlyPerfInliner crash on @MainActor
+    // generic class deinits. `NotificationCenter.removeObserver` is thread-safe,
+    // so this is functionally equivalent to an isolated deinit here.
+    nonisolated deinit {
         if let observer {
             NotificationCenter.default.removeObserver(observer)
         }

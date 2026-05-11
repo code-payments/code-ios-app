@@ -9,7 +9,7 @@
 import Foundation
 import AVKit
 
-public nonisolated protocol CameraSessionExtractor {
+public nonisolated protocol CameraSessionExtractor: AnyObject {
 
     associatedtype Output
 
