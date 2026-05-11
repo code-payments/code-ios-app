@@ -23,18 +23,23 @@ extension AnalyticsEvent where Self: RawRepresentable<String> {
 }
 
 enum Analytics {
-    
+
+    private static var isEnabled = false
+
     static func initialize() {
         let apiKey = try? InfoPlist.value(for: "mixpanel").value(for: "apiKey").string()
         if let apiKey {
             logger.info("Initializing Mixpanel")
             Mixpanel.initialize(token: apiKey, trackAutomaticEvents: true)
+            isEnabled = true
         } else {
             logger.error("Failed to initialize Mixpanel. No API key found in Info.plist")
         }
     }
-    
+
     static func track(event: some AnalyticsEvent, properties: [Property: AnalyticsValue]? = nil, error: Error? = nil) {
+        guard isEnabled else { return }
+
         var container: [String: AnalyticsValue] = [:]
 
         properties?.forEach { key, value in
@@ -46,11 +51,7 @@ enum Analytics {
             container["Error"] = "\(swiftError.domain).\(error):\(swiftError.code)"
         }
 
-        track(event.eventName, properties: container)
-    }
-        
-    private static func track(_ name: String, properties: [String: AnalyticsValue]? = nil) {
-        mixpanel.track(event: name, properties: properties)
+        mixpanel.track(event: event.eventName, properties: container)
     }
 }
 
@@ -58,6 +59,7 @@ enum Analytics {
 
 extension Analytics {
     static func setIdentity(_ userID: UserID) {
+        guard isEnabled else { return }
         // Ensure that this runs after `initialize` has been called
         // on all the tracking platforms
         DispatchQueue.main.async {
