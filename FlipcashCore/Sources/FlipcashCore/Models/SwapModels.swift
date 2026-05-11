@@ -86,20 +86,23 @@ public enum FundingSource: Sendable, Equatable {
     case unknown
     case submitIntent(id: PublicKey)
     case externalWallet(transactionSignature: Signature)
+    case coinbaseOnramp(orderId: String)
 
     public var protoSource: Ocp_Transaction_V1_FundingSource {
         switch self {
-        case .unknown: return .unknown
-        case .submitIntent: return .submitIntent
+        case .unknown:        return .unknown
+        case .submitIntent:   return .submitIntent
         case .externalWallet: return .externalWallet
+        case .coinbaseOnramp: return .coinbaseOnramp
         }
     }
 
     public var fundingID: String {
         switch self {
-        case .unknown: return ""
-        case .submitIntent(let id): return id.base58
+        case .unknown:                       return ""
+        case .submitIntent(let id):          return id.base58
         case .externalWallet(let signature): return signature.base58
+        case .coinbaseOnramp(let orderId):   return orderId
         }
     }
 }
@@ -121,7 +124,14 @@ extension FundingSource {
             } else {
                 self = .unknown
             }
-        default:
+        case .coinbaseOnramp:
+            // Order IDs are opaque strings; server enforces length 32–88.
+            if let fundingID, !fundingID.isEmpty {
+                self = .coinbaseOnramp(orderId: fundingID)
+            } else {
+                self = .unknown
+            }
+        case .unknown, .UNRECOGNIZED:
             self = .unknown
         }
     }

@@ -344,6 +344,50 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
         }
     }
 
+    /// A buy of an existing currency funded by a Coinbase Onramp order.
+    /// Server watches the order, holds the client-signed transaction, and
+    /// submits it on-chain once Coinbase reports the funding as complete.
+    /// Wire-identical to `buyWithExternalFunding` except the funding source
+    /// is the order ID instead of an on-chain transaction signature.
+    func buyWithCoinbaseOnramp(
+        swapId: SwapId,
+        amount: ExchangedFiat,
+        of token: MintMetadata,
+        owner: KeyPair,
+        orderId: String,
+        completion: @Sendable @escaping (Result<SwapId, ErrorSwap>) -> Void
+    ) {
+        logger.info("Starting Coinbase-onramp-funded buy", metadata: [
+            "amount": "\(amount.nativeAmount.formatted())",
+            "symbol": "\(token.symbol)",
+            "swapId": "\(swapId.publicKey.base58)",
+            "orderId": "\(orderId)"
+        ])
+
+        swapService.swap(
+            swapId: swapId,
+            direction: .buy(mint: token),
+            amount: amount.onChainAmount,
+            fundingSource: .coinbaseOnramp(orderId: orderId),
+            owner: owner
+        ) { result in
+            switch result {
+            case .success:
+                logger.info("Buy swap initiated with Coinbase onramp funding", metadata: [
+                    "swapId": "\(swapId.publicKey.base58)",
+                    "orderId": "\(orderId)"
+                ])
+                completion(.success(swapId))
+            case .failure(let error):
+                logger.error("Failed to start Coinbase-onramp-funded buy swap", metadata: [
+                    "error": "\(error)",
+                    "orderId": "\(orderId)"
+                ])
+                completion(.failure(error))
+            }
+        }
+    }
+
     /// A buy of a freshly-launched currency, funded by the caller's USDF VM
     /// (Phase 1 + Phase 2 via IntentFundSwap). Mirrors `buy(...)` but takes a
     /// raw `mint: PublicKey` because the currency is too new to have

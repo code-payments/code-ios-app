@@ -239,15 +239,28 @@ struct CurrencyCreationWizardScreen: View {
             // sheet has fully dismissed so the two sheets don't collide.
             guard pendingCoinbaseLaunch else { return }
             pendingCoinbaseLaunch = false
-            onrampCoordinator.start(
-                .launch(
-                    displayName: state.currencyName,
-                    onCompleted: { signature, _ in
-                        try await launchAfterExternalFunding(signature: signature, source: .coinbase)
-                    }
-                ),
-                amount: totalLaunchCost
-            )
+
+            // Launch the currency upfront so the stateful swap stream can be
+            // opened with the new mint before Apple Pay is presented.
+            let displayName = state.currencyName
+            let launchAmount = self.launchAmount
+            let launchFee = self.launchFee
+            let totalLaunchCost = self.totalLaunchCost
+            Task {
+                guard let mint = await launchCurrencyWithPreflightRouting() else {
+                    isValidating = false
+                    return
+                }
+                onrampCoordinator.start(
+                    .launch(
+                        mint: mint,
+                        displayName: displayName,
+                        launchAmount: launchAmount,
+                        launchFee: launchFee
+                    ),
+                    amount: totalLaunchCost
+                )
+            }
         }) {
             FundingSelectionSheet(
                 reserveBalance: reserveBalance,

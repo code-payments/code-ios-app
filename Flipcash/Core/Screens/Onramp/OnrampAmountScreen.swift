@@ -23,7 +23,6 @@ struct OnrampAmountScreen: View {
         displayName: String,
         session: Session,
         onrampCoordinator: OnrampCoordinator,
-        onUsdfReady: @escaping @MainActor @Sendable (Signature, ExchangedFiat) async throws -> SignedSwapResult,
         onDismiss: @escaping () -> Void
     ) -> OnrampAmountScreen {
         OnrampAmountScreen(
@@ -31,8 +30,7 @@ struct OnrampAmountScreen: View {
                 mint: mint,
                 displayName: displayName,
                 session: session,
-                onrampCoordinator: onrampCoordinator,
-                onUsdfReady: onUsdfReady
+                onrampCoordinator: onrampCoordinator
             ),
             onDismiss: onDismiss
         )

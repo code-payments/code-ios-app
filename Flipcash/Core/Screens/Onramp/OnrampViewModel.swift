@@ -49,7 +49,6 @@ class OnrampViewModel {
     @ObservationIgnored private let session: Session
     @ObservationIgnored private let mint: PublicKey
     @ObservationIgnored private let onrampCoordinator: OnrampCoordinator
-    @ObservationIgnored private let onUsdfReady: @MainActor @Sendable (Signature, ExchangedFiat) async throws -> SignedSwapResult
 
     // MARK: - Init -
 
@@ -57,15 +56,13 @@ class OnrampViewModel {
         mint: PublicKey,
         displayName: String,
         session: Session,
-        onrampCoordinator: OnrampCoordinator,
-        onUsdfReady: @escaping @MainActor @Sendable (Signature, ExchangedFiat) async throws -> SignedSwapResult
+        onrampCoordinator: OnrampCoordinator
     ) -> OnrampViewModel {
         OnrampViewModel(
             displayName: displayName,
             mint: mint,
             session: session,
-            onrampCoordinator: onrampCoordinator,
-            onUsdfReady: onUsdfReady
+            onrampCoordinator: onrampCoordinator
         )
     }
 
@@ -73,14 +70,12 @@ class OnrampViewModel {
         displayName: String,
         mint: PublicKey,
         session: Session,
-        onrampCoordinator: OnrampCoordinator,
-        onUsdfReady: @escaping @MainActor @Sendable (Signature, ExchangedFiat) async throws -> SignedSwapResult
+        onrampCoordinator: OnrampCoordinator
     ) {
         self.displayName = displayName
         self.mint = mint
         self.session = session
         self.onrampCoordinator = onrampCoordinator
-        self.onUsdfReady = onUsdfReady
     }
 
     // MARK: - Actions -
@@ -110,7 +105,7 @@ class OnrampViewModel {
         }
 
         onrampCoordinator.start(
-            .buy(mint: mint, displayName: displayName, onCompleted: onUsdfReady),
+            .buy(mint: mint, displayName: displayName),
             amount: exchangedFiat
         )
     }
@@ -171,8 +166,6 @@ extension Profile {
 // MARK: - OnrampError -
 
 enum OnrampError: Error {
-    case coinbaseOrderFailed(status: String)
-    case coinbaseOrderPollTimeout
     case missingCoinbaseApiKey
 }
 

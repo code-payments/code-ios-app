@@ -24,8 +24,10 @@ struct OnrampCoordinatorTests {
         let onrampCoordinator = OnrampCoordinator(session: .verifiedMock, flipClient: .mock)
         onrampCoordinator.start(
             .launch(
+                mint: .jeffy,
                 displayName: "Test",
-                onCompleted: { _, _ in .launch(swapId: .generate(), mint: .jeffy) }
+                launchAmount: .mockOne,
+                launchFee: .mockOne
             ),
             amount: .mockOne
         )
@@ -37,8 +39,10 @@ struct OnrampCoordinatorTests {
         let onrampCoordinator = OnrampCoordinator(session: .unverifiedMock, flipClient: .mock)
         onrampCoordinator.start(
             .launch(
+                mint: .jeffy,
                 displayName: "Test",
-                onCompleted: { _, _ in .launch(swapId: .generate(), mint: .jeffy) }
+                launchAmount: .mockOne,
+                launchFee: .mockOne
             ),
             amount: .mockOne
         )
