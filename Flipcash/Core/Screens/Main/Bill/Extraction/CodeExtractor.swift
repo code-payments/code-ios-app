@@ -10,6 +10,7 @@ import CodeScanner
 import FlipcashUI
 import FlipcashCore
 
+// @preconcurrency: Accelerate matrix constants (e.g. kvImage_ARGBToYpCbCrMatrix_ITU_R_709_2) not concurrency-safe.
 @preconcurrency import Accelerate
 
 private let logger = Logger(label: "flipcash.code-extractor")

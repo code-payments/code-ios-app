@@ -8,9 +8,9 @@
 import UIKit
 import FlipcashCore
 
-@preconcurrency import Firebase
-@preconcurrency import FirebaseInstallations
-@preconcurrency import UserNotifications
+import Firebase
+import FirebaseInstallations
+import UserNotifications
 
 private let logger = Logger(label: "flipcash.push-controller")
 

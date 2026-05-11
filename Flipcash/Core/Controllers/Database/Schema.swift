@@ -7,6 +7,7 @@
 
 import Foundation
 import FlipcashCore
+// @preconcurrency: SQLite.swift's Table and Expression not Sendable upstream.
 @preconcurrency import SQLite
 
 nonisolated struct BalanceTable: Sendable {

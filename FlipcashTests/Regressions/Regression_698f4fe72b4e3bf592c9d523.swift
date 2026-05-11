@@ -14,6 +14,7 @@
 
 import Foundation
 import Testing
+// @preconcurrency: BigDecimal.Rounding not Sendable upstream.
 @preconcurrency import BigDecimal
 @testable import FlipcashCore
 
