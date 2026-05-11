@@ -61,7 +61,7 @@ public protocol AnyCameraSession {
 // `DispatchQueue.main.async` is sound.
 // FOLLOW-UP: Drop `@unchecked` once Combine annotates `PassthroughSubject`
 // as `Sendable` and AVFoundation marks `AVCaptureSession` `Sendable`.
-public class CameraSession<T>: ObservableObject, AnyCameraSession, @unchecked Sendable where T: CameraSessionExtractor {
+public final class CameraSession<T>: AnyCameraSession, @unchecked Sendable where T: CameraSessionExtractor {
 
     // The publishers, extractor, and session are reachable from the off-main
     // delegate queue via `receiveSampleBuffer`, so they need to be nonisolated.
@@ -97,6 +97,10 @@ public class CameraSession<T>: ObservableObject, AnyCameraSession, @unchecked Se
             }
         }
     }
+
+    // Empty nonisolated deinit dodges a Swift 6.3 EarlyPerfInliner crash on
+    // @MainActor generic class deinits.
+    nonisolated deinit {}
     
     // MARK: - Configure -
     
