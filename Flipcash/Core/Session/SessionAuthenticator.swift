@@ -90,7 +90,7 @@ final class SessionAuthenticator {
         // During UI testing the deeplink handles login. Skip auto-login
         // to avoid racing with resetForUITesting() and the deeplink's
         // switchAccount(to:) call.
-        guard !CommandLine.arguments.contains("--ui-testing") else {
+        guard !Container.isRunningUITests else {
             accountManager.nukeForUITesting()
             state = .loggedOut
             return

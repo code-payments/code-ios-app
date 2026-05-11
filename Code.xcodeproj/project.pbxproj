@@ -9,12 +9,12 @@
 /* Begin PBXBuildFile section */
 		4CB225762F77260D0075874E /* FirebaseInstallations in Frameworks */ = {isa = PBXBuildFile; productRef = 4CB225752F77260D0075874E /* FirebaseInstallations */; };
 		4CB225782F7726500075874E /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 4CB225772F7726500075874E /* FirebaseMessaging */; };
+		508AF9C6D67C4CD29DE10A16 /* TweetNacl in Frameworks */ = {isa = PBXBuildFile; productRef = 2B166ABF94584FEF9C368C81 /* TweetNacl */; };
 		88FB56E02EE0AB2F0014EC5F /* CLAUDE.md in Resources */ = {isa = PBXBuildFile; fileRef = 88FB56DF2EE0AB2F0014EC5F /* CLAUDE.md */; };
 		88FB56E52EE0AB810014EC5F /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 88FB56E32EE0AB810014EC5F /* README.md */; };
 		88FB56E62EE0AB810014EC5F /* 2025-11-27-swap-rpc-analysis.md in Resources */ = {isa = PBXBuildFile; fileRef = 88FB56E12EE0AB810014EC5F /* 2025-11-27-swap-rpc-analysis.md */; };
 		88FB56E82EE0C3150014EC5F /* 2025-12-03-swap-models-startswap.md in Resources */ = {isa = PBXBuildFile; fileRef = 88FB56E72EE0C3150014EC5F /* 2025-12-03-swap-models-startswap.md */; };
 		9A017D692EAC1DE200216925 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 9A017D682EAC1DE200216925 /* Kingfisher */; };
-		508AF9C6D67C4CD29DE10A16 /* TweetNacl in Frameworks */ = {isa = PBXBuildFile; productRef = 2B166ABF94584FEF9C368C81 /* TweetNacl */; };
 		9A444EE72E8C414D002B1E39 /* BigDecimal in Frameworks */ = {isa = PBXBuildFile; productRef = 9A444EE62E8C414D002B1E39 /* BigDecimal */; };
 		9A780F972EDF817D009BC4D9 /* CodeScanner in Frameworks */ = {isa = PBXBuildFile; productRef = 9A780F962EDF817D009BC4D9 /* CodeScanner */; };
 		9ABDD1952D9D7B61006B6CDA /* FlipcashCore in Frameworks */ = {isa = PBXBuildFile; productRef = 9ABDD1942D9D7B61006B6CDA /* FlipcashCore */; };
@@ -1175,6 +1175,14 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		10A6C0E8F8974C1887219D41 /* XCRemoteSwiftPackageReference "tweetnacl-swiftwrap" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/bitmark-inc/tweetnacl-swiftwrap";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.2;
+			};
+		};
 		9A1654D526790419000A135E /* XCRemoteSwiftPackageReference "grpc-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/grpc/grpc-swift.git";
@@ -1189,14 +1197,6 @@
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 10.24.0;
-			};
-		};
-		10A6C0E8F8974C1887219D41 /* XCRemoteSwiftPackageReference "tweetnacl-swiftwrap" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/bitmark-inc/tweetnacl-swiftwrap";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.2;
 			};
 		};
 		9A444EE52E8C414D002B1E39 /* XCRemoteSwiftPackageReference "BigDecimal" */ = {
@@ -1242,6 +1242,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		2B166ABF94584FEF9C368C81 /* TweetNacl */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 10A6C0E8F8974C1887219D41 /* XCRemoteSwiftPackageReference "tweetnacl-swiftwrap" */;
+			productName = TweetNacl;
+		};
 		4CB225752F77260D0075874E /* FirebaseInstallations */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 9A1A827528660A6F00A4979F /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
@@ -1256,11 +1261,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 9A8D9A3D2D78C2E200E755B9 /* XCRemoteSwiftPackageReference "Kingfisher" */;
 			productName = Kingfisher;
-		};
-		2B166ABF94584FEF9C368C81 /* TweetNacl */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 10A6C0E8F8974C1887219D41 /* XCRemoteSwiftPackageReference "tweetnacl-swiftwrap" */;
-			productName = TweetNacl;
 		};
 		9A444EE62E8C414D002B1E39 /* BigDecimal */ = {
 			isa = XCSwiftPackageProductDependency;
