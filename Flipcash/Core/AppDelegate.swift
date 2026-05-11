@@ -44,9 +44,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
 
-        let isUITesting = CommandLine.arguments.contains("--ui-testing")
+        // Telemetry runs only in Release production launches; DEBUG and any
+        // test process stay silent to avoid polluting production dashboards.
+        #if DEBUG
+        let shouldEnableTelemetry = false
+        #else
+        let shouldEnableTelemetry = !Container.isRunningUITests && !Container.isRunningUnitTests
+        #endif
 
-        if !isUITesting {
+        if shouldEnableTelemetry {
             Analytics.initialize()
             ErrorReporting.initialize()
         }
@@ -54,7 +60,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         FontBook.registerApplicationFonts()
         setupAppearance()
 
-        if isUITesting {
+        if Container.isRunningUITests {
             UIView.setAnimationsEnabled(false)
         }
 

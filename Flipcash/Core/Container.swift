@@ -62,6 +62,12 @@ class Container {
     static var isRunningUnitTests: Bool {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
+
+    /// UI tests launch the app with `--ui-testing` so the host process can
+    /// suppress animations, telemetry, and other production-only side effects.
+    static var isRunningUITests: Bool {
+        CommandLine.arguments.contains("--ui-testing")
+    }
 }
 
 extension View {
