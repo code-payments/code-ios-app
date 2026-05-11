@@ -10,14 +10,18 @@ import Bugsnag
 import FlipcashCore
 
 enum ErrorReporting {
-    
+
+    private static var isEnabled = false
+
     static func initialize() {
         let config = BugsnagConfiguration.loadConfig()
         config.maxStringValueLength = 50_000
         Bugsnag.start(with: config)
+        isEnabled = true
     }
-    
+
     static func breadcrumb(_ breadcrumb: Breadcrumb) {
+        guard isEnabled else { return }
         Bugsnag.leaveBreadcrumb(
             breadcrumb.rawValue,
             metadata: nil,
@@ -40,6 +44,7 @@ enum ErrorReporting {
     }
     
     static func breadcrumb(name: String, metadata: [String: Any] = [:], exchangedFiat: ExchangedFiat? = nil, fiat: FiatAmount? = nil, type: BreadcrumbType) {
+        guard isEnabled else { return }
         var container: [String: Any] = [:]
         
         metadata.forEach { key, value in
@@ -107,6 +112,8 @@ enum ErrorReporting {
     }
     
     private static func capture(_ error: Swift.Error, reason: String? = nil, id: String? = nil, file: String = #file, function: String = #function, line: Int = #line, buildUserInfo: (inout [String: Any]) -> Void) {
+        guard isEnabled else { return }
+
         if let serverError = error as? ServerError, !serverError.isReportable {
             return
         }
