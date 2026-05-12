@@ -12,6 +12,7 @@ import FlipcashUI
 struct BuyAmountScreen: View {
 
     @State private var viewModel: BuyAmountViewModel
+    @State private var isShowingCurrencySelection: Bool = false
     /// Path depth on the balance stack at the entry to the buy flow. Captured
     /// on first appear so the buy flow can pop back to whatever pushed it
     /// (typically `currencyInfo`) when the user completes or cancels, without
@@ -20,6 +21,7 @@ struct BuyAmountScreen: View {
 
     @Environment(AppRouter.self) private var router
     @Environment(OnrampCoordinator.self) private var coordinator
+    @Environment(RatesController.self) private var ratesController
 
     init(mint: PublicKey, currencyName: String, session: Session, ratesController: RatesController) {
         self._viewModel = State(initialValue: BuyAmountViewModel(
@@ -42,7 +44,8 @@ struct BuyAmountScreen: View {
                 actionEnabled: { _ in viewModel.canPerformAction },
                 action: {
                     Task { await viewModel.amountEnteredAction(router: router) }
-                }
+                },
+                currencySelectionAction: showCurrencySelection
             )
             .foregroundStyle(.textMain)
             .padding(20)
@@ -66,6 +69,9 @@ struct BuyAmountScreen: View {
         .sheet(isPresented: $coordinator.isShowingVerificationFlow) {
             VerifyInfoScreen(onrampCoordinator: coordinator)
         }
+        .sheet(isPresented: $isShowingCurrencySelection) {
+            CurrencySelectionScreen(ratesController: ratesController)
+        }
         .onChange(of: coordinator.completion) { _, newValue in
             guard case .buyProcessing(let swapId, let currencyName, let amount) = newValue else { return }
             router.pushAny(BuyFlowPath.processing(
@@ -85,6 +91,10 @@ struct BuyAmountScreen: View {
                 parentDepth = max(0, router[.balance].count - 1)
             }
         }
+    }
+
+    private func showCurrencySelection() {
+        isShowingCurrencySelection.toggle()
     }
 
     /// Pops every screen pushed since the buy flow started — `buyAmount`
