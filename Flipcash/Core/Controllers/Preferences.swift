@@ -31,9 +31,9 @@ class Preferences {
             cameraEnabled = !newValue
         }
     }
-    
+
     // MARK: - Init -
-    
+
     init() {
         cameraAutoStartDisabled = UserDefaults.cameraAutoStartDisabled ?? false
         cameraEnabled = !cameraAutoStartDisabled
@@ -57,7 +57,7 @@ class Preferences {
 extension UserDefaults {
     @Defaults(.cameraAutoStartDisabled)
     static var cameraAutoStartDisabled: Bool?
-    
+
     @Defaults(.cameraEnabledState)
     static var cameraEnabled: Bool?
 }

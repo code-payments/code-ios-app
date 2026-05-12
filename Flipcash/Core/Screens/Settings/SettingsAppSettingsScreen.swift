@@ -18,28 +18,23 @@ struct SettingsAppSettingsScreen: View {
     var body: some View {
         Background(color: .backgroundMain) {
             ScrollView(showsIndicators: false) {
-                list()
+                VStack(alignment: .leading, spacing: 0) {
+                    Row(insets: insets) {
+                        Image.asset(.camera).frame(minWidth: 45)
+                        Toggle("Auto Start Camera", isOn: cameraAutoStartDisabledBinding())
+                            .multilineTextAlignment(.leading)
+                            .truncationMode(.tail)
+                            .padding(.trailing, 2)
+                            .tint(.textSuccess)
+                    }
+                }
+                .font(.appDisplayXS)
+                .foregroundStyle(.textMain)
             }
             .padding(.horizontal, 20)
         }
         .navigationTitle("App Settings")
         .navigationBarTitleDisplayMode(.inline)
-    }
-
-    @ViewBuilder
-    private func list() -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Row(insets: insets) {
-                Image.asset(.camera).frame(minWidth: 45)
-                Toggle("Auto Start Camera", isOn: cameraAutoStartDisabledBinding())
-                    .multilineTextAlignment(.leading)
-                    .truncationMode(.tail)
-                    .padding(.trailing, 2)
-                    .tint(.textSuccess)
-            }
-        }
-        .font(.appDisplayXS)
-        .foregroundStyle(.textMain)
     }
 
     private func cameraAutoStartDisabledBinding() -> Binding<Bool> {

@@ -187,6 +187,35 @@ final class AppRouter {
         logger.info("Dismissed sheet", metadata: ["sheet": "\(dismissing)"])
     }
 
+    /// Global navigation reset: dismisses the active sheet (if any) and
+    /// clears every stack's `NavigationPath`. The user lands on the
+    /// Scanner — the unconditional root rendered behind all sheets.
+    ///
+    /// Distinct from ``popToRoot(on:)``, which is a per-stack pop. This
+    /// method is the all-stacks + sheet variant, used by the
+    /// auto-return-on-background trigger when the user has been away long
+    /// enough that any in-flight navigation should be discarded.
+    ///
+    /// The active sheet's slide-down animation runs with its current contents
+    /// — the same behaviour as ``dismissSheet()``. Inactive stacks have no
+    /// on-screen UI so their paths are cleared synchronously.
+    func dismissAll() {
+        let dismissingSheet = presentedSheet
+        presentedSheet = nil
+        if let dismissingSheet {
+            dismissedSheets.insert(dismissingSheet)
+        }
+        // Clear every other stack's path now. The dismissing stack keeps its
+        // path through the slide-off animation; the existing dismissedSheets
+        // mechanism clears it on the next present(_:) for that sheet.
+        for stack in Stack.allCases where stack != dismissingSheet?.stack {
+            paths[stack] = NavigationPath()
+        }
+        logger.info("Dismiss all", metadata: [
+            "dismissedSheet": "\(dismissingSheet.map(String.init(describing:)) ?? "<none>")",
+        ])
+    }
+
     // MARK: - Logging helpers
 
     /// Builds the standard navigation log metadata: `stack`, `destination`,
