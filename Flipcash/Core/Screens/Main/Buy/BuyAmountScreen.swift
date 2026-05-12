@@ -50,9 +50,12 @@ struct BuyAmountScreen: View {
         .navigationTitle(viewModel.screenTitle)
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(for: BuyFlowPath.self) { path in
+            // Env value must be set on the destination view itself — modifiers
+            // on the source view don't propagate to navigation destinations
+            // (they live in a separate SwiftUI context).
             BuyFlowDestinationView(path: path)
+                .environment(\.dismissParentContainer, dismissBuyFlow)
         }
-        .environment(\.dismissParentContainer, dismissBuyFlow)
         .dialog(item: $viewModel.dialogItem)
         .sheet(item: $viewModel.pendingMethodSelection) { context in
             PurchaseMethodSheet(
