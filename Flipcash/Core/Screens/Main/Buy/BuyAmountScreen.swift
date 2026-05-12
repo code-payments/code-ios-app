@@ -27,6 +27,7 @@ struct BuyAmountScreen: View {
 
     var body: some View {
         @Bindable var viewModel = viewModel
+        @Bindable var coordinator = coordinator
         Background(color: .backgroundMain) {
             EnterAmountView(
                 mode: .buy,
@@ -50,7 +51,7 @@ struct BuyAmountScreen: View {
                 onDismiss: { viewModel.pendingMethodSelection = nil }
             )
         }
-        .sheet(isPresented: Bindable(coordinator).isShowingVerificationFlow) {
+        .sheet(isPresented: $coordinator.isShowingVerificationFlow) {
             VerifyInfoScreen(onrampCoordinator: coordinator)
         }
         .onChange(of: coordinator.completion) { _, newValue in

@@ -98,7 +98,7 @@ private struct ApplePayMethodButton: View {
         Button {
             Analytics.buttonTapped(name: .buyWithCoinbase)
             onDismiss()
-            Task { @MainActor in
+            Task {
                 try? await Task.sleep(for: AppRouter.dismissAnimationDuration)
                 coordinator.start(
                     .buy(mint: context.mint, displayName: context.currencyName),
@@ -125,7 +125,7 @@ private struct PhantomMethodButton: View {
         Button {
             Analytics.buttonTapped(name: .buyWithPhantom)
             onDismiss()
-            Task { @MainActor in
+            Task {
                 try? await Task.sleep(for: AppRouter.dismissAnimationDuration)
                 router.pushAny(BuyFlowPath.phantomEducation(mint: context.mint, amount: context.amount))
             }
@@ -150,7 +150,7 @@ private struct OtherWalletMethodButton: View {
     var body: some View {
         Button("Other Wallet") {
             onDismiss()
-            Task { @MainActor in
+            Task {
                 try? await Task.sleep(for: AppRouter.dismissAnimationDuration)
                 router.pushAny(BuyFlowPath.usdcDepositEducation(mint: context.mint, amount: context.amount))
             }

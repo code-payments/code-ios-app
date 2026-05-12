@@ -12,6 +12,7 @@ import SwiftUI
 /// is picked up through the same entry point. Lives on `SessionContainer` so
 /// it survives sheet dismissal but not logout.
 @Observable
+@MainActor
 final class OnrampDeeplinkInbox {
     var pendingEmailVerification: VerificationDescription?
 }
