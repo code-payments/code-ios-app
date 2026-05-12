@@ -49,15 +49,16 @@ struct ApplePayIdleTimerTests {
         #expect(secondFired)
     }
 
-    @Test("disarm is idempotent — calling it twice is harmless")
-    func disarm_calledTwice_doesNotCrash() async {
+    @Test("disarm is idempotent and the timer remains armable after")
+    func disarm_calledTwice_remainsArmable() async {
         let timer = ApplePayIdleTimer(timeout: .milliseconds(50))
         timer.arm { }
         timer.disarm()
         timer.disarm()
 
-        try? await Task.sleep(for: .milliseconds(100))
-        // Reaching here without trap or hang is the assertion. A no-op disarm
-        // must not error or schedule anything.
+        var fired = false
+        timer.arm { fired = true }
+        try? await Task.sleep(for: .milliseconds(200))
+        #expect(fired)
     }
 }

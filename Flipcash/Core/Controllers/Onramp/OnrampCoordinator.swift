@@ -16,15 +16,7 @@ final class OnrampCoordinator {
     // MARK: - State -
 
     /// Apple Pay order — drives the invisible WebView overlay hosted at root.
-    private(set) var coinbaseOrder: OnrampOrderResponse? {
-        didSet {
-            // Catch-all disarm for any path that nils the order (cancel(), error handlers).
-            // `commitSuccess` / `pollingStart` disarm explicitly because they leave the order set.
-            if coinbaseOrder == nil {
-                applePayIdleTimer.disarm()
-            }
-        }
-    }
+    private(set) var coinbaseOrder: OnrampOrderResponse?
 
     /// Non-nil once the post-onramp swap succeeds. Drives the calling
     /// screen's processing-screen cover.
@@ -111,7 +103,8 @@ final class OnrampCoordinator {
 
     /// True from the moment a Coinbase order is created and a server-side
     /// swap stream is initiated through Apple Pay completion. Drives the
-    /// EnterAmountView's dismiss lock — the user can't back out while we
+    /// calling flow's dismiss lock (buy: `EnterAmountView`, launch:
+    /// `CurrencyCreationWizardScreen`) so the user can't back out while we
     /// have an in-flight stateful swap on the server that's waiting for
     /// Coinbase to clear; the processing screen takes over after Apple Pay
     /// commits.
@@ -321,6 +314,7 @@ final class OnrampCoordinator {
         pendingAmount = nil
         pendingSwapId = nil
         coinbaseOrder = nil
+        applePayIdleTimer.disarm()
     }
 
     // MARK: - Verification navigation -
@@ -615,7 +609,7 @@ final class OnrampCoordinator {
     }
 
     private func showBuyFailedDialog() {
-        coinbaseOrder = nil
+        clearPendingState()
         presentDestructiveDialog(
             title: "Couldn't Buy Token",
             subtitle: "Your USDF is in your wallet. Try again from the currency screen."
@@ -722,8 +716,7 @@ final class OnrampCoordinator {
                     "order_id": "\(response.id)",
                     "destination_kind": "\(operation.logKind)"
                 ])
-                pendingOperation = nil
-                pendingAmount = nil
+                clearPendingState()
                 showBuyFailedDialog()
                 return
             }
@@ -737,8 +730,7 @@ final class OnrampCoordinator {
                 "error_title": "\(error.title)"
             ])
             ErrorReporting.captureError(error)
-            pendingOperation = nil
-            pendingAmount = nil
+            clearPendingState()
 
             if error.errorType == .guestRegionForbidden {
                 presentDestructiveDialog(title: error.title, subtitle: error.subtitle) { [weak self] in
@@ -756,8 +748,7 @@ final class OnrampCoordinator {
                 "error": "\(error)"
             ])
             ErrorReporting.captureError(error)
-            pendingOperation = nil
-            pendingAmount = nil
+            clearPendingState()
         }
     }
 
@@ -854,7 +845,11 @@ final class OnrampCoordinator {
                 self?.cancel()
             }
         case .paymentAuthorized:
+            // Face ID / Touch ID confirmed — the sheet is no longer idle. If
+            // commit is slow (network), letting the timer keep running would
+            // cancel a committed order mid-flight.
             logger.info("Apple Pay payment authorized")
+            applePayIdleTimer.disarm()
 
         case .commitSuccess:
             logger.info("Apple Pay commit succeeded")
@@ -894,7 +889,7 @@ final class OnrampCoordinator {
             logger.error("Onramp success fired with missing pending state", metadata: [
                 "has_operation": "\(pendingOperation != nil)",
                 "has_amount": "\(pendingAmount != nil)",
-                "has_swapId": "\(pendingSwapId != nil)"
+                "has_swap_id": "\(pendingSwapId != nil)"
             ])
             showBuyFailedDialog()
             return

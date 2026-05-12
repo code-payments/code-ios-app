@@ -246,7 +246,8 @@ struct CurrencyCreationWizardScreen: View {
             let launchAmount = self.launchAmount
             let launchFee = self.launchFee
             let totalLaunchCost = self.totalLaunchCost
-            Task {
+            validationTask?.cancel()
+            validationTask = Task {
                 guard let mint = await launchCurrencyWithPreflightRouting() else {
                     isValidating = false
                     return
