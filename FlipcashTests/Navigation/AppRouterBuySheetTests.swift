@@ -41,10 +41,9 @@ struct AppRouterBuySheetTests {
 
         // Mirrors `CurrencyBuyViewModel.maxPossibleAmount` — build a minimal
         // ExchangedFiat with zero on-chain amount against a fixed USD rate.
-        let rate = Rate(fx: 1, currency: .usd)
         let pinned = ExchangedFiat.compute(
             onChainAmount: .zero(mint: .usdf),
-            rate: rate,
+            rate: .oneToOne,
             supplyQuarks: nil
         )
         router.pushAny(BuyFlowPath.phantomEducation(mint: mint, amount: pinned))
