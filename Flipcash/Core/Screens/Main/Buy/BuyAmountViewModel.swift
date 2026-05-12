@@ -63,12 +63,9 @@ final class BuyAmountViewModel: Identifiable {
     // MARK: - Submission
 
     /// Single source of truth for amount submission. Pin verified state, compute
-    /// quarks against the pin, run limit + balance gates, then either auto-buy
-    /// (when USDF covers the amount) or hand off to the funding picker via
-    /// ``pendingMethodSelection``.
-    ///
-    /// `session` is captured in init; the caller only injects `router` because
-    /// SwiftUI's `@Environment` isn't reliably available from a viewmodel.
+    /// quarks against the pin, run limit + balance gates, then either submit
+    /// the buy directly (when USDF covers the amount) or hand off to the
+    /// funding picker via ``pendingMethodSelection``.
     func amountEnteredAction(router: AppRouter) async {
         guard enteredFiat != nil else { return }
         actionButtonState = .loading
@@ -92,7 +89,7 @@ final class BuyAmountViewModel: Identifiable {
         }
 
         if usdfBalanceCovers(amount) {
-            await performAutoBuy(amount: amount, pin: pin, router: router)
+            await performBuy(amount: amount, pin: pin, router: router)
         } else {
             actionButtonState = .normal
             routeToPicker(amount: amount, pin: pin)
@@ -113,8 +110,9 @@ final class BuyAmountViewModel: Identifiable {
         return balance.usdf.value >= amount.usdfValue.value
     }
 
-    private func performAutoBuy(amount: ExchangedFiat, pin: VerifiedState, router: AppRouter) async {
+    private func performBuy(amount: ExchangedFiat, pin: VerifiedState, router: AppRouter) async {
         do {
+            Analytics.buttonTapped(name: .buyWithReserves)
             let swapId = try await session.buy(amount: amount, verifiedState: pin, of: mint)
             actionButtonState = .normal
             router.pushAny(BuyFlowPath.processing(
@@ -130,13 +128,18 @@ final class BuyAmountViewModel: Identifiable {
         } catch Session.Error.verifiedStateStale {
             actionButtonState = .normal
         } catch {
+            logger.error("Failed to buy currency from BuyAmountScreen", metadata: [
+                "mint": "\(mint.base58)",
+                "amount": "\(amount.nativeAmount.formatted())",
+                "error": "\(error)",
+            ])
             ErrorReporting.captureError(
                 error,
-                reason: "Failed to auto-buy currency from BuyAmountScreen",
+                reason: "Failed to buy currency from BuyAmountScreen",
                 metadata: ["mint": mint.base58, "amount": amount.nativeAmount.formatted()]
             )
             actionButtonState = .normal
-            showGenericError()
+            dialogItem = .somethingWentWrong
         }
     }
 
@@ -169,15 +172,6 @@ final class BuyAmountViewModel: Identifiable {
             style: .destructive,
             title: "Transaction Limit Reached",
             subtitle: "You can only buy up to the transaction limit at a time",
-            dismissable: true
-        ) { .okay(kind: .destructive) }
-    }
-
-    private func showGenericError() {
-        dialogItem = .init(
-            style: .destructive,
-            title: "Something Went Wrong",
-            subtitle: "Please try again later",
             dismissable: true
         ) { .okay(kind: .destructive) }
     }

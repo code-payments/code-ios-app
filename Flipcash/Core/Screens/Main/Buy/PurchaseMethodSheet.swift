@@ -50,29 +50,40 @@ struct PurchaseMethodSheet: View {
                 }
                 .padding(.vertical, 20)
 
-                if session.hasCoinbaseOnramp {
-                    ApplePayMethodButton(
+                ForEach(Self.methods(forSession: session), id: \.self) { method in
+                    MethodButton(
+                        method: method,
                         context: context,
-                        onDismiss: onDismiss
+                        onDismiss: onDismiss,
+                        router: router
                     )
                 }
-
-                PhantomMethodButton(
-                    context: context,
-                    onDismiss: onDismiss,
-                    router: router
-                )
-
-                OtherWalletMethodButton(
-                    context: context,
-                    onDismiss: onDismiss,
-                    router: router
-                )
 
                 Button("Dismiss", action: onDismiss)
                     .buttonStyle(.subtle)
             }
             .padding()
+        }
+    }
+}
+
+/// Dispatch wrapper so the parent body can `ForEach` over `methods(forSession:)`
+/// and have a single source of truth for which rows render. The concrete row
+/// structs below own the visual + side-effect details.
+private struct MethodButton: View {
+    let method: PurchaseMethodSheet.Method
+    let context: PurchaseMethodContext
+    let onDismiss: () -> Void
+    let router: AppRouter
+
+    var body: some View {
+        switch method {
+        case .applePay:
+            ApplePayMethodButton(context: context, onDismiss: onDismiss)
+        case .phantom:
+            PhantomMethodButton(context: context, onDismiss: onDismiss, router: router)
+        case .otherWallet:
+            OtherWalletMethodButton(context: context, onDismiss: onDismiss, router: router)
         }
     }
 }
@@ -85,6 +96,7 @@ private struct ApplePayMethodButton: View {
 
     var body: some View {
         Button {
+            Analytics.buttonTapped(name: .buyWithCoinbase)
             onDismiss()
             Task { @MainActor in
                 try? await Task.sleep(for: AppRouter.dismissAnimationDuration)
@@ -111,6 +123,7 @@ private struct PhantomMethodButton: View {
 
     var body: some View {
         Button {
+            Analytics.buttonTapped(name: .buyWithPhantom)
             onDismiss()
             Task { @MainActor in
                 try? await Task.sleep(for: AppRouter.dismissAnimationDuration)
