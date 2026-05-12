@@ -59,7 +59,7 @@ struct Regression_native_amount_mismatch {
         vm.enteredAmount = "1"
 
         let router = AppRouter()
-        router.present(.buy(.usdf))
+        router.present(.balance)
         await vm.amountEnteredAction(router: router)
 
         let context = try #require(vm.pendingMethodSelection)
@@ -167,7 +167,7 @@ struct Regression_native_amount_mismatch {
         vm.enteredAmount = "1"
 
         let router = AppRouter()
-        router.present(.buy(.usdf))
+        router.present(.balance)
         await vm.amountEnteredAction(router: router)
 
         #expect(vm.pendingMethodSelection == nil)

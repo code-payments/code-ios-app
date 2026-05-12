@@ -9,35 +9,32 @@ import Testing
 import FlipcashCore
 @testable import Flipcash
 
-@Suite("AppRouter buy sheet")
+@Suite("AppRouter buy push")
 @MainActor
 struct AppRouterBuySheetTests {
 
-    @Test("present(.buy(mint)) sets presentedSheet to .buy with the given mint")
-    func presentBuySheet() {
+    @Test("push(.buyAmount(mint)) appends to the balance stack")
+    func pushBuyAmount() {
         let router = AppRouter()
         let mint = PublicKey.usdf
+        router.present(.balance)
 
-        router.present(.buy(mint))
+        router.push(.buyAmount(mint))
 
-        #expect(router.presentedSheet == .buy(mint))
+        #expect(router[.balance].count == 1)
     }
 
-    @Test("present(.buy) targets the .buy stack")
-    func buySheetTargetsBuyStack() {
-        let router = AppRouter()
-        let mint = PublicKey.usdf
-
-        router.present(.buy(mint))
-
-        #expect(router.presentedSheet?.stack == .buy)
+    @Test(".buyAmount destination targets the balance stack")
+    func buyAmountTargetsBalanceStack() {
+        #expect(AppRouter.Destination.buyAmount(.usdf).owningStack == .balance)
     }
 
-    @Test("pushAny BuyFlowPath onto the .buy stack appends the value")
+    @Test("pushAny BuyFlowPath onto the balance stack appends the value")
     func pushAnyBuyFlowPath() {
         let router = AppRouter()
         let mint = PublicKey.usdf
-        router.present(.buy(mint))
+        router.present(.balance)
+        router.push(.buyAmount(mint))
 
         // Minimal ExchangedFiat with zero on-chain amount against a fixed
         // USD rate, just enough to satisfy BuyFlowPath.phantomEducation.
@@ -48,6 +45,7 @@ struct AppRouterBuySheetTests {
         )
         router.pushAny(BuyFlowPath.phantomEducation(mint: mint, amount: pinned))
 
-        #expect(router[.buy].count == 1)
+        // buyAmount + phantomEducation
+        #expect(router[.balance].count == 2)
     }
 }
