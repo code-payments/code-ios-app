@@ -913,6 +913,10 @@ final class OnrampCoordinator {
 
 // MARK: - Supporting types -
 
+enum OnrampError: Error {
+    case missingCoinbaseApiKey
+}
+
 private enum Origin: Int {
     case root
     case info

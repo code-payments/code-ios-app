@@ -14,9 +14,10 @@ import FlipcashCore
 /// The verification sheet is NOT hosted here — SwiftUI only allows one modal
 /// sheet per presentation context, and when the user is several sheets deep
 /// (Wallet → Discovery → Wizard → FundingSelection) the root-level sheet slot
-/// is already taken. Screens that initiate an onramp (`OnrampAmountScreen`,
-/// `CurrencyCreationWizardScreen`) host the verification sheet themselves so
-/// it presents on top of whatever sheet stack the user is already in.
+/// is already taken. Screens that initiate an onramp (`PurchaseMethodSheet`
+/// via the `.buy` router stack, `CurrencyCreationWizardScreen` for launch)
+/// host the verification sheet themselves so it presents on top of whatever
+/// sheet stack the user is already in.
 struct OnrampHostModifier: ViewModifier {
 
     @Environment(OnrampCoordinator.self) private var onrampCoordinator

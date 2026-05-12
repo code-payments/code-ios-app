@@ -39,8 +39,8 @@ struct AppRouterBuySheetTests {
         let mint = PublicKey.usdf
         router.present(.buy(mint))
 
-        // Mirrors `CurrencyBuyViewModel.maxPossibleAmount` — build a minimal
-        // ExchangedFiat with zero on-chain amount against a fixed USD rate.
+        // Minimal ExchangedFiat with zero on-chain amount against a fixed
+        // USD rate, just enough to satisfy BuyFlowPath.phantomEducation.
         let pinned = ExchangedFiat.compute(
             onChainAmount: .zero(mint: .usdf),
             rate: .oneToOne,

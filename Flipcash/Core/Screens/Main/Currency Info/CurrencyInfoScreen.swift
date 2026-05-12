@@ -15,21 +15,8 @@ struct CurrencyInfoScreen: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppRouter.self) private var router
 
-    @State private var isShowingFundingSelection: Bool = false
-    @State private var presentedBuyViewModel: CurrencyBuyViewModel?
     @State private var presentedSellViewModel: CurrencySellViewModel?
     @State private var isShowingCurrencySelection: Bool = false
-    /// Non-nil while the Onramp sheet is presented. Setting it presents the
-    /// sheet with a fresh `OnrampViewModel`; nil'ing it dismisses.
-    @State private var onrampDestination: BuyTarget?
-    @State private var pendingOnrampTarget: BuyTarget?
-
-    /// Identifying data for the Coinbase onramp sheet trigger.
-    private struct BuyTarget: Identifiable, Hashable {
-        let mint: PublicKey
-        let displayName: String
-        var id: String { mint.base58 }
-    }
 
     let session: Session
 
@@ -47,7 +34,6 @@ struct CurrencyInfoScreen: View {
     private let mint: PublicKey
     private let container: Container
     private let ratesController: RatesController
-    private let sessionContainer: SessionContainer
     private let marketCapController: MarketCapController
     private let showBuyOnAppear: Bool
 
@@ -64,7 +50,6 @@ struct CurrencyInfoScreen: View {
         self.container           = container
         self.ratesController     = sessionContainer.ratesController
         self.session             = sessionContainer.session
-        self.sessionContainer    = sessionContainer
         self.showBuyOnAppear = showBuyOnAppear
         self.viewModel           = viewModel
 
@@ -198,65 +183,11 @@ struct CurrencyInfoScreen: View {
                 }
             }
         }
-        .sheet(item: $presentedBuyViewModel) { buyViewModel in
-            CurrencyBuyAmountScreen(viewModel: buyViewModel)
-        }
         .sheet(item: $presentedSellViewModel) { sellViewModel in
             CurrencySellAmountScreen(viewModel: sellViewModel)
         }
         .sheet(isPresented: $isShowingCurrencySelection) {
             CurrencySelectionScreen(ratesController: ratesController)
-        }
-        .sheet(isPresented: $isShowingFundingSelection, onDismiss: {
-            // SwiftUI allows only one modal sheet at a time, so we can't set
-            // `onrampDestination` in the same frame as dismissing the funding
-            // sheet — the second sheet gets swallowed. Defer the handoff until
-            // the funding sheet has fully dismissed.
-            guard let target = pendingOnrampTarget else { return }
-            pendingOnrampTarget = nil
-            onrampDestination = target
-        }) {
-            if let metadata = viewModel.mintMetadata {
-                FundingSelectionSheet(
-                    reserveBalance: viewModel.reserveBalance,
-                    isCoinbaseAvailable: session.hasCoinbaseOnramp,
-                    onSelectReserves: {
-                        Analytics.buttonTapped(name: .buyWithReserves)
-                        presentedBuyViewModel = CurrencyBuyViewModel(
-                            currencyPublicKey: metadata.mint,
-                            currencyName: metadata.name,
-                            session: session,
-                            ratesController: ratesController
-                        )
-                        isShowingFundingSelection = false
-                    },
-                    onSelectCoinbase: {
-                        Analytics.buttonTapped(name: .buyWithCoinbase)
-                        pendingOnrampTarget = BuyTarget(
-                            mint: metadata.mint,
-                            displayName: metadata.name
-                        )
-                        isShowingFundingSelection = false
-                    },
-                    onSelectPhantom: {
-                        Analytics.buttonTapped(name: .buyWithPhantom)
-                        walletConnection.connectToPhantom()
-                        isShowingFundingSelection = false
-                    },
-                    onDismiss: {
-                        isShowingFundingSelection = false
-                    }
-                )
-            }
-        }
-        .sheet(item: $onrampDestination) { target in
-            OnrampAmountScreen.forBuying(
-                mint: target.mint,
-                displayName: target.displayName,
-                session: sessionContainer.session,
-                onrampCoordinator: onrampCoordinator,
-                onDismiss: { onrampDestination = nil }
-            )
         }
         .dialog(item: Bindable(walletConnection).dialogItem)
     }
