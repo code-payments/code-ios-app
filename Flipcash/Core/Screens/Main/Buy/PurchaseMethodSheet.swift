@@ -77,9 +77,6 @@ struct PurchaseMethodSheet: View {
     }
 }
 
-// Each row is its own struct so the body stays flat and avoids `@ViewBuilder`
-// private functions (per CLAUDE.md's "no view functions" rule).
-
 private struct ApplePayMethodButton: View {
     let context: PurchaseMethodContext
     let onDismiss: () -> Void
@@ -94,7 +91,7 @@ private struct ApplePayMethodButton: View {
         } label: {
             HStack(spacing: 4) {
                 Text("Debit Card with")
-                Text("\u{F8FF} Pay")
+                Text("\u{F8FF}Pay")
                     .font(.body.bold())
             }
         }
