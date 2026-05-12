@@ -90,9 +90,6 @@ struct DestinationView: View {
         case .settingsAppSettings:
             SettingsAppSettingsScreen()
 
-        case .settingsAutoReturn:
-            SettingsAutoReturnScreen()
-
         case .settingsBetaFlags:
             BetaFlagsScreen(container: container)
 

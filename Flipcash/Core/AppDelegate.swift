@@ -107,15 +107,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     /// Globally dismisses all sheets and stacks if the app was backgrounded
-    /// long enough. No-op when no session is active, no background
-    /// timestamp exists, or the user picked `.never`. Side-effects are
-    /// confined to `AppRouter`.
+    /// long enough. No-op when no session is active or no background
+    /// timestamp exists. Side-effects are confined to `AppRouter`.
     private func applyAutoReturnIfNeeded() {
         guard let sessionContainer,
               AppDelegate.shouldAutoReturn(
                   now: .now,
-                  lastBackgroundedAt: lastBackgroundedAt,
-                  autoReturnTimeout: container.preferences.autoReturnTimeout
+                  lastBackgroundedAt: lastBackgroundedAt
               )
         else { return }
         sessionContainer.appRouter.dismissAll()
@@ -170,21 +168,22 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
 extension AppDelegate {
 
+    /// How long the app must be in the background before the next foreground
+    /// triggers a return to the Scanner.
+    static let autoReturnAfter: TimeInterval = 5 * 60
+
     /// Pure-function predicate for the auto-return trigger. Returns `true`
-    /// when the app should fall back to the Scanner: a non-`nil`
-    /// `lastBackgroundedAt`, a non-`nil` timeout (i.e. not `.never`), and
-    /// elapsed time since background >= timeout. Extracted so tests can
-    /// exercise the full timeout matrix without standing up a full
-    /// `AppDelegate` + `Container` + `Session` graph.
+    /// when the app has been in the background at least ``autoReturnAfter``.
+    /// `timeout` is a parameter so tests can pin a specific value; production
+    /// callers omit it. Extracted so tests can exercise the boundary
+    /// conditions without standing up a full `AppDelegate` + `Container` +
+    /// `Session` graph.
     static func shouldAutoReturn(
         now: Date,
         lastBackgroundedAt: Date?,
-        autoReturnTimeout: AutoReturnTimeout
+        timeout: TimeInterval = autoReturnAfter
     ) -> Bool {
-        guard let lastBackgroundedAt,
-              let timeout = autoReturnTimeout.duration else {
-            return false
-        }
+        guard let lastBackgroundedAt else { return false }
         return now.timeIntervalSince(lastBackgroundedAt) >= timeout
     }
 }

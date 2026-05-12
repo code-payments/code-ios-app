@@ -31,7 +31,6 @@ extension AppRouter {
         case settingsMyAccount
         case settingsAdvancedFeatures
         case settingsAppSettings
-        case settingsAutoReturn
         case settingsBetaFlags
         case settingsAccountSelection
         case settingsApplicationLogs
@@ -49,7 +48,7 @@ extension AppRouter {
                  .transactionHistory, .give:
                 return .balance
             case .settingsMyAccount, .settingsAdvancedFeatures, .settingsAppSettings,
-                 .settingsAutoReturn, .settingsBetaFlags, .settingsAccountSelection,
+                 .settingsBetaFlags, .settingsAccountSelection,
                  .settingsApplicationLogs, .accessKey, .depositCurrencyList, .deposit, .withdraw:
                 return .settings
             }
@@ -72,7 +71,6 @@ extension AppRouter {
             case .settingsMyAccount:            "settingsMyAccount"
             case .settingsAdvancedFeatures:     "settingsAdvancedFeatures"
             case .settingsAppSettings:          "settingsAppSettings"
-            case .settingsAutoReturn:           "settingsAutoReturn"
             case .settingsBetaFlags:            "settingsBetaFlags"
             case .settingsAccountSelection:     "settingsAccountSelection"
             case .settingsApplicationLogs:      "settingsApplicationLogs"
@@ -96,7 +94,7 @@ extension AppRouter {
                 return mint.base58
             case .discoverCurrencies, .currencyCreationSummary, .currencyCreationWizard,
                  .settingsMyAccount, .settingsAdvancedFeatures, .settingsAppSettings,
-                 .settingsAutoReturn, .settingsBetaFlags, .settingsAccountSelection,
+                 .settingsBetaFlags, .settingsAccountSelection,
                  .settingsApplicationLogs, .accessKey, .depositCurrencyList, .withdraw:
                 return nil
             }

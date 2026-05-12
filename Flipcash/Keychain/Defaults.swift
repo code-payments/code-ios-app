@@ -10,7 +10,6 @@ import Foundation
 enum DefaultsKey: String {
     case wasLoggedIn = "com.flipcash.state.wasLoggedIn"
     case launchCount = "com.flipcash.state.launchCount"
-    case autoReturnTimeout = "com.flipcash.state.autoReturnTimeout"
 
     case cameraAutoStartDisabled = "com.flipcash.camera.autoStartDisabled"
     case cameraEnabledState      = "com.flipcash.camera.cameraEnabledState"
