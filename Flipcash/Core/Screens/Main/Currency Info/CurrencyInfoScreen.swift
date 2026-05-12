@@ -255,14 +255,6 @@ struct CurrencyInfoScreen: View {
                 displayName: target.displayName,
                 session: sessionContainer.session,
                 onrampCoordinator: onrampCoordinator,
-                onUsdfReady: { signature, amount in
-                    let swapId = try await sessionContainer.session.buyWithExternalFunding(
-                        amount: amount,
-                        of: target.mint,
-                        transactionSignature: signature
-                    )
-                    return .buyExisting(swapId: swapId)
-                },
                 onDismiss: { onrampDestination = nil }
             )
         }

@@ -25,6 +25,7 @@ public enum Ocp_Transaction_V1_FundingSource: SwiftProtobuf.Enum, Swift.CaseIter
   case unknown // = 0
   case submitIntent // = 1
   case externalWallet // = 2
+  case coinbaseOnramp // = 3
   case UNRECOGNIZED(Int)
 
   public init() {
@@ -36,6 +37,7 @@ public enum Ocp_Transaction_V1_FundingSource: SwiftProtobuf.Enum, Swift.CaseIter
     case 0: self = .unknown
     case 1: self = .submitIntent
     case 2: self = .externalWallet
+    case 3: self = .coinbaseOnramp
     default: self = .UNRECOGNIZED(rawValue)
     }
   }
@@ -45,6 +47,7 @@ public enum Ocp_Transaction_V1_FundingSource: SwiftProtobuf.Enum, Swift.CaseIter
     case .unknown: return 0
     case .submitIntent: return 1
     case .externalWallet: return 2
+    case .coinbaseOnramp: return 3
     case .UNRECOGNIZED(let i): return i
     }
   }
@@ -54,6 +57,7 @@ public enum Ocp_Transaction_V1_FundingSource: SwiftProtobuf.Enum, Swift.CaseIter
     .unknown,
     .submitIntent,
     .externalWallet,
+    .coinbaseOnramp,
   ]
 
 }
@@ -926,6 +930,7 @@ public struct Ocp_Transaction_V1_StatefulSwapRequest: Sendable {
       ///
       /// For FUNDING_SOURCE_SUBMIT_INTENT, this value is the base58 encoded intent ID.
       /// For FUNDING_SOURCE_EXTERNAL_WALLET, this value is the base58 encoded transaction signature.
+      /// For FUNDING_SOURCE_COINBASE_ONRAMP, this value is the order ID
       public var fundingID: String = String()
 
       /// The fee amount to pay for this swap
@@ -3131,7 +3136,7 @@ public struct Ocp_Transaction_V1_SwapMetadata: Sendable {
 fileprivate let _protobuf_package = "ocp.transaction.v1"
 
 extension Ocp_Transaction_V1_FundingSource: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0FUNDING_SOURCE_UNKNOWN\0\u{1}FUNDING_SOURCE_SUBMIT_INTENT\0\u{1}FUNDING_SOURCE_EXTERNAL_WALLET\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0FUNDING_SOURCE_UNKNOWN\0\u{1}FUNDING_SOURCE_SUBMIT_INTENT\0\u{1}FUNDING_SOURCE_EXTERNAL_WALLET\0\u{1}FUNDING_SOURCE_COINBASE_ONRAMP\0")
 }
 
 extension Ocp_Transaction_V1_SubmitIntentRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {

@@ -629,6 +629,24 @@ class Session {
     }
 
     @discardableResult
+    func buyWithCoinbaseOnramp(
+        amount: ExchangedFiat,
+        of mint: PublicKey,
+        orderId: String
+    ) async throws -> SwapId {
+        let token = try await fetchMintMetadata(mint: mint)
+        let swapId = SwapId.generate()
+
+        return try await client.buyWithCoinbaseOnramp(
+            swapId: swapId,
+            amount: amount,
+            of: token.metadata,
+            owner: owner,
+            orderId: orderId
+        )
+    }
+
+    @discardableResult
     func launchCurrency(
         name: String,
         description: String,
@@ -720,6 +738,39 @@ class Session {
         )
 
         logger.info("New currency buy (external) completed", metadata: [
+            "swapId": "\(metadata.swapId.publicKey.base58)",
+            "state": "\(metadata.state)"
+        ])
+
+        updatePostTransaction()
+        return metadata.swapId
+    }
+
+    @discardableResult
+    func buyNewCurrencyWithCoinbaseOnramp(
+        amount: ExchangedFiat,
+        feeAmount: ExchangedFiat,
+        mint: PublicKey,
+        orderId: String
+    ) async throws -> SwapId {
+        logger.info("Buying new currency (Coinbase onramp funding)", metadata: [
+            "amount": "\(amount.nativeAmount.formatted())",
+            "feeAmount": "\(feeAmount.nativeAmount.formatted())",
+            "mint": "\(mint.base58)",
+            "orderId": "\(orderId)"
+        ])
+
+        let swapId = SwapId.generate()
+        let metadata = try await client.buyNewCurrencyWithCoinbaseOnramp(
+            swapId: swapId,
+            amount: amount,
+            feeAmount: feeAmount,
+            mint: mint,
+            owner: ownerKeyPair,
+            orderId: orderId
+        )
+
+        logger.info("New currency buy (Coinbase onramp) completed", metadata: [
             "swapId": "\(metadata.swapId.publicKey.base58)",
             "state": "\(metadata.state)"
         ])

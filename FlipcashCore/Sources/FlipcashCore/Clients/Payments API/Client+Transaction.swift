@@ -156,6 +156,33 @@ extension Client {
         }
     }
 
+    /// Buy an existing currency funded by a Coinbase Onramp order.
+    /// Server watches the order; submits the swap when Coinbase clears.
+    @discardableResult
+    public func buyWithCoinbaseOnramp(
+        swapId: SwapId,
+        amount: ExchangedFiat,
+        of token: MintMetadata,
+        owner: AccountCluster,
+        orderId: String
+    ) async throws -> SwapId {
+        try await ensureAccountExists(
+            owner: owner.authority.keyPair,
+            ownerAuthority: owner.authority,
+            token: token
+        )
+
+        return try await withCheckedThrowingContinuation { c in
+            transactionService.buyWithCoinbaseOnramp(
+                swapId: swapId,
+                amount: amount,
+                of: token,
+                owner: owner.authority.keyPair,
+                orderId: orderId
+            ) { c.resume(with: $0) }
+        }
+    }
+
     @discardableResult
     public func sell(amount: ExchangedFiat, verifiedState: VerifiedState, in token: MintMetadata, owner: AccountCluster) async throws -> SwapId {
         try await withCheckedThrowingContinuation { c in
@@ -233,6 +260,37 @@ extension Client {
                 amount: amount.onChainAmount,
                 feeAmount: feeAmount.onChainAmount,
                 fundingSource: .externalWallet(transactionSignature: transactionSignature),
+                owner: owner,
+                isNewCurrencyLaunch: true
+            ) { c.resume(with: $0) }
+        }
+    }
+
+    /// Same launch-first-buy atomic flow as ``buyNewCurrency`` but funded by a
+    /// Coinbase Onramp order. Server watches the order and executes the swap
+    /// once Coinbase clears, using the `TransferForSwapWithFee` server-side
+    /// path. The caller must have already created the currency on-chain via
+    /// `launch(...)` and pass the resulting mint.
+    ///
+    /// No `ensureAccountExists` precheck: the mint was just created, and the
+    /// destination ATA lives at the VM swap PDA, not on the user's owner.
+    /// Matches ``buyNewCurrencyWithExternalFunding``.
+    @discardableResult
+    public func buyNewCurrencyWithCoinbaseOnramp(
+        swapId: SwapId,
+        amount: ExchangedFiat,
+        feeAmount: ExchangedFiat,
+        mint: PublicKey,
+        owner: KeyPair,
+        orderId: String
+    ) async throws -> SwapMetadata {
+        return try await withCheckedThrowingContinuation { c in
+            transactionService.swapService.swap(
+                swapId: swapId,
+                direction: .buy(mint: .launchStub(address: mint)),
+                amount: amount.onChainAmount,
+                feeAmount: feeAmount.onChainAmount,
+                fundingSource: .coinbaseOnramp(orderId: orderId),
                 owner: owner,
                 isNewCurrencyLaunch: true
             ) { c.resume(with: $0) }

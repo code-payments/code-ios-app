@@ -146,6 +146,7 @@ public struct ApplePayEvent: Codable, Sendable {
 
         case applePayButtonPressed = "onramp_api.apple_pay_button_pressed"
         case pendingPaymentAuth    = "onramp_api.pending_payment_auth"
+        case paymentAuthorized     = "onramp_api.payment_authorized"
 
         case commitSuccess         = "onramp_api.commit_success"
         case commitError           = "onramp_api.commit_error"

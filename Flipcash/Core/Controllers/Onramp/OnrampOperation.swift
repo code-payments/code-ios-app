@@ -9,18 +9,19 @@ import FlipcashCore
 enum OnrampOperation {
     case buy(
         mint: PublicKey,
-        displayName: String,
-        onCompleted: @MainActor @Sendable (Signature, ExchangedFiat) async throws -> SignedSwapResult
+        displayName: String
     )
     case launch(
+        mint: PublicKey,
         displayName: String,
-        onCompleted: @MainActor @Sendable (Signature, ExchangedFiat) async throws -> SignedSwapResult
+        launchAmount: ExchangedFiat,
+        launchFee: ExchangedFiat
     )
 
     var displayName: String {
         switch self {
-        case .buy(_, let displayName, _): displayName
-        case .launch(let displayName, _): displayName
+        case .buy(_, let displayName):              displayName
+        case .launch(_, let displayName, _, _):     displayName
         }
     }
 
