@@ -381,11 +381,32 @@ private struct RoutedSheet: View {
                     }
                 }
             }
-        case .buy:
-            // Placeholder — replaced with `BuyAmountScreen` in the next task.
-            // The case exists now so the enum's exhaustive switch compiles
-            // alongside the new `.buy(PublicKey)` sheet presentation.
-            EmptyView()
+        case .buy(let mint):
+            NavigationStack(path: $router[.buy]) {
+                // Resolve currency name from session.balance(for: mint) when
+                // available; fall back to a placeholder if the mint isn't in
+                // the user's balance set (e.g., a deeplink to a currency they
+                // don't yet hold).
+                BuyAmountScreen(
+                    mint: mint,
+                    currencyName: sessionContainer.session.balance(for: mint)?.name ?? "this currency",
+                    session: sessionContainer.session,
+                    ratesController: sessionContainer.ratesController
+                )
+                .appRouterDestinations(container: container, sessionContainer: sessionContainer)
+                .navigationDestination(for: BuyFlowPath.self) { path in
+                    BuyFlowDestinationView(
+                        path: path,
+                        container: container,
+                        sessionContainer: sessionContainer
+                    )
+                }
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        CloseButton(action: router.dismissSheet)
+                    }
+                }
+            }
         }
     }
 }
