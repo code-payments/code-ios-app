@@ -49,7 +49,7 @@ struct CurrencyInfoScreen: View {
     private let ratesController: RatesController
     private let sessionContainer: SessionContainer
     private let marketCapController: MarketCapController
-    private let showFundingOnAppear: Bool
+    private let showBuyOnAppear: Bool
 
     // MARK: - Init -
 
@@ -58,14 +58,14 @@ struct CurrencyInfoScreen: View {
         viewModel: CurrencyInfoViewModel,
         container: Container,
         sessionContainer: SessionContainer,
-        showFundingOnAppear: Bool
+        showBuyOnAppear: Bool
     ) {
         self.mint                = mint
         self.container           = container
         self.ratesController     = sessionContainer.ratesController
         self.session             = sessionContainer.session
         self.sessionContainer    = sessionContainer
-        self.showFundingOnAppear = showFundingOnAppear
+        self.showBuyOnAppear = showBuyOnAppear
         self.viewModel           = viewModel
 
         self.marketCapController = MarketCapController(
@@ -77,7 +77,7 @@ struct CurrencyInfoScreen: View {
 
     /// Creates the screen by mint address. Metadata is loaded from the database
     /// (fast path) or fetched from the network, showing a loading state until ready.
-    init(mint: PublicKey, container: Container, sessionContainer: SessionContainer, showFundingOnAppear: Bool = false) {
+    init(mint: PublicKey, container: Container, sessionContainer: SessionContainer, showBuyOnAppear: Bool = false) {
         self.init(
             mint: mint,
             viewModel: CurrencyInfoViewModel(
@@ -88,7 +88,7 @@ struct CurrencyInfoScreen: View {
             ),
             container: container,
             sessionContainer: sessionContainer,
-            showFundingOnAppear: showFundingOnAppear
+            showBuyOnAppear: showBuyOnAppear
         )
     }
 
@@ -149,8 +149,8 @@ struct CurrencyInfoScreen: View {
             ratesController.ensureMintSubscribed(mint)
             await viewModel.loadMintMetadata()
 
-            if showFundingOnAppear {
-                isShowingFundingSelection = true
+            if showBuyOnAppear {
+                router.present(.buy(mint))
             }
         }
         .fullScreenCover(item: Bindable(walletConnection).processing) { processing in
