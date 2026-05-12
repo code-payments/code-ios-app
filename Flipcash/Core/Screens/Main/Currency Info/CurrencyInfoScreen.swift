@@ -93,7 +93,7 @@ struct CurrencyInfoScreen: View {
                     marketCapController: marketCapController,
                     onShowTransactionHistory: { router.push(.transactionHistory(metadata.mint)) },
                     onShowCurrencySelection: { isShowingCurrencySelection = true },
-                    onBuy: { router.present(.buy(mint)) },
+                    onBuy: { router.push(.buyAmount(mint)) },
                     onGive: {
                         Analytics.buttonTapped(name: .give)
                         router.push(.give(mint))
@@ -135,7 +135,7 @@ struct CurrencyInfoScreen: View {
             await viewModel.loadMintMetadata()
 
             if showBuyOnAppear {
-                router.present(.buy(mint))
+                router.push(.buyAmount(mint))
             }
         }
         .fullScreenCover(item: Bindable(walletConnection).processing) { processing in

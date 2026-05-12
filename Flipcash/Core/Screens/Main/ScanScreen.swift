@@ -381,29 +381,6 @@ private struct RoutedSheet: View {
                     }
                 }
             }
-        case .buy(let mint):
-            NavigationStack(path: $router[.buy]) {
-                // TODO: surface the currency name via the deeplink payload so
-                // "Purchasing X" copy stays accurate for users who don't yet
-                // hold the mint. Today the fallback "this currency" only fires
-                // for that edge case; in-app entries always have the balance
-                // row populated.
-                BuyAmountScreen(
-                    mint: mint,
-                    currencyName: sessionContainer.session.balance(for: mint)?.name ?? "this currency",
-                    session: sessionContainer.session,
-                    ratesController: sessionContainer.ratesController
-                )
-                .appRouterDestinations(container: container, sessionContainer: sessionContainer)
-                .navigationDestination(for: BuyFlowPath.self) { path in
-                    BuyFlowDestinationView(path: path)
-                }
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        CloseButton(action: router.dismissSheet)
-                    }
-                }
-            }
         }
     }
 }

@@ -12,6 +12,11 @@ import FlipcashUI
 struct BuyAmountScreen: View {
 
     @State private var viewModel: BuyAmountViewModel
+    /// Path depth on the balance stack at the entry to the buy flow. Captured
+    /// on first appear so the buy flow can pop back to whatever pushed it
+    /// (typically `currencyInfo`) when the user completes or cancels, without
+    /// knowing how many sub-flow screens were pushed in between.
+    @State private var parentDepth: Int?
 
     @Environment(AppRouter.self) private var router
     @Environment(OnrampCoordinator.self) private var coordinator
@@ -44,6 +49,10 @@ struct BuyAmountScreen: View {
         }
         .navigationTitle(viewModel.screenTitle)
         .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(for: BuyFlowPath.self) { path in
+            BuyFlowDestinationView(path: path)
+        }
+        .environment(\.dismissParentContainer, dismissBuyFlow)
         .dialog(item: $viewModel.dialogItem)
         .sheet(item: $viewModel.pendingMethodSelection) { context in
             PurchaseMethodSheet(
@@ -63,6 +72,29 @@ struct BuyAmountScreen: View {
                 swapType: .buyWithCoinbase
             ))
             coordinator.completion = nil
+        }
+        .onAppear {
+            if parentDepth == nil {
+                // path.count includes this view's own push (we're already on
+                // the stack when onAppear fires). Subtract 1 to get the depth
+                // of the screen that triggered the buy — what we pop back to
+                // when the user finishes the flow.
+                parentDepth = max(0, router[.balance].count - 1)
+            }
+        }
+    }
+
+    /// Pops every screen pushed since the buy flow started — `buyAmount`
+    /// itself plus any sub-flow (`phantomEducation`, `phantomConfirm`,
+    /// `usdcDepositEducation`, `usdcDepositAddress`, `processing`). Used by
+    /// `SwapProcessingScreen`'s OK button via `dismissParentContainer`.
+    private var dismissBuyFlow: () -> Void {
+        let depth = parentDepth
+        return { [router] in
+            guard let depth else { return }
+            let toPop = router[.balance].count - depth
+            guard toPop > 0 else { return }
+            router.popLast(toPop, on: .balance)
         }
     }
 }

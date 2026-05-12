@@ -16,11 +16,12 @@ extension AppRouter {
 
         // Wallet flow
         case currencyInfo(PublicKey)
-        /// Same screen as `currencyInfo` but auto-presents the funding-selection
-        /// sheet on appear. Modelled as a sibling case rather than an
+        /// Same screen as `currencyInfo` but auto-pushes the buy amount entry
+        /// on appear. Modelled as a sibling case rather than an
         /// associated-value flag so the trace shows "user wanted to deposit"
         /// distinctly from "user opened currency info".
         case currencyInfoForDeposit(PublicKey)
+        case buyAmount(PublicKey)
         case discoverCurrencies
         case currencyCreationSummary
         case currencyCreationWizard
@@ -43,7 +44,7 @@ extension AppRouter {
         /// navigation uses this to know which sheet to present.
         var owningStack: Stack {
             switch self {
-            case .currencyInfo, .currencyInfoForDeposit, .discoverCurrencies,
+            case .currencyInfo, .currencyInfoForDeposit, .buyAmount, .discoverCurrencies,
                  .currencyCreationSummary, .currencyCreationWizard,
                  .transactionHistory, .give:
                 return .balance
@@ -63,6 +64,7 @@ extension AppRouter {
             switch self {
             case .currencyInfo:                 "currencyInfo"
             case .currencyInfoForDeposit:       "currencyInfoForDeposit"
+            case .buyAmount:                    "buyAmount"
             case .discoverCurrencies:           "discoverCurrencies"
             case .currencyCreationSummary:      "currencyCreationSummary"
             case .currencyCreationWizard:       "currencyCreationWizard"
@@ -88,6 +90,7 @@ extension AppRouter {
             switch self {
             case .currencyInfo(let mint),
                  .currencyInfoForDeposit(let mint),
+                 .buyAmount(let mint),
                  .transactionHistory(let mint),
                  .give(let mint),
                  .deposit(let mint):

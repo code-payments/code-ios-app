@@ -45,6 +45,15 @@ struct DestinationView: View {
             )
             .id(mint)
 
+        case .buyAmount(let mint):
+            BuyAmountScreen(
+                mint: mint,
+                currencyName: sessionContainer.session.balance(for: mint)?.name ?? "this currency",
+                session: sessionContainer.session,
+                ratesController: sessionContainer.ratesController
+            )
+            .id(mint)
+
         case .discoverCurrencies:
             CurrencyDiscoveryScreen(
                 container: container,
