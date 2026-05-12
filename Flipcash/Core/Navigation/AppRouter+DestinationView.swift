@@ -41,7 +41,7 @@ struct DestinationView: View {
                 mint: mint,
                 container: container,
                 sessionContainer: sessionContainer,
-                showFundingOnAppear: true
+                showBuyOnAppear: true
             )
             .id(mint)
 
