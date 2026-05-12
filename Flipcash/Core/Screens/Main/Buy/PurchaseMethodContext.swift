@@ -12,7 +12,7 @@ import FlipcashCore
 /// screen into whichever funding branch the user picks (Apple Pay, Phantom,
 /// Other Wallet). Carrying the pin avoids re-fetching the verified state at
 /// each step and preserves the pin-at-compute invariant.
-struct PurchaseMethodContext: Identifiable {
+struct PurchaseMethodContext: Identifiable, Sendable {
     let id = UUID()
     let mint: PublicKey
     let currencyName: String

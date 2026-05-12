@@ -58,11 +58,12 @@ struct USDCDepositAddressScreen: View {
         }
         .navigationTitle("Deposit USDC")
         .navigationBarTitleDisplayMode(.inline)
-        .task {
+        .onAppear {
             // PDA derivation runs Ed25519 isOnCurve checks against up to 256
             // candidate seeds, so resolve once on appear instead of on every
             // body evaluation (`buttonState` flips to `.successText("Copied")`
-            // on tap, which would re-derive otherwise).
+            // on tap, which would re-derive otherwise). The work is synchronous
+            // so `.onAppear` is the right tool — `.task` would be misleading.
             depositAddress = MintMetadata.usdf
                 .timelockSwapAccounts(owner: session.owner.authorityPublicKey)?
                 .ata.publicKey.base58

@@ -23,6 +23,11 @@ struct PhantomEducationScreen: View {
     @Environment(AppRouter.self) private var router
     @Environment(WalletConnection.self) private var walletConnection
 
+    /// Single-shot advance latch. Without this, popping back from
+    /// `phantomConfirm` re-fires the auto-push (the user is still connected)
+    /// and the back button effectively does nothing.
+    @State private var didAutoAdvance = false
+
     var body: some View {
         Background(color: .backgroundMain) {
             ScrollView {
@@ -52,7 +57,8 @@ struct PhantomEducationScreen: View {
         .onChange(of: walletConnection.session != nil, initial: true) { _, isConnected in
             // Auto-advance when Phantom returns from the connect deeplink, or
             // immediately on appear if a prior session already exists.
-            guard isConnected else { return }
+            guard isConnected, !didAutoAdvance else { return }
+            didAutoAdvance = true
             router.pushAny(BuyFlowPath.phantomConfirm(mint: mint, amount: amount))
         }
     }

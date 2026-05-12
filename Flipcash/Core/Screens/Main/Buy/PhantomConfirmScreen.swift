@@ -29,6 +29,7 @@ struct PhantomConfirmScreen: View {
     @Environment(Session.self) private var session
 
     @State private var dialogItem: DialogItem?
+    @State private var confirmTask: Task<Void, Never>?
 
     var body: some View {
         Background(color: .backgroundMain) {
@@ -57,6 +58,13 @@ struct PhantomConfirmScreen: View {
         .navigationTitle("Confirmation")
         .navigationBarTitleDisplayMode(.inline)
         .dialog(item: $dialogItem)
+        .onDisappear {
+            // Cancel any in-flight swap request if the user backs out before
+            // Phantom returns. Without this, requestSwap's deeplink-out and
+            // pendingSwap mutation can fire against a popped screen.
+            confirmTask?.cancel()
+            confirmTask = nil
+        }
         .onChange(of: walletConnection.state) { _, newState in
             // Push the processing screen the moment the swap context appears.
             // `state` flips to `.buying(..., isFailed: false)` immediately
@@ -75,13 +83,17 @@ struct PhantomConfirmScreen: View {
     }
 
     private func confirmInPhantom() {
-        Task {
+        confirmTask?.cancel()
+        confirmTask = Task {
             do {
                 let metadata = try await session.fetchMintMetadata(mint: mint)
+                try Task.checkCancellation()
                 try await walletConnection.requestSwap(
                     usdc: amount.onChainAmount,
                     token: metadata.metadata
                 )
+            } catch is CancellationError {
+                return
             } catch {
                 logger.error("Failed to request Phantom swap", metadata: [
                     "mint": "\(mint.base58)",
@@ -93,12 +105,7 @@ struct PhantomConfirmScreen: View {
                     reason: "Failed to request Phantom swap from PhantomConfirmScreen",
                     metadata: ["mint": mint.base58]
                 )
-                dialogItem = .init(
-                    style: .destructive,
-                    title: "Something Went Wrong",
-                    subtitle: "We couldn't open Phantom. Please try again.",
-                    dismissable: true
-                ) { .okay(kind: .destructive) }
+                dialogItem = .somethingWentWrong
             }
         }
     }

@@ -83,34 +83,26 @@ struct BuyAmountViewModelTests {
         #expect(viewModel.pendingMethodSelection == nil)
     }
 
-    @Test("Insufficient USDF balance opens the funding picker")
-    func insufficientBalance_opensPicker() async throws {
-        // $5 USDF cannot cover a $20 buy.
-        let container = try await Self.makeContainer(usdfQuarks: 5_000_000)
+    @Test(
+        "Balance below the entered amount opens the funding picker",
+        arguments: [
+            (usdfQuarks: UInt64(0),         enteredAmount: "1"),
+            (usdfQuarks: UInt64(5_000_000), enteredAmount: "20"),
+        ]
+    )
+    func insufficientBalance_opensPicker(usdfQuarks: UInt64, enteredAmount: String) async throws {
+        let container = try await Self.makeContainer(usdfQuarks: usdfQuarks)
         let viewModel = Self.makeViewModel(container: container)
         let router = AppRouter()
         router.present(.buy(.usdf))
 
-        viewModel.enteredAmount = "20"
+        viewModel.enteredAmount = enteredAmount
         await viewModel.amountEnteredAction(router: router)
 
         let context = try #require(viewModel.pendingMethodSelection)
         #expect(context.amount.nativeAmount.value > 0)
         // No push fired — picker is a local sheet, not a stack destination.
         #expect(router[.buy].count == 0)
-    }
-
-    @Test("Zero USDF balance opens the funding picker")
-    func zeroBalance_opensPicker() async throws {
-        let container = try await Self.makeContainer(usdfQuarks: 0)
-        let viewModel = Self.makeViewModel(container: container)
-        let router = AppRouter()
-        router.present(.buy(.usdf))
-
-        viewModel.enteredAmount = "1"
-        await viewModel.amountEnteredAction(router: router)
-
-        #expect(viewModel.pendingMethodSelection != nil)
     }
 
     @Test("Pinned amount is carried into the PurchaseMethodContext")
@@ -142,5 +134,7 @@ struct BuyAmountViewModelTests {
         #expect(viewModel.pendingMethodSelection == nil)
         #expect(router[.buy].count == 0)
         #expect(viewModel.dialogItem == nil)
+        // Loading flicker on an empty submit would be a regression.
+        #expect(viewModel.actionButtonState == .normal)
     }
 }
