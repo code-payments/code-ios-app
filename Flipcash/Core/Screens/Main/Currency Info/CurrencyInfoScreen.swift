@@ -108,7 +108,7 @@ struct CurrencyInfoScreen: View {
                     marketCapController: marketCapController,
                     onShowTransactionHistory: { router.push(.transactionHistory(metadata.mint)) },
                     onShowCurrencySelection: { isShowingCurrencySelection = true },
-                    onBuy: { isShowingFundingSelection = true },
+                    onBuy: { router.present(.buy(mint)) },
                     onGive: {
                         Analytics.buttonTapped(name: .give)
                         router.push(.give(mint))
