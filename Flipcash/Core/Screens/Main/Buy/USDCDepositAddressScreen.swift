@@ -20,16 +20,7 @@ struct USDCDepositAddressScreen: View {
 
     @Environment(Session.self) private var session
     @State private var buttonState: ButtonState = .normal
-
-    private var depositAddress: String? {
-        // The per-user staging address on USDF: USDC sent here is converted
-        // 1:1 to USDF for the user. `ata` is the SPL-token receive address
-        // derived from the swap PDA (an SPL transfer must target a token
-        // account, not the PDA itself).
-        MintMetadata.usdf
-            .timelockSwapAccounts(owner: session.owner.authorityPublicKey)?
-            .ata.publicKey.base58
-    }
+    @State private var depositAddress: String?
 
     var body: some View {
         Background(color: .backgroundMain) {
@@ -67,6 +58,15 @@ struct USDCDepositAddressScreen: View {
         }
         .navigationTitle("Deposit USDC")
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            // PDA derivation runs Ed25519 isOnCurve checks against up to 256
+            // candidate seeds, so resolve once on appear instead of on every
+            // body evaluation (`buttonState` flips to `.successText("Copied")`
+            // on tap, which would re-derive otherwise).
+            depositAddress = MintMetadata.usdf
+                .timelockSwapAccounts(owner: session.owner.authorityPublicKey)?
+                .ata.publicKey.base58
+        }
     }
 
     private func copy(_ value: String) {
