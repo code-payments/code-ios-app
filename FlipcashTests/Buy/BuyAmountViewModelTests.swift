@@ -7,7 +7,6 @@
 
 import Foundation
 import Testing
-import FlipcashCore
 @testable import FlipcashCore
 @testable import Flipcash
 

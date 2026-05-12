@@ -19,8 +19,8 @@ final class BuyAmountViewModel: Identifiable {
     var dialogItem: DialogItem?
     var pendingMethodSelection: PurchaseMethodContext?
 
-    let mint: PublicKey
-    let currencyName: String
+    @ObservationIgnored let mint: PublicKey
+    @ObservationIgnored let currencyName: String
 
     var enteredFiat: ExchangedFiat? {
         computeAmount(using: ratesController.rateForBalanceCurrency())
@@ -37,6 +37,10 @@ final class BuyAmountViewModel: Identifiable {
     /// Single-transaction cap exposed by the server via `Limits.sendLimitFor`.
     /// Matches what `EnterAmountView`'s subtitle renders for `.buy` mode, so
     /// the in-view cap and the view-model gate stay aligned.
+    ///
+    /// Intentionally diverges from `CurrencyBuyViewModel.maxPossibleAmount`
+    /// (balance-derived): the buy-via-onramp branch must allow amounts that
+    /// exceed the user's current USDF balance — funding tops it up.
     var maxPossibleAmount: ExchangedFiat {
         let rate = ratesController.rateForBalanceCurrency()
         let maxNative = session.sendLimitFor(currency: rate.currency)?.maxPerDay
@@ -91,13 +95,17 @@ final class BuyAmountViewModel: Identifiable {
             await performAutoBuy(amount: amount, pin: pin, router: router)
         } else {
             actionButtonState = .normal
-            pendingMethodSelection = PurchaseMethodContext(
-                mint: mint,
-                currencyName: currencyName,
-                amount: amount,
-                verifiedState: pin
-            )
+            routeToPicker(amount: amount, pin: pin)
         }
+    }
+
+    private func routeToPicker(amount: ExchangedFiat, pin: VerifiedState) {
+        pendingMethodSelection = PurchaseMethodContext(
+            mint: mint,
+            currencyName: currencyName,
+            amount: amount,
+            verifiedState: pin
+        )
     }
 
     private func usdfBalanceCovers(_ amount: ExchangedFiat) -> Bool {
@@ -118,12 +126,7 @@ final class BuyAmountViewModel: Identifiable {
         } catch Session.Error.insufficientBalance {
             // Race: balance gate said OK but session.buy disagreed. Route to picker.
             actionButtonState = .normal
-            pendingMethodSelection = PurchaseMethodContext(
-                mint: mint,
-                currencyName: currencyName,
-                amount: amount,
-                verifiedState: pin
-            )
+            routeToPicker(amount: amount, pin: pin)
         } catch Session.Error.verifiedStateStale {
             actionButtonState = .normal
         } catch {
