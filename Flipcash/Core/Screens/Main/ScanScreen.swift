@@ -383,10 +383,11 @@ private struct RoutedSheet: View {
             }
         case .buy(let mint):
             NavigationStack(path: $router[.buy]) {
-                // Resolve currency name from session.balance(for: mint) when
-                // available; fall back to a placeholder if the mint isn't in
-                // the user's balance set (e.g., a deeplink to a currency they
-                // don't yet hold).
+                // TODO: surface the currency name via the deeplink payload so
+                // "Purchasing X" copy stays accurate for users who don't yet
+                // hold the mint. Today the fallback "this currency" only fires
+                // for that edge case; in-app entries always have the balance
+                // row populated.
                 BuyAmountScreen(
                     mint: mint,
                     currencyName: sessionContainer.session.balance(for: mint)?.name ?? "this currency",
@@ -395,11 +396,7 @@ private struct RoutedSheet: View {
                 )
                 .appRouterDestinations(container: container, sessionContainer: sessionContainer)
                 .navigationDestination(for: BuyFlowPath.self) { path in
-                    BuyFlowDestinationView(
-                        path: path,
-                        container: container,
-                        sessionContainer: sessionContainer
-                    )
+                    BuyFlowDestinationView(path: path)
                 }
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {

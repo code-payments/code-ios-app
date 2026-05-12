@@ -13,8 +13,6 @@ import FlipcashCore
 struct BuyFlowDestinationView: View {
 
     let path: BuyFlowPath
-    let container: Container
-    let sessionContainer: SessionContainer
 
     var body: some View {
         switch path {
@@ -27,9 +25,6 @@ struct BuyFlowDestinationView: View {
         case .usdcDepositAddress(let mint, let amount):
             USDCDepositAddressScreen(mint: mint, amount: amount)
         case .processing(let swapId, let currencyName, let amount, let swapType):
-            // swapType varies per funding path: .buyWithReserves for auto-buy,
-            // .buyWithPhantom for Phantom, .buyWithCoinbase for Apple Pay.
-            // Carried via BuyFlowPath so the pushing site picks the correct value.
             SwapProcessingScreen(
                 swapId: swapId,
                 swapType: swapType,
