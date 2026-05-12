@@ -23,10 +23,15 @@ extension SessionContainer {
     /// at construction, so the returned container's `session.balances`
     /// reflects the seed on the first access.
     ///
+    /// Pass `limits` to also seed `session.limits` — useful for view
+    /// models that gate on `sendLimitFor(currency:)` (the limits
+    /// Updateable also loads at Session init, so this must run before
+    /// the Session is constructed).
+    ///
     /// Each call produces an independent database file so tests don't
     /// share balance state.
     @MainActor
-    static func makeTest(holdings: [Holding]) throws -> SessionContainer {
+    static func makeTest(holdings: [Holding], limits: Limits? = nil) throws -> SessionContainer {
         let database = try Database(
             url: URL(fileURLWithPath: NSTemporaryDirectory())
                 .appendingPathComponent("give-test-\(UUID().uuidString).sqlite")
@@ -43,6 +48,10 @@ extension SessionContainer {
                     date: now
                 )
             }
+        }
+
+        if let limits {
+            try database.insertLimits(limits)
         }
 
         let ratesController = RatesController(container: .mock, database: database)
