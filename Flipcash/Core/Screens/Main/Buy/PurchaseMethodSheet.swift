@@ -81,13 +81,18 @@ private struct ApplePayMethodButton: View {
     let context: PurchaseMethodContext
     let onDismiss: () -> Void
 
+    @Environment(OnrampCoordinator.self) private var coordinator
+
     var body: some View {
         Button {
             onDismiss()
-            // TODO Task 10: wire up coordinator.startBuy(...) for the Apple
-            // Pay verification + Coinbase order flow. For Task 6 the tap
-            // just closes the picker so the rest of the visual flow can be
-            // smoke-tested without a runtime crash.
+            Task { @MainActor in
+                try? await Task.sleep(for: AppRouter.dismissAnimationDuration)
+                coordinator.start(
+                    .buy(mint: context.mint, displayName: context.currencyName),
+                    amount: context.amount
+                )
+            }
         } label: {
             HStack(spacing: 4) {
                 Text("Debit Card with")

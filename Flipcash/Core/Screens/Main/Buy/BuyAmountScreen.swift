@@ -14,6 +14,7 @@ struct BuyAmountScreen: View {
     @State private var viewModel: BuyAmountViewModel
 
     @Environment(AppRouter.self) private var router
+    @Environment(OnrampCoordinator.self) private var coordinator
 
     init(mint: PublicKey, currencyName: String, session: Session, ratesController: RatesController) {
         self._viewModel = State(initialValue: BuyAmountViewModel(
@@ -48,6 +49,19 @@ struct BuyAmountScreen: View {
                 context: context,
                 onDismiss: { viewModel.pendingMethodSelection = nil }
             )
+        }
+        .sheet(isPresented: Bindable(coordinator).isShowingVerificationFlow) {
+            VerifyInfoScreen(onrampCoordinator: coordinator)
+        }
+        .onChange(of: coordinator.completion) { _, newValue in
+            guard case .buyProcessing(let swapId, let currencyName, let amount) = newValue else { return }
+            router.pushAny(BuyFlowPath.processing(
+                swapId: swapId,
+                currencyName: currencyName,
+                amount: amount,
+                swapType: .buyWithCoinbase
+            ))
+            coordinator.completion = nil
         }
     }
 }
