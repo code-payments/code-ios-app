@@ -381,6 +381,11 @@ private struct RoutedSheet: View {
                     }
                 }
             }
+        case .buy:
+            // Placeholder — replaced with `BuyAmountScreen` in the next task.
+            // The case exists now so the enum's exhaustive switch compiles
+            // alongside the new `.buy(PublicKey)` sheet presentation.
+            EmptyView()
         }
     }
 }

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import FlipcashCore
 
 extension AppRouter {
 
@@ -16,6 +17,7 @@ extension AppRouter {
         case settings
         case give
         case discover
+        case buy(PublicKey)
 
         var id: Self { self }
 
@@ -28,6 +30,7 @@ extension AppRouter {
             case .settings: .settings
             case .give:     .give
             case .discover: .discover
+            case .buy:      .buy
             }
         }
 
@@ -37,6 +40,7 @@ extension AppRouter {
             case .settings: "settings"
             case .give:     "give"
             case .discover: "discover"
+            case .buy:      "buy"
             }
         }
     }
