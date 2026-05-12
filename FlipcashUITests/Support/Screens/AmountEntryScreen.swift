@@ -22,7 +22,7 @@ struct AmountEntryScreen {
     var nextButton: XCUIElement { app.buttons["Next"] }
 
     /// The "Buy" `CodeButton` on the amount entry screen.
-    /// When the CurrencyBuyAmountScreen sheet is presented, there are two "Buy" buttons in
+    /// When the BuyAmountScreen sheet is presented, there are two "Buy" buttons in
     /// the hierarchy — the footer button on CurrencyInfoScreen (index 0, behind the sheet)
     /// and the action button on the amount entry sheet (index 1, on top).
     var buyActionButton: XCUIElement {

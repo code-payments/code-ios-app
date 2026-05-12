@@ -38,9 +38,9 @@ final class BuyAmountViewModel: Identifiable {
     /// Matches what `EnterAmountView`'s subtitle renders for `.buy` mode, so
     /// the in-view cap and the view-model gate stay aligned.
     ///
-    /// Intentionally diverges from `CurrencyBuyViewModel.maxPossibleAmount`
-    /// (balance-derived): the buy-via-onramp branch must allow amounts that
-    /// exceed the user's current USDF balance — funding tops it up.
+    /// This is the daily send limit, not a balance-derived cap: the buy flow
+    /// must allow amounts that exceed the user's current USDF balance, since
+    /// funding (Apple Pay / Phantom / etc.) tops it up.
     var maxPossibleAmount: ExchangedFiat {
         let rate = ratesController.rateForBalanceCurrency()
         let maxNative = session.sendLimitFor(currency: rate.currency)?.maxPerDay
@@ -140,8 +140,8 @@ final class BuyAmountViewModel: Identifiable {
         }
     }
 
-    /// Pin verified state once, compute amount against the pin.
-    /// Mirrors CurrencyBuyViewModel.prepareSubmission so quarks can't drift.
+    /// Pin verified state once, compute amount against the pin so quarks
+    /// stay tied to the rate the server is about to verify.
     private func prepareSubmission() async -> (amount: ExchangedFiat, pinnedState: VerifiedState)? {
         let currency = ratesController.balanceCurrency
         guard let pin = await ratesController.currentPinnedState(for: currency, mint: .usdf) else {
