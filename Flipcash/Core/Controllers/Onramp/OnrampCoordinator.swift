@@ -13,6 +13,10 @@ private let logger = Logger(label: "flipcash.onramp-coordinator")
 @Observable
 final class OnrampCoordinator {
 
+    /// Coinbase Onramp's USD floor — orders below this amount fail with a
+    /// generic error, so the buy flow gates ahead of the Apple Pay sheet.
+    static let minimumPurchaseUSD: Decimal = 5
+
     // MARK: - State -
 
     /// Apple Pay order — drives the invisible WebView overlay hosted at root.
