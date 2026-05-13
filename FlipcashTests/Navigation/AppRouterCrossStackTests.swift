@@ -92,6 +92,9 @@ struct AppRouterCrossStackTests {
             (AppRouter.Destination.currencyCreationWizard,          AppRouter.Stack.balance),
             (AppRouter.Destination.transactionHistory(.usdc),       AppRouter.Stack.balance),
             (AppRouter.Destination.give(.usdc),                     AppRouter.Stack.balance),
+            (AppRouter.Destination.withdrawCurrency(.usdc),         AppRouter.Stack.balance),
+            (AppRouter.Destination.usdcDepositEducation,            AppRouter.Stack.balance),
+            (AppRouter.Destination.usdcDepositAddress,              AppRouter.Stack.balance),
             (AppRouter.Destination.settingsMyAccount,               AppRouter.Stack.settings),
             (AppRouter.Destination.settingsAdvancedFeatures,        AppRouter.Stack.settings),
             (AppRouter.Destination.settingsAppSettings,             AppRouter.Stack.settings),
@@ -109,6 +112,24 @@ struct AppRouterCrossStackTests {
         expected: AppRouter.Stack
     ) {
         #expect(destination.owningStack == expected)
+    }
+
+    @Test(
+        "Destination.payload exposes the mint for mint-bearing cases",
+        arguments: [
+            (AppRouter.Destination.withdrawCurrency(.usdc),         PublicKey.usdc.base58 as String?),
+            (AppRouter.Destination.deposit(.usdc),                  PublicKey.usdc.base58 as String?),
+            (AppRouter.Destination.currencyInfo(.usdf),             PublicKey.usdf.base58 as String?),
+            (AppRouter.Destination.usdcDepositEducation,            nil),
+            (AppRouter.Destination.usdcDepositAddress,              nil),
+            (AppRouter.Destination.withdraw,                        nil),
+        ]
+    )
+    func destination_payloadIsCorrect(
+        _ destination: AppRouter.Destination,
+        expected: String?
+    ) {
+        #expect(destination.payload == expected)
     }
 
     @Test(

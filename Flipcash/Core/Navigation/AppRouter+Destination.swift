@@ -26,6 +26,18 @@ extension AppRouter {
         case currencyCreationWizard
         case transactionHistory(PublicKey)
         case give(PublicKey)
+        /// Skips the picker step in the withdraw flow and lands the user on
+        /// `WithdrawIntroScreen` with the currency pre-selected. Pushed from
+        /// USDF Currency Info on the Wallet sheet.
+        case withdrawCurrency(PublicKey)
+        /// USDC → USDF deposit education screen. Reached from USDF Currency
+        /// Info on the Wallet sheet and from the buy flow's Other Wallet path
+        /// on the `.buy` sheet — same screen, different entry points.
+        case usdcDepositEducation
+        /// USDC → USDF deposit address screen (shows the per-user timelock
+        /// swap PDA's USDC ATA). Reached as the next step after
+        /// `.usdcDepositEducation`.
+        case usdcDepositAddress
 
         // Settings flow
         case settingsMyAccount
@@ -45,7 +57,8 @@ extension AppRouter {
             switch self {
             case .currencyInfo, .currencyInfoForDeposit, .discoverCurrencies,
                  .currencyCreationSummary, .currencyCreationWizard,
-                 .transactionHistory, .give:
+                 .transactionHistory, .give, .withdrawCurrency,
+                 .usdcDepositEducation, .usdcDepositAddress:
                 return .balance
             case .settingsMyAccount, .settingsAdvancedFeatures, .settingsAppSettings,
                  .settingsBetaFlags, .settingsAccountSelection,
@@ -68,6 +81,9 @@ extension AppRouter {
             case .currencyCreationWizard:       "currencyCreationWizard"
             case .transactionHistory:           "transactionHistory"
             case .give:                         "give"
+            case .withdrawCurrency:             "withdrawCurrency"
+            case .usdcDepositEducation:         "usdcDepositEducation"
+            case .usdcDepositAddress:           "usdcDepositAddress"
             case .settingsMyAccount:            "settingsMyAccount"
             case .settingsAdvancedFeatures:     "settingsAdvancedFeatures"
             case .settingsAppSettings:          "settingsAppSettings"
@@ -90,9 +106,11 @@ extension AppRouter {
                  .currencyInfoForDeposit(let mint),
                  .transactionHistory(let mint),
                  .give(let mint),
+                 .withdrawCurrency(let mint),
                  .deposit(let mint):
                 return mint.base58
             case .discoverCurrencies, .currencyCreationSummary, .currencyCreationWizard,
+                 .usdcDepositEducation, .usdcDepositAddress,
                  .settingsMyAccount, .settingsAdvancedFeatures, .settingsAppSettings,
                  .settingsBetaFlags, .settingsAccountSelection,
                  .settingsApplicationLogs, .accessKey, .depositCurrencyList, .withdraw:

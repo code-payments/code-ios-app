@@ -9,14 +9,11 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-/// Pre-flight for the "Other Wallet" path: explains that incoming Solana USDC
-/// is auto-converted 1:1 to USDF on receipt. Tapping Next pushes
-/// `BuyFlowPath.usdcDepositAddress` so the user can copy the destination
-/// address.
+/// Pre-flight for the USDC → USDF conversion: explains that incoming Solana
+/// USDC is auto-converted 1:1 to USDF on receipt. Reached from the buy flow's
+/// "Other Wallet" path and from the USDF Currency Info screen's "Deposit"
+/// button — same screen, same destination address regardless of entry point.
 struct USDCDepositEducationScreen: View {
-
-    let mint: PublicKey
-    let amount: ExchangedFiat
 
     @Environment(AppRouter.self) private var router
 
@@ -45,7 +42,7 @@ struct USDCDepositEducationScreen: View {
                 Spacer()
 
                 Button("Next") {
-                    router.pushAny(BuyFlowPath.usdcDepositAddress(mint: mint, amount: amount))
+                    router.push(.usdcDepositAddress)
                 }
                 .buttonStyle(.filled)
             }

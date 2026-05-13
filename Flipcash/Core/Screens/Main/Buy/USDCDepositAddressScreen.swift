@@ -9,14 +9,12 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-/// Displays the per-user USDC deposit address — the USDF swap PDA's USDC ATA.
-/// Anything received here is auto-converted 1:1 to USDF on receipt by the
-/// server-side watcher. Mirrors the established settings `DepositScreen`
-/// pattern (`ImmutableField` + `CodeButton` with `.successText("Copied")`).
+/// Displays the per-user USDC deposit address — the USDF swap PDA itself,
+/// matching the address Coinbase Onramp sends to. Anything received here is
+/// auto-converted 1:1 to USDF on receipt by the server-side watcher. Mirrors
+/// the established settings `DepositScreen` pattern (`ImmutableField` +
+/// `CodeButton` with `.successText("Copied")`).
 struct USDCDepositAddressScreen: View {
-
-    let mint: PublicKey
-    let amount: ExchangedFiat
 
     @Environment(Session.self) private var session
     @State private var buttonState: ButtonState = .normal
@@ -66,7 +64,7 @@ struct USDCDepositAddressScreen: View {
             // so `.onAppear` is the right tool — `.task` would be misleading.
             depositAddress = MintMetadata.usdf
                 .timelockSwapAccounts(owner: session.owner.authorityPublicKey)?
-                .ata.publicKey.base58
+                .pda.publicKey.base58
         }
     }
 

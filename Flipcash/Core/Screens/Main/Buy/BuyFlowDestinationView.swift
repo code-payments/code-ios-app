@@ -20,10 +20,6 @@ struct BuyFlowDestinationView: View {
             PhantomEducationScreen(mint: mint, amount: amount)
         case .phantomConfirm(let mint, let amount):
             PhantomConfirmScreen(mint: mint, amount: amount)
-        case .usdcDepositEducation(let mint, let amount):
-            USDCDepositEducationScreen(mint: mint, amount: amount)
-        case .usdcDepositAddress(let mint, let amount):
-            USDCDepositAddressScreen(mint: mint, amount: amount)
         case .processing(let swapId, let currencyName, let amount, let swapType):
             SwapProcessingScreen(
                 swapId: swapId,

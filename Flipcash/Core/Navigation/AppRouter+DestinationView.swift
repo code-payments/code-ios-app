@@ -138,6 +138,19 @@ struct DestinationView: View {
                 container: container,
                 sessionContainer: sessionContainer
             )
+
+        case .withdrawCurrency(let mint):
+            PreselectedWithdrawRoot(
+                mint: mint,
+                container: container,
+                sessionContainer: sessionContainer
+            )
+
+        case .usdcDepositEducation:
+            USDCDepositEducationScreen()
+
+        case .usdcDepositAddress:
+            USDCDepositAddressScreen()
         }
     }
 }

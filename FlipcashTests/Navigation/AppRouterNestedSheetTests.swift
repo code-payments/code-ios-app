@@ -295,6 +295,19 @@ struct AppRouterNestedSheetTests {
         #expect(router[.balance].isEmpty, "root stack stays clean")
     }
 
+    @Test("top-level Destination push while .buy is nested lands on .buy stack")
+    func push_topLevelDestination_whileBuyNested_landsOnBuyStack() {
+        let router = AppRouter()
+        router.present(.balance)
+        router.presentNested(.buy(Self.mintA))
+
+        router.push(.usdcDepositEducation)
+        router.push(.usdcDepositAddress)
+
+        #expect(router[.buy] == AppRouter.navigationPath(.usdcDepositEducation, .usdcDepositAddress))
+        #expect(router[.balance].isEmpty, "balance stack stays clean")
+    }
+
     // MARK: - Buy sheet wiring
 
     @Test(".buy(mint) sheet maps to .buy stack")

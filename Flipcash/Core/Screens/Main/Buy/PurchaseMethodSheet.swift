@@ -83,7 +83,7 @@ private struct MethodButton: View {
         case .phantom:
             PhantomMethodButton(context: context, onDismiss: onDismiss, router: router)
         case .otherWallet:
-            OtherWalletMethodButton(context: context, onDismiss: onDismiss, router: router)
+            OtherWalletMethodButton(onDismiss: onDismiss, router: router)
         }
     }
 }
@@ -132,11 +132,8 @@ private struct ApplePayMethodButton: View {
                 coordinator.start(.buy(mint: mint, displayName: displayName), amount: amount)
             }
         } label: {
-            HStack(spacing: 4) {
-                Text("Debit Card with")
-                Text("\u{F8FF}Pay")
-                    .font(.body.bold())
-            }
+            Text("\u{F8FF}Pay")
+                .font(.body.bold())
         }
         .buttonStyle(.filled)
     }
@@ -177,16 +174,13 @@ private struct PhantomMethodButton: View {
 }
 
 private struct OtherWalletMethodButton: View {
-    let context: PurchaseMethodContext
     let onDismiss: () -> Void
     let router: AppRouter
 
     var body: some View {
         Button("Other Wallet") {
-            let mint = context.mint
-            let amount = context.amount
             dismissThenDispatch(onDismiss: onDismiss) { [router] in
-                router.pushAny(BuyFlowPath.usdcDepositEducation(mint: mint, amount: amount))
+                router.push(.usdcDepositEducation)
             }
         }
         .buttonStyle(.filled)

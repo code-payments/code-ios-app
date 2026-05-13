@@ -20,7 +20,5 @@ import FlipcashCore
 enum BuyFlowPath: Hashable, Sendable {
     case phantomEducation(mint: PublicKey, amount: ExchangedFiat)
     case phantomConfirm(mint: PublicKey, amount: ExchangedFiat)
-    case usdcDepositEducation(mint: PublicKey, amount: ExchangedFiat)
-    case usdcDepositAddress(mint: PublicKey, amount: ExchangedFiat)
     case processing(swapId: SwapId, currencyName: String, amount: ExchangedFiat, swapType: SwapType)
 }

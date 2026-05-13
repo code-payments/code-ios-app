@@ -116,6 +116,11 @@ private struct BuySheetRoot: View {
             // success. BuyAmountScreen itself dismisses via the same env value
             // through its toolbar close button.
             .environment(\.dismissParentContainer, { router.dismissSheet() })
+            // Top-level `AppRouter.Destination` cases (e.g. `.usdcDepositEducation`,
+            // `.usdcDepositAddress`) are pushed from the Other Wallet path. They
+            // share the same screens reached from the Wallet sheet, so register
+            // the app-wide destination map here too.
+            .appRouterDestinations(container: container, sessionContainer: sessionContainer)
         }
     }
 }
