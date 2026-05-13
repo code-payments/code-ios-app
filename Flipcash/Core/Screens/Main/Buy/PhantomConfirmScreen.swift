@@ -73,7 +73,6 @@ struct PhantomConfirmScreen: View {
         }
         .navigationTitle("Confirmation")
         .navigationBarTitleDisplayMode(.inline)
-        .interactiveDismissDisabled(walletConnection.isAwaitingExternalSwap)
         .onDisappear {
             // Cancel any in-flight swap request if the user backs out before
             // Phantom returns. Without this, requestSwap's deeplink-out and

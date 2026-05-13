@@ -30,7 +30,12 @@ struct BuyAmountScreen: View {
     }
 
     private var isDismissBlocked: Bool {
-        coordinator.isProcessingPayment || walletConnection.isAwaitingExternalSwap
+        // Any pushed sub-flow screen (Phantom confirm, USDC deposit address,
+        // processing) — destination-level `interactiveDismissDisabled(true)`
+        // does NOT propagate through the nested-sheet binding, so gate at
+        // the NavigationStack root by checking the path is non-empty.
+        if !router[.buy].isEmpty { return true }
+        return coordinator.isProcessingPayment || walletConnection.isAwaitingExternalSwap
     }
 
     var body: some View {
@@ -41,7 +46,13 @@ struct BuyAmountScreen: View {
                 mode: .buy,
                 enteredAmount: $viewModel.enteredAmount,
                 subtitle: .singleTransactionLimit,
-                actionState: $viewModel.actionButtonState,
+                // Surface coordinator's in-flight Apple Pay/Coinbase setup as
+                // a spinner on the Buy button — the picker dismisses fast and
+                // the Apple Pay sheet can take a beat to open.
+                actionState: Binding(
+                    get: { coordinator.isProcessingPayment ? .loading : viewModel.actionButtonState },
+                    set: { viewModel.actionButtonState = $0 }
+                ),
                 actionEnabled: { _ in viewModel.canPerformAction },
                 action: {
                     Task { await viewModel.amountEnteredAction(router: router) }
@@ -60,6 +71,7 @@ struct BuyAmountScreen: View {
                 }
             }
         }
+        .interactiveDismissDisabled(isDismissBlocked)
         .navigationDestination(for: BuyFlowPath.self) { path in
             // Env value must be set on the destination view itself — modifiers
             // on the source view don't propagate to navigation destinations
@@ -77,6 +89,10 @@ struct BuyAmountScreen: View {
                 })
         }
         .dialog(item: $viewModel.dialogItem)
+        // Coordinator surfaces Coinbase/Apple Pay failures (e.g. order
+        // creation rejected, swap-amount mismatch) via its own dialog item;
+        // bind it here so the user sees the error instead of a silent flicker.
+        .dialog(item: $coordinator.dialogItem)
         .sheet(item: $viewModel.pendingMethodSelection) { context in
             PurchaseMethodSheet(
                 context: context,
