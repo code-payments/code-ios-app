@@ -121,13 +121,23 @@ private struct PhantomMethodButton: View {
     let onDismiss: () -> Void
     let router: AppRouter
 
+    @Environment(WalletConnection.self) private var walletConnection
+
     var body: some View {
         Button {
             Analytics.buttonTapped(name: .buyWithPhantom)
             onDismiss()
+            // Skip the education screen when a Phantom session already exists
+            // — the user has connected before and just needs to confirm. The
+            // education screen's auto-advance latch breaks on pop-back from
+            // confirm, which would otherwise surface a stale "Connect Your
+            // Phantom Wallet" CTA to an already-connected user.
+            let nextStep: BuyFlowPath = walletConnection.isConnected
+                ? .phantomConfirm(mint: context.mint, amount: context.amount)
+                : .phantomEducation(mint: context.mint, amount: context.amount)
             Task {
                 try? await Task.sleep(for: AppRouter.dismissAnimationDuration)
-                router.pushAny(BuyFlowPath.phantomEducation(mint: context.mint, amount: context.amount))
+                router.pushAny(nextStep)
             }
         } label: {
             HStack(spacing: 4) {

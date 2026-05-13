@@ -9,12 +9,13 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-/// "Buy With Phantom" pre-flight: explains the swap, then triggers
-/// `WalletConnection.connectToPhantom()`. When Phantom returns and the
-/// underlying `session` becomes non-nil, the `.onChange` observer pushes
-/// `BuyFlowPath.phantomConfirm` automatically. `initial: true` also handles
-/// the case where the user lands on this screen already connected (a prior
-/// Phantom session persists in the keychain across launches).
+private let logger = Logger(label: "flipcash.phantom-education")
+
+/// "Buy With Phantom" pre-flight: explains the swap, then triggers an async
+/// `WalletConnection.connect()` (the wrapper that sets `pendingConnect` so
+/// the legacy `isShowingAmountEntry` side-effect on the wallet controller is
+/// suppressed). On success, push `phantomConfirm`. User-cancel in Phantom
+/// throws `CancellationError` and lands silently back on this screen.
 struct PhantomEducationScreen: View {
 
     let mint: PublicKey
@@ -22,11 +23,9 @@ struct PhantomEducationScreen: View {
 
     @Environment(AppRouter.self) private var router
     @Environment(WalletConnection.self) private var walletConnection
+    @Environment(Session.self) private var session
 
-    /// Single-shot advance latch. Without this, popping back from
-    /// `phantomConfirm` re-fires the auto-push (the user is still connected)
-    /// and the back button effectively does nothing.
-    @State private var didAutoAdvance = false
+    @State private var connectTask: Task<Void, Never>?
 
     var body: some View {
         Background(color: .backgroundMain) {
@@ -47,19 +46,46 @@ struct PhantomEducationScreen: View {
             }
             .safeAreaInset(edge: .bottom) {
                 BubbleButton(text: "Connect Your Phantom Wallet") {
-                    walletConnection.connectToPhantom()
+                    connect()
                 }
                 .padding()
             }
         }
         .navigationTitle("Purchase")
         .navigationBarTitleDisplayMode(.inline)
-        .onChange(of: walletConnection.session != nil, initial: true) { _, isConnected in
-            // Auto-advance when Phantom returns from the connect deeplink, or
-            // immediately on appear if a prior session already exists.
-            guard isConnected, !didAutoAdvance else { return }
-            didAutoAdvance = true
-            router.pushAny(BuyFlowPath.phantomConfirm(mint: mint, amount: amount))
+        .onDisappear {
+            connectTask?.cancel()
+            connectTask = nil
+        }
+    }
+
+    private func connect() {
+        connectTask?.cancel()
+        connectTask = Task {
+            // If a prior session already exists, `connect()` returns
+            // immediately without deeplinking. Either way, advance.
+            do {
+                try await walletConnection.connect()
+                try Task.checkCancellation()
+                router.pushAny(BuyFlowPath.phantomConfirm(mint: mint, amount: amount))
+            } catch is CancellationError {
+                return
+            } catch {
+                logger.error("Failed to connect to Phantom", metadata: [
+                    "error": "\(error)",
+                ])
+                // Route through `session.dialogItem` so the alert renders in
+                // the dedicated DialogWindow at alert level — a local
+                // `.dialog(item:)` is a sheet under the hood and would
+                // conflict with the `.buy` nested sheet's presentation queue
+                // (tearing this screen down on present).
+                session.dialogItem = .init(
+                    style: .destructive,
+                    title: "Couldn't Connect",
+                    subtitle: "We couldn't connect to your Phantom wallet. Please try again.",
+                    dismissable: true
+                ) { .okay(kind: .destructive) }
+            }
         }
     }
 }
