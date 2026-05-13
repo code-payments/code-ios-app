@@ -20,8 +20,6 @@ struct ScanScreen: View {
 
     @State private var viewModel: ScanViewModel
 
-    @State private var giveViewModel: GiveViewModel
-
     @State private var cameraAuthorizer = CameraAuthorizer()
 
     @State private var sendButtonState: ButtonState = .normal
@@ -66,11 +64,6 @@ struct ScanScreen: View {
         self.session          = sessionContainer.session
         
         self.viewModel = ScanViewModel(
-            container: container,
-            sessionContainer: sessionContainer
-        )
-
-        self.giveViewModel = GiveViewModel(
             container: container,
             sessionContainer: sessionContainer
         )
@@ -157,8 +150,7 @@ struct ScanScreen: View {
             RoutedSheet(
                 sheet: sheet,
                 container: container,
-                sessionContainer: sessionContainer,
-                giveViewModel: giveViewModel
+                sessionContainer: sessionContainer
             )
         }
         // Dismiss all presented sheets when a bill is about to appear.
@@ -169,7 +161,6 @@ struct ScanScreen: View {
         .onChange(of: session.presentationState.isPresenting) { _, isPresenting in
             guard isPresenting else { return }
             router.dismissSheet()
-            giveViewModel.isPresented = false
         }
         // Reset button state on bill dismissal — `sendButtonState` outlives individual bills.
         .onChange(of: session.billState.bill) { _, newBill in
@@ -259,11 +250,7 @@ struct ScanScreen: View {
             Spacer()
             ScanBottomBar(
                 toast: toast,
-                onGive: {
-                    if giveViewModel.attemptPresent() {
-                        router.present(.give)
-                    }
-                },
+                onGive: presentGive,
                 onWallet: { router.present(.balance) },
                 onDiscover: { router.present(.discover) }
             )
@@ -316,7 +303,18 @@ struct ScanScreen: View {
     }
 
     // MARK: - Actions -
-    
+
+    private func presentGive() {
+        let rate = sessionContainer.ratesController.rateForBalanceCurrency()
+        guard session.hasGiveableBalance(for: rate) else {
+            session.dialogItem = .noGiveableBalance(
+                onDiscover: { router.present(.discover) }
+            )
+            return
+        }
+        router.present(.give)
+    }
+
     private func dismissBill() {
         session.dismissCashBill(style: .slide)
 //        if let action = session.billState.secondaryAction {
@@ -340,7 +338,6 @@ private struct RoutedSheet: View {
     let sheet: AppRouter.SheetPresentation
     let container: Container
     let sessionContainer: SessionContainer
-    let giveViewModel: GiveViewModel
 
     @Environment(AppRouter.self) private var router
 
@@ -358,19 +355,18 @@ private struct RoutedSheet: View {
                 sessionContainer: sessionContainer
             )
         case .give:
-            // Stack bound to the router so deposit-mint pushes from inside
-            // GiveScreen (`.currencyInfoForDeposit`) actually render.
             NavigationStack(path: $router[.give]) {
-                GiveScreen(viewModel: giveViewModel)
-                    .appRouterDestinations(container: container, sessionContainer: sessionContainer)
-                    .toolbar {
-                        ToolbarItem(placement: .topBarTrailing) {
-                            CloseButton {
-                                giveViewModel.isPresented = false
-                                router.dismissSheet()
-                            }
-                        }
+                GiveScreen(
+                    container: container,
+                    sessionContainer: sessionContainer,
+                    mint: nil
+                )
+                .appRouterDestinations(container: container, sessionContainer: sessionContainer)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        CloseButton(action: router.dismissSheet)
                     }
+                }
             }
         case .discover:
             NavigationStack(path: $router[.discover]) {
@@ -388,4 +384,3 @@ private struct RoutedSheet: View {
         }
     }
 }
-

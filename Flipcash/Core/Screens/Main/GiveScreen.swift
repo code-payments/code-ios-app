@@ -9,29 +9,18 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-/// Amount entry screen for giving cash to another user.
-///
-/// This view does not own a `NavigationStack` — the caller is responsible
-/// for providing one. When presented as a **sheet** (e.g. from `ScanScreen`),
-/// wrap it in a `NavigationStack` and add a close button. When **pushed**
-/// (e.g. from `CurrencyInfoScreen`), use it directly inside the existing
-/// navigation stack.
-///
-/// On completion (`viewModel.isPresented` becomes `false`), this view calls
-/// `dismissParentContainer()` so that any ancestor sheet is dismissed in a
-/// single animation before the bill appears.
+/// Amount entry screen for giving cash to another user. Caller provides the
+/// surrounding `NavigationStack` (sheet wraps it, push uses the active one).
 struct GiveScreen: View {
 
     @Environment(Session.self) private var session
     @Environment(RatesController.self) private var ratesController
     @Environment(AppRouter.self) private var router
 
-    @Bindable private var viewModel: GiveViewModel
+    @State private var viewModel: GiveViewModel
 
     @State private var isShowingCurrencySelection: Bool = false
     @State private var isShowingTokenSelection: Bool = false
-
-    @Environment(\.dismissParentContainer) private var dismissParentContainer
 
     private var maxLimit: ExchangedFiat {
         let rate = ratesController.rateForBalanceCurrency()
@@ -54,8 +43,12 @@ struct GiveScreen: View {
 
     // MARK: - Init -
 
-    init(viewModel: GiveViewModel) {
-        self.viewModel = viewModel
+    init(container: Container, sessionContainer: SessionContainer, mint: PublicKey?) {
+        _viewModel = State(initialValue: GiveViewModel(
+            container: container,
+            sessionContainer: sessionContainer,
+            mint: mint
+        ))
     }
 
     // MARK: - Body -
@@ -106,11 +99,6 @@ struct GiveScreen: View {
                 },
                 fixedRate: nil,
             )
-        }
-        .onChange(of: viewModel.isPresented) { _, isPresented in
-            if !isPresented {
-                dismissParentContainer()
-            }
         }
     }
 

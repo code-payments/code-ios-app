@@ -168,6 +168,15 @@ class Session {
         // SwiftUI body re-eval from amount-entry computed props.
         updateableBalances.value.first { $0.mint == mint }
     }
+
+    /// True when the user has at least one non-USDF balance with a displayable
+    /// fiat value. Skips the sort + allocate that `balances(for:)` does, so
+    /// callers gating a presentation pay only the early-exit predicate cost.
+    func hasGiveableBalance(for rate: Rate) -> Bool {
+        updateableBalances.value.contains { stored in
+            stored.mint != .usdf && stored.computeExchangedValue(with: rate).hasDisplayableValue()
+        }
+    }
     
     @ObservationIgnored private let container: Container
     @ObservationIgnored private let client: Client

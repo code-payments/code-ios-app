@@ -18,14 +18,15 @@ struct GiveViewModelTests {
 
     // MARK: - Test Helpers
 
-    /// Helper to create a test view model
+    /// Helper to create a test view model with no mint (auto-select path).
     static func createViewModel() -> GiveViewModel {
         let container = Container.mock
         let sessionContainer = SessionContainer.mock
 
         let viewModel = GiveViewModel(
             container: container,
-            sessionContainer: sessionContainer
+            sessionContainer: sessionContainer,
+            mint: nil
         )
 
         return viewModel
@@ -78,7 +79,7 @@ struct GiveViewModelTests {
 
     @Test
     func testInitialization() {
-        // Given/When: Creating a new view model
+        // Given/When: Creating a new view model with no balances and no mint
         let viewModel = Self.createViewModel()
 
         // Then: Initial state should be correct
@@ -87,61 +88,6 @@ struct GiveViewModelTests {
         #expect(viewModel.session.dialogItem == nil)
         #expect(viewModel.selectedBalance == nil)
         #expect(viewModel.canGive == false)
-    }
-
-    // MARK: - Presentation Tests
-
-    @Test("attemptPresent with no giveable balances returns false and shows error")
-    func testAttemptPresent_NoBalances_RejectsAndShowsError() {
-        let viewModel = Self.createViewModel()
-
-        let presented = viewModel.attemptPresent()
-
-        #expect(presented == false)
-        #expect(viewModel.isPresented == false)
-        #expect(viewModel.session.dialogItem != nil)
-        #expect(viewModel.selectedBalance == nil)
-    }
-
-    @Test("No-balance dialog uses the standard (non-destructive) style")
-    func testAttemptPresent_NoBalances_UsesStandardStyle() throws {
-        let viewModel = Self.createViewModel()
-
-        _ = viewModel.attemptPresent()
-
-        let dialog = try #require(viewModel.session.dialogItem)
-        #expect(dialog.style == .standard)
-    }
-
-    @Test("No-balance dialog exposes a primary Discover Currencies CTA above a subtle Cancel")
-    func testAttemptPresent_NoBalances_ExposesDiscoverCTAAndCancel() throws {
-        let viewModel = Self.createViewModel()
-
-        _ = viewModel.attemptPresent()
-
-        let actions = try #require(viewModel.session.dialogItem?.actions)
-        try #require(actions.count == 2)
-
-        #expect(actions[0].title == "Discover Currencies")
-        #expect(actions[0].kind == .standard)
-
-        #expect(actions[1].title == "Cancel")
-        #expect(actions[1].kind == .subtle)
-    }
-
-    @Test("Tapping Discover Currencies presents the Discover sheet")
-    func testAttemptPresent_NoBalances_DiscoverCTAPresentsDiscover() throws {
-        let sessionContainer = SessionContainer.mock
-        let viewModel = GiveViewModel(container: .mock, sessionContainer: sessionContainer)
-
-        _ = viewModel.attemptPresent()
-
-        let action = try #require(
-            viewModel.session.dialogItem?.actions.first(where: { $0.title == "Discover Currencies" })
-        )
-        action.action()
-
-        #expect(sessionContainer.appRouter.presentedSheet == .discover)
     }
 
     // MARK: - Currency Selection Sync Tests
@@ -443,28 +389,26 @@ struct GiveViewModelTests {
         #expect(canGive == true, "Should allow exchange amount well under max supply value")
     }
 
-    // MARK: - refreshSelectedBalance (presentation) Tests
+    // MARK: - Init resolution Tests
 
-    @Test("Presenting with a selected token resolves to that mint")
-    func testPresentation_WithSelectedToken_ResolvesRequestedMint() throws {
+    @Test("Init with no mint and a stored selection resolves to the stored mint")
+    func testInit_NoMint_HonorsStoredSelection() throws {
         let container = try SessionContainer.makeTest(holdings: [
             .init(
                 mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: 10_000 * 10_000_000_000),
                 quarks: 1_000_000_000_000
             ),
         ])
-        let viewModel = GiveViewModel(container: .mock, sessionContainer: container)
-
         container.ratesController.selectToken(.jeffy)
 
-        #expect(viewModel.attemptPresent() == true)
+        let viewModel = GiveViewModel(container: .mock, sessionContainer: container, mint: nil)
 
         #expect(viewModel.selectedBalance?.stored.mint == .jeffy)
         #expect(container.ratesController.selectedTokenMint == .jeffy)
     }
 
-    @Test("Presenting with no prior selection picks highest-value non-USDF and persists it")
-    func testPresentation_FirstTime_PicksHighestAndPersists() throws {
+    @Test("Init with no mint and no prior selection picks the highest-value giveable balance and persists it")
+    func testInit_NoMint_PicksHighestAndPersists() throws {
         // Same supply for both mints (so per-token curve price is equal), but
         // Jeffy has 100× the holding in quarks → 100× the USDF-equivalent,
         // putting Jeffy first in the `usdf`-desc sort.
@@ -478,33 +422,57 @@ struct GiveViewModelTests {
                 quarks: 100_000_000_000
             ),
         ])
-        let viewModel = GiveViewModel(container: .mock, sessionContainer: container)
-
         container.ratesController.selectedTokenMint = nil
 
-        #expect(viewModel.attemptPresent() == true)
+        let viewModel = GiveViewModel(container: .mock, sessionContainer: container, mint: nil)
 
         #expect(viewModel.selectedBalance?.stored.mint == .jeffy)
         #expect(container.ratesController.selectedTokenMint == .jeffy)
     }
 
-    @Test("Presenting with a remembered selection resolves to that mint, not the highest")
-    func testPresentation_Subsequent_UsesRememberedSelection() throws {
+    @Test("Init with no mint and a stale sub-threshold selection falls back to the highest displayable balance")
+    func testInit_NoMint_SubThresholdRememberedMint_FallsBackToHighest() throws {
+        let staleHolding = SessionContainer.Holding(
+            mint: .makeLaunchpad(
+                address: .jeffy,
+                supplyFromBonding: 10_000_000 * 10_000_000_000
+            ),
+            quarks: 100
+        )
+        let displayableHolding = SessionContainer.Holding(
+            mint: .makeLaunchpad(
+                address: .usdcAuthority,
+                supplyFromBonding: 10_000 * 10_000_000_000
+            ),
+            quarks: 1_000_000_000_000
+        )
         let container = try SessionContainer.makeTest(holdings: [
-            .init(
-                mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: 50_000 * 10_000_000_000),
-                quarks: 100_000_000_000
-            ),
-            .init(
-                mint: .makeLaunchpad(address: .usdcAuthority, supplyFromBonding: 5_000 * 10_000_000_000),
-                quarks: 10_000_000_000_000
-            ),
+            staleHolding,
+            displayableHolding,
         ])
-        let viewModel = GiveViewModel(container: .mock, sessionContainer: container)
-
         container.ratesController.selectToken(.jeffy)
 
-        #expect(viewModel.attemptPresent() == true)
+        let viewModel = GiveViewModel(container: .mock, sessionContainer: container, mint: nil)
+
+        #expect(viewModel.selectedBalance?.stored.mint == .usdcAuthority)
+        #expect(container.ratesController.selectedTokenMint == .usdcAuthority)
+    }
+
+    @Test("Init with a mint resolves to that mint even if a different one is stored")
+    func testInit_WithMint_OverridesStoredSelection() throws {
+        let container = try SessionContainer.makeTest(holdings: [
+            .init(
+                mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: 10_000 * 10_000_000_000),
+                quarks: 1_000_000_000_000
+            ),
+            .init(
+                mint: .makeLaunchpad(address: .usdcAuthority, supplyFromBonding: 10_000 * 10_000_000_000),
+                quarks: 1_000_000_000_000
+            ),
+        ])
+        container.ratesController.selectToken(.usdcAuthority)
+
+        let viewModel = GiveViewModel(container: .mock, sessionContainer: container, mint: .jeffy)
 
         #expect(viewModel.selectedBalance?.stored.mint == .jeffy)
         #expect(container.ratesController.selectedTokenMint == .jeffy)
@@ -512,7 +480,7 @@ struct GiveViewModelTests {
 
     // MARK: - Over-balance (insufficient funds)
 
-    @Test("Over-balance bonded entry fires 'Short' dialog with a real shortfall, stays on screen")
+    @Test("Over-balance bonded entry fires 'Short' dialog with a real shortfall")
     func giveAction_overBalanceBonded_firesShortDialogWithRealShortfall() throws {
         let container = try SessionContainer.makeTest(holdings: [
             .init(
@@ -523,9 +491,8 @@ struct GiveViewModelTests {
                 quarks: 10 * 10_000_000_000
             ),
         ])
-        let viewModel = GiveViewModel(container: .mock, sessionContainer: container)
         container.ratesController.selectToken(.jeffy)
-        #expect(viewModel.attemptPresent() == true)
+        let viewModel = GiveViewModel(container: .mock, sessionContainer: container, mint: nil)
 
         let balance = try #require(viewModel.selectedBalance)
         // 100× the displayed balance — unambiguously over and may exceed curve TVL.
@@ -549,38 +516,5 @@ struct GiveViewModelTests {
         // like "$10.00 Short", whose "0.00 Short" substring would otherwise
         // match.
         #expect(!title.contains("$0.00"))
-
-        // Flow did not proceed to the bill.
-        #expect(viewModel.isPresented == true)
-    }
-
-    @Test("Presenting with a stale sub-threshold selection falls back to the highest displayable balance")
-    func testPresentation_SubThresholdRememberedMint_FallsBackToHighest() throws {
-        let staleHolding = SessionContainer.Holding(
-            mint: .makeLaunchpad(
-                address: .jeffy,
-                supplyFromBonding: 10_000_000 * 10_000_000_000
-            ),
-            quarks: 100
-        )
-        let displayableHolding = SessionContainer.Holding(
-            mint: .makeLaunchpad(
-                address: .usdcAuthority,
-                supplyFromBonding: 10_000 * 10_000_000_000
-            ),
-            quarks: 1_000_000_000_000
-        )
-        let container = try SessionContainer.makeTest(holdings: [
-            staleHolding,
-            displayableHolding,
-        ])
-        let viewModel = GiveViewModel(container: .mock, sessionContainer: container)
-
-        container.ratesController.selectToken(.jeffy)
-
-        #expect(viewModel.attemptPresent() == true)
-
-        #expect(viewModel.selectedBalance?.stored.mint == .usdcAuthority)
-        #expect(container.ratesController.selectedTokenMint == .usdcAuthority)
     }
 }

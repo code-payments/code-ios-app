@@ -67,4 +67,16 @@ extension DialogItem {
             .subtle("Don't Collect", action: onCancel)
         }
     }
+
+    static func noGiveableBalance(onDiscover: @escaping () -> Void) -> DialogItem {
+        .init(
+            style: .standard,
+            title: "No Balance Yet",
+            subtitle: "Buy a currency to get started, or get another Flipcash user to give you some cash",
+            dismissable: true
+        ) {
+            .standard("Discover Currencies", action: onDiscover);
+            .cancel()
+        }
+    }
 }
