@@ -224,7 +224,8 @@ struct Regression_native_amount_mismatch {
 
         let vm = GiveViewModel(
             container: .mock,
-            sessionContainer: sessionContainer
+            sessionContainer: sessionContainer,
+            mint: nil
         )
         vm.selectCurrencyAction(
             exchangedBalance: WithdrawViewModelTestHelpers.createBondedBalance(
@@ -259,7 +260,8 @@ struct Regression_native_amount_mismatch {
 
         let vm = GiveViewModel(
             container: .mock,
-            sessionContainer: sessionContainer
+            sessionContainer: sessionContainer,
+            mint: nil
         )
         vm.selectCurrencyAction(
             exchangedBalance: WithdrawViewModelTestHelpers.createBondedBalance(

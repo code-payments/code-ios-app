@@ -13,7 +13,7 @@ import Logging
 private let logger = Logger(label: "flipcash.send-cash")
 
 @Observable
-class GiveViewModel {
+final class GiveViewModel {
 
     var enteredAmount: String = ""
     var actionState: ButtonState = .normal
@@ -30,22 +30,22 @@ class GiveViewModel {
     @ObservationIgnored let ratesController: RatesController
 
     private(set) var selectedBalance: ExchangedBalance?
-    
+
     private var enteredFiat: ExchangedFiat? {
         guard !enteredAmount.isEmpty else {
             return nil
         }
-        
+
         guard let amount = NumberFormatter.decimal(from: enteredAmount), amount > 0 else {
             return nil
         }
-        
+
         guard let selectedBalance else {
             return nil
         }
-        
+
         let mint = selectedBalance.stored.mint
-        
+
         // Only applies for bonded tokens
         if mint != .usdf {
             guard let supplyQuarks = selectedBalance.stored.supplyFromBonding else {
@@ -86,51 +86,55 @@ class GiveViewModel {
             )
         }
     }
-    
-    var isPresented = false
-
-    /// Validates that the user has a giveable balance and primes the view model
-    /// for entry. Returns `true` if the give sheet should be presented; on
-    /// `false`, `session.dialogItem` carries the explanation. Callers must gate
-    /// `router.present(.give)` on this return — otherwise the sheet renders
-    /// behind the dialog with a $0 amount entry.
-    func attemptPresent() -> Bool {
-        let rate = ratesController.rateForBalanceCurrency()
-        let hasGiveableBalance = session.balances(for: rate).contains { $0.stored.mint != .usdf }
-
-        guard hasGiveableBalance else {
-            showNoBalanceError()
-            return false
-        }
-
-        refreshSelectedBalance()
-        enteredAmount = ""
-        isPresented = true
-        return true
-    }
 
     // MARK: - Init -
 
-    init(container: Container, sessionContainer: SessionContainer) {
-        self.isPresented      = false
+    /// The `selectToken` sync is the only visible side-effect; the `if mismatch`
+    /// guard makes it idempotent across repeated inits.
+    init(container: Container, sessionContainer: SessionContainer, mint: PublicKey?) {
+        let session          = sessionContainer.session
+        let ratesController  = sessionContainer.ratesController
+        let resolved         = Self.resolveInitialBalance(
+            mint: mint,
+            session: session,
+            ratesController: ratesController
+        )
+
         self.container        = container
         self.sessionContainer = sessionContainer
-        self.session          = sessionContainer.session
-        self.ratesController  = sessionContainer.ratesController
+        self.session          = session
+        self.ratesController  = ratesController
+        self.selectedBalance  = resolved
+
+        if let resolved, ratesController.selectedTokenMint != resolved.stored.mint {
+            ratesController.selectToken(resolved.stored.mint)
+        }
     }
 
-    private func refreshSelectedBalance() {
+    /// Caller's `mint` wins; otherwise prefer the stored selection, then the
+    /// highest-value giveable balance. The two-tier fallback exists because
+    /// `RatesController.selectedTokenMint` is a *global* selector and may
+    /// point to `.usdf` or to a sub-threshold balance that no longer appears
+    /// in `Session.balances(for:)`.
+    private static func resolveInitialBalance(
+        mint: PublicKey?,
+        session: Session,
+        ratesController: RatesController
+    ) -> ExchangedBalance? {
         let rate = ratesController.rateForBalanceCurrency()
-        let availableBalances = session.balances(for: rate)
-            .filter { $0.stored.mint != .usdf }
 
-        if let selectedTokenMint = ratesController.selectedTokenMint,
-           let match = availableBalances.first(where: { $0.stored.mint == selectedTokenMint }) {
-            selectedBalance = match
-        } else if let first = availableBalances.first {
-            selectedBalance = first
-            ratesController.selectToken(first.stored.mint)
+        if let mint, let stored = session.balance(for: mint) {
+            return ExchangedBalance(stored: stored, exchangedFiat: stored.computeExchangedValue(with: rate))
         }
+
+        let giveable = session.balances(for: rate).filter { $0.stored.mint != .usdf }
+
+        if let stored = ratesController.selectedTokenMint,
+           let match = giveable.first(where: { $0.stored.mint == stored }) {
+            return match
+        }
+
+        return giveable.first
     }
 
     // MARK: - Action -
@@ -160,8 +164,6 @@ class GiveViewModel {
                     showLimitsError()
                     return
                 }
-
-                isPresented = false
 
                 try await Task.delay(milliseconds: 50)
 
@@ -216,37 +218,23 @@ class GiveViewModel {
 
         return (amount, pin)
     }
-    
+
     func selectCurrencyAction(exchangedBalance: ExchangedBalance) {
         selectedBalance = exchangedBalance
         ratesController.selectToken(exchangedBalance.stored.mint)
         enteredAmount = ""
     }
-    
+
     // MARK: - Navigation -
-    
+
     private func presentDeposit() {
         depositMint = selectedBalance?.stored.mint
         if let depositMint {
             Analytics.tokenInfoOpened(from: .openedFromGive, mint: depositMint)
         }
     }
-    
+
     // MARK: - Errors -
-    
-    private func showNoBalanceError() {
-        session.dialogItem = .init(
-            style: .standard,
-            title: "No Balance Yet",
-            subtitle: "Buy a currency to get started, or get another Flipcash user to give you some cash",
-            dismissable: true
-        ) {
-            .standard("Discover Currencies") { [weak self] in
-                self?.sessionContainer.appRouter.present(.discover)
-            };
-            .cancel()
-        }
-    }
 
     private func showInsufficientBalanceError() {
         session.dialogItem = .init(

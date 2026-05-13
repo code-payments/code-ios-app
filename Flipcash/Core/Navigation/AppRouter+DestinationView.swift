@@ -64,15 +64,13 @@ struct DestinationView: View {
             TransactionHistoryScreen(mint: mint)
 
         case .give(let mint):
-            // Builds a fresh `GiveViewModel` and primes its presentation
-            // lifecycle (`isPresented = true`) so `refreshSelectedBalance`
-            // and the entered-amount reset run before first render. The
-            // wrapper survives recomposition via `@State`, so the viewModel
-            // lasts the destination's lifetime.
-            GiveDestinationView(
-                mint: mint,
+            // `.id(mint)` for the same reason as `.currencyInfo` above —
+            // a deeplink replacing `.give(A)` with `.give(B)` must build a
+            // fresh `GiveViewModel`, not reuse the one wired to `A`.
+            GiveScreen(
                 container: container,
-                sessionContainer: sessionContainer
+                sessionContainer: sessionContainer,
+                mint: mint
             )
             .id(mint)
 
@@ -157,35 +155,5 @@ extension View {
                 sessionContainer: sessionContainer
             )
         }
-    }
-}
-
-/// Owns the `GiveViewModel` for the `.give(mint)` destination. Constructing
-/// the viewModel inline in `DestinationView`'s switch would lose `@State`
-/// semantics — every body evaluation would create a fresh instance — so the
-/// dedicated wrapper preserves the same instance across recomposition.
-///
-/// On creation, the viewModel's `isPresented = true` setter fires its didSet
-/// (which calls `refreshSelectedBalance` and resets the entered amount). That
-/// matches the previous behaviour where `CurrencyInfoScreen.onGive` set
-/// `giveViewModel.isPresented = true` immediately before the navigation push.
-private struct GiveDestinationView: View {
-    @State private var viewModel: GiveViewModel
-
-    init(mint: PublicKey, container: Container, sessionContainer: SessionContainer) {
-        sessionContainer.ratesController.selectToken(mint)
-        let viewModel = GiveViewModel(container: container, sessionContainer: sessionContainer)
-        // Runs the same gate + state priming the ScanScreen Give button uses,
-        // so `selectedBalance` is resolved and `enteredAmount` is cleared
-        // before first render. If the user has no giveable balance, the
-        // viewmodel raises a "No Balance Yet" dialog through
-        // `session.dialogItem`; the destination still mounts but stays empty
-        // behind the dialog until dismissed.
-        _ = viewModel.attemptPresent()
-        _viewModel = State(initialValue: viewModel)
-    }
-
-    var body: some View {
-        GiveScreen(viewModel: viewModel)
     }
 }
