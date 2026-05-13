@@ -86,6 +86,18 @@ struct AppRouterNestedSheetTests {
         // the dismissed-path-clear contract (verified separately).
     }
 
+    @Test("presentNested same case different payload — no prior pushed content — swaps cleanly")
+    func presentNested_sameCaseDifferentPayload_noPriorPath_swaps() {
+        let router = AppRouter()
+        router.present(.balance)
+        router.presentNested(.buy(Self.mintA))
+
+        router.presentNested(.buy(Self.mintB))
+
+        #expect(router.presentedSheets == [.balance, .buy(Self.mintB)])
+        #expect(router[.buy].isEmpty, "no path was set; the new top should sit at root of the buy stack")
+    }
+
     // MARK: - dismissSheet
 
     @Test("dismissSheet pops topmost when nested is up")

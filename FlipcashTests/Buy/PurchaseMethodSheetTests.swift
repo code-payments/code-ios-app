@@ -10,7 +10,10 @@ import Testing
 @testable import FlipcashCore
 @testable import Flipcash
 
-@Suite("PurchaseMethodSheet — visibility")
+/// Runs serialized — both test cases mutate the `BetaFlags.shared`
+/// singleton (UserDefaults-backed), so parallel execution with any other
+/// suite that reads `enableCoinbase` would race on the global flag.
+@Suite("PurchaseMethodSheet — visibility", .serialized)
 @MainActor
 struct PurchaseMethodSheetTests {
 

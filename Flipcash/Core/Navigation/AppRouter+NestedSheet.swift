@@ -56,14 +56,27 @@ private struct AppRouterNestedSheetModifier: ViewModifier {
         // modifier reads the parent's depth and mounts the same sheet again,
         // producing an infinite duplicate-sheet stack.
         return content.sheet(item: binding) { nested in
-            nestedSheetRootView(for: nested)
-                .appRouterNestedSheet(container: container, sessionContainer: sessionContainer)
-                .environment(\.nestedSheetDepth, depth + 1)
+            NestedSheetRootView(
+                sheet: nested,
+                container: container,
+                sessionContainer: sessionContainer
+            )
+            .appRouterNestedSheet(container: container, sessionContainer: sessionContainer)
+            .environment(\.nestedSheetDepth, depth + 1)
         }
     }
+}
 
-    @ViewBuilder
-    private func nestedSheetRootView(for sheet: AppRouter.SheetPresentation) -> some View {
+/// Dispatches the active nested `SheetPresentation` to its root view. Lives
+/// as a `View` (not a `@ViewBuilder` function) so SwiftUI tracks identity
+/// per case — per CLAUDE.md "no view functions" rule.
+private struct NestedSheetRootView: View {
+
+    let sheet: AppRouter.SheetPresentation
+    let container: Container
+    let sessionContainer: SessionContainer
+
+    var body: some View {
         switch sheet {
         case .buy(let mint):
             BuySheetRoot(

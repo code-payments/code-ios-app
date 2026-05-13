@@ -507,13 +507,40 @@ public final class WalletConnection {
     /// connect deeplink arrives (success) or an errorCode callback does
     /// (throws `WalletConnectionError.connectFailed`). A second call while
     /// the first is in flight cancels the first waiter.
+    ///
+    /// Task cancellation is propagated through `withTaskCancellationHandler`
+    /// so callers that abandon the connect (e.g. `PhantomEducationScreen`
+    /// being popped) don't leak the underlying `CheckedContinuation`.
     func connect() async throws {
         guard !isConnected else { return }
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Swift.Error>) in
-            pendingConnect?.resume(throwing: CancellationError())
-            pendingConnect = continuation
-            connectToPhantom()
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Swift.Error>) in
+                pendingConnect?.resume(throwing: CancellationError())
+                pendingConnect = continuation
+                connectToPhantom()
+            }
+        } onCancel: { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.cancelPendingConnect()
+            }
         }
+    }
+
+    /// Resumes any in-flight `pendingConnect` with a CancellationError and
+    /// clears the slot. Safe to call when nothing is pending.
+    private func cancelPendingConnect() {
+        guard let continuation = pendingConnect else { return }
+        pendingConnect = nil
+        continuation.resume(throwing: CancellationError())
+    }
+
+    /// Discards an in-flight swap request context. Called by
+    /// `PhantomConfirmScreen.onDisappear` so the screen popping while
+    /// waiting for Phantom's signed-transaction callback frees the gate
+    /// (`isAwaitingExternalSwap`) and prevents a future unrelated deeplink
+    /// from completing a stale swap.
+    func cancelPendingSwap() {
+        pendingSwap = nil
     }
 
     func connectToPhantom() {

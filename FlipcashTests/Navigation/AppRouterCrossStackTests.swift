@@ -122,4 +122,9 @@ struct AppRouterCrossStackTests {
     func stack_mapsToSheet(_ stack: AppRouter.Stack, expected: AppRouter.SheetPresentation) {
         #expect(stack.sheet == expected)
     }
+
+    @Test(".buy stack has no owning root sheet — it's nested-only")
+    func buyStack_sheet_isNil() {
+        #expect(AppRouter.Stack.buy.sheet == nil)
+    }
 }

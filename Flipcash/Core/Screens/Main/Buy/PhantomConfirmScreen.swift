@@ -79,6 +79,9 @@ struct PhantomConfirmScreen: View {
             // pendingSwap mutation can fire against a popped screen.
             confirmTask?.cancel()
             confirmTask = nil
+            // Clear the swap context too so `isAwaitingExternalSwap` doesn't
+            // remain true and permanently block the .buy sheet's dismissal.
+            walletConnection.cancelPendingSwap()
         }
         .onChange(of: walletConnection.state) { _, newState in
             // Push the processing screen the moment the swap context appears.
