@@ -42,6 +42,19 @@ final class BuyReservesRegressionTests: BaseUITestCase {
         amountEntry.enterMinimumAmount()
         waitUntilHittableAndTap(amountEntry.buyActionButton)
 
+        processing.assertReached()
+
+        // Swipe-down on the processing screen must NOT dismiss the .buy sheet.
+        // Two known regressions break this:
+        //   1) The recursive `.appRouterNestedSheet(...)` call inside the
+        //      depth-1 sheet content swallows `interactiveDismissDisabled`
+        //      preferences from descendants.
+        //   2) A source-level `.interactiveDismissDisabled(false)` on
+        //      BuyAmountScreen overrides the destination's `true`.
+        // After the swipe, the processing title must still be visible.
+        app.swipeDown()
+        processing.assertReached(timeout: 5)
+
         // Wait for the swap to settle and dismiss via OK.
         processing.waitForCompletionAndDismiss()
 

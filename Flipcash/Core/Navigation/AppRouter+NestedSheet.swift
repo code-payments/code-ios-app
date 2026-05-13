@@ -16,10 +16,13 @@ extension View {
     /// nested sheets to be presented from within the parent sheet's content,
     /// not as siblings at the app root.
     ///
-    /// Recursive: the mounted sheet's content re-applies this modifier with
-    /// `nestedSheetDepth + 1`, so level 3+ also works once `presentedSheets`
-    /// grows that deep. v1 only nests two-deep; the recursion is mechanical
-    /// and untested at higher levels.
+    /// Currently supports one level of nesting only. A previous version
+    /// recursed inside the mounted sheet's content to support depth-3+, but a
+    /// dormant inner `.sheet(item:)` swallows `interactiveDismissDisabled`
+    /// from descendants before it reaches the actual depth-1 sheet host,
+    /// re-enabling swipe-dismiss on screens that opt out. Until the recursion
+    /// is replaced with a presentedSheets-aware conditional mount, depth-3+
+    /// would need the caller to apply this modifier explicitly.
     func appRouterNestedSheet(container: Container, sessionContainer: SessionContainer) -> some View {
         modifier(AppRouterNestedSheetModifier(container: container, sessionContainer: sessionContainer))
     }
@@ -51,17 +54,12 @@ private struct AppRouterNestedSheetModifier: ViewModifier {
                 router.dismissSheet()
             }
         )
-        // `.environment` must wrap `.appRouterNestedSheet` so the recursive
-        // modifier reads the bumped depth. The opposite order means the inner
-        // modifier reads the parent's depth and mounts the same sheet again,
-        // producing an infinite duplicate-sheet stack.
         return content.sheet(item: binding) { nested in
             NestedSheetRootView(
                 sheet: nested,
                 container: container,
                 sessionContainer: sessionContainer
             )
-            .appRouterNestedSheet(container: container, sessionContainer: sessionContainer)
             .environment(\.nestedSheetDepth, depth + 1)
         }
     }
