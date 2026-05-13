@@ -107,13 +107,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     /// Globally dismisses all sheets and stacks if the app was backgrounded
-    /// long enough. No-op when no session is active or no background
-    /// timestamp exists. Side-effects are confined to `AppRouter`.
+    /// long enough. Idempotent — see ``consumeAutoReturn(now:lastBackgroundedAt:)``.
     private func applyAutoReturnIfNeeded() {
         guard let sessionContainer,
-              AppDelegate.shouldAutoReturn(
+              AppDelegate.consumeAutoReturn(
                   now: .now,
-                  lastBackgroundedAt: lastBackgroundedAt
+                  lastBackgroundedAt: &lastBackgroundedAt
               )
         else { return }
         sessionContainer.appRouter.dismissAll()
@@ -129,6 +128,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             logger.info("Ignoring duplicate deep link", metadata: ["url": "\(url.sanitizedForAnalytics)"])
             return
         }
+
+        // Run auto-return before navigate so dismissAll can't clobber the deep link.
+        applyAutoReturnIfNeeded()
 
         Analytics.deeplinkOpened(url: url)
         let action = container.deepLinkController.handle(open: url)
@@ -185,6 +187,28 @@ extension AppDelegate {
     ) -> Bool {
         guard let lastBackgroundedAt else { return false }
         return now.timeIntervalSince(lastBackgroundedAt) >= timeout
+    }
+
+    /// Atomic gate for the auto-return trigger. Returns `true` exactly once
+    /// per background cycle: when the elapsed background time is at least
+    /// ``autoReturnAfter``, it clears `lastBackgroundedAt` inline and
+    /// returns `true`. Otherwise leaves the timestamp intact and returns
+    /// `false`.
+    ///
+    /// Both `applyAutoReturnIfNeeded` (the `.active` scene-phase path) and
+    /// `handleOpenURL` (the deep-link path) call this. Whichever runs first
+    /// owns the dismiss; the other sees `nil` and no-ops. This is the
+    /// mechanism that prevents the auto-return from clobbering a deep-link
+    /// `navigate(to:)` that ran in the same foreground transition.
+    static func consumeAutoReturn(
+        now: Date,
+        lastBackgroundedAt: inout Date?
+    ) -> Bool {
+        guard shouldAutoReturn(now: now, lastBackgroundedAt: lastBackgroundedAt) else {
+            return false
+        }
+        lastBackgroundedAt = nil
+        return true
     }
 }
 

@@ -6,48 +6,9 @@
 //
 //  Integration coverage for `AppRouter.dismissAll()` followed by a
 //  cross-stack `navigate(to:)` — the auto-return-on-background flow's
-//  most interesting interaction. The two tests assert that a deep link
-//  arriving immediately after the reset lands on a clean state, with no
-//  orphaned sheet or stale path.
-//
-//  Why no UI tests for the eight scenarios in plan §10.2:
-//
-//  The minimum production timeout is 5 minutes. Driving it from a UI
-//  test loop would require either (a) a launch-arg parser in
-//  `AppDelegate.application(_:didFinishLaunchingWithOptions:)` that
-//  overrides `Preferences.autoReturnTimeout` to a short duration, or
-//  (b) a new `BetaFlags.Option` toggling a short-duration override path.
-//
-//  Neither pattern exists in production today. The current `--ui-testing`
-//  flag is a boolean; `BetaFlags.Option` is a fixed enum with no
-//  short-timeout case; and there is no precedent for launch-arg parsing
-//  in AppDelegate beyond the boolean. Adding either would be an invasive
-//  production hook purely to enable tests.
-//
-//  Unit-level coverage lives in `AppDelegateAutoReturnTriggerTests`,
-//  `AppRouterDismissAllTests`, and `PreferencesAutoReturnTimeoutTests`.
-//
-//  Manual verification matrix (run when changing trigger or action):
-//   - Set timeout to 5 Minutes, open Settings, background ≥ 5 min,
-//     return → Settings dismissed, Scanner visible.
-//   - Set timeout to 5 Minutes, open Settings, background < 5 min,
-//     return → Settings still showing.
-//   - Open Discover, background ≥ 5 min → Discover dismissed.
-//   - Open Balance → push CurrencyInfo, background ≥ 5 min → Scanner
-//     (balance sheet dismissed, path cleared).
-//   - Open Balance → push CurrencyInfo, background < 5 min →
-//     CurrencyInfo still showing.
-//   - Set timeout to Never, open Settings, background ≥ 6 min →
-//     Settings still showing.
-//   - App Settings → Auto-Return → tap "10 Minutes" → checkmark moves;
-//     navigate back, re-enter Auto-Return → "10 Minutes" still checked.
-//   - Cold start (no prior `lastBackgroundedAt`) → no auto-return on
-//     first foreground.
-//
-//  If a UI-driven version becomes worthwhile, the cleanest seam would be
-//  a new `BetaFlags.Option` (e.g. `.shortAutoReturnForTesting`) that
-//  `AppDelegate.scenePhaseChanged` checks alongside the user preference,
-//  off by default in production.
+//  most interesting interaction. Predicate-level coverage lives in
+//  `AppDelegateAutoReturnTriggerTests`; the dismissAll contract itself
+//  lives in `AppRouterDismissAllTests`.
 //
 
 import Foundation
@@ -141,6 +102,104 @@ struct AppRouterAutoReturnIntegrationTests {
         // `presentedSheet` determines what the user sees, and the deep
         // link's target is unambiguous.
         #expect(router[.settings] == AppRouter.navigationPath(.settingsMyAccount, .settingsAdvancedFeatures))
+    }
+
+    // MARK: - 3. Ordering symmetry: gate is one-shot
+
+    /// The atomic gate (`AppDelegate.consumeAutoReturn`) is unit-tested in
+    /// `AppDelegateAutoReturnTriggerTests`. This test asserts the visible
+    /// AppRouter state matches a single dismissAll → navigate sequence:
+    /// deep link wins the race, scenePhase's later attempt is gated false.
+    @Test("Deep-link-first ordering: single dismissAll, navigate target persists")
+    func deepLinkFirstOrdering_singleDismissAll_navigateTargetPersists() throws {
+        let router = AppRouter()
+        var lastBackgroundedAt: Date? = Date(timeInterval: -360, since: Date())
+
+        router.present(.settings)
+        router.push(.settingsMyAccount)
+        router.push(.settingsAdvancedFeatures)
+
+        // Deep link wins the race: handleOpenURL consumes the gate first.
+        try #require(AppDelegate.consumeAutoReturn(
+            now: Date(),
+            lastBackgroundedAt: &lastBackgroundedAt
+        ))
+        router.dismissAll()
+        router.navigate(to: .currencyInfo(.usdc))
+
+        // .active fires second; gate is already consumed, so its dismissAll
+        // never runs.
+        #expect(AppDelegate.consumeAutoReturn(
+            now: Date(),
+            lastBackgroundedAt: &lastBackgroundedAt
+        ) == false)
+
+        #expect(lastBackgroundedAt == nil)
+        #expect(router.presentedSheet == .balance)
+        #expect(router[.balance] == AppRouter.navigationPath(.currencyInfo(.usdc)))
+        #expect(router[.balance].count == 1)
+    }
+
+    /// Sibling: the `.active` scene-phase handler fires first. Same final
+    /// state, different traversal order.
+    @Test("Scene-phase-first ordering: single dismissAll, navigate target persists")
+    func scenePhaseFirstOrdering_singleDismissAll_navigateTargetPersists() throws {
+        let router = AppRouter()
+        var lastBackgroundedAt: Date? = Date(timeInterval: -360, since: Date())
+
+        router.present(.settings)
+        router.push(.settingsMyAccount)
+        router.push(.settingsAdvancedFeatures)
+
+        // .active wins the race.
+        try #require(AppDelegate.consumeAutoReturn(
+            now: Date(),
+            lastBackgroundedAt: &lastBackgroundedAt
+        ))
+        router.dismissAll()
+
+        // handleOpenURL fires second; gate already consumed.
+        #expect(AppDelegate.consumeAutoReturn(
+            now: Date(),
+            lastBackgroundedAt: &lastBackgroundedAt
+        ) == false)
+        router.navigate(to: .currencyInfo(.usdc))
+
+        #expect(lastBackgroundedAt == nil)
+        #expect(router.presentedSheet == .balance)
+        #expect(router[.balance] == AppRouter.navigationPath(.currencyInfo(.usdc)))
+        #expect(router[.balance].count == 1)
+    }
+
+    // MARK: - 4. Under-threshold path is unaffected
+
+    /// Under the 5-minute threshold, neither path consumes the gate; the
+    /// deep link just replaces the target stack's path. The existing
+    /// "swap-and-return" behaviour is preserved.
+    @Test("Under-threshold deep link does not dismiss other stacks")
+    func underThreshold_deepLink_doesNotDismissOtherStacks() {
+        let router = AppRouter()
+        let original = Date(timeInterval: -120, since: Date()) // 2m
+        var lastBackgroundedAt: Date? = original
+
+        router.present(.settings)
+        router.push(.settingsMyAccount)
+
+        let consumed = AppDelegate.consumeAutoReturn(
+            now: Date(),
+            lastBackgroundedAt: &lastBackgroundedAt
+        )
+
+        #expect(consumed == false)
+        #expect(lastBackgroundedAt == original) // preserved — under threshold
+
+        router.navigate(to: .currencyInfo(.usdc))
+
+        #expect(router.presentedSheet == .balance)
+        #expect(router[.balance] == AppRouter.navigationPath(.currencyInfo(.usdc)))
+        // Settings's path is preserved underneath — the existing
+        // swap-and-return contract.
+        #expect(router[.settings] == AppRouter.navigationPath(.settingsMyAccount))
     }
 
 }
