@@ -116,7 +116,7 @@ class ScanViewModel {
         switch route.path {
         case .cash, .token:
             return true
-        case .login, .verifyEmail, .unknown:
+        case .login, .verifyEmail, .give, .wallet, .discover, .unknown:
             return false
         }
     }

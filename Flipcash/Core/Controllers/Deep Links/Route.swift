@@ -85,6 +85,9 @@ nonisolated extension Route {
         case cash
         case verifyEmail
         case token(PublicKey)
+        case give
+        case wallet
+        case discover
         case unknown(String)
         
         static func parse(path: String) -> Path? {
@@ -111,6 +114,12 @@ nonisolated extension Route {
                     return nil
                 }
                 return .token(mint)
+            case "give":
+                return .give
+            case "wallet":
+                return .wallet
+            case "discover":
+                return .discover
             default:
                 return .unknown(url.lastPathComponent)
             }
