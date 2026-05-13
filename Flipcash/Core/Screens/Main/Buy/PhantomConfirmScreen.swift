@@ -28,7 +28,6 @@ struct PhantomConfirmScreen: View {
     @Environment(WalletConnection.self) private var walletConnection
     @Environment(Session.self) private var session
 
-    @State private var dialogItem: DialogItem?
     @State private var confirmTask: Task<Void, Never>?
 
     var body: some View {
@@ -57,7 +56,6 @@ struct PhantomConfirmScreen: View {
         }
         .navigationTitle("Confirmation")
         .navigationBarTitleDisplayMode(.inline)
-        .dialog(item: $dialogItem)
         .onDisappear {
             // Cancel any in-flight swap request if the user backs out before
             // Phantom returns. Without this, requestSwap's deeplink-out and
@@ -105,7 +103,7 @@ struct PhantomConfirmScreen: View {
                     reason: "Failed to request Phantom swap from PhantomConfirmScreen",
                     metadata: ["mint": mint.base58]
                 )
-                dialogItem = .somethingWentWrong
+                session.dialogItem = .somethingWentWrong
             }
         }
     }
