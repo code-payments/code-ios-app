@@ -232,19 +232,11 @@ struct DeepLinkAction {
         case .openSheet(let sheet):
             if case .loggedIn(let container) = sessionAuthenticator.state {
                 Analytics.deeplinkRouted(kind: kind)
-                // Mirror `ScanScreen.presentGive` so a no-balance user
-                // taking the quick-action route gets the same dialog the
-                // bottom bar shows, instead of an empty Give sheet.
                 if sheet == .give {
-                    let rate = container.ratesController.rateForBalanceCurrency()
-                    guard container.session.hasGiveableBalance(for: rate) else {
-                        container.session.dialogItem = .noGiveableBalance {
-                            container.appRouter.present(.discover)
-                        }
-                        return
-                    }
+                    container.presentGive()
+                } else {
+                    container.appRouter.present(sheet)
                 }
-                container.appRouter.present(sheet)
             }
         }
     }

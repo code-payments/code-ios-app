@@ -452,6 +452,19 @@ struct SessionContainer {
             .environment(onrampDeeplinkInbox)
     }
 
+    /// Opens the Give sheet, or surfaces the no-balance dialog with a path
+    /// to Discover when the user has nothing giveable. Used by both the
+    /// bottom-bar tap and the `flipcash://give` deep link.
+    func presentGive() {
+        let rate = ratesController.rateForBalanceCurrency()
+        guard session.hasGiveableBalance(for: rate) else {
+            session.dialogItem = .noGiveableBalance(
+                onDiscover: { self.appRouter.present(.discover) }
+            )
+            return
+        }
+        appRouter.present(.give)
+    }
 }
 
 extension View {

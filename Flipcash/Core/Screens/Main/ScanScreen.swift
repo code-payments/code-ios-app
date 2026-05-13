@@ -305,14 +305,7 @@ struct ScanScreen: View {
     // MARK: - Actions -
 
     private func presentGive() {
-        let rate = sessionContainer.ratesController.rateForBalanceCurrency()
-        guard session.hasGiveableBalance(for: rate) else {
-            session.dialogItem = .noGiveableBalance(
-                onDiscover: { router.present(.discover) }
-            )
-            return
-        }
-        router.present(.give)
+        sessionContainer.presentGive()
     }
 
     private func dismissBill() {
