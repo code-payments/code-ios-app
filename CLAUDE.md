@@ -380,7 +380,7 @@ Use the project scripts — they encode the correct scheme and destination:
 
 **Never run `swift test` in a package directory** (`FlipcashCore`, `FlipcashUI`, etc.). Packages are iOS-only; `swift test` targets the macOS host and fails with code-signing errors. Always go through `./Scripts/test.sh` (which routes through the `Flipcash` scheme on the iOS Simulator).
 
-**Don't assume only simulators are available for builds.** When checking what's connected, use `xcrun devicectl list devices` — it reports paired iPhones as `available (paired)` even over network pairing. `xcrun xctrace list devices` is unreliable for this: it often labels a perfectly usable paired iPhone as `Offline`. `./Scripts/build.sh --device` resolves the UDID via devicectl and feeds it to `xcodebuild -destination "platform=iOS,id=<udid>"`. If the user asks to build on their device, take them at their word and try the device path before claiming none is connected. Tests still run on simulator only.
+For paired-device builds, see [Xcode MCP Server](#xcode-mcp-server) below.
 
 ### Test Naming
 
