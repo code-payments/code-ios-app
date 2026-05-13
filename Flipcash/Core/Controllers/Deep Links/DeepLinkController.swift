@@ -233,10 +233,15 @@ struct DeepLinkAction {
             if case .loggedIn(let container) = sessionAuthenticator.state {
                 Analytics.deeplinkRouted(kind: kind)
                 if sheet == .give {
-                    container.presentGive()
-                } else {
-                    container.appRouter.present(sheet)
+                    let rate = container.ratesController.rateForBalanceCurrency()
+                    guard container.session.hasGiveableBalance(for: rate) else {
+                        container.session.dialogItem = .noGiveableBalance(
+                            onDiscover: { container.appRouter.present(.discover) }
+                        )
+                        return
+                    }
                 }
+                container.appRouter.present(sheet)
             }
         }
     }
