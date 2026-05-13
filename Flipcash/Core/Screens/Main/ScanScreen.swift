@@ -139,8 +139,10 @@ struct ScanScreen: View {
         // Swipe-to-dismiss writes nil through this binding; route through
         // `dismissSheet()` so the dismissal is logged. Programmatic presentations
         // go through `router.present(_:)` directly and never write through here.
+        // Bound to `rootSheet` (bottom of the sheet stack) — nested sheets mount
+        // inside this root sheet's content via `.appRouterNestedSheet`.
         .sheet(item: Binding(
-            get: { router.presentedSheet },
+            get: { router.rootSheet },
             set: { newValue in
                 if newValue == nil {
                     router.dismissSheet()
@@ -152,6 +154,7 @@ struct ScanScreen: View {
                 container: container,
                 sessionContainer: sessionContainer
             )
+            .appRouterNestedSheet(container: container, sessionContainer: sessionContainer)
         }
         // Dismiss all presented sheets when a bill is about to appear.
         // Bills render in ScanScreen's ZStack, so any sheet on top
@@ -381,6 +384,12 @@ private struct RoutedSheet: View {
                     }
                 }
             }
+        case .buy:
+            // `.buy` is a nested-only sheet — it should never be presented at
+            // root. `presentNested(.buy(mint))` is the intended entry point.
+            // Rendering EmptyView is a defensive no-op; the misuse is already
+            // logged by the router when the stack is empty.
+            EmptyView()
         }
     }
 }

@@ -29,7 +29,6 @@ struct CurrencyInfoScreen: View {
     }
 
     @Environment(WalletConnection.self) private var walletConnection
-    @Environment(OnrampCoordinator.self) private var onrampCoordinator
 
     private let mint: PublicKey
     private let container: Container
@@ -93,7 +92,7 @@ struct CurrencyInfoScreen: View {
                     marketCapController: marketCapController,
                     onShowTransactionHistory: { router.push(.transactionHistory(metadata.mint)) },
                     onShowCurrencySelection: { isShowingCurrencySelection = true },
-                    onBuy: { router.push(.buyAmount(mint)) },
+                    onBuy: { router.presentNested(.buy(mint)) },
                     onGive: {
                         Analytics.buttonTapped(name: .give)
                         router.push(.give(mint))
@@ -135,52 +134,7 @@ struct CurrencyInfoScreen: View {
             await viewModel.loadMintMetadata()
 
             if showBuyOnAppear {
-                router.push(.buyAmount(mint))
-            }
-        }
-        .fullScreenCover(item: Bindable(walletConnection).processing) { processing in
-            NavigationStack {
-                SwapProcessingScreen(
-                    swapId: processing.swapId,
-                    swapType: .buyWithPhantom,
-                    currencyName: processing.currencyName,
-                    amount: processing.amount
-                )
-                .environment(\.dismissParentContainer, {
-                    walletConnection.dismissProcessing()
-                })
-            }
-        }
-        .fullScreenCover(item: onrampCoordinator.buyCompletionBinding) { completion in
-            if case .buyProcessing(let swapId, let name, let amount) = completion {
-                NavigationStack {
-                    SwapProcessingScreen(
-                        swapId: swapId,
-                        swapType: .buyWithCoinbase,
-                        currencyName: name,
-                        amount: amount
-                    )
-                    .environment(\.dismissParentContainer, {
-                        onrampCoordinator.completion = nil
-                    })
-                }
-            }
-        }
-        .sheet(isPresented: Bindable(walletConnection).isShowingAmountEntry) {
-            if let metadata = viewModel.mintMetadata {
-                NavigationStack {
-                    EnterWalletAmountScreen { quarks in
-                        try await walletConnection.requestSwap(
-                            usdc: quarks,
-                            token: metadata.metadata
-                        )
-                    }
-                    .toolbar {
-                        ToolbarItem(placement: .topBarTrailing) {
-                            CloseButton { walletConnection.isShowingAmountEntry = false }
-                        }
-                    }
-                }
+                router.presentNested(.buy(mint))
             }
         }
         .sheet(item: $presentedSellViewModel) { sellViewModel in
@@ -189,7 +143,11 @@ struct CurrencyInfoScreen: View {
         .sheet(isPresented: $isShowingCurrencySelection) {
             CurrencySelectionScreen(ratesController: ratesController)
         }
-        .dialog(item: Bindable(walletConnection).dialogItem)
+        // `walletConnection.dialogItem` is forwarded to `session.dialogItem`
+        // from inside the `.buy` nested sheet (see BuyAmountScreen) so it
+        // surfaces in `DialogWindow` rather than fighting the sheet stack
+        // here. Binding `.dialog(item:)` on this screen would mount a sheet
+        // that competes with the `.buy` sheet's presentation queue.
     }
 
     @ViewBuilder private func toolbarContent() -> some View {

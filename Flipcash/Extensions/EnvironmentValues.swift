@@ -48,4 +48,11 @@ extension EnvironmentValues {
     /// In this example, `ChildView` dismisses `ParentView`, even though it is
     /// not the currently presented view.
     @Entry var dismissParentContainer: () -> Void = {}
+
+    /// Depth of the current sheet in `AppRouter.presentedSheets`. 0 = root sheet
+    /// (mounted at app root), 1 = first nested, etc. Driven by
+    /// `.appRouterNestedSheet` so each level can read its own depth without
+    /// the caller having to pass it explicitly. Default 0 is safe for any
+    /// view not inside a router-driven sheet.
+    @Entry var nestedSheetDepth: Int = 0
 }

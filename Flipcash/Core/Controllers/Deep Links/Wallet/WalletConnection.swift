@@ -63,6 +63,13 @@ public final class WalletConnection {
         }
     }
 
+    /// True while a signing request has been sent to the external wallet
+    /// (Phantom) but the user has not yet returned with a signed transaction.
+    /// Used by the buy nested sheet to block dismissal during the deeplink
+    /// round-trip, so the user can't accidentally close the flow and lose
+    /// the in-flight signature.
+    var isAwaitingExternalSwap: Bool { pendingSwap != nil }
+
     private(set) var session: ConnectedWalletSession?
 
     var publicKey: FlipcashCore.PublicKey {
