@@ -667,7 +667,7 @@ final class OnrampCoordinator {
         }
 
         Analytics.onrampInvokePayment(amount: amount.usdfValue)
-        
+
         let id       = UUID()
         let userRef  = session.ownerKeyPair.publicKey.base58
         let orderRef = "\(userRef):\(id)"
@@ -698,8 +698,31 @@ final class OnrampCoordinator {
             ))
 
             logger.info("Coinbase order created", metadata: [
-                "order_id": "\(response.id)"
+                "order_id": "\(response.id)",
+                "recorded_purchase": "\(response.order.purchaseAmount ?? "<missing>")",
             ])
+
+            // Coinbase applies its own USD→USDF rate (~0.9994) when recording
+            // the order, so the USDF quarks they'll fund differ from what we
+            // requested by 1-2 quarks. The server requires the swap amount to
+            // exactly equal the Coinbase-recorded purchase, otherwise it
+            // denies with "purchase amount does not match swap amount".
+            // Rebuild the ExchangedFiat from Coinbase's reported amount so
+            // the swap quarks line up with the funding side.
+            guard let recorded = response.order.purchaseAmount,
+                  let recordedDecimal = Decimal(string: recorded) else {
+                logger.error("Coinbase response missing purchaseAmount", metadata: [
+                    "order_id": "\(response.id)",
+                ])
+                clearPendingState()
+                showBuyFailedDialog()
+                return
+            }
+            let fundedAmount = ExchangedFiat.compute(
+                onChainAmount: TokenAmount(wholeTokens: recordedDecimal, mint: .usdf),
+                rate: amount.currencyRate,
+                supplyQuarks: nil
+            )
 
             // Server must be watching the Coinbase order before Apple Pay
             // commits — otherwise the user pays into a swap the backend
@@ -707,7 +730,7 @@ final class OnrampCoordinator {
             do {
                 pendingSwapId = try await initiateCoinbaseOnrampSwap(
                     for: operation,
-                    amount: amount,
+                    amount: fundedAmount,
                     orderId: response.id
                 )
             } catch {
