@@ -104,7 +104,9 @@ struct CurrencyInfoScreen: View {
                             session: session,
                             ratesController: ratesController
                         )
-                    }
+                    },
+                    onDeposit: { router.push(.usdcDepositEducation) },
+                    onWithdraw: { router.push(.withdrawCurrency(mint)) }
                 )
             case .error(let error):
                 CurrencyInfoErrorView(error: error) {
@@ -189,6 +191,8 @@ private struct LoadedContent: View {
     let onBuy: () -> Void
     let onGive: () -> Void
     let onSell: () -> Void
+    let onDeposit: () -> Void
+    let onWithdraw: () -> Void
 
     private var isUSDF: Bool {
         metadata.mint == .usdf
@@ -248,16 +252,29 @@ private struct LoadedContent: View {
                             currencyCode: ratesController.balanceCurrency,
                             marketCapController: marketCapController
                         )
-
-                        Color
-                            .clear
-                            .padding(.bottom, 100)
                     }
+
+                    // Reserve space so the floating footer doesn't overlap
+                    // scrolled content.
+                    Color
+                        .clear
+                        .padding(.bottom, 100)
                 }
             }
 
             // Floating Footer
-            if !isUSDF {
+            if isUSDF {
+                CurrencyInfoFooter {
+                    Button("Deposit") {
+                        onDeposit()
+                    }
+                    .buttonStyle(.filled)
+
+                    CodeButton(style: .filledSecondary, title: "Withdraw") {
+                        onWithdraw()
+                    }
+                }
+            } else {
                 CurrencyInfoFooter {
                     Button("Buy") {
                         onBuy()

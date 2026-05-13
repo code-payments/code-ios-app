@@ -46,7 +46,7 @@ struct PurchaseMethodSheetTests {
         return container
     }
 
-    @Test("Apple Pay row hidden when hasCoinbaseOnramp is false")
+    @Test("Apple Pay row hidden when hasCoinbaseOnramp is false; remaining order is Phantom then Other Wallet")
     func applePayHiddenWhenNoCoinbase() throws {
         try Self.withCoinbaseBetaFlag(enabled: false) {
             let container = try SessionContainer.makeTest(holdings: [])
@@ -54,22 +54,18 @@ struct PurchaseMethodSheetTests {
 
             let methods = PurchaseMethodSheet.methods(forSession: container.session)
 
-            #expect(!methods.contains(.applePay))
-            #expect(methods.contains(.phantom))
-            #expect(methods.contains(.otherWallet))
+            #expect(methods == [.phantom, .otherWallet])
         }
     }
 
-    @Test("Apple Pay row visible and ordered first when hasCoinbaseOnramp is true")
+    @Test("Apple Pay row visible and ordered first when hasCoinbaseOnramp is true; full order is Apple Pay → Phantom → Other Wallet")
     func applePayVisibleAndFirst() throws {
         try Self.withCoinbaseBetaFlag(enabled: false) {
             let container = try Self.makeContainerWithCoinbase()
 
             let methods = PurchaseMethodSheet.methods(forSession: container.session)
 
-            #expect(methods.first == .applePay)
-            #expect(methods.contains(.phantom))
-            #expect(methods.contains(.otherWallet))
+            #expect(methods == [.applePay, .phantom, .otherWallet])
         }
     }
 }

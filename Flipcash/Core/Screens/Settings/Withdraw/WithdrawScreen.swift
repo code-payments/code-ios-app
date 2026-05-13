@@ -56,37 +56,7 @@ struct WithdrawScreen: View {
         }
         .navigationTitle("Select Currency")
         .navigationBarTitleDisplayMode(.inline)
-        .navigationDestination(for: WithdrawNavigationPath.self) { path in
-            switch path {
-            case .intro:
-                WithdrawIntroScreen()
-                    .dialog(item: $viewModel.dialogItem)
-            case .enterAmount:
-                WithdrawAmountScreen(
-                    title: "Withdraw",
-                    enteredAmount: $viewModel.enteredAmount,
-                    subtitle: viewModel.amountSubtitle,
-                    canProceed: viewModel.canProceedToAddress,
-                    onProceed: viewModel.amountEnteredAction,
-                    showsCurrencySelection: true
-                )
-                .dialog(item: $viewModel.dialogItem)
-            case .enterAddress:
-                WithdrawAddressScreen(
-                    promptCurrencyName: viewModel.kind?.destinationCurrencyName ?? "funds",
-                    enteredAddress: $viewModel.enteredAddress,
-                    destinationMetadata: viewModel.destinationMetadata,
-                    acceptsTokenAccount: viewModel.kind?.acceptsTokenAccount ?? true,
-                    canCompleteWithdrawal: viewModel.canCompleteWithdrawal,
-                    onPasteFromClipboard: viewModel.pasteFromClipboardAction,
-                    onNext: viewModel.addressEnteredAction
-                )
-                .dialog(item: $viewModel.dialogItem)
-            case .confirmation:
-                WithdrawSummaryScreen(viewModel: viewModel)
-                    .dialog(item: $viewModel.dialogItem)
-            }
-        }
+        .withdrawSubstepDestinations(viewModel: viewModel)
         .onAppear {
             viewModel.pushSubstep = { step in
                 router.pushAny(step)
@@ -97,6 +67,57 @@ struct WithdrawScreen: View {
                 // whole Settings sheet and land the user back at Scan.
                 router.popToRoot(on: .settings)
             }
+        }
+    }
+}
+
+extension View {
+
+    /// Registers the four `WithdrawNavigationPath` substeps on the enclosing
+    /// `NavigationStack`. Shared between `WithdrawScreen` (Settings entry —
+    /// picker first) and `PreselectedWithdrawRoot` (Wallet entry — picker
+    /// skipped), so both code paths render identical substep screens.
+    func withdrawSubstepDestinations(viewModel: WithdrawViewModel) -> some View {
+        navigationDestination(for: WithdrawNavigationPath.self) { path in
+            WithdrawSubstepDestination(path: path, viewModel: viewModel)
+        }
+    }
+}
+
+private struct WithdrawSubstepDestination: View {
+
+    let path: WithdrawNavigationPath
+    @Bindable var viewModel: WithdrawViewModel
+
+    var body: some View {
+        switch path {
+        case .intro:
+            WithdrawIntroScreen()
+                .dialog(item: $viewModel.dialogItem)
+        case .enterAmount:
+            WithdrawAmountScreen(
+                title: "Withdraw",
+                enteredAmount: $viewModel.enteredAmount,
+                subtitle: viewModel.amountSubtitle,
+                canProceed: viewModel.canProceedToAddress,
+                onProceed: viewModel.amountEnteredAction,
+                showsCurrencySelection: true
+            )
+            .dialog(item: $viewModel.dialogItem)
+        case .enterAddress:
+            WithdrawAddressScreen(
+                promptCurrencyName: viewModel.kind?.destinationCurrencyName ?? "funds",
+                enteredAddress: $viewModel.enteredAddress,
+                destinationMetadata: viewModel.destinationMetadata,
+                acceptsTokenAccount: viewModel.kind?.acceptsTokenAccount ?? true,
+                canCompleteWithdrawal: viewModel.canCompleteWithdrawal,
+                onPasteFromClipboard: viewModel.pasteFromClipboardAction,
+                onNext: viewModel.addressEnteredAction
+            )
+            .dialog(item: $viewModel.dialogItem)
+        case .confirmation:
+            WithdrawSummaryScreen(viewModel: viewModel)
+                .dialog(item: $viewModel.dialogItem)
         }
     }
 }

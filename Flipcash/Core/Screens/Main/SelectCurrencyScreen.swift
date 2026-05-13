@@ -92,17 +92,24 @@ extension SelectCurrencyScreen {
 }
 
 struct CurrencyBalanceRow: View {
-    
+
     let exchangedBalance: ExchangedBalance
+    let accessibilityIdentifier: String
     let action: (() -> Void)?
     let showSelected: Bool?
-    
-    init(exchangedBalance: ExchangedBalance, showSelected: Bool? = nil, action: (() -> Void)? = nil) {
+
+    init(
+        exchangedBalance: ExchangedBalance,
+        accessibilityIdentifier: String = "currency-row",
+        showSelected: Bool? = nil,
+        action: (() -> Void)? = nil
+    ) {
         self.exchangedBalance = exchangedBalance
+        self.accessibilityIdentifier = accessibilityIdentifier
         self.action = action
         self.showSelected = showSelected
     }
-    
+
     var body: some View {
         Button {
             action?()
@@ -114,7 +121,7 @@ struct CurrencyBalanceRow: View {
                 isSelected: showSelected,
             )
         }
-        .accessibilityIdentifier("currency-row")
+        .accessibilityIdentifier(accessibilityIdentifier)
         .disabled(action == nil)
         .listRowBackground(Color.clear)
         .padding(.horizontal, 20)

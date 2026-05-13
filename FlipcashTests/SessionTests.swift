@@ -555,6 +555,30 @@ struct SessionSellVerifiedStateTests {
 // MARK: -
 
 @MainActor
+@Suite("Session.balances(for:) USDF inclusion")
+struct SessionBalancesUSDFInclusionTests {
+
+    @Test("USDF appears in balances(for:) even with zero quarks — pins the BalanceScreen normalization invariant")
+    func balances_includesUSDF_atZero() throws {
+        let container = try SessionContainer.makeTest(holdings: [
+            .init(mint: .usdf, quarks: 0),
+            .init(
+                mint: .makeLaunchpad(
+                    address: .jeffy,
+                    supplyFromBonding: 1_000_000 * 10_000_000_000
+                ),
+                quarks: 10 * 10_000_000_000
+            ),
+        ])
+
+        let listed = container.session.balances(for: .oneToOne)
+        let mints = listed.map(\.stored.mint)
+        #expect(mints.contains(.usdf), "USDF must appear regardless of zero quarks")
+        #expect(mints.contains(.jeffy), "non-USDF balances continue to appear")
+    }
+}
+
+@MainActor
 @Suite("Session.withdraw verified state")
 struct SessionWithdrawVerifiedStateTests {
 
