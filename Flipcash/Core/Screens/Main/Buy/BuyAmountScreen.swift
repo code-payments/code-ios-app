@@ -60,7 +60,6 @@ struct BuyAmountScreen: View {
                 }
             }
         }
-        .interactiveDismissDisabled(isDismissBlocked)
         .navigationDestination(for: BuyFlowPath.self) { path in
             // Env value must be set on the destination view itself — modifiers
             // on the source view don't propagate to navigation destinations
