@@ -369,19 +369,18 @@ struct SessionTests {
 
 ### Running the App & Tests
 
-Use the project scripts — they encode the correct scheme and destination. Both default to a simulator but accept `--device` to run against a paired physical iPhone:
+Use the project scripts — they encode the correct scheme and destination:
 
-- **Build the app:** `./Scripts/build.sh` (generic iOS) or `./Scripts/build.sh --device` (paired device)
-- **Targeted tests (for your changes):** `./Scripts/test.sh <Target>/<Suite>[/<TestName>] [...]`
+- **Build the app:** `./Scripts/build.sh` (generic iOS) or `./Scripts/build.sh --device` (paired physical iPhone)
+- **Targeted tests (for your changes):** `./Scripts/test.sh <Target>/<Suite>[/<TestName>] [...]` — always runs on the iPhone 17 simulator
   - One suite: `./Scripts/test.sh FlipcashCoreTests/ExchangedFiatTests`
   - Multiple suites: `./Scripts/test.sh FlipcashCoreTests/ExchangedFiatTests FlipcashCoreTests/FiatTests`
   - One test: `./Scripts/test.sh FlipcashCoreTests/ExchangedFiatTests/myTestCase`
-  - On a paired device: `./Scripts/test.sh --device FlipcashTests/SomeUITests` (optionally `--device "<name substring>"` to disambiguate)
 - **Full `AllTargets` suite is the user's job** — don't run it. If you think it's required before declaring work done, ask the user to run it.
 
-**Never run `swift test` in a package directory** (`FlipcashCore`, `FlipcashUI`, etc.). Packages are iOS-only; `swift test` targets the macOS host and fails with code-signing errors. Always go through `./Scripts/test.sh` (which routes through the `Flipcash` scheme).
+**Never run `swift test` in a package directory** (`FlipcashCore`, `FlipcashUI`, etc.). Packages are iOS-only; `swift test` targets the macOS host and fails with code-signing errors. Always go through `./Scripts/test.sh` (which routes through the `Flipcash` scheme on the iOS Simulator).
 
-**Don't assume only simulators are available.** When checking what's connected, use `xcrun devicectl list devices` — it reports paired iPhones as `available (paired)` even over network pairing. `xcrun xctrace list devices` is unreliable for this: it often labels a perfectly usable paired iPhone as `Offline`. The `--device` flag on `build.sh` / `test.sh` resolves the UDID via devicectl and feeds it to `xcodebuild -destination "platform=iOS,id=<udid>"`. If the user asks to run on their device, take them at their word and try the device path before claiming none is connected.
+**Don't assume only simulators are available for builds.** When checking what's connected, use `xcrun devicectl list devices` — it reports paired iPhones as `available (paired)` even over network pairing. `xcrun xctrace list devices` is unreliable for this: it often labels a perfectly usable paired iPhone as `Offline`. `./Scripts/build.sh --device` resolves the UDID via devicectl and feeds it to `xcodebuild -destination "platform=iOS,id=<udid>"`. If the user asks to build on their device, take them at their word and try the device path before claiming none is connected. Tests still run on simulator only.
 
 ### Test Naming
 
@@ -561,10 +560,10 @@ BondingCurve.maxSupply   // 21,000,000 tokens
 
 **Fall back to `./Scripts/build.sh` and `./Scripts/test.sh`** when the MCP server is not connected. See [Running the App & Tests](#running-the-app--tests) for usage. For edge cases the scripts don't cover (e.g., a one-off destination, `xcodebuild clean`), drop down to raw `xcodebuild`.
 
-**Physical-device runs require the script fallback even when MCP is connected.** XcodeBuildMCP only enables simulator workflow tools by default — `build_run_sim`, `test_sim`, etc. Device tools (`build_run_dev`, `test_device`, …) are gated behind a separate workflow flag the user has not enabled. So when the user asks to run on their device, the correct pattern is:
+**Physical-device builds require the script fallback even when MCP is connected.** XcodeBuildMCP only enables simulator workflow tools by default — `build_run_sim`, `test_sim`, etc. Device tools (`build_run_dev`, …) are gated behind a separate workflow flag the user has not enabled. So when the user asks to build on their device, the correct pattern is:
 
 1. Acknowledge that device tools aren't enabled in XcodeBuildMCP — fall back to `xcodebuild` + `devicectl`.
 2. Run `xcrun devicectl list devices` to confirm a paired iPhone is available. **Do not use `xcrun xctrace list devices`** — it mislabels paired iPhones as `Offline` and will lead you to falsely claim no device is connected.
-3. Invoke `./Scripts/build.sh --device` or `./Scripts/test.sh --device [name] <suite>`, which resolves the UDID via devicectl and feeds `platform=iOS,id=<udid>` to xcodebuild.
+3. Invoke `./Scripts/build.sh --device` (optionally `--device "<name substring>"`), which resolves the UDID via devicectl and feeds `platform=iOS,id=<udid>` to xcodebuild.
 
-If the user says "run on my device," take them at their word and follow this flow — don't push back claiming only simulators are available.
+If the user says "build on my device," take them at their word and follow this flow — don't push back claiming only simulators are available. Tests remain simulator-only.
