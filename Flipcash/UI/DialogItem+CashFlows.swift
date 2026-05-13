@@ -90,4 +90,19 @@ extension DialogItem {
             .okay(kind: .standard)
         }
     }
+
+    /// Coinbase Onramp rejects orders below `OnrampCoordinator.minimumPurchaseUSD`
+    /// with a generic error; surface the constraint up-front instead of letting
+    /// the user round-trip to Apple Pay. `minimum` is the USD floor already
+    /// formatted in the user's selected display currency.
+    static func applePayMinimumPurchase(minimum: String) -> DialogItem {
+        .init(
+            style: .destructive,
+            title: "\(minimum) Minimum Purchase",
+            subtitle: "Please enter an amount of \(minimum) or higher",
+            dismissable: true
+        ) {
+            .okay(kind: .destructive)
+        }
+    }
 }
