@@ -22,17 +22,16 @@ extension AppRouter {
         /// The sheet a stack is presented in. Cross-stack navigation uses
         /// this to know which top-level modal to surface.
         ///
-        /// `.buy` is excluded — its sheet carries a mint payload that can't be
-        /// synthesized from the stack alone. Buy is always entered via
+        /// `.buy` returns `nil` — its sheet carries a mint payload that can't
+        /// be synthesized from the stack alone. Buy is always entered via
         /// `router.presentNested(.buy(mint))` directly, never via `navigate(to:)`.
-        var sheet: SheetPresentation {
+        var sheet: SheetPresentation? {
             switch self {
             case .balance:  .balance
             case .settings: .settings
             case .give:     .give
             case .discover: .discover
-            case .buy:
-                preconditionFailure("buy sheet must be presented via router.presentNested(.buy(mint)); not reachable via Stack.sheet")
+            case .buy:      nil
             }
         }
 

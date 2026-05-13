@@ -88,6 +88,22 @@ private struct MethodButton: View {
     }
 }
 
+/// Dismisses the sheet, then waits for the system's dismiss animation
+/// before invoking `action`. Without the wait, pushing onto the buy
+/// stack while the sheet is still mid-dismiss racing causes SwiftUI to
+/// drop the push.
+@MainActor
+private func dismissThenDispatch(
+    onDismiss: () -> Void,
+    action: @escaping @MainActor @Sendable () -> Void
+) {
+    onDismiss()
+    Task { @MainActor in
+        try? await Task.sleep(for: AppRouter.dismissAnimationDuration)
+        action()
+    }
+}
+
 private struct ApplePayMethodButton: View {
     let context: PurchaseMethodContext
     let onDismiss: () -> Void
@@ -97,13 +113,11 @@ private struct ApplePayMethodButton: View {
     var body: some View {
         Button {
             Analytics.buttonTapped(name: .buyWithCoinbase)
-            onDismiss()
-            Task {
-                try? await Task.sleep(for: AppRouter.dismissAnimationDuration)
-                coordinator.start(
-                    .buy(mint: context.mint, displayName: context.currencyName),
-                    amount: context.amount
-                )
+            let mint = context.mint
+            let displayName = context.currencyName
+            let amount = context.amount
+            dismissThenDispatch(onDismiss: onDismiss) { [coordinator] in
+                coordinator.start(.buy(mint: mint, displayName: displayName), amount: amount)
             }
         } label: {
             HStack(spacing: 4) {
@@ -126,7 +140,6 @@ private struct PhantomMethodButton: View {
     var body: some View {
         Button {
             Analytics.buttonTapped(name: .buyWithPhantom)
-            onDismiss()
             // Skip the education screen when a Phantom session already exists
             // — the user has connected before and just needs to confirm. The
             // education screen's auto-advance latch breaks on pop-back from
@@ -135,8 +148,7 @@ private struct PhantomMethodButton: View {
             let nextStep: BuyFlowPath = walletConnection.isConnected
                 ? .phantomConfirm(mint: context.mint, amount: context.amount)
                 : .phantomEducation(mint: context.mint, amount: context.amount)
-            Task {
-                try? await Task.sleep(for: AppRouter.dismissAnimationDuration)
+            dismissThenDispatch(onDismiss: onDismiss) { [router] in
                 router.pushAny(nextStep)
             }
         } label: {
@@ -159,10 +171,10 @@ private struct OtherWalletMethodButton: View {
 
     var body: some View {
         Button("Other Wallet") {
-            onDismiss()
-            Task {
-                try? await Task.sleep(for: AppRouter.dismissAnimationDuration)
-                router.pushAny(BuyFlowPath.usdcDepositEducation(mint: context.mint, amount: context.amount))
+            let mint = context.mint
+            let amount = context.amount
+            dismissThenDispatch(onDismiss: onDismiss) { [router] in
+                router.pushAny(BuyFlowPath.usdcDepositEducation(mint: mint, amount: amount))
             }
         }
         .buttonStyle(.filled)

@@ -50,7 +50,9 @@ struct AppRouterStressTests {
     @Test("100 rounds across all sheet cases converge on empty state")
     func cyclingAllSheets_convergesOnEmptyState() {
         let router = AppRouter()
-        let sheets = AppRouter.Stack.allCases.map(\.sheet)
+        // `compactMap` skips nested-only stacks (`.buy`) — they can't be
+        // a root sheet, so they're outside this stress test's scope.
+        let sheets = AppRouter.Stack.allCases.compactMap(\.sheet)
 
         for i in 0..<100 {
             let sheet = sheets[i % sheets.count]

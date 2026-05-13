@@ -35,6 +35,27 @@ extension AppRouter {
             }
         }
 
+        /// Payload-free case discriminator. Used by `presentNested` to detect
+        /// "same case, different payload" (e.g. `.buy(A)` → `.buy(B)`) without
+        /// comparing the stringly-typed `description`.
+        var caseKind: CaseKind {
+            switch self {
+            case .balance:  .balance
+            case .settings: .settings
+            case .give:     .give
+            case .discover: .discover
+            case .buy:      .buy
+            }
+        }
+
+        enum CaseKind: Hashable, Sendable {
+            case balance
+            case settings
+            case give
+            case discover
+            case buy
+        }
+
         var description: String {
             switch self {
             case .balance:  "balance"

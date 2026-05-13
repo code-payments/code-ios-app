@@ -34,6 +34,7 @@ private let logger = Logger(label: "flipcash.router")
 /// funnels SwiftUI's automatic writes (e.g., swipe-back) through `setPath`,
 /// so every observable state change produces exactly one log line.
 @Observable
+@MainActor
 final class AppRouter {
 
     /// Approximate duration of a SwiftUI `.sheet` / `.fullScreenCover` dismiss
@@ -248,7 +249,7 @@ final class AppRouter {
 
         if let top = presentedSheets.last,
            top != sheet,
-           top.description == sheet.description {
+           top.caseKind == sheet.caseKind {
             // Same case kind on top with a different payload — swap.
             dismissedSheets.insert(top)
             if dismissedSheets.remove(sheet) != nil {
@@ -355,7 +356,16 @@ final class AppRouter {
     /// > view's view model.
     func navigate(to destination: Destination) {
         let targetStack = destination.owningStack
-        let targetSheet = targetStack.sheet
+        // `Destination.owningStack` only ever names a root stack
+        // (balance/settings/give/discover) — `.buy` is nested-only and never
+        // an owning stack — so the optional `Stack.sheet` is never nil here.
+        guard let targetSheet = targetStack.sheet else {
+            logger.warning("navigate(to:) hit a nested-only stack — destination is misrouted", metadata: [
+                "stack": "\(targetStack)",
+                "destination": "\(destination)",
+            ])
+            return
+        }
 
         var expected = NavigationPath()
         expected.append(destination)
