@@ -29,27 +29,34 @@ struct PhantomEducationScreen: View {
 
     var body: some View {
         Background(color: .backgroundMain) {
-            ScrollView {
-                VStack(spacing: 24) {
-                    Spacer(minLength: 60)
-                    PhantomUSDCHero(connected: false)
+            VStack(spacing: 24) {
+                Spacer()
+
+                HeroGraphic()
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Buy with Phantom using Solana USDC")
+
+                VStack(spacing: 8) {
                     Text("Buy With Phantom")
-                        .font(.appTitle)
+                        .font(.appTextLarge)
                         .foregroundStyle(Color.textMain)
+
                     Text("Purchase using Solana USDC in Phantom. Simply connect your wallet and confirm the transaction.")
                         .font(.appTextMedium)
                         .foregroundStyle(Color.textSecondary)
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal, 32)
-                    Spacer()
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-            }
-            .safeAreaInset(edge: .bottom) {
-                BubbleButton(text: "Connect Your Phantom Wallet") {
+                .padding(.horizontal, 40)
+
+                Spacer()
+
+                Button("Connect Your Phantom Wallet") {
                     connect()
                 }
-                .padding()
+                .buttonStyle(.filled)
             }
+            .padding(20)
         }
         .navigationTitle("Purchase")
         .navigationBarTitleDisplayMode(.inline)
@@ -86,6 +93,23 @@ struct PhantomEducationScreen: View {
                     dismissable: true
                 ) { .okay(kind: .destructive) }
             }
+        }
+    }
+}
+
+private struct HeroGraphic: View {
+    var body: some View {
+        HStack(spacing: 16) {
+            BadgedIcon(icon: Image.asset(.buyPhantom))
+
+            Image(systemName: "plus")
+                .foregroundStyle(Color.textMain)
+                .font(.system(size: 20, weight: .medium))
+
+            BadgedIcon(
+                icon: Image.asset(.buyUSDC),
+                badge: Image.asset(.buySolana)
+            )
         }
     }
 }

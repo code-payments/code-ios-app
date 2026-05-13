@@ -59,21 +59,17 @@ struct USDCDepositEducationScreen: View {
 private struct ConversionGraphic: View {
     var body: some View {
         HStack(spacing: 16) {
-            // Mirrors `WithdrawIntroScreen.ConversionGraphic`: the solanaUSDC
-            // asset's viewBox is 143x145 because the Solana hex badge sits
-            // down-right of the main USDC circle (128.3 wide). Frame ratio
-            // 111x113 scales the main circle to ~100x100, matching the
-            // Flipcash icon. The offset re-centers the main circle.
-            Image.asset(.solanaUSDC)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 111, height: 113)
-                .offset(x: 6, y: 7)
+            BadgedIcon(
+                icon: Image.asset(.buyUSDC),
+                badge: Image.asset(.buySolana),
+                size: 100,
+                badgeSize: 32
+            )
 
             Image.system(.arrowRight)
                 .foregroundStyle(Color.textSecondary)
 
-            Image.asset(.flipcash)
+            Image.asset(.buyFlipcash)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 100, height: 100)

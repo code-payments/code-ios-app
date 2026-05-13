@@ -32,27 +32,44 @@ struct PhantomConfirmScreen: View {
 
     var body: some View {
         Background(color: .backgroundMain) {
-            ScrollView {
-                VStack(spacing: 24) {
-                    Spacer(minLength: 60)
-                    PhantomUSDCHero(connected: true)
+            VStack(spacing: 24) {
+                Spacer()
+
+                BadgedIcon(
+                    icon: Image.asset(.buyPhantom),
+                    badge: Image.asset(.buyCheckmark)
+                )
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Phantom connected")
+
+                VStack(spacing: 8) {
                     Text("Connected")
-                        .font(.appTitle)
+                        .font(.appTextLarge)
                         .foregroundStyle(Color.textMain)
+
                     Text("Confirm the transaction in Phantom to continue")
                         .font(.appTextMedium)
                         .foregroundStyle(Color.textSecondary)
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal, 32)
-                    Spacer()
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-            }
-            .safeAreaInset(edge: .bottom) {
-                BubbleButton(text: "Confirm In Phantom") {
-                    confirmInPhantom()
+                .padding(.horizontal, 40)
+
+                Spacer()
+
+                Button(action: confirmInPhantom) {
+                    HStack(spacing: 6) {
+                        Text("Confirm in your")
+                        Image.asset(.phantom)
+                            .renderingMode(.template)
+                            .resizable()
+                            .frame(width: 18, height: 18)
+                        Text("Phantom")
+                    }
                 }
-                .padding()
+                .buttonStyle(.filled)
             }
+            .padding(20)
         }
         .navigationTitle("Confirmation")
         .navigationBarTitleDisplayMode(.inline)
