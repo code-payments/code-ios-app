@@ -235,13 +235,15 @@ let stream = service.openMessageStream(request, callOptions: .streaming) { respo
 
 All navigation flows through `AppRouter` — a single `@Observable @MainActor` class on `SessionContainer`, injected via `@Environment(AppRouter.self)`. **Don't add screen-level `@State` sheet flags or `selectedXxx` bindings for navigation** — mutate the router instead. Deeplinks and push notifications call `router.navigate(to:)`; in-screen pushes call `router.push(_:on:)`.
 
-Top-level sheets (`Balance`, `Settings`, `Give`, `Discover`) each own a `NavigationStack(path: $router[.<stack>])` and register destinations via the `.appRouterDestinations(...)` modifier on their root content. Per-stack paths are `NavigationPath` (type-erased), so sub-flow destinations (e.g., `WithdrawNavigationPath`) coexist with top-level `Destination` cases on the same stack — register `.navigationDestination(for: SubFlowPath.self)` on the sub-flow root view and push via `router.pushAny(_:on:)`. **Don't nest a `NavigationStack` inside another stack's destination** — push/pop/push corrupts SwiftUI's stack state with `comparisonTypeMismatch`.
+Top-level sheets (`Balance`, `Settings`, `Give`, `Discover`) each own a `NavigationStack(path: $router[.<stack>])` and register destinations via the `.appRouterDestinations(...)` modifier on their root content. Per-stack paths are `NavigationPath` (type-erased), so sub-flow destinations (e.g., `WithdrawNavigationPath`, `BuyFlowPath`) coexist with top-level `Destination` cases on the same stack — register `.navigationDestination(for: SubFlowPath.self)` on the sub-flow root view and push via `router.pushAny(_:on:)`. **Don't nest a `NavigationStack` inside another stack's destination** — push/pop/push corrupts SwiftUI's stack state with `comparisonTypeMismatch`.
 
-**Local interaction sheets stay local.** Transient pickers (currency selection, buy/sell amount, funding selection) and operation-bound modals (swap/launch processing covers) belong on the screen that owns them as `.sheet(...)` / `.fullScreenCover(...)` modifiers — they're interactions or in-flight status, not navigation.
+**Nested sheets.** `presentedSheets` is an ordered stack: `.first` is the root sheet (mounted at app root) and any entries above visually stack on top. Use `router.presentNested(.x(...))` to stack a sheet on top of the current top — required for "sheet over sheet" UX like buy-from-currency-info. SwiftUI requires nested sheets to be mounted from **inside** the parent sheet's content tree (sibling `.sheet` modifiers at the root can't stack), so each top-level sheet's content applies the `.appRouterNestedSheet(...)` modifier — that's the convention. New top-level sheets must remember to apply it; the modifier handles all nested levels via env-injected `nestedSheetDepth`. The buy flow is the only nested sheet today (`.buy(mint)`); sell/give/etc. are migrating opt-in.
+
+**Local interaction sheets stay local.** Transient pickers (currency selection, funding selection) belong on the screen that owns them as `.sheet(...)` / `.fullScreenCover(...)` modifiers — they're interactions, not navigation. Operation-bound modals (swap/launch processing covers) similarly belong locally, *unless* they're part of a router-managed sheet's flow — in that case prefer pushing onto the sheet's stack as a `BuyFlowPath.processing` (or similar) so the sheet's dismiss tears down the whole chain.
 
 **The test:** if a deeplink could reasonably land the user here, it's a destination — route through `AppRouter`. If not, keep it local.
 
-**Sheet path lifecycle.** `dismissSheet` leaves the dismissed sheet's `NavigationPath` populated so the closing animation runs with its current contents. The path is cleared on the next `present(_:)` of that same sheet, so re-opens land at root. Sheet swaps (presenting another sheet without dismissing first) preserve both paths for swap-back. Don't add manual `popToRoot` calls around your own dismissal — let the router handle it.
+**Sheet path lifecycle.** `dismissSheet` pops the topmost sheet and leaves its `NavigationPath` populated so the closing animation runs with current contents. The path is cleared on the next `present(_:)` or `presentNested(_:)` of that same sheet value, so re-opens land at root. Sheet swaps at root (`present(.different)` without an intervening `dismissSheet`) preserve the swapped-out root's path for swap-back; nested sheets above a swapped root are always dismissed (and their paths cleared on re-open). `present(.sameRoot)` while a nested sheet is up pops the nested and keeps the root path. Don't add manual `popToRoot` calls around your own dismissal — let the router handle it.
 
 Every router mutation logs one INFO entry under `flipcash.router` — filter by that label to trace any navigation interaction.
 
@@ -511,6 +513,7 @@ Navigation:
 - Flipcash/Core/Navigation/AppRouter+SheetPresentation.swift (top-level sheets)
 - Flipcash/Core/Navigation/AppRouter+Stack.swift (per-sheet stacks)
 - Flipcash/Core/Navigation/AppRouter+DestinationView.swift (destination → view map)
+- Flipcash/Core/Navigation/AppRouter+NestedSheet.swift (nested sheet modifier + root views)
 
 Session & Auth:
 - Flipcash/Core/Session/Session.swift

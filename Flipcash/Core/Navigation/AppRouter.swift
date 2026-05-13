@@ -23,6 +23,13 @@ private let logger = Logger(label: "flipcash.router")
 /// This avoids nested `NavigationStack`s, which crash with
 /// `comparisonTypeMismatch` on push/pop/push cycles.
 ///
+/// The router supports nested sheets: `presentedSheets` is an ordered stack
+/// where the bottom entry is the root sheet (mounted at app root) and any
+/// entries above visually stack on top via `.appRouterNestedSheet` modifiers
+/// applied inside each parent sheet's content tree. SwiftUI requires nested
+/// sheets to be presented from within the parent's view tree — they cannot
+/// be siblings at the root.
+///
 /// All mutators log at INFO via `flipcash.router`. The bindable subscript
 /// funnels SwiftUI's automatic writes (e.g., swipe-back) through `setPath`,
 /// so every observable state change produces exactly one log line.
@@ -36,16 +43,26 @@ final class AppRouter {
     /// mutating bill state so it enters fresh on the revealed ScanScreen.
     static let dismissAnimationDuration: Duration = .milliseconds(400)
 
-    private(set) var presentedSheet: SheetPresentation?
+    /// Stack of presented sheets, bottom-first. `.first` is the root sheet
+    /// (mounted at app root); `.last` is topmost (visible). Empty when no
+    /// sheet is presented.
+    private(set) var presentedSheets: [SheetPresentation] = []
+
+    /// Topmost (currently visible) sheet, or nil if no sheet is presented.
+    var presentedSheet: SheetPresentation? { presentedSheets.last }
+
+    /// Root sheet — the one mounted at the app root. Distinct from
+    /// `presentedSheet` when nested sheets are present.
+    var rootSheet: SheetPresentation? { presentedSheets.first }
 
     private var paths: [Stack: NavigationPath] = [:]
 
     /// Sheets the user has explicitly dismissed (close button, swipe-down, or
     /// programmatic `dismissSheet`) since their last presentation. The next
-    /// `present(_:)` of an entry in this set clears the sheet's stack path so
-    /// re-opening starts at root. Sheet swaps don't add to the set, so swap-back
-    /// preserves the prior path. Bounded by the number of `SheetPresentation`
-    /// cases.
+    /// `present(_:)` or `presentNested(_:)` of an entry in this set clears the
+    /// sheet's stack path so re-opening starts at root. Sheet swaps don't add
+    /// to the set, so swap-back preserves the prior path. Bounded by the
+    /// number of `SheetPresentation` cases (per-value for cases with payload).
     private var dismissedSheets: Set<SheetPresentation> = []
 
     init() {}
@@ -60,7 +77,10 @@ final class AppRouter {
 
     // MARK: - Stack mutators
 
-    /// Pushes onto whatever stack is currently presented (`presentedSheet?.stack`).
+    /// Pushes onto whatever stack is topmost (`presentedSheet?.stack`). With
+    /// nested sheets, that's the nested sheet's stack — pushes always land on
+    /// the visible NavigationStack, never on a stack hidden underneath.
+    ///
     /// No-op with a warning if no sheet is presented — pushes onto a hidden
     /// stack would silently corrupt that stack's path until the user later
     /// presents that sheet.
@@ -77,11 +97,11 @@ final class AppRouter {
         logger.info("Push", metadata: navigationMetadata(stack: stack, destination: destination))
     }
 
-    /// Pushes any Hashable value onto the currently-presented stack. Used by
-    /// sub-flows whose destination types live outside `AppRouter.Destination`
-    /// (e.g., `WithdrawNavigationPath`), so a single stack can carry mixed
-    /// types without nesting `NavigationStack`s. No-op with a warning if no
-    /// sheet is presented.
+    /// Pushes any Hashable value onto the topmost stack. Used by sub-flows
+    /// whose destination types live outside `AppRouter.Destination` (e.g.,
+    /// `WithdrawNavigationPath`, `BuyFlowPath`), so a single stack can carry
+    /// mixed types without nesting `NavigationStack`s. No-op with a warning
+    /// if no sheet is presented.
     func pushAny<H: Hashable>(_ value: H) {
         guard let stack = presentedSheet?.stack else {
             logger.warning("Push (sub-flow) attempted with no sheet presented", metadata: [
@@ -150,69 +170,154 @@ final class AppRouter {
 
     // MARK: - Sheet mutators
 
-    /// Presents `sheet`. Idempotent: no-op if already presenting `sheet`.
+    /// Presents `sheet` as the root sheet.
     ///
-    /// If `sheet` was previously dismissed (sits in `dismissedSheets`), its
-    /// stack path is cleared synchronously *before* the sheet mounts — so a
-    /// re-open lands at root. A sheet swap (presenting a different sheet
+    /// Semantics:
+    /// - Already at this exact state (`presentedSheets == [sheet]`) → idempotent.
+    /// - Same root with nested sheets above → pop the nested(s), keep root.
+    ///   `present(.balance)` while `[.balance, .buy(mint)]` is up → `[.balance]`.
+    /// - Different root (with or without nested above) → dismiss everything,
+    ///   present new root.
+    ///
+    /// If the new root was previously dismissed (sits in `dismissedSheets`),
+    /// its stack path is cleared synchronously *before* the sheet mounts — so
+    /// a re-open lands at root. A sheet swap (presenting a different sheet
     /// without going through `dismissSheet` first) leaves both paths intact,
     /// preserving the original "swap-and-return" behaviour.
-    ///
-    /// Doing the clear here instead of inside `dismissSheet` avoids the
-    /// "push back, then dismiss" animation: dismissal lets the sheet's
-    /// snapshot slide off-screen with its current contents intact, and the
-    /// clear runs only when the user actively chooses to re-open.
     func present(_ sheet: SheetPresentation) {
-        guard sheet != presentedSheet else { return }
-        let previous = presentedSheet
+        if presentedSheets == [sheet] { return }
+
+        let previousTop = presentedSheet
+
+        if presentedSheets.first == sheet {
+            // Same root, nested above → pop nested(s), keep root path intact.
+            for nested in presentedSheets.dropFirst() {
+                dismissedSheets.insert(nested)
+            }
+            presentedSheets = [sheet]
+            logger.info("Presented sheet (popped nested above same root)", metadata: [
+                "sheet": "\(sheet)",
+                "previousSheet": "\(previousTop.map(String.init(describing:)) ?? "<none>")",
+            ])
+            return
+        }
+
+        // Different root: nested sheets above (if any) are dismissed — their
+        // paths clear on next re-open. The replaced root is left out of
+        // `dismissedSheets` so a future `present(_:)` of the old root restores
+        // its path (swap-back semantics).
+        for nested in presentedSheets.dropFirst() {
+            dismissedSheets.insert(nested)
+        }
+
         if dismissedSheets.remove(sheet) != nil {
             paths[sheet.stack] = NavigationPath()
         }
-        presentedSheet = sheet
+
+        presentedSheets = [sheet]
         logger.info("Presented sheet", metadata: [
             "sheet": "\(sheet)",
-            "previousSheet": "\(previous.map(String.init(describing:)) ?? "<none>")",
+            "previousSheet": "\(previousTop.map(String.init(describing:)) ?? "<none>")",
         ])
     }
 
-    /// Dismisses the active sheet and marks it as "explicitly closed" so the
-    /// next `present(_:)` of the same sheet clears its stack path. The path
-    /// itself is left untouched here — the dismissing sheet keeps its current
+    /// Appends `sheet` on top of the current top, stacking visually. Requires
+    /// at least one sheet already presented (no-op + warning otherwise — the
+    /// caller should `present(_:)` a root first, not promote-implicitly).
+    ///
+    /// Semantics:
+    /// - Stack empty → no-op + warning.
+    /// - Same sheet already on top → idempotent.
+    /// - Same case different payload on top (e.g., `.buy(A)` → `.buy(B)`) →
+    ///   swap the top entry. The displaced value is added to `dismissedSheets`
+    ///   so its path is cleared on next re-open.
+    /// - Otherwise → append.
+    ///
+    /// Path-clear-on-reopen applies identically to nested sheets: if the
+    /// presented sheet sits in `dismissedSheets`, its path is cleared
+    /// synchronously before mount.
+    func presentNested(_ sheet: SheetPresentation) {
+        guard !presentedSheets.isEmpty else {
+            logger.warning("presentNested attempted with no sheet presented; call present(_:) first", metadata: [
+                "sheet": "\(sheet)",
+            ])
+            return
+        }
+
+        if presentedSheets.last == sheet { return }
+
+        if let top = presentedSheets.last,
+           top != sheet,
+           top.description == sheet.description {
+            // Same case kind on top with a different payload — swap.
+            dismissedSheets.insert(top)
+            if dismissedSheets.remove(sheet) != nil {
+                paths[sheet.stack] = NavigationPath()
+            }
+            presentedSheets[presentedSheets.count - 1] = sheet
+            logger.info("Presented nested sheet (swapped same-case top)", metadata: [
+                "sheet": "\(sheet)",
+                "displaced": "\(top)",
+            ])
+            return
+        }
+
+        if dismissedSheets.remove(sheet) != nil {
+            paths[sheet.stack] = NavigationPath()
+        }
+
+        presentedSheets.append(sheet)
+        logger.info("Presented nested sheet", metadata: [
+            "sheet": "\(sheet)",
+            "depth": "\(presentedSheets.count)",
+        ])
+    }
+
+    /// Dismisses the topmost sheet. If only the root remains, this dismisses
+    /// the root (same as the pre-nested behaviour). With nested sheets, only
+    /// the topmost is popped — the root stays presented.
+    ///
+    /// The dismissed sheet is marked "explicitly closed" so the next
+    /// presentation of the same value clears its stack path. The path itself
+    /// is left untouched here — the dismissing sheet keeps its current
     /// contents through the slide-down animation, and the clear happens on
     /// re-open instead.
     func dismissSheet() {
-        guard let dismissing = presentedSheet else { return }
-        presentedSheet = nil
+        guard let dismissing = presentedSheets.popLast() else { return }
         dismissedSheets.insert(dismissing)
-        logger.info("Dismissed sheet", metadata: ["sheet": "\(dismissing)"])
+        logger.info("Dismissed sheet", metadata: [
+            "sheet": "\(dismissing)",
+            "remainingDepth": "\(presentedSheets.count)",
+        ])
     }
 
-    /// Global navigation reset: dismisses the active sheet (if any) and
-    /// clears every stack's `NavigationPath`. The user lands on the
-    /// Scanner — the unconditional root rendered behind all sheets.
+    /// Global navigation reset: dismisses every presented sheet and clears
+    /// every stack's `NavigationPath`. The user lands on the Scanner — the
+    /// unconditional root rendered behind all sheets.
     ///
     /// Distinct from ``popToRoot(on:)``, which is a per-stack pop. This
-    /// method is the all-stacks + sheet variant, used by the
+    /// method is the all-sheets + all-stacks variant, used by the
     /// auto-return-on-background trigger when the user has been away long
     /// enough that any in-flight navigation should be discarded.
     ///
-    /// The active sheet's slide-down animation runs with its current contents
-    /// — the same behaviour as ``dismissSheet()``. Inactive stacks have no
-    /// on-screen UI so their paths are cleared synchronously.
+    /// The dismissing root sheet's slide-down animation runs with its current
+    /// contents — the same behaviour as ``dismissSheet()``. Inactive stacks
+    /// have no on-screen UI so their paths are cleared synchronously.
     func dismissAll() {
-        let dismissingSheet = presentedSheet
-        presentedSheet = nil
-        if let dismissingSheet {
-            dismissedSheets.insert(dismissingSheet)
+        let dismissing = presentedSheets
+        let dismissingRoot = presentedSheets.first
+        presentedSheets = []
+        for sheet in dismissing {
+            dismissedSheets.insert(sheet)
         }
-        // Clear every other stack's path now. The dismissing stack keeps its
-        // path through the slide-off animation; the existing dismissedSheets
-        // mechanism clears it on the next present(_:) for that sheet.
-        for stack in Stack.allCases where stack != dismissingSheet?.stack {
+        // Clear every stack's path except the dismissing root's — that stack
+        // keeps its path through the slide-off animation, cleared on next
+        // present of that root via the dismissedSheets mechanism.
+        for stack in Stack.allCases where stack != dismissingRoot?.stack {
             paths[stack] = NavigationPath()
         }
         logger.info("Dismiss all", metadata: [
-            "dismissedSheet": "\(dismissingSheet.map(String.init(describing:)) ?? "<none>")",
+            "dismissedSheets": "\(dismissing.map(String.init(describing:)))",
         ])
     }
 
@@ -235,9 +340,10 @@ final class AppRouter {
 
     // MARK: - Cross-stack navigation
 
-    /// Cross-stack navigation. Presents the destination's `owningStack` (swapping
-    /// the current sheet if different) and sets `[destination]` as the only
-    /// path entry on that stack. Other stacks' paths are preserved underneath.
+    /// Cross-stack navigation. Presents the destination's `owningStack` as the
+    /// root sheet (dismissing any nested sheets above) and sets `[destination]`
+    /// as the only path entry on that stack. Other stacks' paths are preserved
+    /// underneath.
     ///
     /// Call this from deeplinks, push notifications, and any programmatic
     /// redirect that should land the user *on* the destination regardless of
@@ -253,10 +359,11 @@ final class AppRouter {
 
         var expected = NavigationPath()
         expected.append(destination)
-        let alreadyThere = presentedSheet == targetSheet
+        let alreadyThere = presentedSheets == [targetSheet]
                         && paths[targetStack, default: NavigationPath()] == expected
         guard !alreadyThere else { return }
 
+        // present(_:) handles dismiss-nested-then-swap-root semantics.
         present(targetSheet)
         setPath([destination], on: targetStack)
     }

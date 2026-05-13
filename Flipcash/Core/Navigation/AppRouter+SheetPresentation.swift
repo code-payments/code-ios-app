@@ -10,13 +10,15 @@ import FlipcashCore
 
 extension AppRouter {
 
-    /// Identifies the top-level modal sheet currently overlaying `ScanScreen`.
-    /// One sheet at a time; switching sheets dismisses the previous.
+    /// Identifies a top-level modal sheet. The router can present multiple at
+    /// once — the bottom of the stack is the root sheet (overlays `ScanScreen`)
+    /// and any subsequent entries are nested sheets that visually stack on top.
     nonisolated enum SheetPresentation: Identifiable, Hashable, Sendable, CustomStringConvertible {
         case balance
         case settings
         case give
         case discover
+        case buy(PublicKey)
 
         var id: Self { self }
 
@@ -29,6 +31,7 @@ extension AppRouter {
             case .settings: .settings
             case .give:     .give
             case .discover: .discover
+            case .buy:      .buy
             }
         }
 
@@ -38,6 +41,7 @@ extension AppRouter {
             case .settings: "settings"
             case .give:     "give"
             case .discover: "discover"
+            case .buy:      "buy"
             }
         }
     }

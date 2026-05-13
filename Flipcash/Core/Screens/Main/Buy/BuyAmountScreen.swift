@@ -13,15 +13,12 @@ struct BuyAmountScreen: View {
 
     @State private var viewModel: BuyAmountViewModel
     @State private var isShowingCurrencySelection: Bool = false
-    /// Path depth on the balance stack at the entry to the buy flow. Captured
-    /// on first appear so the buy flow can pop back to whatever pushed it
-    /// (typically `currencyInfo`) when the user completes or cancels, without
-    /// knowing how many sub-flow screens were pushed in between.
-    @State private var parentDepth: Int?
 
     @Environment(AppRouter.self) private var router
     @Environment(OnrampCoordinator.self) private var coordinator
     @Environment(RatesController.self) private var ratesController
+    @Environment(WalletConnection.self) private var walletConnection
+    @Environment(Session.self) private var session
 
     init(mint: PublicKey, currencyName: String, session: Session, ratesController: RatesController) {
         self._viewModel = State(initialValue: BuyAmountViewModel(
@@ -30,6 +27,10 @@ struct BuyAmountScreen: View {
             session: session,
             ratesController: ratesController
         ))
+    }
+
+    private var isDismissBlocked: Bool {
+        coordinator.isProcessingPayment || walletConnection.isAwaitingExternalSwap
     }
 
     var body: some View {
@@ -52,12 +53,29 @@ struct BuyAmountScreen: View {
         }
         .navigationTitle(viewModel.screenTitle)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if !isDismissBlocked {
+                ToolbarItem(placement: .topBarTrailing) {
+                    CloseButton(action: router.dismissSheet)
+                }
+            }
+        }
+        .interactiveDismissDisabled(isDismissBlocked)
         .navigationDestination(for: BuyFlowPath.self) { path in
             // Env value must be set on the destination view itself — modifiers
             // on the source view don't propagate to navigation destinations
             // (they live in a separate SwiftUI context).
+            //
+            // SwapProcessingScreen at the leaf observes
+            // `walletConnection.isProcessingCancelled` for failure flips, so
+            // clearing the wallet state happens on OK (here), not at push
+            // time. For Coinbase and direct-USDF paths walletConnection state
+            // is already idle, so `dismissProcessing()` is a no-op.
             BuyFlowDestinationView(path: path)
-                .environment(\.dismissParentContainer, dismissBuyFlow)
+                .environment(\.dismissParentContainer, {
+                    walletConnection.dismissProcessing()
+                    router.dismissSheet()
+                })
         }
         .dialog(item: $viewModel.dialogItem)
         .sheet(item: $viewModel.pendingMethodSelection) { context in
@@ -82,32 +100,25 @@ struct BuyAmountScreen: View {
             ))
             coordinator.completion = nil
         }
-        .onAppear {
-            if parentDepth == nil {
-                // path.count includes this view's own push (we're already on
-                // the stack when onAppear fires). Subtract 1 to get the depth
-                // of the screen that triggered the buy — what we pop back to
-                // when the user finishes the flow.
-                parentDepth = max(0, router[.balance].count - 1)
-            }
+        // Forward wallet-connection dialogs (Phantom cancel during signing,
+        // simulate failures, etc.) to `session.dialogItem` so they render in
+        // `DialogWindow` at alert level instead of trying to mount a sheet
+        // on `CurrencyInfoScreen` — which fights the `.buy` sheet's
+        // presentation queue and dismisses it.
+        // `DialogItem` isn't Equatable, so observe the id (UUID) and read the
+        // current value in the handler.
+        .onChange(of: walletConnection.dialogItem?.id) { _, newId in
+            guard newId != nil, let dialog = walletConnection.dialogItem else { return }
+            session.dialogItem = dialog
+            walletConnection.dialogItem = nil
         }
+        // The Phantom processing push is owned by `PhantomConfirmScreen` —
+        // observing `walletConnection.processing` here too would double-push
+        // when both screens are alive (PhantomConfirm still on top during the
+        // state transition).
     }
 
     private func showCurrencySelection() {
         isShowingCurrencySelection.toggle()
-    }
-
-    /// Pops every screen pushed since the buy flow started — `buyAmount`
-    /// itself plus any sub-flow (`phantomEducation`, `phantomConfirm`,
-    /// `usdcDepositEducation`, `usdcDepositAddress`, `processing`). Used by
-    /// `SwapProcessingScreen`'s OK button via `dismissParentContainer`.
-    private var dismissBuyFlow: () -> Void {
-        let depth = parentDepth
-        return { [router] in
-            guard let depth else { return }
-            let toPop = router[.balance].count - depth
-            guard toPop > 0 else { return }
-            router.popLast(toPop, on: .balance)
-        }
     }
 }

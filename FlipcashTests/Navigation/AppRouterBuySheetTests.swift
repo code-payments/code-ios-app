@@ -9,35 +9,35 @@ import Testing
 import FlipcashCore
 @testable import Flipcash
 
-@Suite("AppRouter buy push")
+@Suite("AppRouter buy nested sheet")
 @MainActor
 struct AppRouterBuySheetTests {
 
-    @Test("push(.buyAmount(mint)) appends to the balance stack")
-    func pushBuyAmount() {
+    @Test("presentNested(.buy(mint)) stacks on .balance")
+    func presentNestedBuyOnBalance() {
         let router = AppRouter()
         let mint = PublicKey.usdf
         router.present(.balance)
 
-        router.push(.buyAmount(mint))
+        router.presentNested(.buy(mint))
 
-        #expect(router[.balance].count == 1)
+        #expect(router.presentedSheets == [.balance, .buy(mint)])
+        #expect(router.rootSheet == .balance)
+        #expect(router.presentedSheet == .buy(mint))
     }
 
-    @Test(".buyAmount destination targets the balance stack")
-    func buyAmountTargetsBalanceStack() {
-        #expect(AppRouter.Destination.buyAmount(.usdf).owningStack == .balance)
+    @Test(".buy SheetPresentation maps to .buy stack")
+    func buySheetMapsToBuyStack() {
+        #expect(AppRouter.SheetPresentation.buy(.usdf).stack == .buy)
     }
 
-    @Test("pushAny BuyFlowPath onto the balance stack appends the value")
+    @Test("pushAny BuyFlowPath onto the .buy stack appends the value")
     func pushAnyBuyFlowPath() {
         let router = AppRouter()
         let mint = PublicKey.usdf
         router.present(.balance)
-        router.push(.buyAmount(mint))
+        router.presentNested(.buy(mint))
 
-        // Minimal ExchangedFiat with zero on-chain amount against a fixed
-        // USD rate, just enough to satisfy BuyFlowPath.phantomEducation.
         let pinned = ExchangedFiat.compute(
             onChainAmount: .zero(mint: .usdf),
             rate: .oneToOne,
@@ -45,7 +45,7 @@ struct AppRouterBuySheetTests {
         )
         router.pushAny(BuyFlowPath.phantomEducation(mint: mint, amount: pinned))
 
-        // buyAmount + phantomEducation
-        #expect(router[.balance].count == 2)
+        #expect(router[.buy].count == 1, "pushes target the topmost sheet's stack")
+        #expect(router[.balance].isEmpty, "balance stack untouched")
     }
 }
