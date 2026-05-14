@@ -10,20 +10,17 @@ import XCTest
 ///
 /// - The buy nested sheet opens on top of CurrencyInfoScreen.
 /// - An amount above the USDF balance routes to `PurchaseMethodSheet`.
-/// - Selecting Phantom on an account with no saved Phantom session pushes
-///   `PhantomEducationScreen` (rather than skipping directly to the
-///   Confirm screen — the no-session branch in `PurchaseMethodSheet`).
+/// - Selecting Phantom pushes `PhantomEducationScreen` (the picker no longer
+///   triggers a connect deeplink — that happens when the user taps the
+///   Connect CTA on the education screen).
 /// - The Connect CTA is hittable.
 ///
-/// The test stops at the Connect tap. Driving the actual Phantom callback
-/// is out of scope — `WalletCallbackRegressionTests` covers the deeplink
-/// re-entry surface separately.
+/// The test stops short of the Connect tap. Driving the actual Phantom
+/// callback is out of scope for the local simulator without a real Phantom
+/// install.
 ///
 /// **Prerequisites:**
 /// - A valid `FLIPCASH_UI_TEST_ACCESS_KEY` set in `secrets.local.xcconfig`
-/// - The test account must NOT have a saved Phantom session in Keychain
-///   (a fresh test account is fine; a previously-Phantom-connected account
-///   would skip past `PhantomEducationScreen`).
 final class BuyPhantomRegressionTests: BaseUITestCase {
 
     override var requiresAuthentication: Bool { true }

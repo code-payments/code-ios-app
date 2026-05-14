@@ -43,6 +43,17 @@ struct BuyAmountViewModelTests {
             )
         )
 
+        // Force USD as the balance currency. Without this the rates controller
+        // reads `LocalDefaults.balanceCurrency`, which can be polluted by other
+        // suites that called `configureTestRates(balanceCurrency: .cad, ...)` —
+        // the persisted `.cad` then makes `currentPinnedState(for: .cad)` return
+        // nil here (no CAD pin seeded), routing through `.staleRate` instead
+        // of the picker.
+        container.ratesController.configureTestRates(
+            balanceCurrency: .usd,
+            rates: [Rate(fx: 1.0, currency: .usd)]
+        )
+
         // Pin a fresh USD verified state so prepareSubmission() succeeds.
         await container.ratesController.verifiedProtoService.saveRates([
             .freshRate(currencyCode: "USD", rate: 1.0)
@@ -77,10 +88,10 @@ struct BuyAmountViewModelTests {
         viewModel.enteredAmount = "20"
         await viewModel.amountEnteredAction(router: router)
 
-        // Gate routed to auto-buy, not the picker. The subsequent
+        // Gate routed to reserve-funded buy, not the picker. The subsequent
         // session.buy network call is out of scope for this unit test —
         // here we only assert the gate decision.
-        #expect(viewModel.pendingMethodSelection == nil)
+        #expect(viewModel.pendingOperation == nil)
     }
 
     @Test(
@@ -99,13 +110,13 @@ struct BuyAmountViewModelTests {
         viewModel.enteredAmount = enteredAmount
         await viewModel.amountEnteredAction(router: router)
 
-        let context = try #require(viewModel.pendingMethodSelection)
-        #expect(context.amount.nativeAmount.value > 0)
+        let operation = try #require(viewModel.pendingOperation)
+        #expect(operation.displayAmount.nativeAmount.value > 0)
         // No push fired — picker is a local sheet, not a stack destination.
         #expect(router[.balance].count == 0)
     }
 
-    @Test("Pinned amount is carried into the PurchaseMethodContext")
+    @Test("Pinned amount is carried into the PaymentOperation buy payload")
     func pinPropagation() async throws {
         let container = try await Self.makeContainer(usdfQuarks: 0)
         let viewModel = Self.makeViewModel(container: container)
@@ -115,10 +126,14 @@ struct BuyAmountViewModelTests {
         viewModel.enteredAmount = "10"
         await viewModel.amountEnteredAction(router: router)
 
-        let context = try #require(viewModel.pendingMethodSelection)
-        // Native USD amount round-trips through the pin into the context.
-        #expect(context.amount.nativeAmount.value == 10)
-        #expect(context.amount.nativeAmount.currency == .usd)
+        let operation = try #require(viewModel.pendingOperation)
+        guard case .buy(let payload) = operation else {
+            Issue.record("Expected .buy operation, got \(operation)")
+            return
+        }
+        // Native USD amount round-trips through the pin into the payload.
+        #expect(payload.amount.nativeAmount.value == 10)
+        #expect(payload.amount.nativeAmount.currency == .usd)
     }
 
     @Test("Empty entered amount does nothing on submit")
@@ -131,7 +146,7 @@ struct BuyAmountViewModelTests {
         viewModel.enteredAmount = ""
         await viewModel.amountEnteredAction(router: router)
 
-        #expect(viewModel.pendingMethodSelection == nil)
+        #expect(viewModel.pendingOperation == nil)
         #expect(router[.balance].count == 0)
         #expect(viewModel.dialogItem == nil)
         // Loading flicker on an empty submit would be a regression.

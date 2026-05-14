@@ -238,11 +238,12 @@ final class SessionAuthenticator {
             userID: initializedAccount.userID
         )
         
-        let walletConnection = WalletConnection(owner: owner, client: container.client)
+        let walletConnection = WalletConnection(owner: owner)
 
         return SessionContainer(
             session: session,
             database: database,
+            client: container.client,
             walletConnection: walletConnection,
             ratesController: ratesController,
             historyController: historyController,
@@ -417,11 +418,13 @@ struct SessionContainer {
     let flipClient: FlipClient
     let onrampDeeplinkInbox: OnrampDeeplinkInbox
     let onrampCoordinator: OnrampCoordinator
+    let phantomCoordinator: PhantomCoordinator
     let appRouter: AppRouter
 
     init(
         session: Session,
         database: Database,
+        client: Client,
         walletConnection: WalletConnection,
         ratesController: RatesController,
         historyController: HistoryController,
@@ -437,6 +440,11 @@ struct SessionContainer {
         self.flipClient = flipClient
         self.onrampDeeplinkInbox = OnrampDeeplinkInbox()
         self.onrampCoordinator = OnrampCoordinator(session: session, flipClient: flipClient)
+        self.phantomCoordinator = PhantomCoordinator(
+            walletConnection: walletConnection,
+            session: session,
+            client: client
+        )
         self.appRouter = AppRouter()
     }
 
@@ -449,6 +457,7 @@ struct SessionContainer {
             .environment(pushController)
             .environment(walletConnection)
             .environment(onrampCoordinator)
+            .environment(phantomCoordinator)
             .environment(onrampDeeplinkInbox)
     }
 }

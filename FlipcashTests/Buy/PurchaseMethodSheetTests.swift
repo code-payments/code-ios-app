@@ -52,9 +52,12 @@ struct PurchaseMethodSheetTests {
             let container = try SessionContainer.makeTest(holdings: [])
             // Default test session has no userFlags set, so hasCoinbase is false.
 
-            let methods = PurchaseMethodSheet.methods(forSession: container.session)
+            let visible = PurchaseMethodSheet.visibleSources(
+                from: [.applePay, .phantom, .otherWallet],
+                session: container.session
+            )
 
-            #expect(methods == [.phantom, .otherWallet])
+            #expect(visible == [.phantom, .otherWallet])
         }
     }
 
@@ -63,9 +66,26 @@ struct PurchaseMethodSheetTests {
         try Self.withCoinbaseBetaFlag(enabled: false) {
             let container = try Self.makeContainerWithCoinbase()
 
-            let methods = PurchaseMethodSheet.methods(forSession: container.session)
+            let visible = PurchaseMethodSheet.visibleSources(
+                from: [.applePay, .phantom, .otherWallet],
+                session: container.session
+            )
 
-            #expect(methods == [.applePay, .phantom, .otherWallet])
+            #expect(visible == [.applePay, .phantom, .otherWallet])
+        }
+    }
+
+    @Test("Launch flow's `sources` array omits Other Wallet — picker reflects exactly that")
+    func launchSources_excludeOtherWallet() throws {
+        try Self.withCoinbaseBetaFlag(enabled: false) {
+            let container = try Self.makeContainerWithCoinbase()
+
+            let visible = PurchaseMethodSheet.visibleSources(
+                from: [.applePay, .phantom],
+                session: container.session
+            )
+
+            #expect(visible == [.applePay, .phantom])
         }
     }
 }

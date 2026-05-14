@@ -9,26 +9,23 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-private let logger = Logger(label: "flipcash.phantom-confirm")
-
-/// Post-Phantom-auth confirmation screen. The user taps "Confirm In Phantom" to
-/// trigger `WalletConnection.requestSwap(...)`, which deep-links into Phantom
-/// for transaction signing. When `walletConnection.state` transitions to
-/// `.buying(ExternalSwapProcessing, isFailed: false)`, the `.onChange`
-/// observer pushes `BuyFlowPath.processing` onto the buy stack with the swap
-/// id and Phantom swap type. From there `SwapProcessingScreen` owns the
-/// remaining lifecycle (success / cancel display) via its own
-/// `walletConnection.isProcessingCancelled` observer.
+/// Post-handshake confirmation. Tapping Confirm calls
+/// `PhantomCoordinator.confirm()`, which dispatches the right
+/// `WalletConnection.request*` for the carried operation kind.
+///
+/// The completion routing (push processing for buy, fullScreenCover for
+/// launch) is observed by the picker's caller — `BuyAmountScreen` watches
+/// `coordinator.processing`, the wizard watches `coordinator.launchProcessing`.
+/// This screen just kicks off the sign request.
 struct PhantomConfirmScreen: View {
 
-    let mint: PublicKey
-    let amount: ExchangedFiat
+    let operation: PaymentOperation
 
-    @Environment(AppRouter.self) private var router
-    @Environment(WalletConnection.self) private var walletConnection
-    @Environment(Session.self) private var session
+    @Environment(PhantomCoordinator.self) private var coordinator
 
-    @State private var confirmTask: Task<Void, Never>?
+    private var isSigning: Bool {
+        coordinator.state == .signing
+    }
 
     var body: some View {
         Background(color: .backgroundMain) {
@@ -57,74 +54,34 @@ struct PhantomConfirmScreen: View {
 
                 Spacer()
 
-                Button(action: confirmInPhantom) {
-                    HStack(spacing: 6) {
-                        Text("Confirm in your")
-                        Image.asset(.phantom)
-                            .renderingMode(.template)
-                            .resizable()
-                            .frame(width: 18, height: 18)
-                        Text("Phantom")
+                Button(action: coordinator.confirm) {
+                    if isSigning {
+                        HStack(spacing: 8) {
+                            ProgressView().progressViewStyle(.circular)
+                            Text("Waiting for Phantom…")
+                        }
+                    } else {
+                        HStack(spacing: 6) {
+                            Text("Confirm in your")
+                            Image.asset(.phantom)
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 18, height: 18)
+                            Text("Phantom")
+                        }
                     }
                 }
                 .buttonStyle(.filled)
+                .disabled(isSigning)
             }
             .padding(20)
         }
         .navigationTitle("Confirmation")
         .navigationBarTitleDisplayMode(.inline)
         .onDisappear {
-            // Cancel any in-flight swap request if the user backs out before
-            // Phantom returns. Without this, requestSwap's deeplink-out and
-            // pendingSwap mutation can fire against a popped screen.
-            confirmTask?.cancel()
-            confirmTask = nil
-            // Clear the swap context too so `isAwaitingExternalSwap` doesn't
-            // remain true and permanently block the .buy sheet's dismissal.
-            walletConnection.cancelPendingSwap()
-        }
-        .onChange(of: walletConnection.state) { _, newState in
-            // Push the processing screen the moment the swap context appears.
-            // `state` flips to `.buying(..., isFailed: false)` immediately
-            // after Phantom returns a signed transaction (see
-            // `WalletConnection.completeSwap`). A later chain-submission
-            // failure flips `isFailed` to true; `SwapProcessingScreen`
-            // observes that via `walletConnection.isProcessingCancelled`.
-            guard case .buying(let processing, false) = newState else { return }
-            router.pushAny(BuyFlowPath.processing(
-                swapId: processing.swapId,
-                currencyName: processing.currencyName,
-                amount: amount,
-                swapType: .buyWithPhantom
-            ))
-        }
-    }
-
-    private func confirmInPhantom() {
-        confirmTask?.cancel()
-        confirmTask = Task {
-            do {
-                let metadata = try await session.fetchMintMetadata(mint: mint)
-                try Task.checkCancellation()
-                try await walletConnection.requestSwap(
-                    usdc: amount.onChainAmount,
-                    token: metadata.metadata
-                )
-            } catch is CancellationError {
-                return
-            } catch {
-                logger.error("Failed to request Phantom swap", metadata: [
-                    "mint": "\(mint.base58)",
-                    "amount": "\(amount.nativeAmount.formatted())",
-                    "error": "\(error)",
-                ])
-                ErrorReporting.captureError(
-                    error,
-                    reason: "Failed to request Phantom swap from PhantomConfirmScreen",
-                    metadata: ["mint": mint.base58]
-                )
-                session.dialogItem = .somethingWentWrong
-            }
+            // Backing out before Phantom returns cancels the pending swap so
+            // a future unrelated deeplink doesn't complete a stale operation.
+            coordinator.cancel()
         }
     }
 }

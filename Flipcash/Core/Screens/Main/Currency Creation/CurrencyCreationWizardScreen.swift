@@ -30,13 +30,16 @@ struct CurrencyCreationWizardScreen: View {
     @State private var compressTask: Task<Void, Never>?
     @State private var validationTask: Task<Void, Never>?
     @State private var isValidating: Bool = false
-    @State private var pendingCoinbaseLaunch: Bool = false
     @State private var errorDialog: DialogItem?
     @FocusState private var focusedField: Field?
 
     @State private var isShowingPhotoPicker = false
     @State private var isShowingFilePicker = false
-    @State private var isShowingFundingSheet = false
+    /// Drives the `PurchaseMethodSheet` when the user picks "Pay to Create"
+    /// and USDF doesn't cover the launch cost.
+    @State private var pendingOperation: PaymentOperation?
+
+    @Environment(PhantomCoordinator.self) private var phantomCoordinator
     /// Non-nil while the Reserves-funded launch is in flight. Drives a
     /// `fullScreenCover` that presents `CurrencyLaunchProcessingScreen`.
     @State private var reservesLaunchContext: ReservesLaunchContext?
@@ -184,7 +187,7 @@ struct CurrencyCreationWizardScreen: View {
                         previewFiat: previewFiat,
                         totalLaunchCost: totalLaunchCost,
                         isValidating: isValidating,
-                        onBuy: { isShowingFundingSheet = true }
+                        onBuy: onPayToCreateTap
                     )
                     .transition(direction.slide)
                 }
@@ -232,54 +235,12 @@ struct CurrencyCreationWizardScreen: View {
         ) { result in
             handleFileImport(result)
         }
-        .sheet(isPresented: $isShowingFundingSheet, onDismiss: {
-            // SwiftUI allows only one modal sheet at a time. If the user picked
-            // Coinbase and they're unverified, the coordinator needs to present
-            // its own verification sheet — defer the kickoff until the funding
-            // sheet has fully dismissed so the two sheets don't collide.
-            guard pendingCoinbaseLaunch else { return }
-            pendingCoinbaseLaunch = false
-
-            // Launch the currency upfront so the stateful swap stream can be
-            // opened with the new mint before Apple Pay is presented.
-            let displayName = state.currencyName
-            let launchAmount = self.launchAmount
-            let launchFee = self.launchFee
-            let totalLaunchCost = self.totalLaunchCost
-            validationTask?.cancel()
-            validationTask = Task {
-                guard let mint = await launchCurrencyWithPreflightRouting() else {
-                    isValidating = false
-                    return
-                }
-                onrampCoordinator.start(
-                    .launch(
-                        mint: mint,
-                        displayName: displayName,
-                        launchAmount: launchAmount,
-                        launchFee: launchFee
-                    ),
-                    amount: totalLaunchCost
-                )
-            }
-        }) {
-            FundingSelectionSheet(
-                reserveBalance: reserveBalance,
-                isCoinbaseAvailable: session.hasCoinbaseOnramp,
-                onSelectReserves: {
-                    isShowingFundingSheet = false
-                    launchAndBuyWithReserves()
-                },
-                onSelectCoinbase: {
-                    pendingCoinbaseLaunch = true
-                    isValidating = true
-                    isShowingFundingSheet = false
-                },
-                onSelectPhantom: {
-                    isShowingFundingSheet = false
-                    beginPhantomLaunch()
-                },
-                onDismiss: { isShowingFundingSheet = false }
+        .sheet(item: $pendingOperation) { operation in
+            PurchaseMethodSheet(
+                operation: operation,
+                sources: [.applePay, .phantom],
+                applePayAction: { startApplePayLaunch() },
+                onDismiss: { pendingOperation = nil }
             )
         }
         .fullScreenCover(item: $reservesLaunchContext) { context in
@@ -331,8 +292,9 @@ struct CurrencyCreationWizardScreen: View {
             }
         }
         // The wizard only hosts launch covers — buy-existing Phantom flows
-        // present their own cover from `CurrencyInfoScreen`.
-        .fullScreenCover(item: Bindable(walletConnection).launchProcessing) { processing in
+        // present their own cover from `BuyAmountScreen`. State forwards
+        // from `WalletConnection.launchProcessing` via the coordinator.
+        .fullScreenCover(item: Bindable(phantomCoordinator).launchProcessing) { processing in
             NavigationStack {
                 CurrencyLaunchProcessingScreen(
                     swapId: processing.swapId,
@@ -343,14 +305,14 @@ struct CurrencyCreationWizardScreen: View {
                 )
                 .environment(\.dismissParentContainer, {
                     // Single-motion dismiss: sheet animation carries the
-                    // cover off. Cleanup of shared wallet state is deferred
+                    // cover off. Cleanup of coordinator state is deferred
                     // past the animation so it doesn't trigger a separate
                     // cover-dismiss in front of the sheet. `isValidating`
                     // is @State and self-cleans on unmount.
                     router.dismissSheet()
                     Task { @MainActor in
                         try? await Task.sleep(for: AppRouter.dismissAnimationDuration)
-                        walletConnection.dismissProcessing()
+                        phantomCoordinator.dismissProcessing()
                     }
                 })
             }
@@ -747,46 +709,57 @@ struct CurrencyCreationWizardScreen: View {
         return .launch(swapId: swapId, mint: mint)
     }
 
-    /// Kicks off the Phantom launch flow. Phantom signing happens out of
-    /// process (deeplink), so we don't toggle `isValidating` — once Phantom
-    /// returns, `WalletConnection.processing` becomes non-nil and the
-    /// `fullScreenCover` takes over the UI. Any failure while *requesting*
-    /// the swap surfaces a generic dialog.
-    private func beginPhantomLaunch() {
+    // MARK: - Pay-to-Create dispatch
+
+    /// "Pay X to Create" tap handler. USDF gate first — if reserves cover the
+    /// total launch cost, run the reserves flow immediately. Otherwise wire
+    /// the Phantom coordinator's launch handler and open the picker.
+    private func onPayToCreateTap() {
+        if reserveBalance != nil {
+            launchAndBuyWithReserves()
+            return
+        }
+
+        // Wire the Phantom launch handler now (before the picker opens) so the
+        // coordinator has it when the user taps Phantom and confirms. Buy
+        // operations on `PhantomCoordinator` don't use this handler — only
+        // launch does.
+        phantomCoordinator.launchHandler = { signature, _ in
+            try await launchAfterExternalFunding(signature: signature, source: .phantom)
+        }
+
+        pendingOperation = .launch(.init(
+            currencyName: state.currencyName,
+            total: totalLaunchCost,
+            launchAmount: launchAmount,
+            launchFee: launchFee
+        ))
+    }
+
+    /// Apple Pay dispatch closure passed into `PurchaseMethodSheet`. Runs the
+    /// Launch RPC preflight (creates the mint) before starting Coinbase, so
+    /// the destination address is valid when the Apple Pay sheet opens.
+    private func startApplePayLaunch() {
+        let displayName = state.currencyName
+        let launchAmount = self.launchAmount
+        let launchFee = self.launchFee
+        let totalLaunchCost = self.totalLaunchCost
+        isValidating = true
         validationTask?.cancel()
         validationTask = Task {
-            let displayName = state.currencyName
-            do {
-                if !walletConnection.isConnected {
-                    try await walletConnection.connect()
-                    // Returning from Phantom drops us through a brief
-                    // background → inactive → active scene transition.
-                    // UIApplication.shared.open is silently suppressed
-                    // until the scene is fully active, so the follow-up
-                    // sign request is no-op'd without this yield.
-                    try await Task.sleep(for: .seconds(1))
-                }
-                try await walletConnection.requestSwapForLaunch(
-                    usdc: totalLaunchCost.onChainAmount,
-                    displayName: displayName,
-                    onCompleted: { signature, _ in
-                        try await launchAfterExternalFunding(signature: signature, source: .phantom)
-                    }
-                )
-            } catch is CancellationError {
-                // User declined the connect request in Phantom. Surface a
-                // dialog so the wizard shows visible feedback instead of
-                // silently returning to the confirmation screen.
-                errorDialog = makeDestructiveDialog(
-                    title: "Wallet Connection Cancelled",
-                    subtitle: "You cancelled the connection in your wallet. Tap Phantom again to retry."
-                )
-            } catch {
-                if Task.isCancelled { return }
-                logger.error("Failed to request Phantom swap", metadata: ["error": "\(error)"])
-                ErrorReporting.captureError(error)
-                presentGenericErrorDialog()
+            guard let mint = await launchCurrencyWithPreflightRouting() else {
+                isValidating = false
+                return
             }
+            onrampCoordinator.start(
+                .launch(
+                    mint: mint,
+                    displayName: displayName,
+                    launchAmount: launchAmount,
+                    launchFee: launchFee
+                ),
+                amount: totalLaunchCost
+            )
         }
     }
 

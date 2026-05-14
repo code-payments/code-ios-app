@@ -9,13 +9,18 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-/// Half-sheet picker shown when a buy intent cannot be filled from the USDF
-/// reserve alone. Lists the funding methods available to the current user
-/// (Apple Pay via Coinbase, Phantom, generic Other Wallet) and routes each
-/// selection into the corresponding sub-flow on the buy stack.
+/// Half-sheet picker shown when a funding intent cannot be filled from the
+/// USDF reserve alone. Shared by buy-existing and currency-launch flows via
+/// `PaymentOperation`. Callers compose the `sources` array to control which
+/// methods render — buy passes all three, launch omits `.otherWallet`.
 struct PurchaseMethodSheet: View {
 
-    let context: PurchaseMethodContext
+    let operation: PaymentOperation
+    let sources: [Method]
+    /// Callers whose Apple Pay flow needs preflight work before invoking
+    /// `OnrampCoordinator.start(_:amount:)` provide this override. The buy
+    /// flow passes `nil` so the picker dispatches directly.
+    let applePayAction: (() -> Void)?
     let onDismiss: () -> Void
 
     @Environment(AppRouter.self) private var router
@@ -25,18 +30,6 @@ struct PurchaseMethodSheet: View {
         case applePay
         case phantom
         case otherWallet
-    }
-
-    /// Source of truth for which rows render. Pure function so visibility can
-    /// be unit-tested without instantiating SwiftUI views.
-    static func methods(forSession session: Session) -> [Method] {
-        var result: [Method] = []
-        if session.hasCoinbaseOnramp {
-            result.append(.applePay)
-        }
-        result.append(.phantom)
-        result.append(.otherWallet)
-        return result
     }
 
     var body: some View {
@@ -50,12 +43,14 @@ struct PurchaseMethodSheet: View {
                 }
                 .padding(.vertical, 20)
 
-                ForEach(Self.methods(forSession: session), id: \.self) { method in
+                // Apple Pay is hidden if the caller didn't request it OR the
+                // session can't actually use Coinbase.
+                ForEach(visibleSources, id: \.self) { method in
                     MethodButton(
                         method: method,
-                        context: context,
-                        onDismiss: onDismiss,
-                        router: router
+                        operation: operation,
+                        applePayAction: applePayAction,
+                        onDismiss: onDismiss
                     )
                 }
 
@@ -65,31 +60,51 @@ struct PurchaseMethodSheet: View {
             .padding()
         }
     }
+
+    private var visibleSources: [Method] {
+        Self.visibleSources(from: sources, session: session)
+    }
+
+    /// Pure function exposing the visibility filter so it can be unit-tested
+    /// without instantiating a SwiftUI view. Apple Pay drops out when the
+    /// session can't actually use Coinbase, regardless of whether the caller
+    /// requested it.
+    static func visibleSources(from sources: [Method], session: Session) -> [Method] {
+        sources.filter { method in
+            switch method {
+            case .applePay:
+                return session.hasCoinbaseOnramp
+            case .phantom, .otherWallet:
+                return true
+            }
+        }
+    }
 }
 
-/// Dispatch wrapper so the parent body can `ForEach` over `methods(forSession:)`
-/// and have a single source of truth for which rows render. The concrete row
-/// structs below own the visual + side-effect details.
 private struct MethodButton: View {
     let method: PurchaseMethodSheet.Method
-    let context: PurchaseMethodContext
+    let operation: PaymentOperation
+    let applePayAction: (() -> Void)?
     let onDismiss: () -> Void
-    let router: AppRouter
 
     var body: some View {
         switch method {
         case .applePay:
-            ApplePayMethodButton(context: context, onDismiss: onDismiss)
+            ApplePayMethodButton(
+                operation: operation,
+                applePayAction: applePayAction,
+                onDismiss: onDismiss
+            )
         case .phantom:
-            PhantomMethodButton(context: context, onDismiss: onDismiss, router: router)
+            PhantomMethodButton(operation: operation, onDismiss: onDismiss)
         case .otherWallet:
-            OtherWalletMethodButton(onDismiss: onDismiss, router: router)
+            OtherWalletMethodButton(onDismiss: onDismiss)
         }
     }
 }
 
 /// Dismisses the sheet, then waits for the system's dismiss animation
-/// before invoking `action`. Without the wait, pushing onto the buy
+/// before invoking `action`. Without the wait, pushing onto a navigation
 /// stack while the sheet is still mid-dismiss racing causes SwiftUI to
 /// drop the push.
 @MainActor
@@ -105,7 +120,8 @@ private func dismissThenDispatch(
 }
 
 private struct ApplePayMethodButton: View {
-    let context: PurchaseMethodContext
+    let operation: PaymentOperation
+    let applePayAction: (() -> Void)?
     let onDismiss: () -> Void
 
     @Environment(OnrampCoordinator.self) private var coordinator
@@ -117,17 +133,31 @@ private struct ApplePayMethodButton: View {
             // before the Apple Pay sheet round-trip. Use the USDF (1:1 USD)
             // value since `nativeAmount` is in the user's display currency.
             let minimumUSD = OnrampCoordinator.minimumPurchaseUSD
-            guard context.amount.usdfValue.value >= minimumUSD else {
+            guard operation.displayAmount.usdfValue.value >= minimumUSD else {
                 let minimum = FiatAmount.usd(minimumUSD)
-                    .converting(to: context.amount.currencyRate)
+                    .converting(to: operation.displayAmount.currencyRate)
                     .formatted()
                 session.dialogItem = .applePayMinimumPurchase(minimum: minimum)
                 return
             }
             Analytics.buttonTapped(name: .buyWithCoinbase)
-            let mint = context.mint
-            let displayName = context.currencyName
-            let amount = context.amount
+            if let applePayAction {
+                // Caller-provided dispatch — used by the launch flow which
+                // needs to run preflight (launchCurrency) before starting
+                // the coordinator.
+                dismissThenDispatch(onDismiss: onDismiss) {
+                    applePayAction()
+                }
+                return
+            }
+            // Default buy dispatch.
+            guard case .buy(let payload) = operation else {
+                // Defensive — launch should always pass applePayAction.
+                return
+            }
+            let amount = payload.amount
+            let mint = payload.mint
+            let displayName = payload.currencyName
             dismissThenDispatch(onDismiss: onDismiss) { [coordinator] in
                 coordinator.start(.buy(mint: mint, displayName: displayName), amount: amount)
             }
@@ -136,29 +166,26 @@ private struct ApplePayMethodButton: View {
                 .font(.body.bold())
         }
         .buttonStyle(.filled)
+        .accessibilityIdentifier("apple-pay-method-button")
     }
 }
 
 private struct PhantomMethodButton: View {
-    let context: PurchaseMethodContext
+    let operation: PaymentOperation
     let onDismiss: () -> Void
-    let router: AppRouter
 
-    @Environment(WalletConnection.self) private var walletConnection
+    @Environment(AppRouter.self) private var router
 
     var body: some View {
         Button {
             Analytics.buttonTapped(name: .buyWithPhantom)
-            // Skip the education screen when a Phantom session already exists
-            // — the user has connected before and just needs to confirm. The
-            // education screen's auto-advance latch breaks on pop-back from
-            // confirm, which would otherwise surface a stale "Connect Your
-            // Phantom Wallet" CTA to an already-connected user.
-            let nextStep: BuyFlowPath = walletConnection.isConnected
-                ? .phantomConfirm(mint: context.mint, amount: context.amount)
-                : .phantomEducation(mint: context.mint, amount: context.amount)
+            let operation = self.operation
+            // Just push the education destination — the Phantom connect
+            // deeplink fires from the education screen's "Connect Your
+            // Phantom Wallet" button, not here. This keeps the connect
+            // prompt off-screen until the user has read the education copy.
             dismissThenDispatch(onDismiss: onDismiss) { [router] in
-                router.pushAny(nextStep)
+                router.push(.phantomEducation(operation))
             }
         } label: {
             HStack(spacing: 4) {
@@ -175,7 +202,8 @@ private struct PhantomMethodButton: View {
 
 private struct OtherWalletMethodButton: View {
     let onDismiss: () -> Void
-    let router: AppRouter
+
+    @Environment(AppRouter.self) private var router
 
     var body: some View {
         Button("Other Wallet") {

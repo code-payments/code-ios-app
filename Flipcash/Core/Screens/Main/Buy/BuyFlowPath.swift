@@ -18,7 +18,5 @@ import FlipcashCore
 /// Hashable + Sendable. Keeping these out of `Destination` matches the
 /// `WithdrawNavigationPath` pattern.
 enum BuyFlowPath: Hashable, Sendable {
-    case phantomEducation(mint: PublicKey, amount: ExchangedFiat)
-    case phantomConfirm(mint: PublicKey, amount: ExchangedFiat)
     case processing(swapId: SwapId, currencyName: String, amount: ExchangedFiat, swapType: SwapType)
 }

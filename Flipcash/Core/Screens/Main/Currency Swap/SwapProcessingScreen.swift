@@ -16,7 +16,7 @@ struct SwapProcessingScreen: View {
     @Environment(Session.self) private var session
     @Environment(PushController.self) private var pushController
     @Environment(\.dismissParentContainer) private var dismissParentContainer
-    @Environment(WalletConnection.self) private var walletConnection
+    @Environment(PhantomCoordinator.self) private var phantomCoordinator
 
     // MARK: - Init -
 
@@ -92,7 +92,7 @@ struct SwapProcessingScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .interactiveDismissDisabled(true)
-        .onChange(of: walletConnection.isProcessingCancelled, initial: true) { _, cancelled in
+        .onChange(of: phantomCoordinator.isProcessingCancelled, initial: true) { _, cancelled in
             if cancelled {
                 viewModel.cancel()
             }

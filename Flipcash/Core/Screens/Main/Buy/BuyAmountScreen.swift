@@ -16,6 +16,7 @@ struct BuyAmountScreen: View {
 
     @Environment(AppRouter.self) private var router
     @Environment(OnrampCoordinator.self) private var coordinator
+    @Environment(PhantomCoordinator.self) private var phantomCoordinator
     @Environment(RatesController.self) private var ratesController
     @Environment(WalletConnection.self) private var walletConnection
     @Environment(Session.self) private var session
@@ -35,7 +36,7 @@ struct BuyAmountScreen: View {
         // does NOT propagate through the nested-sheet binding, so gate at
         // the NavigationStack root by checking the path is non-empty.
         if !router[.buy].isEmpty { return true }
-        return coordinator.isProcessingPayment || walletConnection.isAwaitingExternalSwap
+        return coordinator.isProcessingPayment || phantomCoordinator.isAwaitingExternalSwap
     }
 
     var body: some View {
@@ -84,7 +85,7 @@ struct BuyAmountScreen: View {
             // is already idle, so `dismissProcessing()` is a no-op.
             BuyFlowDestinationView(path: path)
                 .environment(\.dismissParentContainer, {
-                    walletConnection.dismissProcessing()
+                    phantomCoordinator.dismissProcessing()
                     router.dismissSheet()
                 })
         }
@@ -93,10 +94,12 @@ struct BuyAmountScreen: View {
         // creation rejected, swap-amount mismatch) via its own dialog item;
         // bind it here so the user sees the error instead of a silent flicker.
         .dialog(item: $coordinator.dialogItem)
-        .sheet(item: $viewModel.pendingMethodSelection) { context in
+        .sheet(item: $viewModel.pendingOperation) { operation in
             PurchaseMethodSheet(
-                context: context,
-                onDismiss: { viewModel.pendingMethodSelection = nil }
+                operation: operation,
+                sources: [.applePay, .phantom, .otherWallet],
+                applePayAction: nil,
+                onDismiss: { viewModel.pendingOperation = nil }
             )
         }
         .sheet(isPresented: $coordinator.isShowingVerificationFlow) {
@@ -115,6 +118,19 @@ struct BuyAmountScreen: View {
             ))
             coordinator.completion = nil
         }
+        // Phantom-funded buy: when the signed tx returns and the coordinator
+        // transitions to .buying(...), push the processing screen onto the
+        // `.buy` stack. Gated on nil → non-nil so we don't double-push when
+        // the server callback reassigns the buying context to a new swap id.
+        .onChange(of: phantomCoordinator.processing) { oldValue, newValue in
+            guard oldValue == nil, let newValue else { return }
+            router.pushAny(BuyFlowPath.processing(
+                swapId: newValue.swapId,
+                currencyName: newValue.currencyName,
+                amount: newValue.amount,
+                swapType: .buyWithPhantom
+            ))
+        }
         // Forward wallet-connection dialogs (Phantom cancel during signing,
         // simulate failures, etc.) to `session.dialogItem` so they render in
         // `DialogWindow` at alert level instead of trying to mount a sheet
@@ -125,12 +141,13 @@ struct BuyAmountScreen: View {
         .onChange(of: walletConnection.dialogItem?.id) { _, newId in
             guard newId != nil, let dialog = walletConnection.dialogItem else { return }
             session.dialogItem = dialog
-            walletConnection.dialogItem = nil
+            // Defer the clear past the current observation tick so we don't
+            // mutate the observed value in the same update cycle that fired
+            // this handler.
+            Task { @MainActor in
+                walletConnection.dialogItem = nil
+            }
         }
-        // The Phantom processing push is owned by `PhantomConfirmScreen` —
-        // observing `walletConnection.processing` here too would double-push
-        // when both screens are alive (PhantomConfirm still on top during the
-        // state transition).
     }
 
     private func showCurrencySelection() {
