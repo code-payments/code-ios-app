@@ -6,10 +6,10 @@
 import XCTest
 
 /// Page object for the PhantomEducationScreen — the pre-flight shown when
-/// the user picks Phantom from `PurchaseMethodSheet` without a saved Phantom
-/// session. Tapping `connectButton` triggers `walletConnection.connect()`
-/// which deeplinks out to Phantom (tests can't reasonably continue past that
-/// point on the local simulator without a real Phantom install).
+/// the user picks Phantom from `PurchaseMethodSheet`. Tapping `connectButton`
+/// triggers `PhantomCoordinator.start(_:)` which always deeplinks out to
+/// Phantom for connect (tests can't reasonably continue past that point on
+/// the local simulator without a real Phantom install).
 @MainActor
 struct PhantomEducationScreen {
 

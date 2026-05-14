@@ -6,9 +6,10 @@
 import XCTest
 
 /// Page object for the PurchaseMethodSheet shown when the user's USDF
-/// reserve doesn't cover the entered buy amount. Lists Apple Pay (conditional
-/// on the Coinbase onramp gate), Phantom, and Other Wallet, plus a Dismiss
-/// row.
+/// reserve doesn't cover the entered buy amount (or any time the launch flow
+/// opens the picker). Lists Apple Pay (conditional on the Coinbase onramp
+/// gate), Phantom, and Other Wallet (omitted for the launch flow), plus a
+/// Dismiss row.
 @MainActor
 struct PurchaseMethodSheet {
 
@@ -20,10 +21,11 @@ struct PurchaseMethodSheet {
 
     // MARK: - Elements
 
-    /// Apple Pay row. Label contains the U+F8FF "Pay" glyph; matched by
-    /// "Debit Card with" prefix so it's robust to glyph-rendering differences.
+    /// Apple Pay row. Matched by accessibility identifier — the visible label
+    /// is just the U+F8FF Apple logo glyph + "Pay" (intentional per HIG),
+    /// which is brittle to match by label predicate.
     var applePayButton: XCUIElement {
-        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Debit Card with'")).firstMatch
+        app.buttons["apple-pay-method-button"]
     }
 
     /// Phantom row. The button's label is just "Phantom" since the inline

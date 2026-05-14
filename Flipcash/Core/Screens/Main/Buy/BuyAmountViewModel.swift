@@ -17,7 +17,7 @@ final class BuyAmountViewModel: Identifiable {
     var actionButtonState: ButtonState = .normal
     var enteredAmount: String = ""
     var dialogItem: DialogItem?
-    var pendingMethodSelection: PurchaseMethodContext?
+    var pendingOperation: PaymentOperation?
 
     @ObservationIgnored let mint: PublicKey
     @ObservationIgnored let currencyName: String
@@ -97,12 +97,12 @@ final class BuyAmountViewModel: Identifiable {
     }
 
     private func routeToPicker(amount: ExchangedFiat, pin: VerifiedState) {
-        pendingMethodSelection = PurchaseMethodContext(
+        pendingOperation = .buy(.init(
             mint: mint,
             currencyName: currencyName,
             amount: amount,
             verifiedState: pin
-        )
+        ))
     }
 
     private func usdfBalanceCovers(_ amount: ExchangedFiat) -> Bool {

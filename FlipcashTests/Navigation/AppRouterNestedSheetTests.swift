@@ -71,10 +71,7 @@ struct AppRouterNestedSheetTests {
         let router = AppRouter()
         router.present(.balance)
         router.presentNested(.buy(Self.mintA))
-        router.pushAny(BuyFlowPath.phantomEducation(
-            mint: Self.mintA,
-            amount: ExchangedFiat.compute(onChainAmount: .zero(mint: .usdf), rate: .oneToOne, supplyQuarks: nil)
-        ))
+        router.push(.usdcDepositEducation)
 
         router.presentNested(.buy(Self.mintB))
 
@@ -188,10 +185,7 @@ struct AppRouterNestedSheetTests {
         let router = AppRouter()
         router.present(.balance)
         router.presentNested(.buy(Self.mintA))
-        router.pushAny(BuyFlowPath.phantomEducation(
-            mint: Self.mintA,
-            amount: ExchangedFiat.compute(onChainAmount: .zero(mint: .usdf), rate: .oneToOne, supplyQuarks: nil)
-        ))
+        router.push(.usdcDepositEducation)
 
         router.dismissSheet()  // Pop .buy(mintA); its path is still populated.
         router.presentNested(.buy(Self.mintA))
@@ -205,10 +199,7 @@ struct AppRouterNestedSheetTests {
         let router = AppRouter()
         router.present(.balance)
         router.presentNested(.buy(Self.mintA))
-        router.pushAny(BuyFlowPath.phantomEducation(
-            mint: Self.mintA,
-            amount: ExchangedFiat.compute(onChainAmount: .zero(mint: .usdf), rate: .oneToOne, supplyQuarks: nil)
-        ))
+        router.push(.usdcDepositEducation)
         router.dismissSheet()  // .buy dismissed
         router.dismissSheet()  // .balance dismissed
 
@@ -238,10 +229,7 @@ struct AppRouterNestedSheetTests {
         router.present(.balance)
         router.push(.currencyInfo(Self.mintA))
         router.presentNested(.buy(Self.mintA))
-        router.pushAny(BuyFlowPath.phantomEducation(
-            mint: Self.mintA,
-            amount: ExchangedFiat.compute(onChainAmount: .zero(mint: .usdf), rate: .oneToOne, supplyQuarks: nil)
-        ))
+        router.push(.usdcDepositEducation)
 
         router.dismissAll()
         router.present(.balance)
@@ -286,10 +274,7 @@ struct AppRouterNestedSheetTests {
         router.present(.balance)
         router.presentNested(.buy(Self.mintA))
 
-        router.pushAny(BuyFlowPath.phantomEducation(
-            mint: Self.mintA,
-            amount: ExchangedFiat.compute(onChainAmount: .zero(mint: .usdf), rate: .oneToOne, supplyQuarks: nil)
-        ))
+        router.push(.usdcDepositEducation)
 
         #expect(router[.buy].count == 1, "pushes target the topmost stack")
         #expect(router[.balance].isEmpty, "root stack stays clean")

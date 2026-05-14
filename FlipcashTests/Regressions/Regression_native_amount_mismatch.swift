@@ -62,14 +62,18 @@ struct Regression_native_amount_mismatch {
         router.present(.balance)
         await vm.amountEnteredAction(router: router)
 
-        let context = try #require(vm.pendingMethodSelection)
+        let operation = try #require(vm.pendingOperation)
+        guard case .buy(let payload) = operation else {
+            Issue.record("Expected .buy operation, got \(operation)")
+            return
+        }
 
         // $1 CAD / 1.35 × 10^6, HALF_UP rounded via scaleUpInt → 740_741 USDF quarks.
         // The buggy live path (1.37) would round to 729_927 quarks — the value
         // the server rejected in production.
-        #expect(context.amount.onChainAmount.quarks == 740_741)
-        #expect(context.amount.currencyRate.fx == Decimal(1.35))
-        #expect(context.verifiedState.exchangeRate == 1.35)
+        #expect(payload.amount.onChainAmount.quarks == 740_741)
+        #expect(payload.amount.currencyRate.fx == Decimal(1.35))
+        #expect(payload.verifiedState.exchangeRate == 1.35)
     }
 
     // MARK: - Scenario D (sell)
@@ -170,7 +174,7 @@ struct Regression_native_amount_mismatch {
         router.present(.balance)
         await vm.amountEnteredAction(router: router)
 
-        #expect(vm.pendingMethodSelection == nil)
+        #expect(vm.pendingOperation == nil)
         #expect(vm.dialogItem?.title == DialogItem.staleRate.title)
     }
 

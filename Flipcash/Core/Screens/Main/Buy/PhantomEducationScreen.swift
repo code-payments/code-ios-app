@@ -9,23 +9,28 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-private let logger = Logger(label: "flipcash.phantom-education")
-
-/// "Buy With Phantom" pre-flight: explains the swap, then triggers an async
-/// `WalletConnection.connect()` (the wrapper that sets `pendingConnect` so
-/// the legacy `isShowingAmountEntry` side-effect on the wallet controller is
-/// suppressed). On success, push `phantomConfirm`. User-cancel in Phantom
-/// throws `CancellationError` and lands silently back on this screen.
+/// "Buy / Launch With Phantom" pre-flight. The connect deeplink fires when
+/// the user taps the CTA on this screen — not when Phantom is selected from
+/// the picker — so the user sees the education copy before being kicked over
+/// to Phantom. On return, `coordinator.state` flips to `.awaitingConfirm` and
+/// we push `.phantomConfirm`.
 struct PhantomEducationScreen: View {
 
-    let mint: PublicKey
-    let amount: ExchangedFiat
+    let operation: PaymentOperation
 
     @Environment(AppRouter.self) private var router
-    @Environment(WalletConnection.self) private var walletConnection
+    @Environment(PhantomCoordinator.self) private var coordinator
     @Environment(Session.self) private var session
 
-    @State private var connectTask: Task<Void, Never>?
+    /// Tracks whether `.phantomConfirm` has been pushed for this view's
+    /// lifetime. Necessary because `coordinator.state` re-enters
+    /// `.awaitingConfirm` after a sign-cancel (so the user can retry), which
+    /// would otherwise stack a second confirm screen via `.onChange`.
+    @State private var hasPushedConfirm = false
+
+    private var isConnecting: Bool {
+        coordinator.state == .connecting
+    }
 
     var body: some View {
         Background(color: .backgroundMain) {
@@ -51,47 +56,50 @@ struct PhantomEducationScreen: View {
 
                 Spacer()
 
-                Button("Connect Your Phantom Wallet") {
-                    connect()
+                Button {
+                    coordinator.start(operation)
+                } label: {
+                    if isConnecting {
+                        HStack(spacing: 8) {
+                            ProgressView().progressViewStyle(.circular)
+                            Text("Connecting…")
+                        }
+                    } else {
+                        Text("Connect Your Phantom Wallet")
+                    }
                 }
                 .buttonStyle(.filled)
+                .disabled(isConnecting)
             }
             .padding(20)
         }
         .navigationTitle("Purchase")
         .navigationBarTitleDisplayMode(.inline)
-        .onDisappear {
-            connectTask?.cancel()
-            connectTask = nil
-        }
-    }
-
-    private func connect() {
-        connectTask?.cancel()
-        connectTask = Task {
-            // If a prior session already exists, `connect()` returns
-            // immediately without deeplinking. Either way, advance.
-            do {
-                try await walletConnection.connect()
-                try Task.checkCancellation()
-                router.pushAny(BuyFlowPath.phantomConfirm(mint: mint, amount: amount))
-            } catch is CancellationError {
-                return
-            } catch {
-                logger.error("Failed to connect to Phantom", metadata: [
-                    "error": "\(error)",
-                ])
-                // Route through `session.dialogItem` so the alert renders in
-                // the dedicated DialogWindow at alert level — a local
-                // `.dialog(item:)` is a sheet under the hood and would
-                // conflict with the `.buy` nested sheet's presentation queue
-                // (tearing this screen down on present).
+        .onChange(of: coordinator.state) { _, newState in
+            switch newState {
+            case .awaitingConfirm where !hasPushedConfirm:
+                hasPushedConfirm = true
+                router.push(.phantomConfirm(operation))
+            case .failed(let reason):
+                // Surface the failure as a destructive dialog so the user knows
+                // why the connect didn't go through. They can dismiss and tap
+                // "Connect Your Phantom Wallet" again to retry.
                 session.dialogItem = .init(
                     style: .destructive,
                     title: "Couldn't Connect",
-                    subtitle: "We couldn't connect to your Phantom wallet. Please try again.",
+                    subtitle: reason,
                     dismissable: true
                 ) { .okay(kind: .destructive) }
+            case .awaitingConfirm, .idle, .connecting, .signing:
+                break
+            }
+        }
+        .onDisappear {
+            // Backing out while the connect deeplink is in flight cancels the
+            // coordinator so a stale Phantom return doesn't push confirm onto
+            // a stack the user just dismissed.
+            if coordinator.state == .connecting {
+                coordinator.cancel()
             }
         }
     }

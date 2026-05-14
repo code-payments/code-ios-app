@@ -72,6 +72,7 @@ extension SessionContainer {
         return SessionContainer(
             session: session,
             database: database,
+            client: Container.mock.client,
             walletConnection: .mock,
             ratesController: ratesController,
             historyController: .mock,

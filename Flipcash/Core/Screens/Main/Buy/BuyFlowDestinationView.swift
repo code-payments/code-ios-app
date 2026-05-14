@@ -16,10 +16,6 @@ struct BuyFlowDestinationView: View {
 
     var body: some View {
         switch path {
-        case .phantomEducation(let mint, let amount):
-            PhantomEducationScreen(mint: mint, amount: amount)
-        case .phantomConfirm(let mint, let amount):
-            PhantomConfirmScreen(mint: mint, amount: amount)
         case .processing(let swapId, let currencyName, let amount, let swapType):
             SwapProcessingScreen(
                 swapId: swapId,

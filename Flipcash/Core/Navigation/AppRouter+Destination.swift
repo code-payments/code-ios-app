@@ -38,6 +38,13 @@ extension AppRouter {
         /// swap PDA's USDC ATA). Reached as the next step after
         /// `.usdcDepositEducation`.
         case usdcDepositAddress
+        /// Phantom education screen. Shared by buy + launch via the carried
+        /// `PaymentOperation`. The `PhantomCoordinator` already owns the
+        /// in-flight state; the payload here keeps the screen renderable
+        /// against a stale-coordinator nil-operation race on back-stack reuse.
+        case phantomEducation(PaymentOperation)
+        /// Phantom confirm screen, paired with `.phantomEducation`.
+        case phantomConfirm(PaymentOperation)
 
         // Settings flow
         case settingsMyAccount
@@ -58,7 +65,8 @@ extension AppRouter {
             case .currencyInfo, .currencyInfoForDeposit, .discoverCurrencies,
                  .currencyCreationSummary, .currencyCreationWizard,
                  .transactionHistory, .give, .withdrawCurrency,
-                 .usdcDepositEducation, .usdcDepositAddress:
+                 .usdcDepositEducation, .usdcDepositAddress,
+                 .phantomEducation, .phantomConfirm:
                 return .balance
             case .settingsMyAccount, .settingsAdvancedFeatures, .settingsAppSettings,
                  .settingsBetaFlags, .settingsAccountSelection,
@@ -84,6 +92,8 @@ extension AppRouter {
             case .withdrawCurrency:             "withdrawCurrency"
             case .usdcDepositEducation:         "usdcDepositEducation"
             case .usdcDepositAddress:           "usdcDepositAddress"
+            case .phantomEducation:             "phantomEducation"
+            case .phantomConfirm:               "phantomConfirm"
             case .settingsMyAccount:            "settingsMyAccount"
             case .settingsAdvancedFeatures:     "settingsAdvancedFeatures"
             case .settingsAppSettings:          "settingsAppSettings"
@@ -109,6 +119,8 @@ extension AppRouter {
                  .withdrawCurrency(let mint),
                  .deposit(let mint):
                 return mint.base58
+            case .phantomEducation(let operation), .phantomConfirm(let operation):
+                return operation.currencyName
             case .discoverCurrencies, .currencyCreationSummary, .currencyCreationWizard,
                  .usdcDepositEducation, .usdcDepositAddress,
                  .settingsMyAccount, .settingsAdvancedFeatures, .settingsAppSettings,
