@@ -58,9 +58,7 @@ private struct ConversionGraphic: View {
         HStack(spacing: 16) {
             BadgedIcon(
                 icon: Image.asset(.buyUSDC),
-                badge: Image.asset(.buySolana),
-                size: 100,
-                badgeSize: 32
+                badge: Image.asset(.buySolana)
             )
 
             Image.system(.arrowRight)
