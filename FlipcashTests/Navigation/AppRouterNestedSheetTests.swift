@@ -77,10 +77,8 @@ struct AppRouterNestedSheetTests {
 
         // Same case different payload → swap (not stack).
         #expect(router.presentedSheets == [.balance, .buy(Self.mintB)])
-        // Displaced sheet's path is cleared because it landed in dismissedSheets
-        // and the new value sits in a different SheetPresentation hash bucket.
-        // Either way, the new top should be at root of the buy stack via
-        // the dismissed-path-clear contract (verified separately).
+        #expect(router[.buy].isEmpty,
+                "swap to a different .buy payload must drop the displaced sheet's stack contents")
     }
 
     @Test("presentNested same case different payload — no prior pushed content — swaps cleanly")
@@ -165,7 +163,7 @@ struct AppRouterNestedSheetTests {
         let router = AppRouter()
         router.present(.balance)
         router.push(.currencyInfo(Self.mintA))
-        router.dismissSheet()  // .balance now in dismissedSheets
+        router.dismissSheet()  // .balance stack now flagged dismissed
 
         router.present(.settings)
         router.presentNested(.buy(Self.mintA))
@@ -192,6 +190,21 @@ struct AppRouterNestedSheetTests {
 
         #expect(router[.buy].isEmpty,
                 "re-opening a dismissed nested sheet must land at root")
+    }
+
+    @Test("dismissSheet + presentNested(.differentPayload) clears the nested sheet's path")
+    func dismissNested_thenPresentNestedDifferentPayload_clearsPath() {
+        let router = AppRouter()
+        router.present(.balance)
+        router.presentNested(.buy(Self.mintA))
+        router.push(.usdcDepositEducation)  // stand-in for a leaf pushed during the buy flow
+
+        router.dismissSheet()
+        router.presentNested(.buy(Self.mintB))
+
+        #expect(router.presentedSheets == [.balance, .buy(Self.mintB)])
+        #expect(router[.buy].isEmpty,
+                "re-opening .buy with a different mint must land at the amount-entry root")
     }
 
     @Test("nested swipe-down + reopen still clears path")

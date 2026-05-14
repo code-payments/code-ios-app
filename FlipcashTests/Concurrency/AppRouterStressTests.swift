@@ -7,7 +7,7 @@
 //  isolation, so this suite cannot manufacture cross-actor pressure. Its
 //  purpose is to lock in observable-state correctness across the
 //  present/dismiss cycle so that the present/dismiss bookkeeping
-//  (`presentedSheet`, `dismissedSheets`, per-stack `paths`) converges on
+//  (`presentedSheet`, `dismissedStacks`, per-stack `paths`) converges on
 //  a consistent state after repeated user-flow shapes regardless of
 //  whether `AppRouter` is explicitly or implicitly main-actor isolated.
 //
