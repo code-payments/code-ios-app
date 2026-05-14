@@ -60,9 +60,7 @@ private struct ConversionGraphic: View {
 
             BadgedIcon(
                 icon: Image.asset(.buyUSDC),
-                badge: Image.asset(.buySolana),
-                size: 100,
-                badgeSize: 32
+                badge: Image.asset(.buySolana)
             )
         }
     }

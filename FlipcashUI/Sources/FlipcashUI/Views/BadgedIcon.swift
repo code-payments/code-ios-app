@@ -10,25 +10,18 @@ import SwiftUI
 /// asset (USDC, Phantom) gets paired with a network/state marker (Solana hex,
 /// checkmark) without baking the badge into the parent SVG.
 public struct BadgedIcon: View {
-
     private let icon: Image
     private let badge: Image?
-    private let size: CGFloat
-    private let badgeSize: CGFloat
-    private let badgeOffset: CGSize
+    private let size: CGFloat = 100
+    private let badgeSize: CGFloat = 38
+    private let badgeOffset: CGPoint = CGPoint(x: 8, y: 8)
 
     public init(
         icon: Image,
         badge: Image? = nil,
-        size: CGFloat = 80,
-        badgeSize: CGFloat = 28,
-        badgeOffset: CGSize = CGSize(width: 4, height: 4)
     ) {
         self.icon = icon
         self.badge = badge
-        self.size = size
-        self.badgeSize = badgeSize
-        self.badgeOffset = badgeOffset
     }
 
     public var body: some View {
@@ -42,8 +35,17 @@ public struct BadgedIcon: View {
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .frame(width: badgeSize, height: badgeSize)
-                        .offset(x: badgeOffset.width, y: badgeOffset.height)
+                        .offset(x: badgeOffset.x, y: badgeOffset.y)
                 }
             }
     }
+}
+
+#Preview {
+    BadgedIcon(icon: Image.asset(.buyPhantom))
+
+    BadgedIcon(
+        icon: Image.asset(.buyUSDC),
+        badge: Image.asset(.buySolana)
+    )
 }
