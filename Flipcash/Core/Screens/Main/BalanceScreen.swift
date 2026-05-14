@@ -28,8 +28,12 @@ struct BalanceScreen: View {
     /// positions instead of popping when the sort order shuffles.
     @Namespace private var balanceRowNamespace
 
+    /// USDF is always present in `session.balances(for:)` after sync, so an
+    /// account with no purchased currencies still has USDF in the list. Gate
+    /// on a non-USDF holding so the empty state ("Buy your first currency to
+    /// get started") still appears for that brand-new user.
     private var hasBalances: Bool {
-        !sortedBalances.isEmpty
+        sortedBalances.contains { $0.stored.mint != .usdf }
     }
 
     private var balance: ExchangedFiat {
