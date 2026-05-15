@@ -46,7 +46,7 @@
 			<key>UIApplicationShortcutItemUserInfo</key>
 			<dict>
 				<key>url</key>
-				<string>flipcash://wallet</string>
+				<string>flipcash://balance</string>
 			</dict>
 		</dict>
 		<dict>
