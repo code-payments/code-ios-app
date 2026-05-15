@@ -39,10 +39,15 @@ struct CurrencyCreationWizardScreen: View {
     /// and USDF doesn't cover the launch cost.
     @State private var pendingOperation: PaymentOperation?
 
-    @Environment(PhantomCoordinator.self) private var phantomCoordinator
     /// Non-nil while the Reserves-funded launch is in flight. Drives a
     /// `fullScreenCover` that presents `CurrencyLaunchProcessingScreen`.
     @State private var reservesLaunchContext: ReservesLaunchContext?
+    /// Non-nil while a Phantom-funded launch's chain dance has completed
+    /// and we're showing the launch processing screen.
+    @State private var phantomLaunchContext: ExternalLaunchProcessing?
+    /// In-flight Phantom funding operation. `FundingFlowHost` observes its
+    /// state to push the education / confirm prompts onto the buy stack.
+    @State private var phantomFundingOperation: PhantomFundingOperation?
     /// Mint from an earlier attempt whose buy failed inline. On a
     /// `nameExists` retry, reuse it so only the buy reruns. Bound to
     /// `name` — renaming invalidates.
@@ -240,6 +245,7 @@ struct CurrencyCreationWizardScreen: View {
                 operation: operation,
                 sources: [.applePay, .phantom],
                 applePayAction: { startApplePayLaunch() },
+                phantomAction: { payment in startPhantomLaunchFunding(payment: payment) },
                 onDismiss: { pendingOperation = nil }
             )
         }
@@ -292,9 +298,10 @@ struct CurrencyCreationWizardScreen: View {
             }
         }
         // The wizard only hosts launch covers — buy-existing Phantom flows
-        // present their own cover from `BuyAmountScreen`. State forwards
-        // from `WalletConnection.launchProcessing` via the coordinator.
-        .fullScreenCover(item: Bindable(phantomCoordinator).launchProcessing) { processing in
+        // present their own cover from `BuyAmountScreen`. State sourced from
+        // `phantomLaunchContext`, populated when the Phantom funding
+        // operation returns successfully.
+        .fullScreenCover(item: $phantomLaunchContext) { processing in
             NavigationStack {
                 CurrencyLaunchProcessingScreen(
                     swapId: processing.swapId,
@@ -304,19 +311,11 @@ struct CurrencyCreationWizardScreen: View {
                     fundingMethod: .phantom
                 )
                 .environment(\.dismissParentContainer, {
-                    // Single-motion dismiss: sheet animation carries the
-                    // cover off. Cleanup of coordinator state is deferred
-                    // past the animation so it doesn't trigger a separate
-                    // cover-dismiss in front of the sheet. `isValidating`
-                    // is @State and self-cleans on unmount.
                     router.dismissSheet()
-                    Task { @MainActor in
-                        try? await Task.sleep(for: AppRouter.dismissAnimationDuration)
-                        phantomCoordinator.dismissProcessing()
-                    }
                 })
             }
         }
+        .fundingFlowHost(phantomFundingOperation)
         .onAppear {
             if step == .name { focusedField = .name }
         }
@@ -780,51 +779,118 @@ struct CurrencyCreationWizardScreen: View {
     /// external signature, and the server splits it into swap + fee via
     /// `TransferForSwapWithFee`. Runs the same Launch + error-routing helper
     /// used by the reserves flow, then completes the buy with the external
-    /// signature. Throws `CancellationError` on launch failure — the wizard
-    /// has already shown its own step-routed dialog.
-    private func launchAfterExternalFunding(
-        signature: Signature,
-        source: CurrencyLaunchProcessingViewModel.FundingMethod
-    ) async throws -> SignedSwapResult {
-        guard let mint = await launchCurrencyWithPreflightRouting() else {
-            throw CancellationError()
-        }
-
-        let swapId = try await session.buyNewCurrencyWithExternalFunding(
-            amount: launchAmount,
-            feeAmount: launchFee,
-            mint: mint,
-            transactionSignature: signature
-        )
-        logger.info("New currency purchased (external funding)", metadata: ["source": "\(source.rawValue)"])
-        return .launch(swapId: swapId, mint: mint)
-    }
-
     // MARK: - Pay-to-Create dispatch
 
     /// "Pay X to Create" tap handler. USDF gate first — if reserves cover the
-    /// total launch cost, run the reserves flow immediately. Otherwise wire
-    /// the Phantom coordinator's launch handler and open the picker.
+    /// total launch cost, run the reserves flow immediately. Otherwise pack
+    /// the launch attestations into the payload and open the picker; the
+    /// chosen funding operation runs the preflight launch + chain dance.
     private func onPayToCreateTap() {
         if reserveBalance != nil {
             launchAndBuyWithReserves()
             return
         }
 
-        // Wire the Phantom launch handler now (before the picker opens) so the
-        // coordinator has it when the user taps Phantom and confirms. Buy
-        // operations on `PhantomCoordinator` don't use this handler — only
-        // launch does.
-        phantomCoordinator.launchHandler = { signature, _ in
-            try await launchAfterExternalFunding(signature: signature, source: .phantom)
+        guard let attestations = makeLaunchAttestations() else {
+            presentGenericErrorDialog()
+            return
         }
 
         pendingOperation = .launch(.init(
             currencyName: state.currencyName,
             total: totalLaunchCost,
             launchAmount: launchAmount,
-            launchFee: launchFee
+            launchFee: launchFee,
+            attestations: attestations
         ))
+    }
+
+    private func makeLaunchAttestations() -> PaymentOperation.LaunchAttestations? {
+        guard let nameAttestation = state.nameAttestation,
+              let iconAttestation = state.iconAttestation,
+              let descriptionAttestation = state.descriptionAttestation,
+              let iconData = state.encodedIconData else {
+            logger.error("onPayToCreateTap reached without required attestations or icon")
+            return nil
+        }
+        return PaymentOperation.LaunchAttestations(
+            description: state.currencyDescription,
+            billColors: state.backgroundColors.map { $0.hexString },
+            icon: iconData,
+            nameAttestation: nameAttestation,
+            descriptionAttestation: descriptionAttestation,
+            iconAttestation: iconAttestation
+        )
+    }
+
+    /// `PurchaseMethodSheet.phantomAction` dispatch. Spawns a Phantom
+    /// funding operation, drives it via the `.fundingFlowHost` modifier on
+    /// this view, and presents the launch processing cover on success.
+    private func startPhantomLaunchFunding(payment: PaymentOperation) {
+        let operation = PhantomFundingOperation(
+            walletConnection: walletConnection,
+            session: session
+        )
+        phantomFundingOperation = operation
+
+        Task { [operation] in
+            do {
+                let swap = try await operation.start(payment)
+                guard let mint = swap.launchedMint else {
+                    logger.error("Phantom launch returned no mint")
+                    presentGenericErrorDialog()
+                    return
+                }
+                createdMint = CreatedMintRecord(mint: mint, name: swap.currencyName)
+                phantomLaunchContext = ExternalLaunchProcessing(
+                    swapId: swap.swapId,
+                    launchedMint: mint,
+                    currencyName: swap.currencyName,
+                    amount: swap.amount
+                )
+            } catch is CancellationError {
+                // User dismissed — silent.
+            } catch ErrorLaunchCurrency.denied {
+                logger.error("Phantom launch denied after preflight attestations passed")
+                ErrorReporting.captureError(ErrorLaunchCurrency.denied)
+                errorDialog = makeDestructiveDialog(
+                    title: "Couldn't Launch Currency",
+                    subtitle: "Please try again. Contact support if this persists."
+                )
+            } catch ErrorLaunchCurrency.nameExists {
+                logger.error("Phantom launch name-exists after preflight CheckAvailability passed")
+                ErrorReporting.captureError(ErrorLaunchCurrency.nameExists)
+                errorDialog = makeDestructiveDialog(
+                    title: "Name No Longer Available",
+                    subtitle: "Please pick a different name."
+                )
+            } catch ErrorLaunchCurrency.invalidIcon {
+                logger.error("Phantom launch rejected icon after preflight moderation passed")
+                ErrorReporting.captureError(ErrorLaunchCurrency.invalidIcon)
+                errorDialog = makeDestructiveDialog(
+                    title: "Image Is Invalid",
+                    subtitle: "Please pick a different image."
+                )
+            } catch {
+                // Capture mint if launch succeeded but a later step threw,
+                // mirroring the reserves path's retry hook.
+                if let launched = operation.launchedMint {
+                    createdMint = CreatedMintRecord(mint: launched, name: state.currencyName)
+                }
+                logger.error("Phantom-funded launch failed", metadata: [
+                    "error": "\(error)",
+                    "mint": "\(operation.launchedMint?.base58 ?? "nil")",
+                ])
+                ErrorReporting.captureError(error)
+                errorDialog = makeDestructiveDialog(
+                    title: "Couldn't Create Currency",
+                    subtitle: "Please try again."
+                )
+            }
+            if phantomFundingOperation === operation {
+                phantomFundingOperation = nil
+            }
+        }
     }
 
     /// Apple Pay dispatch closure passed into `PurchaseMethodSheet`. Runs the

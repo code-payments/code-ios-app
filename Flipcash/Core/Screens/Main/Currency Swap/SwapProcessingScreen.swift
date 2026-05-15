@@ -16,7 +16,6 @@ struct SwapProcessingScreen: View {
     @Environment(Session.self) private var session
     @Environment(PushController.self) private var pushController
     @Environment(\.dismissParentContainer) private var dismissParentContainer
-    @Environment(PhantomCoordinator.self) private var phantomCoordinator
 
     // MARK: - Init -
 
@@ -92,11 +91,6 @@ struct SwapProcessingScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .interactiveDismissDisabled(true)
-        .onChange(of: phantomCoordinator.isProcessingCancelled, initial: true) { _, cancelled in
-            if cancelled {
-                viewModel.cancel()
-            }
-        }
         .task {
             await viewModel.startPolling(
                 client: client,

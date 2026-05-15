@@ -56,9 +56,13 @@ nonisolated enum ExternalPrompt: Equatable, Sendable {
 
 /// Pure mapping target for `FundingFlowHost`. Lifted out of the host so it
 /// can be unit-tested without SwiftUI. `nil` means "leave the stack alone".
+///
+/// Cases are payload-free; the host modifier discriminates which kind of
+/// prompt to push and supplies the operation reference separately when
+/// constructing the `AppRouter.Destination` case.
 nonisolated enum FundingPromptDestination: Hashable, Sendable {
-    case phantomEducation(PaymentOperation)
-    case phantomConfirm(PaymentOperation)
+    case phantomEducation
+    case phantomConfirm
 }
 
 // MARK: - Requirements

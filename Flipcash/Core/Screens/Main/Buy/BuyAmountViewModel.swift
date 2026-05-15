@@ -19,6 +19,13 @@ final class BuyAmountViewModel: Identifiable {
     var dialogItem: DialogItem?
     var pendingOperation: PaymentOperation?
 
+    /// In-flight Phantom funding operation, created when the user picks
+    /// Phantom from `PurchaseMethodSheet`. `BuyAmountScreen` binds
+    /// `FundingFlowHost` to this so the operation's state transitions push
+    /// the matching prompt screens (`.phantomEducation`, `.phantomConfirm`)
+    /// onto the buy stack.
+    var fundingOperation: (any FundingOperation)?
+
     @ObservationIgnored let mint: PublicKey
     @ObservationIgnored let currencyName: String
 
@@ -103,6 +110,48 @@ final class BuyAmountViewModel: Identifiable {
             amount: amount,
             verifiedState: pin
         ))
+    }
+
+    /// Creates a `PhantomFundingOperation`, stores it as `fundingOperation`
+    /// so `FundingFlowHost` can drive its prompts, and awaits the result.
+    /// On success, pushes the processing screen onto the buy stack. On
+    /// failure (cancel / wallet error / chain error), surfaces a dialog.
+    func startPhantomFunding(
+        payment: PaymentOperation,
+        walletConnection: any TransactionSigning,
+        router: AppRouter
+    ) {
+        let operation = PhantomFundingOperation(
+            walletConnection: walletConnection,
+            session: session
+        )
+        fundingOperation = operation
+
+        Task { [weak self, operation] in
+            do {
+                let swap = try await operation.start(payment)
+                router.pushAny(BuyFlowPath.processing(
+                    swapId: swap.swapId,
+                    currencyName: swap.currencyName,
+                    amount: swap.amount,
+                    swapType: swap.swapType
+                ))
+            } catch is CancellationError {
+                // User dismissed the flow — silent.
+            } catch {
+                logger.error("Phantom funding failed", metadata: [
+                    "mint": "\(self?.mint.base58 ?? "nil")",
+                    "error": "\(error)",
+                ])
+                ErrorReporting.captureError(error)
+                self?.dialogItem = .somethingWentWrong
+            }
+            // Clear only if this op is still the current one — a rapid
+            // method-switch may have replaced it.
+            if let self, (self.fundingOperation as AnyObject?) === operation {
+                self.fundingOperation = nil
+            }
+        }
     }
 
     private func usdfBalanceCovers(_ amount: ExchangedFiat) -> Bool {

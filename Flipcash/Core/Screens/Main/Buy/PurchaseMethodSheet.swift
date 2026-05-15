@@ -21,6 +21,12 @@ struct PurchaseMethodSheet: View {
     /// `OnrampCoordinator.start(_:amount:)` provide this override. The buy
     /// flow passes `nil` so the picker dispatches directly.
     let applePayAction: (() -> Void)?
+    /// Caller-provided dispatch for the Phantom path — invoked with the
+    /// payment payload so the caller can construct + start a
+    /// `PhantomFundingOperation` on its owning viewmodel. The picker
+    /// dismisses itself before this fires (animations don't stack with the
+    /// destination push the operation drives via `FundingFlowHost`).
+    let phantomAction: (PaymentOperation) -> Void
     let onDismiss: () -> Void
 
     @Environment(AppRouter.self) private var router
@@ -50,6 +56,7 @@ struct PurchaseMethodSheet: View {
                         method: method,
                         operation: operation,
                         applePayAction: applePayAction,
+                        phantomAction: phantomAction,
                         onDismiss: onDismiss
                     )
                 }
@@ -85,6 +92,7 @@ private struct MethodButton: View {
     let method: PurchaseMethodSheet.Method
     let operation: PaymentOperation
     let applePayAction: (() -> Void)?
+    let phantomAction: (PaymentOperation) -> Void
     let onDismiss: () -> Void
 
     var body: some View {
@@ -96,7 +104,11 @@ private struct MethodButton: View {
                 onDismiss: onDismiss
             )
         case .phantom:
-            PhantomMethodButton(operation: operation, onDismiss: onDismiss)
+            PhantomMethodButton(
+                operation: operation,
+                phantomAction: phantomAction,
+                onDismiss: onDismiss
+            )
         case .otherWallet:
             OtherWalletMethodButton(onDismiss: onDismiss)
         }
@@ -172,20 +184,19 @@ private struct ApplePayMethodButton: View {
 
 private struct PhantomMethodButton: View {
     let operation: PaymentOperation
+    let phantomAction: (PaymentOperation) -> Void
     let onDismiss: () -> Void
-
-    @Environment(AppRouter.self) private var router
 
     var body: some View {
         Button {
             Analytics.buttonTapped(name: .buyWithPhantom)
             let operation = self.operation
-            // Just push the education destination — the Phantom connect
-            // deeplink fires from the education screen's "Connect Your
-            // Phantom Wallet" button, not here. This keeps the connect
-            // prompt off-screen until the user has read the education copy.
-            dismissThenDispatch(onDismiss: onDismiss) { [router] in
-                router.push(.phantomEducation(operation))
+            // Dismiss the picker first; `phantomAction` constructs the
+            // operation on the caller's viewmodel and `FundingFlowHost`
+            // pushes the education screen on the operation's first state
+            // transition.
+            dismissThenDispatch(onDismiss: onDismiss) {
+                phantomAction(operation)
             }
         } label: {
             HStack(spacing: 4) {

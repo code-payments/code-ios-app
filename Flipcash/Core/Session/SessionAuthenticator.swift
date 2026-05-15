@@ -418,7 +418,6 @@ struct SessionContainer {
     let flipClient: FlipClient
     let onrampDeeplinkInbox: OnrampDeeplinkInbox
     let onrampCoordinator: OnrampCoordinator
-    let phantomCoordinator: PhantomCoordinator
     let appRouter: AppRouter
 
     init(
@@ -440,11 +439,6 @@ struct SessionContainer {
         self.flipClient = flipClient
         self.onrampDeeplinkInbox = OnrampDeeplinkInbox()
         self.onrampCoordinator = OnrampCoordinator(session: session, flipClient: flipClient)
-        self.phantomCoordinator = PhantomCoordinator(
-            walletConnection: walletConnection,
-            session: session,
-            client: client
-        )
         self.appRouter = AppRouter()
     }
 
@@ -457,7 +451,6 @@ struct SessionContainer {
             .environment(pushController)
             .environment(walletConnection)
             .environment(onrampCoordinator)
-            .environment(phantomCoordinator)
             .environment(onrampDeeplinkInbox)
     }
 }

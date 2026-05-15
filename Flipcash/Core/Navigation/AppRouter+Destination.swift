@@ -38,13 +38,13 @@ extension AppRouter {
         /// swap PDA's USDC ATA). Reached as the next step after
         /// `.usdcDepositEducation`.
         case usdcDepositAddress
-        /// Phantom education screen. Shared by buy + launch via the carried
-        /// `PaymentOperation`. The `PhantomCoordinator` already owns the
-        /// in-flight state; the payload here keeps the screen renderable
-        /// against a stale-coordinator nil-operation race on back-stack reuse.
-        case phantomEducation(PaymentOperation)
+        /// Phantom education screen. Carries the in-flight
+        /// `PhantomFundingOperation` so the destination screen can drive
+        /// `confirm()` / observe state on the same instance the host view's
+        /// `FundingFlowHost` is observing.
+        case phantomEducation(PhantomFundingOperation)
         /// Phantom confirm screen, paired with `.phantomEducation`.
-        case phantomConfirm(PaymentOperation)
+        case phantomConfirm(PhantomFundingOperation)
 
         // Settings flow
         case settingsMyAccount
@@ -119,8 +119,8 @@ extension AppRouter {
                  .withdrawCurrency(let mint),
                  .deposit(let mint):
                 return mint.base58
-            case .phantomEducation(let operation), .phantomConfirm(let operation):
-                return operation.currencyName
+            case .phantomEducation, .phantomConfirm:
+                return nil
             case .discoverCurrencies, .currencyCreationSummary, .currencyCreationWizard,
                  .usdcDepositEducation, .usdcDepositAddress,
                  .settingsMyAccount, .settingsAdvancedFeatures, .settingsAppSettings,

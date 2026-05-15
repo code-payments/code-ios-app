@@ -10,21 +10,21 @@ import FlipcashCore
 import FlipcashUI
 
 /// Post-handshake confirmation. Tapping Confirm calls
-/// `PhantomCoordinator.confirm()`, which dispatches the right
-/// `WalletConnection.request*` for the carried operation kind.
-///
-/// The completion routing (push processing for buy, fullScreenCover for
-/// launch) is observed by the picker's caller — `BuyAmountScreen` watches
-/// `coordinator.processing`, the wizard watches `coordinator.launchProcessing`.
-/// This screen just kicks off the sign request.
+/// `fundingOperation.confirm()`, which resumes the operation's suspended
+/// continuation and triggers the sign request deeplink to Phantom.
 struct PhantomConfirmScreen: View {
 
-    let operation: PaymentOperation
+    let fundingOperation: PhantomFundingOperation
 
-    @Environment(PhantomCoordinator.self) private var coordinator
-
+    /// True while the operation is doing chain work (sign request sent,
+    /// awaiting deeplink return, or running the simulate + submit step).
     private var isSigning: Bool {
-        coordinator.state == .signing
+        switch fundingOperation.state {
+        case .awaitingExternal(.phantom), .working:
+            return true
+        default:
+            return false
+        }
     }
 
     var body: some View {
@@ -54,7 +54,7 @@ struct PhantomConfirmScreen: View {
 
                 Spacer()
 
-                Button(action: coordinator.confirm) {
+                Button(action: fundingOperation.confirm) {
                     if isSigning {
                         HStack(spacing: 8) {
                             ProgressView().progressViewStyle(.circular)
@@ -79,9 +79,15 @@ struct PhantomConfirmScreen: View {
         .navigationTitle("Confirmation")
         .navigationBarTitleDisplayMode(.inline)
         .onDisappear {
-            // Backing out before Phantom returns cancels the pending swap so
-            // a future unrelated deeplink doesn't complete a stale operation.
-            coordinator.cancel()
+            // Backing out before Phantom returns cancels the operation so a
+            // stale deeplink callback doesn't complete a flow the user
+            // abandoned.
+            switch fundingOperation.state {
+            case .awaitingUserAction(.confirm), .awaitingExternal(.phantom):
+                fundingOperation.cancel()
+            default:
+                break
+            }
         }
     }
 }

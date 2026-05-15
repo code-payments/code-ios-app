@@ -268,3 +268,21 @@ final class PhantomFundingOperation: FundingOperation {
         }
     }
 }
+
+// MARK: - Hashable (identity)
+
+/// Hashable conformance lives in a `nonisolated` extension so the operation
+/// can ride inside `AppRouter.Destination` cases — which are `nonisolated`
+/// — even though the class is implicitly `@MainActor` (module default).
+extension PhantomFundingOperation: @unchecked Sendable {}
+
+nonisolated extension PhantomFundingOperation: Hashable {
+
+    static func == (lhs: PhantomFundingOperation, rhs: PhantomFundingOperation) -> Bool {
+        lhs === rhs
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(ObjectIdentifier(self))
+    }
+}
