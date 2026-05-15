@@ -125,34 +125,6 @@ struct VerificationOperationTests {
 // MARK: - Mocks
 
 @MainActor
-private final class MockSession: AccountProviding, ProfileProviding, ProfileManaging {
-
-    var profile: Profile?
-    let owner: AccountCluster
-    let ownerKeyPair: KeyPair
-
-    /// Invoked by `updateProfile()`; tests assign this to mutate `profile`
-    /// after a verification step succeeds, mirroring the real Session's
-    /// post-server refresh.
-    var updateProfileHandler: (@MainActor () -> Void)?
-
-    init(profile: Profile?) {
-        // Borrow owner/keypair from Session.mock so the fake satisfies the
-        // protocol with valid-shaped values without recreating crypto.
-        let sample = Session.mock
-        self.owner = sample.owner
-        self.ownerKeyPair = sample.ownerKeyPair
-        self.profile = profile
-    }
-
-    func updateProfile() async throws {
-        updateProfileHandler?()
-    }
-
-    func unlinkProfile() async throws {}
-}
-
-@MainActor
 private final class MockContactVerifying: ContactVerifying {
 
     private(set) var sendVerificationCodeCalls: [(phone: String, owner: KeyPair)] = []

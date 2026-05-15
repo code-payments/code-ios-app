@@ -44,13 +44,47 @@ nonisolated enum PaymentOperation: Hashable, Sendable, Identifiable {
         let launchAmount: ExchangedFiat
         let launchFee: ExchangedFiat
 
-        init(currencyName: String, total: ExchangedFiat, launchAmount: ExchangedFiat, launchFee: ExchangedFiat) {
+        /// Launch-time metadata (icon, description, billColors, moderation
+        /// attestations) the operation needs to call `session.launchCurrency`.
+        /// Required for any operation that performs the launch step
+        /// (`ReservesFundingOperation`, future Phantom / Coinbase launches);
+        /// nil while the payload is still flowing through the funding picker.
+        let attestations: LaunchAttestations?
+
+        /// Pinned exchange-rate proof required by the reserves-funded launch
+        /// path (`session.buyNewCurrency`). Other funding paths submit via
+        /// external-funding RPCs that don't take a verified state, so this is
+        /// nil for them.
+        let verifiedState: VerifiedState?
+
+        init(
+            currencyName: String,
+            total: ExchangedFiat,
+            launchAmount: ExchangedFiat,
+            launchFee: ExchangedFiat,
+            attestations: LaunchAttestations? = nil,
+            verifiedState: VerifiedState? = nil
+        ) {
             self.id = UUID()
             self.currencyName = currencyName
             self.total = total
             self.launchAmount = launchAmount
             self.launchFee = launchFee
+            self.attestations = attestations
+            self.verifiedState = verifiedState
         }
+    }
+
+    /// Bundles the launch-time metadata a funding operation hands to
+    /// `session.launchCurrency`. Lives alongside `PaymentOperation.LaunchPayload`
+    /// so the wizard's launch state has a single packing target.
+    nonisolated struct LaunchAttestations: Hashable, Sendable {
+        let description: String
+        let billColors: [String]
+        let icon: Data
+        let nameAttestation: ModerationAttestation
+        let descriptionAttestation: ModerationAttestation
+        let iconAttestation: ModerationAttestation
     }
 
     var id: UUID {

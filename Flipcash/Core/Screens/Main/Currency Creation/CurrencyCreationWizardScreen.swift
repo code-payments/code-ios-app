@@ -546,71 +546,162 @@ struct CurrencyCreationWizardScreen: View {
         validationTask?.cancel()
         validationTask = Task {
             isValidating = true
+            defer { isValidating = false }
 
             let launchAmount = self.launchAmount
             let launchFee = self.launchFee
             let totalLaunchCost = self.totalLaunchCost
             let displayName = state.currencyName
 
-            // 1. Launch — must be awaited inline; its error routing (denied /
-            // nameExists / invalidIcon) has to run before we navigate forward.
-            guard let mint = await launchCurrencyWithPreflightRouting() else {
-                isValidating = false
+            // Pack wizard state into the operation payload. The operation
+            // owns the launch + buyNewCurrency sequence; the wizard catches
+            // its thrown errors and routes them to the right dialog.
+            guard let nameAttestation = state.nameAttestation,
+                  let iconAttestation = state.iconAttestation,
+                  let descriptionAttestation = state.descriptionAttestation,
+                  let iconData = state.encodedIconData else {
+                logger.error("Confirmation reached without required attestations or icon")
+                presentGenericErrorDialog()
                 return
             }
 
-            // 2. Submit the buy — awaited inline. The stateful swap stream returns
-            // only after the server-side swap record is created (state=created),
-            // so a failure here means the submission never took effect. Surface
-            // it as a wizard dialog rather than presenting a processing screen
-            // that would poll a swap id the server never registered.
-            let swapId: SwapId
-            do {
-                guard let verifiedState = await ratesController.currentPinnedState(
-                    for: launchAmount.nativeAmount.currency,
-                    mint: launchAmount.mint
-                ) else {
-                    throw Session.Error.missingVerifiedState
-                }
+            guard let verifiedState = await ratesController.currentPinnedState(
+                for: launchAmount.nativeAmount.currency,
+                mint: launchAmount.mint
+            ) else {
+                presentGenericErrorDialog()
+                return
+            }
 
-                swapId = try await session.buyNewCurrency(
-                    amount: launchAmount,
-                    feeAmount: launchFee,
-                    verifiedState: verifiedState,
-                    mint: mint
-                )
-            } catch Session.Error.insufficientBalance {
-                logger.info("Insufficient balance to complete currency purchase")
+            let attestations = PaymentOperation.LaunchAttestations(
+                description: state.currencyDescription,
+                billColors: state.backgroundColors.map { $0.hexString },
+                icon: iconData,
+                nameAttestation: nameAttestation,
+                descriptionAttestation: descriptionAttestation,
+                iconAttestation: iconAttestation
+            )
+
+            let payload = PaymentOperation.LaunchPayload(
+                currencyName: displayName,
+                total: totalLaunchCost,
+                launchAmount: launchAmount,
+                launchFee: launchFee,
+                attestations: attestations,
+                verifiedState: verifiedState
+            )
+
+            let operation = ReservesFundingOperation(session: session)
+            let swap: StartedSwap
+            do {
+                swap = try await operation.start(.launch(payload))
+            } catch ErrorLaunchCurrency.denied {
+                logger.error("Launch denied after preflight attestations passed")
+                ErrorReporting.captureError(ErrorLaunchCurrency.denied)
                 errorDialog = makeDestructiveDialog(
-                    title: "Not Enough Funds",
-                    subtitle: "You need \(totalLaunchCost.nativeAmount.formatted()) to create this currency."
+                    title: "Couldn't Launch Currency",
+                    subtitle: "Please try again. Contact support if this persists."
                 )
-                isValidating = false
+                return
+            } catch ErrorLaunchCurrency.nameExists {
+                // Recover when a prior attempt minted the same name but its
+                // buyNewCurrency step failed — reuse the mint and try the buy
+                // directly so the user isn't stranded on a server-confirmed
+                // name collision.
+                if let existing = createdMint, existing.name == displayName {
+                    logger.info("Launch nameExists — reusing mint from prior attempt", metadata: [
+                        "mint": "\(existing.mint.base58)",
+                    ])
+                    do {
+                        let retrySwapId = try await session.buyNewCurrency(
+                            amount: launchAmount,
+                            feeAmount: launchFee,
+                            verifiedState: verifiedState,
+                            mint: existing.mint
+                        )
+                        reservesLaunchContext = ReservesLaunchContext(
+                            swapId: retrySwapId,
+                            launchedMint: existing.mint,
+                            currencyName: displayName,
+                            amount: launchAmount
+                        )
+                    } catch Session.Error.insufficientBalance {
+                        presentInsufficientFundsDialog(totalLaunchCost: totalLaunchCost)
+                    } catch {
+                        if Task.isCancelled { return }
+                        logger.error("Reserves-funded buy retry failed", metadata: [
+                            "error": "\(error)",
+                            "mint": "\(existing.mint.base58)",
+                        ])
+                        ErrorReporting.captureError(error)
+                        presentCouldNotCreateCurrencyDialog()
+                    }
+                    return
+                }
+                logger.error("Launch name-exists after preflight CheckAvailability passed")
+                ErrorReporting.captureError(ErrorLaunchCurrency.nameExists)
+                errorDialog = makeDestructiveDialog(
+                    title: "Name No Longer Available",
+                    subtitle: "Please pick a different name."
+                )
+                return
+            } catch ErrorLaunchCurrency.invalidIcon {
+                logger.error("Launch rejected icon after preflight moderation passed")
+                ErrorReporting.captureError(ErrorLaunchCurrency.invalidIcon)
+                errorDialog = makeDestructiveDialog(
+                    title: "Image Is Invalid",
+                    subtitle: "Please pick a different image."
+                )
+                return
+            } catch Session.Error.insufficientBalance {
+                // Capture the launched mint if the operation got past launch
+                // before the buy failed — the next attempt can shortcut via
+                // `createdMint`.
+                if let launchedMint = operation.launchedMint {
+                    createdMint = CreatedMintRecord(mint: launchedMint, name: displayName)
+                }
+                presentInsufficientFundsDialog(totalLaunchCost: totalLaunchCost)
                 return
             } catch {
-                if Task.isCancelled { isValidating = false; return }
+                if Task.isCancelled { return }
+                if let launchedMint = operation.launchedMint {
+                    createdMint = CreatedMintRecord(mint: launchedMint, name: displayName)
+                }
                 logger.error("Reserves-funded buy failed", metadata: [
                     "error": "\(error)",
-                    "mint": "\(mint.base58)",
+                    "mint": "\(operation.launchedMint?.base58 ?? "nil")",
                 ])
                 ErrorReporting.captureError(error)
-                errorDialog = makeDestructiveDialog(
-                    title: "Couldn't Create Currency",
-                    subtitle: "Please try again."
-                )
-                isValidating = false
+                presentCouldNotCreateCurrencyDialog()
                 return
             }
 
-            // 3. Submission accepted — hand off to the processing screen.
+            // Submission accepted — record the mint and present the processing screen.
+            if let launchedMint = swap.launchedMint {
+                createdMint = CreatedMintRecord(mint: launchedMint, name: displayName)
+            }
             reservesLaunchContext = ReservesLaunchContext(
-                swapId: swapId,
-                launchedMint: mint,
-                currencyName: displayName,
-                amount: launchAmount
+                swapId: swap.swapId,
+                launchedMint: swap.launchedMint ?? operation.launchedMint!,
+                currencyName: swap.currencyName,
+                amount: swap.amount
             )
-            isValidating = false
         }
+    }
+
+    private func presentInsufficientFundsDialog(totalLaunchCost: ExchangedFiat) {
+        logger.info("Insufficient balance to complete currency purchase")
+        errorDialog = makeDestructiveDialog(
+            title: "Not Enough Funds",
+            subtitle: "You need \(totalLaunchCost.nativeAmount.formatted()) to create this currency."
+        )
+    }
+
+    private func presentCouldNotCreateCurrencyDialog() {
+        errorDialog = makeDestructiveDialog(
+            title: "Couldn't Create Currency",
+            subtitle: "Please try again."
+        )
     }
 
     /// Runs the Launch RPC and routes post-preflight failures (DENIED /

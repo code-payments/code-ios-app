@@ -113,13 +113,20 @@ final class BuyAmountViewModel: Identifiable {
     private func performBuy(amount: ExchangedFiat, pin: VerifiedState, router: AppRouter) async {
         do {
             Analytics.buttonTapped(name: .buyWithReserves)
-            let swapId = try await session.buy(amount: amount, verifiedState: pin, of: mint)
-            actionButtonState = .normal
-            router.pushAny(BuyFlowPath.processing(
-                swapId: swapId,
+            let payload = PaymentOperation.BuyPayload(
+                mint: mint,
                 currencyName: currencyName,
                 amount: amount,
-                swapType: .buyWithReserves
+                verifiedState: pin
+            )
+            let operation = ReservesFundingOperation(session: session)
+            let swap = try await operation.start(.buy(payload))
+            actionButtonState = .normal
+            router.pushAny(BuyFlowPath.processing(
+                swapId: swap.swapId,
+                currencyName: swap.currencyName,
+                amount: swap.amount,
+                swapType: swap.swapType
             ))
         } catch Session.Error.insufficientBalance {
             // Race: balance gate said OK but session.buy disagreed. Route to picker.

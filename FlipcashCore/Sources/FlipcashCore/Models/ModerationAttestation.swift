@@ -12,7 +12,7 @@ import FlipcashAPI
 /// proto. The `Currency.Launch` RPC accepts it opaquely via
 /// `Ocp_Currency_V1_ModerationAttestation`, which wraps the same bytes in a
 /// `raw_value` field.
-public struct ModerationAttestation: Sendable, Equatable {
+public struct ModerationAttestation: Sendable, Equatable, Hashable {
 
     public let rawValue: Data
 
