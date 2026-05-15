@@ -195,8 +195,28 @@ final class CoinbaseFundingOperation: FundingOperation {
     ) async throws -> (swapId: SwapId, swapType: SwapType, launchedMint: PublicKey?) {
         switch operation {
         case .buy(let payload):
+            // Coinbase applies its own USD→USDF rate (~0.9994) when
+            // recording the order, so the USDF quarks they'll fund differ
+            // from what we requested by 1-2 quarks. The server requires the
+            // swap amount to exactly equal the Coinbase-recorded purchase
+            // — otherwise it denies with "purchase amount does not match
+            // swap amount". Rebuild the ExchangedFiat from Coinbase's
+            // recorded amount before submitting the swap intent so the
+            // quarks line up with what Coinbase will deliver.
+            guard let recorded = order.order.purchaseAmount,
+                  let recordedDecimal = Decimal(string: recorded) else {
+                logger.error("Coinbase response missing purchaseAmount", metadata: [
+                    "order_id": "\(order.id)",
+                ])
+                throw FundingOperationError.serverRejected("Coinbase response missing purchase amount")
+            }
+            let fundedAmount = ExchangedFiat.compute(
+                onChainAmount: TokenAmount(wholeTokens: recordedDecimal, mint: .usdf),
+                rate: payload.amount.currencyRate,
+                supplyQuarks: nil
+            )
             let swapId = try await session.buyWithCoinbaseOnramp(
-                amount: payload.amount,
+                amount: fundedAmount,
                 of: payload.mint,
                 orderId: order.id
             )
