@@ -84,6 +84,12 @@ final class CoinbaseFundingOperation: FundingOperation {
     // MARK: - Run
 
     private func run(_ operation: PaymentOperation) async throws -> StartedSwap {
+        // Reset state on any exit (return or throw). Without this, a throw
+        // from createOrder / recordSwap / the Apple Pay event loop leaves
+        // state at `.working` or `.awaitingExternal(.applePay)` and the
+        // host view never re-enables.
+        defer { state = .idle }
+
         try await preflightLaunchIfNeeded(operation)
         try checkRequirements()
 

@@ -837,8 +837,13 @@ struct CurrencyCreationWizardScreen: View {
                     currencyName: swap.currencyName,
                     amount: swap.amount
                 )
+            } catch FundingOperationError.userCancelled {
+                errorDialog = makeDestructiveDialog(
+                    title: "Transaction Cancelled",
+                    subtitle: "The transaction was cancelled in your wallet"
+                )
             } catch is CancellationError {
-                // User dismissed — silent.
+                // Local dismiss — silent.
             } catch ErrorLaunchCurrency.denied {
                 logger.error("Phantom launch denied after preflight attestations passed")
                 ErrorReporting.captureError(ErrorLaunchCurrency.denied)

@@ -193,8 +193,13 @@ final class BuyAmountViewModel: Identifiable {
                     amount: swap.amount,
                     swapType: swap.swapType
                 ))
+            } catch FundingOperationError.userCancelled {
+                // User declined in Phantom — surface a dialog so they know
+                // why the transaction didn't go through (silent dismissal
+                // is reserved for Task-level cancel, e.g. sheet dismiss).
+                self?.dialogItem = Self.walletCancelledDialog
             } catch is CancellationError {
-                // User dismissed the flow — silent.
+                // User dismissed the flow locally — silent.
             } catch {
                 logger.error("Phantom funding failed", metadata: [
                     "mint": "\(self?.mint.base58 ?? "nil")",
@@ -210,6 +215,13 @@ final class BuyAmountViewModel: Identifiable {
             }
         }
     }
+
+    private static let walletCancelledDialog = DialogItem(
+        style: .destructive,
+        title: "Transaction Cancelled",
+        subtitle: "The transaction was cancelled in your wallet",
+        dismissable: true
+    ) { .okay(kind: .destructive) }
 
     private func usdfBalanceCovers(_ amount: ExchangedFiat) -> Bool {
         guard let balance = session.balance(for: .usdf) else { return false }

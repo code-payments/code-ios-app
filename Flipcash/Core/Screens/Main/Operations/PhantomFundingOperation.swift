@@ -90,6 +90,13 @@ final class PhantomFundingOperation: FundingOperation {
     // MARK: - Run
 
     private func run(_ operation: PaymentOperation) async throws -> StartedSwap {
+        // Reset state on any exit (return or throw). Without this, a throw
+        // from `handshake()` / `sendUsdcToUsdfSignRequest()` /
+        // `awaitSignedTransaction()` leaves state at `.awaitingExternal`,
+        // and the prompt screen's CTA stays in its "Connecting…" /
+        // "Waiting for Phantom…" spinner forever.
+        defer { state = .idle }
+
         try await preflightLaunchIfNeeded(operation)
 
         state = .awaitingUserAction(.education(operation))
@@ -149,8 +156,10 @@ final class PhantomFundingOperation: FundingOperation {
     }
 
     /// Consumes events from `walletConnection.deeplinkEvents` until the
-    /// awaited signed-tx event arrives. Throws `CancellationError` on a
-    /// 4001 (user cancel) and `serverRejected` on any other wallet error.
+    /// awaited signed-tx event arrives. Throws `FundingOperationError.userCancelled`
+    /// on a wallet 4001 (so callers can surface a "Transaction Cancelled"
+    /// dialog distinct from a silent Task-level cancellation) and
+    /// `.serverRejected` on any other wallet error.
     private func awaitSignedTransaction() async throws -> String {
         for await event in walletConnection.deeplinkEvents {
             try Task.checkCancellation()
@@ -158,7 +167,7 @@ final class PhantomFundingOperation: FundingOperation {
             case .signed(let signedTx):
                 return signedTx
             case .userCancelled:
-                throw CancellationError()
+                throw FundingOperationError.userCancelled
             case .failed(let code):
                 throw FundingOperationError.serverRejected("Wallet returned error code \(code)")
             }
