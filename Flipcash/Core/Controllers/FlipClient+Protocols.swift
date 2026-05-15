@@ -1,14 +1,20 @@
 //
 //  FlipClient+Protocols.swift
-//  FlipcashCore
+//  Flipcash
+//
+//  Lives in the app target so async protocol methods inherit the
+//  `NonisolatedNonsendingByDefault` upcoming feature — calls preserve
+//  caller isolation and don't force sending `any ContactVerifying`
+//  across actor boundaries.
 //
 
 import Foundation
+import FlipcashCore
 
 /// Phone and email verification surface used by `VerificationOperation`.
 /// Each method maps 1:1 to a Flipcash backend RPC; the operation drives the
 /// state machine and the conformer issues the calls.
-public protocol ContactVerifying: AnyObject {
+protocol ContactVerifying: AnyObject {
 
     func sendVerificationCode(phone: String, owner: KeyPair) async throws
     func checkVerificationCode(phone: String, code: String, owner: KeyPair) async throws
@@ -20,7 +26,7 @@ public protocol ContactVerifying: AnyObject {
 /// Coinbase CDP JWT minting surface used by the session-scoped Coinbase
 /// service. JWTs are URI-bound so each request needs one signed for that
 /// exact method/path or Coinbase rejects with 401.
-public protocol OnrampAuthorizing: AnyObject {
+protocol OnrampAuthorizing: AnyObject {
 
     func fetchCoinbaseOnrampJWT(
         apiKey: String,
