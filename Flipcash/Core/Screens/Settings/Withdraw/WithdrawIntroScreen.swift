@@ -50,7 +50,7 @@ struct WithdrawIntroScreen: View {
 private struct ConversionGraphic: View {
     var body: some View {
         HStack(spacing: 16) {
-            Image.asset(.flipcash)
+            Image.asset(.buyFlipcash)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 100, height: 100)
@@ -58,18 +58,10 @@ private struct ConversionGraphic: View {
             Image.system(.arrowRight)
                 .foregroundStyle(Color.textSecondary)
 
-            // The solanaUSDC asset's viewBox is 143×145 because the Solana
-            // hex badge sits down-right of the main USDC circle (which is
-            // 128.3 wide within the viewBox). Frame ratio 111×113 scales the
-            // viewBox so the main circle renders at ≈100×100, matching the
-            // Flipcash icon. The offset pulls the asset down-right so the
-            // main circle's center aligns with the Flipcash circle's center
-            // (the asset's geometric center is offset by the badge weight).
-            Image.asset(.solanaUSDC)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 111, height: 113)
-                .offset(x: 6, y: 7)
+            BadgedIcon(
+                icon: Image.asset(.buyUSDC),
+                badge: Image.asset(.buySolana)
+            )
         }
     }
 }

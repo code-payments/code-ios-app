@@ -117,7 +117,12 @@ nonisolated extension Route {
             case "give":
                 return .give
             case "wallet":
-                return .wallet
+                // Plain `/wallet` is the home-screen quick-action target.
+                // `/wallet/walletConnected` and `/wallet/transactionSigned`
+                // (with optional `errorCode`) are Phantom deep-link returns
+                // consumed by `WalletConnection.didReceiveURL` — fall
+                // through to `.unknown` so the deep-link router skips them.
+                return components.count == 1 ? .wallet : .unknown(url.lastPathComponent)
             case "discover":
                 return .discover
             default:

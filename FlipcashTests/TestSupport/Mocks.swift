@@ -96,6 +96,7 @@ extension SessionContainer {
         return .init(
             session: session,
             database: database,
+            client: Container.mock.client,
             walletConnection: .mock,
             ratesController: ratesController,
             historyController: historyController,

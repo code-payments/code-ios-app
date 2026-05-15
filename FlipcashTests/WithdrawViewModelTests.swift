@@ -412,6 +412,18 @@ struct WithdrawViewModelTests {
         #expect(pushed == [.enterAmount])
     }
 
+    @Test("selectCurrency before pushSubstep is wired sets kind without pushing — PreselectedWithdrawRoot contract")
+    func selectCurrency_withoutPushSubstepWired_setsKindWithoutPushing() {
+        let viewModel = WithdrawViewModelTestHelpers.createViewModel()
+        // Intentionally do NOT wire pushSubstep — mirrors PreselectedWithdrawRoot.init
+        // calling selectCurrency before .onAppear wires the closure.
+        let balance = WithdrawViewModelTestHelpers.createExchangedBalance(mint: .usdf)
+
+        viewModel.selectCurrency(balance)
+
+        #expect(viewModel.kind == .usdfToUsdc(balance))
+    }
+
     // MARK: - prepareSubmission pin-at-compute
 
     @Test("prepareSubmission (USDF→USDC) computes quarks from the PINNED rate, not the live cache")

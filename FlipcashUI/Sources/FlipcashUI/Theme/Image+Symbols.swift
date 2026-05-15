@@ -136,6 +136,15 @@ public enum Asset: String, Sendable {
     case phantom
     case solanaUSDC
     case downloadCircle
+
+    // Buy / Withdraw / Deposit hero icons. Namespaced under `buy/` in
+    // `UI.xcassets` so SVG variants stay grouped; the raw value carries the
+    // path so call sites can use `Image.asset(.buyPhantom)` etc.
+    case buyPhantom = "buy/Phantom"
+    case buyFlipcash = "buy/Flipcash"
+    case buyUSDC = "buy/USDC"
+    case buySolana = "buy/Solana"
+    case buyCheckmark = "buy/Checkmark"
     
     // Flipchat
     

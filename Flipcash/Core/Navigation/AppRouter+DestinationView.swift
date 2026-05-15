@@ -41,7 +41,7 @@ struct DestinationView: View {
                 mint: mint,
                 container: container,
                 sessionContainer: sessionContainer,
-                showFundingOnAppear: true
+                showBuyOnAppear: true
             )
             .id(mint)
 
@@ -138,6 +138,22 @@ struct DestinationView: View {
                 container: container,
                 sessionContainer: sessionContainer
             )
+
+        case .withdrawCurrency(let mint):
+            PreselectedWithdrawRoot(
+                mint: mint,
+                container: container,
+                sessionContainer: sessionContainer
+            )
+
+        case .usdcDepositEducation:
+            USDCDepositEducationScreen()
+
+        case .usdcDepositAddress:
+            USDCDepositAddressScreen()
+
+        case .phantomFlow(let fundingOperation):
+            PhantomFlowScreen(fundingOperation: fundingOperation)
         }
     }
 }

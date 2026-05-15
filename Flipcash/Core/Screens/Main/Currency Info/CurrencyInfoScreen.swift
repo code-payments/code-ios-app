@@ -15,21 +15,8 @@ struct CurrencyInfoScreen: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppRouter.self) private var router
 
-    @State private var isShowingFundingSelection: Bool = false
-    @State private var presentedBuyViewModel: CurrencyBuyViewModel?
     @State private var presentedSellViewModel: CurrencySellViewModel?
     @State private var isShowingCurrencySelection: Bool = false
-    /// Non-nil while the Onramp sheet is presented. Setting it presents the
-    /// sheet with a fresh `OnrampViewModel`; nil'ing it dismisses.
-    @State private var onrampDestination: BuyTarget?
-    @State private var pendingOnrampTarget: BuyTarget?
-
-    /// Identifying data for the Coinbase onramp sheet trigger.
-    private struct BuyTarget: Identifiable, Hashable {
-        let mint: PublicKey
-        let displayName: String
-        var id: String { mint.base58 }
-    }
 
     let session: Session
 
@@ -42,14 +29,12 @@ struct CurrencyInfoScreen: View {
     }
 
     @Environment(WalletConnection.self) private var walletConnection
-    @Environment(OnrampCoordinator.self) private var onrampCoordinator
 
     private let mint: PublicKey
     private let container: Container
     private let ratesController: RatesController
-    private let sessionContainer: SessionContainer
     private let marketCapController: MarketCapController
-    private let showFundingOnAppear: Bool
+    private let showBuyOnAppear: Bool
 
     // MARK: - Init -
 
@@ -58,14 +43,13 @@ struct CurrencyInfoScreen: View {
         viewModel: CurrencyInfoViewModel,
         container: Container,
         sessionContainer: SessionContainer,
-        showFundingOnAppear: Bool
+        showBuyOnAppear: Bool
     ) {
         self.mint                = mint
         self.container           = container
         self.ratesController     = sessionContainer.ratesController
         self.session             = sessionContainer.session
-        self.sessionContainer    = sessionContainer
-        self.showFundingOnAppear = showFundingOnAppear
+        self.showBuyOnAppear = showBuyOnAppear
         self.viewModel           = viewModel
 
         self.marketCapController = MarketCapController(
@@ -77,7 +61,7 @@ struct CurrencyInfoScreen: View {
 
     /// Creates the screen by mint address. Metadata is loaded from the database
     /// (fast path) or fetched from the network, showing a loading state until ready.
-    init(mint: PublicKey, container: Container, sessionContainer: SessionContainer, showFundingOnAppear: Bool = false) {
+    init(mint: PublicKey, container: Container, sessionContainer: SessionContainer, showBuyOnAppear: Bool = false) {
         self.init(
             mint: mint,
             viewModel: CurrencyInfoViewModel(
@@ -88,7 +72,7 @@ struct CurrencyInfoScreen: View {
             ),
             container: container,
             sessionContainer: sessionContainer,
-            showFundingOnAppear: showFundingOnAppear
+            showBuyOnAppear: showBuyOnAppear
         )
     }
 
@@ -108,7 +92,7 @@ struct CurrencyInfoScreen: View {
                     marketCapController: marketCapController,
                     onShowTransactionHistory: { router.push(.transactionHistory(metadata.mint)) },
                     onShowCurrencySelection: { isShowingCurrencySelection = true },
-                    onBuy: { isShowingFundingSelection = true },
+                    onBuy: { router.presentNested(.buy(mint)) },
                     onGive: {
                         Analytics.buttonTapped(name: .give)
                         router.push(.give(mint))
@@ -120,7 +104,9 @@ struct CurrencyInfoScreen: View {
                             session: session,
                             ratesController: ratesController
                         )
-                    }
+                    },
+                    onDeposit: { router.push(.usdcDepositEducation) },
+                    onWithdraw: { router.push(.withdrawCurrency(mint)) }
                 )
             case .error(let error):
                 CurrencyInfoErrorView(error: error) {
@@ -149,57 +135,9 @@ struct CurrencyInfoScreen: View {
             ratesController.ensureMintSubscribed(mint)
             await viewModel.loadMintMetadata()
 
-            if showFundingOnAppear {
-                isShowingFundingSelection = true
+            if showBuyOnAppear {
+                router.presentNested(.buy(mint))
             }
-        }
-        .fullScreenCover(item: Bindable(walletConnection).processing) { processing in
-            NavigationStack {
-                SwapProcessingScreen(
-                    swapId: processing.swapId,
-                    swapType: .buyWithPhantom,
-                    currencyName: processing.currencyName,
-                    amount: processing.amount
-                )
-                .environment(\.dismissParentContainer, {
-                    walletConnection.dismissProcessing()
-                })
-            }
-        }
-        .fullScreenCover(item: onrampCoordinator.buyCompletionBinding) { completion in
-            if case .buyProcessing(let swapId, let name, let amount) = completion {
-                NavigationStack {
-                    SwapProcessingScreen(
-                        swapId: swapId,
-                        swapType: .buyWithCoinbase,
-                        currencyName: name,
-                        amount: amount
-                    )
-                    .environment(\.dismissParentContainer, {
-                        onrampCoordinator.completion = nil
-                    })
-                }
-            }
-        }
-        .sheet(isPresented: Bindable(walletConnection).isShowingAmountEntry) {
-            if let metadata = viewModel.mintMetadata {
-                NavigationStack {
-                    EnterWalletAmountScreen { quarks in
-                        try await walletConnection.requestSwap(
-                            usdc: quarks,
-                            token: metadata.metadata
-                        )
-                    }
-                    .toolbar {
-                        ToolbarItem(placement: .topBarTrailing) {
-                            CloseButton { walletConnection.isShowingAmountEntry = false }
-                        }
-                    }
-                }
-            }
-        }
-        .sheet(item: $presentedBuyViewModel) { buyViewModel in
-            CurrencyBuyAmountScreen(viewModel: buyViewModel)
         }
         .sheet(item: $presentedSellViewModel) { sellViewModel in
             CurrencySellAmountScreen(viewModel: sellViewModel)
@@ -207,58 +145,11 @@ struct CurrencyInfoScreen: View {
         .sheet(isPresented: $isShowingCurrencySelection) {
             CurrencySelectionScreen(ratesController: ratesController)
         }
-        .sheet(isPresented: $isShowingFundingSelection, onDismiss: {
-            // SwiftUI allows only one modal sheet at a time, so we can't set
-            // `onrampDestination` in the same frame as dismissing the funding
-            // sheet — the second sheet gets swallowed. Defer the handoff until
-            // the funding sheet has fully dismissed.
-            guard let target = pendingOnrampTarget else { return }
-            pendingOnrampTarget = nil
-            onrampDestination = target
-        }) {
-            if let metadata = viewModel.mintMetadata {
-                FundingSelectionSheet(
-                    reserveBalance: viewModel.reserveBalance,
-                    isCoinbaseAvailable: session.hasCoinbaseOnramp,
-                    onSelectReserves: {
-                        Analytics.buttonTapped(name: .buyWithReserves)
-                        presentedBuyViewModel = CurrencyBuyViewModel(
-                            currencyPublicKey: metadata.mint,
-                            currencyName: metadata.name,
-                            session: session,
-                            ratesController: ratesController
-                        )
-                        isShowingFundingSelection = false
-                    },
-                    onSelectCoinbase: {
-                        Analytics.buttonTapped(name: .buyWithCoinbase)
-                        pendingOnrampTarget = BuyTarget(
-                            mint: metadata.mint,
-                            displayName: metadata.name
-                        )
-                        isShowingFundingSelection = false
-                    },
-                    onSelectPhantom: {
-                        Analytics.buttonTapped(name: .buyWithPhantom)
-                        walletConnection.connectToPhantom()
-                        isShowingFundingSelection = false
-                    },
-                    onDismiss: {
-                        isShowingFundingSelection = false
-                    }
-                )
-            }
-        }
-        .sheet(item: $onrampDestination) { target in
-            OnrampAmountScreen.forBuying(
-                mint: target.mint,
-                displayName: target.displayName,
-                session: sessionContainer.session,
-                onrampCoordinator: onrampCoordinator,
-                onDismiss: { onrampDestination = nil }
-            )
-        }
-        .dialog(item: Bindable(walletConnection).dialogItem)
+        // `walletConnection.dialogItem` is forwarded to `session.dialogItem`
+        // from inside the `.buy` nested sheet (see BuyAmountScreen) so it
+        // surfaces in `DialogWindow` rather than fighting the sheet stack
+        // here. Binding `.dialog(item:)` on this screen would mount a sheet
+        // that competes with the `.buy` sheet's presentation queue.
     }
 
     @ViewBuilder private func toolbarContent() -> some View {
@@ -300,6 +191,8 @@ private struct LoadedContent: View {
     let onBuy: () -> Void
     let onGive: () -> Void
     let onSell: () -> Void
+    let onDeposit: () -> Void
+    let onWithdraw: () -> Void
 
     private var isUSDF: Bool {
         metadata.mint == .usdf
@@ -359,16 +252,29 @@ private struct LoadedContent: View {
                             currencyCode: ratesController.balanceCurrency,
                             marketCapController: marketCapController
                         )
-
-                        Color
-                            .clear
-                            .padding(.bottom, 100)
                     }
+
+                    // Reserve space so the floating footer doesn't overlap
+                    // scrolled content.
+                    Color
+                        .clear
+                        .padding(.bottom, 100)
                 }
             }
 
             // Floating Footer
-            if !isUSDF {
+            if isUSDF {
+                CurrencyInfoFooter {
+                    Button("Deposit") {
+                        onDeposit()
+                    }
+                    .buttonStyle(.filled)
+
+                    CodeButton(style: .filledSecondary, title: "Withdraw") {
+                        onWithdraw()
+                    }
+                }
+            } else {
                 CurrencyInfoFooter {
                     Button("Buy") {
                         onBuy()

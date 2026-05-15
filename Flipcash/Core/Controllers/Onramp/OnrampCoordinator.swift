@@ -13,6 +13,10 @@ private let logger = Logger(label: "flipcash.onramp-coordinator")
 @Observable
 final class OnrampCoordinator {
 
+    /// Coinbase Onramp's USD floor — orders below this amount fail with a
+    /// generic error, so the buy flow gates ahead of the Apple Pay sheet.
+    static let minimumPurchaseUSD: Decimal = 5
+
     // MARK: - State -
 
     /// Apple Pay order — drives the invisible WebView overlay hosted at root.
@@ -298,6 +302,26 @@ final class OnrampCoordinator {
 
     // MARK: - Public API -
 
+    /// Callback fired when the user finishes verifying both phone and email.
+    /// Set by callers of `startVerification(onComplete:)`; cleared after
+    /// firing. The new Coinbase funding path uses this to wait for
+    /// verification before constructing `CoinbaseFundingOperation`.
+    @ObservationIgnored private var onVerificationComplete: (() -> Void)?
+
+    /// Verification entry point for the new funding-operation path. If the
+    /// profile is already fully verified, `onComplete` fires immediately
+    /// (the caller proceeds straight to `CoinbaseFundingOperation`).
+    /// Otherwise the verification sheet opens and `onComplete` fires when
+    /// the last step (`confirmEmailCode`) succeeds.
+    func startVerification(onComplete: @escaping () -> Void) {
+        if isAccountVerified {
+            onComplete()
+            return
+        }
+        onVerificationComplete = onComplete
+        isShowingVerificationFlow = true
+    }
+
     func start(_ operation: OnrampOperation, amount: ExchangedFiat) {
         guard !isProcessingPayment else { return }
         pendingOperation = operation
@@ -307,6 +331,7 @@ final class OnrampCoordinator {
 
     func cancel() {
         clearPendingState()
+        onVerificationComplete = nil
     }
 
     private func clearPendingState() {
@@ -352,13 +377,20 @@ final class OnrampCoordinator {
             return
         }
 
-        // Verification complete — drop the sheet and kick off the order.
-        guard let operation = pendingOperation, let amount = pendingAmount else {
-            logger.warning("Verification completed without a pending operation")
-            isShowingVerificationFlow = false
+        // Verification complete — drop the sheet. If a caller is waiting on
+        // the new funding-operation path, fire its completion callback;
+        // otherwise fall back to the legacy `createOrder` dispatch (which
+        // is no longer used by the migrated buy + launch flows).
+        isShowingVerificationFlow = false
+        if let callback = onVerificationComplete {
+            onVerificationComplete = nil
+            callback()
             return
         }
-        isShowingVerificationFlow = false
+        guard let operation = pendingOperation, let amount = pendingAmount else {
+            logger.warning("Verification completed without a pending operation")
+            return
+        }
         Task { await createOrder(amount: amount, operation: operation) }
     }
 
@@ -677,7 +709,7 @@ final class OnrampCoordinator {
         }
 
         Analytics.onrampInvokePayment(amount: amount.usdfValue)
-        
+
         let id       = UUID()
         let userRef  = session.ownerKeyPair.publicKey.base58
         let orderRef = "\(userRef):\(id)"
@@ -708,8 +740,31 @@ final class OnrampCoordinator {
             ))
 
             logger.info("Coinbase order created", metadata: [
-                "order_id": "\(response.id)"
+                "order_id": "\(response.id)",
+                "recorded_purchase": "\(response.order.purchaseAmount ?? "<missing>")",
             ])
+
+            // Coinbase applies its own USD→USDF rate (~0.9994) when recording
+            // the order, so the USDF quarks they'll fund differ from what we
+            // requested by 1-2 quarks. The server requires the swap amount to
+            // exactly equal the Coinbase-recorded purchase, otherwise it
+            // denies with "purchase amount does not match swap amount".
+            // Rebuild the ExchangedFiat from Coinbase's reported amount so
+            // the swap quarks line up with the funding side.
+            guard let recorded = response.order.purchaseAmount,
+                  let recordedDecimal = Decimal(string: recorded) else {
+                logger.error("Coinbase response missing purchaseAmount", metadata: [
+                    "order_id": "\(response.id)",
+                ])
+                clearPendingState()
+                showBuyFailedDialog()
+                return
+            }
+            let fundedAmount = ExchangedFiat.compute(
+                onChainAmount: TokenAmount(wholeTokens: recordedDecimal, mint: .usdf),
+                rate: amount.currencyRate,
+                supplyQuarks: nil
+            )
 
             // Server must be watching the Coinbase order before Apple Pay
             // commits — otherwise the user pays into a swap the backend
@@ -717,7 +772,7 @@ final class OnrampCoordinator {
             do {
                 pendingSwapId = try await initiateCoinbaseOnrampSwap(
                     for: operation,
-                    amount: amount,
+                    amount: fundedAmount,
                     orderId: response.id
                 )
             } catch {
@@ -921,6 +976,10 @@ final class OnrampCoordinator {
 }
 
 // MARK: - Supporting types -
+
+enum OnrampError: Error {
+    case missingCoinbaseApiKey
+}
 
 private enum Origin: Int {
     case root

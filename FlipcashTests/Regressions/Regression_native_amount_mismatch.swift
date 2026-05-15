@@ -4,14 +4,15 @@
 //
 //  Regression coverage for the "native amount does not match sell amount"
 //  server error. Invariants:
-//  - `prepareSubmission` computes quarks against the pinned rate (and supply
+//  - Submission paths compute quarks against the pinned rate (and supply
 //    where applicable), not the live cache.
-//  - When no fresh pin is cached, `prepareSubmission` returns nil so submit
-//    bails with a dialog instead of submitting an intent the server rejects.
+//  - When no fresh pin is cached, the submission path bails with a dialog
+//    instead of submitting an intent the server rejects.
 //
 
 import Foundation
 import Testing
+import FlipcashUI
 @testable import Flipcash
 @testable import FlipcashCore
 
@@ -24,10 +25,23 @@ struct Regression_native_amount_mismatch {
 
     // MARK: - Scenario D (buy)
 
-    @Test("Scenario D (buy): prepareSubmission computes quarks from the PINNED rate, not the live cache")
-    func scenarioD_buyPrepareSubmissionUsesPinnedRate() async throws {
+    @Test("Scenario D (buy): amountEnteredAction computes quarks from the PINNED rate, not the live cache")
+    func scenarioD_buyAmountEnteredActionUsesPinnedRate() async throws {
         // Pinned rate: 1 USD = 1.35 CAD. Live cache drifted to 1.37 after the pin was captured.
-        let sessionContainer = SessionContainer.mock
+        // Zero USDF balance so the picker path is taken and the pinned amount surfaces in
+        // `pendingMethodSelection` for inspection.
+        let sessionContainer = try SessionContainer.makeTest(
+            holdings: [],
+            limits: Limits(
+                sinceDate: .now,
+                fetchDate: .now,
+                sendLimits: [.cad: SendLimit(
+                    nextTransaction: FiatAmount(value: 1000, currency: .cad),
+                    maxPerTransaction: FiatAmount(value: 1000, currency: .cad),
+                    maxPerDay: FiatAmount(value: 1000, currency: .cad)
+                )]
+            )
+        )
         sessionContainer.ratesController.configureTestRates(
             balanceCurrency: .cad,
             rates: [Rate(fx: 1.37, currency: .cad)]
@@ -36,22 +50,30 @@ struct Regression_native_amount_mismatch {
             .freshRate(currencyCode: "CAD", rate: 1.35)
         ])
 
-        let vm = CurrencyBuyViewModel(
-            currencyPublicKey: .usdf,
+        let vm = BuyAmountViewModel(
+            mint: .usdf,
             currencyName: "USDF",
             session: sessionContainer.session,
             ratesController: sessionContainer.ratesController
         )
         vm.enteredAmount = "1"
 
-        let submission = try #require(await vm.prepareSubmission())
+        let router = AppRouter()
+        router.present(.balance)
+        await vm.amountEnteredAction(router: router)
+
+        let operation = try #require(vm.pendingOperation)
+        guard case .buy(let payload) = operation else {
+            Issue.record("Expected .buy operation, got \(operation)")
+            return
+        }
 
         // $1 CAD / 1.35 × 10^6, HALF_UP rounded via scaleUpInt → 740_741 USDF quarks.
         // The buggy live path (1.37) would round to 729_927 quarks — the value
         // the server rejected in production.
-        #expect(submission.amount.onChainAmount.quarks == 740_741)
-        #expect(submission.amount.currencyRate.fx == Decimal(1.35))
-        #expect(submission.pinnedState.exchangeRate == 1.35)
+        #expect(payload.amount.onChainAmount.quarks == 740_741)
+        #expect(payload.amount.currencyRate.fx == Decimal(1.35))
+        #expect(payload.verifiedState.exchangeRate == 1.35)
     }
 
     // MARK: - Scenario D (sell)
@@ -130,8 +152,8 @@ struct Regression_native_amount_mismatch {
 
     // MARK: - Scenario E (buy)
 
-    @Test("Scenario E (buy): prepareSubmission returns nil when no fresh pin is cached")
-    func scenarioE_buyPrepareSubmissionReturnsNilWhenNoPin() async {
+    @Test("Scenario E (buy): amountEnteredAction surfaces .staleRate when no fresh pin is cached")
+    func scenarioE_buyAmountEnteredActionSurfacesStaleRateWhenNoPin() async {
         // Live rate is configured, but nothing is seeded in the verified proto
         // service — the submit path has no pin to use and must bail.
         let sessionContainer = SessionContainer.mock
@@ -140,17 +162,20 @@ struct Regression_native_amount_mismatch {
             rates: [Rate(fx: 1.35, currency: .cad)]
         )
 
-        let vm = CurrencyBuyViewModel(
-            currencyPublicKey: .usdf,
+        let vm = BuyAmountViewModel(
+            mint: .usdf,
             currencyName: "USDF",
             session: sessionContainer.session,
             ratesController: sessionContainer.ratesController
         )
         vm.enteredAmount = "1"
 
-        let submission = await vm.prepareSubmission()
+        let router = AppRouter()
+        router.present(.balance)
+        await vm.amountEnteredAction(router: router)
 
-        #expect(submission == nil)
+        #expect(vm.pendingOperation == nil)
+        #expect(vm.dialogItem?.title == DialogItem.staleRate.title)
     }
 
     // MARK: - Scenario E (sell)

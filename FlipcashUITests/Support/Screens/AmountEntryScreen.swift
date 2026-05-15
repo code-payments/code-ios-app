@@ -22,7 +22,7 @@ struct AmountEntryScreen {
     var nextButton: XCUIElement { app.buttons["Next"] }
 
     /// The "Buy" `CodeButton` on the amount entry screen.
-    /// When the CurrencyBuyAmountScreen sheet is presented, there are two "Buy" buttons in
+    /// When the BuyAmountScreen sheet is presented, there are two "Buy" buttons in
     /// the hierarchy — the footer button on CurrencyInfoScreen (index 0, behind the sheet)
     /// and the action button on the amount entry sheet (index 1, on top).
     var buyActionButton: XCUIElement {
@@ -41,5 +41,17 @@ struct AmountEntryScreen {
         keypadDecimal.tap()
         keypadButton("0").tap()
         keypadButton("1").tap()
+    }
+
+    /// Enters an amount near the per-transaction cap so the USDF gate routes
+    /// to the funding picker regardless of the test account's USDF balance.
+    /// The single-transaction limit is $1,000.00; entering "999" stays inside
+    /// it while exceeding any plausible test-account reserve.
+    func enterPickerTriggeringAmount() {
+        XCTAssertTrue(keypadZero.waitForExistence(timeout: 5), "Expected keypad to be visible")
+
+        keypadButton("9").tap()
+        keypadButton("9").tap()
+        keypadButton("9").tap()
     }
 }

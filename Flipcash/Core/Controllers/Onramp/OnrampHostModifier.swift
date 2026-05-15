@@ -13,20 +13,23 @@ import FlipcashCore
 ///
 /// The verification sheet is NOT hosted here — SwiftUI only allows one modal
 /// sheet per presentation context, and when the user is several sheets deep
-/// (Wallet → Discovery → Wizard → FundingSelection) the root-level sheet slot
-/// is already taken. Screens that initiate an onramp (`OnrampAmountScreen`,
-/// `CurrencyCreationWizardScreen`) host the verification sheet themselves so
-/// it presents on top of whatever sheet stack the user is already in.
+/// (Wallet → Discovery → Wizard → funding picker) the root-level sheet slot
+/// is already taken. Each screen that owns the user's path into onramp hosts
+/// the verification sheet itself so it presents on top of whatever sheet
+/// stack the user is in: `BuyAmountScreen` for the buy flow (verification
+/// fires when the user taps Apple Pay in `PurchaseMethodSheet`), and
+/// `CurrencyCreationWizardScreen` for the launch flow.
 struct OnrampHostModifier: ViewModifier {
 
+    @Environment(CoinbaseService.self) private var coinbaseService
     @Environment(OnrampCoordinator.self) private var onrampCoordinator
     @Environment(OnrampDeeplinkInbox.self) private var deeplinkInbox
 
     func body(content: Content) -> some View {
         content
             .overlay {
-                ApplePayOverlay(order: onrampCoordinator.coinbaseOrder) { event in
-                    onrampCoordinator.receiveApplePayEvent(event)
+                ApplePayOverlay(order: coinbaseService.coinbaseOrder) { event in
+                    coinbaseService.receiveApplePayEvent(event)
                 }
             }
             .onChange(of: deeplinkInbox.pendingEmailVerification, initial: true) { _, verification in

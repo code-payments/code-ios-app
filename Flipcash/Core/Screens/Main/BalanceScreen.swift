@@ -28,19 +28,12 @@ struct BalanceScreen: View {
     /// positions instead of popping when the sort order shuffles.
     @Namespace private var balanceRowNamespace
 
-    /// USDF is surfaced separately via `reservesBalance`.
-    private var currencyBalances: [ExchangedBalance] {
-        sortedBalances.filter { $0.stored.mint != .usdf }
-    }
-
-    /// `nil` for a zero balance so the reserves row is hidden when there's
-    /// nothing to show.
-    private var reservesBalance: ExchangedBalance? {
-        sortedBalances.first { $0.stored.mint == .usdf && $0.stored.quarks > 0 }
-    }
-
+    /// USDF is always present in `session.balances(for:)` after sync, so an
+    /// account with no purchased currencies still has USDF in the list. Gate
+    /// on a non-USDF holding so the empty state ("Buy your first currency to
+    /// get started") still appears for that brand-new user.
     private var hasBalances: Bool {
-        !currencyBalances.isEmpty || reservesBalance != nil
+        sortedBalances.contains { $0.stored.mint != .usdf }
     }
 
     private var balance: ExchangedFiat {
@@ -55,7 +48,7 @@ struct BalanceScreen: View {
     }
 
     /// Takes balances by parameter so callers can pass a cached snapshot and
-    /// avoid re-filtering `currencyBalances` on every body evaluation.
+    /// avoid re-iterating `sortedBalances` on every body evaluation.
     private func computeAppreciation(for balances: [ExchangedBalance]) -> (amount: FiatAmount, isPositive: Bool) {
         var totalAppreciation: Decimal = 0
 
@@ -133,7 +126,7 @@ struct BalanceScreen: View {
     }
 
     @ViewBuilder private func list() -> some View {
-        let appreciation = computeAppreciation(for: currencyBalances)
+        let appreciation = computeAppreciation(for: sortedBalances)
 
         // ScrollView ignores the bottom safe area so the section footer pins to
         // the very bottom of the screen — the gradient can then fade out
@@ -153,23 +146,16 @@ struct BalanceScreen: View {
                         .padding(.vertical, 30)
 
                         if hasBalances {
-                            ForEach(currencyBalances) { balance in
-                                CurrencyBalanceRow(exchangedBalance: balance) {
+                            ForEach(sortedBalances) { balance in
+                                CurrencyBalanceRow(
+                                    exchangedBalance: balance,
+                                    accessibilityIdentifier: balance.stored.mint == .usdf ? "currency-row-usdf" : "currency-row"
+                                ) {
                                     Analytics.tokenInfoOpened(from: .openedFromWallet, mint: balance.stored.mint)
                                     router.push(.currencyInfo(balance.stored.mint))
                                 }
                                 .vSeparator(color: .rowSeparator)
                                 .matchedGeometryEffect(id: balance.id, in: balanceRowNamespace)
-                            }
-
-                            if let reservesBalance, reservesBalance.exchangedFiat.hasDisplayableValue() {
-                                CashReservesRow(
-                                    reservesBalance: reservesBalance,
-                                    showTopDivider: currencyBalances.isEmpty,
-                                    onTap: {
-                                        router.push(.currencyInfo(reservesBalance.stored.mint))
-                                    }
-                                )
                             }
                         } else {
                             emptyState()
@@ -217,6 +203,12 @@ struct ExchangedBalance: Identifiable, Hashable {
 
     var id: PublicKey {
         stored.id
+    }
+}
+
+extension StoredBalance {
+    func exchanged(with rate: Rate) -> ExchangedBalance {
+        ExchangedBalance(stored: self, exchangedFiat: computeExchangedValue(with: rate))
     }
 }
 

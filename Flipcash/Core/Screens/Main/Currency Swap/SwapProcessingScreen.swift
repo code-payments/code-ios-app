@@ -16,7 +16,6 @@ struct SwapProcessingScreen: View {
     @Environment(Session.self) private var session
     @Environment(PushController.self) private var pushController
     @Environment(\.dismissParentContainer) private var dismissParentContainer
-    @Environment(WalletConnection.self) private var walletConnection
 
     // MARK: - Init -
 
@@ -92,11 +91,6 @@ struct SwapProcessingScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .interactiveDismissDisabled(true)
-        .onChange(of: walletConnection.isProcessingCancelled, initial: true) { _, cancelled in
-            if cancelled {
-                viewModel.cancel()
-            }
-        }
         .task {
             await viewModel.startPolling(
                 client: client,
