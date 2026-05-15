@@ -120,42 +120,70 @@ struct RouteTests {
         #expect(Route(url: noMintUniversalLink) == nil)
     }
 
-    // MARK: - Wallet Callback URLs -
+    // MARK: - Sheet Routes -
+    //
+    // The three home-screen quick actions defined in Info.plist (Give,
+    // Wallet, Discover) all open sheets via these routes. Universal links
+    // and `flipcash://` deep links must both parse to the same case.
 
-    @Test("Wallet callback universal links parse as unknown routes")
-    func walletCallbackUniversalLinks() {
-        // Wallet callback URLs (from Phantom) parse as .unknown routes.
-        // DeepLinkController returns nil action for .unknown.
-
-        let walletConnected = URL(string: "https://app.flipcash.com/wallet/walletConnected?nonce=abc&data=xyz")!
-        let transactionSigned = URL(string: "https://app.flipcash.com/wallet/transactionSigned?nonce=abc&data=xyz")!
-        let walletError = URL(string: "https://app.flipcash.com/wallet/walletConnected?errorCode=4001")!
-
-        if case .unknown = Route(url: walletConnected)?.path {} else {
-            Issue.record("walletConnected should parse as .unknown")
-        }
-        if case .unknown = Route(url: transactionSigned)?.path {} else {
-            Issue.record("transactionSigned should parse as .unknown")
-        }
-        if case .unknown = Route(url: walletError)?.path {} else {
-            Issue.record("walletError should parse as .unknown")
+    @Test(
+        "Give route parses from both URL formats",
+        arguments: ["flipcash://give", "https://app.flipcash.com/give"]
+    )
+    func giveRoute(urlString: String) throws {
+        let path = try #require(Route(url: URL(string: urlString)!)?.path)
+        if case .give = path {} else {
+            Issue.record("\(urlString) should parse as .give")
         }
     }
 
-    @Test("Wallet callback deep links parse as unknown routes")
-    func walletCallbackDeepLinks() {
-        let walletConnected = URL(string: "flipcash://wallet/walletConnected?nonce=abc&data=xyz")!
-        let transactionSigned = URL(string: "flipcash://wallet/transactionSigned?nonce=abc&data=xyz")!
-        let walletError = URL(string: "flipcash://wallet/walletConnected?errorCode=4001")!
+    @Test(
+        "Balance route parses from both URL formats",
+        arguments: ["flipcash://balance", "https://app.flipcash.com/balance"]
+    )
+    func balanceRoute(urlString: String) throws {
+        let path = try #require(Route(url: URL(string: urlString)!)?.path)
+        if case .balance = path {} else {
+            Issue.record("\(urlString) should parse as .balance")
+        }
+    }
 
-        if case .unknown = Route(url: walletConnected)?.path {} else {
-            Issue.record("walletConnected deep link should parse as .unknown")
+    @Test(
+        "Discover route parses from both URL formats",
+        arguments: ["flipcash://discover", "https://app.flipcash.com/discover"]
+    )
+    func discoverRoute(urlString: String) throws {
+        let path = try #require(Route(url: URL(string: urlString)!)?.path)
+        if case .discover = path {} else {
+            Issue.record("\(urlString) should parse as .discover")
         }
-        if case .unknown = Route(url: transactionSigned)?.path {} else {
-            Issue.record("transactionSigned deep link should parse as .unknown")
+    }
+
+    // MARK: - Wallet Callback URLs -
+
+    @Test(
+        "Plain /wallet is reserved for Phantom and parses as unknown",
+        arguments: ["flipcash://wallet", "https://app.flipcash.com/wallet"]
+    )
+    func walletNamespaceReserved(urlString: String) throws {
+        let path = try #require(Route(url: URL(string: urlString)!)?.path)
+        if case .unknown = path {} else {
+            Issue.record("\(urlString) should parse as .unknown")
         }
-        if case .unknown = Route(url: walletError)?.path {} else {
-            Issue.record("walletError deep link should parse as .unknown")
+    }
+
+    @Test("Phantom callback URLs parse as unknown", arguments: [
+        "https://app.flipcash.com/wallet/walletConnected?nonce=abc&data=xyz",
+        "https://app.flipcash.com/wallet/transactionSigned?nonce=abc&data=xyz",
+        "https://app.flipcash.com/wallet/walletConnected?errorCode=4001",
+        "flipcash://wallet/walletConnected?nonce=abc&data=xyz",
+        "flipcash://wallet/transactionSigned?nonce=abc&data=xyz",
+        "flipcash://wallet/walletConnected?errorCode=4001",
+    ])
+    func walletCallback(urlString: String) throws {
+        let path = try #require(Route(url: URL(string: urlString)!)?.path)
+        if case .unknown = path {} else {
+            Issue.record("\(urlString) should parse as .unknown")
         }
     }
 

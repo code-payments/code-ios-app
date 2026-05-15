@@ -97,7 +97,7 @@ final class DeepLinkController {
         case .give:
             return actionForOpenSheet(.give)
 
-        case .wallet:
+        case .balance:
             return actionForOpenSheet(.balance)
 
         case .discover:
