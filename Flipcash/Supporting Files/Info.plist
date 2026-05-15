@@ -21,6 +21,65 @@
 	</array>
 	<key>SQLiteVersion</key>
 	<integer>11</integer>
+	<key>UIApplicationShortcutItems</key>
+	<array>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.flipcash.shortcut.give</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Give</string>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>banknote</string>
+			<key>UIApplicationShortcutItemUserInfo</key>
+			<dict>
+				<key>url</key>
+				<string>flipcash://give</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.flipcash.shortcut.wallet</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Wallet</string>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>wallet.bifold</string>
+			<key>UIApplicationShortcutItemUserInfo</key>
+			<dict>
+				<key>url</key>
+				<string>flipcash://wallet</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.flipcash.shortcut.discover</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Discover</string>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>binoculars</string>
+			<key>UIApplicationShortcutItemUserInfo</key>
+			<dict>
+				<key>url</key>
+				<string>flipcash://discover</string>
+			</dict>
+		</dict>
+	</array>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneConfigurationName</key>
+					<string>Default Configuration</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>

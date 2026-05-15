@@ -93,11 +93,20 @@ final class DeepLinkController {
             
         case .token(let mint):
             return actionForCurrencyInfo(mint: mint)
-            
+
+        case .give:
+            return actionForOpenSheet(.give)
+
+        case .wallet:
+            return actionForOpenSheet(.balance)
+
+        case .discover:
+            return actionForOpenSheet(.discover)
+
         case .unknown:
             break
         }
-        
+
         return nil
     }
     
@@ -131,6 +140,13 @@ final class DeepLinkController {
     private func actionForCurrencyInfo(mint: PublicKey) -> DeepLinkAction {
         DeepLinkAction(
             kind: .currencyInfo(mint),
+            sessionAuthenticator: sessionAuthenticator
+        )
+    }
+
+    private func actionForOpenSheet(_ sheet: AppRouter.SheetPresentation) -> DeepLinkAction {
+        DeepLinkAction(
+            kind: .openSheet(sheet),
             sessionAuthenticator: sessionAuthenticator
         )
     }
@@ -212,6 +228,21 @@ struct DeepLinkAction {
                 Analytics.deeplinkRouted(kind: kind)
                 container.appRouter.navigate(to: .currencyInfo(mint))
             }
+
+        case .openSheet(let sheet):
+            if case .loggedIn(let container) = sessionAuthenticator.state {
+                Analytics.deeplinkRouted(kind: kind)
+                if sheet == .give {
+                    let rate = container.ratesController.rateForBalanceCurrency()
+                    guard container.session.hasGiveableBalance(for: rate) else {
+                        container.session.dialogItem = .noGiveableBalance(
+                            onDiscover: { container.appRouter.present(.discover) }
+                        )
+                        return
+                    }
+                }
+                container.appRouter.present(sheet)
+            }
         }
     }
 }
@@ -224,6 +255,7 @@ extension DeepLinkAction {
         case receiveCashLink(MnemonicPhrase)
         case verifyEmail(VerificationDescription)
         case currencyInfo(PublicKey)
+        case openSheet(AppRouter.SheetPresentation)
     }
 }
 
@@ -234,6 +266,7 @@ extension DeepLinkAction.Kind {
         case .receiveCashLink:  "CashLink"
         case .verifyEmail:      "EmailVerification"
         case .currencyInfo:     "TokenInfo"
+        case .openSheet(let sheet): "Sheet:\(sheet)"
         }
     }
 }

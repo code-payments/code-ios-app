@@ -451,7 +451,6 @@ struct SessionContainer {
             .environment(onrampCoordinator)
             .environment(onrampDeeplinkInbox)
     }
-
 }
 
 extension View {

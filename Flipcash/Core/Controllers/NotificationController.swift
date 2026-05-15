@@ -69,5 +69,6 @@ extension NSNotification.Name {
     static let pushNotificationWillPresent = Notification.Name("com.code.pushNotificationWillPresent")
     static let pushDeepLinkReceived         = Notification.Name("com.code.pushDeepLinkReceived")
     static let qrDeepLinkReceived          = Notification.Name("com.code.qrDeepLinkReceived")
+    static let shortcutDeepLinkReceived    = Notification.Name("com.code.shortcutDeepLinkReceived")
     static let messageNotificationReceived = Notification.Name("com.code.messageNotificationReceived")
 }

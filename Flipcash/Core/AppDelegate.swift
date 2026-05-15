@@ -80,7 +80,25 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             object: nil
         )
 
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleDeepLinkNotification(_:)),
+            name: .shortcutDeepLinkReceived,
+            object: nil
+        )
+
         return true
+    }
+
+    /// Routes scene events to ``SceneDelegate``. SwiftUI's `App` lifecycle
+    /// uses its own implicit scene delegate by default, swallowing
+    /// `windowScene(_:performActionFor:)`; without this method, the
+    /// `UISceneDelegateClassName` declared in `Info.plist` is not honored
+    /// and quick actions are dropped.
+    func application(_ application: UIApplication, configurationForConnecting connectingSceneSession: UISceneSession, options: UIScene.ConnectionOptions) -> UISceneConfiguration {
+        let config = UISceneConfiguration(name: "Default Configuration", sessionRole: connectingSceneSession.role)
+        config.delegateClass = SceneDelegate.self
+        return config
     }
 
     // MARK: - Lifecycle -
