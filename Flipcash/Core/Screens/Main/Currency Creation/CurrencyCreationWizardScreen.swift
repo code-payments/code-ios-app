@@ -234,22 +234,26 @@ struct CurrencyCreationWizardScreen: View {
         .dialog(item: Bindable(walletConnection).dialogItem)
         .dialog(item: Bindable(onrampCoordinator).dialogItem)
         .onChange(of: fundingOperation?.state) { _, newState in
-            // Push the Phantom flow screen the moment the operation reaches
-            // its first user-action gate, not the moment it's assigned. This
-            // keeps the wizard on top during launch preflight so any
-            // ErrorLaunchCurrency throw lands on the wizard's errorDialog,
-            // not on a flow screen that'd otherwise mask it.
-            guard let operation = fundingOperation as? PhantomFundingOperation else { return }
-            guard case .awaitingUserAction = newState else { return }
+            // Single observer covers both push + reset:
+            // - `nil` state → operation slot emptied → reset push tracking
+            //   so a fresh op can push again on retry.
+            // - First `.awaitingUserAction` transition for this op → push
+            //   `.phantomFlow`. Preflight throws (NAME_EXISTS, DENIED,
+            //   INVALID_ICON) then surface on the wizard's `errorDialog`
+            //   instead of a stranded flow screen.
+            // Assumes `PhantomFundingOperation` is single-shot per the
+            // `FundingOperation` contract; identity-keyed tracking would
+            // need to widen if instances ever get reused.
+            guard let newState else {
+                phantomFlowPushedFor = nil
+                return
+            }
+            guard let operation = fundingOperation as? PhantomFundingOperation,
+                  case .awaitingUserAction = newState else { return }
             let id = ObjectIdentifier(operation)
             guard phantomFlowPushedFor != id else { return }
             phantomFlowPushedFor = id
             router.push(.phantomFlow(operation))
-        }
-        .onChange(of: (fundingOperation as AnyObject?) === nil) { _, isCleared in
-            // Reset push tracking when the operation slot empties so a
-            // subsequent retry can push the flow screen for a fresh op.
-            if isCleared { phantomFlowPushedFor = nil }
         }
         .sheet(isPresented: Bindable(onrampCoordinator).isShowingVerificationFlow) {
             VerifyInfoScreen(onrampCoordinator: onrampCoordinator)

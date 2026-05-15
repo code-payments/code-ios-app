@@ -282,11 +282,13 @@ final class CoinbaseFundingOperation: FundingOperation {
 
             case .pendingPaymentAuth:
                 idleTimer.arm { [weak self] in
+                    // `ApplePayIdleTimer` already invokes this on the main
+                    // actor, so the writes are serialised with the caller's
+                    // read of `didTimeOut` in its `catch is CancellationError`
+                    // arm — no Task hop needed.
                     logger.info("Apple Pay sheet idle timeout, cancelling")
-                    Task { @MainActor [weak self] in
-                        self?.didTimeOut = true
-                        self?.runTask?.cancel()
-                    }
+                    self?.didTimeOut = true
+                    self?.runTask?.cancel()
                 }
 
             case .paymentAuthorized, .commitSuccess, .pollingStart:

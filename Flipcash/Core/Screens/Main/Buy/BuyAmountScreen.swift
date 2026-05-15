@@ -135,19 +135,25 @@ struct BuyAmountScreen: View {
             CurrencySelectionScreen(ratesController: ratesController)
         }
         .onChange(of: viewModel.fundingOperation?.state) { _, newState in
-            // Push the Phantom flow screen on the first user-action gate,
-            // not the moment the operation is assigned. Preflight throws
-            // (Buy isn't a launch, but mirror the wizard's pattern) then
-            // surface on the buy screen itself instead of a stranded flow.
-            guard let operation = viewModel.fundingOperation as? PhantomFundingOperation else { return }
-            guard case .awaitingUserAction = newState else { return }
+            // Single observer covers both push + reset:
+            // - `nil` state → operation slot emptied → reset push tracking
+            //   so a fresh op can push again on retry.
+            // - First `.awaitingUserAction` transition for this op → push
+            //   `.phantomFlow`. Preflight throws (NAME_EXISTS, DENIED) then
+            //   surface on the buy screen itself instead of a stranded flow.
+            // Assumes `PhantomFundingOperation` is single-shot per the
+            // `FundingOperation` contract; identity-keyed tracking would
+            // need to widen if instances ever get reused.
+            guard let newState else {
+                phantomFlowPushedFor = nil
+                return
+            }
+            guard let operation = viewModel.fundingOperation as? PhantomFundingOperation,
+                  case .awaitingUserAction = newState else { return }
             let id = ObjectIdentifier(operation)
             guard phantomFlowPushedFor != id else { return }
             phantomFlowPushedFor = id
             router.push(.phantomFlow(operation))
-        }
-        .onChange(of: (viewModel.fundingOperation as AnyObject?) === nil) { _, isCleared in
-            if isCleared { phantomFlowPushedFor = nil }
         }
     }
 
