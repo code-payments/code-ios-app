@@ -126,7 +126,7 @@ private struct PhantomEducationPanel: View {
     var body: some View {
         PhantomFlowPanel(
             title: "Buy With Phantom",
-            subtitle: "Purchase using Solana USDC in Phantom. Simply connect your wallet and confirm the transaction.",
+            subtitle: "Purchase using Solana USDC in Phantom. Simply connect your wallet and confirm the transaction",
             buttonState: buttonState,
             accessibilityHeroLabel: "Buy with Phantom using Solana USDC",
             onTap: onTap
