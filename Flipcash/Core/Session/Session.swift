@@ -621,12 +621,12 @@ class Session {
 
     @discardableResult
     func buyWithExternalFunding(
+        swapId: SwapId,
         amount: ExchangedFiat,
         of mint: PublicKey,
         transactionSignature: Signature
     ) async throws -> SwapId {
         let token = try await fetchMintMetadata(mint: mint)
-        let swapId = SwapId.generate()
 
         return try await client.buyWithExternalFunding(
             swapId: swapId,

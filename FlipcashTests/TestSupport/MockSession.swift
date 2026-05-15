@@ -92,14 +92,17 @@ final class MockSession:
 
     // MARK: - External funding
 
-    var buyWithExternalFundingHandler: (@MainActor (ExchangedFiat, PublicKey, Signature) async throws -> SwapId)?
+    var buyWithExternalFundingHandler: (@MainActor (SwapId, ExchangedFiat, PublicKey, Signature) async throws -> SwapId)?
     var buyNewCurrencyWithExternalFundingHandler: (@MainActor (ExchangedFiat, ExchangedFiat, PublicKey, Signature) async throws -> SwapId)?
 
-    func buyWithExternalFunding(amount: ExchangedFiat, of mint: PublicKey, transactionSignature: Signature) async throws -> SwapId {
+    private(set) var buyWithExternalFundingCalls: [(swapId: SwapId, amount: ExchangedFiat, mint: PublicKey, transactionSignature: Signature)] = []
+
+    func buyWithExternalFunding(swapId: SwapId, amount: ExchangedFiat, of mint: PublicKey, transactionSignature: Signature) async throws -> SwapId {
+        buyWithExternalFundingCalls.append((swapId, amount, mint, transactionSignature))
         guard let handler = buyWithExternalFundingHandler else {
             throw MockSessionError.unimplemented(method: "buyWithExternalFunding")
         }
-        return try await handler(amount, mint, transactionSignature)
+        return try await handler(swapId, amount, mint, transactionSignature)
     }
 
     func buyNewCurrencyWithExternalFunding(

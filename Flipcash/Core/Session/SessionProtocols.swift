@@ -60,7 +60,12 @@ protocol ReservesBuying: AnyObject {
 /// USDC→USDF transaction directly).
 protocol ExternalFundingBuying: AnyObject {
 
+    /// `swapId` matches the USDC→USDF swap id the external wallet embedded
+    /// in its on-chain swap instruction — server-side correlation between
+    /// the funding tx and the recorded buy intent depends on this being
+    /// the same value the wallet signed.
     func buyWithExternalFunding(
+        swapId: SwapId,
         amount: ExchangedFiat,
         of mint: PublicKey,
         transactionSignature: Signature
