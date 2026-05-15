@@ -65,9 +65,6 @@ class Session {
     /// Feature flags for the current user.
     var userFlags: UserFlags?
 
-    /// Active Coinbase onramp order, if any.
-    var coinbaseOrder: OnrampOrderResponse?
-
     @ObservationIgnored private var grabStarts: [PublicKey: Date] = [:]
 
     @ObservationIgnored let keyAccount: KeyAccount

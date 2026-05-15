@@ -11,8 +11,8 @@
 import Foundation
 import FlipcashCore
 
-/// Phone and email verification surface used by `VerificationOperation`.
-/// Each method maps 1:1 to a Flipcash backend RPC; the operation drives the
+/// Phone and email verification surface used by `VerificationViewModel`.
+/// Each method maps 1:1 to a Flipcash backend RPC; the viewmodel drives the
 /// state machine and the conformer issues the calls.
 protocol ContactVerifying: AnyObject {
 

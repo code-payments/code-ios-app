@@ -417,7 +417,7 @@ struct SessionContainer {
     let pushController: PushController
     let flipClient: FlipClient
     let onrampDeeplinkInbox: OnrampDeeplinkInbox
-    let onrampCoordinator: OnrampCoordinator
+    let verificationRouter: VerificationRouter
     let coinbaseService: CoinbaseService
     let appRouter: AppRouter
 
@@ -438,8 +438,13 @@ struct SessionContainer {
         self.historyController = historyController
         self.pushController = pushController
         self.flipClient = flipClient
-        self.onrampDeeplinkInbox = OnrampDeeplinkInbox()
-        self.onrampCoordinator = OnrampCoordinator(session: session, flipClient: flipClient)
+        let deeplinkInbox = OnrampDeeplinkInbox()
+        self.onrampDeeplinkInbox = deeplinkInbox
+        self.verificationRouter = VerificationRouter(
+            session: session,
+            flipClient: flipClient,
+            deeplinkInbox: deeplinkInbox
+        )
 
         // Construct the Coinbase CDP API client with a bearer-token provider
         // that mints a fresh JWT (URI-bound to method+path) on each call via
@@ -470,7 +475,7 @@ struct SessionContainer {
             .environment(historyController)
             .environment(pushController)
             .environment(walletConnection)
-            .environment(onrampCoordinator)
+            .environment(verificationRouter)
             .environment(coinbaseService)
             .environment(onrampDeeplinkInbox)
     }

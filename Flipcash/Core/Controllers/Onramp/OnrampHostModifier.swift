@@ -7,36 +7,36 @@ import SwiftUI
 import FlipcashCore
 
 /// Root-level host for the invisible Coinbase Apple Pay WebView and the
-/// email-verification deeplink subscription. Attach once on the logged-in
-/// branch so the Apple Pay plumbing is reachable from any screen without
-/// each screen having to own it.
+/// out-of-flow verification fallback sheet. Attach once on the logged-in
+/// branch so the Apple Pay plumbing and the deeplink-driven verification
+/// fallback are reachable from any screen without each screen having to own
+/// them.
 ///
-/// The verification sheet is NOT hosted here — SwiftUI only allows one modal
-/// sheet per presentation context, and when the user is several sheets deep
-/// (Wallet → Discovery → Wizard → funding picker) the root-level sheet slot
-/// is already taken. Each screen that owns the user's path into onramp hosts
-/// the verification sheet itself so it presents on top of whatever sheet
-/// stack the user is in: `BuyAmountScreen` for the buy flow (verification
-/// fires when the user taps Apple Pay in `PurchaseMethodSheet`), and
-/// `CurrencyCreationWizardScreen` for the launch flow.
+/// Inline verification (driven by `BuyAmountScreen`'s buy flow or
+/// `CurrencyCreationWizardScreen`'s launch flow) is hosted by those screens
+/// directly — each binds `.sheet(item:)` to its own
+/// `VerificationViewModel?` so the sheet stacks correctly on top of whatever
+/// sheet the user is currently in. The fallback sheet hosted here only opens
+/// when a verification deeplink arrives while no inline flow is active.
 struct OnrampHostModifier: ViewModifier {
 
     @Environment(CoinbaseService.self) private var coinbaseService
-    @Environment(OnrampCoordinator.self) private var onrampCoordinator
+    @Environment(VerificationRouter.self) private var verificationRouter
     @Environment(OnrampDeeplinkInbox.self) private var deeplinkInbox
 
     func body(content: Content) -> some View {
+        @Bindable var router = verificationRouter
         content
             .overlay {
                 ApplePayOverlay(order: coinbaseService.coinbaseOrder) { event in
                     coinbaseService.receiveApplePayEvent(event)
                 }
             }
-            .onChange(of: deeplinkInbox.pendingEmailVerification, initial: true) { _, verification in
-                if let verification {
-                    onrampCoordinator.applyDeeplinkVerification(verification)
-                    deeplinkInbox.pendingEmailVerification = nil
-                }
+            .onChange(of: deeplinkInbox.pendingEmailVerification, initial: true) { _, _ in
+                verificationRouter.receiveDeeplinkIfPending()
+            }
+            .sheet(item: $router.fallbackViewModel.cancellingOnDismiss()) { vm in
+                VerifyInfoScreen(viewModel: vm)
             }
     }
 }

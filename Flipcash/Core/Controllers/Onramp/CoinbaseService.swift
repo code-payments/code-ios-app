@@ -58,3 +58,9 @@ final class CoinbaseService {
         eventContinuation.yield(event)
     }
 }
+
+// MARK: - Supporting types -
+
+enum OnrampError: Error {
+    case missingCoinbaseApiKey
+}
