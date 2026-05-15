@@ -202,7 +202,7 @@ enum SwapError: Error {
 
 // MARK: - SwapType -
 
-enum SwapType: CaseIterable {
+nonisolated enum SwapType: CaseIterable {
     case buyWithReserves
     case buyWithPhantom
     case buyWithCoinbase
