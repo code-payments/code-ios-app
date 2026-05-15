@@ -43,15 +43,18 @@ final class CoinbaseFundingOperation: FundingOperation {
 
     @ObservationIgnored private let coinbaseService: CoinbaseService
     @ObservationIgnored private let session: any (AccountProviding & ProfileProviding & OnrampBuying & CurrencyLaunching)
+    @ObservationIgnored private let idleTimer: ApplePayIdleTimer
 
     @ObservationIgnored private var runTask: Task<StartedSwap, Error>?
 
     init(
         coinbaseService: CoinbaseService,
-        session: any (AccountProviding & ProfileProviding & OnrampBuying & CurrencyLaunching)
+        session: any (AccountProviding & ProfileProviding & OnrampBuying & CurrencyLaunching),
+        applePayIdleTimeout: Duration = .seconds(60)
     ) {
         self.coinbaseService = coinbaseService
         self.session = session
+        self.idleTimer = ApplePayIdleTimer(timeout: applePayIdleTimeout)
     }
 
     isolated deinit {
@@ -244,7 +247,14 @@ final class CoinbaseFundingOperation: FundingOperation {
     /// Consumes `coinbaseService.applePayEvents` until Apple Pay reports
     /// a terminal state. `pollingSuccess` resolves the wait; `cancelled`
     /// or an error event throws.
+    ///
+    /// Arms `idleTimer` on `.pendingPaymentAuth` so a user who leaves the
+    /// Apple Pay sheet sitting on screen doesn't keep the in-flight swap
+    /// open indefinitely. Disarmed once the user authenticates (Face/Touch
+    /// ID) so a slow commit doesn't trip the timeout.
     private func awaitApplePayCompletion() async throws {
+        defer { idleTimer.disarm() }
+
         for await event in coinbaseService.applePayEvents {
             try Task.checkCancellation()
             switch event.event {
@@ -263,9 +273,18 @@ final class CoinbaseFundingOperation: FundingOperation {
                 ])
                 throw FundingOperationError.serverRejected(message)
 
-            case .loadPending, .loadSuccess,
-                 .applePayButtonPressed, .pendingPaymentAuth,
-                 .paymentAuthorized, .commitSuccess, .pollingStart, .none:
+            case .pendingPaymentAuth:
+                idleTimer.arm { [weak self] in
+                    logger.info("Apple Pay sheet idle timeout, cancelling")
+                    self?.runTask?.cancel()
+                }
+
+            case .paymentAuthorized, .commitSuccess, .pollingStart:
+                // User has authenticated (or committed) — commit / polling
+                // can be slow, so let it run without the idle gate.
+                idleTimer.disarm()
+
+            case .loadPending, .loadSuccess, .applePayButtonPressed, .none:
                 continue
             }
         }

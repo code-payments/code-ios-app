@@ -59,11 +59,17 @@ struct BuyAmountScreen: View {
                 mode: .buy,
                 enteredAmount: $viewModel.enteredAmount,
                 subtitle: .singleTransactionLimit,
-                // Surface coordinator's in-flight Apple Pay/Coinbase setup as
-                // a spinner on the Buy button — the picker dismisses fast and
-                // the Apple Pay sheet can take a beat to open.
+                // Surface an in-flight funding operation (Coinbase order
+                // creation, Apple Pay sheet warm-up, Phantom handshake /
+                // sign / chain submit) as a spinner on the Buy button —
+                // the picker dismisses fast and the Apple Pay overlay can
+                // take ~5s to mount.
                 actionState: Binding(
-                    get: { coordinator.isProcessingPayment ? .loading : viewModel.actionButtonState },
+                    get: {
+                        if coordinator.isProcessingPayment { return .loading }
+                        if isFundingMidFlight { return .loading }
+                        return viewModel.actionButtonState
+                    },
                     set: { viewModel.actionButtonState = $0 }
                 ),
                 actionEnabled: { _ in viewModel.canPerformAction },
