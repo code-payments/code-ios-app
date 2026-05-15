@@ -21,14 +21,15 @@ import FlipcashCore
 /// `CurrencyCreationWizardScreen` for the launch flow.
 struct OnrampHostModifier: ViewModifier {
 
+    @Environment(CoinbaseService.self) private var coinbaseService
     @Environment(OnrampCoordinator.self) private var onrampCoordinator
     @Environment(OnrampDeeplinkInbox.self) private var deeplinkInbox
 
     func body(content: Content) -> some View {
         content
             .overlay {
-                ApplePayOverlay(order: onrampCoordinator.coinbaseOrder) { event in
-                    onrampCoordinator.receiveApplePayEvent(event)
+                ApplePayOverlay(order: coinbaseService.coinbaseOrder) { event in
+                    coinbaseService.receiveApplePayEvent(event)
                 }
             }
             .onChange(of: deeplinkInbox.pendingEmailVerification, initial: true) { _, verification in

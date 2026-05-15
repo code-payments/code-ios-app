@@ -302,6 +302,26 @@ final class OnrampCoordinator {
 
     // MARK: - Public API -
 
+    /// Callback fired when the user finishes verifying both phone and email.
+    /// Set by callers of `startVerification(onComplete:)`; cleared after
+    /// firing. The new Coinbase funding path uses this to wait for
+    /// verification before constructing `CoinbaseFundingOperation`.
+    @ObservationIgnored private var onVerificationComplete: (() -> Void)?
+
+    /// Verification entry point for the new funding-operation path. If the
+    /// profile is already fully verified, `onComplete` fires immediately
+    /// (the caller proceeds straight to `CoinbaseFundingOperation`).
+    /// Otherwise the verification sheet opens and `onComplete` fires when
+    /// the last step (`confirmEmailCode`) succeeds.
+    func startVerification(onComplete: @escaping () -> Void) {
+        if isAccountVerified {
+            onComplete()
+            return
+        }
+        onVerificationComplete = onComplete
+        isShowingVerificationFlow = true
+    }
+
     func start(_ operation: OnrampOperation, amount: ExchangedFiat) {
         guard !isProcessingPayment else { return }
         pendingOperation = operation
@@ -311,6 +331,7 @@ final class OnrampCoordinator {
 
     func cancel() {
         clearPendingState()
+        onVerificationComplete = nil
     }
 
     private func clearPendingState() {
@@ -356,13 +377,20 @@ final class OnrampCoordinator {
             return
         }
 
-        // Verification complete — drop the sheet and kick off the order.
-        guard let operation = pendingOperation, let amount = pendingAmount else {
-            logger.warning("Verification completed without a pending operation")
-            isShowingVerificationFlow = false
+        // Verification complete — drop the sheet. If a caller is waiting on
+        // the new funding-operation path, fire its completion callback;
+        // otherwise fall back to the legacy `createOrder` dispatch (which
+        // is no longer used by the migrated buy + launch flows).
+        isShowingVerificationFlow = false
+        if let callback = onVerificationComplete {
+            onVerificationComplete = nil
+            callback()
             return
         }
-        isShowingVerificationFlow = false
+        guard let operation = pendingOperation, let amount = pendingAmount else {
+            logger.warning("Verification completed without a pending operation")
+            return
+        }
         Task { await createOrder(amount: amount, operation: operation) }
     }
 

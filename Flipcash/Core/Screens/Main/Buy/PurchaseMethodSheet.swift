@@ -17,10 +17,11 @@ struct PurchaseMethodSheet: View {
 
     let operation: PaymentOperation
     let sources: [Method]
-    /// Callers whose Apple Pay flow needs preflight work before invoking
-    /// `OnrampCoordinator.start(_:amount:)` provide this override. The buy
-    /// flow passes `nil` so the picker dispatches directly.
-    let applePayAction: (() -> Void)?
+    /// Caller-provided dispatch for the Apple Pay path. Invoked with the
+    /// payment payload so the caller (BuyAmountViewModel / wizard) can
+    /// construct + start a `CoinbaseFundingOperation` on its owning
+    /// viewmodel after running the verification gate.
+    let applePayAction: (PaymentOperation) -> Void
     /// Caller-provided dispatch for the Phantom path — invoked with the
     /// payment payload so the caller can construct + start a
     /// `PhantomFundingOperation` on its owning viewmodel. The picker
@@ -91,7 +92,7 @@ struct PurchaseMethodSheet: View {
 private struct MethodButton: View {
     let method: PurchaseMethodSheet.Method
     let operation: PaymentOperation
-    let applePayAction: (() -> Void)?
+    let applePayAction: (PaymentOperation) -> Void
     let phantomAction: (PaymentOperation) -> Void
     let onDismiss: () -> Void
 
@@ -133,10 +134,9 @@ private func dismissThenDispatch(
 
 private struct ApplePayMethodButton: View {
     let operation: PaymentOperation
-    let applePayAction: (() -> Void)?
+    let applePayAction: (PaymentOperation) -> Void
     let onDismiss: () -> Void
 
-    @Environment(OnrampCoordinator.self) private var coordinator
     @Environment(Session.self) private var session
 
     var body: some View {
@@ -153,25 +153,9 @@ private struct ApplePayMethodButton: View {
                 return
             }
             Analytics.buttonTapped(name: .buyWithCoinbase)
-            if let applePayAction {
-                // Caller-provided dispatch — used by the launch flow which
-                // needs to run preflight (launchCurrency) before starting
-                // the coordinator.
-                dismissThenDispatch(onDismiss: onDismiss) {
-                    applePayAction()
-                }
-                return
-            }
-            // Default buy dispatch.
-            guard case .buy(let payload) = operation else {
-                // Defensive — launch should always pass applePayAction.
-                return
-            }
-            let amount = payload.amount
-            let mint = payload.mint
-            let displayName = payload.currencyName
-            dismissThenDispatch(onDismiss: onDismiss) { [coordinator] in
-                coordinator.start(.buy(mint: mint, displayName: displayName), amount: amount)
+            let operation = self.operation
+            dismissThenDispatch(onDismiss: onDismiss) {
+                applePayAction(operation)
             }
         } label: {
             Text("\u{F8FF}Pay")

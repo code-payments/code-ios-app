@@ -16,6 +16,7 @@ struct BuyAmountScreen: View {
 
     @Environment(AppRouter.self) private var router
     @Environment(OnrampCoordinator.self) private var coordinator
+    @Environment(CoinbaseService.self) private var coinbaseService
     @Environment(RatesController.self) private var ratesController
     @Environment(WalletConnection.self) private var walletConnection
     @Environment(Session.self) private var session
@@ -36,13 +37,14 @@ struct BuyAmountScreen: View {
         // the NavigationStack root by checking the path is non-empty.
         if !router[.buy].isEmpty { return true }
         if coordinator.isProcessingPayment { return true }
-        return isPhantomMidFlight
+        if coinbaseService.coinbaseOrder != nil { return true }
+        return isFundingMidFlight
     }
 
-    /// True while the Phantom funding operation is past the picker — the
-    /// user has tapped Phantom and we either hit the wallet, are signing,
-    /// or are running the post-sign chain step.
-    private var isPhantomMidFlight: Bool {
+    /// True while a funding operation (Phantom or Coinbase) is past the
+    /// picker — user is in the wallet, the Apple Pay sheet, or we're
+    /// running a chain step.
+    private var isFundingMidFlight: Bool {
         switch viewModel.fundingOperation?.state {
         case .awaitingExternal, .working: return true
         default: return false
@@ -99,7 +101,14 @@ struct BuyAmountScreen: View {
             PurchaseMethodSheet(
                 operation: operation,
                 sources: [.applePay, .phantom, .otherWallet],
-                applePayAction: nil,
+                applePayAction: { payment in
+                    viewModel.startCoinbaseFunding(
+                        payment: payment,
+                        onrampCoordinator: coordinator,
+                        coinbaseService: coinbaseService,
+                        router: router
+                    )
+                },
                 phantomAction: { payment in
                     viewModel.startPhantomFunding(
                         payment: payment,
@@ -115,16 +124,6 @@ struct BuyAmountScreen: View {
         }
         .sheet(isPresented: $isShowingCurrencySelection) {
             CurrencySelectionScreen(ratesController: ratesController)
-        }
-        .onChange(of: coordinator.completion) { _, newValue in
-            guard case .buyProcessing(let swapId, let currencyName, let amount) = newValue else { return }
-            router.pushAny(BuyFlowPath.processing(
-                swapId: swapId,
-                currencyName: currencyName,
-                amount: amount,
-                swapType: .buyWithCoinbase
-            ))
-            coordinator.completion = nil
         }
         .fundingFlowHost(viewModel.fundingOperation)
     }

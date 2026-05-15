@@ -418,6 +418,7 @@ struct SessionContainer {
     let flipClient: FlipClient
     let onrampDeeplinkInbox: OnrampDeeplinkInbox
     let onrampCoordinator: OnrampCoordinator
+    let coinbaseService: CoinbaseService
     let appRouter: AppRouter
 
     init(
@@ -439,6 +440,25 @@ struct SessionContainer {
         self.flipClient = flipClient
         self.onrampDeeplinkInbox = OnrampDeeplinkInbox()
         self.onrampCoordinator = OnrampCoordinator(session: session, flipClient: flipClient)
+
+        // Construct the Coinbase CDP API client with a bearer-token provider
+        // that mints a fresh JWT (URI-bound to method+path) on each call via
+        // `flipClient.fetchCoinbaseOnrampJWT`.
+        let coinbaseApiKey = (try? InfoPlist.value(for: "coinbase").value(for: "apiKey").string()) ?? ""
+        let owner = session.ownerKeyPair
+        let coinbase = Coinbase(configuration: .init(bearerTokenProvider: { [weak flipClient] method, path in
+            guard let flipClient, !coinbaseApiKey.isEmpty else {
+                throw OnrampError.missingCoinbaseApiKey
+            }
+            return try await flipClient.fetchCoinbaseOnrampJWT(
+                apiKey: coinbaseApiKey,
+                owner: owner,
+                method: method,
+                path: path
+            )
+        }))
+        self.coinbaseService = CoinbaseService(coinbase: coinbase)
+
         self.appRouter = AppRouter()
     }
 
@@ -451,6 +471,7 @@ struct SessionContainer {
             .environment(pushController)
             .environment(walletConnection)
             .environment(onrampCoordinator)
+            .environment(coinbaseService)
             .environment(onrampDeeplinkInbox)
     }
 }

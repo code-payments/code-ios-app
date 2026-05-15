@@ -23,6 +23,7 @@ struct CurrencyCreationWizardScreen: View {
     @Environment(RatesController.self) private var ratesController
     @Environment(WalletConnection.self) private var walletConnection
     @Environment(OnrampCoordinator.self) private var onrampCoordinator
+    @Environment(CoinbaseService.self) private var coinbaseService
     @Environment(AppRouter.self) private var router
 
     @State private var step: WizardStep = .name
@@ -42,12 +43,15 @@ struct CurrencyCreationWizardScreen: View {
     /// Non-nil while the Reserves-funded launch is in flight. Drives a
     /// `fullScreenCover` that presents `CurrencyLaunchProcessingScreen`.
     @State private var reservesLaunchContext: ReservesLaunchContext?
-    /// Non-nil while a Phantom-funded launch's chain dance has completed
-    /// and we're showing the launch processing screen.
+    /// Non-nil while an external-wallet (Phantom) launch has completed
+    /// chain submission and we're showing the launch processing screen.
     @State private var phantomLaunchContext: ExternalLaunchProcessing?
-    /// In-flight Phantom funding operation. `FundingFlowHost` observes its
-    /// state to push the education / confirm prompts onto the buy stack.
-    @State private var phantomFundingOperation: PhantomFundingOperation?
+    /// Non-nil while a Coinbase launch has completed and we're showing the
+    /// launch processing screen.
+    @State private var coinbaseLaunchContext: ExternalLaunchProcessing?
+    /// In-flight funding operation (Phantom or Coinbase). `FundingFlowHost`
+    /// observes its state to push the matching prompt screens.
+    @State private var fundingOperation: (any FundingOperation)?
     /// Mint from an earlier attempt whose buy failed inline. On a
     /// `nameExists` retry, reuse it so only the buy reruns. Bound to
     /// `name` — renaming invalidates.
@@ -244,7 +248,7 @@ struct CurrencyCreationWizardScreen: View {
             PurchaseMethodSheet(
                 operation: operation,
                 sources: [.applePay, .phantom],
-                applePayAction: { startApplePayLaunch() },
+                applePayAction: { payment in startCoinbaseLaunchFunding(payment: payment) },
                 phantomAction: { payment in startPhantomLaunchFunding(payment: payment) },
                 onDismiss: { pendingOperation = nil }
             )
@@ -268,33 +272,18 @@ struct CurrencyCreationWizardScreen: View {
                 })
             }
         }
-        .fullScreenCover(item: onrampCoordinator.launchCompletionBinding) { completion in
-            // The processing screen's `launchAmount` represents the amount
-            // minted as new-currency tokens (the bill). Use `self.launchAmount`
-            // rather than the coordinator's `total` amount, so analytics and
-            // logs match the reserves-funded path.
-            if case .launchProcessing(let swapId, let launchedMint, let name, _) = completion {
-                NavigationStack {
-                    CurrencyLaunchProcessingScreen(
-                        swapId: swapId,
-                        launchedMint: launchedMint,
-                        currencyName: name,
-                        launchAmount: launchAmount,
-                        fundingMethod: .coinbase
-                    )
-                    .environment(\.dismissParentContainer, {
-                        // Single-motion dismiss: sheet animation carries the
-                        // cover off. Cleanup of shared coordinator state is
-                        // deferred past the animation so it doesn't trigger
-                        // a separate cover-dismiss in front of the sheet.
-                        // `isValidating` is @State and self-cleans on unmount.
-                        router.dismissSheet()
-                        Task { @MainActor in
-                            try? await Task.sleep(for: AppRouter.dismissAnimationDuration)
-                            onrampCoordinator.completion = nil
-                        }
-                    })
-                }
+        .fullScreenCover(item: $coinbaseLaunchContext) { processing in
+            NavigationStack {
+                CurrencyLaunchProcessingScreen(
+                    swapId: processing.swapId,
+                    launchedMint: processing.launchedMint,
+                    currencyName: processing.currencyName,
+                    launchAmount: launchAmount,
+                    fundingMethod: .coinbase
+                )
+                .environment(\.dismissParentContainer, {
+                    router.dismissSheet()
+                })
             }
         }
         // The wizard only hosts launch covers — buy-existing Phantom flows
@@ -315,7 +304,7 @@ struct CurrencyCreationWizardScreen: View {
                 })
             }
         }
-        .fundingFlowHost(phantomFundingOperation)
+        .fundingFlowHost(fundingOperation)
         .onAppear {
             if step == .name { focusedField = .name }
         }
@@ -831,7 +820,7 @@ struct CurrencyCreationWizardScreen: View {
             walletConnection: walletConnection,
             session: session
         )
-        phantomFundingOperation = operation
+        fundingOperation = operation
 
         Task { [operation] in
             do {
@@ -887,36 +876,81 @@ struct CurrencyCreationWizardScreen: View {
                     subtitle: "Please try again."
                 )
             }
-            if phantomFundingOperation === operation {
-                phantomFundingOperation = nil
+            if (fundingOperation as AnyObject?) === operation {
+                fundingOperation = nil
             }
         }
     }
 
-    /// Apple Pay dispatch closure passed into `PurchaseMethodSheet`. Runs the
-    /// Launch RPC preflight (creates the mint) before starting Coinbase, so
-    /// the destination address is valid when the Apple Pay sheet opens.
-    private func startApplePayLaunch() {
-        let displayName = state.currencyName
-        let launchAmount = self.launchAmount
-        let launchFee = self.launchFee
-        let totalLaunchCost = self.totalLaunchCost
-        isValidating = true
-        validationTask?.cancel()
-        validationTask = Task {
-            guard let mint = await launchCurrencyWithPreflightRouting() else {
-                isValidating = false
-                return
+    /// `PurchaseMethodSheet.applePayAction` dispatch for launch. Runs the
+    /// verification gate via `OnrampCoordinator.startVerification`, then
+    /// spawns a `CoinbaseFundingOperation` that performs the preflight
+    /// launch internally followed by the Coinbase order + Apple Pay flow.
+    private func startCoinbaseLaunchFunding(payment: PaymentOperation) {
+        onrampCoordinator.startVerification { [self] in
+            runCoinbaseLaunchOperation(payment: payment)
+        }
+    }
+
+    private func runCoinbaseLaunchOperation(payment: PaymentOperation) {
+        let operation = CoinbaseFundingOperation(
+            coinbaseService: coinbaseService,
+            session: session
+        )
+        fundingOperation = operation
+
+        Task { [operation] in
+            do {
+                let swap = try await operation.start(payment)
+                guard let mint = swap.launchedMint else {
+                    logger.error("Coinbase launch returned no mint")
+                    presentGenericErrorDialog()
+                    return
+                }
+                createdMint = CreatedMintRecord(mint: mint, name: swap.currencyName)
+                coinbaseLaunchContext = ExternalLaunchProcessing(
+                    swapId: swap.swapId,
+                    launchedMint: mint,
+                    currencyName: swap.currencyName,
+                    amount: swap.amount
+                )
+            } catch is CancellationError {
+                // User dismissed Apple Pay — silent.
+            } catch ErrorLaunchCurrency.denied {
+                ErrorReporting.captureError(ErrorLaunchCurrency.denied)
+                errorDialog = makeDestructiveDialog(
+                    title: "Couldn't Launch Currency",
+                    subtitle: "Please try again. Contact support if this persists."
+                )
+            } catch ErrorLaunchCurrency.nameExists {
+                ErrorReporting.captureError(ErrorLaunchCurrency.nameExists)
+                errorDialog = makeDestructiveDialog(
+                    title: "Name No Longer Available",
+                    subtitle: "Please pick a different name."
+                )
+            } catch ErrorLaunchCurrency.invalidIcon {
+                ErrorReporting.captureError(ErrorLaunchCurrency.invalidIcon)
+                errorDialog = makeDestructiveDialog(
+                    title: "Image Is Invalid",
+                    subtitle: "Please pick a different image."
+                )
+            } catch {
+                if let launched = operation.launchedMint {
+                    createdMint = CreatedMintRecord(mint: launched, name: state.currencyName)
+                }
+                logger.error("Coinbase-funded launch failed", metadata: [
+                    "error": "\(error)",
+                    "mint": "\(operation.launchedMint?.base58 ?? "nil")",
+                ])
+                ErrorReporting.captureError(error)
+                errorDialog = makeDestructiveDialog(
+                    title: "Couldn't Create Currency",
+                    subtitle: "Please try again."
+                )
             }
-            onrampCoordinator.start(
-                .launch(
-                    mint: mint,
-                    displayName: displayName,
-                    launchAmount: launchAmount,
-                    launchFee: launchFee
-                ),
-                amount: totalLaunchCost
-            )
+            if (fundingOperation as AnyObject?) === operation {
+                fundingOperation = nil
+            }
         }
     }
 

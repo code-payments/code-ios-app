@@ -112,6 +112,63 @@ final class BuyAmountViewModel: Identifiable {
         ))
     }
 
+    /// Creates a `CoinbaseFundingOperation`, stores it as `fundingOperation`,
+    /// and awaits the result. Runs the verification gate first (via
+    /// `OnrampCoordinator.startVerification`) — if the user isn't already
+    /// verified, the verification sheet opens and the operation only runs
+    /// after the email step succeeds.
+    func startCoinbaseFunding(
+        payment: PaymentOperation,
+        onrampCoordinator: OnrampCoordinator,
+        coinbaseService: CoinbaseService,
+        router: AppRouter
+    ) {
+        onrampCoordinator.startVerification { [weak self] in
+            guard let self else { return }
+            self.runCoinbaseFundingOperation(
+                payment: payment,
+                coinbaseService: coinbaseService,
+                router: router
+            )
+        }
+    }
+
+    private func runCoinbaseFundingOperation(
+        payment: PaymentOperation,
+        coinbaseService: CoinbaseService,
+        router: AppRouter
+    ) {
+        let operation = CoinbaseFundingOperation(
+            coinbaseService: coinbaseService,
+            session: session
+        )
+        fundingOperation = operation
+
+        Task { [weak self, operation] in
+            do {
+                let swap = try await operation.start(payment)
+                router.pushAny(BuyFlowPath.processing(
+                    swapId: swap.swapId,
+                    currencyName: swap.currencyName,
+                    amount: swap.amount,
+                    swapType: swap.swapType
+                ))
+            } catch is CancellationError {
+                // User dismissed Apple Pay — silent.
+            } catch {
+                logger.error("Coinbase funding failed", metadata: [
+                    "mint": "\(self?.mint.base58 ?? "nil")",
+                    "error": "\(error)",
+                ])
+                ErrorReporting.captureError(error)
+                self?.dialogItem = .somethingWentWrong
+            }
+            if let self, (self.fundingOperation as AnyObject?) === operation {
+                self.fundingOperation = nil
+            }
+        }
+    }
+
     /// Creates a `PhantomFundingOperation`, stores it as `fundingOperation`
     /// so `FundingFlowHost` can drive its prompts, and awaits the result.
     /// On success, pushes the processing screen onto the buy stack. On
