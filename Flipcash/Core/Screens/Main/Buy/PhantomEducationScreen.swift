@@ -17,6 +17,8 @@ struct PhantomEducationScreen: View {
 
     let fundingOperation: PhantomFundingOperation
 
+    @Environment(AppRouter.self) private var router
+
     private var isConnecting: Bool {
         if case .awaitingExternal = fundingOperation.state { return true }
         return false
@@ -72,6 +74,15 @@ struct PhantomEducationScreen: View {
                 fundingOperation.cancel()
             default:
                 break
+            }
+        }
+        .onChange(of: fundingOperation.state) { oldValue, newValue in
+            // Operation has exited (success, cancel, or error). The op is
+            // one-shot — its `confirm()` continuation is gone, so tapping
+            // the CTA again on this screen wouldn't advance anything. Pop
+            // back so the user can re-trigger the flow from the source.
+            if newValue == .idle, oldValue != .idle {
+                router.pop(on: .balance)
             }
         }
     }

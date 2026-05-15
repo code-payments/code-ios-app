@@ -16,6 +16,8 @@ struct PhantomConfirmScreen: View {
 
     let fundingOperation: PhantomFundingOperation
 
+    @Environment(AppRouter.self) private var router
+
     /// True while the operation is doing chain work (sign request sent,
     /// awaiting deeplink return, or running the simulate + submit step).
     private var isSigning: Bool {
@@ -87,6 +89,15 @@ struct PhantomConfirmScreen: View {
                 fundingOperation.cancel()
             default:
                 break
+            }
+        }
+        .onChange(of: fundingOperation.state) { oldValue, newValue in
+            // Operation has exited — `confirm()` is dead. Pop so the user
+            // can re-trigger from the source screen. Education (below) has
+            // the same onChange and pops itself too, so the two pops unwind
+            // the prompt chain on the same SwiftUI cycle.
+            if newValue == .idle, oldValue != .idle {
+                router.pop(on: .balance)
             }
         }
     }

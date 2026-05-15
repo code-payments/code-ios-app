@@ -103,7 +103,13 @@ final class PhantomFundingOperation: FundingOperation {
         try await waitForConfirm()
 
         state = .awaitingExternal(.phantom)
-        try await walletConnection.handshake()
+        do {
+            try await walletConnection.handshake()
+        } catch WalletConnectionError.userCancelledConnect {
+            throw FundingOperationError.userCancelled
+        } catch WalletConnectionError.connectFailed(let code) {
+            throw FundingOperationError.serverRejected("Wallet connect failed (code: \(code))")
+        }
 
         state = .awaitingUserAction(.confirm(operation))
         try await waitForConfirm()
