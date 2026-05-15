@@ -26,7 +26,7 @@ struct PurchaseMethodSheet: View {
     /// payment payload so the caller can construct + start a
     /// `PhantomFundingOperation` on its owning viewmodel. The picker
     /// dismisses itself before this fires (animations don't stack with the
-    /// destination push the operation drives via `FundingFlowHost`).
+    /// flow screen the caller pushes synchronously).
     let phantomAction: (PaymentOperation) -> Void
     let onDismiss: () -> Void
 
@@ -176,9 +176,8 @@ private struct PhantomMethodButton: View {
             Analytics.buttonTapped(name: .buyWithPhantom)
             let operation = self.operation
             // Dismiss the picker first; `phantomAction` constructs the
-            // operation on the caller's viewmodel and `FundingFlowHost`
-            // pushes the education screen on the operation's first state
-            // transition.
+            // operation on the caller's viewmodel and pushes the flow
+            // screen synchronously.
             dismissThenDispatch(onDismiss: onDismiss) {
                 phantomAction(operation)
             }

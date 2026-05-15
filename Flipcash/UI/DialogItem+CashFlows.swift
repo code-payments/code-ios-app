@@ -91,6 +91,17 @@ extension DialogItem {
         }
     }
 
+    static var walletCancelled: DialogItem {
+        .init(
+            style: .destructive,
+            title: "Transaction Cancelled",
+            subtitle: "The transaction was cancelled in your wallet",
+            dismissable: true
+        ) {
+            .okay(kind: .destructive)
+        }
+    }
+
     /// Coinbase Onramp rejects orders below `OnrampCoordinator.minimumPurchaseUSD`
     /// with a generic error; surface the constraint up-front instead of letting
     /// the user round-trip to Apple Pay. `minimum` is the USD floor already

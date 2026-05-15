@@ -30,9 +30,14 @@ final class MockSession:
     let ownerKeyPair: KeyPair
 
     init(profile: Profile? = nil) {
-        let sample = Session.mock
-        self.owner = sample.owner
-        self.ownerKeyPair = sample.ownerKeyPair
+        // Pull `owner`/`ownerKeyPair` from the cached `AccountCluster.mock`
+        // / `KeyPair.mock` directly. Reading `Session.mock` here triggered
+        // the full mock graph (`Database.mock`, `RatesController`,
+        // `HistoryController`, fresh key derivation) on every test setup —
+        // seconds of overhead in aggregate. The operations under test never
+        // read either property, but `AccountProviding` still requires them.
+        self.owner = .mock
+        self.ownerKeyPair = .mock
         self.profile = profile
     }
 

@@ -69,6 +69,11 @@ final class VerificationOperation {
 
     func cancel() {
         runTask?.cancel()
+        // The inner Task's cancellation flag alone doesn't unblock the
+        // suspended `wait…` continuations — resume each pending one so
+        // `run()` wakes, the `CancellationError` propagates, and
+        // `start()` rethrows.
+        resumePendingContinuations(throwing: CancellationError())
     }
 
     // MARK: - User submissions

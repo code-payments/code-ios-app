@@ -152,11 +152,8 @@ struct DestinationView: View {
         case .usdcDepositAddress:
             USDCDepositAddressScreen()
 
-        case .phantomEducation(let fundingOperation):
-            PhantomEducationScreen(fundingOperation: fundingOperation)
-
-        case .phantomConfirm(let fundingOperation):
-            PhantomConfirmScreen(fundingOperation: fundingOperation)
+        case .phantomFlow(let fundingOperation):
+            PhantomFlowScreen(fundingOperation: fundingOperation)
         }
     }
 }

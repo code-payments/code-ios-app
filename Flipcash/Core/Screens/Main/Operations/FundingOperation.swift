@@ -47,22 +47,15 @@ nonisolated enum UserPrompt: Equatable, Sendable {
 
 /// Out-of-app prompt — the user is in Phantom, in the Apple Pay sheet, etc.
 /// Drives the host's overlay rendering, no navigation push.
-nonisolated enum ExternalPrompt: Equatable, Sendable {
-    case phantom
-    case applePay
-}
-
-// MARK: - Prompt routing
-
-/// Pure mapping target for `FundingFlowHost`. Lifted out of the host so it
-/// can be unit-tested without SwiftUI. `nil` means "leave the stack alone".
 ///
-/// Cases are payload-free; the host modifier discriminates which kind of
-/// prompt to push and supplies the operation reference separately when
-/// constructing the `AppRouter.Destination` case.
-nonisolated enum FundingPromptDestination: Hashable, Sendable {
-    case phantomEducation
-    case phantomConfirm
+/// Phantom's two external trips (connect handshake, transaction sign) are
+/// distinct cases so a single state-switching host view (`PhantomFlowScreen`)
+/// can render the correct panel under the spinner without needing to mirror
+/// the previous step in `@State`.
+nonisolated enum ExternalPrompt: Equatable, Sendable {
+    case phantomConnect
+    case phantomSign
+    case applePay
 }
 
 // MARK: - Requirements
@@ -94,9 +87,12 @@ nonisolated enum FundingOperationError: Error, Equatable, Sendable {
 /// `StartedSwap` on chain-submission success, and `cancel()` for teardown.
 ///
 /// Multi-step paths interleave navigation without inverting control —
-/// the operation transitions `state` to `.awaitingUserAction(...)`, the
-/// host view pushes the matching prompt screen, the prompt's CTA calls
-/// `confirm()`, and `start()` resumes from the suspended continuation.
+/// the operation transitions `state` to `.awaitingUserAction(...)`, a
+/// single host view re-renders against that state to surface the matching
+/// prompt UI, the prompt's CTA calls `confirm()`, and `start()` resumes
+/// from the suspended continuation. Wallet-side cancellations loop the
+/// operation back to the relevant `awaitingUserAction` state so the user
+/// can retry without restarting the flow.
 protocol FundingOperation: AnyObject, Observable {
 
     /// Transient state the host view observes to push prompts / render

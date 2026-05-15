@@ -32,7 +32,7 @@ struct VerificationOperationTests {
         async let result: Void = op.start()
 
         try await waitUntil(op) { $0.state == .awaitingPhone }
-        let phone = Phone("+15555550100")!
+        let phone = Phone.mock
         op.submitPhone(phone)
 
         try await waitUntil(op) { $0.state == .awaitingPhoneCode }
@@ -59,7 +59,7 @@ struct VerificationOperationTests {
         async let result: Void = op.start()
 
         try await waitUntil(op) { $0.state == .awaitingPhone }
-        op.submitPhone(Phone("+15555550100")!)
+        op.submitPhone(Phone.mock)
 
         try await waitUntil(op) { $0.state == .awaitingPhoneCode }
         session.updateProfileHandler = {
@@ -111,7 +111,7 @@ struct VerificationOperationTests {
 
         let task = Task { try await op.start() }
         try await waitUntil(op) { $0.state == .awaitingPhone }
-        op.submitPhone(Phone("+15555550100")!)
+        op.submitPhone(Phone.mock)
 
         try await waitUntil(op) { $0.state == .awaitingPhoneCode }
         op.submitPhoneCode("000000")

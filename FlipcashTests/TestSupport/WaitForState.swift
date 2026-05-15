@@ -25,8 +25,11 @@ func waitUntil<Object: AnyObject>(
     let deadline = ContinuousClock().now + timeout
     while !predicate(object) {
         if ContinuousClock().now >= deadline {
+            // `String(reflecting:)` dumps the object's stored properties so
+            // a timeout reveals which state the predicate last rejected
+            // instead of just the type name.
             Issue.record(
-                "waitUntil(\(Object.self)) timed out after \(timeout)",
+                "waitUntil(\(Object.self)) timed out after \(timeout). Last observed: \(String(reflecting: object))",
                 sourceLocation: sourceLocation
             )
             throw WaitForStateTimeout()

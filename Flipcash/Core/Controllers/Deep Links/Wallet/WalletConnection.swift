@@ -235,7 +235,7 @@ public final class WalletConnection {
     /// the first is in flight cancels the first waiter.
     ///
     /// Task cancellation is propagated through `withTaskCancellationHandler`
-    /// so callers that abandon the connect (e.g. `PhantomEducationScreen`
+    /// so callers that abandon the connect (e.g. the Phantom flow screen
     /// being popped) don't leak the underlying `CheckedContinuation`.
     func connect() async throws {
         guard !isConnected else { return }

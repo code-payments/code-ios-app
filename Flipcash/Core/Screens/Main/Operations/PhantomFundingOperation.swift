@@ -12,22 +12,27 @@ private let logger = Logger(label: "flipcash.phantom-funding")
 /// Funds a buy or launch by routing the user through Phantom's deeplink
 /// connect + sign flow.
 ///
-/// Linear flow:
+/// Flow (the connect and sign steps each loop on wallet-side cancel):
 /// 1. `.launch` only — preflight `session.launchCurrency` so server-side
 ///    rejections (denied / nameExists / invalidIcon) throw before we hand
 ///    the user off to Phantom.
-/// 2. `state = .awaitingUserAction(.education)` — view shows the education
-///    screen; CTA invokes `confirm()`.
-/// 3. `state = .awaitingExternal(.phantom)` — `walletConnection.handshake()`
-///    deeplinks to Phantom and suspends until the connect callback returns.
-/// 4. `state = .awaitingUserAction(.confirm)` — view shows the confirm
-///    screen; CTA invokes `confirm()` again.
-/// 5. `state = .awaitingExternal(.phantom)` — sign request deeplinks to
-///    Phantom and we suspend on `deeplinkEvents` for `.signed` / `.userCancelled`
-///    / `.failed`.
+/// 2. `state = .awaitingUserAction(.education)` — host renders the
+///    education panel; CTA invokes `confirm()`.
+/// 3. `state = .awaitingExternal(.phantomConnect)` — `handshake()` deeplinks
+///    to Phantom. On user-cancel (`userCancelledConnect`), set
+///    `lastErrorMessage` and loop back to step 2 so the user can retry
+///    without restarting.
+/// 4. `state = .awaitingUserAction(.confirm)` — host renders the confirm
+///    panel; CTA invokes `confirm()` again.
+/// 5. `state = .awaitingExternal(.phantomSign)` — sign request deeplinks
+///    to Phantom and we suspend on `deeplinkEvents`. On user-cancel (wallet
+///    code 4001 → `FundingOperationError.userCancelled` from
+///    `awaitSignedTransaction`), loop back to step 4.
 /// 6. `state = .working` — simulate the signed tx, notify the server (records
 ///    the swap), submit to chain. Throws on any failure.
 ///
+/// `start()` only throws on terminal failures (non-cancel `connectFailed`,
+/// server reject, chain submit) or external `cancel()` (CancellationError).
 /// `launchedMint` is populated immediately after a successful preflight so
 /// callers can detect "launch succeeded, downstream step threw" if `start()`
 /// throws mid-flow.
@@ -36,6 +41,10 @@ final class PhantomFundingOperation: FundingOperation {
 
     private(set) var state: FundingOperationState = .idle
     let requirements: [FundingRequirement] = []
+
+    /// Last wallet-side cancel reason. Cleared on `confirm()` so the banner
+    /// disappears the moment the user taps retry.
+    private(set) var lastErrorMessage: String?
 
     /// Set after a successful `.launch` preflight. Lets callers recover the
     /// minted PublicKey when the post-launch chain dance throws.
@@ -67,69 +76,106 @@ final class PhantomFundingOperation: FundingOperation {
     func start(_ operation: PaymentOperation) async throws -> StartedSwap {
         let task = Task { try await run(operation) }
         runTask = task
+        defer { runTask = nil }
         return try await withTaskCancellationHandler {
             try await task.value
         } onCancel: { [weak self] in
             task.cancel()
             Task { @MainActor [weak self] in
-                self?.confirmContinuation?.resume(throwing: CancellationError())
-                self?.confirmContinuation = nil
+                self?.cancelPendingConfirm()
             }
         }
     }
 
     func confirm() {
-        confirmContinuation?.resume()
+        lastErrorMessage = nil
+        let continuation = confirmContinuation
         confirmContinuation = nil
+        continuation?.resume()
     }
 
     func cancel() {
         runTask?.cancel()
+        // The inner Task's cancellation flag alone doesn't unblock a
+        // suspended `CheckedContinuation` — resume it so `run()` wakes,
+        // sees the `CancellationError`, and exits the retry loop. The
+        // catches in `run()` only match user-cancel variants, so
+        // `CancellationError` propagates and `start()` rethrows.
+        cancelPendingConfirm()
+    }
+
+    /// Shared body for cancellation paths: read-and-clear the slot, then
+    /// resume the consumed continuation. Mirrors
+    /// `WalletConnection.cancelPendingConnect` for consistency and keeps
+    /// the slot empty before the resume so any tardy main-actor hop sees
+    /// `nil` rather than a stale continuation.
+    private func cancelPendingConfirm() {
+        guard let continuation = confirmContinuation else { return }
+        confirmContinuation = nil
+        continuation.resume(throwing: CancellationError())
     }
 
     // MARK: - Run
 
     private func run(_ operation: PaymentOperation) async throws -> StartedSwap {
         // Reset state on any exit (return or throw). Without this, a throw
-        // from `handshake()` / `sendUsdcToUsdfSignRequest()` /
-        // `awaitSignedTransaction()` leaves state at `.awaitingExternal`,
-        // and the prompt screen's CTA stays in its "Connecting…" /
-        // "Waiting for Phantom…" spinner forever.
+        // from `sendUsdcToUsdfSignRequest()` / submit leaves state at
+        // `.awaitingExternal`, so the host view's spinner never clears.
         defer { state = .idle }
 
         try await preflightLaunchIfNeeded(operation)
 
-        state = .awaitingUserAction(.education(operation))
-        try await waitForConfirm()
+        // Connect step — wallet-side cancel loops back to the education
+        // prompt; non-cancel failures propagate. Sets `lastErrorMessage` on
+        // each cancel so the host can render an inline banner.
+        while true {
+            try Task.checkCancellation()
+            state = .awaitingUserAction(.education(operation))
+            try await waitForConfirm()
 
-        state = .awaitingExternal(.phantom)
-        do {
-            try await walletConnection.handshake()
-        } catch WalletConnectionError.userCancelledConnect {
-            throw FundingOperationError.userCancelled
-        } catch WalletConnectionError.connectFailed(let code) {
-            throw FundingOperationError.serverRejected("Wallet connect failed (code: \(code))")
+            state = .awaitingExternal(.phantomConnect)
+            do {
+                try await walletConnection.handshake()
+                break
+            } catch WalletConnectionError.userCancelledConnect {
+                lastErrorMessage = "Connection cancelled in Phantom"
+                // loop: top of next iteration resets state to .education
+            } catch WalletConnectionError.connectFailed(let code) {
+                throw FundingOperationError.serverRejected("Wallet connect failed (code: \(code))")
+            }
         }
 
-        state = .awaitingUserAction(.confirm(operation))
-        try await waitForConfirm()
+        // Sign step — wallet-side cancel (deeplink code 4001) loops back to
+        // the confirm prompt; serverRejected and other terminal failures
+        // propagate.
+        while true {
+            try Task.checkCancellation()
+            state = .awaitingUserAction(.confirm(operation))
+            try await waitForConfirm()
 
-        let fundingSwapId = SwapId.generate()
-        state = .awaitingExternal(.phantom)
-        try await walletConnection.sendUsdcToUsdfSignRequest(
-            usdc: operation.displayAmount.onChainAmount,
-            fundingSwapId: fundingSwapId,
-            displayName: operation.currencyName
-        )
+            let fundingSwapId = SwapId.generate()
+            state = .awaitingExternal(.phantomSign)
+            try await walletConnection.sendUsdcToUsdfSignRequest(
+                usdc: operation.displayAmount.onChainAmount,
+                fundingSwapId: fundingSwapId,
+                displayName: operation.currencyName
+            )
 
-        let signedTx = try await awaitSignedTransaction()
+            let signedTx: String
+            do {
+                signedTx = try await awaitSignedTransaction()
+            } catch FundingOperationError.userCancelled {
+                lastErrorMessage = "Transaction cancelled in Phantom"
+                continue
+            }
 
-        state = .working
-        return try await submitAndNotify(
-            signedTx: signedTx,
-            operation: operation,
-            fundingSwapId: fundingSwapId
-        )
+            state = .working
+            return try await submitAndNotify(
+                signedTx: signedTx,
+                operation: operation,
+                fundingSwapId: fundingSwapId
+            )
+        }
     }
 
     private func preflightLaunchIfNeeded(_ operation: PaymentOperation) async throws {

@@ -50,6 +50,81 @@ struct AppRouterTests {
         #expect(router[.balance].isEmpty)
     }
 
+    @Test("popTopmost pops the topmost-sheet stack")
+    func popTopmost_popsTopmostSheetStack() {
+        let router = AppRouter()
+        router.present(.balance)
+        router.push(.currencyInfo(.usdc))
+        router.push(.transactionHistory(.usdc))
+        router.popTopmost()
+        #expect(router[.balance] == AppRouter.navigationPath(.currencyInfo(.usdc)))
+    }
+
+    @Test("popTopmost on a nested sheet leaves the root stack untouched")
+    func popTopmost_nested_doesNotTouchRoot() {
+        let router = AppRouter()
+        router.present(.balance)
+        router.push(.currencyInfo(.usdc))
+        router.presentNested(.buy(.usdc))
+        router.push(.usdcDepositEducation)
+
+        router.popTopmost()
+
+        #expect(router[.buy].isEmpty)
+        #expect(router[.balance] == AppRouter.navigationPath(.currencyInfo(.usdc)))
+    }
+
+    @Test("popTopmost is a no-op with no sheet presented")
+    func popTopmost_noSheet_isNoop() {
+        let router = AppRouter()
+        router.popTopmost()
+        #expect(router[.balance].isEmpty)
+    }
+
+    @Test("replaceTopmostAny swaps the top destination for a new value")
+    func replaceTopmost_swapsTopDestination() {
+        let router = AppRouter()
+        router.present(.balance)
+        router.push(.currencyInfo(.usdc))
+        router.push(.transactionHistory(.usdc))
+
+        router.replaceTopmostAny(AppRouter.Destination.discoverCurrencies)
+
+        #expect(router[.balance] == AppRouter.navigationPath(.currencyInfo(.usdc), .discoverCurrencies))
+    }
+
+    @Test("replaceTopmostAny on a nested sheet leaves the root stack untouched")
+    func replaceTopmost_nested_doesNotTouchRoot() {
+        let router = AppRouter()
+        router.present(.balance)
+        router.push(.currencyInfo(.usdc))
+        router.presentNested(.buy(.usdc))
+        router.push(.usdcDepositEducation)
+
+        router.replaceTopmostAny(AppRouter.Destination.usdcDepositAddress)
+
+        #expect(router[.buy] == AppRouter.navigationPath(.usdcDepositAddress))
+        #expect(router[.balance] == AppRouter.navigationPath(.currencyInfo(.usdc)))
+    }
+
+    @Test("replaceTopmostAny on an empty stack appends the value")
+    func replaceTopmost_emptyStack_appends() {
+        let router = AppRouter()
+        router.present(.balance)
+
+        router.replaceTopmostAny(AppRouter.Destination.currencyInfo(.usdc))
+
+        #expect(router[.balance] == AppRouter.navigationPath(.currencyInfo(.usdc)))
+    }
+
+    @Test("replaceTopmostAny is a no-op with no sheet presented")
+    func replaceTopmost_noSheet_isNoop() {
+        let router = AppRouter()
+        router.replaceTopmostAny(AppRouter.Destination.currencyInfo(.usdc))
+        #expect(router[.balance].isEmpty)
+        #expect(router[.buy].isEmpty)
+    }
+
     @Test("popToRoot clears the stack")
     func popToRoot_clearsStack() {
         let router = AppRouter()

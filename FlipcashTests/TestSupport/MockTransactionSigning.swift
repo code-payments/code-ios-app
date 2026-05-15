@@ -20,15 +20,13 @@ final class MockTransactionSigning: TransactionSigning {
     private(set) var handshakeCallCount = 0
     private(set) var sendSignRequestCalls: [(usdc: FlipcashCore.TokenAmount, fundingSwapId: SwapId, displayName: String)] = []
 
-    var handshakeHandler: (@MainActor () async throws -> Void)?
-    var sendSignRequestHandler: (@MainActor (FlipcashCore.TokenAmount, SwapId, String) async throws -> Void)?
+    var handshakeHandler: (() async throws -> Void)?
+    var sendSignRequestHandler: ((FlipcashCore.TokenAmount, SwapId, String) async throws -> Void)?
 
     init() {
-        var capturedContinuation: AsyncStream<WalletConnection.DeeplinkEvent>.Continuation!
-        self.deeplinkEvents = AsyncStream { continuation in
-            capturedContinuation = continuation
-        }
-        self.continuation = capturedContinuation
+        let (stream, continuation) = AsyncStream<WalletConnection.DeeplinkEvent>.makeStream()
+        self.deeplinkEvents = stream
+        self.continuation = continuation
     }
 
     func handshake() async throws {
@@ -49,10 +47,5 @@ final class MockTransactionSigning: TransactionSigning {
     /// is what unblocks the operation's `awaitSignedTransaction` step.
     func yieldDeeplinkEvent(_ event: WalletConnection.DeeplinkEvent) {
         continuation.yield(event)
-    }
-
-    /// Finishes the stream so any pending `for await` loop exits.
-    func finishDeeplinkStream() {
-        continuation.finish()
     }
 }

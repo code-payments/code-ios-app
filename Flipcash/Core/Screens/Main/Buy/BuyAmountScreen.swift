@@ -31,7 +31,7 @@ struct BuyAmountScreen: View {
     }
 
     private var isDismissBlocked: Bool {
-        // Any pushed sub-flow screen (Phantom confirm, USDC deposit address,
+        // Any pushed sub-flow screen (Phantom flow, USDC deposit address,
         // processing) — destination-level `interactiveDismissDisabled(true)`
         // does NOT propagate through the nested-sheet binding, so gate at
         // the NavigationStack root by checking the path is non-empty.
@@ -131,7 +131,6 @@ struct BuyAmountScreen: View {
         .sheet(isPresented: $isShowingCurrencySelection) {
             CurrencySelectionScreen(ratesController: ratesController)
         }
-        .fundingFlowHost(viewModel.fundingOperation)
     }
 
     private func showCurrencySelection() {

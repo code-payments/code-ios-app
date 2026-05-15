@@ -125,6 +125,43 @@ final class AppRouter {
         logger.info("Pop", metadata: ["stack": "\(stack)"])
     }
 
+    /// Pops the topmost destination from whichever stack the currently-
+    /// presented sheet hosts. Symmetric with `push(_:)`. Used by callers
+    /// that need to dismiss a state-driven screen on operation completion
+    /// without hand-stamping which stack it lives on (the Phantom flow
+    /// screen, for instance, can ride on `.buy`, `.balance`, or `.discover`).
+    func popTopmost() {
+        guard let stack = presentedSheet?.stack else { return }
+        pop(on: stack)
+    }
+
+    /// Atomic replace of the topmost destination on whichever stack the
+    /// currently-presented sheet hosts: pops the current top, then pushes
+    /// `value` in a single mutation. Mirrors the `push` / `pushAny` split —
+    /// this is the sub-flow variant that accepts any `Hashable` so sub-flow
+    /// path types (e.g. `BuyFlowPath`) can be swapped in. Used for "swap
+    /// this screen for the next one" hand-offs (e.g. PhantomFlow →
+    /// SwapProcessing on success) where leaving the old screen on the stack
+    /// underneath would let a back-swipe reveal a dead UI.
+    ///
+    /// No-op with a warning if no sheet is presented.
+    func replaceTopmostAny<H: Hashable>(_ value: H) {
+        guard let stack = presentedSheet?.stack else {
+            logger.warning("replaceTopmostAny attempted with no sheet presented", metadata: [
+                "type": "\(type(of: value))",
+            ])
+            return
+        }
+        var path = paths[stack, default: NavigationPath()]
+        if !path.isEmpty { path.removeLast() }
+        path.append(value)
+        paths[stack] = path
+        logger.info("Replace topmost (sub-flow)", metadata: [
+            "stack": "\(stack)",
+            "type": "\(type(of: value))",
+        ])
+    }
+
     func popToRoot(on stack: Stack) {
         guard !(paths[stack]?.isEmpty ?? true) else { return }
         paths[stack] = NavigationPath()

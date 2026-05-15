@@ -19,11 +19,10 @@ final class BuyAmountViewModel: Identifiable {
     var dialogItem: DialogItem?
     var pendingOperation: PaymentOperation?
 
-    /// In-flight Phantom funding operation, created when the user picks
-    /// Phantom from `PurchaseMethodSheet`. `BuyAmountScreen` binds
-    /// `FundingFlowHost` to this so the operation's state transitions push
-    /// the matching prompt screens (`.phantomEducation`, `.phantomConfirm`)
-    /// onto the buy stack.
+    /// In-flight funding operation (Phantom or Coinbase). For Phantom, the
+    /// `.phantomFlow` destination is pushed onto the buy stack at the same
+    /// moment this property is assigned; the destination renders against
+    /// `operation.state` until the flow terminates.
     var fundingOperation: (any FundingOperation)?
 
     @ObservationIgnored let mint: PublicKey
@@ -169,10 +168,13 @@ final class BuyAmountViewModel: Identifiable {
         }
     }
 
-    /// Creates a `PhantomFundingOperation`, stores it as `fundingOperation`
-    /// so `FundingFlowHost` can drive its prompts, and awaits the result.
-    /// On success, pushes the processing screen onto the buy stack. On
-    /// failure (cancel / wallet error / chain error), surfaces a dialog.
+    /// Creates a `PhantomFundingOperation`, pushes `.phantomFlow` onto the
+    /// buy stack so the state-switching host view renders the right panel
+    /// off `operation.state`, and awaits the result. On success, atomically
+    /// swaps the flow screen for the processing screen so back-swipe can't
+    /// land the user on a terminal-state flow screen. On non-cancel failure,
+    /// surfaces a dialog. Wallet-side cancels are handled inside the
+    /// operation's retry loop — they never throw out here.
     func startPhantomFunding(
         payment: PaymentOperation,
         walletConnection: any TransactionSigning,
@@ -183,23 +185,20 @@ final class BuyAmountViewModel: Identifiable {
             session: session
         )
         fundingOperation = operation
+        router.push(.phantomFlow(operation))
 
         Task { [weak self, operation] in
             do {
                 let swap = try await operation.start(payment)
-                router.pushAny(BuyFlowPath.processing(
+                router.replaceTopmostAny(BuyFlowPath.processing(
                     swapId: swap.swapId,
                     currencyName: swap.currencyName,
                     amount: swap.amount,
                     swapType: swap.swapType
                 ))
-            } catch FundingOperationError.userCancelled {
-                // User declined in Phantom — surface a dialog so they know
-                // why the transaction didn't go through (silent dismissal
-                // is reserved for Task-level cancel, e.g. sheet dismiss).
-                self?.dialogItem = Self.walletCancelledDialog
             } catch is CancellationError {
-                // User dismissed the flow locally — silent.
+                // User dismissed the flow locally (back swipe / sheet
+                // dismiss) — silent.
             } catch {
                 logger.error("Phantom funding failed", metadata: [
                     "mint": "\(self?.mint.base58 ?? "nil")",
@@ -215,13 +214,6 @@ final class BuyAmountViewModel: Identifiable {
             }
         }
     }
-
-    private static let walletCancelledDialog = DialogItem(
-        style: .destructive,
-        title: "Transaction Cancelled",
-        subtitle: "The transaction was cancelled in your wallet",
-        dismissable: true
-    ) { .okay(kind: .destructive) }
 
     private func usdfBalanceCovers(_ amount: ExchangedFiat) -> Bool {
         guard let balance = session.balance(for: .usdf) else { return false }

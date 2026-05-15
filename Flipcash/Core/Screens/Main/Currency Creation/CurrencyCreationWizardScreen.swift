@@ -49,8 +49,9 @@ struct CurrencyCreationWizardScreen: View {
     /// Non-nil while a Coinbase launch has completed and we're showing the
     /// launch processing screen.
     @State private var coinbaseLaunchContext: ExternalLaunchProcessing?
-    /// In-flight funding operation (Phantom or Coinbase). `FundingFlowHost`
-    /// observes its state to push the matching prompt screens.
+    /// In-flight funding operation (Phantom or Coinbase). For Phantom, the
+    /// `.phantomFlow` destination is pushed onto the wizard's stack at the
+    /// same moment this is assigned.
     @State private var fundingOperation: (any FundingOperation)?
     /// Mint from an earlier attempt whose buy failed inline. On a
     /// `nameExists` retry, reuse it so only the buy reruns. Bound to
@@ -304,7 +305,6 @@ struct CurrencyCreationWizardScreen: View {
                 })
             }
         }
-        .fundingFlowHost(fundingOperation)
         .onAppear {
             if step == .name { focusedField = .name }
         }
@@ -692,82 +692,6 @@ struct CurrencyCreationWizardScreen: View {
         )
     }
 
-    /// Runs the Launch RPC and routes post-preflight failures (DENIED /
-    /// NAME_EXISTS / INVALID_ICON) back to the offending step with an
-    /// error dialog queued. Returns the new mint on success, nil on any
-    /// failure (with the appropriate dialog / step navigation already
-    /// applied). Shared between the reserves and Coinbase funding flows.
-    private func launchCurrencyWithPreflightRouting() async -> PublicKey? {
-        guard let nameAttestation = state.nameAttestation,
-              let iconAttestation = state.iconAttestation,
-              let descriptionAttestation = state.descriptionAttestation,
-              let iconData = state.encodedIconData else {
-            logger.error("Confirmation reached without required attestations or icon")
-            presentGenericErrorDialog()
-            return nil
-        }
-
-        let billColors = state.backgroundColors.map { $0.hexString }
-
-        do {
-            let mint = try await session.launchCurrency(
-                name: state.currencyName,
-                description: state.currencyDescription,
-                billColors: billColors,
-                icon: iconData,
-                nameAttestation: nameAttestation,
-                descriptionAttestation: descriptionAttestation,
-                iconAttestation: iconAttestation
-            )
-            createdMint = CreatedMintRecord(mint: mint, name: state.currencyName)
-            return mint
-        } catch ErrorLaunchCurrency.denied {
-            logger.error("Launch denied after preflight attestations passed")
-            ErrorReporting.captureError(ErrorLaunchCurrency.denied)
-            errorDialog = makeDestructiveDialog(
-                title: "Couldn't Launch Currency",
-                subtitle: "Please try again. Contact support if this persists."
-            )
-            return nil
-        } catch ErrorLaunchCurrency.nameExists {
-            if let existing = createdMint, existing.name == state.currencyName {
-                logger.info("Launch nameExists — reusing mint from prior attempt", metadata: [
-                    "mint": "\(existing.mint.base58)",
-                ])
-                return existing.mint
-            }
-            logger.error("Launch name-exists after preflight CheckAvailability passed")
-            ErrorReporting.captureError(ErrorLaunchCurrency.nameExists)
-            errorDialog = makeDestructiveDialog(
-                title: "Name No Longer Available",
-                subtitle: "Please pick a different name."
-            )
-            return nil
-        } catch ErrorLaunchCurrency.invalidIcon {
-            logger.error("Launch rejected icon after preflight moderation passed")
-            ErrorReporting.captureError(ErrorLaunchCurrency.invalidIcon)
-            errorDialog = makeDestructiveDialog(
-                title: "Image Is Invalid",
-                subtitle: "Please pick a different image."
-            )
-            return nil
-        } catch {
-            if Task.isCancelled { return nil }
-            logger.error("Launch failed", metadata: ["error": "\(error)"])
-            ErrorReporting.captureError(error)
-            errorDialog = makeDestructiveDialog(
-                title: "Couldn't Launch Currency",
-                subtitle: "Check your connection and try again."
-            )
-            return nil
-        }
-    }
-
-    /// Shared implementation for Coinbase- and Phantom-funded launches: both
-    /// deposit the full total (`launchAmount + launchFee`) of USDF via an
-    /// external signature, and the server splits it into swap + fee via
-    /// `TransferForSwapWithFee`. Runs the same Launch + error-routing helper
-    /// used by the reserves flow, then completes the buy with the external
     // MARK: - Pay-to-Create dispatch
 
     /// "Pay X to Create" tap handler. USDF gate first — if reserves cover the
@@ -813,14 +737,17 @@ struct CurrencyCreationWizardScreen: View {
     }
 
     /// `PurchaseMethodSheet.phantomAction` dispatch. Spawns a Phantom
-    /// funding operation, drives it via the `.fundingFlowHost` modifier on
-    /// this view, and presents the launch processing cover on success.
+    /// funding operation, pushes `.phantomFlow` onto the wizard's stack so
+    /// the host renders the right panel off `operation.state`, and presents
+    /// the launch processing cover on success. Wallet-side cancels are
+    /// handled inside the operation's retry loop — they never throw out here.
     private func startPhantomLaunchFunding(payment: PaymentOperation) {
         let operation = PhantomFundingOperation(
             walletConnection: walletConnection,
             session: session
         )
         fundingOperation = operation
+        router.push(.phantomFlow(operation))
 
         Task { [operation] in
             do {
@@ -831,19 +758,18 @@ struct CurrencyCreationWizardScreen: View {
                     return
                 }
                 createdMint = CreatedMintRecord(mint: mint, name: swap.currencyName)
+                // Pop the now-terminal flow screen so back-swipe from the
+                // launch processing cover (if dismissed) can't reveal it
+                // with state == .idle.
+                router.popTopmost()
                 phantomLaunchContext = ExternalLaunchProcessing(
                     swapId: swap.swapId,
                     launchedMint: mint,
                     currencyName: swap.currencyName,
                     amount: swap.amount
                 )
-            } catch FundingOperationError.userCancelled {
-                errorDialog = makeDestructiveDialog(
-                    title: "Transaction Cancelled",
-                    subtitle: "The transaction was cancelled in your wallet"
-                )
             } catch is CancellationError {
-                // Local dismiss — silent.
+                // Local dismiss (user backed out of the flow screen) — silent.
             } catch ErrorLaunchCurrency.denied {
                 logger.error("Phantom launch denied after preflight attestations passed")
                 ErrorReporting.captureError(ErrorLaunchCurrency.denied)
