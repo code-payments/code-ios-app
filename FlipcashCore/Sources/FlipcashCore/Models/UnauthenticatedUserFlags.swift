@@ -11,7 +11,6 @@ import FlipcashAPI
 
 public struct UnauthenticatedUserFlags: Sendable {
     public let isStaff: Bool
-    public let requiresIapForRegistration: Bool
     public let onrampProviders: [UserFlags.OnRampProvider]
     public let preferredOnrampProvider: UserFlags.OnRampProvider
     public let minBuildNumber: Int
@@ -39,7 +38,6 @@ extension UnauthenticatedUserFlags {
     init(_ proto: Flipcash_Account_V1_UserFlags) {
         self.init(
             isStaff: proto.isStaff,
-            requiresIapForRegistration: proto.requiresIapForRegistration,
             onrampProviders: proto.supportedOnRampProviders.map { UserFlags.OnRampProvider($0) },
             preferredOnrampProvider: UserFlags.OnRampProvider(proto.preferredOnRampProvider),
             minBuildNumber: Int(proto.minBuildNumber)
