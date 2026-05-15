@@ -317,6 +317,16 @@ final class OnrampCoordinator {
         applePayIdleTimer.disarm()
     }
 
+    private func handleApplePayIdleTimeout() {
+        logger.info("Apple Pay sheet idle timeout, dismissing")
+        clearPendingState()
+
+        Task { @concurrent in
+            try? await Task.sleep(for: AppRouter.dismissAnimationDuration)
+            await MainActor.run { dialogItem = .applePaySheetTimeout }
+        }
+    }
+
     // MARK: - Verification navigation -
 
     /// Entry point invoked by `VerifyInfoScreen`'s Next button.
@@ -841,8 +851,7 @@ final class OnrampCoordinator {
         case .pendingPaymentAuth:
             logger.info("Apple Pay pending payment auth")
             applePayIdleTimer.arm { [weak self] in
-                logger.info("Apple Pay sheet idle timeout, dismissing")
-                self?.cancel()
+                self?.handleApplePayIdleTimeout()
             }
         case .paymentAuthorized:
             // Face ID / Touch ID confirmed — the sheet is no longer idle. If

@@ -50,4 +50,28 @@ struct DialogItemFactoriesTests {
 
         #expect(fired)
     }
+
+    // MARK: - applePaySheetTimeout
+
+    @Test("applePaySheetTimeout dialog uses the standard (informational) style")
+    func applePaySheetTimeout_usesStandardStyle() {
+        let dialog = DialogItem.applePaySheetTimeout
+        #expect(dialog.style == .standard)
+    }
+
+    @Test("applePaySheetTimeout dialog title and subtitle match the wording shown when the Apple Pay sheet times out")
+    func applePaySheetTimeout_copy() {
+        let dialog = DialogItem.applePaySheetTimeout
+        #expect(dialog.title == "Purchase Timed Out")
+        #expect(dialog.subtitle == "Purchases must be authorized within 60 seconds")
+    }
+
+    @Test("applePaySheetTimeout exposes a single OK action")
+    func applePaySheetTimeout_actionLayout() throws {
+        let dialog = DialogItem.applePaySheetTimeout
+
+        try #require(dialog.actions.count == 1)
+        #expect(dialog.actions[0].title == "OK")
+        #expect(dialog.actions[0].kind == .standard)
+    }
 }

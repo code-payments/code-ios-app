@@ -79,4 +79,15 @@ extension DialogItem {
             .cancel()
         }
     }
+
+    static var applePaySheetTimeout: DialogItem {
+        .init(
+            style: .standard,
+            title: "Purchase Timed Out",
+            subtitle: "Purchases must be authorized within 60 seconds",
+            dismissable: true
+        ) {
+            .okay(kind: .standard)
+        }
+    }
 }
