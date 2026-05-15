@@ -97,20 +97,26 @@ private struct PhantomFlowContent: View {
         case .awaitingExternal(.phantomSign):
             PhantomConfirmPanel(buttonState: .busy("Waiting for Phantom…"), onTap: fundingOperation.confirm)
 
-        case .working:
-            // Post-sign submit: keep the Confirm panel busy so the visual
-            // doesn't jump on the wallet → chain hand-off. Launch preflight
-            // also writes `.working`, but it happens before the Confirm
-            // prompt has ever been shown — nothing to render.
+        case .working, .idle, .failed:
+            // .working — post-sign submit: keep the Confirm panel busy so
+            // the visual doesn't jump on the wallet → chain hand-off.
+            // .idle / .failed — terminal: the caller has pushed the next
+            // destination (SwapProcessing) on top; keep the Confirm panel
+            // rendered underneath so the push animation reads as a
+            // continuation of "Waiting for Phantom…" rather than the flow
+            // screen blanking out mid-transition.
+            // Before any Confirm prompt has shown (launch preflight
+            // `.working`, or the brief initial `.idle`), we have no UI
+            // context yet — render nothing.
             if hasShownConfirm {
                 PhantomConfirmPanel(buttonState: .busy("Waiting for Phantom…"), onTap: fundingOperation.confirm)
             } else {
                 EmptyView()
             }
 
-        case .idle, .failed, .awaitingExternal(.applePay):
-            // Terminal or defensive — operation is done (screen about to be
-            // replaced/popped) or the prompt isn't ours.
+        case .awaitingExternal(.applePay):
+            // Defensive: not reachable from a Phantom op, but the switch
+            // is exhaustive.
             EmptyView()
         }
     }

@@ -50,9 +50,16 @@ struct CurrencyCreationWizardScreen: View {
     /// launch processing screen.
     @State private var coinbaseLaunchContext: ExternalLaunchProcessing?
     /// In-flight funding operation (Phantom or Coinbase). For Phantom, the
-    /// `.phantomFlow` destination is pushed onto the wizard's stack at the
-    /// same moment this is assigned.
+    /// wizard's state observer pushes `.phantomFlow` once the operation
+    /// reaches its first `awaitingUserAction` — never synchronously on
+    /// assignment, so a preflight throw (NAME_EXISTS, DENIED, etc.) lets
+    /// the wizard's `errorDialog` render on the wizard itself instead of
+    /// being trapped under a freshly-pushed flow screen.
     @State private var fundingOperation: (any FundingOperation)?
+    /// Identity of the Phantom operation we've already pushed `.phantomFlow`
+    /// for. Resets when `fundingOperation` becomes `nil` (operation done) so
+    /// a retry can push fresh.
+    @State private var phantomFlowPushedFor: ObjectIdentifier?
     /// Mint from an earlier attempt whose buy failed inline. On a
     /// `nameExists` retry, reuse it so only the buy reruns. Bound to
     /// `name` — renaming invalidates.
@@ -121,6 +128,21 @@ struct CurrencyCreationWizardScreen: View {
             rate: ratesController.rateForBalanceCurrency(),
             supplyQuarks: nil
         )
+    }
+
+    /// True while *anything* pay-related is in flight from the confirmation
+    /// step — preflight validation, a queued purchase method picker, an
+    /// in-flight funding operation, or an active processing cover. The CTA
+    /// disables on this so the user can't double-tap into a stuck state.
+    private var isPayInFlight: Bool {
+        if isValidating { return true }
+        if pendingOperation != nil { return true }
+        if fundingOperation != nil { return true }
+        if coinbaseService.coinbaseOrder != nil { return true }
+        if reservesLaunchContext != nil { return true }
+        if phantomLaunchContext != nil { return true }
+        if coinbaseLaunchContext != nil { return true }
+        return false
     }
 
     enum Field: Hashable {
@@ -192,11 +214,16 @@ struct CurrencyCreationWizardScreen: View {
                     .transition(direction.slide)
 
                 case .confirmation:
+                    // The CTA disables on *any* in-flight pay state, not just
+                    // validation. Without this, the button stays tappable
+                    // after the user picks a method and they can re-fire the
+                    // funding op while the first one is still building the
+                    // Coinbase order / handshake.
                     ConfirmationStep(
                         state: state,
                         previewFiat: previewFiat,
                         totalLaunchCost: totalLaunchCost,
-                        isValidating: isValidating,
+                        isValidating: isPayInFlight,
                         onBuy: onPayToCreateTap
                     )
                     .transition(direction.slide)
@@ -206,6 +233,24 @@ struct CurrencyCreationWizardScreen: View {
         .dialog(item: $errorDialog)
         .dialog(item: Bindable(walletConnection).dialogItem)
         .dialog(item: Bindable(onrampCoordinator).dialogItem)
+        .onChange(of: fundingOperation?.state) { _, newState in
+            // Push the Phantom flow screen the moment the operation reaches
+            // its first user-action gate, not the moment it's assigned. This
+            // keeps the wizard on top during launch preflight so any
+            // ErrorLaunchCurrency throw lands on the wizard's errorDialog,
+            // not on a flow screen that'd otherwise mask it.
+            guard let operation = fundingOperation as? PhantomFundingOperation else { return }
+            guard case .awaitingUserAction = newState else { return }
+            let id = ObjectIdentifier(operation)
+            guard phantomFlowPushedFor != id else { return }
+            phantomFlowPushedFor = id
+            router.push(.phantomFlow(operation))
+        }
+        .onChange(of: (fundingOperation as AnyObject?) === nil) { _, isCleared in
+            // Reset push tracking when the operation slot empties so a
+            // subsequent retry can push the flow screen for a fresh op.
+            if isCleared { phantomFlowPushedFor = nil }
+        }
         .sheet(isPresented: Bindable(onrampCoordinator).isShowingVerificationFlow) {
             VerifyInfoScreen(onrampCoordinator: onrampCoordinator)
         }
@@ -737,17 +782,19 @@ struct CurrencyCreationWizardScreen: View {
     }
 
     /// `PurchaseMethodSheet.phantomAction` dispatch. Spawns a Phantom
-    /// funding operation, pushes `.phantomFlow` onto the wizard's stack so
-    /// the host renders the right panel off `operation.state`, and presents
-    /// the launch processing cover on success. Wallet-side cancels are
-    /// handled inside the operation's retry loop — they never throw out here.
+    /// funding operation; the wizard's `.onChange(of: fundingOperation?.state)`
+    /// observer pushes `.phantomFlow` only when the operation reaches its
+    /// first `awaitingUserAction`. Pushing synchronously would expose the
+    /// flow screen during launch preflight — a NAME_EXISTS / DENIED throw
+    /// would then surface its `errorDialog` underneath the flow screen.
+    /// Wallet-side cancels are handled inside the operation's retry loop —
+    /// they never throw out here.
     private func startPhantomLaunchFunding(payment: PaymentOperation) {
         let operation = PhantomFundingOperation(
             walletConnection: walletConnection,
             session: session
         )
         fundingOperation = operation
-        router.push(.phantomFlow(operation))
 
         Task { [operation] in
             do {
@@ -758,10 +805,12 @@ struct CurrencyCreationWizardScreen: View {
                     return
                 }
                 createdMint = CreatedMintRecord(mint: mint, name: swap.currencyName)
-                // Pop the now-terminal flow screen so back-swipe from the
-                // launch processing cover (if dismissed) can't reveal it
-                // with state == .idle.
-                router.popTopmost()
+                // Don't pop the flow screen — the fullScreenCover below
+                // overlays it directly. Popping first would animate the
+                // flow screen sliding back to the bill view before the
+                // cover slides up, which reads as the wizard "going
+                // backwards" mid-success. The cover's dismissParent path
+                // tears the whole wizard sheet down anyway.
                 phantomLaunchContext = ExternalLaunchProcessing(
                     swapId: swap.swapId,
                     launchedMint: mint,

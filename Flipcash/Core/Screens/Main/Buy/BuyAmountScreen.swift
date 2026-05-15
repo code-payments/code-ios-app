@@ -13,6 +13,9 @@ struct BuyAmountScreen: View {
 
     @State private var viewModel: BuyAmountViewModel
     @State private var isShowingCurrencySelection: Bool = false
+    /// Identity of the Phantom operation we've already pushed `.phantomFlow`
+    /// for. Reset when the operation slot empties so a retry pushes again.
+    @State private var phantomFlowPushedFor: ObjectIdentifier?
 
     @Environment(AppRouter.self) private var router
     @Environment(OnrampCoordinator.self) private var coordinator
@@ -130,6 +133,21 @@ struct BuyAmountScreen: View {
         }
         .sheet(isPresented: $isShowingCurrencySelection) {
             CurrencySelectionScreen(ratesController: ratesController)
+        }
+        .onChange(of: viewModel.fundingOperation?.state) { _, newState in
+            // Push the Phantom flow screen on the first user-action gate,
+            // not the moment the operation is assigned. Preflight throws
+            // (Buy isn't a launch, but mirror the wizard's pattern) then
+            // surface on the buy screen itself instead of a stranded flow.
+            guard let operation = viewModel.fundingOperation as? PhantomFundingOperation else { return }
+            guard case .awaitingUserAction = newState else { return }
+            let id = ObjectIdentifier(operation)
+            guard phantomFlowPushedFor != id else { return }
+            phantomFlowPushedFor = id
+            router.push(.phantomFlow(operation))
+        }
+        .onChange(of: (viewModel.fundingOperation as AnyObject?) === nil) { _, isCleared in
+            if isCleared { phantomFlowPushedFor = nil }
         }
     }
 

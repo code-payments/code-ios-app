@@ -173,13 +173,14 @@ final class BuyAmountViewModel: Identifiable {
         }
     }
 
-    /// Creates a `PhantomFundingOperation`, pushes `.phantomFlow` onto the
-    /// buy stack so the state-switching host view renders the right panel
-    /// off `operation.state`, and awaits the result. On success, atomically
-    /// swaps the flow screen for the processing screen so back-swipe can't
-    /// land the user on a terminal-state flow screen. On non-cancel failure,
-    /// surfaces a dialog. Wallet-side cancels are handled inside the
-    /// operation's retry loop — they never throw out here.
+    /// Creates a `PhantomFundingOperation`. `BuyAmountScreen`'s state
+    /// observer pushes `.phantomFlow` once the operation reaches its first
+    /// `awaitingUserAction` — assigning the operation never pushes
+    /// synchronously, so a preflight throw can still surface its dialog on
+    /// the buy screen itself. On success, atomically swaps the flow screen
+    /// for the processing screen so back-swipe can't land the user on a
+    /// terminal-state flow screen. Wallet-side cancels loop inside the
+    /// operation — they never throw out here.
     func startPhantomFunding(
         payment: PaymentOperation,
         walletConnection: any TransactionSigning,
@@ -190,12 +191,17 @@ final class BuyAmountViewModel: Identifiable {
             session: session
         )
         fundingOperation = operation
-        router.push(.phantomFlow(operation))
 
         Task { [weak self, operation] in
             do {
                 let swap = try await operation.start(payment)
-                router.replaceTopmostAny(BuyFlowPath.processing(
+                // Push (not replace) so SwiftUI runs a proper slide-in
+                // animation for the processing screen. The phantom flow
+                // screen renders its Confirm-busy panel for terminal
+                // `.idle`, so the visual underneath the push reads as a
+                // continuation of "Waiting for Phantom…" rather than a
+                // blank screen.
+                router.pushAny(BuyFlowPath.processing(
                     swapId: swap.swapId,
                     currencyName: swap.currencyName,
                     amount: swap.amount,
