@@ -41,6 +41,13 @@ final class CoinbaseFundingOperation: FundingOperation {
     /// minted PublicKey when the post-launch Apple Pay or chain step throws.
     private(set) var launchedMint: PublicKey?
 
+    /// `true` when the idle timer cancelled the run because the user left
+    /// the Apple Pay sheet sitting on screen past the timeout. Callers read
+    /// this in their `catch is CancellationError` arm to distinguish a
+    /// timeout (surface the "Purchase Timed Out" dialog) from a silent
+    /// user-dismiss.
+    private(set) var didTimeOut: Bool = false
+
     @ObservationIgnored private let coinbaseService: CoinbaseService
     @ObservationIgnored private let session: any (AccountProviding & ProfileProviding & OnrampBuying & CurrencyLaunching)
     @ObservationIgnored private let idleTimer: ApplePayIdleTimer
@@ -276,7 +283,10 @@ final class CoinbaseFundingOperation: FundingOperation {
             case .pendingPaymentAuth:
                 idleTimer.arm { [weak self] in
                     logger.info("Apple Pay sheet idle timeout, cancelling")
-                    self?.runTask?.cancel()
+                    Task { @MainActor [weak self] in
+                        self?.didTimeOut = true
+                        self?.runTask?.cancel()
+                    }
                 }
 
             case .paymentAuthorized, .commitSuccess, .pollingStart:

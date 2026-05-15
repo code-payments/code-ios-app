@@ -846,7 +846,12 @@ struct CurrencyCreationWizardScreen: View {
                     amount: swap.amount
                 )
             } catch is CancellationError {
-                // User dismissed Apple Pay — silent.
+                // Distinguish the 60s idle-timeout cancel (surface the
+                // dialog above the wizard sheet) from a plain user-dismiss
+                // (silent — they explicitly walked away).
+                if operation.didTimeOut {
+                    session.dialogItem = .applePaySheetTimeout
+                }
             } catch ErrorLaunchCurrency.denied {
                 ErrorReporting.captureError(ErrorLaunchCurrency.denied)
                 errorDialog = makeDestructiveDialog(

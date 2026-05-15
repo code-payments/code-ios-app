@@ -153,7 +153,12 @@ final class BuyAmountViewModel: Identifiable {
                     swapType: swap.swapType
                 ))
             } catch is CancellationError {
-                // User dismissed Apple Pay — silent.
+                // Distinguish the 60s idle-timeout cancel (surface the
+                // dialog above the buy sheet) from a plain user-dismiss
+                // (silent — they explicitly walked away).
+                if operation.didTimeOut {
+                    self?.session.dialogItem = .applePaySheetTimeout
+                }
             } catch {
                 logger.error("Coinbase funding failed", metadata: [
                     "mint": "\(self?.mint.base58 ?? "nil")",
