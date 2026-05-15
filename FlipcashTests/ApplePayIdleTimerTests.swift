@@ -6,6 +6,11 @@
 import Testing
 @testable import Flipcash
 
+/// These tests `await` the timer's onExpiry callback directly rather than
+/// sleeping a fixed wall-clock budget. Under TSan + parallel @MainActor test
+/// execution, MainActor contention can stretch a "200ms" sleep to multiple
+/// seconds, so any timing-budgeted assertion is flaky. Waiting on the
+/// callback itself bounds the test by the per-test execution timeout instead.
 @MainActor
 @Suite("ApplePayIdleTimer")
 struct ApplePayIdleTimerTests {
@@ -13,40 +18,30 @@ struct ApplePayIdleTimerTests {
     @Test("arm fires the callback after the timeout elapses")
     func armedTimer_firesAfterTimeout() async {
         let timer = ApplePayIdleTimer(timeout: .milliseconds(50))
-        var fired = false
-        timer.arm { fired = true }
-
-        try? await Task.sleep(for: .milliseconds(10))
-        #expect(!fired, "timer fired before the timeout elapsed")
-
-        try? await Task.sleep(for: .milliseconds(200))
-        #expect(fired)
+        await withCheckedContinuation { continuation in
+            timer.arm { continuation.resume() }
+        }
     }
 
     @Test("disarm prevents the callback from firing")
     func disarmedTimer_doesNotFire() async {
         let timer = ApplePayIdleTimer(timeout: .milliseconds(50))
-        var fired = false
-        timer.arm { fired = true }
-        timer.disarm()
-
-        try? await Task.sleep(for: .milliseconds(200))
-
-        #expect(!fired)
+        await confirmation("disarmed callback does not fire", expectedCount: 0) { confirm in
+            timer.arm { confirm() }
+            timer.disarm()
+            try? await Task.sleep(for: .seconds(1))
+        }
     }
 
     @Test("re-arming cancels the previous pending callback")
     func reArm_cancelsPreviousCallback() async {
         let timer = ApplePayIdleTimer(timeout: .milliseconds(50))
-        var firstFired = false
-        var secondFired = false
-        timer.arm { firstFired = true }
-        timer.arm { secondFired = true }
-
-        try? await Task.sleep(for: .milliseconds(200))
-
-        #expect(!firstFired)
-        #expect(secondFired)
+        await confirmation("first callback does not fire", expectedCount: 0) { firstCallback in
+            await withCheckedContinuation { continuation in
+                timer.arm { firstCallback() }
+                timer.arm { continuation.resume() }
+            }
+        }
     }
 
     @Test("disarm is idempotent and the timer remains armable after")
@@ -56,9 +51,8 @@ struct ApplePayIdleTimerTests {
         timer.disarm()
         timer.disarm()
 
-        var fired = false
-        timer.arm { fired = true }
-        try? await Task.sleep(for: .milliseconds(200))
-        #expect(fired)
+        await withCheckedContinuation { continuation in
+            timer.arm { continuation.resume() }
+        }
     }
 }
