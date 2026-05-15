@@ -227,35 +227,12 @@ final class CoinbaseFundingOperation: FundingOperation {
                 logger.error("Coinbase launch reached recordSwap without a preflighted mint")
                 throw FundingOperationError.serverRejected("Missing launched mint")
             }
-            // Same rounding mismatch as `.buy` — server denies if
-            // launchAmount.usdf + launchFee.usdf doesn't exactly match
-            // Coinbase's recorded purchase. Keep the fee exact (it's the
-            // server-prescribed launch fee in USDF quarks) and rebuild
-            // launchAmount from the remaining USDF so the sum lines up.
-            guard let recorded = order.order.purchaseAmount,
-                  let recordedDecimal = Decimal(string: recorded) else {
-                logger.error("Coinbase response missing purchaseAmount", metadata: [
-                    "order_id": "\(order.id)",
-                ])
-                throw FundingOperationError.serverRejected("Coinbase response missing purchase amount")
-            }
-            let fundedTotalQuarks = TokenAmount(wholeTokens: recordedDecimal, mint: .usdf).quarks
-            let launchFeeQuarks = payload.launchFee.onChainAmount.quarks
-            guard fundedTotalQuarks >= launchFeeQuarks else {
-                logger.error("Coinbase recorded purchase smaller than launch fee", metadata: [
-                    "order_id": "\(order.id)",
-                    "funded_quarks": "\(fundedTotalQuarks)",
-                    "fee_quarks": "\(launchFeeQuarks)",
-                ])
-                throw FundingOperationError.serverRejected("Coinbase purchase below launch fee")
-            }
-            let fundedLaunchAmount = ExchangedFiat.compute(
-                onChainAmount: TokenAmount(quarks: fundedTotalQuarks - launchFeeQuarks, mint: .usdf),
-                rate: payload.launchAmount.currencyRate,
-                supplyQuarks: nil
-            )
+            // No Coinbase rounding rebuild here — `launchAmount` and
+            // `launchFee` are built from server-supplied USDF quark
+            // integers at `.oneToOne` rate, so the sum is already an
+            // exact USDF value Coinbase records verbatim.
             let swapId = try await session.buyNewCurrencyWithCoinbaseOnramp(
-                amount: fundedLaunchAmount,
+                amount: payload.launchAmount,
                 feeAmount: payload.launchFee,
                 mint: mint,
                 orderId: order.id
