@@ -22,7 +22,7 @@ struct CurrencyCreationWizardScreen: View {
     @Environment(Session.self) private var session
     @Environment(RatesController.self) private var ratesController
     @Environment(WalletConnection.self) private var walletConnection
-    @Environment(VerificationRouter.self) private var verificationRouter
+    @Environment(VerificationCoordinator.self) private var verificationCoordinator
     @Environment(CoinbaseService.self) private var coinbaseService
     @Environment(AppRouter.self) private var router
 
@@ -868,11 +868,11 @@ struct CurrencyCreationWizardScreen: View {
     }
 
     /// `PurchaseMethodSheet.applePayAction` dispatch for launch. Runs the
-    /// verification gate via `VerificationRouter`, then spawns a
+    /// verification gate via `VerificationCoordinator`, then spawns a
     /// `CoinbaseFundingOperation` that performs the preflight launch
     /// internally followed by the Coinbase order + Apple Pay flow.
     private func startCoinbaseLaunchFunding(payment: PaymentOperation) {
-        verificationRouter.runGated(
+        verificationCoordinator.runGated(
             for: session,
             bind: { verificationViewModel = $0 }
         ) {

@@ -21,11 +21,11 @@ import FlipcashCore
 struct OnrampHostModifier: ViewModifier {
 
     @Environment(CoinbaseService.self) private var coinbaseService
-    @Environment(VerificationRouter.self) private var verificationRouter
+    @Environment(VerificationCoordinator.self) private var verificationCoordinator
     @Environment(OnrampDeeplinkInbox.self) private var deeplinkInbox
 
     func body(content: Content) -> some View {
-        @Bindable var router = verificationRouter
+        @Bindable var coordinator = verificationCoordinator
         content
             .overlay {
                 ApplePayOverlay(order: coinbaseService.coinbaseOrder) { event in
@@ -33,9 +33,9 @@ struct OnrampHostModifier: ViewModifier {
                 }
             }
             .onChange(of: deeplinkInbox.pendingEmailVerification, initial: true) { _, _ in
-                verificationRouter.receiveDeeplinkIfPending()
+                verificationCoordinator.receiveDeeplinkIfPending()
             }
-            .sheet(item: $router.fallbackViewModel.cancellingOnDismiss()) { vm in
+            .sheet(item: $coordinator.fallbackViewModel.cancellingOnDismiss()) { vm in
                 VerifyInfoScreen(viewModel: vm)
             }
     }

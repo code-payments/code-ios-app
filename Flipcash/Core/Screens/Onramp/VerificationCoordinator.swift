@@ -1,5 +1,5 @@
 //
-//  VerificationRouter.swift
+//  VerificationCoordinator.swift
 //  Flipcash
 //
 
@@ -7,32 +7,33 @@ import Foundation
 import Observation
 import FlipcashCore
 
-private let logger = Logger(label: "flipcash.verification-router")
+private let logger = Logger(label: "flipcash.verification-coordinator")
 
-/// Session-scoped coordinator for verification flows. Splits two
-/// concerns that used to live on `OnrampCoordinator`:
+/// Session-scoped coordinator for verification flows. Owns two slots:
 ///
-/// 1. **Inline flows** — `BuyAmountViewModel` / `CurrencyCreationWizardScreen`
-///    call `beginInlineFlow()` to get a fresh `VerificationViewModel` and
-///    mount the sheet themselves. They `endInlineFlow(_:)` when the awaited
-///    `vm.run()` returns or throws.
-/// 2. **Out-of-flow deeplinks** — when an email verification link fires while
-///    no inline flow is active, the router constructs its own viewmodel,
-///    publishes it on `fallbackViewModel`, and `OnrampHostModifier` mounts a
-///    sheet at app root.
+/// 1. **Inline flow** — `BuyAmountViewModel` / `CurrencyCreationWizardScreen`
+///    call `runGated(...)` (or `beginInlineFlow()` directly) to obtain a fresh
+///    `VerificationViewModel` and mount the sheet themselves. The slot is
+///    released via `endInlineFlow(_:)` when the awaited `vm.run()` returns or
+///    throws.
+/// 2. **Fallback for out-of-flow deeplinks** — when an email verification
+///    link fires while no inline flow is active, the coordinator constructs
+///    its own viewmodel, publishes it on `fallbackViewModel`, and
+///    `OnrampHostModifier` mounts a sheet at app root.
 ///
-/// If an inline flow is active when a deeplink arrives, the router forwards
-/// the deeplink to the inline viewmodel instead of opening the fallback.
+/// If an inline flow is active when a deeplink arrives, the coordinator
+/// forwards the deeplink to the inline viewmodel instead of opening the
+/// fallback.
 @Observable
 @MainActor
-final class VerificationRouter {
+final class VerificationCoordinator {
 
     /// Active inline viewmodel, if any. Set by `beginInlineFlow()`,
     /// cleared by `endInlineFlow(_:)`.
     private(set) var currentInlineViewModel: VerificationViewModel?
 
-    /// Non-nil while the router-owned fallback sheet is presented (e.g. a
-    /// deeplink arrived with no inline flow). `OnrampHostModifier` binds
+    /// Non-nil while the coordinator-owned fallback sheet is presented (e.g.
+    /// a deeplink arrived with no inline flow). `OnrampHostModifier` binds
     /// `.sheet(item:)` to this.
     var fallbackViewModel: VerificationViewModel?
 

@@ -18,7 +18,7 @@ struct BuyAmountScreen: View {
     @State private var phantomFlowPushedFor: ObjectIdentifier?
 
     @Environment(AppRouter.self) private var router
-    @Environment(VerificationRouter.self) private var verificationRouter
+    @Environment(VerificationCoordinator.self) private var verificationCoordinator
     @Environment(CoinbaseService.self) private var coinbaseService
     @Environment(RatesController.self) private var ratesController
     @Environment(WalletConnection.self) private var walletConnection
@@ -106,7 +106,7 @@ struct BuyAmountScreen: View {
                 applePayAction: { payment in
                     viewModel.startCoinbaseFunding(
                         payment: payment,
-                        verificationRouter: verificationRouter,
+                        verificationCoordinator: verificationCoordinator,
                         coinbaseService: coinbaseService,
                         router: router
                     )

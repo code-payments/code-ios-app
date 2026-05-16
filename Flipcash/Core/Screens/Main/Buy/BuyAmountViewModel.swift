@@ -118,16 +118,16 @@ final class BuyAmountViewModel: Identifiable {
 
     /// Creates a `CoinbaseFundingOperation`, stores it as `fundingOperation`,
     /// and awaits the result. Runs the verification gate first via
-    /// `VerificationRouter` — if the user isn't already verified, the
+    /// `VerificationCoordinator` — if the user isn't already verified, the
     /// verification sheet opens and the operation only runs after both
     /// phone+email steps succeed.
     func startCoinbaseFunding(
         payment: PaymentOperation,
-        verificationRouter: VerificationRouter,
+        verificationCoordinator: VerificationCoordinator,
         coinbaseService: CoinbaseService,
         router: AppRouter
     ) {
-        verificationRouter.runGated(
+        verificationCoordinator.runGated(
             for: session,
             bind: { [weak self] vm in self?.verificationViewModel = vm }
         ) { [weak self] in
