@@ -13,12 +13,12 @@ struct ConfirmEmailScreen: View {
 
     @State private var countdownEnd: Date?
 
-    @Bindable private var onrampCoordinator: OnrampCoordinator
+    @Bindable private var viewModel: VerificationViewModel
 
     // MARK: - Init -
 
-    init(onrampCoordinator: OnrampCoordinator) {
-        self.onrampCoordinator = onrampCoordinator
+    init(viewModel: VerificationViewModel) {
+        self.viewModel = viewModel
     }
 
     // MARK: - Body -
@@ -48,7 +48,7 @@ struct ConfirmEmailScreen: View {
                     VStack {
                         Text("Tap the link we sent to")
                             .foregroundStyle(Color.textSecondary)
-                        Text(onrampCoordinator.enteredEmail)
+                        Text(viewModel.enteredEmail)
                             .foregroundStyle(Color.textMain)
                     }
                     .font(.appTextSmall)
@@ -69,11 +69,11 @@ struct ConfirmEmailScreen: View {
                             Button {
                                 Task {
                                     do {
-                                        try await onrampCoordinator.resendEmailCodeAction()
+                                        try await viewModel.resendEmailCodeAction()
                                     }
                                 }
                             } label: {
-                                Loadable(isLoading: onrampCoordinator.isResending, color: .textSecondary) {
+                                Loadable(isLoading: viewModel.isResending, color: .textSecondary) {
                                     VStack(spacing: 0) {
                                         Text("Didn't get an email? Resend")
                                         Text(" ") // Offset to match the two line layout above
@@ -92,7 +92,7 @@ struct ConfirmEmailScreen: View {
                 Spacer()
 
                 CodeButton(
-                    state: onrampCoordinator.confirmEmailButtonState,
+                    state: viewModel.confirmEmailButtonState,
                     style: .filled,
                     title: "Open Mail",
                     disabled: false
@@ -103,7 +103,7 @@ struct ConfirmEmailScreen: View {
             .padding(20)
             .foregroundStyle(.textMain)
         }
-        .dialog(item: $onrampCoordinator.dialogItem)
+        .dialog(item: $viewModel.dialogItem)
         .navigationTitle("Verify Email")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
@@ -121,7 +121,7 @@ struct ConfirmEmailScreen: View {
                 self.countdownEnd = nil
             }
         }
-        .onChange(of: onrampCoordinator.isResending) { _, isResending in
+        .onChange(of: viewModel.isResending) { _, isResending in
             if !isResending {
                 countdownEnd = Date.now.addingTimeInterval(60)
             }

@@ -100,8 +100,8 @@ protocol FundingOperation: AnyObject, Observable {
     var state: FundingOperationState { get }
 
     /// Preconditions the caller must satisfy before `start()`. Each
-    /// requirement is satisfied by its own dedicated operation (e.g.
-    /// `VerificationOperation` for `.verifiedContact`).
+    /// requirement maps to a caller-side flow (e.g. `VerificationViewModel`
+    /// for `.verifiedContact`).
     var requirements: [FundingRequirement] { get }
 
     /// Imperative entry point. Returns once the chain has accepted the

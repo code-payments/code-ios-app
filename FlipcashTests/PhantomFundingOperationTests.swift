@@ -258,6 +258,74 @@ struct PhantomFundingOperationTests {
         #expect(op.state == .idle)
     }
 
+    @Test("Cancel after launchCurrency succeeds preserves launchedMint for retry")
+    func launch_cancelAfterLaunchSucceeds_preservesLaunchedMint() async throws {
+        let session = MockSession()
+        let wallet = MockTransactionSigning()
+        let mintedKey = PublicKey.jeffy
+        session.launchCurrencyHandler = { _ in mintedKey }
+
+        let op = PhantomFundingOperation(walletConnection: wallet, session: session, rpc: MockSolanaRPC())
+        let payload = PaymentOperation.LaunchPayload.fixture()
+
+        let task = Task { try await op.start(.launch(payload)) }
+
+        // Wait for launchCurrency to have run and the op to reach the
+        // education prompt — `launchedMint` is set during preflight.
+        try await waitUntil(op) { state(of: $0).isEducation }
+        #expect(op.launchedMint == mintedKey)
+
+        op.cancel()
+
+        await #expect(throws: CancellationError.self) {
+            try await task.value
+        }
+        // The mint must survive the cancel so the wizard can pass it back as
+        // `preLaunchedMint` on the user's retry — without this, the retry
+        // re-runs launchCurrency and the server returns `nameExists`.
+        #expect(op.launchedMint == mintedKey)
+        #expect(op.state == .idle)
+    }
+
+    @Test("Launch with preLaunchedMint skips launchCurrency and reuses the prior mint")
+    func launch_withPreLaunchedMint_skipsLaunchCurrency() async throws {
+        let session = MockSession()
+        let wallet = MockTransactionSigning()
+        let priorMint = PublicKey.jeffy
+        let resolvedSwapId = SwapId.generate()
+        // launchCurrencyHandler is unset on purpose — if the op calls it the
+        // mock throws `unimplemented`, which would fail the test below.
+        session.buyNewCurrencyWithExternalFundingHandler = { _, _, mint, _ in
+            #expect(mint == priorMint)
+            return resolvedSwapId
+        }
+
+        let op = PhantomFundingOperation(walletConnection: wallet, session: session, rpc: MockSolanaRPC())
+        let payload = PaymentOperation.LaunchPayload(
+            currencyName: "NewCoin",
+            total: .mockOne,
+            launchAmount: .mockOne,
+            launchFee: .mockOne,
+            attestations: .testFixture,
+            preLaunchedMint: priorMint
+        )
+
+        async let result = op.start(.launch(payload))
+
+        try await waitUntil(op) { state(of: $0).isEducation }
+        #expect(op.launchedMint == priorMint)
+        op.confirm()
+        try await waitUntil(op) { state(of: $0).isConfirm }
+        op.confirm()
+        try await waitUntil(op) { state(of: $0).isSigning }
+        wallet.yieldDeeplinkEvent(.signed(Self.validSignedTransactionBase58))
+
+        let swap = try await result
+        #expect(swap.launchedMint == priorMint)
+        #expect(swap.swapType == .launchWithPhantom)
+        #expect(session.launchCurrencyCalls.isEmpty, "launchCurrency must not be called when preLaunchedMint is set")
+    }
+
     @Test("Launch preflight error propagates and skips the rest of the flow")
     func launchPreflight_throws_skipsRest() async {
         let session = MockSession()
@@ -315,19 +383,6 @@ private extension PhantomFundingOperationTests {
 
 private enum MockError: Error, Equatable {
     case launchRejected
-}
-
-private extension PaymentOperation.LaunchAttestations {
-    static var testFixture: PaymentOperation.LaunchAttestations {
-        PaymentOperation.LaunchAttestations(
-            description: "Test description",
-            billColors: ["#FFFFFF"],
-            icon: Data([0x89, 0x50, 0x4E, 0x47]),
-            nameAttestation: ModerationAttestation(rawValue: Data()),
-            descriptionAttestation: ModerationAttestation(rawValue: Data()),
-            iconAttestation: ModerationAttestation(rawValue: Data())
-        )
-    }
 }
 
 // MARK: - State helpers
