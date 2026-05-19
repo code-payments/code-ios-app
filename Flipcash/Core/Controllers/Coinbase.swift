@@ -137,12 +137,14 @@ public nonisolated struct OnrampErrorResponse: Error, Decodable, Sendable {
     
     public enum ErrorType: String, Decodable, Sendable {
         case invalidCard                  = "ERROR_CODE_GUEST_INVALID_CARD"
+        case invalidCardNotDebit          = "ERROR_CODE_GUEST_CARD_NOT_DEBIT"
         case transactionLimit             = "ERROR_CODE_GUEST_TRANSACTION_LIMIT"
         case transactionCount             = "ERROR_CODE_GUEST_TRANSACTION_COUNT"
         case cardRiskDeclined             = "ERROR_CODE_GUEST_CARD_RISK_DECLINED"
         case permissionDenied             = "ERROR_CODE_GUEST_PERMISSION_DENIED"
         case guestRegionMismatch          = "ERROR_CODE_GUEST_REGION_MISMATCH"
         case guestRegionForbidden         = "ERROR_CODE_GUEST_REGION_FORBIDDEN"
+        case assetNotTradable             = "ERROR_CODE_ASSET_NOT_TRADABLE"
         
         case cardSoftDeclined             = "ERROR_CODE_GUEST_CARD_SOFT_DECLINED"
         case cardHardDeclined             = "ERROR_CODE_GUEST_CARD_HARD_DECLINED"
@@ -165,23 +167,15 @@ public nonisolated struct OnrampErrorResponse: Error, Decodable, Sendable {
         
         public var title: String {
                 switch self {
-                case .invalidCard:
+                case .invalidCard, .invalidCardNotDebit:
                     return "Debit Cards Only"
                 case .transactionLimit:
                     return "Weekly Limit Exceeded"
                 case .transactionCount:
                     return "Maximum Purchases Reached"
-                case .cardRiskDeclined:
-                    return "Couldn't Use This Card"
-                case .permissionDenied:
-                    return "Something Went Wrong"
-                case .guestTransactionSendFailed, .invalidRequest:
-                    return "Something Went Wrong"
-                case .transactionFailed, .internal:
-                    return "Something Went Wrong"
                 case .guestRegionMismatch, .guestRegionForbidden, .networkNotTradable:
                     return "Your Region Isn't Supported"
-                case .cardSoftDeclined, .cardHardDeclined, .guestTransactionBuyFailed:
+                case .cardSoftDeclined, .cardHardDeclined, .guestTransactionBuyFailed, .cardRiskDeclined, .assetNotTradable:
                     return "Card Declined"
                 case .guestCardInsufficientBalance:
                     return "Insufficient Funds"
@@ -191,27 +185,25 @@ public nonisolated struct OnrampErrorResponse: Error, Decodable, Sendable {
                     return "Billing Address Invalid"
                 case .applePayNotSetup:
                     return "Apple Pay Not Set Up"
-                case .unknown:
+                case .unknown, .permissionDenied, .transactionFailed, .internal, .guestTransactionSendFailed, .invalidRequest:
                     return "Something Went Wrong"
                 }
             }
             
         public var subtitle: String {
                 switch self {
-                case .invalidCard:
+                case .invalidCard, .invalidCardNotDebit:
                     return "This transaction was declined. Please make sure you are using a debit card and the billing address is correct"
                 case .transactionLimit:
                     return "You can only add up to $1,000 per week"
                 case .transactionCount:
-                    return "Each user is limited to 15 purchases total."
+                    return "Each user is limited to 15 purchases total. Please try another purchase method"
                 case .cardRiskDeclined:
                     return "Please try again with a different debit card."
-                case .permissionDenied:
-                    return "Something went wrong. Please contact support"
-                case .guestRegionMismatch, .guestRegionForbidden, .networkNotTradable:
+                case .guestRegionMismatch, .guestRegionForbidden, .networkNotTradable, .assetNotTradable:
                     return "This feature isn't currently available in your region"
                 case .cardSoftDeclined, .cardHardDeclined, .guestTransactionBuyFailed:
-                    return "This transaction was declined by your bank. Please try again with a different card"
+                    return "This transaction was declined by your bank. Please contact your bank or try again with a different card"
                 case .guestTransactionSendFailed, .invalidRequest:
                     return "We are working with the Coinbase team to resolve the issue. Your card will be refunded in the meantime. Please try again later"
                 case .guestCardInsufficientBalance:
@@ -224,8 +216,8 @@ public nonisolated struct OnrampErrorResponse: Error, Decodable, Sendable {
                     return "The Coinbase team has been notified and is investigating the issue. Your funds will arrive once resolved. We appreciate your patience"
                 case .applePayNotSetup:
                     return "It looks like you don't have a debit card linked to Apple Pay. Please link a card and try again"
-                case .unknown:
-                    return "Please try again later"
+                case .unknown, .permissionDenied:
+                    return "Please contact support@flipcash.com"
                 }
             }
         
