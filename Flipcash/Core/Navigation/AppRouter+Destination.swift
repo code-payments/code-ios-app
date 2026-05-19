@@ -34,9 +34,9 @@ extension AppRouter {
         /// Info on the Wallet sheet and from the buy flow's Other Wallet path
         /// on the `.buy` sheet — same screen, different entry points.
         case usdcDepositEducation
-        /// USDC → USDF deposit address screen (shows the per-user timelock
-        /// swap PDA's USDC ATA). Reached as the next step after
-        /// `.usdcDepositEducation`.
+        /// USDC → USDF deposit address screen (shows the user's authority
+        /// pubkey — wallets derive the USDC ATA from it on send). Reached
+        /// as the next step after `.usdcDepositEducation`.
         case usdcDepositAddress
         /// Phantom flow screen. Carries the in-flight `PhantomFundingOperation`;
         /// a single state-switching host (`PhantomFlowScreen`) renders the
@@ -125,6 +125,13 @@ extension AppRouter {
                  .settingsApplicationLogs, .accessKey, .depositCurrencyList, .withdraw:
                 return nil
             }
+        }
+
+        /// Entry-point destination for a deposit flow keyed on the mint.
+        /// USDF takes the educational USDC deposit path; every other mint
+        /// uses the legacy VM deposit screen.
+        static func depositEntry(for mint: PublicKey) -> Self {
+            mint == .usdf ? .usdcDepositEducation : .deposit(mint)
         }
     }
 }
