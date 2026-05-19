@@ -1026,7 +1026,20 @@ extension ErrorSubmitIntent: ServerError {
     public var isReportable: Bool {
         switch self {
         case .denied, .invalidIntent, .staleState: false
-        case .signatureError, .unknown, .deviceTokenUnavailable, .grpcStatus, .grpcError: true
+        case .signatureError, .unknown, .deviceTokenUnavailable, .grpcError: true
+        case .grpcStatus: !isTransientNetworkError
+        }
+    }
+
+    public var isTransientNetworkError: Bool {
+        switch self {
+        case .grpcStatus(let status):
+            switch status.code {
+            case .deadlineExceeded, .unavailable: true
+            default: false
+            }
+        case .denied, .invalidIntent, .signatureError, .staleState, .unknown, .deviceTokenUnavailable, .grpcError:
+            false
         }
     }
 }
