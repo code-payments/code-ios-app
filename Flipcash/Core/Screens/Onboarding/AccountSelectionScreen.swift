@@ -71,7 +71,7 @@ struct AccountSelectionScreen: View {
             fetchAccounts()
             await fetchBalances()
         }
-        .dialog(item: $dialogItem)
+        .trackedDialog(item: $dialogItem)
     }
 
     private func isSelected(for description: AccountDescription) -> Bool {

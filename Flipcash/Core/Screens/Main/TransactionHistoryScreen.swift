@@ -51,7 +51,7 @@ struct TransactionHistoryScreen: View {
             .scrollContentBackground(.hidden)
             .navigationTitle("Transaction History")
         }
-        .dialog(item: $dialogItem)
+        .trackedDialog(item: $dialogItem)
         .task(id: mint) {
             await historyController.setActiveMint(mint)
         }

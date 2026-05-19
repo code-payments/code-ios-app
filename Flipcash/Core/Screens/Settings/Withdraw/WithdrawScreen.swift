@@ -93,7 +93,7 @@ private struct WithdrawSubstepDestination: View {
         switch path {
         case .intro:
             WithdrawIntroScreen()
-                .dialog(item: $viewModel.dialogItem)
+                .trackedDialog(item: $viewModel.dialogItem)
         case .enterAmount:
             WithdrawAmountScreen(
                 title: "Withdraw",
@@ -103,7 +103,7 @@ private struct WithdrawSubstepDestination: View {
                 onProceed: viewModel.amountEnteredAction,
                 showsCurrencySelection: true
             )
-            .dialog(item: $viewModel.dialogItem)
+            .trackedDialog(item: $viewModel.dialogItem)
         case .enterAddress:
             WithdrawAddressScreen(
                 promptCurrencyName: viewModel.kind?.destinationCurrencyName ?? "funds",
@@ -114,10 +114,10 @@ private struct WithdrawSubstepDestination: View {
                 onPasteFromClipboard: viewModel.pasteFromClipboardAction,
                 onNext: viewModel.addressEnteredAction
             )
-            .dialog(item: $viewModel.dialogItem)
+            .trackedDialog(item: $viewModel.dialogItem)
         case .confirmation:
             WithdrawSummaryScreen(viewModel: viewModel)
-                .dialog(item: $viewModel.dialogItem)
+                .trackedDialog(item: $viewModel.dialogItem)
         }
     }
 }

@@ -84,7 +84,7 @@ struct EnterPhoneScreen: View {
             .padding(20)
             .foregroundStyle(.textMain)
         }
-        .dialog(item: $viewModel.dialogItem)
+        .trackedDialog(item: $viewModel.dialogItem)
         .navigationTitle("Verify Phone Number")
         .toolbarTitleDisplayMode(.inline)
         .onAppear {

@@ -89,7 +89,7 @@ struct CurrencySellConfirmationScreen: View {
             .padding(20)
         }
         .interactiveDismissDisabled(!viewModel.canDismissSheet)
-        .dialog(item: $viewModel.dialogItem)
+        .trackedDialog(item: $viewModel.dialogItem)
         .navigationTitle("Confirm Sale")
         .onChange(of: viewModel.pendingSwapId) { _, swapId in
             if let swapId {

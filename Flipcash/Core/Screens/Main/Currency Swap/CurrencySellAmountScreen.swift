@@ -68,7 +68,7 @@ struct CurrencySellAmountScreen: View {
                     CloseButton { dismissAction() }
                 }
             }
-            .dialog(item: $viewModel.dialogItem)
+            .trackedDialog(item: $viewModel.dialogItem)
             .sheet(isPresented: $isShowingCurrencySelection) {
                 CurrencySelectionScreen(ratesController: ratesController)
             }

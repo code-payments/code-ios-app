@@ -30,7 +30,7 @@ struct SettingsMyAccountScreen: View {
         }
         .navigationTitle("My Account")
         .toolbarTitleDisplayMode(.inline)
-        .dialog(item: $dialogItem)
+        .trackedDialog(item: $dialogItem)
     }
 
     @ViewBuilder
