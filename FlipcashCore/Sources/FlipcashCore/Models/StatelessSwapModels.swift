@@ -69,16 +69,16 @@ extension StatelessSwapServerParameters {
 
 // MARK: - Result -
 
-/// Terminal outcome of a successful `StatelessSwap`. Only `finalized` is
-/// modelled because every caller requests `waitForFinalization: true`; a
-/// `.submitted` reply from the server means the contract was violated and
-/// surfaces as `ErrorStatelessSwap.unknown`.
+/// Terminal outcome of a successful `StatelessSwap`. `submitted` is returned
+/// when the caller passed `waitForFinalization: false`; `finalized` is
+/// returned when the caller waited for on-chain finalization.
 public enum StatelessSwapResult: Sendable, Equatable {
+    case submitted(signature: Signature)
     case finalized(signature: Signature)
 
     public var signature: Signature {
         switch self {
-        case .finalized(let sig):
+        case .submitted(let sig), .finalized(let sig):
             return sig
         }
     }
