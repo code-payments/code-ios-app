@@ -82,6 +82,31 @@ struct UsdcSweepOperationTests {
         #expect(await swapper.callCount == 0)
         #expect(await completion.value == 0)
     }
+
+    // MARK: - Happy path
+
+    @Test("Positive USDC balance runs the swap and fires onSweepCompleted")
+    func start_withPositiveBalance_invokesSwapAndCompletion() async throws {
+        let fetcher = MockAccountFetcher()
+        let swapper = MockSwapper()
+        let completion = Counter()
+
+        let op = UsdcSweepOperation(
+            accountFetcher: fetcher,
+            swapper: swapper,
+            ownerKeyPair: .mock,
+            onSweepCompleted: { await completion.bump() }
+        )
+
+        await fetcher.setImmediateHandler {
+            try AccountInfo(.usdcAtaInfo(quarks: 10_000))
+        }
+        await op.start().value
+
+        #expect(await fetcher.callCount == 1)
+        #expect(await swapper.callCount == 1)
+        #expect(await completion.value == 1)
+    }
 }
 
 // MARK: - Mocks
