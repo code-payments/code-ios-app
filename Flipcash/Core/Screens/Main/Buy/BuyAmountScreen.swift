@@ -18,7 +18,7 @@ struct BuyAmountScreen: View {
     @State private var phantomFlowPushedFor: ObjectIdentifier?
 
     @Environment(AppRouter.self) private var router
-    @Environment(OnrampCoordinator.self) private var coordinator
+    @Environment(VerificationCoordinator.self) private var verificationCoordinator
     @Environment(CoinbaseService.self) private var coinbaseService
     @Environment(RatesController.self) private var ratesController
     @Environment(WalletConnection.self) private var walletConnection
@@ -39,7 +39,6 @@ struct BuyAmountScreen: View {
         // does NOT propagate through the nested-sheet binding, so gate at
         // the NavigationStack root by checking the path is non-empty.
         if !router[.buy].isEmpty { return true }
-        if coordinator.isProcessingPayment { return true }
         if coinbaseService.coinbaseOrder != nil { return true }
         return isFundingMidFlight
     }
@@ -56,7 +55,6 @@ struct BuyAmountScreen: View {
 
     var body: some View {
         @Bindable var viewModel = viewModel
-        @Bindable var coordinator = coordinator
         Background(color: .backgroundMain) {
             EnterAmountView(
                 mode: .buy,
@@ -69,7 +67,6 @@ struct BuyAmountScreen: View {
                 // take ~5s to mount.
                 actionState: Binding(
                     get: {
-                        if coordinator.isProcessingPayment { return .loading }
                         if isFundingMidFlight { return .loading }
                         return viewModel.actionButtonState
                     },
@@ -102,10 +99,6 @@ struct BuyAmountScreen: View {
                 .environment(\.dismissParentContainer, router.dismissSheet)
         }
         .dialog(item: $viewModel.dialogItem)
-        // Coordinator surfaces Coinbase/Apple Pay failures (e.g. order
-        // creation rejected, swap-amount mismatch) via its own dialog item;
-        // bind it here so the user sees the error instead of a silent flicker.
-        .dialog(item: $coordinator.dialogItem)
         .sheet(item: $viewModel.pendingOperation) { operation in
             PurchaseMethodSheet(
                 operation: operation,
@@ -113,7 +106,7 @@ struct BuyAmountScreen: View {
                 applePayAction: { payment in
                     viewModel.startCoinbaseFunding(
                         payment: payment,
-                        onrampCoordinator: coordinator,
+                        verificationCoordinator: verificationCoordinator,
                         coinbaseService: coinbaseService,
                         router: router
                     )
@@ -128,8 +121,8 @@ struct BuyAmountScreen: View {
                 onDismiss: { viewModel.pendingOperation = nil }
             )
         }
-        .sheet(isPresented: $coordinator.isShowingVerificationFlow) {
-            VerifyInfoScreen(onrampCoordinator: coordinator)
+        .sheet(item: $viewModel.verificationViewModel.cancellingOnDismiss()) { vm in
+            VerifyInfoScreen(viewModel: vm)
         }
         .sheet(isPresented: $isShowingCurrencySelection) {
             CurrencySelectionScreen(ratesController: ratesController)

@@ -417,7 +417,7 @@ struct SessionContainer {
     let pushController: PushController
     let flipClient: FlipClient
     let onrampDeeplinkInbox: OnrampDeeplinkInbox
-    let onrampCoordinator: OnrampCoordinator
+    let verificationCoordinator: VerificationCoordinator
     let coinbaseService: CoinbaseService
     let appRouter: AppRouter
 
@@ -438,8 +438,13 @@ struct SessionContainer {
         self.historyController = historyController
         self.pushController = pushController
         self.flipClient = flipClient
-        self.onrampDeeplinkInbox = OnrampDeeplinkInbox()
-        self.onrampCoordinator = OnrampCoordinator(session: session, flipClient: flipClient)
+        let deeplinkInbox = OnrampDeeplinkInbox()
+        self.onrampDeeplinkInbox = deeplinkInbox
+        self.verificationCoordinator = VerificationCoordinator(
+            session: session,
+            flipClient: flipClient,
+            deeplinkInbox: deeplinkInbox
+        )
 
         // Construct the Coinbase CDP API client with a bearer-token provider
         // that mints a fresh JWT (URI-bound to method+path) on each call via
@@ -448,7 +453,7 @@ struct SessionContainer {
         let owner = session.ownerKeyPair
         let coinbase = Coinbase(configuration: .init(bearerTokenProvider: { [weak flipClient] method, path in
             guard let flipClient, !coinbaseApiKey.isEmpty else {
-                throw OnrampError.missingCoinbaseApiKey
+                throw MissingCoinbaseApiKey()
             }
             return try await flipClient.fetchCoinbaseOnrampJWT(
                 apiKey: coinbaseApiKey,
@@ -470,7 +475,7 @@ struct SessionContainer {
             .environment(historyController)
             .environment(pushController)
             .environment(walletConnection)
-            .environment(onrampCoordinator)
+            .environment(verificationCoordinator)
             .environment(coinbaseService)
             .environment(onrampDeeplinkInbox)
     }
@@ -481,6 +486,12 @@ extension View {
         sessionContainer.injectingEnvironment(into: self)
     }
 }
+
+/// Thrown by the bearer-token provider when the Coinbase API key is missing
+/// from the build's Info.plist. Indicates a build-config bug, not user error;
+/// propagates as a transport failure through Coinbase and ultimately surfaces
+/// as `FundingOperationError.serverRejected` to the caller.
+private struct MissingCoinbaseApiKey: Error {}
 
 // MARK: - UserDefaults -
 

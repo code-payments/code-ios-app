@@ -9,9 +9,9 @@ import Foundation
 import FlipcashCore
 
 /// Funding-time payload shared by buy-existing and launch-new-currency flows.
-/// `PurchaseMethodSheet` and the per-funding-path coordinators (`PhantomCoordinator`,
-/// `OnrampCoordinator`) accept this so the picker UI is identical regardless
-/// of what the user is funding.
+/// `PurchaseMethodSheet` and the per-funding-path `FundingOperation`
+/// implementations accept this so the picker UI is identical regardless of
+/// what the user is funding.
 ///
 /// Marked `nonisolated` so the type and its computed-property unwraps are
 /// reachable from `AppRouter.Destination` (which is itself `nonisolated` for
@@ -57,13 +57,23 @@ nonisolated enum PaymentOperation: Hashable, Sendable, Identifiable {
         /// nil for them.
         let verifiedState: VerifiedState?
 
+        /// Mint from a prior attempt whose launch step succeeded but whose
+        /// downstream funding step (Phantom sign, Coinbase Apple Pay) failed.
+        /// When set, the operation skips `session.launchCurrency` and reuses
+        /// this mint — without this hint a retry re-runs the launch and the
+        /// server returns `nameExists` (the prior attempt already minted
+        /// under the same name). The reserves path has a parallel recovery
+        /// in `CurrencyCreationWizardScreen.launchAndBuyWithReserves`.
+        let preLaunchedMint: PublicKey?
+
         init(
             currencyName: String,
             total: ExchangedFiat,
             launchAmount: ExchangedFiat,
             launchFee: ExchangedFiat,
             attestations: LaunchAttestations? = nil,
-            verifiedState: VerifiedState? = nil
+            verifiedState: VerifiedState? = nil,
+            preLaunchedMint: PublicKey? = nil
         ) {
             self.id = UUID()
             self.currencyName = currencyName
@@ -72,6 +82,7 @@ nonisolated enum PaymentOperation: Hashable, Sendable, Identifiable {
             self.launchFee = launchFee
             self.attestations = attestations
             self.verifiedState = verifiedState
+            self.preLaunchedMint = preLaunchedMint
         }
     }
 

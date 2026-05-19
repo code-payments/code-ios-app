@@ -183,6 +183,12 @@ final class PhantomFundingOperation: FundingOperation {
         case .buy:
             return
         case .launch(let payload):
+            // Retry from a prior attempt whose launch already succeeded —
+            // skip the launch RPC so the server doesn't return `nameExists`.
+            if let preLaunched = payload.preLaunchedMint {
+                launchedMint = preLaunched
+                return
+            }
             guard let attestations = payload.attestations else {
                 logger.error("Phantom launch invoked without attestations")
                 throw FundingOperationError.serverRejected("Missing launch attestations")

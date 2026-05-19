@@ -25,6 +25,11 @@ final class BuyAmountViewModel: Identifiable {
     /// `operation.state` until the flow terminates.
     var fundingOperation: (any FundingOperation)?
 
+    /// Active verification flow, if any. Set when the Coinbase path runs the
+    /// verification gate; `BuyAmountScreen` binds `.sheet(item:)` to this
+    /// optional so the verification sheet mounts on top of the buy sheet.
+    var verificationViewModel: VerificationViewModel?
+
     @ObservationIgnored let mint: PublicKey
     @ObservationIgnored let currencyName: String
 
@@ -112,19 +117,21 @@ final class BuyAmountViewModel: Identifiable {
     }
 
     /// Creates a `CoinbaseFundingOperation`, stores it as `fundingOperation`,
-    /// and awaits the result. Runs the verification gate first (via
-    /// `OnrampCoordinator.startVerification`) — if the user isn't already
-    /// verified, the verification sheet opens and the operation only runs
-    /// after the email step succeeds.
+    /// and awaits the result. Runs the verification gate first via
+    /// `VerificationCoordinator` — if the user isn't already verified, the
+    /// verification sheet opens and the operation only runs after both
+    /// phone+email steps succeed.
     func startCoinbaseFunding(
         payment: PaymentOperation,
-        onrampCoordinator: OnrampCoordinator,
+        verificationCoordinator: VerificationCoordinator,
         coinbaseService: CoinbaseService,
         router: AppRouter
     ) {
-        onrampCoordinator.startVerification { [weak self] in
-            guard let self else { return }
-            self.runCoinbaseFundingOperation(
+        verificationCoordinator.runGated(
+            for: session,
+            bind: { [weak self] vm in self?.verificationViewModel = vm }
+        ) { [weak self] in
+            self?.runCoinbaseFundingOperation(
                 payment: payment,
                 coinbaseService: coinbaseService,
                 router: router

@@ -209,16 +209,3 @@ private enum MockError: Error, Equatable {
     case insufficient
     case launchRejected
 }
-
-private extension PaymentOperation.LaunchAttestations {
-    static var testFixture: PaymentOperation.LaunchAttestations {
-        PaymentOperation.LaunchAttestations(
-            description: "Test description",
-            billColors: ["#FFFFFF"],
-            icon: Data([0x89, 0x50, 0x4E, 0x47]),
-            nameAttestation: ModerationAttestation(rawValue: Data()),
-            descriptionAttestation: ModerationAttestation(rawValue: Data()),
-            iconAttestation: ModerationAttestation(rawValue: Data())
-        )
-    }
-}

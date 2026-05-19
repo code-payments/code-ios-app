@@ -27,12 +27,16 @@ private let logger = Logger(label: "flipcash.coinbase-funding")
 /// 6. `state = .working` — Apple Pay polling succeeded; return the
 ///    `StartedSwap`.
 ///
-/// `requirements: [.verifiedContact]` — callers must have run
-/// `VerificationOperation` first; the operation throws
+/// `requirements: [.verifiedContact]` — callers must have completed the
+/// `VerificationViewModel` flow first; the operation throws
 /// `FundingOperationError.requirementUnsatisfied(.verifiedContact)` if the
 /// profile lacks a verified phone + email at `start()` time.
 @Observable
 final class CoinbaseFundingOperation: FundingOperation {
+
+    /// Coinbase Onramp's USD floor — orders below this amount fail with a
+    /// generic error, so the buy flow gates ahead of the Apple Pay sheet.
+    static let minimumPurchaseUSD: Decimal = 5
 
     private(set) var state: FundingOperationState = .idle
     let requirements: [FundingRequirement] = [.verifiedContact]
@@ -129,6 +133,12 @@ final class CoinbaseFundingOperation: FundingOperation {
         case .buy:
             return
         case .launch(let payload):
+            // Retry from a prior attempt whose launch already succeeded —
+            // skip the launch RPC so the server doesn't return `nameExists`.
+            if let preLaunched = payload.preLaunchedMint {
+                launchedMint = preLaunched
+                return
+            }
             guard let attestations = payload.attestations else {
                 logger.error("Coinbase launch invoked without attestations")
                 throw FundingOperationError.serverRejected("Missing launch attestations")

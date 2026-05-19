@@ -55,6 +55,10 @@ struct PurchaseMethodSheet {
 
     // MARK: - Actions
 
+    func selectApplePay(from testCase: BaseUITestCase) {
+        testCase.waitUntilHittableAndTap(applePayButton)
+    }
+
     func selectPhantom(from testCase: BaseUITestCase) {
         testCase.waitUntilHittableAndTap(phantomButton)
     }

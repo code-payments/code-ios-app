@@ -144,7 +144,7 @@ private struct ApplePayMethodButton: View {
             // Coinbase Onramp rejects USD purchases under the minimum — gate
             // before the Apple Pay sheet round-trip. Use the USDF (1:1 USD)
             // value since `nativeAmount` is in the user's display currency.
-            let minimumUSD = OnrampCoordinator.minimumPurchaseUSD
+            let minimumUSD = CoinbaseFundingOperation.minimumPurchaseUSD
             guard operation.displayAmount.usdfValue.value >= minimumUSD else {
                 let minimum = FiatAmount.usd(minimumUSD)
                     .converting(to: operation.displayAmount.currencyRate)

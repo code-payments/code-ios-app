@@ -75,24 +75,31 @@ final class ReservesFundingOperation: FundingOperation {
             )
 
         case .launch(let payload):
-            guard let attestations = payload.attestations else {
-                logger.error("Reserves launch invoked without attestations")
-                throw FundingOperationError.serverRejected("Missing launch attestations")
-            }
             guard let verifiedState = payload.verifiedState else {
                 logger.error("Reserves launch invoked without a verified state")
                 throw FundingOperationError.serverRejected("Missing verified state")
             }
 
-            let mint = try await session.launchCurrency(
-                name: payload.currencyName,
-                description: attestations.description,
-                billColors: attestations.billColors,
-                icon: attestations.icon,
-                nameAttestation: attestations.nameAttestation,
-                descriptionAttestation: attestations.descriptionAttestation,
-                iconAttestation: attestations.iconAttestation
-            )
+            let mint: PublicKey
+            // Retry from a prior attempt whose launch already succeeded —
+            // skip the launch RPC so the server doesn't return `nameExists`.
+            if let preLaunched = payload.preLaunchedMint {
+                mint = preLaunched
+            } else {
+                guard let attestations = payload.attestations else {
+                    logger.error("Reserves launch invoked without attestations")
+                    throw FundingOperationError.serverRejected("Missing launch attestations")
+                }
+                mint = try await session.launchCurrency(
+                    name: payload.currencyName,
+                    description: attestations.description,
+                    billColors: attestations.billColors,
+                    icon: attestations.icon,
+                    nameAttestation: attestations.nameAttestation,
+                    descriptionAttestation: attestations.descriptionAttestation,
+                    iconAttestation: attestations.iconAttestation
+                )
+            }
             launchedMint = mint
 
             let swapId = try await session.buyNewCurrency(

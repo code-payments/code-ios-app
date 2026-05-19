@@ -22,7 +22,7 @@ struct CurrencyCreationWizardScreen: View {
     @Environment(Session.self) private var session
     @Environment(RatesController.self) private var ratesController
     @Environment(WalletConnection.self) private var walletConnection
-    @Environment(OnrampCoordinator.self) private var onrampCoordinator
+    @Environment(VerificationCoordinator.self) private var verificationCoordinator
     @Environment(CoinbaseService.self) private var coinbaseService
     @Environment(AppRouter.self) private var router
 
@@ -64,6 +64,9 @@ struct CurrencyCreationWizardScreen: View {
     /// `nameExists` retry, reuse it so only the buy reruns. Bound to
     /// `name` — renaming invalidates.
     @State private var createdMint: CreatedMintRecord?
+    /// Active verification flow, if any. Set when the Coinbase launch path
+    /// runs the verification gate.
+    @State private var verificationViewModel: VerificationViewModel?
 
     private struct CreatedMintRecord {
         let mint: PublicKey
@@ -232,7 +235,6 @@ struct CurrencyCreationWizardScreen: View {
         }
         .dialog(item: $errorDialog)
         .dialog(item: Bindable(walletConnection).dialogItem)
-        .dialog(item: Bindable(onrampCoordinator).dialogItem)
         .onChange(of: fundingOperation?.state) { _, newState in
             // Single observer covers both push + reset:
             // - `nil` state → operation slot emptied → reset push tracking
@@ -255,8 +257,8 @@ struct CurrencyCreationWizardScreen: View {
             phantomFlowPushedFor = id
             router.push(.phantomFlow(operation))
         }
-        .sheet(isPresented: Bindable(onrampCoordinator).isShowingVerificationFlow) {
-            VerifyInfoScreen(onrampCoordinator: onrampCoordinator)
+        .sheet(item: $verificationViewModel.cancellingOnDismiss()) { vm in
+            VerifyInfoScreen(viewModel: vm)
         }
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
@@ -356,16 +358,6 @@ struct CurrencyCreationWizardScreen: View {
         }
         .onAppear {
             if step == .name { focusedField = .name }
-        }
-        // On an onrampCoordinator error the Coinbase flow resets to idle without
-        // publishing a completion. Mirror that by clearing `isValidating`
-        // so the confirmation screen becomes interactive again. The success
-        // path runs through the `.launchProcessing` cover, whose
-        // `dismissParentContainer` already resets `isValidating`.
-        .onChange(of: onrampCoordinator.isProcessingPayment) { _, isProcessing in
-            if !isProcessing && onrampCoordinator.completion == nil {
-                isValidating = false
-            }
         }
         .onChange(of: step) { _, newStep in
             switch newStep {
@@ -579,6 +571,18 @@ struct CurrencyCreationWizardScreen: View {
 
     // MARK: - Launch + Buy
 
+    /// Records the mint produced by a successful `session.launchCurrency`
+    /// call so a subsequent retry can skip the launch step and avoid
+    /// `nameExists`. No-op when `mint` is nil (operation never got past
+    /// preflight). Callers pass the wizard name in effect when the snapshot
+    /// was taken — success paths typically use the operation's echoed
+    /// `swap.currencyName`; failure paths use the wizard's current
+    /// `state.currencyName`, which a rename invalidates against `priorMint`.
+    private func captureCreatedMint(_ mint: PublicKey?, name: String) {
+        guard let mint else { return }
+        createdMint = CreatedMintRecord(mint: mint, name: name)
+    }
+
     private func launchAndBuyWithReserves() {
         validationTask?.cancel()
         validationTask = Task {
@@ -691,19 +695,12 @@ struct CurrencyCreationWizardScreen: View {
                 )
                 return
             } catch Session.Error.insufficientBalance {
-                // Capture the launched mint if the operation got past launch
-                // before the buy failed — the next attempt can shortcut via
-                // `createdMint`.
-                if let launchedMint = operation.launchedMint {
-                    createdMint = CreatedMintRecord(mint: launchedMint, name: displayName)
-                }
+                captureCreatedMint(operation.launchedMint, name: displayName)
                 presentInsufficientFundsDialog(totalLaunchCost: totalLaunchCost)
                 return
             } catch {
                 if Task.isCancelled { return }
-                if let launchedMint = operation.launchedMint {
-                    createdMint = CreatedMintRecord(mint: launchedMint, name: displayName)
-                }
+                captureCreatedMint(operation.launchedMint, name: displayName)
                 logger.error("Reserves-funded buy failed", metadata: [
                     "error": "\(error)",
                     "mint": "\(operation.launchedMint?.base58 ?? "nil")",
@@ -714,9 +711,7 @@ struct CurrencyCreationWizardScreen: View {
             }
 
             // Submission accepted — record the mint and present the processing screen.
-            if let launchedMint = swap.launchedMint {
-                createdMint = CreatedMintRecord(mint: launchedMint, name: displayName)
-            }
+            captureCreatedMint(swap.launchedMint, name: displayName)
             reservesLaunchContext = ReservesLaunchContext(
                 swapId: swap.swapId,
                 launchedMint: swap.launchedMint ?? operation.launchedMint!,
@@ -758,12 +753,19 @@ struct CurrencyCreationWizardScreen: View {
             return
         }
 
+        // If a prior funding attempt for this same name already minted the
+        // currency (Phantom sign cancelled mid-flow, Apple Pay rejected
+        // post-launch), reuse that mint so the next attempt skips the launch
+        // RPC and doesn't hit `nameExists` on the server.
+        let priorMint = (createdMint?.name == state.currencyName) ? createdMint?.mint : nil
+
         pendingOperation = .launch(.init(
             currencyName: state.currencyName,
             total: totalLaunchCost,
             launchAmount: launchAmount,
             launchFee: launchFee,
-            attestations: attestations
+            attestations: attestations,
+            preLaunchedMint: priorMint
         ))
     }
 
@@ -808,7 +810,7 @@ struct CurrencyCreationWizardScreen: View {
                     presentGenericErrorDialog()
                     return
                 }
-                createdMint = CreatedMintRecord(mint: mint, name: swap.currencyName)
+                captureCreatedMint(mint, name: swap.currencyName)
                 // Don't pop the flow screen — the fullScreenCover below
                 // overlays it directly. Popping first would animate the
                 // flow screen sliding back to the bill view before the
@@ -823,6 +825,9 @@ struct CurrencyCreationWizardScreen: View {
                 )
             } catch is CancellationError {
                 // Local dismiss (user backed out of the flow screen) — silent.
+                // Recording the mint here lets a retry skip the launch step
+                // when it had already succeeded server-side mid-cancel.
+                captureCreatedMint(operation.launchedMint, name: state.currencyName)
             } catch ErrorLaunchCurrency.denied {
                 logger.error("Phantom launch denied after preflight attestations passed")
                 ErrorReporting.captureError(ErrorLaunchCurrency.denied)
@@ -845,11 +850,7 @@ struct CurrencyCreationWizardScreen: View {
                     subtitle: "Please pick a different image."
                 )
             } catch {
-                // Capture mint if launch succeeded but a later step threw,
-                // mirroring the reserves path's retry hook.
-                if let launched = operation.launchedMint {
-                    createdMint = CreatedMintRecord(mint: launched, name: state.currencyName)
-                }
+                captureCreatedMint(operation.launchedMint, name: state.currencyName)
                 logger.error("Phantom-funded launch failed", metadata: [
                     "error": "\(error)",
                     "mint": "\(operation.launchedMint?.base58 ?? "nil")",
@@ -867,11 +868,14 @@ struct CurrencyCreationWizardScreen: View {
     }
 
     /// `PurchaseMethodSheet.applePayAction` dispatch for launch. Runs the
-    /// verification gate via `OnrampCoordinator.startVerification`, then
-    /// spawns a `CoinbaseFundingOperation` that performs the preflight
-    /// launch internally followed by the Coinbase order + Apple Pay flow.
+    /// verification gate via `VerificationCoordinator`, then spawns a
+    /// `CoinbaseFundingOperation` that performs the preflight launch
+    /// internally followed by the Coinbase order + Apple Pay flow.
     private func startCoinbaseLaunchFunding(payment: PaymentOperation) {
-        onrampCoordinator.startVerification { [self] in
+        verificationCoordinator.runGated(
+            for: session,
+            bind: { verificationViewModel = $0 }
+        ) {
             runCoinbaseLaunchOperation(payment: payment)
         }
     }
@@ -891,7 +895,7 @@ struct CurrencyCreationWizardScreen: View {
                     presentGenericErrorDialog()
                     return
                 }
-                createdMint = CreatedMintRecord(mint: mint, name: swap.currencyName)
+                captureCreatedMint(mint, name: swap.currencyName)
                 coinbaseLaunchContext = ExternalLaunchProcessing(
                     swapId: swap.swapId,
                     launchedMint: mint,
@@ -899,6 +903,10 @@ struct CurrencyCreationWizardScreen: View {
                     amount: swap.amount
                 )
             } catch is CancellationError {
+                // Local dismiss — silent. Recording the mint here lets a
+                // retry skip the launch step when it had already succeeded
+                // server-side mid-cancel.
+                captureCreatedMint(operation.launchedMint, name: state.currencyName)
                 // Distinguish the 60s idle-timeout cancel (surface the
                 // dialog above the wizard sheet) from a plain user-dismiss
                 // (silent — they explicitly walked away).
@@ -924,9 +932,7 @@ struct CurrencyCreationWizardScreen: View {
                     subtitle: "Please pick a different image."
                 )
             } catch {
-                if let launched = operation.launchedMint {
-                    createdMint = CreatedMintRecord(mint: launched, name: state.currencyName)
-                }
+                captureCreatedMint(operation.launchedMint, name: state.currencyName)
                 logger.error("Coinbase-funded launch failed", metadata: [
                     "error": "\(error)",
                     "mint": "\(operation.launchedMint?.base58 ?? "nil")",
