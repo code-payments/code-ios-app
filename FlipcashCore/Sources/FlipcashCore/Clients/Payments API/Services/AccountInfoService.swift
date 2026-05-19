@@ -66,9 +66,48 @@ final class AccountInfoService: CodeService<Ocp_Account_V1_AccountNIOClient> {
         }
     }
     
+    /// Fetches the user's plain SPL associated token account for a specific
+    /// mint via `GetTokenAccountInfos` with a server-side mint filter. Returns
+    /// `nil` when no ATA exists yet (e.g. the user has never received this
+    /// mint), which sweep callers treat as a zero balance.
+    func fetchAssociatedTokenAccount(
+        owner: KeyPair,
+        mint: PublicKey,
+        completion: @Sendable @escaping (Result<AccountInfo?, ErrorFetchBalance>) -> Void
+    ) {
+        let request = Ocp_Account_V1_GetTokenAccountInfosRequest.with {
+            $0.owner = owner.publicKey.solanaAccountID
+            $0.filterByMintAddress = mint.solanaAccountID
+            $0.signature = $0.sign(with: owner)
+        }
+
+        let call = service.getTokenAccountInfos(request)
+        call.handle(on: queue) { response in
+            let error = ErrorFetchBalance(rawValue: response.result.rawValue) ?? .unknown
+            switch error {
+            case .ok:
+                let account = response.tokenAccountInfos.compactMap {
+                    $0.value.accountType == .associatedTokenAccount ? (try? AccountInfo($0.value)) : nil
+                }.first
+                completion(.success(account))
+            case .notFound:
+                // No ATA for this mint yet — caller treats as zero balance.
+                completion(.success(nil))
+            case .unknown, .accountNotInList, .parseFailed:
+                logger.error("Failed to fetch associated token account", metadata: [
+                    "owner": "\(owner.publicKey.base58)",
+                    "mint": "\(mint.base58)",
+                ])
+                completion(.failure(error))
+            }
+        } failure: { _ in
+            completion(.failure(.unknown))
+        }
+    }
+
     func fetchPrimaryAccounts(owner: KeyPair, completion: @Sendable @escaping (Result<[AccountInfo], ErrorFetchBalance>) -> Void) {
 //        trace(.send, components: "Owner: \(owner.publicKey.base58)")
-        
+
         let request = Ocp_Account_V1_GetTokenAccountInfosRequest.with {
             $0.owner = owner.publicKey.solanaAccountID
             $0.signature = $0.sign(with: owner)

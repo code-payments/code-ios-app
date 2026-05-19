@@ -136,6 +136,32 @@ extension TransactionBuilder {
         )
     }
 
+    /// Builds the `StatelessSwap` transaction (USDC → USDF auto-conversion on
+    /// app open). Uses a regular recent blockhash rather than a durable nonce,
+    /// and the owner is the sole client-side signer.
+    static func statelessSwap(
+        serverParameters: StatelessSwapServerParameters,
+        owner: PublicKey,
+        fromMint: MintMetadata,
+        toMint: MintMetadata,
+        amount: UInt64
+    ) -> SolanaTransaction {
+        let instructions = SwapInstructionBuilder.buildStatelessSwapInstructions(
+            serverParameters: serverParameters,
+            owner: owner,
+            fromMint: fromMint,
+            toMint: toMint,
+            amount: amount
+        )
+
+        return SolanaTransaction(
+            payer: serverParameters.payer,
+            recentBlockhash: serverParameters.blockhash,
+            addressLookupTables: serverParameters.alts,
+            instructions: instructions
+        )
+    }
+
     /// Builds the atomic launch-and-first-buy transaction for a new
     /// launchpad currency. Only the creator (owner == swap authority ==
     /// serverParams.authority) can execute this path.

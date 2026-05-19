@@ -420,6 +420,7 @@ struct SessionContainer {
     let verificationCoordinator: VerificationCoordinator
     let coinbaseService: CoinbaseService
     let appRouter: AppRouter
+    let usdcSweepOperation: UsdcSweepOperation
 
     init(
         session: Session,
@@ -465,6 +466,18 @@ struct SessionContainer {
         self.coinbaseService = CoinbaseService(coinbase: coinbase)
 
         self.appRouter = AppRouter()
+
+        // External USDC deposits land in the user's plain USDC ATA; this
+        // operation sweeps them into USDF on every app-active transition.
+        // Wired into AppDelegate.scenePhaseChanged(.active).
+        self.usdcSweepOperation = UsdcSweepOperation(
+            accountFetcher: client,
+            swapper: client,
+            ownerKeyPair: owner,
+            onSweepCompleted: { [weak session] in
+                await session?.updatePostTransaction()
+            }
+        )
     }
 
     fileprivate func injectingEnvironment<SomeView>(into view: SomeView) -> some View where SomeView: View {

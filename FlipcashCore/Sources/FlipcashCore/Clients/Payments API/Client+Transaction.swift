@@ -190,6 +190,25 @@ extension Client {
         }
     }
 
+    /// Runs a `StatelessSwap` (USDC → USDF via Coinbase Stable Swapper) using
+    /// the owner key as both the request signer and the on-chain swap signer.
+    /// Used by the on-app-open auto-sweep.
+    public func statelessSwap(
+        fromMint: MintMetadata,
+        toMint: MintMetadata,
+        amount: TokenAmount,
+        owner: KeyPair
+    ) async throws -> StatelessSwapResult {
+        try await withCheckedThrowingContinuation { c in
+            transactionService.swapService.statelessSwap(
+                fromMint: fromMint,
+                toMint: toMint,
+                amount: amount,
+                owner: owner
+            ) { c.resume(with: $0) }
+        }
+    }
+
     /// Withdraws USDF to a Solana wallet as USDC via Coinbase Stable Swapper.
     /// Phase 1 + Phase 2 mirroring `buy()` — stateful swap stream → IntentFundSwap.
     @discardableResult

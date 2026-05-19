@@ -154,6 +154,32 @@ logger.info("Requested swap", metadata: [
 
 **Never log proto blobs whole.** A naked `\(response.tokenAccountInfos)` or `\(notification)` recursively serializes every field, including the base58 ones. Extract the specific diagnostic values you actually need into metadata instead — usually a count, a type, or an error, not the whole record.
 
+### Error Reporting: Always Call `captureError` Unconditionally
+
+**Call `ErrorReporting.captureError(error, reason: ...)` directly — never gate it on `isReportable` at the call site.** The reporter handles that internally in `ErrorReporting.capture(_:)`:
+
+```swift
+// Inside ErrorReporting (Flipcash/Utilities/ErrorReporting.swift)
+if let serverError = error as? ServerError, !serverError.isReportable {
+    return
+}
+```
+
+Duplicating the check at the call site is dead code and drifts from every other site in the codebase.
+
+```swift
+// ❌ BAD: rechecks what ErrorReporting already filters
+let shouldReport = (error as? ServerError)?.isReportable ?? true
+if shouldReport {
+    ErrorReporting.captureError(error, reason: "...")
+}
+
+// ✅ GOOD: just call it
+ErrorReporting.captureError(error, reason: "...")
+```
+
+To suppress reporting for a specific error type, conform it to `ServerError` (in `FlipcashCore/Sources/FlipcashCore/Models/ServerError.swift`) and return `false` from `isReportable` for the non-actionable cases. That's the single source of truth — call sites stay uniform.
+
 ### Package.resolved Policy
 
 **Always commit the workspace Package.resolved:**
