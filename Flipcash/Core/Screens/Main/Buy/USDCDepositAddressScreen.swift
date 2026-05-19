@@ -17,15 +17,13 @@ struct USDCDepositAddressScreen: View {
     @Environment(Session.self) private var session
     @State private var buttonState: ButtonState = .normal
 
-    /// Authority pubkey, NOT the derived USDC ATA. Showing the ATA breaks
-    /// first-time deposits: it doesn't exist on-chain yet, so wallets fall
-    /// back to "treat as owner, derive another ATA" and funds land one
-    /// level deeper than the server queries.
-    private var depositAddress: String {
-        session.owner.authorityPublicKey.base58
-    }
-
     var body: some View {
+        // Authority pubkey, NOT the derived USDC ATA. Showing the ATA breaks
+        // first-time deposits: it doesn't exist on-chain yet, so wallets fall
+        // back to "treat as owner, derive another ATA" and funds land one
+        // level deeper than the server queries.
+        let depositAddress = session.owner.authorityPublicKey.base58
+
         Background(color: .backgroundMain) {
             VStack(alignment: .leading, spacing: 20) {
                 Text("Deposit funds into your wallet by sending USDC to your deposit address below. Tap to copy.")
