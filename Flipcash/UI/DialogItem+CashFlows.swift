@@ -102,6 +102,22 @@ extension DialogItem {
         }
     }
 
+    /// Generic destructive dialog with caller-supplied strings and an "OK"
+    /// destructive dismiss button. Use for any user-facing error where the
+    /// title/subtitle vary by context (e.g. validation failures, Coinbase
+    /// rejections, moderation denials). For the stock "Something Went Wrong"
+    /// fallback, prefer `.somethingWentWrong`.
+    static func error(title: String, subtitle: String) -> DialogItem {
+        .init(
+            style: .destructive,
+            title: title,
+            subtitle: subtitle,
+            dismissable: true
+        ) {
+            .okay(kind: .destructive)
+        }
+    }
+
     /// Coinbase Onramp rejects orders below `CoinbaseFundingOperation.minimumPurchaseUSD`
     /// with a generic error; surface the constraint up-front instead of letting
     /// the user round-trip to Apple Pay. `minimum` is the USD floor already

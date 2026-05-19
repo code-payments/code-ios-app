@@ -77,7 +77,7 @@ final class ReservesFundingOperation: FundingOperation {
         case .launch(let payload):
             guard let verifiedState = payload.verifiedState else {
                 logger.error("Reserves launch invoked without a verified state")
-                throw FundingOperationError.serverRejected("Missing verified state")
+                throw FundingOperationError.unexpectedFailure(reason: "Missing verified state")
             }
 
             let mint: PublicKey
@@ -88,7 +88,7 @@ final class ReservesFundingOperation: FundingOperation {
             } else {
                 guard let attestations = payload.attestations else {
                     logger.error("Reserves launch invoked without attestations")
-                    throw FundingOperationError.serverRejected("Missing launch attestations")
+                    throw FundingOperationError.unexpectedFailure(reason: "Missing launch attestations")
                 }
                 mint = try await session.launchCurrency(
                     name: payload.currencyName,

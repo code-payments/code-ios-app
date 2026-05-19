@@ -141,7 +141,7 @@ final class CoinbaseFundingOperation: FundingOperation {
             }
             guard let attestations = payload.attestations else {
                 logger.error("Coinbase launch invoked without attestations")
-                throw FundingOperationError.serverRejected("Missing launch attestations")
+                throw FundingOperationError.unexpectedFailure(reason: "Missing launch attestations")
             }
             state = .working
             let mint = try await session.launchCurrency(
@@ -175,7 +175,7 @@ final class CoinbaseFundingOperation: FundingOperation {
             owner: session.owner.authorityPublicKey
         ) else {
             logger.error("Failed to derive USDF swap accounts for Coinbase order")
-            throw FundingOperationError.serverRejected("Couldn't derive destination account")
+            throw FundingOperationError.unexpectedFailure(reason: "Couldn't derive USDF swap accounts")
         }
 
         let userRef = session.ownerKeyPair.publicKey.base58
@@ -202,10 +202,18 @@ final class CoinbaseFundingOperation: FundingOperation {
             logger.error("Coinbase createOrder rejected", metadata: [
                 "error_type": "\(error.errorType)",
             ])
-            throw FundingOperationError.serverRejected(error.subtitle)
+            throw FundingOperationError.externalRejected(
+                title: error.title,
+                subtitle: error.subtitle
+            )
         } catch {
+            // Network/auth blip — `externalRejected` (no Bugsnag) so we don't
+            // alarm on routine Coinbase transport errors.
             logger.error("Coinbase createOrder failed", metadata: ["error": "\(error)"])
-            throw FundingOperationError.serverRejected("Couldn't create the Apple Pay order")
+            throw FundingOperationError.externalRejected(
+                title: "Something Went Wrong",
+                subtitle: "Please try again later"
+            )
         }
     }
 
@@ -228,7 +236,9 @@ final class CoinbaseFundingOperation: FundingOperation {
                 logger.error("Coinbase response missing purchaseAmount", metadata: [
                     "order_id": "\(order.id)",
                 ])
-                throw FundingOperationError.serverRejected("Coinbase response missing purchase amount")
+                throw FundingOperationError.unexpectedFailure(
+                    reason: "Coinbase response missing purchaseAmount"
+                )
             }
             let fundedAmount = ExchangedFiat.compute(
                 onChainAmount: TokenAmount(wholeTokens: recordedDecimal, mint: .usdf),
@@ -245,7 +255,7 @@ final class CoinbaseFundingOperation: FundingOperation {
         case .launch(let payload):
             guard let mint = launchedMint else {
                 logger.error("Coinbase launch reached recordSwap without a preflighted mint")
-                throw FundingOperationError.serverRejected("Missing launched mint")
+                throw FundingOperationError.unexpectedFailure(reason: "Missing launched mint")
             }
             // No Coinbase rounding rebuild here — `launchAmount` and
             // `launchFee` are built from server-supplied USDF quark
@@ -283,12 +293,22 @@ final class CoinbaseFundingOperation: FundingOperation {
                 throw CancellationError()
 
             case .commitError, .pollingError, .loadError:
-                let message = event.data?.errorMessage ?? "Apple Pay failed"
+                // Map the raw Coinbase code back through `OnrampErrorResponse.ErrorType`
+                // so WebView-surfaced errors render the same localized
+                // title/subtitle pair as HTTP-path errors. Unknown codes fall
+                // through to the generic ".unknown" message.
+                let errorType = OnrampErrorResponse.ErrorType(
+                    coinbaseCode: event.data?.errorCode ?? ""
+                )
                 logger.error("Apple Pay terminal error", metadata: [
                     "event": "\(event.name)",
                     "code": "\(event.data?.errorCode ?? "nil")",
+                    "type": "\(errorType)",
                 ])
-                throw FundingOperationError.serverRejected(message)
+                throw FundingOperationError.externalRejected(
+                    title: errorType.title,
+                    subtitle: errorType.subtitle
+                )
 
             case .pendingPaymentAuth:
                 idleTimer.arm { [weak self] in

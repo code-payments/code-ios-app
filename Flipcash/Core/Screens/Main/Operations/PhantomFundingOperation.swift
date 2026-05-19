@@ -141,12 +141,16 @@ final class PhantomFundingOperation: FundingOperation {
                 lastErrorMessage = "Connection cancelled in Phantom"
                 // loop: top of next iteration resets state to .education
             } catch WalletConnectionError.connectFailed(let code) {
-                throw FundingOperationError.serverRejected("Wallet connect failed (code: \(code))")
+                logger.error("Phantom connect failed", metadata: ["code": "\(code)"])
+                throw FundingOperationError.externalRejected(
+                    title: "Couldn't Connect",
+                    subtitle: "Please try again from your wallet"
+                )
             }
         }
 
         // Sign step — wallet-side cancel (deeplink code 4001) loops back to
-        // the confirm prompt; serverRejected and other terminal failures
+        // the confirm prompt; externalRejected and other terminal failures
         // propagate.
         while true {
             try Task.checkCancellation()
@@ -191,7 +195,7 @@ final class PhantomFundingOperation: FundingOperation {
             }
             guard let attestations = payload.attestations else {
                 logger.error("Phantom launch invoked without attestations")
-                throw FundingOperationError.serverRejected("Missing launch attestations")
+                throw FundingOperationError.unexpectedFailure(reason: "Missing launch attestations")
             }
             state = .working
             let mint = try await session.launchCurrency(
@@ -217,7 +221,7 @@ final class PhantomFundingOperation: FundingOperation {
     /// awaited signed-tx event arrives. Throws `FundingOperationError.userCancelled`
     /// on a wallet 4001 (so callers can surface a "Transaction Cancelled"
     /// dialog distinct from a silent Task-level cancellation) and
-    /// `.serverRejected` on any other wallet error.
+    /// `.externalRejected` on any other wallet error.
     private func awaitSignedTransaction() async throws -> String {
         for await event in walletConnection.deeplinkEvents {
             try Task.checkCancellation()
@@ -227,7 +231,11 @@ final class PhantomFundingOperation: FundingOperation {
             case .userCancelled:
                 throw FundingOperationError.userCancelled
             case .failed(let code):
-                throw FundingOperationError.serverRejected("Wallet returned error code \(code)")
+                logger.error("Phantom returned error", metadata: ["code": "\(code)"])
+                throw FundingOperationError.externalRejected(
+                    title: "Transaction Failed",
+                    subtitle: "Your wallet rejected the transaction. Please try again."
+                )
             }
         }
         // Stream ended without delivering an event — treat as cancellation.
@@ -243,8 +251,11 @@ final class PhantomFundingOperation: FundingOperation {
     ) async throws -> StartedSwap {
         let rawData = Data(Base58.toBytes(signedTx))
         guard let tx = SolanaTransaction(data: rawData) else {
+            // Phantom returned a payload we can't decode — wallet contract
+            // violation. Worth Bugsnagging so we can correlate against
+            // Phantom client versions.
             logger.error("Failed to decode signed transaction")
-            throw FundingOperationError.serverRejected("Couldn't decode the signed transaction")
+            throw FundingOperationError.unexpectedFailure(reason: "Couldn't decode signed transaction from Phantom")
         }
 
         let txBase64 = rawData.base64EncodedString()
@@ -270,7 +281,7 @@ final class PhantomFundingOperation: FundingOperation {
         case .launch(let payload):
             guard let mint = launchedMint else {
                 logger.error("Launch reached submit step without a preflighted mint")
-                throw FundingOperationError.serverRejected("Missing launched mint")
+                throw FundingOperationError.unexpectedFailure(reason: "Missing launched mint")
             }
             swapId = try await session.buyNewCurrencyWithExternalFunding(
                 amount: payload.launchAmount,
@@ -321,13 +332,19 @@ final class PhantomFundingOperation: FundingOperation {
             logger.error("Phantom signed transaction failed simulation", metadata: [
                 "logs": "\(logs.suffix(5).joined(separator: " | "))",
             ])
-            throw FundingOperationError.serverRejected("The network wouldn't accept this transaction")
+            throw FundingOperationError.externalRejected(
+                title: "Transaction Rejected",
+                subtitle: "The network wouldn't accept this transaction"
+            )
         } catch SolanaRPCError.responseError(let response) {
             logger.error("Phantom signed transaction rejected at preflight", metadata: [
                 "code": "\(response.code ?? -1)",
                 "message": "\(response.message ?? "nil")",
             ])
-            throw FundingOperationError.serverRejected(response.message ?? "Preflight rejected by the network")
+            throw FundingOperationError.externalRejected(
+                title: "Transaction Rejected",
+                subtitle: response.message ?? "Preflight rejected by the network"
+            )
         } catch {
             // Network blip — swallow and continue. The submit step has its
             // own error handling.

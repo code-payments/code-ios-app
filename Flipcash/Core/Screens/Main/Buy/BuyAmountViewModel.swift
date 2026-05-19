@@ -166,6 +166,12 @@ final class BuyAmountViewModel: Identifiable {
                 if operation.didTimeOut {
                     self?.session.dialogItem = .applePaySheetTimeout
                 }
+            } catch let FundingOperationError.externalRejected(title, subtitle) {
+                logger.error("Coinbase funding rejected", metadata: [
+                    "mint": "\(self?.mint.base58 ?? "nil")",
+                    "title": "\(title)",
+                ])
+                self?.dialogItem = .error(title: title, subtitle: subtitle)
             } catch {
                 logger.error("Coinbase funding failed", metadata: [
                     "mint": "\(self?.mint.base58 ?? "nil")",
@@ -217,6 +223,12 @@ final class BuyAmountViewModel: Identifiable {
             } catch is CancellationError {
                 // User dismissed the flow locally (back swipe / sheet
                 // dismiss) — silent.
+            } catch let FundingOperationError.externalRejected(title, subtitle) {
+                logger.error("Phantom funding rejected", metadata: [
+                    "mint": "\(self?.mint.base58 ?? "nil")",
+                    "title": "\(title)",
+                ])
+                self?.dialogItem = .error(title: title, subtitle: subtitle)
             } catch {
                 logger.error("Phantom funding failed", metadata: [
                     "mint": "\(self?.mint.base58 ?? "nil")",
@@ -262,6 +274,13 @@ final class BuyAmountViewModel: Identifiable {
             routeToPicker(amount: amount, pin: pin)
         } catch Session.Error.verifiedStateStale {
             actionButtonState = .normal
+        } catch let FundingOperationError.externalRejected(title, subtitle) {
+            logger.error("Reserves-funded buy rejected", metadata: [
+                "mint": "\(mint.base58)",
+                "title": "\(title)",
+            ])
+            actionButtonState = .normal
+            dialogItem = .error(title: title, subtitle: subtitle)
         } catch {
             logger.error("Failed to buy currency from BuyAmountScreen", metadata: [
                 "mint": "\(mint.base58)",
