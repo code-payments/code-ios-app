@@ -182,6 +182,7 @@ extension SwapService {
                     $0.swapAmount = amount.quarks
                 })
                 $0.owner = owner.publicKey.solanaAccountID
+                $0.waitForFinalization = true
                 $0.signature = $0.sign(with: owner)
             }
         }
