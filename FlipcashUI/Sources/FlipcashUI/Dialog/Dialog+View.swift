@@ -34,9 +34,12 @@ extension View {
         )
     }
     
-    public func dialog(item: Binding<DialogItem?>) -> some View {
+    public func dialog(
+        item: Binding<DialogItem?>,
+        onPresent: ((DialogItem) -> Void)? = nil
+    ) -> some View {
         self.modifier(
-            DialogModifierDialogItem(item: item)
+            DialogModifierDialogItem(item: item, onPresent: onPresent)
         )
     }
 }
@@ -120,13 +123,15 @@ private struct DialogModifierItem<T>: ViewModifier where T: Identifiable {
 }
 
 private struct DialogModifierDialogItem: ViewModifier {
-    
+
     private let item: Binding<DialogItem?>
-    
-    init(item: Binding<DialogItem?>) {
+    private let onPresent: ((DialogItem) -> Void)?
+
+    init(item: Binding<DialogItem?>, onPresent: ((DialogItem) -> Void)?) {
         self.item = item
+        self.onPresent = onPresent
     }
-    
+
     func body(content: Content) -> some View {
         content
             .sheet(item: item) { item in
@@ -138,10 +143,13 @@ private struct DialogModifierDialogItem: ViewModifier {
                         dismiss: dismiss,
                         actions: item.actions
                     )
+                    .onAppear {
+                        onPresent?(item)
+                    }
                 }
             }
     }
-    
+
     private func dismiss() {
         item.wrappedValue = nil
     }
