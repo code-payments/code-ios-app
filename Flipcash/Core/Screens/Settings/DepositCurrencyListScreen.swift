@@ -52,7 +52,7 @@ struct DepositCurrencyListScreen: View {
         }
         .navigationTitle("Select Currency")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
+        .onChange(of: balances, initial: true) {
             handleAutoSelect()
         }
     }
