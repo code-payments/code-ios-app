@@ -108,6 +108,39 @@ struct UsdcSweepOperationTests {
         #expect(await completion.value == 1)
     }
 
+    // MARK: - Re-entry after completion
+
+    @Test("Second start() after a successful sweep runs another sweep")
+    func start_afterPreviousCompletion_allowsSecondSweep() async throws {
+        let fetcher = MockAccountFetcher()
+        let swapper = MockSwapper()
+        let completion = Counter()
+
+        let op = UsdcSweepOperation(
+            accountFetcher: fetcher,
+            swapper: swapper,
+            ownerKeyPair: .mock,
+            onSweepCompleted: { await completion.bump() }
+        )
+
+        await fetcher.setImmediateHandler {
+            try AccountInfo(.usdcAtaInfo(quarks: 10_000))
+        }
+
+        await op.start().value
+        #expect(await fetcher.callCount == 1)
+        #expect(await swapper.callCount == 1)
+        #expect(await completion.value == 1)
+
+        // A second start() after the first completes must run another sweep.
+        // Load-bearing: scenePhase → active fires repeatedly, and a fresh USDC
+        // deposit between two activations must be picked up by the next sweep.
+        await op.start().value
+        #expect(await fetcher.callCount == 2)
+        #expect(await swapper.callCount == 2)
+        #expect(await completion.value == 2)
+    }
+
     // MARK: - Error path
 
     @Test("Swap failure skips the completion callback and releases the in-flight guard")
