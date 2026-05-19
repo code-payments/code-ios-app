@@ -49,11 +49,17 @@ extension SwapService {
             "amountQuarks": "\(amount.quarks)",
         ])
 
+        // The response handler and the stream-status handler can both want to
+        // resolve the call (success on the response side, non-OK close on the
+        // status side). Funnel both through a single-shot so the wrapped
+        // continuation in `Client+Transaction` never gets resumed twice.
+        let resolve = OneShotCompletion(completion)
+
         guard toMint.vmMetadata != nil else {
             logger.error("Destination mint missing VM metadata", metadata: [
                 "symbol": "\(toMint.symbol)",
             ])
-            completion(.failure(.invalidSwap))
+            resolve(.failure(.invalidSwap))
             return
         }
 
@@ -72,7 +78,7 @@ extension SwapService {
                     guard let serverParameters = StatelessSwapServerParameters(stableServer) else {
                         logger.error("Failed to parse stateless swap server parameters")
                         _ = reference.stream?.sendEnd()
-                        completion(.failure(.unknown))
+                        resolve(.failure(.unknown))
                         return
                     }
 
@@ -101,14 +107,14 @@ extension SwapService {
                 case .none:
                     logger.error("Stateless swap server parameters missing kind")
                     _ = reference.stream?.sendEnd()
-                    completion(.failure(.unknown))
+                    resolve(.failure(.unknown))
                 }
 
             case .success(let success):
                 guard let signature = try? Signature(success.transactionSignature.value) else {
                     logger.error("Stateless swap success missing valid signature")
                     _ = reference.stream?.sendEnd()
-                    completion(.failure(.unknown))
+                    resolve(.failure(.unknown))
                     return
                 }
 
@@ -119,17 +125,17 @@ extension SwapService {
                         "signature": "\(signature.base58)",
                     ])
                     _ = reference.stream?.sendEnd()
-                    completion(.success(.finalized(signature: signature)))
+                    resolve(.success(.finalized(signature: signature)))
                 case .submitted:
                     logger.error("Stateless swap returned submitted but finalization was requested", metadata: [
                         "signature": "\(signature.base58)",
                     ])
                     _ = reference.stream?.sendEnd()
-                    completion(.failure(.unknown))
+                    resolve(.failure(.unknown))
                 case .UNRECOGNIZED:
                     logger.error("Stateless swap success returned unrecognized code")
                     _ = reference.stream?.sendEnd()
-                    completion(.failure(.unknown))
+                    resolve(.failure(.unknown))
                 }
 
             case .error(let error):
@@ -139,12 +145,12 @@ extension SwapService {
                 ])
 
                 _ = reference.stream?.sendEnd()
-                completion(.failure(ErrorStatelessSwap(error: error)))
+                resolve(.failure(ErrorStatelessSwap(error: error)))
 
             case .none:
                 logger.error("Stateless swap received empty response from server")
                 _ = reference.stream?.sendEnd()
-                completion(.failure(.unknown))
+                resolve(.failure(.unknown))
             }
         }
 
@@ -158,13 +164,13 @@ extension SwapService {
                         "code": "\(status.code)",
                         "message": "\(status.message ?? "nil")",
                     ])
-                    completion(.failure(.grpcStatus(status)))
+                    resolve(.failure(.grpcStatus(status)))
                 }
             case .failure(let error):
                 logger.error("Stateless swap stream closed with gRPC error", metadata: [
                     "error": "\(error)",
                 ])
-                completion(.failure(.grpcError(error)))
+                resolve(.failure(.grpcError(error)))
             }
 
             reference.release()
@@ -187,5 +193,25 @@ extension SwapService {
         }
 
         _ = reference.stream?.sendMessage(initiate)
+    }
+}
+
+/// Wraps an async completion so it can only fire once. Used to funnel the
+/// response handler and the stream-status handler into the same `Result`
+/// without double-resuming the upstream continuation.
+private final class OneShotCompletion: @unchecked Sendable {
+    private let lock = NSLock()
+    private var completion: ((Result<StatelessSwapResult, ErrorStatelessSwap>) -> Void)?
+
+    init(_ completion: @escaping @Sendable (Result<StatelessSwapResult, ErrorStatelessSwap>) -> Void) {
+        self.completion = completion
+    }
+
+    func callAsFunction(_ result: Result<StatelessSwapResult, ErrorStatelessSwap>) {
+        lock.lock()
+        let pending = completion
+        completion = nil
+        lock.unlock()
+        pending?(result)
     }
 }
