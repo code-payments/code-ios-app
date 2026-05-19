@@ -99,14 +99,14 @@ actor UsdcSweepOperation {
             logger.error("USDC sweep failed", metadata: [
                 "error": "\(error)",
             ])
-            ErrorReporting.captureError(error, reason: "USDC sweep failed")
+            await ErrorReporting.captureError(error, reason: "USDC sweep failed")
         }
     }
 }
 
 /// Thread-safe cancellation flag shared between the actor's async `run()` and
 /// the synchronous `nonisolated cancel()` (called from `logout()`).
-private final class SweepCancellation: @unchecked Sendable {
+private nonisolated final class SweepCancellation: @unchecked Sendable {
     private let lock = NSLock()
     private var cancelled = false
 
