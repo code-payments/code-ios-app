@@ -200,7 +200,7 @@ extension Client {
         owner: KeyPair
     ) async throws -> StatelessSwapResult {
         try await withCheckedThrowingContinuation { c in
-            transactionService.swapService.statelessSwap(
+            transactionService.statelessSwap(
                 fromMint: fromMint,
                 toMint: toMint,
                 amount: amount,

@@ -469,6 +469,24 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
         }
     }
 
+    /// Runs a stateless USDC ↔ USDF swap via Coinbase Stable Swapper. Used by
+    /// the on-app-open auto-sweep.
+    func statelessSwap(
+        fromMint: MintMetadata,
+        toMint: MintMetadata,
+        amount: TokenAmount,
+        owner: KeyPair,
+        completion: @Sendable @escaping (Result<StatelessSwapResult, ErrorStatelessSwap>) -> Void
+    ) {
+        swapService.statelessSwap(
+            fromMint: fromMint,
+            toMint: toMint,
+            amount: amount,
+            owner: owner,
+            completion: completion
+        )
+    }
+
     /// A sell is a swap from token to USDF
     func sell(amount: ExchangedFiat, verifiedState: VerifiedState, in token: MintMetadata, owner: AccountCluster, completion: @Sendable @escaping (Result<SwapId, ErrorSwap>) -> Void) {
         logger.info("Starting sell", metadata: [
