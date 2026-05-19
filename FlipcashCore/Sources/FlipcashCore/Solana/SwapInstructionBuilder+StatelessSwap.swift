@@ -20,9 +20,9 @@ extension SwapInstructionBuilder {
     /// ```
     ///
     /// Used by the on-app-open USDC → USDF sweep: source is the owner's plain
-    /// USDC ATA (the deposit target shown on `USDCDepositAddressScreen`),
-    /// destination is the owner's USDF VM Deposit ATA (Geyser-monitored — once
-    /// funds land there, the server-side watcher transfers them into the USDF VM).
+    /// USDC ATA, destination is the owner's USDF VM Deposit ATA (Geyser-monitored
+    /// — once funds land there, the server-side watcher transfers them into
+    /// the USDF VM).
     ///
     /// - Parameters:
     ///   - serverParameters: Server-provided swap parameters.

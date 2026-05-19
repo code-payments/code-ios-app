@@ -11,19 +11,15 @@ import FlipcashCore
 
 struct DepositScreen: View {
     @State private var buttonState: ButtonState = .normal
-    
-    private let cluster: AccountCluster
+
+    private let address: String
     private let name: String?
-    
-    // MARK: - Init -
-    
-    init(cluster: AccountCluster, name: String?) {
-        self.cluster = cluster
-        self.name    = name
+
+    init(address: String, name: String?) {
+        self.address = address
+        self.name = name
     }
-    
-    // MARK: - Body -
-    
+
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(alignment: .leading, spacing: 20) {
@@ -32,15 +28,15 @@ struct DepositScreen: View {
                     .foregroundStyle(.textSecondary)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
-                
+
                 Button {
                     copyAddress()
                 } label: {
-                    ImmutableField(cluster.depositPublicKey.base58)
+                    ImmutableField(address)
                 }
-                
+
                 Spacer()
-                
+
                 CodeButton(
                     state: buttonState,
                     style: .filled,
@@ -50,14 +46,12 @@ struct DepositScreen: View {
             }
             .padding(20)
         }
-        .navigationTitle("Deposit\(name != nil ? " \(name!)" : "")")
+        .navigationTitle(name.map { "Deposit \($0)" } ?? "Deposit")
         .navigationBarTitleDisplayMode(.inline)
     }
-    
-    // MARK: - Actions -
-    
+
     private func copyAddress() {
-        UIPasteboard.general.string = cluster.depositPublicKey.base58
+        UIPasteboard.general.string = address
         buttonState = .successText("Copied")
     }
 }
