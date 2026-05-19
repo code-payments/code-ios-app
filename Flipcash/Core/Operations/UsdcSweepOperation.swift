@@ -6,7 +6,7 @@
 import Foundation
 import FlipcashCore
 
-private nonisolated let logger = Logger(label: "flipcash.usdc-sweep-operation")
+private nonisolated let logger = Logger(label: "flipcash.usdc-sweep")
 
 /// Converts the user's USDC ATA balance into USDF via `StatelessSwap`.
 /// Re-entrant invocations while a sweep is in flight are skipped.
