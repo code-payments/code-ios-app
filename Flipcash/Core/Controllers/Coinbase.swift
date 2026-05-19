@@ -171,7 +171,9 @@ public nonisolated struct OnrampErrorResponse: Error, Decodable, Sendable {
                     return "Weekly Limit Exceeded"
                 case .transactionCount:
                     return "Maximum Purchases Reached"
-                case .cardRiskDeclined, .permissionDenied:
+                case .cardRiskDeclined:
+                    return "Couldn't Use This Card"
+                case .permissionDenied:
                     return "Something Went Wrong"
                 case .guestTransactionSendFailed, .invalidRequest:
                     return "Something Went Wrong"
@@ -202,7 +204,9 @@ public nonisolated struct OnrampErrorResponse: Error, Decodable, Sendable {
                     return "You can only add up to $1,000 per week"
                 case .transactionCount:
                     return "Each user is limited to 15 purchases total."
-                case .cardRiskDeclined, .permissionDenied:
+                case .cardRiskDeclined:
+                    return "Please try again with a different debit card."
+                case .permissionDenied:
                     return "Something went wrong. Please contact support"
                 case .guestRegionMismatch, .guestRegionForbidden, .networkNotTradable:
                     return "This feature isn't currently available in your region"
@@ -228,6 +232,14 @@ public nonisolated struct OnrampErrorResponse: Error, Decodable, Sendable {
         public init(from decoder: Decoder) throws {
             let container = try decoder.singleValueContainer()
             let rawValue = try container.decode(String.self)
+            self = ErrorType(coinbaseCode: rawValue)
+        }
+
+        /// Maps a raw Coinbase error code (`"ERROR_CODE_..."` or the bare
+        /// suffix Coinbase sometimes emits) onto a typed `ErrorType`. Used
+        /// by the HTTP-response decoder and by the Apple Pay WebView event
+        /// handler so both paths surface the same title/subtitle pair.
+        public init(coinbaseCode rawValue: String) {
             self = (
                 ErrorType(rawValue: rawValue.uppercased()) ??
                 ErrorType(rawValue: "ERROR_CODE_\(rawValue.uppercased())")

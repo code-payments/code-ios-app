@@ -75,7 +75,18 @@ nonisolated enum FundingOperationError: Error, Equatable, Sendable {
     case userCancelled
     case requirementUnsatisfied(FundingRequirement)
     case insufficientBalance
-    case serverRejected(String)
+    /// An external resource (Coinbase, Phantom, the chain) rejected the
+    /// operation in an expected, user-facing way (card declined, region
+    /// blocked, user rejected in wallet). Carries pre-built dialog strings
+    /// so call sites can render directly. Not reported to Bugsnag — these
+    /// happen by design.
+    case externalRejected(title: String, subtitle: String)
+    /// A defensive precondition fired or an external contract was violated
+    /// (missing field a caller should have guarded, malformed response from
+    /// Coinbase/Phantom). Renders the generic "Something Went Wrong" dialog
+    /// via the catch-all and falls through to Bugsnag — if this fires it's
+    /// a bug or an API contract change worth investigating.
+    case unexpectedFailure(reason: String)
     case chainSubmitFailed(String)
 }
 

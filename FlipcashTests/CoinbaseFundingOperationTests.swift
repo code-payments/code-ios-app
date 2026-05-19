@@ -111,12 +111,12 @@ struct CoinbaseFundingOperationTests {
         #expect(env.session.launchCurrencyCalls.isEmpty, "launchCurrency must not run when preLaunchedMint is set")
     }
 
-    @Test("Launch missing attestations throws serverRejected before reaching the order step")
+    @Test("Launch missing attestations throws unexpectedFailure before reaching the order step")
     func launch_missingAttestations_throws() async {
         let env = Env()
         let payment = PaymentOperation.launch(.fixture(attestations: nil))
 
-        await #expect(throws: FundingOperationError.serverRejected("Missing launch attestations")) {
+        await #expect(throws: FundingOperationError.unexpectedFailure(reason: "Missing launch attestations")) {
             try await env.op.start(payment)
         }
         #expect(env.session.launchCurrencyCalls.isEmpty)
@@ -139,22 +139,26 @@ struct CoinbaseFundingOperationTests {
     // MARK: - Apple Pay terminal events
 
     @Test(
-        "Apple Pay terminal error events throw serverRejected carrying Coinbase's errorMessage",
+        "Apple Pay terminal error events map errorCode to OnrampErrorResponse.ErrorType and throw externalRejected",
         arguments: [
-            (ApplePayEvent.Event.pollingError, "Card declined"),
-            (ApplePayEvent.Event.commitError, "Auth failed"),
+            (ApplePayEvent.Event.pollingError, "ERROR_CODE_GUEST_REGION_MISMATCH"),
+            (ApplePayEvent.Event.commitError, "ERROR_CODE_GUEST_CARD_RISK_DECLINED"),
         ]
     )
-    func applePayTerminalError_throwsServerRejected(event: ApplePayEvent.Event, message: String) async throws {
+    func applePayTerminalError_throwsExternalRejected(event: ApplePayEvent.Event, code: String) async throws {
         let env = Env()
         env.session.buyWithCoinbaseOnrampHandler = { _, _, _ in .generate() }
 
         let payment = PaymentOperation.buy(.fixture())
         let task = Task { try await env.op.start(payment) }
         try await waitUntil(env.op) { $0.state == .awaitingExternal(.applePay) }
-        env.coinbaseService.receiveApplePayEvent(.fixture(event, errorMessage: message))
+        env.coinbaseService.receiveApplePayEvent(.fixture(event, errorCode: code))
 
-        await #expect(throws: FundingOperationError.serverRejected(message)) {
+        let expectedType = OnrampErrorResponse.ErrorType(coinbaseCode: code)
+        await #expect(throws: FundingOperationError.externalRejected(
+            title: expectedType.title,
+            subtitle: expectedType.subtitle
+        )) {
             try await task.value
         }
         #expect(env.op.state == .idle)
@@ -177,8 +181,8 @@ struct CoinbaseFundingOperationTests {
 
     // MARK: - createOrder failures
 
-    @Test("createOrder throwing a generic error surfaces as serverRejected")
-    func createOrder_genericError_throwsServerRejected() async {
+    @Test("createOrder throwing a generic error surfaces as externalRejected")
+    func createOrder_genericError_throwsExternalRejected() async {
         let env = Env()
         env.ordering.createOrderHandler = { _ in throw SentinelError.boom }
         let payment = PaymentOperation.buy(.fixture())
@@ -188,14 +192,17 @@ struct CoinbaseFundingOperationTests {
         }
     }
 
-    @Test("createOrder throwing OnrampErrorResponse propagates the subtitle into serverRejected")
-    func createOrder_onrampErrorResponse_propagatesSubtitle() async throws {
+    @Test("createOrder throwing OnrampErrorResponse propagates title and subtitle into externalRejected")
+    func createOrder_onrampErrorResponse_propagatesTitleAndSubtitle() async throws {
         let env = Env()
         let errorResponse = try OnrampErrorResponse.fixture(errorType: "ERROR_CODE_GUEST_INVALID_CARD")
         env.ordering.createOrderHandler = { _ in throw errorResponse }
         let payment = PaymentOperation.buy(.fixture())
 
-        await #expect(throws: FundingOperationError.serverRejected(errorResponse.subtitle)) {
+        await #expect(throws: FundingOperationError.externalRejected(
+            title: errorResponse.title,
+            subtitle: errorResponse.subtitle
+        )) {
             try await env.op.start(payment)
         }
     }

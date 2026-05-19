@@ -102,6 +102,22 @@ extension DialogItem {
         }
     }
 
+    /// Renders a destructive dialog from a
+    /// `FundingOperationError.externalRejected(title:subtitle:)` payload —
+    /// e.g. Coinbase's `ERROR_CODE_GUEST_REGION_MISMATCH` ("Your Region
+    /// Isn't Supported") or a Phantom wallet rejection. The funding
+    /// operation builds the strings; the call site just binds them.
+    static func externalRejection(title: String, subtitle: String) -> DialogItem {
+        .init(
+            style: .destructive,
+            title: title,
+            subtitle: subtitle,
+            dismissable: true
+        ) {
+            .okay(kind: .destructive)
+        }
+    }
+
     /// Coinbase Onramp rejects orders below `CoinbaseFundingOperation.minimumPurchaseUSD`
     /// with a generic error; surface the constraint up-front instead of letting
     /// the user round-trip to Apple Pay. `minimum` is the USD floor already

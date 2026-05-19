@@ -85,7 +85,7 @@ struct ReservesFundingOperationTests {
         #expect(session.buyNewCurrencyCalls.first?.mint == mintedKey)
     }
 
-    @Test("Launch without attestations throws serverRejected")
+    @Test("Launch without attestations throws unexpectedFailure")
     func launch_missingAttestations_throws() async {
         let session = MockSession()
         let op = ReservesFundingOperation(session: session)
@@ -98,13 +98,15 @@ struct ReservesFundingOperationTests {
             verifiedState: .fresh()
         )
 
-        await #expect(throws: FundingOperationError.self) {
+        // Asserts the specific case — flipping to `.externalRejected` here
+        // would silently disable Bugsnag for this defensive precondition.
+        await #expect(throws: FundingOperationError.unexpectedFailure(reason: "Missing launch attestations")) {
             try await op.start(.launch(payload))
         }
         #expect(session.launchCurrencyCalls.isEmpty)
     }
 
-    @Test("Launch without verifiedState throws serverRejected")
+    @Test("Launch without verifiedState throws unexpectedFailure")
     func launch_missingVerifiedState_throws() async {
         let session = MockSession()
         let op = ReservesFundingOperation(session: session)
@@ -117,7 +119,7 @@ struct ReservesFundingOperationTests {
             verifiedState: nil
         )
 
-        await #expect(throws: FundingOperationError.self) {
+        await #expect(throws: FundingOperationError.unexpectedFailure(reason: "Missing verified state")) {
             try await op.start(.launch(payload))
         }
         #expect(session.launchCurrencyCalls.isEmpty)

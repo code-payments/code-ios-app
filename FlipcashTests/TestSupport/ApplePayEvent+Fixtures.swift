@@ -9,15 +9,20 @@ import Foundation
 extension ApplePayEvent {
 
     /// Builds a synthetic event the WebView would otherwise have decoded
-    /// from Coinbase's onramp postMessage payload. `errorMessage` populates
-    /// `EventData.errorMessage` so tests can assert it propagates into the
-    /// thrown `serverRejected(_:)`.
+    /// from Coinbase's onramp postMessage payload. `errorCode` and
+    /// `errorMessage` populate `EventData` so tests can assert how the
+    /// error path maps Coinbase's raw code onto `OnrampErrorResponse.ErrorType`
+    /// before throwing `externalRejected(title:subtitle:)`.
     static func fixture(
         _ event: ApplePayEvent.Event,
+        errorCode: String? = nil,
         errorMessage: String? = nil
     ) -> ApplePayEvent {
-        let data: ApplePayEvent.EventData? = errorMessage.map {
-            .init(errorCode: nil, errorMessage: $0)
+        let data: ApplePayEvent.EventData?
+        if errorCode == nil && errorMessage == nil {
+            data = nil
+        } else {
+            data = .init(errorCode: errorCode, errorMessage: errorMessage)
         }
         return ApplePayEvent(name: event.rawValue, data: data)
     }

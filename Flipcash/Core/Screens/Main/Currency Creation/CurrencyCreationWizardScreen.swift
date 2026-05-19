@@ -698,6 +698,15 @@ struct CurrencyCreationWizardScreen: View {
                 captureCreatedMint(operation.launchedMint, name: displayName)
                 presentInsufficientFundsDialog(totalLaunchCost: totalLaunchCost)
                 return
+            } catch let FundingOperationError.externalRejected(title, subtitle) {
+                if Task.isCancelled { return }
+                captureCreatedMint(operation.launchedMint, name: displayName)
+                logger.error("Reserves-funded launch rejected", metadata: [
+                    "title": "\(title)",
+                    "mint": "\(operation.launchedMint?.base58 ?? "nil")",
+                ])
+                errorDialog = makeDestructiveDialog(title: title, subtitle: subtitle)
+                return
             } catch {
                 if Task.isCancelled { return }
                 captureCreatedMint(operation.launchedMint, name: displayName)
@@ -849,6 +858,13 @@ struct CurrencyCreationWizardScreen: View {
                     title: "Image Is Invalid",
                     subtitle: "Please pick a different image."
                 )
+            } catch let FundingOperationError.externalRejected(title, subtitle) {
+                captureCreatedMint(operation.launchedMint, name: state.currencyName)
+                logger.error("Phantom-funded launch rejected", metadata: [
+                    "title": "\(title)",
+                    "mint": "\(operation.launchedMint?.base58 ?? "nil")",
+                ])
+                errorDialog = makeDestructiveDialog(title: title, subtitle: subtitle)
             } catch {
                 captureCreatedMint(operation.launchedMint, name: state.currencyName)
                 logger.error("Phantom-funded launch failed", metadata: [
@@ -931,6 +947,13 @@ struct CurrencyCreationWizardScreen: View {
                     title: "Image Is Invalid",
                     subtitle: "Please pick a different image."
                 )
+            } catch let FundingOperationError.externalRejected(title, subtitle) {
+                captureCreatedMint(operation.launchedMint, name: state.currencyName)
+                logger.error("Coinbase-funded launch rejected", metadata: [
+                    "title": "\(title)",
+                    "mint": "\(operation.launchedMint?.base58 ?? "nil")",
+                ])
+                errorDialog = makeDestructiveDialog(title: title, subtitle: subtitle)
             } catch {
                 captureCreatedMint(operation.launchedMint, name: state.currencyName)
                 logger.error("Coinbase-funded launch failed", metadata: [
