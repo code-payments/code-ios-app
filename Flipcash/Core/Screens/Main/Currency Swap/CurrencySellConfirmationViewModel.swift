@@ -116,12 +116,7 @@ class CurrencySellConfirmationViewModel {
             subtitle = "We couldn't complete your sale. Please try again or contact support at support@flipcash.com if the issue persists."
         }
 
-        dialogItem = .init(
-            style: .destructive,
-            title: title,
-            subtitle: subtitle,
-            dismissable: true
-        ) {
+        dialogItem = .error(title: title, subtitle: subtitle) {
             .okay(kind: .destructive) { [weak self] in
                 self?.actionButtonState = .normal
             }

@@ -175,7 +175,7 @@ struct Regression_native_amount_mismatch {
         await vm.amountEnteredAction(router: router)
 
         #expect(vm.pendingOperation == nil)
-        #expect(vm.dialogItem?.title == DialogItem.staleRate.title)
+        #expect(vm.dialogItem?.title == "Rate Unavailable")
     }
 
     // MARK: - Scenario E (sell)

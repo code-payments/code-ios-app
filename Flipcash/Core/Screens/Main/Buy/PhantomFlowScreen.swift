@@ -56,7 +56,7 @@ struct PhantomFlowScreen: View {
         // transition.
         .onChange(of: fundingOperation.lastErrorMessage) { _, newMessage in
             guard newMessage != nil else { return }
-            session.dialogItem = .walletCancelled
+            session.dialogItem = .alert(title: "Transaction Cancelled", subtitle: "The transaction was cancelled in your wallet")
         }
         .onChange(of: fundingOperation.state) { _, newState in
             // Set on either gate that proves we've passed the connect step

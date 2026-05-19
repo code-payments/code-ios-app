@@ -49,4 +49,21 @@ struct DialogItemFactoryTests {
         #expect(item.actions[0].title == "A")
         #expect(item.actions[1].title == "Cancel")
     }
+
+    @Test(".success produces an untracked success-style item that is not dismissable by default")
+    func success_defaults_untrackedNonDismissable() {
+        let item = DialogItem.success(title: "x", subtitle: "y")
+        #expect(item.style == .success)
+        #expect(item.tracked == false)
+        #expect(item.dismissable == false)
+    }
+
+    @Test("dismissable parameter overrides the factory default")
+    func dismissable_parameter_overridesDefault() {
+        let nonDismissableError = DialogItem.error(title: "x", subtitle: "y", dismissable: false)
+        #expect(nonDismissableError.dismissable == false)
+
+        let dismissableSuccess = DialogItem.success(title: "x", subtitle: "y", dismissable: true)
+        #expect(dismissableSuccess.dismissable == true)
+    }
 }

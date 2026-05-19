@@ -480,23 +480,13 @@ final class VerificationViewModel: Identifiable {
         subtitle: String,
         action: @escaping DialogAction.DialogActionHandler = {}
     ) {
-        dialogItem = .init(
-            style: .destructive,
-            title: title,
-            subtitle: subtitle,
-            dismissable: true,
-        ) {
+        dialogItem = .error(title: title, subtitle: subtitle) {
             .okay(kind: .destructive, action: action)
         }
     }
 
     private func presentResendOrCancelDialog(title: String, subtitle: String, resendAction: @escaping () -> Void) {
-        dialogItem = .init(
-            style: .destructive,
-            title: title,
-            subtitle: subtitle,
-            dismissable: true,
-        ) {
+        dialogItem = .error(title: title, subtitle: subtitle) {
             .destructive("Resend Verification Code") {
                 resendAction()
             };

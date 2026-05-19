@@ -38,11 +38,9 @@ struct SettingsMyAccountScreen: View {
         VStack(alignment: .leading, spacing: 0) {
 
             SettingsRow(asset: .key, title: "Access Key", insets: insets) {
-                dialogItem = .init(
-                    style: .destructive,
+                dialogItem = .alert(
                     title: "View Your Access Key?",
-                    subtitle: "Your Access Key will grant access to your Flipcash account. Keep it private and safe",
-                    dismissable: true
+                    subtitle: "Your Access Key will grant access to your Flipcash account. Keep it private and safe"
                 ) {
                     DialogAction.destructive("View Access Key") {
                         router.push(.accessKey)
@@ -52,11 +50,9 @@ struct SettingsMyAccountScreen: View {
             }
 
             SettingsRow(asset: .logout, title: "Log Out", insets: insets) {
-                dialogItem = .init(
-                    style: .destructive,
+                dialogItem = .alert(
                     title: "Are You Sure You Want To Log Out?",
-                    subtitle: "You can get into this account using your Access Key",
-                    dismissable: true
+                    subtitle: "You can get into this account using your Access Key"
                 ) {
                     DialogAction.destructive("Log Out") {
                         logout()
@@ -66,11 +62,9 @@ struct SettingsMyAccountScreen: View {
             }
 
             SettingsRow(asset: .delete, title: "Delete Account", insets: insets) {
-                dialogItem = .init(
-                    style: .destructive,
+                dialogItem = .alert(
                     title: "Permanently Delete Account?",
-                    subtitle: "This will permanently delete your Flipcash account",
-                    dismissable: true
+                    subtitle: "This will permanently delete your Flipcash account"
                 ) {
                     DialogAction.destructive("Permanently Delete Account") {
                         deleteAccount()

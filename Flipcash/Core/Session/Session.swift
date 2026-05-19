@@ -361,21 +361,17 @@ class Session {
     // MARK: - Login -
     
     func attemptLogin(with mnemonic: MnemonicPhrase, completion: @escaping () async throws -> Void) {
-        dialogItem = .init(
-            style: .destructive,
+        dialogItem = .alert(
             title: "Log In?",
-            subtitle: "You're already logged into an account. Please ensure you have saved your Access Key before proceeding. Would you like to logout and login with a new account?",
-            dismissable: true,
-            actions: {
-                .destructive("Log Out & Log In") {
-                    Task {
-                        try await completion()
-                    }
-                };
-                
-                .cancel()
-            }
-        )
+            subtitle: "You're already logged into an account. Please ensure you have saved your Access Key before proceeding. Would you like to logout and login with a new account?"
+        ) {
+            .destructive("Log Out & Log In") {
+                Task {
+                    try await completion()
+                }
+            };
+            .cancel()
+        }
     }
     
     // MARK: - Lifecycle -
@@ -987,7 +983,7 @@ class Session {
                     successful: false,
                     error: error
                 )
-                dialogItem = .somethingWentWrong
+                dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
                 completion(.failed)
             }
         }
@@ -1024,7 +1020,7 @@ class Session {
                         "mint": "\(exchangedFiat.mint.base58)",
                     ])
                     assertionFailure("Outgoing BillDescription must carry a pinned VerifiedState")
-                    self.dialogItem = .somethingWentWrong
+                    self.dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
                     return
                 }
 
@@ -1067,7 +1063,7 @@ class Session {
                     // (e.g. gRPC stream finally giving up minutes later) so they
                     // don't fire dialogs on unrelated bills the user has moved on to.
                     if self.isShowingBill && self.sendOperation === operation {
-                        self.dialogItem = .somethingWentWrong
+                        self.dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
                     }
                 }
             }
@@ -1138,7 +1134,7 @@ class Session {
             } catch {
                 // Diagnostics + ErrorReporting happen inside SendCashOperation.
                 self?.dismissCashBill(style: .slide)
-                self?.dialogItem = .cashReturned
+                self?.dialogItem = .error(title: "Something Went Wrong", subtitle: "The cash was returned to your wallet")
 
                 Analytics.transfer(
                     event: .giveBill,
@@ -1189,29 +1185,24 @@ class Session {
             
             var confirmationDialog: DialogItem?
             
-            confirmationDialog = .init(
-                style: .success,
+            confirmationDialog = .success(
                 title: "Did You Send The Link?",
-                subtitle: "Any cash that isn't collected within 7 days will be automatically returned to your balance",
-                dismissable: false,
+                subtitle: "Any cash that isn't collected within 7 days will be automatically returned to your balance"
             ) {
                 .standard("Yes") {
                     hideBillActions()
                     completeSend()
                 };
-                
                 .subtle("No, Cancel Send") {
-                    self.dialogItem = .init(
-                        style: .destructive,
+                    self.dialogItem = .alert(
                         title: "Are You Sure?",
                         subtitle: "Anyone you sent the link to won't be able to collect the cash",
-                        dismissable: false,
+                        dismissable: false
                     ) {
                         .destructive("Yes") {
                             hideBillActions()
                             cancelSend()
                         };
-                        
                         .subtle("Nevermind") {
                             self.dialogItem = confirmationDialog
                         }
@@ -1352,7 +1343,7 @@ class Session {
                         "claimState": "\(giftCardAccountInfo.claimState)",
                         "giftCardAuthority": "\(giftCardKeyPair.publicKey.base58)",
                     ])
-                    dialogItem = .cashLinkNotAvailable
+                    dialogItem = .error(title: "Cash Already Collected", subtitle: "This cash has already been collected, or was cancelled by the sender")
                     return
                 }
 
@@ -1362,19 +1353,23 @@ class Session {
                         "currency": "\(exchangedFiat.currencyRate.currency.rawValue)",
                     ])
                     let giftCardAuthority = giftCardKeyPair.publicKey
-                    dialogItem = .collectOwnCashConfirmation(
-                        onConfirm: { [weak self] in
+                    dialogItem = .alert(
+                        title: "Collect Your Own Cash?",
+                        subtitle: "You tapped to collect the cash you sent. Are you sure you want to collect it yourself?",
+                        dismissable: false
+                    ) {
+                        .destructive("Collect") { [weak self] in
                             logger.info("Cash link self-claim confirmed", metadata: [
                                 "giftCardAuthority": "\(giftCardAuthority.base58)",
                             ])
                             self?.receiveCashLink(mnemonic: mnemonic, claimIfOwned: true)
-                        },
-                        onCancel: {
+                        };
+                        .subtle("Don't Collect") {
                             logger.info("Cash link self-claim cancelled", metadata: [
                                 "giftCardAuthority": "\(giftCardAuthority.base58)",
                             ])
                         }
-                    )
+                    }
                     return
                 }
 
@@ -1478,7 +1473,7 @@ class Session {
                 logger.info("Cash link already claimed (server race)", metadata: [
                     "giftCardAuthority": "\(giftCardKeyPair.publicKey.base58)",
                 ])
-                dialogItem = .cashLinkNotAvailable
+                dialogItem = .error(title: "Cash Already Collected", subtitle: "This cash has already been collected, or was cancelled by the sender")
                 Analytics.transfer(
                     event: .receiveCashLink,
                     exchangedFiat: nil,
@@ -1493,7 +1488,7 @@ class Session {
                 logger.info("Cash link denied by guard", metadata: [
                     "giftCardAuthority": "\(giftCardKeyPair.publicKey.base58)",
                 ])
-                dialogItem = .somethingWentWrong
+                dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
                 Analytics.transfer(
                     event: .receiveCashLink,
                     exchangedFiat: nil,
@@ -1517,9 +1512,9 @@ class Session {
                 )
 
                 if error is ErrorFetchBalance {
-                    dialogItem = .cashLinkConnectionError
+                    dialogItem = .error(title: "Unable to Find Cash", subtitle: "Please check your connection and try again")
                 } else {
-                    dialogItem = .somethingWentWrong
+                    dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
                 }
             }
         }

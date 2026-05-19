@@ -68,7 +68,7 @@ class CurrencySellViewModel: Identifiable {
 
         Task {
             guard let (amount, pin) = await prepareSubmission() else {
-                dialogItem = .staleRate
+                dialogItem = .error(title: "Rate Unavailable", subtitle: "Couldn't get a fresh rate. Please try again.")
                 return
             }
             path.append(.confirmation(amount: amount, pinnedState: pin))

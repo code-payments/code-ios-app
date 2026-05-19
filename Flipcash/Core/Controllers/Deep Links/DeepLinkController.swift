@@ -235,9 +235,15 @@ struct DeepLinkAction {
                 if sheet == .give {
                     let rate = container.ratesController.rateForBalanceCurrency()
                     guard container.session.hasGiveableBalance(for: rate) else {
-                        container.session.dialogItem = .noGiveableBalance(
-                            onDiscover: { container.appRouter.present(.discover) }
-                        )
+                        container.session.dialogItem = .info(
+                            title: "No Balance Yet",
+                            subtitle: "Buy a currency to get started, or get another Flipcash user to give you some cash"
+                        ) {
+                            .standard("Discover Currencies") {
+                                container.appRouter.present(.discover)
+                            };
+                            .cancel()
+                        }
                         return
                     }
                 }

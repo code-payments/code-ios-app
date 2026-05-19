@@ -69,11 +69,9 @@ struct TransactionHistoryScreen: View {
     }
 
     private func cancelCashLinkAction(activity: Activity, metadata: Activity.CashLinkMetadata) {
-        dialogItem = .init(
-            style: .destructive,
+        dialogItem = .alert(
             title: "Cancel \(activity.exchangedFiat.nativeAmount.formatted()) Transfer?",
-            subtitle: "The money will be returned to your wallet.",
-            dismissable: true
+            subtitle: "The money will be returned to your wallet."
         ) {
             .destructive("Cancel Transfer") {
                 cancelCashLink(metadata: metadata)
@@ -90,14 +88,10 @@ struct TransactionHistoryScreen: View {
                 ErrorReporting.captureError(error, reason: "Failed to cancel cash link", metadata: [
                     "vault": metadata.vault.base58,
                 ])
-                dialogItem = .init(
-                    style: .destructive,
+                dialogItem = .error(
                     title: "Failed to Cancel Transfer",
-                    subtitle: "Something went wrong. Please try again later",
-                    dismissable: true
-                ) {
-                    .okay(kind: .destructive)
-                }
+                    subtitle: "Something went wrong. Please try again later"
+                )
             }
         }
     }

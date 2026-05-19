@@ -357,18 +357,15 @@ class WithdrawViewModel {
     }
 
     func completeWithdrawalAction() {
-        dialogItem = .init(
-            style: .destructive,
+        dialogItem = .alert(
             title: "Are You Sure?",
-            subtitle: "Withdrawals are irreversible and cannot be undone once initiated",
-            dismissable: true,
-            actions: {
-                .destructive("Yes, Withdraw") { [weak self] in
-                    self?.completeWithdrawal()
-                };
-                .cancel()
-            }
-        )
+            subtitle: "Withdrawals are irreversible and cannot be undone once initiated"
+        ) {
+            .destructive("Yes, Withdraw") { [weak self] in
+                self?.completeWithdrawal()
+            };
+            .cancel()
+        }
     }
 
     private func completeWithdrawal() {
@@ -378,7 +375,7 @@ class WithdrawViewModel {
         Task {
             guard let (amountToWithdraw, verifiedState) = await prepareSubmission() else {
                 withdrawButtonState = .normal
-                dialogItem = .staleRate
+                dialogItem = .error(title: "Rate Unavailable", subtitle: "Couldn't get a fresh rate. Please try again.")
                 return
             }
 
@@ -401,7 +398,7 @@ class WithdrawViewModel {
                 case .usdfToUsdc:
                     guard let destinationOwner = enteredDestination else {
                         withdrawButtonState = .normal
-                        dialogItem = .somethingWentWrong
+                        dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
                         return
                     }
                     _ = try await client.withdrawAsUSDC(
@@ -422,7 +419,7 @@ class WithdrawViewModel {
 
             } catch Session.Error.verifiedStateStale {
                 withdrawButtonState = .normal
-                dialogItem = .staleRate
+                dialogItem = .error(title: "Rate Unavailable", subtitle: "Couldn't get a fresh rate. Please try again.")
             } catch {
                 // .usdfToUsdc bypasses Session and reports/emits analytics here;
                 // .sameMint flows through Session.withdraw, which owns both.
@@ -445,7 +442,7 @@ class WithdrawViewModel {
                     break
                 }
                 withdrawButtonState = .normal
-                dialogItem = .somethingWentWrong
+                dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
             }
         }
     }
@@ -482,11 +479,9 @@ class WithdrawViewModel {
     // MARK: - Dialogs -
 
     private func showSuccessfulWithdrawalDialog() {
-        dialogItem = .init(
-            style: .success,
+        dialogItem = .success(
             title: "Withdrawal Successful",
-            subtitle: "Your withdrawal has been processed. It may take a few minutes for your funds to show up in your destination wallet.",
-            dismissable: false
+            subtitle: "Your withdrawal has been processed. It may take a few minutes for your funds to show up in your destination wallet."
         ) {
             .okay(kind: .standard) { [weak self] in
                 self?.onComplete()
@@ -495,22 +490,16 @@ class WithdrawViewModel {
     }
 
     private func showInsufficientBalanceError() {
-        dialogItem = .init(
-            style: .destructive,
+        dialogItem = .error(
             title: "Insufficient Balance",
-            subtitle: "Please enter a lower amount and try again",
-            dismissable: true
-        ) {
-            .okay(kind: .destructive)
-        }
+            subtitle: "Please enter a lower amount and try again"
+        )
     }
 
     private func showWithdrawalTooSmallError() {
-        dialogItem = .init(
-            style: .destructive,
+        dialogItem = .error(
             title: "Withdrawal Amount Too Small",
-            subtitle: "Your withdrawal amount is too small to cover the fee. Please try a different amount",
-            dismissable: true
+            subtitle: "Your withdrawal amount is too small to cover the fee. Please try a different amount"
         ) {
             .okay(kind: .standard)
         }
