@@ -81,9 +81,7 @@ actor UsdcSweepOperation {
             logger.error("USDC sweep failed", metadata: [
                 "error": "\(error)",
             ])
-            await MainActor.run {
-                ErrorReporting.captureError(error, reason: "USDC sweep failed")
-            }
+            ErrorReporting.captureError(error, reason: "USDC sweep failed")
         }
     }
 }
