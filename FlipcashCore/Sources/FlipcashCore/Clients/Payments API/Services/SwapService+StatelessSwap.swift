@@ -112,26 +112,25 @@ extension SwapService {
                     return
                 }
 
-                let outcome: StatelessSwapResult
                 switch success.code {
-                case .submitted:
-                    outcome = .submitted(signature: signature)
                 case .finalized:
-                    outcome = .finalized(signature: signature)
+                    logger.info("Stateless swap success", metadata: [
+                        "code": "\(success.code)",
+                        "signature": "\(signature.base58)",
+                    ])
+                    _ = reference.stream?.sendEnd()
+                    completion(.success(.finalized(signature: signature)))
+                case .submitted:
+                    logger.error("Stateless swap returned submitted but finalization was requested", metadata: [
+                        "signature": "\(signature.base58)",
+                    ])
+                    _ = reference.stream?.sendEnd()
+                    completion(.failure(.unknown))
                 case .UNRECOGNIZED:
                     logger.error("Stateless swap success returned unrecognized code")
                     _ = reference.stream?.sendEnd()
                     completion(.failure(.unknown))
-                    return
                 }
-
-                logger.info("Stateless swap success", metadata: [
-                    "code": "\(success.code)",
-                    "signature": "\(signature.base58)",
-                ])
-
-                _ = reference.stream?.sendEnd()
-                completion(.success(outcome))
 
             case .error(let error):
                 logger.error("Stateless swap stream error", metadata: [

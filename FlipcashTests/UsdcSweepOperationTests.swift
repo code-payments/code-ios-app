@@ -138,7 +138,7 @@ private actor MockSwapper: StatelessSwapping {
         owner: KeyPair
     ) async throws -> StatelessSwapResult {
         callCount += 1
-        return .submitted(signature: try Signature(Data(repeating: 0, count: 64)))
+        return .finalized(signature: try Signature(Data(repeating: 0, count: 64)))
     }
 }
 
