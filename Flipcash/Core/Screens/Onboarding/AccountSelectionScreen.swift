@@ -66,7 +66,7 @@ struct AccountSelectionScreen: View {
             }
         }
         .navigationTitle("Select Account")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .task {
             fetchAccounts()
             await fetchBalances()

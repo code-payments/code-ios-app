@@ -104,7 +104,7 @@ struct LoginScreen: View {
             }
         }
         .navigationTitle("Enter Access Key Words")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .onChange(of: inputText) {
             suggestAutoCompleteResults(for: inputText)
         }

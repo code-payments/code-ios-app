@@ -82,7 +82,7 @@ struct BuyAmountScreen: View {
             .padding(20)
         }
         .navigationTitle(viewModel.screenTitle)
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .toolbar {
             if !isDismissBlocked {
                 ToolbarItem(placement: .topBarTrailing) {

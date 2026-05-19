@@ -88,7 +88,7 @@ struct SwapProcessingScreen: View {
             }
         }
         .navigationTitle(viewModel.navigationTitle)
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .interactiveDismissDisabled(true)
         .task {

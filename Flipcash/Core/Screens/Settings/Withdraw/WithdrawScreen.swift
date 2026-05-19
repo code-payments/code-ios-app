@@ -55,7 +55,7 @@ struct WithdrawScreen: View {
             .scrollContentBackground(.hidden)
         }
         .navigationTitle("Select Currency")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .withdrawSubstepDestinations(viewModel: viewModel)
         .onAppear {
             viewModel.pushSubstep = { step in

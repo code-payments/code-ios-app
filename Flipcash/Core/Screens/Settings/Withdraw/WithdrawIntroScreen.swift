@@ -43,7 +43,7 @@ struct WithdrawIntroScreen: View {
             .padding(20)
         }
         .navigationTitle("Withdraw")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
     }
 }
 

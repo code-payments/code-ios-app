@@ -58,7 +58,7 @@ struct CountryCodeSelectionScreen: View {
                 }
             }
             .navigationTitle("Select Region")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     CloseButton(binding: $isPresented)

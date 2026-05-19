@@ -74,7 +74,7 @@ struct SelectCurrencyScreen: View {
                 .scrollContentBackground(.hidden)
             }
             .navigationTitle("Select Currency")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     CloseButton(binding: $isPresented)

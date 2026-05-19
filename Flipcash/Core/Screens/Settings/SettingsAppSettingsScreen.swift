@@ -34,7 +34,7 @@ struct SettingsAppSettingsScreen: View {
             .padding(.horizontal, 20)
         }
         .navigationTitle("App Settings")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
     }
 
     private func cameraAutoStartDisabledBinding() -> Binding<Bool> {

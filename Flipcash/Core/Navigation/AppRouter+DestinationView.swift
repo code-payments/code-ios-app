@@ -111,7 +111,7 @@ struct DestinationView: View {
         case .accessKey:
             AccessKeyBackupScreen(mnemonic: sessionContainer.session.keyAccount.mnemonic)
                 .navigationTitle("Access Key")
-                .navigationBarTitleDisplayMode(.inline)
+                .toolbarTitleDisplayMode(.inline)
 
         case .depositCurrencyList:
             DepositCurrencyListScreen()

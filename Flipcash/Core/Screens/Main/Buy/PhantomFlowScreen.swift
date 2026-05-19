@@ -43,7 +43,7 @@ struct PhantomFlowScreen: View {
             .padding(20)
         }
         .navigationTitle(hasShownConfirm ? "Confirmation" : "Purchase")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .onDisappear {
             // Idempotent — cancelling a terminal operation is a no-op,
             // so we don't need to gate on state.

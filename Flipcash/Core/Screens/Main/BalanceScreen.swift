@@ -91,7 +91,7 @@ struct BalanceScreen: View {
             .onChange(of: session.balances, initial: true) { _, _ in refreshSortedBalances() }
             .onChange(of: balanceRate) { _, _ in refreshSortedBalances() }
             .navigationTitle("Wallet")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .appRouterDestinations(container: container, sessionContainer: sessionContainer)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

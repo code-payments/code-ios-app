@@ -58,7 +58,7 @@ struct CurrencyCreationSummaryScreen: View {
             }
             .padding(.horizontal, 20)
         }
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .navigationTitle("Create Your Currency")
     }
 }

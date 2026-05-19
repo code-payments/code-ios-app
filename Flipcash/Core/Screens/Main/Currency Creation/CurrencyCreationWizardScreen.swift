@@ -260,7 +260,7 @@ struct CurrencyCreationWizardScreen: View {
         .sheet(item: $verificationViewModel.cancellingOnDismiss()) { vm in
             VerifyInfoScreen(viewModel: vm)
         }
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .interactiveDismissDisabled()
         .toolbar {

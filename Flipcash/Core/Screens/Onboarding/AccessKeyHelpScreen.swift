@@ -43,7 +43,7 @@ struct AccessKeyHelpScreen: View {
             }
         }
         .navigationTitle("Can't Find Your Access Key?")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
     }
 }
 

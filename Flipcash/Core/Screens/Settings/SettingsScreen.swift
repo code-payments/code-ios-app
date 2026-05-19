@@ -93,7 +93,7 @@ struct SettingsScreen: View {
                     .padding(.horizontal, 20)
                 }
             }
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     CloseButton(action: router.dismissSheet)
