@@ -65,5 +65,16 @@ extension AppRouter {
             case .buy:      "buy"
             }
         }
+
+        /// Human-readable screen tag for Mixpanel `Screen` properties.
+        var analyticsName: String {
+            switch self {
+            case .balance:  "Balance"
+            case .settings: "Settings"
+            case .give:     "Give"
+            case .discover: "Discover"
+            case .buy:      "Buy"
+            }
+        }
     }
 }
