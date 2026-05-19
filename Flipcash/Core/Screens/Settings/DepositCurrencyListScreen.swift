@@ -60,14 +60,13 @@ struct DepositCurrencyListScreen: View {
     // MARK: - Actions -
 
     private func selectCurrency(_ balance: ExchangedBalance) {
-        let mint = balance.stored.mint
-        router.push(mint == .usdf ? .usdcDepositEducation : .deposit(mint))
+        router.push(.depositEntry(for: balance.stored.mint))
     }
 
     private func handleAutoSelect() {
         guard let mint = selectedMint,
               balances.contains(where: { $0.stored.mint == mint }) else { return }
         selectedMint = nil
-        router.push(mint == .usdf ? .usdcDepositEducation : .deposit(mint))
+        router.push(.depositEntry(for: mint))
     }
 }

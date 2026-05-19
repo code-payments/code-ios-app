@@ -124,5 +124,11 @@ extension AppRouter {
             }
         }
 
+        /// Entry-point destination for a deposit flow keyed on the mint.
+        /// USDF takes the educational USDC deposit path; every other mint
+        /// uses the legacy VM deposit screen.
+        static func depositEntry(for mint: PublicKey) -> Self {
+            mint == .usdf ? .usdcDepositEducation : .deposit(mint)
+        }
     }
 }
