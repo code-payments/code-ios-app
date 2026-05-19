@@ -16,6 +16,7 @@ actor UsdcSweepOperation {
     private let swapper: any StatelessSwapping
     private let ownerKeyPair: KeyPair
     private let onSweepCompleted: @Sendable () async -> Void
+    private let cancellation = SweepCancellation()
 
     private var isRunning = false
 
@@ -38,6 +39,14 @@ actor UsdcSweepOperation {
         Task { await run() }
     }
 
+    /// Marks the operation as cancelled. Any in-flight sweep runs to
+    /// completion (the gRPC stream isn't interrupted), but the completion
+    /// callback is skipped so a logged-out session can't be touched. Called
+    /// from `SessionAuthenticator.logout()` before tearing down the container.
+    nonisolated func cancel() {
+        cancellation.cancel()
+    }
+
     private func run() async {
         guard !isRunning else {
             logger.info("Skipping USDC sweep — already in flight")
@@ -52,6 +61,11 @@ actor UsdcSweepOperation {
                 mint: .usdc
             ) else {
                 logger.info("No USDC ATA found — nothing to sweep")
+                return
+            }
+
+            guard !cancellation.isCancelled else {
+                logger.info("USDC sweep cancelled before swap")
                 return
             }
 
@@ -76,6 +90,11 @@ actor UsdcSweepOperation {
                 "signature": "\(result.signature.base58)",
             ])
 
+            guard !cancellation.isCancelled else {
+                logger.info("USDC sweep cancelled, skipping completion callback")
+                return
+            }
+
             await onSweepCompleted()
         } catch {
             logger.error("USDC sweep failed", metadata: [
@@ -83,5 +102,24 @@ actor UsdcSweepOperation {
             ])
             ErrorReporting.captureError(error, reason: "USDC sweep failed")
         }
+    }
+}
+
+/// Thread-safe cancellation flag shared between the actor's async `run()` and
+/// the synchronous `nonisolated cancel()` (called from `logout()`).
+private final class SweepCancellation: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cancelled = false
+
+    var isCancelled: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return cancelled
+    }
+
+    func cancel() {
+        lock.lock()
+        cancelled = true
+        lock.unlock()
     }
 }
