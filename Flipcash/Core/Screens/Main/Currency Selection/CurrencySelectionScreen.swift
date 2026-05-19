@@ -58,7 +58,7 @@ struct CurrencySelectionScreen: View {
                 .scrollContentBackground(.hidden)
             }
             .navigationTitle("Select Region")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     CloseButton { dismiss() }

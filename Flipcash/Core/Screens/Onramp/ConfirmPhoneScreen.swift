@@ -97,7 +97,7 @@ struct ConfirmPhoneScreen: View {
         }
         .dialog(item: $viewModel.dialogItem)
         .navigationTitle("Verify Phone Number")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .onAppear {
             countdownEnd = Date.now.addingTimeInterval(60)
             isFocused = true

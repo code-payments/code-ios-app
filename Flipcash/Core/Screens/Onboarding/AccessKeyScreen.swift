@@ -62,7 +62,7 @@ struct AccessKeyScreen: View {
             .foregroundStyle(.textMain)
             .padding(20)
             .navigationTitle("Your Access Key")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
         }
         .dialog(item: $viewModel.dialogItem)
     }

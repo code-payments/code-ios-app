@@ -49,7 +49,7 @@ struct USDCDepositEducationScreen: View {
             .padding(20)
         }
         .navigationTitle("Deposit")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
     }
 }
 

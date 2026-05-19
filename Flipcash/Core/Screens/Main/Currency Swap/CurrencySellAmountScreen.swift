@@ -42,7 +42,7 @@ struct CurrencySellAmountScreen: View {
                 .padding(20)
             }
             .navigationTitle(viewModel.screenTitle)
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .navigationDestination(for: CurrencySellPath.self) { step in
                 switch step {
                 case .confirmation(let amount, let pinnedState):

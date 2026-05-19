@@ -29,7 +29,7 @@ struct SettingsMyAccountScreen: View {
             .padding(.horizontal, 20)
         }
         .navigationTitle("My Account")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .dialog(item: $dialogItem)
     }
 

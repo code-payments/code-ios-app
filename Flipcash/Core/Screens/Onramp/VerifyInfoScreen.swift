@@ -54,7 +54,7 @@ struct VerifyInfoScreen: View {
                 .padding(.top, 20)
             }
             .navigationTitle("")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     CloseButton {

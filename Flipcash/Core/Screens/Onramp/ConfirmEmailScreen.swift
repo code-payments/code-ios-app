@@ -105,7 +105,7 @@ struct ConfirmEmailScreen: View {
         }
         .dialog(item: $viewModel.dialogItem)
         .navigationTitle("Verify Email")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .onAppear {
             countdownEnd = Date.now.addingTimeInterval(60)
         }

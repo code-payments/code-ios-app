@@ -57,7 +57,7 @@ struct EnterWalletAmountScreen: View {
             .padding(20)
         }
         .navigationTitle("Amount to Buy")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
     }
 
     // MARK: - Actions -

@@ -70,7 +70,7 @@ struct BetaFlagsScreen: View {
             }
         }
         .navigationTitle("Beta Flags")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .alert(
             "Unlink Email?",
             isPresented: $isConfirmingUnlinkEmail

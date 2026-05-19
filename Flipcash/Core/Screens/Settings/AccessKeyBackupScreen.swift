@@ -59,7 +59,7 @@ struct AccessKeyBackupScreen: View {
             .foregroundStyle(.textMain)
             .padding(20)
             .navigationTitle("Access Key")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
         }
         .dialog(item: $dialogItem)
     }

@@ -70,7 +70,7 @@ struct WithdrawSummaryScreen: View {
             .padding(20)
         }
         .navigationTitle("Withdraw")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .interactiveDismissDisabled()
     }
 }

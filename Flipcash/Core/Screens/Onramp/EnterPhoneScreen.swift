@@ -86,7 +86,7 @@ struct EnterPhoneScreen: View {
         }
         .dialog(item: $viewModel.dialogItem)
         .navigationTitle("Verify Phone Number")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .onAppear {
             isFocused = true
         }

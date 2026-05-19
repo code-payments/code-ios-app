@@ -114,7 +114,7 @@ struct CurrencyInfoScreen: View {
                 }
             }
         }
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
                 toolbarContent()

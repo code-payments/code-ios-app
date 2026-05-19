@@ -61,7 +61,7 @@ struct EnterEmailScreen: View {
         }
         .dialog(item: $viewModel.dialogItem)
         .navigationTitle("Verify Email")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .onAppear {
             isFocused = true
         }

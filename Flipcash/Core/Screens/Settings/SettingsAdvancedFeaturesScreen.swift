@@ -38,6 +38,6 @@ struct SettingsAdvancedFeaturesScreen: View {
             .padding(.horizontal, 20)
         }
         .navigationTitle("Advanced Features")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
     }
 }

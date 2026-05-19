@@ -33,6 +33,6 @@ struct CurrencyDiscoveryScreen: View {
         }
         .background(Color.backgroundMain)
         .navigationTitle("Discover Currencies")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
     }
 }

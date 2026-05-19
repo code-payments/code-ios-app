@@ -47,7 +47,7 @@ struct DepositScreen: View {
             .padding(20)
         }
         .navigationTitle(name.map { "Deposit \($0)" } ?? "Deposit")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
     }
 
     private func copyAddress() {

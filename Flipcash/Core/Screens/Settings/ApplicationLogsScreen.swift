@@ -56,6 +56,6 @@ struct ApplicationLogsScreen: View {
             }
         }
         .navigationTitle("Application Logs")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
     }
 }
