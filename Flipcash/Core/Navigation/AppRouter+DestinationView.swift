@@ -125,10 +125,10 @@ struct DestinationView: View {
             if let balance = sessionContainer.session.balance(for: mint),
                let vmAuthority = balance.vmAuthority {
                 DepositScreen(
-                    cluster: sessionContainer.session.owner.use(
+                    address: sessionContainer.session.owner.use(
                         mint: mint,
                         timeAuthority: vmAuthority
-                    ),
+                    ).depositPublicKey.base58,
                     name: balance.name
                 )
             }
@@ -150,7 +150,14 @@ struct DestinationView: View {
             USDCDepositEducationScreen()
 
         case .usdcDepositAddress:
-            USDCDepositAddressScreen()
+            // Authority pubkey, NOT the derived USDC ATA. Showing the ATA
+            // breaks first-time deposits: it doesn't exist on-chain yet, so
+            // wallets fall back to "treat as owner, derive another ATA" and
+            // funds land one level deeper than the server queries.
+            DepositScreen(
+                address: sessionContainer.session.owner.authorityPublicKey.base58,
+                name: "USDC"
+            )
 
         case .phantomFlow(let fundingOperation):
             PhantomFlowScreen(fundingOperation: fundingOperation)

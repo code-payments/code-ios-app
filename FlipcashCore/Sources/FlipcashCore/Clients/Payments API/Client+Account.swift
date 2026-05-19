@@ -21,6 +21,15 @@ extension Client {
             accountService.fetchPrimaryAccounts(owner: owner) { c.resume(with: $0) }
         }
     }
+
+    /// Fetches the user's plain SPL associated token account for the given
+    /// mint. Returns `nil` when the user has no ATA for that mint yet — the
+    /// caller should treat that as a zero balance.
+    public func fetchAssociatedTokenAccount(owner: KeyPair, mint: PublicKey) async throws -> AccountInfo? {
+        try await withCheckedThrowingContinuation { c in
+            accountService.fetchAssociatedTokenAccount(owner: owner, mint: mint) { c.resume(with: $0) }
+        }
+    }
     
 //    public func fetchIsCodeAccount(owner: KeyPair) async throws -> Bool {
 //        try await withCheckedThrowingContinuation { c in
