@@ -1,5 +1,14 @@
 #!/usr/bin/env bash
 
+# Always resolve paths relative to this script's own directory, not the
+# caller's cwd. The PROTOS_*/GENERATED_DIR/DEPS_DIR vars below use
+# `../FlipcashAPI/...` — without this cd, running the script from a
+# sibling checkout (e.g. invoking ../main-repo/Scripts/run while cwd is
+# inside a worktree, or vice versa) would silently regenerate protos
+# against the wrong tree. Anchoring to the script's directory makes the
+# target tree unambiguous: it is whichever checkout this `run` lives in.
+cd "$(dirname "$0")"
+
 APP=""
 
 while getopts s:a: flag

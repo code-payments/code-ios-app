@@ -1097,7 +1097,11 @@ extension InterceptorFactory: Ocp_Transaction_V1_TransactionClientInterceptorFac
     func makeStatefulSwapInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Transaction_V1_StatefulSwapRequest, FlipcashAPI.Ocp_Transaction_V1_StatefulSwapResponse>] {
         makeInterceptors()
     }
-    
+
+    func makeStatelessSwapInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Transaction_V1_StatelessSwapRequest, FlipcashAPI.Ocp_Transaction_V1_StatelessSwapResponse>] {
+        makeInterceptors()
+    }
+
     func makeGetSwapInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Transaction_V1_GetSwapRequest, FlipcashAPI.Ocp_Transaction_V1_GetSwapResponse>] {
         makeInterceptors()
     }

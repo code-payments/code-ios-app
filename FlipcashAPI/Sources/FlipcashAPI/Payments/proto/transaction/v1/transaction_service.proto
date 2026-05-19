@@ -81,6 +81,10 @@ service Transaction {
     // swap is funded.
     rpc StatefulSwap(stream StatefulSwapRequest) returns (stream StatefulSwapResponse);
 
+    // StatelessSwap is like StatefulSwap, but without a state management system and a
+    // best-effort submission system.
+    rpc StatelessSwap(stream StatelessSwapRequest) returns (stream StatelessSwapResponse);
+
     // GetSwap gets metadata for a swap
     rpc GetSwap(GetSwapRequest) returns (GetSwapResponse);
 
@@ -655,6 +659,154 @@ message StatefulSwapResponse {
             SIGNATURE_ERROR = 1;
             // The swap metadata failed server-side validation
             INVALID_SWAP = 2;
+        }
+
+        repeated ErrorDetails error_details = 2;
+    }
+}
+
+message StatelessSwapRequest {
+    oneof request {
+        option (validate.required) = true;
+
+        Initiate         initiate          = 1;
+        SubmitSignatures submit_signatures = 2;
+    }
+
+    message Initiate {
+        oneof kind {
+            option (validate.required) = true;
+
+            CoinbaseStableSwapperClientParameters stablecoin = 1;
+        }
+
+        // Client parameters for stateless swaps via the Coinbase Stable
+        // Swapper program. Source funds are drawn from the owner's source-mint
+        // ATA; destination is the owner's destination-mint VM Deposit ATA.
+        message CoinbaseStableSwapperClientParameters {
+            // The source mint that will be swapped from.
+            common.v1.SolanaAccountId from_mint = 1 [(validate.rules).message.required = true];
+
+            // The destination mint that will be swapped to.
+            common.v1.SolanaAccountId to_mint = 2 [(validate.rules).message.required = true];
+
+            // The amount to swap from the source mint in quarks.
+            uint64 swap_amount = 3 [(validate.rules).uint64.gt = 0];
+        }
+
+        // The owner account that owns the source ATA and the destination VM
+        // Deposit ATA. The owner is the sole client-side signer of the swap
+        // transaction.
+        common.v1.SolanaAccountId owner = 2 [(validate.rules).message.required = true];
+
+        // If true, server waits until the swap transaction is finalized before
+        // returning Success. If false, server returns Success as soon as the
+        // transaction is submitted to the cluster.
+        bool wait_for_finalization = 3;
+
+        // The signature is of serialize(StatelessSwapRequest.Initiate) without
+        // this field set using the private key of the owner account. This
+        // provides an authentication mechanism to the RPC.
+        common.v1.Signature signature = 4 [(validate.rules).message.required = true];
+    }
+
+    message SubmitSignatures {
+        // The owner's signature over the locally constructed swap transaction.
+        repeated common.v1.Signature transaction_signatures = 1 [(validate.rules).repeated = {
+            min_items: 1
+            max_items: 1
+        }];
+    }
+}
+
+message StatelessSwapResponse {
+    oneof response {
+        option (validate.required) = true;
+
+        ServerParameters server_parameters = 1;
+        Success          success           = 2;
+        Error            error             = 3;
+    }
+
+    message ServerParameters {
+        oneof kind {
+            option (validate.required) = true;
+
+            CoinbaseStableSwapperServerParameter stablecoin = 1;
+        }
+
+        // Server parameters for executing stateless swap flows against the
+        // Coinbase Stable Swapper program.
+        //
+        // Supported Solana transaction version: v0
+        //
+        // Instruction format:
+        //  1. [Optional] ComputeBudget::SetComputeUnitLimit
+        //  2. [Optional] ComputeBudget::SetComputeUnitPrice
+        //  3. [Optional] Memo::Memo
+        //  4. AssociatedTokenAccount::CreateIdempotent (open owner's to_mint VM Deposit ATA)
+        //  5. CoinbaseStableSwapper::Swap (owner's from_mint ATA -> owner's to_mint VM Deposit ATA)
+        message CoinbaseStableSwapperServerParameter {
+            // Subsidizer account that will pay the transaction fee.
+            common.v1.SolanaAccountId payer = 1 [(validate.rules).message.required = true];
+
+            // The Solana blockhash to set on the transaction. This is a
+            // regular recent blockhash, not a durable nonce.
+            common.v1.Blockhash blockhash = 2 [(validate.rules).message.required = true];
+
+            // ALTs that should be used when constructing the versioned transaction
+            repeated common.v1.SolanaAddressLookupTable alts = 3;
+
+            // Compute unit limit provided to the ComputeBudget::SetComputeUnitLimit
+            // instruction. If the value is 0, then the instruction can be omitted.
+            uint32 compute_unit_limit = 4;
+
+            // Compute unit price provided in the ComputeBudget::SetComputeUnitPrice
+            // instruction. If the value is 0, then the instruction can be omitted.
+            uint64 compute_unit_price = 5;
+
+            // Value provided into the Memo::Memo instruction. If the value length is 0,
+            // then the instruction can be omitted.
+            string memo_value = 6 [(validate.rules).string.max_len = 64];
+
+            // The CoinbaseStableSwapper liquidity pool's configured fee recipient,
+            // sourced from the on-chain LiquidityPool account. Required by the
+            // CoinbaseStableSwapper::Swap instruction.
+            common.v1.SolanaAccountId pool_fee_recipient = 7 [(validate.rules).message.required = true];
+        }
+    }
+
+    message Success {
+        Code code = 1;
+        enum Code {
+            // Transaction was forwarded to the cluster. Returned when
+            // wait_for_finalization = false.
+            SUBMITTED = 0;
+            // Transaction was finalized on-chain. Returned when
+            // wait_for_finalization = true.
+            FINALIZED = 1;
+        }
+
+        // The signature of the submitted swap transaction. Clients may use
+        // this to look up the transaction on-chain.
+        common.v1.Signature transaction_signature = 2 [(validate.rules).message.required = true];
+    }
+
+    message Error {
+        Code code = 1;
+        enum Code {
+            // Denied by a guard (spam, money laundering, etc)
+            DENIED = 0;
+            // There is an issue with the provided transaction signature
+            SIGNATURE_ERROR = 1;
+            // The swap parameters failed server-side validation (eg.
+            // unsupported mint pair, insufficient source balance, swap amount
+            // out of allowed range)
+            INVALID_SWAP = 2;
+            // The transaction was submitted but reverted on-chain, or its
+            // blockhash expired before confirmation. Only relevant when
+            // wait_for_finalization = true.
+            TRANSACTION_FAILED = 3;
         }
 
         repeated ErrorDetails error_details = 2;

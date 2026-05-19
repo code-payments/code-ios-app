@@ -46,6 +46,11 @@ public protocol Ocp_Transaction_V1_TransactionClientProtocol: GRPCClient {
     handler: @escaping (Ocp_Transaction_V1_StatefulSwapResponse) -> Void
   ) -> BidirectionalStreamingCall<Ocp_Transaction_V1_StatefulSwapRequest, Ocp_Transaction_V1_StatefulSwapResponse>
 
+  func statelessSwap(
+    callOptions: CallOptions?,
+    handler: @escaping (Ocp_Transaction_V1_StatelessSwapResponse) -> Void
+  ) -> BidirectionalStreamingCall<Ocp_Transaction_V1_StatelessSwapRequest, Ocp_Transaction_V1_StatelessSwapResponse>
+
   func getSwap(
     _ request: Ocp_Transaction_V1_GetSwapRequest,
     callOptions: CallOptions?
@@ -227,6 +232,28 @@ extension Ocp_Transaction_V1_TransactionClientProtocol {
     )
   }
 
+  /// StatelessSwap is like StatefulSwap, but without a state management system and a
+  /// best-effort submission system.
+  ///
+  /// Callers should use the `send` method on the returned object to send messages
+  /// to the server. The caller should send an `.end` after the final message has been sent.
+  ///
+  /// - Parameters:
+  ///   - callOptions: Call options.
+  ///   - handler: A closure called when each response is received from the server.
+  /// - Returns: A `ClientStreamingCall` with futures for the metadata and status.
+  public func statelessSwap(
+    callOptions: CallOptions? = nil,
+    handler: @escaping (Ocp_Transaction_V1_StatelessSwapResponse) -> Void
+  ) -> BidirectionalStreamingCall<Ocp_Transaction_V1_StatelessSwapRequest, Ocp_Transaction_V1_StatelessSwapResponse> {
+    return self.makeBidirectionalStreamingCall(
+      path: Ocp_Transaction_V1_TransactionClientMetadata.Methods.statelessSwap.path,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeStatelessSwapInterceptors() ?? [],
+      handler: handler
+    )
+  }
+
   /// GetSwap gets metadata for a swap
   ///
   /// - Parameters:
@@ -355,6 +382,10 @@ public protocol Ocp_Transaction_V1_TransactionAsyncClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> GRPCAsyncBidirectionalStreamingCall<Ocp_Transaction_V1_StatefulSwapRequest, Ocp_Transaction_V1_StatefulSwapResponse>
 
+  func makeStatelessSwapCall(
+    callOptions: CallOptions?
+  ) -> GRPCAsyncBidirectionalStreamingCall<Ocp_Transaction_V1_StatelessSwapRequest, Ocp_Transaction_V1_StatelessSwapResponse>
+
   func makeGetSwapCall(
     _ request: Ocp_Transaction_V1_GetSwapRequest,
     callOptions: CallOptions?
@@ -441,6 +472,16 @@ extension Ocp_Transaction_V1_TransactionAsyncClientProtocol {
       path: Ocp_Transaction_V1_TransactionClientMetadata.Methods.statefulSwap.path,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeStatefulSwapInterceptors() ?? []
+    )
+  }
+
+  public func makeStatelessSwapCall(
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncBidirectionalStreamingCall<Ocp_Transaction_V1_StatelessSwapRequest, Ocp_Transaction_V1_StatelessSwapResponse> {
+    return self.makeAsyncBidirectionalStreamingCall(
+      path: Ocp_Transaction_V1_TransactionClientMetadata.Methods.statelessSwap.path,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeStatelessSwapInterceptors() ?? []
     )
   }
 
@@ -567,6 +608,30 @@ extension Ocp_Transaction_V1_TransactionAsyncClientProtocol {
     )
   }
 
+  public func statelessSwap<RequestStream>(
+    _ requests: RequestStream,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncResponseStream<Ocp_Transaction_V1_StatelessSwapResponse> where RequestStream: Sequence, RequestStream.Element == Ocp_Transaction_V1_StatelessSwapRequest {
+    return self.performAsyncBidirectionalStreamingCall(
+      path: Ocp_Transaction_V1_TransactionClientMetadata.Methods.statelessSwap.path,
+      requests: requests,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeStatelessSwapInterceptors() ?? []
+    )
+  }
+
+  public func statelessSwap<RequestStream>(
+    _ requests: RequestStream,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncResponseStream<Ocp_Transaction_V1_StatelessSwapResponse> where RequestStream: AsyncSequence & Sendable, RequestStream.Element == Ocp_Transaction_V1_StatelessSwapRequest {
+    return self.performAsyncBidirectionalStreamingCall(
+      path: Ocp_Transaction_V1_TransactionClientMetadata.Methods.statelessSwap.path,
+      requests: requests,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeStatelessSwapInterceptors() ?? []
+    )
+  }
+
   public func getSwap(
     _ request: Ocp_Transaction_V1_GetSwapRequest,
     callOptions: CallOptions? = nil
@@ -629,6 +694,9 @@ public protocol Ocp_Transaction_V1_TransactionClientInterceptorFactoryProtocol: 
   /// - Returns: Interceptors to use when invoking 'statefulSwap'.
   func makeStatefulSwapInterceptors() -> [ClientInterceptor<Ocp_Transaction_V1_StatefulSwapRequest, Ocp_Transaction_V1_StatefulSwapResponse>]
 
+  /// - Returns: Interceptors to use when invoking 'statelessSwap'.
+  func makeStatelessSwapInterceptors() -> [ClientInterceptor<Ocp_Transaction_V1_StatelessSwapRequest, Ocp_Transaction_V1_StatelessSwapResponse>]
+
   /// - Returns: Interceptors to use when invoking 'getSwap'.
   func makeGetSwapInterceptors() -> [ClientInterceptor<Ocp_Transaction_V1_GetSwapRequest, Ocp_Transaction_V1_GetSwapResponse>]
 
@@ -647,6 +715,7 @@ public enum Ocp_Transaction_V1_TransactionClientMetadata {
       Ocp_Transaction_V1_TransactionClientMetadata.Methods.canWithdrawToAccount,
       Ocp_Transaction_V1_TransactionClientMetadata.Methods.voidGiftCard,
       Ocp_Transaction_V1_TransactionClientMetadata.Methods.statefulSwap,
+      Ocp_Transaction_V1_TransactionClientMetadata.Methods.statelessSwap,
       Ocp_Transaction_V1_TransactionClientMetadata.Methods.getSwap,
       Ocp_Transaction_V1_TransactionClientMetadata.Methods.getPendingSwaps,
     ]
@@ -686,6 +755,12 @@ public enum Ocp_Transaction_V1_TransactionClientMetadata {
     public static let statefulSwap = GRPCMethodDescriptor(
       name: "StatefulSwap",
       path: "/ocp.transaction.v1.Transaction/StatefulSwap",
+      type: GRPCCallType.bidirectionalStreaming
+    )
+
+    public static let statelessSwap = GRPCMethodDescriptor(
+      name: "StatelessSwap",
+      path: "/ocp.transaction.v1.Transaction/StatelessSwap",
       type: GRPCCallType.bidirectionalStreaming
     )
 
@@ -776,6 +851,10 @@ public protocol Ocp_Transaction_V1_TransactionProvider: CallHandlerProvider {
   /// swap is funded.
   func statefulSwap(context: StreamingResponseCallContext<Ocp_Transaction_V1_StatefulSwapResponse>) -> EventLoopFuture<(StreamEvent<Ocp_Transaction_V1_StatefulSwapRequest>) -> Void>
 
+  /// StatelessSwap is like StatefulSwap, but without a state management system and a
+  /// best-effort submission system.
+  func statelessSwap(context: StreamingResponseCallContext<Ocp_Transaction_V1_StatelessSwapResponse>) -> EventLoopFuture<(StreamEvent<Ocp_Transaction_V1_StatelessSwapRequest>) -> Void>
+
   /// GetSwap gets metadata for a swap
   func getSwap(request: Ocp_Transaction_V1_GetSwapRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Ocp_Transaction_V1_GetSwapResponse>
 
@@ -848,6 +927,15 @@ extension Ocp_Transaction_V1_TransactionProvider {
         responseSerializer: ProtobufSerializer<Ocp_Transaction_V1_StatefulSwapResponse>(),
         interceptors: self.interceptors?.makeStatefulSwapInterceptors() ?? [],
         observerFactory: self.statefulSwap(context:)
+      )
+
+    case "StatelessSwap":
+      return BidirectionalStreamingServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Ocp_Transaction_V1_StatelessSwapRequest>(),
+        responseSerializer: ProtobufSerializer<Ocp_Transaction_V1_StatelessSwapResponse>(),
+        interceptors: self.interceptors?.makeStatelessSwapInterceptors() ?? [],
+        observerFactory: self.statelessSwap(context:)
       )
 
     case "GetSwap":
@@ -969,6 +1057,14 @@ public protocol Ocp_Transaction_V1_TransactionAsyncProvider: CallHandlerProvider
     context: GRPCAsyncServerCallContext
   ) async throws
 
+  /// StatelessSwap is like StatefulSwap, but without a state management system and a
+  /// best-effort submission system.
+  func statelessSwap(
+    requestStream: GRPCAsyncRequestStream<Ocp_Transaction_V1_StatelessSwapRequest>,
+    responseStream: GRPCAsyncResponseStreamWriter<Ocp_Transaction_V1_StatelessSwapResponse>,
+    context: GRPCAsyncServerCallContext
+  ) async throws
+
   /// GetSwap gets metadata for a swap
   func getSwap(
     request: Ocp_Transaction_V1_GetSwapRequest,
@@ -1056,6 +1152,15 @@ extension Ocp_Transaction_V1_TransactionAsyncProvider {
         wrapping: { try await self.statefulSwap(requestStream: $0, responseStream: $1, context: $2) }
       )
 
+    case "StatelessSwap":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Ocp_Transaction_V1_StatelessSwapRequest>(),
+        responseSerializer: ProtobufSerializer<Ocp_Transaction_V1_StatelessSwapResponse>(),
+        interceptors: self.interceptors?.makeStatelessSwapInterceptors() ?? [],
+        wrapping: { try await self.statelessSwap(requestStream: $0, responseStream: $1, context: $2) }
+      )
+
     case "GetSwap":
       return GRPCAsyncServerHandler(
         context: context,
@@ -1106,6 +1211,10 @@ public protocol Ocp_Transaction_V1_TransactionServerInterceptorFactoryProtocol: 
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeStatefulSwapInterceptors() -> [ServerInterceptor<Ocp_Transaction_V1_StatefulSwapRequest, Ocp_Transaction_V1_StatefulSwapResponse>]
 
+  /// - Returns: Interceptors to use when handling 'statelessSwap'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeStatelessSwapInterceptors() -> [ServerInterceptor<Ocp_Transaction_V1_StatelessSwapRequest, Ocp_Transaction_V1_StatelessSwapResponse>]
+
   /// - Returns: Interceptors to use when handling 'getSwap'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeGetSwapInterceptors() -> [ServerInterceptor<Ocp_Transaction_V1_GetSwapRequest, Ocp_Transaction_V1_GetSwapResponse>]
@@ -1126,6 +1235,7 @@ public enum Ocp_Transaction_V1_TransactionServerMetadata {
       Ocp_Transaction_V1_TransactionServerMetadata.Methods.canWithdrawToAccount,
       Ocp_Transaction_V1_TransactionServerMetadata.Methods.voidGiftCard,
       Ocp_Transaction_V1_TransactionServerMetadata.Methods.statefulSwap,
+      Ocp_Transaction_V1_TransactionServerMetadata.Methods.statelessSwap,
       Ocp_Transaction_V1_TransactionServerMetadata.Methods.getSwap,
       Ocp_Transaction_V1_TransactionServerMetadata.Methods.getPendingSwaps,
     ]
@@ -1165,6 +1275,12 @@ public enum Ocp_Transaction_V1_TransactionServerMetadata {
     public static let statefulSwap = GRPCMethodDescriptor(
       name: "StatefulSwap",
       path: "/ocp.transaction.v1.Transaction/StatefulSwap",
+      type: GRPCCallType.bidirectionalStreaming
+    )
+
+    public static let statelessSwap = GRPCMethodDescriptor(
+      name: "StatelessSwap",
+      path: "/ocp.transaction.v1.Transaction/StatelessSwap",
       type: GRPCCallType.bidirectionalStreaming
     )
 

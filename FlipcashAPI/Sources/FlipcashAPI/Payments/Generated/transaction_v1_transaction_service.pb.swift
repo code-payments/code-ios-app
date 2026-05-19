@@ -1570,6 +1570,423 @@ public struct Ocp_Transaction_V1_StatefulSwapResponse: Sendable {
   public init() {}
 }
 
+public struct Ocp_Transaction_V1_StatelessSwapRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var request: Ocp_Transaction_V1_StatelessSwapRequest.OneOf_Request? = nil
+
+  public var initiate: Ocp_Transaction_V1_StatelessSwapRequest.Initiate {
+    get {
+      if case .initiate(let v)? = request {return v}
+      return Ocp_Transaction_V1_StatelessSwapRequest.Initiate()
+    }
+    set {request = .initiate(newValue)}
+  }
+
+  public var submitSignatures: Ocp_Transaction_V1_StatelessSwapRequest.SubmitSignatures {
+    get {
+      if case .submitSignatures(let v)? = request {return v}
+      return Ocp_Transaction_V1_StatelessSwapRequest.SubmitSignatures()
+    }
+    set {request = .submitSignatures(newValue)}
+  }
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum OneOf_Request: Equatable, Sendable {
+    case initiate(Ocp_Transaction_V1_StatelessSwapRequest.Initiate)
+    case submitSignatures(Ocp_Transaction_V1_StatelessSwapRequest.SubmitSignatures)
+
+  }
+
+  public struct Initiate: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    public var kind: Ocp_Transaction_V1_StatelessSwapRequest.Initiate.OneOf_Kind? = nil
+
+    public var stablecoin: Ocp_Transaction_V1_StatelessSwapRequest.Initiate.CoinbaseStableSwapperClientParameters {
+      get {
+        if case .stablecoin(let v)? = kind {return v}
+        return Ocp_Transaction_V1_StatelessSwapRequest.Initiate.CoinbaseStableSwapperClientParameters()
+      }
+      set {kind = .stablecoin(newValue)}
+    }
+
+    /// The owner account that owns the source ATA and the destination VM
+    /// Deposit ATA. The owner is the sole client-side signer of the swap
+    /// transaction.
+    public var owner: Ocp_Common_V1_SolanaAccountId {
+      get {_owner ?? Ocp_Common_V1_SolanaAccountId()}
+      set {_owner = newValue}
+    }
+    /// Returns true if `owner` has been explicitly set.
+    public var hasOwner: Bool {self._owner != nil}
+    /// Clears the value of `owner`. Subsequent reads from it will return its default value.
+    public mutating func clearOwner() {self._owner = nil}
+
+    /// If true, server waits until the swap transaction is finalized before
+    /// returning Success. If false, server returns Success as soon as the
+    /// transaction is submitted to the cluster.
+    public var waitForFinalization: Bool = false
+
+    /// The signature is of serialize(StatelessSwapRequest.Initiate) without
+    /// this field set using the private key of the owner account. This
+    /// provides an authentication mechanism to the RPC.
+    public var signature: Ocp_Common_V1_Signature {
+      get {_signature ?? Ocp_Common_V1_Signature()}
+      set {_signature = newValue}
+    }
+    /// Returns true if `signature` has been explicitly set.
+    public var hasSignature: Bool {self._signature != nil}
+    /// Clears the value of `signature`. Subsequent reads from it will return its default value.
+    public mutating func clearSignature() {self._signature = nil}
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public enum OneOf_Kind: Equatable, Sendable {
+      case stablecoin(Ocp_Transaction_V1_StatelessSwapRequest.Initiate.CoinbaseStableSwapperClientParameters)
+
+    }
+
+    /// Client parameters for stateless swaps via the Coinbase Stable
+    /// Swapper program. Source funds are drawn from the owner's source-mint
+    /// ATA; destination is the owner's destination-mint VM Deposit ATA.
+    public struct CoinbaseStableSwapperClientParameters: Sendable {
+      // SwiftProtobuf.Message conformance is added in an extension below. See the
+      // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+      // methods supported on all messages.
+
+      /// The source mint that will be swapped from.
+      public var fromMint: Ocp_Common_V1_SolanaAccountId {
+        get {_fromMint ?? Ocp_Common_V1_SolanaAccountId()}
+        set {_fromMint = newValue}
+      }
+      /// Returns true if `fromMint` has been explicitly set.
+      public var hasFromMint: Bool {self._fromMint != nil}
+      /// Clears the value of `fromMint`. Subsequent reads from it will return its default value.
+      public mutating func clearFromMint() {self._fromMint = nil}
+
+      /// The destination mint that will be swapped to.
+      public var toMint: Ocp_Common_V1_SolanaAccountId {
+        get {_toMint ?? Ocp_Common_V1_SolanaAccountId()}
+        set {_toMint = newValue}
+      }
+      /// Returns true if `toMint` has been explicitly set.
+      public var hasToMint: Bool {self._toMint != nil}
+      /// Clears the value of `toMint`. Subsequent reads from it will return its default value.
+      public mutating func clearToMint() {self._toMint = nil}
+
+      /// The amount to swap from the source mint in quarks.
+      public var swapAmount: UInt64 = 0
+
+      public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+      public init() {}
+
+      fileprivate var _fromMint: Ocp_Common_V1_SolanaAccountId? = nil
+      fileprivate var _toMint: Ocp_Common_V1_SolanaAccountId? = nil
+    }
+
+    public init() {}
+
+    fileprivate var _owner: Ocp_Common_V1_SolanaAccountId? = nil
+    fileprivate var _signature: Ocp_Common_V1_Signature? = nil
+  }
+
+  public struct SubmitSignatures: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    /// The owner's signature over the locally constructed swap transaction.
+    public var transactionSignatures: [Ocp_Common_V1_Signature] = []
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+  }
+
+  public init() {}
+}
+
+public struct Ocp_Transaction_V1_StatelessSwapResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var response: Ocp_Transaction_V1_StatelessSwapResponse.OneOf_Response? = nil
+
+  public var serverParameters: Ocp_Transaction_V1_StatelessSwapResponse.ServerParameters {
+    get {
+      if case .serverParameters(let v)? = response {return v}
+      return Ocp_Transaction_V1_StatelessSwapResponse.ServerParameters()
+    }
+    set {response = .serverParameters(newValue)}
+  }
+
+  public var success: Ocp_Transaction_V1_StatelessSwapResponse.Success {
+    get {
+      if case .success(let v)? = response {return v}
+      return Ocp_Transaction_V1_StatelessSwapResponse.Success()
+    }
+    set {response = .success(newValue)}
+  }
+
+  public var error: Ocp_Transaction_V1_StatelessSwapResponse.Error {
+    get {
+      if case .error(let v)? = response {return v}
+      return Ocp_Transaction_V1_StatelessSwapResponse.Error()
+    }
+    set {response = .error(newValue)}
+  }
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum OneOf_Response: Equatable, Sendable {
+    case serverParameters(Ocp_Transaction_V1_StatelessSwapResponse.ServerParameters)
+    case success(Ocp_Transaction_V1_StatelessSwapResponse.Success)
+    case error(Ocp_Transaction_V1_StatelessSwapResponse.Error)
+
+  }
+
+  public struct ServerParameters: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    public var kind: Ocp_Transaction_V1_StatelessSwapResponse.ServerParameters.OneOf_Kind? = nil
+
+    public var stablecoin: Ocp_Transaction_V1_StatelessSwapResponse.ServerParameters.CoinbaseStableSwapperServerParameter {
+      get {
+        if case .stablecoin(let v)? = kind {return v}
+        return Ocp_Transaction_V1_StatelessSwapResponse.ServerParameters.CoinbaseStableSwapperServerParameter()
+      }
+      set {kind = .stablecoin(newValue)}
+    }
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public enum OneOf_Kind: Equatable, Sendable {
+      case stablecoin(Ocp_Transaction_V1_StatelessSwapResponse.ServerParameters.CoinbaseStableSwapperServerParameter)
+
+    }
+
+    /// Server parameters for executing stateless swap flows against the
+    /// Coinbase Stable Swapper program.
+    ///
+    /// Supported Solana transaction version: v0
+    ///
+    /// Instruction format:
+    ///  1. [Optional] ComputeBudget::SetComputeUnitLimit
+    ///  2. [Optional] ComputeBudget::SetComputeUnitPrice
+    ///  3. [Optional] Memo::Memo
+    ///  4. AssociatedTokenAccount::CreateIdempotent (open owner's to_mint VM Deposit ATA)
+    ///  5. CoinbaseStableSwapper::Swap (owner's from_mint ATA -> owner's to_mint VM Deposit ATA)
+    public struct CoinbaseStableSwapperServerParameter: Sendable {
+      // SwiftProtobuf.Message conformance is added in an extension below. See the
+      // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+      // methods supported on all messages.
+
+      /// Subsidizer account that will pay the transaction fee.
+      public var payer: Ocp_Common_V1_SolanaAccountId {
+        get {_payer ?? Ocp_Common_V1_SolanaAccountId()}
+        set {_payer = newValue}
+      }
+      /// Returns true if `payer` has been explicitly set.
+      public var hasPayer: Bool {self._payer != nil}
+      /// Clears the value of `payer`. Subsequent reads from it will return its default value.
+      public mutating func clearPayer() {self._payer = nil}
+
+      /// The Solana blockhash to set on the transaction. This is a
+      /// regular recent blockhash, not a durable nonce.
+      public var blockhash: Ocp_Common_V1_Blockhash {
+        get {_blockhash ?? Ocp_Common_V1_Blockhash()}
+        set {_blockhash = newValue}
+      }
+      /// Returns true if `blockhash` has been explicitly set.
+      public var hasBlockhash: Bool {self._blockhash != nil}
+      /// Clears the value of `blockhash`. Subsequent reads from it will return its default value.
+      public mutating func clearBlockhash() {self._blockhash = nil}
+
+      /// ALTs that should be used when constructing the versioned transaction
+      public var alts: [Ocp_Common_V1_SolanaAddressLookupTable] = []
+
+      /// Compute unit limit provided to the ComputeBudget::SetComputeUnitLimit
+      /// instruction. If the value is 0, then the instruction can be omitted.
+      public var computeUnitLimit: UInt32 = 0
+
+      /// Compute unit price provided in the ComputeBudget::SetComputeUnitPrice
+      /// instruction. If the value is 0, then the instruction can be omitted.
+      public var computeUnitPrice: UInt64 = 0
+
+      /// Value provided into the Memo::Memo instruction. If the value length is 0,
+      /// then the instruction can be omitted.
+      public var memoValue: String = String()
+
+      /// The CoinbaseStableSwapper liquidity pool's configured fee recipient,
+      /// sourced from the on-chain LiquidityPool account. Required by the
+      /// CoinbaseStableSwapper::Swap instruction.
+      public var poolFeeRecipient: Ocp_Common_V1_SolanaAccountId {
+        get {_poolFeeRecipient ?? Ocp_Common_V1_SolanaAccountId()}
+        set {_poolFeeRecipient = newValue}
+      }
+      /// Returns true if `poolFeeRecipient` has been explicitly set.
+      public var hasPoolFeeRecipient: Bool {self._poolFeeRecipient != nil}
+      /// Clears the value of `poolFeeRecipient`. Subsequent reads from it will return its default value.
+      public mutating func clearPoolFeeRecipient() {self._poolFeeRecipient = nil}
+
+      public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+      public init() {}
+
+      fileprivate var _payer: Ocp_Common_V1_SolanaAccountId? = nil
+      fileprivate var _blockhash: Ocp_Common_V1_Blockhash? = nil
+      fileprivate var _poolFeeRecipient: Ocp_Common_V1_SolanaAccountId? = nil
+    }
+
+    public init() {}
+  }
+
+  public struct Success: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    public var code: Ocp_Transaction_V1_StatelessSwapResponse.Success.Code = .submitted
+
+    /// The signature of the submitted swap transaction. Clients may use
+    /// this to look up the transaction on-chain.
+    public var transactionSignature: Ocp_Common_V1_Signature {
+      get {_transactionSignature ?? Ocp_Common_V1_Signature()}
+      set {_transactionSignature = newValue}
+    }
+    /// Returns true if `transactionSignature` has been explicitly set.
+    public var hasTransactionSignature: Bool {self._transactionSignature != nil}
+    /// Clears the value of `transactionSignature`. Subsequent reads from it will return its default value.
+    public mutating func clearTransactionSignature() {self._transactionSignature = nil}
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public enum Code: SwiftProtobuf.Enum, Swift.CaseIterable {
+      public typealias RawValue = Int
+
+      /// Transaction was forwarded to the cluster. Returned when
+      /// wait_for_finalization = false.
+      case submitted // = 0
+
+      /// Transaction was finalized on-chain. Returned when
+      /// wait_for_finalization = true.
+      case finalized // = 1
+      case UNRECOGNIZED(Int)
+
+      public init() {
+        self = .submitted
+      }
+
+      public init?(rawValue: Int) {
+        switch rawValue {
+        case 0: self = .submitted
+        case 1: self = .finalized
+        default: self = .UNRECOGNIZED(rawValue)
+        }
+      }
+
+      public var rawValue: Int {
+        switch self {
+        case .submitted: return 0
+        case .finalized: return 1
+        case .UNRECOGNIZED(let i): return i
+        }
+      }
+
+      // The compiler won't synthesize support with the UNRECOGNIZED case.
+      public static let allCases: [Ocp_Transaction_V1_StatelessSwapResponse.Success.Code] = [
+        .submitted,
+        .finalized,
+      ]
+
+    }
+
+    public init() {}
+
+    fileprivate var _transactionSignature: Ocp_Common_V1_Signature? = nil
+  }
+
+  public struct Error: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    public var code: Ocp_Transaction_V1_StatelessSwapResponse.Error.Code = .denied
+
+    public var errorDetails: [Ocp_Transaction_V1_ErrorDetails] = []
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public enum Code: SwiftProtobuf.Enum, Swift.CaseIterable {
+      public typealias RawValue = Int
+
+      /// Denied by a guard (spam, money laundering, etc)
+      case denied // = 0
+
+      /// There is an issue with the provided transaction signature
+      case signatureError // = 1
+
+      /// The swap parameters failed server-side validation (eg.
+      /// unsupported mint pair, insufficient source balance, swap amount
+      /// out of allowed range)
+      case invalidSwap // = 2
+
+      /// The transaction was submitted but reverted on-chain, or its
+      /// blockhash expired before confirmation. Only relevant when
+      /// wait_for_finalization = true.
+      case transactionFailed // = 3
+      case UNRECOGNIZED(Int)
+
+      public init() {
+        self = .denied
+      }
+
+      public init?(rawValue: Int) {
+        switch rawValue {
+        case 0: self = .denied
+        case 1: self = .signatureError
+        case 2: self = .invalidSwap
+        case 3: self = .transactionFailed
+        default: self = .UNRECOGNIZED(rawValue)
+        }
+      }
+
+      public var rawValue: Int {
+        switch self {
+        case .denied: return 0
+        case .signatureError: return 1
+        case .invalidSwap: return 2
+        case .transactionFailed: return 3
+        case .UNRECOGNIZED(let i): return i
+        }
+      }
+
+      // The compiler won't synthesize support with the UNRECOGNIZED case.
+      public static let allCases: [Ocp_Transaction_V1_StatelessSwapResponse.Error.Code] = [
+        .denied,
+        .signatureError,
+        .invalidSwap,
+        .transactionFailed,
+      ]
+
+    }
+
+    public init() {}
+  }
+
+  public init() {}
+}
+
 public struct Ocp_Transaction_V1_GetSwapRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -4625,6 +5042,484 @@ extension Ocp_Transaction_V1_StatefulSwapResponse.Error: SwiftProtobuf.Message, 
 
 extension Ocp_Transaction_V1_StatefulSwapResponse.Error.Code: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0DENIED\0\u{1}SIGNATURE_ERROR\0\u{1}INVALID_SWAP\0")
+}
+
+extension Ocp_Transaction_V1_StatelessSwapRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".StatelessSwapRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}initiate\0\u{3}submit_signatures\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try {
+        var v: Ocp_Transaction_V1_StatelessSwapRequest.Initiate?
+        var hadOneofValue = false
+        if let current = self.request {
+          hadOneofValue = true
+          if case .initiate(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.request = .initiate(v)
+        }
+      }()
+      case 2: try {
+        var v: Ocp_Transaction_V1_StatelessSwapRequest.SubmitSignatures?
+        var hadOneofValue = false
+        if let current = self.request {
+          hadOneofValue = true
+          if case .submitSignatures(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.request = .submitSignatures(v)
+        }
+      }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    switch self.request {
+    case .initiate?: try {
+      guard case .initiate(let v)? = self.request else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    }()
+    case .submitSignatures?: try {
+      guard case .submitSignatures(let v)? = self.request else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    }()
+    case nil: break
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Transaction_V1_StatelessSwapRequest, rhs: Ocp_Transaction_V1_StatelessSwapRequest) -> Bool {
+    if lhs.request != rhs.request {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Transaction_V1_StatelessSwapRequest.Initiate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Ocp_Transaction_V1_StatelessSwapRequest.protoMessageName + ".Initiate"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}stablecoin\0\u{1}owner\0\u{3}wait_for_finalization\0\u{1}signature\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try {
+        var v: Ocp_Transaction_V1_StatelessSwapRequest.Initiate.CoinbaseStableSwapperClientParameters?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .stablecoin(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .stablecoin(v)
+        }
+      }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._owner) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.waitForFinalization) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._signature) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if case .stablecoin(let v)? = self.kind {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._owner {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    if self.waitForFinalization != false {
+      try visitor.visitSingularBoolField(value: self.waitForFinalization, fieldNumber: 3)
+    }
+    try { if let v = self._signature {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Transaction_V1_StatelessSwapRequest.Initiate, rhs: Ocp_Transaction_V1_StatelessSwapRequest.Initiate) -> Bool {
+    if lhs.kind != rhs.kind {return false}
+    if lhs._owner != rhs._owner {return false}
+    if lhs.waitForFinalization != rhs.waitForFinalization {return false}
+    if lhs._signature != rhs._signature {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Transaction_V1_StatelessSwapRequest.Initiate.CoinbaseStableSwapperClientParameters: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Ocp_Transaction_V1_StatelessSwapRequest.Initiate.protoMessageName + ".CoinbaseStableSwapperClientParameters"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}from_mint\0\u{3}to_mint\0\u{3}swap_amount\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._fromMint) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._toMint) }()
+      case 3: try { try decoder.decodeSingularUInt64Field(value: &self.swapAmount) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._fromMint {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._toMint {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    if self.swapAmount != 0 {
+      try visitor.visitSingularUInt64Field(value: self.swapAmount, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Transaction_V1_StatelessSwapRequest.Initiate.CoinbaseStableSwapperClientParameters, rhs: Ocp_Transaction_V1_StatelessSwapRequest.Initiate.CoinbaseStableSwapperClientParameters) -> Bool {
+    if lhs._fromMint != rhs._fromMint {return false}
+    if lhs._toMint != rhs._toMint {return false}
+    if lhs.swapAmount != rhs.swapAmount {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Transaction_V1_StatelessSwapRequest.SubmitSignatures: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Ocp_Transaction_V1_StatelessSwapRequest.protoMessageName + ".SubmitSignatures"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}transaction_signatures\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.transactionSignatures) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.transactionSignatures.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.transactionSignatures, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Transaction_V1_StatelessSwapRequest.SubmitSignatures, rhs: Ocp_Transaction_V1_StatelessSwapRequest.SubmitSignatures) -> Bool {
+    if lhs.transactionSignatures != rhs.transactionSignatures {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Transaction_V1_StatelessSwapResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".StatelessSwapResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}server_parameters\0\u{1}success\0\u{1}error\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try {
+        var v: Ocp_Transaction_V1_StatelessSwapResponse.ServerParameters?
+        var hadOneofValue = false
+        if let current = self.response {
+          hadOneofValue = true
+          if case .serverParameters(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.response = .serverParameters(v)
+        }
+      }()
+      case 2: try {
+        var v: Ocp_Transaction_V1_StatelessSwapResponse.Success?
+        var hadOneofValue = false
+        if let current = self.response {
+          hadOneofValue = true
+          if case .success(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.response = .success(v)
+        }
+      }()
+      case 3: try {
+        var v: Ocp_Transaction_V1_StatelessSwapResponse.Error?
+        var hadOneofValue = false
+        if let current = self.response {
+          hadOneofValue = true
+          if case .error(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.response = .error(v)
+        }
+      }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    switch self.response {
+    case .serverParameters?: try {
+      guard case .serverParameters(let v)? = self.response else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    }()
+    case .success?: try {
+      guard case .success(let v)? = self.response else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    }()
+    case .error?: try {
+      guard case .error(let v)? = self.response else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    }()
+    case nil: break
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Transaction_V1_StatelessSwapResponse, rhs: Ocp_Transaction_V1_StatelessSwapResponse) -> Bool {
+    if lhs.response != rhs.response {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Transaction_V1_StatelessSwapResponse.ServerParameters: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Ocp_Transaction_V1_StatelessSwapResponse.protoMessageName + ".ServerParameters"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}stablecoin\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try {
+        var v: Ocp_Transaction_V1_StatelessSwapResponse.ServerParameters.CoinbaseStableSwapperServerParameter?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .stablecoin(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .stablecoin(v)
+        }
+      }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if case .stablecoin(let v)? = self.kind {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Transaction_V1_StatelessSwapResponse.ServerParameters, rhs: Ocp_Transaction_V1_StatelessSwapResponse.ServerParameters) -> Bool {
+    if lhs.kind != rhs.kind {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Transaction_V1_StatelessSwapResponse.ServerParameters.CoinbaseStableSwapperServerParameter: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Ocp_Transaction_V1_StatelessSwapResponse.ServerParameters.protoMessageName + ".CoinbaseStableSwapperServerParameter"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}payer\0\u{1}blockhash\0\u{1}alts\0\u{3}compute_unit_limit\0\u{3}compute_unit_price\0\u{3}memo_value\0\u{3}pool_fee_recipient\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._payer) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._blockhash) }()
+      case 3: try { try decoder.decodeRepeatedMessageField(value: &self.alts) }()
+      case 4: try { try decoder.decodeSingularUInt32Field(value: &self.computeUnitLimit) }()
+      case 5: try { try decoder.decodeSingularUInt64Field(value: &self.computeUnitPrice) }()
+      case 6: try { try decoder.decodeSingularStringField(value: &self.memoValue) }()
+      case 7: try { try decoder.decodeSingularMessageField(value: &self._poolFeeRecipient) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._payer {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._blockhash {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    if !self.alts.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.alts, fieldNumber: 3)
+    }
+    if self.computeUnitLimit != 0 {
+      try visitor.visitSingularUInt32Field(value: self.computeUnitLimit, fieldNumber: 4)
+    }
+    if self.computeUnitPrice != 0 {
+      try visitor.visitSingularUInt64Field(value: self.computeUnitPrice, fieldNumber: 5)
+    }
+    if !self.memoValue.isEmpty {
+      try visitor.visitSingularStringField(value: self.memoValue, fieldNumber: 6)
+    }
+    try { if let v = self._poolFeeRecipient {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Transaction_V1_StatelessSwapResponse.ServerParameters.CoinbaseStableSwapperServerParameter, rhs: Ocp_Transaction_V1_StatelessSwapResponse.ServerParameters.CoinbaseStableSwapperServerParameter) -> Bool {
+    if lhs._payer != rhs._payer {return false}
+    if lhs._blockhash != rhs._blockhash {return false}
+    if lhs.alts != rhs.alts {return false}
+    if lhs.computeUnitLimit != rhs.computeUnitLimit {return false}
+    if lhs.computeUnitPrice != rhs.computeUnitPrice {return false}
+    if lhs.memoValue != rhs.memoValue {return false}
+    if lhs._poolFeeRecipient != rhs._poolFeeRecipient {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Transaction_V1_StatelessSwapResponse.Success: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Ocp_Transaction_V1_StatelessSwapResponse.protoMessageName + ".Success"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}code\0\u{3}transaction_signature\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.code) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._transactionSignature) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.code != .submitted {
+      try visitor.visitSingularEnumField(value: self.code, fieldNumber: 1)
+    }
+    try { if let v = self._transactionSignature {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Transaction_V1_StatelessSwapResponse.Success, rhs: Ocp_Transaction_V1_StatelessSwapResponse.Success) -> Bool {
+    if lhs.code != rhs.code {return false}
+    if lhs._transactionSignature != rhs._transactionSignature {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Transaction_V1_StatelessSwapResponse.Success.Code: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0SUBMITTED\0\u{1}FINALIZED\0")
+}
+
+extension Ocp_Transaction_V1_StatelessSwapResponse.Error: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Ocp_Transaction_V1_StatelessSwapResponse.protoMessageName + ".Error"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}code\0\u{3}error_details\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.code) }()
+      case 2: try { try decoder.decodeRepeatedMessageField(value: &self.errorDetails) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.code != .denied {
+      try visitor.visitSingularEnumField(value: self.code, fieldNumber: 1)
+    }
+    if !self.errorDetails.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.errorDetails, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Transaction_V1_StatelessSwapResponse.Error, rhs: Ocp_Transaction_V1_StatelessSwapResponse.Error) -> Bool {
+    if lhs.code != rhs.code {return false}
+    if lhs.errorDetails != rhs.errorDetails {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Transaction_V1_StatelessSwapResponse.Error.Code: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0DENIED\0\u{1}SIGNATURE_ERROR\0\u{1}INVALID_SWAP\0\u{1}TRANSACTION_FAILED\0")
 }
 
 extension Ocp_Transaction_V1_GetSwapRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
