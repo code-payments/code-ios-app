@@ -107,6 +107,36 @@ struct UsdcSweepOperationTests {
         #expect(await swapper.callCount == 1)
         #expect(await completion.value == 1)
     }
+
+    // MARK: - Error path
+
+    @Test("Swap failure skips the completion callback and releases the in-flight guard")
+    func start_whenSwapThrows_skipsCompletionAndReleasesGuard() async throws {
+        let fetcher = MockAccountFetcher()
+        let swapper = MockSwapper()
+        let completion = Counter()
+
+        let op = UsdcSweepOperation(
+            accountFetcher: fetcher,
+            swapper: swapper,
+            ownerKeyPair: .mock,
+            onSweepCompleted: { await completion.bump() }
+        )
+
+        await fetcher.setImmediateHandler {
+            try AccountInfo(.usdcAtaInfo(quarks: 10_000))
+        }
+        await swapper.setNextResult(.failure(ErrorStatelessSwap.unknown))
+        await op.start().value
+
+        #expect(await swapper.callCount == 1)
+        #expect(await completion.value == 0)
+
+        // A second start() must proceed — proves the catch path released isRunning.
+        await op.start().value
+        #expect(await fetcher.callCount == 2)
+        #expect(await swapper.callCount == 2)
+    }
 }
 
 // MARK: - Mocks
@@ -155,6 +185,13 @@ private actor MockAccountFetcher: AssociatedTokenAccountFetching {
 private actor MockSwapper: StatelessSwapping {
 
     private(set) var callCount = 0
+    private var nextResult: Result<StatelessSwapResult, Error> = .success(
+        .finalized(signature: try! Signature(Data(repeating: 0, count: 64)))
+    )
+
+    func setNextResult(_ result: Result<StatelessSwapResult, Error>) {
+        nextResult = result
+    }
 
     func statelessSwap(
         fromMint: MintMetadata,
@@ -163,7 +200,7 @@ private actor MockSwapper: StatelessSwapping {
         owner: KeyPair
     ) async throws -> StatelessSwapResult {
         callCount += 1
-        return .finalized(signature: try Signature(Data(repeating: 0, count: 64)))
+        return try nextResult.get()
     }
 }
 
