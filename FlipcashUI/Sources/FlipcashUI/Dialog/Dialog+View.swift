@@ -41,27 +41,6 @@ extension View {
     }
 }
 
-// MARK: - DialogItem -
-
-public struct DialogItem: Identifiable {
-    
-    public let id: UUID
-    public let style: Dialog.Style
-    public let title: String?
-    public let subtitle: String?
-    public let dismissable: Bool
-    public let actions: [DialogAction]
-    
-    public init(style: Dialog.Style, title: String?, subtitle: String?, dismissable: Bool, @ActionBuilder actions: () -> [DialogAction]) {
-        self.id          = UUID()
-        self.style       = style
-        self.title       = title
-        self.subtitle    = subtitle
-        self.dismissable = dismissable
-        self.actions     = actions()
-    }
-}
-
 // MARK: - Modifiers -
 
 private struct DialogModifierBoolean: ViewModifier {
