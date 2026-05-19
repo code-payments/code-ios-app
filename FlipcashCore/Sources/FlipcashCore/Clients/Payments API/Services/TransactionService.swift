@@ -1031,10 +1031,6 @@ extension ErrorSubmitIntent: ServerError {
         }
     }
 
-    /// True for the gRPC status codes that mark a transient transport
-    /// condition (`deadlineExceeded`, `unavailable`) — the spec calls these
-    /// retryable. Surfaces a retry CTA in the UI and keeps Bugsnag clean of
-    /// network noise that otherwise dominates the issue board.
     public var isTransientNetworkError: Bool {
         switch self {
         case .grpcStatus(let status):
