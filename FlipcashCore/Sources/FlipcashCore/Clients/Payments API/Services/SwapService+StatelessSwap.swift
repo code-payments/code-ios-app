@@ -41,7 +41,7 @@ extension SwapService {
         toMint: MintMetadata,
         amount: TokenAmount,
         owner: KeyPair,
-        completion: @escaping (Result<StatelessSwapResult, ErrorStatelessSwap>) -> Void
+        completion: @Sendable @escaping (Result<StatelessSwapResult, ErrorStatelessSwap>) -> Void
     ) {
         logger.info("Starting stateless swap", metadata: [
             "from": "\(fromMint.address.base58)",
