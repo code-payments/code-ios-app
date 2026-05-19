@@ -30,13 +30,10 @@ extension AppRouter {
         /// `WithdrawIntroScreen` with the currency pre-selected. Pushed from
         /// USDF Currency Info on the Wallet sheet.
         case withdrawCurrency(PublicKey)
-        /// USDC → USDF deposit education screen. Reached from USDF Currency
-        /// Info on the Wallet sheet and from the buy flow's Other Wallet path
-        /// on the `.buy` sheet — same screen, different entry points.
+        /// USDC → USDF deposit education screen.
         case usdcDepositEducation
-        /// USDC → USDF deposit address screen (shows the user's authority
-        /// pubkey — wallets derive the USDC ATA from it on send). Reached
-        /// as the next step after `.usdcDepositEducation`.
+        /// USDC → USDF deposit address screen. Shows the user's authority
+        /// pubkey — wallets derive the USDC ATA from it on send.
         case usdcDepositAddress
         /// Phantom flow screen. Carries the in-flight `PhantomFundingOperation`;
         /// a single state-switching host (`PhantomFlowScreen`) renders the
