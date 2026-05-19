@@ -32,9 +32,8 @@ actor UsdcSweepOperation {
         self.onSweepCompleted = onSweepCompleted
     }
 
-    /// Spawns the sweep task. No-op when one is already in flight. The
-    /// returned Task is for tests that need to await completion; production
-    /// callers discard it.
+    /// Spawns the sweep task and returns it. No-op when one is already in flight.
+    @discardableResult
     nonisolated func start() -> Task<Void, Never> {
         Task { await run() }
     }

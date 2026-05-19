@@ -117,7 +117,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             applyAutoReturnIfNeeded()
             lastBackgroundedAt = nil
             sessionContainer?.session.didBecomeActive()
-            _ = sessionContainer?.usdcSweepOperation.start()
+            sessionContainer?.usdcSweepOperation.start()
         case .inactive:
             break
         @unknown default:
