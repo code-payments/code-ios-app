@@ -53,5 +53,9 @@ struct DepositScreen: View {
     private func copyAddress() {
         UIPasteboard.general.string = address
         buttonState = .successText("Copied")
+        Task {
+            try? await Task.sleep(for: .seconds(1.5))
+            buttonState = .normal
+        }
     }
 }
