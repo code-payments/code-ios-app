@@ -19,8 +19,8 @@ struct UsdcSweepOperationTests {
         .tags(.concurrency)
     )
     func start_whileInFlight_skipsSecondCall() async throws {
-        let fetcher = MockAssociatedTokenAccountFetching()
-        let swapper = MockStatelessSwapping()
+        let fetcher = MockAccountFetcher()
+        let swapper = MockSwapper()
         let completion = Counter()
 
         let op = UsdcSweepOperation(
@@ -64,8 +64,8 @@ struct UsdcSweepOperationTests {
         arguments: [Optional<UInt64>.none, .some(0)]
     )
     func start_whenAtaEmpty_skipsSwap(quarks: UInt64?) async throws {
-        let fetcher = MockAssociatedTokenAccountFetching()
-        let swapper = MockStatelessSwapping()
+        let fetcher = MockAccountFetcher()
+        let swapper = MockSwapper()
         let completion = Counter()
 
         let op = UsdcSweepOperation(
@@ -90,8 +90,8 @@ struct UsdcSweepOperationTests {
 
     @Test("Positive USDC balance runs the swap and fires onSweepCompleted")
     func start_withPositiveBalance_invokesSwapAndCompletion() async throws {
-        let fetcher = MockAssociatedTokenAccountFetching()
-        let swapper = MockStatelessSwapping()
+        let fetcher = MockAccountFetcher()
+        let swapper = MockSwapper()
         let completion = Counter()
 
         let op = UsdcSweepOperation(
@@ -118,8 +118,8 @@ struct UsdcSweepOperationTests {
         .tags(.concurrency)
     )
     func start_afterPreviousCompletion_allowsSecondSweep() async throws {
-        let fetcher = MockAssociatedTokenAccountFetching()
-        let swapper = MockStatelessSwapping()
+        let fetcher = MockAccountFetcher()
+        let swapper = MockSwapper()
         let completion = Counter()
 
         let op = UsdcSweepOperation(
@@ -154,8 +154,8 @@ struct UsdcSweepOperationTests {
         .tags(.concurrency)
     )
     func start_whenSwapThrows_skipsCompletionAndReleasesGuard() async throws {
-        let fetcher = MockAssociatedTokenAccountFetching()
-        let swapper = MockStatelessSwapping()
+        let fetcher = MockAccountFetcher()
+        let swapper = MockSwapper()
         let completion = Counter()
 
         let op = UsdcSweepOperation(
@@ -181,7 +181,70 @@ struct UsdcSweepOperationTests {
     }
 }
 
-// MARK: - Local helpers
+// MARK: - Mocks
+
+private actor MockAccountFetcher: AssociatedTokenAccountFetching {
+
+    private(set) var callCount = 0
+
+    private enum Mode {
+        case immediate(@Sendable () throws -> AccountInfo?)
+        case blocking(@Sendable () -> Void)
+    }
+    private var mode: Mode?
+    private var pendingContinuation: CheckedContinuation<Result<AccountInfo?, Error>, Never>?
+
+    func setImmediateHandler(_ handler: @escaping @Sendable () throws -> AccountInfo?) {
+        mode = .immediate(handler)
+    }
+
+    func setBlockingHandler(_ onEntered: @escaping @Sendable () -> Void) {
+        mode = .blocking(onEntered)
+    }
+
+    func resumeWith(_ result: Result<AccountInfo?, Error>) {
+        pendingContinuation?.resume(returning: result)
+        pendingContinuation = nil
+    }
+
+    func fetchAssociatedTokenAccount(owner: KeyPair, mint: PublicKey) async throws -> AccountInfo? {
+        callCount += 1
+        switch mode {
+        case .immediate(let handler):
+            return try handler()
+        case .blocking(let onEntered):
+            onEntered()
+            let result: Result<AccountInfo?, Error> = await withCheckedContinuation { c in
+                pendingContinuation = c
+            }
+            return try result.get()
+        case nil:
+            return nil
+        }
+    }
+}
+
+private actor MockSwapper: StatelessSwapping {
+
+    private(set) var callCount = 0
+    private var nextResult: Result<StatelessSwapResult, Error> = .success(
+        .finalized(signature: try! Signature(Data(repeating: 0, count: 64)))
+    )
+
+    func setNextResult(_ result: Result<StatelessSwapResult, Error>) {
+        nextResult = result
+    }
+
+    func statelessSwap(
+        fromMint: MintMetadata,
+        toMint: MintMetadata,
+        amount: TokenAmount,
+        owner: KeyPair
+    ) async throws -> StatelessSwapResult {
+        callCount += 1
+        return try nextResult.get()
+    }
+}
 
 private actor Counter {
     private(set) var value = 0
@@ -220,5 +283,21 @@ private final class Expectation: @unchecked Sendable {
                 lock.unlock()
             }
         }
+    }
+}
+
+// MARK: - Fixtures
+
+private extension Ocp_Account_V1_TokenAccountInfo {
+    static func usdcAtaInfo(quarks: UInt64) -> Ocp_Account_V1_TokenAccountInfo {
+        let id = PublicKey.mock.solanaAccountID
+        var proto = Ocp_Account_V1_TokenAccountInfo()
+        proto.address = id
+        proto.mint = id
+        proto.owner = id
+        proto.authority = id
+        proto.balance = quarks
+        proto.accountType = .associatedTokenAccount
+        return proto
     }
 }
