@@ -171,7 +171,7 @@ final class BuyAmountViewModel: Identifiable {
                     "mint": "\(self?.mint.base58 ?? "nil")",
                     "title": "\(title)",
                 ])
-                self?.dialogItem = .externalRejection(title: title, subtitle: subtitle)
+                self?.dialogItem = .error(title: title, subtitle: subtitle)
             } catch {
                 logger.error("Coinbase funding failed", metadata: [
                     "mint": "\(self?.mint.base58 ?? "nil")",
@@ -228,7 +228,7 @@ final class BuyAmountViewModel: Identifiable {
                     "mint": "\(self?.mint.base58 ?? "nil")",
                     "title": "\(title)",
                 ])
-                self?.dialogItem = .externalRejection(title: title, subtitle: subtitle)
+                self?.dialogItem = .error(title: title, subtitle: subtitle)
             } catch {
                 logger.error("Phantom funding failed", metadata: [
                     "mint": "\(self?.mint.base58 ?? "nil")",
@@ -280,7 +280,7 @@ final class BuyAmountViewModel: Identifiable {
                 "title": "\(title)",
             ])
             actionButtonState = .normal
-            dialogItem = .externalRejection(title: title, subtitle: subtitle)
+            dialogItem = .error(title: title, subtitle: subtitle)
         } catch {
             logger.error("Failed to buy currency from BuyAmountScreen", metadata: [
                 "mint": "\(mint.base58)",

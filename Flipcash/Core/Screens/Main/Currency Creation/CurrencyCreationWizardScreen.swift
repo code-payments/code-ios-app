@@ -436,7 +436,7 @@ struct CurrencyCreationWizardScreen: View {
             }
             if !isAvailable {
                 logger.info("Currency name unavailable", metadata: ["name_length": "\(name.count)"])
-                errorDialog = makeDestructiveDialog(
+                errorDialog = DialogItem.error(
                     title: "This Name is Taken",
                     subtitle: "Try a different currency name"
                 )
@@ -449,14 +449,14 @@ struct CurrencyCreationWizardScreen: View {
                 attestation = try await flipClient.moderateText(name, owner: session.ownerKeyPair)
             } catch ErrorModeration.denied(let category) {
                 logger.info("Currency name moderation denied", metadata: ["category": "\(category)"])
-                errorDialog = makeDestructiveDialog(
+                errorDialog = DialogItem.error(
                     title: "This Name is Not Allowed",
                     subtitle: "Try a different currency name"
                 )
                 return
             } catch ErrorModeration.unsupportedLanguage {
                 logger.info("Currency name moderation: unsupported language")
-                errorDialog = makeDestructiveDialog(
+                errorDialog = DialogItem.error(
                     title: "Couldn't Check This Name",
                     subtitle: "Try a different name."
                 )
@@ -493,7 +493,7 @@ struct CurrencyCreationWizardScreen: View {
             } catch {
                 logger.error("Failed to encode icon within 1 MB budget", metadata: ["error": "\(error)"])
                 ErrorReporting.captureError(error)
-                errorDialog = makeDestructiveDialog(
+                errorDialog = DialogItem.error(
                     title: "Couldn't Process Image",
                     subtitle: "Try a smaller or simpler image"
                 )
@@ -506,14 +506,14 @@ struct CurrencyCreationWizardScreen: View {
                 attestation = try await flipClient.moderateImage(imageData, owner: session.ownerKeyPair)
             } catch ErrorModeration.denied(let category) {
                 logger.info("Currency icon moderation denied", metadata: ["category": "\(category)"])
-                errorDialog = makeDestructiveDialog(
+                errorDialog = DialogItem.error(
                     title: "This Image is Not Allowed",
                     subtitle: "Try a different image"
                 )
                 return
             } catch ErrorModeration.unsupportedFormat {
                 logger.info("Currency icon format unsupported")
-                errorDialog = makeDestructiveDialog(
+                errorDialog = DialogItem.error(
                     title: "This Image Format Isn't Supported",
                     subtitle: "Use PNG, JPEG, or HEIC"
                 )
@@ -544,14 +544,14 @@ struct CurrencyCreationWizardScreen: View {
                 attestation = try await flipClient.moderateText(description, owner: session.ownerKeyPair)
             } catch ErrorModeration.denied(let category) {
                 logger.info("Currency description moderation denied", metadata: ["category": "\(category)"])
-                errorDialog = makeDestructiveDialog(
+                errorDialog = DialogItem.error(
                     title: "This Description is Not Allowed",
                     subtitle: "Try a different description"
                 )
                 return
             } catch ErrorModeration.unsupportedLanguage {
                 logger.info("Currency description moderation: unsupported language")
-                errorDialog = makeDestructiveDialog(
+                errorDialog = DialogItem.error(
                     title: "Couldn't Check This Description",
                     subtitle: "Try a different description."
                 )
@@ -639,7 +639,7 @@ struct CurrencyCreationWizardScreen: View {
             } catch ErrorLaunchCurrency.denied {
                 logger.error("Launch denied after preflight attestations passed")
                 ErrorReporting.captureError(ErrorLaunchCurrency.denied)
-                errorDialog = makeDestructiveDialog(
+                errorDialog = DialogItem.error(
                     title: "Couldn't Launch Currency",
                     subtitle: "Please try again. Contact support if this persists."
                 )
@@ -681,7 +681,7 @@ struct CurrencyCreationWizardScreen: View {
                 }
                 logger.error("Launch name-exists after preflight CheckAvailability passed")
                 ErrorReporting.captureError(ErrorLaunchCurrency.nameExists)
-                errorDialog = makeDestructiveDialog(
+                errorDialog = DialogItem.error(
                     title: "Name No Longer Available",
                     subtitle: "Please pick a different name."
                 )
@@ -689,7 +689,7 @@ struct CurrencyCreationWizardScreen: View {
             } catch ErrorLaunchCurrency.invalidIcon {
                 logger.error("Launch rejected icon after preflight moderation passed")
                 ErrorReporting.captureError(ErrorLaunchCurrency.invalidIcon)
-                errorDialog = makeDestructiveDialog(
+                errorDialog = DialogItem.error(
                     title: "Image Is Invalid",
                     subtitle: "Please pick a different image."
                 )
@@ -705,7 +705,7 @@ struct CurrencyCreationWizardScreen: View {
                     "title": "\(title)",
                     "mint": "\(operation.launchedMint?.base58 ?? "nil")",
                 ])
-                errorDialog = makeDestructiveDialog(title: title, subtitle: subtitle)
+                errorDialog = DialogItem.error(title: title, subtitle: subtitle)
                 return
             } catch {
                 if Task.isCancelled { return }
@@ -732,14 +732,14 @@ struct CurrencyCreationWizardScreen: View {
 
     private func presentInsufficientFundsDialog(totalLaunchCost: ExchangedFiat) {
         logger.info("Insufficient balance to complete currency purchase")
-        errorDialog = makeDestructiveDialog(
+        errorDialog = DialogItem.error(
             title: "Not Enough Funds",
             subtitle: "You need \(totalLaunchCost.nativeAmount.formatted()) to create this currency."
         )
     }
 
     private func presentCouldNotCreateCurrencyDialog() {
-        errorDialog = makeDestructiveDialog(
+        errorDialog = DialogItem.error(
             title: "Couldn't Create Currency",
             subtitle: "Please try again."
         )
@@ -840,21 +840,21 @@ struct CurrencyCreationWizardScreen: View {
             } catch ErrorLaunchCurrency.denied {
                 logger.error("Phantom launch denied after preflight attestations passed")
                 ErrorReporting.captureError(ErrorLaunchCurrency.denied)
-                errorDialog = makeDestructiveDialog(
+                errorDialog = DialogItem.error(
                     title: "Couldn't Launch Currency",
                     subtitle: "Please try again. Contact support if this persists."
                 )
             } catch ErrorLaunchCurrency.nameExists {
                 logger.error("Phantom launch name-exists after preflight CheckAvailability passed")
                 ErrorReporting.captureError(ErrorLaunchCurrency.nameExists)
-                errorDialog = makeDestructiveDialog(
+                errorDialog = DialogItem.error(
                     title: "Name No Longer Available",
                     subtitle: "Please pick a different name."
                 )
             } catch ErrorLaunchCurrency.invalidIcon {
                 logger.error("Phantom launch rejected icon after preflight moderation passed")
                 ErrorReporting.captureError(ErrorLaunchCurrency.invalidIcon)
-                errorDialog = makeDestructiveDialog(
+                errorDialog = DialogItem.error(
                     title: "Image Is Invalid",
                     subtitle: "Please pick a different image."
                 )
@@ -864,7 +864,7 @@ struct CurrencyCreationWizardScreen: View {
                     "title": "\(title)",
                     "mint": "\(operation.launchedMint?.base58 ?? "nil")",
                 ])
-                errorDialog = makeDestructiveDialog(title: title, subtitle: subtitle)
+                errorDialog = DialogItem.error(title: title, subtitle: subtitle)
             } catch {
                 captureCreatedMint(operation.launchedMint, name: state.currencyName)
                 logger.error("Phantom-funded launch failed", metadata: [
@@ -872,7 +872,7 @@ struct CurrencyCreationWizardScreen: View {
                     "mint": "\(operation.launchedMint?.base58 ?? "nil")",
                 ])
                 ErrorReporting.captureError(error)
-                errorDialog = makeDestructiveDialog(
+                errorDialog = DialogItem.error(
                     title: "Couldn't Create Currency",
                     subtitle: "Please try again."
                 )
@@ -931,19 +931,19 @@ struct CurrencyCreationWizardScreen: View {
                 }
             } catch ErrorLaunchCurrency.denied {
                 ErrorReporting.captureError(ErrorLaunchCurrency.denied)
-                errorDialog = makeDestructiveDialog(
+                errorDialog = DialogItem.error(
                     title: "Couldn't Launch Currency",
                     subtitle: "Please try again. Contact support if this persists."
                 )
             } catch ErrorLaunchCurrency.nameExists {
                 ErrorReporting.captureError(ErrorLaunchCurrency.nameExists)
-                errorDialog = makeDestructiveDialog(
+                errorDialog = DialogItem.error(
                     title: "Name No Longer Available",
                     subtitle: "Please pick a different name."
                 )
             } catch ErrorLaunchCurrency.invalidIcon {
                 ErrorReporting.captureError(ErrorLaunchCurrency.invalidIcon)
-                errorDialog = makeDestructiveDialog(
+                errorDialog = DialogItem.error(
                     title: "Image Is Invalid",
                     subtitle: "Please pick a different image."
                 )
@@ -953,7 +953,7 @@ struct CurrencyCreationWizardScreen: View {
                     "title": "\(title)",
                     "mint": "\(operation.launchedMint?.base58 ?? "nil")",
                 ])
-                errorDialog = makeDestructiveDialog(title: title, subtitle: subtitle)
+                errorDialog = DialogItem.error(title: title, subtitle: subtitle)
             } catch {
                 captureCreatedMint(operation.launchedMint, name: state.currencyName)
                 logger.error("Coinbase-funded launch failed", metadata: [
@@ -961,7 +961,7 @@ struct CurrencyCreationWizardScreen: View {
                     "mint": "\(operation.launchedMint?.base58 ?? "nil")",
                 ])
                 ErrorReporting.captureError(error)
-                errorDialog = makeDestructiveDialog(
+                errorDialog = DialogItem.error(
                     title: "Couldn't Create Currency",
                     subtitle: "Please try again."
                 )
@@ -976,22 +976,12 @@ struct CurrencyCreationWizardScreen: View {
     // MARK: - Dialogs
 
     private func presentGenericErrorDialog() {
-        errorDialog = makeDestructiveDialog(
+        errorDialog = DialogItem.error(
             title: "Something Went Wrong",
             subtitle: "Please try again"
         )
     }
 
-    private func makeDestructiveDialog(title: String, subtitle: String) -> DialogItem {
-        .init(
-            style: .destructive,
-            title: title,
-            subtitle: subtitle,
-            dismissable: true
-        ) {
-            .okay(kind: .destructive)
-        }
-    }
 }
 
 // MARK: - NameStep

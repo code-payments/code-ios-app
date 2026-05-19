@@ -102,12 +102,12 @@ extension DialogItem {
         }
     }
 
-    /// Renders a destructive dialog from a
-    /// `FundingOperationError.externalRejected(title:subtitle:)` payload —
-    /// e.g. Coinbase's `ERROR_CODE_GUEST_REGION_MISMATCH` ("Your Region
-    /// Isn't Supported") or a Phantom wallet rejection. The funding
-    /// operation builds the strings; the call site just binds them.
-    static func externalRejection(title: String, subtitle: String) -> DialogItem {
+    /// Generic destructive dialog with caller-supplied strings and an "OK"
+    /// destructive dismiss button. Use for any user-facing error where the
+    /// title/subtitle vary by context (e.g. validation failures, Coinbase
+    /// rejections, moderation denials). For the stock "Something Went Wrong"
+    /// fallback, prefer `.somethingWentWrong`.
+    static func error(title: String, subtitle: String) -> DialogItem {
         .init(
             style: .destructive,
             title: title,
