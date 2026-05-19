@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import GRPC
 import FlipcashAPI
 @testable import FlipcashCore
 
@@ -132,6 +133,59 @@ struct ErrorSubmitIntentTests {
             Issue.record("Expected .unknown, got \(error)")
             return
         }
+    }
+
+    // MARK: - isTransientNetworkError / isReportable
+
+    @Test(
+        "grpcStatus(.deadlineExceeded) and grpcStatus(.unavailable) are transient network errors",
+        arguments: [GRPCStatus.Code.deadlineExceeded, .unavailable]
+    )
+    func transientNetworkErrors(code: GRPCStatus.Code) {
+        let error = ErrorSubmitIntent.grpcStatus(GRPCStatus(code: code, message: nil))
+
+        #expect(error.isTransientNetworkError)
+        #expect(!error.isReportable)
+    }
+
+    // `.cancelled`, `.aborted`, and `.unknown` are deliberately excluded from
+    // the transient set: gRPC marks them retryable in general, but here we
+    // want them to keep firing Bugsnag so app-side cancellations and server
+    // aborts stay visible. Pin that intentional divergence so a future
+    // contributor doesn't silently widen the transient set.
+    @Test(
+        "non-network grpcStatus codes remain reportable and are not transient",
+        arguments: [
+            GRPCStatus.Code.internalError,
+            .invalidArgument,
+            .permissionDenied,
+            .resourceExhausted,
+            .cancelled,
+            .aborted,
+            .unknown,
+        ]
+    )
+    func reportableGrpcStatusCodes(code: GRPCStatus.Code) {
+        let error = ErrorSubmitIntent.grpcStatus(GRPCStatus(code: code, message: nil))
+
+        #expect(!error.isTransientNetworkError)
+        #expect(error.isReportable)
+    }
+
+    @Test(
+        "non-grpcStatus cases are never transient network errors",
+        arguments: [
+            ErrorSubmitIntent.denied([], messages: []),
+            .invalidIntent([]),
+            .signatureError,
+            .staleState([], kinds: []),
+            .unknown,
+            .deviceTokenUnavailable,
+            .grpcError(GRPCStatus(code: .unavailable, message: nil)),
+        ]
+    )
+    func nonGrpcStatusCasesAreNotTransient(error: ErrorSubmitIntent) {
+        #expect(!error.isTransientNetworkError)
     }
 
     // MARK: - StaleStateKind

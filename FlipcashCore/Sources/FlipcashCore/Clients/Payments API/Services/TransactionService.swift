@@ -1026,7 +1026,24 @@ extension ErrorSubmitIntent: ServerError {
     public var isReportable: Bool {
         switch self {
         case .denied, .invalidIntent, .staleState: false
-        case .signatureError, .unknown, .deviceTokenUnavailable, .grpcStatus, .grpcError: true
+        case .signatureError, .unknown, .deviceTokenUnavailable, .grpcError: true
+        case .grpcStatus: !isTransientNetworkError
+        }
+    }
+
+    /// True for the gRPC status codes that mark a transient transport
+    /// condition (`deadlineExceeded`, `unavailable`) — the spec calls these
+    /// retryable. Surfaces a retry CTA in the UI and keeps Bugsnag clean of
+    /// network noise that otherwise dominates the issue board.
+    public var isTransientNetworkError: Bool {
+        switch self {
+        case .grpcStatus(let status):
+            switch status.code {
+            case .deadlineExceeded, .unavailable: true
+            default: false
+            }
+        case .denied, .invalidIntent, .signatureError, .staleState, .unknown, .deviceTokenUnavailable, .grpcError:
+            false
         }
     }
 }
