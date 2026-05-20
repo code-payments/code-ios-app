@@ -248,14 +248,7 @@ struct CurrencySellConfirmationViewModelTests {
         let viewModel = Self.createViewModel()
         
         // When: Setting a dialog
-        viewModel.dialogItem = .init(
-            style: .success,
-            title: "Test",
-            subtitle: "Test subtitle",
-            dismissable: false
-        ) {
-            .okay(kind: .standard) {}
-        }
+        viewModel.dialogItem = .success(title: "Test", subtitle: "Test subtitle")
         
         // Then: Should have dialog
         #expect(viewModel.dialogItem != nil)

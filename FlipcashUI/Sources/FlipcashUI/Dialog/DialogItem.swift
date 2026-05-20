@@ -10,12 +10,12 @@ public struct DialogItem: Identifiable {
     public let actions: [DialogAction]
     public let tracked: Bool
 
-    public init(
+    init(
         style: Dialog.Style,
         title: String?,
         subtitle: String?,
         dismissable: Bool,
-        tracked: Bool = false,
+        tracked: Bool,
         @ActionBuilder actions: () -> [DialogAction]
     ) {
         self.id          = UUID()
