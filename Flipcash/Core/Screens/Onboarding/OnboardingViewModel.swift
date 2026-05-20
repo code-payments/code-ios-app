@@ -78,7 +78,7 @@ class OnboardingViewModel {
             do {
                 try await completeAccountCreation()
             } catch {
-                showAccountCreationError(error)
+                showAccountCreationError()
             }
         }
 
@@ -95,7 +95,7 @@ class OnboardingViewModel {
                     do {
                         try await self?.completeAccountCreation()
                     } catch {
-                        self?.showAccountCreationError(error)
+                        self?.showAccountCreationError()
                     }
                 }
 
@@ -130,7 +130,7 @@ class OnboardingViewModel {
         try await Task.delay(milliseconds: 500) // Delay deferred state change
     }
 
-    private func showAccountCreationError(_ error: Error) {
+    private func showAccountCreationError() {
         dialogItem = .error(
             title: "Something Went Wrong",
             subtitle: "We couldn't create your account. Please try again."

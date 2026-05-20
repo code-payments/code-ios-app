@@ -188,7 +188,7 @@ final class GiveViewModel {
 
     /// Resolves the pin and computes the bill amount against it — one fetch
     /// for both, so quarks can't drift from the submitted pin. Returns nil
-    /// when no fresh pin is cached; caller surfaces `.staleRate`.
+    /// when no fresh pin is cached; caller surfaces a rate-unavailable error.
     func prepareSubmission() async -> (amount: ExchangedFiat, pinnedState: VerifiedState)? {
         guard let selectedBalance else { return nil }
         let mint = selectedBalance.stored.mint
