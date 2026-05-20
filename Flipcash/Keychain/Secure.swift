@@ -9,12 +9,10 @@ import Foundation
 import FlipcashCore
 
 enum SecureKey: String {
-    case keyAccount         = "com.flipcash.account.key"
     case historicalAccounts = "com.flipcash.account.list"
     case currentUserAccount = "com.flipcash.account.userAccount"
-    case onboardingMnemonic = "com.flipcash.account.onboardingMnemonic"
     case betaFlagsEnabled   = "com.flipcash.betaFlags.enabled"
-    
+
     case connectedWalletSession = "com.flipcash.wallet.connectedSession"
 }
 

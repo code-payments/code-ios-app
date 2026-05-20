@@ -28,14 +28,20 @@ class BaseUITestCase: XCTestCase {
             app.resetAuthorizationStatus(for: permission)
         }
 
+        // Always launch with `app.launch()` first so the configured
+        // `launchArguments` (including `--ui-testing`) are applied and
+        // `SessionAuthenticator.nukeForUITesting()` fires. `app.open(URL)`
+        // alone uses URL-scheme dispatch and does NOT pass launchArguments,
+        // which would leave the keychain in whatever state the previous run
+        // left behind and let the auto-login path fire `createAccounts`.
+        app.launch()
+
         if requiresAuthentication {
             let accessKey = Bundle(for: Self.self).infoDictionary?["UITestAccessKey"] as? String ?? ""
             try XCTSkipIf(accessKey.isEmpty, "FLIPCASH_UI_TEST_ACCESS_KEY not set in secrets.local.xcconfig — skipping authenticated UI test")
 
             let loginURL = URL(string: "flipcash://login#e=\(accessKey.addingPercentEncoding(withAllowedCharacters: .urlFragmentAllowed) ?? accessKey)")!
             app.open(loginURL)
-        } else {
-            app.launch()
         }
     }
 

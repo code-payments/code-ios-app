@@ -21,15 +21,6 @@ class AccountManager {
         Keychain.historicalAccounts?.count ?? 0
     }
     
-    private var currentKeyAccount: KeyAccount? {
-        get {
-            Keychain.keyAccount
-        }
-        set {
-            Keychain.keyAccount = newValue
-        }
-    }
-    
     private var currentUserAccount: UserAccount? {
         get {
             Keychain.userAccount
@@ -38,16 +29,16 @@ class AccountManager {
             Keychain.userAccount = newValue
         }
     }
-    
+
     // MARK: - Init -
-    
+
     init() {}
-    
+
     func fetchHistorical(sortBy criteria: SortCritieria = .creationDate) -> [AccountDescription] {
         guard let map = Keychain.historicalAccounts else {
             return []
         }
-        
+
         return Array(map.values).sorted { lhs, rhs in
             switch criteria {
             case .creationDate:
@@ -57,18 +48,25 @@ class AccountManager {
             }
         }
     }
-    
+
+    /// Historical accounts that haven't been soft-deleted via
+    /// ``setDeleted(ownerPublicKey:deleted:)``. The canonical accessor for
+    /// "accounts the user can still log into" — used by onboarding's account
+    /// selection list and the auto-login fallback in ``SessionAuthenticator``.
+    func fetchActiveHistorical(sortBy criteria: SortCritieria = .creationDate) -> [AccountDescription] {
+        fetchHistorical(sortBy: criteria).filter { $0.deletionDate == nil }
+    }
+
     func fetchCurrentUserAccount() -> UserAccount? {
         currentUserAccount
     }
-    
+
     func set(keyAccount: KeyAccount, userID: UserID) {
-        currentKeyAccount = keyAccount
         currentUserAccount = UserAccount(
             userID: userID,
             keyAccount: keyAccount
         )
-        
+
         upsert(keyAccount: keyAccount)
     }
     
@@ -116,7 +114,6 @@ class AccountManager {
     }
     
     func resetForLogout() {
-        currentKeyAccount = nil
         currentUserAccount = nil
     }
     
@@ -152,9 +149,6 @@ class AccountManager {
 // MARK: - Keychain -
 
 private extension Keychain {
-    @SecureCodable(.keyAccount)
-    static var keyAccount: KeyAccount?
-
     @SecureCodable(.currentUserAccount)
     static var userAccount: UserAccount?
 

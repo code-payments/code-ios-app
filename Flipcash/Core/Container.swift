@@ -68,6 +68,13 @@ class Container {
     static var isRunningUITests: Bool {
         CommandLine.arguments.contains("--ui-testing")
     }
+
+    /// True when the host process is either a hosted unit-test run or a UI
+    /// test run. Used to suppress production-only side effects (telemetry,
+    /// auto-login from a stale keychain) at startup.
+    static var isRunningTests: Bool {
+        isRunningUITests || isRunningUnitTests
+    }
 }
 
 extension View {
