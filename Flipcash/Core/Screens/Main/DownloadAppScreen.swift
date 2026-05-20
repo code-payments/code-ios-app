@@ -8,8 +8,6 @@ import FlipcashUI
 
 struct DownloadAppScreen: View {
 
-    @Environment(AppRouter.self) private var router
-
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(spacing: 32) {
@@ -45,12 +43,6 @@ struct DownloadAppScreen: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(.horizontal, 20)
-            .overlay(alignment: .topTrailing) {
-                CloseButton(action: router.dismissSheet)
-                    .liquidGlassButtonStyle(shape: .circle)
-                    .padding(.trailing, 20)
-                    .padding(.top, 16)
-            }
             .safeAreaInset(edge: .bottom) {
                 ShareLink(item: URL.downloadApp) {
                     Text("Share")
@@ -61,11 +53,4 @@ struct DownloadAppScreen: View {
             }
         }
     }
-}
-
-#Preview {
-    Color.clear
-        .sheet(isPresented: .constant(true)) {
-            DownloadAppScreen()
-        }
 }

@@ -394,7 +394,14 @@ private struct RoutedSheet: View {
             // logged by the router when the stack is empty.
             EmptyView()
         case .downloadApp:
-            DownloadAppScreen()
+            NavigationStack(path: $router[.downloadApp]) {
+                DownloadAppScreen()
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            CloseButton(action: router.dismissSheet)
+                        }
+                    }
+            }
         }
     }
 }
