@@ -1,8 +1,6 @@
 extension DialogItem {
 
-    /// Tracked error display. Sets `tracked = true` so the app's dialog
-    /// modifier reports `Error Modal Displayed` analytics on present. Red
-    /// banner. Maps to Android's `BottomBarManager.showError(...)`.
+    /// Red banner error dialog. Reports an analytics event when displayed.
     public static func error(
         title: String,
         subtitle: String,
@@ -19,9 +17,7 @@ extension DialogItem {
         )
     }
 
-    /// Untracked alert. Same red banner as `.error`, deliberately excluded from
-    /// analytics. Use for user-cancelled flows, confirmations, and validation
-    /// feedback. Maps to Android's `BottomBarManager.showAlert(...)`.
+    /// Red banner dialog without analytics tracking.
     public static func alert(
         title: String,
         subtitle: String,
@@ -38,8 +34,7 @@ extension DialogItem {
         )
     }
 
-    /// Untracked informational dialog. Grey banner. Use for onboarding nudges
-    /// and non-error informational messages.
+    /// Grey banner informational dialog.
     public static func info(
         title: String,
         subtitle: String,
@@ -56,8 +51,7 @@ extension DialogItem {
         )
     }
 
-    /// Untracked success dialog. Green banner. Defaults to `dismissable: false`
-    /// — success modals typically require explicit acknowledgement.
+    /// Green banner success dialog. Defaults to `dismissable: false`.
     public static func success(
         title: String,
         subtitle: String,

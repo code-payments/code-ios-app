@@ -20,9 +20,8 @@ extension DialogItem {
         )
     }
 
-    /// Onboarding nudge surfaced when the user attempts to Give without any
-    /// giveable balance. Used from the Scan screen and from the give deep
-    /// link path — both call sites pass the same router's `present(.discover)`.
+    /// Nudges the user to discover currencies when they attempt to Give
+    /// with no balance.
     static func noGiveableBalance(onDiscover: @escaping () -> Void) -> DialogItem {
         .info(
             title: "No Balance Yet",

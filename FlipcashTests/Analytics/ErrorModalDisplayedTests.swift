@@ -10,13 +10,13 @@ import Testing
 @Suite("Error Modal Displayed contract")
 struct ErrorModalDisplayedTests {
 
-    @Test("modalDisplayed raw value matches the Android contract exactly")
-    func modalDisplayed_rawValue_matchesAndroidContract() {
+    @Test("modalDisplayed event name is \"Error Modal Displayed\"")
+    func modalDisplayed_eventName_isExpected() {
         #expect(Analytics.ErrorEvent.modalDisplayed.eventName == "Error Modal Displayed")
     }
 
-    @Test("Property keys match the Android contract exactly")
-    func propertyKeys_rawValues_matchAndroidContract() {
+    @Test("Property keys have the expected raw values")
+    func propertyKeys_rawValues_areExpected() {
         #expect(Analytics.Property.title.rawValue == "Title")
         #expect(Analytics.Property.message.rawValue == "Message")
         #expect(Analytics.Property.screen.rawValue == "Screen")

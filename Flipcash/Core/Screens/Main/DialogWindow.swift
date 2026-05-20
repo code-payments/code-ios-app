@@ -37,10 +37,8 @@ private struct DialogWindowContent: View {
 
     let sessionAuthenticator: SessionAuthenticator
 
-    // DialogPresenter is a separate view because @Bindable
-    // requires a non-optional Observable value. Secondary UIWindows
-    // don't inherit the main scene's environment, so AppRouter is
-    // injected explicitly here for the dialog modifier to read.
+    // Secondary `UIWindow`s don't inherit the main scene's SwiftUI
+    // environment; `AppRouter` must be injected explicitly.
     var body: some View {
         if case .loggedIn(let container) = sessionAuthenticator.state {
             DialogPresenter(session: container.session)

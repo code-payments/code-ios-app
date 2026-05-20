@@ -11,9 +11,6 @@ extension Analytics {
         case modalDisplayed = "Error Modal Displayed"
     }
 
-    /// Ports the Android `displayedErrorModal(...)` Mixpanel event. Fires once
-    /// per visible error dialog. `title` and `message` are non-optional —
-    /// every `.error` factory requires both, so the parameters can't be nil.
     static func errorModalDisplayed(
         title: String,
         message: String,
