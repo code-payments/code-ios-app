@@ -52,13 +52,6 @@ final class AppRouter {
     /// Topmost (currently visible) sheet, or nil if no sheet is presented.
     var presentedSheet: SheetPresentation? { presentedSheets.last }
 
-    /// Sheet-level analytics tag for the topmost user-visible surface — the
-    /// active sheet, or `"Scan"` when no sheet is presented (the unconditional
-    /// app root). Used to tag the `Screen` property on `Error Modal Displayed`.
-    var currentScreenName: String {
-        presentedSheet?.analyticsName ?? "Scan"
-    }
-
     /// Root sheet — the one mounted at the app root. Distinct from
     /// `presentedSheet` when nested sheets are present.
     var rootSheet: SheetPresentation? { presentedSheets.first }

@@ -9,14 +9,14 @@ import FlipcashUI
 extension View {
     /// Presents a `DialogItem` and reports the `Error Modal Displayed`
     /// Mixpanel event for items whose `tracked` flag is true (created via
-    /// `DialogItem.error`). `Screen` is sourced from
-    /// `AppRouter.currentScreenName` via the SwiftUI environment.
+    /// `DialogItem.error`). `Screen` is derived from the topmost presented
+    /// sheet (`AppRouter.presentedSheet?.description`), falling back to
+    /// `"scan"` when no sheet is up — the same string used in router logs.
     ///
-    /// The DialogItem-specific overload of `.dialog(item:)` lives in the
-    /// Flipcash app target (not FlipcashUI) because firing analytics
-    /// requires the app-target Analytics namespace. The Boolean and
-    /// generic `T: Identifiable` overloads of `.dialog(...)` remain in
-    /// FlipcashUI.
+    /// This overload lives in the Flipcash app target (not FlipcashUI)
+    /// because firing analytics requires the app-target Analytics namespace.
+    /// The Boolean and generic `T: Identifiable` overloads of `.dialog(...)`
+    /// remain in FlipcashUI.
     func dialog(item: Binding<DialogItem?>) -> some View {
         modifier(DialogItemModifier(item: item))
     }
@@ -48,7 +48,7 @@ private struct DialogItemModifier: ViewModifier {
                         Analytics.errorModalDisplayed(
                             title: title,
                             message: subtitle,
-                            screen: router.currentScreenName,
+                            screen: router.presentedSheet?.description ?? "scan",
                             callSite: nil
                         )
                     }
