@@ -149,7 +149,7 @@ final class GiveViewModel {
         case .sufficient:
             Task {
                 guard let (amountToSend, pinnedState) = await prepareSubmission() else {
-                    session.dialogItem = .staleRate
+                    session.dialogItem = .error(title: "Rate Unavailable", subtitle: "Couldn't get a fresh rate. Please try again.")
                     return
                 }
 
@@ -188,7 +188,7 @@ final class GiveViewModel {
 
     /// Resolves the pin and computes the bill amount against it — one fetch
     /// for both, so quarks can't drift from the submitted pin. Returns nil
-    /// when no fresh pin is cached; caller surfaces `.staleRate`.
+    /// when no fresh pin is cached; caller surfaces a rate-unavailable error.
     func prepareSubmission() async -> (amount: ExchangedFiat, pinnedState: VerifiedState)? {
         guard let selectedBalance else { return nil }
         let mint = selectedBalance.stored.mint
@@ -237,11 +237,9 @@ final class GiveViewModel {
     // MARK: - Errors -
 
     private func showInsufficientBalanceError() {
-        session.dialogItem = .init(
-            style: .destructive,
+        session.dialogItem = .error(
             title: "You Need More Cash",
-            subtitle: "Please add more cash, or try again with a lower amount",
-            dismissable: true
+            subtitle: "Please add more cash, or try again with a lower amount"
         ) {
             .destructive("Add More Cash") { [weak self] in
                 self?.presentDeposit()
@@ -251,11 +249,9 @@ final class GiveViewModel {
     }
 
     private func showYoureShortError(amount: ExchangedFiat) {
-        session.dialogItem = .init(
-            style: .destructive,
+        session.dialogItem = .error(
             title: "You're \(amount.nativeAmount.formatted()) Short",
-            subtitle: "Add more cash, or try again with a lower amount",
-            dismissable: true
+            subtitle: "Add more cash, or try again with a lower amount"
         ) {
             .destructive("Add More Cash") { [weak self] in
                 self?.presentDeposit()
@@ -265,13 +261,9 @@ final class GiveViewModel {
     }
 
     private func showLimitsError() {
-        session.dialogItem = .init(
-            style: .destructive,
+        session.dialogItem = .error(
             title: "Transaction Limit Reached",
-            subtitle: "Flipcash is designed for small, every day transactions. Send limits reset daily",
-            dismissable: true
-        ) {
-            .okay(kind: .destructive)
-        }
+            subtitle: "Flipcash is designed for small, every day transactions. Send limits reset daily"
+        )
     }
 }

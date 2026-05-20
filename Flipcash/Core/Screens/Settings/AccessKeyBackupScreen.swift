@@ -78,11 +78,9 @@ struct AccessKeyBackupScreen: View {
                 
             } catch {
                 buttonState = .normal
-                dialogItem = .init(
-                    style: .destructive,
+                dialogItem = .error(
                     title: "Failed to Save",
-                    subtitle: "Please allow Flipcash access to Photos in Settings in order to save your Access Key.",
-                    dismissable: true
+                    subtitle: "Please allow Flipcash access to Photos in Settings in order to save your Access Key."
                 ) {
                     .destructive("Open Settings") {
                         URL.openSettings()

@@ -927,7 +927,7 @@ struct CurrencyCreationWizardScreen: View {
                 // dialog above the wizard sheet) from a plain user-dismiss
                 // (silent — they explicitly walked away).
                 if operation.didTimeOut {
-                    session.dialogItem = .applePaySheetTimeout
+                    session.dialogItem = .info(title: "Purchase Timed Out", subtitle: "Purchases must be authorized within 60 seconds")
                 }
             } catch ErrorLaunchCurrency.denied {
                 ErrorReporting.captureError(ErrorLaunchCurrency.denied)

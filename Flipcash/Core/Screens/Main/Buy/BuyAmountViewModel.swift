@@ -83,7 +83,7 @@ final class BuyAmountViewModel: Identifiable {
 
         guard let (amount, pin) = await prepareSubmission() else {
             actionButtonState = .normal
-            dialogItem = .staleRate
+            dialogItem = .error(title: "Rate Unavailable", subtitle: "Couldn't get a fresh rate. Please try again.")
             return
         }
 
@@ -164,7 +164,7 @@ final class BuyAmountViewModel: Identifiable {
                 // dialog above the buy sheet) from a plain user-dismiss
                 // (silent — they explicitly walked away).
                 if operation.didTimeOut {
-                    self?.session.dialogItem = .applePaySheetTimeout
+                    self?.session.dialogItem = .info(title: "Purchase Timed Out", subtitle: "Purchases must be authorized within 60 seconds")
                 }
             } catch let FundingOperationError.externalRejected(title, subtitle) {
                 logger.error("Coinbase funding rejected", metadata: [
@@ -178,7 +178,7 @@ final class BuyAmountViewModel: Identifiable {
                     "error": "\(error)",
                 ])
                 ErrorReporting.captureError(error)
-                self?.dialogItem = .somethingWentWrong
+                self?.dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
             }
             if let self, (self.fundingOperation as AnyObject?) === operation {
                 self.fundingOperation = nil
@@ -235,7 +235,7 @@ final class BuyAmountViewModel: Identifiable {
                     "error": "\(error)",
                 ])
                 ErrorReporting.captureError(error)
-                self?.dialogItem = .somethingWentWrong
+                self?.dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
             }
             // Clear only if this op is still the current one — a rapid
             // method-switch may have replaced it.
@@ -293,7 +293,7 @@ final class BuyAmountViewModel: Identifiable {
                 metadata: ["mint": mint.base58, "amount": amount.nativeAmount.formatted()]
             )
             actionButtonState = .normal
-            dialogItem = .somethingWentWrong
+            dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
         }
     }
 
@@ -322,11 +322,9 @@ final class BuyAmountViewModel: Identifiable {
     // MARK: - Dialogs
 
     private func showLimitsError() {
-        dialogItem = .init(
-            style: .destructive,
+        dialogItem = .error(
             title: "Transaction Limit Reached",
-            subtitle: "You can only buy up to the transaction limit at a time",
-            dismissable: true
-        ) { .okay(kind: .destructive) }
+            subtitle: "You can only buy up to the transaction limit at a time"
+        )
     }
 }

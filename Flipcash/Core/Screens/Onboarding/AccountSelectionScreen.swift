@@ -104,18 +104,16 @@ struct AccountSelectionScreen: View {
     }
 
     private func confirmDelete(account: AccountDescription) {
-        dialogItem = .init(
-            style: .destructive,
+        dialogItem = .alert(
             title: "Remove Account?",
-            subtitle: "Make sure you have a backup of your Access Key before removing this account.",
-            dismissable: true
+            subtitle: "Make sure you have a backup of your Access Key before removing this account."
         ) {
             DialogAction.destructive("Remove") { [account] in
                 withAnimation {
                     deleteAccount(description: account)
                 }
             }
-            DialogAction.cancel {}
+            DialogAction.cancel()
         }
     }
 

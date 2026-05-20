@@ -63,11 +63,9 @@ class OnboardingViewModel {
                 try await PhotoLibrary.saveSecretRecoveryPhraseSnapshot(for: mnemonic)
             } catch {
                 accessKeyButtonState = .normal
-                dialogItem = .init(
-                    style: .destructive,
+                dialogItem = .error(
                     title: "Failed to Save",
-                    subtitle: "Please allow Flipcash access to Photos in Settings in order to save your Access Key.",
-                    dismissable: true
+                    subtitle: "Please allow Flipcash access to Photos in Settings in order to save your Access Key."
                 ) {
                     .destructive("Open Settings") {
                         URL.openSettings()
@@ -80,7 +78,7 @@ class OnboardingViewModel {
             do {
                 try await completeAccountCreation()
             } catch {
-                showAccountCreationError(error)
+                showAccountCreationError()
             }
         }
 
@@ -88,18 +86,16 @@ class OnboardingViewModel {
     }
 
     func wroteDownAction() {
-        dialogItem = .init(
-            style: .destructive,
+        dialogItem = .alert(
             title: "Are You Sure?",
-            subtitle: "These 12 words are the only way to recover your Flipcash account. Make sure you wrote them down, and keep them private and safe.",
-            dismissable: true
+            subtitle: "These 12 words are the only way to recover your Flipcash account. Make sure you wrote them down, and keep them private and safe."
         ) {
             .destructive("Yes, I Wrote Them Down") { [weak self] in
                 Task {
                     do {
                         try await self?.completeAccountCreation()
                     } catch {
-                        self?.showAccountCreationError(error)
+                        self?.showAccountCreationError()
                     }
                 }
 
@@ -134,15 +130,11 @@ class OnboardingViewModel {
         try await Task.delay(milliseconds: 500) // Delay deferred state change
     }
 
-    private func showAccountCreationError(_ error: Error) {
-        dialogItem = .init(
-            style: .destructive,
+    private func showAccountCreationError() {
+        dialogItem = .error(
             title: "Something Went Wrong",
-            subtitle: "We couldn't create your account. Please try again.",
-            dismissable: true
-        ) {
-            .okay(kind: .destructive)
-        }
+            subtitle: "We couldn't create your account. Please try again."
+        )
     }
 
     func recoverExistingAccount(accountDescription: AccountDescription) {
@@ -179,11 +171,9 @@ class OnboardingViewModel {
     }
 
     func skipPushNotificationsAction() {
-        dialogItem = .init(
-            style: .destructive,
+        dialogItem = .alert(
             title: "Are You Sure?",
-            subtitle: "You won't receive updates when your balance changes",
-            dismissable: true
+            subtitle: "You won't receive updates when your balance changes"
         ) {
             .destructive("OK Allow") { [weak self] in
                 Task {

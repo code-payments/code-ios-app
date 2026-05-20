@@ -326,6 +326,11 @@ extension Analytics {
         case type              = "Type"
         case error             = "Error"
         case url               = "URL"
+
+        case title             = "Title"
+        case message           = "Message"
+        case screen            = "Screen"
+        case callSite          = "Call Site"
     }
 }
 

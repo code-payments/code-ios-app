@@ -235,9 +235,9 @@ struct DeepLinkAction {
                 if sheet == .give {
                     let rate = container.ratesController.rateForBalanceCurrency()
                     guard container.session.hasGiveableBalance(for: rate) else {
-                        container.session.dialogItem = .noGiveableBalance(
-                            onDiscover: { container.appRouter.present(.discover) }
-                        )
+                        container.session.dialogItem = .noGiveableBalance {
+                            container.appRouter.present(.discover)
+                        }
                         return
                     }
                 }
