@@ -1,8 +1,8 @@
 extension DialogItem {
 
-    /// Tracked error display. Fires `Error Modal Displayed` analytics when
-    /// presented (via the app target's `.trackedDialog` modifier). Red banner.
-    /// Maps to Android's `BottomBarManager.showError(...)`.
+    /// Tracked error display. Sets `tracked = true` so the app's dialog
+    /// modifier reports `Error Modal Displayed` analytics on present. Red
+    /// banner. Maps to Android's `BottomBarManager.showError(...)`.
     public static func error(
         title: String,
         subtitle: String,

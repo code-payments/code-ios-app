@@ -98,7 +98,7 @@ struct BuyAmountScreen: View {
             BuyFlowDestinationView(path: path)
                 .environment(\.dismissParentContainer, router.dismissSheet)
         }
-        .trackedDialog(item: $viewModel.dialogItem)
+        .dialog(item: $viewModel.dialogItem)
         .sheet(item: $viewModel.pendingOperation) { operation in
             PurchaseMethodSheet(
                 operation: operation,

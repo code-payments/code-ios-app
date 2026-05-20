@@ -95,7 +95,7 @@ extension Dialog {
         case success
         case destructive
         
-        var backgroundColor: Color {
+        public var backgroundColor: Color {
             switch self {
             case .standard:    return .bannerInfo
             case .success:     return .bannerSuccess

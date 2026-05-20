@@ -33,15 +33,6 @@ extension View {
             )
         )
     }
-    
-    public func dialog(
-        item: Binding<DialogItem?>,
-        onPresent: ((DialogItem) -> Void)? = nil
-    ) -> some View {
-        self.modifier(
-            DialogModifierDialogItem(item: item, onPresent: onPresent)
-        )
-    }
 }
 
 // MARK: - Modifiers -
@@ -117,39 +108,6 @@ private struct DialogModifierItem<T>: ViewModifier where T: Identifiable {
             }
     }
     
-    private func dismiss() {
-        item.wrappedValue = nil
-    }
-}
-
-private struct DialogModifierDialogItem: ViewModifier {
-
-    private let item: Binding<DialogItem?>
-    private let onPresent: ((DialogItem) -> Void)?
-
-    init(item: Binding<DialogItem?>, onPresent: ((DialogItem) -> Void)?) {
-        self.item = item
-        self.onPresent = onPresent
-    }
-
-    func body(content: Content) -> some View {
-        content
-            .sheet(item: item) { item in
-                PartialSheet(background: item.style.backgroundColor, canDismiss: item.dismissable) {
-                    Dialog(
-                        style: item.style,
-                        title: item.title,
-                        subtitle: item.subtitle,
-                        dismiss: dismiss,
-                        actions: item.actions
-                    )
-                    .onAppear {
-                        onPresent?(item)
-                    }
-                }
-            }
-    }
-
     private func dismiss() {
         item.wrappedValue = nil
     }

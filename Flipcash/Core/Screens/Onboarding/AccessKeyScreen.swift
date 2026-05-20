@@ -64,7 +64,7 @@ struct AccessKeyScreen: View {
             .navigationTitle("Your Access Key")
             .toolbarTitleDisplayMode(.inline)
         }
-        .trackedDialog(item: $viewModel.dialogItem)
+        .dialog(item: $viewModel.dialogItem)
     }
     
     // MARK: - Copy / Paste -

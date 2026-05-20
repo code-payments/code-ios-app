@@ -103,7 +103,7 @@ struct ConfirmEmailScreen: View {
             .padding(20)
             .foregroundStyle(.textMain)
         }
-        .trackedDialog(item: $viewModel.dialogItem)
+        .dialog(item: $viewModel.dialogItem)
         .navigationTitle("Verify Email")
         .toolbarTitleDisplayMode(.inline)
         .onAppear {

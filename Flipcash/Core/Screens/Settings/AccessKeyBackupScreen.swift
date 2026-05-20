@@ -61,7 +61,7 @@ struct AccessKeyBackupScreen: View {
             .navigationTitle("Access Key")
             .toolbarTitleDisplayMode(.inline)
         }
-        .trackedDialog(item: $dialogItem)
+        .dialog(item: $dialogItem)
     }
     
     // MARK: - Actions -

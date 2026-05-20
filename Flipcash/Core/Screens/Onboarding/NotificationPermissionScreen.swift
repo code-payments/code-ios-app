@@ -48,7 +48,7 @@ struct NotificationPermissionScreen: View {
             .padding(20)
         }
         .navigationBarBackButtonHidden(true)
-        .trackedDialog(item: $viewModel.dialogItem)
+        .dialog(item: $viewModel.dialogItem)
         .onAppear {
             withAnimation(.spring(duration: 0.8, bounce: 0.4).delay(0.3)) {
                 showNotification = true

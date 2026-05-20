@@ -40,7 +40,7 @@ private struct DialogWindowContent: View {
     // DialogPresenter is a separate view because @Bindable
     // requires a non-optional Observable value. Secondary UIWindows
     // don't inherit the main scene's environment, so AppRouter is
-    // injected explicitly here for `.trackedDialog` to read.
+    // injected explicitly here for the dialog modifier to read.
     var body: some View {
         if case .loggedIn(let container) = sessionAuthenticator.state {
             DialogPresenter(session: container.session)
@@ -55,7 +55,7 @@ private struct DialogPresenter: View {
 
     var body: some View {
         Color.clear
-            .trackedDialog(item: $session.dialogItem)
+            .dialog(item: $session.dialogItem)
     }
 }
 

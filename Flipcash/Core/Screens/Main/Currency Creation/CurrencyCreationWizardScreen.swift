@@ -233,8 +233,8 @@ struct CurrencyCreationWizardScreen: View {
                 }
             }
         }
-        .trackedDialog(item: $errorDialog)
-        .trackedDialog(item: Bindable(walletConnection).dialogItem)
+        .dialog(item: $errorDialog)
+        .dialog(item: Bindable(walletConnection).dialogItem)
         .onChange(of: fundingOperation?.state) { _, newState in
             // Single observer covers both push + reset:
             // - `nil` state → operation slot emptied → reset push tracking
