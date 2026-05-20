@@ -310,14 +310,8 @@ struct ScanScreen: View {
     private func presentGive() {
         let rate = sessionContainer.ratesController.rateForBalanceCurrency()
         guard session.hasGiveableBalance(for: rate) else {
-            session.dialogItem = .info(
-                title: "No Balance Yet",
-                subtitle: "Buy a currency to get started, or get another Flipcash user to give you some cash"
-            ) {
-                .standard("Discover Currencies") {
-                    router.present(.discover)
-                };
-                .cancel()
+            session.dialogItem = .noGiveableBalance {
+                router.present(.discover)
             }
             return
         }

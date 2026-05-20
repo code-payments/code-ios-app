@@ -45,7 +45,7 @@ struct SettingsMyAccountScreen: View {
                     DialogAction.destructive("View Access Key") {
                         router.push(.accessKey)
                     }
-                    DialogAction.cancel {}
+                    DialogAction.cancel()
                 }
             }
 
@@ -57,7 +57,7 @@ struct SettingsMyAccountScreen: View {
                     DialogAction.destructive("Log Out") {
                         logout()
                     }
-                    DialogAction.cancel {}
+                    DialogAction.cancel()
                 }
             }
 
@@ -69,7 +69,7 @@ struct SettingsMyAccountScreen: View {
                     DialogAction.destructive("Permanently Delete Account") {
                         deleteAccount()
                     }
-                    DialogAction.cancel {}
+                    DialogAction.cancel()
                 }
             }
         }

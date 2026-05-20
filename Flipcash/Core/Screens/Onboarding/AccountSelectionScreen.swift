@@ -113,7 +113,7 @@ struct AccountSelectionScreen: View {
                     deleteAccount(description: account)
                 }
             }
-            DialogAction.cancel {}
+            DialogAction.cancel()
         }
     }
 

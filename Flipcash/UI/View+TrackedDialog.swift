@@ -28,10 +28,13 @@ private struct TrackedDialogModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content.dialog(item: item) { presented in
-            guard presented.tracked else { return }
+            // DialogItem factories all require non-optional title/subtitle, so
+            // these fall-throughs are defensive against a future raw-init
+            // caller that passes nil.
+            guard presented.tracked, let title = presented.title, let subtitle = presented.subtitle else { return }
             Analytics.errorModalDisplayed(
-                title: presented.title,
-                message: presented.subtitle,
+                title: title,
+                message: subtitle,
                 screen: router.currentScreenName,
                 callSite: callSite
             )

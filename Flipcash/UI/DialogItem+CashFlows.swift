@@ -19,4 +19,17 @@ extension DialogItem {
             subtitle: "Please enter an amount of \(minimum) or higher"
         )
     }
+
+    /// Onboarding nudge surfaced when the user attempts to Give without any
+    /// giveable balance. Used from the Scan screen and from the give deep
+    /// link path — both call sites pass the same router's `present(.discover)`.
+    static func noGiveableBalance(onDiscover: @escaping () -> Void) -> DialogItem {
+        .info(
+            title: "No Balance Yet",
+            subtitle: "Buy a currency to get started, or get another Flipcash user to give you some cash"
+        ) {
+            .standard("Discover Currencies", action: onDiscover);
+            .cancel()
+        }
+    }
 }
