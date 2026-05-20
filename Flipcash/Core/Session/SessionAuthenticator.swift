@@ -87,10 +87,11 @@ final class SessionAuthenticator {
         // (forced upgrade, forced logout on timelock unlock).
         startPolling()
 
-        // During UI testing the deeplink handles login. Skip auto-login
-        // to avoid racing with resetForUITesting() and the deeplink's
-        // switchAccount(to:) call.
-        guard !Container.isRunningUITests else {
+        // Both UI tests and hosted unit tests boot the full AppDelegate
+        // chain. In either case, skip auto-login and reset the keychain so
+        // leftover state from a previous run can't quietly fire
+        // `login + createAccounts` and trip the OCP antispam guard.
+        guard !Container.isRunningTests else {
             accountManager.nukeForUITesting()
             state = .loggedOut
             return
@@ -130,15 +131,22 @@ final class SessionAuthenticator {
             accountManager.upsert(keyAccount: userAccount.keyAccount)
             
         } else {
-            if let recentAccount = accountManager.fetchHistorical(sortBy: .lastSeen).first {
+            // Auto-attempt historical login only when wasLoggedIn is true.
+            // Otherwise the silent login + createAccounts chain fires against
+            // whichever historical entry sits in the keychain and trips the
+            // OCP antispam guard.
+            let wasLoggedIn = UserDefaults.wasLoggedIn == true
+            let recentAccount = wasLoggedIn
+                ? accountManager.fetchActiveHistorical(sortBy: .lastSeen).first
+                : nil
+
+            if let recentAccount {
                 didFindRecentAccount(recentAccount.account)
             } else {
                 state = .loggedOut
-                
-                // Only attempt to recover if there was an
-                // account that was previous already logged in
-                if UserDefaults.wasLoggedIn == true {
-                    
+
+                if wasLoggedIn {
+
                     // Try a total of 6 times, first attempt +
                     // 5 more retries after that
                     if count <= 5 {

@@ -51,7 +51,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         #if DEBUG
         let shouldEnableTelemetry = false
         #else
-        let shouldEnableTelemetry = !Container.isRunningUITests && !Container.isRunningUnitTests
+        let shouldEnableTelemetry = !Container.isRunningTests
         #endif
 
         if shouldEnableTelemetry {

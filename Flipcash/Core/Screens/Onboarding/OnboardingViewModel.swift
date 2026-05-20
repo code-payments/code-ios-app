@@ -35,9 +35,9 @@ class OnboardingViewModel {
     // MARK: - Action -
 
     func loginAction() {
-        let hasAccounts = sessionAuthenticator.accountManager
-            .fetchHistorical()
-            .contains { $0.deletionDate == nil }
+        let hasAccounts = !sessionAuthenticator.accountManager
+            .fetchActiveHistorical()
+            .isEmpty
 
         if hasAccounts {
             navigateToAccountSelection()

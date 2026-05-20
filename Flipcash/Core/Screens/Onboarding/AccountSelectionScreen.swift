@@ -132,8 +132,7 @@ struct AccountSelectionScreen: View {
     }
 
     private func fetchAccounts() {
-        accounts = accountManager.fetchHistorical()
-            .filter { $0.deletionDate == nil }
+        accounts = accountManager.fetchActiveHistorical()
             .map { HistoricalAccount(details: $0) }
     }
 
