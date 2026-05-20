@@ -18,6 +18,7 @@ extension AppRouter {
         case give
         case discover
         case buy
+        case downloadApp
 
         /// The sheet a stack is presented in. Cross-stack navigation uses
         /// this to know which top-level modal to surface.
@@ -27,21 +28,23 @@ extension AppRouter {
         /// `router.presentNested(.buy(mint))` directly, never via `navigate(to:)`.
         var sheet: SheetPresentation? {
             switch self {
-            case .balance:  .balance
-            case .settings: .settings
-            case .give:     .give
-            case .discover: .discover
-            case .buy:      nil
+            case .balance:     .balance
+            case .settings:    .settings
+            case .give:        .give
+            case .discover:    .discover
+            case .buy:         nil
+            case .downloadApp: .downloadApp
             }
         }
 
         var description: String {
             switch self {
-            case .balance:  "balance"
-            case .settings: "settings"
-            case .give:     "give"
-            case .discover: "discover"
-            case .buy:      "buy"
+            case .balance:     "balance"
+            case .settings:    "settings"
+            case .give:        "give"
+            case .discover:    "discover"
+            case .buy:         "buy"
+            case .downloadApp: "downloadApp"
             }
         }
     }
