@@ -7,14 +7,20 @@ import SwiftUI
 import FlipcashUI
 
 struct ScanTopBar: View {
+    let onBrand: () -> Void
     let onSettings: () -> Void
 
     var body: some View {
         HStack(alignment: .center) {
-            Image.asset(.flipcashBrand)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(height: 28)
+            Button(action: onBrand) {
+                Image.asset(.flipcashBrand)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(height: 28)
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel("Download Flipcash")
 
             Spacer()
 

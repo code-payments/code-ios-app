@@ -36,6 +36,10 @@ extension URL {
     static var appStoreApplicationHome: URL {
         URL(string: "https://apps.apple.com/app/flipcash/id6758636374")!
     }
+
+    static var downloadApp: URL {
+        URL(string: "https://www.flipcash.com/download")!
+    }
 }
 
 extension URL {

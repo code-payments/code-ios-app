@@ -19,6 +19,7 @@ extension AppRouter {
         case give
         case discover
         case buy(PublicKey)
+        case downloadApp
 
         var id: Self { self }
 
@@ -27,11 +28,12 @@ extension AppRouter {
         /// re-presentation starts at root rather than restoring the stale leaf.
         var stack: Stack {
             switch self {
-            case .balance:  .balance
-            case .settings: .settings
-            case .give:     .give
-            case .discover: .discover
-            case .buy:      .buy
+            case .balance:     .balance
+            case .settings:    .settings
+            case .give:        .give
+            case .discover:    .discover
+            case .buy:         .buy
+            case .downloadApp: .downloadApp
             }
         }
 
@@ -40,11 +42,12 @@ extension AppRouter {
         /// comparing the stringly-typed `description`.
         var caseKind: CaseKind {
             switch self {
-            case .balance:  .balance
-            case .settings: .settings
-            case .give:     .give
-            case .discover: .discover
-            case .buy:      .buy
+            case .balance:     .balance
+            case .settings:    .settings
+            case .give:        .give
+            case .discover:    .discover
+            case .buy:         .buy
+            case .downloadApp: .downloadApp
             }
         }
 
@@ -54,15 +57,17 @@ extension AppRouter {
             case give
             case discover
             case buy
+            case downloadApp
         }
 
         var description: String {
             switch self {
-            case .balance:  "balance"
-            case .settings: "settings"
-            case .give:     "give"
-            case .discover: "discover"
-            case .buy:      "buy"
+            case .balance:     "balance"
+            case .settings:    "settings"
+            case .give:        "give"
+            case .discover:    "discover"
+            case .buy:         "buy"
+            case .downloadApp: "downloadApp"
             }
         }
     }

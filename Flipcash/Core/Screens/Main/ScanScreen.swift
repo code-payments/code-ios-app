@@ -249,7 +249,10 @@ struct ScanScreen: View {
     
     @ViewBuilder private func interfaceView() -> some View {
         VStack {
-            ScanTopBar { router.present(.settings) }
+            ScanTopBar(
+                onBrand: { router.present(.downloadApp) },
+                onSettings: { router.present(.settings) }
+            )
             Spacer()
             ScanBottomBar(
                 toast: toast,
@@ -390,6 +393,8 @@ private struct RoutedSheet: View {
             // Rendering EmptyView is a defensive no-op; the misuse is already
             // logged by the router when the stack is empty.
             EmptyView()
+        case .downloadApp:
+            DownloadAppScreen()
         }
     }
 }
