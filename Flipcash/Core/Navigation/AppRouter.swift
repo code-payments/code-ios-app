@@ -330,34 +330,39 @@ final class AppRouter {
         ])
     }
 
-    /// Global navigation reset: dismisses every presented sheet and clears
-    /// every stack's `NavigationPath`. The user lands on the Scanner — the
-    /// unconditional root rendered behind all sheets.
+    /// Dismisses every presented sheet and clears every inactive stack's
+    /// path, landing the user on the Scanner. Used by the
+    /// auto-return-on-background trigger to discard in-flight navigation.
     ///
-    /// Distinct from ``popToRoot(on:)``, which is a per-stack pop. This
-    /// method is the all-sheets + all-stacks variant, used by the
-    /// auto-return-on-background trigger when the user has been away long
-    /// enough that any in-flight navigation should be discarded.
-    ///
-    /// The dismissing root sheet's slide-down animation runs with its current
-    /// contents — the same behaviour as ``dismissSheet()``. Inactive stacks
-    /// have no on-screen UI so their paths are cleared synchronously.
+    /// Driven through UIKit's `dismiss(animated:)` on the root presenter so
+    /// the full nested-sheet chain tears down in one coordinated animation.
+    /// The dismissing root's path is retained through the animation and
+    /// cleared on next present via ``dismissedStacks``.
     func dismissAll() {
-        let dismissing = presentedSheets
-        let dismissingRoot = presentedSheets.first
-        presentedSheets = []
-        for sheet in dismissing {
+        let rootStack = presentedSheets.first?.stack
+
+        for sheet in presentedSheets {
             dismissedStacks.insert(sheet.stack)
         }
-        // Clear every stack's path except the dismissing root's — that stack
-        // keeps its path through the slide-off animation, cleared on next
-        // present of that root via the dismissedStacks mechanism.
-        for stack in Stack.allCases where stack != dismissingRoot?.stack {
+        for stack in Stack.allCases where stack != rootStack {
             paths[stack] = NavigationPath()
         }
-        logger.info("Dismiss all", metadata: [
-            "dismissedSheets": "\(dismissing.map(String.init(describing:)))",
-        ])
+
+        let presenter = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first { $0.activationState == .foregroundActive }?
+            .keyWindow?
+            .rootViewController
+
+        if let presenter, presenter.presentedViewController != nil {
+            presenter.dismiss(animated: true) { [weak self] in
+                self?.presentedSheets = []
+            }
+        } else {
+            presentedSheets = []
+        }
+
+        logger.info("Dismiss all")
     }
 
     // MARK: - Logging helpers
