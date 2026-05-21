@@ -138,7 +138,7 @@ struct DestinationView: View {
                 mint: .usdf,
                 container: container,
                 sessionContainer: sessionContainer,
-                popStack: .settings,
+                onComplete: { sessionContainer.appRouter.popToRoot(on: .settings) },
                 onWithdrawOtherCurrencies: {
                     sessionContainer.appRouter.pushAny(WithdrawNavigationPath.picker)
                 }
@@ -149,7 +149,7 @@ struct DestinationView: View {
                 mint: mint,
                 container: container,
                 sessionContainer: sessionContainer,
-                popStack: .balance
+                onComplete: { sessionContainer.appRouter.popToRoot(on: .balance) }
             )
 
         case .usdcDepositEducation:

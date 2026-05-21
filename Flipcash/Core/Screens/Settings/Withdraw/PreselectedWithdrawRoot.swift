@@ -19,14 +19,14 @@ struct PreselectedWithdrawRoot: View {
     @Environment(AppRouter.self) private var router
     @State private var viewModel: WithdrawViewModel
 
-    private let popStack: AppRouter.Stack
+    private let onComplete: () -> Void
     private let onWithdrawOtherCurrencies: (() -> Void)?
 
     init(
         mint: PublicKey,
         container: Container,
         sessionContainer: SessionContainer,
-        popStack: AppRouter.Stack,
+        onComplete: @escaping () -> Void,
         onWithdrawOtherCurrencies: (() -> Void)? = nil
     ) {
         let vm = WithdrawViewModel(container: container, sessionContainer: sessionContainer)
@@ -35,7 +35,7 @@ struct PreselectedWithdrawRoot: View {
             vm.setKind(for: stored.exchanged(with: rate))
         }
         self._viewModel = State(wrappedValue: vm)
-        self.popStack = popStack
+        self.onComplete = onComplete
         self.onWithdrawOtherCurrencies = onWithdrawOtherCurrencies
     }
 
@@ -49,9 +49,7 @@ struct PreselectedWithdrawRoot: View {
             viewModel.pushSubstep = { step in
                 router.pushAny(step)
             }
-            viewModel.onComplete = {
-                router.popToRoot(on: popStack)
-            }
+            viewModel.onComplete = onComplete
         }
     }
 }
