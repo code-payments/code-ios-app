@@ -34,11 +34,6 @@ struct EnterEmailScreen: View {
                         .textContentType(.emailAddress)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
-                        .submitLabel(.next)
-                        .onSubmit {
-                            isFocused = false
-                            viewModel.sendEmailCodeAction()
-                        }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .multilineTextAlignment(.leading)
                         .padding([.leading, .trailing], 15)

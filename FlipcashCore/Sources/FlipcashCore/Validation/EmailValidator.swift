@@ -18,7 +18,6 @@ public struct EmailValidator: Validator {
         return trimmed
     }
 
-    /// Must equal the PGV pattern on
-    /// `FlipcashAPI/Core/proto/email/v1/model.proto`.
+    /// PGV regex from `FlipcashAPI/Core/proto/email/v1/model.proto`.
     private nonisolated(unsafe) static let pattern = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/
 }

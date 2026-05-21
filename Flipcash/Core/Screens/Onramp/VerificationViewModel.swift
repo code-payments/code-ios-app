@@ -128,12 +128,16 @@ final class VerificationViewModel: Identifiable {
         Phone(enteredPhone)
     }
 
+    var validatedEmail: String? {
+        emailValidator.validate(enteredEmail)
+    }
+
     var canSendVerificationCode: Bool {
         phone != nil
     }
 
     var canSendEmailVerification: Bool {
-        emailValidator.validate(enteredEmail) != nil
+        validatedEmail != nil
     }
 
     var isCodeComplete: Bool {
@@ -353,7 +357,7 @@ final class VerificationViewModel: Identifiable {
     }
 
     func sendEmailCodeAction() {
-        guard let validatedEmail = emailValidator.validate(enteredEmail) else {
+        guard let validatedEmail else {
             return
         }
 
@@ -387,7 +391,7 @@ final class VerificationViewModel: Identifiable {
     }
 
     func resendEmailCodeAction() async throws {
-        guard let validatedEmail = emailValidator.validate(enteredEmail) else {
+        guard let validatedEmail else {
             return
         }
 
