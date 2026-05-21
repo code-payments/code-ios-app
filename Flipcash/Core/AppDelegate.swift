@@ -48,16 +48,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
         // Telemetry runs only in Release production launches; DEBUG and any
         // test process stay silent to avoid polluting production dashboards.
-        #if DEBUG
-        let shouldEnableTelemetry = false
-        #else
-        let shouldEnableTelemetry = !Container.isRunningTests
-        #endif
-
-        if shouldEnableTelemetry {
+        #if !DEBUG
+        if !Container.isRunningTests {
             Analytics.initialize()
             ErrorReporting.initialize()
         }
+        #endif
 
         FontBook.registerApplicationFonts()
         setupAppearance()
