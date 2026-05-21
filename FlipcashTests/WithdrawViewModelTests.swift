@@ -388,8 +388,8 @@ struct WithdrawViewModelTests {
         #expect(viewModel.displayFee?.value == Decimal(string: "0.70"))
     }
 
-    @Test("selectCurrency pushes .intro substep for USDF balance")
-    func selectCurrency_usdfBalance_pushesIntroSubstep() {
+    @Test("selectCurrency pushes .enterAmount substep for USDF balance")
+    func selectCurrency_usdfBalance_pushesEnterAmountSubstep() {
         var pushed: [WithdrawNavigationPath] = []
         let viewModel = WithdrawViewModelTestHelpers.createViewModel()
         viewModel.pushSubstep = { pushed.append($0) }
@@ -397,7 +397,7 @@ struct WithdrawViewModelTests {
         let balance = WithdrawViewModelTestHelpers.createExchangedBalance(mint: .usdf)
         viewModel.selectCurrency(balance)
 
-        #expect(pushed == [.intro])
+        #expect(pushed == [.enterAmount])
     }
 
     @Test("selectCurrency pushes .enterAmount substep for non-USDF balance")
@@ -523,14 +523,6 @@ struct WithdrawKindTests {
         let usdf = WithdrawViewModelTestHelpers.createExchangedBalance(mint: .usdf)
         #expect(WithdrawKind.sameMint(bonded).acceptsTokenAccount == true)
         #expect(WithdrawKind.usdfToUsdc(usdf).acceptsTokenAccount == false)
-    }
-
-    @Test("showsIntroScreen: false for sameMint, true for usdfToUsdc")
-    func showsIntroScreen() {
-        let bonded = WithdrawViewModelTestHelpers.createBondedBalance()
-        let usdf = WithdrawViewModelTestHelpers.createExchangedBalance(mint: .usdf)
-        #expect(WithdrawKind.sameMint(bonded).showsIntroScreen == false)
-        #expect(WithdrawKind.usdfToUsdc(usdf).showsIntroScreen == true)
     }
 
 }

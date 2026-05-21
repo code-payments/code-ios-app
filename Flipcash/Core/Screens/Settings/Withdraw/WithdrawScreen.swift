@@ -9,43 +9,29 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
+/// Currency picker reached via the "Withdraw Other Flipcash Currencies" button
+/// on `WithdrawIntroScreen`. Lists every balance except USDF — USDF lives on
+/// the intro screen as the default destination, so it's removed from the
+/// picker to avoid two paths to the same flow.
 struct WithdrawScreen: View {
 
-    @Environment(AppRouter.self) private var router
     @Environment(Session.self) private var session
     @Environment(RatesController.self) private var ratesController
 
-    @State private var viewModel: WithdrawViewModel
-
-    private let container: Container
-    private let sessionContainer: SessionContainer
+    let onSelect: (ExchangedBalance) -> Void
 
     private var balances: [ExchangedBalance] {
         session.balances(for: ratesController.rateForBalanceCurrency())
+            .filter { $0.stored.mint != .usdf }
     }
-
-    // MARK: - Init -
-
-    init(container: Container, sessionContainer: SessionContainer) {
-        self.container        = container
-        self.sessionContainer = sessionContainer
-        self._viewModel       = State(wrappedValue: WithdrawViewModel(
-            container: container,
-            sessionContainer: sessionContainer
-        ))
-    }
-
-    // MARK: - Body -
 
     var body: some View {
         Background(color: .backgroundMain) {
             List {
                 Section {
                     ForEach(balances) { balance in
-                        CurrencyBalanceRow(
-                            exchangedBalance: balance
-                        ) {
-                            viewModel.selectCurrency(balance)
+                        CurrencyBalanceRow(exchangedBalance: balance) {
+                            onSelect(balance)
                         }
                     }
                 }
@@ -56,27 +42,15 @@ struct WithdrawScreen: View {
         }
         .navigationTitle("Select Currency")
         .toolbarTitleDisplayMode(.inline)
-        .withdrawSubstepDestinations(viewModel: viewModel)
-        .onAppear {
-            viewModel.pushSubstep = { step in
-                router.pushAny(step)
-            }
-            viewModel.onComplete = {
-                // Successful withdrawal: unwind the entire flow back to
-                // Settings root. Using `dismiss()` here would tear down the
-                // whole Settings sheet and land the user back at Scan.
-                router.popToRoot(on: .settings)
-            }
-        }
     }
 }
 
 extension View {
 
-    /// Registers the four `WithdrawNavigationPath` substeps on the enclosing
-    /// `NavigationStack`. Shared between `WithdrawScreen` (Settings entry —
-    /// picker first) and `PreselectedWithdrawRoot` (Wallet entry — picker
-    /// skipped), so both code paths render identical substep screens.
+    /// Registers the `WithdrawNavigationPath` substeps on the enclosing
+    /// `NavigationStack`. Applied at the root of every withdraw flow
+    /// (`PreselectedWithdrawRoot`), so every substep — picker, amount,
+    /// address, confirmation — resolves against the same view model.
     func withdrawSubstepDestinations(viewModel: WithdrawViewModel) -> some View {
         navigationDestination(for: WithdrawNavigationPath.self) { path in
             WithdrawSubstepDestination(path: path, viewModel: viewModel)
@@ -91,8 +65,8 @@ private struct WithdrawSubstepDestination: View {
 
     var body: some View {
         switch path {
-        case .intro:
-            WithdrawIntroScreen()
+        case .picker:
+            WithdrawScreen(onSelect: viewModel.selectCurrency)
                 .dialog(item: $viewModel.dialogItem)
         case .enterAmount:
             WithdrawAmountScreen(

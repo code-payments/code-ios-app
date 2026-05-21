@@ -12,7 +12,7 @@ import FlipcashUI
 @Observable
 class WithdrawViewModel {
     /// Pushes a sub-step onto the parent NavigationStack. Wired by
-    /// `WithdrawScreen` to call `router.pushAny(_:on: .settings)`.
+    /// `PreselectedWithdrawRoot.onAppear` to call `router.pushAny(_:)`.
     @ObservationIgnored var pushSubstep: (WithdrawNavigationPath) -> Void = { _ in }
 
     var withdrawButtonState: ButtonState = .normal
@@ -223,7 +223,6 @@ class WithdrawViewModel {
     /// Set by `WithdrawScreen` from `@Environment(\.dismiss)` once the view
     /// is on screen. Invoked by the success dialog to unwind the entire flow.
     @ObservationIgnored var onComplete: () -> Void = {}
-    @ObservationIgnored private let container: Container
     @ObservationIgnored private let client: Client
     @ObservationIgnored private let session: Session
     @ObservationIgnored private let ratesController: RatesController
@@ -231,7 +230,6 @@ class WithdrawViewModel {
     // MARK: - Init -
 
     init(container: Container, sessionContainer: SessionContainer) {
-        self.container       = container
         self.client          = container.client
         self.session         = sessionContainer.session
         self.ratesController = sessionContainer.ratesController
@@ -314,20 +312,34 @@ class WithdrawViewModel {
     // MARK: - Actions -
 
     func selectCurrency(_ balance: ExchangedBalance) {
-        let kindForBalance: WithdrawKind = balance.stored.mint == .usdf
+        setKind(for: balance)
+        pushEnterAmountScreen()
+    }
+
+    /// Intro screen's "Next" action. Re-syncs `kind` to USDF in case the user
+    /// drifted into the "Withdraw Other Flipcash Currencies" picker, picked a
+    /// non-USDF balance, then backed out to the intro — the intro screen
+    /// represents the USDF→USDC path, so a USDF-only kind is the contract here.
+    func continueFromIntro() {
+        if kind?.sourceMint != .usdf, let stored = session.balance(for: .usdf) {
+            let rate = ratesController.rateForBalanceCurrency()
+            setKind(for: stored.exchanged(with: rate))
+        }
+        pushEnterAmountScreen()
+    }
+
+    /// Sets `kind` from `balance` and clears per-flow inputs. Does NOT navigate;
+    /// `selectCurrency` is the action that advances the flow. Called from
+    /// `PreselectedWithdrawRoot.init` to pre-select the entry mint before
+    /// navigation closures are wired.
+    func setKind(for balance: ExchangedBalance) {
+        kind = balance.stored.mint == .usdf
             ? .usdfToUsdc(balance)
             : .sameMint(balance)
-        self.kind = kindForBalance
         enteredAmount = ""
         enteredAddress = ""
         destinationMetadata = nil
         withdrawButtonState = .normal
-
-        if kindForBalance.showsIntroScreen {
-            pushIntroScreen()
-        } else {
-            pushEnterAmountScreen()
-        }
     }
 
     func amountEnteredAction() {
@@ -460,10 +472,6 @@ class WithdrawViewModel {
 
     // MARK: - Navigation -
 
-    private func pushIntroScreen() {
-        pushSubstep(.intro)
-    }
-
     func pushEnterAmountScreen() {
         pushSubstep(.enterAmount)
     }
@@ -507,7 +515,7 @@ class WithdrawViewModel {
 }
 
 enum WithdrawNavigationPath {
-    case intro
+    case picker
     case enterAmount
     case enterAddress
     case confirmation
@@ -553,14 +561,6 @@ enum WithdrawKind: Equatable {
         switch self {
         case .sameMint:    return true
         case .usdfToUsdc:  return false
-        }
-    }
-
-    /// Whether the picker pushes the intro screen before amount entry.
-    var showsIntroScreen: Bool {
-        switch self {
-        case .sameMint:    return false
-        case .usdfToUsdc:  return true
         }
     }
 }
