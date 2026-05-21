@@ -113,10 +113,18 @@ struct DestinationView: View {
                 .navigationTitle("Access Key")
                 .toolbarTitleDisplayMode(.inline)
 
+        case .deposit:
+            USDCDepositEducationScreen(
+                onNext: { sessionContainer.appRouter.push(.usdcDepositAddress) },
+                onDepositOtherCurrencies: {
+                    sessionContainer.appRouter.push(.depositCurrencyList)
+                }
+            )
+
         case .depositCurrencyList:
             DepositCurrencyListScreen()
 
-        case .deposit(let mint):
+        case .depositAddress(let mint):
             // Resolves the cluster from the live `session.balance(for:)` lookup
             // — the destination only carries the mint so it stays Hashable +
             // Sendable. If the balance vanished between push and render
@@ -153,7 +161,9 @@ struct DestinationView: View {
             )
 
         case .usdcDepositEducation:
-            USDCDepositEducationScreen()
+            USDCDepositEducationScreen(
+                onNext: { sessionContainer.appRouter.push(.usdcDepositAddress) }
+            )
 
         case .usdcDepositAddress:
             // Authority pubkey, NOT the derived USDC ATA. Showing the ATA

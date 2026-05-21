@@ -49,8 +49,15 @@ extension AppRouter {
         case settingsAccountSelection
         case settingsApplicationLogs
         case accessKey
+        /// USDC → USDF deposit education screen with a "Deposit Other Flipcash
+        /// Currencies" escape hatch into the currency picker.
+        case deposit
         case depositCurrencyList
-        case deposit(PublicKey)
+        /// Direct deposit address screen for `mint` — the VM deposit address,
+        /// which for USDF accepts USDF tokens directly. Distinct from
+        /// `.usdcDepositAddress`, which shows the authority pubkey that accepts
+        /// USDC for 1:1 conversion to USDF.
+        case depositAddress(PublicKey)
         case withdraw
 
         /// The stack this destination naturally belongs in. Cross-stack
@@ -65,7 +72,8 @@ extension AppRouter {
                 return .balance
             case .settingsMyAccount, .settingsAdvancedFeatures, .settingsAppSettings,
                  .settingsBetaFlags, .settingsAccountSelection,
-                 .settingsApplicationLogs, .accessKey, .depositCurrencyList, .deposit, .withdraw:
+                 .settingsApplicationLogs, .accessKey, .deposit, .depositCurrencyList,
+                 .depositAddress, .withdraw:
                 return .settings
             }
         }
@@ -95,8 +103,9 @@ extension AppRouter {
             case .settingsAccountSelection:     "settingsAccountSelection"
             case .settingsApplicationLogs:      "settingsApplicationLogs"
             case .accessKey:                    "accessKey"
-            case .depositCurrencyList:          "depositCurrencyList"
             case .deposit:                      "deposit"
+            case .depositCurrencyList:          "depositCurrencyList"
+            case .depositAddress:               "depositAddress"
             case .withdraw:                     "withdraw"
             }
         }
@@ -111,7 +120,7 @@ extension AppRouter {
                  .transactionHistory(let mint),
                  .give(let mint),
                  .withdrawCurrency(let mint),
-                 .deposit(let mint):
+                 .depositAddress(let mint):
                 return mint.base58
             case .phantomFlow:
                 return nil
@@ -119,16 +128,10 @@ extension AppRouter {
                  .usdcDepositEducation, .usdcDepositAddress,
                  .settingsMyAccount, .settingsAdvancedFeatures, .settingsAppSettings,
                  .settingsBetaFlags, .settingsAccountSelection,
-                 .settingsApplicationLogs, .accessKey, .depositCurrencyList, .withdraw:
+                 .settingsApplicationLogs, .accessKey, .deposit, .depositCurrencyList,
+                 .withdraw:
                 return nil
             }
-        }
-
-        /// Entry-point destination for a deposit flow keyed on the mint.
-        /// USDF takes the educational USDC deposit path; every other mint
-        /// uses the legacy VM deposit screen.
-        static func depositEntry(for mint: PublicKey) -> Self {
-            mint == .usdf ? .usdcDepositEducation : .deposit(mint)
         }
     }
 }

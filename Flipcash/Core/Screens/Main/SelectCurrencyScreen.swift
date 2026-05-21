@@ -97,17 +97,20 @@ struct CurrencyBalanceRow: View {
     let accessibilityIdentifier: String
     let action: (() -> Void)?
     let showSelected: Bool?
+    let usesSymbol: Bool
 
     init(
         exchangedBalance: ExchangedBalance,
         accessibilityIdentifier: String = "currency-row",
         showSelected: Bool? = nil,
+        usesSymbol: Bool = false,
         action: (() -> Void)? = nil
     ) {
         self.exchangedBalance = exchangedBalance
         self.accessibilityIdentifier = accessibilityIdentifier
         self.action = action
         self.showSelected = showSelected
+        self.usesSymbol = usesSymbol
     }
 
     var body: some View {
@@ -116,7 +119,7 @@ struct CurrencyBalanceRow: View {
         } label: {
             CurrencyLabel(
                 imageURL: exchangedBalance.stored.imageURL,
-                name: exchangedBalance.stored.name,
+                name: usesSymbol ? exchangedBalance.stored.symbol : exchangedBalance.stored.name,
                 amount: exchangedBalance.exchangedFiat.nativeAmount,
                 isSelected: showSelected,
             )

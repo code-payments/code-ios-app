@@ -40,7 +40,10 @@ struct DepositCurrencyListScreen: View {
             List {
                 Section {
                     ForEach(balances) { balance in
-                        CurrencyBalanceRow(exchangedBalance: balance) {
+                        CurrencyBalanceRow(
+                            exchangedBalance: balance,
+                            usesSymbol: balance.stored.mint == .usdf
+                        ) {
                             selectCurrency(balance)
                         }
                     }
@@ -60,13 +63,13 @@ struct DepositCurrencyListScreen: View {
     // MARK: - Actions -
 
     private func selectCurrency(_ balance: ExchangedBalance) {
-        router.push(.depositEntry(for: balance.stored.mint))
+        router.push(.depositAddress(balance.stored.mint))
     }
 
     private func handleAutoSelect() {
         guard let mint = selectedMint,
               balances.contains(where: { $0.stored.mint == mint }) else { return }
         selectedMint = nil
-        router.push(.depositEntry(for: mint))
+        router.push(.depositAddress(mint))
     }
 }
