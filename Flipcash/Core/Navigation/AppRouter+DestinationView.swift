@@ -134,16 +134,22 @@ struct DestinationView: View {
             }
 
         case .withdraw:
-            WithdrawScreen(
+            PreselectedWithdrawRoot(
+                mint: .usdf,
                 container: container,
-                sessionContainer: sessionContainer
+                sessionContainer: sessionContainer,
+                onComplete: { sessionContainer.appRouter.popToRoot(on: .settings) },
+                onWithdrawOtherCurrencies: {
+                    sessionContainer.appRouter.pushAny(WithdrawNavigationPath.picker)
+                }
             )
 
         case .withdrawCurrency(let mint):
             PreselectedWithdrawRoot(
                 mint: mint,
                 container: container,
-                sessionContainer: sessionContainer
+                sessionContainer: sessionContainer,
+                onComplete: { sessionContainer.appRouter.popToRoot(on: .balance) }
             )
 
         case .usdcDepositEducation:

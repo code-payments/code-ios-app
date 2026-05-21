@@ -9,33 +9,47 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-/// Withdraw flow entry point that skips the "Select Currency" picker.
-/// Configures `WithdrawViewModel` with the mint before `@State` boxes it,
-/// so the intro screen renders with `kind` already populated.
+/// Withdraw flow entry point that lands the user on `WithdrawIntroScreen`
+/// with `mint` already selected on the view model. Used by both the Settings
+/// "Withdraw" button (USDF default, with a "Withdraw Other Flipcash
+/// Currencies" escape hatch) and the Wallet → USDF Currency Info entry
+/// (USDF only, no escape hatch).
 struct PreselectedWithdrawRoot: View {
 
     @Environment(AppRouter.self) private var router
     @State private var viewModel: WithdrawViewModel
 
-    init(mint: PublicKey, container: Container, sessionContainer: SessionContainer) {
+    private let onComplete: () -> Void
+    private let onWithdrawOtherCurrencies: (() -> Void)?
+
+    init(
+        mint: PublicKey,
+        container: Container,
+        sessionContainer: SessionContainer,
+        onComplete: @escaping () -> Void,
+        onWithdrawOtherCurrencies: (() -> Void)? = nil
+    ) {
         let vm = WithdrawViewModel(container: container, sessionContainer: sessionContainer)
         if let stored = sessionContainer.session.balance(for: mint) {
             let rate = sessionContainer.ratesController.rateForBalanceCurrency()
-            vm.selectCurrency(stored.exchanged(with: rate))
+            vm.setKind(for: stored.exchanged(with: rate))
         }
         self._viewModel = State(wrappedValue: vm)
+        self.onComplete = onComplete
+        self.onWithdrawOtherCurrencies = onWithdrawOtherCurrencies
     }
 
     var body: some View {
-        WithdrawIntroScreen()
-            .withdrawSubstepDestinations(viewModel: viewModel)
-            .onAppear {
-                viewModel.pushSubstep = { step in
-                    router.pushAny(step)
-                }
-                viewModel.onComplete = {
-                    router.popToRoot(on: .balance)
-                }
+        WithdrawIntroScreen(
+            onNext: viewModel.continueFromIntro,
+            onWithdrawOtherCurrencies: onWithdrawOtherCurrencies
+        )
+        .withdrawSubstepDestinations(viewModel: viewModel)
+        .onAppear {
+            viewModel.pushSubstep = { step in
+                router.pushAny(step)
             }
+            viewModel.onComplete = onComplete
+        }
     }
 }
