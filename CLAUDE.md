@@ -180,6 +180,28 @@ ErrorReporting.captureError(error, reason: "...")
 
 To suppress reporting for a specific error type, conform it to `ServerError` (in `FlipcashCore/Sources/FlipcashCore/Models/ServerError.swift`) and return `false` from `isReportable` for the non-actionable cases. That's the single source of truth — call sites stay uniform.
 
+### Form Input Validation: Use the `Validator` Family
+
+**Validate free-form input through `Validator` (in `FlipcashCore/Sources/FlipcashCore/Validation/`), not inline regex/trim/length checks.** Each input type gets a concrete validator (`EmailValidator`, and the in-flight `PhoneValidator` / `LengthValidator`) that owns the rule, returns the canonical form, and is unit-testable in isolation.
+
+```swift
+// ❌ BAD: inline rule in the viewmodel — drifts from the server contract, untestable
+var canSendEmail: Bool {
+    let trimmed = enteredEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+    return trimmed.wholeMatch(of: emailRegex) != nil
+}
+
+// ✅ GOOD: route through the validator
+@ObservationIgnored private let emailValidator = EmailValidator()
+
+var validatedEmail: String? { emailValidator.validate(enteredEmail) }
+var canSendEmail: Bool { validatedEmail != nil }
+```
+
+**Submit the validator's `Output`, not the raw input.** That's how trim/regex divergence is structurally impossible — there's one path from input to wire and the canonical form lives on it.
+
+**Why:** client validation must mirror the server contract (typically a PGV regex from a `.proto`). A single `Validator` per input type is the canonical source; inline rules in screens or viewmodels drift the moment the proto changes.
+
 ### Package.resolved Policy
 
 **Always commit the workspace Package.resolved:**
