@@ -33,8 +33,15 @@ class EmailService: CodeService<Flipcash_Email_V1_EmailVerificationNIOClient> {
                 completion(.failure(error))
             }
 
-        } failure: { error in
-            completion(.failure(.unknown))
+        } failure: { status in
+            // PGV field validation surfaces as invalidArgument before the
+            // result handler runs; the user remedy is identical to a
+            // server-returned INVALID_EMAIL_ADDRESS.
+            if status.code == .invalidArgument {
+                completion(.failure(.invalidEmailAddress))
+            } else {
+                completion(.failure(.unknown))
+            }
         }
     }
 

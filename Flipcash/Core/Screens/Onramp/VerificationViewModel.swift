@@ -127,29 +127,21 @@ final class VerificationViewModel: Identifiable {
         Phone(enteredPhone)
     }
 
+    var email: Email? {
+        Email(enteredEmail)
+    }
+
     var canSendVerificationCode: Bool {
         phone != nil
     }
 
     var canSendEmailVerification: Bool {
-        isEmailValid
+        email != nil
     }
 
     var isCodeComplete: Bool {
         enteredCode.count >= codeLength
     }
-
-    var isEmailValid: Bool {
-        let e = enteredEmail.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard !e.isEmpty, e.utf8.count <= 254 else {
-            return false
-        }
-
-        return e.wholeMatch(of: Self.emailRegex) != nil
-    }
-
-    private static let emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
     private var isPhoneVerified: Bool {
         session.profile?.isPhoneVerified ?? false
@@ -364,7 +356,7 @@ final class VerificationViewModel: Identifiable {
     }
 
     func sendEmailCodeAction() {
-        guard isEmailValid else {
+        guard let email else {
             return
         }
 
@@ -376,7 +368,7 @@ final class VerificationViewModel: Identifiable {
 
             do {
                 try await flipClient.sendEmailVerification(
-                    email: enteredEmail,
+                    email: email.value,
                     owner: owner
                 )
                 try await Task.delay(milliseconds: 500)
@@ -398,7 +390,7 @@ final class VerificationViewModel: Identifiable {
     }
 
     func resendEmailCodeAction() async throws {
-        guard isEmailValid else {
+        guard let email else {
             return
         }
 
@@ -409,7 +401,7 @@ final class VerificationViewModel: Identifiable {
 
         do {
             try await flipClient.sendEmailVerification(
-                email: enteredEmail,
+                email: email.value,
                 owner: owner
             )
         } catch {
