@@ -33,6 +33,7 @@ struct EnterEmailScreen: View {
                         .keyboardType(.emailAddress)
                         .textContentType(.emailAddress)
                         .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .multilineTextAlignment(.leading)
                         .padding([.leading, .trailing], 15)

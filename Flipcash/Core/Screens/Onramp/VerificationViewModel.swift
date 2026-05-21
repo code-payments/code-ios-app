@@ -55,6 +55,7 @@ final class VerificationViewModel: Identifiable {
     @ObservationIgnored private let owner: KeyPair
 
     @ObservationIgnored private let phoneFormatter = PhoneFormatter()
+    @ObservationIgnored private let emailValidator = EmailValidator()
 
     // MARK: - Run continuation -
 
@@ -127,29 +128,21 @@ final class VerificationViewModel: Identifiable {
         Phone(enteredPhone)
     }
 
+    var validatedEmail: String? {
+        emailValidator.validate(enteredEmail)
+    }
+
     var canSendVerificationCode: Bool {
         phone != nil
     }
 
     var canSendEmailVerification: Bool {
-        isEmailValid
+        validatedEmail != nil
     }
 
     var isCodeComplete: Bool {
         enteredCode.count >= codeLength
     }
-
-    var isEmailValid: Bool {
-        let e = enteredEmail.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard !e.isEmpty, e.utf8.count <= 254 else {
-            return false
-        }
-
-        return e.wholeMatch(of: Self.emailRegex) != nil
-    }
-
-    private static let emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
     private var isPhoneVerified: Bool {
         session.profile?.isPhoneVerified ?? false
@@ -364,7 +357,7 @@ final class VerificationViewModel: Identifiable {
     }
 
     func sendEmailCodeAction() {
-        guard isEmailValid else {
+        guard let validatedEmail else {
             return
         }
 
@@ -376,7 +369,7 @@ final class VerificationViewModel: Identifiable {
 
             do {
                 try await flipClient.sendEmailVerification(
-                    email: enteredEmail,
+                    email: validatedEmail,
                     owner: owner
                 )
                 try await Task.delay(milliseconds: 500)
@@ -398,7 +391,7 @@ final class VerificationViewModel: Identifiable {
     }
 
     func resendEmailCodeAction() async throws {
-        guard isEmailValid else {
+        guard let validatedEmail else {
             return
         }
 
@@ -409,7 +402,7 @@ final class VerificationViewModel: Identifiable {
 
         do {
             try await flipClient.sendEmailVerification(
-                email: enteredEmail,
+                email: validatedEmail,
                 owner: owner
             )
         } catch {
