@@ -369,81 +369,88 @@ class WithdrawViewModel {
     }
 
     private func completeWithdrawal() {
+        Task { await submitWithdrawal() }
+    }
+
+    /// Async body of the withdraw submission. Extracted from
+    /// `completeWithdrawal()` so the regression test can await the real
+    /// submission path instead of polling `dialogItem` after a fire-and-forget
+    /// Task. The UI entry point is still the private wrapper above.
+    func submitWithdrawal() async {
         guard let kind, let destinationMetadata else { return }
 
         withdrawButtonState = .loading
-        Task {
-            guard let (amountToWithdraw, verifiedState) = await prepareSubmission() else {
-                withdrawButtonState = .normal
-                dialogItem = .error(title: "Rate Unavailable", subtitle: "Couldn't get a fresh rate. Please try again.")
-                return
-            }
 
-            let fee: TokenAmount
-            if amountToWithdraw.mint == .usdf {
-                fee = session.userFlags?.withdrawalFeeAmount ?? .zero(mint: .usdf)
-            } else {
-                fee = exchangedFee?.onChainAmount ?? .zero(mint: .usdf)
-            }
+        guard let (amountToWithdraw, verifiedState) = await prepareSubmission() else {
+            withdrawButtonState = .normal
+            dialogItem = .error(title: "Rate Unavailable", subtitle: "Couldn't get a fresh rate. Please try again.")
+            return
+        }
 
-            do {
-                switch kind {
-                case .sameMint:
-                    try await session.withdraw(
-                        exchangedFiat: amountToWithdraw,
-                        verifiedState: verifiedState,
-                        fee: fee,
-                        to: destinationMetadata
-                    )
-                case .usdfToUsdc:
-                    guard let destinationOwner = enteredDestination else {
-                        withdrawButtonState = .normal
-                        dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
-                        return
-                    }
-                    _ = try await client.withdrawAsUSDC(
-                        amount: amountToWithdraw,
-                        verifiedState: verifiedState,
-                        destinationOwner: destinationOwner,
-                        fee: fee,
-                        sourceCluster: session.owner
-                    )
-                    session.updatePostTransaction()
-                    Analytics.withdrawal(exchangedFiat: amountToWithdraw, successful: true, error: nil)
+        let fee: TokenAmount
+        if amountToWithdraw.mint == .usdf {
+            fee = session.userFlags?.withdrawalFeeAmount ?? .zero(mint: .usdf)
+        } else {
+            fee = exchangedFee?.onChainAmount ?? .zero(mint: .usdf)
+        }
+
+        do {
+            switch kind {
+            case .sameMint:
+                try await session.withdraw(
+                    exchangedFiat: amountToWithdraw,
+                    verifiedState: verifiedState,
+                    fee: fee,
+                    to: destinationMetadata
+                )
+            case .usdfToUsdc:
+                guard let destinationOwner = enteredDestination else {
+                    withdrawButtonState = .normal
+                    dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
+                    return
                 }
-
-                try await Task.delay(milliseconds: 500)
-                withdrawButtonState = .success
-                try await Task.delay(milliseconds: 500)
-                showSuccessfulWithdrawalDialog()
-
-            } catch Session.Error.verifiedStateStale {
-                withdrawButtonState = .normal
-                dialogItem = .error(title: "Rate Unavailable", subtitle: "Couldn't get a fresh rate. Please try again.")
-            } catch {
-                // .usdfToUsdc bypasses Session and reports/emits analytics here;
-                // .sameMint flows through Session.withdraw, which owns both.
-                switch kind {
-                case .usdfToUsdc:
-                    ErrorReporting.captureError(
-                        error,
-                        reason: "Failed to withdraw",
-                        metadata: [
-                            "mint": amountToWithdraw.mint.base58,
-                            "amount": amountToWithdraw.nativeAmount.formatted(),
-                            "quarks": "\(amountToWithdraw.onChainAmount.quarks)",
-                            "fee": "\(fee.quarks)",
-                            "destination": destinationMetadata.destination.token.base58,
-                            "requiresInit": "\(destinationMetadata.requiresInitialization)",
-                        ]
-                    )
-                    Analytics.withdrawal(exchangedFiat: amountToWithdraw, successful: false, error: error)
-                case .sameMint:
-                    break
-                }
-                withdrawButtonState = .normal
-                dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
+                _ = try await client.withdrawAsUSDC(
+                    amount: amountToWithdraw,
+                    verifiedState: verifiedState,
+                    destinationOwner: destinationOwner,
+                    fee: fee,
+                    sourceCluster: session.owner
+                )
+                session.updatePostTransaction()
+                Analytics.withdrawal(exchangedFiat: amountToWithdraw, successful: true, error: nil)
             }
+
+            try await Task.delay(milliseconds: 500)
+            withdrawButtonState = .success
+            try await Task.delay(milliseconds: 500)
+            showSuccessfulWithdrawalDialog()
+
+        } catch Session.Error.verifiedStateStale {
+            withdrawButtonState = .normal
+            dialogItem = .error(title: "Rate Unavailable", subtitle: "Couldn't get a fresh rate. Please try again.")
+        } catch {
+            // .usdfToUsdc bypasses Session and reports/emits analytics here;
+            // .sameMint flows through Session.withdraw, which owns both.
+            switch kind {
+            case .usdfToUsdc:
+                ErrorReporting.captureError(
+                    error,
+                    reason: "Failed to withdraw",
+                    metadata: [
+                        "mint": amountToWithdraw.mint.base58,
+                        "amount": amountToWithdraw.nativeAmount.formatted(),
+                        "quarks": "\(amountToWithdraw.onChainAmount.quarks)",
+                        "fee": "\(fee.quarks)",
+                        "destination": destinationMetadata.destination.token.base58,
+                        "requiresInit": "\(destinationMetadata.requiresInitialization)",
+                    ]
+                )
+                Analytics.withdrawal(exchangedFiat: amountToWithdraw, successful: false, error: error)
+            case .sameMint:
+                break
+            }
+            withdrawButtonState = .normal
+            dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
         }
     }
 
