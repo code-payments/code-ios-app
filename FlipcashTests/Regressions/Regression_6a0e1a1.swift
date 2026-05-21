@@ -10,7 +10,7 @@
 //                  (severe for 0-decimal currencies) produces sub-fee
 //                  quarks and trips the underflow precondition.
 //
-//  Fix:            Guard in WithdrawViewModel.submitWithdrawal after
+//  Fix:            Guard in WithdrawViewModel.completeWithdrawal after
 //                  prepareSubmission — surfaces the existing
 //                  "Withdrawal Amount Too Small" dialog instead of
 //                  reaching IntentWithdraw / TokenAmount subtraction.
@@ -49,7 +49,7 @@ struct Regression_6a0e1a1 {
         viewModel.enteredAmount = "1"
         viewModel.destinationMetadata = WithdrawViewModelTestHelpers.createDestinationMetadata()
 
-        await viewModel.submitWithdrawal()
+        await viewModel.completeWithdrawal()
 
         #expect(viewModel.dialogItem?.title == "Withdrawal Amount Too Small")
         #expect(viewModel.withdrawButtonState == .normal)

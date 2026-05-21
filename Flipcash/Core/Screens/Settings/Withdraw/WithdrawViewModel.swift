@@ -362,21 +362,13 @@ class WithdrawViewModel {
             subtitle: "Withdrawals are irreversible and cannot be undone once initiated"
         ) {
             .destructive("Yes, Withdraw") { [weak self] in
-                self?.completeWithdrawal()
+                Task { await self?.completeWithdrawal() }
             };
             .cancel()
         }
     }
 
-    private func completeWithdrawal() {
-        Task { await submitWithdrawal() }
-    }
-
-    /// Async body of the withdraw submission. Extracted from
-    /// `completeWithdrawal()` so the regression test can await the real
-    /// submission path instead of polling `dialogItem` after a fire-and-forget
-    /// Task. The UI entry point is still the private wrapper above.
-    func submitWithdrawal() async {
+    func completeWithdrawal() async {
         guard let kind, let destinationMetadata else { return }
 
         withdrawButtonState = .loading
