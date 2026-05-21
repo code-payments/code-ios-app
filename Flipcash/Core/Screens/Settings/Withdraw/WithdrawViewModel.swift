@@ -420,6 +420,9 @@ class WithdrawViewModel {
             } catch Session.Error.verifiedStateStale {
                 withdrawButtonState = .normal
                 dialogItem = .error(title: "Rate Unavailable", subtitle: "Couldn't get a fresh rate. Please try again.")
+            } catch IntentWithdrawError.feeExceedsAmount {
+                withdrawButtonState = .normal
+                showBalanceBelowFeeError()
             } catch {
                 // .usdfToUsdc bypasses Session and reports/emits analytics here;
                 // .sameMint flows through Session.withdraw, which owns both.
@@ -502,6 +505,19 @@ class WithdrawViewModel {
             subtitle: "Your withdrawal amount is too small to cover the fee. Please try a different amount"
         ) {
             .okay(kind: .standard)
+        }
+    }
+
+    /// Shown when the submission-time amount is below the fee — typically when
+    /// balance < fee, so no entered amount can succeed. Unwinds the flow on OK.
+    private func showBalanceBelowFeeError() {
+        dialogItem = .error(
+            title: "Withdrawal Amount Too Small",
+            subtitle: "Your balance is below the withdrawal fee."
+        ) {
+            .okay(kind: .standard) { [weak self] in
+                self?.onComplete()
+            }
         }
     }
 }

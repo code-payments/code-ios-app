@@ -10,6 +10,12 @@ import Foundation
 import FlipcashAPI
 import SwiftProtobuf
 
+public enum IntentWithdrawError: Swift.Error {
+    /// The on-chain fee exceeds the entered amount; the post-fee remainder is
+    /// not representable in `TokenAmount`.
+    case feeExceedsAmount
+}
+
 final class IntentWithdraw: IntentType {
 
     let id: PublicKey
@@ -34,6 +40,9 @@ final class IntentWithdraw: IntentType {
         var group = ActionGroup()
 
         if fee.quarks > 0 {
+            guard fee.quarks <= exchangedFiat.onChainAmount.quarks else {
+                throw IntentWithdrawError.feeExceedsAmount
+            }
             let amountToWithdraw = exchangedFiat.subtractingFee(fee)
             group.append(
                 ActionTransfer(
