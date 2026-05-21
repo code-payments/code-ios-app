@@ -394,6 +394,12 @@ class WithdrawViewModel {
             fee = exchangedFee?.onChainAmount ?? .zero(mint: .usdf)
         }
 
+        guard fee.quarks < amountToWithdraw.onChainAmount.quarks else {
+            withdrawButtonState = .normal
+            showWithdrawalTooSmallError()
+            return
+        }
+
         do {
             switch kind {
             case .sameMint:
