@@ -38,10 +38,6 @@ struct IntentWithdrawTests {
         #expect(transfer.amount.quarks == 0)
     }
 
-    // Note: a fee larger than the amount is now a precondition-fail in
-    // TokenAmount subtraction, not a throwable error — callers are expected to
-    // validate sufficient-funds before constructing a withdraw intent.
-
     @Test("With non-zero fee and no initialization required, still emits ActionTransfer (entered − fee) + ActionFeeTransfer")
     func actionGroup_withNonZeroFee_noRequiresInit_includesFeeTransfer() throws {
         let intent = try makeIntent(
