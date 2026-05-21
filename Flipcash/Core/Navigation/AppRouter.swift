@@ -330,25 +330,14 @@ final class AppRouter {
         ])
     }
 
-    /// Global navigation reset: dismisses every presented sheet and clears
-    /// every stack's `NavigationPath`. The user lands on the Scanner — the
-    /// unconditional root rendered behind all sheets.
+    /// Dismisses every presented sheet and clears every inactive stack's
+    /// path, landing the user on the Scanner. Used by the
+    /// auto-return-on-background trigger to discard in-flight navigation.
     ///
-    /// Distinct from ``popToRoot(on:)``, which is a per-stack pop. Used by
-    /// the auto-return-on-background trigger when the user has been away long
-    /// enough that any in-flight navigation should be discarded.
-    ///
-    /// Dismissal is delegated to UIKit's modal cascade: calling
-    /// `dismiss(animated:)` on the root presenter tears down the entire
-    /// nested-sheet chain in a single coordinated animation. Setting
-    /// `presentedSheets = []` directly would force SwiftUI to issue two
-    /// independent `dismiss(animated:)` calls (one per `.sheet(item:)`
-    /// binding), which UIKit serialises into an outer-then-inner cascade.
-    ///
-    /// The dismissing root sheet's `NavigationPath` is retained through the
-    /// animation and cleared on next present via ``dismissedStacks``;
-    /// inactive stacks have no on-screen UI so their paths are cleared
-    /// synchronously.
+    /// Driven through UIKit's `dismiss(animated:)` on the root presenter so
+    /// the full nested-sheet chain tears down in one coordinated animation.
+    /// The dismissing root's path is retained through the animation and
+    /// cleared on next present via ``dismissedStacks``.
     func dismissAll() {
         let rootStack = presentedSheets.first?.stack
 
