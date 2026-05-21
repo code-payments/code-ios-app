@@ -2,8 +2,8 @@ import Foundation
 import Testing
 @testable import FlipcashCore
 
-@Suite("Email value type")
-struct EmailTests {
+@Suite("EmailValidator")
+struct EmailValidatorTests {
 
     @Test("Accepts ASCII addresses matching the proto regex", arguments: [
         "test@example.com",
@@ -14,15 +14,14 @@ struct EmailTests {
         "mixed-CASE@Example.COM",
     ])
     func accepts_validEmail(input: String) {
-        let email = Email(input)
-        #expect(email != nil)
-        #expect(email?.value == input)
+        let validator = EmailValidator()
+        #expect(validator.validate(input) == input)
     }
 
-    @Test("Trims surrounding whitespace before validating and submitting")
+    @Test("Trims surrounding whitespace before validating and returning")
     func trims_whitespace() {
-        let email = Email("  test@example.com\n")
-        #expect(email?.value == "test@example.com")
+        let validator = EmailValidator()
+        #expect(validator.validate("  test@example.com\n") == "test@example.com")
     }
 
     @Test("Rejects inputs the server's proto regex rejects", arguments: [
@@ -40,14 +39,17 @@ struct EmailTests {
         "spaces in@local.com",    // internal whitespace
     ])
     func rejects_invalidEmail(input: String) {
-        #expect(Email(input) == nil)
+        let validator = EmailValidator()
+        #expect(validator.validate(input) == nil)
     }
 
     @Test("Rejects oversized inputs even when the regex would match")
     func rejects_overlong() {
         let local = String(repeating: "a", count: 250)
-        let email = "\(local)@example.com"
-        #expect(email.utf8.count > 254)
-        #expect(Email(email) == nil)
+        let input = "\(local)@example.com"
+        #expect(input.utf8.count > 254)
+
+        let validator = EmailValidator()
+        #expect(validator.validate(input) == nil)
     }
 }

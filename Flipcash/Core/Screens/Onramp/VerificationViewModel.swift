@@ -55,6 +55,7 @@ final class VerificationViewModel: Identifiable {
     @ObservationIgnored private let owner: KeyPair
 
     @ObservationIgnored private let phoneFormatter = PhoneFormatter()
+    @ObservationIgnored private let emailValidator = EmailValidator()
 
     // MARK: - Run continuation -
 
@@ -127,16 +128,12 @@ final class VerificationViewModel: Identifiable {
         Phone(enteredPhone)
     }
 
-    var email: Email? {
-        Email(enteredEmail)
-    }
-
     var canSendVerificationCode: Bool {
         phone != nil
     }
 
     var canSendEmailVerification: Bool {
-        email != nil
+        emailValidator.validate(enteredEmail) != nil
     }
 
     var isCodeComplete: Bool {
@@ -356,7 +353,7 @@ final class VerificationViewModel: Identifiable {
     }
 
     func sendEmailCodeAction() {
-        guard let email else {
+        guard let validatedEmail = emailValidator.validate(enteredEmail) else {
             return
         }
 
@@ -368,7 +365,7 @@ final class VerificationViewModel: Identifiable {
 
             do {
                 try await flipClient.sendEmailVerification(
-                    email: email.value,
+                    email: validatedEmail,
                     owner: owner
                 )
                 try await Task.delay(milliseconds: 500)
@@ -390,7 +387,7 @@ final class VerificationViewModel: Identifiable {
     }
 
     func resendEmailCodeAction() async throws {
-        guard let email else {
+        guard let validatedEmail = emailValidator.validate(enteredEmail) else {
             return
         }
 
@@ -401,7 +398,7 @@ final class VerificationViewModel: Identifiable {
 
         do {
             try await flipClient.sendEmailVerification(
-                email: email.value,
+                email: validatedEmail,
                 owner: owner
             )
         } catch {

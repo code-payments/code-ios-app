@@ -12,9 +12,10 @@
 //            reproduced the bug. EmailService funneled every gRPC failure
 //            into .unknown, surfacing as a generic dialog + Bugsnag noise.
 //
-//  Fix:      `Email` value type in FlipcashCore enforces the proto regex
-//            at init and exposes a single canonical `.value`; the wire
-//            path now uses `.value`. EmailService maps gRPC
+//  Fix:      `EmailValidator` in FlipcashCore enforces the proto regex
+//            and returns the trimmed canonical form; the viewmodel's send
+//            paths route through it so the wire receives the validated
+//            value, not the raw input. EmailService maps gRPC
 //            invalid_argument to `.invalidEmailAddress` so the user sees
 //            the right dialog and Bugsnag stops collecting noise.
 //
@@ -34,7 +35,7 @@ struct Regression_6a0f572 {
         viewModel.enteredEmail = "  test@example.com\n"
 
         #expect(viewModel.canSendEmailVerification)
-        #expect(viewModel.email?.value == "test@example.com")
+        #expect(EmailValidator().validate(viewModel.enteredEmail) == "test@example.com")
     }
 
     @Test("Inputs the proto regex rejects no longer pass the Next gate", arguments: [
@@ -48,6 +49,5 @@ struct Regression_6a0f572 {
         viewModel.enteredEmail = input
 
         #expect(!viewModel.canSendEmailVerification)
-        #expect(viewModel.email == nil)
     }
 }

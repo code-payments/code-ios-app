@@ -1,14 +1,11 @@
 import Foundation
 
-/// Email address whose initializer enforces the server-side proto pattern
-/// at `flipcash.email.v1.EmailAddress`. Construction trims surrounding
-/// whitespace; `value` is the canonical wire form.
-public struct Email: Sendable {
+public struct EmailValidator: Validator {
 
-    public let value: String
+    public init() {}
 
-    public init?(_ string: String) {
-        let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+    public func validate(_ input: String) -> String? {
+        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !trimmed.isEmpty, trimmed.utf8.count <= 254 else {
             return nil
@@ -18,7 +15,7 @@ public struct Email: Sendable {
             return nil
         }
 
-        self.value = trimmed
+        return trimmed
     }
 
     /// Must equal the PGV pattern on
