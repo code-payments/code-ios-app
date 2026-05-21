@@ -375,16 +375,11 @@ class WithdrawViewModel {
 
         guard let (amountToWithdraw, verifiedState) = await prepareSubmission() else {
             withdrawButtonState = .normal
-            dialogItem = .error(title: "Rate Unavailable", subtitle: "Couldn't get a fresh rate. Please try again.")
+            showRateUnavailableError()
             return
         }
 
-        let fee: TokenAmount
-        if amountToWithdraw.mint == .usdf {
-            fee = session.userFlags?.withdrawalFeeAmount ?? .zero(mint: .usdf)
-        } else {
-            fee = exchangedFee?.onChainAmount ?? .zero(mint: .usdf)
-        }
+        let fee = resolvedFee?.onChain ?? .zero(mint: .usdf)
 
         guard fee.quarks < amountToWithdraw.onChainAmount.quarks else {
             withdrawButtonState = .normal
@@ -404,7 +399,7 @@ class WithdrawViewModel {
             case .usdfToUsdc:
                 guard let destinationOwner = enteredDestination else {
                     withdrawButtonState = .normal
-                    dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
+                    showSomethingWentWrongError()
                     return
                 }
                 _ = try await client.withdrawAsUSDC(
@@ -425,7 +420,7 @@ class WithdrawViewModel {
 
         } catch Session.Error.verifiedStateStale {
             withdrawButtonState = .normal
-            dialogItem = .error(title: "Rate Unavailable", subtitle: "Couldn't get a fresh rate. Please try again.")
+            showRateUnavailableError()
         } catch {
             // .usdfToUsdc bypasses Session and reports/emits analytics here;
             // .sameMint flows through Session.withdraw, which owns both.
@@ -448,7 +443,7 @@ class WithdrawViewModel {
                 break
             }
             withdrawButtonState = .normal
-            dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
+            showSomethingWentWrongError()
         }
     }
 
@@ -498,6 +493,20 @@ class WithdrawViewModel {
         dialogItem = .error(
             title: "Insufficient Balance",
             subtitle: "Please enter a lower amount and try again"
+        )
+    }
+
+    private func showRateUnavailableError() {
+        dialogItem = .error(
+            title: "Rate Unavailable",
+            subtitle: "Couldn't get a fresh rate. Please try again."
+        )
+    }
+
+    private func showSomethingWentWrongError() {
+        dialogItem = .error(
+            title: "Something Went Wrong",
+            subtitle: "Please try again later"
         )
     }
 

@@ -51,7 +51,9 @@ struct Regression_6a0e1a1 {
 
         await viewModel.completeWithdrawal()
 
-        #expect(viewModel.dialogItem?.title == "Withdrawal Amount Too Small")
+        let dialog = try #require(viewModel.dialogItem)
+        // Title from `WithdrawViewModel.showWithdrawalTooSmallError`.
+        #expect(dialog.title == "Withdrawal Amount Too Small")
         #expect(viewModel.withdrawButtonState == .normal)
     }
 }
