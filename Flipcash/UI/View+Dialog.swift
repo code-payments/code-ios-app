@@ -16,7 +16,7 @@ extension View {
 private struct DialogItemModifier: ViewModifier {
 
     let item: Binding<DialogItem?>
-    @Environment(AppRouter.self) private var router
+    @Environment(AppRouter.self) private var router: AppRouter?
 
     func body(content: Content) -> some View {
         content
@@ -36,7 +36,7 @@ private struct DialogItemModifier: ViewModifier {
                         Analytics.errorModalDisplayed(
                             title: title,
                             message: subtitle,
-                            screen: router.presentedSheet?.description ?? "scan",
+                            screen: router?.presentedSheet?.description ?? "scan",
                             callSite: nil
                         )
                     }
