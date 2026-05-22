@@ -199,7 +199,9 @@ private struct USDCDepositMethodButton: View {
 
     var body: some View {
         Button("Deposit USDC") {
-            router.dismissAll(presenting: .usdcDeposit)
+            dismissThenDispatch(onDismiss: router.dismissSheet) { [router] in
+                router.push(.usdcDepositEducation)
+            }
         }
         .buttonStyle(.filled)
     }

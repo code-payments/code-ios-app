@@ -10,9 +10,9 @@ import XCTest
 ///
 /// - The buy nested sheet opens on top of CurrencyInfoScreen.
 /// - An amount above the USDF balance routes to `PurchaseMethodSheet`.
-/// - Selecting "Deposit USDC" dismisses the buy sheet chain via UIKit
-///   cascade and presents `USDCDepositEducationScreen` as a new root sheet
-///   off the Scanner.
+/// - Selecting "Deposit USDC" dismisses the buy nested sheet and pushes
+///   `USDCDepositEducationScreen` onto the balance stack (on top of the
+///   CurrencyInfo destination underneath).
 /// - Tapping Next pushes `USDCDepositAddressScreen` with the Copy Address
 ///   button hittable. The address itself is derived from the session's
 ///   owner key — its exact value isn't asserted, just that the CTA renders.
@@ -25,7 +25,7 @@ final class BuyDepositRegressionTests: BaseUITestCase {
 
     override var requiresAuthentication: Bool { true }
 
-    func testDepositFlow_depositUSDC_swapsToRootSheet() {
+    func testDepositFlow_depositUSDC_pushesOntoBalanceStack() {
         let wallet = WalletScreen(app: app)
         let currencyInfo = CurrencyInfoUIScreen(app: app)
         let amountEntry = AmountEntryScreen(app: app)
@@ -45,18 +45,18 @@ final class BuyDepositRegressionTests: BaseUITestCase {
         amountEntry.enterPickerTriggeringAmount()
         waitUntilHittableAndTap(amountEntry.buyActionButton)
 
-        // Picker → Deposit USDC → cascade dismiss to the new root sheet.
+        // Picker → Deposit USDC → buy sheet dismisses, education pushes.
         purchaseMethods.assertReached()
         purchaseMethods.selectDepositUSDC(from: self)
 
         depositEducation.assertReached()
 
-        // The buy "Amount" screen must be torn down by the cascade — the
-        // sheet swap should have left the user on the Deposit USDC root,
-        // not pushed inside the buy stack.
+        // The buy "Amount" screen must dismiss as part of the hand-off — the
+        // education screen lives on the balance stack now, not inside the
+        // buy nested sheet.
         XCTAssertTrue(
             app.navigationBars["Amount"].waitForNonExistence(timeout: 2),
-            "Buy Amount screen must be dismissed by the sheet swap, not left underneath"
+            "Buy Amount screen must be dismissed before the education screen pushes"
         )
 
         depositEducation.tapNext(from: self)
