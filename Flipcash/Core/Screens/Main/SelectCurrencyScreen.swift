@@ -10,43 +10,30 @@ import FlipcashUI
 import FlipcashCore
 
 struct SelectCurrencyScreen: View {
-    
+
     @Binding var isPresented: Bool
-    
+
     @Environment(Session.self) private var session
     @Environment(RatesController.self) private var ratesController
-        
-    @State private var selectedBalance: ExchangedBalance?
-    
-    private var balances: [ExchangedBalance] {
-        let allBalances = session.balances(for: fixedRate ?? ratesController.rateForBalanceCurrency())
-        switch kind {
-        case .give:
-            return allBalances.filter { $0.stored.mint != .usdf }
-        case .select:
-            return allBalances
-        }
-    }
-    
-    private func shouldShowSelected(_ balance: ExchangedBalance) -> Bool? {
-        if case .give = kind {
-            return ratesController.isSelectedToken(balance.stored.mint)
-        }
-        return nil
-    }
-    
-    let kind: Kind
+
     let fixedRate: Rate?
-    
-    // MARK: - Init -
-    init(isPresented: Binding<Bool>, kind: Kind, fixedRate: Rate?) {
-        self._isPresented        = isPresented
-        self.kind                = kind
-        self.fixedRate           = fixedRate
+    let action: (ExchangedBalance) -> Void
+
+    private var balances: [ExchangedBalance] {
+        session.balances(for: fixedRate ?? ratesController.rateForBalanceCurrency())
+            .filter { $0.stored.mint != .usdf }
     }
-    
-    // MARK: - Body -
-    
+
+    init(
+        isPresented: Binding<Bool>,
+        fixedRate: Rate? = nil,
+        action: @escaping (ExchangedBalance) -> Void
+    ) {
+        self._isPresented = isPresented
+        self.fixedRate = fixedRate
+        self.action = action
+    }
+
     var body: some View {
         NavigationStack {
             Background(color: .backgroundMain) {
@@ -55,16 +42,11 @@ struct SelectCurrencyScreen: View {
                         ForEach(balances) { balance in
                             CurrencyBalanceRow(
                                 exchangedBalance: balance,
-                                showSelected: shouldShowSelected(balance),
+                                accessory: .check(isSelected: ratesController.isSelectedToken(balance.stored.mint)),
+                                amountStyle: .pill
                             ) {
-                                switch kind {
-                                case .give(let action):
-                                    action(balance)
-                                    isPresented = false
-                                    
-                                case .select(let action):
-                                    action(balance)
-                                }
+                                action(balance)
+                                isPresented = false
                             }
                         }
                     }
@@ -84,11 +66,9 @@ struct SelectCurrencyScreen: View {
     }
 }
 
-extension SelectCurrencyScreen {
-    enum Kind {
-        case give((ExchangedBalance) -> Void)
-        case select((ExchangedBalance) -> Void)
-    }
+enum CurrencyRowAccessory {
+    case chevron
+    case check(isSelected: Bool)
 }
 
 struct CurrencyBalanceRow: View {
@@ -96,21 +76,24 @@ struct CurrencyBalanceRow: View {
     let exchangedBalance: ExchangedBalance
     let accessibilityIdentifier: String
     let action: (() -> Void)?
-    let showSelected: Bool?
+    let accessory: CurrencyRowAccessory?
+    let amountStyle: CurrencyLabel.AmountStyle
     let usesSymbol: Bool
 
     init(
         exchangedBalance: ExchangedBalance,
         accessibilityIdentifier: String = "currency-row",
-        showSelected: Bool? = nil,
+        accessory: CurrencyRowAccessory? = nil,
+        amountStyle: CurrencyLabel.AmountStyle = .plain,
         usesSymbol: Bool = false,
         action: (() -> Void)? = nil
     ) {
         self.exchangedBalance = exchangedBalance
         self.accessibilityIdentifier = accessibilityIdentifier
-        self.action = action
-        self.showSelected = showSelected
+        self.accessory = accessory
+        self.amountStyle = amountStyle
         self.usesSymbol = usesSymbol
+        self.action = action
     }
 
     var body: some View {
@@ -121,7 +104,8 @@ struct CurrencyBalanceRow: View {
                 imageURL: exchangedBalance.stored.imageURL,
                 name: usesSymbol ? exchangedBalance.stored.symbol : exchangedBalance.stored.name,
                 amount: exchangedBalance.exchangedFiat.nativeAmount,
-                isSelected: showSelected,
+                amountStyle: amountStyle,
+                accessory: accessory
             )
         }
         .accessibilityIdentifier(accessibilityIdentifier)
@@ -133,12 +117,18 @@ struct CurrencyBalanceRow: View {
 }
 
 struct CurrencyLabel: View {
-    
+
     let imageURL: URL?
     let name: String
     let amount: FiatAmount?
-    var isSelected: Bool? = nil
-    
+    var amountStyle: AmountStyle = .plain
+    var accessory: CurrencyRowAccessory? = nil
+
+    enum AmountStyle {
+        case plain
+        case pill
+    }
+
     var body: some View {
         HStack(spacing: 8) {
             if let imageURL {
@@ -146,25 +136,66 @@ struct CurrencyLabel: View {
                     .frame(width: 24, height: 24)
                     .clipShape(Circle())
             }
-            
+
             Text(name)
                 .font(.appBarButton)
                 .foregroundStyle(Color.textMain)
 
             if let amount {
                 Spacer()
+                AmountLabel(amount: amount, style: amountStyle)
+            }
 
+            if let accessory {
+                AccessoryView(accessory: accessory)
+                    .accessibilityHidden(true)
+                    .padding(.leading, 12)
+            }
+        }
+    }
+}
+
+private struct AmountLabel: View {
+
+    let amount: FiatAmount
+    let style: CurrencyLabel.AmountStyle
+
+    var body: some View {
+        Group {
+            switch style {
+            case .plain:
                 Text(amount.formatted())
                     .font(.appTextMedium)
                     .foregroundStyle(Color.textMain)
-                    .contentTransition(.numericText())
-                    .animation(.default, value: amount)
+            case .pill:
+                Text(amount.formatted())
+                    .font(.appTextCaption)
+                    .foregroundStyle(Color.textSecondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 5)
+                            .inset(by: 0.5)
+                            .stroke(.white.opacity(0.2), lineWidth: 1)
+                    )
             }
+        }
+        .contentTransition(.numericText())
+        .animation(.default, value: amount)
+    }
+}
 
-            if let isSelected {
-                CheckView(active: isSelected)
-                    .padding(.leading, 12)
-            }
+private struct AccessoryView: View {
+
+    let accessory: CurrencyRowAccessory
+
+    var body: some View {
+        switch accessory {
+        case .chevron:
+            Image.system(.chevronRight)
+                .foregroundStyle(Color.textSecondary)
+        case .check(let isSelected):
+            CheckView(active: isSelected)
         }
     }
 }

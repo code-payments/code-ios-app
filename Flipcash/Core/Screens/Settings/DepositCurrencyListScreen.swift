@@ -42,6 +42,8 @@ struct DepositCurrencyListScreen: View {
                     ForEach(balances) { balance in
                         CurrencyBalanceRow(
                             exchangedBalance: balance,
+                            accessory: .chevron,
+                            amountStyle: .pill,
                             usesSymbol: balance.stored.mint == .usdf
                         ) {
                             selectCurrency(balance)

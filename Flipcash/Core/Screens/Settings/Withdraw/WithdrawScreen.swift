@@ -30,7 +30,11 @@ struct WithdrawScreen: View {
             List {
                 Section {
                     ForEach(balances) { balance in
-                        CurrencyBalanceRow(exchangedBalance: balance) {
+                        CurrencyBalanceRow(
+                            exchangedBalance: balance,
+                            accessory: .chevron,
+                            amountStyle: .pill
+                        ) {
                             onSelect(balance)
                         }
                     }
