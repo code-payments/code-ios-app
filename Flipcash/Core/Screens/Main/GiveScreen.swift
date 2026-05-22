@@ -92,13 +92,9 @@ struct GiveScreen: View {
             router.push(.currencyInfoForDeposit(mint))
         }
         .sheet(isPresented: $isShowingTokenSelection) {
-            SelectCurrencyScreen(
-                isPresented: $isShowingTokenSelection,
-                kind: .give { balance in
-                    viewModel.selectCurrencyAction(exchangedBalance: balance)
-                },
-                fixedRate: nil,
-            )
+            SelectCurrencyScreen(isPresented: $isShowingTokenSelection) { balance in
+                viewModel.selectCurrencyAction(exchangedBalance: balance)
+            }
         }
     }
 
