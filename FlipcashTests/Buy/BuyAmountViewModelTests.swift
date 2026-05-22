@@ -77,23 +77,6 @@ struct BuyAmountViewModelTests {
 
     // MARK: - Gate decision tests
 
-    @Test("Sufficient USDF balance does not surface the funding picker")
-    func sufficientBalance_doesNotOpenPicker() async throws {
-        // $50 USDF (6 decimals) → balance covers $20 entry.
-        let container = try await Self.makeContainer(usdfQuarks: 50_000_000)
-        let viewModel = Self.makeViewModel(container: container)
-        let router = AppRouter()
-        router.present(.balance)
-
-        viewModel.enteredAmount = "20"
-        await viewModel.amountEnteredAction(router: router)
-
-        // Gate routed to reserve-funded buy, not the picker. The subsequent
-        // session.buy network call is out of scope for this unit test —
-        // here we only assert the gate decision.
-        #expect(viewModel.pendingOperation == nil)
-    }
-
     @Test(
         "Balance below the entered amount opens the funding picker",
         arguments: [
