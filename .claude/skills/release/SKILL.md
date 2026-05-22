@@ -8,7 +8,7 @@ allowed-tools: Bash(git log *), Bash(git checkout *), Bash(git tag *), Bash(git 
 
 # Release
 
-Two-phase workflow with a dogfooding gate. Nothing leaves the machine until the user confirms they've tested on device.
+Three-phase workflow. The release branch and tag push automatically so TestFlight can build a dogfooding candidate; the public GitHub release is only drafted after the user confirms on-device testing.
 
 ## Pre-flight context
 
@@ -43,7 +43,7 @@ git show origin/main:Code.xcodeproj/project.pbxproj | grep -c "MARKETING_VERSION
 ```
 
 - **Result is `4`** (Flipcash target's four configurations): proceed.
-- **Result is `0`**: STOP. Tell the user: *"`origin/main` is still at `{current-version}`. Open a `chore/bump-version-{next-version}` PR that flips `MARKETING_VERSION` from `{current-version}` to `{next-version}` (use `replace_all` — only the Flipcash target's four lines should change), merge it, then re-run /release {bump}."* Do not open the bump PR from inside this skill, and do not commit it locally to main.
+- **Result is `0`**: STOP. Check whether a `chore/bump-version-{next-version}` PR is already open (the previous /release run should have auto-prepped one in step 9a). If yes, tell the user: *"Merge `chore/bump-version-{next-version}` and re-run /release {bump}."* If no PR exists, tell the user to open one — `MARKETING_VERSION = {current-version};` → `MARKETING_VERSION = {next-version};` with `replace_all` — merge it, then re-run. Do not commit the bump locally to main from inside this skill.
 
 ### 4. Determine base
 - **major / minor**: base is `origin/main`. Show the pre-flight latest tag to user. If it picks up a legacy tag, ask for the correct base.
@@ -123,30 +123,56 @@ Then tag:
 git tag flipcash-{next-version}
 ```
 
-## STOP — Dogfooding Gate
+## Phase 2: Push for TestFlight
 
-**Do NOT proceed until the user explicitly confirms.**
-
-```
-Ready for dogfooding. Nothing has been pushed.
-
-Please verify on device:
-□ Claim a Cash Link on an empty account
-□ Buy a currency with Phantom
-□ Scan & Send between 2 devices
-
-Safe to abort. Tell me when you're ready to ship.
-```
-
-## Phase 2: Ship
-
-After user confirms:
-
-### 9. Push
+### 9. Push branch and tag
 ```bash
 git push -u origin release/flipcash-{version}
 git push origin flipcash-{version}
 ```
+The tag push kicks off the TestFlight build.
+
+### 9a. Prep the next-minor bump PR (major / minor only)
+Skip for patch — patches don't change `main`'s `MARKETING_VERSION`.
+
+Compute `{next-minor}` = the next minor after the version being shipped (e.g. shipping `1.10.0` → `1.11.0`; shipping `2.0.0` → `2.1.0`).
+
+Check first — if a `chore/bump-version-{next-minor}` PR or branch already exists, skip silently.
+
+Otherwise, from `main`:
+```bash
+git checkout main && git pull --ff-only
+git checkout -b chore/bump-version-{next-minor}
+```
+Edit `Code.xcodeproj/project.pbxproj` with `replace_all: true`: `MARKETING_VERSION = {version};` → `MARKETING_VERSION = {next-minor};` (only the Flipcash target's four lines should change).
+```bash
+git add Code.xcodeproj/project.pbxproj
+git commit -m "chore: bump version to {next-minor}"
+git push -u origin chore/bump-version-{next-minor}
+gh pr create --base main --title "chore: bump version to {next-minor}" --body "<one-line body>"
+```
+
+The PR sits open for the user to merge whenever — it's a precondition the next /release will need.
+
+## STOP — Dogfooding Gate
+
+**Do NOT draft the GitHub release until the user explicitly confirms on-device testing.**
+
+```
+Branch and tag pushed — TestFlight build should be on its way.
+Public GitHub release not yet drafted.
+
+Please verify on the TestFlight build:
+□ Claim a Cash Link on an empty account
+□ Buy a currency with Phantom
+□ Scan & Send between 2 devices
+
+Tell me when you're ready to draft the public release.
+```
+
+## Phase 3: Ship
+
+After user confirms:
 
 ### 10. GitHub Release (draft)
 Always create the release as a draft. Publish it manually from the GitHub UI once the App Store rollout is live — publishing fires webhooks and "Latest release" badges, so it should reflect what's actually available to users.
@@ -161,8 +187,8 @@ Remind the user at the end: *"Release drafted. Promote it in the GitHub UI once 
 - Merge the release branch into main
 - Commit changelog files
 - Skip the dogfooding gate
-- Proceed past the gate without explicit user confirmation
+- Draft the GitHub release before the user confirms on-device testing
 - Tag a patch without bumping `MARKETING_VERSION` on the release branch (step 4b) — TestFlight rejects duplicate build versions
-- Open the major/minor bump PR yourself — step 3 stops and asks the user to do it; the bump must descend from a merged `main` commit before /release continues
+- Open the bump PR for the *current* release's version inside step 3 — step 3 must find it already on `main`, merged by the user from a prior /release's step-9a PR (or opened manually); auto-prepping the *next* version's bump PR in step 9a is the new normal
 - Cut the release branch or tag from a local-only bump commit — always branch from the `main` whose `origin/main` already has the merged bump
 - Resolve cherry-pick conflicts autonomously — stop and hand off to the user
