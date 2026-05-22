@@ -19,6 +19,7 @@ extension AppRouter {
         case discover
         case buy
         case downloadApp
+        case usdcDeposit
 
         /// The sheet a stack is presented in. Cross-stack navigation uses
         /// this to know which top-level modal to surface.
@@ -34,6 +35,7 @@ extension AppRouter {
             case .discover:    .discover
             case .buy:         nil
             case .downloadApp: .downloadApp
+            case .usdcDeposit: .usdcDeposit
             }
         }
 
@@ -45,6 +47,7 @@ extension AppRouter {
             case .discover:    "discover"
             case .buy:         "buy"
             case .downloadApp: "downloadApp"
+            case .usdcDeposit: "usdcDeposit"
             }
         }
     }

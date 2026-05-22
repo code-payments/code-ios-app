@@ -80,7 +80,7 @@ private struct NestedSheetRootView: View {
                 sessionContainer: sessionContainer
             )
 
-        case .balance, .settings, .give, .discover, .downloadApp:
+        case .balance, .settings, .give, .discover, .downloadApp, .usdcDeposit:
             // Root-only sheets — they shouldn't be presented as nested. If
             // they ever are, we fall through to an empty view; the warning
             // in `presentNested` logs the mistake.

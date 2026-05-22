@@ -330,15 +330,11 @@ final class AppRouter {
         ])
     }
 
-    /// Dismisses every presented sheet and clears every inactive stack's
-    /// path, landing the user on the Scanner. Used by the
-    /// auto-return-on-background trigger to discard in-flight navigation.
-    ///
-    /// Driven through UIKit's `dismiss(animated:)` on the root presenter so
-    /// the full nested-sheet chain tears down in one coordinated animation.
-    /// The dismissing root's path is retained through the animation and
-    /// cleared on next present via ``dismissedStacks``.
-    func dismissAll() {
+    /// Dismisses every presented sheet via UIKit's `dismiss(animated:)`
+    /// cascade so the full nested-sheet chain tears down in one coordinated
+    /// animation. Pass `presenting:` to land on a new root in the cascade's
+    /// completion handler.
+    func dismissAll(presenting newRoot: SheetPresentation? = nil) {
         let rootStack = presentedSheets.first?.stack
 
         for sheet in presentedSheets {
@@ -348,21 +344,31 @@ final class AppRouter {
             paths[stack] = NavigationPath()
         }
 
+        if let newRoot {
+            dismissedStacks.remove(newRoot.stack)
+            paths[newRoot.stack] = NavigationPath()
+        }
+
         let presenter = UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
             .first { $0.activationState == .foregroundActive }?
             .keyWindow?
             .rootViewController
 
+        let newSheets = newRoot.map { [$0] } ?? []
         if let presenter, presenter.presentedViewController != nil {
             presenter.dismiss(animated: true) { [weak self] in
-                self?.presentedSheets = []
+                self?.presentedSheets = newSheets
             }
         } else {
-            presentedSheets = []
+            presentedSheets = newSheets
         }
 
-        logger.info("Dismiss all")
+        if let newRoot {
+            logger.info("Dismiss all", metadata: ["presenting": "\(newRoot)"])
+        } else {
+            logger.info("Dismiss all")
+        }
     }
 
     // MARK: - Logging helpers

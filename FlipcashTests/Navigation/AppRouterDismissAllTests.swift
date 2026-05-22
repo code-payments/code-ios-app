@@ -107,4 +107,62 @@ struct AppRouterDismissAllTests {
         #expect(router[.give].isEmpty)
         #expect(router[.discover].isEmpty)
     }
+
+    // MARK: - dismissAll(presenting:)
+
+    @Test("dismissAll(presenting:) from nested-buy state lands on the target root")
+    func dismissAll_presenting_fromNestedBuy_landsOnTarget() {
+        let router = AppRouter()
+        router.present(.balance)
+        router.push(.currencyInfo(.usdc))
+        router.presentNested(.buy(.usdc))
+
+        router.dismissAll(presenting: .usdcDeposit)
+
+        #expect(router.presentedSheets == [.usdcDeposit])
+        #expect(router[.buy].isEmpty)
+
+        router.present(.balance)
+        #expect(router[.balance].isEmpty,
+                "balance path must clear on next present after dismissAll(presenting:)")
+    }
+
+    @Test("dismissAll(presenting:) from empty state mounts the new root with a clean path")
+    func dismissAll_presenting_fromEmpty_mountsNewRoot() {
+        let router = AppRouter()
+        router[.usdcDeposit] = AppRouter.navigationPath(.usdcDepositAddress)
+
+        router.dismissAll(presenting: .usdcDeposit)
+
+        #expect(router.presentedSheets == [.usdcDeposit])
+        #expect(router[.usdcDeposit].isEmpty,
+                "the target stack's path must be cleared so the new sheet mounts at root")
+    }
+
+    @Test("dismissAll(presenting:) clears the target stack's path when previously dismissed")
+    func dismissAll_presenting_clearsTargetStaleness() {
+        let router = AppRouter()
+        router.present(.usdcDeposit)
+        router.push(.usdcDepositAddress)
+        router.dismissSheet()
+
+        router.present(.balance)
+        router.dismissAll(presenting: .usdcDeposit)
+
+        #expect(router.presentedSheets == [.usdcDeposit])
+        #expect(router[.usdcDeposit].isEmpty)
+    }
+
+    @Test("dismissAll(presenting:) re-presenting the dismissing root clears its stale path")
+    func dismissAll_presenting_sameAsDismissingRoot_clearsPath() {
+        let router = AppRouter()
+        router.present(.balance)
+        router.push(.currencyInfo(.usdc))
+
+        router.dismissAll(presenting: .balance)
+
+        #expect(router.presentedSheets == [.balance])
+        #expect(router[.balance].isEmpty,
+                "re-presenting the same root via dismissAll(presenting:) must clear its stale path")
+    }
 }

@@ -46,37 +46,37 @@ struct PurchaseMethodSheetTests {
         return container
     }
 
-    @Test("Apple Pay row hidden when hasCoinbaseOnramp is false; remaining order is Phantom then Other Wallet")
+    @Test("Apple Pay row hidden when hasCoinbaseOnramp is false; remaining order is Phantom then Deposit USDC")
     func applePayHiddenWhenNoCoinbase() throws {
         try Self.withCoinbaseBetaFlag(enabled: false) {
             let container = try SessionContainer.makeTest(holdings: [])
             // Default test session has no userFlags set, so hasCoinbase is false.
 
             let visible = PurchaseMethodSheet.visibleSources(
-                from: [.applePay, .phantom, .otherWallet],
+                from: [.applePay, .phantom, .usdcDeposit],
                 session: container.session
             )
 
-            #expect(visible == [.phantom, .otherWallet])
+            #expect(visible == [.phantom, .usdcDeposit])
         }
     }
 
-    @Test("Apple Pay row visible and ordered first when hasCoinbaseOnramp is true; full order is Apple Pay → Phantom → Other Wallet")
+    @Test("Apple Pay row visible and ordered first when hasCoinbaseOnramp is true; full order is Apple Pay → Phantom → Deposit USDC")
     func applePayVisibleAndFirst() throws {
         try Self.withCoinbaseBetaFlag(enabled: false) {
             let container = try Self.makeContainerWithCoinbase()
 
             let visible = PurchaseMethodSheet.visibleSources(
-                from: [.applePay, .phantom, .otherWallet],
+                from: [.applePay, .phantom, .usdcDeposit],
                 session: container.session
             )
 
-            #expect(visible == [.applePay, .phantom, .otherWallet])
+            #expect(visible == [.applePay, .phantom, .usdcDeposit])
         }
     }
 
-    @Test("Launch flow's `sources` array omits Other Wallet — picker reflects exactly that")
-    func launchSources_excludeOtherWallet() throws {
+    @Test("Launch flow's `sources` array omits Deposit USDC — picker reflects exactly that")
+    func launchSources_excludeUSDCDeposit() throws {
         try Self.withCoinbaseBetaFlag(enabled: false) {
             let container = try Self.makeContainerWithCoinbase()
 

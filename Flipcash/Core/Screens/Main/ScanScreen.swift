@@ -402,6 +402,18 @@ private struct RoutedSheet: View {
                         }
                     }
             }
+        case .usdcDeposit:
+            NavigationStack(path: $router[.usdcDeposit]) {
+                USDCDepositEducationScreen(
+                    onNext: { router.push(.usdcDepositAddress) }
+                )
+                .appRouterDestinations(container: container, sessionContainer: sessionContainer)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        CloseButton(action: router.dismissSheet)
+                    }
+                }
+            }
         }
     }
 }

@@ -137,9 +137,12 @@ struct AppRouterCrossStackTests {
     @Test(
         "Stack maps to its sheet presentation",
         arguments: [
-            (AppRouter.Stack.balance,  AppRouter.SheetPresentation.balance),
-            (AppRouter.Stack.settings, AppRouter.SheetPresentation.settings),
-            (AppRouter.Stack.give,     AppRouter.SheetPresentation.give),
+            (AppRouter.Stack.balance,      AppRouter.SheetPresentation.balance),
+            (AppRouter.Stack.settings,     AppRouter.SheetPresentation.settings),
+            (AppRouter.Stack.give,         AppRouter.SheetPresentation.give),
+            (AppRouter.Stack.discover,     AppRouter.SheetPresentation.discover),
+            (AppRouter.Stack.downloadApp,  AppRouter.SheetPresentation.downloadApp),
+            (AppRouter.Stack.usdcDeposit,  AppRouter.SheetPresentation.usdcDeposit),
         ]
     )
     func stack_mapsToSheet(_ stack: AppRouter.Stack, expected: AppRouter.SheetPresentation) {
