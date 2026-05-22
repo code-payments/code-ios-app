@@ -12,7 +12,7 @@ import FlipcashUI
 /// Half-sheet picker shown when a funding intent cannot be filled from the
 /// USDF reserve alone. Shared by buy-existing and currency-launch flows via
 /// `PaymentOperation`. Callers compose the `sources` array to control which
-/// methods render — buy passes all three, launch omits `.otherWallet`.
+/// methods render — buy passes all three, launch omits `.usdcDeposit`.
 struct PurchaseMethodSheet: View {
 
     let operation: PaymentOperation
@@ -36,7 +36,7 @@ struct PurchaseMethodSheet: View {
     enum Method: Hashable {
         case applePay
         case phantom
-        case otherWallet
+        case usdcDeposit
     }
 
     var body: some View {
@@ -82,7 +82,7 @@ struct PurchaseMethodSheet: View {
             switch method {
             case .applePay:
                 return session.hasCoinbaseOnramp
-            case .phantom, .otherWallet:
+            case .phantom, .usdcDeposit:
                 return true
             }
         }
@@ -110,8 +110,8 @@ private struct MethodButton: View {
                 phantomAction: phantomAction,
                 onDismiss: onDismiss
             )
-        case .otherWallet:
-            OtherWalletMethodButton(onDismiss: onDismiss)
+        case .usdcDeposit:
+            USDCDepositMethodButton()
         }
     }
 }
@@ -194,14 +194,12 @@ private struct PhantomMethodButton: View {
     }
 }
 
-private struct OtherWalletMethodButton: View {
-    let onDismiss: () -> Void
-
+private struct USDCDepositMethodButton: View {
     @Environment(AppRouter.self) private var router
 
     var body: some View {
-        Button("Other Wallet") {
-            dismissThenDispatch(onDismiss: onDismiss) { [router] in
+        Button("Deposit USDC") {
+            dismissThenDispatch(onDismiss: router.dismissSheet) { [router] in
                 router.push(.usdcDepositEducation)
             }
         }

@@ -8,7 +8,7 @@ import XCTest
 /// Page object for the PurchaseMethodSheet shown when the user's USDF
 /// reserve doesn't cover the entered buy amount (or any time the launch flow
 /// opens the picker). Lists Apple Pay (conditional on the Coinbase onramp
-/// gate), Phantom, and Other Wallet (omitted for the launch flow), plus a
+/// gate), Phantom, and Deposit USDC (omitted for the launch flow), plus a
 /// Dismiss row.
 @MainActor
 struct PurchaseMethodSheet {
@@ -34,9 +34,9 @@ struct PurchaseMethodSheet {
         app.buttons.matching(NSPredicate(format: "label == 'Phantom'")).firstMatch
     }
 
-    /// Other Wallet row.
-    var otherWalletButton: XCUIElement {
-        app.buttons["Other Wallet"]
+    /// Deposit USDC row.
+    var usdcDepositButton: XCUIElement {
+        app.buttons["Deposit USDC"]
     }
 
     /// Dismiss row at the bottom of the sheet.
@@ -63,7 +63,7 @@ struct PurchaseMethodSheet {
         testCase.waitUntilHittableAndTap(phantomButton)
     }
 
-    func selectOtherWallet(from testCase: BaseUITestCase) {
-        testCase.waitUntilHittableAndTap(otherWalletButton)
+    func selectDepositUSDC(from testCase: BaseUITestCase) {
+        testCase.waitUntilHittableAndTap(usdcDepositButton)
     }
 }

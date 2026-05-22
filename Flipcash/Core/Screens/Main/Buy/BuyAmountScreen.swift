@@ -102,7 +102,7 @@ struct BuyAmountScreen: View {
         .sheet(item: $viewModel.pendingOperation) { operation in
             PurchaseMethodSheet(
                 operation: operation,
-                sources: [.applePay, .phantom, .otherWallet],
+                sources: [.applePay, .phantom, .usdcDeposit],
                 applePayAction: { payment in
                     viewModel.startCoinbaseFunding(
                         payment: payment,

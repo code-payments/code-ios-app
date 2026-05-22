@@ -131,6 +131,25 @@ struct AppRouterNestedSheetTests {
         #expect(router.presentedSheets.isEmpty)
     }
 
+    @Test("dismissSheet then push lands the destination on the underlying stack")
+    func dismissSheet_thenPush_landsOnUnderlyingStack() {
+        let router = AppRouter()
+        router.present(.balance)
+        router.push(.currencyInfo(Self.mintA))
+        router.presentNested(.buy(Self.mintA))
+
+        router.dismissSheet()
+        router.push(.usdcDepositEducation)
+
+        #expect(router.presentedSheets == [.balance])
+        #expect(router[.balance] == AppRouter.navigationPath(
+            .currencyInfo(Self.mintA),
+            .usdcDepositEducation
+        ),
+                "the post-dismiss push must land on .balance on top of the existing CurrencyInfo")
+        #expect(router[.buy].isEmpty)
+    }
+
     // MARK: - present semantics with nested up
 
     @Test("present(.differentRoot) when nested is up clears everything and sets new root")
