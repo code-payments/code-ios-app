@@ -5,10 +5,9 @@
 
 import XCTest
 
-/// Page object for the USDCDepositEducationScreen — the pre-flight shown
-/// when the user picks "Other Wallet" from `PurchaseMethodSheet`. Explains
-/// the USDC→USDF auto-conversion and hands off to the address screen via
-/// the Next button.
+/// Page object for `USDCDepositEducationScreen`: the USDC → USDF education
+/// pre-flight. Exposes the Next CTA and the optional "Deposit Other Flipcash
+/// Currencies" escape hatch.
 @MainActor
 struct USDCDepositEducationScreen {
 
@@ -28,6 +27,10 @@ struct USDCDepositEducationScreen {
         app.buttons["Next"]
     }
 
+    var depositOtherCurrenciesButton: XCUIElement {
+        app.buttons["Deposit Other Flipcash Currencies"]
+    }
+
     // MARK: - Assertions
 
     func assertReached(timeout: TimeInterval = 10) {
@@ -41,5 +44,9 @@ struct USDCDepositEducationScreen {
 
     func tapNext(from testCase: BaseUITestCase) {
         testCase.waitUntilHittableAndTap(nextButton)
+    }
+
+    func tapDepositOtherCurrencies(from testCase: BaseUITestCase) {
+        testCase.waitAndTap(depositOtherCurrenciesButton)
     }
 }

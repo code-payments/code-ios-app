@@ -38,7 +38,7 @@ struct SettingsScreen: View {
                     VStack(spacing: 6) {
                         HStack(spacing: 12) {
                             Button("Deposit") {
-                                router.push(.depositCurrencyList)
+                                router.push(.deposit)
                             }
                             .buttonStyle(.card(icon: .deposit))
 

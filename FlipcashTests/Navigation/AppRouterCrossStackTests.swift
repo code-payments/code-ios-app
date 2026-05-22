@@ -102,8 +102,9 @@ struct AppRouterCrossStackTests {
             (AppRouter.Destination.settingsAccountSelection,        AppRouter.Stack.settings),
             (AppRouter.Destination.settingsApplicationLogs,         AppRouter.Stack.settings),
             (AppRouter.Destination.accessKey,                       AppRouter.Stack.settings),
+            (AppRouter.Destination.deposit,                         AppRouter.Stack.settings),
             (AppRouter.Destination.depositCurrencyList,             AppRouter.Stack.settings),
-            (AppRouter.Destination.deposit(.usdc),                  AppRouter.Stack.settings),
+            (AppRouter.Destination.depositAddress(.usdc),           AppRouter.Stack.settings),
             (AppRouter.Destination.withdraw,                        AppRouter.Stack.settings),
         ]
     )
@@ -118,8 +119,9 @@ struct AppRouterCrossStackTests {
         "Destination.payload exposes the mint for mint-bearing cases",
         arguments: [
             (AppRouter.Destination.withdrawCurrency(.usdc),         PublicKey.usdc.base58 as String?),
-            (AppRouter.Destination.deposit(.usdc),                  PublicKey.usdc.base58 as String?),
+            (AppRouter.Destination.depositAddress(.usdc),           PublicKey.usdc.base58 as String?),
             (AppRouter.Destination.currencyInfo(.usdf),             PublicKey.usdf.base58 as String?),
+            (AppRouter.Destination.deposit,                         nil),
             (AppRouter.Destination.usdcDepositEducation,            nil),
             (AppRouter.Destination.usdcDepositAddress,              nil),
             (AppRouter.Destination.withdraw,                        nil),

@@ -10,12 +10,17 @@ import FlipcashCore
 import FlipcashUI
 
 /// Pre-flight for the USDC → USDF conversion: explains that incoming Solana
-/// USDC is auto-converted 1:1 to USDF on receipt. Reached from the buy flow's
-/// "Other Wallet" path and from the USDF Currency Info screen's "Deposit"
-/// button — same screen, same destination address regardless of entry point.
+/// USDC is auto-converted 1:1 to USDF on receipt. Pass `onDepositOtherCurrencies`
+/// to expose a subtle escape hatch below Next.
 struct USDCDepositEducationScreen: View {
 
-    @Environment(AppRouter.self) private var router
+    let onNext: () -> Void
+    let onDepositOtherCurrencies: (() -> Void)?
+
+    init(onNext: @escaping () -> Void, onDepositOtherCurrencies: (() -> Void)? = nil) {
+        self.onNext = onNext
+        self.onDepositOtherCurrencies = onDepositOtherCurrencies
+    }
 
     var body: some View {
         Background(color: .backgroundMain) {
@@ -41,10 +46,15 @@ struct USDCDepositEducationScreen: View {
 
                 Spacer()
 
-                Button("Next") {
-                    router.push(.usdcDepositAddress)
+                VStack(spacing: 8) {
+                    Button("Next", action: onNext)
+                        .buttonStyle(.filled)
+
+                    if let onDepositOtherCurrencies {
+                        Button("Deposit Other Flipcash Currencies", action: onDepositOtherCurrencies)
+                            .buttonStyle(.subtle)
+                    }
                 }
-                .buttonStyle(.filled)
             }
             .padding(20)
         }
