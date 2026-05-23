@@ -24,16 +24,23 @@ struct BalanceScreen: View {
     /// a body-time computed property doesn't satisfy that.
     @State private var sortedBalances: [ExchangedBalance] = []
 
+    /// Filtered subset of `sortedBalances` used by the wallet list and the
+    /// `hasBalances` empty-state gate. USDF is always present in
+    /// `session.balances(for:)` after sync (pinned by the BalanceScreen
+    /// normalization invariant); it's dropped here when it has no displayable
+    /// fiat value so a brand-new user still gets the empty state, and renders
+    /// as a normal row once it has value. Non-USDF balances are filtered
+    /// upstream by `session.balances(for:)`. Lives in `@State` rather than as
+    /// a body-time `.filter` so its mutation joins the same `withAnimation`
+    /// transaction as `sortedBalances`.
+    @State private var visibleBalances: [ExchangedBalance] = []
+
     /// Synchronizes per-row geometry across reorders so rows slide to their new
     /// positions instead of popping when the sort order shuffles.
     @Namespace private var balanceRowNamespace
 
-    /// USDF is always present in `session.balances(for:)` after sync, so an
-    /// account with no purchased currencies still has USDF in the list. Gate
-    /// on a non-USDF holding so the empty state ("Buy your first currency to
-    /// get started") still appears for that brand-new user.
     private var hasBalances: Bool {
-        sortedBalances.contains { $0.stored.mint != .usdf }
+        !visibleBalances.isEmpty
     }
 
     private var balance: ExchangedFiat {
@@ -69,6 +76,23 @@ struct BalanceScreen: View {
         self.container        = container
         self.sessionContainer = sessionContainer
         self.session          = sessionContainer.session
+
+        // Seed the @State arrays synchronously so the first body evaluation
+        // renders the correct branch — otherwise `visibleBalances == []` flips
+        // `hasBalances` false on initial render and the empty state flashes
+        // before `.onChange(initial: true)` populates the real values inside
+        // `withAnimation`.
+        let initialSorted = sessionContainer.session.balances(
+            for: sessionContainer.ratesController.rateForBalanceCurrency()
+        )
+        _sortedBalances  = State(initialValue: initialSorted)
+        _visibleBalances = State(initialValue: initialSorted.filter(Self.isVisible))
+    }
+
+    /// Predicate shared between the init seed and `refreshSortedBalances` so
+    /// both paths apply the same USDF displayable-threshold rule.
+    private static func isVisible(_ balance: ExchangedBalance) -> Bool {
+        balance.stored.mint != .usdf || balance.exchangedFiat.hasDisplayableValue()
     }
 
     // MARK: - Lifecycle -
@@ -146,7 +170,7 @@ struct BalanceScreen: View {
                         .padding(.vertical, 30)
 
                         if hasBalances {
-                            ForEach(sortedBalances) { balance in
+                            ForEach(visibleBalances) { balance in
                                 CurrencyBalanceRow(
                                     exchangedBalance: balance,
                                     accessibilityIdentifier: balance.stored.mint == .usdf ? "currency-row-usdf" : "currency-row"
@@ -186,12 +210,16 @@ struct BalanceScreen: View {
 
     /// Wrapped in `withAnimation` so the LazyVStack diff joins an animation
     /// transaction — `matchedGeometryEffect` then interpolates each row to its
-    /// new slot when the sort order shuffles.
+    /// new slot when the sort order shuffles. `visibleBalances` is refreshed
+    /// in the same transaction so USDF entering or leaving the displayable
+    /// threshold animates together with the row reorder.
     private func refreshSortedBalances() {
-        let next = session.balances(for: balanceRate)
-        guard next != sortedBalances else { return }
+        let nextSorted = session.balances(for: balanceRate)
+        guard nextSorted != sortedBalances else { return }
+        let nextVisible = nextSorted.filter(Self.isVisible)
         withAnimation(.smooth) {
-            sortedBalances = next
+            sortedBalances  = nextSorted
+            visibleBalances = nextVisible
         }
     }
 

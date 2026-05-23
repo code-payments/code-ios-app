@@ -35,25 +35,39 @@ struct SelectCurrencyScreen: View {
     }
 
     var body: some View {
+        // Cache the body-time computed property so `if balances.isEmpty` and
+        // `ForEach(balances)` don't each re-run `session.balances(for:).filter`.
+        let balances = self.balances
+
         NavigationStack {
             Background(color: .backgroundMain) {
-                List {
-                    Section {
-                        ForEach(balances) { balance in
-                            CurrencyBalanceRow(
-                                exchangedBalance: balance,
-                                accessory: .check(isSelected: ratesController.isSelectedToken(balance.stored.mint)),
-                                amountStyle: .pill
-                            ) {
-                                action(balance)
-                                isPresented = false
+                if balances.isEmpty {
+                    Text("No currencies to give")
+                        .font(.appTextMedium)
+                        .foregroundStyle(Color.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding(.horizontal, 40)
+                        .accessibilityIdentifier("give-picker-empty")
+                } else {
+                    List {
+                        Section {
+                            ForEach(balances) { balance in
+                                CurrencyBalanceRow(
+                                    exchangedBalance: balance,
+                                    accessory: .check(isSelected: ratesController.isSelectedToken(balance.stored.mint)),
+                                    amountStyle: .pill
+                                ) {
+                                    action(balance)
+                                    isPresented = false
+                                }
                             }
                         }
+                        .listRowInsets(EdgeInsets())
                     }
-                    .listRowInsets(EdgeInsets())
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
             }
             .navigationTitle("Select Currency")
             .toolbarTitleDisplayMode(.inline)
