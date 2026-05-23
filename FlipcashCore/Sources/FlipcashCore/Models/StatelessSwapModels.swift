@@ -89,12 +89,14 @@ public enum StatelessSwapResult: Sendable, Equatable {
 /// Errors raised by `SwapService.statelessSwap`. Mirrors the proto error
 /// codes plus client-side stream/transport failures.
 public enum ErrorStatelessSwap: Error, Sendable {
-    /// Denied by a server-side guard (spam, AML, etc).
-    case denied(reason: String?)
+    /// Denied by a server-side guard (spam, AML, etc). `reasons` carries the
+    /// server's `DeniedErrorDetails.reason` values when present.
+    case denied(reasons: [String])
     /// Invalid client-supplied signature.
     case signatureError
-    /// Swap parameters failed server-side validation.
-    case invalidSwap
+    /// Swap parameters failed server-side validation. `reasons` carries the
+    /// server's `ReasonStringErrorDetails` values when present.
+    case invalidSwap(reasons: [String])
     /// Transaction reverted on-chain or its blockhash expired (only when
     /// `waitForFinalization: true`).
     case transactionFailed
@@ -121,15 +123,11 @@ extension ErrorStatelessSwap {
     init(error: Ocp_Transaction_V1_StatelessSwapResponse.Error) {
         switch error.code {
         case .denied:
-            let reason = error.errorDetails.compactMap { detail -> String? in
-                guard case .denied(let denied) = detail.type else { return nil }
-                return denied.reason.isEmpty ? nil : denied.reason
-            }.first
-            self = .denied(reason: reason)
+            self = .denied(reasons: error.errorDetails.deniedReasons)
         case .signatureError:
             self = .signatureError
         case .invalidSwap:
-            self = .invalidSwap
+            self = .invalidSwap(reasons: error.errorDetails.reasonStrings)
         case .transactionFailed:
             self = .transactionFailed
         case .UNRECOGNIZED:

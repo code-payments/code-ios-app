@@ -59,7 +59,7 @@ extension SwapService {
             logger.error("Destination mint missing VM metadata", metadata: [
                 "symbol": "\(toMint.symbol)",
             ])
-            resolve(.failure(.invalidSwap))
+            resolve(.failure(.invalidSwap(reasons: [])))
             return
         }
 
@@ -143,6 +143,7 @@ extension SwapService {
                 logger.error("Stateless swap stream error", metadata: [
                     "code": "\(error.code)",
                     "detailCount": "\(error.errorDetails.count)",
+                    "reasons": "\(error.errorDetails.reasonStrings)",
                 ])
 
                 _ = reference.stream?.sendEnd()

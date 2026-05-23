@@ -66,7 +66,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                         "symbol": "\(targetMint.symbol)",
                         "mint": "\(targetMint.address.base58)"
                     ])
-                    completion(.failure(.invalidSwap))
+                    completion(.failure(.invalidSwap(reasons: [])))
                     return
                 }
                 guard targetMint.launchpadMetadata != nil else {
@@ -74,7 +74,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                         "symbol": "\(targetMint.symbol)",
                         "mint": "\(targetMint.address.base58)"
                     ])
-                    completion(.failure(.invalidSwap))
+                    completion(.failure(.invalidSwap(reasons: [])))
                     return
                 }
             case .sell(let sourceMint):
@@ -83,7 +83,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                         "symbol": "\(sourceMint.symbol)",
                         "mint": "\(sourceMint.address.base58)"
                     ])
-                    completion(.failure(.invalidSwap))
+                    completion(.failure(.invalidSwap(reasons: [])))
                     return
                 }
                 guard sourceMint.launchpadMetadata != nil else {
@@ -91,7 +91,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                         "symbol": "\(sourceMint.symbol)",
                         "mint": "\(sourceMint.address.base58)"
                     ])
-                    completion(.failure(.invalidSwap))
+                    completion(.failure(.invalidSwap(reasons: [])))
                     return
                 }
             case .withdraw:
@@ -104,7 +104,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
         // Also validate that USDF (core mint) has VM metadata
         guard MintMetadata.usdf.vmMetadata != nil else {
             logger.error("USDF missing VM metadata")
-            completion(.failure(.invalidSwap))
+            completion(.failure(.invalidSwap(reasons: [])))
             return
         }
 
@@ -211,7 +211,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                     ) else {
                         logger.error("Failed to derive mint from new-currency server params")
                         _ = reference.stream?.sendEnd()
-                        completion(.failure(.invalidSwap))
+                        completion(.failure(.invalidSwap(reasons: [])))
                         return
                     }
 
@@ -221,7 +221,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                             "derived": "\(derivedMint.base58)"
                         ])
                         _ = reference.stream?.sendEnd()
-                        completion(.failure(.invalidSwap))
+                        completion(.failure(.invalidSwap(reasons: [])))
                         return
                     }
 
@@ -555,7 +555,9 @@ public enum ErrorSwap: Error, CustomStringConvertible, CustomDebugStringConverti
 
     case denied([DeniedReason], kinds: Set<DeniedKind>, messages: [String])
     case signatureError
-    case invalidSwap
+    /// Swap metadata failed server-side validation. `reasons` carries the
+    /// server's `ReasonStringErrorDetails` values when present.
+    case invalidSwap(reasons: [String])
     case failed
     case unknown
     case grpcStatus(GRPCStatus)
@@ -586,7 +588,7 @@ public enum ErrorSwap: Error, CustomStringConvertible, CustomDebugStringConverti
             self = .denied(reasons, kinds: kinds, messages: messages)
 
         case .invalidSwap:
-            self = .invalidSwap
+            self = .invalidSwap(reasons: error.errorDetails.reasonStrings)
         case .signatureError:
             self = .signatureError
 
@@ -605,8 +607,11 @@ public enum ErrorSwap: Error, CustomStringConvertible, CustomDebugStringConverti
             return "denied(\(reasonString): \(messages.joined(separator: "; ")))"
         case .signatureError:
             return "signatureError"
-        case .invalidSwap:
-            return "invalidSwap"
+        case .invalidSwap(let reasons):
+            if reasons.isEmpty {
+                return "invalidSwap"
+            }
+            return "invalidSwap(\(reasons))"
         case .failed:
             return "failed"
         case .unknown:
