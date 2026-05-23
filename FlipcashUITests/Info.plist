@@ -4,5 +4,7 @@
 <dict>
 	<key>UITestAccessKey</key>
 	<string>$(FLIPCASH_UI_TEST_ACCESS_KEY)</string>
+	<key>UITestUsdfOnlyAccessKey</key>
+	<string>$(FLIPCASH_UI_TEST_USDF_ONLY_ACCESS_KEY)</string>
 </dict>
 </plist>

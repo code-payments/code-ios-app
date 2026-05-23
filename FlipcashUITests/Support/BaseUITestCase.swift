@@ -14,6 +14,12 @@ class BaseUITestCase: XCTestCase {
     /// Override in subclasses that need authentication.
     var requiresAuthentication: Bool { false }
 
+    /// Whether this test case requires login as the USDF-only-funded account.
+    /// Override in subclasses that need to assert behavior specific to a
+    /// wallet holding only USDF (no other currencies). Mutually exclusive
+    /// with `requiresAuthentication`.
+    var requiresUsdfOnlyAccount: Bool { false }
+
     /// Override to reset specific permissions before each test.
     /// Example: `[.photos, .camera]`
     var resetPermissions: [XCUIProtectedResource] { [] }
@@ -39,6 +45,12 @@ class BaseUITestCase: XCTestCase {
         if requiresAuthentication {
             let accessKey = Bundle(for: Self.self).infoDictionary?["UITestAccessKey"] as? String ?? ""
             try XCTSkipIf(accessKey.isEmpty, "FLIPCASH_UI_TEST_ACCESS_KEY not set in secrets.local.xcconfig — skipping authenticated UI test")
+
+            let loginURL = URL(string: "flipcash://login#e=\(accessKey.addingPercentEncoding(withAllowedCharacters: .urlFragmentAllowed) ?? accessKey)")!
+            app.open(loginURL)
+        } else if requiresUsdfOnlyAccount {
+            let accessKey = Bundle(for: Self.self).infoDictionary?["UITestUsdfOnlyAccessKey"] as? String ?? ""
+            try XCTSkipIf(accessKey.isEmpty, "FLIPCASH_UI_TEST_USDF_ONLY_ACCESS_KEY not set in secrets.local.xcconfig — skipping USDF-only UI test")
 
             let loginURL = URL(string: "flipcash://login#e=\(accessKey.addingPercentEncoding(withAllowedCharacters: .urlFragmentAllowed) ?? accessKey)")!
             app.open(loginURL)

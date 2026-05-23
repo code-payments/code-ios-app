@@ -26,23 +26,37 @@ struct WithdrawScreen: View {
     }
 
     var body: some View {
+        // Cache the body-time computed property so `if balances.isEmpty` and
+        // `ForEach(balances)` don't each re-run `session.balances(for:).filter`.
+        let balances = self.balances
+
         Background(color: .backgroundMain) {
-            List {
-                Section {
-                    ForEach(balances) { balance in
-                        CurrencyBalanceRow(
-                            exchangedBalance: balance,
-                            accessory: .chevron,
-                            amountStyle: .pill
-                        ) {
-                            onSelect(balance)
+            if balances.isEmpty {
+                Text("No other currencies to withdraw")
+                    .font(.appTextMedium)
+                    .foregroundStyle(Color.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.horizontal, 40)
+                    .accessibilityIdentifier("withdraw-picker-empty")
+            } else {
+                List {
+                    Section {
+                        ForEach(balances) { balance in
+                            CurrencyBalanceRow(
+                                exchangedBalance: balance,
+                                accessory: .chevron,
+                                amountStyle: .pill
+                            ) {
+                                onSelect(balance)
+                            }
                         }
                     }
+                    .listRowInsets(EdgeInsets())
                 }
-                .listRowInsets(EdgeInsets())
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
             }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
         }
         .navigationTitle("Select Currency")
         .toolbarTitleDisplayMode(.inline)
