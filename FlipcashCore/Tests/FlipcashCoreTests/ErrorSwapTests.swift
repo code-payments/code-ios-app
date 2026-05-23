@@ -11,7 +11,7 @@ struct ErrorSwapTests {
     @Test("denied with UNSPECIFIED code and reason preserves both")
     func deniedWithReason() throws {
         let proto = makeError(code: .denied, details: [
-            makeDeniedDetails(code: .unspecified, reason: "spam guard triggered")
+            .denied(code: .unspecified, reason: "spam guard triggered")
         ])
 
         let denied = try #require(ErrorSwap(error: proto).deniedPayload)
@@ -35,8 +35,8 @@ struct ErrorSwapTests {
     @Test("denied with multiple details collects every reason and message")
     func deniedWithMultipleDetails() throws {
         let proto = makeError(code: .denied, details: [
-            makeDeniedDetails(code: .unspecified, reason: "first"),
-            makeDeniedDetails(code: .unspecified, reason: "second")
+            .denied(code: .unspecified, reason: "first"),
+            .denied(code: .unspecified, reason: "second")
         ])
 
         let denied = try #require(ErrorSwap(error: proto).deniedPayload)
@@ -49,7 +49,7 @@ struct ErrorSwapTests {
     @Test("denied drops empty reason strings but keeps the code")
     func deniedWithEmptyReason() throws {
         let proto = makeError(code: .denied, details: [
-            makeDeniedDetails(code: .unspecified, reason: "")
+            .denied(code: .unspecified, reason: "")
         ])
 
         let denied = try #require(ErrorSwap(error: proto).deniedPayload)
@@ -62,7 +62,7 @@ struct ErrorSwapTests {
     @Test("denied with unknown future code drops the code but keeps the message")
     func deniedWithUnrecognizedCode() throws {
         let proto = makeError(code: .denied, details: [
-            makeDeniedDetails(code: .UNRECOGNIZED(99), reason: "future reason")
+            .denied(code: .UNRECOGNIZED(99), reason: "future reason")
         ])
 
         let denied = try #require(ErrorSwap(error: proto).deniedPayload)
@@ -74,10 +74,9 @@ struct ErrorSwapTests {
 
     @Test("denied ignores non-denied error detail types")
     func deniedIgnoresOtherDetailTypes() throws {
-        var reasonStringDetails = Ocp_Transaction_V1_ErrorDetails()
-        reasonStringDetails.reasonString = .with { $0.reason = "should be ignored" }
-
-        let proto = makeError(code: .denied, details: [reasonStringDetails])
+        let proto = makeError(code: .denied, details: [
+            .reasonString("should be ignored")
+        ])
 
         let denied = try #require(ErrorSwap(error: proto).deniedPayload)
 
@@ -91,7 +90,7 @@ struct ErrorSwapTests {
     @Test("denied with 'swap would not generate a sell fee' classifies as insufficientSellFee")
     func deniedClassifiesInsufficientSellFee() throws {
         let proto = makeError(code: .denied, details: [
-            makeDeniedDetails(code: .unspecified, reason: "swap would not generate a sell fee")
+            .denied(code: .unspecified, reason: "swap would not generate a sell fee")
         ])
 
         let denied = try #require(ErrorSwap(error: proto).deniedPayload)
@@ -103,8 +102,8 @@ struct ErrorSwapTests {
     @Test("duplicate denial reasons produce a single kind entry")
     func deniedKindDeduplication() throws {
         let proto = makeError(code: .denied, details: [
-            makeDeniedDetails(code: .unspecified, reason: "swap would not generate a sell fee"),
-            makeDeniedDetails(code: .unspecified, reason: "swap would not generate a sell fee")
+            .denied(code: .unspecified, reason: "swap would not generate a sell fee"),
+            .denied(code: .unspecified, reason: "swap would not generate a sell fee")
         ])
 
         let denied = try #require(ErrorSwap(error: proto).deniedPayload)
@@ -127,42 +126,40 @@ struct ErrorSwapTests {
         #expect(ErrorSwap.DeniedKind(serverReason: serverReason) == expected)
     }
 
-    // MARK: - Other codes
+    // MARK: - InvalidSwap
 
-    @Test("invalidSwap code maps to .invalidSwap")
-    func invalidSwap() {
-        let proto = makeError(code: .invalidSwap, details: [])
+    @Test(
+        "invalidSwap takes the first non-empty reasonString from errorDetails",
+        arguments: [
+            (details: [] as [Ocp_Transaction_V1_ErrorDetails], expected: String?.none),
+            (details: [.reasonString("swap amount out of allowed range")], expected: .some("swap amount out of allowed range")),
+            (details: [.reasonString("")], expected: .none),
+            (details: [.denied(code: .unspecified, reason: "ignored")], expected: .none),
+            (details: [.reasonString(""), .reasonString("second")], expected: .some("second")),
+        ]
+    )
+    func invalidSwap_reasonExtraction(details: [Ocp_Transaction_V1_ErrorDetails], expected: String?) throws {
+        let proto = makeError(code: .invalidSwap, details: details)
 
-        let error = ErrorSwap(error: proto)
+        let reason = try #require(ErrorSwap(error: proto).invalidSwapReason)
 
-        guard case .invalidSwap = error else {
-            Issue.record("Expected .invalidSwap, got \(error)")
-            return
-        }
+        #expect(reason == expected)
     }
+
+    // MARK: - Other codes
 
     @Test("signatureError code maps to .signatureError")
     func signatureError() {
-        let proto = makeError(code: .signatureError, details: [])
+        let error = ErrorSwap(error: makeError(code: .signatureError, details: []))
 
-        let error = ErrorSwap(error: proto)
-
-        guard case .signatureError = error else {
-            Issue.record("Expected .signatureError, got \(error)")
-            return
-        }
+        #expect(error.isSignatureError)
     }
 
     @Test("UNRECOGNIZED top-level code maps to .unknown")
     func unrecognizedCode() {
-        let proto = makeError(code: .UNRECOGNIZED(99), details: [])
+        let error = ErrorSwap(error: makeError(code: .UNRECOGNIZED(99), details: []))
 
-        let error = ErrorSwap(error: proto)
-
-        guard case .unknown = error else {
-            Issue.record("Expected .unknown, got \(error)")
-            return
-        }
+        #expect(error.isUnknown)
     }
 
     // MARK: - Fixture helpers
@@ -176,26 +173,30 @@ struct ErrorSwapTests {
         error.errorDetails = details
         return error
     }
-
-    private func makeDeniedDetails(
-        code: Ocp_Transaction_V1_DeniedErrorDetails.Code,
-        reason: String
-    ) -> Ocp_Transaction_V1_ErrorDetails {
-        var deniedDetails = Ocp_Transaction_V1_DeniedErrorDetails()
-        deniedDetails.code = code
-        deniedDetails.reason = reason
-
-        var details = Ocp_Transaction_V1_ErrorDetails()
-        details.denied = deniedDetails
-        return details
-    }
 }
 
-// MARK: - Test helpers
+// MARK: - Test payload extractors
 
 extension ErrorSwap {
     fileprivate var deniedPayload: (reasons: [DeniedReason], kinds: Set<DeniedKind>, messages: [String])? {
         guard case let .denied(reasons, kinds, messages) = self else { return nil }
         return (reasons, kinds, messages)
+    }
+
+    /// Double-optional so `try #require` distinguishes "not `.invalidSwap`"
+    /// (outer `nil`) from "`.invalidSwap(reason: nil)`" (inner `nil`).
+    fileprivate var invalidSwapReason: String?? {
+        guard case .invalidSwap(let reason) = self else { return nil }
+        return .some(reason)
+    }
+
+    fileprivate var isSignatureError: Bool {
+        if case .signatureError = self { return true }
+        return false
+    }
+
+    fileprivate var isUnknown: Bool {
+        if case .unknown = self { return true }
+        return false
     }
 }

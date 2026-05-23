@@ -93,8 +93,9 @@ public enum ErrorStatelessSwap: Error, Sendable {
     case denied(reason: String?)
     /// Invalid client-supplied signature.
     case signatureError
-    /// Swap parameters failed server-side validation.
-    case invalidSwap
+    /// Swap parameters failed server-side validation. `reason` carries the
+    /// server's `ReasonStringErrorDetails` when present.
+    case invalidSwap(reason: String?)
     /// Transaction reverted on-chain or its blockhash expired (only when
     /// `waitForFinalization: true`).
     case transactionFailed
@@ -129,7 +130,7 @@ extension ErrorStatelessSwap {
         case .signatureError:
             self = .signatureError
         case .invalidSwap:
-            self = .invalidSwap
+            self = .invalidSwap(reason: error.errorDetails.firstReasonString)
         case .transactionFailed:
             self = .transactionFailed
         case .UNRECOGNIZED:
