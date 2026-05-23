@@ -143,7 +143,7 @@ extension SwapService {
                 logger.error("Stateless swap stream error", metadata: [
                     "code": "\(error.code)",
                     "detailCount": "\(error.errorDetails.count)",
-                    "reasons": "\(error.errorDetails.reasonStrings.joined(separator: " | "))",
+                    "reasons": "\(error.errorDetails.reasonStrings)",
                 ])
 
                 _ = reference.stream?.sendEnd()

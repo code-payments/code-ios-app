@@ -611,7 +611,7 @@ public enum ErrorSwap: Error, CustomStringConvertible, CustomDebugStringConverti
             if reasons.isEmpty {
                 return "invalidSwap"
             }
-            return "invalidSwap(\(reasons.joined(separator: "; ")))"
+            return "invalidSwap(\(reasons))"
         case .failed:
             return "failed"
         case .unknown:
