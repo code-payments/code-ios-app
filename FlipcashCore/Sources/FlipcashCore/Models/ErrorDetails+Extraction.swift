@@ -11,8 +11,12 @@ extension Sequence where Element == Ocp_Transaction_V1_ErrorDetails {
         }
     }
 
-    /// First non-empty reason string, or `nil` when none is present.
-    public var firstReasonString: String? {
-        reasonStrings.first
+    /// Non-empty `DeniedErrorDetails.reason` values, in order.
+    public var deniedReasons: [String] {
+        compactMap { detail in
+            guard case .denied(let denied) = detail.type,
+                  !denied.reason.isEmpty else { return nil }
+            return denied.reason
+        }
     }
 }

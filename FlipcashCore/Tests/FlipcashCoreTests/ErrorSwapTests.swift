@@ -129,21 +129,21 @@ struct ErrorSwapTests {
     // MARK: - InvalidSwap
 
     @Test(
-        "invalidSwap takes the first non-empty reasonString from errorDetails",
+        "invalidSwap collects every non-empty reasonString from errorDetails",
         arguments: [
-            (details: [] as [Ocp_Transaction_V1_ErrorDetails], expected: String?.none),
-            (details: [.reasonString("swap amount out of allowed range")], expected: .some("swap amount out of allowed range")),
-            (details: [.reasonString("")], expected: .none),
-            (details: [.denied(code: .unspecified, reason: "ignored")], expected: .none),
-            (details: [.reasonString(""), .reasonString("second")], expected: .some("second")),
+            (details: [] as [Ocp_Transaction_V1_ErrorDetails], expected: [] as [String]),
+            (details: [.reasonString("swap amount out of allowed range")], expected: ["swap amount out of allowed range"]),
+            (details: [.reasonString("")], expected: []),
+            (details: [.denied(code: .unspecified, reason: "ignored")], expected: []),
+            (details: [.reasonString("first"), .reasonString("second")], expected: ["first", "second"]),
         ]
     )
-    func invalidSwap_reasonExtraction(details: [Ocp_Transaction_V1_ErrorDetails], expected: String?) throws {
+    func invalidSwap_reasonExtraction(details: [Ocp_Transaction_V1_ErrorDetails], expected: [String]) throws {
         let proto = makeError(code: .invalidSwap, details: details)
 
-        let reason = try #require(ErrorSwap(error: proto).invalidSwapReason)
+        let reasons = try #require(ErrorSwap(error: proto).invalidSwapReasons)
 
-        #expect(reason == expected)
+        #expect(reasons == expected)
     }
 
     // MARK: - Other codes
@@ -183,11 +183,9 @@ extension ErrorSwap {
         return (reasons, kinds, messages)
     }
 
-    /// Double-optional so `try #require` distinguishes "not `.invalidSwap`"
-    /// (outer `nil`) from "`.invalidSwap(reason: nil)`" (inner `nil`).
-    fileprivate var invalidSwapReason: String?? {
-        guard case .invalidSwap(let reason) = self else { return nil }
-        return .some(reason)
+    fileprivate var invalidSwapReasons: [String]? {
+        guard case .invalidSwap(let reasons) = self else { return nil }
+        return reasons
     }
 
     fileprivate var isSignatureError: Bool {

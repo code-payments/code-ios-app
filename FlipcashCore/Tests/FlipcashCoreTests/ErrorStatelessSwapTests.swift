@@ -7,32 +7,45 @@ import FlipcashAPI
 struct ErrorStatelessSwapTests {
 
     @Test(
-        "invalidSwap takes the first non-empty reasonString from errorDetails",
+        "invalidSwap collects every non-empty reasonString from errorDetails",
         arguments: [
-            (details: [] as [Ocp_Transaction_V1_ErrorDetails], expected: String?.none),
-            (details: [.reasonString("destination timelock vault account not opened")], expected: .some("destination timelock vault account not opened")),
-            (details: [.reasonString("")], expected: .none),
-            (details: [.denied(code: .unspecified, reason: "ignored")], expected: .none),
-            (details: [.reasonString(""), .reasonString("second")], expected: .some("second")),
+            (details: [] as [Ocp_Transaction_V1_ErrorDetails], expected: [] as [String]),
+            (details: [.reasonString("destination timelock vault account not opened")], expected: ["destination timelock vault account not opened"]),
+            (details: [.reasonString("")], expected: []),
+            (details: [.denied(code: .unspecified, reason: "ignored")], expected: []),
+            (details: [.reasonString("first"), .reasonString("second")], expected: ["first", "second"]),
         ]
     )
-    func invalidSwap_reasonExtraction(details: [Ocp_Transaction_V1_ErrorDetails], expected: String?) throws {
+    func invalidSwap_reasonExtraction(details: [Ocp_Transaction_V1_ErrorDetails], expected: [String]) throws {
         let proto = makeError(code: .invalidSwap, details: details)
 
-        let reason = try #require(ErrorStatelessSwap(error: proto).invalidSwapReason)
+        let reasons = try #require(ErrorStatelessSwap(error: proto).invalidSwapReasons)
 
-        #expect(reason == expected)
+        #expect(reasons == expected)
     }
 
-    @Test("denied with reason detail extracts the reason")
-    func denied_extractsReason() throws {
-        let proto = makeError(code: .denied, details: [
-            .denied(code: .unspecified, reason: "rate limited")
-        ])
+    @Test(
+        "denied collects every non-empty deniedReason from errorDetails",
+        arguments: [
+            (details: [] as [Ocp_Transaction_V1_ErrorDetails], expected: [] as [String]),
+            (details: [.denied(code: .unspecified, reason: "rate limited")], expected: ["rate limited"]),
+            (details: [.denied(code: .unspecified, reason: "")], expected: []),
+            (details: [.reasonString("ignored")], expected: []),
+            (
+                details: [
+                    .denied(code: .unspecified, reason: "first"),
+                    .denied(code: .unspecified, reason: "second")
+                ],
+                expected: ["first", "second"]
+            ),
+        ]
+    )
+    func denied_reasonExtraction(details: [Ocp_Transaction_V1_ErrorDetails], expected: [String]) throws {
+        let proto = makeError(code: .denied, details: details)
 
-        let reason = try #require(ErrorStatelessSwap(error: proto).deniedReason)
+        let reasons = try #require(ErrorStatelessSwap(error: proto).deniedReasons)
 
-        #expect(reason == "rate limited")
+        #expect(reasons == expected)
     }
 
     @Test("signatureError code maps to .signatureError")
@@ -56,10 +69,10 @@ struct ErrorStatelessSwapTests {
         #expect(error.isUnknown)
     }
 
-    @Test("isReportable returns true for .invalidSwap regardless of reason")
+    @Test("isReportable returns true for .invalidSwap regardless of reasons")
     func isReportable_invalidSwap() {
-        #expect(ErrorStatelessSwap.invalidSwap(reason: nil).isReportable)
-        #expect(ErrorStatelessSwap.invalidSwap(reason: "anything").isReportable)
+        #expect(ErrorStatelessSwap.invalidSwap(reasons: []).isReportable)
+        #expect(ErrorStatelessSwap.invalidSwap(reasons: ["anything"]).isReportable)
     }
 
     // MARK: - Fixture helpers
@@ -78,16 +91,14 @@ struct ErrorStatelessSwapTests {
 // MARK: - Test payload extractors
 
 extension ErrorStatelessSwap {
-    /// Double-optional so `try #require` distinguishes "not `.invalidSwap`"
-    /// (outer `nil`) from "`.invalidSwap(reason: nil)`" (inner `nil`).
-    fileprivate var invalidSwapReason: String?? {
-        guard case .invalidSwap(let reason) = self else { return nil }
-        return .some(reason)
+    fileprivate var invalidSwapReasons: [String]? {
+        guard case .invalidSwap(let reasons) = self else { return nil }
+        return reasons
     }
 
-    fileprivate var deniedReason: String? {
-        guard case .denied(let reason) = self else { return nil }
-        return reason
+    fileprivate var deniedReasons: [String]? {
+        guard case .denied(let reasons) = self else { return nil }
+        return reasons
     }
 
     fileprivate var isSignatureError: Bool {

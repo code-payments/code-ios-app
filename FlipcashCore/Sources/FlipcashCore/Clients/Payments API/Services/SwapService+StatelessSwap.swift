@@ -59,7 +59,7 @@ extension SwapService {
             logger.error("Destination mint missing VM metadata", metadata: [
                 "symbol": "\(toMint.symbol)",
             ])
-            resolve(.failure(.invalidSwap(reason: nil)))
+            resolve(.failure(.invalidSwap(reasons: [])))
             return
         }
 
