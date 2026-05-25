@@ -173,6 +173,21 @@ extension ErrorFetchBalance: ServerError {
     }
 }
 
+extension ErrorFetchBalance {
+    /// Classifies a gRPC failure status. Transient transport conditions
+    /// (timeout, unavailable, cancelled) map to `.transportFailure` so
+    /// callers don't ship cold-resume noise to Bugsnag; anything else
+    /// preserves the legacy `.unknown` behavior.
+    public static func from(transportError: GRPCStatus) -> ErrorFetchBalance {
+        switch transportError.code {
+        case .deadlineExceeded, .unavailable, .cancelled:
+            return .transportFailure
+        default:
+            return .unknown
+        }
+    }
+}
+
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Ocp_Account_V1_AccountClientInterceptorFactoryProtocol {
