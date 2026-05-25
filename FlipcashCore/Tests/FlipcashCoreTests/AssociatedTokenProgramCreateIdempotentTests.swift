@@ -24,11 +24,10 @@ struct AssociatedTokenProgramCreateIdempotentTests {
         )
     }
 
-    @Test("encode() emits the 8-byte command discriminator and nothing else")
+    @Test("encode() emits a 1-byte command discriminator with value 0x01")
     func encodingDataLayout() {
         let encoded = makeInstance().encode()
-        #expect(encoded.count == AssociatedTokenProgram.Command.createIdempotent.rawValue.bytes.count)
-        #expect(Array(encoded) == AssociatedTokenProgram.Command.createIdempotent.rawValue.bytes)
+        #expect(Array(encoded) == [0x01])
     }
 
     @Test("instruction() lays out the 7 accounts: subsidizer (write+signer), ATA (write), owner, mint, system, token, rent")

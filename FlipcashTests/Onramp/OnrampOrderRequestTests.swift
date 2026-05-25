@@ -82,15 +82,15 @@ struct OnrampOrderRequestTests {
         }
     }
 
-    @Test("Timestamp fields encode as non-empty ISO 8601 strings")
+    @Test("Both timestamp fields encode as ISO 8601 strings with T separator and Z UTC suffix")
     func timestampsAreIso8601Strings() throws {
         let json = try encode(makeRequest())
-        let verifiedAt = json["phoneNumberVerifiedAt"] as? String
-        let acceptedAt = json["agreementAcceptedAt"] as? String
-        #expect(verifiedAt?.isEmpty == false)
-        #expect(acceptedAt?.isEmpty == false)
-        #expect(verifiedAt?.contains("T") == true)
-        #expect(verifiedAt?.hasSuffix("Z") == true)
+        let verifiedAt = try #require(json["phoneNumberVerifiedAt"] as? String)
+        let acceptedAt = try #require(json["agreementAcceptedAt"] as? String)
+        #expect(verifiedAt.contains("T"))
+        #expect(verifiedAt.hasSuffix("Z"))
+        #expect(acceptedAt.contains("T"))
+        #expect(acceptedAt.hasSuffix("Z"))
     }
 
     @Test("purchaseCurrency is omitted from the JSON when nil")

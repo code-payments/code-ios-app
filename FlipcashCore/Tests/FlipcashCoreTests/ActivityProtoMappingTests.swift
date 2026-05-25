@@ -139,14 +139,20 @@ struct ActivityProtoMappingTests {
         #expect(activity.metadata == nil)
     }
 
-    // MARK: Missing payment amount
+    // MARK: Invalid payment amount
 
-    @Test("Notification without a payment amount throws")
-    func missingPaymentAmountThrows() {
+    // proto3 always materialises `paymentAmount` as a default
+    // `CryptoPaymentAmount` (currency=""), so the failure surfaces at currency
+    // lookup. Pin the specific error type so a future refactor that reorders
+    // the validation inside `Activity.init` fails this test instead of silently
+    // throwing from a different site.
+
+    @Test("Default-empty CryptoPaymentAmount fails at currency lookup with CurrencyCode.Error")
+    func emptyCurrencyInPaymentAmountThrows() {
         var proto = Flipcash_Activity_V1_Notification()
         proto.id.value = Self.notificationId
         proto.localizedText = "no amount"
-        #expect(throws: (any Error).self) {
+        #expect(throws: CurrencyCode.Error.self) {
             _ = try Activity(proto)
         }
     }

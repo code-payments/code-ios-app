@@ -17,12 +17,10 @@ struct SystemProgramAdvanceNonceTests {
         .init(nonce: Self.nonce, authority: Self.authority)
     }
 
-    @Test("encode() emits the 4-byte advanceNonceAccount command")
+    @Test("encode() emits the advanceNonceAccount discriminator: UInt32(4) little-endian")
     func encodingDataLayout() {
         let encoded = makeInstance().encode()
-        let expectedBytes = SystemProgram.Command.advanceNonceAccount.rawValue.bytes
-        #expect(encoded.count == expectedBytes.count)
-        #expect(Array(encoded) == expectedBytes)
+        #expect(Array(encoded) == [0x04, 0x00, 0x00, 0x00])
     }
 
     @Test("instruction() targets the system program with 3 accounts: nonce, recentBlockhashes sysvar, authority signer")
