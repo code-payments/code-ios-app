@@ -13,13 +13,13 @@ struct EnterPhoneScreen: View {
 
     @State private var isShowingRegionSelection = false
 
-    @Bindable private var viewModel: VerificationViewModel
+    @Bindable private var viewModel: PhoneVerificationViewModel
 
     @FocusState private var isFocused: Bool
 
     // MARK: - Init -
 
-    init(viewModel: VerificationViewModel) {
+    init(viewModel: PhoneVerificationViewModel) {
         self.viewModel = viewModel
     }
 

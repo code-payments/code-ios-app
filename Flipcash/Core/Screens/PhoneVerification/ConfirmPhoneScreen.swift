@@ -13,12 +13,12 @@ struct ConfirmPhoneScreen: View {
 
     @Environment(NotificationController.self) private var notificationController
     @State private var countdownEnd: Date?
-    @Bindable private var viewModel: VerificationViewModel
+    @Bindable private var viewModel: PhoneVerificationViewModel
     @FocusState private var isFocused: Bool
 
     // MARK: - Init -
 
-    init(viewModel: VerificationViewModel) {
+    init(viewModel: PhoneVerificationViewModel) {
         self.viewModel = viewModel
     }
 

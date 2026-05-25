@@ -1,24 +1,23 @@
 //
-//  VerificationViewModel.swift
+//  OnrampVerificationViewModel.swift
 //  Flipcash
 //
 
-import UIKit
 import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-private let logger = Logger(label: "flipcash.verification-viewmodel")
+private let logger = Logger(label: "flipcash.onramp-verification-viewmodel")
 
-/// Drives the phone+email verification sheet. One instance per attempt:
-/// callers construct a viewmodel, present a sheet bound to it, and `await
-/// run()` until verification completes (or the sheet dismisses with cancel).
+/// Drives the Coinbase onramp KYC flow: phone verification → email
+/// verification → KYC info collection. Composes a `PhoneVerificationViewModel`
+/// for the phone half and adds the email + deeplink machinery on top.
 ///
 /// `Identifiable` so callers can drive `.sheet(item:)` directly with an
 /// optional viewmodel binding — no separate `isPresented` flag needed.
 @Observable
 @MainActor
-final class VerificationViewModel: Identifiable {
+final class OnrampVerificationViewModel: Identifiable {
 
     nonisolated let id = UUID()
 
@@ -28,25 +27,23 @@ final class VerificationViewModel: Identifiable {
         didSet {
             if verificationPath.isEmpty && !oldValue.isEmpty {
                 resetTransientState()
+                phoneViewModel.resetTransientState()
             }
         }
     }
 
-    var enteredPhone: String = ""
-    var enteredCode: String = ""
     var enteredEmail: String = ""
 
-    private(set) var region: Region
     private(set) var isResending: Bool = false
 
-    var sendCodeButtonState: ButtonState = .normal
     var sendEmailCodeState: ButtonState = .normal
-    var confirmCodeButtonState: ButtonState = .normal
     var confirmEmailButtonState: ButtonState = .normal
 
     var dialogItem: DialogItem?
 
-    let codeLength = 6
+    // MARK: - Composed phone verification -
+
+    let phoneViewModel: PhoneVerificationViewModel
 
     // MARK: - Dependencies -
 
@@ -54,7 +51,6 @@ final class VerificationViewModel: Identifiable {
     @ObservationIgnored private let flipClient: FlipClient
     @ObservationIgnored private let owner: KeyPair
 
-    @ObservationIgnored private let phoneFormatter = PhoneFormatter()
     @ObservationIgnored private let emailValidator = EmailValidator()
 
     // MARK: - Run continuation -
@@ -68,7 +64,16 @@ final class VerificationViewModel: Identifiable {
         self.session = session
         self.flipClient = flipClient
         self.owner = session.ownerKeyPair
-        self.region = phoneFormatter.currentRegion
+        self.phoneViewModel = PhoneVerificationViewModel(session: session, flipClient: flipClient)
+
+        phoneViewModel.onCodeRequested = { [weak self] in
+            guard let self else { return }
+            verificationPath.append(.confirmPhoneNumberCode)
+            Analytics.track(event: Analytics.OnrampEvent.showConfirmPhone)
+        }
+        phoneViewModel.onVerified = { [weak self] in
+            self?.navigateToEmailOrFinish()
+        }
     }
 
     isolated deinit {
@@ -90,7 +95,7 @@ final class VerificationViewModel: Identifiable {
     /// so the caller observes a consistent failure rather than hanging.
     func run() async throws {
         if isAccountVerified { return }
-        assert(continuation == nil, "VerificationViewModel.run() called while another awaiter is suspended")
+        assert(continuation == nil, "OnrampVerificationViewModel.run() called while another awaiter is suspended")
         guard continuation == nil else { throw CancellationError() }
         try await withCheckedThrowingContinuation { c in
             continuation = c
@@ -103,6 +108,7 @@ final class VerificationViewModel: Identifiable {
     func cancel() {
         deeplinkTask?.cancel()
         deeplinkTask = nil
+        phoneViewModel.cancel()
         let c = continuation
         continuation = nil
         c?.resume(throwing: CancellationError())
@@ -116,32 +122,12 @@ final class VerificationViewModel: Identifiable {
 
     // MARK: - Derived state -
 
-    var regionFlagStyle: Flag.Style {
-        .fiat(region)
-    }
-
-    var countryCode: String {
-        "+\(phoneFormatter.countryCode(for: region)!)"
-    }
-
-    var phone: Phone? {
-        Phone(enteredPhone)
-    }
-
     var validatedEmail: String? {
         emailValidator.validate(enteredEmail)
     }
 
-    var canSendVerificationCode: Bool {
-        phone != nil
-    }
-
     var canSendEmailVerification: Bool {
         validatedEmail != nil
-    }
-
-    var isCodeComplete: Bool {
-        enteredCode.count >= codeLength
     }
 
     private var isPhoneVerified: Bool {
@@ -156,205 +142,37 @@ final class VerificationViewModel: Identifiable {
         isPhoneVerified && isEmailVerified
     }
 
-    // MARK: - Setters & bindings -
+    // MARK: - Setters -
 
     private func resetTransientState() {
-        enteredPhone = ""
-        enteredCode = ""
         enteredEmail = ""
         isResending = false
-    }
-
-    func setRegion(_ region: Region) {
-        self.region = region
-    }
-
-    var adjustingPhoneNumberBinding: Binding<String> {
-        Binding { [weak self] in
-            guard let self = self else { return "" }
-            return self.enteredPhone
-
-        } set: { [weak self] newValue in
-            guard let self = self else { return }
-            let cleanPhoneNumber = newValue.filter { character in
-                CharacterSet.numbers.contains(character.unicodeScalars.first!)
-            }
-
-            let countryCode = self.phoneFormatter.countryCode(for: self.region)!
-            self.enteredPhone = self.phoneFormatter.format("+\(countryCode)\(cleanPhoneNumber)")
-        }
-    }
-
-    var adjustingCodeBinding: Binding<String> {
-        Binding { [weak self] in
-            guard let self = self else { return "" }
-            return self.enteredCode
-
-        } set: { [weak self] newValue in
-            guard let self = self else { return }
-
-            if newValue.count > self.codeLength {
-                self.enteredCode = String(newValue.prefix(self.codeLength))
-            } else {
-                self.enteredCode = newValue
-            }
-        }
-    }
-
-    // MARK: - Clipboard -
-
-    func pasteCodeFromClipboardIfPossible() {
-        guard let code = codeFromClipboard() else {
-            return
-        }
-
-        enteredCode = code
-    }
-
-    private func codeFromClipboard() -> String? {
-        if let codeString = UIPasteboard.general.string, codeString.count == codeLength {
-            let digits: [Int] = codeString.utf8.compactMap { char in
-                let digit = Int(char)
-                if digit >= 48 && digit <= 57 {
-                    return digit
-                }
-                return nil
-            }
-
-            if digits.count == codeLength {
-                return codeString
-            }
-        }
-        return nil
     }
 
     // MARK: - Navigation -
 
     /// Entry point invoked by `VerifyInfoScreen`'s Next button.
     func navigateToInitialVerification() {
-        navigateToAmount(from: .info)
-    }
-
-    private func navigateToAmount(from origin: Origin) {
-        if origin.rawValue < Origin.phone.rawValue, !isPhoneVerified {
+        if !isPhoneVerified {
             Analytics.track(event: Analytics.OnrampEvent.showEnterPhone)
             verificationPath.append(.enterPhoneNumber)
             return
         }
 
-        if origin.rawValue < Origin.email.rawValue, !isEmailVerified {
+        navigateToEmailOrFinish()
+    }
+
+    private func navigateToEmailOrFinish() {
+        if !isEmailVerified {
             Analytics.track(event: Analytics.OnrampEvent.showEnterEmail)
             verificationPath.append(.enterEmail)
             return
         }
 
-        // Both steps satisfied — resume the caller.
         finish()
     }
 
     // MARK: - Verification actions -
-
-    func sendPhoneNumberCodeAction() {
-        guard let phone else {
-            return
-        }
-
-        Task {
-            sendCodeButtonState = .loading
-            defer {
-                sendCodeButtonState = .normal
-            }
-
-            do {
-                try await flipClient.sendVerificationCode(
-                    phone: phone.e164,
-                    owner: owner
-                )
-                try await Task.delay(milliseconds: 500)
-                sendCodeButtonState = .success
-
-                try await Task.delay(milliseconds: 500)
-                verificationPath.append(.confirmPhoneNumberCode)
-
-                Analytics.track(event: Analytics.OnrampEvent.showConfirmPhone)
-
-                try await Task.delay(milliseconds: 500)
-            }
-
-            catch
-                ErrorSendVerificationCode.invalidPhoneNumber,
-                ErrorSendVerificationCode.unsupportedPhoneType
-            {
-                showUnsupportedPhoneNumberError()
-            }
-
-            catch {
-                ErrorReporting.captureError(error)
-                showGenericError()
-            }
-        }
-    }
-
-    func resendCodeAction() async throws {
-        guard let phone else {
-            return
-        }
-
-        isResending = true
-        defer {
-            isResending = false
-        }
-
-        do {
-            try await flipClient.sendVerificationCode(
-                phone: phone.e164,
-                owner: owner
-            )
-        } catch {
-            ErrorReporting.captureError(error)
-        }
-    }
-
-    func confirmPhoneNumberCodeAction() {
-        guard let phone else {
-            return
-        }
-
-        guard isCodeComplete else {
-            return
-        }
-
-        Task {
-            confirmCodeButtonState = .loading
-            defer {
-                confirmCodeButtonState = .normal
-            }
-
-            do {
-                try await flipClient.checkVerificationCode(
-                    phone: phone.e164,
-                    code: enteredCode,
-                    owner: owner
-                )
-
-                try? await session.updateProfile()
-
-                try await Task.delay(milliseconds: 500)
-                confirmCodeButtonState = .success
-
-                try await Task.delay(milliseconds: 500)
-                navigateToAmount(from: .phone)
-
-                try await Task.delay(milliseconds: 500)
-            } catch ErrorCheckVerificationCode.invalidCode {
-                showInvalidCodeError()
-            } catch ErrorCheckVerificationCode.noVerification {
-                showGenericError()
-            } catch {
-                ErrorReporting.captureError(error)
-            }
-        }
-    }
 
     func sendEmailCodeAction() {
         guard let validatedEmail else {
@@ -414,7 +232,7 @@ final class VerificationViewModel: Identifiable {
         guard !isEmailVerified else { return }
         // Drop overlapping deeplinks while one is in flight — two concurrent
         // Tasks would fight over `confirmEmailButtonState` and could both
-        // call `navigateToAmount(from: .email)`, double-finishing.
+        // call `navigateToEmailOrFinish()`, double-finishing.
         guard deeplinkTask == nil else { return }
 
         // Park the user on the confirm-code screen so the API call's result
@@ -446,7 +264,7 @@ final class VerificationViewModel: Identifiable {
                 confirmEmailButtonState = .success
 
                 try await Task.delay(milliseconds: 500)
-                navigateToAmount(from: .email)
+                navigateToEmailOrFinish()
             } catch ErrorCheckEmailCode.invalidCode {
                 showInvalidVerificationLinkError { [weak self] in
                     Task {
@@ -495,24 +313,10 @@ final class VerificationViewModel: Identifiable {
         )
     }
 
-    private func showUnsupportedPhoneNumberError() {
-        presentDestructiveDialog(
-            title: "Unsupported Phone Number",
-            subtitle: "Please use a different phone number and try again"
-        )
-    }
-
     private func showInvalidEmailError() {
         presentDestructiveDialog(
             title: "Invalid Email",
             subtitle: "Please enter a different email and try again"
-        )
-    }
-
-    private func showInvalidCodeError() {
-        presentDestructiveDialog(
-            title: "Invalid Code",
-            subtitle: "Please enter the verification code that was sent to your phone number or request a new code"
         )
     }
 
@@ -531,16 +335,4 @@ final class VerificationViewModel: Identifiable {
             resendAction: resendAction
         )
     }
-}
-
-// MARK: - Supporting types -
-
-private enum Origin: Int {
-    case info
-    case phone
-    case email
-}
-
-private extension CharacterSet {
-    static let numbers: CharacterSet = CharacterSet(charactersIn: "0123456789")
 }

@@ -28,7 +28,7 @@ private let logger = Logger(label: "flipcash.coinbase-funding")
 ///    `StartedSwap`.
 ///
 /// `requirements: [.verifiedContact]` — callers must have completed the
-/// `VerificationViewModel` flow first; the operation throws
+/// `OnrampVerificationViewModel` flow first; the operation throws
 /// `FundingOperationError.requirementUnsatisfied(.verifiedContact)` if the
 /// profile lacks a verified phone + email at `start()` time.
 @Observable

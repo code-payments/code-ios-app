@@ -13,7 +13,7 @@ private let logger = Logger(label: "flipcash.verification-coordinator")
 ///
 /// 1. **Inline flow** — `BuyAmountViewModel` / `CurrencyCreationWizardScreen`
 ///    call `runGated(...)` (or `beginInlineFlow()` directly) to obtain a fresh
-///    `VerificationViewModel` and mount the sheet themselves. The slot is
+///    `OnrampVerificationViewModel` and mount the sheet themselves. The slot is
 ///    released via `endInlineFlow(_:)` when the awaited `vm.run()` returns or
 ///    throws.
 /// 2. **Fallback for out-of-flow deeplinks** — when an email verification
@@ -30,12 +30,12 @@ final class VerificationCoordinator {
 
     /// Active inline viewmodel, if any. Set by `beginInlineFlow()`,
     /// cleared by `endInlineFlow(_:)`.
-    private(set) var currentInlineViewModel: VerificationViewModel?
+    private(set) var currentInlineViewModel: OnrampVerificationViewModel?
 
     /// Non-nil while the coordinator-owned fallback sheet is presented (e.g.
     /// a deeplink arrived with no inline flow). `OnrampHostModifier` binds
     /// `.sheet(item:)` to this.
-    var fallbackViewModel: VerificationViewModel?
+    var fallbackViewModel: OnrampVerificationViewModel?
 
     @ObservationIgnored private let session: Session
     @ObservationIgnored private let flipClient: FlipClient
@@ -51,13 +51,13 @@ final class VerificationCoordinator {
 
     /// Verification gate for funding operations. If the profile is already
     /// fully verified, runs `perform` immediately. Otherwise constructs a
-    /// `VerificationViewModel`, hands it to `bind` so the caller can mount
+    /// `OnrampVerificationViewModel`, hands it to `bind` so the caller can mount
     /// the sheet, awaits the user completing verification, and then runs
     /// `perform`. Cleans up the inline-flow slot and clears the caller's
     /// binding on completion or cancellation.
     func runGated(
         for session: Session,
-        bind: @MainActor @escaping (VerificationViewModel?) -> Void,
+        bind: @MainActor @escaping (OnrampVerificationViewModel?) -> Void,
         perform: @MainActor @escaping () -> Void
     ) {
         if let profile = session.profile,
@@ -89,12 +89,12 @@ final class VerificationCoordinator {
     /// a no-op — the user already has a sheet up). Drains any buffered
     /// deeplink into the new viewmodel so a link that landed before the
     /// caller started doesn't get lost.
-    func beginInlineFlow() -> VerificationViewModel? {
+    func beginInlineFlow() -> OnrampVerificationViewModel? {
         guard currentInlineViewModel == nil else {
             logger.warning("beginInlineFlow called while another flow is active")
             return nil
         }
-        let vm = VerificationViewModel(session: session, flipClient: flipClient)
+        let vm = OnrampVerificationViewModel(session: session, flipClient: flipClient)
         currentInlineViewModel = vm
         if let pending = deeplinkInbox.pendingEmailVerification {
             vm.applyDeeplinkVerification(pending)
@@ -105,7 +105,7 @@ final class VerificationCoordinator {
 
     /// Releases the inline-flow slot so future deeplinks can either open the
     /// fallback or be forwarded to a new inline flow. Idempotent.
-    func endInlineFlow(_ vm: VerificationViewModel) {
+    func endInlineFlow(_ vm: OnrampVerificationViewModel) {
         guard currentInlineViewModel === vm else { return }
         currentInlineViewModel = nil
     }
@@ -125,7 +125,7 @@ final class VerificationCoordinator {
             return
         }
 
-        let vm = VerificationViewModel(session: session, flipClient: flipClient)
+        let vm = OnrampVerificationViewModel(session: session, flipClient: flipClient)
         fallbackViewModel = vm
         vm.applyDeeplinkVerification(pending)
 

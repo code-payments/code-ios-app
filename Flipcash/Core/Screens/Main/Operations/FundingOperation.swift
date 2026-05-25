@@ -111,7 +111,7 @@ protocol FundingOperation: AnyObject, Observable {
     var state: FundingOperationState { get }
 
     /// Preconditions the caller must satisfy before `start()`. Each
-    /// requirement maps to a caller-side flow (e.g. `VerificationViewModel`
+    /// requirement maps to a caller-side flow (e.g. `OnrampVerificationViewModel`
     /// for `.verifiedContact`).
     var requirements: [FundingRequirement] { get }
 

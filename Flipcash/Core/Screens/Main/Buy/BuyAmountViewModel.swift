@@ -28,7 +28,7 @@ final class BuyAmountViewModel: Identifiable {
     /// Active verification flow, if any. Set when the Coinbase path runs the
     /// verification gate; `BuyAmountScreen` binds `.sheet(item:)` to this
     /// optional so the verification sheet mounts on top of the buy sheet.
-    var verificationViewModel: VerificationViewModel?
+    var verificationViewModel: OnrampVerificationViewModel?
 
     @ObservationIgnored let mint: PublicKey
     @ObservationIgnored let currencyName: String

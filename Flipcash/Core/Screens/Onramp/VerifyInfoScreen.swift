@@ -11,13 +11,13 @@ import FlipcashCore
 
 struct VerifyInfoScreen: View {
 
-    @Bindable private var viewModel: VerificationViewModel
+    @Bindable private var viewModel: OnrampVerificationViewModel
 
     @Environment(\.dismiss) private var dismiss
 
     // MARK: - Init -
 
-    init(viewModel: VerificationViewModel) {
+    init(viewModel: OnrampVerificationViewModel) {
         self.viewModel = viewModel
     }
 
@@ -65,10 +65,10 @@ struct VerifyInfoScreen: View {
             .navigationDestination(for: OnrampVerificationPath.self) { path in
                 switch path {
                 case .enterPhoneNumber:
-                    EnterPhoneScreen(viewModel: viewModel)
+                    EnterPhoneScreen(viewModel: viewModel.phoneViewModel)
                         .interactiveDismissDisabled()
                 case .confirmPhoneNumberCode:
-                    ConfirmPhoneScreen(viewModel: viewModel)
+                    ConfirmPhoneScreen(viewModel: viewModel.phoneViewModel)
                         .interactiveDismissDisabled()
                 case .enterEmail:
                     EnterEmailScreen(viewModel: viewModel)

@@ -24,7 +24,7 @@ struct Regression_6a0f572 {
 
     @Test("Whitespace-padded input is trimmed before reaching the wire")
     func trailingWhitespace_isTrimmedBeforeSend() {
-        let viewModel = VerificationViewModel(session: .unverifiedMock, flipClient: .mock)
+        let viewModel = OnrampVerificationViewModel(session: .unverifiedMock, flipClient: .mock)
         viewModel.enteredEmail = "  test@example.com\n"
 
         #expect(viewModel.canSendEmailVerification)
@@ -38,7 +38,7 @@ struct Regression_6a0f572 {
         "unicode@café.com",        // non-ASCII domain
     ])
     func serverRejectedInputs_failClientGate(input: String) {
-        let viewModel = VerificationViewModel(session: .unverifiedMock, flipClient: .mock)
+        let viewModel = OnrampVerificationViewModel(session: .unverifiedMock, flipClient: .mock)
         viewModel.enteredEmail = input
 
         #expect(!viewModel.canSendEmailVerification)
