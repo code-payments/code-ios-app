@@ -15,15 +15,20 @@ extension UnaryCall {
     func handle(on queue: DispatchQueue, function: String = #function, success: @Sendable @escaping (ResponsePayload) -> Void, failure: @Sendable @escaping (GRPC.GRPCStatus) -> Void) {
         response.whenSuccessBlocking(onto: queue, success)
         response.whenFailureBlocking(onto: queue) { error in
-            if let typedError = error as? GRPC.GRPCStatus {
-                let message = typedError.message ?? "'no-message'"
-                let code = typedError.code.description
+            // Route through GRPCStatusTransformable when available so NIO and
+            // gRPC transport errors carry the correct code (timeouts →
+            // .deadlineExceeded, closed channels → .unavailable, etc.).
+            // GRPCStatus itself conforms and returns self, so typed-status
+            // errors flow through the same path. Only truly unrelated error
+            // types fall back to .processingError.
+            if let transformable = error as? GRPCStatusTransformable {
+                let status = transformable.makeGRPCStatus()
                 logger.error("gRPC call failed", metadata: [
                     "function": "\(function)",
-                    "code": "\(code)",
-                    "message": "\(message)"
+                    "code": "\(status.code.description)",
+                    "message": "\(status.message ?? "'no-message'")"
                 ])
-                failure(typedError)
+                failure(status)
             } else {
                 logger.error("gRPC call failed with unexpected error type", metadata: [
                     "function": "\(function)",

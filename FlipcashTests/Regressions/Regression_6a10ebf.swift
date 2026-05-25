@@ -49,4 +49,15 @@ struct Regression_6a10ebf {
         let status = GRPCStatus(code: code, message: nil)
         #expect(ErrorFetchBalance.from(transportError: status) == expected)
     }
+
+    @Test("GRPCError.RPCTimedOut routes through .transportFailure end-to-end")
+    func rpcTimedOut_routesThroughTransportFailure() {
+        let timeout = GRPCError.RPCTimedOut(.deadline(.now()))
+        let status = timeout.makeGRPCStatus()
+        let mapped = ErrorFetchBalance.from(transportError: status)
+
+        #expect(status.code == .deadlineExceeded)
+        #expect(mapped == .transportFailure)
+        #expect(mapped.isReportable == false)
+    }
 }
