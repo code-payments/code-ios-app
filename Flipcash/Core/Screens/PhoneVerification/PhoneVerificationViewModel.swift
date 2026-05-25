@@ -8,8 +8,6 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-private let logger = Logger(label: "flipcash.phone-verification-viewmodel")
-
 /// Drives the phone verification flow. Used standalone via
 /// `PhoneVerificationFlowScreen` or wrapped by `OnrampVerificationViewModel`
 /// which composes it with email + KYC info.
@@ -271,6 +269,10 @@ final class PhoneVerificationViewModel: Identifiable {
                 try await Task.delay(milliseconds: 500)
             }
 
+            catch is CancellationError {
+                return
+            }
+
             catch
                 ErrorSendVerificationCode.invalidPhoneNumber,
                 ErrorSendVerificationCode.unsupportedPhoneType
@@ -341,6 +343,8 @@ final class PhoneVerificationViewModel: Identifiable {
                 }
 
                 try await Task.delay(milliseconds: 500)
+            } catch is CancellationError {
+                return
             } catch ErrorCheckVerificationCode.invalidCode {
                 showInvalidCodeError()
             } catch ErrorCheckVerificationCode.noVerification {

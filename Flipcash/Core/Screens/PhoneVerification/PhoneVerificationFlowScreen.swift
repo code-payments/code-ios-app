@@ -25,6 +25,7 @@ struct PhoneVerificationFlowScreen: View {
     var body: some View {
         NavigationStack(path: $viewModel.verificationPath) {
             EnterPhoneScreen(viewModel: viewModel)
+                .interactiveDismissDisabled()
                 .navigationTitle("Connect Phone Number")
                 .toolbarTitleDisplayMode(.inline)
                 .toolbar {

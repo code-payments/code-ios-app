@@ -68,9 +68,7 @@ struct ConfirmEmailScreen: View {
                         VStack(spacing: 15) {
                             Button {
                                 Task {
-                                    do {
-                                        try await viewModel.resendEmailCodeAction()
-                                    }
+                                    try? await viewModel.resendEmailCodeAction()
                                 }
                             } label: {
                                 Loadable(isLoading: viewModel.isResending, color: .textSecondary) {

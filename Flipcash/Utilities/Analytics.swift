@@ -14,7 +14,7 @@ private let logger = Logger(label: "flipcash.analytics")
 
 typealias AnalyticsValue = MixpanelType
 
-protocol AnalyticsEvent {
+protocol AnalyticsEvent: Sendable {
     var eventName: String { get }
 }
 

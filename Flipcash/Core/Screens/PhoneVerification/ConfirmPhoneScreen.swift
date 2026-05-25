@@ -60,10 +60,8 @@ struct ConfirmPhoneScreen: View {
                             Text(text)
                             Button {
                                 Task {
-                                    do {
-                                        try await viewModel.resendCodeAction()
-                                        countdownEnd = Date.now.addingTimeInterval(60)
-                                    }
+                                    try? await viewModel.resendCodeAction()
+                                    countdownEnd = Date.now.addingTimeInterval(60)
                                 }
                             } label: {
                                 Loadable(isLoading: viewModel.isResending, color: .textSecondary) {

@@ -53,7 +53,6 @@ struct VerifyInfoScreen: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
             }
-            .navigationTitle("")
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

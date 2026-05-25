@@ -7,8 +7,6 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-private let logger = Logger(label: "flipcash.onramp-verification-viewmodel")
-
 /// Drives the Coinbase onramp KYC flow: phone verification → email
 /// verification → KYC info collection. Composes a `PhoneVerificationViewModel`
 /// for the phone half and adds the email + deeplink machinery on top.
@@ -199,6 +197,8 @@ final class OnrampVerificationViewModel: Identifiable {
                 Analytics.track(event: Analytics.OnrampEvent.showConfirmEmail)
 
                 try await Task.delay(milliseconds: 500)
+            } catch is CancellationError {
+                return
             } catch ErrorSendEmailCode.invalidEmailAddress {
                 showInvalidEmailError()
             } catch {
@@ -265,6 +265,8 @@ final class OnrampVerificationViewModel: Identifiable {
 
                 try await Task.delay(milliseconds: 500)
                 navigateToEmailOrFinish()
+            } catch is CancellationError {
+                return
             } catch ErrorCheckEmailCode.invalidCode {
                 showInvalidVerificationLinkError { [weak self] in
                     Task {
