@@ -1052,10 +1052,7 @@ extension ErrorSubmitIntent: ServerError {
     public var isTransientNetworkError: Bool {
         switch self {
         case .grpcStatus(let status):
-            switch status.code {
-            case .deadlineExceeded, .unavailable: true
-            default: false
-            }
+            status.code.isTransientNetworkError
         case .denied, .invalidIntent, .signatureError, .staleState, .unknown, .deviceTokenUnavailable, .grpcError:
             false
         }

@@ -62,10 +62,8 @@ public class FlipClient: ObservableObject {
 
     /// Pre-warm the gRPC channel by triggering a lightweight unauthenticated
     /// call. Forces TCP+TLS reconnection if the underlying socket died during
-    /// backgrounding. Without this, the first call on the cold channel after
-    /// foregrounding tends to surface as a `GRPCStatus.Code.internalError`
-    /// with an empty message, which the caller can't distinguish from a real
-    /// server error.
+    /// backgrounding so the next caller-initiated RPC doesn't pay the full
+    /// reconnect cost against its own deadline.
     /// The response is irrelevant — we only need the channel to start connecting.
     public func warmUpChannel() {
         accountService.fetchUnauthenticatedUserFlags { result in
