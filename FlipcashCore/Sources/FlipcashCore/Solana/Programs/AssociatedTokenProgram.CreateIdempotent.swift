@@ -19,6 +19,7 @@ extension AssociatedTokenProgram {
     ///   3. [] The token mint for the new associated token account
     ///   4. [] System program
     ///   5. [] SPL Token program
+    ///   6. [] Rent sysvar (legacy compatibility — accepted but unused by the modern processor)
     ///
     ///   Reference:
     ///   https://github.com/solana-labs/solana-program-library/blob/master/associated-token-account/program/src/processor.rs
