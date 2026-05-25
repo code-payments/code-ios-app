@@ -1323,7 +1323,7 @@ class Session {
                     delay: .milliseconds(500),
                     shouldRetry: { error in
                         guard let e = error as? ErrorFetchBalance else { return false }
-                        return e == .notFound || e == .unknown
+                        return e == .notFound || e == .unknown || e == .transportFailure
                     }
                 ) {
                     try await client.fetchAccountInfo(
