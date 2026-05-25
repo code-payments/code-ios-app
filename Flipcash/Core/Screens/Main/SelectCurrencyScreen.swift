@@ -185,8 +185,7 @@ private struct AmountLabel: View {
                 Text(amount.formatted())
                     .font(.appTextCaption)
                     .foregroundStyle(Color.textSecondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
+                    .padding(4)
                     .overlay(
                         RoundedRectangle(cornerRadius: 5)
                             .inset(by: 0.5)

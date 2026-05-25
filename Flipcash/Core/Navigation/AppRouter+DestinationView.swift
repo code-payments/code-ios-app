@@ -137,7 +137,7 @@ struct DestinationView: View {
                         mint: mint,
                         timeAuthority: vmAuthority
                     ).depositPublicKey.base58,
-                    name: balance.name
+                    name: mint == .usdf ? balance.symbol : balance.name
                 )
             }
 

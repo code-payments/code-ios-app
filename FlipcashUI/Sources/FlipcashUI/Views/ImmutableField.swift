@@ -9,30 +9,25 @@
 import SwiftUI
 
 public struct ImmutableField: View {
-    
+
     private var content: String
     private var state: State?
-    private var configuration: Configuration
-    
-    public init(_ content: String, state: State? = nil, configuration: Configuration = .default) {
+    private var leadingIcon: Image?
+
+    public init(_ content: String, leadingIcon: Image? = nil, state: State? = nil) {
         self.content = content
+        self.leadingIcon = leadingIcon
         self.state = state
-        self.configuration = configuration
     }
-    
+
     public var body: some View {
         InputContainer {
             HStack(spacing: 2) {
-                Group {
-                    switch configuration {
-                    case .default:
-                        Text(content)
-                            .truncationMode(.middle)
-                            .lineLimit(1)
-                    }
-                }
-                .frame(minHeight: 26)
-                
+                Text(content)
+                    .truncationMode(.middle)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, minHeight: 26, alignment: .leading)
+
                 if let state = state {
                     Spacer()
                     state.image
@@ -42,8 +37,22 @@ public struct ImmutableField: View {
                 }
             }
             .padding(15)
+            // 29pt extra leading clears the 18×14 icon at 15pt inset (icon's
+            // right edge = 33pt; content starts at 15 + 29 = 44pt → 11pt gap).
+            // If the icon geometry changes, this offset must change in lockstep.
+            .padding(.leading, leadingIcon != nil ? 29 : 0)
             .font(.appTextMedium)
             .foregroundStyle(.textMain)
+            .overlay(alignment: .leading) {
+                if let leadingIcon {
+                    leadingIcon
+                        .resizable()
+                        .frame(width: 18, height: 14)
+                        .padding(.leading, 15)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
+            }
         }
     }
 }
@@ -73,14 +82,6 @@ public extension ImmutableField {
                 return .textSecondary
             }
         }
-    }
-}
-
-// MARK: - Configuration -
-
-extension ImmutableField {
-    public enum Configuration {
-        case `default`
     }
 }
 
