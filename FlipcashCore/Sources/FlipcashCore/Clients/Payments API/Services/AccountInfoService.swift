@@ -60,12 +60,12 @@ final class AccountInfoService: CodeService<Ocp_Account_V1_AccountNIOClient> {
                 logger.error("Failed to fetch account info", metadata: ["owner": "\(owner.publicKey.base58)"])
                 completion(.failure(error))
             }
-            
+
         } failure: { error in
-            completion(.failure(.unknown))
+            completion(.failure(.from(transportError: error)))
         }
     }
-    
+
     /// Fetches the user's plain SPL associated token account for a specific
     /// mint via `GetTokenAccountInfos` with a server-side mint filter. Returns
     /// `nil` when no ATA exists yet (e.g. the user has never received this
@@ -100,8 +100,8 @@ final class AccountInfoService: CodeService<Ocp_Account_V1_AccountNIOClient> {
                 ])
                 completion(.failure(error))
             }
-        } failure: { _ in
-            completion(.failure(.unknown))
+        } failure: { error in
+            completion(.failure(.from(transportError: error)))
         }
     }
 
@@ -131,7 +131,7 @@ final class AccountInfoService: CodeService<Ocp_Account_V1_AccountNIOClient> {
             }
 
         } failure: { error in
-            completion(.failure(.unknown))
+            completion(.failure(.from(transportError: error)))
         }
     }
 
