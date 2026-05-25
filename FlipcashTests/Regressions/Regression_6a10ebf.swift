@@ -40,7 +40,7 @@ struct Regression_6a10ebf {
     @Test("gRPC transport errors map to the right ErrorFetchBalance case", arguments: [
         (GRPCStatus.Code.deadlineExceeded, ErrorFetchBalance.transportFailure),
         (GRPCStatus.Code.unavailable,      ErrorFetchBalance.transportFailure),
-        (GRPCStatus.Code.cancelled,        ErrorFetchBalance.transportFailure),
+        (GRPCStatus.Code.cancelled,        ErrorFetchBalance.unknown),
         (GRPCStatus.Code.invalidArgument,  ErrorFetchBalance.unknown),
         (GRPCStatus.Code.permissionDenied, ErrorFetchBalance.unknown),
         (GRPCStatus.Code.internalError,    ErrorFetchBalance.unknown),
