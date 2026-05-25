@@ -15,7 +15,19 @@ struct ScanBottomBar: View {
     var body: some View {
         HStack(alignment: .bottom) {
             LargeButton(
-                title: "Give",
+                title: "Discover",
+                image: Image(.Icons.coins),
+                spacing: 12,
+                maxWidth: 80,
+                maxHeight: 80,
+                fullWidth: true,
+                aligment: .bottom,
+                action: onDiscover
+            )
+            .accessibilityIdentifier("scan-discover-button")
+
+            LargeButton(
+                title: "Cash",
                 image: .asset(.cash),
                 spacing: 12,
                 maxWidth: 80,
@@ -24,7 +36,7 @@ struct ScanBottomBar: View {
                 aligment: .bottom,
                 action: onGive
             )
-            .accessibilityIdentifier("scan-give-button")
+            .accessibilityIdentifier("scan-cash-button")
 
             ToastContainer(toast: toast) {
                 LargeButton(
@@ -39,18 +51,6 @@ struct ScanBottomBar: View {
                 )
                 .accessibilityIdentifier("scan-wallet-button")
             }
-
-            LargeButton(
-                title: "Discover",
-                image: Image(.Icons.coins),
-                spacing: 12,
-                maxWidth: 80,
-                maxHeight: 80,
-                fullWidth: true,
-                aligment: .bottom,
-                action: onDiscover
-            )
-            .accessibilityIdentifier("scan-discover-button")
         }
         .padding(.bottom, 10)
     }

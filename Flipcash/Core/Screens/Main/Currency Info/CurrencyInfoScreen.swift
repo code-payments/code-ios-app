@@ -282,7 +282,7 @@ private struct LoadedContent: View {
                     .buttonStyle(.filled)
 
                     if balance.hasDisplayableValue {
-                        CodeButton(style: .filledSecondary, title: "Give") {
+                        CodeButton(style: .filledSecondary, title: "Cash") {
                             onGive()
                         }
 
