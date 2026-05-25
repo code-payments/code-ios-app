@@ -58,6 +58,18 @@ final class PhoneVerificationViewModel: Identifiable {
 
     @ObservationIgnored private let phoneFormatter = PhoneFormatter()
 
+    // MARK: - Analytics hooks -
+
+    /// Fires once when `run()` starts a fresh suspension (standalone mode).
+    /// Wrapped callers (e.g. Onramp) leave this nil and fire their own
+    /// flavored event at the outer VM's path-mutation site instead.
+    @ObservationIgnored private let enterPhoneEvent: (any AnalyticsEvent)?
+
+    /// Fires after `sendPhoneNumberCodeAction` succeeds (standalone mode).
+    /// Wrapped callers leave nil — outer's `onCodeRequested` callback fires
+    /// its own flavored event there.
+    @ObservationIgnored private let confirmPhoneEvent: (any AnalyticsEvent)?
+
     // MARK: - Wrapped-mode hooks -
 
     /// Fired after `sendPhoneNumberCodeAction` succeeds. When set, replaces
@@ -76,11 +88,18 @@ final class PhoneVerificationViewModel: Identifiable {
 
     // MARK: - Init -
 
-    init(session: Session, flipClient: FlipClient) {
+    init(
+        session: Session,
+        flipClient: FlipClient,
+        enterPhoneEvent: (any AnalyticsEvent)? = nil,
+        confirmPhoneEvent: (any AnalyticsEvent)? = nil
+    ) {
         self.session = session
         self.flipClient = flipClient
         self.owner = session.ownerKeyPair
         self.region = phoneFormatter.currentRegion
+        self.enterPhoneEvent = enterPhoneEvent
+        self.confirmPhoneEvent = confirmPhoneEvent
     }
 
     isolated deinit {
@@ -98,6 +117,9 @@ final class PhoneVerificationViewModel: Identifiable {
         if isPhoneVerified { return }
         assert(continuation == nil, "PhoneVerificationViewModel.run() called while another awaiter is suspended")
         guard continuation == nil else { throw CancellationError() }
+        if let enterPhoneEvent {
+            Analytics.track(event: enterPhoneEvent)
+        }
         try await withCheckedThrowingContinuation { c in
             continuation = c
         }
@@ -241,6 +263,9 @@ final class PhoneVerificationViewModel: Identifiable {
                     onCodeRequested()
                 } else {
                     verificationPath.append(.confirmPhoneNumberCode)
+                    if let confirmPhoneEvent {
+                        Analytics.track(event: confirmPhoneEvent)
+                    }
                 }
 
                 try await Task.delay(milliseconds: 500)
