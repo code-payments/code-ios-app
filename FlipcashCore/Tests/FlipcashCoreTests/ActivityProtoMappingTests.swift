@@ -139,9 +139,9 @@ struct ActivityProtoMappingTests {
         #expect(activity.metadata == nil)
     }
 
-    // MARK: Behaviour difference from Android
+    // MARK: Missing payment amount
 
-    @Test("Notification without a payment amount throws (iOS-specific behaviour vs Android's nullable amount)")
+    @Test("Notification without a payment amount throws")
     func missingPaymentAmountThrows() {
         var proto = Flipcash_Activity_V1_Notification()
         proto.id.value = Self.notificationId
