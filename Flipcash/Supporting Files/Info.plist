@@ -21,9 +21,22 @@
 	<array>
 		<dict>
 			<key>UIApplicationShortcutItemType</key>
+			<string>com.flipcash.shortcut.discover</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Discover</string>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>binoculars</string>
+			<key>UIApplicationShortcutItemUserInfo</key>
+			<dict>
+				<key>url</key>
+				<string>flipcash://discover</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
 			<string>com.flipcash.shortcut.give</string>
 			<key>UIApplicationShortcutItemTitle</key>
-			<string>Give</string>
+			<string>Cash</string>
 			<key>UIApplicationShortcutItemIconSymbolName</key>
 			<string>banknote</string>
 			<key>UIApplicationShortcutItemUserInfo</key>
@@ -43,19 +56,6 @@
 			<dict>
 				<key>url</key>
 				<string>flipcash://balance</string>
-			</dict>
-		</dict>
-		<dict>
-			<key>UIApplicationShortcutItemType</key>
-			<string>com.flipcash.shortcut.discover</string>
-			<key>UIApplicationShortcutItemTitle</key>
-			<string>Discover</string>
-			<key>UIApplicationShortcutItemIconSymbolName</key>
-			<string>binoculars</string>
-			<key>UIApplicationShortcutItemUserInfo</key>
-			<dict>
-				<key>url</key>
-				<string>flipcash://discover</string>
 			</dict>
 		</dict>
 	</array>
