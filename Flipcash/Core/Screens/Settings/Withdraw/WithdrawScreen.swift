@@ -53,6 +53,7 @@ struct WithdrawScreen: View {
                         }
                     }
                     .listRowInsets(EdgeInsets())
+                    .listSectionSeparator(.hidden, edges: .top)
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)

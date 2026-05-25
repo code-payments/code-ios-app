@@ -32,7 +32,7 @@ struct DepositScreen: View {
                 Button {
                     copyAddress()
                 } label: {
-                    ImmutableField(address)
+                    ImmutableField(address, leadingIcon: Image(.Icons.solana))
                 }
 
                 Spacer()
