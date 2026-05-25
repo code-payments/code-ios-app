@@ -93,7 +93,7 @@ final class AccountInfoService: CodeService<Ocp_Account_V1_AccountNIOClient> {
             case .notFound:
                 // No ATA for this mint yet — caller treats as zero balance.
                 completion(.success(nil))
-            case .unknown, .accountNotInList, .parseFailed:
+            case .unknown, .accountNotInList, .parseFailed, .transportFailure:
                 logger.error("Failed to fetch associated token account", metadata: [
                     "owner": "\(owner.publicKey.base58)",
                     "mint": "\(mint.base58)",
@@ -161,12 +161,13 @@ public enum ErrorFetchBalance: Int, Error, Equatable, Sendable {
     case unknown          = -1
     case accountNotInList = -2
     case parseFailed      = -3
+    case transportFailure = -4
 }
 
 extension ErrorFetchBalance: ServerError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .notFound, .accountNotInList: false
+        case .ok, .notFound, .accountNotInList, .transportFailure: false
         case .unknown, .parseFailed: true
         }
     }
