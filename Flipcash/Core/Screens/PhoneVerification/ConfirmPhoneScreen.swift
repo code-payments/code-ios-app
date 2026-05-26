@@ -93,15 +93,12 @@ struct ConfirmPhoneScreen<VM: PhoneVerifying>: View {
             .padding(20)
             .foregroundStyle(.textMain)
         }
+        .defaultFocus($isFocused, true)
         .dialog(item: $viewModel.dialogItem)
         .navigationTitle("Verify Phone Number")
         .toolbarTitleDisplayMode(.inline)
         .onAppear {
             countdownEnd = Date.now.addingTimeInterval(60)
-        }
-        .task {
-            try? await Task.sleep(for: .milliseconds(100))
-            isFocused = true
         }
         .task(id: countdownEnd) {
             guard let countdownEnd else { return }
