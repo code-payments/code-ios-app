@@ -79,6 +79,26 @@ struct DatabaseContactSyncTests {
         #expect(try db.flipcashContacts() == ["+5215551234567"])
     }
 
+    @Test("replaceFlipcashContacts with empty array drains the table")
+    func contacts_replaceWithEmptyDrains() throws {
+        let db = Database.mock
+        try db.replaceFlipcashContacts(["+15551234567", "+447700900000"], matchedAt: .now)
+        try db.replaceFlipcashContacts([], matchedAt: .now)
+
+        #expect(try db.flipcashContacts().isEmpty)
+    }
+
+    @Test("replaceFlipcashContacts deduplicates a server-emitted duplicate")
+    func contacts_dedupesDuplicateInput() throws {
+        let db = Database.mock
+        try db.replaceFlipcashContacts(
+            ["+15551234567", "+15551234567", "+15551234567"],
+            matchedAt: .now
+        )
+
+        #expect(try db.flipcashContacts() == ["+15551234567"])
+    }
+
     // MARK: - Local Snapshot -
 
     @Test("localContactsSnapshot is empty on a fresh database")
@@ -113,6 +133,37 @@ struct DatabaseContactSyncTests {
 
         #expect(try db.localContactsSnapshot() == [
             Database.LocalContact(e164: "+5215551234567", contactId: "id-3")
+        ])
+    }
+
+    @Test("replaceLocalContactsSnapshot with empty array drains the table")
+    func snapshot_replaceWithEmptyDrains() throws {
+        let db = Database.mock
+        try db.replaceLocalContactsSnapshot([
+            Database.LocalContact(e164: "+15551234567", contactId: "id-1"),
+            Database.LocalContact(e164: "+447700900000", contactId: "id-2"),
+        ])
+        try db.replaceLocalContactsSnapshot([])
+
+        #expect(try db.localContactsSnapshot().isEmpty)
+    }
+
+    @Test("replaceLocalContactsSnapshot dedupes linked iOS contacts by e164, keeping first contactId")
+    func snapshot_dedupesByE164KeepingFirst() throws {
+        let db = Database.mock
+        try db.replaceLocalContactsSnapshot([
+            Database.LocalContact(e164: "+15551234567", contactId: "work-card"),
+            Database.LocalContact(e164: "+15551234567", contactId: "personal-card"),
+            Database.LocalContact(e164: "+447700900000", contactId: "abroad"),
+        ])
+
+        // Asserts as a set — the read query has no ORDER BY, so the
+        // dedup-keep-first invariant lives in the (e164, contactId) pair,
+        // not in row ordering. The "work-card" id is what proves "first wins"
+        // (vs. "personal-card" if the dedup picked the last occurrence).
+        #expect(Set(try db.localContactsSnapshot()) == [
+            Database.LocalContact(e164: "+15551234567", contactId: "work-card"),
+            Database.LocalContact(e164: "+447700900000", contactId: "abroad"),
         ])
     }
 }

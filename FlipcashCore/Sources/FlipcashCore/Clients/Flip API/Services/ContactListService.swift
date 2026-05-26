@@ -114,7 +114,7 @@ final class ContactListService: CodeService<Flipcash_Contact_V1_ContactListNIOCl
 
         let call = service.fullUpload(callOptions: .streaming)
 
-        let chunks = Self.chunked(phones, into: Self.batchSize)
+        let chunks = phones.chunked(into: Self.batchSize)
         let allChunks = chunks.isEmpty ? [[]] : chunks
 
         for chunk in allChunks {
@@ -220,13 +220,6 @@ final class ContactListService: CodeService<Flipcash_Contact_V1_ContactListNIOCl
     // MARK: - Helpers -
 
     private static let batchSize = 1000
-
-    private static func chunked<T>(_ items: [T], into size: Int) -> [[T]] {
-        guard !items.isEmpty else { return [] }
-        return stride(from: 0, to: items.count, by: size).map {
-            Array(items[$0..<min($0 + size, items.count)])
-        }
-    }
 }
 
 // MARK: - Result Types -
