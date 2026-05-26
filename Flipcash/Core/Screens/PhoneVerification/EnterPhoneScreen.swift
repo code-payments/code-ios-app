@@ -9,17 +9,17 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-struct EnterPhoneScreen: View {
+struct EnterPhoneScreen<VM: PhoneVerifying>: View {
 
     @State private var isShowingRegionSelection = false
 
-    @Bindable private var viewModel: VerificationViewModel
+    @Bindable private var viewModel: VM
 
     @FocusState private var isFocused: Bool
 
     // MARK: - Init -
 
-    init(viewModel: VerificationViewModel) {
+    init(viewModel: VM) {
         self.viewModel = viewModel
     }
 
@@ -87,7 +87,8 @@ struct EnterPhoneScreen: View {
         .dialog(item: $viewModel.dialogItem)
         .navigationTitle("Verify Phone Number")
         .toolbarTitleDisplayMode(.inline)
-        .onAppear {
+        .task {
+            try? await Task.sleep(for: .milliseconds(100))
             isFocused = true
         }
     }

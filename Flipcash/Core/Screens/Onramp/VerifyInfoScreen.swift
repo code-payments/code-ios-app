@@ -9,15 +9,15 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-struct VerifyInfoScreen: View {
+struct VerifyInfoScreen<P: PhoneVerifying, E: EmailVerifying>: View {
 
-    @Bindable private var viewModel: VerificationViewModel
+    @Bindable private var viewModel: OnrampVerificationViewModel<P, E>
 
     @Environment(\.dismiss) private var dismiss
 
     // MARK: - Init -
 
-    init(viewModel: VerificationViewModel) {
+    init(viewModel: OnrampVerificationViewModel<P, E>) {
         self.viewModel = viewModel
     }
 
@@ -53,7 +53,6 @@ struct VerifyInfoScreen: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
             }
-            .navigationTitle("")
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -65,16 +64,16 @@ struct VerifyInfoScreen: View {
             .navigationDestination(for: OnrampVerificationPath.self) { path in
                 switch path {
                 case .enterPhoneNumber:
-                    EnterPhoneScreen(viewModel: viewModel)
+                    EnterPhoneScreen(viewModel: viewModel.phoneVerifier)
                         .interactiveDismissDisabled()
                 case .confirmPhoneNumberCode:
-                    ConfirmPhoneScreen(viewModel: viewModel)
+                    ConfirmPhoneScreen(viewModel: viewModel.phoneVerifier)
                         .interactiveDismissDisabled()
                 case .enterEmail:
-                    EnterEmailScreen(viewModel: viewModel)
+                    EnterEmailScreen(viewModel: viewModel.emailVerifier)
                         .interactiveDismissDisabled()
                 case .confirmEmailCode:
-                    ConfirmEmailScreen(viewModel: viewModel)
+                    ConfirmEmailScreen(viewModel: viewModel.emailVerifier)
                         .interactiveDismissDisabled()
                 }
             }

@@ -1,5 +1,5 @@
 //
-//  VerificationViewModelTests.swift
+//  EmailVerificationViewModelTests.swift
 //  FlipcashTests
 //
 
@@ -8,12 +8,12 @@ import Testing
 import FlipcashCore
 
 @MainActor
-@Suite("VerificationViewModel")
-struct VerificationViewModelTests {
+@Suite("EmailVerificationViewModel")
+struct EmailVerificationViewModelTests {
 
-    @Test("applyDeeplinkVerification sets the confirm-email path and stashes the email")
+    @Test("applyDeeplinkVerification parks the user on confirmEmail and stashes the email")
     func applyDeeplinkVerification_setsConfirmEmailPath() {
-        let viewModel = VerificationViewModel(session: .unverifiedMock, flipClient: .mock)
+        let viewModel = EmailVerificationViewModel(session: .unverifiedMock, flipClient: .mock)
         viewModel.applyDeeplinkVerification(VerificationDescription(email: "a@b.c", code: "123456"))
         #expect(viewModel.verificationPath == [.confirmEmailCode])
         #expect(viewModel.enteredEmail == "a@b.c")

@@ -56,6 +56,11 @@ extension Analytics {
         case completed            = "Onramp: Completed"
     }
 
+    enum SendEvent: String, AnalyticsEvent {
+        case showEnterPhone   = "Send: Show Enter Phone"
+        case showConfirmPhone = "Send: Show Confirm Phone"
+    }
+
     enum WalletEvent: String, AnalyticsEvent {
         case connect               = "Wallet: Connect"
         case requestAmount         = "Wallet: Request Amount"

@@ -9,15 +9,15 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-struct ConfirmEmailScreen: View {
+struct ConfirmEmailScreen<VM: EmailVerifying>: View {
 
     @State private var countdownEnd: Date?
 
-    @Bindable private var viewModel: VerificationViewModel
+    @Bindable private var viewModel: VM
 
     // MARK: - Init -
 
-    init(viewModel: VerificationViewModel) {
+    init(viewModel: VM) {
         self.viewModel = viewModel
     }
 
@@ -68,9 +68,7 @@ struct ConfirmEmailScreen: View {
                         VStack(spacing: 15) {
                             Button {
                                 Task {
-                                    do {
-                                        try await viewModel.resendEmailCodeAction()
-                                    }
+                                    try? await viewModel.resendEmailCodeAction()
                                 }
                             } label: {
                                 Loadable(isLoading: viewModel.isResending, color: .textSecondary) {

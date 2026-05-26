@@ -66,7 +66,7 @@ struct CurrencyCreationWizardScreen: View {
     @State private var createdMint: CreatedMintRecord?
     /// Active verification flow, if any. Set when the Coinbase launch path
     /// runs the verification gate.
-    @State private var verificationViewModel: VerificationViewModel?
+    @State private var verificationViewModel: OnrampVerification?
 
     private struct CreatedMintRecord {
         let mint: PublicKey

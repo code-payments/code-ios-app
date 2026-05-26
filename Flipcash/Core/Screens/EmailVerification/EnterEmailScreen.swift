@@ -9,15 +9,15 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-struct EnterEmailScreen: View {
+struct EnterEmailScreen<VM: EmailVerifying>: View {
 
-    @Bindable private var viewModel: VerificationViewModel
+    @Bindable private var viewModel: VM
 
     @FocusState private var isFocused: Bool
 
     // MARK: - Init -
 
-    init(viewModel: VerificationViewModel) {
+    init(viewModel: VM) {
         self.viewModel = viewModel
     }
 
@@ -63,7 +63,8 @@ struct EnterEmailScreen: View {
         .dialog(item: $viewModel.dialogItem)
         .navigationTitle("Verify Email")
         .toolbarTitleDisplayMode(.inline)
-        .onAppear {
+        .task {
+            try? await Task.sleep(for: .milliseconds(100))
             isFocused = true
         }
     }

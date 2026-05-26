@@ -9,16 +9,16 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-struct ConfirmPhoneScreen: View {
+struct ConfirmPhoneScreen<VM: PhoneVerifying>: View {
 
     @Environment(NotificationController.self) private var notificationController
     @State private var countdownEnd: Date?
-    @Bindable private var viewModel: VerificationViewModel
+    @Bindable private var viewModel: VM
     @FocusState private var isFocused: Bool
 
     // MARK: - Init -
 
-    init(viewModel: VerificationViewModel) {
+    init(viewModel: VM) {
         self.viewModel = viewModel
     }
 
@@ -60,10 +60,8 @@ struct ConfirmPhoneScreen: View {
                             Text(text)
                             Button {
                                 Task {
-                                    do {
-                                        try await viewModel.resendCodeAction()
-                                        countdownEnd = Date.now.addingTimeInterval(60)
-                                    }
+                                    try? await viewModel.resendCodeAction()
+                                    countdownEnd = Date.now.addingTimeInterval(60)
                                 }
                             } label: {
                                 Loadable(isLoading: viewModel.isResending, color: .textSecondary) {
@@ -100,6 +98,9 @@ struct ConfirmPhoneScreen: View {
         .toolbarTitleDisplayMode(.inline)
         .onAppear {
             countdownEnd = Date.now.addingTimeInterval(60)
+        }
+        .task {
+            try? await Task.sleep(for: .milliseconds(100))
             isFocused = true
         }
         .task(id: countdownEnd) {
