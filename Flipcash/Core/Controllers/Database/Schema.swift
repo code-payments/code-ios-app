@@ -129,6 +129,47 @@ nonisolated struct VerifiedReserveTable: Sendable {
     let reserveProto = Expression <Data>   ("reserveProto")
 }
 
+// Single-row table holding the contact-sync state machine cursor.
+// Primary key is always 1.
+nonisolated struct ContactSyncStateTable: Sendable {
+    static let name = "contact_sync_state"
+
+    let table         = Table(Self.name)
+    let id            = Expression <Int>   ("id")
+    let checksum      = Expression <Data?> ("checksum")
+    let changeHistory = Expression <Data?> ("changeHistory")
+    let lastSyncedAt  = Expression <Date?> ("lastSyncedAt")
+}
+
+// E.164 phones the server has confirmed are on Flipcash.
+nonisolated struct FlipcashContactTable: Sendable {
+    static let name = "flipcash_contact"
+
+    let table     = Table(Self.name)
+    let e164      = Expression <String> ("e164")
+    let matchedAt = Expression <Date>   ("matchedAt")
+}
+
+// Last contact set uploaded to the server. Joined with CNContactStore at
+// render time via `contactId` so name/avatar resolution stays current.
+nonisolated struct LocalContactsSnapshotTable: Sendable {
+    static let name = "local_contacts_snapshot"
+
+    let table     = Table(Self.name)
+    let e164      = Expression <String> ("e164")
+    let contactId = Expression <String> ("contactId")
+}
+
+nonisolated extension Expression {
+    func alias(_ alias: String) -> Expression<Datatype> {
+        Expression(alias)
+    }
+
+    func casting<T>(to type: T.Type) -> Expression<T> {
+        Expression<T>(template)
+    }
+}
+
 // MARK: - Tables -
 
 nonisolated extension Database {
@@ -257,6 +298,41 @@ nonisolated extension Database {
                 t.column(userFlagsTable.data)
             })
         }
+
+        let contactSyncStateTable = ContactSyncStateTable()
+
+        try writer.transaction {
+            try writer.run(contactSyncStateTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                t.column(contactSyncStateTable.id, primaryKey: true)
+                t.column(contactSyncStateTable.checksum)
+                t.column(contactSyncStateTable.changeHistory)
+                t.column(contactSyncStateTable.lastSyncedAt)
+            })
+        }
+
+        let flipcashContactTable = FlipcashContactTable()
+
+        try writer.transaction {
+            try writer.run(flipcashContactTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                t.column(flipcashContactTable.e164, primaryKey: true)
+                t.column(flipcashContactTable.matchedAt)
+            })
+        }
+
+        let localContactsSnapshotTable = LocalContactsSnapshotTable()
+
+        try writer.transaction {
+            try writer.run(localContactsSnapshotTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                t.column(localContactsSnapshotTable.e164, primaryKey: true)
+                t.column(localContactsSnapshotTable.contactId)
+            })
+        }
+
+        try createIndexesIfNeeded()
+    }
+    
+    private func createIndexesIfNeeded() throws {
+        
     }
 }
 

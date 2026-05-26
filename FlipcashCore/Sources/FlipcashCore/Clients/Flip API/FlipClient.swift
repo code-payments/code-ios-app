@@ -30,6 +30,8 @@ public class FlipClient: ObservableObject {
     internal let profileService: ProfileService
     internal let settingsService: SettingsService
     internal let moderationService: ModerationService
+    internal let contactListService: ContactListService
+    internal let resolverService: ResolverService
 
     // MARK: - Init -
 
@@ -41,15 +43,17 @@ public class FlipClient: ObservableObject {
             port: network.port
         )
 
-        self.accountService    = AccountService(channel: channel, queue: queue)
-        self.activityService   = ActivityService(channel: channel, queue: queue)
-        self.pushService       = PushService(channel: channel, queue: queue)
-        self.thirdPartyService = ThirdPartyService(channel: channel, queue: queue)
-        self.phoneService      = PhoneService(channel: channel, queue: queue)
-        self.emailService      = EmailService(channel: channel, queue: queue)
-        self.profileService    = ProfileService(channel: channel, queue: queue)
-        self.settingsService   = SettingsService(channel: channel, queue: queue)
-        self.moderationService = ModerationService(channel: channel, queue: queue)
+        self.accountService     = AccountService(channel: channel, queue: queue)
+        self.activityService    = ActivityService(channel: channel, queue: queue)
+        self.pushService        = PushService(channel: channel, queue: queue)
+        self.thirdPartyService  = ThirdPartyService(channel: channel, queue: queue)
+        self.phoneService       = PhoneService(channel: channel, queue: queue)
+        self.emailService       = EmailService(channel: channel, queue: queue)
+        self.profileService     = ProfileService(channel: channel, queue: queue)
+        self.settingsService    = SettingsService(channel: channel, queue: queue)
+        self.moderationService  = ModerationService(channel: channel, queue: queue)
+        self.contactListService = ContactListService(channel: channel, queue: queue)
+        self.resolverService    = ResolverService(channel: channel, queue: queue)
 
         self.channel.connectivity.delegate = self
     }
