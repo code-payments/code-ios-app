@@ -10,7 +10,7 @@ final class LoginSmokeTests: BaseUITestCase {
 
     func testLoginViaAccessKey_reachesMainScreen() {
         assertMainScreenReached(
-            "Expected to reach the main screen with the Give button after login"
+            "Expected to reach the main screen with the Cash button after login"
         )
 
         let walletButton = app.buttons["Wallet"]
