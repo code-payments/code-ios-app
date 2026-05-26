@@ -605,6 +605,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Flipcash;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Flipcash enables you to receive cash by pointing your camera at the digital bill displayed on another user's phone.";
+				INFOPLIST_KEY_NSContactsUsageDescription = "Flipcash uses your contacts to show which of your friends are already on Flipcash, and lets you invite the rest.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key to your library.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -659,6 +660,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Flipcash;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Flipcash enables you to receive cash by pointing your camera at the digital bill displayed on another user's phone.";
+				INFOPLIST_KEY_NSContactsUsageDescription = "Flipcash uses your contacts to show which of your friends are already on Flipcash, and lets you invite the rest.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key to your library.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -709,6 +711,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Flipcash;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Flipcash enables you to receive cash by pointing your camera at the digital bill displayed on another user's phone.";
+				INFOPLIST_KEY_NSContactsUsageDescription = "Flipcash uses your contacts to show which of your friends are already on Flipcash, and lets you invite the rest.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key to your library.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -758,6 +761,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Flipcash;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Flipcash enables you to receive cash by pointing your camera at the digital bill displayed on another user's phone.";
+				INFOPLIST_KEY_NSContactsUsageDescription = "Flipcash uses your contacts to show which of your friends are already on Flipcash, and lets you invite the rest.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key to your library.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

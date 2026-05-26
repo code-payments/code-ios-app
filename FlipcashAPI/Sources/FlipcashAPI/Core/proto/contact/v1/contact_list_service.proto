@@ -1,0 +1,133 @@
+syntax = "proto3";
+
+package flipcash.contact.v1;
+
+import "contact/v1/model.proto";
+import "common/v1/common.proto";
+import "phone/v1/model.proto";
+import "validate/validate.proto";
+
+option go_package = "github.com/code-payments/flipcash2-protobuf-api/generated/go/contact/v1;contactpb";
+
+// ContactList manages a user's contact list and surfaces which contacts are
+// Flipcash users.
+//
+// Sync model:
+//   - The client maintains a 32-byte XOR-of-SHA256 checksum over its current
+//     contact set, and an OS-specific cursor for incremental change discovery.
+//     The cursor is local-only and never leaves the device.
+//   - Steady state: client computes a delta from the OS cursor, sends it via
+//     DeltaUpload with old/new checksums for compare-and-swap.
+//   - Recovery: on first install, after OS history truncation, or after
+//     CHECKSUM_DRIFT, the client uses FullUpload to replace the server's state
+//     wholesale.
+service ContactList {
+    // CheckSync compares the client's checksum to the server's. Cheap, used
+    // on app foreground to decide whether any upload is needed.
+    rpc CheckSync(CheckSyncRequest) returns (CheckSyncResponse);
+
+    // DeltaUpload applies a delta under compare-and-swap on the checksum.
+    // Safe to retry indefinitely with the same payload.
+    rpc DeltaUpload(DeltaUploadRequest) returns (DeltaUploadResponse);
+
+    // FullUpload replaces the user's contact set entirely. Used when
+    // a delta cannot be constructed or CHECKSUM_DRIFT was returned.
+    rpc FullUpload(stream FullUploadRequest) returns (FullUploadResponse);
+
+    // GetFlipcashContacts gets the set of contacts that are on Flipcash
+    rpc GetFlipcashContacts(GetFlipcashContactsRequest) returns (stream GetFlipcashContactsResponse);
+}
+
+
+message CheckSyncRequest {
+    common.v1.Auth auth = 1 [(validate.rules).message.required = true];
+
+    // XOR-of-SHA256 over the client's current set of normalized E.164 phones.
+    common.v1.Hash client_checksum = 2 [(validate.rules).message.required = true];
+}
+
+message CheckSyncResponse {
+    enum Result {
+        OK          = 0;
+        DENIED      = 1;
+        OUT_OF_SYNC = 2;
+    }
+    Result result = 1;
+
+    // Authoritative server-side checksum. Clients persist this and use it
+    // as the basis for the next DeltaUpload.old_checksum.
+    common.v1.Hash server_checksum = 2;
+}
+
+message DeltaUploadRequest {
+    common.v1.Auth auth = 1 [(validate.rules).message.required = true];
+
+    repeated phone.v1.PhoneNumber adds = 2 [(validate.rules).repeated.max_items = 1000];
+
+    repeated phone.v1.PhoneNumber removes = 3 [(validate.rules).repeated.max_items = 1000];
+
+    // The checksum the client expected the server to have *before* applying
+    // this delta. Server applies only if stored == old_checksum.
+    common.v1.Hash old_checksum = 4 [(validate.rules).message.required = true];
+
+    // The checksum the client computes for the state *after* applying this
+    // delta. Server persists this on success. Used to detect retries: if
+    // stored == new_checksum, the server treats the request as a no-op.
+    common.v1.Hash new_checksum = 5 [(validate.rules).message.required = true];
+}
+
+message DeltaUploadResponse {
+    enum Result {
+        OK                = 0;
+        DENIED            = 1;
+        // Server's recomputed checksum did not match expected_checksum.
+        CHECKSUM_MISMATCH = 2;
+        // Stored checksum matched neither old_checksum nor new_checksum.
+        // Client should call FullUpload to reconcile.
+        CHECKSUM_DRIFT    = 3;
+        TOO_MANY_CONTACTS = 4;
+    }
+    Result result = 1;
+}
+
+message FullUploadRequest {
+    common.v1.Auth auth = 1 [(validate.rules).message.required = true];
+
+    // The complete current contact set. Server replaces stored state with
+    // this list in one transaction.
+    repeated phone.v1.PhoneNumber phones = 2 [(validate.rules).repeated.max_items = 1000];
+
+    // XOR-of-SHA256 over the client's current set of normalized E.164 phones.
+    // Sent on the last streamed request to indicate the end of the upload.
+    common.v1.Hash expected_checksum = 3 [(validate.rules).message.required = true];
+}
+
+message FullUploadResponse {
+    enum Result {
+        OK                = 0;
+        DENIED            = 1;
+        // Server's recomputed checksum did not match expected_checksum.
+        CHECKSUM_MISMATCH = 2;
+        TOO_MANY_CONTACTS = 3;
+    }
+    Result result = 1;
+}
+
+message GetFlipcashContactsRequest {
+    common.v1.Auth auth = 1 [(validate.rules).message.required = true];
+
+    common.v1.Hash checksum = 2 [(validate.rules).message.required = true];
+}
+
+message GetFlipcashContactsResponse {
+    enum Result {
+        OK             = 0;
+        DENIED         = 1;
+        NOT_FOUND      = 2;
+        // Server checksum doesn't match client checksum.
+        CHECKSUM_DRIFT = 3;
+    }
+    Result result = 1;
+
+    repeated FlipcashContact contacts = 2 [(validate.rules).repeated.max_items = 1000];
+}

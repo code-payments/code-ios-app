@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package flipcash.resolver.v1;
+
+option go_package = "github.com/code-payments/flipcash2-protobuf-api/generated/go/resolver/v1;resolverpb";
+option java_package = "com.codeinc.flipcash.gen.resolver.v1";
+option objc_class_prefix = "FPBResolverV1";
+
+import "common/v1/common.proto";
+import "phone/v1/model.proto";
+import "validate/validate.proto";
+
+// Identifier wraps a real-world identifier that can be resolved to a
+// payment destination address.
+message Identifier {
+    oneof kind {
+        option (validate.required) = true;
+
+        phone.v1.PhoneNumber phone = 1;
+    }
+}
+
+// Resolution contains a payment destiation address mapping for an
+// Identifier
+message Resolution {
+    oneof kind {
+        option (validate.required) = true;
+
+        common.v1.PublicKey address = 1;
+    }
+}

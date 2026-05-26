@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package flipcash.resolver.v1;
+
+option go_package = "github.com/code-payments/flipcash2-protobuf-api/generated/go/resolver/v1;resolverpb";
+option java_package = "com.codeinc.flipcash.gen.resolver.v1";
+option objc_class_prefix = "FPBResolverV1";
+
+import "common/v1/common.proto";
+import "resolver/v1/model.proto";
+import "validate/validate.proto";
+
+// Resolver maps a real-world identifier (phone number, etc.) to a payment
+// destination address.
+service Resolver {
+    // Resolve looks up the payment destination address for the given identifier.
+    rpc Resolve(ResolveRequest) returns (ResolveResponse);
+}
+
+message ResolveRequest {
+    common.v1.Auth auth = 1 [(validate.rules).message.required = true];
+
+    Identifier identifier = 2 [(validate.rules).message.required = true];
+}
+
+message ResolveResponse {
+    Result result = 1;
+    enum Result {
+        OK        = 0;
+        NOT_FOUND = 1;
+        DENIED    = 2;
+    }
+
+    // The resolved payment destination address. Set when result == OK.
+    Resolution resolution = 2;
+}
