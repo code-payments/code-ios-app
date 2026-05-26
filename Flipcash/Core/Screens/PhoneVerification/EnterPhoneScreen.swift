@@ -61,7 +61,6 @@ struct EnterPhoneScreen<VM: PhoneVerifying>: View {
                             .multilineTextAlignment(.leading)
                             .padding([.leading, .trailing], 15)
                             .focused($isFocused)
-                            .defaultFocus($isFocused, true)
                     }
                 }
 
@@ -88,6 +87,10 @@ struct EnterPhoneScreen<VM: PhoneVerifying>: View {
         .dialog(item: $viewModel.dialogItem)
         .navigationTitle("Verify Phone Number")
         .toolbarTitleDisplayMode(.inline)
+        .task {
+            try? await Task.sleep(for: .milliseconds(100))
+            isFocused = true
+        }
     }
 
     // MARK: - Actions -

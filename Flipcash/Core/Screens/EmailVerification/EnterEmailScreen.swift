@@ -38,7 +38,6 @@ struct EnterEmailScreen<VM: EmailVerifying>: View {
                         .multilineTextAlignment(.leading)
                         .padding([.leading, .trailing], 15)
                         .focused($isFocused)
-                        .defaultFocus($isFocused, true)
                 }
 
                 Text("Please enter your email to continue")
@@ -64,5 +63,9 @@ struct EnterEmailScreen<VM: EmailVerifying>: View {
         .dialog(item: $viewModel.dialogItem)
         .navigationTitle("Verify Email")
         .toolbarTitleDisplayMode(.inline)
+        .task {
+            try? await Task.sleep(for: .milliseconds(100))
+            isFocused = true
+        }
     }
 }

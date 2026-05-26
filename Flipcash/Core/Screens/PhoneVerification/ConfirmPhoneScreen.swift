@@ -39,7 +39,6 @@ struct ConfirmPhoneScreen<VM: PhoneVerifying>: View {
                             .textContentType(.oneTimeCode)
                             .offset(x: 999999, y: 999999)
                             .focused($isFocused)
-                            .defaultFocus($isFocused, true)
                     }
                 }
 
@@ -99,6 +98,10 @@ struct ConfirmPhoneScreen<VM: PhoneVerifying>: View {
         .toolbarTitleDisplayMode(.inline)
         .onAppear {
             countdownEnd = Date.now.addingTimeInterval(60)
+        }
+        .task {
+            try? await Task.sleep(for: .milliseconds(100))
+            isFocused = true
         }
         .task(id: countdownEnd) {
             guard let countdownEnd else { return }
