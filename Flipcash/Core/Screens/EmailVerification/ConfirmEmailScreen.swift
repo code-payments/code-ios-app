@@ -13,11 +13,11 @@ struct ConfirmEmailScreen: View {
 
     @State private var countdownEnd: Date?
 
-    @Bindable private var viewModel: OnrampVerificationViewModel
+    @Bindable private var viewModel: EmailVerificationViewModel
 
     // MARK: - Init -
 
-    init(viewModel: OnrampVerificationViewModel) {
+    init(viewModel: EmailVerificationViewModel) {
         self.viewModel = viewModel
     }
 

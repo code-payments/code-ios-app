@@ -21,7 +21,7 @@ import FlipcashCore
 /// continuation lifecycle.
 @Observable
 @MainActor
-final class PhoneVerificationViewModel: Identifiable {
+final class PhoneVerificationViewModel: PhoneVerifying {
 
     nonisolated let id = UUID()
 
@@ -30,7 +30,7 @@ final class PhoneVerificationViewModel: Identifiable {
     var verificationPath: [PhoneVerificationPath] = [] {
         didSet {
             if verificationPath.isEmpty && !oldValue.isEmpty {
-                resetTransientState()
+                reset()
             }
         }
     }
@@ -137,7 +137,7 @@ final class PhoneVerificationViewModel: Identifiable {
         c?.resume()
     }
 
-    func resetTransientState() {
+    func reset() {
         enteredPhone = ""
         enteredCode = ""
         isResending = false

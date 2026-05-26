@@ -70,10 +70,10 @@ struct VerifyInfoScreen: View {
                     ConfirmPhoneScreen(viewModel: viewModel.phoneViewModel)
                         .interactiveDismissDisabled()
                 case .enterEmail:
-                    EnterEmailScreen(viewModel: viewModel)
+                    EnterEmailScreen(viewModel: viewModel.emailViewModel)
                         .interactiveDismissDisabled()
                 case .confirmEmailCode:
-                    ConfirmEmailScreen(viewModel: viewModel)
+                    ConfirmEmailScreen(viewModel: viewModel.emailViewModel)
                         .interactiveDismissDisabled()
                 }
             }

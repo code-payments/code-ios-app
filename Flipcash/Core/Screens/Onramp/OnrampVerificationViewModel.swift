@@ -9,7 +9,9 @@ import FlipcashCore
 
 /// Drives the Coinbase onramp KYC flow: phone verification → email
 /// verification → KYC info collection. Composes a `PhoneVerificationViewModel`
-/// for the phone half and adds the email + deeplink machinery on top.
+/// and an `EmailVerificationViewModel`, wires their callbacks to drive the
+/// shared `OnrampVerificationPath`, and owns the continuation lifecycle that
+/// callers `await` via `run()`.
 ///
 /// `Identifiable` so callers can drive `.sheet(item:)` directly with an
 /// optional viewmodel binding — no separate `isPresented` flag needed.
@@ -24,45 +26,31 @@ final class OnrampVerificationViewModel: Identifiable {
     var verificationPath: [OnrampVerificationPath] = [] {
         didSet {
             if verificationPath.isEmpty && !oldValue.isEmpty {
-                resetTransientState()
-                phoneViewModel.resetTransientState()
+                phoneViewModel.reset()
+                emailViewModel.reset()
             }
         }
     }
 
-    var enteredEmail: String = ""
-
-    private(set) var isResending: Bool = false
-
-    var sendEmailCodeState: ButtonState = .normal
-    var confirmEmailButtonState: ButtonState = .normal
-
-    var dialogItem: DialogItem?
-
-    // MARK: - Composed phone verification -
+    // MARK: - Composed verifiers -
 
     let phoneViewModel: PhoneVerificationViewModel
+    let emailViewModel: EmailVerificationViewModel
 
     // MARK: - Dependencies -
 
     @ObservationIgnored private let session: Session
-    @ObservationIgnored private let flipClient: FlipClient
-    @ObservationIgnored private let owner: KeyPair
-
-    @ObservationIgnored private let emailValidator = EmailValidator()
 
     // MARK: - Run continuation -
 
     @ObservationIgnored private var continuation: CheckedContinuation<Void, Error>?
-    @ObservationIgnored private var deeplinkTask: Task<Void, Never>?
 
     // MARK: - Init -
 
     init(session: Session, flipClient: FlipClient) {
         self.session = session
-        self.flipClient = flipClient
-        self.owner = session.ownerKeyPair
         self.phoneViewModel = PhoneVerificationViewModel(session: session, flipClient: flipClient)
+        self.emailViewModel = EmailVerificationViewModel(session: session, flipClient: flipClient)
 
         phoneViewModel.onCodeRequested = { [weak self] in
             guard let self else { return }
@@ -72,12 +60,19 @@ final class OnrampVerificationViewModel: Identifiable {
         phoneViewModel.onVerified = { [weak self] in
             self?.navigateToEmailOrFinish()
         }
+        emailViewModel.onCodeRequested = { [weak self] in
+            guard let self else { return }
+            verificationPath.append(.confirmEmailCode)
+            Analytics.track(event: Analytics.OnrampEvent.showConfirmEmail)
+        }
+        emailViewModel.onVerified = { [weak self] in
+            self?.finish()
+        }
     }
 
     isolated deinit {
         // Failsafe: a viewmodel discarded mid-flow without an explicit cancel
         // would otherwise leave the caller's `await run()` suspended forever.
-        deeplinkTask?.cancel()
         let c = continuation
         continuation = nil
         c?.resume(throwing: CancellationError())
@@ -102,11 +97,11 @@ final class OnrampVerificationViewModel: Identifiable {
 
     /// Idempotent. Called by the sheet host when the user dismisses the
     /// verification sheet, or directly by callers that want to tear down
-    /// the flow. Resumes a pending `run()` with `CancellationError`.
+    /// the flow. Cancels both inner verifiers (idempotent in wrapped mode)
+    /// and resumes any pending `run()` with `CancellationError`.
     func cancel() {
-        deeplinkTask?.cancel()
-        deeplinkTask = nil
         phoneViewModel.cancel()
+        emailViewModel.cancel()
         let c = continuation
         continuation = nil
         c?.resume(throwing: CancellationError())
@@ -116,35 +111,6 @@ final class OnrampVerificationViewModel: Identifiable {
         let c = continuation
         continuation = nil
         c?.resume()
-    }
-
-    // MARK: - Derived state -
-
-    var validatedEmail: String? {
-        emailValidator.validate(enteredEmail)
-    }
-
-    var canSendEmailVerification: Bool {
-        validatedEmail != nil
-    }
-
-    private var isPhoneVerified: Bool {
-        session.profile?.isPhoneVerified ?? false
-    }
-
-    private var isEmailVerified: Bool {
-        session.profile?.isEmailVerified ?? false
-    }
-
-    private var isAccountVerified: Bool {
-        isPhoneVerified && isEmailVerified
-    }
-
-    // MARK: - Setters -
-
-    private func resetTransientState() {
-        enteredEmail = ""
-        isResending = false
     }
 
     // MARK: - Navigation -
@@ -170,171 +136,31 @@ final class OnrampVerificationViewModel: Identifiable {
         finish()
     }
 
-    // MARK: - Verification actions -
+    // MARK: - Deeplinks -
 
-    func sendEmailCodeAction() {
-        guard let validatedEmail else {
-            return
-        }
-
-        Task {
-            sendEmailCodeState = .loading
-            defer {
-                sendEmailCodeState = .normal
-            }
-
-            do {
-                try await flipClient.sendEmailVerification(
-                    email: validatedEmail,
-                    owner: owner
-                )
-                try await Task.delay(milliseconds: 500)
-                sendEmailCodeState = .success
-
-                try await Task.delay(milliseconds: 500)
-                verificationPath.append(.confirmEmailCode)
-
-                Analytics.track(event: Analytics.OnrampEvent.showConfirmEmail)
-
-                try await Task.delay(milliseconds: 500)
-            } catch is CancellationError {
-                return
-            } catch ErrorSendEmailCode.invalidEmailAddress {
-                showInvalidEmailError()
-            } catch {
-                ErrorReporting.captureError(error)
-                showGenericError()
-            }
-        }
-    }
-
-    func resendEmailCodeAction() async throws {
-        guard let validatedEmail else {
-            return
-        }
-
-        isResending = true
-        defer {
-            isResending = false
-        }
-
-        do {
-            try await flipClient.sendEmailVerification(
-                email: validatedEmail,
-                owner: owner
-            )
-        } catch {
-            ErrorReporting.captureError(error)
-        }
-    }
-
+    /// Forwarded to the inner email viewmodel; deeplinks are email-only.
+    /// Resets the shared navigation path to `[.confirmEmailCode]` so the
+    /// API call's result has somewhere to surface — preserves the
+    /// pre-extraction behavior where the deeplink replaces (not appends to)
+    /// the current path.
     func applyDeeplinkVerification(_ verification: VerificationDescription) {
-        guard !isEmailVerified else { return }
-        // Drop overlapping deeplinks while one is in flight — two concurrent
-        // Tasks would fight over `confirmEmailButtonState` and could both
-        // call `navigateToEmailOrFinish()`, double-finishing.
-        guard deeplinkTask == nil else { return }
-
-        // Park the user on the confirm-code screen so the API call's result
-        // has somewhere to surface. When the viewmodel was just constructed
-        // by the deeplink router (out-of-flow case), the path is empty —
-        // initialize it here.
         if verificationPath.last != .confirmEmailCode {
             verificationPath = [.confirmEmailCode]
-            enteredEmail = verification.email
         }
-
-        deeplinkTask = Task {
-            confirmEmailButtonState = .loading
-            defer {
-                confirmEmailButtonState = .normal
-                deeplinkTask = nil
-            }
-
-            do {
-                try await flipClient.checkEmailCode(
-                    email: verification.email,
-                    code: verification.code,
-                    owner: owner
-                )
-
-                try? await session.updateProfile()
-
-                try await Task.delay(milliseconds: 500)
-                confirmEmailButtonState = .success
-
-                try await Task.delay(milliseconds: 500)
-                navigateToEmailOrFinish()
-            } catch is CancellationError {
-                return
-            } catch ErrorCheckEmailCode.invalidCode {
-                showInvalidVerificationLinkError { [weak self] in
-                    Task {
-                        try await self?.resendEmailCodeAction()
-                    }
-                }
-            } catch ErrorCheckEmailCode.noVerification {
-                showExpiredVerificationLinkError { [weak self] in
-                    Task {
-                        try await self?.resendEmailCodeAction()
-                    }
-                }
-            } catch {
-                ErrorReporting.captureError(error)
-                showGenericError()
-            }
-        }
+        emailViewModel.applyDeeplinkVerification(verification)
     }
 
-    // MARK: - Dialog factories -
+    // MARK: - Derived state -
 
-    private func presentDestructiveDialog(
-        title: String,
-        subtitle: String,
-        action: @escaping DialogAction.DialogActionHandler = {}
-    ) {
-        dialogItem = .error(title: title, subtitle: subtitle) {
-            .okay(kind: .destructive, action: action)
-        }
+    private var isPhoneVerified: Bool {
+        session.profile?.isPhoneVerified ?? false
     }
 
-    private func presentResendOrCancelDialog(title: String, subtitle: String, resendAction: @escaping () -> Void) {
-        dialogItem = .error(title: title, subtitle: subtitle) {
-            .destructive("Resend Verification Code") {
-                resendAction()
-            };
-            .cancel()
-        }
+    private var isEmailVerified: Bool {
+        session.profile?.isEmailVerified ?? false
     }
 
-    private func showGenericError(action: @escaping DialogAction.DialogActionHandler = {}) {
-        presentDestructiveDialog(
-            title: "Something Went Wrong",
-            subtitle: "Please try again later",
-            action: action
-        )
-    }
-
-    private func showInvalidEmailError() {
-        presentDestructiveDialog(
-            title: "Invalid Email",
-            subtitle: "Please enter a different email and try again"
-        )
-    }
-
-    private func showInvalidVerificationLinkError(resendAction: @escaping () -> Void) {
-        presentResendOrCancelDialog(
-            title: "Verification Link Invalid",
-            subtitle: "This verification link is invalid. Please try again",
-            resendAction: resendAction
-        )
-    }
-
-    private func showExpiredVerificationLinkError(resendAction: @escaping () -> Void) {
-        presentResendOrCancelDialog(
-            title: "Verification Link Expired",
-            subtitle: "This verification link has expired. Please try again",
-            resendAction: resendAction
-        )
+    private var isAccountVerified: Bool {
+        isPhoneVerified && isEmailVerified
     }
 }

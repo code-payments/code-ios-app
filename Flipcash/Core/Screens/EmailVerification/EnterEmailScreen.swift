@@ -11,13 +11,13 @@ import FlipcashCore
 
 struct EnterEmailScreen: View {
 
-    @Bindable private var viewModel: OnrampVerificationViewModel
+    @Bindable private var viewModel: EmailVerificationViewModel
 
     @FocusState private var isFocused: Bool
 
     // MARK: - Init -
 
-    init(viewModel: OnrampVerificationViewModel) {
+    init(viewModel: EmailVerificationViewModel) {
         self.viewModel = viewModel
     }
 
