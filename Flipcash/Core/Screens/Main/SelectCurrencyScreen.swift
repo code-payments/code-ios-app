@@ -183,7 +183,7 @@ private struct AmountLabel: View {
                     .foregroundStyle(Color.textMain)
             case .pill:
                 Text(amount.formatted())
-                    .font(.appTextCaption)
+                    .font(.appTextHeading)
                     .foregroundStyle(Color.textSecondary)
                     .padding(4)
                     .overlay(
