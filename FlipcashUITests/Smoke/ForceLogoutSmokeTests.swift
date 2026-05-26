@@ -45,7 +45,7 @@ final class ForceLogoutSmokeTests: BaseUITestCase {
 
         // Main screen must NOT be reachable
         XCTAssertFalse(
-            app.buttons["Give"].exists,
+            app.buttons["Cash"].exists,
             "Main screen must not be reachable with an unlocked access key"
         )
     }

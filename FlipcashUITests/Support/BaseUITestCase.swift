@@ -77,10 +77,10 @@ class BaseUITestCase: XCTestCase {
         element.tap()
     }
 
-    /// Asserts that the main screen (ScanScreen) has been reached by checking for the Give button.
+    /// Asserts that the main screen (ScanScreen) has been reached by checking for the Cash button.
     func assertMainScreenReached(timeout: TimeInterval = 30, _ message: String = "Expected to reach the main screen") {
         XCTAssertTrue(
-            app.buttons["Give"].waitForExistence(timeout: timeout),
+            app.buttons["Cash"].waitForExistence(timeout: timeout),
             message
         )
     }
@@ -93,7 +93,7 @@ class BaseUITestCase: XCTestCase {
         let amountEntry = AmountEntryScreen(app: app)
 
         for attempt in 1...3 {
-            waitAndTap(app.buttons["Give"])
+            waitAndTap(app.buttons["Cash"])
             if amountEntry.keypadZero.waitForExistence(timeout: 10) { break }
 
             let ok = app.buttons["OK"]

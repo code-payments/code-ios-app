@@ -5,7 +5,7 @@
 
 import XCTest
 
-/// Regression: tapping Give on an account with no giveable balance must
+/// Regression: tapping Cash on an account with no giveable balance must
 /// surface the "No Balance Yet" dialog *without* presenting the give amount
 /// entry sheet behind it. Previously the sheet was presented unconditionally
 /// alongside the dialog, leaving the user staring at a $0 keypad once the
@@ -24,12 +24,12 @@ final class GiveRegressionTests: BaseUITestCase {
         allowPushNotificationsIfNeeded()
         assertMainScreenReached()
 
-        waitAndTap(app.buttons["Give"])
+        waitAndTap(app.buttons["Cash"])
 
         let noBalanceTitle = app.staticTexts["No Balance Yet"]
         XCTAssertTrue(
             noBalanceTitle.waitForExistence(timeout: 10),
-            "Expected 'No Balance Yet' dialog after tapping Give on an empty account"
+            "Expected 'No Balance Yet' dialog after tapping Cash on an empty account"
         )
 
         // "Next" stands in for the amount-entry sheet being in the hierarchy.
