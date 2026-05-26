@@ -3,33 +3,47 @@
 //  Flipcash
 //
 
-/// Public contract for any phone-verification implementation. Hosts (e.g.
-/// `OnrampVerificationViewModel`) wire callbacks and drive their own
-/// navigation; standalone consumers (e.g. a Send-side sheet) `await run()`
-/// and ignore the callbacks.
+import SwiftUI
+import FlipcashUI
+import FlipcashCore
+
+/// Public contract for any phone-verification implementation. Refines
+/// `Verifying` with phone-specific state and actions. Hosts that compose
+/// a phone verifier (e.g. `OnrampVerificationViewModel`) wire the inherited
+/// callbacks; standalone consumers (e.g. a Send-side sheet) `await run()`.
 @MainActor
-protocol PhoneVerifying: AnyObject, Identifiable {
-    /// Fires after the SMS verification code request succeeds. Hosts use
-    /// this to advance to the confirm-code screen on their own navigation
-    /// path. Standalone consumers leave nil.
-    var onCodeRequested: (() -> Void)? { get set }
+protocol PhoneVerifying: Verifying {
+    // MARK: - State -
 
-    /// Fires when phone verification completes successfully. Hosts use this
-    /// to advance past phone (e.g. to email); standalone consumers leave
-    /// nil and `await run()` returns.
-    var onVerified: (() -> Void)? { get set }
+    var enteredPhone: String { get set }
+    var enteredCode: String { get set }
+    var region: Region { get }
 
-    /// Standalone-mode async entry. Suspends until verified or `cancel()`.
-    /// Returns immediately when the profile is already phone-verified.
-    /// Throws `CancellationError` on cancel. Hosts that wrap via callbacks
-    /// never call this — they own the awaited lifecycle themselves.
-    func run() async throws
+    var verificationPath: [PhoneVerificationPath] { get set }
 
-    /// Idempotent. Resumes any pending `run()` with `CancellationError`.
-    /// Safe to call in wrapped mode (no-op when no continuation exists).
-    func cancel()
+    var sendCodeButtonState: ButtonState { get set }
+    var confirmCodeButtonState: ButtonState { get set }
 
-    /// Resets transient input state (entered phone, entered code, sending
-    /// flags). Hosts call this when their navigation path empties.
-    func reset()
+    var codeLength: Int { get }
+
+    // MARK: - Derived state -
+
+    var phone: Phone? { get }
+    var regionFlagStyle: Flag.Style { get }
+    var countryCode: String { get }
+    var canSendVerificationCode: Bool { get }
+    var isCodeComplete: Bool { get }
+
+    // MARK: - Bindings -
+
+    var adjustingPhoneNumberBinding: Binding<String> { get }
+    var adjustingCodeBinding: Binding<String> { get }
+
+    // MARK: - Actions -
+
+    func setRegion(_ region: Region)
+    func sendPhoneNumberCodeAction()
+    func resendCodeAction() async throws
+    func confirmPhoneNumberCodeAction()
+    func pasteCodeFromClipboardIfPossible()
 }

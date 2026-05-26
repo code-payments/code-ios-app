@@ -9,15 +9,15 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-struct EnterEmailScreen: View {
+struct EnterEmailScreen<VM: EmailVerifying>: View {
 
-    @Bindable private var viewModel: EmailVerificationViewModel
+    @Bindable private var viewModel: VM
 
     @FocusState private var isFocused: Bool
 
     // MARK: - Init -
 
-    init(viewModel: EmailVerificationViewModel) {
+    init(viewModel: VM) {
         self.viewModel = viewModel
     }
 

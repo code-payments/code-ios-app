@@ -9,17 +9,17 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-struct EnterPhoneScreen: View {
+struct EnterPhoneScreen<VM: PhoneVerifying>: View {
 
     @State private var isShowingRegionSelection = false
 
-    @Bindable private var viewModel: PhoneVerificationViewModel
+    @Bindable private var viewModel: VM
 
     @FocusState private var isFocused: Bool
 
     // MARK: - Init -
 
-    init(viewModel: PhoneVerificationViewModel) {
+    init(viewModel: VM) {
         self.viewModel = viewModel
     }
 

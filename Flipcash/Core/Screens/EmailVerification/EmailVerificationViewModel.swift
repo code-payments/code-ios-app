@@ -7,10 +7,8 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-/// Drives the email verification flow. Used standalone (caller `await run()`)
-/// or wrapped by `OnrampVerificationViewModel` which composes phone + email
-/// + KYC info. Conforms to `EmailVerifying`; the protocol carries the
-/// callbacks + lifecycle host-facing contract.
+/// Concrete email verifier. Conforms to `EmailVerifying`; the `run`,
+/// `cancel`, and `finish` lifecycle is provided by the `Verifying` extension.
 @Observable
 @MainActor
 final class EmailVerificationViewModel: EmailVerifying {
@@ -44,22 +42,35 @@ final class EmailVerificationViewModel: EmailVerifying {
 
     @ObservationIgnored private let emailValidator = EmailValidator()
 
-    // MARK: - Wrapped-mode hooks -
+    // MARK: - Analytics hooks -
 
-    @ObservationIgnored var onCodeRequested: (() -> Void)?
-    @ObservationIgnored var onVerified: (() -> Void)?
+    /// Fires after `sendEmailCodeAction` succeeds (standalone mode).
+    /// Wrapped callers leave nil — outer's `onCodeRequested` callback fires
+    /// its own flavored event there.
+    @ObservationIgnored private let confirmEmailEvent: (any AnalyticsEvent)?
 
-    // MARK: - Run continuation -
+    // MARK: - Verifying lifecycle hooks -
 
-    @ObservationIgnored private var continuation: CheckedContinuation<Void, Error>?
+    @ObservationIgnored var onCodeRequested: (@MainActor () -> Void)?
+    @ObservationIgnored var onVerified: (@MainActor () -> Void)?
+
+    /// Internal hook for the `Verifying` default `run`/`cancel`/`finish`
+    /// implementations. Not for outside callers.
+    @ObservationIgnored var continuation: CheckedContinuation<Void, Error>?
+
     @ObservationIgnored private var deeplinkTask: Task<Void, Never>?
 
     // MARK: - Init -
 
-    init(session: Session, flipClient: FlipClient) {
+    init(
+        session: Session,
+        flipClient: FlipClient,
+        confirmEmailEvent: (any AnalyticsEvent)? = nil
+    ) {
         self.session = session
         self.flipClient = flipClient
         self.owner = session.ownerKeyPair
+        self.confirmEmailEvent = confirmEmailEvent
     }
 
     isolated deinit {
@@ -69,29 +80,13 @@ final class EmailVerificationViewModel: EmailVerifying {
         c?.resume(throwing: CancellationError())
     }
 
-    // MARK: - Async entry -
-
-    func run() async throws {
-        if isEmailVerified { return }
-        assert(continuation == nil, "EmailVerificationViewModel.run() called while another awaiter is suspended")
-        guard continuation == nil else { throw CancellationError() }
-        try await withCheckedThrowingContinuation { c in
-            continuation = c
-        }
-    }
-
+    /// Email VM overrides the default `cancel()` to also cancel the
+    /// in-flight deeplink task; the base lifecycle alone wouldn't reach it.
     func cancel() {
         deeplinkTask?.cancel()
-        deeplinkTask = nil
         let c = continuation
         continuation = nil
         c?.resume(throwing: CancellationError())
-    }
-
-    private func finish() {
-        let c = continuation
-        continuation = nil
-        c?.resume()
     }
 
     func reset() {
@@ -109,7 +104,7 @@ final class EmailVerificationViewModel: EmailVerifying {
         validatedEmail != nil
     }
 
-    private var isEmailVerified: Bool {
+    var isAlreadyVerified: Bool {
         session.profile?.isEmailVerified ?? false
     }
 
@@ -140,6 +135,9 @@ final class EmailVerificationViewModel: EmailVerifying {
                     onCodeRequested()
                 } else {
                     verificationPath.append(.confirmEmailCode)
+                    if let confirmEmailEvent {
+                        Analytics.track(event: confirmEmailEvent)
+                    }
                 }
 
                 try await Task.delay(milliseconds: 500)
@@ -175,7 +173,7 @@ final class EmailVerificationViewModel: EmailVerifying {
     }
 
     func applyDeeplinkVerification(_ verification: VerificationDescription) {
-        guard !isEmailVerified else { return }
+        guard !isAlreadyVerified else { return }
         // Drop overlapping deeplinks while one is in flight — two concurrent
         // Tasks would fight over `confirmEmailButtonState` and could both
         // call `onVerified` / `finish`, double-finishing.
@@ -190,7 +188,8 @@ final class EmailVerificationViewModel: EmailVerifying {
             verificationPath = [.confirmEmailCode]
         }
 
-        deeplinkTask = Task {
+        deeplinkTask = Task { [weak self] in
+            guard let self else { return }
             confirmEmailButtonState = .loading
             defer {
                 confirmEmailButtonState = .normal

@@ -9,16 +9,16 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-struct ConfirmPhoneScreen: View {
+struct ConfirmPhoneScreen<VM: PhoneVerifying>: View {
 
     @Environment(NotificationController.self) private var notificationController
     @State private var countdownEnd: Date?
-    @Bindable private var viewModel: PhoneVerificationViewModel
+    @Bindable private var viewModel: VM
     @FocusState private var isFocused: Bool
 
     // MARK: - Init -
 
-    init(viewModel: PhoneVerificationViewModel) {
+    init(viewModel: VM) {
         self.viewModel = viewModel
     }
 

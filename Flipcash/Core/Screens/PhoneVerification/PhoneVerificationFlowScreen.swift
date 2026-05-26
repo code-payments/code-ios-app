@@ -9,16 +9,16 @@ import FlipcashCore
 
 /// Sheet root for standalone phone verification. Used by the Send flow to
 /// gate entry behind a verified phone number. Mounted via `.sheet(item:)`
-/// with a `PhoneVerificationViewModel` whose callbacks are unset, so the
+/// with any `PhoneVerifying` conformer whose callbacks are unset, so the
 /// viewmodel manages its own navigation path and resumes the awaited
 /// `run()` on completion.
-struct PhoneVerificationFlowScreen: View {
+struct PhoneVerificationFlowScreen<VM: PhoneVerifying>: View {
 
-    @Bindable private var viewModel: PhoneVerificationViewModel
+    @Bindable private var viewModel: VM
 
     @Environment(\.dismiss) private var dismiss
 
-    init(viewModel: PhoneVerificationViewModel) {
+    init(viewModel: VM) {
         self.viewModel = viewModel
     }
 

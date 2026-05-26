@@ -8,17 +8,8 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-/// Drives the phone verification flow. Used standalone via
-/// `PhoneVerificationFlowScreen` or wrapped by `OnrampVerificationViewModel`
-/// which composes it with email + KYC info.
-///
-/// In standalone mode, callers `await run()` and the viewmodel manages its
-/// own `verificationPath` + resumes the continuation on success.
-///
-/// In wrapped mode, the host sets `onCodeRequested` and `onVerified`
-/// callbacks; the viewmodel fires them instead of mutating its own path or
-/// resuming a continuation. The host drives the navigation stack and the
-/// continuation lifecycle.
+/// Concrete phone verifier. Conforms to `PhoneVerifying`; the `run`,
+/// `cancel`, and `finish` lifecycle is provided by the `Verifying` extension.
 @Observable
 @MainActor
 final class PhoneVerificationViewModel: PhoneVerifying {
@@ -68,21 +59,14 @@ final class PhoneVerificationViewModel: PhoneVerifying {
     /// its own flavored event there.
     @ObservationIgnored private let confirmPhoneEvent: (any AnalyticsEvent)?
 
-    // MARK: - Wrapped-mode hooks -
+    // MARK: - Verifying lifecycle hooks -
 
-    /// Fired after `sendPhoneNumberCodeAction` succeeds. When set, replaces
-    /// the standalone-mode `verificationPath.append(.confirmPhoneNumberCode)`
-    /// so the host can advance its own path instead.
-    @ObservationIgnored var onCodeRequested: (() -> Void)?
+    @ObservationIgnored var onCodeRequested: (@MainActor () -> Void)?
+    @ObservationIgnored var onVerified: (@MainActor () -> Void)?
 
-    /// Fired after `confirmPhoneNumberCodeAction` succeeds. When set, replaces
-    /// the standalone-mode `finish()` call so the host can advance to its
-    /// next step (e.g. email) instead of resuming an awaited `run()`.
-    @ObservationIgnored var onVerified: (() -> Void)?
-
-    // MARK: - Run continuation -
-
-    @ObservationIgnored private var continuation: CheckedContinuation<Void, Error>?
+    /// Internal hook for the `Verifying` default `run`/`cancel`/`finish`
+    /// implementations. Not for outside callers.
+    @ObservationIgnored var continuation: CheckedContinuation<Void, Error>?
 
     // MARK: - Init -
 
@@ -104,37 +88,6 @@ final class PhoneVerificationViewModel: PhoneVerifying {
         let c = continuation
         continuation = nil
         c?.resume(throwing: CancellationError())
-    }
-
-    // MARK: - Async entry -
-
-    /// Suspends until phone verification completes, then returns. Standalone
-    /// mode only — in wrapped mode the host owns the awaited lifecycle and
-    /// this is never called.
-    func run() async throws {
-        if isPhoneVerified { return }
-        assert(continuation == nil, "PhoneVerificationViewModel.run() called while another awaiter is suspended")
-        guard continuation == nil else { throw CancellationError() }
-        if let enterPhoneEvent {
-            Analytics.track(event: enterPhoneEvent)
-        }
-        try await withCheckedThrowingContinuation { c in
-            continuation = c
-        }
-    }
-
-    /// Idempotent. Resumes a pending `run()` with `CancellationError`. Safe
-    /// to call in wrapped mode (no continuation to resume, no-op).
-    func cancel() {
-        let c = continuation
-        continuation = nil
-        c?.resume(throwing: CancellationError())
-    }
-
-    private func finish() {
-        let c = continuation
-        continuation = nil
-        c?.resume()
     }
 
     func reset() {
@@ -165,7 +118,7 @@ final class PhoneVerificationViewModel: PhoneVerifying {
         enteredCode.count >= codeLength
     }
 
-    private var isPhoneVerified: Bool {
+    var isAlreadyVerified: Bool {
         session.profile?.isPhoneVerified ?? false
     }
 
@@ -239,6 +192,10 @@ final class PhoneVerificationViewModel: PhoneVerifying {
     func sendPhoneNumberCodeAction() {
         guard let phone else {
             return
+        }
+
+        if let enterPhoneEvent {
+            Analytics.track(event: enterPhoneEvent)
         }
 
         Task {

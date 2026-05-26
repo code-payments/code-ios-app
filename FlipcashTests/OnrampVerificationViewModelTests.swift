@@ -16,6 +16,6 @@ struct OnrampVerificationViewModelTests {
         let viewModel = OnrampVerificationViewModel(session: .unverifiedMock, flipClient: .mock)
         viewModel.applyDeeplinkVerification(VerificationDescription(email: "a@b.c", code: "123456"))
         #expect(viewModel.verificationPath == [.confirmEmailCode])
-        #expect(viewModel.emailViewModel.enteredEmail == "a@b.c")
+        #expect(viewModel.emailVerifier.enteredEmail == "a@b.c")
     }
 }

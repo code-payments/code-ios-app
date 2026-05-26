@@ -9,15 +9,15 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-struct ConfirmEmailScreen: View {
+struct ConfirmEmailScreen<VM: EmailVerifying>: View {
 
     @State private var countdownEnd: Date?
 
-    @Bindable private var viewModel: EmailVerificationViewModel
+    @Bindable private var viewModel: VM
 
     // MARK: - Init -
 
-    init(viewModel: EmailVerificationViewModel) {
+    init(viewModel: VM) {
         self.viewModel = viewModel
     }
 
