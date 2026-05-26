@@ -84,10 +84,13 @@ struct EnterPhoneScreen<VM: PhoneVerifying>: View {
             .padding(20)
             .foregroundStyle(.textMain)
         }
-        .defaultFocus($isFocused, true)
         .dialog(item: $viewModel.dialogItem)
         .navigationTitle("Verify Phone Number")
         .toolbarTitleDisplayMode(.inline)
+        .task {
+            try? await Task.sleep(for: .milliseconds(100))
+            isFocused = true
+        }
     }
 
     // MARK: - Actions -
