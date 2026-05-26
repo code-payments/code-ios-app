@@ -9,7 +9,7 @@ import GRPC
 
 private let logger = Logger(label: "flipcash.contact-list-service")
 
-class ContactListService: CodeService<Flipcash_Contact_V1_ContactListNIOClient> {
+final class ContactListService: CodeService<Flipcash_Contact_V1_ContactListNIOClient> {
 
     // MARK: - CheckSync (unary) -
 
@@ -40,7 +40,7 @@ class ContactListService: CodeService<Flipcash_Contact_V1_ContactListNIOClient> 
                 completion(.failure(.unknown))
             }
         } failure: { _ in
-            completion(.failure(.unknown))
+            completion(.failure(.networkError))
         }
     }
 
@@ -94,7 +94,7 @@ class ContactListService: CodeService<Flipcash_Contact_V1_ContactListNIOClient> 
                 completion(.failure(.unknown))
             }
         } failure: { _ in
-            completion(.failure(.unknown))
+            completion(.failure(.networkError))
         }
     }
 
@@ -102,7 +102,8 @@ class ContactListService: CodeService<Flipcash_Contact_V1_ContactListNIOClient> 
 
     /// Replace the server's stored contact set with `phones`. Chunked into
     /// requests of up to 1000 phones each per the proto's per-message cap.
-    /// The final request carries `expectedChecksum` to mark end-of-upload.
+    /// `expectedChecksum` is sent on every chunk — the proto declares it
+    /// `required = true` per request and PGV validates per stream message.
     func fullUpload(
         phones: [String],
         checksum: Data,
@@ -114,69 +115,60 @@ class ContactListService: CodeService<Flipcash_Contact_V1_ContactListNIOClient> 
         let call = service.fullUpload(callOptions: .streaming)
 
         let chunks = Self.chunked(phones, into: Self.batchSize)
+        let allChunks = chunks.isEmpty ? [[]] : chunks
 
-        if chunks.isEmpty {
+        for chunk in allChunks {
             let request = Flipcash_Contact_V1_FullUploadRequest.with {
+                $0.phones = chunk.map { e164 in
+                    Flipcash_Phone_V1_PhoneNumber.with { $0.value = e164 }
+                }
                 $0.expectedChecksum = .with { $0.value = checksum }
                 $0.auth = owner.authFor(message: $0)
             }
             _ = call.sendMessage(request)
-        } else {
-            for (index, chunk) in chunks.enumerated() {
-                let isLast = (index == chunks.count - 1)
-                let request = Flipcash_Contact_V1_FullUploadRequest.with {
-                    $0.phones = chunk.map { e164 in
-                        Flipcash_Phone_V1_PhoneNumber.with { $0.value = e164 }
-                    }
-                    if isLast {
-                        $0.expectedChecksum = .with { $0.value = checksum }
-                    }
-                    $0.auth = owner.authFor(message: $0)
-                }
-                _ = call.sendMessage(request)
-            }
         }
 
         call.sendEnd(promise: nil)
 
-        call.response.whenSuccessBlocking(onto: queue) { response in
-            switch response.result {
-            case .ok:
-                logger.info("Full contact upload succeeded")
-                completion(.success(()))
-            case .denied:
-                logger.warning("FullUpload denied")
-                completion(.failure(.denied))
-            case .checksumMismatch:
-                logger.error("FullUpload checksum mismatch")
-                completion(.failure(.checksumMismatch))
-            case .tooManyContacts:
-                logger.warning("FullUpload rejected — too many contacts")
-                completion(.failure(.tooManyContacts))
-            case .UNRECOGNIZED(let raw):
-                logger.warning("FullUpload unknown result", metadata: ["raw": "\(raw)"])
-                completion(.failure(.unknown))
+        call.response.whenCompleteBlocking(onto: queue) { result in
+            switch result {
+            case .success(let response):
+                switch response.result {
+                case .ok:
+                    logger.info("Full contact upload succeeded")
+                    completion(.success(()))
+                case .denied:
+                    logger.warning("FullUpload denied")
+                    completion(.failure(.denied))
+                case .checksumMismatch:
+                    logger.error("FullUpload checksum mismatch")
+                    completion(.failure(.checksumMismatch))
+                case .tooManyContacts:
+                    logger.warning("FullUpload rejected — too many contacts")
+                    completion(.failure(.tooManyContacts))
+                case .UNRECOGNIZED(let raw):
+                    logger.warning("FullUpload unknown result", metadata: ["raw": "\(raw)"])
+                    completion(.failure(.unknown))
+                }
+            case .failure(let error):
+                logger.error("FullUpload network error", metadata: ["error": "\(error)"])
+                completion(.failure(.networkError))
             }
-        }
-        call.response.whenFailureBlocking(onto: queue) { error in
-            logger.error("FullUpload network error", metadata: ["error": "\(error)"])
-            completion(.failure(.unknown))
         }
     }
 
     // MARK: - GetFlipcashContacts (server-streaming) -
 
     /// Streams the server's currently-matched contact set. Each `onResponse`
-    /// invocation delivers up to 1000 contacts (per proto cap). When the
-    /// stream completes, `onCompletion` fires exactly once.
-    ///
-    /// Cancel via the returned token to tear down the gRPC call.
+    /// invocation delivers up to 1000 phones (per proto cap); `onCompletion`
+    /// fires exactly once. Both deliver on the service's `queue`, so per-stream
+    /// ordering is preserved.
     @discardableResult
     func getFlipcashContacts(
         checksum: Data,
         owner: KeyPair,
-        onResponse: @MainActor @Sendable @escaping (FlipcashContactsBatch) -> Void,
-        onCompletion: @MainActor @Sendable @escaping (Result<Void, ErrorContactSync>) -> Void
+        onResponse: @Sendable @escaping (FlipcashContactsBatch) -> Void,
+        onCompletion: @Sendable @escaping (Result<Void, ErrorContactSync>) -> Void
     ) -> ContactsStreamCancellation {
         logger.info("Opening Flipcash contacts stream")
 
@@ -190,33 +182,36 @@ class ContactListService: CodeService<Flipcash_Contact_V1_ContactListNIOClient> 
             Flipcash_Contact_V1_GetFlipcashContactsResponse
         >()
 
-        let stream = service.getFlipcashContacts(request, callOptions: .streaming) { response in
-            let phones = response.contacts.compactMap { Phone($0.phone.value) }
+        let queue = self.queue
+        let stream = service.getFlipcashContacts(request, callOptions: .streaming) { @Sendable response in
+            // Emit raw E.164 strings — server-validated against the proto regex —
+            // rather than routing through `Phone(_:)`. Going through
+            // `PhoneNumberKit` would silently drop any string it can't parse,
+            // decoupling the local matched-set from the server's truth.
+            let e164s = response.contacts.map { $0.phone.value }
             let batch = FlipcashContactsBatch(
                 result: FlipcashContactsBatch.Result(response.result),
-                phones: phones
+                phones: e164s
             )
-            Task { @MainActor in onResponse(batch) }
+            queue.async { onResponse(batch) }
         }
 
         streamReference.stream = stream
 
         stream.status.whenCompleteBlocking(onto: queue) { result in
-            let mapped: Result<Void, ErrorContactSync>
             switch result {
             case .success(let status) where status.code == .ok:
                 logger.info("Flipcash contacts stream completed")
-                mapped = .success(())
+                onCompletion(.success(()))
             case .success(let status):
                 logger.warning("Flipcash contacts stream closed with non-OK status", metadata: [
                     "code": "\(status.code)"
                 ])
-                mapped = .failure(.unknown)
+                onCompletion(.failure(.networkError))
             case .failure(let error):
                 logger.error("Flipcash contacts stream network error", metadata: ["error": "\(error)"])
-                mapped = .failure(.unknown)
+                onCompletion(.failure(.networkError))
             }
-            Task { @MainActor in onCompletion(mapped) }
         }
 
         return ContactsStreamCancellation(streamReference)
@@ -260,7 +255,7 @@ public struct FlipcashContactsBatch: Equatable, Sendable {
     }
 
     public let result: Result
-    public let phones: [Phone]
+    public let phones: [String]
 }
 
 extension FlipcashContactsBatch.Result {
@@ -275,8 +270,7 @@ extension FlipcashContactsBatch.Result {
     }
 }
 
-/// Sendable handle for cancelling a `getFlipcashContacts` stream. Holds the
-/// underlying gRPC call reference; calling `cancel()` is safe from any thread.
+/// Sendable handle for cancelling a `getFlipcashContacts` stream.
 public final class ContactsStreamCancellation: @unchecked Sendable {
     private let reference: AnyObject
     private let _cancel: () -> Void
@@ -298,13 +292,14 @@ public enum ErrorContactSync: Int, Error {
     case tooManyContacts = 3
     case notFound = 4
     case checksumDrift = 5
+    case networkError = -2
     case unknown = -1
 }
 
 extension ErrorContactSync: ServerError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .denied, .checksumMismatch, .tooManyContacts, .notFound, .checksumDrift: false
+        case .ok, .denied, .checksumMismatch, .tooManyContacts, .notFound, .checksumDrift, .networkError: false
         case .unknown: true
         }
     }

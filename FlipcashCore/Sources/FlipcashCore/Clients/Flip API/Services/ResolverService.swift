@@ -1,5 +1,5 @@
 //
-//  PaymentDestinationService.swift
+//  ResolverService.swift
 //  FlipcashCore
 //
 
@@ -7,23 +7,23 @@ import Foundation
 import FlipcashAPI
 import GRPC
 
-private let logger = Logger(label: "flipcash.payment-destination-service")
+private let logger = Logger(label: "flipcash.resolver-service")
 
-class PaymentDestinationService: CodeService<Flipcash_Resolver_V1_ResolverNIOClient> {
+final class ResolverService: CodeService<Flipcash_Resolver_V1_ResolverNIOClient> {
 
     /// Resolve an E.164 phone to the on-chain payment destination.
     /// `nil` for NOT_FOUND (the recipient is not on Flipcash); throws for
     /// hard failures (DENIED, network errors).
-    func resolve(
-        phone: String,
+    func resolvePhone(
+        _ e164: String,
         owner: KeyPair,
-        completion: @Sendable @escaping (Result<PublicKey?, ErrorResolveDestination>) -> Void
+        completion: @Sendable @escaping (Result<PublicKey?, ErrorResolve>) -> Void
     ) {
-        logger.info("Resolving payment destination")
+        logger.info("Resolving phone to payment destination")
 
         let request = Flipcash_Resolver_V1_ResolveRequest.with {
             $0.identifier = .with {
-                $0.phone = .with { $0.value = phone }
+                $0.phone = .with { $0.value = e164 }
             }
             $0.auth = owner.authFor(message: $0)
         }
@@ -51,23 +51,24 @@ class PaymentDestinationService: CodeService<Flipcash_Resolver_V1_ResolverNIOCli
                 completion(.failure(.unknown))
             }
         } failure: { _ in
-            completion(.failure(.unknown))
+            completion(.failure(.networkError))
         }
     }
 }
 
 // MARK: - Errors -
 
-public enum ErrorResolveDestination: Int, Error {
+public enum ErrorResolve: Int, Error {
     case ok = 0
     case denied = 1
+    case networkError = -2
     case unknown = -1
 }
 
-extension ErrorResolveDestination: ServerError {
+extension ErrorResolve: ServerError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .denied: false
+        case .ok, .denied, .networkError: false
         case .unknown: true
         }
     }

@@ -31,7 +31,7 @@ public class FlipClient: ObservableObject {
     internal let settingsService: SettingsService
     internal let moderationService: ModerationService
     internal let contactListService: ContactListService
-    internal let paymentDestinationService: PaymentDestinationService
+    internal let resolverService: ResolverService
 
     // MARK: - Init -
 
@@ -52,8 +52,8 @@ public class FlipClient: ObservableObject {
         self.profileService     = ProfileService(channel: channel, queue: queue)
         self.settingsService    = SettingsService(channel: channel, queue: queue)
         self.moderationService  = ModerationService(channel: channel, queue: queue)
-        self.contactListService        = ContactListService(channel: channel, queue: queue)
-        self.paymentDestinationService = PaymentDestinationService(channel: channel, queue: queue)
+        self.contactListService = ContactListService(channel: channel, queue: queue)
+        self.resolverService    = ResolverService(channel: channel, queue: queue)
 
         self.channel.connectivity.delegate = self
     }

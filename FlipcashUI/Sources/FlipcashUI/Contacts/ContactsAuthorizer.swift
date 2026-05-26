@@ -6,8 +6,9 @@
 import SwiftUI
 import Contacts
 
+@MainActor
 @Observable
-public class ContactsAuthorizer {
+public final class ContactsAuthorizer {
 
     public var status: CNAuthorizationStatus = .notDetermined
 
@@ -23,6 +24,10 @@ public class ContactsAuthorizer {
     /// the resolved authorization status. For `.denied` / `.restricted` /
     /// `.limited` callers should route the user to Settings — iOS suppresses
     /// repeat prompts.
+    ///
+    /// Marked `@MainActor` because `CNContactStore.requestAccess` resumes the
+    /// continuation on an arbitrary queue; the post-`await` `updateStatus()`
+    /// must mutate the `@Observable` `status` on the main actor.
     public func authorize() async -> CNAuthorizationStatus {
         let current = CNContactStore.authorizationStatus(for: .contacts)
         guard current == .notDetermined else {

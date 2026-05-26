@@ -35,7 +35,7 @@ nonisolated extension Database {
 
     func setContactSyncState(_ state: ContactSyncState) throws {
         let table = ContactSyncStateTable()
-        try transaction(silent: true) { _ in
+        try writer.transaction {
             try writer.run(
                 table.table.upsert(
                     table.id <- 1,
@@ -59,11 +59,14 @@ nonisolated extension Database {
 
     /// Replace the matched-contacts set with the server's latest response.
     /// Atomic — readers observe either the old set or the new set, never a partial join.
+    /// Deduplicates `e164s` defensively in case the server ever streams the same number twice.
     func replaceFlipcashContacts(_ e164s: [String], matchedAt: Date) throws {
         let table = FlipcashContactTable()
-        try transaction { _ in
+        var seen: Set<String> = []
+        let deduped = e164s.filter { seen.insert($0).inserted }
+        try writer.transaction {
             try writer.run(table.table.delete())
-            for e164 in e164s {
+            for e164 in deduped {
                 try writer.run(
                     table.table.insert(
                         table.e164 <- e164,
@@ -91,11 +94,17 @@ nonisolated extension Database {
         }
     }
 
+    /// Replace the snapshot with the latest uploaded set.
+    /// Linked iOS contacts commonly share a normalized phone number; the
+    /// snapshot's purpose is delta computation against the unique e164 set,
+    /// so we dedupe by `e164` keeping the first occurrence's `contactId`.
     func replaceLocalContactsSnapshot(_ contacts: [LocalContact]) throws {
         let table = LocalContactsSnapshotTable()
-        try transaction(silent: true) { _ in
+        var seen: Set<String> = []
+        let deduped = contacts.filter { seen.insert($0.e164).inserted }
+        try writer.transaction {
             try writer.run(table.table.delete())
-            for contact in contacts {
+            for contact in deduped {
                 try writer.run(
                     table.table.insert(
                         table.e164 <- contact.e164,
