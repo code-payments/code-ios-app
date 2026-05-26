@@ -236,10 +236,6 @@ final class SessionAuthenticator {
             client: container.flipClient
         )
 
-        // Constructed dormant — no observer, no sync, no contact framework
-        // access of any kind. Phase 4 UI calls `activate()` after the user
-        // opens Send with permission granted. `AppDelegate`'s
-        // `didBecomeActive()` is a no-op until that first activation.
         let contactSyncController = ContactSyncController(
             client: container.flipClient,
             database: database,

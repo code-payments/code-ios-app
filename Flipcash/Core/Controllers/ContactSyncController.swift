@@ -14,12 +14,16 @@ nonisolated private let logger = Logger(label: "flipcash.contact-sync-controller
 /// State machine, single entry point ``sync()``:
 /// 1. Enumerate `CNContactStore`, normalize phones to E.164 (deduped), compute the
 ///    new checksum.
-/// 2. If the new checksum equals the stored one, probe `CheckSync` to detect
-///    server drift. If the server agrees, return.
+/// 2. If the new checksum equals the stored one, probe `CheckSync`. If the server
+///    agrees, return; if it reports drift, go straight to a full upload (a delta
+///    with `old == new` is structurally guaranteed to be rejected).
 /// 3. Upload — delta vs. the local snapshot (or full on first sync / empty
-///    snapshot). On `.checksumDrift`, fall back to full upload in the same call.
-/// 4. Persist the new snapshot, checksum, and `lastSyncedAt`.
-/// 5. Stream `GetFlipcashContacts` and replace the matched-set table.
+///    snapshot / server-drift). On `.checksumDrift`, fall back to full upload in
+///    the same call.
+/// 4. Stream `GetFlipcashContacts` and replace the matched-set table.
+/// 5. Only after both the upload AND the stream succeed, persist the new
+///    snapshot, checksum, and `lastSyncedAt` — so a mid-flight failure of either
+///    leaves the next sync's probe seeing a mismatch and re-running end-to-end.
 ///
 /// Step 1 lives in ``runSync()`` (it depends on the live `CNContactStore`);
 /// Steps 2–5 live in ``performSync(contacts:)`` so tests can drive them with
@@ -36,6 +40,10 @@ nonisolated private let logger = Logger(label: "flipcash.contact-sync-controller
 /// has activated the controller (the user opened Send with permission
 /// granted), subsequent foregrounds trigger ``sync()``.
 ///
+/// Triggers that arrive while a sync is in flight are coalesced into a single
+/// re-run that fires when the current sync completes — bursts of contact edits
+/// during sync don't leave the snapshot stale until the next foreground.
+///
 /// **Login gating is structural.** The controller is only constructed inside
 /// a logged-in `SessionContainer` (`SessionAuthenticator.createSessionContainer`)
 /// and is released on logout via `state = .loggedOut`, so syncing while logged
@@ -44,17 +52,15 @@ nonisolated private let logger = Logger(label: "flipcash.contact-sync-controller
 /// **No permission prompt is ever issued from this controller.** The only API
 /// that prompts is `CNContactStore.requestAccess(for:)`, which is reachable
 /// only via `ContactsAuthorizer.authorize()` from the Phase 4 button. Within
-/// `runSync`, `CNContactStore.authorizationStatus(for:)` is read-only and
-/// short-circuits when the status is anything but `.authorized`. The CN
-/// enumeration call would throw rather than prompt if reached without
-/// authorization, but the status gate prevents that.
+/// `runSync`, the injectable `authorizationStatusProvider` is read-only and
+/// short-circuits when the status is anything but `.authorized`.
 ///
 /// **Concurrency.** The class is implicitly `@MainActor` (Flipcash module
-/// default) for state coordination (`isSyncing`, `syncTask`, `observerTask`).
-/// Heavy work — `CNContactStore.enumerateContacts`, synchronous SQLite I/O,
-/// and the server RPCs — runs off the main actor via `@concurrent nonisolated`
-/// on ``runSync()``. The `let` dependencies are `nonisolated` so the off-main
-/// work can read them without hopping.
+/// default) for state coordination (`isSyncing`, `syncTask`, `observerTask`,
+/// `needsResync`). Heavy work — `CNContactStore.enumerateContacts`, synchronous
+/// SQLite I/O, and the server RPCs — runs off the main actor via
+/// `Task { @concurrent in … }` in ``sync()``. The `let` dependencies are
+/// `nonisolated` so the off-main work can read them without hopping.
 ///
 /// The `change_history` column on `Database.ContactSyncState` is always
 /// persisted as `nil`: `CNContactStore.enumeratorForChangeHistoryFetchRequest:`
@@ -62,7 +68,7 @@ nonisolated private let logger = Logger(label: "flipcash.contact-sync-controller
 /// "did anything change since last cursor" pre-read can't be done from Swift
 /// without an Objective-C bridge. Every trigger re-enumerates `CNContactStore`;
 /// the upload (and matched-set stream) are still skipped when the new
-/// checksum matches.
+/// checksum matches and the server probe agrees.
 ///
 /// Inject via `@Environment(ContactSyncController.self)`.
 @Observable
@@ -71,10 +77,11 @@ final class ContactSyncController {
     @ObservationIgnored nonisolated private let client: any ContactSyncing
     @ObservationIgnored nonisolated private let database: Database
     @ObservationIgnored nonisolated private let owner: AccountCluster
+    @ObservationIgnored nonisolated private let authorizationStatusProvider: @Sendable () -> CNAuthorizationStatus
 
-    /// `internal` (not `private`) so `FlipcashTests` can assert the dropped
-    /// trigger / debouncing behavior via `@testable import Flipcash`. Never
-    /// written from test code; production callers don't need it.
+    /// `internal` (not `private`) so `FlipcashTests` can assert the coalescing /
+    /// debouncing behavior via `@testable import Flipcash`. Never written from
+    /// test code; production callers don't need it.
     @ObservationIgnored internal private(set) var isSyncing = false
 
     /// `internal` (not `private`) so tests can await sync completion via
@@ -85,16 +92,29 @@ final class ContactSyncController {
     /// and ``didBecomeActive()`` gating. Never written from test code.
     @ObservationIgnored internal private(set) var observerTask: Task<Void, Never>?
 
+    /// Set true when ``sync()`` is called while another sync is in flight. The
+    /// running sync's completion block consumes the flag and re-triggers, so
+    /// CN-change bursts during sync don't get lost.
+    @ObservationIgnored private var needsResync = false
+
     nonisolated private var ownerKeyPair: KeyPair {
         owner.authority.keyPair
     }
 
     // MARK: - Init -
 
-    init(client: any ContactSyncing, database: Database, owner: AccountCluster) {
-        self.client   = client
-        self.database = database
-        self.owner    = owner
+    init(
+        client: any ContactSyncing,
+        database: Database,
+        owner: AccountCluster,
+        authorizationStatusProvider: @escaping @Sendable () -> CNAuthorizationStatus = {
+            CNContactStore.authorizationStatus(for: .contacts)
+        }
+    ) {
+        self.client                       = client
+        self.database                     = database
+        self.owner                        = owner
+        self.authorizationStatusProvider  = authorizationStatusProvider
     }
 
     deinit {
@@ -126,9 +146,8 @@ final class ContactSyncController {
     }
 
     /// Called from `AppDelegate.scenePhaseChanged(.active)` as a one-liner per
-    /// the codebase's fire-and-forget convention. **No-op until the controller
-    /// has been ``activate()``'d in this session** — cold launches and
-    /// pre-Send foregrounds do zero contact work.
+    /// the codebase's fire-and-forget convention. No-op until the controller
+    /// has been ``activate()``'d in this session.
     nonisolated func didBecomeActive() {
         Task { @MainActor [weak self] in
             guard let self, self.observerTask != nil else { return }
@@ -138,23 +157,33 @@ final class ContactSyncController {
 
     // MARK: - Sync -
 
-    /// Drops if a sync is already in flight; otherwise launches one. Heavy
-    /// work hops off the main actor via the `@concurrent nonisolated` ``runSync()``.
+    /// Coalesces if a sync is already in flight (re-runs once the current one
+    /// completes). Heavy work currently runs on the main actor — matches the
+    /// sibling `HistoryController` / `RatesController` pattern. An earlier
+    /// `Task { @concurrent in ... }` attempt to push work off-main caused
+    /// scheduling hangs in the test suite; revisit when the runtime around
+    /// `@concurrent` + protocol-existential dispatch is more settled.
     func sync() {
         guard !isSyncing else {
-            logger.debug("Sync already in flight — dropping trigger")
+            needsResync = true
+            logger.debug("Sync already in flight — coalescing trigger")
             return
         }
         isSyncing = true
+        needsResync = false
         syncTask = Task { [weak self] in
             await self?.runSync()
             self?.isSyncing = false
             self?.syncTask = nil
+            if self?.needsResync == true {
+                self?.needsResync = false
+                self?.sync()
+            }
         }
     }
 
-    @concurrent nonisolated private func runSync() async {
-        let status = CNContactStore.authorizationStatus(for: .contacts)
+    nonisolated private func runSync() async {
+        let status = authorizationStatusProvider()
         guard status == .authorized else {
             logger.debug("Skipping sync — contacts not authorized", metadata: [
                 "status": "\(status.rawValue)",
@@ -185,7 +214,9 @@ final class ContactSyncController {
         let phones      = contacts.map(\.e164)
         let newChecksum = Self.checksum(of: phones)
 
-        // Step 1 — steady-state idle: local unchanged AND server agrees.
+        // Step 1 — steady-state idle probe. If local hasn't changed since last
+        // sync, ask the server if it still agrees.
+        var serverDrifted = false
         if let storedChecksum = storedState.checksum, storedChecksum == newChecksum {
             let result = try await client.checkContactSync(
                 checksum: storedChecksum,
@@ -195,14 +226,22 @@ final class ContactSyncController {
                 logger.info("Sync skipped — local unchanged, server agrees")
                 return
             }
-            logger.info("Server reported drift — re-uploading")
+            // Server reports drift but our checksum hasn't changed — a delta
+            // would compute empty adds/removes with `old == new` and is
+            // structurally guaranteed to be rejected as `checksumDrift`. Skip
+            // straight to full upload.
+            serverDrifted = true
+            logger.info("Server reported drift on idle probe — uploading full set")
         }
 
         let snapshot = try database.localContactsSnapshot()
 
-        // Step 2 — full or delta upload. Drift on delta falls back to full in
-        // the same call.
-        if let oldChecksum = storedState.checksum, !snapshot.isEmpty {
+        // Step 2 — choose upload path. Server drift forces full; otherwise
+        // delta-if-available, full-on-first-sync. Delta with `.checksumDrift`
+        // falls back to full in the same call.
+        if serverDrifted {
+            try await uploadFull(phones: phones, checksum: newChecksum)
+        } else if let oldChecksum = storedState.checksum, !snapshot.isEmpty {
             let (adds, removes) = Self.delta(
                 oldSnapshot: snapshot.map(\.e164),
                 newContacts: phones
@@ -228,17 +267,19 @@ final class ContactSyncController {
             try await uploadFull(phones: phones, checksum: newChecksum)
         }
 
-        // Step 3 — persist new state. `changeHistory` stays nil per the
-        // doc-comment.
+        // Step 3 — refresh matched-set table FIRST so a stream failure leaves
+        // checksum and snapshot unmodified; the next sync's probe sees a
+        // mismatch (or a server-state delta) and re-runs the full flow.
+        try await refreshFlipcashContacts(checksum: newChecksum)
+
+        // Step 4 — persist new state only after both upload AND stream
+        // succeeded. `changeHistory` stays nil per the type doc-comment.
         try database.replaceLocalContactsSnapshot(contacts)
         try database.setContactSyncState(.init(
             checksum:      newChecksum,
             changeHistory: nil,
             lastSyncedAt:  .now
         ))
-
-        // Step 4 — refresh matched-set table from the server stream.
-        try await refreshFlipcashContacts(checksum: newChecksum)
     }
 
     nonisolated private func uploadFull(phones: [String], checksum: Data) async throws {

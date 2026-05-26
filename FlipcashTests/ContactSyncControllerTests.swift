@@ -3,6 +3,7 @@
 //  FlipcashTests
 //
 
+import Contacts
 import Foundation
 import Testing
 import FlipcashCore
@@ -11,14 +12,16 @@ import FlipcashCore
 /// Tests cover:
 /// - `nonisolated static` pure helpers (`checksum`, `delta`) — direct call
 /// - Lifecycle (``activate()``, ``didBecomeActive()``) — observed via internal
-///   `observerTask` / `syncTask` accessors
+///   `observerTask` / `syncTask` accessors and mock-call-count side effects
+///   (with an injected `authorizationStatusProvider` returning `.authorized` so
+///   the runSync auth gate doesn't short-circuit)
 /// - The state machine ``performSync(contacts:)`` — driven with synthetic
 ///   contacts and a `MockContactSync` conformer of `ContactSyncing`
 ///
-/// `runSync()` and `readContacts()` aren't directly covered: the former depends
-/// on `CNContactStore.authorizationStatus(for:)` (OS state, can't be mocked
-/// without further extraction); the latter is a thin shim over CN enumeration.
-/// They're exercised end-to-end via the dev-backend verification gate.
+/// `readContacts()` isn't directly covered: it depends on the real
+/// `CNContactStore`, and a synthetic CN backend would be more code than the
+/// shim it would replace. It's exercised end-to-end via the dev-backend
+/// verification gate.
 @Suite("ContactSyncController")
 struct ContactSyncControllerTests {
 
@@ -203,15 +206,44 @@ struct ContactSyncControllerTests {
 
     // MARK: - Lifecycle
 
-    @Suite("Lifecycle")
+    /// `.serialized` because each test spawns an observer Task that subscribes
+    /// to `NotificationCenter.default.notifications`; under parallel execution
+    /// those Tasks accumulate and starve the test scheduler.
+    ///
+    /// Default auth status is `.notDetermined` so `runSync` short-circuits
+    /// before reaching `readContacts()` — otherwise iOS would treat the test
+    /// process's first `enumerateContacts` call as a permission request and
+    /// raise a system prompt mid-suite. Tests that need to observe "sync was
+    /// triggered" use the `AuthCounter` pattern instead of letting the sync
+    /// reach CN.
+    @Suite("Lifecycle", .serialized)
     @MainActor
     struct LifecycleTests {
 
         private static func makeController(
             mock: MockContactSync = .init(),
-            database: Database = .mock
+            database: Database = .mock,
+            status: CNAuthorizationStatus = .notDetermined
         ) -> ContactSyncController {
-            ContactSyncController(client: mock, database: database, owner: .mock)
+            ContactSyncController(
+                client:                      mock,
+                database:                    database,
+                owner:                       .mock,
+                authorizationStatusProvider: { status }
+            )
+        }
+
+        /// Lets a test count how many times `runSync` reached its auth check
+        /// without ever letting `readContacts()` run (closure returns
+        /// `.notDetermined`, so runSync exits early — no CN access).
+        private final class AuthCounter: @unchecked Sendable {
+            private let lock = NSLock()
+            private var _count = 0
+            var count: Int { lock.withLock { _count } }
+            func bumpAndReturnNotDetermined() -> CNAuthorizationStatus {
+                lock.withLock { _count += 1 }
+                return .notDetermined
+            }
         }
 
         @Test("Construction is dormant — no observer, no sync, no task")
@@ -249,38 +281,72 @@ struct ContactSyncControllerTests {
 
         @Test("didBecomeActive() is a no-op before activate()")
         func didBecomeActiveNoOpBeforeActivate() async {
-            let controller = Self.makeController()
+            let counter = AuthCounter()
+            let controller = ContactSyncController(
+                client:                      MockContactSync(),
+                database:                    .mock,
+                owner:                       .mock,
+                authorizationStatusProvider: counter.bumpAndReturnNotDetermined
+            )
             controller.didBecomeActive()
-            // didBecomeActive spawns a main-actor Task that bails on the
-            // observerTask guard. Yield twice — once for the spawn, once for
-            // the guard check — then assert nothing started.
             await Task.yield()
             await Task.yield()
+
+            // No sync was launched: didBecomeActive bailed on the observerTask
+            // guard before spawning sync(), so runSync was never called.
             #expect(controller.syncTask == nil)
             #expect(controller.isSyncing == false)
+            #expect(counter.count == 0)
         }
 
-        @Test("didBecomeActive() triggers sync once activate() has been called")
-        func didBecomeActiveAfterActivate() async {
-            let controller = Self.makeController()
+        @Test("didBecomeActive() actually triggers a sync after activate()")
+        func didBecomeActiveTriggersSyncAfterActivate() async throws {
+            let counter = AuthCounter()
+            let controller = ContactSyncController(
+                client:                      MockContactSync(),
+                database:                    .mock,
+                owner:                       .mock,
+                authorizationStatusProvider: counter.bumpAndReturnNotDetermined
+            )
+
+            // activate() runs sync() → runSync() → auth check (bump 1) → bail.
             controller.activate()
             await controller.syncTask?.value
-            #expect(controller.syncTask == nil)
+            #expect(counter.count == 1)
 
+            // didBecomeActive() → Task @MainActor → sync() → runSync() → bump 2.
             controller.didBecomeActive()
-            await Task.yield()
-            await Task.yield()
-            // The didBecomeActive's main-actor Task should have hit sync() by
-            // now, which sets syncTask. Either it's still in flight or it has
-            // already completed and cleared itself — but `isSyncing` was
-            // briefly true and observerTask remains set.
-            #expect(controller.observerTask != nil)
+            try await Self.awaitCounter(counter, atLeast: 2, controller: controller)
+
+            #expect(counter.count == 2)
+        }
+
+        /// Bounded wait — the spawned `Task { @MainActor in sync() }` from
+        /// `didBecomeActive` runs after a few yields. 1s is generous; a real
+        /// hang fails fast instead of waiting on a suite-level timeLimit.
+        private static func awaitCounter(
+            _ counter: AuthCounter,
+            atLeast target: Int,
+            controller: ContactSyncController
+        ) async throws {
+            let deadline = Date.now.addingTimeInterval(1.0)
+            while counter.count < target, Date.now < deadline {
+                if let task = controller.syncTask {
+                    await task.value
+                } else {
+                    await Task.yield()
+                }
+            }
         }
     }
 
     // MARK: - State machine
 
-    @Suite("performSync(contacts:)")
+    /// `.serialized` because parallel `@MainActor` tests starve each other on
+    /// main when one drives a Task-spawning sync path; each `performSync` is
+    /// fast on its own (sub-second). No `.timeLimit` — every test has a
+    /// deterministic exit path through `performSync(contacts:)`.
+    @Suite("performSync(contacts:)", .serialized)
     @MainActor
     struct PerformSyncTests {
 
@@ -289,6 +355,24 @@ struct ContactSyncControllerTests {
             database: Database
         ) -> ContactSyncController {
             ContactSyncController(client: mock, database: database, owner: .mock)
+        }
+
+        /// Seeds `contact_sync_state` (and optionally `local_contacts_snapshot`)
+        /// so a test can rehearse a non-empty starting condition without the
+        /// `setContactSyncState` + `replaceLocalContactsSnapshot` boilerplate.
+        private static func seedDatabase(
+            _ database: Database,
+            checksum: Data,
+            snapshot: [Database.LocalContact] = []
+        ) throws {
+            try database.setContactSyncState(.init(
+                checksum:      checksum,
+                changeHistory: nil,
+                lastSyncedAt:  Date(timeIntervalSince1970: 1_716_000_000)
+            ))
+            if !snapshot.isEmpty {
+                try database.replaceLocalContactsSnapshot(snapshot)
+            }
         }
 
         private static let aliceContact = Database.LocalContact(e164: "+14155550100", contactId: "alice")
@@ -307,13 +391,14 @@ struct ContactSyncControllerTests {
 
             #expect(mock.checkSyncCalls.isEmpty)
             #expect(mock.deltaCalls.isEmpty)
+            let fullCall = try #require(mock.fullCalls.first)
             #expect(mock.fullCalls.count == 1)
-            #expect(mock.fullCalls[0].phones == contacts.map(\.e164))
+            #expect(fullCall.phones == contacts.map(\.e164))
             #expect(mock.streamCalls.count == 1)
 
             let storedState = try database.contactSyncState()
             #expect(storedState.checksum == ContactSyncController.checksum(of: contacts.map(\.e164)))
-            #expect(storedState.lastSyncedAt != nil)
+            try #require(storedState.lastSyncedAt != nil)
 
             #expect(try database.localContactsSnapshot().map(\.e164) == contacts.map(\.e164))
             #expect(try database.flipcashContacts() == ["+14155550101"])
@@ -328,12 +413,7 @@ struct ContactSyncControllerTests {
 
             let contacts = [Self.aliceContact, Self.bobContact]
             let storedChecksum = ContactSyncController.checksum(of: contacts.map(\.e164))
-            try database.setContactSyncState(.init(
-                checksum:      storedChecksum,
-                changeHistory: nil,
-                lastSyncedAt:  .now
-            ))
-            try database.replaceLocalContactsSnapshot(contacts)
+            try Self.seedDatabase(database, checksum: storedChecksum, snapshot: contacts)
 
             try await controller.performSync(contacts: contacts)
 
@@ -347,31 +427,26 @@ struct ContactSyncControllerTests {
         func localChanged_deltaUploadAndStream() async throws {
             let mock = MockContactSync()
             mock.deltaUploadResult = .success(.ok)
-            mock.streamYields = []
             let database = Database.mock
             let controller = Self.makeController(mock: mock, database: database)
 
             let oldSnapshot = [Self.aliceContact]
             let oldChecksum = ContactSyncController.checksum(of: oldSnapshot.map(\.e164))
-            try database.setContactSyncState(.init(
-                checksum:      oldChecksum,
-                changeHistory: nil,
-                lastSyncedAt:  .now
-            ))
-            try database.replaceLocalContactsSnapshot(oldSnapshot)
+            try Self.seedDatabase(database, checksum: oldChecksum, snapshot: oldSnapshot)
 
             let newContacts = [Self.aliceContact, Self.bobContact]
             try await controller.performSync(contacts: newContacts)
 
+            let deltaCall = try #require(mock.deltaCalls.first)
             #expect(mock.deltaCalls.count == 1)
-            let call = mock.deltaCalls[0]
-            #expect(call.adds == ["+14155550101"])
-            #expect(call.removes.isEmpty)
-            #expect(call.oldChecksum == oldChecksum)
-            #expect(call.newChecksum == ContactSyncController.checksum(of: newContacts.map(\.e164)))
+            #expect(deltaCall.adds == ["+14155550101"])
+            #expect(deltaCall.removes.isEmpty)
+            #expect(deltaCall.oldChecksum == oldChecksum)
+            #expect(deltaCall.newChecksum == ContactSyncController.checksum(of: newContacts.map(\.e164)))
             #expect(mock.fullCalls.isEmpty)
             #expect(mock.streamCalls.count == 1)
-            #expect(mock.checkSyncCalls.isEmpty)  // checksum differs from stored, so the idle probe is skipped
+            // Checksum differs from stored, so the idle probe is skipped entirely.
+            #expect(mock.checkSyncCalls.isEmpty)
         }
 
         @Test("CHECKSUM_DRIFT on delta → fallback to full upload in same call")
@@ -383,53 +458,45 @@ struct ContactSyncControllerTests {
 
             let oldSnapshot = [Self.aliceContact]
             let oldChecksum = ContactSyncController.checksum(of: oldSnapshot.map(\.e164))
-            try database.setContactSyncState(.init(
-                checksum:      oldChecksum,
-                changeHistory: nil,
-                lastSyncedAt:  .now
-            ))
-            try database.replaceLocalContactsSnapshot(oldSnapshot)
+            try Self.seedDatabase(database, checksum: oldChecksum, snapshot: oldSnapshot)
 
             let newContacts = [Self.aliceContact, Self.bobContact, Self.carolContact]
             try await controller.performSync(contacts: newContacts)
 
             #expect(mock.deltaCalls.count == 1)
+            let fullCall = try #require(mock.fullCalls.first)
             #expect(mock.fullCalls.count == 1)
-            #expect(mock.fullCalls[0].phones == newContacts.map(\.e164))
+            #expect(fullCall.phones == newContacts.map(\.e164))
             #expect(mock.streamCalls.count == 1)
 
-            // State still persisted with the new checksum after the fallback.
+            // State persisted with the new checksum after the fallback (only
+            // because the stream succeeded — see persist-after-refresh ordering).
             let storedState = try database.contactSyncState()
             #expect(storedState.checksum == ContactSyncController.checksum(of: newContacts.map(\.e164)))
         }
 
-        @Test("Server drift on idle probe — falls through to upload")
-        func serverDriftOnProbe_fallsThroughToUpload() async throws {
+        @Test("Server drift on idle probe → straight to full upload (skips doomed delta)")
+        func serverDriftOnProbe_goesStraightToFullUpload() async throws {
             let mock = MockContactSync()
             mock.checkSyncResult = .success(.outOfSync(serverChecksum: Data(repeating: 0xAB, count: 32)))
-            mock.deltaUploadResult = .success(.ok)
             let database = Database.mock
             let controller = Self.makeController(mock: mock, database: database)
 
             let contacts = [Self.aliceContact, Self.bobContact]
             let storedChecksum = ContactSyncController.checksum(of: contacts.map(\.e164))
-            try database.setContactSyncState(.init(
-                checksum:      storedChecksum,
-                changeHistory: nil,
-                lastSyncedAt:  .now
-            ))
-            try database.replaceLocalContactsSnapshot(contacts)
+            try Self.seedDatabase(database, checksum: storedChecksum, snapshot: contacts)
 
             try await controller.performSync(contacts: contacts)
 
-            // Probe fired, returned outOfSync → fall through to delta upload
-            // (snapshot present, oldChecksum present). Adds/removes empty
-            // because local and snapshot agree; the upload re-asserts the
-            // checksum.
+            // Probe fired, returned outOfSync → since old == new (local
+            // unchanged), a delta would compute empty adds/removes and the
+            // server would always reject it; the controller goes straight to
+            // full upload to avoid the wasted round-trip.
             #expect(mock.checkSyncCalls == [storedChecksum])
-            #expect(mock.deltaCalls.count == 1)
-            #expect(mock.deltaCalls[0].adds.isEmpty)
-            #expect(mock.deltaCalls[0].removes.isEmpty)
+            #expect(mock.deltaCalls.isEmpty)
+            let fullCall = try #require(mock.fullCalls.first)
+            #expect(mock.fullCalls.count == 1)
+            #expect(fullCall.phones == contacts.map(\.e164))
             #expect(mock.streamCalls.count == 1)
         }
 
@@ -442,11 +509,7 @@ struct ContactSyncControllerTests {
 
             // Stored checksum without a snapshot — e.g. snapshot was wiped
             // (SQLiteVersion bump preserved sync_state but lost snapshot).
-            try database.setContactSyncState(.init(
-                checksum:      Data(repeating: 0xFF, count: 32),
-                changeHistory: nil,
-                lastSyncedAt:  .now
-            ))
+            try Self.seedDatabase(database, checksum: Data(repeating: 0xFF, count: 32))
 
             let contacts = [Self.aliceContact]
             try await controller.performSync(contacts: contacts)
@@ -466,10 +529,30 @@ struct ContactSyncControllerTests {
                 try await controller.performSync(contacts: [Self.aliceContact])
             }
 
-            // Pre-upload state untouched
+            // Pre-upload state untouched.
             #expect(try database.contactSyncState() == .empty)
             #expect(try database.localContactsSnapshot().isEmpty)
             #expect(try database.flipcashContacts().isEmpty)
+        }
+
+        @Test("Stream failure leaves state unmodified so next sync re-runs end-to-end")
+        func streamFailure_doesNotPersist() async throws {
+            let mock = MockContactSync()
+            mock.streamTerminalError = ErrorContactSync.networkError
+            let database = Database.mock
+            let controller = Self.makeController(mock: mock, database: database)
+
+            await #expect(throws: ErrorContactSync.networkError) {
+                try await controller.performSync(contacts: [Self.aliceContact])
+            }
+
+            // Upload succeeded but stream failed AFTER it — checksum and
+            // snapshot stay empty so the next sync's probe sees a mismatch
+            // and re-runs end-to-end (recovering matched-set freshness).
+            #expect(mock.fullCalls.count == 1)
+            #expect(mock.streamCalls.count == 1)
+            #expect(try database.contactSyncState() == .empty)
+            #expect(try database.localContactsSnapshot().isEmpty)
         }
 
         @Test("CheckSync `.denied` from server propagates")
@@ -481,11 +564,7 @@ struct ContactSyncControllerTests {
 
             let contacts = [Self.aliceContact]
             let storedChecksum = ContactSyncController.checksum(of: contacts.map(\.e164))
-            try database.setContactSyncState(.init(
-                checksum:      storedChecksum,
-                changeHistory: nil,
-                lastSyncedAt:  .now
-            ))
+            try Self.seedDatabase(database, checksum: storedChecksum, snapshot: contacts)
 
             await #expect(throws: ErrorContactSync.denied) {
                 try await controller.performSync(contacts: contacts)
