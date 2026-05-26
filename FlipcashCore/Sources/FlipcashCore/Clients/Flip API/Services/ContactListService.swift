@@ -1,0 +1,339 @@
+//
+//  ContactListService.swift
+//  FlipcashCore
+//
+
+import Foundation
+import FlipcashAPI
+import GRPC
+
+private let logger = Logger(label: "flipcash.contact-list-service")
+
+class ContactListService: CodeService<Flipcash_Contact_V1_ContactListNIOClient> {
+
+    // MARK: - CheckSync (unary) -
+
+    func checkSync(
+        checksum: Data,
+        owner: KeyPair,
+        completion: @Sendable @escaping (Result<CheckSyncResult, ErrorContactSync>) -> Void
+    ) {
+        logger.info("Checking contact sync state")
+
+        let request = Flipcash_Contact_V1_CheckSyncRequest.with {
+            $0.clientChecksum = .with { $0.value = checksum }
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        let call = service.checkSync(request)
+        call.handle(on: queue) { response in
+            switch response.result {
+            case .ok:
+                completion(.success(.ok))
+            case .outOfSync:
+                completion(.success(.outOfSync(serverChecksum: response.serverChecksum.value)))
+            case .denied:
+                logger.warning("CheckSync denied")
+                completion(.failure(.denied))
+            case .UNRECOGNIZED(let raw):
+                logger.warning("CheckSync unknown result", metadata: ["raw": "\(raw)"])
+                completion(.failure(.unknown))
+            }
+        } failure: { _ in
+            completion(.failure(.unknown))
+        }
+    }
+
+    // MARK: - DeltaUpload (unary) -
+
+    func deltaUpload(
+        adds: [String],
+        removes: [String],
+        oldChecksum: Data,
+        newChecksum: Data,
+        owner: KeyPair,
+        completion: @Sendable @escaping (Result<DeltaUploadResult, ErrorContactSync>) -> Void
+    ) {
+        logger.info("Uploading contact delta", metadata: [
+            "adds": "\(adds.count)",
+            "removes": "\(removes.count)"
+        ])
+
+        let request = Flipcash_Contact_V1_DeltaUploadRequest.with {
+            $0.adds = adds.map { e164 in
+                Flipcash_Phone_V1_PhoneNumber.with { $0.value = e164 }
+            }
+            $0.removes = removes.map { e164 in
+                Flipcash_Phone_V1_PhoneNumber.with { $0.value = e164 }
+            }
+            $0.oldChecksum = .with { $0.value = oldChecksum }
+            $0.newChecksum = .with { $0.value = newChecksum }
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        let call = service.deltaUpload(request)
+        call.handle(on: queue) { response in
+            switch response.result {
+            case .ok:
+                logger.info("Contact delta upload accepted")
+                completion(.success(.ok))
+            case .checksumDrift:
+                logger.warning("Contact delta upload reported checksum drift")
+                completion(.success(.checksumDrift))
+            case .denied:
+                logger.warning("DeltaUpload denied")
+                completion(.failure(.denied))
+            case .checksumMismatch:
+                logger.error("DeltaUpload checksum mismatch — client computed wrong new_checksum")
+                completion(.failure(.checksumMismatch))
+            case .tooManyContacts:
+                logger.warning("DeltaUpload rejected — too many contacts")
+                completion(.failure(.tooManyContacts))
+            case .UNRECOGNIZED(let raw):
+                logger.warning("DeltaUpload unknown result", metadata: ["raw": "\(raw)"])
+                completion(.failure(.unknown))
+            }
+        } failure: { _ in
+            completion(.failure(.unknown))
+        }
+    }
+
+    // MARK: - FullUpload (client-streaming) -
+
+    /// Replace the server's stored contact set with `phones`. Chunked into
+    /// requests of up to 1000 phones each per the proto's per-message cap.
+    /// The final request carries `expectedChecksum` to mark end-of-upload.
+    func fullUpload(
+        phones: [String],
+        checksum: Data,
+        owner: KeyPair,
+        completion: @Sendable @escaping (Result<Void, ErrorContactSync>) -> Void
+    ) {
+        logger.info("Starting full contact upload", metadata: ["count": "\(phones.count)"])
+
+        let call = service.fullUpload(callOptions: .streaming)
+
+        let chunks = Self.chunked(phones, into: Self.batchSize)
+
+        if chunks.isEmpty {
+            let request = Flipcash_Contact_V1_FullUploadRequest.with {
+                $0.expectedChecksum = .with { $0.value = checksum }
+                $0.auth = owner.authFor(message: $0)
+            }
+            _ = call.sendMessage(request)
+        } else {
+            for (index, chunk) in chunks.enumerated() {
+                let isLast = (index == chunks.count - 1)
+                let request = Flipcash_Contact_V1_FullUploadRequest.with {
+                    $0.phones = chunk.map { e164 in
+                        Flipcash_Phone_V1_PhoneNumber.with { $0.value = e164 }
+                    }
+                    if isLast {
+                        $0.expectedChecksum = .with { $0.value = checksum }
+                    }
+                    $0.auth = owner.authFor(message: $0)
+                }
+                _ = call.sendMessage(request)
+            }
+        }
+
+        call.sendEnd(promise: nil)
+
+        call.response.whenSuccessBlocking(onto: queue) { response in
+            switch response.result {
+            case .ok:
+                logger.info("Full contact upload succeeded")
+                completion(.success(()))
+            case .denied:
+                logger.warning("FullUpload denied")
+                completion(.failure(.denied))
+            case .checksumMismatch:
+                logger.error("FullUpload checksum mismatch")
+                completion(.failure(.checksumMismatch))
+            case .tooManyContacts:
+                logger.warning("FullUpload rejected — too many contacts")
+                completion(.failure(.tooManyContacts))
+            case .UNRECOGNIZED(let raw):
+                logger.warning("FullUpload unknown result", metadata: ["raw": "\(raw)"])
+                completion(.failure(.unknown))
+            }
+        }
+        call.response.whenFailureBlocking(onto: queue) { error in
+            logger.error("FullUpload network error", metadata: ["error": "\(error)"])
+            completion(.failure(.unknown))
+        }
+    }
+
+    // MARK: - GetFlipcashContacts (server-streaming) -
+
+    /// Streams the server's currently-matched contact set. Each `onResponse`
+    /// invocation delivers up to 1000 contacts (per proto cap). When the
+    /// stream completes, `onCompletion` fires exactly once.
+    ///
+    /// Cancel via the returned token to tear down the gRPC call.
+    @discardableResult
+    func getFlipcashContacts(
+        checksum: Data,
+        owner: KeyPair,
+        onResponse: @MainActor @Sendable @escaping (FlipcashContactsBatch) -> Void,
+        onCompletion: @MainActor @Sendable @escaping (Result<Void, ErrorContactSync>) -> Void
+    ) -> ContactsStreamCancellation {
+        logger.info("Opening Flipcash contacts stream")
+
+        let request = Flipcash_Contact_V1_GetFlipcashContactsRequest.with {
+            $0.checksum = .with { $0.value = checksum }
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        let streamReference = StreamReference<
+            Flipcash_Contact_V1_GetFlipcashContactsRequest,
+            Flipcash_Contact_V1_GetFlipcashContactsResponse
+        >()
+
+        let stream = service.getFlipcashContacts(request, callOptions: .streaming) { response in
+            let phones = response.contacts.compactMap { Phone($0.phone.value) }
+            let batch = FlipcashContactsBatch(
+                result: FlipcashContactsBatch.Result(response.result),
+                phones: phones
+            )
+            Task { @MainActor in onResponse(batch) }
+        }
+
+        streamReference.stream = stream
+
+        stream.status.whenCompleteBlocking(onto: queue) { result in
+            let mapped: Result<Void, ErrorContactSync>
+            switch result {
+            case .success(let status) where status.code == .ok:
+                logger.info("Flipcash contacts stream completed")
+                mapped = .success(())
+            case .success(let status):
+                logger.warning("Flipcash contacts stream closed with non-OK status", metadata: [
+                    "code": "\(status.code)"
+                ])
+                mapped = .failure(.unknown)
+            case .failure(let error):
+                logger.error("Flipcash contacts stream network error", metadata: ["error": "\(error)"])
+                mapped = .failure(.unknown)
+            }
+            Task { @MainActor in onCompletion(mapped) }
+        }
+
+        return ContactsStreamCancellation(streamReference)
+    }
+
+    // MARK: - Helpers -
+
+    private static let batchSize = 1000
+
+    private static func chunked<T>(_ items: [T], into size: Int) -> [[T]] {
+        guard !items.isEmpty else { return [] }
+        return stride(from: 0, to: items.count, by: size).map {
+            Array(items[$0..<min($0 + size, items.count)])
+        }
+    }
+}
+
+// MARK: - Result Types -
+
+public enum CheckSyncResult: Equatable, Sendable {
+    case ok
+    case outOfSync(serverChecksum: Data)
+}
+
+public enum DeltaUploadResult: Equatable, Sendable {
+    /// The delta was applied. Persist `newChecksum` as the next call's
+    /// `oldChecksum`.
+    case ok
+    /// The server's stored checksum matched neither `oldChecksum` nor
+    /// `newChecksum`. Caller should fall back to `fullUpload`.
+    case checksumDrift
+}
+
+public struct FlipcashContactsBatch: Equatable, Sendable {
+    public enum Result: Equatable, Sendable {
+        case ok
+        case denied
+        case notFound
+        case checksumDrift
+        case unknown
+    }
+
+    public let result: Result
+    public let phones: [Phone]
+}
+
+extension FlipcashContactsBatch.Result {
+    init(_ proto: Flipcash_Contact_V1_GetFlipcashContactsResponse.Result) {
+        switch proto {
+        case .ok: self = .ok
+        case .denied: self = .denied
+        case .notFound: self = .notFound
+        case .checksumDrift: self = .checksumDrift
+        case .UNRECOGNIZED: self = .unknown
+        }
+    }
+}
+
+/// Sendable handle for cancelling a `getFlipcashContacts` stream. Holds the
+/// underlying gRPC call reference; calling `cancel()` is safe from any thread.
+public final class ContactsStreamCancellation: @unchecked Sendable {
+    private let reference: AnyObject
+    private let _cancel: () -> Void
+
+    init<Request, Response>(_ reference: StreamReference<Request, Response>) {
+        self.reference = reference
+        self._cancel = { reference.cancel() }
+    }
+
+    public func cancel() { _cancel() }
+}
+
+// MARK: - Errors -
+
+public enum ErrorContactSync: Int, Error {
+    case ok = 0
+    case denied = 1
+    case checksumMismatch = 2
+    case tooManyContacts = 3
+    case notFound = 4
+    case checksumDrift = 5
+    case unknown = -1
+}
+
+extension ErrorContactSync: ServerError {
+    public var isReportable: Bool {
+        switch self {
+        case .ok, .denied, .checksumMismatch, .tooManyContacts, .notFound, .checksumDrift: false
+        case .unknown: true
+        }
+    }
+}
+
+// MARK: - Interceptors -
+
+extension InterceptorFactory: Flipcash_Contact_V1_ContactListClientInterceptorFactoryProtocol {
+    func makeCheckSyncInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Contact_V1_CheckSyncRequest, Flipcash_Contact_V1_CheckSyncResponse>] {
+        makeInterceptors()
+    }
+
+    func makeDeltaUploadInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Contact_V1_DeltaUploadRequest, Flipcash_Contact_V1_DeltaUploadResponse>] {
+        makeInterceptors()
+    }
+
+    func makeFullUploadInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Contact_V1_FullUploadRequest, Flipcash_Contact_V1_FullUploadResponse>] {
+        makeInterceptors()
+    }
+
+    func makeGetFlipcashContactsInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Contact_V1_GetFlipcashContactsRequest, Flipcash_Contact_V1_GetFlipcashContactsResponse>] {
+        makeInterceptors()
+    }
+}
+
+// MARK: - GRPCClientType -
+
+extension Flipcash_Contact_V1_ContactListNIOClient: GRPCClientType {
+    init(channel: GRPCChannel) {
+        self.init(channel: channel, defaultCallOptions: .default, interceptors: InterceptorFactory())
+    }
+}

@@ -1,0 +1,90 @@
+//
+//  PaymentDestinationService.swift
+//  FlipcashCore
+//
+
+import Foundation
+import FlipcashAPI
+import GRPC
+
+private let logger = Logger(label: "flipcash.payment-destination-service")
+
+class PaymentDestinationService: CodeService<Flipcash_Resolver_V1_ResolverNIOClient> {
+
+    /// Resolve an E.164 phone to the on-chain payment destination.
+    /// `nil` for NOT_FOUND (the recipient is not on Flipcash); throws for
+    /// hard failures (DENIED, network errors).
+    func resolve(
+        phone: String,
+        owner: KeyPair,
+        completion: @Sendable @escaping (Result<PublicKey?, ErrorResolveDestination>) -> Void
+    ) {
+        logger.info("Resolving payment destination")
+
+        let request = Flipcash_Resolver_V1_ResolveRequest.with {
+            $0.identifier = .with {
+                $0.phone = .with { $0.value = phone }
+            }
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        let call = service.resolve(request)
+        call.handle(on: queue) { response in
+            switch response.result {
+            case .ok:
+                guard
+                    case .address(let addressProto) = response.resolution.kind,
+                    let publicKey = try? PublicKey(addressProto.value)
+                else {
+                    logger.error("Resolve OK but resolution missing address")
+                    completion(.failure(.unknown))
+                    return
+                }
+                completion(.success(publicKey))
+            case .notFound:
+                completion(.success(nil))
+            case .denied:
+                logger.warning("Resolve denied")
+                completion(.failure(.denied))
+            case .UNRECOGNIZED(let raw):
+                logger.warning("Resolve unknown result", metadata: ["raw": "\(raw)"])
+                completion(.failure(.unknown))
+            }
+        } failure: { _ in
+            completion(.failure(.unknown))
+        }
+    }
+}
+
+// MARK: - Errors -
+
+public enum ErrorResolveDestination: Int, Error {
+    case ok = 0
+    case denied = 1
+    case unknown = -1
+}
+
+extension ErrorResolveDestination: ServerError {
+    public var isReportable: Bool {
+        switch self {
+        case .ok, .denied: false
+        case .unknown: true
+        }
+    }
+}
+
+// MARK: - Interceptors -
+
+extension InterceptorFactory: Flipcash_Resolver_V1_ResolverClientInterceptorFactoryProtocol {
+    func makeResolveInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Resolver_V1_ResolveRequest, Flipcash_Resolver_V1_ResolveResponse>] {
+        makeInterceptors()
+    }
+}
+
+// MARK: - GRPCClientType -
+
+extension Flipcash_Resolver_V1_ResolverNIOClient: GRPCClientType {
+    init(channel: GRPCChannel) {
+        self.init(channel: channel, defaultCallOptions: .default, interceptors: InterceptorFactory())
+    }
+}
