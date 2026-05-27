@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Refuse commits that include sensitive files — credentials, signing keys,
+# CI scripts, or any file that flips between dummy/real values per local
+# environment. Most of these are gitignored, but `git add -f` bypasses
+# .gitignore and would silently commit secrets; this hook is the safety net.
+
+set -e
+
+# Exact paths.
+FORBIDDEN_PATHS=(
+    "Flipcash/Supporting Files/GoogleService-Info.plist"
+    "Configurations/secrets.xcconfig"
+    "Configurations/secrets.local.xcconfig"
+    ".env"
+    ".env.local"
+    "ci_scripts/ci_post_xcodebuild.sh"
+)
+
+# Glob patterns — match the staged path against each via `case`. The shell's
+# `*` does match `/`, so `*.p8` catches `AuthKey.p8` and `Subdir/Auth.p8`.
+FORBIDDEN_GLOBS=(
+    "*.p8"
+)
+
+block() {
+    cat >&2 <<EOF
+error: refusing to commit changes to '$1'.
+
+This path is on the secret-file blocklist (see Scripts/git-hooks/pre-commit).
+
+To unstage:
+  git restore --staged -- "$1"
+
+To discard the working-tree change too:
+  git restore -- "$1"
+EOF
+    exit 1
+}
+
+while IFS= read -r -d '' staged_path; do
+    for forbidden in "${FORBIDDEN_PATHS[@]}"; do
+        if [ "$staged_path" = "$forbidden" ]; then
+            block "$staged_path"
+        fi
+    done
+    for pattern in "${FORBIDDEN_GLOBS[@]}"; do
+        case "$staged_path" in
+            $pattern) block "$staged_path" ;;
+        esac
+    done
+done < <(git diff --cached --name-only -z)

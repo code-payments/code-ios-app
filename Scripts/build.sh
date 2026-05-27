@@ -17,6 +17,13 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/.."
 
+# Ensure the repo's versioned pre-commit hook is active. Idempotent — first
+# build of a fresh clone wires it up; subsequent runs are silent.
+if [[ "$(git config --get core.hooksPath 2>/dev/null || true)" != "Scripts/git-hooks" ]]; then
+    git config core.hooksPath Scripts/git-hooks
+    echo "✓ git hooks installed: core.hooksPath = Scripts/git-hooks"
+fi
+
 # Resolve a paired iOS device UDID via devicectl.
 #
 # Use devicectl, NOT `xcrun xctrace list devices` — xctrace often labels
