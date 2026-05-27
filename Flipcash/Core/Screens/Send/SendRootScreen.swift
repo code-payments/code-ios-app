@@ -8,8 +8,7 @@ import FlipcashCore
 import FlipcashUI
 
 /// Root view for the Send sheet. Gates entry on a verified phone and
-/// authorized contacts; the satisfied state renders a placeholder for the
-/// recipient picker.
+/// authorized contacts; the satisfied state renders the recipient picker.
 struct SendRootScreen: View {
 
     @Environment(Session.self) private var session
@@ -20,13 +19,11 @@ struct SendRootScreen: View {
     @State private var contactsAuthorizer = ContactsAuthorizer()
 
     private let container: Container
-    private let sessionContainer: SessionContainer
 
     // MARK: - Init -
 
-    init(container: Container, sessionContainer: SessionContainer) {
-        self.container        = container
-        self.sessionContainer = sessionContainer
+    init(container: Container) {
+        self.container = container
     }
 
     // MARK: - Body -
@@ -42,8 +39,20 @@ struct SendRootScreen: View {
                     onAllowed: { contactSyncController.activate() },
                     onSkipped: nil
                 )
+            case .loadingContacts:
+                // Already authorized; controller is resolving the directory
+                // for the first time this session. Keep the priming screen
+                // visible with a spinner on the primary button so the user
+                // sees clear in-progress feedback instead of a flash to a
+                // half-populated picker.
+                ContactsPermissionScreen(
+                    authorizer: contactsAuthorizer,
+                    onAllowed: { contactSyncController.activate() },
+                    onSkipped: nil,
+                    isAllowing: true
+                )
             case .ready:
-                RecipientPickerPlaceholder()
+                RecipientPickerScreen()
             }
         }
         .sheet(item: $phoneVerificationViewModel.cancellingOnDismiss()) { viewModel in
@@ -56,6 +65,7 @@ struct SendRootScreen: View {
     private enum Step {
         case needsPhone
         case needsContacts
+        case loadingContacts
         case ready
     }
 
@@ -63,7 +73,10 @@ struct SendRootScreen: View {
         guard session.profile?.isPhoneVerified ?? false else {
             return .needsPhone
         }
-        return contactsAuthorizer.status == .authorized ? .ready : .needsContacts
+        guard contactsAuthorizer.status == .authorized else {
+            return .needsContacts
+        }
+        return contactSyncController.hasResolvedOnce ? .ready : .loadingContacts
     }
 
     // MARK: - Phone verification handoff -
@@ -84,17 +97,3 @@ struct SendRootScreen: View {
     }
 }
 
-// MARK: - Picker placeholder -
-
-private struct RecipientPickerPlaceholder: View {
-    var body: some View {
-        // TODO: replace with `RecipientPickerScreen`.
-        VStack(spacing: 12) {
-            ProgressView()
-            Text("Recipient picker arrives in Phase 5")
-                .font(.appTextMedium)
-                .foregroundStyle(Color.textSecondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
