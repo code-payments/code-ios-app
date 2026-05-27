@@ -118,6 +118,14 @@ struct IntroScreen: View {
                     NotificationPermissionDeniedScreen(viewModel: viewModel)
                 case .contactsPermissions:
                     OnboardingContactsPermissionStep(viewModel: viewModel)
+                case .phoneVerification:
+                    OnboardingPhoneVerificationStep(viewModel: viewModel)
+                case .confirmPhoneNumberCode:
+                    if let phoneVM = viewModel.phoneVerificationViewModel {
+                        ConfirmPhoneScreen(viewModel: phoneVM)
+                            .navigationTitle("Connect Phone Number")
+                            .navigationBarBackButtonHidden(true)
+                    }
                 }
             }
         }
@@ -158,6 +166,24 @@ private struct OnboardingContactsPermissionStep: View {
             .subtle("I'm Sure") {
                 viewModel.skipContactsAction()
             }
+        }
+    }
+}
+
+// MARK: - Phone verification step -
+
+/// Wrapper for the onboarding phone entry screen. Reads the shared
+/// `PhoneVerificationViewModel` from `OnboardingViewModel` so the
+/// follow-up `ConfirmPhoneScreen` destination binds the same instance.
+private struct OnboardingPhoneVerificationStep: View {
+
+    let viewModel: OnboardingViewModel
+
+    var body: some View {
+        if let phoneVM = viewModel.phoneVerificationViewModel {
+            EnterPhoneScreen(viewModel: phoneVM)
+                .navigationTitle("Connect Phone Number")
+                .navigationBarBackButtonHidden(true)
         }
     }
 }
