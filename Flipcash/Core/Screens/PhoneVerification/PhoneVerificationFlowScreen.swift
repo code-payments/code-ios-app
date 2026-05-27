@@ -40,6 +40,7 @@ struct PhoneVerificationFlowScreen<VM: PhoneVerifying>: View {
                     case .confirmPhoneNumberCode:
                         ConfirmPhoneScreen(viewModel: viewModel)
                             .interactiveDismissDisabled()
+                            .navigationTitle("Connect Phone Number")
                     }
                 }
                 .ignoresSafeArea(.keyboard)

@@ -107,6 +107,44 @@ class BaseUITestCase: XCTestCase {
         return amountEntry
     }
 
+    /// Drives the phone-verification flow using the backend mock phone
+    /// (`+15005550000`), which auto-succeeds `SendVerificationCode` and
+    /// `CheckVerificationCode` regardless of the typed code. Resilient to
+    /// the case where the flow isn't presented (re-auth, prior verify).
+    /// Detection uses per-screen elements rather than the navigation title
+    /// because both EnterPhoneScreen and ConfirmPhoneScreen render under
+    /// the same nav title.
+    func allowPhoneVerificationIfNeeded() {
+        // EnterPhoneScreen signature: the "Phone Number" text field.
+        let phoneField = app.textFields["Phone Number"]
+        guard phoneField.waitForExistence(timeout: 2) else { return }
+        phoneField.tap()
+        // US-default region, so only the 10 digits get typed; the formatter
+        // prepends "+1".
+        phoneField.typeText("5005550000")
+
+        waitAndTap(app.buttons["Next"])
+
+        // ConfirmPhoneScreen signature: the Confirm CodeButton. The hidden
+        // code field auto-focuses ~100ms after appear; six typed digits
+        // trigger `confirmPhoneNumberCodeAction()` via the onChange hook.
+        let confirmButton = app.buttons["Confirm"]
+        XCTAssertTrue(
+            confirmButton.waitForExistence(timeout: 10),
+            "Expected `ConfirmPhoneScreen` after submitting the mock phone number"
+        )
+        app.typeText("123456")
+
+        // Success signal: the Confirm button has gone away.
+        let dismissed = NSPredicate(format: "exists == false")
+        let expectation = XCTNSPredicateExpectation(predicate: dismissed, object: confirmButton)
+        let result = XCTWaiter().wait(for: [expectation], timeout: 15)
+        XCTAssertEqual(
+            result, .completed,
+            "Phone verification did not advance past `ConfirmPhoneScreen` within 15s"
+        )
+    }
+
     /// Handles the push notification permission screen if it appears.
     /// The screen is skipped when notification permissions are already determined,
     /// so this helper is resilient to both states.
