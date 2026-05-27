@@ -120,17 +120,24 @@ class BaseUITestCase: XCTestCase {
     }
 
     /// Handles the contacts permission screen if it appears. Resilient to the
-    /// determined-status case where the screen is skipped entirely.
+    /// determined-status case where the screen is skipped entirely, and to
+    /// the differences in iOS's system permission flow across versions:
+    ///   - iOS 18:  jumps straight to the "How do you want to share
+    ///              contacts?" picker — no Continue prompt.
+    ///   - iOS 26+: shows a "Continue" prompt first, then the share picker.
+    /// Both steps are optional so this helper works on any supported iOS.
     func allowContactsIfNeeded() {
         let giveAccessButton = app.buttons["Give Access To Contacts"]
         guard giveAccessButton.waitForExistence(timeout: 2) else { return }
         giveAccessButton.tap()
 
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-        waitUntilHittableAndTap(springboard.buttons["Continue"])
 
-        // iOS 26+ inserts a "Share All N Contacts" follow-up sheet; absent on
-        // earlier iOS.
+        let continueButton = springboard.buttons["Continue"]
+        if continueButton.waitForExistence(timeout: 2) {
+            waitUntilHittableAndTap(continueButton)
+        }
+
         let shareAllPredicate = NSPredicate(format: "label BEGINSWITH 'Share All'")
         let shareAllButton = springboard.buttons.matching(shareAllPredicate).firstMatch
         if shareAllButton.waitForExistence(timeout: 2) {
