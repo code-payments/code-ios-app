@@ -77,6 +77,7 @@ extension SessionContainer {
             ratesController: ratesController,
             historyController: .mock,
             pushController: .mock,
+            contactSyncController: ContactSyncController(client: Container.mock.flipClient, database: database, owner: .mock),
             flipClient: Container.mock.flipClient
         )
     }
