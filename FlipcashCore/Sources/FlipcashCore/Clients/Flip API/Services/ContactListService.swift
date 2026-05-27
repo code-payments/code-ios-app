@@ -292,8 +292,8 @@ public enum ErrorContactSync: Int, Error {
 extension ErrorContactSync: ServerError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .denied, .checksumMismatch, .tooManyContacts, .notFound, .checksumDrift, .networkError: false
-        case .unknown: true
+        case .ok, .denied, .tooManyContacts, .checksumDrift, .networkError: false
+        case .checksumMismatch, .notFound, .unknown: true
         }
     }
 }
