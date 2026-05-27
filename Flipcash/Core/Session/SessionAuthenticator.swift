@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Contacts
 import FlipcashCore
 import FlipcashUI
 
@@ -241,6 +242,15 @@ final class SessionAuthenticator {
             database: database,
             owner: owner
         )
+
+        // Activate at bootstrap when contacts are already authorized.
+        Task.detached { [contactSyncController] in
+            let status = CNContactStore.authorizationStatus(for: .contacts)
+            guard status == .authorized else { return }
+            await MainActor.run {
+                contactSyncController.activate()
+            }
+        }
 
         let session = Session(
             container: container,
