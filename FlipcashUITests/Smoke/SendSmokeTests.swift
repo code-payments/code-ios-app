@@ -1,0 +1,77 @@
+//
+//  SendSmokeTests.swift
+//  FlipcashUITests
+//
+
+import XCTest
+
+final class SendSmokeTests: BaseUITestCase {
+
+    override var requiresAuthentication: Bool { true }
+    override var resetPermissions: [XCUIProtectedResource] { [.contacts] }
+
+    func testSendFlow_picker_inviteFallback() {
+        assertMainScreenReached()
+
+        // Send is the 4th LargeButton on ScanBottomBar.
+        waitAndTap(app.buttons["Send"])
+
+        // The helpers are idempotent — they no-op when the gate is already
+        // satisfied for the test account.
+        allowPhoneVerificationIfNeeded()
+        allowContactsIfNeeded()
+
+        // RecipientPickerScreen renders one of three states. Wait for any of
+        // them so the test is resilient to whether the test account has any
+        // matched/invitable contacts at run time.
+        let onFlipcashHeader = app.staticTexts["On Flipcash"]
+        let inviteHeader     = app.staticTexts["Not on Flipcash Yet"]
+        let emptyState       = app.staticTexts["No Contacts Found"]
+
+        let deadline = Date().addingTimeInterval(30)
+        while Date() < deadline {
+            if onFlipcashHeader.exists || inviteHeader.exists || emptyState.exists { break }
+            Thread.sleep(forTimeInterval: 0.25)
+        }
+        XCTAssertTrue(
+            onFlipcashHeader.exists || inviteHeader.exists || emptyState.exists,
+            "Expected `RecipientPickerScreen` to render an On-Flipcash header, an Invite header, or the empty state"
+        )
+
+        // The invite-fallback path requires at least one row in the Invite
+        // section. If the picker is empty (simulator without contacts), the
+        // header assertions above stand on their own — skip the rest.
+        guard inviteHeader.exists else { return }
+
+        waitAndTap(app.buttons["Invite"].firstMatch)
+
+        // `MFMessageComposeViewController.canSendText()` returns `false`
+        // on the simulator, so `RecipientPickerScreen.presentInvite(for:)`
+        // takes the fallback path and calls `ShareSheet.present(url:)`.
+        // `UIActivityViewController` hosts its actions as cells, not buttons,
+        // since iOS 13.
+        let copyCell = app.cells["Copy"]
+        XCTAssertTrue(
+            copyCell.waitForExistence(timeout: 10),
+            "Expected the share-sheet fallback (UIActivityViewController) after tapping Invite"
+        )
+
+        // Dismiss. The share sheet exposes either a "Close" button (iOS 16+)
+        // or a "Cancel" button (older iOS) — fall back to a downward swipe
+        // when neither is present.
+        let close  = app.buttons["Close"]
+        let cancel = app.buttons["Cancel"]
+        if close.exists {
+            close.tap()
+        } else if cancel.exists {
+            cancel.tap()
+        } else {
+            app.swipeDown(velocity: .fast)
+        }
+
+        XCTAssertTrue(
+            inviteHeader.waitForExistence(timeout: 10),
+            "Expected `RecipientPickerScreen` to remain visible after dismissing the share sheet"
+        )
+    }
+}

@@ -178,7 +178,12 @@ extension OnrampVerificationViewModel
     convenience init(session: Session, flipClient: FlipClient) {
         self.init(
             session: session,
-            phoneVerifier: PhoneVerificationViewModel(session: session, flipClient: flipClient),
+            phoneVerifier: PhoneVerificationViewModel(
+                owner: session.ownerKeyPair,
+                flipClient: flipClient,
+                isAlreadyVerified: { [weak session] in session?.profile?.isPhoneVerified ?? false },
+                onShouldRefreshProfile: { [weak session] in try? await session?.updateProfile() },
+            ),
             emailVerifier: EmailVerificationViewModel(session: session, flipClient: flipClient)
         )
     }
