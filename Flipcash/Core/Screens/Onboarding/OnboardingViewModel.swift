@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Contacts
 import UserNotifications
 import FlipcashUI
 import FlipcashCore
@@ -117,17 +118,29 @@ class OnboardingViewModel {
         accessKeyButtonState = .success
         try await Task.delay(milliseconds: 500)
 
-        let pushStatus = await PushController.fetchStatus()
-        switch pushStatus {
-        case .authorized, .provisional, .denied, .ephemeral:
-            completeOnboardingAndLogin()
-        case .notDetermined:
-            navigateToPushNotifications()
-        @unknown default:
-            navigateToPushNotifications()
+        let contactsStatus = await Task.detached {
+            CNContactStore.authorizationStatus(for: .contacts)
+        }.value
+        if contactsStatus == .notDetermined {
+            navigateToContactsPermissions()
+        } else {
+            await advanceFromContactsStep()
         }
 
         try await Task.delay(milliseconds: 500) // Delay deferred state change
+    }
+
+    /// Advances to push permission when undetermined, otherwise finishes login.
+    private func advanceFromContactsStep() async {
+        let pushStatus = await PushController.fetchStatus()
+        switch pushStatus {
+        case .notDetermined:
+            navigateToPushNotifications()
+        case .authorized, .provisional, .denied, .ephemeral:
+            completeOnboardingAndLogin()
+        @unknown default:
+            navigateToPushNotifications()
+        }
     }
 
     private func showAccountCreationError() {
@@ -202,6 +215,16 @@ class OnboardingViewModel {
         Analytics.buttonTapped(name: .skipPush)
     }
 
+    // MARK: - Contacts permission -
+
+    func allowContactsAction() {
+        Task { await advanceFromContactsStep() }
+    }
+
+    func skipContactsAction() {
+        Task { await advanceFromContactsStep() }
+    }
+
     // MARK: - Registration -
 
     private func registerAccount(mnemonic: MnemonicPhrase) async throws {
@@ -255,6 +278,10 @@ class OnboardingViewModel {
         path.append(.pushNotificationsDenied)
     }
 
+    func navigateToContactsPermissions() {
+        path.append(.contactsPermissions)
+    }
+
 }
 
 // MARK: - Path -
@@ -266,4 +293,5 @@ enum OnboardingPath {
     case accessKeyHelp
     case pushNotifications
     case pushNotificationsDenied
+    case contactsPermissions
 }
