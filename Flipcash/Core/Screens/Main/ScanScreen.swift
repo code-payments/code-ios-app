@@ -401,10 +401,7 @@ private struct RoutedSheet: View {
             }
         case .send:
             NavigationStack(path: $router[.send]) {
-                SendRootScreen(
-                    container: container,
-                    sessionContainer: sessionContainer
-                )
+                SendRootScreen(container: container)
                 .appRouterDestinations(container: container, sessionContainer: sessionContainer)
                 .navigationTitle("Send")
                 .toolbarTitleDisplayMode(.inline)
