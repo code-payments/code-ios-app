@@ -14,23 +14,28 @@ public final class ContactsAuthorizer {
 
     // MARK: - Init -
 
-    public init() {
-        updateStatus()
-    }
+    public init() {}
 
     // MARK: - Authorize -
 
+    /// Reads the current authorization status into ``status``. Runs the TCC
+    /// query off the main actor.
+    public func refresh() async {
+        let resolved = await Task.detached {
+            CNContactStore.authorizationStatus(for: .contacts)
+        }.value
+        status = resolved
+    }
+
     /// Prompts the user once when the status is `.notDetermined`, then returns
-    /// the resolved authorization status. For `.denied` / `.restricted` /
-    /// `.limited` callers should route the user to Settings — iOS suppresses
-    /// repeat prompts.
-    ///
-    /// Marked `@MainActor` because `CNContactStore.requestAccess` resumes the
-    /// continuation on an arbitrary queue; the post-`await` `updateStatus()`
-    /// must mutate the `@Observable` `status` on the main actor.
+    /// the resolved authorization status. iOS suppresses repeat prompts; for
+    /// `.denied` / `.restricted` / `.limited` callers should route to Settings.
     public func authorize() async -> CNAuthorizationStatus {
-        let current = CNContactStore.authorizationStatus(for: .contacts)
+        let current = await Task.detached {
+            CNContactStore.authorizationStatus(for: .contacts)
+        }.value
         guard current == .notDetermined else {
+            status = current
             return current
         }
 
@@ -41,11 +46,7 @@ public final class ContactsAuthorizer {
             }
         }
 
-        updateStatus()
+        await refresh()
         return status
-    }
-
-    private func updateStatus() {
-        status = CNContactStore.authorizationStatus(for: .contacts)
     }
 }

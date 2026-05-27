@@ -62,10 +62,12 @@ final class ContactSyncController {
     /// == .authorized` before calling — this method does not prompt.
     func activate() {
         if observerTask == nil {
-            observerTask = Task { [weak self] in
+            // Detached: subscribing to `CNContactStoreDidChange` on the main
+            // actor warns on first invocation.
+            observerTask = Task.detached { [weak self] in
                 for await _ in NotificationCenter.default.notifications(named: .CNContactStoreDidChange) {
                     guard let self else { return }
-                    self.sync()
+                    await MainActor.run { self.sync() }
                 }
             }
         }
@@ -92,7 +94,9 @@ final class ContactSyncController {
         }
         isSyncing = true
         needsResync = false
-        syncTask = Task { [weak self] in
+        // Detached: SE-0461 runs nonisolated async on the caller's actor;
+        // `Task.detached` breaks that so `runSync` stays off-main.
+        syncTask = Task.detached { [weak self] in
             await self?.runSync()
             await MainActor.run { [weak self] in
                 guard let self else { return }
@@ -106,8 +110,8 @@ final class ContactSyncController {
         }
     }
 
-    /// `nonisolated` so the heavy work (CN enumeration, SQLite I/O, RPCs)
-    /// runs off the main actor — do NOT drop the annotation.
+    /// Callers must spawn this via `Task.detached`; under SE-0461 the
+    /// `nonisolated` annotation alone is not enough to keep it off-main.
     nonisolated private func runSync() async {
         let status = authorizationStatusProvider()
         guard status == .authorized else {
@@ -302,8 +306,7 @@ final class ContactSyncController {
         case .tooManyContacts:
             logger.warning("Sync stopped — contact count exceeds server cap")
         case .notFound:
-            logger.error("Sync failed — phone not found")
-            await reportError(error, reason: "Contact sync NOT_FOUND")
+            logger.info("Sync completed with no matched contacts")
         case .unknown:
             logger.error("Sync failed — unknown error")
             await reportError(error, reason: "Contact sync unknown error")

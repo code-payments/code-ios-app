@@ -20,6 +20,7 @@ extension AppRouter {
         case discover
         case buy(PublicKey)
         case downloadApp
+        case send
 
         var id: Self { self }
 
@@ -34,6 +35,7 @@ extension AppRouter {
             case .discover:    .discover
             case .buy:         .buy
             case .downloadApp: .downloadApp
+            case .send:        .send
             }
         }
 
@@ -48,6 +50,7 @@ extension AppRouter {
             case .discover:    .discover
             case .buy:         .buy
             case .downloadApp: .downloadApp
+            case .send:        .send
             }
         }
 
@@ -58,6 +61,7 @@ extension AppRouter {
             case discover
             case buy
             case downloadApp
+            case send
         }
 
         var description: String {
@@ -68,6 +72,7 @@ extension AppRouter {
             case .discover:    "discover"
             case .buy:         "buy"
             case .downloadApp: "downloadApp"
+            case .send:        "send"
             }
         }
     }

@@ -119,4 +119,23 @@ class BaseUITestCase: XCTestCase {
         waitUntilHittableAndTap(springboard.buttons["Allow"])
     }
 
+    /// Handles the contacts permission screen if it appears. Resilient to the
+    /// determined-status case where the screen is skipped entirely.
+    func allowContactsIfNeeded() {
+        let giveAccessButton = app.buttons["Give Access To Contacts"]
+        guard giveAccessButton.waitForExistence(timeout: 2) else { return }
+        giveAccessButton.tap()
+
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        waitUntilHittableAndTap(springboard.buttons["Continue"])
+
+        // iOS 26+ inserts a "Share All N Contacts" follow-up sheet; absent on
+        // earlier iOS.
+        let shareAllPredicate = NSPredicate(format: "label BEGINSWITH 'Share All'")
+        let shareAllButton = springboard.buttons.matching(shareAllPredicate).firstMatch
+        if shareAllButton.waitForExistence(timeout: 2) {
+            waitUntilHittableAndTap(shareAllButton)
+        }
+    }
+
 }
