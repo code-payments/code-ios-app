@@ -19,13 +19,11 @@ struct SendRootScreen: View {
     @State private var contactsAuthorizer = ContactsAuthorizer()
 
     private let container: Container
-    private let sessionContainer: SessionContainer
 
     // MARK: - Init -
 
-    init(container: Container, sessionContainer: SessionContainer) {
-        self.container        = container
-        self.sessionContainer = sessionContainer
+    init(container: Container) {
+        self.container = container
     }
 
     // MARK: - Body -
@@ -41,8 +39,20 @@ struct SendRootScreen: View {
                     onAllowed: { contactSyncController.activate() },
                     onSkipped: nil
                 )
+            case .loadingContacts:
+                // Already authorized; controller is resolving the directory
+                // for the first time this session. Keep the priming screen
+                // visible with a spinner on the primary button so the user
+                // sees clear in-progress feedback instead of a flash to a
+                // half-populated picker.
+                ContactsPermissionScreen(
+                    authorizer: contactsAuthorizer,
+                    onAllowed: { contactSyncController.activate() },
+                    onSkipped: nil,
+                    isAllowing: true
+                )
             case .ready:
-                RecipientPickerScreen(sessionContainer: sessionContainer)
+                RecipientPickerScreen()
             }
         }
         .sheet(item: $phoneVerificationViewModel.cancellingOnDismiss()) { viewModel in
@@ -55,6 +65,7 @@ struct SendRootScreen: View {
     private enum Step {
         case needsPhone
         case needsContacts
+        case loadingContacts
         case ready
     }
 
@@ -62,7 +73,10 @@ struct SendRootScreen: View {
         guard session.profile?.isPhoneVerified ?? false else {
             return .needsPhone
         }
-        return contactsAuthorizer.status == .authorized ? .ready : .needsContacts
+        guard contactsAuthorizer.status == .authorized else {
+            return .needsContacts
+        }
+        return contactSyncController.hasResolvedOnce ? .ready : .loadingContacts
     }
 
     // MARK: - Phone verification handoff -

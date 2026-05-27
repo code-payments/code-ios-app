@@ -30,6 +30,16 @@ final class ContactSyncController {
     @ObservationIgnored internal private(set) var observerTask: Task<Void, Never>?
     @ObservationIgnored private var needsResync = false
 
+    /// Resolved directory cache surfaced to the picker. Updated after every
+    /// successful sync; consumers observe it and re-render on changes.
+    private(set) var resolvedContacts: ResolvedContacts = .empty
+
+    /// Flips to `true` after the first directory resolution completes —
+    /// regardless of whether `resolvedContacts` ends up empty. The picker
+    /// gate uses this to distinguish "loading for the first time" from
+    /// "we ran a load and found nothing".
+    private(set) var hasResolvedOnce: Bool = false
+
     nonisolated private var ownerKeyPair: KeyPair {
         owner.authority.keyPair
     }
@@ -151,6 +161,7 @@ final class ContactSyncController {
             switch result {
             case .ok:
                 logger.info("Sync skipped — local unchanged, server agrees")
+                await resolveDirectory()
                 return
             case .outOfSync:
                 serverDrifted = true
@@ -203,6 +214,21 @@ final class ContactSyncController {
                 lastSyncedAt:  .now
             )
         )
+
+        await resolveDirectory()
+    }
+
+    // MARK: - Directory resolution -
+
+    /// Re-resolve the picker's display data from the freshly-persisted
+    /// snapshot. Safe to call from any actor — the load itself is detached
+    /// and the observable updates hop back to main.
+    nonisolated func resolveDirectory() async {
+        let resolved = await RecipientLoader.load(database: database)
+        await MainActor.run {
+            self.resolvedContacts = resolved
+            self.hasResolvedOnce  = true
+        }
     }
 
     nonisolated private func uploadFull(phones: [String], checksum: Data) async throws {
