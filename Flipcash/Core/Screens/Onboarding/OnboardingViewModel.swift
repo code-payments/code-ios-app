@@ -22,9 +22,14 @@ class OnboardingViewModel {
 
     private(set) var inflightMnemonic: MnemonicPhrase = .generate(.words12)
 
-    @ObservationIgnored private let container: Container
+    @ObservationIgnored let container: Container
     @ObservationIgnored private let sessionAuthenticator: SessionAuthenticator
     @ObservationIgnored private var initializedAccount: InitializedAccount?
+
+    /// Built on first call to ``navigateToPhoneVerification``; shared
+    /// between the `EnterPhoneScreen` and `ConfirmPhoneScreen`
+    /// destinations so input state survives the push.
+    var phoneVerificationViewModel: PhoneVerificationViewModel?
 
     // MARK: - Init -
 
@@ -118,14 +123,9 @@ class OnboardingViewModel {
         accessKeyButtonState = .success
         try await Task.delay(milliseconds: 500)
 
-        let contactsStatus = await Task.detached {
-            CNContactStore.authorizationStatus(for: .contacts)
-        }.value
-        if contactsStatus == .notDetermined {
-            navigateToContactsPermissions()
-        } else {
-            await advanceFromContactsStep()
-        }
+        // No Session yet (completeLogin runs after the permission gates),
+        // and a fresh registration has no verified phone. Always show.
+        navigateToPhoneVerification()
 
         try await Task.delay(milliseconds: 500) // Delay deferred state change
     }
@@ -282,15 +282,61 @@ class OnboardingViewModel {
         path.append(.contactsPermissions)
     }
 
+    func navigateToPhoneVerification() {
+        if phoneVerificationViewModel == nil {
+            let vm = PhoneVerificationViewModel(
+                owner: inflightMnemonic.solanaKeyPair(),
+                flipClient: container.flipClient,
+                enterPhoneEvent: Analytics.OnboardingEvent.showEnterPhone,
+                confirmPhoneEvent: Analytics.OnboardingEvent.showConfirmPhone,
+            )
+            vm.onCodeRequested = { [weak self] in
+                self?.navigateToConfirmPhoneCode()
+            }
+            vm.onVerified = { [weak self] in
+                Task { await self?.advanceFromPhoneVerificationStep() }
+            }
+            phoneVerificationViewModel = vm
+        }
+        path.append(.phoneVerification)
+    }
+
+    func navigateToConfirmPhoneCode() {
+        path.append(.confirmPhoneNumberCode)
+    }
+
+    /// Phone-step success handler. Routes to contacts priming when
+    /// unprompted, otherwise to push + completeLogin.
+    func advanceFromPhoneVerificationStep() async {
+        let contactsStatus = await Task.detached {
+            CNContactStore.authorizationStatus(for: .contacts)
+        }.value
+        if let next = Self.destinationAfterPhoneStep(contactsStatus: contactsStatus) {
+            path.append(next)
+        } else {
+            await advanceFromContactsStep()
+        }
+    }
+
+    /// `.notDetermined` → `.contactsPermissions`; any other status → nil
+    /// (post-contacts flow takes over).
+    nonisolated static func destinationAfterPhoneStep(
+        contactsStatus: CNAuthorizationStatus
+    ) -> OnboardingPath? {
+        contactsStatus == .notDetermined ? .contactsPermissions : nil
+    }
+
 }
 
 // MARK: - Path -
 
-enum OnboardingPath {
+nonisolated enum OnboardingPath {
     case accountSelection
     case login
     case accessKey
     case accessKeyHelp
+    case phoneVerification
+    case confirmPhoneNumberCode
     case pushNotifications
     case pushNotificationsDenied
     case contactsPermissions

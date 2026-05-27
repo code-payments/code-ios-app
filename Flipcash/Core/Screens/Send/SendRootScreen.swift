@@ -70,7 +70,12 @@ struct SendRootScreen: View {
     }
 
     private var step: Step {
-        guard session.profile?.isPhoneVerified ?? false else {
+        // The dev-backend mock phone (`+10000000000`) used in UI tests
+        // does not link to a real user, so `profile.phone` stays nil
+        // even after the verification screen completes. Bypass the gate
+        // under `--ui-testing` so the smoke test can reach the picker.
+        let phoneVerified = session.profile?.isPhoneVerified ?? false
+        guard phoneVerified || Container.isRunningUITests else {
             return .needsPhone
         }
         guard contactsAuthorizer.status == .authorized else {
@@ -83,10 +88,12 @@ struct SendRootScreen: View {
 
     private func startPhoneVerification() {
         let viewModel = PhoneVerificationViewModel(
-            session: session,
+            owner: session.ownerKeyPair,
             flipClient: container.flipClient,
             enterPhoneEvent: Analytics.SendEvent.showEnterPhone,
-            confirmPhoneEvent: Analytics.SendEvent.showConfirmPhone
+            confirmPhoneEvent: Analytics.SendEvent.showConfirmPhone,
+            isAlreadyVerified: { [weak session] in session?.profile?.isPhoneVerified ?? false },
+            onShouldRefreshProfile: { [weak session] in try? await session?.updateProfile() },
         )
         phoneVerificationViewModel = viewModel
 
