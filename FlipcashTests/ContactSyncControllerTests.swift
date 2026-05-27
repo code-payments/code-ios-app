@@ -236,20 +236,32 @@ struct ContactSyncControllerTests {
             #expect(result.first?.contactId == "bob")
         }
 
-        @Test("Dedupe by E.164 keeps the first occurrence's contactId")
-        func dedupeKeepsFirst() {
+        @Test("Same e164 under distinct contactIds keeps every (e164, contactId) pair")
+        func sharedPhoneAcrossContactsAllSurvive() {
             let result = ContactSyncController.normalizeContacts(
                 rawNumbers: [
                     ("415-555-0100", "alice"),
-                    ("(415) 555-0100", "alice-work"),
-                    ("+14155550100", "alice-home"),
+                    ("(415) 555-0100", "bob"),
+                    ("+14155550100", "carol"),
                 ],
                 region: .us
             )
-            #expect(result.count == 1)
-            let first = result.first!
-            #expect(first.e164 == "+14155550100")
-            #expect(first.contactId == "alice")
+            #expect(result.count == 3)
+            #expect(result.allSatisfy { $0.e164 == "+14155550100" })
+            #expect(result.map(\.contactId) == ["alice", "bob", "carol"])
+        }
+
+        @Test("Same (e164, contactId) tuple seen twice collapses to one")
+        func dedupeOnTuple() {
+            let result = ContactSyncController.normalizeContacts(
+                rawNumbers: [
+                    ("415-555-0100", "alice"),
+                    ("(415) 555-0100", "alice"),
+                    ("+14155550100", "alice"),
+                ],
+                region: .us
+            )
+            #expect(result == [.init(e164: "+14155550100", contactId: "alice")])
         }
 
         @Test("Empty input returns empty result")
