@@ -117,10 +117,54 @@ struct IntroScreen: View {
                     NotificationPermissionScreen(viewModel: viewModel)
                 case .pushNotificationsDenied:
                     NotificationPermissionDeniedScreen(viewModel: viewModel)
+                case .contactsPermissions:
+                    OnboardingContactsPermissionStep(viewModel: viewModel)
                 }
             }
         }
         .navigationViewStyle(.stack)
+    }
+}
+
+// MARK: - Contacts permission step -
+
+/// Tiny wrapper that owns the `@State ContactsAuthorizer` for the onboarding
+/// step so granting / denying inside `ContactsPermissionScreen` propagates to
+/// this view's observation graph. The Send section uses the same pattern.
+///
+/// Adds the onboarding-specific "Are You Sure?" confirmation dialog on top of
+/// the shared screen — mirrors the push permission step's skip confirmation.
+private struct OnboardingContactsPermissionStep: View {
+
+    let viewModel: OnboardingViewModel
+
+    @State private var authorizer = ContactsAuthorizer()
+    @State private var dialogItem: DialogItem?
+
+    var body: some View {
+        ContactsPermissionScreen(
+            authorizer: authorizer,
+            onAllowed: viewModel.allowContactsAction,
+            onSkipped: confirmSkip
+        )
+        .dialog(item: $dialogItem)
+    }
+
+    private func confirmSkip() {
+        dialogItem = .alert(
+            title: "Are You Sure?",
+            subtitle: "You won't be able to send cash to your contacts"
+        ) {
+            .destructive("OK Allow") {
+                Task {
+                    _ = await authorizer.authorize()
+                    viewModel.allowContactsAction()
+                }
+            };
+            .subtle("I'm Sure") {
+                viewModel.skipContactsAction()
+            }
+        }
     }
 }
 
