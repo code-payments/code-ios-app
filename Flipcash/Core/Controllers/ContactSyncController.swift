@@ -30,6 +30,16 @@ final class ContactSyncController {
     @ObservationIgnored internal private(set) var observerTask: Task<Void, Never>?
     @ObservationIgnored private var needsResync = false
 
+    /// Resolved directory cache surfaced to the picker. Updated after every
+    /// successful sync; consumers observe it and re-render on changes.
+    private(set) var resolvedContacts: ResolvedContacts = .empty
+
+    /// Flips to `true` after the first directory resolution completes —
+    /// regardless of whether `resolvedContacts` ends up empty. The picker
+    /// gate uses this to distinguish "loading for the first time" from
+    /// "we ran a load and found nothing".
+    private(set) var hasResolvedOnce: Bool = false
+
     nonisolated private var ownerKeyPair: KeyPair {
         owner.authority.keyPair
     }
@@ -139,7 +149,13 @@ final class ContactSyncController {
     /// preserved when called through the production `runSync` path.
     internal nonisolated func performSync(contacts: [Database.LocalContact]) async throws {
         let storedState = try database.contactSyncState()
-        let phones      = contacts.map(\.e164)
+        // The snapshot stores every `(e164, contactId)` pair so the picker
+        // can show each contact with each of their phone numbers. Upload
+        // + checksum operate on the unique e164 set — the server doesn't
+        // care which addr-book contacts a phone is on. Preserve first-seen
+        // order so the upload payload is deterministic across runs.
+        var seenPhones: Set<String> = []
+        let phones      = contacts.map(\.e164).filter { seenPhones.insert($0).inserted }
         let newChecksum = Self.checksum(of: phones)
 
         var serverDrifted = false
@@ -151,6 +167,7 @@ final class ContactSyncController {
             switch result {
             case .ok:
                 logger.info("Sync skipped — local unchanged, server agrees")
+                await resolveDirectory()
                 return
             case .outOfSync:
                 serverDrifted = true
@@ -165,8 +182,10 @@ final class ContactSyncController {
             if snapshot.isEmpty {
                 try await uploadFull(phones: phones, checksum: newChecksum)
             } else {
+                var seenSnapshot: Set<String> = []
+                let snapshotPhones = snapshot.map(\.e164).filter { seenSnapshot.insert($0).inserted }
                 let (adds, removes) = Self.delta(
-                    oldSnapshot: snapshot.map(\.e164),
+                    oldSnapshot: snapshotPhones,
                     newContacts: phones
                 )
                 let result = try await client.uploadContactDelta(
@@ -203,6 +222,21 @@ final class ContactSyncController {
                 lastSyncedAt:  .now
             )
         )
+
+        await resolveDirectory()
+    }
+
+    // MARK: - Directory resolution -
+
+    /// Re-resolve the picker's display data from the freshly-persisted
+    /// snapshot. Safe to call from any actor — the load itself is detached
+    /// and the observable updates hop back to main.
+    nonisolated func resolveDirectory() async {
+        let resolved = await RecipientLoader.load(database: database)
+        await MainActor.run {
+            self.resolvedContacts = resolved
+            self.hasResolvedOnce  = true
+        }
     }
 
     nonisolated private func uploadFull(phones: [String], checksum: Data) async throws {
@@ -247,18 +281,23 @@ final class ContactSyncController {
         return Self.normalizeContacts(rawNumbers: rawNumbers, region: Region.current ?? .us)
     }
 
-    /// Parses each raw number against `region`, normalizes to E.164, dedupes
-    /// keeping the first occurrence's `contactId`.
+    /// Parses each raw number against `region`, normalizes to E.164, and
+    /// keeps every `(e164, contactId)` pair so the picker can show each
+    /// contact with each of their phone numbers, and a phone shared
+    /// across contacts shows once per contact name. Dedupe is on the
+    /// tuple — same pair seen twice (e.g. a label-duplicated entry on
+    /// one card) collapses to a single row.
     nonisolated static func normalizeContacts(
         rawNumbers: [(raw: String, contactId: String)],
         region: Region
     ) -> [Database.LocalContact] {
-        var seen:   Set<String> = []
+        var seen:   Set<Database.LocalContact> = []
         var locals: [Database.LocalContact] = []
         for entry in rawNumbers {
             guard let phone = Phone(entry.raw, defaultRegion: region) else { continue }
-            if seen.insert(phone.e164).inserted {
-                locals.append(.init(e164: phone.e164, contactId: entry.contactId))
+            let local = Database.LocalContact(e164: phone.e164, contactId: entry.contactId)
+            if seen.insert(local).inserted {
+                locals.append(local)
             }
         }
         return locals
