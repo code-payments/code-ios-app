@@ -180,4 +180,18 @@ struct RecipientLoaderDeduplicatedForDisplayTests {
     func emptyInput() {
         #expect(RecipientLoader.deduplicatedForDisplay([], flipcashSet: ["+1..."]).isEmpty)
     }
+
+    /// Regression: a joined-string key like `"\(displayName)|\(nationalPhone)"`
+    /// would collide for these two contacts on the boundary character.
+    /// The struct-key implementation keeps them distinct.
+    @Test("Display strings containing a literal pipe do NOT collide")
+    func pipeCharacterDoesNotCollide() {
+        let contacts = [
+            makeContact(contactId: "A", name: "Alice|Smith", e164: "+14085551111", national: "(408) 555-1111"),
+            makeContact(contactId: "B", name: "Alice",       e164: "+14085552222", national: "Smith|(408) 555-1111"),
+        ]
+        let unique = RecipientLoader.deduplicatedForDisplay(contacts, flipcashSet: [])
+        #expect(unique.count == 2)
+        #expect(Set(unique.map(\.displayName)) == ["Alice|Smith", "Alice"])
+    }
 }

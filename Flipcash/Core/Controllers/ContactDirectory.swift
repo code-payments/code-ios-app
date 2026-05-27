@@ -104,10 +104,18 @@ enum RecipientLoader {
         _ contacts: [ResolvedContact],
         flipcashSet: Set<String>,
     ) -> [ResolvedContact] {
-        var byKey: [String: ResolvedContact] = [:]
-        var orderedKeys: [String] = []
+        // Struct key (not a separator-joined string) — display names and
+        // phone formats can legitimately contain any character, and a
+        // joined-string key would collide when the separator appears in
+        // the data itself.
+        struct Key: Hashable {
+            let displayName: String
+            let nationalPhone: String
+        }
+        var byKey: [Key: ResolvedContact] = [:]
+        var orderedKeys: [Key] = []
         for contact in contacts {
-            let key = "\(contact.displayName)|\(contact.nationalPhone)"
+            let key = Key(displayName: contact.displayName, nationalPhone: contact.nationalPhone)
             if let existing = byKey[key] {
                 let existingMatched = flipcashSet.contains(existing.phoneE164)
                 let newMatched      = flipcashSet.contains(contact.phoneE164)
