@@ -117,9 +117,7 @@ nonisolated extension Database {
 
     // MARK: - Combined writes -
 
-    /// Atomically replace the local snapshot AND upsert the sync state in a
-    /// single transaction. Used at the end of a successful sync so a crash
-    /// between the two writes can't leave snapshot and checksum out of sync.
+    /// Replace the snapshot AND upsert the sync state in one transaction.
     func updateContactSyncSnapshotAndState(
         snapshot contacts: [LocalContact],
         state: ContactSyncState

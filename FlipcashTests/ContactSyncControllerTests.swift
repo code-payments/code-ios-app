@@ -9,19 +9,6 @@ import Testing
 import FlipcashCore
 @testable import Flipcash
 
-/// Tests cover:
-/// - `nonisolated static` pure helpers (`checksum`, `delta`) — direct call
-/// - Lifecycle (``activate()``, ``didBecomeActive()``) — observed via internal
-///   `observerTask` / `syncTask` accessors and mock-call-count side effects
-///   (with an injected `authorizationStatusProvider` returning `.authorized` so
-///   the runSync auth gate doesn't short-circuit)
-/// - The state machine ``performSync(contacts:)`` — driven with synthetic
-///   contacts and a `MockContactSync` conformer of `ContactSyncing`
-///
-/// `readContacts()` isn't directly covered: it depends on the real
-/// `CNContactStore`, and a synthetic CN backend would be more code than the
-/// shim it would replace. It's exercised end-to-end via the dev-backend
-/// verification gate.
 @Suite("ContactSyncController")
 struct ContactSyncControllerTests {
 
@@ -64,10 +51,6 @@ struct ContactSyncControllerTests {
 
         @Test("Duplicates collapse to identity (XOR cancellation)")
         func duplicatePairsCancel() {
-            // The controller dedupes before calling checksum, but the
-            // algorithm itself must round-trip: XOR-ing the same value twice
-            // is identity. Two identical phones should produce the same bytes
-            // as the empty input.
             let phones = ["+14155550100", "+14155550100"]
             let checksum = ContactSyncController.checksum(of: phones)
             #expect(checksum.count == 32)
@@ -96,8 +79,6 @@ struct ContactSyncControllerTests {
             let added   = base + ["+819012345678"]
             let baseSum  = ContactSyncController.checksum(of: base)
             let addedSum = ContactSyncController.checksum(of: added)
-            // XOR-ing the added phone's SHA256 onto the expanded checksum
-            // must restore the base checksum (XOR is its own inverse).
             let extraHash = SHA256.digest("+819012345678")
             var restored = [UInt8](addedSum)
             for (i, byte) in extraHash.enumerated() {
@@ -234,8 +215,6 @@ struct ContactSyncControllerTests {
 
         @Test("International-format numbers parse regardless of region hint")
         func internationalIgnoresRegion() {
-            // A US iPhone with a UK contact stored as +44 — must still parse
-            // correctly even though the device's region is .us.
             let result = ContactSyncController.normalizeContacts(
                 rawNumbers: [("+44 20 7946 0958", "alice")],
                 region: .us
@@ -259,8 +238,6 @@ struct ContactSyncControllerTests {
 
         @Test("Dedupe by E.164 keeps the first occurrence's contactId")
         func dedupeKeepsFirst() {
-            // Linked iOS contacts commonly produce the same E.164 for multiple
-            // CNContact records; we keep the first one's identifier.
             let result = ContactSyncController.normalizeContacts(
                 rawNumbers: [
                     ("415-555-0100", "alice"),
@@ -284,16 +261,9 @@ struct ContactSyncControllerTests {
 
     // MARK: - Lifecycle
 
-    /// `.serialized` because each test spawns an observer Task that subscribes
-    /// to `NotificationCenter.default.notifications`; under parallel execution
-    /// those Tasks accumulate and starve the test scheduler.
-    ///
-    /// Default auth status is `.notDetermined` so `runSync` short-circuits
-    /// before reaching `readContacts()` — otherwise iOS would treat the test
-    /// process's first `enumerateContacts` call as a permission request and
-    /// raise a system prompt mid-suite. Tests that need to observe "sync was
-    /// triggered" use the `AuthCounter` pattern instead of letting the sync
-    /// reach CN.
+    /// `.serialized` so parallel observer Tasks don't starve the scheduler.
+    /// Default auth status is `.notDetermined` — never let runSync reach
+    /// real `CNContactStore` access in tests.
     @Suite("Lifecycle", .serialized)
     @MainActor
     struct LifecycleTests {
@@ -311,9 +281,8 @@ struct ContactSyncControllerTests {
             )
         }
 
-        /// Lets a test count how many times `runSync` reached its auth check
-        /// without ever letting `readContacts()` run (closure returns
-        /// `.notDetermined`, so runSync exits early — no CN access).
+        /// Counts auth checks and returns `.notDetermined` so `runSync` exits
+        /// before any CN access.
         private final class AuthCounter: @unchecked Sendable {
             private let lock = NSLock()
             private var _count = 0
@@ -351,9 +320,6 @@ struct ContactSyncControllerTests {
             controller.activate()
             await controller.syncTask?.value
 
-            // The guard `observerTask == nil` is the only assignment site, so
-            // a second activate() must leave the same task in place. `Task`
-            // conforms to `Hashable` via task identity — `==` is identity.
             #expect(controller.observerTask == firstObserver)
         }
 
@@ -370,8 +336,6 @@ struct ContactSyncControllerTests {
             await Task.yield()
             await Task.yield()
 
-            // No sync was launched: didBecomeActive bailed on the observerTask
-            // guard before spawning sync(), so runSync was never called.
             #expect(controller.syncTask == nil)
             #expect(controller.isSyncing == false)
             #expect(counter.count == 0)
@@ -387,12 +351,10 @@ struct ContactSyncControllerTests {
                 authorizationStatusProvider: counter.bumpAndReturnNotDetermined
             )
 
-            // activate() runs sync() → runSync() → auth check (bump 1) → bail.
             controller.activate()
             await controller.syncTask?.value
             #expect(counter.count == 1)
 
-            // didBecomeActive() → Task @MainActor → sync() → runSync() → bump 2.
             controller.didBecomeActive()
             try await Self.awaitCounter(counter, atLeast: 2, controller: controller)
 
@@ -409,26 +371,13 @@ struct ContactSyncControllerTests {
                 authorizationStatusProvider: counter.bumpAndReturnNotDetermined
             )
 
-            // sync() is synchronous on main: it sets isSyncing=true and
-            // spawns Task A, then returns BEFORE Task A's body runs (the
-            // body suspends at the first `await self?.runSync()`). So a
-            // second sync() call right after — still on the same main
-            // synchronous tick — observes isSyncing==true and gets coalesced.
             controller.sync()
             #expect(controller.isSyncing == true)
 
             controller.sync()
-            #expect(controller.isSyncing == true)  // still — the second call was coalesced, not dropped silently
+            #expect(controller.isSyncing == true)
 
-            // Yield until both runs land: Task A's runSync (auth bump #1) +
-            // the post-await cleanup that re-fires sync() because
-            // needsResync was set by the second call → Task B's runSync
-            // (auth bump #2). Bounded at 1s so a regression that drops the
-            // re-fire surfaces as a fast failure instead of a hang.
             try await Self.awaitCounter(counter, atLeast: 2, controller: controller)
-            // Awaiting the counter only proves the auth check ran twice — Task
-            // B's MainActor.run cleanup may not have flipped `isSyncing` /
-            // cleared `syncTask` yet. Drain the cleanup before final asserts.
             try await Self.awaitSyncIdle(controller: controller)
 
             #expect(counter.count == 2)
@@ -436,8 +385,6 @@ struct ContactSyncControllerTests {
             #expect(controller.syncTask == nil)
         }
 
-        /// Wait for the controller to be fully idle (`isSyncing == false`,
-        /// `syncTask == nil`). Bounded at 1s.
         private static func awaitSyncIdle(controller: ContactSyncController) async throws {
             let deadline = Date.now.addingTimeInterval(1.0)
             while (controller.isSyncing || controller.syncTask != nil), Date.now < deadline {
@@ -449,9 +396,6 @@ struct ContactSyncControllerTests {
             }
         }
 
-        /// Bounded wait — the spawned `Task { @MainActor in sync() }` from
-        /// `didBecomeActive` runs after a few yields. 1s is generous; a real
-        /// hang fails fast instead of waiting on a suite-level timeLimit.
         private static func awaitCounter(
             _ counter: AuthCounter,
             atLeast target: Int,
@@ -470,10 +414,6 @@ struct ContactSyncControllerTests {
 
     // MARK: - State machine
 
-    /// `.serialized` because parallel `@MainActor` tests starve each other on
-    /// main when one drives a Task-spawning sync path; each `performSync` is
-    /// fast on its own (sub-second). No `.timeLimit` — every test has a
-    /// deterministic exit path through `performSync(contacts:)`.
     @Suite("performSync(contacts:)", .serialized)
     @MainActor
     struct PerformSyncTests {
@@ -485,9 +425,6 @@ struct ContactSyncControllerTests {
             ContactSyncController(client: mock, database: database, owner: .mock)
         }
 
-        /// Seeds `contact_sync_state` (and optionally `local_contacts_snapshot`)
-        /// so a test can rehearse a non-empty starting condition without the
-        /// `setContactSyncState` + `replaceLocalContactsSnapshot` boilerplate.
         private static func seedDatabase(
             _ database: Database,
             checksum: Data,
@@ -528,8 +465,6 @@ struct ContactSyncControllerTests {
             #expect(storedState.checksum == ContactSyncController.checksum(of: contacts.map(\.e164)))
             try #require(storedState.lastSyncedAt != nil)
 
-            // Database+ContactSync's SELECTs have no ORDER BY — compare via
-            // Set so the test stays stable as table pages rearrange.
             #expect(Set(try database.localContactsSnapshot().map(\.e164)) == Set(contacts.map(\.e164)))
             #expect(Set(try database.flipcashContacts()) == ["+14155550101"])
         }
@@ -575,7 +510,6 @@ struct ContactSyncControllerTests {
             #expect(deltaCall.newChecksum == ContactSyncController.checksum(of: newContacts.map(\.e164)))
             #expect(mock.fullCalls.isEmpty)
             #expect(mock.streamCalls.count == 1)
-            // Checksum differs from stored, so the idle probe is skipped entirely.
             #expect(mock.checkSyncCalls.isEmpty)
         }
 
@@ -599,8 +533,6 @@ struct ContactSyncControllerTests {
             #expect(fullCall.phones == newContacts.map(\.e164))
             #expect(mock.streamCalls.count == 1)
 
-            // State persisted with the new checksum after the fallback (only
-            // because the stream succeeded — see persist-after-refresh ordering).
             let storedState = try database.contactSyncState()
             #expect(storedState.checksum == ContactSyncController.checksum(of: newContacts.map(\.e164)))
         }
@@ -618,10 +550,6 @@ struct ContactSyncControllerTests {
 
             try await controller.performSync(contacts: contacts)
 
-            // Probe fired, returned outOfSync → since old == new (local
-            // unchanged), a delta would compute empty adds/removes and the
-            // server would always reject it; the controller goes straight to
-            // full upload to avoid the wasted round-trip.
             #expect(mock.checkSyncCalls == [storedChecksum])
             #expect(mock.deltaCalls.isEmpty)
             let fullCall = try #require(mock.fullCalls.first)
@@ -637,8 +565,6 @@ struct ContactSyncControllerTests {
             let database = Database.mock
             let controller = Self.makeController(mock: mock, database: database)
 
-            // Stored checksum without a snapshot — e.g. snapshot was wiped
-            // (SQLiteVersion bump preserved sync_state but lost snapshot).
             try Self.seedDatabase(database, checksum: Data(repeating: 0xFF, count: 32))
 
             let contacts = [Self.aliceContact]
@@ -659,7 +585,6 @@ struct ContactSyncControllerTests {
                 try await controller.performSync(contacts: [Self.aliceContact])
             }
 
-            // Pre-upload state untouched.
             #expect(try database.contactSyncState() == .empty)
             #expect(try database.localContactsSnapshot().isEmpty)
             #expect(try database.flipcashContacts().isEmpty)
@@ -672,10 +597,6 @@ struct ContactSyncControllerTests {
             let database = Database.mock
             let controller = Self.makeController(mock: mock, database: database)
 
-            // Seed a prior successful sync: stored checksum + snapshot of
-            // alice + matched-set containing bob. The new sync about to run
-            // will upload a different contact set, but its stream throws —
-            // we need to verify that none of the four DB tables get clobbered.
             let priorChecksum = ContactSyncController.checksum(of: [Self.aliceContact.e164])
             try Self.seedDatabase(database, checksum: priorChecksum, snapshot: [Self.aliceContact])
             try database.replaceFlipcashContacts([Self.bobContact.e164], matchedAt: .now)
@@ -684,12 +605,6 @@ struct ContactSyncControllerTests {
                 try await controller.performSync(contacts: [Self.bobContact, Self.carolContact])
             }
 
-            // Path taken: snapshot non-empty + oldChecksum present + new
-            // checksum differs → delta upload (alice removed, bob+carol
-            // added), succeeds .ok, then stream throws. With persist-after-
-            // refresh ordering, NONE of the local writes ran — so checksum,
-            // snapshot, AND the prior matched-set rows all stay at their
-            // pre-sync values.
             #expect(mock.deltaCalls.count == 1)
             #expect(mock.fullCalls.isEmpty)
             #expect(mock.streamCalls.count == 1)

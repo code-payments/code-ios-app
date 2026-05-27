@@ -2,20 +2,13 @@
 //  MockContactSync.swift
 //  FlipcashTests
 //
-//  Scriptable in-memory conformer for `ContactSyncing`. Records every RPC
-//  call and lets each test pre-load the responses the controller's state
-//  machine should observe.
-//
-//  `@unchecked Sendable` with an internal `NSLock` covering both the recorded
-//  call buffers AND the scripted-response storage. The controller invokes
-//  these methods from `@concurrent nonisolated` work and tests configure /
-//  read from `@MainActor`; the lock serializes both sides.
-//
 
 import Foundation
 import FlipcashCore
 @testable import Flipcash
 
+/// Scriptable `ContactSyncing` conformer. Records every RPC; the test sets
+/// scripted responses before driving the controller.
 final class MockContactSync: ContactSyncing, @unchecked Sendable {
 
     // MARK: - Recorded calls -
@@ -110,12 +103,9 @@ final class MockContactSync: ContactSyncing, @unchecked Sendable {
 
     func streamFlipcashContacts(checksum: Data, owner: KeyPair) -> AsyncThrowingStream<String, Error> {
         lock.withLock { _streamCalls.append(checksum) }
-        // Snapshot scriptable values INSIDE the stream's producer closure so a
-        // test that mutates `streamYields`/`streamTerminalError` between
-        // calling `controller.performSync(...)` and the stream actually
-        // iterating sees the latest values, not whatever was set at
-        // registration time.
         return AsyncThrowingStream { [self] continuation in
+            // Reads scripted values inside the producer so mutations after
+            // construction (but before iteration) take effect.
             let (yields, terminalError): ([String], Error?) = lock.withLock {
                 (_streamYields, _streamTerminalError)
             }
@@ -127,9 +117,6 @@ final class MockContactSync: ContactSyncing, @unchecked Sendable {
             } else {
                 continuation.finish()
             }
-            // Mirror production's `FlipClient+ContactList.swift:75` shape so
-            // future cancellation-regression tests have somewhere to assert.
-            // No underlying gRPC resource in this mock — explicit no-op.
             continuation.onTermination = { _ in }
         }
     }

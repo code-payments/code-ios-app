@@ -292,14 +292,7 @@ public enum ErrorContactSync: Int, Error {
 extension ErrorContactSync: ServerError {
     public var isReportable: Bool {
         switch self {
-        // Expected outcomes / transient transport / server-driven recovery
-        // signals — not actionable, never report.
         case .ok, .denied, .tooManyContacts, .checksumDrift, .networkError: false
-        // Genuine bugs we want operator visibility on. `.checksumMismatch`
-        // is an algorithm divergence (client/server XOR-SHA256 disagree);
-        // `.notFound` after the Phase 4 gate means a phone we expected to
-        // be linked vanished server-side. `.unknown` is the proto-recognized
-        // catch-all.
         case .checksumMismatch, .notFound, .unknown: true
         }
     }
