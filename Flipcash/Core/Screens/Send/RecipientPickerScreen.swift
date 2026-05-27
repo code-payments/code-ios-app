@@ -4,6 +4,7 @@
 //
 
 import Contacts
+import MessageUI
 import SwiftUI
 import FlipcashCore
 import FlipcashUI
@@ -27,6 +28,7 @@ struct RecipientPickerScreen: View {
 
     @State private var filtered: ResolvedContacts = .empty
     @State private var searchText: String = ""
+    @State private var inviteTarget: ResolvedContact?
 
     var body: some View {
         let contacts = contactSyncController.resolvedContacts
@@ -46,10 +48,7 @@ struct RecipientPickerScreen: View {
                             // `PaymentDestinationService.resolve(phone:)` is in.
                             logger.info("Tapped On Flipcash row (send wire-up pending)")
                         },
-                        onInviteTap: { _ in
-                            // Phase 6 wires this to `MessageComposerSheet`.
-                            logger.info("Tapped Invite row (composer sheet pending)")
-                        }
+                        onInviteTap: presentInvite,
                     )
                 }
             }
@@ -57,6 +56,38 @@ struct RecipientPickerScreen: View {
         .onAppear { refilter() }
         .onChange(of: searchText) { refilter() }
         .onChange(of: contacts) { refilter() }
+        .sheet(item: $inviteTarget) { contact in
+            MessageComposerSheet(
+                recipient: contact.phoneE164,
+                body: MessageComposerSheet.placeholderBody,
+                onFinish: { result in
+                    logger.info("Invite composer finished", metadata: [
+                        "outcome": "\(outcomeName(result))",
+                    ])
+                    inviteTarget = nil
+                },
+            )
+        }
+    }
+
+    private func presentInvite(for contact: ResolvedContact) {
+        if MessageComposerSheet.isAvailable {
+            inviteTarget = contact
+        } else {
+            // iMessage isn't configured on this device (iPad without SIM, etc.).
+            // Fall back to the system share sheet with the download URL only.
+            logger.info("Presenting share fallback (iMessage unavailable)")
+            ShareSheet.present(url: URL.downloadApp)
+        }
+    }
+
+    private func outcomeName(_ result: MessageComposeResult) -> String {
+        switch result {
+        case .sent:       return "sent"
+        case .cancelled:  return "cancelled"
+        case .failed:     return "failed"
+        @unknown default: return "unknown"
+        }
     }
 
     private func refilter() {
