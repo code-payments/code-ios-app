@@ -26,8 +26,6 @@ struct ContactsPermissionScreen: View {
     let onAllowed: () -> Void
     let onSkipped: (() -> Void)?
 
-    private static let titleOverlapOnIllustration: CGFloat = 60
-
     // MARK: - Body -
 
     var body: some View {
@@ -37,13 +35,12 @@ struct ContactsPermissionScreen: View {
                     Spacer()
                     
                     ContactsPermissionIllustration()
+                        .padding(.bottom, -60)
 
                     Text(title)
                         .font(.appDisplaySmall)
                         .foregroundStyle(Color.textMain)
                         .multilineTextAlignment(.center)
-                        // Title overlaps the bottom of the illustration per Figma.
-                        .padding(.top, -Self.titleOverlapOnIllustration)
                     
                     Text(subtitle)
                         .font(.appTextSmall)
