@@ -185,7 +185,6 @@ private struct OnboardingPhoneVerificationStep: View {
             EnterPhoneScreen(viewModel: phoneVM)
                 .interactiveDismissDisabled()
                 .navigationTitle("Connect Phone Number")
-                .toolbarTitleDisplayMode(.inline)
                 .navigationBarBackButtonHidden(true)
         }
     }

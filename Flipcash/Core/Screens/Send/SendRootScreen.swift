@@ -70,12 +70,7 @@ struct SendRootScreen: View {
     }
 
     private var step: Step {
-        // The dev-backend mock phone (`+10000000000`) used in UI tests
-        // does not link to a real user, so `profile.phone` stays nil
-        // even after the verification screen completes. Bypass the gate
-        // under `--ui-testing` so the smoke test can reach the picker.
-        let phoneVerified = session.profile?.isPhoneVerified ?? false
-        guard phoneVerified || Container.isRunningUITests else {
+        guard session.profile?.isPhoneVerified ?? false else {
             return .needsPhone
         }
         guard contactsAuthorizer.status == .authorized else {
