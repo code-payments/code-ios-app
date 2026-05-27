@@ -58,7 +58,9 @@ struct MessageComposerSheet: UIViewControllerRepresentable {
             _ controller: MFMessageComposeViewController,
             didFinishWith result: MessageComposeResult,
         ) {
-            onFinish(result)
+            controller.dismiss(animated: true) { [onFinish] in
+                onFinish(result)
+            }
         }
     }
 }

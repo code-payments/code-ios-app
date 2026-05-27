@@ -54,6 +54,7 @@ class OnboardingViewModel {
 
     func createAccountAction() {
         inflightMnemonic = MnemonicPhrase.generate(.words12)
+        phoneVerificationViewModel = nil
 
         navigateToAccessKey()
 

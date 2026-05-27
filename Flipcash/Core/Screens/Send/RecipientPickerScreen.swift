@@ -83,10 +83,10 @@ struct RecipientPickerScreen: View {
 
     private func outcomeName(_ result: MessageComposeResult) -> String {
         switch result {
-        case .sent:      "sent"
-        case .cancelled: "cancelled"
-        case .failed:    "failed"
-        @unknown default: "unknown"
+        case .sent:       return "sent"
+        case .cancelled:  return "cancelled"
+        case .failed:     return "failed"
+        @unknown default: return "unknown"
         }
     }
 

@@ -124,7 +124,8 @@ struct IntroScreen: View {
                 case .confirmPhoneNumberCode:
                     if let phoneVM = viewModel.phoneVerificationViewModel {
                         ConfirmPhoneScreen(viewModel: phoneVM)
-                            .interactiveDismissDisabled()
+                            .navigationTitle("Connect Phone Number")
+                            .navigationBarBackButtonHidden(true)
                     }
                 }
             }
@@ -183,7 +184,6 @@ private struct OnboardingPhoneVerificationStep: View {
     var body: some View {
         if let phoneVM = viewModel.phoneVerificationViewModel {
             EnterPhoneScreen(viewModel: phoneVM)
-                .interactiveDismissDisabled()
                 .navigationTitle("Connect Phone Number")
                 .navigationBarBackButtonHidden(true)
         }

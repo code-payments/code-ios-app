@@ -10,28 +10,19 @@ import Testing
 @Suite("OnboardingViewModel.destinationAfterPhoneStep(contactsStatus:)")
 struct OnboardingViewModelDestinationAfterPhoneStepTests {
 
-    @Test(".notDetermined routes to the contacts permission step")
-    func notDeterminedRoutesToContactsPermissions() {
-        #expect(OnboardingViewModel.destinationAfterPhoneStep(contactsStatus: .notDetermined) == .contactsPermissions)
-    }
+    private static let cases: [(CNAuthorizationStatus, OnboardingPath?)] = [
+        (.notDetermined, .contactsPermissions),
+        (.authorized,    nil),
+        (.denied,        nil),
+        (.restricted,    nil),
+        (.limited,       nil),
+    ]
 
-    @Test(".authorized falls through (nil) so the post-contacts flow runs")
-    func authorizedFallsThrough() {
-        #expect(OnboardingViewModel.destinationAfterPhoneStep(contactsStatus: .authorized) == nil)
-    }
-
-    @Test(".denied falls through")
-    func deniedFallsThrough() {
-        #expect(OnboardingViewModel.destinationAfterPhoneStep(contactsStatus: .denied) == nil)
-    }
-
-    @Test(".restricted falls through")
-    func restrictedFallsThrough() {
-        #expect(OnboardingViewModel.destinationAfterPhoneStep(contactsStatus: .restricted) == nil)
-    }
-
-    @Test(".limited falls through (treated as denied for v1)")
-    func limitedFallsThrough() {
-        #expect(OnboardingViewModel.destinationAfterPhoneStep(contactsStatus: .limited) == nil)
+    @Test(
+        "Only .notDetermined routes to .contactsPermissions; every other status falls through",
+        arguments: cases,
+    )
+    func routes(status: CNAuthorizationStatus, expected: OnboardingPath?) {
+        #expect(OnboardingViewModel.destinationAfterPhoneStep(contactsStatus: status) == expected)
     }
 }
