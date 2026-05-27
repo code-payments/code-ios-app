@@ -119,29 +119,47 @@ class BaseUITestCase: XCTestCase {
         waitUntilHittableAndTap(springboard.buttons["Allow"])
     }
 
-    /// Handles the contacts permission screen if it appears. Resilient to the
-    /// determined-status case where the screen is skipped entirely, and to
-    /// the differences in iOS's system permission flow across versions:
-    ///   - iOS 18:  jumps straight to the "How do you want to share
-    ///              contacts?" picker — no Continue prompt.
-    ///   - iOS 26+: shows a "Continue" prompt first, then the share picker.
-    /// Both steps are optional so this helper works on any supported iOS.
+    /// Handles the contacts permission screen if it appears. Resilient to:
+    ///   - the determined-status case where the screen is skipped entirely
+    ///   - iOS 18 jumping straight to the share picker (no Continue prompt)
+    ///   - iOS 26+ showing a Continue prompt before the share picker
+    /// iOS 18+ hosts the share picker in a dedicated XPC process,
+    /// `com.apple.ContactsUI.LimitedAccessPromptView`. The process must be
+    /// activated explicitly — queries against the non-frontmost process
+    /// return empty hierarchies even when the picker is on screen. Older
+    /// iOS variants present the same picker from springboard, so springboard
+    /// is the fallback.
     func allowContactsIfNeeded() {
         let giveAccessButton = app.buttons["Give Access To Contacts"]
         guard giveAccessButton.waitForExistence(timeout: 2) else { return }
         giveAccessButton.tap()
 
-        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let springboard   = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let limitedAccess = XCUIApplication(bundleIdentifier: "com.apple.ContactsUI.LimitedAccessPromptView")
 
+        // iOS 26+ Continue prompt — absent on earlier iOS.
         let continueButton = springboard.buttons["Continue"]
         if continueButton.waitForExistence(timeout: 2) {
             waitUntilHittableAndTap(continueButton)
         }
 
-        let shareAllPredicate = NSPredicate(format: "label BEGINSWITH 'Share All'")
-        let shareAllButton = springboard.buttons.matching(shareAllPredicate).firstMatch
-        if shareAllButton.waitForExistence(timeout: 2) {
-            waitUntilHittableAndTap(shareAllButton)
+        // Share picker. iOS 18+ hosts this in a dedicated XPC process
+        // (com.apple.ContactsUI.LimitedAccessPromptView); some iOS variants
+        // host it from springboard. Poll both — naming the bundle scopes
+        // the query without taking focus from the picker (`.activate()`
+        // would launch the process fresh and steal foreground).
+        let predicate    = NSPredicate(format: "label BEGINSWITH[c] 'Share All'")
+        let candidates: [XCUIApplication] = [limitedAccess, springboard]
+        let deadline     = Date().addingTimeInterval(10)
+        while Date() < deadline {
+            for candidate in candidates {
+                let button = candidate.buttons.matching(predicate).firstMatch
+                if button.exists {
+                    waitUntilHittableAndTap(button)
+                    return
+                }
+            }
+            Thread.sleep(forTimeInterval: 0.25)
         }
     }
 
