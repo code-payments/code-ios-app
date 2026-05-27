@@ -38,8 +38,12 @@ extension FlipClient {
     }
 
     /// Yields each matched phone (E.164 string) individually. The stream
-    /// throws on terminal server-side outcomes (denied / notFound /
-    /// checksumDrift) and on network failure.
+    /// throws on terminal server-side outcomes (denied / checksumDrift) and
+    /// on network failure.
+    ///
+    /// `notFound` is a successful 0-match response (the requester is known
+    /// but none of their uploaded contacts have phones registered with
+    /// Flipcash yet) — the stream finishes cleanly without throwing.
     ///
     /// Defensive against terminal batches that carry data: contacts inside a
     /// non-OK batch are yielded before the throw fires, so callers don't lose
@@ -55,12 +59,10 @@ extension FlipClient {
                     continuation.yield(e164)
                 }
                 switch batch.result {
-                case .ok:
+                case .ok, .notFound:
                     break
                 case .denied:
                     continuation.finish(throwing: ErrorContactSync.denied)
-                case .notFound:
-                    continuation.finish(throwing: ErrorContactSync.notFound)
                 case .checksumDrift:
                     continuation.finish(throwing: ErrorContactSync.checksumDrift)
                 case .unknown:
