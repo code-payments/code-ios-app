@@ -37,18 +37,9 @@ extension FlipClient {
         }
     }
 
-    /// Yields each matched phone (E.164 string) individually. The stream
-    /// throws on terminal server-side outcomes (denied / checksumDrift) and
-    /// on network failure.
-    ///
-    /// `notFound` is a successful 0-match response (the requester is known
-    /// but none of their uploaded contacts have phones registered with
-    /// Flipcash yet) — the stream finishes cleanly without throwing.
-    ///
-    /// Defensive against terminal batches that carry data: contacts inside a
-    /// non-OK batch are yielded before the throw fires, so callers don't lose
-    /// entries if the server ever packs a final page with a terminal status.
-    /// Cancelling the consuming task cancels the underlying gRPC call.
+    /// Yields each matched phone (E.164) individually. Throws on `denied`,
+    /// `checksumDrift`, or network failure; `notFound` is a successful
+    /// 0-match completion. Cancelling the consuming task cancels the call.
     public func streamFlipcashContacts(checksum: Data, owner: KeyPair) -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream { continuation in
             let cancellable = contactListService.getFlipcashContacts(

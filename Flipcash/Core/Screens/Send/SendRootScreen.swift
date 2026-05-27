@@ -7,13 +7,9 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-/// Root view for the Send sheet. Gates entry to the recipient picker on two
-/// preconditions, in order:
-///   1. The user's phone is verified.
-///   2. Contacts authorization is `.authorized`.
-///
-/// The recipient picker itself ships in Phase 5; for now the satisfied state
-/// renders a placeholder.
+/// Root view for the Send sheet. Gates entry on a verified phone and
+/// authorized contacts; the satisfied state renders a placeholder for the
+/// recipient picker.
 struct SendRootScreen: View {
 
     @Environment(Session.self) private var session
@@ -82,22 +78,17 @@ struct SendRootScreen: View {
         phoneVerificationViewModel = viewModel
 
         Task { [weak viewModel] in
-            do {
-                try await viewModel?.run()
-            } catch {
-                // `run()` throws `CancellationError` on swipe-dismiss or
-                // viewmodel teardown; no further handling needed.
-            }
+            try? await viewModel?.run()
             phoneVerificationViewModel = nil
         }
     }
 }
 
-// MARK: - Picker placeholder (Phase 5 fills this in) -
+// MARK: - Picker placeholder -
 
 private struct RecipientPickerPlaceholder: View {
     var body: some View {
-        // TODO(Phase 5): replace with `RecipientPickerScreen`.
+        // TODO: replace with `RecipientPickerScreen`.
         VStack(spacing: 12) {
             ProgressView()
             Text("Recipient picker arrives in Phase 5")

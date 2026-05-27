@@ -7,19 +7,9 @@ import SwiftUI
 import Contacts
 import FlipcashUI
 
-/// Priming view for the system contacts authorization prompt. Shared between
-/// onboarding (post-signup step) and the Send section (gate before the
-/// recipient picker).
-///
-/// The parent owns the ``ContactsAuthorizer`` so that grants made inside this
-/// screen propagate immediately to the parent's observation graph (e.g. the
-/// Send sheet swapping out the priming view for the recipient picker).
-/// Onboarding callers wrap this view in a tiny step view that owns the
-/// `@State` authorizer locally.
-///
-/// Pass `onSkipped: nil` to hide the secondary "Not Now" button — used by the
-/// Send sheet where the parent's `CloseButton` already provides a dismissal
-/// path.
+/// Priming view for the system contacts authorization prompt. The parent
+/// owns the ``ContactsAuthorizer`` so grants propagate via `@Observable`.
+/// Pass `onSkipped: nil` to hide the secondary "Not Now" button.
 struct ContactsPermissionScreen: View {
 
     let authorizer: ContactsAuthorizer
@@ -124,8 +114,6 @@ struct ContactsPermissionScreen: View {
         if resolved == .authorized {
             onAllowed()
         }
-        // .denied / .restricted / .limited: stay on screen — body re-renders
-        // into the "Go to Settings" variant.
     }
 }
 

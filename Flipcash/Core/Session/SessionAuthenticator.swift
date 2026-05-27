@@ -243,10 +243,7 @@ final class SessionAuthenticator {
             owner: owner
         )
 
-        // Activate at session bootstrap when the system permission is already
-        // `.authorized`. The status read runs on a detached task because
-        // synchronous TCC reads from `@MainActor` trigger
-        // "This method should not be called on the main thread" on iOS 17+.
+        // Activate at bootstrap when contacts are already authorized.
         Task.detached { [contactSyncController] in
             let status = CNContactStore.authorizationStatus(for: .contacts)
             guard status == .authorized else { return }

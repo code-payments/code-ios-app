@@ -128,12 +128,8 @@ struct IntroScreen: View {
 
 // MARK: - Contacts permission step -
 
-/// Tiny wrapper that owns the `@State ContactsAuthorizer` for the onboarding
-/// step so granting / denying inside `ContactsPermissionScreen` propagates to
-/// this view's observation graph. The Send section uses the same pattern.
-///
-/// Adds the onboarding-specific "Are You Sure?" confirmation dialog on top of
-/// the shared screen — mirrors the push permission step's skip confirmation.
+/// Onboarding wrapper that owns the `@State ContactsAuthorizer` and adds the
+/// "Are You Sure?" confirmation dialog on skip.
 private struct OnboardingContactsPermissionStep: View {
 
     let viewModel: OnboardingViewModel

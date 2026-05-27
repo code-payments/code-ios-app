@@ -130,9 +130,7 @@ class OnboardingViewModel {
         try await Task.delay(milliseconds: 500) // Delay deferred state change
     }
 
-    /// Called after the contacts permission step (allow, deny, or skip).
-    /// Decides whether the push notification step shows next or onboarding
-    /// finishes immediately.
+    /// Advances to push permission when undetermined, otherwise finishes login.
     private func advanceFromContactsStep() async {
         let pushStatus = await PushController.fetchStatus()
         switch pushStatus {

@@ -62,12 +62,8 @@ final class ContactSyncController {
     /// == .authorized` before calling — this method does not prompt.
     func activate() {
         if observerTask == nil {
-            // Detached so the `CNContactStoreDidChange` subscription setup
-            // and the awaited iteration don't run on the main actor — the
-            // first subscription kicks off Contacts framework startup, which
-            // triggers "This method should not be called on the main thread"
-            // when invoked from `@MainActor`. `sync()` itself hops back to
-            // the main actor via the `MainActor.run` in its cleanup block.
+            // Detached: subscribing to `CNContactStoreDidChange` on the main
+            // actor warns on first invocation.
             observerTask = Task.detached { [weak self] in
                 for await _ in NotificationCenter.default.notifications(named: .CNContactStoreDidChange) {
                     guard let self else { return }
@@ -98,11 +94,8 @@ final class ContactSyncController {
         }
         isSyncing = true
         needsResync = false
-        // Detached so heavy work (CN enumeration, SQLite I/O, RPCs) actually
-        // runs off the main actor. Under Swift 6's `NonisolatedNonsendingByDefault`
-        // (SE-0461), nonisolated async functions called from a main-actor Task
-        // execute on the caller's actor — i.e. on main. `Task.detached` breaks
-        // that inheritance so `runSync` runs on the global executor.
+        // Detached: SE-0461 runs nonisolated async on the caller's actor;
+        // `Task.detached` breaks that so `runSync` stays off-main.
         syncTask = Task.detached { [weak self] in
             await self?.runSync()
             await MainActor.run { [weak self] in
@@ -117,11 +110,8 @@ final class ContactSyncController {
         }
     }
 
-    /// `nonisolated` so the heavy work (CN enumeration, SQLite I/O, RPCs)
-    /// runs off the main actor — do NOT drop the annotation. Callers must
-    /// also spawn via `Task.detached`; under Swift 6's
-    /// `NonisolatedNonsendingByDefault` (SE-0461), a `Task` body inside a
-    /// main-actor context would run this on main despite the annotation.
+    /// Callers must spawn this via `Task.detached`; under SE-0461 the
+    /// `nonisolated` annotation alone is not enough to keep it off-main.
     nonisolated private func runSync() async {
         let status = authorizationStatusProvider()
         guard status == .authorized else {
@@ -316,10 +306,6 @@ final class ContactSyncController {
         case .tooManyContacts:
             logger.warning("Sync stopped — contact count exceeds server cap")
         case .notFound:
-            // Dead path under current `streamFlipcashContacts` semantics —
-            // `.notFound` is treated as a clean 0-match completion at the
-            // facade. Kept for switch exhaustiveness; logs as info so a
-            // future server contract change surfaces in the log trail.
             logger.info("Sync completed with no matched contacts")
         case .unknown:
             logger.error("Sync failed — unknown error")
