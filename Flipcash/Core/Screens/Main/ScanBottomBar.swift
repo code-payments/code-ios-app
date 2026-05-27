@@ -11,6 +11,7 @@ struct ScanBottomBar: View {
     let onGive: () -> Void
     let onWallet: () -> Void
     let onDiscover: () -> Void
+    let onSend: () -> Void
 
     var body: some View {
         HStack(alignment: .bottom) {
@@ -27,6 +28,18 @@ struct ScanBottomBar: View {
                 action: onGive
             )
             .accessibilityIdentifier("scan-cash-button")
+
+            LargeButton(
+                title: "Send",
+                image: Image(.Icons.send),
+                spacing: 12,
+                maxWidth: 80,
+                maxHeight: 80,
+                fullWidth: true,
+                aligment: .bottom,
+                action: onSend
+            )
+            .accessibilityIdentifier("scan-send-button")
 
             ToastContainer(toast: toast) {
                 LargeButton(
