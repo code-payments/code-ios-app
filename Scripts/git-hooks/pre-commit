@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Refuse commits that include `GoogleService-Info.plist`.
+# The file flips between empty placeholders and real Firebase credentials
+# per local environment; neither form should land in version control.
+
+set -e
+
+FORBIDDEN_PATH="Flipcash/Supporting Files/GoogleService-Info.plist"
+
+while IFS= read -r -d '' staged_path; do
+    if [ "$staged_path" = "$FORBIDDEN_PATH" ]; then
+        cat >&2 <<EOF
+error: refusing to commit changes to '$FORBIDDEN_PATH'.
+
+To unstage:
+  git restore --staged -- "$FORBIDDEN_PATH"
+
+To discard the working-tree change too:
+  git restore -- "$FORBIDDEN_PATH"
+EOF
+        exit 1
+    fi
+done < <(git diff --cached --name-only -z)
