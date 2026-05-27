@@ -166,7 +166,7 @@ private struct RecipientRow: View {
         Button(action: onTap) {
             HStack(spacing: 12) {
                 ContactAvatarView(
-                    id: contact.id,
+                    id: contact.contactId,
                     displayName: contact.displayName,
                     imageData: contact.imageData,
                     size: 44

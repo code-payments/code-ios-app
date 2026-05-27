@@ -12,14 +12,14 @@ struct ResolvedContactsFilterTests {
     private let directory = ResolvedContacts(
         onFlipcash: [
             ResolvedContact(
-                id: "1",
+                contactId: "1",
                 displayName: "Alice Anderson",
                 phoneE164: "+15551110001",
                 nationalPhone: "(555) 111-0001",
                 imageData: nil
             ),
             ResolvedContact(
-                id: "2",
+                contactId: "2",
                 displayName: "Bob Brown",
                 phoneE164: "+15552220002",
                 nationalPhone: "(555) 222-0002",
@@ -28,7 +28,7 @@ struct ResolvedContactsFilterTests {
         ],
         invite: [
             ResolvedContact(
-                id: "3",
+                contactId: "3",
                 displayName: "Carla Costa",
                 phoneE164: "+15553330003",
                 nationalPhone: "(555) 333-0003",
@@ -54,14 +54,14 @@ struct ResolvedContactsFilterTests {
     @Test("Name match is case-insensitive substring")
     func nameMatch() {
         let filtered = directory.filtered(by: "ali")
-        #expect(filtered.onFlipcash.map(\.id) == ["1"])
+        #expect(filtered.onFlipcash.map(\.contactId) == ["1"])
         #expect(filtered.invite.isEmpty)
     }
 
     @Test("Phone match uses national format")
     func phoneMatch() {
         let filtered = directory.filtered(by: "222")
-        #expect(filtered.onFlipcash.map(\.id) == ["2"])
+        #expect(filtered.onFlipcash.map(\.contactId) == ["2"])
         #expect(filtered.invite.isEmpty)
     }
 

@@ -12,11 +12,21 @@ nonisolated private let logger = Logger(label: "flipcash.contact-directory")
 // MARK: - Resolved data -
 
 nonisolated struct ResolvedContact: Identifiable, Hashable, Sendable {
-    let id: String          // CNContact.identifier
+    /// `contactId` from `CNContact.identifier`. The same person may appear
+    /// in several `ResolvedContact`s, one per phone number, and the same
+    /// number may show up under several contactIds — so `contactId` alone
+    /// is NOT unique. Use ``id`` for `ForEach`. `contactId` is for things
+    /// scoped to the address-book record (image cache, send wire-up).
+    let contactId: String
     let displayName: String
     let phoneE164: String
     let nationalPhone: String
     let imageData: Data?
+
+    /// Composite identity for `ForEach`. A picker row corresponds to one
+    /// (contactId, e164) pair; the same address-book contact with three
+    /// phones is three rows with three distinct `id`s.
+    var id: String { "\(contactId)|\(phoneE164)" }
 }
 
 nonisolated struct ResolvedContacts: Equatable, Sendable {
@@ -57,51 +67,59 @@ nonisolated private extension ResolvedContact {
 /// the controller's cached output rather than re-loading on every appear.
 enum RecipientLoader {
 
-    /// One row per unique address-book contact, with the e164 we should
-    /// display chosen by ``placements(snapshot:flipcashSet:)``. The
-    /// snapshot table dedupes by `e164` only, so a single contact with
-    /// multiple phone-number entries (Home / Work / iPhone) yields
-    /// multiple snapshot rows that share `contactId`.
+    /// One placement per snapshot row. The snapshot now uses a composite
+    /// `(e164, contactId)` PK, so each pair survives — multiple phones on
+    /// one contact, or one phone shared across multiple contacts, all
+    /// come through here.
     nonisolated struct ContactPlacement: Equatable, Sendable {
         let contactId: String
         let e164: String
         let isOnFlipcash: Bool
     }
 
-    /// Group snapshot rows by `contactId` and pick a single e164 per
-    /// contact. Preference order:
-    /// 1. The first e164 we encounter that is in `flipcashSet` — that's
-    ///    the address the user can send to right now.
-    /// 2. Otherwise, the first e164 we encountered for that contact.
-    ///
-    /// Result order is first-seen, so callers can sort independently.
+    /// Direct map of every snapshot row to a placement, annotated with
+    /// whether the e164 is on Flipcash. No grouping or filtering.
     nonisolated static func placements(
         snapshot: [Database.LocalContact],
         flipcashSet: Set<String>,
     ) -> [ContactPlacement] {
-        var byContactId: [String: ContactPlacement] = [:]
-        var orderedIds: [String] = []
-        for entry in snapshot {
-            let isMatched = flipcashSet.contains(entry.e164)
-            if let existing = byContactId[entry.contactId] {
-                // Promote to a matched e164 if we haven't seen one yet.
-                if !existing.isOnFlipcash, isMatched {
-                    byContactId[entry.contactId] = ContactPlacement(
-                        contactId: entry.contactId,
-                        e164: entry.e164,
-                        isOnFlipcash: true,
-                    )
+        snapshot.map { entry in
+            ContactPlacement(
+                contactId: entry.contactId,
+                e164: entry.e164,
+                isOnFlipcash: flipcashSet.contains(entry.e164),
+            )
+        }
+    }
+
+    /// Collapse contacts that look identical to the user — same display
+    /// name and same nationally-formatted phone number — to a single
+    /// row. Different underlying e164s that format to the same national
+    /// string (extension trailers, formatting variants) count as the
+    /// same row. On a collision, prefer the variant whose e164 is on
+    /// Flipcash so the resulting row is the actionable one.
+    ///
+    /// Result preserves first-seen order, mirroring ``placements``.
+    nonisolated static func deduplicatedForDisplay(
+        _ contacts: [ResolvedContact],
+        flipcashSet: Set<String>,
+    ) -> [ResolvedContact] {
+        var byKey: [String: ResolvedContact] = [:]
+        var orderedKeys: [String] = []
+        for contact in contacts {
+            let key = "\(contact.displayName)|\(contact.nationalPhone)"
+            if let existing = byKey[key] {
+                let existingMatched = flipcashSet.contains(existing.phoneE164)
+                let newMatched      = flipcashSet.contains(contact.phoneE164)
+                if !existingMatched, newMatched {
+                    byKey[key] = contact
                 }
             } else {
-                byContactId[entry.contactId] = ContactPlacement(
-                    contactId: entry.contactId,
-                    e164: entry.e164,
-                    isOnFlipcash: isMatched,
-                )
-                orderedIds.append(entry.contactId)
+                byKey[key] = contact
+                orderedKeys.append(key)
             }
         }
-        return orderedIds.compactMap { byContactId[$0] }
+        return orderedKeys.compactMap { byKey[$0] }
     }
 
     static func load(database: Database) async -> ResolvedContacts {
@@ -131,36 +149,50 @@ enum RecipientLoader {
             let region = Region.current ?? .us
             let placements = placements(snapshot: snapshot, flipcashSet: flipcashSet)
 
-            var onFlipcash: [ResolvedContact] = []
-            var invite: [ResolvedContact] = []
-            let onFlipcashCount = placements.lazy.filter(\.isOnFlipcash).count
-            onFlipcash.reserveCapacity(onFlipcashCount)
-            invite.reserveCapacity(placements.count - onFlipcashCount)
+            // Resolve every placement first; cache `unifiedContact` lookups
+            // so the same contactId across rows doesn't hit CN repeatedly.
+            var resolvedByPlacement: [ResolvedContact] = []
+            resolvedByPlacement.reserveCapacity(placements.count)
+            var cnCache: [String: CNContact] = [:]
 
             for placement in placements {
-                guard let cnContact = try? store.unifiedContact(
+                let cnContact: CNContact
+                if let cached = cnCache[placement.contactId] {
+                    cnContact = cached
+                } else if let fetched = try? store.unifiedContact(
                     withIdentifier: placement.contactId,
                     keysToFetch: keys,
-                ) else {
+                ) {
+                    cnCache[placement.contactId] = fetched
+                    cnContact = fetched
+                } else {
                     continue
                 }
 
                 let nationalPhone = Phone(placement.e164, defaultRegion: region)?.national ?? placement.e164
-                let displayName = CNContactFormatter.string(from: cnContact, style: .fullName)
+                let displayName   = CNContactFormatter.string(from: cnContact, style: .fullName)
                     ?? nationalPhone
 
-                let resolved = ResolvedContact(
-                    id: placement.contactId,
+                resolvedByPlacement.append(ResolvedContact(
+                    contactId: placement.contactId,
                     displayName: displayName,
                     phoneE164: placement.e164,
                     nationalPhone: nationalPhone,
                     imageData: cnContact.thumbnailImageData,
-                )
+                ))
+            }
 
-                if placement.isOnFlipcash {
-                    onFlipcash.append(resolved)
+            // Collapse `(displayName, nationalPhone)` collisions — Ted's
+            // invariant: don't ever show the same name + number twice.
+            let unique = deduplicatedForDisplay(resolvedByPlacement, flipcashSet: flipcashSet)
+
+            var onFlipcash: [ResolvedContact] = []
+            var invite: [ResolvedContact] = []
+            for contact in unique {
+                if flipcashSet.contains(contact.phoneE164) {
+                    onFlipcash.append(contact)
                 } else {
-                    invite.append(resolved)
+                    invite.append(contact)
                 }
             }
 
