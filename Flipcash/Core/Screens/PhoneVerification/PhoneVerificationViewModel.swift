@@ -41,7 +41,6 @@ final class PhoneVerificationViewModel: PhoneVerifying {
 
     // MARK: - Dependencies -
 
-    @ObservationIgnored private let session: Session
     @ObservationIgnored private let flipClient: FlipClient
     @ObservationIgnored private let owner: KeyPair
 
@@ -59,6 +58,15 @@ final class PhoneVerificationViewModel: PhoneVerifying {
     /// its own flavored event there.
     @ObservationIgnored private let confirmPhoneEvent: (any AnalyticsEvent)?
 
+    // MARK: - Profile hooks -
+
+    /// Short-circuit for `Verifying.run()`. Defaults to `false`.
+    @ObservationIgnored private let isAlreadyVerifiedProvider: @MainActor () -> Bool
+
+    /// Post-success refresh, awaited before `onVerified` fires. Defaults
+    /// to a no-op.
+    @ObservationIgnored private let onShouldRefreshProfile: @MainActor () async -> Void
+
     // MARK: - Verifying lifecycle hooks -
 
     @ObservationIgnored var onCodeRequested: (@MainActor () -> Void)?
@@ -71,17 +79,20 @@ final class PhoneVerificationViewModel: PhoneVerifying {
     // MARK: - Init -
 
     init(
-        session: Session,
+        owner: KeyPair,
         flipClient: FlipClient,
         enterPhoneEvent: (any AnalyticsEvent)? = nil,
-        confirmPhoneEvent: (any AnalyticsEvent)? = nil
+        confirmPhoneEvent: (any AnalyticsEvent)? = nil,
+        isAlreadyVerified: @MainActor @escaping () -> Bool = { false },
+        onShouldRefreshProfile: @MainActor @escaping () async -> Void = { },
     ) {
-        self.session = session
         self.flipClient = flipClient
-        self.owner = session.ownerKeyPair
+        self.owner = owner
         self.region = phoneFormatter.currentRegion
         self.enterPhoneEvent = enterPhoneEvent
         self.confirmPhoneEvent = confirmPhoneEvent
+        self.isAlreadyVerifiedProvider = isAlreadyVerified
+        self.onShouldRefreshProfile = onShouldRefreshProfile
     }
 
     isolated deinit {
@@ -119,7 +130,7 @@ final class PhoneVerificationViewModel: PhoneVerifying {
     }
 
     var isAlreadyVerified: Bool {
-        session.profile?.isPhoneVerified ?? false
+        isAlreadyVerifiedProvider()
     }
 
     // MARK: - Setters & bindings -
@@ -286,7 +297,7 @@ final class PhoneVerificationViewModel: PhoneVerifying {
                     owner: owner
                 )
 
-                try? await session.updateProfile()
+                await onShouldRefreshProfile()
 
                 try await Task.delay(milliseconds: 500)
                 confirmCodeButtonState = .success
