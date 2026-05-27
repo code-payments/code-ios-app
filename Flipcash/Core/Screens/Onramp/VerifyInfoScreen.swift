@@ -66,9 +66,11 @@ struct VerifyInfoScreen<P: PhoneVerifying, E: EmailVerifying>: View {
                 case .enterPhoneNumber:
                     EnterPhoneScreen(viewModel: viewModel.phoneVerifier)
                         .interactiveDismissDisabled()
+                        .navigationTitle("Verify Phone Number")
                 case .confirmPhoneNumberCode:
                     ConfirmPhoneScreen(viewModel: viewModel.phoneVerifier)
                         .interactiveDismissDisabled()
+                        .navigationTitle("Verify Phone Number")
                 case .enterEmail:
                     EnterEmailScreen(viewModel: viewModel.emailVerifier)
                         .interactiveDismissDisabled()

@@ -85,7 +85,6 @@ struct EnterPhoneScreen<VM: PhoneVerifying>: View {
             .foregroundStyle(.textMain)
         }
         .dialog(item: $viewModel.dialogItem)
-        .navigationTitle("Verify Phone Number")
         .toolbarTitleDisplayMode(.inline)
         .task {
             try? await Task.sleep(for: .milliseconds(100))
