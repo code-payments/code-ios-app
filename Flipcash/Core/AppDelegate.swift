@@ -114,6 +114,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             lastBackgroundedAt = nil
             sessionContainer?.session.didBecomeActive()
             sessionContainer?.usdcSweepOperation.start()
+            sessionContainer?.contactSyncController.didBecomeActive()
         case .inactive:
             break
         @unknown default:

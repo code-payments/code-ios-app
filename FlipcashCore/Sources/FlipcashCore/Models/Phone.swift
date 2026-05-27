@@ -17,8 +17,27 @@ public struct Phone: Codable, Equatable, Hashable, Sendable {
 
     private let phoneNumber: PhoneNumber
 
+    /// Parses against PhoneNumberKit's implicit `US` default — national-format
+    /// inputs always parse as US numbers. Prefer ``init?(_:defaultRegion:)``
+    /// for any input not already prefixed with `+<countryCode>`.
     public init?(_ string: String) {
         guard let phoneNumber = try? Self.phoneNumberUtility.parse(string) else {
+            return nil
+        }
+
+        self.phoneNumber = phoneNumber
+        self.e164        = Self.phoneNumberUtility.format(phoneNumber, toType: PhoneNumberFormat.e164)
+        self.national    = Self.phoneNumberUtility.format(phoneNumber, toType: PhoneNumberFormat.national)
+    }
+
+    /// Parses national-format strings against `defaultRegion`; international-
+    /// format strings ignore it and parse via their own prefix.
+    public init?(_ string: String, defaultRegion: Region) {
+        guard let phoneNumber = try? Self.phoneNumberUtility.parse(
+            string,
+            withRegion: defaultRegion.rawValue.uppercased(),
+            ignoreType: true
+        ) else {
             return nil
         }
 
