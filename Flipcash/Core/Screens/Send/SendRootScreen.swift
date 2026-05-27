@@ -8,8 +8,7 @@ import FlipcashCore
 import FlipcashUI
 
 /// Root view for the Send sheet. Gates entry on a verified phone and
-/// authorized contacts; the satisfied state renders a placeholder for the
-/// recipient picker.
+/// authorized contacts; the satisfied state renders the recipient picker.
 struct SendRootScreen: View {
 
     @Environment(Session.self) private var session
@@ -43,7 +42,7 @@ struct SendRootScreen: View {
                     onSkipped: nil
                 )
             case .ready:
-                RecipientPickerPlaceholder()
+                RecipientPickerScreen(sessionContainer: sessionContainer)
             }
         }
         .sheet(item: $phoneVerificationViewModel.cancellingOnDismiss()) { viewModel in
@@ -84,17 +83,3 @@ struct SendRootScreen: View {
     }
 }
 
-// MARK: - Picker placeholder -
-
-private struct RecipientPickerPlaceholder: View {
-    var body: some View {
-        // TODO: replace with `RecipientPickerScreen`.
-        VStack(spacing: 12) {
-            ProgressView()
-            Text("Recipient picker arrives in Phase 5")
-                .font(.appTextMedium)
-                .foregroundStyle(Color.textSecondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
