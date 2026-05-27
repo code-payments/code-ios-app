@@ -40,10 +40,15 @@ struct DatabaseContactSyncTests {
             changeHistory: nil,
             lastSyncedAt: nil
         )
+        // Integer-second epoch round-trips losslessly through SQLite's Date
+        // column; `.now` carries sub-second precision the storage truncates,
+        // which made the `==` flake. Different epoch from `state_roundTrip`
+        // so the upsert is still meaningful (the second value must overwrite
+        // the first).
         let second = Database.ContactSyncState(
             checksum: Data(repeating: 0x02, count: 32),
             changeHistory: Data([0xff]),
-            lastSyncedAt: .now
+            lastSyncedAt: Date(timeIntervalSince1970: 1_716_000_001)
         )
 
         try db.setContactSyncState(first)

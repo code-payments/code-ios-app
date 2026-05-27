@@ -88,6 +88,7 @@ extension SessionContainer {
         let database = Database.mock
         let ratesController = RatesController(container: .mock, database: database)
         let historyController = HistoryController(container: .mock, database: database, owner: .mock)
+        let contactSyncController = ContactSyncController(client: Container.mock.flipClient, database: database, owner: .mock)
         let session = Session.makeMock(
             database: database,
             historyController: historyController,
@@ -101,6 +102,7 @@ extension SessionContainer {
             ratesController: ratesController,
             historyController: historyController,
             pushController: .mock,
+            contactSyncController: contactSyncController,
             flipClient: Container.mock.flipClient
         )
     }

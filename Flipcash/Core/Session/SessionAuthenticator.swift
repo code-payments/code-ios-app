@@ -225,17 +225,23 @@ final class SessionAuthenticator {
             owner: owner
         )
         historyController.sync()
-        
+
         let ratesController = RatesController(
             container: container,
             database: database
         )
-        
+
         let pushController = PushController(
             owner: owner.authority.keyPair,
             client: container.flipClient
         )
-        
+
+        let contactSyncController = ContactSyncController(
+            client: container.flipClient,
+            database: database,
+            owner: owner
+        )
+
         let session = Session(
             container: container,
             historyController: historyController,
@@ -245,7 +251,7 @@ final class SessionAuthenticator {
             owner: owner,
             userID: initializedAccount.userID
         )
-        
+
         let walletConnection = WalletConnection(owner: owner)
 
         return SessionContainer(
@@ -256,6 +262,7 @@ final class SessionAuthenticator {
             ratesController: ratesController,
             historyController: historyController,
             pushController: pushController,
+            contactSyncController: contactSyncController,
             flipClient: container.flipClient
         )
     }
@@ -424,6 +431,7 @@ struct SessionContainer {
     let ratesController: RatesController
     let historyController: HistoryController
     let pushController: PushController
+    let contactSyncController: ContactSyncController
     let flipClient: FlipClient
     let onrampDeeplinkInbox: OnrampDeeplinkInbox
     let verificationCoordinator: VerificationCoordinator
@@ -439,6 +447,7 @@ struct SessionContainer {
         ratesController: RatesController,
         historyController: HistoryController,
         pushController: PushController,
+        contactSyncController: ContactSyncController,
         flipClient: FlipClient
     ) {
         self.session = session
@@ -447,6 +456,7 @@ struct SessionContainer {
         self.ratesController = ratesController
         self.historyController = historyController
         self.pushController = pushController
+        self.contactSyncController = contactSyncController
         self.flipClient = flipClient
         let deeplinkInbox = OnrampDeeplinkInbox()
         self.onrampDeeplinkInbox = deeplinkInbox
@@ -496,6 +506,7 @@ struct SessionContainer {
             .environment(ratesController)
             .environment(historyController)
             .environment(pushController)
+            .environment(contactSyncController)
             .environment(walletConnection)
             .environment(verificationCoordinator)
             .environment(coinbaseService)
