@@ -114,4 +114,40 @@ nonisolated extension Database {
             }
         }
     }
+
+    // MARK: - Combined writes -
+
+    /// Replace the snapshot AND upsert the sync state in one transaction.
+    func updateContactSyncSnapshotAndState(
+        snapshot contacts: [LocalContact],
+        state: ContactSyncState
+    ) throws {
+        let snapshotTable = LocalContactsSnapshotTable()
+        let stateTable    = ContactSyncStateTable()
+
+        var seen: Set<String> = []
+        let dedupedSnapshot = contacts.filter { seen.insert($0.e164).inserted }
+
+        try writer.transaction {
+            try writer.run(snapshotTable.table.delete())
+            for contact in dedupedSnapshot {
+                try writer.run(
+                    snapshotTable.table.insert(
+                        snapshotTable.e164 <- contact.e164,
+                        snapshotTable.contactId <- contact.contactId
+                    )
+                )
+            }
+
+            try writer.run(
+                stateTable.table.upsert(
+                    stateTable.id <- 1,
+                    stateTable.checksum <- state.checksum,
+                    stateTable.changeHistory <- state.changeHistory,
+                    stateTable.lastSyncedAt <- state.lastSyncedAt,
+                    onConflictOf: stateTable.id
+                )
+            )
+        }
+    }
 }

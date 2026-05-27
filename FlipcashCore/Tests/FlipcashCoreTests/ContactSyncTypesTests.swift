@@ -37,15 +37,15 @@ struct ContactSyncTypesTests {
     // MARK: - ErrorContactSync reportability -
 
     @Test(
-        "transient and recoverable cases are non-reportable; only .unknown bugsnags",
+        "transient/recoverable cases non-reportable; .checksumMismatch / .notFound / .unknown bugsnag",
         arguments: [
             (ErrorContactSync.ok,              false),
             (.denied,            false),
-            (.checksumMismatch,  false),
             (.tooManyContacts,   false),
-            (.notFound,          false),
             (.checksumDrift,     false),
             (.networkError,      false),
+            (.checksumMismatch,  true),
+            (.notFound,          true),
             (.unknown,           true),
         ]
     )
