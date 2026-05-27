@@ -95,13 +95,14 @@ nonisolated extension Database {
     }
 
     /// Replace the snapshot with the latest uploaded set.
-    /// Linked iOS contacts commonly share a normalized phone number; the
-    /// snapshot's purpose is delta computation against the unique e164 set,
-    /// so we dedupe by `e164` keeping the first occurrence's `contactId`.
+    /// Composite PK `(e164, contactId)` lets the same phone show up under
+    /// multiple address-book contacts (the picker shows each name with
+    /// that number). Dedupe defensively on the tuple in case the source
+    /// ever emits the same pair twice.
     func replaceLocalContactsSnapshot(_ contacts: [LocalContact]) throws {
         let table = LocalContactsSnapshotTable()
-        var seen: Set<String> = []
-        let deduped = contacts.filter { seen.insert($0.e164).inserted }
+        var seen: Set<LocalContact> = []
+        let deduped = contacts.filter { seen.insert($0).inserted }
         try writer.transaction {
             try writer.run(table.table.delete())
             for contact in deduped {
