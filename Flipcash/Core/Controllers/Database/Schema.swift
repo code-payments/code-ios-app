@@ -322,9 +322,15 @@ nonisolated extension Database {
         let localContactsSnapshotTable = LocalContactsSnapshotTable()
 
         try writer.transaction {
+            // Composite PK (e164, contactId): the same phone number may
+            // appear on multiple address-book contacts (a household
+            // landline, a shop number on several cards). The picker shows
+            // every (name, number) pair, so the snapshot has to preserve
+            // them all.
             try writer.run(localContactsSnapshotTable.table.create(ifNotExists: true, withoutRowid: true) { t in
-                t.column(localContactsSnapshotTable.e164, primaryKey: true)
+                t.column(localContactsSnapshotTable.e164)
                 t.column(localContactsSnapshotTable.contactId)
+                t.primaryKey(localContactsSnapshotTable.e164, localContactsSnapshotTable.contactId)
             })
         }
 
