@@ -57,10 +57,14 @@ nonisolated private let logger = Logger(label: "flipcash.contact-sync-controller
 ///
 /// **Concurrency.** The class is implicitly `@MainActor` (Flipcash module
 /// default) for state coordination (`isSyncing`, `syncTask`, `observerTask`,
-/// `needsResync`). Heavy work — `CNContactStore.enumerateContacts`, synchronous
-/// SQLite I/O, and the server RPCs — runs off the main actor via
-/// `Task { @concurrent in … }` in ``sync()``. The `let` dependencies are
-/// `nonisolated` so the off-main work can read them without hopping.
+/// `needsResync`). Heavy work — `CNContactStore.enumerateContacts`,
+/// synchronous SQLite I/O, and the server RPCs — runs off the main actor
+/// because ``runSync()`` is declared `nonisolated async` and the Task body
+/// in ``sync()`` inherits non-main isolation through the
+/// `NonisolatedNonsendingByDefault` upcoming feature. The `let` dependencies
+/// are `nonisolated` so the off-main work can read them without hopping. Do
+/// NOT drop the `nonisolated` from ``runSync()``/``performSync(contacts:)``
+/// while refactoring — without them the heavy work falls back onto main.
 ///
 /// The `change_history` column on `Database.ContactSyncState` is always
 /// persisted as `nil`: `CNContactStore.enumeratorForChangeHistoryFetchRequest:`
@@ -158,11 +162,11 @@ final class ContactSyncController {
     // MARK: - Sync -
 
     /// Coalesces if a sync is already in flight (re-runs once the current one
-    /// completes). Heavy work currently runs on the main actor — matches the
-    /// sibling `HistoryController` / `RatesController` pattern. An earlier
-    /// `Task { @concurrent in ... }` attempt to push work off-main caused
-    /// scheduling hangs in the test suite; revisit when the runtime around
-    /// `@concurrent` + protocol-existential dispatch is more settled.
+    /// completes via the `needsResync` flag). Heavy work off-main comes from
+    /// `runSync` being `nonisolated async` — calls hop to the cooperative
+    /// pool. The post-await cleanup hops back to main inside `MainActor.run`
+    /// so the `isSyncing`/`syncTask`/`needsResync` triple-read is atomic
+    /// against any concurrent `sync()` on main.
     func sync() {
         guard !isSyncing else {
             needsResync = true
@@ -173,11 +177,14 @@ final class ContactSyncController {
         needsResync = false
         syncTask = Task { [weak self] in
             await self?.runSync()
-            self?.isSyncing = false
-            self?.syncTask = nil
-            if self?.needsResync == true {
-                self?.needsResync = false
-                self?.sync()
+            await MainActor.run { [weak self] in
+                guard let self else { return }
+                self.isSyncing = false
+                self.syncTask = nil
+                if self.needsResync {
+                    self.needsResync = false
+                    self.sync()
+                }
             }
         }
     }
@@ -222,46 +229,55 @@ final class ContactSyncController {
                 checksum: storedChecksum,
                 owner:    ownerKeyPair
             )
-            if case .ok = result {
+            // Exhaustive switch — per CLAUDE.md hard rule, never use `if case`
+            // on an enum we control. Adding a new `CheckSyncResult` case
+            // forces a compile error here instead of silently routing to drift.
+            switch result {
+            case .ok:
                 logger.info("Sync skipped — local unchanged, server agrees")
                 return
+            case .outOfSync:
+                // A delta would compute empty adds/removes with `old == new`
+                // and is structurally guaranteed to be rejected as
+                // `checksumDrift`. Skip straight to full upload.
+                serverDrifted = true
+                logger.info("Server reported drift on idle probe — uploading full set")
             }
-            // Server reports drift but our checksum hasn't changed — a delta
-            // would compute empty adds/removes with `old == new` and is
-            // structurally guaranteed to be rejected as `checksumDrift`. Skip
-            // straight to full upload.
-            serverDrifted = true
-            logger.info("Server reported drift on idle probe — uploading full set")
         }
-
-        let snapshot = try database.localContactsSnapshot()
 
         // Step 2 — choose upload path. Server drift forces full; otherwise
         // delta-if-available, full-on-first-sync. Delta with `.checksumDrift`
-        // falls back to full in the same call.
+        // falls back to full in the same call. Snapshot load is hoisted into
+        // the delta branch so the drift-recovery path doesn't depend on the
+        // snapshot table being readable.
         if serverDrifted {
             try await uploadFull(phones: phones, checksum: newChecksum)
-        } else if let oldChecksum = storedState.checksum, !snapshot.isEmpty {
-            let (adds, removes) = Self.delta(
-                oldSnapshot: snapshot.map(\.e164),
-                newContacts: phones
-            )
-            let result = try await client.uploadContactDelta(
-                adds:        adds,
-                removes:     removes,
-                oldChecksum: oldChecksum,
-                newChecksum: newChecksum,
-                owner:       ownerKeyPair
-            )
-            switch result {
-            case .ok:
-                logger.info("Delta upload OK", metadata: [
-                    "adds":    "\(adds.count)",
-                    "removes": "\(removes.count)",
-                ])
-            case .checksumDrift:
-                logger.warning("Delta upload reported checksumDrift — falling back to full upload")
+        } else if let oldChecksum = storedState.checksum {
+            let snapshot = try database.localContactsSnapshot()
+            if snapshot.isEmpty {
                 try await uploadFull(phones: phones, checksum: newChecksum)
+            } else {
+                let (adds, removes) = Self.delta(
+                    oldSnapshot: snapshot.map(\.e164),
+                    newContacts: phones
+                )
+                let result = try await client.uploadContactDelta(
+                    adds:        adds,
+                    removes:     removes,
+                    oldChecksum: oldChecksum,
+                    newChecksum: newChecksum,
+                    owner:       ownerKeyPair
+                )
+                switch result {
+                case .ok:
+                    logger.info("Delta upload OK", metadata: [
+                        "adds":    "\(adds.count)",
+                        "removes": "\(removes.count)",
+                    ])
+                case .checksumDrift:
+                    logger.warning("Delta upload reported checksumDrift — falling back to full upload")
+                    try await uploadFull(phones: phones, checksum: newChecksum)
+                }
             }
         } else {
             try await uploadFull(phones: phones, checksum: newChecksum)
@@ -272,14 +288,17 @@ final class ContactSyncController {
         // mismatch (or a server-state delta) and re-runs the full flow.
         try await refreshFlipcashContacts(checksum: newChecksum)
 
-        // Step 4 — persist new state only after both upload AND stream
-        // succeeded. `changeHistory` stays nil per the type doc-comment.
-        try database.replaceLocalContactsSnapshot(contacts)
-        try database.setContactSyncState(.init(
-            checksum:      newChecksum,
-            changeHistory: nil,
-            lastSyncedAt:  .now
-        ))
+        // Step 4 — persist snapshot + checksum atomically in a single SQLite
+        // transaction so a crash between them can't leave them out of sync.
+        // `changeHistory` stays nil per the type doc-comment.
+        try database.updateContactSyncSnapshotAndState(
+            snapshot: contacts,
+            state: .init(
+                checksum:      newChecksum,
+                changeHistory: nil,
+                lastSyncedAt:  .now
+            )
+        )
     }
 
     nonisolated private func uploadFull(phones: [String], checksum: Data) async throws {
@@ -307,14 +326,13 @@ final class ContactSyncController {
 
     // MARK: - Address book -
 
-    /// Enumerate the local store, normalize phones to E.164, dedupe by E.164
-    /// keeping the first occurrence's `contactId` (linked contacts commonly
-    /// share a number).
-    ///
-    /// A fresh `CNContactStore` is constructed per call — the type is not
-    /// declared `Sendable` so it can't be stored as a `nonisolated let`, and
-    /// `CNContactStore()` is documented as thread-safe and cheap to allocate
-    /// (it's a handle to the OS store, not the data itself).
+    /// Enumerate the local store and hand the raw `(stringValue, identifier)`
+    /// pairs to ``normalizeContacts(rawNumbers:region:)`` for E.164
+    /// normalization. A fresh `CNContactStore` is constructed per call — the
+    /// type is not declared `Sendable` so it can't be stored as a
+    /// `nonisolated let`, and `CNContactStore()` is documented as thread-safe
+    /// and cheap to allocate (it's a handle to the OS store, not the data
+    /// itself).
     nonisolated private func readContacts() throws -> [Database.LocalContact] {
         let store = CNContactStore()
         let request = CNContactFetchRequest(keysToFetch: [
@@ -322,15 +340,35 @@ final class ContactSyncController {
             CNContactIdentifierKey   as CNKeyDescriptor,
         ])
 
-        var seen:   Set<String> = []
-        var locals: [Database.LocalContact] = []
-
+        var rawNumbers: [(raw: String, contactId: String)] = []
         try store.enumerateContacts(with: request) { contact, _ in
             for labelled in contact.phoneNumbers {
-                guard let phone = Phone(labelled.value.stringValue) else { continue }
-                if seen.insert(phone.e164).inserted {
-                    locals.append(.init(e164: phone.e164, contactId: contact.identifier))
-                }
+                rawNumbers.append((labelled.value.stringValue, contact.identifier))
+            }
+        }
+
+        // Most contacts on a typical iPhone are stored in the user's local
+        // format (no `+` prefix); we need a region hint to parse them. Fall
+        // back to `.us` if the device has no region — matches PhoneNumberKit's
+        // own default.
+        let region = Region.current ?? .us
+        return Self.normalizeContacts(rawNumbers: rawNumbers, region: region)
+    }
+
+    /// Pure normalization helper — extracted from ``readContacts()`` so unit
+    /// tests can drive it with synthetic input and verify national-format
+    /// numbers parse against `region`. Dedupes by E.164, keeping the first
+    /// occurrence's `contactId` (linked iOS contacts commonly share a number).
+    nonisolated static func normalizeContacts(
+        rawNumbers: [(raw: String, contactId: String)],
+        region: Region
+    ) -> [Database.LocalContact] {
+        var seen:   Set<String> = []
+        var locals: [Database.LocalContact] = []
+        for entry in rawNumbers {
+            guard let phone = Phone(entry.raw, defaultRegion: region) else { continue }
+            if seen.insert(phone.e164).inserted {
+                locals.append(.init(e164: phone.e164, contactId: entry.contactId))
             }
         }
         return locals

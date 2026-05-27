@@ -204,6 +204,84 @@ struct ContactSyncControllerTests {
         }
     }
 
+    // MARK: - normalizeContacts (CN string → E.164 dedupe)
+
+    @Suite("normalizeContacts(rawNumbers:region:)")
+    struct NormalizeContactsTests {
+
+        @Test("National-format US numbers parse against .us region")
+        func nationalUSParses() {
+            let result = ContactSyncController.normalizeContacts(
+                rawNumbers: [
+                    ("415-555-0100", "alice"),
+                    ("(415) 555-0101", "bob"),
+                    ("4155550102", "carol"),
+                ],
+                region: .us
+            )
+            #expect(result.map(\.e164) == ["+14155550100", "+14155550101", "+14155550102"])
+            #expect(result.map(\.contactId) == ["alice", "bob", "carol"])
+        }
+
+        @Test("National-format UK numbers parse against .gb region")
+        func nationalUKParses() {
+            let result = ContactSyncController.normalizeContacts(
+                rawNumbers: [("020 7946 0958", "alice")],
+                region: .gb
+            )
+            #expect(result.first?.e164 == "+442079460958")
+        }
+
+        @Test("International-format numbers parse regardless of region hint")
+        func internationalIgnoresRegion() {
+            // A US iPhone with a UK contact stored as +44 — must still parse
+            // correctly even though the device's region is .us.
+            let result = ContactSyncController.normalizeContacts(
+                rawNumbers: [("+44 20 7946 0958", "alice")],
+                region: .us
+            )
+            #expect(result.first?.e164 == "+442079460958")
+        }
+
+        @Test("Unparseable entries are silently skipped")
+        func unparseableSkipped() {
+            let result = ContactSyncController.normalizeContacts(
+                rawNumbers: [
+                    ("not-a-phone", "alice"),
+                    ("415-555-0100", "bob"),
+                    ("", "carol"),
+                ],
+                region: .us
+            )
+            #expect(result.count == 1)
+            #expect(result.first?.contactId == "bob")
+        }
+
+        @Test("Dedupe by E.164 keeps the first occurrence's contactId")
+        func dedupeKeepsFirst() {
+            // Linked iOS contacts commonly produce the same E.164 for multiple
+            // CNContact records; we keep the first one's identifier.
+            let result = ContactSyncController.normalizeContacts(
+                rawNumbers: [
+                    ("415-555-0100", "alice"),
+                    ("(415) 555-0100", "alice-work"),
+                    ("+14155550100", "alice-home"),
+                ],
+                region: .us
+            )
+            #expect(result.count == 1)
+            let first = result.first!
+            #expect(first.e164 == "+14155550100")
+            #expect(first.contactId == "alice")
+        }
+
+        @Test("Empty input returns empty result")
+        func emptyInput() {
+            let result = ContactSyncController.normalizeContacts(rawNumbers: [], region: .us)
+            #expect(result.isEmpty)
+        }
+    }
+
     // MARK: - Lifecycle
 
     /// `.serialized` because each test spawns an observer Task that subscribes
@@ -321,6 +399,56 @@ struct ContactSyncControllerTests {
             #expect(counter.count == 2)
         }
 
+        @Test("sync() coalesces a trigger that arrives while in flight and re-runs once the first completes")
+        func syncCoalescesInFlightTriggerAndRerunsAfterCompletion() async throws {
+            let counter = AuthCounter()
+            let controller = ContactSyncController(
+                client:                      MockContactSync(),
+                database:                    .mock,
+                owner:                       .mock,
+                authorizationStatusProvider: counter.bumpAndReturnNotDetermined
+            )
+
+            // sync() is synchronous on main: it sets isSyncing=true and
+            // spawns Task A, then returns BEFORE Task A's body runs (the
+            // body suspends at the first `await self?.runSync()`). So a
+            // second sync() call right after — still on the same main
+            // synchronous tick — observes isSyncing==true and gets coalesced.
+            controller.sync()
+            #expect(controller.isSyncing == true)
+
+            controller.sync()
+            #expect(controller.isSyncing == true)  // still — the second call was coalesced, not dropped silently
+
+            // Yield until both runs land: Task A's runSync (auth bump #1) +
+            // the post-await cleanup that re-fires sync() because
+            // needsResync was set by the second call → Task B's runSync
+            // (auth bump #2). Bounded at 1s so a regression that drops the
+            // re-fire surfaces as a fast failure instead of a hang.
+            try await Self.awaitCounter(counter, atLeast: 2, controller: controller)
+            // Awaiting the counter only proves the auth check ran twice — Task
+            // B's MainActor.run cleanup may not have flipped `isSyncing` /
+            // cleared `syncTask` yet. Drain the cleanup before final asserts.
+            try await Self.awaitSyncIdle(controller: controller)
+
+            #expect(counter.count == 2)
+            #expect(controller.isSyncing == false)
+            #expect(controller.syncTask == nil)
+        }
+
+        /// Wait for the controller to be fully idle (`isSyncing == false`,
+        /// `syncTask == nil`). Bounded at 1s.
+        private static func awaitSyncIdle(controller: ContactSyncController) async throws {
+            let deadline = Date.now.addingTimeInterval(1.0)
+            while (controller.isSyncing || controller.syncTask != nil), Date.now < deadline {
+                if let task = controller.syncTask {
+                    await task.value
+                } else {
+                    await Task.yield()
+                }
+            }
+        }
+
         /// Bounded wait — the spawned `Task { @MainActor in sync() }` from
         /// `didBecomeActive` runs after a few yields. 1s is generous; a real
         /// hang fails fast instead of waiting on a suite-level timeLimit.
@@ -400,8 +528,10 @@ struct ContactSyncControllerTests {
             #expect(storedState.checksum == ContactSyncController.checksum(of: contacts.map(\.e164)))
             try #require(storedState.lastSyncedAt != nil)
 
-            #expect(try database.localContactsSnapshot().map(\.e164) == contacts.map(\.e164))
-            #expect(try database.flipcashContacts() == ["+14155550101"])
+            // Database+ContactSync's SELECTs have no ORDER BY — compare via
+            // Set so the test stays stable as table pages rearrange.
+            #expect(Set(try database.localContactsSnapshot().map(\.e164)) == Set(contacts.map(\.e164)))
+            #expect(Set(try database.flipcashContacts()) == ["+14155550101"])
         }
 
         @Test("Steady-state — local unchanged + server agrees → no upload, no stream")
@@ -535,24 +665,38 @@ struct ContactSyncControllerTests {
             #expect(try database.flipcashContacts().isEmpty)
         }
 
-        @Test("Stream failure leaves state unmodified so next sync re-runs end-to-end")
-        func streamFailure_doesNotPersist() async throws {
+        @Test("Stream failure leaves state unmodified — including pre-existing matched-set rows")
+        func streamFailure_doesNotPersistAndLeavesMatchedSetIntact() async throws {
             let mock = MockContactSync()
             mock.streamTerminalError = ErrorContactSync.networkError
             let database = Database.mock
             let controller = Self.makeController(mock: mock, database: database)
 
+            // Seed a prior successful sync: stored checksum + snapshot of
+            // alice + matched-set containing bob. The new sync about to run
+            // will upload a different contact set, but its stream throws —
+            // we need to verify that none of the four DB tables get clobbered.
+            let priorChecksum = ContactSyncController.checksum(of: [Self.aliceContact.e164])
+            try Self.seedDatabase(database, checksum: priorChecksum, snapshot: [Self.aliceContact])
+            try database.replaceFlipcashContacts([Self.bobContact.e164], matchedAt: .now)
+
             await #expect(throws: ErrorContactSync.networkError) {
-                try await controller.performSync(contacts: [Self.aliceContact])
+                try await controller.performSync(contacts: [Self.bobContact, Self.carolContact])
             }
 
-            // Upload succeeded but stream failed AFTER it — checksum and
-            // snapshot stay empty so the next sync's probe sees a mismatch
-            // and re-runs end-to-end (recovering matched-set freshness).
-            #expect(mock.fullCalls.count == 1)
+            // Path taken: snapshot non-empty + oldChecksum present + new
+            // checksum differs → delta upload (alice removed, bob+carol
+            // added), succeeds .ok, then stream throws. With persist-after-
+            // refresh ordering, NONE of the local writes ran — so checksum,
+            // snapshot, AND the prior matched-set rows all stay at their
+            // pre-sync values.
+            #expect(mock.deltaCalls.count == 1)
+            #expect(mock.fullCalls.isEmpty)
             #expect(mock.streamCalls.count == 1)
-            #expect(try database.contactSyncState() == .empty)
-            #expect(try database.localContactsSnapshot().isEmpty)
+            let storedState = try database.contactSyncState()
+            #expect(storedState.checksum == priorChecksum)
+            #expect(Set(try database.localContactsSnapshot().map(\.e164)) == [Self.aliceContact.e164])
+            #expect(Set(try database.flipcashContacts()) == [Self.bobContact.e164])
         }
 
         @Test("CheckSync `.denied` from server propagates")

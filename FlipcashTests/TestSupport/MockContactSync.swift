@@ -109,11 +109,16 @@ final class MockContactSync: ContactSyncing, @unchecked Sendable {
     }
 
     func streamFlipcashContacts(checksum: Data, owner: KeyPair) -> AsyncThrowingStream<String, Error> {
-        let (yields, terminalError): ([String], Error?) = lock.withLock {
-            _streamCalls.append(checksum)
-            return (_streamYields, _streamTerminalError)
-        }
-        return AsyncThrowingStream { continuation in
+        lock.withLock { _streamCalls.append(checksum) }
+        // Snapshot scriptable values INSIDE the stream's producer closure so a
+        // test that mutates `streamYields`/`streamTerminalError` between
+        // calling `controller.performSync(...)` and the stream actually
+        // iterating sees the latest values, not whatever was set at
+        // registration time.
+        return AsyncThrowingStream { [self] continuation in
+            let (yields, terminalError): ([String], Error?) = lock.withLock {
+                (_streamYields, _streamTerminalError)
+            }
             for value in yields {
                 continuation.yield(value)
             }
@@ -122,6 +127,10 @@ final class MockContactSync: ContactSyncing, @unchecked Sendable {
             } else {
                 continuation.finish()
             }
+            // Mirror production's `FlipClient+ContactList.swift:75` shape so
+            // future cancellation-regression tests have somewhere to assert.
+            // No underlying gRPC resource in this mock — explicit no-op.
+            continuation.onTermination = { _ in }
         }
     }
 }

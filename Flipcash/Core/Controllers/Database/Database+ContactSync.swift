@@ -114,4 +114,42 @@ nonisolated extension Database {
             }
         }
     }
+
+    // MARK: - Combined writes -
+
+    /// Atomically replace the local snapshot AND upsert the sync state in a
+    /// single transaction. Used at the end of a successful sync so a crash
+    /// between the two writes can't leave snapshot and checksum out of sync.
+    func updateContactSyncSnapshotAndState(
+        snapshot contacts: [LocalContact],
+        state: ContactSyncState
+    ) throws {
+        let snapshotTable = LocalContactsSnapshotTable()
+        let stateTable    = ContactSyncStateTable()
+
+        var seen: Set<String> = []
+        let dedupedSnapshot = contacts.filter { seen.insert($0.e164).inserted }
+
+        try writer.transaction {
+            try writer.run(snapshotTable.table.delete())
+            for contact in dedupedSnapshot {
+                try writer.run(
+                    snapshotTable.table.insert(
+                        snapshotTable.e164 <- contact.e164,
+                        snapshotTable.contactId <- contact.contactId
+                    )
+                )
+            }
+
+            try writer.run(
+                stateTable.table.upsert(
+                    stateTable.id <- 1,
+                    stateTable.checksum <- state.checksum,
+                    stateTable.changeHistory <- state.changeHistory,
+                    stateTable.lastSyncedAt <- state.lastSyncedAt,
+                    onConflictOf: stateTable.id
+                )
+            )
+        }
+    }
 }
