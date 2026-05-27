@@ -36,4 +36,26 @@ protocol OnrampAuthorizing: AnyObject {
     ) async throws -> String
 }
 
-extension FlipClient: ContactVerifying, OnrampAuthorizing {}
+/// Contact-sync RPC surface used by `ContactSyncController`. Each method maps
+/// 1:1 to a `flipcash.contact.v1.ContactList` server RPC (plus the matched-set
+/// stream); the controller drives the state machine and the conformer issues
+/// the calls. `Sendable` so the controller can hold `any ContactSyncing` as a
+/// `nonisolated let` and call it from off-main `@concurrent` work.
+protocol ContactSyncing: AnyObject, Sendable {
+
+    func checkContactSync(checksum: Data, owner: KeyPair) async throws -> CheckSyncResult
+
+    func uploadContactDelta(
+        adds: [String],
+        removes: [String],
+        oldChecksum: Data,
+        newChecksum: Data,
+        owner: KeyPair
+    ) async throws -> DeltaUploadResult
+
+    func uploadAllContacts(phones: [String], checksum: Data, owner: KeyPair) async throws
+
+    func streamFlipcashContacts(checksum: Data, owner: KeyPair) -> AsyncThrowingStream<String, Error>
+}
+
+extension FlipClient: ContactVerifying, OnrampAuthorizing, ContactSyncing {}
