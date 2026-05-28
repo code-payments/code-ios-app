@@ -87,6 +87,11 @@ final class OnrampVerificationViewModel<P: PhoneVerifying, E: EmailVerifying>: V
         }
     }
 
+    // `@_optimize(none)` skips the SIL optimizer for this deinit. Without it,
+    // Swift 6.3's `EarlyPerfInliner` crashes when checking layout-constraint
+    // compatibility through the generic parameters of this class on `-O`
+    // archive builds.
+    @_optimize(none)
     isolated deinit {
         let c = continuation
         continuation = nil
