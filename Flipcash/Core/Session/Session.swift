@@ -917,28 +917,8 @@ class Session {
 
             updatePostTransaction()
 
-        } catch ErrorSubmitIntent.denied(let reasons, let messages) {
-            logger.warning("Send denied by server guard", metadata: [
-                "recipientOwner": "\(recipientOwner.base58)",
-                "rendezvous": "\(rendezvous.base58)",
-                "amount": "\(amount.nativeAmount.formatted())",
-                "reasons": "\(reasons)",
-                "messages": "\(messages)",
-            ])
-            throw ErrorSubmitIntent.denied(reasons, messages: messages)
-
-        } catch ErrorSubmitIntent.staleState(let reasons, let kinds) {
-            logger.warning("Send rejected with stale state", metadata: [
-                "recipientOwner": "\(recipientOwner.base58)",
-                "rendezvous": "\(rendezvous.base58)",
-                "kinds": "\(kinds)",
-            ])
-            throw ErrorSubmitIntent.staleState(reasons, kinds: kinds)
-
-        } catch is CancellationError {
-            throw CancellationError()
-
         } catch {
+            guard !(error is CancellationError) else { throw error }
             logger.error("Send failed", metadata: [
                 "recipientOwner": "\(recipientOwner.base58)",
                 "rendezvous": "\(rendezvous.base58)",
