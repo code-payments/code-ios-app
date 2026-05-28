@@ -103,6 +103,14 @@ nonisolated extension Database {
             LocalContact(e164: row[table.e164], contactId: row[table.contactId])
         }
     }
+}
+
+// MARK: - ContactSnapshotReading -
+
+nonisolated extension Database: ContactSnapshotReading {
+    public func contactIds(forE164 e164: String) throws -> [String] {
+        try localContactsSnapshot(forE164: e164).map(\.contactId)
+    }
 
     /// Replace the snapshot with the latest uploaded set.
     /// Composite PK `(e164, contactId)` lets the same phone show up under
