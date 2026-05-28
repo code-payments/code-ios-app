@@ -59,6 +59,12 @@ extension Analytics {
     enum SendEvent: String, AnalyticsEvent {
         case showEnterPhone   = "Send: Show Enter Phone"
         case showConfirmPhone = "Send: Show Confirm Phone"
+        case tapRecipient     = "Send: Tap Recipient"
+        case resolveSuccess   = "Send: Resolve Success"
+        case resolveNotFound  = "Send: Resolve NotFound"
+        case resolveError     = "Send: Resolve Error"
+        case sendSuccess      = "Send: Send Success"
+        case sendFailure      = "Send: Send Failure"
     }
 
     enum OnboardingEvent: String, AnalyticsEvent {
@@ -78,6 +84,7 @@ extension Analytics {
         case openedFromDeeplink = "Token Info: Opened From Deeplink"
         case openedFromWallet   = "Token Info: Opened From Wallet"
         case openedFromGive     = "Token Info: Opened From Give"
+        case openedFromSend     = "Token Info: Opened From Send"
     }
 
     enum TokenTransactionEvent: String, AnalyticsEvent {
