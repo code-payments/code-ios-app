@@ -15,19 +15,23 @@ final class IntentTransfer: IntentType {
     let id: PublicKey
     let sourceCluster: AccountCluster
     let destination: PublicKey
+    /// Recipient's owner-authority pubkey. Set on direct contact sends;
+    /// `nil` for cash-bill grab settlement.
+    let destinationOwner: PublicKey?
     let exchangedFiat: ExchangedFiat
     let verifiedState: VerifiedState
     let extendedMetadata: Google_Protobuf_Any?
 
     var actionGroup: ActionGroup
 
-    init(rendezvous: PublicKey, sourceCluster: AccountCluster, destination: PublicKey, exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, extendedMetadata: Google_Protobuf_Any? = nil) {
+    init(rendezvous: PublicKey, sourceCluster: AccountCluster, destination: PublicKey, destinationOwner: PublicKey? = nil, exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, extendedMetadata: Google_Protobuf_Any? = nil) {
         self.id               = rendezvous
         self.sourceCluster    = sourceCluster
         self.exchangedFiat    = exchangedFiat
         self.verifiedState    = verifiedState
         self.extendedMetadata = extendedMetadata
         self.destination      = destination
+        self.destinationOwner = destinationOwner
 
         let transfer = ActionTransfer(
             amount: exchangedFiat.onChainAmount,
@@ -62,6 +66,10 @@ extension IntentTransfer {
 
                 $0.isWithdrawal = false
                 $0.isRemoteSend = false
+
+                if let destinationOwner {
+                    $0.destinationOwner = destinationOwner.solanaAccountID
+                }
             }
         }
     }

@@ -84,3 +84,4 @@ struct ResolvedContactsFilterTests {
         #expect(!directory.isEmpty)
     }
 }
+
