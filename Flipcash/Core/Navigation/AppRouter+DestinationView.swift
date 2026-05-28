@@ -177,6 +177,16 @@ struct DestinationView: View {
 
         case .phantomFlow(let fundingOperation):
             PhantomFlowScreen(fundingOperation: fundingOperation)
+
+        // MARK: - Send flow
+
+        case .sendAmount(let recipient, let recipientDisplayName):
+            SendAmountScreen(
+                sessionContainer: sessionContainer,
+                recipient: recipient,
+                recipientDisplayName: recipientDisplayName
+            )
+            .id(recipient)
         }
     }
 }
