@@ -734,7 +734,7 @@ struct CurrencyCreationWizardScreen: View {
         logger.info("Insufficient balance to complete currency purchase")
         errorDialog = DialogItem.error(
             title: "Not Enough Funds",
-            subtitle: "You need \(totalLaunchCost.nativeAmount.formatted()) to create this currency."
+            subtitle: "You need \(totalLaunchCost.nativeAmount.formatted(minimumFractionDigits: 0)) to create this currency."
         )
     }
 
@@ -1238,7 +1238,7 @@ private struct ConfirmationStep: View {
                 if isValidating {
                     ProgressView().progressViewStyle(.circular)
                 } else {
-                    Text("Pay \(totalLaunchCost.nativeAmount.formatted()) to Create")
+                    Text("Pay \(totalLaunchCost.nativeAmount.formatted(minimumFractionDigits: 0)) to Create")
                 }
             }
             .buttonStyle(.filled)

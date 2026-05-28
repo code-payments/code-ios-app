@@ -22,6 +22,8 @@ public struct UserFlags: Sendable {
     public let newCurrencyFeeAmount: TokenAmount
     /// USDF amount that must be paid as the fee for any withdrawal.
     public let withdrawalFeeAmount: TokenAmount
+    /// USDF amount a user must hold to be counted on the Discover leaderboard.
+    public let minimumHolderValue: TokenAmount
 
     public var hasPreferredOnrampProvider: Bool {
         preferredOnrampProvider != .unknown
@@ -73,6 +75,10 @@ extension UserFlags {
             ),
             withdrawalFeeAmount: TokenAmount(
                 quarks: proto.withdrawalFeeAmount,
+                mint: .usdf
+            ),
+            minimumHolderValue: TokenAmount(
+                quarks: proto.minimumHolderValue,
                 mint: .usdf
             )
         )
