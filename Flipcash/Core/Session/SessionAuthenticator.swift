@@ -280,8 +280,6 @@ final class SessionAuthenticator {
     // MARK: - Database -
     
     private func initializeDatabase(owner: PublicKey) throws -> Database {
-        try createApplicationSupportIfNeeded()
-        
         // Currently we don't do migrations so every time
         // the user version is outdated, we'll rebuild the
         // database during sync.
@@ -292,16 +290,34 @@ final class SessionAuthenticator {
             logger.error("Outdated user version, deleted database.")
             try Database.setUserVersion(version: currentVersion, owner: owner)
         }
-        
-        return try Database(url: .dataStore(owner: owner))
+
+        let database = try Database(url: .dataStore(owner: owner))
+        cleanupLegacyDatabaseFiles(owner: owner)
+        return database
     }
-    
-    private func createApplicationSupportIfNeeded() throws {
-        if !FileManager.default.fileExists(atPath: URL.applicationSupportDirectory.path) {
-            try FileManager.default.createDirectory(
-                at: .applicationSupportDirectory,
-                withIntermediateDirectories: false
-            )
+
+    /// Removes any leftover SQLite files from the pre-app-group
+    /// `applicationSupportDirectory` location. Safe to call repeatedly; missing
+    /// files are skipped, removal errors are logged and don't propagate.
+    private func cleanupLegacyDatabaseFiles(owner: PublicKey) {
+        let legacyURLs: [URL] = [
+            URL.dataStore(owner: owner),
+            URL.storeWAL(owner: owner),
+            URL.storeSHM(owner: owner),
+            URL.versionFile(owner: owner),
+        ].map { newURL in
+            URL.applicationSupportDirectory.appendingPathComponent(newURL.lastPathComponent)
+        }
+        for url in legacyURLs where FileManager.default.fileExists(atPath: url.path) {
+            do {
+                try FileManager.default.removeItem(at: url)
+                logger.info("Removed legacy DB file", metadata: ["filename": "\(url.lastPathComponent)"])
+            } catch {
+                logger.warning("Failed to remove legacy DB file", metadata: [
+                    "filename": "\(url.lastPathComponent)",
+                    "error": "\(error)",
+                ])
+            }
         }
     }
     
@@ -380,6 +396,7 @@ final class SessionAuthenticator {
         
         state = .loggedIn(session)
         UserDefaults.wasLoggedIn = true
+        SharedDefaults.currentOwnerBase58 = initializedAccount.owner.authorityPublicKey.base58
 
         Analytics.setIdentity(initializedAccount.userID)
 
@@ -426,6 +443,7 @@ final class SessionAuthenticator {
         state = .loggedOut
         requiresForceLogout = false
         UserDefaults.wasLoggedIn = false
+        SharedDefaults.currentOwnerBase58 = nil
 
         logger.debug("Logged out")
     }

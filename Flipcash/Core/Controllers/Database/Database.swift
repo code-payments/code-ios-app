@@ -134,19 +134,19 @@ nonisolated class Database: @unchecked Sendable {
 
 nonisolated extension URL {
     static func dataStore(owner: PublicKey) -> URL {
-        URL.applicationSupportDirectory.appendingPathComponent("flipcash-\(owner.base58).sqlite")
+        AppGroup.containerURL.appendingPathComponent("flipcash-\(owner.base58).sqlite")
     }
 
     static func storeWAL(owner: PublicKey) -> URL {
-        URL.applicationSupportDirectory.appendingPathComponent("flipcash-\(owner.base58).sqlite-wal")
+        AppGroup.containerURL.appendingPathComponent("flipcash-\(owner.base58).sqlite-wal")
     }
 
     static func storeSHM(owner: PublicKey) -> URL {
-        URL.applicationSupportDirectory.appendingPathComponent("flipcash-\(owner.base58).sqlite-shm")
+        AppGroup.containerURL.appendingPathComponent("flipcash-\(owner.base58).sqlite-shm")
     }
 
     static func versionFile(owner: PublicKey) -> URL {
-        URL.applicationSupportDirectory.appendingPathComponent("flipcash-\(owner.base58)version")
+        AppGroup.containerURL.appendingPathComponent("flipcash-\(owner.base58)version")
     }
 }
 

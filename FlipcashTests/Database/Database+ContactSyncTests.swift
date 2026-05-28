@@ -186,4 +186,50 @@ struct DatabaseContactSyncTests {
         ])
     }
 
+    // MARK: - Local Snapshot Lookup -
+
+    @Test("localContactsSnapshot(forE164:) is empty on a fresh database")
+    func snapshot_lookup_emptyOnFreshDatabase() throws {
+        let db = Database.mock
+        #expect(try db.localContactsSnapshot(forE164: "+15551234567").isEmpty)
+    }
+
+    @Test("localContactsSnapshot(forE164:) returns empty when the phone is not in the snapshot")
+    func snapshot_lookup_emptyWhenMissing() throws {
+        let db = Database.mock
+        try db.replaceLocalContactsSnapshot([
+            Database.LocalContact(e164: "+15551234567", contactId: "alice"),
+        ])
+
+        #expect(try db.localContactsSnapshot(forE164: "+447700900000").isEmpty)
+    }
+
+    @Test("localContactsSnapshot(forE164:) returns just the matching row")
+    func snapshot_lookup_returnsSingleMatch() throws {
+        let db = Database.mock
+        try db.replaceLocalContactsSnapshot([
+            Database.LocalContact(e164: "+15551234567", contactId: "alice"),
+            Database.LocalContact(e164: "+447700900000", contactId: "bob"),
+        ])
+
+        #expect(try db.localContactsSnapshot(forE164: "+15551234567") == [
+            Database.LocalContact(e164: "+15551234567", contactId: "alice"),
+        ])
+    }
+
+    @Test("localContactsSnapshot(forE164:) returns every matching row for a shared phone")
+    func snapshot_lookup_returnsAllMatchesForSamePhone() throws {
+        let db = Database.mock
+        try db.replaceLocalContactsSnapshot([
+            Database.LocalContact(e164: "+15551234567", contactId: "alice"),
+            Database.LocalContact(e164: "+15551234567", contactId: "alice-work"),
+            Database.LocalContact(e164: "+447700900000", contactId: "bob"),
+        ])
+
+        #expect(Set(try db.localContactsSnapshot(forE164: "+15551234567")) == [
+            Database.LocalContact(e164: "+15551234567", contactId: "alice"),
+            Database.LocalContact(e164: "+15551234567", contactId: "alice-work"),
+        ])
+    }
+
 }
