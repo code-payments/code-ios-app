@@ -22,6 +22,9 @@ service PhoneVerification {
 
      // Unlink removes the link of a phone number from a user.
     rpc Unlink(UnlinkRequest) returns (UnlinkResponse);
+
+    // LinkForPayment links the verified phone number for the requesting user for payment.
+    rpc LinkForPayment(LinkForPaymentRequest) returns (LinkForPaymentResponse);
 }
 
 message SendVerificationCodeRequest {
@@ -92,5 +95,22 @@ message UnlinkResponse {
 	enum Result {
 		OK     = 0;
 		DENIED = 1;
+	}
+}
+
+
+message LinkForPaymentRequest {
+    // The phone number to link for payment
+    PhoneNumber phone_number = 1 [(validate.rules).message.required = true];
+
+    common.v1.Auth auth = 2 [(validate.rules).message.required = true];
+}
+
+message LinkForPaymentResponse {
+    Result result = 1;
+	enum Result {
+		OK             = 0;
+		DENIED         = 1;
+        NOT_ASSOCIATED = 2;
 	}
 }

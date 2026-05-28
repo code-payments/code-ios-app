@@ -436,6 +436,12 @@ public struct Flipcash_Account_V1_UserFlags: Sendable {
   /// The preferred USDC liquidity pool for external wallet on ramp flows
   public var preferredOnRampUsdcLiquidityPool: Flipcash_Account_V1_UserFlags.UsdcLiquidityPool = .unknownUsdcLiquidityPool
 
+  /// Whether the send by phone number feature is enabled
+  public var enablePhoneNumberSend: Bool = false
+
+  /// USDF amount, in quarks, that a user must hold to be counted as a holder on the leaderboard
+  public var minimumHolderValue: UInt64 = 0
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OnRampProvider: SwiftProtobuf.Enum, Swift.CaseIterable {
@@ -887,7 +893,7 @@ extension Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse.Result: SwiftP
 
 extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UserFlags"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}is_registered_account\0\u{3}is_staff\0\u{3}requires_iap_for_registration\0\u{3}supported_on_ramp_providers\0\u{3}preferred_on_ramp_provider\0\u{3}min_build_number\0\u{3}bill_exchange_data_timeout\0\u{3}new_currency_purchase_amount\0\u{3}new_currency_fee_amount\0\u{3}withdrawal_fee_amount\0\u{3}preferred_on_ramp_usdc_liquidity_pool\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}is_registered_account\0\u{3}is_staff\0\u{3}requires_iap_for_registration\0\u{3}supported_on_ramp_providers\0\u{3}preferred_on_ramp_provider\0\u{3}min_build_number\0\u{3}bill_exchange_data_timeout\0\u{3}new_currency_purchase_amount\0\u{3}new_currency_fee_amount\0\u{3}withdrawal_fee_amount\0\u{3}preferred_on_ramp_usdc_liquidity_pool\0\u{3}enable_phone_number_send\0\u{3}minimum_holder_value\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -906,6 +912,8 @@ extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
       case 9: try { try decoder.decodeSingularUInt64Field(value: &self.newCurrencyFeeAmount) }()
       case 10: try { try decoder.decodeSingularUInt64Field(value: &self.withdrawalFeeAmount) }()
       case 11: try { try decoder.decodeSingularEnumField(value: &self.preferredOnRampUsdcLiquidityPool) }()
+      case 12: try { try decoder.decodeSingularBoolField(value: &self.enablePhoneNumberSend) }()
+      case 13: try { try decoder.decodeSingularUInt64Field(value: &self.minimumHolderValue) }()
       default: break
       }
     }
@@ -949,6 +957,12 @@ extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
     if self.preferredOnRampUsdcLiquidityPool != .unknownUsdcLiquidityPool {
       try visitor.visitSingularEnumField(value: self.preferredOnRampUsdcLiquidityPool, fieldNumber: 11)
     }
+    if self.enablePhoneNumberSend != false {
+      try visitor.visitSingularBoolField(value: self.enablePhoneNumberSend, fieldNumber: 12)
+    }
+    if self.minimumHolderValue != 0 {
+      try visitor.visitSingularUInt64Field(value: self.minimumHolderValue, fieldNumber: 13)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -964,6 +978,8 @@ extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
     if lhs.newCurrencyFeeAmount != rhs.newCurrencyFeeAmount {return false}
     if lhs.withdrawalFeeAmount != rhs.withdrawalFeeAmount {return false}
     if lhs.preferredOnRampUsdcLiquidityPool != rhs.preferredOnRampUsdcLiquidityPool {return false}
+    if lhs.enablePhoneNumberSend != rhs.enablePhoneNumberSend {return false}
+    if lhs.minimumHolderValue != rhs.minimumHolderValue {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

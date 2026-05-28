@@ -169,6 +169,10 @@ extension InterceptorFactory: Flipcash_Phone_V1_PhoneVerificationClientIntercept
     func makeCheckVerificationCodeInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Phone_V1_CheckVerificationCodeRequest, Flipcash_Phone_V1_CheckVerificationCodeResponse>] {
         makeInterceptors()
     }
+
+    func makeLinkForPaymentInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Phone_V1_LinkForPaymentRequest, Flipcash_Phone_V1_LinkForPaymentResponse>] {
+        makeInterceptors()
+    }
 }
 
 // MARK: - GRPCClientType -
