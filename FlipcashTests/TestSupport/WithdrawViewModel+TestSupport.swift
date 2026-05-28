@@ -38,7 +38,8 @@ enum WithdrawViewModelTestHelpers {
             billExchangeDataTimeout: nil,
             newCurrencyPurchaseAmount: .zero(mint: .usdf),
             newCurrencyFeeAmount: .zero(mint: .usdf),
-            withdrawalFeeAmount: TokenAmount(quarks: withdrawalFeeQuarks, mint: .usdf)
+            withdrawalFeeAmount: TokenAmount(quarks: withdrawalFeeQuarks, mint: .usdf),
+            minimumHolderValue: .zero(mint: .usdf)
         )
 
         return WithdrawViewModel(
@@ -127,7 +128,8 @@ enum WithdrawViewModelTestHelpers {
                 billExchangeDataTimeout: nil,
                 newCurrencyPurchaseAmount: .zero(mint: .usdf),
                 newCurrencyFeeAmount: .zero(mint: .usdf),
-                withdrawalFeeAmount: TokenAmount(quarks: withdrawalFeeQuarks, mint: .usdf)
+                withdrawalFeeAmount: TokenAmount(quarks: withdrawalFeeQuarks, mint: .usdf),
+                minimumHolderValue: .zero(mint: .usdf)
             )
         }
         let stored = try #require(container.session.balance(for: .usdf))

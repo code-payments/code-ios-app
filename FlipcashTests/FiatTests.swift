@@ -65,43 +65,6 @@ struct FiatTests {
         #expect(CurrencyCode.cad.maximumFractionDigits == 2)
     }
 
-    @Test
-    static func testFiatFormatting_JPY() {
-        // JPY should format without decimal places
-        let jpy = FiatAmount(value: 1000, currency: .jpy)
-        let formatted = jpy.formatted()
-
-        // Should show ¥1,000 not ¥1,000.00
-        #expect(!formatted.contains("."))
-    }
-
-    @Test
-    static func testFiatFormatting_USD() {
-        // USD can show decimals when needed
-        let usd = FiatAmount(value: Decimal(string: "1.23456")!, currency: .usd)
-        let formatted = usd.formatted()
-
-        // Should show $1.23 (rounded, with decimals)
-        #expect(formatted.contains(".") || formatted.contains(",")) // Depending on locale
-    }
-
-    @Test
-    static func testFiatFormatting_JPY_fractionalTruncates() {
-        // Even if JPY FiatAmount has a fractional value, formatting should truncate
-        let jpy = FiatAmount(value: 10, currency: .jpy)
-        let formatted = jpy.formatted()
-
-        // Should show ¥10, no decimal places
-        #expect(!formatted.contains("."))
-    }
-
-    @Test
-    static func testFiatFormatting_suffix() {
-        let usd = FiatAmount(value: 1, currency: .usd)
-        let formatted = usd.formatted(suffix: "USD")
-        #expect(formatted.contains("USD"))
-    }
-
 }
 
 

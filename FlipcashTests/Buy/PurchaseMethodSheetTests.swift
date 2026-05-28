@@ -41,7 +41,8 @@ struct PurchaseMethodSheetTests {
             billExchangeDataTimeout: nil,
             newCurrencyPurchaseAmount: .zero(mint: .usdf),
             newCurrencyFeeAmount: .zero(mint: .usdf),
-            withdrawalFeeAmount: TokenAmount(quarks: 0, mint: .usdf)
+            withdrawalFeeAmount: TokenAmount(quarks: 0, mint: .usdf),
+            minimumHolderValue: .zero(mint: .usdf)
         )
         return container
     }

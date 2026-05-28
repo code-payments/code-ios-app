@@ -43,8 +43,8 @@ struct CurrencyCreationSummaryScreen: View {
                     .multilineTextAlignment(.center)
 
                 CreationStepsList(
-                    totalCost: totalLaunchCost.nativeAmount.formatted(),
-                    purchaseAmount: purchaseAmount.nativeAmount.formatted()
+                    totalCost: totalLaunchCost.nativeAmount.formatted(minimumFractionDigits: 0),
+                    purchaseAmount: purchaseAmount.nativeAmount.formatted(minimumFractionDigits: 0)
                 )
                     .padding(.top, 45)
 

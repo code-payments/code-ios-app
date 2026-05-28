@@ -82,10 +82,13 @@ extension FiatAmount {
 // MARK: - Formatting -
 
 extension FiatAmount {
-    public func formatted(suffix: String? = nil) -> String {
+    /// Format for display. `minimumFractionDigits` defaults to the currency's
+    /// natural precision (2 for USD); pass `0` to strip trailing zeros on
+    /// whole amounts (e.g. `"$10"` instead of `"$10.00"`).
+    public func formatted(minimumFractionDigits: Int? = nil, suffix: String? = nil) -> String {
         NumberFormatter.fiat(
             currency: currency,
-            minimumFractionDigits: currency.maximumFractionDigits,
+            minimumFractionDigits: minimumFractionDigits ?? currency.maximumFractionDigits,
             maximumFractionDigits: currency.maximumFractionDigits,
             truncated: false,
             suffix: suffix,
