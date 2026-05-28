@@ -21,7 +21,8 @@ final class MockSession:
     ReservesBuying,
     ExternalFundingBuying,
     OnrampBuying,
-    CurrencyLaunching {
+    CurrencyLaunching,
+    DirectSending {
 
     // MARK: - Identity
 
@@ -184,6 +185,30 @@ final class MockSession:
             throw MockSessionError.unimplemented(method: "launchCurrency")
         }
         return try await handler(call)
+    }
+
+    // MARK: - Direct send
+
+    struct SendCall: Sendable {
+        let amount: ExchangedFiat
+        let verifiedState: VerifiedState
+        let destination: PublicKey
+    }
+
+    var sendHandler: (@MainActor (ExchangedFiat, VerifiedState, PublicKey) async throws -> Void)?
+
+    private(set) var sendCalls: [SendCall] = []
+
+    func send(amount: ExchangedFiat, verifiedState: VerifiedState, to destination: PublicKey) async throws {
+        sendCalls.append(SendCall(
+            amount: amount,
+            verifiedState: verifiedState,
+            destination: destination
+        ))
+        guard let handler = sendHandler else {
+            throw MockSessionError.unimplemented(method: "send")
+        }
+        try await handler(amount, verifiedState, destination)
     }
 }
 

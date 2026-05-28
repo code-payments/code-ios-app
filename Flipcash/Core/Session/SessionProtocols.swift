@@ -116,6 +116,21 @@ protocol CurrencyLaunching: AnyObject {
     ) async throws -> PublicKey
 }
 
+// MARK: - Direct send
+
+/// Direct on-chain transfer to a resolved recipient pubkey. Used by the Send
+/// flow once a contact has been resolved via the Flip resolver — no
+/// rendezvous handshake, just the `IntentTransfer` that `SendCashOperation`
+/// also runs after a grab.
+protocol DirectSending: AnyObject {
+
+    func send(
+        amount: ExchangedFiat,
+        verifiedState: VerifiedState,
+        to destination: PublicKey
+    ) async throws
+}
+
 // MARK: - Session conformance
 
 extension Session: AccountProviding,
@@ -125,4 +140,5 @@ extension Session: AccountProviding,
                     ReservesBuying,
                     ExternalFundingBuying,
                     OnrampBuying,
-                    CurrencyLaunching {}
+                    CurrencyLaunching,
+                    DirectSending {}

@@ -608,3 +608,30 @@ struct SessionWithdrawVerifiedStateTests {
         }
     }
 }
+
+// MARK: -
+
+@MainActor
+@Suite("Session.send verified state")
+struct SessionSendVerifiedStateTests {
+
+    private static let amount = ExchangedFiat(
+        onChainAmount: TokenAmount(quarks: 1_000_000, mint: .usdf),
+        nativeAmount: .usd(1),
+        currencyRate: .oneToOne
+    )
+
+    @Test("send throws verifiedStateStale when the provided state is past clientMaxAge")
+    func send_throwsStale() async {
+        let session = Session.unverifiedMock
+        let stale = VerifiedState.stale(bonded: false)
+
+        await #expect(throws: Session.Error.verifiedStateStale) {
+            try await session.send(
+                amount: Self.amount,
+                verifiedState: stale,
+                to: PublicKey.generate()!
+            )
+        }
+    }
+}
