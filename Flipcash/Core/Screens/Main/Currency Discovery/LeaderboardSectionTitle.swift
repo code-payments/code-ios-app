@@ -22,7 +22,7 @@ struct LeaderboardSectionTitle: View {
                     showRankingInfo(threshold: threshold)
                 } label: {
                     Image.system(.info)
-                        .font(.system(size: 18, weight: .thin))
+                        .font(.system(size: 18, weight: .light))
                         .foregroundStyle(Color.textSecondary)
                 }
             }
