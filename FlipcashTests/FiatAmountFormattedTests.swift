@@ -2,6 +2,11 @@
 //  FiatAmountFormattedTests.swift
 //  FlipcashTests
 //
+//  Assertions in this file depend on the simulator running with an
+//  `en_US`-style locale (`.` decimal separator). `NumberFormatter.fiat`
+//  reads `Locale.current` for the decimal separator; the `$` prefix is
+//  locale-stable via `CurrencyCode.singleCharacterCurrencySymbols`.
+//
 
 import Foundation
 import Testing
@@ -10,67 +15,28 @@ import Testing
 @Suite("FiatAmount Formatted")
 struct FiatAmountFormattedTests {
 
-    // MARK: - Default precision
-
-    @Test("USD whole number defaults to two fractional digits")
-    func formatted_USD_wholeNumber_default_showsTrailingZeros() {
-        #expect(FiatAmount.usd(10).formatted() == "$10.00")
-    }
-
-    @Test("USD fractional value at default precision keeps two digits")
-    func formatted_USD_fractional_default_keepsTwoDigits() {
-        #expect(FiatAmount.usd(Decimal(string: "10.5")!).formatted() == "$10.50")
-    }
-
-    @Test("USD zero defaults to two fractional digits")
-    func formatted_USD_zero_default_showsTrailingZeros() {
-        #expect(FiatAmount.usd(0).formatted() == "$0.00")
-    }
-
-    // MARK: - minimumFractionDigits override
-
-    @Test("USD whole number with minimumFractionDigits 0 strips trailing zeros")
-    func formatted_USD_wholeNumber_minimumFractionDigitsZero_stripsTrailingZeros() {
-        #expect(FiatAmount.usd(10).formatted(minimumFractionDigits: 0) == "$10")
-    }
-
-    @Test("USD half-dollar value with minimumFractionDigits 0 strips trailing zero")
-    func formatted_USD_halfDollar_minimumFractionDigitsZero_stripsTrailingZero() {
-        #expect(FiatAmount.usd(Decimal(string: "10.5")!).formatted(minimumFractionDigits: 0) == "$10.5")
-    }
-
-    @Test("USD penny value with minimumFractionDigits 0 keeps two decimals")
-    func formatted_USD_penny_minimumFractionDigitsZero_keepsDecimals() {
-        #expect(FiatAmount.usd(Decimal(string: "10.01")!).formatted(minimumFractionDigits: 0) == "$10.01")
-    }
-
-    @Test("USD zero with minimumFractionDigits 0 strips trailing zeros")
-    func formatted_USD_zero_minimumFractionDigitsZero_stripsTrailingZeros() {
-        #expect(FiatAmount.usd(0).formatted(minimumFractionDigits: 0) == "$0")
-    }
-
-    @Test("USD with minimumFractionDigits 1 always shows one decimal")
-    func formatted_USD_wholeNumber_minimumFractionDigitsOne_showsSingleDecimal() {
-        #expect(FiatAmount.usd(10).formatted(minimumFractionDigits: 1) == "$10.0")
-    }
-
-    // MARK: - Suffix
-
-    @Test("Suffix is appended after the amount")
-    func formatted_USD_withSuffix_appendsAfterAmount() {
-        #expect(FiatAmount.usd(10).formatted(minimumFractionDigits: 0, suffix: " USD") == "$10 USD")
-    }
-
-    @Test("Suffix and default precision combine")
-    func formatted_USD_suffixOnly_keepsDefaultPrecision() {
-        #expect(FiatAmount.usd(10).formatted(suffix: " USD") == "$10.00 USD")
-    }
-
-    // MARK: - Explicit nil matches default
-
-    @Test("Explicit nil minimumFractionDigits matches the omitted-argument default")
-    func formatted_USD_explicitNil_matchesDefault() {
-        let amount = FiatAmount.usd(10)
-        #expect(amount.formatted(minimumFractionDigits: nil) == amount.formatted())
+    @Test(
+        "formatted(minimumFractionDigits:suffix:) renders the expected string",
+        arguments: [
+            // value,                    minFrac, suffix,   expected
+            (Decimal(10),                nil,     nil,      "$10.00"),
+            (Decimal(string: "10.5")!,   nil,     nil,      "$10.50"),
+            (Decimal(0),                 nil,     nil,      "$0.00"),
+            (Decimal(10),                Int?(0), nil,      "$10"),
+            (Decimal(string: "10.5")!,   Int?(0), nil,      "$10.5"),
+            (Decimal(string: "10.01")!,  Int?(0), nil,      "$10.01"),
+            (Decimal(0),                 Int?(0), nil,      "$0"),
+            (Decimal(10),                Int?(1), nil,      "$10.0"),
+            (Decimal(10),                Int?(0), " USD",   "$10 USD"),
+            (Decimal(10),                nil,     " USD",   "$10.00 USD"),
+        ] as [(Decimal, Int?, String?, String)]
+    )
+    func formatted_USD(value: Decimal, minimumFractionDigits: Int?, suffix: String?, expected: String) {
+        #expect(
+            FiatAmount.usd(value).formatted(
+                minimumFractionDigits: minimumFractionDigits,
+                suffix: suffix
+            ) == expected
+        )
     }
 }
