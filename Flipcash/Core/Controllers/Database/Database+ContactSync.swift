@@ -94,24 +94,6 @@ nonisolated extension Database {
         }
     }
 
-    /// Snapshot row(s) for a specific E.164. May be empty, or contain multiple
-    /// entries when the same number is on multiple address-book contacts.
-    func localContactsSnapshot(forE164 e164: String) throws -> [LocalContact] {
-        let table = LocalContactsSnapshotTable()
-        let rows = try reader.prepareRowIterator(table.table.filter(table.e164 == e164))
-        return try rows.map { row in
-            LocalContact(e164: row[table.e164], contactId: row[table.contactId])
-        }
-    }
-}
-
-// MARK: - ContactSnapshotReading -
-
-nonisolated extension Database: ContactSnapshotReading {
-    public func contactIds(forE164 e164: String) throws -> [String] {
-        try localContactsSnapshot(forE164: e164).map(\.contactId)
-    }
-
     /// Replace the snapshot with the latest uploaded set.
     /// Composite PK `(e164, contactId)` lets the same phone show up under
     /// multiple address-book contacts (the picker shows each name with

@@ -9,7 +9,6 @@
 /* Begin PBXBuildFile section */
 		4C7D70012FC8892D0091C7A4 /* NotificationService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 4C7D6FFA2FC8892D0091C7A4 /* NotificationService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		4C7D80012FC8892D0091C7A4 /* FlipcashCore in Frameworks */ = {isa = PBXBuildFile; productRef = 9ABDD1942D9D7B61006B6CDA /* FlipcashCore */; };
-		4C7D80022FC8892D0091C7A4 /* SQLite in Frameworks */ = {isa = PBXBuildFile; productRef = 9AD1265D2DA98ADC0048141F /* SQLite */; };
 		4CB225762F77260D0075874E /* FirebaseInstallations in Frameworks */ = {isa = PBXBuildFile; productRef = 4CB225752F77260D0075874E /* FirebaseInstallations */; };
 		4CB225782F7726500075874E /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 4CB225772F7726500075874E /* FirebaseMessaging */; };
 		508AF9C6D67C4CD29DE10A16 /* TweetNacl in Frameworks */ = {isa = PBXBuildFile; productRef = 2B166ABF94584FEF9C368C81 /* TweetNacl */; };
@@ -121,7 +120,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				4C7D80012FC8892D0091C7A4 /* FlipcashCore in Frameworks */,
-				4C7D80022FC8892D0091C7A4 /* SQLite in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -548,7 +546,6 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CODE_SIGN_ENTITLEMENTS = NotificationService/NotificationService.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 272;
@@ -589,7 +586,6 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CODE_SIGN_ENTITLEMENTS = NotificationService/NotificationService.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 272;
@@ -630,7 +626,6 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CODE_SIGN_ENTITLEMENTS = NotificationService/NotificationService.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 272;
@@ -666,7 +661,6 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CODE_SIGN_ENTITLEMENTS = NotificationService/NotificationService.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 272;

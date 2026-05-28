@@ -11,9 +11,5 @@
 		<string>applinks:jump.flipcash.com</string>
 		<string>webcredentials:send.flipcash.com</string>
 	</array>
-	<key>com.apple.security.application-groups</key>
-	<array>
-		<string>group.com.flipcash.app.ios</string>
-	</array>
 </dict>
 </plist>
