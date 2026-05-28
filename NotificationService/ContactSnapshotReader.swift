@@ -16,7 +16,7 @@ struct ContactSnapshotReader: ContactSnapshotReading {
 
     func contactIds(forE164 e164: String) throws -> [String] {
         let connection = try Connection(storeURL.path, readonly: true)
-        connection.busyTimeout = 1000
+        connection.busyTimeout = 2000
         let statement = try connection.prepare(
             "SELECT contactId FROM local_contacts_snapshot WHERE e164 = ?",
             e164

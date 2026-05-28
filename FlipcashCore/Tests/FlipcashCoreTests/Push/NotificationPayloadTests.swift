@@ -20,10 +20,10 @@ struct NotificationPayloadTests {
 
         #expect(payload.category == .contactJoin)
         #expect(payload.groupKey == "CONTACT_JOIN")
-        #expect(payload.titleSubstitutions.count == 1)
         #expect(payload.bodySubstitutions.isEmpty)
 
-        let substitution = payload.titleSubstitutions[0]
+        let substitution = try #require(payload.titleSubstitutions.first)
+        #expect(payload.titleSubstitutions.count == 1)
         #expect(substitution.fallback == "+15551234567")
         #expect(substitution.contact.value == "+15551234567")
     }
@@ -38,6 +38,8 @@ struct NotificationPayloadTests {
     func returnsNilWhenValueNotString() {
         #expect(NotificationPayload.decode([NotificationPayload.userInfoKey: 42]) == nil)
         #expect(NotificationPayload.decode([NotificationPayload.userInfoKey: Data([0x01])]) == nil)
+        #expect(NotificationPayload.decode([NotificationPayload.userInfoKey: true]) == nil)
+        #expect(NotificationPayload.decode([NotificationPayload.userInfoKey: [String]()]) == nil)
     }
 
     @Test("Returns nil for malformed base64")

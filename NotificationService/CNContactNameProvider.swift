@@ -7,24 +7,18 @@ import Contacts
 import FlipcashCore
 
 /// `CNContactStore`-backed display-name resolver.
+///
+/// Conforms `@unchecked Sendable` because `CNContactStore` is not marked
+/// `Sendable` but Apple documents it as thread-safe.
 final class CNContactNameProvider: ContactNameProviding, @unchecked Sendable {
-
-    nonisolated(unsafe) private static let keysToFetch: [CNKeyDescriptor] = [
-        CNContactGivenNameKey as CNKeyDescriptor,
-        CNContactFamilyNameKey as CNKeyDescriptor,
-    ]
 
     private let store = CNContactStore()
 
     func displayName(forContactId id: String) -> String? {
-        guard let contact = try? store.unifiedContact(
-            withIdentifier: id,
-            keysToFetch: Self.keysToFetch
-        ) else {
+        let keys = [CNContactFormatter.descriptorForRequiredKeys(for: .fullName)]
+        guard let contact = try? store.unifiedContact(withIdentifier: id, keysToFetch: keys) else {
             return nil
         }
-        let name = "\(contact.givenName) \(contact.familyName)"
-            .trimmingCharacters(in: .whitespaces)
-        return name.isEmpty ? nil : name
+        return CNContactFormatter.string(from: contact, style: .fullName)
     }
 }
