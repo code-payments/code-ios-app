@@ -17,12 +17,12 @@ struct LeaderboardSectionTitle: View {
                 .font(.appTextLarge)
                 .foregroundStyle(Color.textMain)
 
-            if let flags = session.userFlags {
+            if let threshold = session.userFlags?.minimumHolderValue {
                 Button {
-                    showRankingInfo(threshold: flags.minimumHolderValue)
+                    showRankingInfo(threshold: threshold)
                 } label: {
                     Image.system(.info)
-                        .font(.default(size: 18, weight: .thin))
+                        .font(.system(size: 18, weight: .thin))
                         .foregroundStyle(Color.textSecondary)
                 }
             }
