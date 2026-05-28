@@ -485,17 +485,12 @@ struct SessionBuyVerifiedStateTests {
         let session = Session.unverifiedMock
         let stale = VerifiedState.stale(bonded: false)
 
-        do {
+        await #expect(throws: Session.Error.verifiedStateStale) {
             _ = try await session.buy(
                 amount: Self.staleAmount,
                 verifiedState: stale,
                 of: .usdf
             )
-            Issue.record("Expected verifiedStateStale to be thrown")
-        } catch Session.Error.verifiedStateStale {
-            // expected
-        } catch {
-            Issue.record("Unexpected error thrown: \(error)")
         }
     }
 
@@ -504,18 +499,13 @@ struct SessionBuyVerifiedStateTests {
         let session = Session.unverifiedMock
         let stale = VerifiedState.stale(bonded: false)
 
-        do {
+        await #expect(throws: Session.Error.verifiedStateStale) {
             _ = try await session.buyNewCurrency(
                 amount: Self.staleAmount,
                 feeAmount: Self.staleAmount,
                 verifiedState: stale,
                 mint: .usdf
             )
-            Issue.record("Expected verifiedStateStale to be thrown")
-        } catch Session.Error.verifiedStateStale {
-            // expected
-        } catch {
-            Issue.record("Unexpected error thrown: \(error)")
         }
     }
 }
@@ -537,17 +527,12 @@ struct SessionSellVerifiedStateTests {
         let session = Session.unverifiedMock
         let stale = VerifiedState.stale(bonded: false)
 
-        do {
+        await #expect(throws: Session.Error.verifiedStateStale) {
             _ = try await session.sell(
                 amount: Self.amount,
                 verifiedState: stale,
                 in: .usdf
             )
-            Issue.record("Expected verifiedStateStale to be thrown")
-        } catch Session.Error.verifiedStateStale {
-            // expected
-        } catch {
-            Issue.record("Unexpected error thrown: \(error)")
         }
     }
 }
@@ -593,18 +578,13 @@ struct SessionWithdrawVerifiedStateTests {
         let session = Session.unverifiedMock
         let stale = VerifiedState.stale(bonded: false)
 
-        do {
+        await #expect(throws: Session.Error.verifiedStateStale) {
             try await session.withdraw(
                 exchangedFiat: Self.amount,
                 verifiedState: stale,
                 fee: .zero(mint: .usdf),
                 to: WithdrawViewModelTestHelpers.createDestinationMetadata()
             )
-            Issue.record("Expected verifiedStateStale to be thrown")
-        } catch Session.Error.verifiedStateStale {
-            // expected
-        } catch {
-            Issue.record("Unexpected error thrown: \(error)")
         }
     }
 }

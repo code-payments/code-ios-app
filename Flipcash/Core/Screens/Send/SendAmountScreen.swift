@@ -7,10 +7,6 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-/// Amount entry for a direct send to a resolved recipient. Mirrors
-/// ``GiveScreen``'s amount-entry layout; the terminal step calls
-/// `session.send(...)` instead of presenting a cash bill, and the screen
-/// swaps to ``SendSuccessView`` on success.
 struct SendAmountScreen: View {
 
     @Environment(Session.self) private var session
@@ -23,20 +19,14 @@ struct SendAmountScreen: View {
 
     private var maxLimit: ExchangedFiat {
         let rate = ratesController.rateForBalanceCurrency()
-        let zero = ExchangedFiat.compute(
-            onChainAmount: .zero(mint: .usdf),
-            rate: rate,
-            supplyQuarks: nil
-        )
-
-        guard let mint = viewModel.selectedBalance?.stored.mint else {
-            return zero
+        guard let mint = viewModel.selectedBalance?.stored.mint,
+              let balance = session.balance(for: mint) else {
+            return ExchangedFiat.compute(
+                onChainAmount: .zero(mint: .usdf),
+                rate: rate,
+                supplyQuarks: nil
+            )
         }
-
-        guard let balance = session.balance(for: mint) else {
-            return zero
-        }
-
         return balance.computeExchangedValue(with: rate)
     }
 
@@ -50,8 +40,7 @@ struct SendAmountScreen: View {
         _viewModel = State(initialValue: SendAmountViewModel(
             sessionContainer: sessionContainer,
             recipient: recipient,
-            recipientDisplayName: recipientDisplayName,
-            mint: nil
+            recipientDisplayName: recipientDisplayName
         ))
     }
 
@@ -101,10 +90,6 @@ struct SendAmountScreen: View {
             router.push(.currencyInfoForDeposit(mint))
         }
         .task(id: viewModel.state) {
-            // `.task(id:)` ties the auto-dismiss to the view's lifetime —
-            // manual sheet dismissal (swipe-down, etc.) cancels the task
-            // before `dismissSheet()` fires, so we never pop a sheet the
-            // user already swapped away from.
             guard case .succeeded = viewModel.state else { return }
             try? await Task.sleep(for: .seconds(2.5))
             guard !Task.isCancelled else { return }
@@ -144,9 +129,6 @@ private struct TokenSelectorButton: View {
 
 // MARK: - Success view -
 
-/// Terminal confirmation rendered inside ``SendAmountScreen`` after a
-/// successful transfer. Holds no state of its own — the surrounding screen
-/// schedules the dismissal once it switches to this view.
 private struct SendSuccessView: View {
 
     let amount: ExchangedFiat
@@ -174,4 +156,3 @@ private struct SendSuccessView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
-

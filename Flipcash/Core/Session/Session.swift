@@ -871,21 +871,16 @@ class Session {
     
     // MARK: - Send -
 
+    /// Resolves a contact's E.164 phone to their payment-destination owner.
+    /// Returns `nil` for NOT_FOUND.
+    func resolveContact(e164: String) async throws -> PublicKey? {
+        try await flipClient.resolvePhone(e164, owner: ownerKeyPair)
+    }
+
     /// Submits a direct payment to a resolved recipient.
-    ///
-    /// `recipientOwner` is the owner-authority pubkey returned by
-    /// `FlipClient.resolvePhone(...)` (see `flipcash2-server/resolver`). The
-    /// recipient's VM vault is derived client-side from that owner + the
-    /// mint + the VM time-authority — same derivation the recipient's own
-    /// device runs on login.
-    ///
-    /// On the wire this is an `IntentTransfer` (`SendPublicPayment` with
-    /// `isWithdrawal: false`, `isRemoteSend: false`) carrying the derived
-    /// vault as `destination` and `recipientOwner` as `destinationOwner`.
-    /// `ocp-server` accepts it because the destination resolves to a known
-    /// Code-managed timelock; `flipcash2-server`'s contact-payment
-    /// integration (PR #67) reads `destinationOwner` to fire the
-    /// `CONTACT_PAYMENT` push.
+    /// The recipient's vault is derived from `recipientOwner` + mint +
+    /// VM time-authority and carried alongside `recipientOwner` so the
+    /// server recognises a Code-managed destination.
     func send(amount: ExchangedFiat, verifiedState: VerifiedState, to recipientOwner: PublicKey) async throws {
         try assertFresh(verifiedState, operation: "send", currency: amount.nativeAmount.currency, mint: amount.mint)
 
@@ -907,7 +902,7 @@ class Session {
             "mint": "\(mint.base58)",
             "recipientOwner": "\(recipientOwner.base58)",
             "recipientVault": "\(recipientVault.base58)",
-            "rendezvous": "\(rendezvous.base58)"
+            "rendezvous": "\(rendezvous.base58)",
         ])
 
         do {
@@ -921,14 +916,40 @@ class Session {
             )
 
             updatePostTransaction()
+
+        } catch ErrorSubmitIntent.denied(let reasons, let messages) {
+            logger.warning("Send denied by server guard", metadata: [
+                "recipientOwner": "\(recipientOwner.base58)",
+                "rendezvous": "\(rendezvous.base58)",
+                "amount": "\(amount.nativeAmount.formatted())",
+                "reasons": "\(reasons)",
+                "messages": "\(messages)",
+            ])
+            throw ErrorSubmitIntent.denied(reasons, messages: messages)
+
+        } catch ErrorSubmitIntent.staleState(let reasons, let kinds) {
+            logger.warning("Send rejected with stale state", metadata: [
+                "recipientOwner": "\(recipientOwner.base58)",
+                "rendezvous": "\(rendezvous.base58)",
+                "kinds": "\(kinds)",
+            ])
+            throw ErrorSubmitIntent.staleState(reasons, kinds: kinds)
+
+        } catch is CancellationError {
+            throw CancellationError()
+
         } catch {
-            if !(error is CancellationError) {
-                ErrorReporting.capturePayment(
-                    error: error,
-                    rendezvous: rendezvous,
-                    exchangedFiat: amount
-                )
-            }
+            logger.error("Send failed", metadata: [
+                "recipientOwner": "\(recipientOwner.base58)",
+                "rendezvous": "\(rendezvous.base58)",
+                "amount": "\(amount.nativeAmount.formatted())",
+                "error": "\(error)",
+            ])
+            ErrorReporting.capturePayment(
+                error: error,
+                rendezvous: rendezvous,
+                exchangedFiat: amount
+            )
             throw error
         }
     }

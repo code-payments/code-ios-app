@@ -228,11 +228,7 @@ final class ContactSyncController {
 
     // MARK: - Removal -
 
-    /// Optimistically drops `e164` from the local snapshot, the Flipcash
-    /// matched set, and the in-memory resolved cache, then triggers a sync
-    /// so the next round-trip re-establishes truth. Called by the picker
-    /// when the Flip resolver reports NOT_FOUND for a contact the local
-    /// state still believed was on Flipcash.
+    /// Optimistically drops `e164` from local state, then triggers a sync.
     func removeContact(withE164 e164: String) {
         do {
             try database.removeContact(withE164: e164)

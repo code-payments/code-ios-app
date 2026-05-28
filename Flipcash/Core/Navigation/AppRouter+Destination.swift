@@ -61,9 +61,6 @@ extension AppRouter {
         case withdraw
 
         // Send flow
-        /// Amount entry for a direct on-chain transfer to a resolved
-        /// recipient. Pushed from `RecipientPickerScreen` after the Flip
-        /// resolver returns a destination pubkey.
         case sendAmount(recipient: PublicKey, recipientDisplayName: String?)
 
         /// The stack this destination naturally belongs in. Cross-stack

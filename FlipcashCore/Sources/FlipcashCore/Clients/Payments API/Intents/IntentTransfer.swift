@@ -15,13 +15,8 @@ final class IntentTransfer: IntentType {
     let id: PublicKey
     let sourceCluster: AccountCluster
     let destination: PublicKey
-    /// Recipient's owner-authority pubkey. Set only on direct sends to a
-    /// resolved contact — `flipcash2-server`'s contact-payment integration
-    /// (PR #67) gates the `CONTACT_PAYMENT` push notification on this field
-    /// being present, and the OCP server uses it to validate the destination
-    /// vault is a Code-managed timelock for that owner. Leave `nil` for
-    /// cash-bill grab settlement, where the server already correlates the
-    /// destination via the rendezvous handshake state.
+    /// Recipient's owner-authority pubkey. Set on direct contact sends;
+    /// `nil` for cash-bill grab settlement.
     let destinationOwner: PublicKey?
     let exchangedFiat: ExchangedFiat
     let verifiedState: VerifiedState

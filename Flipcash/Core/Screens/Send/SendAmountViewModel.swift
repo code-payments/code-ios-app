@@ -12,10 +12,6 @@ private let logger = Logger(label: "flipcash.send-amount")
 @Observable
 final class SendAmountViewModel {
 
-    /// Drives the screen between amount entry and the success view.
-    /// `.submitting` blocks duplicate submissions while the transfer is in
-    /// flight; `.succeeded` swaps the screen body to the auto-dismissing
-    /// confirmation.
     enum State: Equatable {
         case ready
         case submitting
@@ -36,82 +32,53 @@ final class SendAmountViewModel {
 
     private(set) var selectedBalance: ExchangedBalance?
 
-    /// Drives `EnterAmountView`'s `actionEnabled` closure. Must reflect only
-    /// the entered amount's validity — `EnterAmountView` reuses this signal
-    /// to colour the subtitle red when the entered value is past the limit,
-    /// so gating on `state` here would paint the subtitle red the instant
-    /// `sendAction()` transitions to `.submitting`. State-based re-entry
-    /// is guarded inside `sendAction()` itself; the button's loading visual
-    /// comes from `actionState`.
     var canSend: Bool {
         guard let enteredFiat else { return false }
         return enteredFiat.onChainAmount.quarks > 0
     }
 
     private var enteredFiat: ExchangedFiat? {
-        guard !enteredAmount.isEmpty else {
-            return nil
-        }
-
-        guard let amount = NumberFormatter.decimal(from: enteredAmount), amount > 0 else {
-            return nil
-        }
-
-        guard let selectedBalance else {
-            return nil
-        }
+        guard !enteredAmount.isEmpty,
+              let amount = Decimal(string: enteredAmount), amount > 0,
+              let selectedBalance else { return nil }
 
         let mint = selectedBalance.stored.mint
+        let rate = ratesController.rateForBalanceCurrency()
+        let entered = FiatAmount(value: amount, currency: rate.currency)
 
-        // Only applies for bonded tokens
-        if mint != .usdf {
-            guard let supplyQuarks = selectedBalance.stored.supplyFromBonding else {
-                return nil
-            }
-
-            let rate = ratesController.rateForBalanceCurrency()
-            let entered = FiatAmount(value: amount, currency: rate.currency)
-
-            if let viaCurve = ExchangedFiat.compute(
-                fromEntered: entered,
-                rate: rate,
-                mint: mint,
-                supplyQuarks: supplyQuarks
-            ) {
-                return viaCurve
-            }
-
-            // Curve could not price the entered amount (requested > TVL).
-            // Build a synthetic ExchangedFiat so `hasSufficientFunds` sees an
-            // over-balance request and returns `.insufficient`.
-            return ExchangedFiat(
-                onChainAmount: TokenAmount(
-                    quarks: selectedBalance.stored.quarks + 1,
-                    mint: mint
-                ),
-                nativeAmount: entered,
-                currencyRate: rate
-            )
-
-        } else {
-            let rate = ratesController.rateForBalanceCurrency()
-            return ExchangedFiat(
-                nativeAmount: FiatAmount(value: amount, currency: rate.currency),
-                rate: rate
-            )
+        if mint == .usdf {
+            return ExchangedFiat(nativeAmount: entered, rate: rate)
         }
+
+        guard let supplyQuarks = selectedBalance.stored.supplyFromBonding else { return nil }
+
+        if let viaCurve = ExchangedFiat.compute(
+            fromEntered: entered,
+            rate: rate,
+            mint: mint,
+            supplyQuarks: supplyQuarks
+        ) {
+            return viaCurve
+        }
+
+        // Curve cannot price requested > TVL — surface as over-balance.
+        return ExchangedFiat(
+            onChainAmount: TokenAmount(
+                quarks: selectedBalance.stored.quarks + 1,
+                mint: mint
+            ),
+            nativeAmount: entered,
+            currencyRate: rate
+        )
     }
 
     // MARK: - Init -
 
-    /// `sender` defaults to the session, which conforms to `DirectSending`.
-    /// Tests inject `MockSession` to record the call without dialing the
-    /// network — same handler-injection pattern as `ReservesFundingOperation`.
     init(
         sessionContainer: SessionContainer,
         recipient: PublicKey,
         recipientDisplayName: String?,
-        mint: PublicKey?,
+        mint: PublicKey? = nil,
         sender: (any DirectSending)? = nil
     ) {
         let session          = sessionContainer.session
@@ -134,10 +101,6 @@ final class SendAmountViewModel {
         }
     }
 
-    /// Same two-tier fallback as `GiveViewModel`: caller's `mint` wins,
-    /// otherwise the previously-selected token, otherwise the first non-USDF
-    /// balance — falling back to whatever first balance exists (USDF if no
-    /// other token has positive balance).
     private static func resolveInitialBalance(
         mint: PublicKey?,
         session: Session,
@@ -204,7 +167,6 @@ final class SendAmountViewModel {
                 state = .succeeded(amount: amountToSend)
             } catch {
                 Analytics.track(event: Analytics.SendEvent.sendFailure)
-                logger.error("Send failed", metadata: ["error": "\(error)"])
                 state = .ready
                 actionState = .normal
                 showSendError()
@@ -219,9 +181,8 @@ final class SendAmountViewModel {
         }
     }
 
-    /// Resolves the pin and computes the bill amount against it — one fetch
-    /// for both, so quarks can't drift from the submitted pin. Returns nil
-    /// when no fresh pin is cached.
+    /// Returns nil when no fresh pin is cached; otherwise the amount + pin
+    /// computed against that same pin so quarks can't drift from the proof.
     func prepareSubmission() async -> (amount: ExchangedFiat, pinnedState: VerifiedState)? {
         guard let selectedBalance else { return nil }
         let mint = selectedBalance.stored.mint
@@ -232,29 +193,25 @@ final class SendAmountViewModel {
         ) else { return nil }
 
         guard !enteredAmount.isEmpty,
-              let entered = NumberFormatter.decimal(from: enteredAmount),
+              let entered = Decimal(string: enteredAmount),
               entered > 0 else { return nil }
 
         let nativeEntered = FiatAmount(value: entered, currency: pin.rate.currency)
-        let balance = session.balance(for: mint)
 
         if mint == .usdf {
-            let amount = ExchangedFiat(
-                nativeAmount: nativeEntered,
-                rate: pin.rate
-            )
-            return (amount, pin)
+            return (ExchangedFiat(nativeAmount: nativeEntered, rate: pin.rate), pin)
         }
 
-        guard let pinnedSupply = pin.supplyFromBonding else { return nil }
-        guard let amount = ExchangedFiat.compute(
-            fromEntered: nativeEntered,
-            rate: pin.rate,
-            mint: mint,
-            supplyQuarks: pinnedSupply,
-            balance: balance.map(\.usdf),
-            tokenBalanceQuarks: balance?.quarks
-        ) else { return nil }
+        let balance = session.balance(for: mint)
+        guard let pinnedSupply = pin.supplyFromBonding,
+              let amount = ExchangedFiat.compute(
+                fromEntered: nativeEntered,
+                rate: pin.rate,
+                mint: mint,
+                supplyQuarks: pinnedSupply,
+                balance: balance.map(\.usdf),
+                tokenBalanceQuarks: balance?.quarks
+              ) else { return nil }
 
         return (amount, pin)
     }

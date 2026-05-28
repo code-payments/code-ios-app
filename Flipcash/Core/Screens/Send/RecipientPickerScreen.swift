@@ -11,18 +11,10 @@ import FlipcashUI
 
 nonisolated private let logger = Logger(label: "flipcash.recipient-picker")
 
-/// The Send section's primary view. Shown after the `SendRootScreen` gate
-/// confirms a verified phone, authorized contacts, AND that
-/// `ContactSyncController` has resolved the directory at least once.
-///
-/// Reads the controller's `resolvedContacts` cache directly — no internal
-/// loading state. Refreshes happen invisibly on the controller side; the
-/// picker observes the updated value and re-renders without ever flipping
-/// to a spinner.
+/// Send section's primary view. Renders `contactSyncController.resolvedContacts`.
 struct RecipientPickerScreen: View {
 
     @Environment(ContactSyncController.self) private var contactSyncController
-    @Environment(ContactResolver.self) private var contactResolver
     @Environment(Session.self) private var session
     @Environment(AppRouter.self) private var router
 
@@ -69,11 +61,7 @@ struct RecipientPickerScreen: View {
 
     // MARK: - Resolve + push -
 
-    /// Resolves the contact's E.164 to a payment pubkey and pushes the
-    /// amount-entry screen. Coalesces re-taps via `resolvingContactId` so a
-    /// double-tap can't fire two resolves; SwiftUI buttons are already
-    /// debounced visually but a long network round-trip leaves room for the
-    /// second tap to land before the push.
+    /// Coalesces re-taps via `resolvingContactId` so a double-tap can't fire two resolves.
     private func resolveAndPush(contact: ResolvedContact) {
         guard resolvingContactId == nil else { return }
         resolvingContactId = contact.id
@@ -82,9 +70,7 @@ struct RecipientPickerScreen: View {
         Task {
             defer { resolvingContactId = nil }
             do {
-                let resolved = try await contactResolver.resolveContact(
-                    e164: contact.phoneE164
-                )
+                let resolved = try await session.resolveContact(e164: contact.phoneE164)
                 guard let resolved else {
                     Analytics.track(event: Analytics.SendEvent.resolveNotFound)
                     handleNotFound(contact: contact)
@@ -119,10 +105,6 @@ struct RecipientPickerScreen: View {
         )
     }
 
-    /// NOT_FOUND path: the contact was matched at last sync but the resolver
-    /// no longer recognises the number. Optimistically purge the local entry
-    /// so the picker stops offering them and trigger a sync to re-establish
-    /// the truthful set.
     private func handleNotFound(contact: ResolvedContact) {
         logger.info("Resolve returned NOT_FOUND", metadata: ["contactId": "\(contact.contactId)"])
         session.dialogItem = .error(

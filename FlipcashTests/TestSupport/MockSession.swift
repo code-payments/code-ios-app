@@ -7,11 +7,8 @@ import Foundation
 @testable import Flipcash
 import FlipcashCore
 
-/// Closure-driven mock that conforms to every Session-side protocol an
-/// operation might depend on. Each method is backed by an optional handler
-/// — tests assign handlers for the methods they exercise and leave the rest
-/// nil. Handlers default to throwing `MockSessionError.unimplemented` so a
-/// test never accidentally observes a "success" from an unset stub.
+/// Closure-driven mock conforming to every Session capability protocol.
+/// Unset handlers throw `MockSessionError.unimplemented`.
 @MainActor
 final class MockSession:
     AccountProviding,
@@ -31,12 +28,6 @@ final class MockSession:
     let ownerKeyPair: KeyPair
 
     init(profile: Profile? = nil) {
-        // Pull `owner`/`ownerKeyPair` from the cached `AccountCluster.mock`
-        // / `KeyPair.mock` directly. Reading `Session.mock` here triggered
-        // the full mock graph (`Database.mock`, `RatesController`,
-        // `HistoryController`, fresh key derivation) on every test setup —
-        // seconds of overhead in aggregate. The operations under test never
-        // read either property, but `AccountProviding` still requires them.
         self.owner = .mock
         self.ownerKeyPair = .mock
         self.profile = profile

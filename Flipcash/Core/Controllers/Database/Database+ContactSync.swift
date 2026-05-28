@@ -116,11 +116,8 @@ nonisolated extension Database {
         }
     }
 
-    /// Drops every row for `e164` from both the local snapshot and the
-    /// Flipcash matched set in one transaction. Used by the picker's tap
-    /// handler when the resolver reports NOT_FOUND for a contact we still
-    /// believed was on Flipcash — the upcoming `sync()` will re-establish
-    /// truth via the delta upload path.
+    /// Drops every row for `e164` from the local snapshot and the Flipcash
+    /// matched set in one transaction.
     func removeContact(withE164 e164: String) throws {
         let localTable    = LocalContactsSnapshotTable()
         let flipcashTable = FlipcashContactTable()
