@@ -116,17 +116,6 @@ nonisolated extension Database {
         }
     }
 
-    /// Drops every row for `e164` from the local snapshot and the Flipcash
-    /// matched set in one transaction.
-    func removeContact(withE164 e164: String) throws {
-        let localTable    = LocalContactsSnapshotTable()
-        let flipcashTable = FlipcashContactTable()
-        try writer.transaction {
-            try writer.run(localTable.table.filter(localTable.e164 == e164).delete())
-            try writer.run(flipcashTable.table.filter(flipcashTable.e164 == e164).delete())
-        }
-    }
-
     // MARK: - Combined writes -
 
     /// Replace the snapshot AND upsert the sync state in one transaction.

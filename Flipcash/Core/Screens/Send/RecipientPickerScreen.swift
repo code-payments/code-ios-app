@@ -73,7 +73,8 @@ struct RecipientPickerScreen: View {
                 let resolved = try await session.resolveContact(e164: contact.phoneE164)
                 guard let resolved else {
                     Analytics.track(event: Analytics.SendEvent.resolveNotFound)
-                    handleNotFound(contact: contact)
+                    logger.info("Resolve returned NOT_FOUND", metadata: ["contactId": "\(contact.contactId)"])
+                    showUnreachableError()
                     return
                 }
                 Analytics.track(event: Analytics.SendEvent.resolveSuccess)
@@ -81,37 +82,29 @@ struct RecipientPickerScreen: View {
                     recipient: resolved,
                     recipientDisplayName: contact.displayName
                 ))
+            } catch ErrorResolve.denied {
+                Analytics.track(event: Analytics.SendEvent.resolveError)
+                logger.warning("Resolve denied", metadata: ["contactId": "\(contact.contactId)"])
+                showUnreachableError()
             } catch {
                 Analytics.track(event: Analytics.SendEvent.resolveError)
-                handleResolveError(error, contact: contact)
+                logger.error("Resolve failed", metadata: ["error": "\(error)"])
+                ErrorReporting.captureError(error, reason: "Contact resolve failed")
+                session.dialogItem = .error(
+                    title: "Something Went Wrong",
+                    subtitle: "We couldn't reach the network. Please try again."
+                )
             }
         }
     }
 
-    private func handleResolveError(_ error: Error, contact: ResolvedContact) {
-        if case ErrorResolve.denied = error {
-            logger.warning("Resolve denied", metadata: ["contactId": "\(contact.contactId)"])
-            session.dialogItem = .error(
-                title: "Unable to Send",
-                subtitle: "We couldn't send to this contact. Please try again later."
-            )
-            return
-        }
-        logger.error("Resolve failed", metadata: ["error": "\(error)"])
-        ErrorReporting.captureError(error, reason: "Contact resolve failed")
+    /// Soft transient error — the next contact sync reconciles authoritatively,
+    /// so we don't drop anything locally.
+    private func showUnreachableError() {
         session.dialogItem = .error(
-            title: "Something Went Wrong",
-            subtitle: "We couldn't reach the network. Please try again."
+            title: "Couldn't Send",
+            subtitle: "We can't reach this contact right now. Please try again."
         )
-    }
-
-    private func handleNotFound(contact: ResolvedContact) {
-        logger.info("Resolve returned NOT_FOUND", metadata: ["contactId": "\(contact.contactId)"])
-        session.dialogItem = .error(
-            title: "No Longer on Flipcash",
-            subtitle: "\(contact.displayName) isn't on Flipcash anymore."
-        )
-        contactSyncController.removeContact(withE164: contact.phoneE164)
     }
 
     private func presentInvite(for contact: ResolvedContact) {

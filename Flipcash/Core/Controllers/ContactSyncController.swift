@@ -226,21 +226,6 @@ final class ContactSyncController {
         await resolveDirectory()
     }
 
-    // MARK: - Removal -
-
-    /// Optimistically drops `e164` from local state, then triggers a sync.
-    func removeContact(withE164 e164: String) {
-        do {
-            try database.removeContact(withE164: e164)
-        } catch {
-            logger.error("Failed to drop contact from DB", metadata: ["error": "\(error)"])
-            ErrorReporting.captureError(error, reason: "Contact removal failed")
-            return
-        }
-        resolvedContacts = resolvedContacts.removing(e164: e164)
-        sync()
-    }
-
     // MARK: - Directory resolution -
 
     /// Re-resolve the picker's display data from the freshly-persisted
