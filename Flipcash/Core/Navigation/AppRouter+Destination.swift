@@ -60,6 +60,9 @@ extension AppRouter {
         case depositAddress(PublicKey)
         case withdraw
 
+        // Send flow
+        case sendAmount(recipient: PublicKey, recipientDisplayName: String?)
+
         /// The stack this destination naturally belongs in. Cross-stack
         /// navigation uses this to know which sheet to present.
         var owningStack: Stack {
@@ -75,6 +78,8 @@ extension AppRouter {
                  .settingsApplicationLogs, .accessKey, .deposit, .depositCurrencyList,
                  .depositAddress, .withdraw:
                 return .settings
+            case .sendAmount:
+                return .send
             }
         }
 
@@ -107,6 +112,7 @@ extension AppRouter {
             case .depositCurrencyList:          "depositCurrencyList"
             case .depositAddress:               "depositAddress"
             case .withdraw:                     "withdraw"
+            case .sendAmount:                   "sendAmount"
             }
         }
 
@@ -122,6 +128,8 @@ extension AppRouter {
                  .withdrawCurrency(let mint),
                  .depositAddress(let mint):
                 return mint.base58
+            case .sendAmount(let recipient, _):
+                return recipient.base58
             case .phantomFlow:
                 return nil
             case .discoverCurrencies, .currencyCreationSummary, .currencyCreationWizard,
