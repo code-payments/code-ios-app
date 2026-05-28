@@ -46,13 +46,14 @@ extension Client {
         )
     }
     
-    public func transfer(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, owner: AccountCluster, destination: PublicKey, rendezvous: PublicKey) async throws {
+    public func transfer(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, owner: AccountCluster, destination: PublicKey, destinationOwner: PublicKey? = nil, rendezvous: PublicKey) async throws {
         _ = try await withCheckedThrowingContinuation { c in
             transactionService.transfer(
                 exchangedFiat: exchangedFiat,
                 verifiedState: verifiedState,
                 sourceCluster: owner,
                 destination: destination,
+                destinationOwner: destinationOwner,
                 owner: owner.authority.keyPair,
                 rendezvous: rendezvous
             ) { c.resume(with: $0) }

@@ -116,6 +116,18 @@ protocol CurrencyLaunching: AnyObject {
     ) async throws -> PublicKey
 }
 
+// MARK: - Direct send
+
+/// Direct on-chain payment to a resolved recipient owner.
+protocol DirectSending: AnyObject {
+
+    func send(
+        amount: ExchangedFiat,
+        verifiedState: VerifiedState,
+        to destination: PublicKey
+    ) async throws
+}
+
 // MARK: - Session conformance
 
 extension Session: AccountProviding,
@@ -125,4 +137,5 @@ extension Session: AccountProviding,
                     ReservesBuying,
                     ExternalFundingBuying,
                     OnrampBuying,
-                    CurrencyLaunching {}
+                    CurrencyLaunching,
+                    DirectSending {}

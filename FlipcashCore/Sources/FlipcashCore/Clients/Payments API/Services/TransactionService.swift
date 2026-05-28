@@ -52,13 +52,14 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
     
     // MARK: - Transfer -
 
-    func transfer(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, sourceCluster: AccountCluster, destination: PublicKey, owner: KeyPair, rendezvous: PublicKey, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
+    func transfer(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, sourceCluster: AccountCluster, destination: PublicKey, destinationOwner: PublicKey? = nil, owner: KeyPair, rendezvous: PublicKey, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
         logger.info("Sending transfer")
 
         let intent = IntentTransfer(
             rendezvous: rendezvous,
             sourceCluster: sourceCluster,
             destination: destination,
+            destinationOwner: destinationOwner,
             exchangedFiat: exchangedFiat,
             verifiedState: verifiedState
         )
