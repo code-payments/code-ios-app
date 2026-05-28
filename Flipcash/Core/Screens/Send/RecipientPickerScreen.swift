@@ -11,24 +11,17 @@ import FlipcashUI
 
 nonisolated private let logger = Logger(label: "flipcash.recipient-picker")
 
-/// The Send section's primary view. Shown after the `SendRootScreen` gate
-/// confirms a verified phone, authorized contacts, AND that
-/// `ContactSyncController` has resolved the directory at least once.
-///
-/// Reads the controller's `resolvedContacts` cache directly — no internal
-/// loading state. Refreshes happen invisibly on the controller side; the
-/// picker observes the updated value and re-renders without ever flipping
-/// to a spinner.
-///
-/// Row tap actions are stubbed pending Phase 6 (invite sheet) and Phase 7
-/// (resolve-and-send wire-up).
+/// Send section's primary view. Renders `contactSyncController.resolvedContacts`.
 struct RecipientPickerScreen: View {
 
     @Environment(ContactSyncController.self) private var contactSyncController
+    @Environment(Session.self) private var session
+    @Environment(AppRouter.self) private var router
 
     @State private var filtered: ResolvedContacts = .empty
     @State private var searchText: String = ""
     @State private var inviteTarget: ResolvedContact?
+    @State private var resolvingContactId: String?
 
     var body: some View {
         let contacts = contactSyncController.resolvedContacts
@@ -43,11 +36,7 @@ struct RecipientPickerScreen: View {
                     RecipientPickerList(
                         filtered: filtered,
                         searchText: searchText,
-                        onFlipcashTap: { _ in
-                            // Phase 7 wires this to `session.send` once
-                            // `PaymentDestinationService.resolve(phone:)` is in.
-                            logger.info("Tapped On Flipcash row (send wire-up pending)")
-                        },
+                        onFlipcashTap: resolveAndPush,
                         onInviteTap: presentInvite,
                     )
                 }
@@ -68,6 +57,54 @@ struct RecipientPickerScreen: View {
                 },
             )
         }
+    }
+
+    // MARK: - Resolve + push -
+
+    /// Coalesces re-taps via `resolvingContactId` so a double-tap can't fire two resolves.
+    private func resolveAndPush(contact: ResolvedContact) {
+        guard resolvingContactId == nil else { return }
+        resolvingContactId = contact.id
+        Analytics.track(event: Analytics.SendEvent.tapRecipient)
+
+        Task {
+            defer { resolvingContactId = nil }
+            do {
+                let resolved = try await session.resolveContact(e164: contact.phoneE164)
+                guard let resolved else {
+                    Analytics.track(event: Analytics.SendEvent.resolveNotFound)
+                    logger.info("Resolve returned NOT_FOUND", metadata: ["contactId": "\(contact.contactId)"])
+                    showUnreachableError()
+                    return
+                }
+                Analytics.track(event: Analytics.SendEvent.resolveSuccess)
+                router.push(.sendAmount(
+                    recipient: resolved,
+                    recipientDisplayName: contact.displayName
+                ))
+            } catch ErrorResolve.denied {
+                Analytics.track(event: Analytics.SendEvent.resolveError)
+                logger.warning("Resolve denied", metadata: ["contactId": "\(contact.contactId)"])
+                showUnreachableError()
+            } catch {
+                Analytics.track(event: Analytics.SendEvent.resolveError)
+                logger.error("Resolve failed", metadata: ["error": "\(error)"])
+                ErrorReporting.captureError(error, reason: "Contact resolve failed")
+                session.dialogItem = .error(
+                    title: "Something Went Wrong",
+                    subtitle: "We couldn't reach the network. Please try again."
+                )
+            }
+        }
+    }
+
+    /// Soft transient error — the next contact sync reconciles authoritatively,
+    /// so we don't drop anything locally.
+    private func showUnreachableError() {
+        session.dialogItem = .error(
+            title: "Couldn't Send",
+            subtitle: "We can't reach this contact right now. Please try again."
+        )
     }
 
     private func presentInvite(for contact: ResolvedContact) {

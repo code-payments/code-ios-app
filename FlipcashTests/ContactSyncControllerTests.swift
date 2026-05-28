@@ -644,4 +644,5 @@ struct ContactSyncControllerTests {
             #expect(mock.fullCalls.isEmpty)
         }
     }
+
 }
