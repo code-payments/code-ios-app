@@ -226,6 +226,25 @@ final class ContactSyncController {
         await resolveDirectory()
     }
 
+    // MARK: - Removal -
+
+    /// Optimistically drops `e164` from the local snapshot, the Flipcash
+    /// matched set, and the in-memory resolved cache, then triggers a sync
+    /// so the next round-trip re-establishes truth. Called by the picker
+    /// when the Flip resolver reports NOT_FOUND for a contact the local
+    /// state still believed was on Flipcash.
+    func removeContact(withE164 e164: String) {
+        do {
+            try database.removeContact(withE164: e164)
+        } catch {
+            logger.error("Failed to drop contact from DB", metadata: ["error": "\(error)"])
+            ErrorReporting.captureError(error, reason: "Contact removal failed")
+            return
+        }
+        resolvedContacts = resolvedContacts.removing(e164: e164)
+        sync()
+    }
+
     // MARK: - Directory resolution -
 
     /// Re-resolve the picker's display data from the freshly-persisted

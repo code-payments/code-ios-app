@@ -442,6 +442,7 @@ struct SessionContainer {
     let historyController: HistoryController
     let pushController: PushController
     let contactSyncController: ContactSyncController
+    let contactResolver: ContactResolver
     let flipClient: FlipClient
     let onrampDeeplinkInbox: OnrampDeeplinkInbox
     let verificationCoordinator: VerificationCoordinator
@@ -467,6 +468,10 @@ struct SessionContainer {
         self.historyController = historyController
         self.pushController = pushController
         self.contactSyncController = contactSyncController
+        self.contactResolver = ContactResolver(
+            flipClient: flipClient,
+            ownerKeyPair: session.ownerKeyPair
+        )
         self.flipClient = flipClient
         let deeplinkInbox = OnrampDeeplinkInbox()
         self.onrampDeeplinkInbox = deeplinkInbox
@@ -517,6 +522,7 @@ struct SessionContainer {
             .environment(historyController)
             .environment(pushController)
             .environment(contactSyncController)
+            .environment(contactResolver)
             .environment(walletConnection)
             .environment(verificationCoordinator)
             .environment(coinbaseService)

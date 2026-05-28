@@ -48,6 +48,17 @@ nonisolated struct ResolvedContacts: Equatable, Sendable {
             invite: invite.filter { $0.matches(lowered) },
         )
     }
+
+    /// Returns a copy with every row whose `phoneE164 == e164` dropped from
+    /// both sections. Used to optimistically purge a contact the resolver
+    /// just reported NOT_FOUND for, ahead of the next sync re-establishing
+    /// the picker's true state.
+    func removing(e164: String) -> ResolvedContacts {
+        ResolvedContacts(
+            onFlipcash: onFlipcash.filter { $0.phoneE164 != e164 },
+            invite: invite.filter { $0.phoneE164 != e164 },
+        )
+    }
 }
 
 nonisolated private extension ResolvedContact {

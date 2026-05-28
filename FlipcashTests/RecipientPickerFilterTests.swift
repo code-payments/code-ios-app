@@ -84,3 +84,68 @@ struct ResolvedContactsFilterTests {
         #expect(!directory.isEmpty)
     }
 }
+
+// MARK: -
+
+@Suite("ResolvedContacts.removing(e164:)")
+struct ResolvedContactsRemovingTests {
+
+    private let alice = ResolvedContact(
+        contactId: "1",
+        displayName: "Alice Anderson",
+        phoneE164: "+15551110001",
+        nationalPhone: "(555) 111-0001",
+        imageData: nil
+    )
+    private let bob = ResolvedContact(
+        contactId: "2",
+        displayName: "Bob Brown",
+        phoneE164: "+15552220002",
+        nationalPhone: "(555) 222-0002",
+        imageData: nil
+    )
+    private let carla = ResolvedContact(
+        contactId: "3",
+        displayName: "Carla Costa",
+        phoneE164: "+15553330003",
+        nationalPhone: "(555) 333-0003",
+        imageData: nil
+    )
+
+    @Test("Removing a phone drops every matching row from onFlipcash")
+    func removesFromOnFlipcash() {
+        let directory = ResolvedContacts(onFlipcash: [alice, bob], invite: [carla])
+        let result = directory.removing(e164: alice.phoneE164)
+        #expect(result.onFlipcash.map(\.contactId) == [bob.contactId])
+        #expect(result.invite.map(\.contactId) == [carla.contactId])
+    }
+
+    @Test("Removing a phone drops every matching row from invite")
+    func removesFromInvite() {
+        let directory = ResolvedContacts(onFlipcash: [alice], invite: [bob, carla])
+        let result = directory.removing(e164: bob.phoneE164)
+        #expect(result.onFlipcash.map(\.contactId) == [alice.contactId])
+        #expect(result.invite.map(\.contactId) == [carla.contactId])
+    }
+
+    @Test("Removing a phone absent from both sections is a no-op")
+    func absent_noOp() {
+        let directory = ResolvedContacts(onFlipcash: [alice], invite: [carla])
+        let result = directory.removing(e164: "+15559999999")
+        #expect(result == directory)
+    }
+
+    @Test("Same phone under multiple contactIds removes every row")
+    func multipleRowsSameE164() {
+        let aliceWork = ResolvedContact(
+            contactId: "1-work",
+            displayName: "Alice Anderson (work)",
+            phoneE164: alice.phoneE164,
+            nationalPhone: alice.nationalPhone,
+            imageData: nil
+        )
+        let directory = ResolvedContacts(onFlipcash: [alice, aliceWork, bob], invite: [])
+        let result = directory.removing(e164: alice.phoneE164)
+        #expect(result.onFlipcash.map(\.contactId) == [bob.contactId])
+    }
+}

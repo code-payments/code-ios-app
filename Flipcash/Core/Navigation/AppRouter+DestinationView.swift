@@ -177,6 +177,19 @@ struct DestinationView: View {
 
         case .phantomFlow(let fundingOperation):
             PhantomFlowScreen(fundingOperation: fundingOperation)
+
+        // MARK: - Send flow
+
+        case .sendAmount(let recipient, let recipientDisplayName):
+            // `.id(recipient)` for the same reason as `.give` / `.currencyInfo`
+            // above — repushing with a different recipient must rebuild the
+            // viewmodel, not reuse the one wired to the previous pubkey.
+            SendAmountScreen(
+                sessionContainer: sessionContainer,
+                recipient: recipient,
+                recipientDisplayName: recipientDisplayName
+            )
+            .id(recipient)
         }
     }
 }

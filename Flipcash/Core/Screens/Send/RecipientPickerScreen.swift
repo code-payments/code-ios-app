@@ -19,16 +19,17 @@ nonisolated private let logger = Logger(label: "flipcash.recipient-picker")
 /// loading state. Refreshes happen invisibly on the controller side; the
 /// picker observes the updated value and re-renders without ever flipping
 /// to a spinner.
-///
-/// Row tap actions are stubbed pending Phase 6 (invite sheet) and Phase 7
-/// (resolve-and-send wire-up).
 struct RecipientPickerScreen: View {
 
     @Environment(ContactSyncController.self) private var contactSyncController
+    @Environment(ContactResolver.self) private var contactResolver
+    @Environment(Session.self) private var session
+    @Environment(AppRouter.self) private var router
 
     @State private var filtered: ResolvedContacts = .empty
     @State private var searchText: String = ""
     @State private var inviteTarget: ResolvedContact?
+    @State private var resolvingContactId: String?
 
     var body: some View {
         let contacts = contactSyncController.resolvedContacts
@@ -43,11 +44,7 @@ struct RecipientPickerScreen: View {
                     RecipientPickerList(
                         filtered: filtered,
                         searchText: searchText,
-                        onFlipcashTap: { _ in
-                            // Phase 7 wires this to `session.send` once
-                            // `PaymentDestinationService.resolve(phone:)` is in.
-                            logger.info("Tapped On Flipcash row (send wire-up pending)")
-                        },
+                        onFlipcashTap: resolveAndPush,
                         onInviteTap: presentInvite,
                     )
                 }
@@ -68,6 +65,71 @@ struct RecipientPickerScreen: View {
                 },
             )
         }
+    }
+
+    // MARK: - Resolve + push -
+
+    /// Resolves the contact's E.164 to a payment pubkey and pushes the
+    /// amount-entry screen. Coalesces re-taps via `resolvingContactId` so a
+    /// double-tap can't fire two resolves; SwiftUI buttons are already
+    /// debounced visually but a long network round-trip leaves room for the
+    /// second tap to land before the push.
+    private func resolveAndPush(contact: ResolvedContact) {
+        guard resolvingContactId == nil else { return }
+        resolvingContactId = contact.id
+        Analytics.track(event: Analytics.SendEvent.tapRecipient)
+
+        Task {
+            defer { resolvingContactId = nil }
+            do {
+                let resolved = try await contactResolver.resolveContact(
+                    e164: contact.phoneE164
+                )
+                guard let resolved else {
+                    Analytics.track(event: Analytics.SendEvent.resolveNotFound)
+                    handleNotFound(contact: contact)
+                    return
+                }
+                Analytics.track(event: Analytics.SendEvent.resolveSuccess)
+                router.push(.sendAmount(
+                    recipient: resolved,
+                    recipientDisplayName: contact.displayName
+                ))
+            } catch {
+                Analytics.track(event: Analytics.SendEvent.resolveError)
+                handleResolveError(error, contact: contact)
+            }
+        }
+    }
+
+    private func handleResolveError(_ error: Error, contact: ResolvedContact) {
+        if case ErrorResolve.denied = error {
+            logger.warning("Resolve denied", metadata: ["contactId": "\(contact.contactId)"])
+            session.dialogItem = .error(
+                title: "Unable to Send",
+                subtitle: "We couldn't send to this contact. Please try again later."
+            )
+            return
+        }
+        logger.error("Resolve failed", metadata: ["error": "\(error)"])
+        ErrorReporting.captureError(error, reason: "Contact resolve failed")
+        session.dialogItem = .error(
+            title: "Something Went Wrong",
+            subtitle: "We couldn't reach the network. Please try again."
+        )
+    }
+
+    /// NOT_FOUND path: the contact was matched at last sync but the resolver
+    /// no longer recognises the number. Optimistically purge the local entry
+    /// so the picker stops offering them and trigger a sync to re-establish
+    /// the truthful set.
+    private func handleNotFound(contact: ResolvedContact) {
+        logger.info("Resolve returned NOT_FOUND", metadata: ["contactId": "\(contact.contactId)"])
+        session.dialogItem = .error(
+            title: "No Longer on Flipcash",
+            subtitle: "\(contact.displayName) isn't on Flipcash anymore."
+        )
+        contactSyncController.removeContact(withE164: contact.phoneE164)
     }
 
     private func presentInvite(for contact: ResolvedContact) {

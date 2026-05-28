@@ -185,4 +185,43 @@ struct DatabaseContactSyncTests {
             Database.LocalContact(e164: "+15551234567", contactId: "alice"),
         ])
     }
+
+    // MARK: - removeContact -
+
+    @Test("removeContact drops every row for the e164 from both tables")
+    func removeContact_dropsFromBothTables() throws {
+        let db = Database.mock
+        let target = "+15551234567"
+        let other  = "+447700900000"
+        try db.replaceLocalContactsSnapshot([
+            Database.LocalContact(e164: target, contactId: "alice"),
+            Database.LocalContact(e164: target, contactId: "alice-work"),
+            Database.LocalContact(e164: other,  contactId: "bob"),
+        ])
+        try db.replaceFlipcashContacts([target, other], matchedAt: .now)
+
+        try db.removeContact(withE164: target)
+
+        #expect(try db.localContactsSnapshot() == [
+            Database.LocalContact(e164: other, contactId: "bob"),
+        ])
+        #expect(try db.flipcashContacts() == [other])
+    }
+
+    @Test("removeContact is a no-op when the e164 is absent from both tables")
+    func removeContact_missingE164_noOp() throws {
+        let db = Database.mock
+        let keep = "+447700900000"
+        try db.replaceLocalContactsSnapshot([
+            Database.LocalContact(e164: keep, contactId: "bob"),
+        ])
+        try db.replaceFlipcashContacts([keep], matchedAt: .now)
+
+        try db.removeContact(withE164: "+15550000000")
+
+        #expect(try db.localContactsSnapshot() == [
+            Database.LocalContact(e164: keep, contactId: "bob"),
+        ])
+        #expect(try db.flipcashContacts() == [keep])
+    }
 }
