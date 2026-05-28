@@ -252,7 +252,6 @@
 			name = NotificationService;
 			packageProductDependencies = (
 				9ABDD1942D9D7B61006B6CDA /* FlipcashCore */,
-				9AD1265D2DA98ADC0048141F /* SQLite */,
 			);
 			productName = NotificationService;
 			productReference = 4C7D6FFA2FC8892D0091C7A4 /* NotificationService.appex */;
