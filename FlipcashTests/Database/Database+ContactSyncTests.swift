@@ -185,4 +185,5 @@ struct DatabaseContactSyncTests {
             Database.LocalContact(e164: "+15551234567", contactId: "alice"),
         ])
     }
+
 }
