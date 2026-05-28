@@ -2,34 +2,66 @@
 //  NotificationService.swift
 //  NotificationService
 //
-//  Created by Raul Riera on 2026-05-28.
-//
 
 import UserNotifications
+import FlipcashCore
+import FlipcashAPI
 
-class NotificationService: UNNotificationServiceExtension {
+/// Rewrites `CONTACT_JOIN` pushes to use the user's local contact name.
+///
+/// Phone-to-name resolution happens on-device inside this extension. The server
+/// sends only E.164s and substitution placeholders; it never sees the user's
+/// address book. The extension reads the locally-synced matched set and queries
+/// `CNContactStore` directly — no network calls from the extension.
+final class NotificationService: UNNotificationServiceExtension {
 
-    var contentHandler: ((UNNotificationContent) -> Void)?
-    var bestAttemptContent: UNMutableNotificationContent?
+    private var contentHandler: ((UNNotificationContent) -> Void)?
+    private var bestAttemptContent: UNMutableNotificationContent?
 
-    override func didReceive(_ request: UNNotificationRequest, withContentHandler contentHandler: @escaping (UNNotificationContent) -> Void) {
+    override func didReceive(
+        _ request: UNNotificationRequest,
+        withContentHandler contentHandler: @escaping (UNNotificationContent) -> Void
+    ) {
         self.contentHandler = contentHandler
         bestAttemptContent = (request.content.mutableCopy() as? UNMutableNotificationContent)
 
-        if let bestAttemptContent = bestAttemptContent {
-            // Modify the notification content here...
-            bestAttemptContent.title = "\(bestAttemptContent.title) [modified]"
-
-            contentHandler(bestAttemptContent)
+        guard let bestAttemptContent else {
+            contentHandler(request.content)
+            return
         }
+
+        guard let payload = NotificationPayload.decode(request.content.userInfo),
+              let ownerBase58 = SharedDefaults.currentOwnerBase58 else {
+            contentHandler(bestAttemptContent)
+            return
+        }
+
+        let storeURL = AppGroup.containerURL
+            .appendingPathComponent("flipcash-\(ownerBase58).sqlite")
+        let resolver = ContactNameResolver(
+            snapshotReader: ContactSnapshotReader(storeURL: storeURL),
+            nameProvider: CNContactNameProvider()
+        )
+
+        let titleResolutions = payload.titleSubstitutions.map { resolver.resolve(phone: $0.contact) }
+        let bodyResolutions = payload.bodySubstitutions.map { resolver.resolve(phone: $0.contact) }
+
+        bestAttemptContent.title = SubstitutionApplier.apply(
+            template: bestAttemptContent.title,
+            resolutions: titleResolutions
+        )
+        bestAttemptContent.body = SubstitutionApplier.apply(
+            template: bestAttemptContent.body,
+            resolutions: bodyResolutions
+        )
+        bestAttemptContent.threadIdentifier = payload.groupKey
+
+        contentHandler(bestAttemptContent)
     }
-    
+
     override func serviceExtensionTimeWillExpire() {
-        // Called just before the extension will be terminated by the system.
-        // Use this as an opportunity to deliver your "best attempt" at modified content, otherwise the original push payload will be used.
-        if let contentHandler = contentHandler, let bestAttemptContent =  bestAttemptContent {
+        if let contentHandler, let bestAttemptContent {
             contentHandler(bestAttemptContent)
         }
     }
-
 }
