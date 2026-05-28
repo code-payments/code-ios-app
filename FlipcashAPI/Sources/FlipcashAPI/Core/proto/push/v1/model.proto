@@ -7,6 +7,7 @@ option java_package = "com.codeinc.flipcash.gen.push.v1";
 option objc_class_prefix = "FPBPushV1";
 
 import "common/v1/common.proto";
+import "phone/v1/model.proto";
 import "validate/validate.proto";
 
 enum TokenType {
@@ -21,6 +22,29 @@ enum TokenType {
 message Payload {
     // If present, where the app should navigate to after clicking the push
     Navigation navigation = 1;
+
+    // Ordered substitutions to apply to push title
+    repeated Substitution title_substitutions = 2;
+
+    // Ordered substitutions to apply to push body
+    repeated Substitution body_substitutions = 3;
+
+    // Push notification category
+    Category category = 4;
+    enum Category {
+        DEFAULT            = 0;
+        DEPOSIT_WITHDRAWAL = 1;
+        BUY_SELL           = 2;
+        GAIN               = 3;
+        CHAT               = 4;
+        CONTACT_JOIN       = 5;
+    }
+
+    // Push notification key for grouping pushes. If not set, then no grouping
+    // is applied.
+    string group_key = 5 [(validate.rules).string = {
+        max_len: 4096 // Arbitrary
+    }];
 }
 
 // Navigation within the app upon clicking the push
@@ -30,5 +54,20 @@ message Navigation {
 
         // Currency info page for the provided mint 
         common.v1.PublicKey currency_info = 1;
+    }
+}
+
+message Substitution {
+    // Fallback string for forwards compatibility
+    string fallback = 1 [(validate.rules).string = {
+        min_len: 1
+        max_len: 4096 // Arbitrary
+    }];
+
+    oneof kind {
+        option (validate.required) = true;
+
+        // Phone number -> contact name or formatted phone number
+        phone.v1.PhoneNumber contact = 2;
     }
 }

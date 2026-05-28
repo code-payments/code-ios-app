@@ -78,7 +78,70 @@ public struct Flipcash_Push_V1_Payload: Sendable {
   /// Clears the value of `navigation`. Subsequent reads from it will return its default value.
   public mutating func clearNavigation() {self._navigation = nil}
 
+  /// Ordered substitutions to apply to push title
+  public var titleSubstitutions: [Flipcash_Push_V1_Substitution] = []
+
+  /// Ordered substitutions to apply to push body
+  public var bodySubstitutions: [Flipcash_Push_V1_Substitution] = []
+
+  /// Push notification category
+  public var category: Flipcash_Push_V1_Payload.Category = .default
+
+  /// Push notification key for grouping pushes. If not set, then no grouping
+  /// is applied.
+  public var groupKey: String = String()
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Category: SwiftProtobuf.Enum, Swift.CaseIterable {
+    public typealias RawValue = Int
+    case `default` // = 0
+    case depositWithdrawal // = 1
+    case buySell // = 2
+    case gain // = 3
+    case chat // = 4
+    case contactJoin // = 5
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .default
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .default
+      case 1: self = .depositWithdrawal
+      case 2: self = .buySell
+      case 3: self = .gain
+      case 4: self = .chat
+      case 5: self = .contactJoin
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .default: return 0
+      case .depositWithdrawal: return 1
+      case .buySell: return 2
+      case .gain: return 3
+      case .chat: return 4
+      case .contactJoin: return 5
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+    // The compiler won't synthesize support with the UNRECOGNIZED case.
+    public static let allCases: [Flipcash_Push_V1_Payload.Category] = [
+      .default,
+      .depositWithdrawal,
+      .buySell,
+      .gain,
+      .chat,
+      .contactJoin,
+    ]
+
+  }
 
   public init() {}
 
@@ -113,6 +176,36 @@ public struct Flipcash_Push_V1_Navigation: Sendable {
   public init() {}
 }
 
+public struct Flipcash_Push_V1_Substitution: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Fallback string for forwards compatibility
+  public var fallback: String = String()
+
+  public var kind: Flipcash_Push_V1_Substitution.OneOf_Kind? = nil
+
+  /// Phone number -> contact name or formatted phone number
+  public var contact: Flipcash_Phone_V1_PhoneNumber {
+    get {
+      if case .contact(let v)? = kind {return v}
+      return Flipcash_Phone_V1_PhoneNumber()
+    }
+    set {kind = .contact(newValue)}
+  }
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum OneOf_Kind: Equatable, Sendable {
+    /// Phone number -> contact name or formatted phone number
+    case contact(Flipcash_Phone_V1_PhoneNumber)
+
+  }
+
+  public init() {}
+}
+
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate let _protobuf_package = "flipcash.push.v1"
@@ -123,7 +216,7 @@ extension Flipcash_Push_V1_TokenType: SwiftProtobuf._ProtoNameProviding {
 
 extension Flipcash_Push_V1_Payload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Payload"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}navigation\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}navigation\0\u{3}title_substitutions\0\u{3}body_substitutions\0\u{1}category\0\u{3}group_key\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -132,6 +225,10 @@ extension Flipcash_Push_V1_Payload: SwiftProtobuf.Message, SwiftProtobuf._Messag
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._navigation) }()
+      case 2: try { try decoder.decodeRepeatedMessageField(value: &self.titleSubstitutions) }()
+      case 3: try { try decoder.decodeRepeatedMessageField(value: &self.bodySubstitutions) }()
+      case 4: try { try decoder.decodeSingularEnumField(value: &self.category) }()
+      case 5: try { try decoder.decodeSingularStringField(value: &self.groupKey) }()
       default: break
       }
     }
@@ -145,14 +242,34 @@ extension Flipcash_Push_V1_Payload: SwiftProtobuf.Message, SwiftProtobuf._Messag
     try { if let v = self._navigation {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
     } }()
+    if !self.titleSubstitutions.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.titleSubstitutions, fieldNumber: 2)
+    }
+    if !self.bodySubstitutions.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.bodySubstitutions, fieldNumber: 3)
+    }
+    if self.category != .default {
+      try visitor.visitSingularEnumField(value: self.category, fieldNumber: 4)
+    }
+    if !self.groupKey.isEmpty {
+      try visitor.visitSingularStringField(value: self.groupKey, fieldNumber: 5)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipcash_Push_V1_Payload, rhs: Flipcash_Push_V1_Payload) -> Bool {
     if lhs._navigation != rhs._navigation {return false}
+    if lhs.titleSubstitutions != rhs.titleSubstitutions {return false}
+    if lhs.bodySubstitutions != rhs.bodySubstitutions {return false}
+    if lhs.category != rhs.category {return false}
+    if lhs.groupKey != rhs.groupKey {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
+}
+
+extension Flipcash_Push_V1_Payload.Category: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0DEFAULT\0\u{1}DEPOSIT_WITHDRAWAL\0\u{1}BUY_SELL\0\u{1}GAIN\0\u{1}CHAT\0\u{1}CONTACT_JOIN\0")
 }
 
 extension Flipcash_Push_V1_Navigation: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
@@ -196,6 +313,57 @@ extension Flipcash_Push_V1_Navigation: SwiftProtobuf.Message, SwiftProtobuf._Mes
 
   public static func ==(lhs: Flipcash_Push_V1_Navigation, rhs: Flipcash_Push_V1_Navigation) -> Bool {
     if lhs.type != rhs.type {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Push_V1_Substitution: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Substitution"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}fallback\0\u{1}contact\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.fallback) }()
+      case 2: try {
+        var v: Flipcash_Phone_V1_PhoneNumber?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .contact(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .contact(v)
+        }
+      }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.fallback.isEmpty {
+      try visitor.visitSingularStringField(value: self.fallback, fieldNumber: 1)
+    }
+    try { if case .contact(let v)? = self.kind {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Push_V1_Substitution, rhs: Flipcash_Push_V1_Substitution) -> Bool {
+    if lhs.fallback != rhs.fallback {return false}
+    if lhs.kind != rhs.kind {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

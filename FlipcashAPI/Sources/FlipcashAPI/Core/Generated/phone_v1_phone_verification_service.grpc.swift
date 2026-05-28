@@ -30,6 +30,11 @@ public protocol Flipcash_Phone_V1_PhoneVerificationClientProtocol: GRPCClient {
     _ request: Flipcash_Phone_V1_UnlinkRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Flipcash_Phone_V1_UnlinkRequest, Flipcash_Phone_V1_UnlinkResponse>
+
+  func linkForPayment(
+    _ request: Flipcash_Phone_V1_LinkForPaymentRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Flipcash_Phone_V1_LinkForPaymentRequest, Flipcash_Phone_V1_LinkForPaymentResponse>
 }
 
 extension Flipcash_Phone_V1_PhoneVerificationClientProtocol {
@@ -91,6 +96,24 @@ extension Flipcash_Phone_V1_PhoneVerificationClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeUnlinkInterceptors() ?? []
+    )
+  }
+
+  /// LinkForPayment links the verified phone number for the requesting user for payment.
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to LinkForPayment.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func linkForPayment(
+    _ request: Flipcash_Phone_V1_LinkForPaymentRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Flipcash_Phone_V1_LinkForPaymentRequest, Flipcash_Phone_V1_LinkForPaymentResponse> {
+    return self.makeUnaryCall(
+      path: Flipcash_Phone_V1_PhoneVerificationClientMetadata.Methods.linkForPayment.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeLinkForPaymentInterceptors() ?? []
     )
   }
 }
@@ -171,6 +194,11 @@ public protocol Flipcash_Phone_V1_PhoneVerificationAsyncClientProtocol: GRPCClie
     _ request: Flipcash_Phone_V1_UnlinkRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Flipcash_Phone_V1_UnlinkRequest, Flipcash_Phone_V1_UnlinkResponse>
+
+  func makeLinkForPaymentCall(
+    _ request: Flipcash_Phone_V1_LinkForPaymentRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Flipcash_Phone_V1_LinkForPaymentRequest, Flipcash_Phone_V1_LinkForPaymentResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -218,6 +246,18 @@ extension Flipcash_Phone_V1_PhoneVerificationAsyncClientProtocol {
       interceptors: self.interceptors?.makeUnlinkInterceptors() ?? []
     )
   }
+
+  public func makeLinkForPaymentCall(
+    _ request: Flipcash_Phone_V1_LinkForPaymentRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Flipcash_Phone_V1_LinkForPaymentRequest, Flipcash_Phone_V1_LinkForPaymentResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Flipcash_Phone_V1_PhoneVerificationClientMetadata.Methods.linkForPayment.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeLinkForPaymentInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -257,6 +297,18 @@ extension Flipcash_Phone_V1_PhoneVerificationAsyncClientProtocol {
       interceptors: self.interceptors?.makeUnlinkInterceptors() ?? []
     )
   }
+
+  public func linkForPayment(
+    _ request: Flipcash_Phone_V1_LinkForPaymentRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Flipcash_Phone_V1_LinkForPaymentResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Flipcash_Phone_V1_PhoneVerificationClientMetadata.Methods.linkForPayment.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeLinkForPaymentInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -286,6 +338,9 @@ public protocol Flipcash_Phone_V1_PhoneVerificationClientInterceptorFactoryProto
 
   /// - Returns: Interceptors to use when invoking 'unlink'.
   func makeUnlinkInterceptors() -> [ClientInterceptor<Flipcash_Phone_V1_UnlinkRequest, Flipcash_Phone_V1_UnlinkResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'linkForPayment'.
+  func makeLinkForPaymentInterceptors() -> [ClientInterceptor<Flipcash_Phone_V1_LinkForPaymentRequest, Flipcash_Phone_V1_LinkForPaymentResponse>]
 }
 
 public enum Flipcash_Phone_V1_PhoneVerificationClientMetadata {
@@ -296,6 +351,7 @@ public enum Flipcash_Phone_V1_PhoneVerificationClientMetadata {
       Flipcash_Phone_V1_PhoneVerificationClientMetadata.Methods.sendVerificationCode,
       Flipcash_Phone_V1_PhoneVerificationClientMetadata.Methods.checkVerificationCode,
       Flipcash_Phone_V1_PhoneVerificationClientMetadata.Methods.unlink,
+      Flipcash_Phone_V1_PhoneVerificationClientMetadata.Methods.linkForPayment,
     ]
   )
 
@@ -317,6 +373,12 @@ public enum Flipcash_Phone_V1_PhoneVerificationClientMetadata {
       path: "/flipcash.phone.v1.PhoneVerification/Unlink",
       type: GRPCCallType.unary
     )
+
+    public static let linkForPayment = GRPCMethodDescriptor(
+      name: "LinkForPayment",
+      path: "/flipcash.phone.v1.PhoneVerification/LinkForPayment",
+      type: GRPCCallType.unary
+    )
   }
 }
 
@@ -335,6 +397,9 @@ public protocol Flipcash_Phone_V1_PhoneVerificationProvider: CallHandlerProvider
 
   /// Unlink removes the link of a phone number from a user.
   func unlink(request: Flipcash_Phone_V1_UnlinkRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipcash_Phone_V1_UnlinkResponse>
+
+  /// LinkForPayment links the verified phone number for the requesting user for payment.
+  func linkForPayment(request: Flipcash_Phone_V1_LinkForPaymentRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipcash_Phone_V1_LinkForPaymentResponse>
 }
 
 extension Flipcash_Phone_V1_PhoneVerificationProvider {
@@ -376,6 +441,15 @@ extension Flipcash_Phone_V1_PhoneVerificationProvider {
         userFunction: self.unlink(request:context:)
       )
 
+    case "LinkForPayment":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipcash_Phone_V1_LinkForPaymentRequest>(),
+        responseSerializer: ProtobufSerializer<Flipcash_Phone_V1_LinkForPaymentResponse>(),
+        interceptors: self.interceptors?.makeLinkForPaymentInterceptors() ?? [],
+        userFunction: self.linkForPayment(request:context:)
+      )
+
     default:
       return nil
     }
@@ -408,6 +482,12 @@ public protocol Flipcash_Phone_V1_PhoneVerificationAsyncProvider: CallHandlerPro
     request: Flipcash_Phone_V1_UnlinkRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Flipcash_Phone_V1_UnlinkResponse
+
+  /// LinkForPayment links the verified phone number for the requesting user for payment.
+  func linkForPayment(
+    request: Flipcash_Phone_V1_LinkForPaymentRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Flipcash_Phone_V1_LinkForPaymentResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -456,6 +536,15 @@ extension Flipcash_Phone_V1_PhoneVerificationAsyncProvider {
         wrapping: { try await self.unlink(request: $0, context: $1) }
       )
 
+    case "LinkForPayment":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipcash_Phone_V1_LinkForPaymentRequest>(),
+        responseSerializer: ProtobufSerializer<Flipcash_Phone_V1_LinkForPaymentResponse>(),
+        interceptors: self.interceptors?.makeLinkForPaymentInterceptors() ?? [],
+        wrapping: { try await self.linkForPayment(request: $0, context: $1) }
+      )
+
     default:
       return nil
     }
@@ -475,6 +564,10 @@ public protocol Flipcash_Phone_V1_PhoneVerificationServerInterceptorFactoryProto
   /// - Returns: Interceptors to use when handling 'unlink'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeUnlinkInterceptors() -> [ServerInterceptor<Flipcash_Phone_V1_UnlinkRequest, Flipcash_Phone_V1_UnlinkResponse>]
+
+  /// - Returns: Interceptors to use when handling 'linkForPayment'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeLinkForPaymentInterceptors() -> [ServerInterceptor<Flipcash_Phone_V1_LinkForPaymentRequest, Flipcash_Phone_V1_LinkForPaymentResponse>]
 }
 
 public enum Flipcash_Phone_V1_PhoneVerificationServerMetadata {
@@ -485,6 +578,7 @@ public enum Flipcash_Phone_V1_PhoneVerificationServerMetadata {
       Flipcash_Phone_V1_PhoneVerificationServerMetadata.Methods.sendVerificationCode,
       Flipcash_Phone_V1_PhoneVerificationServerMetadata.Methods.checkVerificationCode,
       Flipcash_Phone_V1_PhoneVerificationServerMetadata.Methods.unlink,
+      Flipcash_Phone_V1_PhoneVerificationServerMetadata.Methods.linkForPayment,
     ]
   )
 
@@ -504,6 +598,12 @@ public enum Flipcash_Phone_V1_PhoneVerificationServerMetadata {
     public static let unlink = GRPCMethodDescriptor(
       name: "Unlink",
       path: "/flipcash.phone.v1.PhoneVerification/Unlink",
+      type: GRPCCallType.unary
+    )
+
+    public static let linkForPayment = GRPCMethodDescriptor(
+      name: "LinkForPayment",
+      path: "/flipcash.phone.v1.PhoneVerification/LinkForPayment",
       type: GRPCCallType.unary
     )
   }
