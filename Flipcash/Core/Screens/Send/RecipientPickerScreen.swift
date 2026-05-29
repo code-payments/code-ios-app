@@ -4,7 +4,6 @@
 //
 
 import Contacts
-import ContactsUI
 import MessageUI
 import SwiftUI
 import FlipcashCore
@@ -15,9 +14,8 @@ nonisolated private let logger = Logger(label: "flipcash.recipient-picker")
 /// Send section's primary view. Renders `contactSyncController.resolvedContacts`.
 struct RecipientPickerScreen: View {
 
-    /// `true` when contacts are shared under iOS 18 limited access. Surfaces
-    /// the `ContactAccessButton` affordance so the user can add more people to
-    /// the shared set without granting full access.
+    /// `true` when contacts are shared under iOS 18 limited access. Drives the
+    /// limited-access empty state shown when nothing has been shared yet.
     let isLimitedAccess: Bool
 
     @Environment(ContactSyncController.self) private var contactSyncController
@@ -30,8 +28,12 @@ struct RecipientPickerScreen: View {
     var body: some View {
         let contacts = contactSyncController.resolvedContacts
         return Group {
-            if contacts.isEmpty && !isLimitedAccess {
-                RecipientPickerEmptyState()
+            if contacts.isEmpty {
+                if isLimitedAccess {
+                    LimitedAccessEmptyState()
+                } else {
+                    RecipientPickerEmptyState()
+                }
             } else {
                 VStack(spacing: 0) {
                     InlineSearchField(text: $searchText)
@@ -40,15 +42,6 @@ struct RecipientPickerScreen: View {
                     RecipientPickerList(
                         filtered: filtered,
                         searchText: searchText,
-                        isLimitedAccess: isLimitedAccess,
-                        onAddApproved: {
-                            // Clear the query so the add affordance can't flip
-                            // to its "No matches" state once the only result is
-                            // added; the new contact lands in the list after
-                            // the re-sync.
-                            searchText = ""
-                            contactSyncController.sync()
-                        },
                         onFlipcashTap: selectRecipient,
                         onInviteTap: presentInvite,
                     )
@@ -104,42 +97,71 @@ struct RecipientPickerScreen: View {
     }
 }
 
-// MARK: - Empty state -
+// MARK: - Empty states -
 
 private struct RecipientPickerEmptyState: View {
     var body: some View {
-        ContentUnavailableView(
-            "No Contacts Found",
-            systemImage: "person.crop.circle.badge.questionmark",
-            description: Text("None of the people in your address book have a phone number we can match.")
-        )
+        VStack(spacing: 10) {
+            Text("No Contacts Found")
+                .font(.appTextLarge)
+
+            Text("None of the people in your address book have a phone number we can match.")
+                .font(.appTextMedium)
+                .foregroundStyle(Color.textSecondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.horizontal, 20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
-// MARK: - Limited access -
+/// Shown under iOS 18 limited access when no contacts have been shared. Routes
+/// to Settings to pick contacts — adding them in-app is unavailable on iOS 26
+/// (FB14821786).
+private struct LimitedAccessEmptyState: View {
+    var body: some View {
+        VStack(spacing: 10) {
+            Text("No Contacts Shared")
+                .font(.appTextLarge)
 
-/// iOS 18 limited-access affordance: surfaces contacts matching `queryString`
-/// that aren't in the shared set yet; tapping one shares it without a
-/// full-access prompt, and the approval callback re-syncs so it appears here.
-///
-/// Sized to mirror `RecipientRow` — 44pt avatar, 12pt gap, phone caption — so
-/// the system control reads as part of the list. Its remaining system styling
-/// is intentional: it signals the distinct "grant access" action.
-@available(iOS 18, *)
-private struct AddLimitedContactsButton: View {
+            Text("Choose which contacts to share with Flipcash, then you can send them cash.")
+                .font(.appTextMedium)
+                .foregroundStyle(Color.textSecondary)
+                .multilineTextAlignment(.center)
 
-    let queryString: String
-    let onApproved: () -> Void
+            BubbleButton(text: "Choose in Settings") {
+                URL.openSettings()
+            }
+            .padding(.top, 8)
+        }
+        .padding(.horizontal, 20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// Shown over the list when a search matches no contacts.
+private struct RecipientSearchEmptyState: View {
+
+    let searchText: String
 
     var body: some View {
-        ContactAccessButton(queryString: queryString) { _ in
-            onApproved()
+        VStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 48))
+                .foregroundStyle(Color.textSecondary)
+                .padding(.bottom, 8)
+
+            Text("No Results for “\(searchText)”")
+                .font(.appTextLarge)
+                .multilineTextAlignment(.center)
+
+            Text("Check the spelling or try a new search.")
+                .font(.appTextMedium)
+                .foregroundStyle(Color.textSecondary)
+                .multilineTextAlignment(.center)
         }
-        .backgroundStyle(Color.background)
-        .contactAccessButtonCaption(.phone)
-        .contactAccessButtonStyle(
-            .init(imageTrailingEdgePadding: 12, imageWidth: 44, imageColor: nil)
-        )
+        .padding(.horizontal, 20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -173,25 +195,11 @@ private struct RecipientPickerList: View {
 
     let filtered: ResolvedContacts
     let searchText: String
-    let isLimitedAccess: Bool
-    let onAddApproved: () -> Void
     let onFlipcashTap: (ResolvedContact) -> Void
     let onInviteTap: (ResolvedContact) -> Void
 
     var body: some View {
         List {
-            if isLimitedAccess, !searchText.isEmpty {
-                if #available(iOS 18, *) {
-                    Section {
-                        AddLimitedContactsButton(queryString: searchText, onApproved: onAddApproved)
-                            .listRowInsets(EdgeInsets(top: 14, leading: 20, bottom: 14, trailing: 20))
-                            .listRowBackground(Color.clear)
-                            .listRowSeparatorTint(.rowSeparator)
-                    } header: {
-                        RecipientSectionHeader(title: "Add from Contacts")
-                    }
-                }
-            }
             if !filtered.onFlipcash.isEmpty {
                 Section {
                     ForEach(filtered.onFlipcash) { contact in
@@ -223,8 +231,8 @@ private struct RecipientPickerList: View {
         .scrollContentBackground(.hidden)
         .scrollDismissesKeyboard(.interactively)
         .overlay {
-            if !searchText.isEmpty && filtered.isEmpty && !isLimitedAccess {
-                ContentUnavailableView.search(text: searchText)
+            if !searchText.isEmpty && filtered.isEmpty {
+                RecipientSearchEmptyState(searchText: searchText)
             }
         }
     }
