@@ -21,7 +21,7 @@ struct RecipientPickerScreen: View {
     @State private var filtered: ResolvedContacts = .empty
     @State private var searchText: String = ""
     @State private var inviteTarget: ResolvedContact?
-    @State private var resolvingContactId: String?
+    @State private var resolveTarget: ResolvedContact?
 
     var body: some View {
         let contacts = contactSyncController.resolvedContacts
@@ -36,7 +36,7 @@ struct RecipientPickerScreen: View {
                     RecipientPickerList(
                         filtered: filtered,
                         searchText: searchText,
-                        onFlipcashTap: resolveAndPush,
+                        onFlipcashTap: selectRecipient,
                         onInviteTap: presentInvite,
                     )
                 }
@@ -45,6 +45,7 @@ struct RecipientPickerScreen: View {
         .onAppear { refilter() }
         .onChange(of: searchText) { refilter() }
         .onChange(of: contacts) { refilter() }
+        .task(id: resolveTarget) { await resolveAndPush() }
         .sheet(item: $inviteTarget) { contact in
             MessageComposerSheet(
                 recipient: contact.phoneE164,
@@ -61,41 +62,44 @@ struct RecipientPickerScreen: View {
 
     // MARK: - Resolve + push -
 
-    /// Coalesces re-taps via `resolvingContactId` so a double-tap can't fire two resolves.
-    private func resolveAndPush(contact: ResolvedContact) {
-        guard resolvingContactId == nil else { return }
-        resolvingContactId = contact.id
+    private func selectRecipient(_ contact: ResolvedContact) {
         Analytics.track(event: Analytics.SendEvent.tapRecipient)
+        resolveTarget = contact
+    }
 
-        Task {
-            defer { resolvingContactId = nil }
-            do {
-                let resolved = try await session.resolveContact(e164: contact.phoneE164)
-                guard let resolved else {
-                    Analytics.track(event: Analytics.SendEvent.resolveNotFound)
-                    logger.info("Resolve returned NOT_FOUND", metadata: ["contactId": "\(contact.contactId)"])
-                    showUnreachableError()
-                    return
-                }
+    /// `resolveContact` is not cancellation-aware, so the `await` resumes after dismissal; the `Task.isCancelled` guards stop a stale push or dialog.
+    private func resolveAndPush() async {
+        guard let contact = resolveTarget else { return }
+        do {
+            let resolved = try await session.resolveContact(e164: contact.phoneE164)
+            guard !Task.isCancelled else { return }
+            if let resolved {
                 Analytics.track(event: Analytics.SendEvent.resolveSuccess)
                 router.push(.sendAmount(
                     recipient: resolved,
                     recipientDisplayName: contact.displayName
                 ))
-            } catch ErrorResolve.denied {
-                Analytics.track(event: Analytics.SendEvent.resolveError)
-                logger.warning("Resolve denied", metadata: ["contactId": "\(contact.contactId)"])
+            } else {
+                Analytics.track(event: Analytics.SendEvent.resolveNotFound)
+                logger.info("Resolve returned NOT_FOUND", metadata: ["contactId": "\(contact.contactId)"])
                 showUnreachableError()
-            } catch {
-                Analytics.track(event: Analytics.SendEvent.resolveError)
-                logger.error("Resolve failed", metadata: ["error": "\(error)"])
-                ErrorReporting.captureError(error, reason: "Contact resolve failed")
-                session.dialogItem = .error(
-                    title: "Something Went Wrong",
-                    subtitle: "We couldn't reach the network. Please try again."
-                )
             }
+        } catch ErrorResolve.denied {
+            guard !Task.isCancelled else { return }
+            Analytics.track(event: Analytics.SendEvent.resolveError)
+            logger.warning("Resolve denied", metadata: ["contactId": "\(contact.contactId)"])
+            showUnreachableError()
+        } catch {
+            guard !Task.isCancelled else { return }
+            Analytics.track(event: Analytics.SendEvent.resolveError)
+            logger.error("Resolve failed", metadata: ["error": "\(error)"])
+            ErrorReporting.captureError(error, reason: "Contact resolve failed")
+            session.dialogItem = .error(
+                title: "Something Went Wrong",
+                subtitle: "We couldn't reach the network. Please try again."
+            )
         }
+        resolveTarget = nil
     }
 
     /// Soft transient error — the next contact sync reconciles authoritatively,
