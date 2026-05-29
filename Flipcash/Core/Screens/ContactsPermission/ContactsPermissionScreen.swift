@@ -77,7 +77,7 @@ struct ContactsPermissionScreen: View {
         .navigationBarBackButtonHidden(true)
         .task {
             await authorizer.refresh()
-            if authorizer.status == .authorized {
+            if authorizer.status.allowsContactAccess {
                 onAllowed()
             }
         }
@@ -87,9 +87,9 @@ struct ContactsPermissionScreen: View {
 
     private var title: String {
         switch authorizer.status {
-        case .denied, .restricted, .limited:
+        case .denied, .restricted:
             return "Contact Access Required"
-        case .notDetermined, .authorized:
+        case .notDetermined, .authorized, .limited:
             return "Find Your Friends"
         @unknown default:
             return "Find Your Friends"
@@ -98,9 +98,9 @@ struct ContactsPermissionScreen: View {
 
     private var subtitle: String {
         switch authorizer.status {
-        case .denied, .restricted, .limited:
+        case .denied, .restricted:
             return "Go to Settings and give Full Access"
-        case .notDetermined, .authorized:
+        case .notDetermined, .authorized, .limited:
             return "Sync your contacts to find, invite,\n and pay friends"
         @unknown default:
             return "Sync your contacts to find, invite,\n and pay friends"
@@ -109,9 +109,9 @@ struct ContactsPermissionScreen: View {
 
     private var primaryTitle: String {
         switch authorizer.status {
-        case .denied, .restricted, .limited:
+        case .denied, .restricted:
             return "Go To Settings to Give Contacts Full Access"
-        case .notDetermined, .authorized:
+        case .notDetermined, .authorized, .limited:
             return "Give Access To Contacts"
         @unknown default:
             return "Give Access To Contacts"
@@ -120,11 +120,11 @@ struct ContactsPermissionScreen: View {
 
     private func primaryAction() {
         switch authorizer.status {
-        case .denied, .restricted, .limited:
+        case .denied, .restricted:
             URL.openSettings()
         case .notDetermined:
             Task { await requestAuthorization() }
-        case .authorized:
+        case .authorized, .limited:
             onAllowed()
         @unknown default:
             Task { await requestAuthorization() }
@@ -133,7 +133,7 @@ struct ContactsPermissionScreen: View {
 
     private func requestAuthorization() async {
         let resolved = await authorizer.authorize()
-        if resolved == .authorized {
+        if resolved.allowsContactAccess {
             onAllowed()
         }
     }

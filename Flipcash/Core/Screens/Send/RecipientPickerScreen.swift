@@ -14,6 +14,10 @@ nonisolated private let logger = Logger(label: "flipcash.recipient-picker")
 /// Send section's primary view. Renders `contactSyncController.resolvedContacts`.
 struct RecipientPickerScreen: View {
 
+    /// `true` when contacts are shared under iOS 18 limited access. Drives the
+    /// limited-access empty state shown when nothing has been shared yet.
+    let isLimitedAccess: Bool
+
     @Environment(ContactSyncController.self) private var contactSyncController
     @Environment(AppRouter.self) private var router
 
@@ -25,7 +29,11 @@ struct RecipientPickerScreen: View {
         let contacts = contactSyncController.resolvedContacts
         return Group {
             if contacts.isEmpty {
-                RecipientPickerEmptyState()
+                if isLimitedAccess {
+                    LimitedAccessEmptyState()
+                } else {
+                    RecipientPickerEmptyState()
+                }
             } else {
                 VStack(spacing: 0) {
                     InlineSearchField(text: $searchText)
@@ -89,15 +97,71 @@ struct RecipientPickerScreen: View {
     }
 }
 
-// MARK: - Empty state -
+// MARK: - Empty states -
 
 private struct RecipientPickerEmptyState: View {
     var body: some View {
-        ContentUnavailableView(
-            "No Contacts Found",
-            systemImage: "person.crop.circle.badge.questionmark",
-            description: Text("None of the people in your address book have a phone number we can match.")
-        )
+        VStack(spacing: 10) {
+            Text("No Contacts Found")
+                .font(.appTextLarge)
+
+            Text("None of the people in your address book have a phone number we can match.")
+                .font(.appTextMedium)
+                .foregroundStyle(Color.textSecondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.horizontal, 20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// Shown under iOS 18 limited access when no contacts have been shared. Routes
+/// to Settings to pick contacts — adding them in-app is unavailable on iOS 26
+/// (FB14821786).
+private struct LimitedAccessEmptyState: View {
+    var body: some View {
+        VStack(spacing: 10) {
+            Text("No Contacts Shared")
+                .font(.appTextLarge)
+
+            Text("Choose which contacts to share with Flipcash, then you can send them cash.")
+                .font(.appTextMedium)
+                .foregroundStyle(Color.textSecondary)
+                .multilineTextAlignment(.center)
+
+            BubbleButton(text: "Choose in Settings") {
+                URL.openSettings()
+            }
+            .padding(.top, 8)
+        }
+        .padding(.horizontal, 20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// Shown over the list when a search matches no contacts.
+private struct RecipientSearchEmptyState: View {
+
+    let searchText: String
+
+    var body: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 48))
+                .foregroundStyle(Color.textSecondary)
+                .padding(.bottom, 8)
+
+            Text("No Results for “\(searchText)”")
+                .font(.appTextLarge)
+                .multilineTextAlignment(.center)
+
+            Text("Check the spelling or try a new search.")
+                .font(.appTextMedium)
+                .foregroundStyle(Color.textSecondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.horizontal, 20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -168,7 +232,7 @@ private struct RecipientPickerList: View {
         .scrollDismissesKeyboard(.interactively)
         .overlay {
             if !searchText.isEmpty && filtered.isEmpty {
-                ContentUnavailableView.search(text: searchText)
+                RecipientSearchEmptyState(searchText: searchText)
             }
         }
     }
