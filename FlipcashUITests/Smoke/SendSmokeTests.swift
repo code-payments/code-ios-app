@@ -16,6 +16,15 @@ final class SendSmokeTests: BaseUITestCase {
         // Send is the 4th LargeButton on ScanBottomBar.
         waitAndTap(app.buttons["Send"])
 
+        // Send gates phone entry behind a "Connect Your Phone Number" CTA;
+        // onboarding drops you on the entry screen directly, so `allowPhone…`
+        // alone can't reach the flow here. Tap through the CTA when the gate
+        // is shown (skipped when the test account already has a verified phone).
+        let connectPhone = app.buttons["Connect Your Phone Number"]
+        if connectPhone.waitForExistence(timeout: 5) {
+            connectPhone.tap()
+        }
+
         // The helpers are idempotent — they no-op when the gate is already
         // satisfied for the test account.
         allowPhoneVerificationIfNeeded()
