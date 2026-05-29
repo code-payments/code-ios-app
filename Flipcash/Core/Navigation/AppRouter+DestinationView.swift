@@ -180,13 +180,12 @@ struct DestinationView: View {
 
         // MARK: - Send flow
 
-        case .sendAmount(let recipient, let recipientDisplayName):
+        case .sendAmount(let contact):
             SendAmountScreen(
                 sessionContainer: sessionContainer,
-                recipient: recipient,
-                recipientDisplayName: recipientDisplayName
+                contact: contact
             )
-            .id(recipient)
+            .id(contact)
         }
     }
 }
