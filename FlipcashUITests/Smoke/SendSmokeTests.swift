@@ -27,15 +27,22 @@ final class SendSmokeTests: BaseUITestCase {
         let onFlipcashHeader = app.staticTexts["On Flipcash"]
         let inviteHeader     = app.staticTexts["Not on Flipcash Yet"]
         let emptyState       = app.staticTexts["No Contacts Found"]
+        // Limited access (iOS 18+) with nothing shared renders its own state.
+        let limitedEmptyState = app.staticTexts["No Contacts Shared"]
+
+        func pickerRendered() -> Bool {
+            onFlipcashHeader.exists || inviteHeader.exists
+                || emptyState.exists || limitedEmptyState.exists
+        }
 
         let deadline = Date().addingTimeInterval(30)
         while Date() < deadline {
-            if onFlipcashHeader.exists || inviteHeader.exists || emptyState.exists { break }
+            if pickerRendered() { break }
             Thread.sleep(forTimeInterval: 0.25)
         }
         XCTAssertTrue(
-            onFlipcashHeader.exists || inviteHeader.exists || emptyState.exists,
-            "Expected `RecipientPickerScreen` to render an On-Flipcash header, an Invite header, or the empty state"
+            pickerRendered(),
+            "Expected `RecipientPickerScreen` to render an On-Flipcash header, an Invite header, or an empty state"
         )
 
         // The invite-fallback path requires at least one row in the Invite
