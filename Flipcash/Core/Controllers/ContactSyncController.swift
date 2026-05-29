@@ -68,8 +68,9 @@ final class ContactSyncController {
     // MARK: - Lifecycle -
 
     /// Idempotent. Registers the CN-change observer and triggers a sync.
-    /// Caller must verify `CNContactStore.authorizationStatus(for: .contacts)
-    /// == .authorized` before calling — this method does not prompt.
+    /// Caller must verify the contacts authorization status allows access
+    /// (`.authorized` or `.limited`) before calling — this method does not
+    /// prompt.
     func activate() {
         if observerTask == nil {
             // Detached: subscribing to `CNContactStoreDidChange` on the main
@@ -135,8 +136,8 @@ final class ContactSyncController {
     /// `nonisolated` annotation alone is not enough to keep it off-main.
     nonisolated private func runSync() async {
         let status = authorizationStatusProvider()
-        guard status == .authorized else {
-            logger.debug("Skipping sync — contacts not authorized", metadata: [
+        guard status.allowsContactAccess else {
+            logger.debug("Skipping sync — contacts not accessible", metadata: [
                 "status": "\(status.rawValue)",
             ])
             return
