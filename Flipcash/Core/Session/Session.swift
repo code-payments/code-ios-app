@@ -70,7 +70,9 @@ class Session {
     @ObservationIgnored let keyAccount: KeyAccount
     @ObservationIgnored let owner: AccountCluster
     @ObservationIgnored let userID: UserID
-    
+
+    @ObservationIgnored private let phonePaymentLink: PhonePaymentLinker
+
     var ownerKeyPair: KeyPair {
         owner.authority.keyPair
     }
@@ -207,6 +209,9 @@ class Session {
         self.keyAccount        = keyAccount
         self.owner             = owner
         self.userID            = userID
+        self.phonePaymentLink  = PhonePaymentLinker { [flipClient = container.flipClient, ownerKeyPair = owner.authority.keyPair] phoneE164 in
+            try await flipClient.linkForPayment(phone: phoneE164, owner: ownerKeyPair)
+        }
 
         self.updateableBalances = Updateable { [weak self] in
             (try? self?.database.getBalances()) ?? []
@@ -300,8 +305,9 @@ class Session {
         ) {
             try await flipClient.fetchProfile(userID: userID, owner: ownerKeyPair)
         }
+        Task { await phonePaymentLink.linkExistingPhoneIfNeeded(phone: profile?.phone, isSendEnabled: userFlags?.enablePhoneNumberSend ?? false) }
     }
-    
+
     func unlinkProfile() async throws {
         if let profile {
             if let email = profile.email {
@@ -330,6 +336,7 @@ class Session {
         ) {
             try await flipClient.fetchUserFlags(userID: userID, owner: ownerKeyPair)
         }
+        Task { await phonePaymentLink.linkExistingPhoneIfNeeded(phone: profile?.phone, isSendEnabled: userFlags?.enablePhoneNumberSend ?? false) }
     }
 
     // MARK: - Settings Sync -

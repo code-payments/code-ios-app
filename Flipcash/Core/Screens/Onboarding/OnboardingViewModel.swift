@@ -288,7 +288,6 @@ class OnboardingViewModel {
             let vm = PhoneVerificationViewModel(
                 owner: inflightMnemonic.solanaKeyPair(),
                 flipClient: container.flipClient,
-                linkForPayment: true,
                 enterPhoneEvent: Analytics.OnboardingEvent.showEnterPhone,
                 confirmPhoneEvent: Analytics.OnboardingEvent.showConfirmPhone,
             )
