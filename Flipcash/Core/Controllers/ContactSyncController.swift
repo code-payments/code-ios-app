@@ -24,6 +24,8 @@ final class ContactSyncController {
     @ObservationIgnored nonisolated private let database: Database
     @ObservationIgnored nonisolated private let owner: AccountCluster
     @ObservationIgnored nonisolated private let authorizationStatusProvider: @Sendable () -> CNAuthorizationStatus
+    @ObservationIgnored nonisolated private let lastAuthorizationStatusProvider: @Sendable () -> CNAuthorizationStatus
+    @ObservationIgnored nonisolated private let persistAuthorizationStatus: @Sendable (CNAuthorizationStatus) -> Void
 
     @ObservationIgnored internal private(set) var isSyncing = false
     @ObservationIgnored internal private(set) var syncTask: Task<Void, Never>?
@@ -52,12 +54,22 @@ final class ContactSyncController {
         owner: AccountCluster,
         authorizationStatusProvider: @escaping @Sendable () -> CNAuthorizationStatus = {
             CNContactStore.authorizationStatus(for: .contacts)
+        },
+        lastAuthorizationStatusProvider: @escaping @Sendable () -> CNAuthorizationStatus = {
+            CNAuthorizationStatus(
+                rawValue: UserDefaults.standard.integer(forKey: DefaultsKey.lastContactAuthStatus.rawValue)
+            ) ?? .notDetermined
+        },
+        persistAuthorizationStatus: @escaping @Sendable (CNAuthorizationStatus) -> Void = {
+            UserDefaults.standard.set($0.rawValue, forKey: DefaultsKey.lastContactAuthStatus.rawValue)
         }
     ) {
-        self.client                       = client
-        self.database                     = database
-        self.owner                        = owner
-        self.authorizationStatusProvider  = authorizationStatusProvider
+        self.client                          = client
+        self.database                        = database
+        self.owner                           = owner
+        self.authorizationStatusProvider     = authorizationStatusProvider
+        self.lastAuthorizationStatusProvider = lastAuthorizationStatusProvider
+        self.persistAuthorizationStatus      = persistAuthorizationStatus
     }
 
     deinit {
@@ -84,11 +96,22 @@ final class ContactSyncController {
         sync()
     }
 
-    /// No-op until ``activate()`` has been called this session.
+    /// Detects a contacts-permission revoke and, independently, triggers a sync
+    /// when activated.
+    ///
+    /// The revoke check runs even before ``activate()`` — a set uploaded in a
+    /// prior session must still be wiped after a cold launch while access is
+    /// denied. It is cheap when nothing was ever uploaded: it reads the stored
+    /// status and short-circuits without touching the Contacts store. The sync
+    /// remains a no-op until ``activate()`` has registered the observer.
     nonisolated func didBecomeActive() {
-        Task { @MainActor [weak self] in
-            guard let self, self.observerTask != nil else { return }
-            self.sync()
+        // Detached so the nonisolated revoke check stays off-main under SE-0461.
+        Task.detached { [weak self] in
+            await self?.clearServerContactSetIfRevoked()
+            await MainActor.run { [weak self] in
+                guard let self, self.observerTask != nil else { return }
+                self.sync()
+            }
         }
     }
 
@@ -130,6 +153,11 @@ final class ContactSyncController {
             ])
             return
         }
+
+        // Record that we hold access so a later revoke (authorized → denied)
+        // is detectable on the next foreground, even across a cold launch.
+        persistAuthorizationStatus(status)
+
         do {
             let contacts = try readContacts()
             try await performSync(contacts: contacts)
@@ -260,6 +288,111 @@ final class ContactSyncController {
         }
         try database.replaceFlipcashContacts(matched, matchedAt: .now)
         logger.info("Refreshed flipcash contacts", metadata: ["matched": "\(matched.count)"])
+    }
+
+    // MARK: - Permission revoke -
+
+    /// Wipes the server's stored contact set when contacts access transitions
+    /// from authorized to denied/restricted. `internal` + `nonisolated` so
+    /// tests can drive it directly and it runs off-main in production.
+    ///
+    /// Idempotent and safe to call on every foreground: it short-circuits
+    /// unless we previously held access AND access is now revoked AND a set was
+    /// actually uploaded. On upload failure the stored status is left armed so
+    /// the next foreground retries.
+    internal nonisolated func clearServerContactSetIfRevoked() async {
+        // Only a previously-accessible state can be revoked. Arming persists
+        // `.authorized` today; `.limited` becomes armable in Phase 11. Switched
+        // exhaustively so a new `CNAuthorizationStatus` case forces a decision.
+        let previous = lastAuthorizationStatusProvider()
+        let wasAccessible = switch previous {
+        case .authorized, .limited: true
+        case .notDetermined, .denied, .restricted: false
+        @unknown default: false
+        }
+        guard wasAccessible else { return }
+
+        // A revoke is a transition into denied/restricted. `.limited` is a
+        // narrower grant (Phase 11), not a revoke; `.notDetermined` is an
+        // OS-level reset we don't wipe on.
+        let current = authorizationStatusProvider()
+        let isRevoked = switch current {
+        case .denied, .restricted: true
+        case .notDetermined, .authorized, .limited: false
+        @unknown default: false
+        }
+        guard isRevoked else { return }
+
+        let hadServerSet: Bool
+        do {
+            hadServerSet = try database.contactSyncState().checksum != nil
+        } catch {
+            logger.error("Clear-on-revoke aborted — could not read sync state", metadata: [
+                "error": "\(error)",
+            ])
+            return  // leave the stored status armed so the next foreground retries
+        }
+
+        guard hadServerSet else {
+            // Nothing was ever uploaded; record the revoked status so we stop
+            // re-checking on every foreground.
+            persistAuthorizationStatus(current)
+            return
+        }
+
+        do {
+            try await clearServerContactSet()
+            persistAuthorizationStatus(current)  // disarm only after a successful wipe
+            logger.info("Cleared server contact set after permission revoke")
+        } catch {
+            // Keep the stored status armed so the next foreground retries.
+            logger.info("Clear-on-revoke deferred — will retry next foreground", metadata: [
+                "error": "\(error)",
+            ])
+        }
+    }
+
+    /// Wipes the server's stored contact set as part of account deletion.
+    /// Best-effort: deletion proceeds even if the wipe fails — there's no
+    /// retry once the session tears down. No-ops when nothing was uploaded.
+    internal nonisolated func clearServerContactSetForAccountDeletion() async {
+        let hadServerSet: Bool
+        do {
+            hadServerSet = try database.contactSyncState().checksum != nil
+        } catch {
+            logger.error("Account-deletion contact wipe aborted — could not read sync state", metadata: [
+                "error": "\(error)",
+            ])
+            return
+        }
+        guard hadServerSet else { return }
+
+        do {
+            try await clearServerContactSet()
+            logger.info("Cleared server contact set for account deletion")
+        } catch {
+            logger.info("Account-deletion contact wipe failed — best effort", metadata: [
+                "error": "\(error)",
+            ])
+        }
+    }
+
+    /// Empties the server's stored set via a `phones: []` full upload (no
+    /// dedicated RPC) and drains the local contact tables + picker cache.
+    /// Writes the checksum-bearing sync state last so a mid-drain failure
+    /// leaves `checksum != nil` and the next foreground re-runs the full wipe.
+    private nonisolated func clearServerContactSet() async throws {
+        try await client.uploadAllContacts(
+            phones:   [],
+            checksum: Self.checksum(of: []),
+            owner:    ownerKeyPair
+        )
+        try database.replaceLocalContactsSnapshot([])
+        try database.replaceFlipcashContacts([], matchedAt: .now)
+        try database.setContactSyncState(.empty)
+        await MainActor.run {
+            self.resolvedContacts = .empty
+        }
     }
 
     // MARK: - Address book -

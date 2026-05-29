@@ -286,10 +286,12 @@ struct ContactSyncControllerTests {
             status: CNAuthorizationStatus = .notDetermined
         ) -> ContactSyncController {
             ContactSyncController(
-                client:                      mock,
-                database:                    database,
-                owner:                       .mock,
-                authorizationStatusProvider: { status }
+                client:                          mock,
+                database:                        database,
+                owner:                           .mock,
+                authorizationStatusProvider:     { status },
+                lastAuthorizationStatusProvider: { .notDetermined },
+                persistAuthorizationStatus:      { _ in }
             )
         }
 
@@ -339,10 +341,12 @@ struct ContactSyncControllerTests {
         func didBecomeActiveNoOpBeforeActivate() async {
             let counter = AuthCounter()
             let controller = ContactSyncController(
-                client:                      MockContactSync(),
-                database:                    .mock,
-                owner:                       .mock,
-                authorizationStatusProvider: counter.bumpAndReturnNotDetermined
+                client:                          MockContactSync(),
+                database:                        .mock,
+                owner:                           .mock,
+                authorizationStatusProvider:     counter.bumpAndReturnNotDetermined,
+                lastAuthorizationStatusProvider: { .notDetermined },
+                persistAuthorizationStatus:      { _ in }
             )
             controller.didBecomeActive()
             await Task.yield()
@@ -357,10 +361,12 @@ struct ContactSyncControllerTests {
         func didBecomeActiveTriggersSyncAfterActivate() async throws {
             let counter = AuthCounter()
             let controller = ContactSyncController(
-                client:                      MockContactSync(),
-                database:                    .mock,
-                owner:                       .mock,
-                authorizationStatusProvider: counter.bumpAndReturnNotDetermined
+                client:                          MockContactSync(),
+                database:                        .mock,
+                owner:                           .mock,
+                authorizationStatusProvider:     counter.bumpAndReturnNotDetermined,
+                lastAuthorizationStatusProvider: { .notDetermined },
+                persistAuthorizationStatus:      { _ in }
             )
 
             controller.activate()
@@ -377,10 +383,12 @@ struct ContactSyncControllerTests {
         func syncCoalescesInFlightTriggerAndRerunsAfterCompletion() async throws {
             let counter = AuthCounter()
             let controller = ContactSyncController(
-                client:                      MockContactSync(),
-                database:                    .mock,
-                owner:                       .mock,
-                authorizationStatusProvider: counter.bumpAndReturnNotDetermined
+                client:                          MockContactSync(),
+                database:                        .mock,
+                owner:                           .mock,
+                authorizationStatusProvider:     counter.bumpAndReturnNotDetermined,
+                lastAuthorizationStatusProvider: { .notDetermined },
+                persistAuthorizationStatus:      { _ in }
             )
 
             controller.sync()
@@ -641,6 +649,220 @@ struct ContactSyncControllerTests {
                 try await controller.performSync(contacts: contacts)
             }
             #expect(mock.deltaCalls.isEmpty)
+            #expect(mock.fullCalls.isEmpty)
+        }
+    }
+
+    // MARK: - Clear on revoke
+
+    @Suite("ClearOnRevoke", .serialized)
+    @MainActor
+    struct ClearOnRevokeTests {
+
+        /// Lock-guarded in-memory `lastAuthStatus` store so the suite is
+        /// hermetic (no real `UserDefaults`) and deterministic under parallel
+        /// execution.
+        private final class AuthStatusStore: @unchecked Sendable {
+            private let lock = NSLock()
+            private var status: CNAuthorizationStatus
+            init(_ initial: CNAuthorizationStatus) { status = initial }
+            var current: CNAuthorizationStatus { lock.withLock { status } }
+            func load() -> CNAuthorizationStatus { lock.withLock { status } }
+            func save(_ newValue: CNAuthorizationStatus) { lock.withLock { status = newValue } }
+        }
+
+        private static func makeController(
+            mock: MockContactSync,
+            database: Database,
+            current: CNAuthorizationStatus,
+            store: AuthStatusStore
+        ) -> ContactSyncController {
+            ContactSyncController(
+                client:                          mock,
+                database:                        database,
+                owner:                           .mock,
+                authorizationStatusProvider:     { current },
+                lastAuthorizationStatusProvider: { store.load() },
+                persistAuthorizationStatus:      { store.save($0) }
+            )
+        }
+
+        private static func seedUploadedSet(
+            _ database: Database,
+            contacts: [Database.LocalContact],
+            matched: [String] = []
+        ) throws {
+            try database.setContactSyncState(.init(
+                checksum:      ContactSyncController.checksum(of: contacts.map(\.e164)),
+                changeHistory: nil,
+                lastSyncedAt:  Date(timeIntervalSince1970: 1_716_000_000)
+            ))
+            try database.replaceLocalContactsSnapshot(contacts)
+            if !matched.isEmpty {
+                try database.replaceFlipcashContacts(matched, matchedAt: Date(timeIntervalSince1970: 1_716_000_000))
+            }
+        }
+
+        private static let aliceContact = Database.LocalContact(e164: "+14155550100", contactId: "alice")
+        private static let bobContact   = Database.LocalContact(e164: "+14155550101", contactId: "bob")
+
+        @Test("authorized → denied with an uploaded set fires an empty full upload and drains the local tables")
+        func revoke_firesEmptyUploadAndDrainsTables() async throws {
+            let mock = MockContactSync()
+            let database = Database.mock
+            let store = AuthStatusStore(.authorized)
+            let controller = Self.makeController(mock: mock, database: database, current: .denied, store: store)
+
+            try Self.seedUploadedSet(database, contacts: [Self.aliceContact, Self.bobContact], matched: [Self.bobContact.e164])
+
+            await controller.clearServerContactSetIfRevoked()
+
+            let fullCall = try #require(mock.fullCalls.first)
+            #expect(mock.fullCalls.count == 1)
+            #expect(fullCall.phones.isEmpty)
+            #expect(fullCall.checksum == ContactSyncController.checksum(of: []))
+            #expect(mock.deltaCalls.isEmpty)
+            #expect(mock.streamCalls.isEmpty)
+
+            #expect(try database.contactSyncState() == .empty)
+            #expect(try database.localContactsSnapshot().isEmpty)
+            #expect(try database.flipcashContacts().isEmpty)
+            #expect(store.current == .denied)  // disarmed after a successful wipe
+        }
+
+        @Test("authorized → restricted is treated as a revoke")
+        func revoke_restrictedAlsoClears() async throws {
+            let mock = MockContactSync()
+            let database = Database.mock
+            let store = AuthStatusStore(.authorized)
+            let controller = Self.makeController(mock: mock, database: database, current: .restricted, store: store)
+
+            try Self.seedUploadedSet(database, contacts: [Self.aliceContact])
+
+            await controller.clearServerContactSetIfRevoked()
+
+            #expect(mock.fullCalls.count == 1)
+            #expect(mock.fullCalls.first?.phones.isEmpty == true)
+            #expect(try database.localContactsSnapshot().isEmpty)
+            #expect(store.current == .restricted)
+        }
+
+        @Test("Revoke with nothing previously uploaded records the status without an upload")
+        func revoke_noServerSet_recordsStatusWithoutUpload() async throws {
+            let mock = MockContactSync()
+            let database = Database.mock  // empty — checksum is nil
+            let store = AuthStatusStore(.authorized)
+            let controller = Self.makeController(mock: mock, database: database, current: .denied, store: store)
+
+            await controller.clearServerContactSetIfRevoked()
+
+            #expect(mock.fullCalls.isEmpty)
+            #expect(store.current == .denied)  // recorded so we stop re-checking
+        }
+
+        @Test("Upload failure keeps the status armed and the local set intact; the next call retries")
+        func revoke_uploadFailure_keepsArmedAndRetries() async throws {
+            let mock = MockContactSync()
+            mock.fullUploadResult = .failure(ErrorContactSync.networkError)
+            let database = Database.mock
+            let store = AuthStatusStore(.authorized)
+            let controller = Self.makeController(mock: mock, database: database, current: .denied, store: store)
+
+            try Self.seedUploadedSet(database, contacts: [Self.aliceContact])
+
+            await controller.clearServerContactSetIfRevoked()
+
+            // Attempted, but the failure leaves everything armed for a retry.
+            #expect(mock.fullCalls.count == 1)
+            #expect(store.current == .authorized)
+            #expect(try database.contactSyncState().checksum != nil)
+            #expect(try database.localContactsSnapshot().isEmpty == false)
+
+            // Next foreground: the upload now succeeds → the wipe completes.
+            mock.fullUploadResult = .success(())
+            await controller.clearServerContactSetIfRevoked()
+
+            #expect(mock.fullCalls.count == 2)
+            #expect(store.current == .denied)
+            #expect(try database.contactSyncState() == .empty)
+            #expect(try database.localContactsSnapshot().isEmpty)
+        }
+
+        @Test("Still authorized → no upload, status unchanged")
+        func stillAuthorized_noOp() async throws {
+            let mock = MockContactSync()
+            let database = Database.mock
+            let store = AuthStatusStore(.authorized)
+            let controller = Self.makeController(mock: mock, database: database, current: .authorized, store: store)
+
+            try Self.seedUploadedSet(database, contacts: [Self.aliceContact])
+
+            await controller.clearServerContactSetIfRevoked()
+
+            #expect(mock.fullCalls.isEmpty)
+            #expect(store.current == .authorized)
+            #expect(try database.contactSyncState().checksum != nil)
+        }
+
+        @Test("Never authorized (notDetermined → denied) short-circuits without touching the server or store")
+        func neverAuthorized_shortCircuits() async throws {
+            let mock = MockContactSync()
+            let database = Database.mock
+            let store = AuthStatusStore(.notDetermined)
+            let controller = Self.makeController(mock: mock, database: database, current: .denied, store: store)
+
+            await controller.clearServerContactSetIfRevoked()
+
+            #expect(mock.fullCalls.isEmpty)
+            #expect(store.current == .notDetermined)  // not even recorded
+        }
+    }
+
+    // MARK: - Clear on account deletion
+
+    @Suite("AccountDeletionClear", .serialized)
+    @MainActor
+    struct AccountDeletionClearTests {
+
+        private static func makeController(mock: MockContactSync, database: Database) -> ContactSyncController {
+            ContactSyncController(client: mock, database: database, owner: .mock)
+        }
+
+        private static let aliceContact = Database.LocalContact(e164: "+14155550100", contactId: "alice")
+
+        @Test("Account deletion with an uploaded set fires an empty full upload and drains the local tables")
+        func accountDeletion_withUploadedSet_firesEmptyUploadAndDrains() async throws {
+            let mock = MockContactSync()
+            let database = Database.mock
+            let controller = Self.makeController(mock: mock, database: database)
+
+            try database.setContactSyncState(.init(
+                checksum:      ContactSyncController.checksum(of: [Self.aliceContact.e164]),
+                changeHistory: nil,
+                lastSyncedAt:  Date(timeIntervalSince1970: 1_716_000_000)
+            ))
+            try database.replaceLocalContactsSnapshot([Self.aliceContact])
+            try database.replaceFlipcashContacts([Self.aliceContact.e164], matchedAt: Date(timeIntervalSince1970: 1_716_000_000))
+
+            await controller.clearServerContactSetForAccountDeletion()
+
+            let fullCall = try #require(mock.fullCalls.first)
+            #expect(mock.fullCalls.count == 1)
+            #expect(fullCall.phones.isEmpty)
+            #expect(fullCall.checksum == ContactSyncController.checksum(of: []))
+            #expect(try database.contactSyncState() == .empty)
+            #expect(try database.localContactsSnapshot().isEmpty)
+            #expect(try database.flipcashContacts().isEmpty)
+        }
+
+        @Test("Account deletion with nothing previously uploaded does not call the server")
+        func accountDeletion_nothingUploaded_noOp() async throws {
+            let mock = MockContactSync()
+            let database = Database.mock  // checksum is nil
+            let controller = Self.makeController(mock: mock, database: database)
+
+            await controller.clearServerContactSetForAccountDeletion()
+
             #expect(mock.fullCalls.isEmpty)
         }
     }
