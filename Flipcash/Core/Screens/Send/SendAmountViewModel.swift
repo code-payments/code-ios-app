@@ -18,21 +18,30 @@ final class SendAmountViewModel {
         case succeeded(amount: ExchangedFiat)
     }
 
+    enum RecipientState: Equatable {
+        case resolving
+        case resolved(PublicKey)
+        case failed
+    }
+
     var enteredAmount: String = ""
     var actionState: ButtonState = .normal
     var state: State = .ready
+    var recipientState: RecipientState = .resolving
 
     var depositMint: PublicKey?
 
     @ObservationIgnored let session: Session
     @ObservationIgnored let ratesController: RatesController
     @ObservationIgnored let sender: any DirectSending
-    @ObservationIgnored let recipient: PublicKey
-    @ObservationIgnored let recipientDisplayName: String?
+    @ObservationIgnored let contact: ResolvedContact
 
     private(set) var selectedBalance: ExchangedBalance?
 
+    var recipientDisplayName: String? { contact.displayName }
+
     var canSend: Bool {
+        guard case .resolved = recipientState else { return false }
         guard let enteredFiat else { return false }
         return enteredFiat.onChainAmount.quarks > 0
     }
@@ -76,8 +85,7 @@ final class SendAmountViewModel {
 
     init(
         sessionContainer: SessionContainer,
-        recipient: PublicKey,
-        recipientDisplayName: String?,
+        contact: ResolvedContact,
         mint: PublicKey? = nil,
         sender: (any DirectSending)? = nil
     ) {
@@ -89,12 +97,11 @@ final class SendAmountViewModel {
             ratesController: ratesController
         )
 
-        self.session              = session
-        self.ratesController      = ratesController
-        self.sender               = sender ?? session
-        self.recipient            = recipient
-        self.recipientDisplayName = recipientDisplayName
-        self.selectedBalance      = resolved
+        self.session         = session
+        self.ratesController = ratesController
+        self.sender          = sender ?? session
+        self.contact         = contact
+        self.selectedBalance = resolved
 
         if let resolved, ratesController.selectedTokenMint != resolved.stored.mint {
             ratesController.selectToken(resolved.stored.mint)
@@ -126,6 +133,7 @@ final class SendAmountViewModel {
 
     func sendAction() async {
         guard case .ready = state else { return }
+        guard case .resolved(let recipient) = recipientState else { return }
         guard let exchangedFiat = enteredFiat else { return }
 
         let result = session.hasSufficientFunds(for: exchangedFiat)
@@ -179,6 +187,60 @@ final class SendAmountViewModel {
                 showInsufficientBalanceError()
             }
         }
+    }
+
+    // MARK: - Recipient resolution -
+
+    /// `resolveContact` isn't cancellation-aware — the guard drops a stale commit after dismissal.
+    func resolveRecipient() async {
+        let resolution = await fetchRecipient()
+        guard !Task.isCancelled else { return }
+        switch resolution {
+        case .resolved(let recipient):
+            Analytics.track(event: Analytics.SendEvent.resolveSuccess)
+            recipientState = .resolved(recipient)
+        case .notFound:
+            Analytics.track(event: Analytics.SendEvent.resolveNotFound)
+            logger.info("Resolve returned NOT_FOUND", metadata: ["contactId": "\(contact.contactId)"])
+            recipientState = .failed
+            showUnreachableRecipientError()
+        case .failed(let error):
+            Analytics.track(event: Analytics.SendEvent.resolveError)
+            logger.error("Resolve failed", metadata: ["contactId": "\(contact.contactId)", "error": "\(error)"])
+            ErrorReporting.captureError(error, reason: "Contact resolve failed")
+            recipientState = .failed
+            showUnreachableRecipientError()
+        }
+    }
+
+    private enum RecipientResolution {
+        case resolved(PublicKey)
+        case notFound
+        case failed(Error)
+    }
+
+    /// UI-free so the caller commits behind a single cancellation check.
+    private func fetchRecipient() async -> RecipientResolution {
+        for attempt in 0..<2 {
+            do {
+                if let recipient = try await session.resolveContact(e164: contact.phoneE164) {
+                    return .resolved(recipient)
+                }
+                return .notFound
+            } catch ErrorResolve.networkError where attempt == 0 {
+                continue
+            } catch {
+                return .failed(error)
+            }
+        }
+        return .failed(ErrorResolve.networkError)
+    }
+
+    private func showUnreachableRecipientError() {
+        session.dialogItem = .error(
+            title: "Couldn't Send",
+            subtitle: "We can't reach this contact right now. Please try again."
+        )
     }
 
     /// Returns nil when no fresh pin is cached; otherwise the amount + pin
