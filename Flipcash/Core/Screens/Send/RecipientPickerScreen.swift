@@ -4,6 +4,7 @@
 //
 
 import Contacts
+import ContactsUI
 import MessageUI
 import SwiftUI
 import FlipcashCore
@@ -13,6 +14,11 @@ nonisolated private let logger = Logger(label: "flipcash.recipient-picker")
 
 /// Send section's primary view. Renders `contactSyncController.resolvedContacts`.
 struct RecipientPickerScreen: View {
+
+    /// `true` when contacts are shared under iOS 18 limited access. Surfaces
+    /// the `ContactAccessButton` affordance so the user can add more people to
+    /// the shared set without granting full access.
+    let isLimitedAccess: Bool
 
     @Environment(ContactSyncController.self) private var contactSyncController
     @Environment(AppRouter.self) private var router
@@ -24,7 +30,7 @@ struct RecipientPickerScreen: View {
     var body: some View {
         let contacts = contactSyncController.resolvedContacts
         return Group {
-            if contacts.isEmpty {
+            if contacts.isEmpty && !isLimitedAccess {
                 RecipientPickerEmptyState()
             } else {
                 VStack(spacing: 0) {
@@ -34,6 +40,15 @@ struct RecipientPickerScreen: View {
                     RecipientPickerList(
                         filtered: filtered,
                         searchText: searchText,
+                        isLimitedAccess: isLimitedAccess,
+                        onAddApproved: {
+                            // Clear the query so the add affordance can't flip
+                            // to its "No matches" state once the only result is
+                            // added; the new contact lands in the list after
+                            // the re-sync.
+                            searchText = ""
+                            contactSyncController.sync()
+                        },
                         onFlipcashTap: selectRecipient,
                         onInviteTap: presentInvite,
                     )
@@ -101,6 +116,33 @@ private struct RecipientPickerEmptyState: View {
     }
 }
 
+// MARK: - Limited access -
+
+/// iOS 18 limited-access affordance: surfaces contacts matching `queryString`
+/// that aren't in the shared set yet; tapping one shares it without a
+/// full-access prompt, and the approval callback re-syncs so it appears here.
+///
+/// Sized to mirror `RecipientRow` — 44pt avatar, 12pt gap, phone caption — so
+/// the system control reads as part of the list. Its remaining system styling
+/// is intentional: it signals the distinct "grant access" action.
+@available(iOS 18, *)
+private struct AddLimitedContactsButton: View {
+
+    let queryString: String
+    let onApproved: () -> Void
+
+    var body: some View {
+        ContactAccessButton(queryString: queryString) { _ in
+            onApproved()
+        }
+        .backgroundStyle(Color.background)
+        .contactAccessButtonCaption(.phone)
+        .contactAccessButtonStyle(
+            .init(imageTrailingEdgePadding: 12, imageWidth: 44, imageColor: nil)
+        )
+    }
+}
+
 // MARK: - Search field -
 
 private struct InlineSearchField: View {
@@ -131,11 +173,25 @@ private struct RecipientPickerList: View {
 
     let filtered: ResolvedContacts
     let searchText: String
+    let isLimitedAccess: Bool
+    let onAddApproved: () -> Void
     let onFlipcashTap: (ResolvedContact) -> Void
     let onInviteTap: (ResolvedContact) -> Void
 
     var body: some View {
         List {
+            if isLimitedAccess, !searchText.isEmpty {
+                if #available(iOS 18, *) {
+                    Section {
+                        AddLimitedContactsButton(queryString: searchText, onApproved: onAddApproved)
+                            .listRowInsets(EdgeInsets(top: 14, leading: 20, bottom: 14, trailing: 20))
+                            .listRowBackground(Color.clear)
+                            .listRowSeparatorTint(.rowSeparator)
+                    } header: {
+                        RecipientSectionHeader(title: "Add from Contacts")
+                    }
+                }
+            }
             if !filtered.onFlipcash.isEmpty {
                 Section {
                     ForEach(filtered.onFlipcash) { contact in
@@ -167,7 +223,7 @@ private struct RecipientPickerList: View {
         .scrollContentBackground(.hidden)
         .scrollDismissesKeyboard(.interactively)
         .overlay {
-            if !searchText.isEmpty && filtered.isEmpty {
+            if !searchText.isEmpty && filtered.isEmpty && !isLimitedAccess {
                 ContentUnavailableView.search(text: searchText)
             }
         }
