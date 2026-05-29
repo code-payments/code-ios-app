@@ -15,13 +15,11 @@ nonisolated private let logger = Logger(label: "flipcash.recipient-picker")
 struct RecipientPickerScreen: View {
 
     @Environment(ContactSyncController.self) private var contactSyncController
-    @Environment(Session.self) private var session
     @Environment(AppRouter.self) private var router
 
     @State private var filtered: ResolvedContacts = .empty
     @State private var searchText: String = ""
     @State private var inviteTarget: ResolvedContact?
-    @State private var resolvingContactId: String?
 
     var body: some View {
         let contacts = contactSyncController.resolvedContacts
@@ -36,7 +34,7 @@ struct RecipientPickerScreen: View {
                     RecipientPickerList(
                         filtered: filtered,
                         searchText: searchText,
-                        onFlipcashTap: resolveAndPush,
+                        onFlipcashTap: selectRecipient,
                         onInviteTap: presentInvite,
                     )
                 }
@@ -59,52 +57,11 @@ struct RecipientPickerScreen: View {
         }
     }
 
-    // MARK: - Resolve + push -
+    // MARK: - Tap -
 
-    /// Coalesces re-taps via `resolvingContactId` so a double-tap can't fire two resolves.
-    private func resolveAndPush(contact: ResolvedContact) {
-        guard resolvingContactId == nil else { return }
-        resolvingContactId = contact.id
+    private func selectRecipient(_ contact: ResolvedContact) {
         Analytics.track(event: Analytics.SendEvent.tapRecipient)
-
-        Task {
-            defer { resolvingContactId = nil }
-            do {
-                let resolved = try await session.resolveContact(e164: contact.phoneE164)
-                guard let resolved else {
-                    Analytics.track(event: Analytics.SendEvent.resolveNotFound)
-                    logger.info("Resolve returned NOT_FOUND", metadata: ["contactId": "\(contact.contactId)"])
-                    showUnreachableError()
-                    return
-                }
-                Analytics.track(event: Analytics.SendEvent.resolveSuccess)
-                router.push(.sendAmount(
-                    recipient: resolved,
-                    recipientDisplayName: contact.displayName
-                ))
-            } catch ErrorResolve.denied {
-                Analytics.track(event: Analytics.SendEvent.resolveError)
-                logger.warning("Resolve denied", metadata: ["contactId": "\(contact.contactId)"])
-                showUnreachableError()
-            } catch {
-                Analytics.track(event: Analytics.SendEvent.resolveError)
-                logger.error("Resolve failed", metadata: ["error": "\(error)"])
-                ErrorReporting.captureError(error, reason: "Contact resolve failed")
-                session.dialogItem = .error(
-                    title: "Something Went Wrong",
-                    subtitle: "We couldn't reach the network. Please try again."
-                )
-            }
-        }
-    }
-
-    /// Soft transient error — the next contact sync reconciles authoritatively,
-    /// so we don't drop anything locally.
-    private func showUnreachableError() {
-        session.dialogItem = .error(
-            title: "Couldn't Send",
-            subtitle: "We can't reach this contact right now. Please try again."
-        )
+        router.push(.sendAmount(contact: contact))
     }
 
     private func presentInvite(for contact: ResolvedContact) {
