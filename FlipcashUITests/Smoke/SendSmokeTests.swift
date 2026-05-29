@@ -16,6 +16,15 @@ final class SendSmokeTests: BaseUITestCase {
         // Send is the 4th LargeButton on ScanBottomBar.
         waitAndTap(app.buttons["Send"])
 
+        // Send gates phone entry behind a "Connect Your Phone Number" CTA;
+        // onboarding drops you on the entry screen directly, so `allowPhone…`
+        // alone can't reach the flow here. Tap through the CTA when the gate
+        // is shown (skipped when the test account already has a verified phone).
+        let connectPhone = app.buttons["Connect Your Phone Number"]
+        if connectPhone.waitForExistence(timeout: 5) {
+            connectPhone.tap()
+        }
+
         // The helpers are idempotent — they no-op when the gate is already
         // satisfied for the test account.
         allowPhoneVerificationIfNeeded()
@@ -27,15 +36,22 @@ final class SendSmokeTests: BaseUITestCase {
         let onFlipcashHeader = app.staticTexts["On Flipcash"]
         let inviteHeader     = app.staticTexts["Not on Flipcash Yet"]
         let emptyState       = app.staticTexts["No Contacts Found"]
+        // Limited access (iOS 18+) with nothing shared renders its own state.
+        let limitedEmptyState = app.staticTexts["No Contacts Shared"]
+
+        func pickerRendered() -> Bool {
+            onFlipcashHeader.exists || inviteHeader.exists
+                || emptyState.exists || limitedEmptyState.exists
+        }
 
         let deadline = Date().addingTimeInterval(30)
         while Date() < deadline {
-            if onFlipcashHeader.exists || inviteHeader.exists || emptyState.exists { break }
+            if pickerRendered() { break }
             Thread.sleep(forTimeInterval: 0.25)
         }
         XCTAssertTrue(
-            onFlipcashHeader.exists || inviteHeader.exists || emptyState.exists,
-            "Expected `RecipientPickerScreen` to render an On-Flipcash header, an Invite header, or the empty state"
+            pickerRendered(),
+            "Expected `RecipientPickerScreen` to render an On-Flipcash header, an Invite header, or an empty state"
         )
 
         // The invite-fallback path requires at least one row in the Invite

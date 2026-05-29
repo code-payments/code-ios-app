@@ -243,10 +243,11 @@ final class SessionAuthenticator {
             owner: owner
         )
 
-        // Activate at bootstrap when contacts are already authorized.
+        // Activate at bootstrap when contacts are already accessible
+        // (full or limited).
         Task.detached { [contactSyncController] in
             let status = CNContactStore.authorizationStatus(for: .contacts)
-            guard status == .authorized else { return }
+            guard status.allowsContactAccess else { return }
             await MainActor.run {
                 contactSyncController.activate()
             }
