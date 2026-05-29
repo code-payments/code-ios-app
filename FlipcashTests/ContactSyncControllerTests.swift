@@ -645,4 +645,170 @@ struct ContactSyncControllerTests {
         }
     }
 
+    // MARK: - Clear on revoke
+
+    @Suite("ClearOnRevoke", .serialized)
+    @MainActor
+    struct ClearOnRevokeTests {
+
+        private static func makeController(
+            mock: MockContactSync,
+            database: Database,
+            status: CNAuthorizationStatus
+        ) -> ContactSyncController {
+            ContactSyncController(
+                client:                      mock,
+                database:                    database,
+                owner:                       .mock,
+                authorizationStatusProvider: { status }
+            )
+        }
+
+        private static func seedUploadedSet(
+            _ database: Database,
+            contacts: [Database.LocalContact],
+            matched: [String] = []
+        ) throws {
+            try database.setContactSyncState(.init(
+                checksum:      ContactSyncController.checksum(of: contacts.map(\.e164)),
+                changeHistory: nil,
+                lastSyncedAt:  Date(timeIntervalSince1970: 1_716_000_000)
+            ))
+            try database.replaceLocalContactsSnapshot(contacts)
+            if !matched.isEmpty {
+                try database.replaceFlipcashContacts(matched, matchedAt: Date(timeIntervalSince1970: 1_716_000_000))
+            }
+        }
+
+        private static let aliceContact = Database.LocalContact(e164: "+14155550100", contactId: "alice")
+        private static let bobContact   = Database.LocalContact(e164: "+14155550101", contactId: "bob")
+
+        @Test(
+            "Revoked access wipes the server set and drains the local tables",
+            arguments: [CNAuthorizationStatus.denied, .restricted]
+        )
+        func revoke_wipesAndDrains(_ status: CNAuthorizationStatus) async throws {
+            let mock = MockContactSync()
+            let database = Database.mock
+            let controller = Self.makeController(mock: mock, database: database, status: status)
+
+            try Self.seedUploadedSet(database, contacts: [Self.aliceContact, Self.bobContact], matched: [Self.bobContact.e164])
+
+            await controller.clearServerContactSetIfRevoked()
+
+            let fullCall = try #require(mock.fullCalls.first)
+            #expect(mock.fullCalls.count == 1)
+            #expect(fullCall.phones.isEmpty)
+            #expect(fullCall.checksum == ContactSyncController.checksum(of: []))
+            #expect(mock.deltaCalls.isEmpty)
+            #expect(mock.streamCalls.isEmpty)
+
+            #expect(try database.contactSyncState() == .empty)
+            #expect(try database.localContactsSnapshot().isEmpty)
+            #expect(try database.flipcashContacts().isEmpty)
+        }
+
+        @Test("Revoked but nothing was ever uploaded → no upload")
+        func revoke_nothingUploaded_noOp() async throws {
+            let mock = MockContactSync()
+            let database = Database.mock  // checksum is nil
+            let controller = Self.makeController(mock: mock, database: database, status: .denied)
+
+            await controller.clearServerContactSetIfRevoked()
+
+            #expect(mock.fullCalls.isEmpty)
+        }
+
+        @Test(
+            "Non-revoked access leaves an uploaded set untouched",
+            arguments: [CNAuthorizationStatus.authorized, .notDetermined]
+        )
+        func nonRevoked_leavesSetIntact(_ status: CNAuthorizationStatus) async throws {
+            let mock = MockContactSync()
+            let database = Database.mock
+            let controller = Self.makeController(mock: mock, database: database, status: status)
+
+            try Self.seedUploadedSet(database, contacts: [Self.aliceContact])
+
+            await controller.clearServerContactSetIfRevoked()
+
+            #expect(mock.fullCalls.isEmpty)
+            #expect(try database.contactSyncState().checksum != nil)
+        }
+
+        @Test("Upload failure leaves the set intact, and the next foreground retries")
+        func revoke_uploadFailure_retriesNextForeground() async throws {
+            let mock = MockContactSync()
+            mock.fullUploadResult = .failure(ErrorContactSync.networkError)
+            let database = Database.mock
+            let controller = Self.makeController(mock: mock, database: database, status: .denied)
+
+            try Self.seedUploadedSet(database, contacts: [Self.aliceContact])
+
+            await controller.clearServerContactSetIfRevoked()
+
+            // Attempted, but the failure leaves the checksum + snapshot for a retry.
+            #expect(mock.fullCalls.count == 1)
+            #expect(try database.contactSyncState().checksum != nil)
+            #expect(try database.localContactsSnapshot().isEmpty == false)
+
+            // Next foreground: the upload now succeeds → the wipe completes.
+            mock.fullUploadResult = .success(())
+            await controller.clearServerContactSetIfRevoked()
+
+            #expect(mock.fullCalls.count == 2)
+            #expect(try database.contactSyncState() == .empty)
+            #expect(try database.localContactsSnapshot().isEmpty)
+        }
+    }
+
+    // MARK: - Clear on account deletion
+
+    @Suite("AccountDeletionClear", .serialized)
+    @MainActor
+    struct AccountDeletionClearTests {
+
+        private static func makeController(mock: MockContactSync, database: Database) -> ContactSyncController {
+            ContactSyncController(client: mock, database: database, owner: .mock)
+        }
+
+        private static let aliceContact = Database.LocalContact(e164: "+14155550100", contactId: "alice")
+
+        @Test("Account deletion with an uploaded set fires an empty full upload and drains the local tables")
+        func accountDeletion_withUploadedSet_firesEmptyUploadAndDrains() async throws {
+            let mock = MockContactSync()
+            let database = Database.mock
+            let controller = Self.makeController(mock: mock, database: database)
+
+            try database.setContactSyncState(.init(
+                checksum:      ContactSyncController.checksum(of: [Self.aliceContact.e164]),
+                changeHistory: nil,
+                lastSyncedAt:  Date(timeIntervalSince1970: 1_716_000_000)
+            ))
+            try database.replaceLocalContactsSnapshot([Self.aliceContact])
+            try database.replaceFlipcashContacts([Self.aliceContact.e164], matchedAt: Date(timeIntervalSince1970: 1_716_000_000))
+
+            await controller.clearServerContactSetForAccountDeletion()
+
+            let fullCall = try #require(mock.fullCalls.first)
+            #expect(mock.fullCalls.count == 1)
+            #expect(fullCall.phones.isEmpty)
+            #expect(fullCall.checksum == ContactSyncController.checksum(of: []))
+            #expect(try database.contactSyncState() == .empty)
+            #expect(try database.localContactsSnapshot().isEmpty)
+            #expect(try database.flipcashContacts().isEmpty)
+        }
+
+        @Test("Account deletion with nothing previously uploaded does not call the server")
+        func accountDeletion_nothingUploaded_noOp() async throws {
+            let mock = MockContactSync()
+            let database = Database.mock  // checksum is nil
+            let controller = Self.makeController(mock: mock, database: database)
+
+            await controller.clearServerContactSetForAccountDeletion()
+
+            #expect(mock.fullCalls.isEmpty)
+        }
+    }
+
 }
