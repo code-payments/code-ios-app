@@ -16,16 +16,31 @@ struct SendAmountViewModelTests {
 
     private static let recipient: PublicKey = .generate()!
 
+    static func makeContact(displayName: String = "Alice") -> ResolvedContact {
+        ResolvedContact(
+            contactId: "test-contact",
+            displayName: displayName,
+            phoneE164: "+15551234567",
+            nationalPhone: "(555) 123-4567",
+            imageData: nil
+        )
+    }
+
+    /// Marks the recipient resolved by default so amount/send tests aren't
+    /// gated by the background resolve. Pass `resolved: false` to exercise the
+    /// resolving state.
     static func createViewModel(
         recipient: PublicKey = SendAmountViewModelTests.recipient,
-        recipientDisplayName: String? = "Alice"
+        displayName: String = "Alice",
+        resolved: Bool = true
     ) -> SendAmountViewModel {
-        SendAmountViewModel(
+        let viewModel = SendAmountViewModel(
             sessionContainer: .mock,
-            recipient: recipient,
-            recipientDisplayName: recipientDisplayName,
+            contact: makeContact(displayName: displayName),
             mint: nil
         )
+        if resolved { viewModel.recipientState = .resolved(recipient) }
+        return viewModel
     }
 
     static func createExchangedBalance(
@@ -66,23 +81,29 @@ struct SendAmountViewModelTests {
         )
     }
 
-    // MARK: - Recipient storage
+    // MARK: - Recipient
 
-    @Test("Init stores recipient pubkey and display name as provided")
-    func init_storesRecipientFields() {
-        let pubkey = PublicKey.generate()!
-        let viewModel = Self.createViewModel(recipient: pubkey, recipientDisplayName: "Alice Anderson")
-        #expect(viewModel.recipient == pubkey)
+    @Test("Display name is taken from the contact")
+    func init_exposesContactDisplayName() {
+        let viewModel = Self.createViewModel(displayName: "Alice Anderson", resolved: false)
         #expect(viewModel.recipientDisplayName == "Alice Anderson")
     }
 
-    @Test("Init keeps a nil display name (fallback handled at the view layer)")
-    func init_keepsNilDisplayName() {
-        let viewModel = Self.createViewModel(recipientDisplayName: nil)
-        #expect(viewModel.recipientDisplayName == nil)
+    @Test("Recipient starts in the resolving state")
+    func init_startsResolving() {
+        let viewModel = Self.createViewModel(resolved: false)
+        #expect(viewModel.recipientState == .resolving)
     }
 
     // MARK: - canSend
+
+    @Test("canSend is false while the recipient is still resolving")
+    func canSend_whileResolving_isFalse() {
+        let viewModel = Self.createViewModel(resolved: false)
+        viewModel.selectCurrencyAction(exchangedBalance: Self.createExchangedBalance())
+        viewModel.enteredAmount = "5"
+        #expect(viewModel.canSend == false)
+    }
 
     @Test("canSend is false when no amount is entered")
     func canSend_emptyAmount_isFalse() {
@@ -112,10 +133,10 @@ struct SendAmountViewModelTests {
     func canSend_noSelectedBalance_isFalse() {
         let viewModel = SendAmountViewModel(
             sessionContainer: .mock,
-            recipient: .generate()!,
-            recipientDisplayName: "Alice",
+            contact: Self.makeContact(),
             mint: .generate()!  // unknown mint forces selectedBalance to nil
         )
+        viewModel.recipientState = .resolved(Self.recipient)
         viewModel.enteredAmount = "10"
         #expect(viewModel.canSend == false)
     }
@@ -154,11 +175,11 @@ struct SendAmountViewModelTests {
         let sender = MockSession()
         let viewModel = SendAmountViewModel(
             sessionContainer: .mock,
-            recipient: Self.recipient,
-            recipientDisplayName: "Alice",
+            contact: Self.makeContact(),
             mint: nil,
             sender: sender
         )
+        viewModel.recipientState = .resolved(Self.recipient)
         viewModel.selectCurrencyAction(exchangedBalance: Self.createExchangedBalance())
         viewModel.enteredAmount = ""
 
@@ -173,11 +194,11 @@ struct SendAmountViewModelTests {
         let sender = MockSession()
         let viewModel = SendAmountViewModel(
             sessionContainer: .mock,
-            recipient: Self.recipient,
-            recipientDisplayName: "Alice",
+            contact: Self.makeContact(),
             mint: nil,
             sender: sender
         )
+        viewModel.recipientState = .resolved(Self.recipient)
         // Empty balance + non-zero entered amount → hasSufficientFunds == .insufficient.
         viewModel.selectCurrencyAction(exchangedBalance: Self.createExchangedBalance(quarks: 0))
         viewModel.enteredAmount = "5"
@@ -197,11 +218,11 @@ struct SendAmountViewModelTests {
         let sender = MockSession()
         let viewModel = SendAmountViewModel(
             sessionContainer: container,
-            recipient: Self.recipient,
-            recipientDisplayName: "Alice",
+            contact: Self.makeContact(),
             mint: .usdf,
             sender: sender
         )
+        viewModel.recipientState = .resolved(Self.recipient)
         viewModel.enteredAmount = "5"
 
         await viewModel.sendAction()
