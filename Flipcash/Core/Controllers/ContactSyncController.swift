@@ -28,6 +28,7 @@ final class ContactSyncController {
     @ObservationIgnored internal private(set) var isSyncing = false
     @ObservationIgnored internal private(set) var syncTask: Task<Void, Never>?
     @ObservationIgnored internal private(set) var observerTask: Task<Void, Never>?
+    @ObservationIgnored private var joinObserverTask: Task<Void, Never>?
     @ObservationIgnored private var needsResync = false
 
     /// Resolved directory cache surfaced to the picker. Updated after every
@@ -63,6 +64,7 @@ final class ContactSyncController {
     deinit {
         syncTask?.cancel()
         observerTask?.cancel()
+        joinObserverTask?.cancel()
     }
 
     // MARK: - Lifecycle -
@@ -79,6 +81,17 @@ final class ContactSyncController {
                 for await _ in NotificationCenter.default.notifications(named: .CNContactStoreDidChange) {
                     guard let self else { return }
                     await MainActor.run { self.sync() }
+                }
+            }
+        }
+        if joinObserverTask == nil {
+            // A peer joining never changes our own uploaded set, so a full
+            // `sync()` would no-op. Re-pull just the matched set so the joiner
+            // reclassifies to "On Flipcash" live.
+            joinObserverTask = Task.detached { [weak self] in
+                for await _ in NotificationCenter.default.notifications(named: .contactDidJoinReceived) {
+                    guard let self else { return }
+                    await self.refreshMatchedSet()
                 }
             }
         }
@@ -179,7 +192,10 @@ final class ContactSyncController {
             )
             switch result {
             case .ok:
-                logger.info("Sync skipped — local unchanged, server agrees")
+                // A contact may have joined without changing our own checksum,
+                // so re-pull the matched set before resolving.
+                logger.info("Local set unchanged, server agrees — refreshing matched set")
+                try await refreshFlipcashContacts(checksum: storedChecksum)
                 await resolveDirectory()
                 return
             case .outOfSync:
@@ -237,6 +253,22 @@ final class ContactSyncController {
         )
 
         await resolveDirectory()
+    }
+
+    /// Re-pulls the server's matched set and re-resolves the picker without
+    /// re-uploading the local address book. Triggered by a CONTACT_JOIN push so
+    /// a peer who just joined reclassifies to "On Flipcash" live. No-op until a
+    /// prior sync has produced a checksum.
+    internal nonisolated func refreshMatchedSet() async {
+        do {
+            guard let checksum = try database.contactSyncState().checksum else { return }
+            try await refreshFlipcashContacts(checksum: checksum)
+            await resolveDirectory()
+        } catch is CancellationError {
+            return
+        } catch {
+            logger.error("Matched-set refresh failed", metadata: ["error": "\(error)"])
+        }
     }
 
     // MARK: - Directory resolution -
