@@ -8,7 +8,7 @@ import FlipcashCore
 import FlipcashUI
 
 /// Root view for the Send sheet. Gates entry on a verified phone and
-/// authorized contacts; the satisfied state renders the recipient picker.
+/// accessible contacts; the satisfied state renders the recipient picker.
 struct SendRootScreen: View {
 
     @Environment(Session.self) private var session
@@ -17,7 +17,6 @@ struct SendRootScreen: View {
 
     @State private var phoneVerificationViewModel: PhoneVerificationViewModel?
     @State private var contactsAuthorizer = ContactsAuthorizer()
-    @State private var didResolveContactsStatus = false
 
     private let container: Container
 
@@ -34,23 +33,28 @@ struct SendRootScreen: View {
             switch step {
             case .needsPhone:
                 ConnectPhoneEmptyState(onConnect: startPhoneVerification)
-            case .loading:
-                // Contacts status not yet resolved, or the matched set is still
-                // syncing. A neutral spinner avoids flashing the permission
-                // priming screen at a user who already granted access.
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .needsContacts:
                 ContactsPermissionScreen(
                     authorizer: contactsAuthorizer,
                     onAllowed: { contactSyncController.activate() },
                     onSkipped: nil
                 )
+            case .loadingContacts:
+                // Access is in place (full or limited); the controller is
+                // resolving the directory for the first time this session. Keep
+                // the priming screen visible with a spinner on the primary
+                // button so the user sees clear in-progress feedback instead of
+                // a flash to a half-populated picker.
+                ContactsPermissionScreen(
+                    authorizer: contactsAuthorizer,
+                    onAllowed: { contactSyncController.activate() },
+                    onSkipped: nil,
+                    isAllowing: true
+                )
             case .ready:
                 RecipientPickerScreen(isLimitedAccess: contactsAuthorizer.status.isLimited)
             }
         }
-        .task { await resolveContactsAccess() }
         .sheet(item: $phoneVerificationViewModel.cancellingOnDismiss()) { viewModel in
             PhoneVerificationFlowScreen(viewModel: viewModel)
         }
@@ -60,8 +64,8 @@ struct SendRootScreen: View {
 
     private enum Step {
         case needsPhone
-        case loading
         case needsContacts
+        case loadingContacts
         case ready
     }
 
@@ -69,26 +73,10 @@ struct SendRootScreen: View {
         guard session.profile?.isPhoneVerified ?? false else {
             return .needsPhone
         }
-        guard didResolveContactsStatus else {
-            return .loading
-        }
         guard contactsAuthorizer.status.allowsContactAccess else {
             return .needsContacts
         }
-        return contactSyncController.hasResolvedOnce ? .ready : .loading
-    }
-
-    // MARK: - Contacts access -
-
-    /// Resolves the live contacts status before the gate runs so the priming
-    /// screen never flashes for a user who already granted full or limited
-    /// access, and activates the sync controller when access is in place.
-    private func resolveContactsAccess() async {
-        await contactsAuthorizer.refresh()
-        didResolveContactsStatus = true
-        if contactsAuthorizer.status.allowsContactAccess {
-            contactSyncController.activate()
-        }
+        return contactSyncController.hasResolvedOnce ? .ready : .loadingContacts
     }
 
     // MARK: - Phone verification handoff -
@@ -110,4 +98,3 @@ struct SendRootScreen: View {
         }
     }
 }
-
