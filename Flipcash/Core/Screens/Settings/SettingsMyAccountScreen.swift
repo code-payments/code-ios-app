@@ -81,6 +81,11 @@ struct SettingsMyAccountScreen: View {
         Task {
             router.dismissSheet()
             try await Task.delay(milliseconds: 250)
+            // No server-side account deletion exists; logout only tears down
+            // locally. Wipe the server's stored contact set first so it isn't
+            // retained after the account is "deleted". Best-effort — must run
+            // before logout while the session can still authenticate the call.
+            await sessionContainer.contactSyncController.clearServerContactSetForAccountDeletion()
             sessionAuthenticator.logout()
         }
     }
