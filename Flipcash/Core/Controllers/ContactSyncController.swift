@@ -24,8 +24,6 @@ final class ContactSyncController {
     @ObservationIgnored nonisolated private let database: Database
     @ObservationIgnored nonisolated private let owner: AccountCluster
     @ObservationIgnored nonisolated private let authorizationStatusProvider: @Sendable () -> CNAuthorizationStatus
-    @ObservationIgnored nonisolated private let lastAuthorizationStatusProvider: @Sendable () -> CNAuthorizationStatus
-    @ObservationIgnored nonisolated private let persistAuthorizationStatus: @Sendable (CNAuthorizationStatus) -> Void
 
     @ObservationIgnored internal private(set) var isSyncing = false
     @ObservationIgnored internal private(set) var syncTask: Task<Void, Never>?
@@ -54,22 +52,12 @@ final class ContactSyncController {
         owner: AccountCluster,
         authorizationStatusProvider: @escaping @Sendable () -> CNAuthorizationStatus = {
             CNContactStore.authorizationStatus(for: .contacts)
-        },
-        lastAuthorizationStatusProvider: @escaping @Sendable () -> CNAuthorizationStatus = {
-            CNAuthorizationStatus(
-                rawValue: UserDefaults.standard.integer(forKey: DefaultsKey.lastContactAuthStatus.rawValue)
-            ) ?? .notDetermined
-        },
-        persistAuthorizationStatus: @escaping @Sendable (CNAuthorizationStatus) -> Void = {
-            UserDefaults.standard.set($0.rawValue, forKey: DefaultsKey.lastContactAuthStatus.rawValue)
         }
     ) {
-        self.client                          = client
-        self.database                        = database
-        self.owner                           = owner
-        self.authorizationStatusProvider     = authorizationStatusProvider
-        self.lastAuthorizationStatusProvider = lastAuthorizationStatusProvider
-        self.persistAuthorizationStatus      = persistAuthorizationStatus
+        self.client                      = client
+        self.database                    = database
+        self.owner                       = owner
+        self.authorizationStatusProvider = authorizationStatusProvider
     }
 
     deinit {
@@ -153,10 +141,6 @@ final class ContactSyncController {
             ])
             return
         }
-
-        // Record that we hold access so a later revoke (authorized → denied)
-        // is detectable on the next foreground, even across a cold launch.
-        persistAuthorizationStatus(status)
 
         do {
             let contacts = try readContacts()
@@ -292,37 +276,14 @@ final class ContactSyncController {
 
     // MARK: - Permission revoke -
 
-    /// Wipes the server's stored contact set when contacts access transitions
-    /// from authorized to denied/restricted. `internal` + `nonisolated` so
-    /// tests can drive it directly and it runs off-main in production.
+    /// Wipes the server's stored contact set when contacts access is now
+    /// denied/restricted for a user who had previously uploaded one.
     ///
-    /// Idempotent and safe to call on every foreground: it short-circuits
-    /// unless we previously held access AND access is now revoked AND a set was
-    /// actually uploaded. On upload failure the stored status is left armed so
-    /// the next foreground retries.
+    /// A non-nil checksum only exists after a sync, which only runs while
+    /// authorized, so it doubles as the "we previously had access" marker.
+    /// Idempotent: a successful wipe nulls the checksum; a failure leaves it
+    /// intact so the next foreground retries.
     internal nonisolated func clearServerContactSetIfRevoked() async {
-        // Only a previously-accessible state can be revoked. Arming persists
-        // `.authorized` today; `.limited` becomes armable in Phase 11. Switched
-        // exhaustively so a new `CNAuthorizationStatus` case forces a decision.
-        let previous = lastAuthorizationStatusProvider()
-        let wasAccessible = switch previous {
-        case .authorized, .limited: true
-        case .notDetermined, .denied, .restricted: false
-        @unknown default: false
-        }
-        guard wasAccessible else { return }
-
-        // A revoke is a transition into denied/restricted. `.limited` is a
-        // narrower grant (Phase 11), not a revoke; `.notDetermined` is an
-        // OS-level reset we don't wipe on.
-        let current = authorizationStatusProvider()
-        let isRevoked = switch current {
-        case .denied, .restricted: true
-        case .notDetermined, .authorized, .limited: false
-        @unknown default: false
-        }
-        guard isRevoked else { return }
-
         let hadServerSet: Bool
         do {
             hadServerSet = try database.contactSyncState().checksum != nil
@@ -330,22 +291,24 @@ final class ContactSyncController {
             logger.error("Clear-on-revoke aborted — could not read sync state", metadata: [
                 "error": "\(error)",
             ])
-            return  // leave the stored status armed so the next foreground retries
-        }
-
-        guard hadServerSet else {
-            // Nothing was ever uploaded; record the revoked status so we stop
-            // re-checking on every foreground.
-            persistAuthorizationStatus(current)
             return
         }
+        guard hadServerSet else { return }
+
+        // `.limited` is a narrower grant, not a revoke; `.notDetermined` is an
+        // OS-level reset we don't wipe on. Switched exhaustively so a new
+        // `CNAuthorizationStatus` case forces a decision.
+        let isRevoked = switch authorizationStatusProvider() {
+        case .denied, .restricted: true
+        case .notDetermined, .authorized, .limited: false
+        @unknown default: false
+        }
+        guard isRevoked else { return }
 
         do {
             try await clearServerContactSet()
-            persistAuthorizationStatus(current)  // disarm only after a successful wipe
             logger.info("Cleared server contact set after permission revoke")
         } catch {
-            // Keep the stored status armed so the next foreground retries.
             logger.info("Clear-on-revoke deferred — will retry next foreground", metadata: [
                 "error": "\(error)",
             ])
@@ -355,7 +318,10 @@ final class ContactSyncController {
     /// Wipes the server's stored contact set as part of account deletion.
     /// Best-effort: deletion proceeds even if the wipe fails — there's no
     /// retry once the session tears down. No-ops when nothing was uploaded.
-    internal nonisolated func clearServerContactSetForAccountDeletion() async {
+    ///
+    /// `@concurrent` keeps it off-main when awaited from the `@MainActor`
+    /// delete-account flow, which SE-0461 would otherwise inherit.
+    @concurrent internal func clearServerContactSetForAccountDeletion() async {
         let hadServerSet: Bool
         do {
             hadServerSet = try database.contactSyncState().checksum != nil
