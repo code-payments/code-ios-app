@@ -34,13 +34,11 @@ struct SendAmountScreen: View {
 
     init(
         sessionContainer: SessionContainer,
-        recipient: PublicKey,
-        recipientDisplayName: String?
+        contact: ResolvedContact
     ) {
         _viewModel = State(initialValue: SendAmountViewModel(
             sessionContainer: sessionContainer,
-            recipient: recipient,
-            recipientDisplayName: recipientDisplayName
+            contact: contact
         ))
     }
 
@@ -94,6 +92,11 @@ struct SendAmountScreen: View {
             try? await Task.sleep(for: .seconds(2.5))
             guard !Task.isCancelled else { return }
             router.dismissSheet()
+        }
+        .task {
+            await viewModel.resolveRecipient()
+            guard !Task.isCancelled else { return }
+            if case .failed = viewModel.recipientState { router.popTopmost() }
         }
         .sheet(isPresented: $isShowingTokenSelection) {
             SelectCurrencyScreen(isPresented: $isShowingTokenSelection) { balance in

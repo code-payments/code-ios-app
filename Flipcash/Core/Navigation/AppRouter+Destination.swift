@@ -61,7 +61,7 @@ extension AppRouter {
         case withdraw
 
         // Send flow
-        case sendAmount(recipient: PublicKey, recipientDisplayName: String?)
+        case sendAmount(contact: ResolvedContact)
 
         /// The stack this destination naturally belongs in. Cross-stack
         /// navigation uses this to know which sheet to present.
@@ -128,8 +128,8 @@ extension AppRouter {
                  .withdrawCurrency(let mint),
                  .depositAddress(let mint):
                 return mint.base58
-            case .sendAmount(let recipient, _):
-                return recipient.base58
+            case .sendAmount(let contact):
+                return contact.contactId
             case .phantomFlow:
                 return nil
             case .discoverCurrencies, .currencyCreationSummary, .currencyCreationWizard,
