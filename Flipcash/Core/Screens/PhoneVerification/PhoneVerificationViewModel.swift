@@ -44,6 +44,10 @@ final class PhoneVerificationViewModel: PhoneVerifying {
     @ObservationIgnored private let flipClient: FlipClient
     @ObservationIgnored private let owner: KeyPair
 
+    /// When `true`, a successful verification also links the phone for payment
+    /// (`LinkForPayment`), making it discoverable for incoming sends.
+    @ObservationIgnored private let linkForPayment: Bool
+
     @ObservationIgnored private let phoneFormatter = PhoneFormatter()
 
     // MARK: - Analytics hooks -
@@ -81,6 +85,7 @@ final class PhoneVerificationViewModel: PhoneVerifying {
     init(
         owner: KeyPair,
         flipClient: FlipClient,
+        linkForPayment: Bool = false,
         enterPhoneEvent: (any AnalyticsEvent)? = nil,
         confirmPhoneEvent: (any AnalyticsEvent)? = nil,
         isAlreadyVerified: @MainActor @escaping () -> Bool = { false },
@@ -88,6 +93,7 @@ final class PhoneVerificationViewModel: PhoneVerifying {
     ) {
         self.flipClient = flipClient
         self.owner = owner
+        self.linkForPayment = linkForPayment
         self.region = phoneFormatter.currentRegion
         self.enterPhoneEvent = enterPhoneEvent
         self.confirmPhoneEvent = confirmPhoneEvent
@@ -298,6 +304,16 @@ final class PhoneVerificationViewModel: PhoneVerifying {
                 )
 
                 await onShouldRefreshProfile()
+
+                if linkForPayment {
+                    do {
+                        try await flipClient.linkForPayment(phone: phone.e164, owner: owner)
+                    } catch is CancellationError {
+                        return
+                    } catch {
+                        ErrorReporting.captureError(error)
+                    }
+                }
 
                 try await Task.delay(milliseconds: 500)
                 confirmCodeButtonState = .success

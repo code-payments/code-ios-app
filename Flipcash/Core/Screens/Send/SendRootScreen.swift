@@ -94,6 +94,7 @@ struct SendRootScreen: View {
         let viewModel = PhoneVerificationViewModel(
             owner: session.ownerKeyPair,
             flipClient: container.flipClient,
+            linkForPayment: true,
             enterPhoneEvent: Analytics.SendEvent.showEnterPhone,
             confirmPhoneEvent: Analytics.SendEvent.showConfirmPhone,
             isAlreadyVerified: { [weak session] in session?.profile?.isPhoneVerified ?? false },
