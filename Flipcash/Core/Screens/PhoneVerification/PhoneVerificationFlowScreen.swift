@@ -43,7 +43,6 @@ struct PhoneVerificationFlowScreen<VM: PhoneVerifying>: View {
                             .navigationTitle("Connect Phone Number")
                     }
                 }
-                .ignoresSafeArea(.keyboard)
         }
     }
 }
