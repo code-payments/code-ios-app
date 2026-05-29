@@ -28,8 +28,10 @@ public final class ContactsAuthorizer {
     }
 
     /// Prompts the user once when the status is `.notDetermined`, then returns
-    /// the resolved authorization status. iOS suppresses repeat prompts; for
-    /// `.denied` / `.restricted` / `.limited` callers should route to Settings.
+    /// the resolved authorization status. iOS suppresses repeat prompts.
+    /// `.limited` (iOS 18+) grants partial access and is usable like
+    /// `.authorized`; only `.denied` / `.restricted` callers should route to
+    /// Settings.
     public func authorize() async -> CNAuthorizationStatus {
         let current = await Task.detached {
             CNContactStore.authorizationStatus(for: .contacts)
