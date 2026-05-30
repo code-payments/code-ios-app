@@ -26,4 +26,10 @@ extension FlipClient {
             phoneService.unlinkPhone(phone: phone, owner: owner) { c.resume(with: $0) }
         }
     }
+
+    public func linkForPayment(phone: String, owner: KeyPair) async throws {
+        try await withCheckedThrowingContinuation { c in
+            phoneService.linkForPayment(phone: phone, owner: owner) { c.resume(with: $0) }
+        }
+    }
 }

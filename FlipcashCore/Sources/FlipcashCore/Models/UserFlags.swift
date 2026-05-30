@@ -25,6 +25,9 @@ public struct UserFlags: Sendable {
     /// USDF amount a user must hold to be counted on the Discover leaderboard.
     public let minimumHolderValue: TokenAmount
 
+    /// Whether the send-to-phone-number feature is enabled for this user.
+    public let enablePhoneNumberSend: Bool
+
     public var hasPreferredOnrampProvider: Bool {
         preferredOnrampProvider != .unknown
     }
@@ -80,7 +83,8 @@ extension UserFlags {
             minimumHolderValue: TokenAmount(
                 quarks: proto.minimumHolderValue,
                 mint: .usdf
-            )
+            ),
+            enablePhoneNumberSend: proto.enablePhoneNumberSend
         )
     }
 }

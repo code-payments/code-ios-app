@@ -28,6 +28,25 @@ struct NotificationPayloadTests {
         #expect(substitution.contact.value == "+15551234567")
     }
 
+    @Test("Decodes a payload nested under the aps dictionary")
+    func decodesPayloadNestedUnderAps() throws {
+        let payload = try #require(
+            NotificationPayload.decode(["aps": [NotificationPayload.userInfoKey: Self.knownPayloadBase64]])
+        )
+
+        #expect(payload.category == .contactJoin)
+    }
+
+    @Test("isContactJoin is true for a CONTACT_JOIN payload nested under aps")
+    func isContactJoinNestedUnderAps() {
+        #expect(NotificationPayload.isContactJoin(["aps": [NotificationPayload.userInfoKey: Self.knownPayloadBase64]]))
+    }
+
+    @Test("isContactJoin is false when no payload is present")
+    func isContactJoinFalseWhenAbsent() {
+        #expect(NotificationPayload.isContactJoin([:]) == false)
+    }
+
     @Test("Returns nil when the userInfo dictionary is missing the key")
     func returnsNilWhenKeyMissing() {
         #expect(NotificationPayload.decode([:]) == nil)

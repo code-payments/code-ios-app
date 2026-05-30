@@ -72,10 +72,10 @@ final class SendSmokeTests: BaseUITestCase {
             "Expected the share-sheet fallback (UIActivityViewController) after tapping Invite"
         )
 
-        // Dismiss. The share sheet exposes either a "Close" button (iOS 16+)
-        // or a "Cancel" button (older iOS) — fall back to a downward swipe
-        // when neither is present.
-        let close  = app.buttons["Close"]
+        // Dismiss the share sheet. Its close button's label ("Close") collides
+        // with the Send screen's X behind it, so target it by identifier. Fall
+        // back to "Cancel" (older iOS), then a downward swipe.
+        let close  = app.buttons["header.closeButton"]
         let cancel = app.buttons["Cancel"]
         if close.exists {
             close.tap()
