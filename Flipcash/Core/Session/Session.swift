@@ -341,12 +341,14 @@ class Session {
         guard userFlags?.enablePhoneNumberSend == true,
               let phone = profile?.phone,
               !hasLinkedPhoneForPayment else { return }
+        // Claim before the await so two concurrent callers can't double-fire; released on failure below.
         hasLinkedPhoneForPayment = true
         do {
             try await flipClient.linkForPayment(phone: phone.e164, owner: ownerKeyPair)
         } catch is CancellationError {
-            return
+            hasLinkedPhoneForPayment = false
         } catch {
+            hasLinkedPhoneForPayment = false
             ErrorReporting.captureError(error)
         }
     }
