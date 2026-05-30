@@ -481,10 +481,40 @@ struct ContactSyncControllerTests {
             #expect(Set(try database.flipcashContacts()) == ["+14155550101"])
         }
 
-        @Test("Steady-state — local unchanged + server agrees → no upload, no stream")
-        func steadyState_skipsUploadAndStream() async throws {
+        @Test("refreshMatchedSet re-pulls and persists the matched set when a prior sync exists")
+        func refreshMatchedSet_rePullsWhenSynced() async throws {
+            let mock = MockContactSync()
+            mock.streamYields = [Self.bobContact.e164]
+            let database = Database.mock
+            let storedChecksum = ContactSyncController.checksum(of: [Self.aliceContact.e164])
+            try Self.seedDatabase(database, checksum: storedChecksum, snapshot: [Self.aliceContact])
+            let controller = Self.makeController(mock: mock, database: database)
+
+            await controller.refreshMatchedSet()
+
+            #expect(mock.streamCalls == [storedChecksum])
+            #expect(mock.fullCalls.isEmpty)
+            #expect(mock.deltaCalls.isEmpty)
+            #expect(Set(try database.flipcashContacts()) == [Self.bobContact.e164])
+            #expect(controller.hasResolvedOnce)
+        }
+
+        @Test("refreshMatchedSet is a no-op without a prior sync")
+        func refreshMatchedSet_noOpWithoutChecksum() async throws {
+            let mock = MockContactSync()
+            let database = Database.mock
+            let controller = Self.makeController(mock: mock, database: database)
+
+            await controller.refreshMatchedSet()
+
+            #expect(mock.streamCalls.isEmpty)
+        }
+
+        @Test("Steady-state — local unchanged + server agrees → no upload, but refreshes the matched set")
+        func steadyState_skipsUploadButRefreshesMatchedSet() async throws {
             let mock = MockContactSync()
             mock.checkSyncResult = .success(.ok)
+            mock.streamYields = [Self.bobContact.e164]
             let database = Database.mock
             let controller = Self.makeController(mock: mock, database: database)
 
@@ -497,7 +527,8 @@ struct ContactSyncControllerTests {
             #expect(mock.checkSyncCalls == [storedChecksum])
             #expect(mock.deltaCalls.isEmpty)
             #expect(mock.fullCalls.isEmpty)
-            #expect(mock.streamCalls.isEmpty)
+            #expect(mock.streamCalls == [storedChecksum])
+            #expect(Set(try database.flipcashContacts()) == [Self.bobContact.e164])
         }
 
         @Test("Local-changed — stored snapshot present → delta upload + stream")
