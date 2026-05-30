@@ -327,7 +327,8 @@ struct WithdrawViewModelTests {
                 newCurrencyPurchaseAmount: .zero(mint: .usdf),
                 newCurrencyFeeAmount: .zero(mint: .usdf),
                 withdrawalFeeAmount: TokenAmount(quarks: withdrawalFeeQuarks, mint: .usdf),
-                minimumHolderValue: .zero(mint: .usdf)
+                minimumHolderValue: .zero(mint: .usdf),
+                enablePhoneNumberSend: false
             )
         }
         let stored = try #require(container.session.balance(for: mint))

@@ -70,7 +70,9 @@ class Session {
     @ObservationIgnored let keyAccount: KeyAccount
     @ObservationIgnored let owner: AccountCluster
     @ObservationIgnored let userID: UserID
-    
+
+    @ObservationIgnored private var hasLinkedPhoneForPayment = false
+
     var ownerKeyPair: KeyPair {
         owner.authority.keyPair
     }
@@ -306,8 +308,9 @@ class Session {
 
         profile = fetched
         try? database.insertProfile(fetched)
+        Task { await linkPhoneForPaymentIfNeeded() }
     }
-    
+
     func unlinkProfile() async throws {
         if let profile {
             if let email = profile.email {
@@ -339,6 +342,24 @@ class Session {
 
         userFlags = fetched
         try? database.insertUserFlags(fetched)
+        Task { await linkPhoneForPaymentIfNeeded() }
+    }
+
+    /// Links an already-verified phone for payment once per session. Best-effort; server-idempotent.
+    private func linkPhoneForPaymentIfNeeded() async {
+        guard userFlags?.enablePhoneNumberSend == true,
+              let phone = profile?.phone,
+              !hasLinkedPhoneForPayment else { return }
+        // Claim before the await so two concurrent callers can't double-fire; released on failure below.
+        hasLinkedPhoneForPayment = true
+        do {
+            try await flipClient.linkForPayment(phone: phone.e164, owner: ownerKeyPair)
+        } catch is CancellationError {
+            hasLinkedPhoneForPayment = false
+        } catch {
+            hasLinkedPhoneForPayment = false
+            ErrorReporting.captureError(error)
+        }
     }
 
     // MARK: - Settings Sync -
