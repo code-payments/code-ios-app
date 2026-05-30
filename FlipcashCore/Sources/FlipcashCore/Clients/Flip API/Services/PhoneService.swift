@@ -75,6 +75,30 @@ class PhoneService: CodeService<Flipcash_Phone_V1_PhoneVerificationNIOClient> {
             return .success(())
         }
     }
+
+    func linkForPayment(phone: String, owner: KeyPair, completion: @Sendable @escaping (Result<(), ErrorLinkForPayment>) -> Void) {
+        logger.info("Linking phone number for payment")
+
+        let request = Flipcash_Phone_V1_LinkForPaymentRequest.with {
+            $0.phoneNumber = .with { $0.value = phone }
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        let call = service.linkForPayment(request)
+        call.handle(on: queue) { response in
+            let error = ErrorLinkForPayment(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                logger.info("Phone number linked for payment successfully")
+                completion(.success(()))
+            } else {
+                logger.error("Failed to link phone number for payment", metadata: ["error": "\(error)"])
+                completion(.failure(error))
+            }
+
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
 }
 
 // MARK: - Errors -
@@ -119,6 +143,14 @@ public enum ErrorUnlinkPhone: Int, Error, Equatable, Sendable {
     case transportFailure = -2
 }
 
+public enum ErrorLinkForPayment: Int, Error {
+    case ok
+    case denied
+    /// The phone number is not associated with the requesting user.
+    case notAssociated
+    case unknown = -1
+}
+
 extension ErrorSendVerificationCode: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
@@ -141,6 +173,15 @@ extension ErrorUnlinkPhone: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
         case .ok, .denied, .transportFailure: false
+        case .unknown: true
+        }
+    }
+}
+
+extension ErrorLinkForPayment: ServerError {
+    public var isReportable: Bool {
+        switch self {
+        case .ok, .denied, .notAssociated: false
         case .unknown: true
         }
     }
