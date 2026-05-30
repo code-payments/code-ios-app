@@ -71,7 +71,7 @@ class Session {
     @ObservationIgnored let owner: AccountCluster
     @ObservationIgnored let userID: UserID
 
-    @ObservationIgnored private let phonePaymentLink: PhonePaymentLinker
+    @ObservationIgnored private var hasLinkedPhoneForPayment = false
 
     var ownerKeyPair: KeyPair {
         owner.authority.keyPair
@@ -209,9 +209,6 @@ class Session {
         self.keyAccount        = keyAccount
         self.owner             = owner
         self.userID            = userID
-        self.phonePaymentLink  = PhonePaymentLinker { [flipClient = container.flipClient, ownerKeyPair = owner.authority.keyPair] phoneE164 in
-            try await flipClient.linkForPayment(phone: phoneE164, owner: ownerKeyPair)
-        }
 
         self.updateableBalances = Updateable { [weak self] in
             (try? self?.database.getBalances()) ?? []
@@ -305,7 +302,7 @@ class Session {
         ) {
             try await flipClient.fetchProfile(userID: userID, owner: ownerKeyPair)
         }
-        Task { await phonePaymentLink.linkExistingPhoneIfNeeded(phone: profile?.phone, isSendEnabled: userFlags?.enablePhoneNumberSend ?? false) }
+        Task { await linkPhoneForPaymentIfNeeded() }
     }
 
     func unlinkProfile() async throws {
@@ -336,7 +333,22 @@ class Session {
         ) {
             try await flipClient.fetchUserFlags(userID: userID, owner: ownerKeyPair)
         }
-        Task { await phonePaymentLink.linkExistingPhoneIfNeeded(phone: profile?.phone, isSendEnabled: userFlags?.enablePhoneNumberSend ?? false) }
+        Task { await linkPhoneForPaymentIfNeeded() }
+    }
+
+    /// Links an already-verified phone for payment once per session. Best-effort; server-idempotent.
+    private func linkPhoneForPaymentIfNeeded() async {
+        guard userFlags?.enablePhoneNumberSend == true,
+              let phone = profile?.phone,
+              !hasLinkedPhoneForPayment else { return }
+        hasLinkedPhoneForPayment = true
+        do {
+            try await flipClient.linkForPayment(phone: phone.e164, owner: ownerKeyPair)
+        } catch is CancellationError {
+            return
+        } catch {
+            ErrorReporting.captureError(error)
+        }
     }
 
     // MARK: - Settings Sync -

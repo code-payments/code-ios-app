@@ -85,9 +85,7 @@ final class ContactSyncController {
             }
         }
         if joinObserverTask == nil {
-            // A peer joining never changes our own uploaded set, so a full
-            // `sync()` would no-op. Re-pull just the matched set so the joiner
-            // reclassifies to "On Flipcash" live.
+            // A peer joining doesn't change our uploaded set, so `sync()` would no-op.
             joinObserverTask = Task.detached { [weak self] in
                 for await _ in NotificationCenter.default.notifications(named: .contactDidJoinReceived) {
                     guard let self else { return }
@@ -192,8 +190,7 @@ final class ContactSyncController {
             )
             switch result {
             case .ok:
-                // A contact may have joined without changing our own checksum,
-                // so re-pull the matched set before resolving.
+                // A contact may have joined without changing our checksum.
                 logger.info("Local set unchanged, server agrees — refreshing matched set")
                 try await refreshFlipcashContacts(checksum: storedChecksum)
                 await resolveDirectory()
