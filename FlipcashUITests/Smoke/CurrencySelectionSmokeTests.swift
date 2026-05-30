@@ -14,6 +14,8 @@ final class CurrencySelectionSmokeTests: BaseUITestCase {
         waitAndTap(app.buttons["Create a New Account"])
         waitAndTap(app.buttons["Wrote the 12 Words Down Instead?"])
         waitAndTap(app.buttons["Yes, I Wrote Them Down"])
+        allowPhoneVerificationIfNeeded()
+        allowContactsIfNeeded()
         allowPushNotificationsIfNeeded()
 
         assertMainScreenReached()
