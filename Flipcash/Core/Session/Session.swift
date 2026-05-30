@@ -920,12 +920,6 @@ class Session {
 
                 updatePostTransaction()
 
-                // Toast: user grabbed cash by scanning a bill (+amount)
-                enqueue(toast: .init(
-                    amount: metadata.exchangedFiat.nativeAmount,
-                    isDeposit: true
-                ))
-
                 showCashBill(.init(
                     kind: .cash,
                     exchangedFiat: metadata.exchangedFiat,
@@ -990,6 +984,14 @@ class Session {
     }
     
     func showCashBill(_ billDescription: BillDescription) {
+        // Only inbound bills enqueue a "+$" deposit toast; sent bills don't.
+        if billDescription.received {
+            enqueue(toast: .init(
+                amount: billDescription.exchangedFiat.nativeAmount,
+                isDeposit: true
+            ))
+        }
+
         let operation = SendCashOperation(
             client: client,
             database: database,
@@ -1443,12 +1445,6 @@ class Session {
                 )
 
                 updatePostTransaction()
-
-                // Toast: user redeemed a cash link (+amount)
-                enqueue(toast: .init(
-                    amount: exchangedFiat.nativeAmount,
-                    isDeposit: true
-                ))
 
                 showCashBill(
                     .init(
