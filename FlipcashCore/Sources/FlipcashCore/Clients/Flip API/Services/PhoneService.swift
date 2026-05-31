@@ -35,7 +35,7 @@ class PhoneService: CodeService<Flipcash_Phone_V1_PhoneVerificationNIOClient> {
             }
 
         } failure: { error in
-            completion(.failure(.unknown))
+            completion(.failure(.from(transportError: error)))
         }
     }
 
@@ -60,7 +60,7 @@ class PhoneService: CodeService<Flipcash_Phone_V1_PhoneVerificationNIOClient> {
             }
 
         } failure: { error in
-            completion(.failure(.unknown))
+            completion(.failure(.from(transportError: error)))
         }
     }
 
@@ -84,14 +84,14 @@ class PhoneService: CodeService<Flipcash_Phone_V1_PhoneVerificationNIOClient> {
             }
 
         } failure: { error in
-            completion(.failure(.unknown))
+            completion(.failure(.from(transportError: error)))
         }
     }
 }
 
 // MARK: - Errors -
 
-public enum ErrorSendVerificationCode: Int, Error {
+public enum ErrorSendVerificationCode: Int, Error, Equatable, Sendable {
     case ok
     case denied
     /// SMS is rate limited (eg. by IP, phone number, user, etc) and was not sent.
@@ -102,9 +102,10 @@ public enum ErrorSendVerificationCode: Int, Error {
     /// like a landline.
     case unsupportedPhoneType
     case unknown = -1
+    case transportFailure = -2
 }
 
-public enum ErrorCheckVerificationCode: Int, Error {
+public enum ErrorCheckVerificationCode: Int, Error, Equatable, Sendable {
     case ok
     case denied
     /// The call is rate limited (eg. by IP, phone number, etc). The code is
@@ -120,18 +121,20 @@ public enum ErrorCheckVerificationCode: Int, Error {
     /// verification using SendVerificationCode.
     case noVerification
     case unknown = -1
+    case transportFailure = -2
 }
 
-public enum ErrorUnlinkPhone: Int, Error {
+public enum ErrorUnlinkPhone: Int, Error, Equatable, Sendable {
     case ok
     case denied
     case unknown = -1
+    case transportFailure = -2
 }
 
 extension ErrorSendVerificationCode: ServerError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .denied, .rateLimited, .invalidPhoneNumber, .unsupportedPhoneType: false
+        case .ok, .denied, .rateLimited, .invalidPhoneNumber, .unsupportedPhoneType, .transportFailure: false
         case .unknown: true
         }
     }
@@ -140,7 +143,7 @@ extension ErrorSendVerificationCode: ServerError {
 extension ErrorCheckVerificationCode: ServerError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .denied, .rateLimited, .invalidCode, .noVerification: false
+        case .ok, .denied, .rateLimited, .invalidCode, .noVerification, .transportFailure: false
         case .unknown: true
         }
     }
@@ -149,9 +152,32 @@ extension ErrorCheckVerificationCode: ServerError {
 extension ErrorUnlinkPhone: ServerError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .denied: false
+        case .ok, .denied, .transportFailure: false
         case .unknown: true
         }
+    }
+}
+
+// MARK: - Transport classification -
+
+extension ErrorSendVerificationCode {
+    /// Maps a gRPC failure status into the error type. Transient network
+    /// conditions (timeout / unavailable) become `.transportFailure`, which is
+    /// non-reportable; every other status preserves `.unknown`.
+    public static func from(transportError: GRPCStatus) -> ErrorSendVerificationCode {
+        transportError.code.isTransientNetworkError ? .transportFailure : .unknown
+    }
+}
+
+extension ErrorCheckVerificationCode {
+    public static func from(transportError: GRPCStatus) -> ErrorCheckVerificationCode {
+        transportError.code.isTransientNetworkError ? .transportFailure : .unknown
+    }
+}
+
+extension ErrorUnlinkPhone {
+    public static func from(transportError: GRPCStatus) -> ErrorUnlinkPhone {
+        transportError.code.isTransientNetworkError ? .transportFailure : .unknown
     }
 }
 
