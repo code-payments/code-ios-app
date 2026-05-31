@@ -8,7 +8,7 @@
 import Foundation
 import FlipcashAPI
 
-public struct Profile: Equatable, Sendable {
+public struct Profile: Codable, Equatable, Sendable {
     
     public static let empty = Profile(
         displayName: nil,

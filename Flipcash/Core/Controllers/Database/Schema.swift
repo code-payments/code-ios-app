@@ -104,6 +104,22 @@ nonisolated struct VerifiedRateTable: Sendable {
     let rateProto  = Expression <Data>   ("rateProto")
 }
 
+nonisolated struct ProfileTable: Sendable {
+    static let name = "profile"
+
+    let table = Table(Self.name)
+    let id    = Expression <Int>  ("id")
+    let data  = Expression <Data> ("data")
+}
+
+nonisolated struct UserFlagsTable: Sendable {
+    static let name = "userFlags"
+
+    let table = Table(Self.name)
+    let id    = Expression <Int>  ("id")
+    let data  = Expression <Data> ("data")
+}
+
 // Verified reserve-state proofs, one per mint.
 nonisolated struct VerifiedReserveTable: Sendable {
     static let name = "verified_reserve"
@@ -231,6 +247,24 @@ nonisolated extension Database {
             try writer.run(verifiedReserveTable.table.create(ifNotExists: true, withoutRowid: true) { t in
                 t.column(verifiedReserveTable.mint, primaryKey: true)
                 t.column(verifiedReserveTable.reserveProto)
+            })
+        }
+
+        let profileTable = ProfileTable()
+
+        try writer.transaction {
+            try writer.run(profileTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                t.column(profileTable.id, primaryKey: true)
+                t.column(profileTable.data)
+            })
+        }
+
+        let userFlagsTable = UserFlagsTable()
+
+        try writer.transaction {
+            try writer.run(userFlagsTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                t.column(userFlagsTable.id, primaryKey: true)
+                t.column(userFlagsTable.data)
             })
         }
 
