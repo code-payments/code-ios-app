@@ -19,6 +19,7 @@ final class MockSession:
     ExternalFundingBuying,
     OnrampBuying,
     CurrencyLaunching,
+    RecipientResolving,
     DirectSending {
 
     // MARK: - Identity
@@ -176,6 +177,20 @@ final class MockSession:
             throw MockSessionError.unimplemented(method: "launchCurrency")
         }
         return try await handler(call)
+    }
+
+    // MARK: - Recipient resolution
+
+    var resolveContactHandler: (@MainActor (String) async throws -> PublicKey)?
+
+    private(set) var resolveContactCalls: [String] = []
+
+    func resolveContact(e164: String) async throws -> PublicKey {
+        resolveContactCalls.append(e164)
+        guard let handler = resolveContactHandler else {
+            throw MockSessionError.unimplemented(method: "resolveContact")
+        }
+        return try await handler(e164)
     }
 
     // MARK: - Direct send

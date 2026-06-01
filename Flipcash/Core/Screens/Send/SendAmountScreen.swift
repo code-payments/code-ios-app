@@ -54,7 +54,16 @@ struct SendAmountScreen: View {
                     subtitle: .balanceWithLimit(maxLimit),
                     actionState: $viewModel.actionState,
                     actionEnabled: { _ in viewModel.canSend },
-                    action: { Task { await viewModel.sendAction() } },
+                    action: {
+                        Task {
+                            switch await viewModel.sendAction() {
+                            case .stay:
+                                break
+                            case .recipientNotFound:
+                                router.popTopmost()
+                            }
+                        }
+                    },
                     currencySelectionAction: { isShowingCurrencySelection.toggle() }
                 )
                 .foregroundStyle(.textMain)
@@ -92,11 +101,6 @@ struct SendAmountScreen: View {
             try? await Task.sleep(for: .seconds(2.5))
             guard !Task.isCancelled else { return }
             router.dismissSheet()
-        }
-        .task {
-            await viewModel.resolveRecipient()
-            guard !Task.isCancelled else { return }
-            if case .failed = viewModel.recipientState { router.popTopmost() }
         }
         .sheet(isPresented: $isShowingTokenSelection) {
             SelectCurrencyScreen(isPresented: $isShowingTokenSelection) { balance in
