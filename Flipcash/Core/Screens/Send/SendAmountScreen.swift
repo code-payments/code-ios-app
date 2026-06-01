@@ -7,6 +7,10 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
+/// Thrown to reset the SwipeControl knob without its success checkmark when a
+/// send doesn't complete (errors stay put; not-found has already popped).
+private struct SendDismissed: Error {}
+
 struct SendAmountScreen: View {
 
     @Environment(Session.self) private var session
@@ -16,6 +20,7 @@ struct SendAmountScreen: View {
     @State private var viewModel: SendAmountViewModel
     @State private var isShowingCurrencySelection: Bool = false
     @State private var isShowingTokenSelection: Bool = false
+    @State private var didSucceed: Bool = false
 
     private var maxLimit: ExchangedFiat {
         let rate = ratesController.rateForBalanceCurrency()
@@ -46,38 +51,31 @@ struct SendAmountScreen: View {
 
     var body: some View {
         Background(color: .backgroundMain) {
-            switch viewModel.state {
-            case .ready, .submitting:
-                EnterAmountView(
-                    mode: .currency,
-                    enteredAmount: $viewModel.enteredAmount,
-                    subtitle: .balanceWithLimit(maxLimit),
-                    actionState: $viewModel.actionState,
-                    actionEnabled: { _ in viewModel.canSend },
-                    action: {
-                        Task {
-                            switch await viewModel.sendAction() {
-                            case .stay:
-                                break
-                            case .recipientNotFound:
-                                router.popTopmost()
-                            }
-                        }
-                    },
-                    currencySelectionAction: { isShowingCurrencySelection.toggle() }
-                )
-                .foregroundStyle(.textMain)
-                .padding(.horizontal, 20)
-                .padding(.bottom, 20)
-                .padding(.top, -40)
-                .sheet(isPresented: $isShowingCurrencySelection) {
-                    CurrencySelectionScreen(ratesController: ratesController)
+            EnterAmountView(
+                mode: .currency,
+                enteredAmount: $viewModel.enteredAmount,
+                subtitle: .balanceWithLimit(maxLimit),
+                actionEnabled: { _ in viewModel.canSend },
+                currencySelectionAction: { isShowingCurrencySelection.toggle() }
+            ) {
+                SwipeControl(text: "Swipe to Send") {
+                    switch await viewModel.sendAction() {
+                    case .success:
+                        didSucceed = true
+                    case .recipientNotFound:
+                        router.popTopmost()
+                        throw SendDismissed()
+                    case .failed:
+                        throw SendDismissed()
+                    }
                 }
-            case .succeeded(let amount):
-                SendSuccessView(
-                    amount: amount,
-                    recipientDisplayName: viewModel.recipientDisplayName
-                )
+            }
+            .foregroundStyle(.textMain)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 20)
+            .padding(.top, -40)
+            .sheet(isPresented: $isShowingCurrencySelection) {
+                CurrencySelectionScreen(ratesController: ratesController)
             }
         }
         .ignoresSafeArea(.keyboard)
@@ -96,11 +94,14 @@ struct SendAmountScreen: View {
             viewModel.depositMint = nil
             router.push(.currencyInfoForDeposit(mint))
         }
-        .task(id: viewModel.state) {
-            guard case .succeeded = viewModel.state else { return }
-            try? await Task.sleep(for: .seconds(2.5))
+        // Hold the success checkmark briefly, then return to the contact list.
+        // Tied to the view via `.task` so a dismissal during the hold cancels
+        // the pop instead of firing it on a screen that's already gone.
+        .task(id: didSucceed) {
+            guard didSucceed else { return }
+            try? await Task.delay(seconds: 1)
             guard !Task.isCancelled else { return }
-            router.dismissSheet()
+            router.popTopmost()
         }
         .sheet(isPresented: $isShowingTokenSelection) {
             SelectCurrencyScreen(isPresented: $isShowingTokenSelection) { balance in
@@ -131,35 +132,5 @@ private struct TokenSelectorButton: View {
                     .foregroundStyle(.textMain)
             }
         }
-    }
-}
-
-// MARK: - Success view -
-
-private struct SendSuccessView: View {
-
-    let amount: ExchangedFiat
-    let recipientDisplayName: String?
-
-    var body: some View {
-        VStack(spacing: 16) {
-            Image.system(.circleCheck)
-                .font(.default(size: 64, weight: .regular))
-                .foregroundStyle(.textMain)
-
-            VStack(spacing: 8) {
-                Text("Sent \(amount.nativeAmount.formatted())")
-                    .font(.appDisplaySmall)
-                    .foregroundStyle(.textMain)
-                    .multilineTextAlignment(.center)
-
-                if let recipientDisplayName {
-                    Text("to \(recipientDisplayName)")
-                        .font(.appTextMedium)
-                        .foregroundStyle(.textSecondary)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
