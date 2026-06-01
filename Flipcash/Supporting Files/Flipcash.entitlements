@@ -11,5 +11,7 @@
 		<string>applinks:jump.flipcash.com</string>
 		<string>webcredentials:send.flipcash.com</string>
 	</array>
+	<key>com.apple.developer.usernotifications.communication</key>
+	<true/>
 </dict>
 </plist>
