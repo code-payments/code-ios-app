@@ -18,30 +18,38 @@ final class SendAmountViewModel {
         case succeeded(amount: ExchangedFiat)
     }
 
-    enum RecipientState: Equatable {
-        case resolving
-        case resolved(PublicKey)
-        case failed
+    /// What the screen should do after a send attempt. Success (auto-dismisses
+    /// via `state`) and errors (`session.dialogItem`) are surfaced internally;
+    /// only `.recipientNotFound` requires the screen to navigate.
+    enum SendOutcome: Equatable {
+        case stay
+        case recipientNotFound
     }
 
     var enteredAmount: String = ""
     var actionState: ButtonState = .normal
     var state: State = .ready
-    var recipientState: RecipientState = .resolving
 
     var depositMint: PublicKey?
 
     @ObservationIgnored let session: Session
     @ObservationIgnored let ratesController: RatesController
     @ObservationIgnored let sender: any DirectSending
+    @ObservationIgnored let resolver: any RecipientResolving
     @ObservationIgnored let contact: ResolvedContact
 
     private(set) var selectedBalance: ExchangedBalance?
 
+    /// Cached after the first successful resolve so a retried send (e.g. after a
+    /// transient send failure) skips the round-trip.
+    private var resolvedRecipient: PublicKey?
+
     var recipientDisplayName: String? { contact.displayName }
 
+    /// Amount validity only — never gated on the recipient. A red subtitle in
+    /// `EnterAmountView` (driven by `!canSend`) therefore means over-limit, not
+    /// "recipient unresolved"; resolution happens on the Send tap instead.
     var canSend: Bool {
-        guard case .resolved = recipientState else { return false }
         guard let enteredFiat else { return false }
         return enteredFiat.onChainAmount.quarks > 0
     }
@@ -87,7 +95,8 @@ final class SendAmountViewModel {
         sessionContainer: SessionContainer,
         contact: ResolvedContact,
         mint: PublicKey? = nil,
-        sender: (any DirectSending)? = nil
+        sender: (any DirectSending)? = nil,
+        resolver: (any RecipientResolving)? = nil
     ) {
         let session          = sessionContainer.session
         let ratesController  = sessionContainer.ratesController
@@ -100,6 +109,7 @@ final class SendAmountViewModel {
         self.session         = session
         self.ratesController = ratesController
         self.sender          = sender ?? session
+        self.resolver        = resolver ?? session
         self.contact         = contact
         self.selectedBalance = resolved
 
@@ -131,16 +141,42 @@ final class SendAmountViewModel {
 
     // MARK: - Action -
 
-    func sendAction() async {
-        guard case .ready = state else { return }
-        guard case .resolved(let recipient) = recipientState else { return }
-        guard let exchangedFiat = enteredFiat else { return }
+    /// Validates the amount locally, resolves the recipient on the Send tap
+    /// (retrying a transient network failure), then submits. Returns what the
+    /// screen should do next — only `.recipientNotFound` requires navigation.
+    @discardableResult
+    func sendAction() async -> SendOutcome {
+        guard case .ready = state else { return .stay }
+        guard let exchangedFiat = enteredFiat else { return .stay }
 
-        let result = session.hasSufficientFunds(for: exchangedFiat)
-        switch result {
+        switch session.hasSufficientFunds(for: exchangedFiat) {
+        case .insufficient(let shortfall):
+            if let shortfall {
+                showYoureShortError(amount: shortfall)
+            } else {
+                showInsufficientBalanceError()
+            }
+            return .stay
+
         case .sufficient:
             state = .submitting
             actionState = .loading
+
+            let recipient: PublicKey
+            switch await resolveRecipient() {
+            case .resolved(let owner):
+                recipient = owner
+            case .notFound:
+                state = .ready
+                actionState = .normal
+                showRecipientNotFoundError()
+                return .recipientNotFound
+            case .failed:
+                state = .ready
+                actionState = .normal
+                showResolveFailedError()
+                return .stay
+            }
 
             guard let (amountToSend, pinnedState) = await prepareSubmission() else {
                 state = .ready
@@ -149,7 +185,7 @@ final class SendAmountViewModel {
                     title: "Rate Unavailable",
                     subtitle: "Couldn't get a fresh rate. Please try again."
                 )
-                return
+                return .stay
             }
 
             let sendLimit = session.sendLimitFor(currency: amountToSend.nativeAmount.currency) ?? .zero
@@ -162,7 +198,7 @@ final class SendAmountViewModel {
                 state = .ready
                 actionState = .normal
                 showLimitsError()
-                return
+                return .stay
             }
 
             do {
@@ -179,39 +215,11 @@ final class SendAmountViewModel {
                 actionState = .normal
                 showSendError()
             }
-
-        case .insufficient(let shortfall):
-            if let shortfall {
-                showYoureShortError(amount: shortfall)
-            } else {
-                showInsufficientBalanceError()
-            }
+            return .stay
         }
     }
 
     // MARK: - Recipient resolution -
-
-    /// `resolveContact` isn't cancellation-aware — the guard drops a stale commit after dismissal.
-    func resolveRecipient() async {
-        let resolution = await fetchRecipient()
-        guard !Task.isCancelled else { return }
-        switch resolution {
-        case .resolved(let recipient):
-            Analytics.track(event: Analytics.SendEvent.resolveSuccess)
-            recipientState = .resolved(recipient)
-        case .notFound:
-            Analytics.track(event: Analytics.SendEvent.resolveNotFound)
-            logger.info("Resolve returned NOT_FOUND", metadata: ["contactId": "\(contact.contactId)"])
-            recipientState = .failed
-            showUnreachableRecipientError()
-        case .failed(let error):
-            Analytics.track(event: Analytics.SendEvent.resolveError)
-            logger.error("Resolve failed", metadata: ["contactId": "\(contact.contactId)", "error": "\(error)"])
-            ErrorReporting.captureError(error, reason: "Contact resolve failed")
-            recipientState = .failed
-            showUnreachableRecipientError()
-        }
-    }
 
     private enum RecipientResolution {
         case resolved(PublicKey)
@@ -219,28 +227,33 @@ final class SendAmountViewModel {
         case failed(Error)
     }
 
-    /// UI-free so the caller commits behind a single cancellation check.
-    private func fetchRecipient() async -> RecipientResolution {
+    /// Resolves the recipient, retrying once on a transient network error, and
+    /// records resolve telemetry. A successful resolution is cached so a
+    /// retried send skips the round-trip (and isn't re-counted).
+    private func resolveRecipient() async -> RecipientResolution {
+        if let resolvedRecipient {
+            return .resolved(resolvedRecipient)
+        }
         for attempt in 0..<2 {
             do {
-                if let recipient = try await session.resolveContact(e164: contact.phoneE164) {
-                    return .resolved(recipient)
-                }
+                let owner = try await resolver.resolveContact(e164: contact.phoneE164)
+                Analytics.track(event: Analytics.SendEvent.resolveSuccess)
+                resolvedRecipient = owner
+                return .resolved(owner)
+            } catch ErrorResolve.notFound {
+                Analytics.track(event: Analytics.SendEvent.resolveNotFound)
+                logger.info("Recipient not on Flipcash", metadata: ["contactId": "\(contact.contactId)"])
                 return .notFound
             } catch ErrorResolve.networkError where attempt == 0 {
                 continue
             } catch {
+                Analytics.track(event: Analytics.SendEvent.resolveError)
+                logger.error("Recipient resolve failed", metadata: ["contactId": "\(contact.contactId)", "error": "\(error)"])
+                ErrorReporting.captureError(error, reason: "Contact resolve failed")
                 return .failed(error)
             }
         }
         return .failed(ErrorResolve.networkError)
-    }
-
-    private func showUnreachableRecipientError() {
-        session.dialogItem = .error(
-            title: "Couldn't Send",
-            subtitle: "We can't reach this contact right now. Please try again."
-        )
     }
 
     /// Returns nil when no fresh pin is cached; otherwise the amount + pin
@@ -330,6 +343,20 @@ final class SendAmountViewModel {
         session.dialogItem = .error(
             title: "Couldn't Send",
             subtitle: "We couldn't complete the transfer. Please try again."
+        )
+    }
+
+    private func showRecipientNotFoundError() {
+        session.dialogItem = .error(
+            title: "Not on Flipcash",
+            subtitle: "This contact isn't on Flipcash. Pick someone else to send cash."
+        )
+    }
+
+    private func showResolveFailedError() {
+        session.dialogItem = .error(
+            title: "Couldn't Send",
+            subtitle: "We couldn't reach the network. Please try again."
         )
     }
 }
