@@ -38,4 +38,23 @@ extension UnaryCall {
             }
         }
     }
+
+    /// Unary `handle` that produces a `Result` and classifies transport
+    /// failures centrally: `transform` maps a successful response to a domain
+    /// `Result`; gRPC transport failures are routed through
+    /// `Failure.from(transportError:)`, so call sites never hand-map a timeout
+    /// to a reportable `.unknown`. The `Failure: TransportClassifiableError`
+    /// constraint makes that wiring compile-enforced for every adopter.
+    func handle<Success, Failure: TransportClassifiableError>(
+        on queue: DispatchQueue,
+        function: String = #function,
+        completion: @Sendable @escaping (Result<Success, Failure>) -> Void,
+        transform: @Sendable @escaping (ResponsePayload) -> Result<Success, Failure>
+    ) {
+        handle(on: queue, function: function) { response in
+            completion(transform(response))
+        } failure: { status in
+            completion(.failure(.from(transportError: status)))
+        }
+    }
 }

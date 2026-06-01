@@ -173,7 +173,7 @@ extension ErrorFetchBalance: ServerError {
     }
 }
 
-extension ErrorFetchBalance {
+extension ErrorFetchBalance: TransportClassifiableError {
     /// Classifies a gRPC failure status. Transient network conditions
     /// (per `GRPCStatus.Code.isTransientNetworkError`) map to
     /// `.transportFailure` so callers don't ship cold-resume noise to
