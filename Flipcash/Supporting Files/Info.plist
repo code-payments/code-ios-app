@@ -15,6 +15,10 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSUserActivityTypes</key>
+	<array>
+		<string>INSendMessageIntent</string>
+	</array>
 	<key>SQLiteVersion</key>
 	<integer>13</integer>
 	<key>UIApplicationShortcutItems</key>
