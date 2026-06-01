@@ -478,6 +478,40 @@ struct GiveViewModelTests {
         #expect(container.ratesController.selectedTokenMint == .jeffy)
     }
 
+    @Test("Init with no mint and no prior selection skips USDF and auto-selects a giveable currency")
+    func testInit_NoMint_NoSelection_SkipsUSDF() throws {
+        let container = try SessionContainer.makeTest(holdings: [
+            .init(mint: .usdf, quarks: 100_000_000_000), // $100k USDF — sorts first
+            .init(
+                mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: 10_000 * 10_000_000_000),
+                quarks: 1_000_000_000_000
+            ),
+        ])
+        container.ratesController.selectedTokenMint = nil
+
+        let viewModel = GiveViewModel(container: .mock, sessionContainer: container, mint: nil)
+
+        #expect(viewModel.selectedBalance?.stored.mint == .jeffy)
+        #expect(container.ratesController.selectedTokenMint == .jeffy)
+    }
+
+    @Test("Init with a stale USDF global selection still resolves to a giveable currency")
+    func testInit_NoMint_StaleUSDFSelection_SkipsUSDF() throws {
+        let container = try SessionContainer.makeTest(holdings: [
+            .init(mint: .usdf, quarks: 100_000_000_000),
+            .init(
+                mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: 10_000 * 10_000_000_000),
+                quarks: 1_000_000_000_000
+            ),
+        ])
+        container.ratesController.selectToken(.usdf)
+
+        let viewModel = GiveViewModel(container: .mock, sessionContainer: container, mint: nil)
+
+        #expect(viewModel.selectedBalance?.stored.mint == .jeffy)
+        #expect(container.ratesController.selectedTokenMint == .jeffy)
+    }
+
     // MARK: - Over-balance (insufficient funds)
 
     @Test("Over-balance bonded entry fires 'Short' dialog with a real shortfall")

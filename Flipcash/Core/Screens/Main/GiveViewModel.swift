@@ -36,7 +36,7 @@ final class GiveViewModel {
             return nil
         }
 
-        guard let amount = NumberFormatter.decimal(from: enteredAmount), amount > 0 else {
+        guard let amount = Decimal(string: enteredAmount), amount > 0 else {
             return nil
         }
 
@@ -94,7 +94,7 @@ final class GiveViewModel {
     init(container: Container, sessionContainer: SessionContainer, mint: PublicKey?) {
         let session          = sessionContainer.session
         let ratesController  = sessionContainer.ratesController
-        let resolved         = Self.resolveInitialBalance(
+        let resolved         = CurrencySelection.resolveInitialBalance(
             mint: mint,
             session: session,
             ratesController: ratesController
@@ -109,32 +109,6 @@ final class GiveViewModel {
         if let resolved, ratesController.selectedTokenMint != resolved.stored.mint {
             ratesController.selectToken(resolved.stored.mint)
         }
-    }
-
-    /// Caller's `mint` wins; otherwise prefer the stored selection, then the
-    /// highest-value giveable balance. The two-tier fallback exists because
-    /// `RatesController.selectedTokenMint` is a *global* selector and may
-    /// point to `.usdf` or to a sub-threshold balance that no longer appears
-    /// in `Session.balances(for:)`.
-    private static func resolveInitialBalance(
-        mint: PublicKey?,
-        session: Session,
-        ratesController: RatesController
-    ) -> ExchangedBalance? {
-        let rate = ratesController.rateForBalanceCurrency()
-
-        if let mint, let stored = session.balance(for: mint) {
-            return ExchangedBalance(stored: stored, exchangedFiat: stored.computeExchangedValue(with: rate))
-        }
-
-        let giveable = session.balances(for: rate).filter { $0.stored.mint != .usdf }
-
-        if let stored = ratesController.selectedTokenMint,
-           let match = giveable.first(where: { $0.stored.mint == stored }) {
-            return match
-        }
-
-        return giveable.first
     }
 
     // MARK: - Action -
@@ -199,7 +173,7 @@ final class GiveViewModel {
         ) else { return nil }
 
         guard !enteredAmount.isEmpty,
-              let entered = NumberFormatter.decimal(from: enteredAmount),
+              let entered = Decimal(string: enteredAmount),
               entered > 0 else { return nil }
 
         guard let pinnedSupply = pin.supplyFromBonding else { return nil }
