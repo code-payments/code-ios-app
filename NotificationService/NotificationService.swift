@@ -16,15 +16,13 @@ import FlipcashAPI
 ///
 /// Phone-to-contact resolution happens on-device. The server sends only E.164s
 /// and substitution placeholders; the extension queries `CNContactStore`
-/// directly with each phone and applies positional substitutions. The name
-/// style — full name or given name only — is chosen by the push category.
+/// directly with each phone and applies positional substitutions.
 final class NotificationService: UNNotificationServiceExtension {
 
     /// A contact matched from a push's phone number, carrying the data needed to
     /// substitute its name and render its avatar.
     private struct ResolvedContact {
-        let substitutionName: String
-        let fullName: String
+        let name: String
         let nameComponents: PersonNameComponents
         let thumbnailImageData: Data?
         let phone: String
@@ -53,18 +51,16 @@ final class NotificationService: UNNotificationServiceExtension {
             return
         }
 
-        let style = payload.category.nameStyle
-
-        let titleResolutions = payload.titleSubstitutions.map { resolve($0.contact, style: style) }
-        let bodyResolutions = payload.bodySubstitutions.map { resolve($0.contact, style: style) }
+        let titleResolutions = payload.titleSubstitutions.map { resolve($0.contact) }
+        let bodyResolutions = payload.bodySubstitutions.map { resolve($0.contact) }
 
         bestAttemptContent.title = SubstitutionApplier.apply(
             template: bestAttemptContent.title,
-            resolutions: titleResolutions.map { $0?.substitutionName }
+            resolutions: titleResolutions.map { $0?.name }
         )
         bestAttemptContent.body = SubstitutionApplier.apply(
             template: bestAttemptContent.body,
-            resolutions: bodyResolutions.map { $0?.substitutionName }
+            resolutions: bodyResolutions.map { $0?.name }
         )
         bestAttemptContent.threadIdentifier = payload.groupKey
 
@@ -91,10 +87,7 @@ final class NotificationService: UNNotificationServiceExtension {
 
     /// Returns the contact matching `phone`, or `nil` if no contact matches, the
     /// contact has no usable name, or Contacts permission is unavailable.
-    private func resolve(
-        _ phone: Flipcash_Phone_V1_PhoneNumber,
-        style: NotificationNameStyle
-    ) -> ResolvedContact? {
+    private func resolve(_ phone: Flipcash_Phone_V1_PhoneNumber) -> ResolvedContact? {
         let predicate = CNContact.predicateForContacts(
             matching: CNPhoneNumber(stringValue: phone.value)
         )
@@ -106,18 +99,10 @@ final class NotificationService: UNNotificationServiceExtension {
         ]
         guard
             let contact = try? contactStore.unifiedContacts(matching: predicate, keysToFetch: keys).first,
-            let fullName = CNContactFormatter.string(from: contact, style: .fullName),
-            !fullName.isEmpty
+            let name = CNContactFormatter.string(from: contact, style: .fullName),
+            !name.isEmpty
         else {
             return nil
-        }
-
-        let substitutionName: String
-        switch style {
-        case .full:
-            substitutionName = fullName
-        case .firstOnly:
-            substitutionName = contact.givenName.isEmpty ? fullName : contact.givenName
         }
 
         var nameComponents = PersonNameComponents()
@@ -125,8 +110,7 @@ final class NotificationService: UNNotificationServiceExtension {
         nameComponents.familyName = contact.familyName
 
         return ResolvedContact(
-            substitutionName: substitutionName,
-            fullName: fullName,
+            name: name,
             nameComponents: nameComponents,
             thumbnailImageData: contact.thumbnailImageData,
             phone: phone.value,
@@ -147,7 +131,7 @@ final class NotificationService: UNNotificationServiceExtension {
         let person = INPerson(
             personHandle: handle,
             nameComponents: sender.nameComponents,
-            displayName: sender.fullName,
+            displayName: sender.name,
             image: image,
             contactIdentifier: sender.contactIdentifier,
             customIdentifier: nil
