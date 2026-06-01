@@ -29,7 +29,10 @@ class AccountService: CodeService<Flipcash_Account_V1_AccountNIOClient> {
                 logger.error("Failed to register account", metadata: ["owner": "\(owner.publicKey.base58)"])
                 return .failure(error)
             }
-            let userID = try! UUID(data: response.userID.value)
+            guard let userID = try? UUID(data: response.userID.value) else {
+                logger.error("Registered account returned an unparseable user ID", metadata: ["owner": "\(owner.publicKey.base58)"])
+                return .failure(.unknown)
+            }
             logger.info("Account registered successfully")
             return .success(userID)
         }
@@ -50,7 +53,10 @@ class AccountService: CodeService<Flipcash_Account_V1_AccountNIOClient> {
                 logger.error("Failed to login", metadata: ["owner": "\(owner.publicKey.base58)"])
                 return .failure(error)
             }
-            let userID = try! UUID(data: response.userID.value)
+            guard let userID = try? UUID(data: response.userID.value) else {
+                logger.error("Login returned an unparseable user ID", metadata: ["owner": "\(owner.publicKey.base58)"])
+                return .failure(.unknown)
+            }
             logger.info("Login succeeded")
             return .success(userID)
         }
