@@ -42,7 +42,7 @@ class SettingsService: CodeService<Flipcash_Settings_V1_SettingsNIOClient> {
 
 // MARK: - Errors -
 
-public enum ErrorUpdateSettings: Int, Error, Equatable, Sendable {
+public enum ErrorUpdateSettings: Int, Error {
     case ok
     case denied
     case invalidLocale
@@ -51,18 +51,12 @@ public enum ErrorUpdateSettings: Int, Error, Equatable, Sendable {
     case transportFailure = -2
 }
 
-extension ErrorUpdateSettings: ServerError {
+extension ErrorUpdateSettings: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
         case .ok, .denied, .invalidLocale, .invalidRegion, .transportFailure: false
         case .unknown: true
         }
-    }
-}
-
-extension ErrorUpdateSettings: TransportClassifiableError {
-    public static func from(transportError status: GRPCStatus) -> ErrorUpdateSettings {
-        status.code.isTransientNetworkError ? .transportFailure : .unknown
     }
 }
 

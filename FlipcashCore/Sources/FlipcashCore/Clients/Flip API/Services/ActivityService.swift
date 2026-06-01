@@ -83,14 +83,14 @@ class ActivityService: CodeService<Flipcash_Activity_V1_ActivityFeedNIOClient> {
 
 // MARK: - Errors -
 
-public enum ErrorFetchTransactionHistory: Int, Error, Equatable, Sendable {
+public enum ErrorFetchTransactionHistory: Int, Error {
     case ok
     case denied
     case unknown          = -1
     case transportFailure = -2
 }
 
-public enum ErrorFetchTransactionHistoryItemsByID: Int, Error, Equatable, Sendable {
+public enum ErrorFetchTransactionHistoryItemsByID: Int, Error {
     case ok
     case denied
     case notFound
@@ -98,7 +98,7 @@ public enum ErrorFetchTransactionHistoryItemsByID: Int, Error, Equatable, Sendab
     case transportFailure = -2
 }
 
-extension ErrorFetchTransactionHistory: ServerError {
+extension ErrorFetchTransactionHistory: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
         case .ok, .denied, .transportFailure: false
@@ -107,24 +107,12 @@ extension ErrorFetchTransactionHistory: ServerError {
     }
 }
 
-extension ErrorFetchTransactionHistory: TransportClassifiableError {
-    public static func from(transportError status: GRPCStatus) -> ErrorFetchTransactionHistory {
-        status.code.isTransientNetworkError ? .transportFailure : .unknown
-    }
-}
-
-extension ErrorFetchTransactionHistoryItemsByID: ServerError {
+extension ErrorFetchTransactionHistoryItemsByID: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
         case .ok, .denied, .notFound, .transportFailure: false
         case .unknown: true
         }
-    }
-}
-
-extension ErrorFetchTransactionHistoryItemsByID: TransportClassifiableError {
-    public static func from(transportError status: GRPCStatus) -> ErrorFetchTransactionHistoryItemsByID {
-        status.code.isTransientNetworkError ? .transportFailure : .unknown
     }
 }
 

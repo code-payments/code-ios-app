@@ -112,7 +112,7 @@ class AccountService: CodeService<Flipcash_Account_V1_AccountNIOClient> {
 
 // MARK: - Errors -
 
-public enum ErrorRegisterAccount: Int, Error, Equatable, Sendable {
+public enum ErrorRegisterAccount: Int, Error {
     case ok
     case invalidSignature
     case denied
@@ -120,7 +120,7 @@ public enum ErrorRegisterAccount: Int, Error, Equatable, Sendable {
     case transportFailure = -2
 }
 
-public enum ErrorLoginAccount: Int, Error, Equatable, Sendable {
+public enum ErrorLoginAccount: Int, Error {
     case ok
     case invalidTimestamp
     case denied
@@ -128,20 +128,20 @@ public enum ErrorLoginAccount: Int, Error, Equatable, Sendable {
     case transportFailure = -2
 }
 
-public enum ErrorFetchUserFlags: Int, Error, Equatable, Sendable {
+public enum ErrorFetchUserFlags: Int, Error {
     case ok
     case denied
     case unknown          = -1
     case transportFailure = -2
 }
 
-public enum ErrorFetchUnauthenticatedUserFlags: Int, Error, Equatable, Sendable {
+public enum ErrorFetchUnauthenticatedUserFlags: Int, Error {
     case ok
     case unknown          = -1
     case transportFailure = -2
 }
 
-extension ErrorRegisterAccount: ServerError {
+extension ErrorRegisterAccount: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
         case .ok, .invalidSignature, .denied, .transportFailure: false
@@ -150,13 +150,7 @@ extension ErrorRegisterAccount: ServerError {
     }
 }
 
-extension ErrorRegisterAccount: TransportClassifiableError {
-    public static func from(transportError status: GRPCStatus) -> ErrorRegisterAccount {
-        status.code.isTransientNetworkError ? .transportFailure : .unknown
-    }
-}
-
-extension ErrorLoginAccount: ServerError {
+extension ErrorLoginAccount: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
         case .ok, .invalidTimestamp, .denied, .transportFailure: false
@@ -165,13 +159,7 @@ extension ErrorLoginAccount: ServerError {
     }
 }
 
-extension ErrorLoginAccount: TransportClassifiableError {
-    public static func from(transportError status: GRPCStatus) -> ErrorLoginAccount {
-        status.code.isTransientNetworkError ? .transportFailure : .unknown
-    }
-}
-
-extension ErrorFetchUserFlags: ServerError {
+extension ErrorFetchUserFlags: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
         case .ok, .denied, .transportFailure: false
@@ -180,24 +168,12 @@ extension ErrorFetchUserFlags: ServerError {
     }
 }
 
-extension ErrorFetchUserFlags: TransportClassifiableError {
-    public static func from(transportError status: GRPCStatus) -> ErrorFetchUserFlags {
-        status.code.isTransientNetworkError ? .transportFailure : .unknown
-    }
-}
-
-extension ErrorFetchUnauthenticatedUserFlags: ServerError {
+extension ErrorFetchUnauthenticatedUserFlags: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
         case .ok, .transportFailure: false
         case .unknown: true
         }
-    }
-}
-
-extension ErrorFetchUnauthenticatedUserFlags: TransportClassifiableError {
-    public static func from(transportError status: GRPCStatus) -> ErrorFetchUnauthenticatedUserFlags {
-        status.code.isTransientNetworkError ? .transportFailure : .unknown
     }
 }
 

@@ -46,7 +46,7 @@ class ThirdPartyService: CodeService<Flipcash_Thirdparty_V1_ThirdPartyNIOClient>
 
 // MARK: - Errors -
 
-public enum ErrorFetchJWT: Int, Error, Equatable, Sendable {
+public enum ErrorFetchJWT: Int, Error {
     case ok
     case denied
     case unsupportedProvider
@@ -57,18 +57,12 @@ public enum ErrorFetchJWT: Int, Error, Equatable, Sendable {
     case transportFailure = -2
 }
 
-extension ErrorFetchJWT: ServerError {
+extension ErrorFetchJWT: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
         case .ok, .denied, .unsupportedProvider, .invalidApiKey, .phoneVerificationRequired, .emailVerificationRequired, .transportFailure: false
         case .unknown: true
         }
-    }
-}
-
-extension ErrorFetchJWT: TransportClassifiableError {
-    public static func from(transportError status: GRPCStatus) -> ErrorFetchJWT {
-        status.code.isTransientNetworkError ? .transportFailure : .unknown
     }
 }
 

@@ -209,7 +209,7 @@ public struct HistoricalMintDataPoint: Sendable {
 
 // MARK: - Errors -
 
-public enum ErrorRateHistory: Int, Error, Equatable, Sendable {
+public enum ErrorRateHistory: Int, Error {
     case ok
     case notFound
     case unknown          = -1
@@ -224,18 +224,12 @@ public enum ErrorLaunchCurrency: Error, Sendable {
     case network(Error)
 }
 
-extension ErrorRateHistory: ServerError {
+extension ErrorRateHistory: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
         case .ok, .notFound, .transportFailure: false
         case .unknown: true
         }
-    }
-}
-
-extension ErrorRateHistory: TransportClassifiableError {
-    public static func from(transportError status: GRPCStatus) -> ErrorRateHistory {
-        status.code.isTransientNetworkError ? .transportFailure : .unknown
     }
 }
 

@@ -62,20 +62,20 @@ class PushService: CodeService<Flipcash_Push_V1_PushNIOClient> {
 
 // MARK: - Errors -
 
-public enum ErrorAddToken: Int, Error, Equatable, Sendable {
+public enum ErrorAddToken: Int, Error {
     case ok
     case invalidPushToken
     case unknown          = -1
     case transportFailure = -2
 }
 
-public enum ErrorDeleteToken: Int, Error, Equatable, Sendable {
+public enum ErrorDeleteToken: Int, Error {
     case ok
     case unknown          = -1
     case transportFailure = -2
 }
 
-extension ErrorAddToken: ServerError {
+extension ErrorAddToken: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
         case .ok, .invalidPushToken, .transportFailure: false
@@ -84,24 +84,12 @@ extension ErrorAddToken: ServerError {
     }
 }
 
-extension ErrorAddToken: TransportClassifiableError {
-    public static func from(transportError status: GRPCStatus) -> ErrorAddToken {
-        status.code.isTransientNetworkError ? .transportFailure : .unknown
-    }
-}
-
-extension ErrorDeleteToken: ServerError {
+extension ErrorDeleteToken: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
         case .ok, .transportFailure: false
         case .unknown: true
         }
-    }
-}
-
-extension ErrorDeleteToken: TransportClassifiableError {
-    public static func from(transportError status: GRPCStatus) -> ErrorDeleteToken {
-        status.code.isTransientNetworkError ? .transportFailure : .unknown
     }
 }
 

@@ -119,7 +119,7 @@ public enum ErrorUnlinkPhone: Int, Error, Equatable, Sendable {
     case transportFailure = -2
 }
 
-extension ErrorSendVerificationCode: ServerError {
+extension ErrorSendVerificationCode: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
         case .ok, .denied, .rateLimited, .invalidPhoneNumber, .unsupportedPhoneType, .transportFailure: false
@@ -128,7 +128,7 @@ extension ErrorSendVerificationCode: ServerError {
     }
 }
 
-extension ErrorCheckVerificationCode: ServerError {
+extension ErrorCheckVerificationCode: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
         case .ok, .denied, .rateLimited, .invalidCode, .noVerification, .transportFailure: false
@@ -137,30 +137,12 @@ extension ErrorCheckVerificationCode: ServerError {
     }
 }
 
-extension ErrorUnlinkPhone: ServerError {
+extension ErrorUnlinkPhone: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
         case .ok, .denied, .transportFailure: false
         case .unknown: true
         }
-    }
-}
-
-extension ErrorSendVerificationCode: TransportClassifiableError {
-    public static func from(transportError status: GRPCStatus) -> ErrorSendVerificationCode {
-        status.code.isTransientNetworkError ? .transportFailure : .unknown
-    }
-}
-
-extension ErrorCheckVerificationCode: TransportClassifiableError {
-    public static func from(transportError status: GRPCStatus) -> ErrorCheckVerificationCode {
-        status.code.isTransientNetworkError ? .transportFailure : .unknown
-    }
-}
-
-extension ErrorUnlinkPhone: TransportClassifiableError {
-    public static func from(transportError status: GRPCStatus) -> ErrorUnlinkPhone {
-        status.code.isTransientNetworkError ? .transportFailure : .unknown
     }
 }
 

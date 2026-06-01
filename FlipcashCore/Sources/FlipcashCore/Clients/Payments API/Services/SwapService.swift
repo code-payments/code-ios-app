@@ -622,7 +622,7 @@ public enum ErrorSwap: Error, CustomStringConvertible, CustomDebugStringConverti
     }
 }
 
-public enum ErrorGetSwap: Int, Error, Equatable, Sendable {
+public enum ErrorGetSwap: Int, Error {
     case ok
     case notFound
     case denied
@@ -642,17 +642,11 @@ extension ErrorSwap: ServerError {
     }
 }
 
-extension ErrorGetSwap: ServerError {
+extension ErrorGetSwap: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
         case .ok, .notFound, .denied, .transportFailure: false
         case .unknown, .failedToParse: true
         }
-    }
-}
-
-extension ErrorGetSwap: TransportClassifiableError {
-    public static func from(transportError status: GRPCStatus) -> ErrorGetSwap {
-        status.code.isTransientNetworkError ? .transportFailure : .unknown
     }
 }

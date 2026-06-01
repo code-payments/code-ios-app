@@ -51,29 +51,19 @@ class ProfileService: CodeService<Flipcash_Profile_V1_ProfileNIOClient> {
 
 // MARK: - Errors -
 
-public enum ErrorFetchProfile: Int, Error, Equatable, Sendable {
+public enum ErrorFetchProfile: Int, Error {
     case ok
     case notFound
     case unknown          = -1
     case transportFailure = -2
 }
 
-extension ErrorFetchProfile: ServerError {
+extension ErrorFetchProfile: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
         case .ok, .notFound, .transportFailure: false
         case .unknown: true
         }
-    }
-}
-
-extension ErrorFetchProfile: TransportClassifiableError {
-    /// Classifies a gRPC failure status. Transient network conditions
-    /// (per `GRPCStatus.Code.isTransientNetworkError`) map to
-    /// `.transportFailure` so callers don't ship cold-resume noise to
-    /// Bugsnag; anything else preserves the legacy `.unknown` behavior.
-    public static func from(transportError: GRPCStatus) -> ErrorFetchProfile {
-        transportError.code.isTransientNetworkError ? .transportFailure : .unknown
     }
 }
 

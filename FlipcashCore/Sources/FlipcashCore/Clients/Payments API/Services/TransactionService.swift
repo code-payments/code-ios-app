@@ -1008,7 +1008,7 @@ public enum ErrorSubmitIntent: Error, CustomStringConvertible, CustomDebugString
     }
 }
 
-public enum ErrorVoidGiftCard: Int, Error, Equatable, Sendable {
+public enum ErrorVoidGiftCard: Int, Error {
     case ok
     case denied
     case claimed
@@ -1017,7 +1017,7 @@ public enum ErrorVoidGiftCard: Int, Error, Equatable, Sendable {
     case transportFailure = -2
 }
 
-public enum ErrorFetchIntentMetadata: Int, Error, Equatable, Sendable {
+public enum ErrorFetchIntentMetadata: Int, Error {
     case ok
     case notFound
     case denied
@@ -1026,7 +1026,7 @@ public enum ErrorFetchIntentMetadata: Int, Error, Equatable, Sendable {
     case transportFailure = -3
 }
 
-public enum ErrorFetchLimits: Int, Error, Equatable, Sendable {
+public enum ErrorFetchLimits: Int, Error {
     case ok
     case unknown = -1
     case transportFailure = -2
@@ -1051,7 +1051,7 @@ extension ErrorSubmitIntent: ServerError {
     }
 }
 
-extension ErrorVoidGiftCard: ServerError {
+extension ErrorVoidGiftCard: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
         case .ok, .denied, .claimed, .notFound, .transportFailure: false
@@ -1060,13 +1060,7 @@ extension ErrorVoidGiftCard: ServerError {
     }
 }
 
-extension ErrorVoidGiftCard: TransportClassifiableError {
-    public static func from(transportError status: GRPCStatus) -> ErrorVoidGiftCard {
-        status.code.isTransientNetworkError ? .transportFailure : .unknown
-    }
-}
-
-extension ErrorFetchIntentMetadata: ServerError {
+extension ErrorFetchIntentMetadata: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
         case .ok, .notFound, .denied, .transportFailure: false
@@ -1075,24 +1069,12 @@ extension ErrorFetchIntentMetadata: ServerError {
     }
 }
 
-extension ErrorFetchIntentMetadata: TransportClassifiableError {
-    public static func from(transportError status: GRPCStatus) -> ErrorFetchIntentMetadata {
-        status.code.isTransientNetworkError ? .transportFailure : .unknown
-    }
-}
-
-extension ErrorFetchLimits: ServerError {
+extension ErrorFetchLimits: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
         case .ok, .transportFailure: false
         case .unknown: true
         }
-    }
-}
-
-extension ErrorFetchLimits: TransportClassifiableError {
-    public static func from(transportError status: GRPCStatus) -> ErrorFetchLimits {
-        status.code.isTransientNetworkError ? .transportFailure : .unknown
     }
 }
 

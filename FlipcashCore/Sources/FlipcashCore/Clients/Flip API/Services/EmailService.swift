@@ -89,7 +89,7 @@ class EmailService: CodeService<Flipcash_Email_V1_EmailVerificationNIOClient> {
 
 // MARK: - Errors -
 
-public enum ErrorSendEmailCode: Int, Error, Equatable, Sendable {
+public enum ErrorSendEmailCode: Int, Error {
     case ok
     case denied
     /// Email is rate limited (eg. by IP, email address, user, etc) and was not sent.
@@ -100,7 +100,7 @@ public enum ErrorSendEmailCode: Int, Error, Equatable, Sendable {
     case transportFailure = -2
 }
 
-public enum ErrorCheckEmailCode: Int, Error, Equatable, Sendable {
+public enum ErrorCheckEmailCode: Int, Error {
     case ok
     case denied
     /// The call is rate limited (eg. by IP, email address, etc). The code is
@@ -119,14 +119,14 @@ public enum ErrorCheckEmailCode: Int, Error, Equatable, Sendable {
     case transportFailure = -2
 }
 
-public enum ErrorUnlinkEmail: Int, Error, Equatable, Sendable {
+public enum ErrorUnlinkEmail: Int, Error {
     case ok
     case denied
     case unknown = -1
     case transportFailure = -2
 }
 
-extension ErrorSendEmailCode: ServerError {
+extension ErrorSendEmailCode: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
         case .ok, .denied, .rateLimited, .invalidEmailAddress, .transportFailure: false
@@ -135,7 +135,7 @@ extension ErrorSendEmailCode: ServerError {
     }
 }
 
-extension ErrorCheckEmailCode: ServerError {
+extension ErrorCheckEmailCode: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
         case .ok, .denied, .rateLimited, .invalidCode, .noVerification, .transportFailure: false
@@ -144,30 +144,12 @@ extension ErrorCheckEmailCode: ServerError {
     }
 }
 
-extension ErrorUnlinkEmail: ServerError {
+extension ErrorUnlinkEmail: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
         case .ok, .denied, .transportFailure: false
         case .unknown: true
         }
-    }
-}
-
-extension ErrorSendEmailCode: TransportClassifiableError {
-    public static func from(transportError status: GRPCStatus) -> ErrorSendEmailCode {
-        status.code.isTransientNetworkError ? .transportFailure : .unknown
-    }
-}
-
-extension ErrorCheckEmailCode: TransportClassifiableError {
-    public static func from(transportError status: GRPCStatus) -> ErrorCheckEmailCode {
-        status.code.isTransientNetworkError ? .transportFailure : .unknown
-    }
-}
-
-extension ErrorUnlinkEmail: TransportClassifiableError {
-    public static func from(transportError status: GRPCStatus) -> ErrorUnlinkEmail {
-        status.code.isTransientNetworkError ? .transportFailure : .unknown
     }
 }
 
