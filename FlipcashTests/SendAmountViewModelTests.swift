@@ -85,14 +85,6 @@ struct SendAmountViewModelTests {
         return container
     }
 
-    // MARK: - Display
-
-    @Test("Display name is taken from the contact")
-    func init_exposesContactDisplayName() {
-        let viewModel = Self.createViewModel(displayName: "Alice Anderson")
-        #expect(viewModel.recipientDisplayName == "Alice Anderson")
-    }
-
     // MARK: - canSend
 
     @Test("canSend is false when no amount is entered")
@@ -175,9 +167,8 @@ struct SendAmountViewModelTests {
 
         let outcome = await viewModel.sendAction()
 
-        #expect(outcome == .stay)
+        #expect(outcome == .failed)
         #expect(sender.sendCalls.isEmpty)
-        #expect(viewModel.state == .ready)
     }
 
     @Test("sendAction with insufficient funds surfaces a dialog and resolves nothing")
@@ -196,7 +187,7 @@ struct SendAmountViewModelTests {
 
         let outcome = await viewModel.sendAction()
 
-        #expect(outcome == .stay)
+        #expect(outcome == .failed)
         // Sufficiency is checked first, so a short balance never hits the network.
         #expect(mock.resolveContactCalls.isEmpty)
         #expect(mock.sendCalls.isEmpty)
@@ -222,7 +213,6 @@ struct SendAmountViewModelTests {
         #expect(outcome == .recipientNotFound)
         #expect(mock.sendCalls.isEmpty)
         #expect(container.session.dialogItem?.title == "Not on Flipcash")
-        #expect(viewModel.state == .ready)
     }
 
     @Test("sendAction with a resolve network failure stays put, retries once, surfaces a dialog, does not send")
@@ -241,11 +231,10 @@ struct SendAmountViewModelTests {
 
         let outcome = await viewModel.sendAction()
 
-        #expect(outcome == .stay)
+        #expect(outcome == .failed)
         #expect(mock.resolveContactCalls.count == 2)  // initial attempt + one retry
         #expect(mock.sendCalls.isEmpty)
         #expect(container.session.dialogItem?.title == "Couldn't Send")
-        #expect(viewModel.state == .ready)
     }
 
     @Test("sendAction retries a transient resolve failure once, then proceeds past the resolve")
@@ -272,11 +261,10 @@ struct SendAmountViewModelTests {
         // Resolved on the retry, then prepareSubmission finds no pinned state in
         // tests → the "Rate Unavailable" dialog (not "Couldn't Send") proves the
         // resolve cleared and the flow proceeded past it.
-        #expect(outcome == .stay)
+        #expect(outcome == .failed)
         #expect(mock.resolveContactCalls.count == 2)
         #expect(mock.sendCalls.isEmpty)
         #expect(container.session.dialogItem?.title == "Rate Unavailable")
-        #expect(viewModel.state == .ready)
     }
 
     @Test("sendAction caches the resolved recipient so a retried send doesn't re-resolve")
@@ -296,11 +284,9 @@ struct SendAmountViewModelTests {
         await viewModel.sendAction()               // resolves (call #1), then rate-unavailable
         let second = await viewModel.sendAction()  // re-enters; reuses the cached recipient
 
-        // The second call ran the full flow (re-entered past the .ready guard,
-        // .stay outcome) yet the resolve count stayed at 1 — the cache, not an
-        // early bail, suppressed re-resolution.
-        #expect(second == .stay)
-        #expect(viewModel.state == .ready)
+        // The second call ran the full flow yet the resolve count stayed at 1 —
+        // the cache, not an early bail, suppressed re-resolution.
+        #expect(second == .failed)
         #expect(mock.resolveContactCalls.count == 1)
     }
 
@@ -321,9 +307,8 @@ struct SendAmountViewModelTests {
         let outcome = await viewModel.sendAction()
 
         // Pinned VerifiedState is absent in tests → rate-unavailable branch.
-        #expect(outcome == .stay)
+        #expect(outcome == .failed)
         #expect(mock.sendCalls.isEmpty)
         #expect(container.session.dialogItem?.title == "Rate Unavailable")
-        #expect(viewModel.state == .ready)
     }
 }

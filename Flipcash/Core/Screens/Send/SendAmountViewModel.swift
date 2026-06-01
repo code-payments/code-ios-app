@@ -12,23 +12,16 @@ private let logger = Logger(label: "flipcash.send-amount")
 @Observable
 final class SendAmountViewModel {
 
-    enum State: Equatable {
-        case ready
-        case submitting
-        case succeeded(amount: ExchangedFiat)
-    }
-
-    /// What the screen should do after a send attempt. Success (auto-dismisses
-    /// via `state`) and errors (`session.dialogItem`) are surfaced internally;
-    /// only `.recipientNotFound` requires the screen to navigate.
+    /// Result of a send attempt. `.success` and `.recipientNotFound` both return
+    /// the screen to the contact list; `.failed` keeps it on amount entry. Error
+    /// copy is surfaced internally via `session.dialogItem`.
     enum SendOutcome: Equatable {
-        case stay
+        case success
         case recipientNotFound
+        case failed
     }
 
     var enteredAmount: String = ""
-    var actionState: ButtonState = .normal
-    var state: State = .ready
 
     var depositMint: PublicKey?
 
@@ -43,8 +36,6 @@ final class SendAmountViewModel {
     /// Cached after the first successful resolve so a retried send (e.g. after a
     /// transient send failure) skips the round-trip.
     private var resolvedRecipient: PublicKey?
-
-    var recipientDisplayName: String? { contact.displayName }
 
     /// Amount validity only — never gated on the recipient. A red subtitle in
     /// `EnterAmountView` (driven by `!canSend`) therefore means over-limit, not
@@ -142,12 +133,11 @@ final class SendAmountViewModel {
     // MARK: - Action -
 
     /// Validates the amount locally, resolves the recipient on the Send tap
-    /// (retrying a transient network failure), then submits. Returns what the
-    /// screen should do next — only `.recipientNotFound` requires navigation.
+    /// (retrying a transient network failure), then submits. The control owns
+    /// the loading/checkmark state; this returns only where to go next.
     @discardableResult
     func sendAction() async -> SendOutcome {
-        guard case .ready = state else { return .stay }
-        guard let exchangedFiat = enteredFiat else { return .stay }
+        guard let exchangedFiat = enteredFiat else { return .failed }
 
         switch session.hasSufficientFunds(for: exchangedFiat) {
         case .insufficient(let shortfall):
@@ -156,36 +146,27 @@ final class SendAmountViewModel {
             } else {
                 showInsufficientBalanceError()
             }
-            return .stay
+            return .failed
 
         case .sufficient:
-            state = .submitting
-            actionState = .loading
-
             let recipient: PublicKey
             switch await resolveRecipient() {
             case .resolved(let owner):
                 recipient = owner
             case .notFound:
-                state = .ready
-                actionState = .normal
                 showRecipientNotFoundError()
                 return .recipientNotFound
             case .failed:
-                state = .ready
-                actionState = .normal
                 showResolveFailedError()
-                return .stay
+                return .failed
             }
 
             guard let (amountToSend, pinnedState) = await prepareSubmission() else {
-                state = .ready
-                actionState = .normal
                 session.dialogItem = .error(
                     title: "Rate Unavailable",
                     subtitle: "Couldn't get a fresh rate. Please try again."
                 )
-                return .stay
+                return .failed
             }
 
             let sendLimit = session.sendLimitFor(currency: amountToSend.nativeAmount.currency) ?? .zero
@@ -195,10 +176,8 @@ final class SendAmountViewModel {
                     "next_tx": "\(sendLimit.nextTransaction.value)",
                     "currency": "\(amountToSend.nativeAmount.currency)",
                 ])
-                state = .ready
-                actionState = .normal
                 showLimitsError()
-                return .stay
+                return .failed
             }
 
             do {
@@ -208,14 +187,12 @@ final class SendAmountViewModel {
                     to: recipient
                 )
                 Analytics.track(event: Analytics.SendEvent.sendSuccess)
-                state = .succeeded(amount: amountToSend)
+                return .success
             } catch {
                 Analytics.track(event: Analytics.SendEvent.sendFailure)
-                state = .ready
-                actionState = .normal
                 showSendError()
+                return .failed
             }
-            return .stay
         }
     }
 
