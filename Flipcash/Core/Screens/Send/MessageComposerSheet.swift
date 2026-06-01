@@ -16,9 +16,8 @@ import SwiftUI
 struct MessageComposerSheet: UIViewControllerRepresentable {
 
     /// Placeholder invite body. Marketing-final copy lands before ship.
-    // TODO: Finalize invite copy with product/marketing before App Store ship.
     static let placeholderBody = """
-    Download Flipcash so I can send you money
+    You should download Flipcash, a new way to send cash
 
     \(URL.downloadApp.absoluteString)
     """
