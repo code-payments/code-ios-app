@@ -22,6 +22,7 @@ public struct EnterAmountView: View {
     private let actionEnabled: (String) -> Bool
     private let action: () -> Void
     private let currencySelectionAction: (() -> Void)?
+    private let actionOverride: AnyView?
     
     // MARK: - Calculator -
     
@@ -51,6 +52,28 @@ public struct EnterAmountView: View {
         self.actionEnabled           = actionEnabled
         self.action                  = action
         self.currencySelectionAction = currencySelectionAction
+        self.actionOverride          = nil
+    }
+
+    /// Variant where the caller supplies the bottom action control (e.g.
+    /// `SwipeControl`) instead of the default `CodeButton`. The control inherits
+    /// the same disabled gating via `actionEnabled`.
+    init<ActionContent: View>(
+        mode: Mode,
+        enteredAmount: Binding<String>,
+        subtitle: Subtitle,
+        actionEnabled: @escaping (String) -> Bool,
+        currencySelectionAction: (() -> Void)? = nil,
+        @ViewBuilder actionContent: () -> ActionContent
+    ) {
+        self.mode                    = mode
+        self.subtitle                = subtitle
+        self._enteredAmount          = enteredAmount
+        self._actionState            = .constant(.normal)
+        self.actionEnabled           = actionEnabled
+        self.action                  = {}
+        self.currencySelectionAction = currencySelectionAction
+        self.actionOverride          = AnyView(actionContent())
     }
     
     // MARK: - Computed -
@@ -126,14 +149,20 @@ public struct EnterAmountView: View {
             )
             .padding([.leading, .trailing], -20)
             
-            CodeButton(
-                state: actionState,
-                style: mode.buttonStyle,
-                title: mode.actionName,
-                disabled: !actionEnabled(enteredAmount),
-                action: action
-            )
-            .padding(.top, 10)
+            if let actionOverride {
+                actionOverride
+                    .disabled(!actionEnabled(enteredAmount))
+                    .padding(.top, 10)
+            } else {
+                CodeButton(
+                    state: actionState,
+                    style: mode.buttonStyle,
+                    title: mode.actionName,
+                    disabled: !actionEnabled(enteredAmount),
+                    action: action
+                )
+                .padding(.top, 10)
+            }
         }
     }
 }
