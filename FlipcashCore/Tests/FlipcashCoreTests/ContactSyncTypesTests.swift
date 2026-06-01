@@ -56,10 +56,11 @@ struct ContactSyncTypesTests {
     // MARK: - ErrorResolve reportability -
 
     @Test(
-        "Resolve transient/denied cases are non-reportable; only .unknown bugsnags",
+        "Resolve transient/denied/not-found cases are non-reportable; only .unknown bugsnags",
         arguments: [
             (ErrorResolve.ok,           false),
             (.denied,       false),
+            (.notFound,     false),
             (.networkError, false),
             (.unknown,      true),
         ]

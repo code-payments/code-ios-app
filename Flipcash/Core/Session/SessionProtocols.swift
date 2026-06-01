@@ -116,6 +116,15 @@ protocol CurrencyLaunching: AnyObject {
     ) async throws -> PublicKey
 }
 
+// MARK: - Recipient resolution
+
+/// Resolves a contact's E.164 phone to their on-chain payment-destination
+/// owner. Throws `ErrorResolve.notFound` when the contact isn't on Flipcash.
+protocol RecipientResolving: AnyObject {
+
+    func resolveContact(e164: String) async throws -> PublicKey
+}
+
 // MARK: - Direct send
 
 /// Direct on-chain payment to a resolved recipient owner.
@@ -138,4 +147,5 @@ extension Session: AccountProviding,
                     ExternalFundingBuying,
                     OnrampBuying,
                     CurrencyLaunching,
+                    RecipientResolving,
                     DirectSending {}

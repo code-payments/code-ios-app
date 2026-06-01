@@ -347,8 +347,10 @@ class Session {
 
     /// Links an already-verified phone for payment once per session. Best-effort; server-idempotent.
     private func linkPhoneForPaymentIfNeeded() async {
-        guard userFlags?.enablePhoneNumberSend == true,
-              let phone = profile?.phone,
+        // The server's enablePhoneNumberSend flag is off for everyone, so this runs
+        // unconditionally for now rather than gating on dead state.
+        // TODO: re-gate behind a local override (BetaFlags || userFlags?.enablePhoneNumberSend).
+        guard let phone = profile?.phone,
               !hasLinkedPhoneForPayment else { return }
         // Claim before the await so two concurrent callers can't double-fire; released on failure below.
         hasLinkedPhoneForPayment = true
@@ -902,8 +904,8 @@ class Session {
     // MARK: - Send -
 
     /// Resolves a contact's E.164 phone to their payment-destination owner.
-    /// Returns `nil` for NOT_FOUND.
-    func resolveContact(e164: String) async throws -> PublicKey? {
+    /// Throws `ErrorResolve.notFound` when the contact isn't on Flipcash.
+    func resolveContact(e164: String) async throws -> PublicKey {
         try await flipClient.resolvePhone(e164, owner: ownerKeyPair)
     }
 
