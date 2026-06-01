@@ -43,6 +43,9 @@ struct TransportClassificationTests {
     @Test func errorVoidGiftCard() { assertClassifies(ErrorVoidGiftCard.self) }
     @Test func errorFetchLimits() { assertClassifies(ErrorFetchLimits.self) }
     @Test func errorFetchIntentMetadata() { assertClassifies(ErrorFetchIntentMetadata.self) }
+    @Test func errorSendVerificationCode() { assertClassifies(ErrorSendVerificationCode.self) }
+    @Test func errorCheckVerificationCode() { assertClassifies(ErrorCheckVerificationCode.self) }
+    @Test func errorUnlinkPhone() { assertClassifies(ErrorUnlinkPhone.self) }
 
     // MARK: - Tier 2: associated-value errors that capture the transport status -
     // These don't conform to TransportClassifiableError (they carry the status
