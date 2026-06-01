@@ -7,7 +7,7 @@ import XCTest
 
 /// Page object for the PhantomEducationScreen — the pre-flight shown when
 /// the user picks Phantom from `PurchaseMethodSheet`. Tapping `connectButton`
-/// triggers `PhantomCoordinator.start(_:)` which always deeplinks out to
+/// triggers `PhantomFundingOperation`, which always deeplinks out to
 /// Phantom for connect (tests can't reasonably continue past that point on
 /// the local simulator without a real Phantom install).
 @MainActor

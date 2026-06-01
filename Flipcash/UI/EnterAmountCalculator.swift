@@ -22,11 +22,7 @@ nonisolated struct EnterAmountCalculator {
 
     var currency: CurrencyCode {
         switch mode {
-        case .currency, .buy, .sell:
-            selectedCurrency
-        case .phantomDeposit:
-            .usd
-        case .withdraw:
+        case .currency, .buy, .sell, .withdraw:
             selectedCurrency
         }
     }
@@ -40,8 +36,8 @@ nonisolated struct EnterAmountCalculator {
             // Give: effective limit is the lower of per-tx cap and remaining daily
             guard let limit = sendLimitProvider(currency) else { return nil }
             return min(limit.maxPerTransaction, limit.nextTransaction)
-        case .buy, .phantomDeposit:
-            // Buy-style flows: per-tx limit is the daily cap (no daily accumulation limit)
+        case .buy:
+            // Buy: per-tx limit is the daily cap (no daily accumulation limit)
             guard let limit = sendLimitProvider(currency) else { return nil }
             return limit.maxPerDay
         case .sell, .withdraw:

@@ -143,7 +143,6 @@ public struct EnterAmountView: View {
 extension EnterAmountView {
     enum Mode {
 
-        case phantomDeposit
         case currency
         case withdraw
         case buy
@@ -151,21 +150,19 @@ extension EnterAmountView {
 
         fileprivate func formatter(with currency: CurrencyCode) -> NumberFormatter {
             switch self {
-            case .currency, .phantomDeposit, .withdraw, .buy, .sell:
+            case .currency, .withdraw, .buy, .sell:
                 return .fiat(currency: currency, minimumFractionDigits: 0)
             }
         }
 
         fileprivate var defaultValue: AmountField.DefaultValue {
             switch self {
-            case .currency, .phantomDeposit, .withdraw, .buy, .sell: return .number("0")
+            case .currency, .withdraw, .buy, .sell: return .number("0")
             }
         }
 
         fileprivate var actionName: String {
             switch self {
-            case .phantomDeposit:
-                return "Confirm In"
             case .currency: return "Next"
             case .withdraw: return "Next"
             case .buy:      return "Buy"
@@ -175,11 +172,7 @@ extension EnterAmountView {
 
         fileprivate var buttonStyle: CodeButton.Style {
             switch self {
-            case .phantomDeposit: return .filledCustom(Image.asset(.phantom), "Phantom")
-            case .currency:       return .filled
-            case .withdraw:       return .filled
-            case .buy:            return .filled
-            case .sell:           return .filled
+            case .currency, .withdraw, .buy, .sell: return .filled
             }
         }
     }
