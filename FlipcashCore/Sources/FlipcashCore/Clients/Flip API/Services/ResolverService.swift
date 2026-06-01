@@ -12,12 +12,12 @@ private let logger = Logger(label: "flipcash.resolver-service")
 final class ResolverService: CodeService<Flipcash_Resolver_V1_ResolverNIOClient> {
 
     /// Resolve an E.164 phone to the on-chain payment destination.
-    /// `nil` for NOT_FOUND (the recipient is not on Flipcash); throws for
+    /// Throws `.notFound` when the recipient is not on Flipcash; throws for
     /// hard failures (DENIED, network errors).
     func resolvePhone(
         _ e164: String,
         owner: KeyPair,
-        completion: @Sendable @escaping (Result<PublicKey?, ErrorResolve>) -> Void
+        completion: @Sendable @escaping (Result<PublicKey, ErrorResolve>) -> Void
     ) {
         logger.info("Resolving phone to payment destination")
 
@@ -42,7 +42,7 @@ final class ResolverService: CodeService<Flipcash_Resolver_V1_ResolverNIOClient>
                 }
                 completion(.success(publicKey))
             case .notFound:
-                completion(.success(nil))
+                completion(.failure(.notFound))
             case .denied:
                 logger.warning("Resolve denied")
                 completion(.failure(.denied))
@@ -61,6 +61,7 @@ final class ResolverService: CodeService<Flipcash_Resolver_V1_ResolverNIOClient>
 public enum ErrorResolve: Int, Error {
     case ok = 0
     case denied = 1
+    case notFound = 2
     case networkError = -2
     case unknown = -1
 }
@@ -68,7 +69,7 @@ public enum ErrorResolve: Int, Error {
 extension ErrorResolve: ServerError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .denied, .networkError: false
+        case .ok, .denied, .notFound, .networkError: false
         case .unknown: true
         }
     }

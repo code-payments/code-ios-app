@@ -633,7 +633,8 @@ struct SessionOfflineCacheTests {
             newCurrencyPurchaseAmount: .zero(mint: .usdf),
             newCurrencyFeeAmount: .zero(mint: .usdf),
             withdrawalFeeAmount: TokenAmount(quarks: 50_000, mint: .usdf),
-            minimumHolderValue: .zero(mint: .usdf)
+            minimumHolderValue: .zero(mint: .usdf),
+            enablePhoneNumberSend: false
         )
     }
 
