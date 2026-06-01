@@ -20,6 +20,7 @@ struct SendAmountScreen: View {
     @State private var viewModel: SendAmountViewModel
     @State private var isShowingCurrencySelection: Bool = false
     @State private var isShowingTokenSelection: Bool = false
+    @State private var didSucceed: Bool = false
 
     private var maxLimit: ExchangedFiat {
         let rate = ratesController.rateForBalanceCurrency()
@@ -60,16 +61,13 @@ struct SendAmountScreen: View {
                 SwipeControl(text: "Swipe to Send") {
                     switch await viewModel.sendAction() {
                     case .success:
-                        break
+                        didSucceed = true
                     case .recipientNotFound:
                         router.popTopmost()
                         throw SendDismissed()
                     case .failed:
                         throw SendDismissed()
                     }
-                } completion: {
-                    try await Task.delay(seconds: 1)
-                    router.popTopmost()
                 }
             }
             .foregroundStyle(.textMain)
@@ -95,6 +93,15 @@ struct SendAmountScreen: View {
             guard let mint else { return }
             viewModel.depositMint = nil
             router.push(.currencyInfoForDeposit(mint))
+        }
+        // Hold the success checkmark briefly, then return to the contact list.
+        // Tied to the view via `.task` so a dismissal during the hold cancels
+        // the pop instead of firing it on a screen that's already gone.
+        .task(id: didSucceed) {
+            guard didSucceed else { return }
+            try? await Task.delay(seconds: 1)
+            guard !Task.isCancelled else { return }
+            router.popTopmost()
         }
         .sheet(isPresented: $isShowingTokenSelection) {
             SelectCurrencyScreen(isPresented: $isShowingTokenSelection) { balance in
