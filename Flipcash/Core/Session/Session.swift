@@ -225,6 +225,9 @@ class Session {
         registerPoller()
         startStreaming()
 
+        profile   = try? database.getProfile()
+        userFlags = try? database.getUserFlags()
+
         // Independent so a profile failure doesn't starve the user-flags fetch.
         // userFlags carries server-pinned withdrawal/launch fees; without it,
         // those flows submit fee=0 and the server denies the intent.
@@ -293,13 +296,16 @@ class Session {
     // MARK: - Info -
     
     func updateProfile() async throws {
-        profile = try await Task.retry(
+        let fetched = try await Task.retry(
             maxAttempts: 3,
             delay: .milliseconds(500),
             shouldRetry: { (error: any Swift.Error) in (error as? ErrorFetchProfile) == .unknown }
         ) {
             try await flipClient.fetchProfile(userID: userID, owner: ownerKeyPair)
         }
+
+        profile = fetched
+        try? database.insertProfile(fetched)
     }
     
     func unlinkProfile() async throws {
@@ -323,13 +329,16 @@ class Session {
     }
     
     func updateUserFlags() async throws {
-        userFlags = try await Task.retry(
+        let fetched = try await Task.retry(
             maxAttempts: 3,
             delay: .milliseconds(500),
             shouldRetry: { (error: any Swift.Error) in (error as? ErrorFetchUserFlags) == .unknown }
         ) {
             try await flipClient.fetchUserFlags(userID: userID, owner: ownerKeyPair)
         }
+
+        userFlags = fetched
+        try? database.insertUserFlags(fetched)
     }
 
     // MARK: - Settings Sync -

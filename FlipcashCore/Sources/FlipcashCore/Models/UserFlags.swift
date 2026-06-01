@@ -9,7 +9,7 @@
 import Foundation
 import FlipcashAPI
 
-public struct UserFlags: Sendable {
+public struct UserFlags: Codable, Sendable {
     public let isRegistered: Bool
     public let isStaff: Bool
     public let onrampProviders: [OnRampProvider]
@@ -45,7 +45,7 @@ public struct UserFlags: Sendable {
 }
 
 extension UserFlags {
-    public enum OnRampProvider: Int, Sendable {
+    public enum OnRampProvider: Int, Codable, Sendable {
         case unknown
         case coinbaseVirtual
         case coinbasePhysicalDebit
