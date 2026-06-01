@@ -7,7 +7,7 @@
 
 import Foundation
 import Testing
-import FlipcashCore
+@testable import FlipcashCore
 @testable import Flipcash
 
 @MainActor
@@ -606,5 +606,64 @@ struct SessionWithdrawVerifiedStateTests {
         } catch {
             Issue.record("Unexpected error thrown: \(error)")
         }
+    }
+}
+
+// MARK: -
+
+@MainActor
+@Suite("Session restores profile + userFlags from cache on init")
+struct SessionOfflineCacheTests {
+
+    private static func cachedUserFlags() -> UserFlags {
+        UserFlags(
+            isRegistered: true,
+            isStaff: false,
+            onrampProviders: [.coinbaseVirtual],
+            preferredOnrampProvider: .coinbaseVirtual,
+            minBuildNumber: 0,
+            billExchangeDataTimeout: nil,
+            newCurrencyPurchaseAmount: .zero(mint: .usdf),
+            newCurrencyFeeAmount: .zero(mint: .usdf),
+            withdrawalFeeAmount: TokenAmount(quarks: 50_000, mint: .usdf),
+            minimumHolderValue: .zero(mint: .usdf)
+        )
+    }
+
+    // Tests stay synchronous: the restore runs in `init`, while `updateProfile()`
+    // runs in a main-actor Task that can't execute until the test yields. An
+    // `async` test would race the network fetch against the cache.
+
+    @Test("A cached verified profile is restored before any network fetch")
+    func restoresProfileOnInit() throws {
+        let database = Database.mock
+        try database.insertProfile(.verifiedFixture)
+
+        let session = Session.makeMock(database: database)
+        let restored = try #require(session.profile)
+
+        #expect(restored == .verifiedFixture)
+        #expect(restored.isPhoneVerified)
+    }
+
+    @Test("Cached userFlags are restored, so fee and Coinbase gates read real values")
+    func restoresUserFlagsOnInit() throws {
+        let database = Database.mock
+        let flags = Self.cachedUserFlags()
+        try database.insertUserFlags(flags)
+
+        let session = Session.makeMock(database: database)
+        let restored = try #require(session.userFlags)
+
+        #expect(restored.hasCoinbase)
+        #expect(restored.withdrawalFeeAmount == flags.withdrawalFeeAmount)
+    }
+
+    @Test("Empty cache leaves profile nil — fresh install still shows connect-phone")
+    func emptyCacheLeavesProfileNil() {
+        let session = Session.makeMock(database: .mock)
+
+        #expect(session.profile == nil)
+        #expect(session.userFlags == nil)
     }
 }
