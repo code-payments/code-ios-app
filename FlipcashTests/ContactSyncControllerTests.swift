@@ -335,6 +335,26 @@ struct ContactSyncControllerTests {
             #expect(controller.observerTask == firstObserver)
         }
 
+        @Test("activate() surfaces the cached directory even when the contact sync fails")
+        func activateResolvesCachedDirectoryWhenSyncFails() async throws {
+            let mock = MockContactSync()
+            mock.fullUploadResult = .failure(ErrorContactSync.networkError)
+            let database = Database.mock
+            try database.replaceLocalContactsSnapshot([
+                Database.LocalContact(e164: "+14155550100", contactId: "alice"),
+            ])
+            try database.replaceFlipcashContacts(["+14155550100"], matchedAt: .now)
+            let controller = Self.makeController(mock: mock, database: database, status: .authorized)
+
+            controller.activate()
+            await controller.syncTask?.value
+            try await Self.awaitResolved(controller)
+
+            // The flag, not the contents: name resolution reads the real
+            // CNContactStore, which a unit test can't seed.
+            #expect(controller.hasResolvedOnce)
+        }
+
         @Test("didBecomeActive() is a no-op before activate()")
         func didBecomeActiveNoOpBeforeActivate() async {
             let counter = AuthCounter()
@@ -420,6 +440,13 @@ struct ContactSyncControllerTests {
                 } else {
                     await Task.yield()
                 }
+            }
+        }
+
+        private static func awaitResolved(_ controller: ContactSyncController) async throws {
+            let deadline = Date.now.addingTimeInterval(1.0)
+            while !controller.hasResolvedOnce, Date.now < deadline {
+                await Task.yield()
             }
         }
     }

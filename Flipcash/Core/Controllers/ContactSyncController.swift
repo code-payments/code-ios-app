@@ -93,6 +93,11 @@ final class ContactSyncController {
                 }
             }
         }
+        // Render the picker from the persisted directory before the network
+        // sync; an offline launch would otherwise spin until a sync succeeds.
+        if !hasResolvedOnce {
+            Task { [weak self] in await self?.resolveDirectory() }
+        }
         sync()
     }
 
