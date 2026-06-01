@@ -902,8 +902,8 @@ class Session {
     // MARK: - Send -
 
     /// Resolves a contact's E.164 phone to their payment-destination owner.
-    /// Returns `nil` for NOT_FOUND.
-    func resolveContact(e164: String) async throws -> PublicKey? {
+    /// Throws `ErrorResolve.notFound` when the contact isn't on Flipcash.
+    func resolveContact(e164: String) async throws -> PublicKey {
         try await flipClient.resolvePhone(e164, owner: ownerKeyPair)
     }
 

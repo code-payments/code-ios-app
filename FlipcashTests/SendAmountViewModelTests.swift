@@ -26,21 +26,14 @@ struct SendAmountViewModelTests {
         )
     }
 
-    /// Marks the recipient resolved by default so amount/send tests aren't
-    /// gated by the background resolve. Pass `resolved: false` to exercise the
-    /// resolving state.
-    static func createViewModel(
-        recipient: PublicKey = SendAmountViewModelTests.recipient,
-        displayName: String = "Alice",
-        resolved: Bool = true
-    ) -> SendAmountViewModel {
-        let viewModel = SendAmountViewModel(
+    /// View model over the `.mock` container, for amount/validation tests that
+    /// never submit. `sendAction`-driven tests build their own funded container.
+    static func createViewModel(displayName: String = "Alice") -> SendAmountViewModel {
+        SendAmountViewModel(
             sessionContainer: .mock,
             contact: makeContact(displayName: displayName),
             mint: nil
         )
-        if resolved { viewModel.recipientState = .resolved(recipient) }
-        return viewModel
     }
 
     static func createExchangedBalance(
@@ -81,29 +74,26 @@ struct SendAmountViewModelTests {
         )
     }
 
-    // MARK: - Recipient
+    /// Funded USDF container + test rates, mirroring the production amount-entry
+    /// path so `sendAction` clears the local sufficiency gate and reaches the
+    /// recipient resolve.
+    static func makeFundedContainer() throws -> SessionContainer {
+        let container = try SessionContainer.makeTest(holdings: [
+            .init(mint: .usdf, quarks: 100_000_000), // $100 USDF
+        ])
+        container.ratesController.configureTestRates(rates: [.oneToOne])
+        return container
+    }
+
+    // MARK: - Display
 
     @Test("Display name is taken from the contact")
     func init_exposesContactDisplayName() {
-        let viewModel = Self.createViewModel(displayName: "Alice Anderson", resolved: false)
+        let viewModel = Self.createViewModel(displayName: "Alice Anderson")
         #expect(viewModel.recipientDisplayName == "Alice Anderson")
     }
 
-    @Test("Recipient starts in the resolving state")
-    func init_startsResolving() {
-        let viewModel = Self.createViewModel(resolved: false)
-        #expect(viewModel.recipientState == .resolving)
-    }
-
     // MARK: - canSend
-
-    @Test("canSend is false while the recipient is still resolving")
-    func canSend_whileResolving_isFalse() {
-        let viewModel = Self.createViewModel(resolved: false)
-        viewModel.selectCurrencyAction(exchangedBalance: Self.createExchangedBalance())
-        viewModel.enteredAmount = "5"
-        #expect(viewModel.canSend == false)
-    }
 
     @Test("canSend is false when no amount is entered")
     func canSend_emptyAmount_isFalse() {
@@ -136,16 +126,17 @@ struct SendAmountViewModelTests {
             contact: Self.makeContact(),
             mint: .generate()!  // unknown mint forces selectedBalance to nil
         )
-        viewModel.recipientState = .resolved(Self.recipient)
         viewModel.enteredAmount = "10"
         #expect(viewModel.canSend == false)
     }
 
-    @Test("canSend is true for a positive USDF amount with a selected balance")
-    func canSend_positiveUSDF_isTrue() {
+    @Test("canSend is true for a positive amount, never gated on recipient resolution")
+    func canSend_positiveAmount_isTrueWithoutResolution() {
         let viewModel = Self.createViewModel()
         viewModel.selectCurrencyAction(exchangedBalance: Self.createExchangedBalance())
         viewModel.enteredAmount = "5"
+        // No resolve has happened — canSend reflects amount validity only, so a
+        // red subtitle in EnterAmountView would mean over-limit, not unresolved.
         #expect(viewModel.canSend == true)
     }
 
@@ -179,57 +170,160 @@ struct SendAmountViewModelTests {
             mint: nil,
             sender: sender
         )
-        viewModel.recipientState = .resolved(Self.recipient)
         viewModel.selectCurrencyAction(exchangedBalance: Self.createExchangedBalance())
         viewModel.enteredAmount = ""
 
-        await viewModel.sendAction()
+        let outcome = await viewModel.sendAction()
 
+        #expect(outcome == .stay)
         #expect(sender.sendCalls.isEmpty)
         #expect(viewModel.state == .ready)
     }
 
-    @Test("sendAction with insufficient funds surfaces a dialog and does not call sender")
-    func sendAction_insufficientFunds_setsDialogAndSkipsSender() async {
-        let sender = MockSession()
+    @Test("sendAction with insufficient funds surfaces a dialog and resolves nothing")
+    func sendAction_insufficientFunds_skipsResolveAndSend() async {
+        let mock = MockSession()
         let viewModel = SendAmountViewModel(
             sessionContainer: .mock,
             contact: Self.makeContact(),
             mint: nil,
-            sender: sender
+            sender: mock,
+            resolver: mock
         )
-        viewModel.recipientState = .resolved(Self.recipient)
         // Empty balance + non-zero entered amount → hasSufficientFunds == .insufficient.
         viewModel.selectCurrencyAction(exchangedBalance: Self.createExchangedBalance(quarks: 0))
         viewModel.enteredAmount = "5"
 
-        await viewModel.sendAction()
+        let outcome = await viewModel.sendAction()
 
-        #expect(sender.sendCalls.isEmpty)
+        #expect(outcome == .stay)
+        // Sufficiency is checked first, so a short balance never hits the network.
+        #expect(mock.resolveContactCalls.isEmpty)
+        #expect(mock.sendCalls.isEmpty)
         #expect(viewModel.session.dialogItem != nil)
     }
 
-    @Test("sendAction surfaces a rate-unavailable dialog when no pinned VerifiedState is cached")
-    func sendAction_noPinnedState_setsRateUnavailableDialog() async throws {
-        let container = try SessionContainer.makeTest(holdings: [
-            .init(mint: .usdf, quarks: 100_000_000), // $100 USDF
-        ])
-        container.ratesController.configureTestRates(rates: [.oneToOne])
-        let sender = MockSession()
+    @Test("sendAction with a NOT_FOUND recipient returns .recipientNotFound, surfaces a dialog, does not send")
+    func sendAction_recipientNotFound_popsAndSkipsSend() async throws {
+        let container = try Self.makeFundedContainer()
+        let mock = MockSession()
+        mock.resolveContactHandler = { _ in throw ErrorResolve.notFound }
         let viewModel = SendAmountViewModel(
             sessionContainer: container,
             contact: Self.makeContact(),
             mint: .usdf,
-            sender: sender
+            sender: mock,
+            resolver: mock
         )
-        viewModel.recipientState = .resolved(Self.recipient)
         viewModel.enteredAmount = "5"
 
-        await viewModel.sendAction()
+        let outcome = await viewModel.sendAction()
+
+        #expect(outcome == .recipientNotFound)
+        #expect(mock.sendCalls.isEmpty)
+        #expect(container.session.dialogItem?.title == "Not on Flipcash")
+        #expect(viewModel.state == .ready)
+    }
+
+    @Test("sendAction with a resolve network failure stays put, retries once, surfaces a dialog, does not send")
+    func sendAction_resolveNetworkFailure_staysAndSkipsSend() async throws {
+        let container = try Self.makeFundedContainer()
+        let mock = MockSession()
+        mock.resolveContactHandler = { _ in throw ErrorResolve.networkError }
+        let viewModel = SendAmountViewModel(
+            sessionContainer: container,
+            contact: Self.makeContact(),
+            mint: .usdf,
+            sender: mock,
+            resolver: mock
+        )
+        viewModel.enteredAmount = "5"
+
+        let outcome = await viewModel.sendAction()
+
+        #expect(outcome == .stay)
+        #expect(mock.resolveContactCalls.count == 2)  // initial attempt + one retry
+        #expect(mock.sendCalls.isEmpty)
+        #expect(container.session.dialogItem?.title == "Couldn't Send")
+        #expect(viewModel.state == .ready)
+    }
+
+    @Test("sendAction retries a transient resolve failure once, then proceeds past the resolve")
+    func sendAction_resolveRetriesThenSucceeds_proceedsPastResolve() async throws {
+        let container = try Self.makeFundedContainer()
+        let mock = MockSession()
+        var attempts = 0
+        mock.resolveContactHandler = { _ in
+            attempts += 1
+            if attempts == 1 { throw ErrorResolve.networkError }
+            return Self.recipient
+        }
+        let viewModel = SendAmountViewModel(
+            sessionContainer: container,
+            contact: Self.makeContact(),
+            mint: .usdf,
+            sender: mock,
+            resolver: mock
+        )
+        viewModel.enteredAmount = "5"
+
+        let outcome = await viewModel.sendAction()
+
+        // Resolved on the retry, then prepareSubmission finds no pinned state in
+        // tests → the "Rate Unavailable" dialog (not "Couldn't Send") proves the
+        // resolve cleared and the flow proceeded past it.
+        #expect(outcome == .stay)
+        #expect(mock.resolveContactCalls.count == 2)
+        #expect(mock.sendCalls.isEmpty)
+        #expect(container.session.dialogItem?.title == "Rate Unavailable")
+        #expect(viewModel.state == .ready)
+    }
+
+    @Test("sendAction caches the resolved recipient so a retried send doesn't re-resolve")
+    func sendAction_cachesResolvedRecipient() async throws {
+        let container = try Self.makeFundedContainer()
+        let mock = MockSession()
+        mock.resolveContactHandler = { _ in Self.recipient }
+        let viewModel = SendAmountViewModel(
+            sessionContainer: container,
+            contact: Self.makeContact(),
+            mint: .usdf,
+            sender: mock,
+            resolver: mock
+        )
+        viewModel.enteredAmount = "5"
+
+        await viewModel.sendAction()               // resolves (call #1), then rate-unavailable
+        let second = await viewModel.sendAction()  // re-enters; reuses the cached recipient
+
+        // The second call ran the full flow (re-entered past the .ready guard,
+        // .stay outcome) yet the resolve count stayed at 1 — the cache, not an
+        // early bail, suppressed re-resolution.
+        #expect(second == .stay)
+        #expect(viewModel.state == .ready)
+        #expect(mock.resolveContactCalls.count == 1)
+    }
+
+    @Test("sendAction surfaces a rate-unavailable dialog when no pinned VerifiedState is cached")
+    func sendAction_noPinnedState_setsRateUnavailableDialog() async throws {
+        let container = try Self.makeFundedContainer()
+        let mock = MockSession()
+        mock.resolveContactHandler = { _ in Self.recipient }
+        let viewModel = SendAmountViewModel(
+            sessionContainer: container,
+            contact: Self.makeContact(),
+            mint: .usdf,
+            sender: mock,
+            resolver: mock
+        )
+        viewModel.enteredAmount = "5"
+
+        let outcome = await viewModel.sendAction()
 
         // Pinned VerifiedState is absent in tests → rate-unavailable branch.
-        #expect(sender.sendCalls.isEmpty)
-        #expect(container.session.dialogItem != nil)
+        #expect(outcome == .stay)
+        #expect(mock.sendCalls.isEmpty)
+        #expect(container.session.dialogItem?.title == "Rate Unavailable")
         #expect(viewModel.state == .ready)
     }
 }
