@@ -42,6 +42,7 @@ struct RecipientPickerScreen: View {
                     RecipientPickerList(
                         filtered: filtered,
                         searchText: searchText,
+                        isLimitedAccess: isLimitedAccess,
                         onFlipcashTap: selectRecipient,
                         onInviteTap: presentInvite,
                     )
@@ -139,6 +140,28 @@ private struct LimitedAccessEmptyState: View {
     }
 }
 
+/// Footer under the populated recipient list in iOS limited access. Routes to
+/// Settings to share more contacts — adding them in-app is unavailable on
+/// iOS 26 (FB14821786).
+private struct LimitedAccessSettingsFooter: View {
+    var body: some View {
+        Button {
+            URL.openSettings()
+        } label: {
+            Text("Choose more contacts in Settings")
+                .font(.appTextSmall)
+                .foregroundStyle(Color.textSecondary)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.vertical, 16)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
+    }
+}
+
 /// Shown over the list when a search matches no contacts.
 private struct RecipientSearchEmptyState: View {
 
@@ -195,6 +218,7 @@ private struct RecipientPickerList: View {
 
     let filtered: ResolvedContacts
     let searchText: String
+    let isLimitedAccess: Bool
     let onFlipcashTap: (ResolvedContact) -> Void
     let onInviteTap: (ResolvedContact) -> Void
 
@@ -225,6 +249,9 @@ private struct RecipientPickerList: View {
                 } header: {
                     RecipientSectionHeader(title: "Not on Flipcash Yet")
                 }
+            }
+            if isLimitedAccess && !filtered.isEmpty {
+                LimitedAccessSettingsFooter()
             }
         }
         .listStyle(.plain)
