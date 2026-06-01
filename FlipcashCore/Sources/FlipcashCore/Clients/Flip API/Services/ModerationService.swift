@@ -111,7 +111,8 @@ extension ErrorModeration: ServerError {
     public var isReportable: Bool {
         switch self {
         case .denied, .unsupportedFormat, .unsupportedLanguage: false
-        case .unknown, .network: true
+        case .unknown: true
+        case .network(let error): !((error as? GRPCStatus)?.code.isTransientNetworkError ?? false)
         }
     }
 }

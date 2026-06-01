@@ -85,7 +85,7 @@ class CurrencyService: CodeService<Ocp_Currency_V1_CurrencyNIOClient>, @unchecke
                 completion(.failure(ErrorRateHistory.unknown))
             }
         } failure: { error in
-            completion(.failure(error))
+            completion(.failure(ErrorRateHistory.from(transportError: error)))
         }
     }
 
@@ -209,10 +209,11 @@ public struct HistoricalMintDataPoint: Sendable {
 
 // MARK: - Errors -
 
-public enum ErrorRateHistory: Int, Error {
+public enum ErrorRateHistory: Int, Error, Equatable, Sendable {
     case ok
     case notFound
-    case unknown
+    case unknown          = -1
+    case transportFailure = -2
 }
 
 public enum ErrorLaunchCurrency: Error, Sendable {
@@ -226,9 +227,15 @@ public enum ErrorLaunchCurrency: Error, Sendable {
 extension ErrorRateHistory: ServerError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .notFound: false
+        case .ok, .notFound, .transportFailure: false
         case .unknown: true
         }
+    }
+}
+
+extension ErrorRateHistory: TransportClassifiableError {
+    public static func from(transportError status: GRPCStatus) -> ErrorRateHistory {
+        status.code.isTransientNetworkError ? .transportFailure : .unknown
     }
 }
 
@@ -236,7 +243,8 @@ extension ErrorLaunchCurrency: ServerError {
     public var isReportable: Bool {
         switch self {
         case .denied, .nameExists, .invalidIcon: false
-        case .unknown, .network: true
+        case .unknown: true
+        case .network(let error): !((error as? GRPCStatus)?.code.isTransientNetworkError ?? false)
         }
     }
 }

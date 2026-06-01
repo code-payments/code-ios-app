@@ -38,7 +38,7 @@ class EmailService: CodeService<Flipcash_Email_V1_EmailVerificationNIOClient> {
             if status.code == .invalidArgument {
                 completion(.failure(.invalidEmailAddress))
             } else {
-                completion(.failure(.unknown))
+                completion(.failure(.from(transportError: status)))
             }
         }
     }
@@ -53,18 +53,15 @@ class EmailService: CodeService<Flipcash_Email_V1_EmailVerificationNIOClient> {
         }
 
         let call = service.checkVerificationCode(request)
-        call.handle(on: queue) { response in
+        call.handle(on: queue, completion: completion) { response in
             let error = ErrorCheckEmailCode(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
                 logger.info("Email verification code accepted")
-                completion(.success(()))
+                return .success(())
             } else {
                 logger.error("Email verification code check failed", metadata: ["error": "\(error)"])
-                completion(.failure(error))
+                return .failure(error)
             }
-
-        } failure: { error in
-            completion(.failure(.unknown))
         }
     }
 
@@ -77,25 +74,22 @@ class EmailService: CodeService<Flipcash_Email_V1_EmailVerificationNIOClient> {
         }
 
         let call = service.unlink(request)
-        call.handle(on: queue) { response in
+        call.handle(on: queue, completion: completion) { response in
             let error = ErrorUnlinkEmail(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
                 logger.info("Email address unlinked successfully")
-                completion(.success(()))
+                return .success(())
             } else {
                 logger.error("Failed to unlink email address", metadata: ["error": "\(error)"])
-                completion(.failure(error))
+                return .failure(error)
             }
-
-        } failure: { error in
-            completion(.failure(.unknown))
         }
     }
 }
 
 // MARK: - Errors -
 
-public enum ErrorSendEmailCode: Int, Error {
+public enum ErrorSendEmailCode: Int, Error, Equatable, Sendable {
     case ok
     case denied
     /// Email is rate limited (eg. by IP, email address, user, etc) and was not sent.
@@ -103,9 +97,10 @@ public enum ErrorSendEmailCode: Int, Error {
     /// The email address is not real
     case invalidEmailAddress
     case unknown = -1
+    case transportFailure = -2
 }
 
-public enum ErrorCheckEmailCode: Int, Error {
+public enum ErrorCheckEmailCode: Int, Error, Equatable, Sendable {
     case ok
     case denied
     /// The call is rate limited (eg. by IP, email address, etc). The code is
@@ -121,18 +116,20 @@ public enum ErrorCheckEmailCode: Int, Error {
     /// verification using SendVerificationCode.
     case noVerification
     case unknown = -1
+    case transportFailure = -2
 }
 
-public enum ErrorUnlinkEmail: Int, Error {
+public enum ErrorUnlinkEmail: Int, Error, Equatable, Sendable {
     case ok
     case denied
     case unknown = -1
+    case transportFailure = -2
 }
 
 extension ErrorSendEmailCode: ServerError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .denied, .rateLimited, .invalidEmailAddress: false
+        case .ok, .denied, .rateLimited, .invalidEmailAddress, .transportFailure: false
         case .unknown: true
         }
     }
@@ -141,7 +138,7 @@ extension ErrorSendEmailCode: ServerError {
 extension ErrorCheckEmailCode: ServerError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .denied, .rateLimited, .invalidCode, .noVerification: false
+        case .ok, .denied, .rateLimited, .invalidCode, .noVerification, .transportFailure: false
         case .unknown: true
         }
     }
@@ -150,9 +147,27 @@ extension ErrorCheckEmailCode: ServerError {
 extension ErrorUnlinkEmail: ServerError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .denied: false
+        case .ok, .denied, .transportFailure: false
         case .unknown: true
         }
+    }
+}
+
+extension ErrorSendEmailCode: TransportClassifiableError {
+    public static func from(transportError status: GRPCStatus) -> ErrorSendEmailCode {
+        status.code.isTransientNetworkError ? .transportFailure : .unknown
+    }
+}
+
+extension ErrorCheckEmailCode: TransportClassifiableError {
+    public static func from(transportError status: GRPCStatus) -> ErrorCheckEmailCode {
+        status.code.isTransientNetworkError ? .transportFailure : .unknown
+    }
+}
+
+extension ErrorUnlinkEmail: TransportClassifiableError {
+    public static func from(transportError status: GRPCStatus) -> ErrorUnlinkEmail {
+        status.code.isTransientNetworkError ? .transportFailure : .unknown
     }
 }
 

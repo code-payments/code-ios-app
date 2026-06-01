@@ -23,19 +23,15 @@ class AccountService: CodeService<Flipcash_Account_V1_AccountNIOClient> {
         }
 
         let call = service.register(request)
-        call.handle(on: queue) { response in
+        call.handle(on: queue, completion: completion) { response in
             let error = ErrorRegisterAccount(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok {
-                let userID = try! UUID(data: response.userID.value)
-                logger.info("Account registered successfully")
-                completion(.success(userID))
-            } else {
+            guard error == .ok else {
                 logger.error("Failed to register account", metadata: ["owner": "\(owner.publicKey.base58)"])
-                completion(.failure(error))
+                return .failure(error)
             }
-            
-        } failure: { error in
-            completion(.failure(.unknown))
+            let userID = try! UUID(data: response.userID.value)
+            logger.info("Account registered successfully")
+            return .success(userID)
         }
     }
     
@@ -48,19 +44,15 @@ class AccountService: CodeService<Flipcash_Account_V1_AccountNIOClient> {
         }
 
         let call = service.login(request)
-        call.handle(on: queue) { response in
+        call.handle(on: queue, completion: completion) { response in
             let error = ErrorLoginAccount(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok {
-                let userID = try! UUID(data: response.userID.value)
-                logger.info("Login succeeded")
-                completion(.success(userID))
-            } else {
+            guard error == .ok else {
                 logger.error("Failed to login", metadata: ["owner": "\(owner.publicKey.base58)"])
-                completion(.failure(error))
+                return .failure(error)
             }
-            
-        } failure: { error in
-            completion(.failure(.unknown))
+            let userID = try! UUID(data: response.userID.value)
+            logger.info("Login succeeded")
+            return .success(userID)
         }
     }
     
@@ -80,18 +72,14 @@ class AccountService: CodeService<Flipcash_Account_V1_AccountNIOClient> {
         }
 
         let call = service.getUserFlags(request)
-        call.handle(on: queue) { response in
+        call.handle(on: queue, completion: completion) { response in
             let error = ErrorFetchUserFlags(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok {
-                logger.info("User flags fetched successfully")
-                completion(.success(UserFlags(response.userFlags)))
-            } else {
+            guard error == .ok else {
                 logger.error("Failed to fetch user flags", metadata: ["owner": "\(owner.publicKey.base58)"])
-                completion(.failure(error))
+                return .failure(error)
             }
-
-        } failure: { error in
-            completion(.failure(.unknown))
+            logger.info("User flags fetched successfully")
+            return .success(UserFlags(response.userFlags))
         }
     }
 
@@ -105,81 +93,105 @@ class AccountService: CodeService<Flipcash_Account_V1_AccountNIOClient> {
         }
 
         let call = service.getUnauthenticatedUserFlags(request)
-        call.handle(on: queue) { response in
+        call.handle(on: queue, completion: completion) { response in
             let error = ErrorFetchUnauthenticatedUserFlags(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok {
-                completion(.success(UnauthenticatedUserFlags(response.userFlags)))
-            } else {
+            guard error == .ok else {
                 logger.error("Failed to fetch unauthenticated user flags")
-                completion(.failure(error))
+                return .failure(error)
             }
-
-        } failure: { error in
-            completion(.failure(.unknown))
+            return .success(UnauthenticatedUserFlags(response.userFlags))
         }
     }
 }
 
 // MARK: - Errors -
 
-public enum ErrorRegisterAccount: Int, Error {
+public enum ErrorRegisterAccount: Int, Error, Equatable, Sendable {
     case ok
     case invalidSignature
     case denied
-    case unknown = -1
+    case unknown          = -1
+    case transportFailure = -2
 }
 
-public enum ErrorLoginAccount: Int, Error {
+public enum ErrorLoginAccount: Int, Error, Equatable, Sendable {
     case ok
     case invalidTimestamp
     case denied
-    case unknown = -1
+    case unknown          = -1
+    case transportFailure = -2
 }
 
-public enum ErrorFetchUserFlags: Int, Error {
+public enum ErrorFetchUserFlags: Int, Error, Equatable, Sendable {
     case ok
     case denied
-    case unknown = -1
+    case unknown          = -1
+    case transportFailure = -2
 }
 
-public enum ErrorFetchUnauthenticatedUserFlags: Int, Error {
+public enum ErrorFetchUnauthenticatedUserFlags: Int, Error, Equatable, Sendable {
     case ok
-    case unknown = -1
+    case unknown          = -1
+    case transportFailure = -2
 }
 
 extension ErrorRegisterAccount: ServerError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .invalidSignature, .denied: false
+        case .ok, .invalidSignature, .denied, .transportFailure: false
         case .unknown: true
         }
+    }
+}
+
+extension ErrorRegisterAccount: TransportClassifiableError {
+    public static func from(transportError status: GRPCStatus) -> ErrorRegisterAccount {
+        status.code.isTransientNetworkError ? .transportFailure : .unknown
     }
 }
 
 extension ErrorLoginAccount: ServerError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .invalidTimestamp, .denied: false
+        case .ok, .invalidTimestamp, .denied, .transportFailure: false
         case .unknown: true
         }
+    }
+}
+
+extension ErrorLoginAccount: TransportClassifiableError {
+    public static func from(transportError status: GRPCStatus) -> ErrorLoginAccount {
+        status.code.isTransientNetworkError ? .transportFailure : .unknown
     }
 }
 
 extension ErrorFetchUserFlags: ServerError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .denied: false
+        case .ok, .denied, .transportFailure: false
         case .unknown: true
         }
+    }
+}
+
+extension ErrorFetchUserFlags: TransportClassifiableError {
+    public static func from(transportError status: GRPCStatus) -> ErrorFetchUserFlags {
+        status.code.isTransientNetworkError ? .transportFailure : .unknown
     }
 }
 
 extension ErrorFetchUnauthenticatedUserFlags: ServerError {
     public var isReportable: Bool {
         switch self {
-        case .ok: false
+        case .ok, .transportFailure: false
         case .unknown: true
         }
+    }
+}
+
+extension ErrorFetchUnauthenticatedUserFlags: TransportClassifiableError {
+    public static func from(transportError status: GRPCStatus) -> ErrorFetchUnauthenticatedUserFlags {
+        status.code.isTransientNetworkError ? .transportFailure : .unknown
     }
 }
 
