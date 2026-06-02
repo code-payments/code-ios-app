@@ -701,6 +701,54 @@ struct ContactSyncControllerTests {
             #expect(mock.deltaCalls.isEmpty)
             #expect(mock.fullCalls.isEmpty)
         }
+
+        // MARK: First-scan "already on Flipcash" signal
+
+        @Test("First scan signals how many contacts the server matched")
+        func firstScan_withMatches_signalsCount() async throws {
+            let mock = MockContactSync()
+            mock.streamYields = [Self.bobContact.e164, Self.carolContact.e164]
+            let database = Database.mock
+            let controller = Self.makeController(mock: mock, database: database)
+
+            try await controller.performSync(contacts: [Self.aliceContact, Self.bobContact, Self.carolContact])
+
+            #expect(controller.onFlipcashMatchCount == 2)
+        }
+
+        @Test("First scan with no matches signals nothing")
+        func firstScan_noMatches_signalsNothing() async throws {
+            let mock = MockContactSync()
+            mock.streamYields = []
+            let database = Database.mock
+            let controller = Self.makeController(mock: mock, database: database)
+
+            try await controller.performSync(contacts: [Self.aliceContact])
+
+            #expect(controller.onFlipcashMatchCount == nil)
+        }
+
+        @Test("A later sync never re-signals")
+        func laterSync_doesNotReSignal() async throws {
+            let mock = MockContactSync()
+            mock.streamYields = [Self.bobContact.e164]
+            let database = Database.mock
+            let controller = Self.makeController(mock: mock, database: database)
+
+            let contacts = [Self.aliceContact, Self.bobContact]
+            try await controller.performSync(contacts: contacts)
+            #expect(controller.onFlipcashMatchCount == 1)
+
+            // The forward consumes the signal.
+            controller.onFlipcashMatchCount = nil
+
+            // A second sync of the same set probes the server and refreshes the
+            // matched set, but the stored checksum now exists — so it must stay nil.
+            mock.checkSyncResult = .success(.ok)
+            try await controller.performSync(contacts: contacts)
+
+            #expect(controller.onFlipcashMatchCount == nil)
+        }
     }
 
     // MARK: - Clear on revoke

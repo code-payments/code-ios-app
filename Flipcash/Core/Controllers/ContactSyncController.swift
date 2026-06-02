@@ -41,6 +41,13 @@ final class ContactSyncController {
     /// "we ran a load and found nothing".
     private(set) var hasResolvedOnce: Bool = false
 
+    /// Set once, during the user's first contact scan, to the number of the
+    /// user's contacts the server matched. `SendRootScreen` forwards it to
+    /// `session.dialogItem` — surfaced above the Send sheet by `DialogWindow` —
+    /// then clears it. Gated on the first sync (no prior checksum) so it never
+    /// re-fires on later syncs or screen opens.
+    var onFlipcashMatchCount: Int?
+
     nonisolated private var ownerKeyPair: KeyPair {
         owner.authority.keyPair
     }
@@ -178,6 +185,9 @@ final class ContactSyncController {
     /// preserved when called through the production `runSync` path.
     internal nonisolated func performSync(contacts: [Database.LocalContact]) async throws {
         let storedState = try database.contactSyncState()
+        // No prior checksum means this is the user's first scan — the only time
+        // the "already on Flipcash" dialog is allowed to fire.
+        let isFirstScan = storedState.checksum == nil
         // The snapshot stores every `(e164, contactId)` pair so the picker
         // can show each contact with each of their phone numbers. Upload
         // + checksum operate on the unique e164 set — the server doesn't
@@ -255,6 +265,10 @@ final class ContactSyncController {
         )
 
         await resolveDirectory()
+
+        if isFirstScan, let matched = try? database.flipcashContacts(), !matched.isEmpty {
+            await MainActor.run { self.onFlipcashMatchCount = matched.count }
+        }
     }
 
     /// Re-pulls the server's matched set and re-resolves the picker without
