@@ -80,4 +80,17 @@ struct DialogItemFactoryTests {
         #expect(item.actions[1].title == "Cancel")
         #expect(item.actions[1].kind == .subtle)
     }
+
+    @Test(
+        ".contactsOnFlipcash pluralizes Contact/Contacts by count",
+        arguments: [
+            (1, "1 Contact Already On Flipcash"),
+            (2, "2 Contacts Already On Flipcash"),
+        ]
+    )
+    func contactsOnFlipcash_pluralizesTitle(count: Int, expectedTitle: String) {
+        let item = DialogItem.contactsOnFlipcash(count: count)
+        #expect(item.title == expectedTitle)
+        #expect(item.style == .standard)
+    }
 }
