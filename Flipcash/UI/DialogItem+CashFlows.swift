@@ -20,6 +20,16 @@ extension DialogItem {
         )
     }
 
+    /// First-scan nudge surfaced once when a user's initial contact sync finds
+    /// people they already know on Flipcash. `count` is the number of their
+    /// contacts the server matched.
+    static func contactsOnFlipcash(count: Int) -> DialogItem {
+        .info(
+            title: "\(count) \(count == 1 ? "Contact" : "Contacts") Already On Flipcash",
+            subtitle: "Send them money, or invite other contacts to sign up for Flipcash"
+        )
+    }
+
     /// Nudges the user to discover currencies when they attempt to Give
     /// with no balance.
     static func noGiveableBalance(onDiscover: @escaping () -> Void) -> DialogItem {

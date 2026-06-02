@@ -64,6 +64,15 @@ struct SendRootScreen: View {
         .sheet(item: $phoneVerificationViewModel.cancellingOnDismiss()) { viewModel in
             PhoneVerificationFlowScreen(viewModel: viewModel)
         }
+        // Surface the first-scan dialog through `session.dialogItem` so
+        // `DialogWindow` shows it above the Send sheet rather than competing
+        // with this screen's sheet stack. The controller signals once; clear it
+        // after forwarding so it never re-presents.
+        .onChange(of: contactSyncController.onFlipcashMatchCount, initial: true) { _, count in
+            guard let count else { return }
+            session.dialogItem = .contactsOnFlipcash(count: count)
+            contactSyncController.onFlipcashMatchCount = nil
+        }
     }
 
     // MARK: - Step -
