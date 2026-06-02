@@ -113,6 +113,44 @@ struct SendAmountViewModelTests {
         return container
     }
 
+    // MARK: - Init resolution
+
+    @Test("Init with no mint and no prior selection skips USDF and auto-selects a giveable currency")
+    func testInit_NoMint_NoSelection_SkipsUSDF() throws {
+        // USDF holds the highest value, so the pre-fix resolver auto-selected it;
+        // the giveable filter must skip it and land on the launchpad currency.
+        let container = try SessionContainer.makeTest(holdings: [
+            .init(mint: .usdf, quarks: 100_000_000_000), // $100k USDF — sorts first
+            .init(
+                mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: 10_000 * 10_000_000_000),
+                quarks: 1_000_000_000_000
+            ),
+        ])
+        container.ratesController.selectedTokenMint = nil
+
+        let viewModel = SendAmountViewModel(sessionContainer: container, contact: Self.makeContact(), mint: nil)
+
+        #expect(viewModel.selectedBalance?.stored.mint == .jeffy)
+        #expect(container.ratesController.selectedTokenMint == .jeffy)
+    }
+
+    @Test("Init with a stale USDF global selection still resolves to a giveable currency")
+    func testInit_NoMint_StaleUSDFSelection_SkipsUSDF() throws {
+        let container = try SessionContainer.makeTest(holdings: [
+            .init(mint: .usdf, quarks: 100_000_000_000),
+            .init(
+                mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: 10_000 * 10_000_000_000),
+                quarks: 1_000_000_000_000
+            ),
+        ])
+        container.ratesController.selectToken(.usdf)
+
+        let viewModel = SendAmountViewModel(sessionContainer: container, contact: Self.makeContact(), mint: nil)
+
+        #expect(viewModel.selectedBalance?.stored.mint == .jeffy)
+        #expect(container.ratesController.selectedTokenMint == .jeffy)
+    }
+
     // MARK: - canSend
 
     @Test("canSend is false when no amount is entered")
