@@ -234,6 +234,15 @@ struct ExchangedBalance: Identifiable, Hashable {
     }
 }
 
+extension Array where Element == ExchangedBalance {
+
+    /// Balances eligible to send or give — every balance except USDF, the
+    /// on-Flipcash stablecoin, which is never transferred peer-to-peer.
+    var giveable: [ExchangedBalance] {
+        filter { $0.stored.mint != .usdf }
+    }
+}
+
 extension StoredBalance {
     func exchanged(with rate: Rate) -> ExchangedBalance {
         ExchangedBalance(stored: self, exchangedFiat: computeExchangedValue(with: rate))

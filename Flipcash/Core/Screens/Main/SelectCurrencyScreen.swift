@@ -21,7 +21,7 @@ struct SelectCurrencyScreen: View {
 
     private var balances: [ExchangedBalance] {
         session.balances(for: fixedRate ?? ratesController.rateForBalanceCurrency())
-            .filter { $0.stored.mint != .usdf }
+            .giveable
     }
 
     init(
