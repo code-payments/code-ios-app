@@ -355,6 +355,16 @@ struct ContactSyncControllerTests {
             #expect(controller.hasResolvedOnce)
         }
 
+        @Test("Pre-network resolve on an empty DB leaves the picker not-ready — first grant keeps loading instead of flashing the empty state")
+        func emptyCacheResolve_leavesPickerNotReady() async {
+            let controller = Self.makeController()
+
+            await controller.resolveDirectory()
+
+            #expect(!controller.hasResolvedOnce)
+            #expect(!controller.isDirectoryReady)
+        }
+
         @Test("didBecomeActive() is a no-op before activate()")
         func didBecomeActiveNoOpBeforeActivate() async {
             let counter = AuthCounter()
@@ -523,7 +533,6 @@ struct ContactSyncControllerTests {
             #expect(mock.fullCalls.isEmpty)
             #expect(mock.deltaCalls.isEmpty)
             #expect(Set(try database.flipcashContacts()) == [Self.bobContact.e164])
-            #expect(controller.hasResolvedOnce)
         }
 
         @Test("refreshMatchedSet is a no-op without a prior sync")
