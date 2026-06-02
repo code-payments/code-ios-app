@@ -6,6 +6,7 @@
 import Foundation
 import Testing
 import FlipcashUI
+@testable import Flipcash
 
 @MainActor
 @Suite("DialogItem factory semantics")
@@ -65,5 +66,18 @@ struct DialogItemFactoryTests {
 
         let dismissableSuccess = DialogItem.success(title: "x", subtitle: "y", dismissable: true)
         #expect(dismissableSuccess.dismissable == true)
+    }
+
+    @Test(
+        ".contactsOnFlipcash pluralizes Contact/Contacts by count",
+        arguments: [
+            (1, "1 Contact Already On Flipcash"),
+            (2, "2 Contacts Already On Flipcash"),
+        ]
+    )
+    func contactsOnFlipcash_pluralizesTitle(count: Int, expectedTitle: String) {
+        let item = DialogItem.contactsOnFlipcash(count: count)
+        #expect(item.title == expectedTitle)
+        #expect(item.style == .standard)
     }
 }
