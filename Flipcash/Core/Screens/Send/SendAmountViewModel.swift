@@ -91,11 +91,7 @@ final class SendAmountViewModel {
     ) {
         let session          = sessionContainer.session
         let ratesController  = sessionContainer.ratesController
-        let resolved         = Self.resolveInitialBalance(
-            mint: mint,
-            session: session,
-            ratesController: ratesController
-        )
+        let resolved         = ratesController.resolveInitialBalance(mint: mint, session: session)
 
         self.session         = session
         self.ratesController = ratesController
@@ -107,27 +103,6 @@ final class SendAmountViewModel {
         if let resolved, ratesController.selectedTokenMint != resolved.stored.mint {
             ratesController.selectToken(resolved.stored.mint)
         }
-    }
-
-    private static func resolveInitialBalance(
-        mint: PublicKey?,
-        session: Session,
-        ratesController: RatesController
-    ) -> ExchangedBalance? {
-        let rate = ratesController.rateForBalanceCurrency()
-
-        if let mint, let stored = session.balance(for: mint) {
-            return ExchangedBalance(stored: stored, exchangedFiat: stored.computeExchangedValue(with: rate))
-        }
-
-        let balances = session.balances(for: rate)
-
-        if let stored = ratesController.selectedTokenMint,
-           let match = balances.first(where: { $0.stored.mint == stored }) {
-            return match
-        }
-
-        return balances.first
     }
 
     // MARK: - Action -

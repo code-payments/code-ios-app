@@ -324,7 +324,28 @@ class RatesController {
     func isSelectedToken(_ mint: PublicKey) -> Bool {
         selectedTokenMint == mint
     }
-    
+
+    /// The balance an amount-entry flow (Send, Give) should open with. An
+    /// explicit `mint` wins; otherwise the current selection when it's giveable,
+    /// else the highest-value giveable balance — the fallback covers a stale or
+    /// USDF selection.
+    func resolveInitialBalance(mint: PublicKey?, session: Session) -> ExchangedBalance? {
+        let rate = rateForBalanceCurrency()
+
+        if let mint, let stored = session.balance(for: mint) {
+            return stored.exchanged(with: rate)
+        }
+
+        let giveable = session.balances(for: rate).giveable
+
+        if let stored = selectedTokenMint,
+           let match = giveable.first(where: { $0.stored.mint == stored }) {
+            return match
+        }
+
+        return giveable.first
+    }
+
     /// Prepare for logout of current user
     func prepareForLogout() {
         selectedTokenMint = nil
