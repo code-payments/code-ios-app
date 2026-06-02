@@ -94,7 +94,7 @@ struct SendRootScreen: View {
         guard contactsAuthorizer.status.allowsContactAccess else {
             return .needsContacts
         }
-        return contactSyncController.hasResolvedOnce ? .ready : .loading
+        return contactSyncController.isDirectoryReady ? .ready : .loading
     }
 
     // MARK: - Phone verification handoff -

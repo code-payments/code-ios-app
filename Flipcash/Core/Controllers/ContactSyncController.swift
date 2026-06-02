@@ -35,11 +35,17 @@ final class ContactSyncController {
     /// successful sync; consumers observe it and re-render on changes.
     private(set) var resolvedContacts: ResolvedContacts = .empty
 
-    /// Flips to `true` after the first directory resolution completes —
-    /// regardless of whether `resolvedContacts` ends up empty. The picker
-    /// gate uses this to distinguish "loading for the first time" from
-    /// "we ran a load and found nothing".
+    /// `true` once the first sync attempt has settled the directory — success
+    /// or failure — and never resets. Distinguishes "the first sync is still
+    /// in flight" from "a sync settled and found nothing".
     private(set) var hasResolvedOnce: Bool = false
+
+    /// `true` when the picker has something definitive to show: contacts are
+    /// present, or the first sync has settled so an empty result is
+    /// authoritative (not merely "not loaded yet").
+    var isDirectoryReady: Bool {
+        hasResolvedOnce || !resolvedContacts.isEmpty
+    }
 
     /// Set once, during the user's first contact scan, to the number of the
     /// user's contacts the server matched. `SendRootScreen` forwards it to
@@ -100,8 +106,8 @@ final class ContactSyncController {
                 }
             }
         }
-        // Render the picker from the persisted directory before the network
-        // sync; an offline launch would otherwise spin until a sync succeeds.
+        // Surface cached contacts before the network sync so an offline relaunch
+        // renders immediately instead of spinning.
         if !hasResolvedOnce {
             Task { [weak self] in await self?.resolveDirectory() }
         }
@@ -147,6 +153,11 @@ final class ContactSyncController {
                 guard let self else { return }
                 self.isSyncing = false
                 self.syncTask = nil
+                // A finished attempt — success or failure — is a definitive
+                // result. Mark resolved so the picker leaves its loading state
+                // even when nothing matched or the sync failed, rather than
+                // spinning forever.
+                self.hasResolvedOnce = true
                 if self.needsResync {
                     self.needsResync = false
                     self.sync()
@@ -296,7 +307,6 @@ final class ContactSyncController {
         let resolved = await RecipientLoader.load(database: database)
         await MainActor.run {
             self.resolvedContacts = resolved
-            self.hasResolvedOnce  = true
         }
     }
 
