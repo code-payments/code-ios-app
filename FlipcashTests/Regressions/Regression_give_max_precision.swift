@@ -25,7 +25,7 @@ struct Regression_give_max_precision {
         let supply = UInt64(tokens) * UInt64(DiscreteBondingCurve.quarksPerToken)
 
         let viewModel = GiveViewModelTests.createViewModel()
-        let balance = GiveViewModelTests.createExchangedBalance(
+        let balance = ExchangedBalance.makeTest(
             mint: .jeffy,
             quarks: supply,
             supplyQuarks: supply
