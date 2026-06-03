@@ -103,6 +103,9 @@ final class DeepLinkController {
         case .discover:
             return actionForOpenSheet(.discover)
 
+        case .send:
+            return actionForOpenSheet(.send)
+
         case .unknown:
             break
         }
@@ -213,6 +216,9 @@ struct DeepLinkAction {
                         }
                         return
                     }
+                }
+                if sheet == .send {
+                    guard container.session.userFlags?.enablePhoneNumberSend == true else { return }
                 }
                 container.appRouter.present(sheet)
             }
