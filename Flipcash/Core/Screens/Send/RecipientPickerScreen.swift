@@ -51,7 +51,7 @@ struct RecipientPickerScreen: View {
         }
         .onAppear { refilter() }
         .onChange(of: searchText) { refilter() }
-        .onChange(of: contacts) { refilter() }
+        .onChange(of: contacts) { withAnimation(.snappy) { refilter() } }
         .sheet(item: $inviteTarget) { contact in
             MessageComposerSheet(
                 recipient: contact.phoneE164,
