@@ -268,11 +268,7 @@ final class ContactSyncController {
 
         try database.updateContactSyncSnapshotAndState(
             snapshot: contacts,
-            state: .init(
-                checksum:      newChecksum,
-                changeHistory: nil,
-                lastSyncedAt:  .now
-            )
+            state: .init(checksum: newChecksum)
         )
 
         await resolveDirectory()

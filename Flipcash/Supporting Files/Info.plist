@@ -20,7 +20,7 @@
 		<string>INSendMessageIntent</string>
 	</array>
 	<key>SQLiteVersion</key>
-	<integer>13</integer>
+	<integer>14</integer>
 	<key>UIApplicationShortcutItems</key>
 	<array>
 		<dict>
