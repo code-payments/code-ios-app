@@ -28,7 +28,6 @@ struct MessageComposerSheet: UIViewControllerRepresentable {
     static var isAvailable: Bool { MFMessageComposeViewController.canSendText() }
 
     let recipient: String
-    let body: String
     let onFinish: (MessageComposeResult) -> Void
 
     func makeCoordinator() -> Coordinator {
@@ -38,7 +37,7 @@ struct MessageComposerSheet: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> MFMessageComposeViewController {
         let controller = MFMessageComposeViewController()
         controller.recipients = [recipient]
-        controller.body = body
+        controller.body = Self.placeholderBody
         controller.messageComposeDelegate = context.coordinator
         return controller
     }

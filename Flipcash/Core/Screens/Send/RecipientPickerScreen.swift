@@ -55,7 +55,6 @@ struct RecipientPickerScreen: View {
         .sheet(item: $inviteTarget) { contact in
             MessageComposerSheet(
                 recipient: contact.phoneE164,
-                body: MessageComposerSheet.placeholderBody,
                 onFinish: { result in
                     logger.info("Invite composer finished", metadata: [
                         "outcome": "\(outcomeName(result))",

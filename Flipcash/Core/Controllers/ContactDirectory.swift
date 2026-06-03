@@ -67,7 +67,7 @@ nonisolated private extension ResolvedContact {
 /// the controller's cached output rather than re-loading on every appear.
 enum RecipientLoader {
 
-    /// One placement per snapshot row. The snapshot now uses a composite
+    /// One placement per snapshot row. The snapshot uses a composite
     /// `(e164, contactId)` PK, so each pair survives — multiple phones on
     /// one contact, or one phone shared across multiple contacts, all
     /// come through here.
@@ -99,7 +99,7 @@ enum RecipientLoader {
     /// same row. On a collision, prefer the variant whose e164 is on
     /// Flipcash so the resulting row is the actionable one.
     ///
-    /// Result preserves first-seen order, mirroring ``placements``.
+    /// Result preserves first-seen order.
     nonisolated static func deduplicatedForDisplay(
         _ contacts: [ResolvedContact],
         flipcashSet: Set<String>,
@@ -190,8 +190,8 @@ enum RecipientLoader {
                 ))
             }
 
-            // Collapse `(displayName, nationalPhone)` collisions — Ted's
-            // invariant: don't ever show the same name + number twice.
+            // Collapse `(displayName, nationalPhone)` collisions so the same
+            // display name + national number is never shown twice.
             let unique = deduplicatedForDisplay(resolvedByPlacement, flipcashSet: flipcashSet)
 
             var onFlipcash: [ResolvedContact] = []

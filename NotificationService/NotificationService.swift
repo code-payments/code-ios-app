@@ -51,6 +51,10 @@ final class NotificationService: UNNotificationServiceExtension {
             return
         }
 
+        // Only the `.contact` substitution kind ships today, resolved to a local
+        // name (or "Someone you know" when unresolved — never the raw phone). The
+        // server's per-substitution `fallback` is reserved for future kinds this
+        // client doesn't yet recognize.
         let titleResolutions = payload.titleSubstitutions.map { resolve($0.contact) }
         let bodyResolutions = payload.bodySubstitutions.map { resolve($0.contact) }
 
