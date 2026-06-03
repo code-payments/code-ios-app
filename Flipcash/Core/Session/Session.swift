@@ -354,7 +354,9 @@ class Session {
         // Claim before the await so two concurrent callers can't double-fire; released on failure below.
         hasLinkedPhoneForPayment = true
         do {
-            try await flipClient.linkForPayment(phone: phone.e164, owner: ownerKeyPair)
+            try await Task.retry(maxAttempts: 3, delay: .milliseconds(500)) {
+                try await flipClient.linkForPayment(phone: phone.e164, owner: ownerKeyPair)
+            }
         } catch is CancellationError {
             hasLinkedPhoneForPayment = false
         } catch {
