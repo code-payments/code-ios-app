@@ -219,6 +219,11 @@ final class ContactSyncController {
                 // A contact may have joined without changing our checksum.
                 logger.info("Local set unchanged, server agrees — refreshing matched set")
                 try await refreshFlipcashContacts(checksum: storedChecksum)
+                // The checksum only covers unique phone numbers, so a contact
+                // added/renamed on a number we already had doesn't change it.
+                // Refresh the local snapshot from the current address book so
+                // the picker reflects the best name per number.
+                try database.replaceLocalContactsSnapshot(contacts)
                 await resolveDirectory()
                 return
             case .outOfSync:
