@@ -9,28 +9,12 @@ import FlipcashUI
 
 /// Priming view for the system contacts authorization prompt. The parent
 /// owns the ``ContactsAuthorizer`` so grants propagate via `@Observable`.
-/// Pass `onSkipped: nil` to hide the secondary "Not Now" button. Set
-/// `isAllowing` to `true` to swap the primary button label for a spinner
-/// — used by parents that need to keep the priming screen visible while
-/// an in-flight grant + downstream load resolves.
+/// Pass `onSkipped: nil` to hide the secondary "Not Now" button.
 struct ContactsPermissionScreen: View {
 
     let authorizer: ContactsAuthorizer
     let onAllowed: () -> Void
     let onSkipped: (() -> Void)?
-    let isAllowing: Bool
-
-    init(
-        authorizer: ContactsAuthorizer,
-        onAllowed: @escaping () -> Void,
-        onSkipped: (() -> Void)?,
-        isAllowing: Bool = false
-    ) {
-        self.authorizer = authorizer
-        self.onAllowed = onAllowed
-        self.onSkipped = onSkipped
-        self.isAllowing = isAllowing
-    }
 
     // MARK: - Body -
 
@@ -58,18 +42,12 @@ struct ContactsPermissionScreen: View {
 
                 Spacer()
 
-                Button(action: primaryAction) {
-                    Loadable(isLoading: isAllowing, color: .textAction) {
-                        Text(primaryTitle)
-                    }
-                }
-                .buttonStyle(.filled)
-                .disabled(isAllowing)
+                Button(primaryTitle, action: primaryAction)
+                    .buttonStyle(.filled)
 
                 if let onSkipped {
                     Button("Not Now", action: onSkipped)
                         .buttonStyle(.subtle)
-                        .disabled(isAllowing)
                 }
             }
             .padding(20)

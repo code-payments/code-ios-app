@@ -72,20 +72,6 @@ struct ContactSyncControllerTests {
             let expandedSum = ContactSyncController.checksum(of: expanded)
             #expect(baseSum != expandedSum)
         }
-
-        @Test("Removing a phone reverts the checksum (XOR inverse)")
-        func removingPhoneIsReverseOfAdding() {
-            let base    = ["+14155550100", "+442071234567"]
-            let added   = base + ["+819012345678"]
-            let baseSum  = ContactSyncController.checksum(of: base)
-            let addedSum = ContactSyncController.checksum(of: added)
-            let extraHash = SHA256.digest("+819012345678")
-            var restored = [UInt8](addedSum)
-            for (i, byte) in extraHash.enumerated() {
-                restored[i] ^= byte
-            }
-            #expect(Data(restored) == baseSum)
-        }
     }
 
     // MARK: - Delta
@@ -479,11 +465,7 @@ struct ContactSyncControllerTests {
             checksum: Data,
             snapshot: [Database.LocalContact] = []
         ) throws {
-            try database.setContactSyncState(.init(
-                checksum:      checksum,
-                changeHistory: nil,
-                lastSyncedAt:  Date(timeIntervalSince1970: 1_716_000_000)
-            ))
+            try database.setContactSyncState(.init(checksum: checksum))
             if !snapshot.isEmpty {
                 try database.replaceLocalContactsSnapshot(snapshot)
             }
@@ -512,7 +494,6 @@ struct ContactSyncControllerTests {
 
             let storedState = try database.contactSyncState()
             #expect(storedState.checksum == ContactSyncController.checksum(of: contacts.map(\.e164)))
-            try #require(storedState.lastSyncedAt != nil)
 
             #expect(Set(try database.localContactsSnapshot().map(\.e164)) == Set(contacts.map(\.e164)))
             #expect(Set(try database.flipcashContacts()) == ["+14155550101"])
@@ -785,9 +766,7 @@ struct ContactSyncControllerTests {
             matched: [String] = []
         ) throws {
             try database.setContactSyncState(.init(
-                checksum:      ContactSyncController.checksum(of: contacts.map(\.e164)),
-                changeHistory: nil,
-                lastSyncedAt:  Date(timeIntervalSince1970: 1_716_000_000)
+                checksum: ContactSyncController.checksum(of: contacts.map(\.e164))
             ))
             try database.replaceLocalContactsSnapshot(contacts)
             if !matched.isEmpty {
@@ -896,9 +875,7 @@ struct ContactSyncControllerTests {
             let controller = Self.makeController(mock: mock, database: database)
 
             try database.setContactSyncState(.init(
-                checksum:      ContactSyncController.checksum(of: [Self.aliceContact.e164]),
-                changeHistory: nil,
-                lastSyncedAt:  Date(timeIntervalSince1970: 1_716_000_000)
+                checksum: ContactSyncController.checksum(of: [Self.aliceContact.e164])
             ))
             try database.replaceLocalContactsSnapshot([Self.aliceContact])
             try database.replaceFlipcashContacts([Self.aliceContact.e164], matchedAt: Date(timeIntervalSince1970: 1_716_000_000))

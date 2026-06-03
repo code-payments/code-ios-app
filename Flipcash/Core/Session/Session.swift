@@ -323,15 +323,16 @@ class Session {
 
     /// Links an already-verified phone for payment once per session. Best-effort; server-idempotent.
     private func linkPhoneForPaymentIfNeeded() async {
-        // The server's enablePhoneNumberSend flag is off for everyone, so this runs
-        // unconditionally for now rather than gating on dead state.
-        // TODO: re-gate behind a local override (BetaFlags || userFlags?.enablePhoneNumberSend).
+        // TODO: gate on (BetaFlags || userFlags?.enablePhoneNumberSend) once
+        // enablePhoneNumberSend ships; runs unconditionally until then.
         guard let phone = profile?.phone,
               !hasLinkedPhoneForPayment else { return }
         // Claim before the await so two concurrent callers can't double-fire; released on failure below.
         hasLinkedPhoneForPayment = true
         do {
-            try await flipClient.linkForPayment(phone: phone.e164, owner: ownerKeyPair)
+            try await Task.retry(maxAttempts: 3, delay: .milliseconds(500)) {
+                try await flipClient.linkForPayment(phone: phone.e164, owner: ownerKeyPair)
+            }
         } catch is CancellationError {
             hasLinkedPhoneForPayment = false
         } catch {

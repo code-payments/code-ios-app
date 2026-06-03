@@ -12,13 +12,11 @@ nonisolated extension Database {
     // MARK: - Sync State -
 
     /// The contact-sync state machine's persisted cursor.
-    /// `nil` fields indicate first-run state.
+    /// A `nil` checksum indicates first-run state.
     struct ContactSyncState: Equatable, Sendable {
         let checksum: Data?
-        let changeHistory: Data?
-        let lastSyncedAt: Date?
 
-        static let empty = ContactSyncState(checksum: nil, changeHistory: nil, lastSyncedAt: nil)
+        static let empty = ContactSyncState(checksum: nil)
     }
 
     func contactSyncState() throws -> ContactSyncState {
@@ -26,11 +24,7 @@ nonisolated extension Database {
         guard let row = try reader.pluck(table.table.filter(table.id == 1)) else {
             return .empty
         }
-        return ContactSyncState(
-            checksum: row[table.checksum],
-            changeHistory: row[table.changeHistory],
-            lastSyncedAt: row[table.lastSyncedAt]
-        )
+        return ContactSyncState(checksum: row[table.checksum])
     }
 
     func setContactSyncState(_ state: ContactSyncState) throws {
@@ -40,8 +34,6 @@ nonisolated extension Database {
                 table.table.upsert(
                     table.id <- 1,
                     table.checksum <- state.checksum,
-                    table.changeHistory <- state.changeHistory,
-                    table.lastSyncedAt <- state.lastSyncedAt,
                     onConflictOf: table.id
                 )
             )
@@ -95,24 +87,28 @@ nonisolated extension Database {
     }
 
     /// Replace the snapshot with the latest uploaded set.
-    /// Composite PK `(e164, contactId)` lets the same phone show up under
-    /// multiple address-book contacts (the picker shows each name with
-    /// that number). Dedupe defensively on the tuple in case the source
-    /// ever emits the same pair twice.
     func replaceLocalContactsSnapshot(_ contacts: [LocalContact]) throws {
+        try writer.transaction {
+            try rewriteLocalContactsSnapshot(contacts)
+        }
+    }
+
+    /// Dedupes on the full `(e164, contactId)` tuple — the composite PK that lets the
+    /// same phone appear under multiple address-book contacts (the picker shows each
+    /// name with that number) — then rewrites the snapshot table. Must be called
+    /// inside a `writer.transaction`.
+    private func rewriteLocalContactsSnapshot(_ contacts: [LocalContact]) throws {
         let table = LocalContactsSnapshotTable()
         var seen: Set<LocalContact> = []
         let deduped = contacts.filter { seen.insert($0).inserted }
-        try writer.transaction {
-            try writer.run(table.table.delete())
-            for contact in deduped {
-                try writer.run(
-                    table.table.insert(
-                        table.e164 <- contact.e164,
-                        table.contactId <- contact.contactId
-                    )
+        try writer.run(table.table.delete())
+        for contact in deduped {
+            try writer.run(
+                table.table.insert(
+                    table.e164 <- contact.e164,
+                    table.contactId <- contact.contactId
                 )
-            }
+            )
         }
     }
 
@@ -123,29 +119,13 @@ nonisolated extension Database {
         snapshot contacts: [LocalContact],
         state: ContactSyncState
     ) throws {
-        let snapshotTable = LocalContactsSnapshotTable()
-        let stateTable    = ContactSyncStateTable()
-
-        var seen: Set<String> = []
-        let dedupedSnapshot = contacts.filter { seen.insert($0.e164).inserted }
-
+        let stateTable = ContactSyncStateTable()
         try writer.transaction {
-            try writer.run(snapshotTable.table.delete())
-            for contact in dedupedSnapshot {
-                try writer.run(
-                    snapshotTable.table.insert(
-                        snapshotTable.e164 <- contact.e164,
-                        snapshotTable.contactId <- contact.contactId
-                    )
-                )
-            }
-
+            try rewriteLocalContactsSnapshot(contacts)
             try writer.run(
                 stateTable.table.upsert(
                     stateTable.id <- 1,
                     stateTable.checksum <- state.checksum,
-                    stateTable.changeHistory <- state.changeHistory,
-                    stateTable.lastSyncedAt <- state.lastSyncedAt,
                     onConflictOf: stateTable.id
                 )
             )

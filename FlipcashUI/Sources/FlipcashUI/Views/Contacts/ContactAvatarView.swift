@@ -82,8 +82,8 @@ nonisolated public final class ContactAvatarCache: @unchecked Sendable {
 
     private let cache = NSCache<NSString, UIImage>()
 
-    public init(countLimit: Int = 200) {
-        cache.countLimit = countLimit
+    private init() {
+        cache.countLimit = 200
     }
 
     /// Returns the cached `UIImage` for `key`. Decodes `data` and caches the
