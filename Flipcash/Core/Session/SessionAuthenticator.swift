@@ -243,11 +243,16 @@ final class SessionAuthenticator {
             owner: owner
         )
 
-        // Activate at bootstrap when contacts are already accessible
-        // (full or limited).
-        Task.detached { [contactSyncController] in
+        // Activate at bootstrap only when contacts are accessible (full or
+        // limited) AND a phone is already verified. A new user who granted
+        // contacts during onboarding but hasn't verified a phone yet must not
+        // sync — or fire the "already on Flipcash" dialog — before completing
+        // the Send phone step. In-screen activation handles the post-verify case.
+        Task.detached { [contactSyncController, database] in
             let status = CNContactStore.authorizationStatus(for: .contacts)
             guard status.allowsContactAccess else { return }
+            let storedProfile = (try? database.getProfile()) ?? nil
+            guard storedProfile?.isPhoneVerified == true else { return }
             await MainActor.run {
                 contactSyncController.activate()
             }

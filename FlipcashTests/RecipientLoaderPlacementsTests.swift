@@ -115,15 +115,28 @@ struct RecipientLoaderDeduplicatedForDisplayTests {
         #expect(unique.map(\.nationalPhone) == ["(408) 555-1111", "(408) 555-2222"])
     }
 
-    @Test("Same number under multiple names shows once per name")
+    @Test("Same number under multiple names collapses to one — the last-seen named wins")
     func sameNumberMultipleNames() {
         let contacts = [
             makeContact(contactId: "A", name: "Alice", e164: "+14085551234", national: "(408) 555-1234"),
             makeContact(contactId: "B", name: "Bob",   e164: "+14085551234", national: "(408) 555-1234"),
         ]
         let unique = RecipientLoader.deduplicatedForDisplay(contacts, flipcashSet: [])
-        #expect(unique.count == 2)
-        #expect(Set(unique.map(\.displayName)) == ["Alice", "Bob"])
+        #expect(unique.count == 1)
+        #expect(unique[0].displayName == "Bob")
+    }
+
+    @Test("A named contact wins over a no-name duplicate on the same number")
+    func namedWinsOverNoName() {
+        let national = "(408) 555-1234"
+        let contacts = [
+            // No-name contact: its label falls back to the bare number.
+            makeContact(contactId: "A", name: national, e164: "+14085551234", national: national),
+            makeContact(contactId: "B", name: "Ted",    e164: "+14085551234", national: national),
+        ]
+        let unique = RecipientLoader.deduplicatedForDisplay(contacts, flipcashSet: [])
+        #expect(unique.count == 1)
+        #expect(unique[0].displayName == "Ted")
     }
 
     @Test("Same (name, nationalPhone) collapses to ONE row")

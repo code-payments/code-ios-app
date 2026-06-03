@@ -67,7 +67,7 @@ nonisolated private extension ResolvedContact {
 /// the controller's cached output rather than re-loading on every appear.
 enum RecipientLoader {
 
-    /// One placement per snapshot row. The snapshot now uses a composite
+    /// One placement per snapshot row. The snapshot uses a composite
     /// `(e164, contactId)` PK, so each pair survives — multiple phones on
     /// one contact, or one phone shared across multiple contacts, all
     /// come through here.
@@ -92,42 +92,53 @@ enum RecipientLoader {
         }
     }
 
-    /// Collapse contacts that look identical to the user — same display
-    /// name and same nationally-formatted phone number — to a single
-    /// row. Different underlying e164s that format to the same national
-    /// string (extension trailers, formatting variants) count as the
-    /// same row. On a collision, prefer the variant whose e164 is on
-    /// Flipcash so the resulting row is the actionable one.
-    ///
-    /// Result preserves first-seen order, mirroring ``placements``.
+    /// One row per displayed phone number. A payment to a number reaches the
+    /// same recipient regardless of which contact it came from, so contacts
+    /// that share a nationally-formatted number — including extension/format
+    /// variants of one e164 — collapse to a single row. On a collision the
+    /// most useful label wins, in order: a real name beats a bare-number
+    /// fallback; then an on-Flipcash (sendable) e164 beats one that isn't;
+    /// then, between two different named contacts, the last-seen one wins;
+    /// otherwise the first-seen row stays.
     nonisolated static func deduplicatedForDisplay(
         _ contacts: [ResolvedContact],
         flipcashSet: Set<String>,
     ) -> [ResolvedContact] {
-        // Struct key (not a separator-joined string) — display names and
-        // phone formats can legitimately contain any character, and a
-        // joined-string key would collide when the separator appears in
-        // the data itself.
-        struct Key: Hashable {
-            let displayName: String
-            let nationalPhone: String
-        }
-        var byKey: [Key: ResolvedContact] = [:]
-        var orderedKeys: [Key] = []
+        var byNumber: [String: ResolvedContact] = [:]
+        var order: [String] = []
         for contact in contacts {
-            let key = Key(displayName: contact.displayName, nationalPhone: contact.nationalPhone)
-            if let existing = byKey[key] {
-                let existingMatched = flipcashSet.contains(existing.phoneE164)
-                let newMatched      = flipcashSet.contains(contact.phoneE164)
-                if !existingMatched, newMatched {
-                    byKey[key] = contact
-                }
-            } else {
-                byKey[key] = contact
-                orderedKeys.append(key)
+            let key = contact.nationalPhone
+            guard let existing = byNumber[key] else {
+                byNumber[key] = contact
+                order.append(key)
+                continue
+            }
+            if prefers(contact, over: existing, flipcashSet: flipcashSet) {
+                byNumber[key] = contact
             }
         }
-        return orderedKeys.compactMap { byKey[$0] }
+        return order.compactMap { byNumber[$0] }
+    }
+
+    /// Whether `candidate` is a better row than `existing` for the same number.
+    private nonisolated static func prefers(
+        _ candidate: ResolvedContact,
+        over existing: ResolvedContact,
+        flipcashSet: Set<String>,
+    ) -> Bool {
+        // A resolved contact with no name falls back to its own number as the
+        // display name; a real name is more useful than that bare number.
+        let candidateNamed = candidate.displayName != candidate.nationalPhone
+        let existingNamed   = existing.displayName != existing.nationalPhone
+        if candidateNamed != existingNamed { return candidateNamed }
+
+        let candidateMatched = flipcashSet.contains(candidate.phoneE164)
+        let existingMatched   = flipcashSet.contains(existing.phoneE164)
+        if candidateMatched != existingMatched { return candidateMatched }
+
+        // Two different named contacts on one number: the last-seen wins.
+        // Variants of the same contact keep the first/base e164.
+        return candidateNamed && candidate.contactId != existing.contactId
     }
 
     static func load(database: Database) async -> ResolvedContacts {
@@ -190,8 +201,8 @@ enum RecipientLoader {
                 ))
             }
 
-            // Collapse `(displayName, nationalPhone)` collisions — Ted's
-            // invariant: don't ever show the same name + number twice.
+            // Collapse `(displayName, nationalPhone)` collisions so the same
+            // display name + national number is never shown twice.
             let unique = deduplicatedForDisplay(resolvedByPlacement, flipcashSet: flipcashSet)
 
             var onFlipcash: [ResolvedContact] = []
