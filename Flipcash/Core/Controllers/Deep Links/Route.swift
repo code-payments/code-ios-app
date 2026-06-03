@@ -88,6 +88,7 @@ nonisolated extension Route {
         case give
         case balance
         case discover
+        case send
         case unknown(String)
         
         static func parse(path: String) -> Path? {
@@ -125,6 +126,8 @@ nonisolated extension Route {
                 return .unknown(url.lastPathComponent)
             case "discover":
                 return .discover
+            case "send":
+                return .send
             default:
                 return .unknown(url.lastPathComponent)
             }

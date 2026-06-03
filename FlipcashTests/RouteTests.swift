@@ -122,9 +122,8 @@ struct RouteTests {
 
     // MARK: - Sheet Routes -
     //
-    // The three home-screen quick actions defined in Info.plist (Give,
-    // Wallet, Discover) all open sheets via these routes. Universal links
-    // and `flipcash://` deep links must both parse to the same case.
+    // The home-screen quick actions open sheets via these routes. The
+    // `flipcash://` deep link and the universal link must parse to the same case.
 
     @Test(
         "Give route parses from both URL formats",
@@ -156,6 +155,17 @@ struct RouteTests {
         let path = try #require(Route(url: URL(string: urlString)!)?.path)
         if case .discover = path {} else {
             Issue.record("\(urlString) should parse as .discover")
+        }
+    }
+
+    @Test(
+        "Send route parses from both URL formats",
+        arguments: ["flipcash://send", "https://app.flipcash.com/send"]
+    )
+    func sendRoute(urlString: String) throws {
+        let path = try #require(Route(url: URL(string: urlString)!)?.path)
+        if case .send = path {} else {
+            Issue.record("\(urlString) should parse as .send")
         }
     }
 
