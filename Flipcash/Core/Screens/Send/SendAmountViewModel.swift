@@ -46,37 +46,11 @@ final class SendAmountViewModel {
     }
 
     private var enteredFiat: ExchangedFiat? {
-        guard !enteredAmount.isEmpty,
-              let amount = Decimal(string: enteredAmount), amount > 0,
+        guard let amount = Decimal(string: enteredAmount),
               let selectedBalance else { return nil }
-
-        let mint = selectedBalance.stored.mint
-        let rate = ratesController.rateForBalanceCurrency()
-        let entered = FiatAmount(value: amount, currency: rate.currency)
-
-        if mint == .usdf {
-            return ExchangedFiat(nativeAmount: entered, rate: rate)
-        }
-
-        guard let supplyQuarks = selectedBalance.stored.supplyFromBonding else { return nil }
-
-        if let viaCurve = ExchangedFiat.compute(
-            fromEntered: entered,
-            rate: rate,
-            mint: mint,
-            supplyQuarks: supplyQuarks
-        ) {
-            return viaCurve
-        }
-
-        // Curve cannot price requested > TVL — surface as over-balance.
-        return ExchangedFiat(
-            onChainAmount: TokenAmount(
-                quarks: selectedBalance.stored.quarks + 1,
-                mint: mint
-            ),
-            nativeAmount: entered,
-            currencyRate: rate
+        return selectedBalance.enteredFiat(
+            for: amount,
+            rate: ratesController.rateForBalanceCurrency()
         )
     }
 

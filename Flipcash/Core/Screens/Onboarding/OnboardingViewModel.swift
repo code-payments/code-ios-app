@@ -22,7 +22,7 @@ class OnboardingViewModel {
 
     private(set) var inflightMnemonic: MnemonicPhrase = .generate(.words12)
 
-    @ObservationIgnored let container: Container
+    @ObservationIgnored private let container: Container
     @ObservationIgnored private let sessionAuthenticator: SessionAuthenticator
     @ObservationIgnored private var initializedAccount: InitializedAccount?
 

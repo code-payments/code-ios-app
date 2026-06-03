@@ -36,44 +36,6 @@ struct SendAmountViewModelTests {
         )
     }
 
-    static func createExchangedBalance(
-        mint: PublicKey = .usdf,
-        quarks: UInt64 = 1_000_000,
-        supplyQuarks: UInt64? = nil
-    ) -> ExchangedBalance {
-        let effectiveSupplyQuarks: UInt64?
-        let effectiveSellFeeBps: Int?
-
-        if mint == .usdf {
-            effectiveSupplyQuarks = nil
-            effectiveSellFeeBps = nil
-        } else {
-            effectiveSupplyQuarks = supplyQuarks ?? 10_000 * 10_000_000_000
-            effectiveSellFeeBps = 0
-        }
-
-        let stored = try! StoredBalance(
-            quarks: quarks,
-            symbol: mint == .usdf ? "USDF" : "TOKEN",
-            name: mint == .usdf ? "USDF Coin" : "Test Token",
-            supplyFromBonding: effectiveSupplyQuarks,
-            sellFeeBps: effectiveSellFeeBps,
-            mint: mint,
-            vmAuthority: mint == .usdf ? nil : .usdcAuthority,
-            updatedAt: Date(),
-            imageURL: nil,
-            costBasis: 0
-        )
-        return ExchangedBalance(
-            stored: stored,
-            exchangedFiat: ExchangedFiat.compute(
-                onChainAmount: TokenAmount(quarks: quarks, mint: mint),
-                rate: .oneToOne,
-                supplyQuarks: effectiveSupplyQuarks
-            )
-        )
-    }
-
     /// Funded USDF container + test rates, mirroring the production amount-entry
     /// path so `sendAction` clears the local sufficiency gate and reaches the
     /// recipient resolve.
@@ -156,7 +118,7 @@ struct SendAmountViewModelTests {
     @Test("canSend is false when no amount is entered")
     func canSend_emptyAmount_isFalse() {
         let viewModel = Self.createViewModel()
-        viewModel.selectCurrencyAction(exchangedBalance: Self.createExchangedBalance())
+        viewModel.selectCurrencyAction(exchangedBalance: ExchangedBalance.makeTest())
         viewModel.enteredAmount = ""
         #expect(viewModel.canSend == false)
     }
@@ -164,7 +126,7 @@ struct SendAmountViewModelTests {
     @Test("canSend is false when the entered amount can't parse as a positive decimal")
     func canSend_invalidAmount_isFalse() {
         let viewModel = Self.createViewModel()
-        viewModel.selectCurrencyAction(exchangedBalance: Self.createExchangedBalance())
+        viewModel.selectCurrencyAction(exchangedBalance: ExchangedBalance.makeTest())
         viewModel.enteredAmount = "not-a-number"
         #expect(viewModel.canSend == false)
     }
@@ -172,7 +134,7 @@ struct SendAmountViewModelTests {
     @Test("canSend is false for a zero amount")
     func canSend_zero_isFalse() {
         let viewModel = Self.createViewModel()
-        viewModel.selectCurrencyAction(exchangedBalance: Self.createExchangedBalance())
+        viewModel.selectCurrencyAction(exchangedBalance: ExchangedBalance.makeTest())
         viewModel.enteredAmount = "0"
         #expect(viewModel.canSend == false)
     }
@@ -191,7 +153,7 @@ struct SendAmountViewModelTests {
     @Test("canSend is true for a positive amount, never gated on recipient resolution")
     func canSend_positiveAmount_isTrueWithoutResolution() {
         let viewModel = Self.createViewModel()
-        viewModel.selectCurrencyAction(exchangedBalance: Self.createExchangedBalance())
+        viewModel.selectCurrencyAction(exchangedBalance: ExchangedBalance.makeTest())
         viewModel.enteredAmount = "5"
         // No resolve has happened — canSend reflects amount validity only, so a
         // red subtitle in EnterAmountView would mean over-limit, not unresolved.
@@ -203,7 +165,7 @@ struct SendAmountViewModelTests {
     @Test("selectCurrencyAction syncs selectedBalance and ratesController")
     func selectCurrency_syncsBalanceAndRates() {
         let viewModel = Self.createViewModel()
-        let balance = Self.createExchangedBalance(mint: .jeffy, quarks: 1_000_000_000_000, supplyQuarks: 10_000 * 10_000_000_000)
+        let balance = ExchangedBalance.makeTest(mint: .jeffy, quarks: 1_000_000_000_000, supplyQuarks: 10_000 * 10_000_000_000)
         viewModel.selectCurrencyAction(exchangedBalance: balance)
         #expect(viewModel.selectedBalance?.stored.mint == .jeffy)
         #expect(viewModel.ratesController.selectedTokenMint == .jeffy)
@@ -213,7 +175,7 @@ struct SendAmountViewModelTests {
     func selectCurrency_clearsEnteredAmount() {
         let viewModel = Self.createViewModel()
         viewModel.enteredAmount = "42.00"
-        viewModel.selectCurrencyAction(exchangedBalance: Self.createExchangedBalance())
+        viewModel.selectCurrencyAction(exchangedBalance: ExchangedBalance.makeTest())
         #expect(viewModel.enteredAmount == "")
     }
 
@@ -228,7 +190,7 @@ struct SendAmountViewModelTests {
             mint: nil,
             sender: sender
         )
-        viewModel.selectCurrencyAction(exchangedBalance: Self.createExchangedBalance())
+        viewModel.selectCurrencyAction(exchangedBalance: ExchangedBalance.makeTest())
         viewModel.enteredAmount = ""
 
         let outcome = await viewModel.sendAction()
@@ -249,7 +211,7 @@ struct SendAmountViewModelTests {
             resolver: mock
         )
         // Empty balance + non-zero entered amount → hasSufficientFunds == .insufficient.
-        viewModel.selectCurrencyAction(exchangedBalance: Self.createExchangedBalance(quarks: 0))
+        viewModel.selectCurrencyAction(exchangedBalance: ExchangedBalance.makeTest(quarks: 0))
         viewModel.enteredAmount = "5"
 
         let outcome = await viewModel.sendAction()

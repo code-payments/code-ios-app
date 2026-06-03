@@ -22,9 +22,7 @@ struct DatabaseContactSyncTests {
     func state_roundTrip() throws {
         let db = Database.mock
         let state = Database.ContactSyncState(
-            checksum: Data(repeating: 0xab, count: 32),
-            changeHistory: Data([0x01, 0x02, 0x03]),
-            lastSyncedAt: Date(timeIntervalSince1970: 1_716_000_000)
+            checksum: Data(repeating: 0xab, count: 32)
         )
 
         try db.setContactSyncState(state)
@@ -36,19 +34,12 @@ struct DatabaseContactSyncTests {
     func state_upsert() throws {
         let db = Database.mock
         let first = Database.ContactSyncState(
-            checksum: Data(repeating: 0x01, count: 32),
-            changeHistory: nil,
-            lastSyncedAt: nil
+            checksum: Data(repeating: 0x01, count: 32)
         )
-        // Integer-second epoch round-trips losslessly through SQLite's Date
-        // column; `.now` carries sub-second precision the storage truncates,
-        // which made the `==` flake. Different epoch from `state_roundTrip`
-        // so the upsert is still meaningful (the second value must overwrite
-        // the first).
+        // Different checksum so the upsert is meaningful — the second value
+        // must overwrite the first on the singleton row.
         let second = Database.ContactSyncState(
-            checksum: Data(repeating: 0x02, count: 32),
-            changeHistory: Data([0xff]),
-            lastSyncedAt: Date(timeIntervalSince1970: 1_716_000_001)
+            checksum: Data(repeating: 0x02, count: 32)
         )
 
         try db.setContactSyncState(first)
@@ -184,6 +175,33 @@ struct DatabaseContactSyncTests {
         #expect(try db.localContactsSnapshot() == [
             Database.LocalContact(e164: "+15551234567", contactId: "alice"),
         ])
+    }
+
+    // MARK: - Combined writes -
+
+    @Test("updateContactSyncSnapshotAndState keeps every (e164, contactId) pair for a shared number")
+    func combinedWrite_keepsEveryPairForSharedNumber() throws {
+        let db = Database.mock
+
+        try db.updateContactSyncSnapshotAndState(
+            snapshot: [
+                Database.LocalContact(e164: "+15551234567", contactId: "work-card"),
+                Database.LocalContact(e164: "+15551234567", contactId: "personal-card"),
+                Database.LocalContact(e164: "+447700900000", contactId: "abroad"),
+            ],
+            state: .init(checksum: Data(repeating: 0xab, count: 32))
+        )
+
+        // Regression: the combined write previously deduped on e164 only,
+        // collapsing a phone shared across two contacts to a single row and
+        // dropping the second name from the picker. It must preserve every
+        // (e164, contactId) pair, matching replaceLocalContactsSnapshot.
+        #expect(Set(try db.localContactsSnapshot()) == [
+            Database.LocalContact(e164: "+15551234567", contactId: "work-card"),
+            Database.LocalContact(e164: "+15551234567", contactId: "personal-card"),
+            Database.LocalContact(e164: "+447700900000", contactId: "abroad"),
+        ])
+        #expect(try db.contactSyncState().checksum == Data(repeating: 0xab, count: 32))
     }
 
 }

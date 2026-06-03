@@ -137,8 +137,6 @@ nonisolated struct ContactSyncStateTable: Sendable {
     let table         = Table(Self.name)
     let id            = Expression <Int>   ("id")
     let checksum      = Expression <Data?> ("checksum")
-    let changeHistory = Expression <Data?> ("changeHistory")
-    let lastSyncedAt  = Expression <Date?> ("lastSyncedAt")
 }
 
 // E.164 phones the server has confirmed are on Flipcash.
@@ -305,8 +303,6 @@ nonisolated extension Database {
             try writer.run(contactSyncStateTable.table.create(ifNotExists: true, withoutRowid: true) { t in
                 t.column(contactSyncStateTable.id, primaryKey: true)
                 t.column(contactSyncStateTable.checksum)
-                t.column(contactSyncStateTable.changeHistory)
-                t.column(contactSyncStateTable.lastSyncedAt)
             })
         }
 
