@@ -385,6 +385,7 @@ final class SessionAuthenticator {
         )
         
         state = .loggedIn(session)
+        session.quickActionsController.configure()
         UserDefaults.wasLoggedIn = true
 
         Analytics.setIdentity(initializedAccount.userID)
@@ -425,6 +426,7 @@ final class SessionAuthenticator {
             container.session.prepareForLogout()
             container.pushController.prepareForLogout()
             container.usdcSweepOperation.cancel()
+            QuickActionsController.clear()
         }
 
         accountManager.resetForLogout()
@@ -454,6 +456,7 @@ struct SessionContainer {
     let coinbaseService: CoinbaseService
     let appRouter: AppRouter
     let usdcSweepOperation: UsdcSweepOperation
+    let quickActionsController: QuickActionsController
 
     init(
         session: Session,
@@ -513,6 +516,8 @@ struct SessionContainer {
                 await session?.updatePostTransaction()
             }
         )
+
+        self.quickActionsController = QuickActionsController(session: session)
     }
 
     fileprivate func injectingEnvironment<SomeView>(into view: SomeView) -> some View where SomeView: View {
