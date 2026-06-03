@@ -94,4 +94,22 @@ struct TaskRetryTests {
         }
         #expect(attempts == 1)
     }
+
+    @Test("Never retries on cancellation — rethrows immediately without consulting shouldRetry")
+    func doesNotRetryCancellation() async {
+        var attempts = 0
+        var shouldRetryCalled = false
+        await #expect(throws: CancellationError.self) {
+            try await Task.retry(
+                maxAttempts: 5,
+                delay: .nanoseconds(1),
+                shouldRetry: { _ in shouldRetryCalled = true; return true }
+            ) {
+                attempts += 1
+                throw CancellationError()
+            }
+        }
+        #expect(attempts == 1)
+        #expect(shouldRetryCalled == false)
+    }
 }
