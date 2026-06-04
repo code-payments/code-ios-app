@@ -23,58 +23,51 @@ struct SettingsMyAccountScreen: View {
 
     var body: some View {
         Background(color: .backgroundMain) {
-            ScrollView(showsIndicators: false) {
-                list()
+            List {
+                SettingsRow(asset: .key, title: "Access Key", insets: insets) {
+                    dialogItem = .alert(
+                        title: "View Your Access Key?",
+                        subtitle: "Your Access Key will grant access to your Flipcash account. Keep it private and safe"
+                    ) {
+                        DialogAction.destructive("View Access Key") {
+                            router.push(.accessKey)
+                        }
+                        DialogAction.cancel()
+                    }
+                }
+
+                SettingsRow(asset: .logout, title: "Log Out", insets: insets) {
+                    dialogItem = .alert(
+                        title: "Are You Sure You Want To Log Out?",
+                        subtitle: "You can get into this account using your Access Key"
+                    ) {
+                        DialogAction.destructive("Log Out") {
+                            logout()
+                        }
+                        DialogAction.cancel()
+                    }
+                }
+
+                SettingsRow(asset: .delete, title: "Delete Account", insets: insets) {
+                    dialogItem = .alert(
+                        title: "Permanently Delete Account?",
+                        subtitle: "This will permanently delete your Flipcash account"
+                    ) {
+                        DialogAction.destructive("Permanently Delete Account") {
+                            deleteAccount()
+                        }
+                        DialogAction.cancel()
+                    }
+                }
             }
-            .padding(.horizontal, 20)
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .font(.appDisplayXS)
+            .foregroundStyle(.textMain)
         }
         .navigationTitle("My Account")
         .toolbarTitleDisplayMode(.inline)
         .dialog(item: $dialogItem)
-    }
-
-    @ViewBuilder
-    private func list() -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-
-            SettingsRow(asset: .key, title: "Access Key", insets: insets) {
-                dialogItem = .alert(
-                    title: "View Your Access Key?",
-                    subtitle: "Your Access Key will grant access to your Flipcash account. Keep it private and safe"
-                ) {
-                    DialogAction.destructive("View Access Key") {
-                        router.push(.accessKey)
-                    }
-                    DialogAction.cancel()
-                }
-            }
-
-            SettingsRow(asset: .logout, title: "Log Out", insets: insets) {
-                dialogItem = .alert(
-                    title: "Are You Sure You Want To Log Out?",
-                    subtitle: "You can get into this account using your Access Key"
-                ) {
-                    DialogAction.destructive("Log Out") {
-                        logout()
-                    }
-                    DialogAction.cancel()
-                }
-            }
-
-            SettingsRow(asset: .delete, title: "Delete Account", insets: insets) {
-                dialogItem = .alert(
-                    title: "Permanently Delete Account?",
-                    subtitle: "This will permanently delete your Flipcash account"
-                ) {
-                    DialogAction.destructive("Permanently Delete Account") {
-                        deleteAccount()
-                    }
-                    DialogAction.cancel()
-                }
-            }
-        }
-        .font(.appDisplayXS)
-        .foregroundStyle(.textMain)
     }
 
     private func deleteAccount() {

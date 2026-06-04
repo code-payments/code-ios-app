@@ -17,21 +17,23 @@ struct SettingsAppSettingsScreen: View {
 
     var body: some View {
         Background(color: .backgroundMain) {
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 0) {
-                    Row(insets: insets) {
-                        Image.asset(.camera).frame(minWidth: 45)
-                        Toggle("Auto Start Camera", isOn: cameraAutoStartDisabledBinding())
-                            .multilineTextAlignment(.leading)
-                            .truncationMode(.tail)
-                            .padding(.trailing, 2)
-                            .tint(.textSuccess)
-                    }
+            List {
+                Row(insets: insets) {
+                    Image.asset(.camera).frame(minWidth: 45)
+                    Toggle("Auto Start Camera", isOn: cameraAutoStartDisabledBinding())
+                        .multilineTextAlignment(.leading)
+                        .truncationMode(.tail)
+                        .padding(.trailing, 2)
+                        .tint(.textSuccess)
                 }
-                .font(.appDisplayXS)
-                .foregroundStyle(.textMain)
+                .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+                .listRowBackground(Color.clear)
+                .listRowSeparatorTint(.rowSeparator)
             }
-            .padding(.horizontal, 20)
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .font(.appDisplayXS)
+            .foregroundStyle(.textMain)
         }
         .navigationTitle("App Settings")
         .toolbarTitleDisplayMode(.inline)

@@ -34,49 +34,48 @@ struct SettingsScreen: View {
         @Bindable var router = router
         NavigationStack(path: $router[.settings]) {
             Background(color: .backgroundMain) {
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 6) {
-                        HStack(spacing: 12) {
-                            Button("Deposit") {
-                                router.push(.deposit)
-                            }
-                            .buttonStyle(.card(icon: .deposit))
-
-                            Button("Withdraw") {
-                                router.push(.withdraw)
-                            }
-                            .buttonStyle(.card(icon: .withdraw))
+                List {
+                    HStack(spacing: 12) {
+                        Button("Deposit") {
+                            router.push(.deposit)
                         }
+                        .buttonStyle(.card(icon: .deposit))
 
-                        VStack(alignment: .leading, spacing: 0) {
-                            SettingsRow(asset: .myAccount, title: "My Account", insets: insets) {
-                                router.push(.settingsMyAccount)
-                            }
-
-                            SettingsRow(asset: .settings, title: "App Settings", insets: insets) {
-                                router.push(.settingsAppSettings)
-                            }
-
-                            SettingsRow(asset: .sliders, title: "Advanced Features", insets: insets) {
-                                router.push(.settingsAdvancedFeatures)
-                            }
-
-                            if betaFlags.accessGranted {
-                                SettingsRow(asset: .debug, title: "Beta Features", badge: betaBadge, insets: insets) {
-                                    router.push(.settingsBetaFlags)
-                                }
-
-                                SettingsRow(asset: .switchAccounts, title: "Switch Accounts", badge: betaBadge, insets: insets) {
-                                    router.push(.settingsAccountSelection)
-                                }
-                            }
+                        Button("Withdraw") {
+                            router.push(.withdraw)
                         }
-                        .font(.appDisplayXS)
-                        .foregroundStyle(Color.textMain)
+                        .buttonStyle(.card(icon: .withdraw))
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 10)
+                    .listRowInsets(EdgeInsets(top: 10, leading: 20, bottom: 6, trailing: 20))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+
+                    SettingsRow(asset: .myAccount, title: "My Account", insets: insets) {
+                        router.push(.settingsMyAccount)
+                    }
+
+                    SettingsRow(asset: .settings, title: "App Settings", insets: insets) {
+                        router.push(.settingsAppSettings)
+                    }
+
+                    SettingsRow(asset: .sliders, title: "Advanced Features", insets: insets) {
+                        router.push(.settingsAdvancedFeatures)
+                    }
+
+                    if betaFlags.accessGranted {
+                        SettingsRow(asset: .debug, title: "Beta Features", badge: betaBadge, insets: insets) {
+                            router.push(.settingsBetaFlags)
+                        }
+
+                        SettingsRow(asset: .switchAccounts, title: "Switch Accounts", badge: betaBadge, insets: insets) {
+                            router.push(.settingsAccountSelection)
+                        }
+                    }
                 }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .font(.appDisplayXS)
+                .foregroundStyle(Color.textMain)
                 .safeAreaInset(edge: .bottom) {
                     Button {
                         handleVersionTap()

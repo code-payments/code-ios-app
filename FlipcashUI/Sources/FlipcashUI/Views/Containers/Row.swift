@@ -27,30 +27,27 @@ public struct Row<Content>: View where Content: View {
     }
     
     public var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Button(action: action) {
-                HStack(spacing: 12) {
-                    content()
-                    if let accessory {
-                        switch accessory {
-                        case .chevron:
-                            Spacer()
-                            Image.system(.chevronRight)
-                                .renderingMode(.template)
-                        case .loader(let color):
-                            Spacer()
-                            LoadingView(color: color)
-                        }
+        Button(action: action) {
+            HStack(spacing: 12) {
+                content()
+                if let accessory {
+                    switch accessory {
+                    case .chevron:
+                        Spacer()
+                        Image.system(.chevronRight)
+                            .renderingMode(.template)
+                    case .loader(let color):
+                        Spacer()
+                        LoadingView(color: color)
                     }
                 }
-                .padding(.leading, insets.leading)
-                .padding(.bottom, insets.bottom)
-                .padding(.trailing, insets.trailing)
-                .padding(.top, insets.top)
             }
-            .disabled(disabled)
-            .vSeparator(color: .rowSeparator, position: .bottom)
+            .padding(.leading, insets.leading)
+            .padding(.bottom, insets.bottom)
+            .padding(.trailing, insets.trailing)
+            .padding(.top, insets.top)
         }
+        .disabled(disabled)
         .foregroundStyle(disabled ? .textSecondary : .textMain)
     }
 }

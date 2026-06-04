@@ -46,5 +46,8 @@ struct SettingsRow: View {
         } action: {
             action()
         }
+        .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+        .listRowBackground(Color.clear)
+        .listRowSeparatorTint(.rowSeparator)
     }
 }

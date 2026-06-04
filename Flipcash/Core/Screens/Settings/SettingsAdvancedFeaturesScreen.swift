@@ -18,24 +18,23 @@ struct SettingsAdvancedFeaturesScreen: View {
 
     var body: some View {
         Background(color: .backgroundMain) {
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 0) {
-                    SettingsRow(systemImage: "slider.horizontal.3", title: "Bill Designer", insets: insets) {
-                        Task {
-                            router.dismissSheet()
-                            try await Task.delay(milliseconds: 250)
-                            session.isShowingBillDesigner = true
-                        }
-                    }
-
-                    SettingsRow(systemImage: "doc.text", title: "Application Logs", insets: insets) {
-                        router.push(.settingsApplicationLogs)
+            List {
+                SettingsRow(systemImage: "slider.horizontal.3", title: "Bill Designer", insets: insets) {
+                    Task {
+                        router.dismissSheet()
+                        try await Task.delay(milliseconds: 250)
+                        session.isShowingBillDesigner = true
                     }
                 }
-                .font(.appDisplayXS)
-                .foregroundStyle(.textMain)
+
+                SettingsRow(systemImage: "doc.text", title: "Application Logs", insets: insets) {
+                    router.push(.settingsApplicationLogs)
+                }
             }
-            .padding(.horizontal, 20)
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .font(.appDisplayXS)
+            .foregroundStyle(.textMain)
         }
         .navigationTitle("Advanced Features")
         .toolbarTitleDisplayMode(.inline)
