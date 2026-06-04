@@ -18,11 +18,16 @@ struct RecipientPickerScreen: View {
     /// limited-access empty state shown when nothing has been shared yet.
     let isLimitedAccess: Bool
 
+    /// Injected from `SendRootScreen`, which owns the `.searchable`. The search
+    /// field has to be present from the moment the Send sheet mounts — a
+    /// `.searchable` added later (when the recipient list appears) gets placed by
+    /// iOS 26 as a floating bottom field instead of the nav-bar drawer.
+    let searchText: String
+
     @Environment(ContactSyncController.self) private var contactSyncController
     @Environment(AppRouter.self) private var router
 
     @State private var filtered: ResolvedContacts = .empty
-    @State private var searchText: String = ""
     @State private var inviteTarget: ResolvedContact?
 
     var body: some View {
@@ -35,18 +40,13 @@ struct RecipientPickerScreen: View {
                     RecipientPickerEmptyState()
                 }
             } else {
-                VStack(spacing: 0) {
-                    InlineSearchField(text: $searchText)
-                        .padding(.top, 8)
-                        .padding(.bottom, 12)
-                    RecipientPickerList(
-                        filtered: filtered,
-                        searchText: searchText,
-                        isLimitedAccess: isLimitedAccess,
-                        onFlipcashTap: selectRecipient,
-                        onInviteTap: presentInvite,
-                    )
-                }
+                RecipientPickerList(
+                    filtered: filtered,
+                    searchText: searchText,
+                    isLimitedAccess: isLimitedAccess,
+                    onFlipcashTap: selectRecipient,
+                    onInviteTap: presentInvite,
+                )
             }
         }
         .onAppear { refilter() }
@@ -101,17 +101,15 @@ struct RecipientPickerScreen: View {
 
 private struct RecipientPickerEmptyState: View {
     var body: some View {
-        VStack(spacing: 10) {
+        ContentUnavailableView {
             Text("No Contacts Found")
                 .font(.appTextLarge)
-
+                .foregroundStyle(Color.textMain)
+        } description: {
             Text("None of the people in your address book have a phone number we can match.")
                 .font(.appTextMedium)
                 .foregroundStyle(Color.textSecondary)
-                .multilineTextAlignment(.center)
         }
-        .padding(.horizontal, 20)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -120,22 +118,19 @@ private struct RecipientPickerEmptyState: View {
 /// (FB14821786).
 private struct LimitedAccessEmptyState: View {
     var body: some View {
-        VStack(spacing: 10) {
+        ContentUnavailableView {
             Text("No Contacts Shared")
                 .font(.appTextLarge)
-
+                .foregroundStyle(Color.textMain)
+        } description: {
             Text("Choose which contacts to share with Flipcash, then you can send them cash.")
                 .font(.appTextMedium)
                 .foregroundStyle(Color.textSecondary)
-                .multilineTextAlignment(.center)
-
+        } actions: {
             BubbleButton(text: "Choose in Settings") {
                 URL.openSettings()
             }
-            .padding(.top, 8)
         }
-        .padding(.horizontal, 20)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -167,47 +162,19 @@ private struct RecipientSearchEmptyState: View {
     let searchText: String
 
     var body: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 48))
-                .foregroundStyle(Color.textSecondary)
-                .padding(.bottom, 8)
-
-            Text("No Results for “\(searchText)”")
-                .font(.appTextLarge)
-                .multilineTextAlignment(.center)
-
+        ContentUnavailableView {
+            Label {
+                Text("No Results for “\(searchText)”")
+                    .font(.appTextLarge)
+                    .foregroundStyle(Color.textMain)
+            } icon: {
+                Image(systemName: "magnifyingglass")
+            }
+        } description: {
             Text("Check the spelling or try a new search.")
                 .font(.appTextMedium)
                 .foregroundStyle(Color.textSecondary)
-                .multilineTextAlignment(.center)
         }
-        .padding(.horizontal, 20)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-// MARK: - Search field -
-
-private struct InlineSearchField: View {
-
-    @Binding var text: String
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(Color.textSecondary)
-            TextField("Search", text: $text)
-                .textFieldStyle(.plain)
-                .autocorrectionDisabled()
-                .textInputAutocapitalization(.never)
-                .foregroundStyle(Color.textMain)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(Color.backgroundRow)
-        .clipShape(Capsule())
-        .padding(.horizontal, 20)
     }
 }
 
@@ -235,6 +202,7 @@ private struct RecipientPickerList: View {
                 } header: {
                     RecipientSectionHeader(title: "On Flipcash")
                 }
+                .listSectionSeparator(.hidden, edges: .top)
             }
             if !filtered.invite.isEmpty {
                 Section {
@@ -248,12 +216,13 @@ private struct RecipientPickerList: View {
                 } header: {
                     RecipientSectionHeader(title: "Not on Flipcash Yet")
                 }
+                .listSectionSeparator(.hidden, edges: .top)
             }
             if isLimitedAccess && !filtered.isEmpty {
                 LimitedAccessSettingsFooter()
             }
         }
-        .listStyle(.plain)
+        .listStyle(.grouped)
         .scrollContentBackground(.hidden)
         .scrollDismissesKeyboard(.interactively)
         .overlay {
@@ -345,10 +314,10 @@ private struct RecipientRowTrailingAccessory: View {
 
 // MARK: - Section header -
 
-/// Opaque section header. List's `.plain` style sticky-pins headers as the
-/// user scrolls; without a background, the row content underneath shows
-/// through the floating header. `Color.backgroundMain` matches the sheet
-/// backdrop so the header reads as a solid bar.
+/// Section header. The list uses `.listStyle(.grouped)` so headers don't float;
+/// plain-style sticky headers misplace under the iOS 26 `.searchable` bar (no
+/// first-party way to pin them flush). Mirrors `CurrencySelectionScreen`.
+/// `Color.backgroundMain` matches the sheet backdrop.
 private struct RecipientSectionHeader: View {
 
     let title: String

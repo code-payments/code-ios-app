@@ -18,36 +18,83 @@ struct SendRootScreen: View {
     @State private var phoneVerificationViewModel: PhoneVerificationViewModel?
     @State private var contactsAuthorizer = ContactsAuthorizer()
     @State private var didResolveContactsStatus = false
+    @State private var searchText = ""
 
     private let container: Container
+    private let sessionContainer: SessionContainer
 
     // MARK: - Init -
 
-    init(container: Container) {
+    init(container: Container, sessionContainer: SessionContainer) {
         self.container = container
+        self.sessionContainer = sessionContainer
     }
 
     // MARK: - Body -
 
     var body: some View {
-        Background(color: .backgroundMain) {
+        @Bindable var router = router
+        return Group {
             switch step {
-            case .needsPhone:
-                ConnectPhoneEmptyState(onConnect: startPhoneVerification)
-            case .loading:
-                // Resolving the contacts status, or the matched set is still
-                // syncing. A neutral spinner avoids flashing the permission
-                // priming screen at someone who already granted access.
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            case .needsContacts:
-                ContactsPermissionScreen(
-                    authorizer: contactsAuthorizer,
-                    onAllowed: { contactSyncController.activate() },
-                    onSkipped: nil
-                )
             case .ready:
-                RecipientPickerScreen(isLimitedAccess: contactsAuthorizer.status.isLimited)
+                // The ready state gets its own stack so `.searchable` is present
+                // from the stack's mount — that's what makes iOS 26 render the
+                // nav-bar drawer. A `.searchable` added later (gated to a step, or
+                // toggled within a shared stack) is placed as a floating bottom
+                // field instead.
+                NavigationStack(path: $router[.send]) {
+                    Background(color: .backgroundMain) {
+                        RecipientPickerScreen(
+                            isLimitedAccess: contactsAuthorizer.status.isLimited,
+                            searchText: searchText
+                        )
+                    }
+                    .appRouterDestinations(container: container, sessionContainer: sessionContainer)
+                    .navigationTitle("Send")
+                    .toolbarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            CloseButton(action: router.dismissSheet)
+                        }
+                    }
+                    .searchable(
+                        text: $searchText,
+                        placement: .navigationBarDrawer(displayMode: .always),
+                        prompt: "Search Contacts"
+                    )
+                }
+            default:
+                // Phone / contacts gating — a separate stack with no search bar.
+                NavigationStack {
+                    Background(color: .backgroundMain) {
+                        switch step {
+                        case .needsPhone:
+                            ConnectPhoneEmptyState(onConnect: startPhoneVerification)
+                        case .loading:
+                            // Resolving the contacts status, or the matched set is
+                            // still syncing. A neutral spinner avoids flashing the
+                            // permission priming screen at someone who already
+                            // granted access.
+                            ProgressView()
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        case .needsContacts:
+                            ContactsPermissionScreen(
+                                authorizer: contactsAuthorizer,
+                                onAllowed: { contactSyncController.activate() },
+                                onSkipped: nil
+                            )
+                        case .ready:
+                            EmptyView()
+                        }
+                    }
+                    .navigationTitle("Send")
+                    .toolbarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            CloseButton(action: router.dismissSheet)
+                        }
+                    }
+                }
             }
         }
         // Resolve the contacts status only once the phone gate is satisfied.
