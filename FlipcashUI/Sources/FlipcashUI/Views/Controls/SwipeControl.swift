@@ -84,9 +84,9 @@ public struct SwipeControl: View {
                 case .loading:
                     LoadingView(color: .gray, style: .medium)
                 case .success:
-                    Image.asset(.checkmarkLarge)
+                    Image.asset(.checkmark)
                         .renderingMode(.template)
-                        .foregroundStyle(.textSuccess)
+                        .foregroundStyle(.textMain)
                 }
             }
             .animation(nil, value: state)
