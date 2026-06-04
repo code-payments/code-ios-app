@@ -400,17 +400,7 @@ private struct RoutedSheet: View {
                     }
             }
         case .send:
-            NavigationStack(path: $router[.send]) {
-                SendRootScreen(container: container)
-                .appRouterDestinations(container: container, sessionContainer: sessionContainer)
-                .navigationTitle("Send")
-                .toolbarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        CloseButton(action: router.dismissSheet)
-                    }
-                }
-            }
+            SendRootScreen(container: container, sessionContainer: sessionContainer)
         }
     }
 }
