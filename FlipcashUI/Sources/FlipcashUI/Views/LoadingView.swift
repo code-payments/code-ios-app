@@ -10,25 +10,21 @@
 
 import SwiftUI
 
-public struct LoadingView: View, UIViewRepresentable {
-    
-    private var color: UIColor
+public struct LoadingView: View {
+
+    private var color: Color
     private var style: UIActivityIndicatorView.Style
-    
+
     public init(color: Color = .black, style: UIActivityIndicatorView.Style = .medium) {
-        self.color = UIColor(color)
+        self.color = color
         self.style = style
     }
-    
-    public func makeUIView(context: Context) -> UIActivityIndicatorView {
-        let view = UIActivityIndicatorView(style: style)
-        view.color = color
-        updateUIView(view, context: context)
-        return view
-    }
-    
-    public func updateUIView(_ uiView: UIActivityIndicatorView, context: Context) {
-        uiView.startAnimating()
+
+    public var body: some View {
+        ProgressView()
+            .progressViewStyle(.circular)
+            .controlSize(style == .large ? .large : .regular)
+            .tint(color)
     }
 }
 

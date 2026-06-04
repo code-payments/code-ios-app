@@ -29,41 +29,81 @@ public struct CircularLoadingView: View {
     }
 
     public var body: some View {
-        // GeometryReader with explicit frame/position is required to prevent the rotating
-        // segment from drifting away from the background ring. Using overlay or ZStack alone
-        // causes coordinate space misalignment during animation in certain layout contexts.
+        ProgressView(value: progress)
+            .progressViewStyle(
+                RingProgressViewStyle(
+                    lineWidth: lineWidth,
+                    ringColor: ringColor,
+                    highlightColor: highlightColor
+                )
+            )
+            .onAppear {
+                withAnimation(.linear(duration: duration)) {
+                    progress = 1.0
+                }
+            }
+    }
+}
+
+// MARK: - Style -
+
+/// Draws the determinate ring from the progress fraction. `GeometryReader` +
+/// explicit `.position` keep the rotating segment aligned to the background
+/// ring; a bare `ZStack`/overlay drifts off-axis during the animation in some
+/// layout contexts.
+private struct RingProgressViewStyle: ProgressViewStyle {
+
+    let lineWidth: CGFloat
+    let ringColor: Color
+    let highlightColor: Color
+
+    func makeBody(configuration: Configuration) -> some View {
         GeometryReader { geometry in
             let size = min(geometry.size.width, geometry.size.height)
             let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
 
             ZStack {
-                // Background ring
                 Circle()
                     .stroke(ringColor, lineWidth: lineWidth)
                     .frame(width: size, height: size)
                     .position(center)
 
-                // Progress fill
                 Circle()
-                    .trim(from: 0, to: progress)
+                    .trim(from: 0, to: CGFloat(configuration.fractionCompleted ?? 0))
                     .stroke(highlightColor, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                     .frame(width: size, height: size)
                     .rotationEffect(.degrees(-90))
                     .position(center)
             }
         }
-        .onAppear {
-            withAnimation(.linear(duration: duration)) {
-                progress = 1.0
-            }
-        }
     }
 }
 
-#Preview {
+// MARK: - Previews -
+
+#Preview("Animated") {
     ZStack {
         Color.black
         CircularLoadingView(duration: 5)
             .frame(width: 64, height: 64)
+    }
+}
+
+#Preview("Static fractions") {
+    ZStack {
+        Color.black
+        HStack(spacing: 24) {
+            ForEach([0.0, 0.35, 0.75, 1.0], id: \.self) { value in
+                ProgressView(value: value)
+                    .progressViewStyle(
+                        RingProgressViewStyle(
+                            lineWidth: 5,
+                            ringColor: .white.opacity(0.3),
+                            highlightColor: .white
+                        )
+                    )
+                    .frame(width: 48, height: 48)
+            }
+        }
     }
 }
