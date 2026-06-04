@@ -121,13 +121,12 @@ struct CurrencyInfoScreen: View {
             }
             if !isUSDF {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        Analytics.buttonTapped(name: .shareTokenInfo)
-                        let url = URL(string: "https://app.flipcash.com/token/\(mint.base58)")!
-                        ShareSheet.present(url: url)
-                    } label: {
+                    ShareLink(item: URL(string: "https://app.flipcash.com/token/\(mint.base58)")!) {
                         Image(systemName: "square.and.arrow.up")
                     }
+                    .simultaneousGesture(TapGesture().onEnded {
+                        Analytics.buttonTapped(name: .shareTokenInfo)
+                    })
                 }
             }
         }

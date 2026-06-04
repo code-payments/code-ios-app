@@ -18,25 +18,17 @@ struct CurrencyInfoSocialLinksSection: View {
                 ForEach(socialLinks) { socialLink in
                     switch socialLink {
                     case .website(let url):
-                        Button("Website") {
-                            UIApplication.shared.open(url)
-                        }
-                        .buttonStyle(.icon(.globus))
+                        Link("Website", destination: url)
+                            .buttonStyle(.icon(.globus))
                     case .x(let handle):
-                        Button(handle) {
-                            UIApplication.shared.open(URL(string: "https://x.com/\(handle)")!)
-                        }
-                        .buttonStyle(.icon(.twitter))
+                        Link(handle, destination: URL(string: "https://x.com/\(handle)")!)
+                            .buttonStyle(.icon(.twitter))
                     case .telegram(let username):
-                        Button("Telegram") {
-                            UIApplication.shared.open(URL(string: "https://t.me/\(username)")!)
-                        }
-                        .buttonStyle(.icon(.telegram))
+                        Link("Telegram", destination: URL(string: "https://t.me/\(username)")!)
+                            .buttonStyle(.icon(.telegram))
                     case .discord(let inviteCode):
-                        Button("Discord") {
-                            UIApplication.shared.open(URL(string: "https://discord.gg/\(inviteCode)")!)
-                        }
-                        .buttonStyle(.icon(.discord))
+                        Link("Discord", destination: URL(string: "https://discord.gg/\(inviteCode)")!)
+                            .buttonStyle(.icon(.discord))
                     }
                 }
             }

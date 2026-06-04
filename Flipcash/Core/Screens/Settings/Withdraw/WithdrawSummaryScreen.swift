@@ -80,12 +80,12 @@ private struct SummaryLineItem: View {
     let value: String
 
     var body: some View {
-        HStack {
-            Text(title)
-                .foregroundStyle(Color.textSecondary)
-            Spacer()
+        LabeledContent {
             Text(value)
                 .foregroundStyle(Color.textMain)
+        } label: {
+            Text(title)
+                .foregroundStyle(Color.textSecondary)
         }
         .font(.appTextSmall)
     }
