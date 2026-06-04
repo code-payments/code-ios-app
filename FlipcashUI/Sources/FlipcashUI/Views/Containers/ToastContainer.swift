@@ -28,19 +28,17 @@ public struct ToastContainer<Content>: View where Content: View {
         VStack(alignment: .center, spacing: 0) {
             HStack {
                 if let toast = toast {
-                    BlurView {
-                        Text(toast)
-                            .padding([.leading, .trailing], 10)
-                            .padding([.top, .bottom], 6)
-                            .foregroundStyle(.textMain)
-                            .font(.appTextSmall)
-                            .fixedSize()
-                    }
-                    .cornerRadius(100)
-                    .transition(
-                        .offset(x: 0, y: 20)
-                        .combined(with: .opacity.animation(.easeOutFastest))
-                    )
+                    Text(toast)
+                        .padding([.leading, .trailing], 10)
+                        .padding([.top, .bottom], 6)
+                        .foregroundStyle(.textMain)
+                        .font(.appTextSmall)
+                        .fixedSize()
+                        .background(.ultraThinMaterial, in: Capsule())
+                        .transition(
+                            .offset(x: 0, y: 20)
+                            .combined(with: .opacity.animation(.easeOutFastest))
+                        )
                 }
             }
             .animation(.springFaster, value: toast)
