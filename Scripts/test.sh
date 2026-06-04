@@ -10,6 +10,10 @@
 #   ./Scripts/test.sh FlipcashCoreTests/ExchangedFiatTests FlipcashCoreTests/FiatTests
 #   ./Scripts/test.sh FlipcashCoreTests/ExchangedFiatTests/myTestCase
 #
+# Parallel testing is forced OFF (-parallel-testing-enabled NO) so Xcode does
+# not spawn ephemeral "Clone N of ..." simulators that pile up on disk. Targeted
+# runs here are small, so the lost parallelism is negligible.
+#
 # This script intentionally does NOT support -testPlan AllTargets —
 # the full suite is run from Xcode or CI, not from here.
 
@@ -37,8 +41,9 @@ for target in "$@"; do
     args+=(-only-testing:"$target")
 done
 
-echo "+ xcodebuild test -scheme Flipcash -destination 'platform=iOS Simulator,name=iPhone 17' ${args[*]}"
+echo "+ xcodebuild test -scheme Flipcash -destination 'platform=iOS Simulator,name=iPhone 17' -parallel-testing-enabled NO ${args[*]}"
 exec xcodebuild test \
     -scheme Flipcash \
     -destination "platform=iOS Simulator,name=iPhone 17" \
+    -parallel-testing-enabled NO \
     "${args[@]}"
