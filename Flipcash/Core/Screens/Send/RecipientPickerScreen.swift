@@ -335,7 +335,7 @@ private struct RecipientRowTrailingAccessory: View {
 // MARK: - Chat row -
 
 /// A DM chat row. The server doesn't yet hydrate member profiles, so the title
-/// falls back to "Direct Message" when the counterpart's display name is empty.
+/// falls back to "Flipcash User" when the counterpart's display name is empty.
 private struct ChatRow: View {
 
     let chat: Conversation
