@@ -105,7 +105,7 @@ final class ChatController {
     /// the server-provided member name, else a generic fallback.
     func displayName(for conversation: Conversation) -> String {
         guard let counterpart = conversation.counterpart(excluding: selfUserID) else {
-            return "Direct Message"
+            return "Flipcash User"
         }
         if let userID = counterpart.userID, let resolved = resolvedNames[userID], !resolved.isEmpty {
             return resolved
@@ -113,12 +113,12 @@ final class ChatController {
         if !counterpart.displayName.isEmpty {
             return counterpart.displayName
         }
-        return "Direct Message"
+        return "Flipcash User"
     }
 
     func displayName(forChatID chatID: ChatID) -> String {
         guard let conversation = store.conversations.first(where: { $0.id == chatID }) else {
-            return "Direct Message"
+            return "Flipcash User"
         }
         return displayName(for: conversation)
     }
