@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package flipcash.chat.v1;
+
+option go_package = "github.com/code-payments/flipcash2-protobuf-api/generated/go/chat/v1;chatpb";
+option java_package = "com.codeinc.flipcash.gen.chat.v1";
+option objc_class_prefix = "FPBChatV1";
+
+import "common/v1/common.proto";
+import "profile/v1/model.proto";
+import "messaging/v1/model.proto";
+import "validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+message Metadata {
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
+
+    // The type of chat
+    ChatType type = 2 [(validate.rules).enum = {
+        not_in: [0] // UNKNOWN
+    }];
+    enum ChatType {
+        UNKNOWN = 0;
+        DM      = 1;
+    }
+
+    // Members of this chat
+    repeated Member members = 3;
+
+    // The last message in this chat
+    messaging.v1.Message last_message = 4;
+
+    // The timestamp of the last activity in this chat
+    google.protobuf.Timestamp last_activity = 5 [(validate.rules).timestamp.required = true];
+}
+
+message Member {
+    common.v1.UserId user_id = 1 [(validate.rules).message.required = true];
+
+    // The user profile for this member. It contains a subset of identifiers
+    // that can be publicly viewed within the chat.
+    profile.v1.UserProfile user_profile = 2 [(validate.rules).message.required = true];
+
+    // Chat message state for this member.
+    //
+    // If set, the list may contain DELIVERED and READ pointers. SENT pointers
+    // are only shared between the sender and server, to indicate persistence.
+    repeated messaging.v1.Pointer pointers = 3 [(validate.rules).repeated = {
+        min_items: 0
+        max_items: 2
+    }];
+}
+
+message MetadataUpdate {
+    oneof kind {
+        option (validate.required) = true;
+
+        FullRefresh         full_refresh          = 1;
+        LastActivityChanged last_activity_changed = 2;
+    }
+
+    // Refreshes the entire chat metadata
+    message FullRefresh {
+        Metadata metadata = 1 [(validate.rules).message.required = true];
+    }
+
+    // The last activity timestamp has changed to a newer value
+    message LastActivityChanged {
+        google.protobuf.Timestamp new_last_activity = 1 [(validate.rules).timestamp.required = true];
+    }
+}

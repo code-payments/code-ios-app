@@ -102,3 +102,16 @@ mkdir -p $GENERATED_DIR
 if [[ "$APP" == "flipcashCore" || "$APP" == "flipcashPayments" ]]; then
     rm -f "$GENERATED_DIR/validate_validate.pb.swift"
 fi
+
+# The OCP Payments domain generates its own messaging/v1 service files into the
+# same merged FlipcashAPI module. Prefix the Core (flipcash2) copies so the
+# basenames don't collide — the Swift types already differ
+# (Flipcash_Messaging_V1_* vs Ocp_Messaging_V1_*).
+if [[ "$APP" == "flipcashCore" ]]; then
+    for suffix in grpc.swift pb.swift; do
+        SRC="$GENERATED_DIR/messaging_v1_messaging_service.$suffix"
+        if [[ -f "$SRC" ]]; then
+            mv "$SRC" "$GENERATED_DIR/flipcash_messaging_v1_messaging_service.$suffix"
+        fi
+    done
+fi

@@ -6,6 +6,8 @@ import "phone/v1/model.proto";
 import "validate/validate.proto";
 
 option go_package = "github.com/code-payments/flipcash2-protobuf-api/generated/go/contact/v1;contactpb";
+option java_package = "com.codeinc.flipcash.gen.contact.v1";
+option objc_class_prefix = "FPBContactV1";
 
 message FlipcashContact {
     phone.v1.PhoneNumber phone = 1 [(validate.rules).message.required = true];
