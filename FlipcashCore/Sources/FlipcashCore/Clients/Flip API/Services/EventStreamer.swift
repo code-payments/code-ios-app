@@ -14,7 +14,8 @@ private let logger = Logger(label: "flipcash.event-streamer")
 /// Owns the single per-user bidirectional event stream (`event.v1 StreamEvents`)
 /// and decodes chat updates into `ChatStreamEvent`s consumed via `events`. The
 /// server enforces one stream per user, so exactly one instance must exist per
-/// session; opening a second silently evicts the first.
+/// session; opening a second silently evicts the first. The owner must call
+/// `stop()` on logout so a stale stream doesn't evict the next session's.
 public actor EventStreamer {
 
     public typealias StreamReference = BidirectionalStreamReference<
@@ -69,12 +70,16 @@ public actor EventStreamer {
     /// Re-open the stream if it died (e.g. after returning from background).
     public func ensureConnected() {
         guard isStreaming else { return }
-        if streamReference?.stream != nil, pingTracker.hasRecentPing, !isReconnecting {
-            return
-        }
+        if isLikelyHealthy, !isReconnecting { return }
         logger.warning("Event stream not connected, forcing reconnect")
         resetAndTeardown()
         openStream()
+    }
+
+    /// A live stream that has received a ping recently. Wall-clock based via
+    /// `PingTracker`, so it stays accurate across app suspension.
+    private var isLikelyHealthy: Bool {
+        streamReference?.stream != nil && pingTracker.hasRecentPing
     }
 
     public func stop() {
@@ -142,7 +147,7 @@ public actor EventStreamer {
         // Treat open as a liveness signal so `ensureConnected` doesn't tear down
         // a fresh stream that hasn't received its first ping yet.
         pingTracker.lastPing = .now
-        logger.info("Opened event stream")
+        logger.info("Opened event stream", metadata: ["generation": "\(generation)"])
     }
 
     private func handleResponse(_ response: Flipcash_Event_V1_StreamEventsResponse, generation: UInt) {
@@ -163,25 +168,8 @@ public actor EventStreamer {
     }
 
     private func handleEvent(_ event: Flipcash_Event_V1_Event) {
-        // Test events and future event types are ignored by the PoC.
-        guard case .chatUpdate(let update)? = event.type else { return }
-
-        let chatID = ChatID(update.chat)
-
-        let messages = update.newMessages.messages.compactMap(ChatMessage.init)
-        if !messages.isEmpty {
-            continuation.yield(.newMessages(chatID: chatID, messages: messages))
-        }
-
-        for metadataUpdate in update.metadataUpdates {
-            switch metadataUpdate.kind {
-            case .fullRefresh(let refresh):
-                continuation.yield(.metadataRefresh(Conversation(refresh.metadata)))
-            case .lastActivityChanged(let changed):
-                continuation.yield(.lastActivityChanged(chatID: chatID, date: changed.newLastActivity.date))
-            case nil:
-                break
-            }
+        for streamEvent in ChatStreamEvent.decode(event) {
+            continuation.yield(streamEvent)
         }
     }
 
@@ -219,7 +207,20 @@ public actor EventStreamer {
 
         switch result {
         case .success(let status):
-            logger.debug("Event stream closed", metadata: ["code": "\(status.code)"])
+            switch status.code {
+            case .ok:
+                logger.debug("Event stream closed normally")
+            case .unavailable, .deadlineExceeded, .cancelled:
+                logger.warning("Event stream closed", metadata: [
+                    "code": "\(status.code)",
+                    "message": "\(status.message ?? "")",
+                ])
+            default:
+                logger.error("Event stream closed unexpectedly", metadata: [
+                    "code": "\(status.code)",
+                    "message": "\(status.message ?? "")",
+                ])
+            }
         case .failure(let error):
             logger.error("Event stream error", metadata: ["error": "\(error)"])
         }
@@ -263,6 +264,11 @@ public actor EventStreamer {
             Self.baseReconnectDelay * pow(2.0, Double(reconnectAttempts - 1)),
             Self.maxReconnectDelay
         )
+
+        logger.debug("Reconnecting event stream", metadata: [
+            "delaySeconds": "\(delay)",
+            "attempt": "\(reconnectAttempts)",
+        ])
 
         reconnectTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(delay))
