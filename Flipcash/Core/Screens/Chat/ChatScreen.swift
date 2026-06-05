@@ -20,6 +20,7 @@ struct ChatScreen: View {
     @State private var draft = ""
     @State private var isSending = false
     @State private var hasLoaded = false
+    @State private var didInitialRead = false
     @FocusState private var isComposerFocused: Bool
 
     private var messages: [ChatMessage] {
@@ -53,8 +54,12 @@ struct ChatScreen: View {
             await chatController.loadMessages(for: chatID)
             hasLoaded = true
             await chatController.markRead(chatID: chatID)
+            didInitialRead = true
         }
         .onChange(of: messages.last?.id) {
+            // The initial load flips this from nil, which would double-fire
+            // markRead alongside the .task above; only mark live arrivals.
+            guard didInitialRead else { return }
             Task { await chatController.markRead(chatID: chatID) }
         }
     }
