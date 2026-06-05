@@ -18,7 +18,7 @@ struct ChatControllerTests {
 
     private func makeController(_ mock: MockConversations, selfUserID: UserID = UUID()) -> ChatController {
         ChatController(
-            fetching: mock, messaging: mock, streaming: mock, profiles: mock,
+            fetching: mock, messaging: mock, streaming: mock,
             owner: .generate()!, selfUserID: selfUserID
         )
     }
@@ -58,12 +58,73 @@ struct ChatControllerTests {
         #expect(mock.markedRead == [MessageID(value: 5)])
     }
 
-    @Test("resolves the counterpart's profile name into the title")
-    func resolvesName() async {
+    @Test("markRead is skipped when the READ watermark already covers the latest message")
+    func markReadSkipsWhenAlreadyRead() async {
+        let me = UUID()
+        let mock = MockConversations()
+        mock.feed = [Conversation(
+            id: chatID(1),
+            members: [
+                ChatMember(userID: me, displayName: "", readPointer: MessageID(value: 5)),
+                ChatMember(userID: UUID(), displayName: "Alice"),
+            ],
+            lastMessage: nil,
+            lastActivity: Date(timeIntervalSince1970: 0)
+        )]
+        mock.messages = [ChatMessage(id: MessageID(value: 5), senderID: nil, text: "x", date: Date(timeIntervalSince1970: 0), unreadSeq: 0)]
+        let controller = makeController(mock, selfUserID: me)
+
+        await controller.loadFeed()
+        await controller.loadMessages(for: chatID(1))
+        await controller.markRead(chatID: chatID(1))
+        #expect(mock.markedRead.isEmpty)
+    }
+
+    @Test("markRead fires for a newer message, then short-circuits after advancing")
+    func markReadFiresThenSkips() async {
+        let me = UUID()
+        let mock = MockConversations()
+        mock.feed = [Conversation(
+            id: chatID(1),
+            members: [
+                ChatMember(userID: me, displayName: "", readPointer: MessageID(value: 3)),
+                ChatMember(userID: UUID(), displayName: "Alice"),
+            ],
+            lastMessage: nil,
+            lastActivity: Date(timeIntervalSince1970: 0)
+        )]
+        mock.messages = [ChatMessage(id: MessageID(value: 5), senderID: nil, text: "x", date: Date(timeIntervalSince1970: 0), unreadSeq: 0)]
+        let controller = makeController(mock, selfUserID: me)
+
+        await controller.loadFeed()
+        await controller.loadMessages(for: chatID(1))
+        await controller.markRead(chatID: chatID(1))
+        await controller.markRead(chatID: chatID(1))
+        #expect(mock.markedRead == [MessageID(value: 5)])
+    }
+
+    @Test("uses the counterpart's feed-provided display name as the title")
+    func counterpartName() async {
         let me = UUID()
         let other = UUID()
         let mock = MockConversations()
-        mock.setProfile(Profile(displayName: "Alice", phone: Phone?.none, email: nil), for: other)
+        mock.feed = [Conversation(
+            id: chatID(1),
+            members: [ChatMember(userID: me, displayName: ""), ChatMember(userID: other, displayName: "Alice")],
+            lastMessage: nil,
+            lastActivity: Date(timeIntervalSince1970: 0)
+        )]
+        let controller = makeController(mock, selfUserID: me)
+
+        await controller.loadFeed()
+        #expect(controller.displayName(forChatID: chatID(1)) == "Alice")
+    }
+
+    @Test("falls back to a generic title when the counterpart has no name")
+    func counterpartNameFallback() async {
+        let me = UUID()
+        let other = UUID()
+        let mock = MockConversations()
         mock.feed = [Conversation(
             id: chatID(1),
             members: [ChatMember(userID: me, displayName: ""), ChatMember(userID: other, displayName: "")],
@@ -73,7 +134,7 @@ struct ChatControllerTests {
         let controller = makeController(mock, selfUserID: me)
 
         await controller.loadFeed()
-        #expect(controller.displayName(forChatID: chatID(1)) == "Alice")
+        #expect(controller.displayName(forChatID: chatID(1)) == "Flipcash User")
     }
 
     @Test("ensureConnected and stop route to the streaming surface")

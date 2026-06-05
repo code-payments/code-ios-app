@@ -41,6 +41,30 @@ public struct ConversationStore: Sendable {
         messagesByChat[chatID] = byID.values.sorted { $0.id < $1.id }
     }
 
+    /// The signed-in user's READ watermark for a chat, as last reported by the
+    /// feed/stream and locally advanced after each successful markRead.
+    public func selfReadPointer(for chatID: ChatID, selfUserID: UserID) -> MessageID? {
+        conversations.first { $0.id == chatID }?.selfReadPointer(for: selfUserID)
+    }
+
+    /// Locally advance the signed-in user's READ watermark after a successful
+    /// markRead so the next call can short-circuit.
+    public mutating func advanceSelfReadPointer(to messageID: MessageID, in chatID: ChatID, selfUserID: UserID) {
+        advanceReadPointer(to: messageID, for: selfUserID, in: chatID)
+    }
+
+    /// Monotonically advance a member's READ watermark; never moves it backward.
+    private mutating func advanceReadPointer(to messageID: MessageID, for userID: UserID, in chatID: ChatID) {
+        guard let convoIndex = conversations.firstIndex(where: { $0.id == chatID }),
+              let memberIndex = conversations[convoIndex].members.firstIndex(where: { $0.userID == userID }) else {
+            return
+        }
+        if let current = conversations[convoIndex].members[memberIndex].readPointer, messageID <= current {
+            return
+        }
+        conversations[convoIndex].members[memberIndex].readPointer = messageID
+    }
+
     /// Bump a conversation's last message + activity and re-sort the feed.
     public mutating func setLastMessage(_ message: ChatMessage, in chatID: ChatID) {
         guard let index = conversations.firstIndex(where: { $0.id == chatID }) else { return }
@@ -63,6 +87,10 @@ public struct ConversationStore: Sendable {
             guard let index = conversations.firstIndex(where: { $0.id == chatID }) else { return }
             conversations[index].lastActivity = date
             sort()
+        case .readPointersChanged(let chatID, let pointers):
+            for pointer in pointers {
+                advanceReadPointer(to: pointer.value, for: pointer.userID, in: chatID)
+            }
         }
     }
 

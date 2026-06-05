@@ -79,4 +79,23 @@ struct ConversationStoreTests {
         #expect(store.conversations.count == 2)
         #expect(store.conversations.first?.id == chatID(2))
     }
+
+    @Test("readPointersChanged advances a member's READ watermark monotonically")
+    func applyReadPointers() {
+        let me = UUID()
+        var store = ConversationStore()
+        store.setFeed([Conversation(
+            id: chatID(1),
+            members: [ChatMember(userID: me, displayName: "", readPointer: MessageID(value: 2))],
+            lastMessage: nil,
+            lastActivity: Date(timeIntervalSince1970: 0)
+        )])
+
+        store.apply(.readPointersChanged(chatID: chatID(1), pointers: [MemberReadPointer(userID: me, value: MessageID(value: 5))]))
+        #expect(store.selfReadPointer(for: chatID(1), selfUserID: me) == MessageID(value: 5))
+
+        // A stale watermark never moves it backward.
+        store.apply(.readPointersChanged(chatID: chatID(1), pointers: [MemberReadPointer(userID: me, value: MessageID(value: 3))]))
+        #expect(store.selfReadPointer(for: chatID(1), selfUserID: me) == MessageID(value: 5))
+    }
 }

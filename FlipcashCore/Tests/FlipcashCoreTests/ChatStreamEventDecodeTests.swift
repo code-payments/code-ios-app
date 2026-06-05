@@ -100,6 +100,37 @@ struct ChatStreamEventDecodeTests {
         if case .lastActivityChanged = decoded.last {} else { Issue.record("last should be .lastActivityChanged") }
     }
 
+    @Test("READ pointer updates decode to a readPointersChanged event; DELIVERED is dropped")
+    func readPointers() {
+        let userBytes = Data((0..<16).map { UInt8($0) })
+        let event = Flipcash_Event_V1_Event.with {
+            $0.chatUpdate = .with {
+                $0.chat = .with { $0.value = chatBytes }
+                $0.pointerUpdates = .with {
+                    $0.pointers = [
+                        .with {
+                            $0.type = .read
+                            $0.userID = .with { $0.value = userBytes }
+                            $0.value = .with { $0.value = 7 }
+                        },
+                        .with {
+                            $0.type = .delivered
+                            $0.userID = .with { $0.value = userBytes }
+                            $0.value = .with { $0.value = 9 }
+                        },
+                    ]
+                }
+            }
+        }
+
+        let decoded = ChatStreamEvent.decode(event)
+        guard case .readPointersChanged(let chatID, let pointers) = decoded.first else {
+            Issue.record("expected .readPointersChanged"); return
+        }
+        #expect(chatID == ChatID(data: chatBytes))
+        #expect(pointers.map(\.value) == [MessageID(value: 7)])
+    }
+
     @Test("Non-chat events decode to nothing")
     func nonChatEventIgnored() {
         #expect(ChatStreamEvent.decode(Flipcash_Event_V1_Event.with { $0.test = .init() }).isEmpty)

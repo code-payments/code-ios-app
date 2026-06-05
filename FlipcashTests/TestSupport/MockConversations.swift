@@ -9,7 +9,7 @@ import FlipcashCore
 
 /// Scriptable conformer for the four conversation capability protocols. Records
 /// every call; the test sets scripted responses before driving the controller.
-final class MockConversations: ConversationFetching, ConversationMessaging, ConversationEventStreaming, ProfileFetching, @unchecked Sendable {
+final class MockConversations: ConversationFetching, ConversationMessaging, ConversationEventStreaming, @unchecked Sendable {
 
     struct Sent: Sendable { let chatID: ChatID; let text: String }
 
@@ -17,7 +17,6 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
 
     private var _feed: [Conversation] = []
     private var _messages: [ChatMessage] = []
-    private var _profiles: [UserID: Profile] = [:]
     private var _sendResult: ChatMessage?
     private var _sent: [Sent] = []
     private var _markedRead: [MessageID] = []
@@ -41,10 +40,6 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
     var markedRead: [MessageID] { lock.withLock { _markedRead } }
     var didEnsure: Bool { lock.withLock { _didEnsure } }
     var didClose: Bool { lock.withLock { _didClose } }
-
-    func setProfile(_ profile: Profile, for userID: UserID) {
-        lock.withLock { _profiles[userID] = profile }
-    }
 
     /// Push a live event onto the stream returned by `openConversationStream`.
     func emit(_ event: ChatStreamEvent) {
@@ -88,10 +83,4 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
 
     func ensureConversationStreamConnected() { lock.withLock { _didEnsure = true } }
     func closeConversationStream() { lock.withLock { _didClose = true } }
-
-    // MARK: - ProfileFetching
-
-    func fetchProfile(userID: UserID, owner: KeyPair) async throws -> Profile {
-        lock.withLock { _profiles[userID] } ?? .empty
-    }
 }

@@ -525,7 +525,6 @@ struct SessionContainer {
             fetching: flipClient,
             messaging: flipClient,
             streaming: flipClient,
-            profiles: flipClient,
             owner: session.ownerKeyPair,
             selfUserID: session.userID
         )
