@@ -58,4 +58,34 @@ protocol ContactSyncing: AnyObject, Sendable {
     func streamFlipcashContacts(checksum: Data, owner: KeyPair) -> AsyncThrowingStream<String, Error>
 }
 
-extension FlipClient: ContactVerifying, OnrampAuthorizing, ContactSyncing {}
+/// DM conversation read surface used by `ChatController` — the feed plus a
+/// single conversation by id. Maps 1:1 to the `flipcash.chat.v1.Chat` RPCs.
+protocol ConversationFetching: AnyObject, Sendable {
+    func getDmChatFeed(owner: KeyPair) async throws -> [Conversation]
+    func getChat(owner: KeyPair, chatID: ChatID) async throws -> Conversation
+}
+
+/// DM message send/read surface used by `ChatController`. Maps to the
+/// `flipcash.messaging.v1.Messaging` RPCs.
+protocol ConversationMessaging: AnyObject, Sendable {
+    func getMessages(owner: KeyPair, chatID: ChatID) async throws -> [ChatMessage]
+    func sendMessage(owner: KeyPair, chatID: ChatID, text: String) async throws -> ChatMessage
+    func markRead(owner: KeyPair, chatID: ChatID, messageID: MessageID) async throws
+}
+
+/// The single per-user event stream surface used by `ChatController`. Wraps the
+/// `event.v1 StreamEvents` lifecycle behind `ChatStreamEvent`.
+protocol ConversationEventStreaming: AnyObject, Sendable {
+    func openConversationStream(owner: KeyPair) -> AsyncStream<ChatStreamEvent>
+    func ensureConversationStreamConnected()
+    func closeConversationStream()
+}
+
+/// Public-profile lookup used to resolve a chat member's display name.
+protocol ProfileFetching: AnyObject, Sendable {
+    func fetchProfile(userID: UserID, owner: KeyPair) async throws -> Profile
+}
+
+extension FlipClient: ContactVerifying, OnrampAuthorizing, ContactSyncing,
+                      ConversationFetching, ConversationMessaging,
+                      ConversationEventStreaming, ProfileFetching {}

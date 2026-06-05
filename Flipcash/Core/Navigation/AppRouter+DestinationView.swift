@@ -186,6 +186,13 @@ struct DestinationView: View {
                 contact: contact
             )
             .id(contact)
+
+        // MARK: - Chat flow
+
+        case .dmConversation(let chatID):
+            // `.id(chatID)` forces fresh view identity per conversation.
+            ChatScreen(chatID: chatID)
+                .id(chatID)
         }
     }
 }

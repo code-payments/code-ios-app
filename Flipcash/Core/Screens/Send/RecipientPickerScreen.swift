@@ -25,6 +25,7 @@ struct RecipientPickerScreen: View {
     let searchText: String
 
     @Environment(ContactSyncController.self) private var contactSyncController
+    @Environment(ChatController.self) private var chatController
     @Environment(AppRouter.self) private var router
 
     @State private var filtered: ResolvedContacts = .empty
@@ -32,8 +33,9 @@ struct RecipientPickerScreen: View {
 
     var body: some View {
         let contacts = contactSyncController.resolvedContacts
+        let chats = chatController.conversations
         return Group {
-            if contacts.isEmpty {
+            if contacts.isEmpty && chats.isEmpty {
                 if isLimitedAccess {
                     LimitedAccessEmptyState()
                 } else {
@@ -41,9 +43,11 @@ struct RecipientPickerScreen: View {
                 }
             } else {
                 RecipientPickerList(
+                    chats: chats,
                     filtered: filtered,
                     searchText: searchText,
                     isLimitedAccess: isLimitedAccess,
+                    onChatTap: openChat,
                     onFlipcashTap: selectRecipient,
                     onInviteTap: presentInvite,
                 )
@@ -70,6 +74,10 @@ struct RecipientPickerScreen: View {
     private func selectRecipient(_ contact: ResolvedContact) {
         Analytics.track(event: Analytics.SendEvent.tapRecipient)
         router.push(.sendAmount(contact: contact))
+    }
+
+    private func openChat(_ chat: Conversation) {
+        router.push(.dmConversation(chatID: chat.id))
     }
 
     private func presentInvite(for contact: ResolvedContact) {
@@ -182,14 +190,26 @@ private struct RecipientSearchEmptyState: View {
 
 private struct RecipientPickerList: View {
 
+    let chats: [Conversation]
     let filtered: ResolvedContacts
     let searchText: String
     let isLimitedAccess: Bool
+    let onChatTap: (Conversation) -> Void
     let onFlipcashTap: (ResolvedContact) -> Void
     let onInviteTap: (ResolvedContact) -> Void
 
     var body: some View {
         List {
+            if searchText.isEmpty && !chats.isEmpty {
+                Section {
+                    ForEach(chats) { chat in
+                        ChatRow(chat: chat, onTap: { onChatTap(chat) })
+                    }
+                } header: {
+                    RecipientSectionHeader(title: "Chats")
+                }
+                .listSectionSeparator(.hidden, edges: .top)
+            }
             if !filtered.onFlipcash.isEmpty {
                 Section {
                     ForEach(filtered.onFlipcash) { contact in
@@ -309,6 +329,57 @@ private struct RecipientRowTrailingAccessory: View {
             }
             .buttonStyle(.plain)
         }
+    }
+}
+
+// MARK: - Chat row -
+
+/// A DM chat row. The server doesn't yet hydrate member profiles, so the title
+/// falls back to "Direct Message" when the counterpart's display name is empty.
+private struct ChatRow: View {
+
+    let chat: Conversation
+    let onTap: () -> Void
+
+    @Environment(ChatController.self) private var chatController
+
+    private var title: String {
+        chatController.displayName(for: chat)
+    }
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 12) {
+                ContactAvatarView(
+                    id: chat.id.description,
+                    displayName: title,
+                    imageData: nil,
+                    size: 44
+                )
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.appTextMedium)
+                        .foregroundStyle(Color.textMain)
+                        .lineLimit(1)
+                    Text(chat.lastMessage?.text ?? "No messages yet")
+                        .font(.appTextSmall)
+                        .foregroundStyle(Color.textSecondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 12)
+                Image(systemName: "chevron.right")
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textSecondary)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .listRowInsets(EdgeInsets(top: 14, leading: 20, bottom: 14, trailing: 20))
+        .listRowBackground(Color.clear)
+        .listRowSeparatorTint(.rowSeparator)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(title))
+        .accessibilityAddTraits(.isButton)
     }
 }
 
