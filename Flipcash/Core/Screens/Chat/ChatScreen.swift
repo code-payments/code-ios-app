@@ -40,7 +40,7 @@ struct ChatScreen: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             } else {
-                ConversationTranscript(items: transcriptItems)
+                ConversationTranscript(messages: messages, selfUserID: chatController.selfUserID)
             }
         }
         .background(Color.backgroundMain)
@@ -57,35 +57,6 @@ struct ChatScreen: View {
         .onChange(of: messages.last?.id) {
             Task { await chatController.markRead(chatID: chatID) }
         }
-    }
-
-    /// Groups messages into same-sender runs and inserts date headers across
-    /// time gaps. Pure data — drives the transcript's `ForEach`.
-    private var transcriptItems: [TranscriptItem] {
-        let allMessages = messages
-        let gap: TimeInterval = 15 * 60
-        var items: [TranscriptItem] = []
-
-        for (index, message) in allMessages.enumerated() {
-            let previous = index > 0 ? allMessages[index - 1] : nil
-            let next = index + 1 < allMessages.count ? allMessages[index + 1] : nil
-            let isFromSelf = message.senderID == chatController.selfUserID
-
-            let startsRun = previous == nil
-                || (previous!.senderID == chatController.selfUserID) != isFromSelf
-                || message.date.timeIntervalSince(previous!.date) > gap
-
-            if startsRun {
-                items.append(.separator(message.date))
-            }
-
-            let endsRun = next == nil
-                || (next!.senderID == chatController.selfUserID) != isFromSelf
-                || next!.date.timeIntervalSince(message.date) > gap
-
-            items.append(.message(message, isFromSelf: isFromSelf, startsRun: startsRun, endsRun: endsRun))
-        }
-        return items
     }
 
     private var canSend: Bool {
@@ -123,7 +94,8 @@ private enum TranscriptItem: Identifiable {
 /// message pinned natively — no scroll math, no ScrollViewReader.
 private struct ConversationTranscript: View {
 
-    let items: [TranscriptItem]
+    let messages: [ChatMessage]
+    let selfUserID: UserID
 
     var body: some View {
         ScrollView {
@@ -147,6 +119,35 @@ private struct ConversationTranscript: View {
         }
         .defaultScrollAnchor(.bottom)
         .scrollDismissesKeyboard(.interactively)
+    }
+
+    /// Groups messages into same-sender runs and inserts date headers across time
+    /// gaps. Kept on this child view (whose inputs exclude the composer draft) so
+    /// keystrokes don't recompute it.
+    private var items: [TranscriptItem] {
+        let gap: TimeInterval = 15 * 60
+        var items: [TranscriptItem] = []
+
+        for (index, message) in messages.enumerated() {
+            let previous = index > 0 ? messages[index - 1] : nil
+            let next = index + 1 < messages.count ? messages[index + 1] : nil
+            let isFromSelf = message.senderID == selfUserID
+
+            let startsRun = previous == nil
+                || (previous!.senderID == selfUserID) != isFromSelf
+                || message.date.timeIntervalSince(previous!.date) > gap
+
+            if startsRun {
+                items.append(.separator(message.date))
+            }
+
+            let endsRun = next == nil
+                || (next!.senderID == selfUserID) != isFromSelf
+                || next!.date.timeIntervalSince(message.date) > gap
+
+            items.append(.message(message, isFromSelf: isFromSelf, startsRun: startsRun, endsRun: endsRun))
+        }
+        return items
     }
 }
 

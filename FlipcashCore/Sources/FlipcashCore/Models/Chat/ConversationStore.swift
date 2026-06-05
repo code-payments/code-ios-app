@@ -31,11 +31,28 @@ public struct ConversationStore: Sendable {
     /// Dedupes the send-response echo against the same message arriving on the
     /// stream (both carry the server-assigned id).
     public mutating func mergeMessages(_ incoming: [ChatMessage], into chatID: ChatID) {
+        guard !incoming.isEmpty else { return }
+        let current = messagesByChat[chatID] ?? []
+        let sortedIncoming = incoming.sorted { $0.id < $1.id }
+
+        // Fast path: the live case is appending strictly-newer messages to an
+        // existing transcript. Equal ids (the send echo) route to the fallback
+        // so last-write-wins dedup still holds.
+        if let lastCurrent = current.last, let firstIncoming = sortedIncoming.first,
+           firstIncoming.id > lastCurrent.id {
+            var merged = current
+            merged.reserveCapacity(current.count + sortedIncoming.count)
+            merged.append(contentsOf: sortedIncoming)
+            messagesByChat[chatID] = merged
+            return
+        }
+
+        // Fallback: first load, out-of-order backfill, or a duplicate id.
         var byID = Dictionary(
-            (messagesByChat[chatID] ?? []).map { ($0.id, $0) },
+            current.map { ($0.id, $0) },
             uniquingKeysWith: { _, new in new }
         )
-        for message in incoming {
+        for message in sortedIncoming {
             byID[message.id] = message
         }
         messagesByChat[chatID] = byID.values.sorted { $0.id < $1.id }
