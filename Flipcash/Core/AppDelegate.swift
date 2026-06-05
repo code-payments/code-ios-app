@@ -115,6 +115,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             sessionContainer?.session.didBecomeActive()
             sessionContainer?.usdcSweepOperation.start()
             sessionContainer?.contactSyncController.didBecomeActive()
+            sessionContainer?.chatController.ensureConnected()
         case .inactive:
             break
         @unknown default:
