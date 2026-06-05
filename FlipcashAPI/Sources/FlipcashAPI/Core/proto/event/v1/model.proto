@@ -6,7 +6,9 @@ option go_package = "github.com/code-payments/flipcash2-protobuf-api/generated/g
 option java_package = "com.codeinc.flipcash.gen.events.v1";
 option objc_class_prefix = "FPBEventV1";
 
+import "chat/v1/model.proto";
 import "common/v1/common.proto";
+import "messaging/v1/model.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "validate/validate.proto";
@@ -27,7 +29,8 @@ message Event {
     oneof type {
         option (validate.required) = true;
 
-        TestEvent test = 3;
+        TestEvent  test        = 3;
+        ChatUpdate chat_update = 4;
     }
 }
 
@@ -70,4 +73,23 @@ message ClientPong {
     // Timestamp the Pong was sent on the stream, for server to get a sense
     // of potential network latency
     google.protobuf.Timestamp timestamp = 1 [(validate.rules).timestamp.required = true];
+}
+
+message ChatUpdate {
+    // The chat that this update is for
+    common.v1.ChatId chat = 1 [(validate.rules).message.required = true];
+
+    // If present, new real-time messages sent on the chat
+    messaging.v1.MessageBatch new_messages = 2;
+
+    // If present, message pointer updates for members in the chat
+    messaging.v1.PointerBatch pointer_updates = 3;
+
+    // If present, message typing notification state changes for members in the chat
+    messaging.v1.IsTypingNotificationBatch is_typing_notifications = 4;
+
+    // If present, updates to the chat metadata
+    repeated chat.v1.MetadataUpdate metadata_updates = 5 [(validate.rules).repeated = {
+        max_items: 1024 // Arbitrary
+    }];
 }
