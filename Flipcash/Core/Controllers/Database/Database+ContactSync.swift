@@ -49,10 +49,12 @@ nonisolated extension Database {
         return try rows.map { $0[table.e164] }
     }
 
-    /// Replace the matched-contacts set with the server's latest response.
+    /// Replace the matched-contacts set with the server's latest response and
+    /// return the deduped count persisted.
     /// Atomic — readers observe either the old set or the new set, never a partial join.
     /// Deduplicates `e164s` defensively in case the server ever streams the same number twice.
-    func replaceFlipcashContacts(_ e164s: [String], matchedAt: Date) throws {
+    @discardableResult
+    func replaceFlipcashContacts(_ e164s: [String], matchedAt: Date) throws -> Int {
         let table = FlipcashContactTable()
         var seen: Set<String> = []
         let deduped = e164s.filter { seen.insert($0).inserted }
@@ -67,6 +69,7 @@ nonisolated extension Database {
                 )
             }
         }
+        return deduped.count
     }
 
     // MARK: - Local Snapshot -
