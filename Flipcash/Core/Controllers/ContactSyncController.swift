@@ -269,7 +269,7 @@ final class ContactSyncController {
 
         // Refresh before persist so a stream failure leaves checksum + snapshot
         // unchanged and the next sync re-runs end-to-end.
-        try await refreshFlipcashContacts(checksum: newChecksum)
+        let matchedCount = try await refreshFlipcashContacts(checksum: newChecksum)
 
         try database.updateContactSyncSnapshotAndState(
             snapshot: contacts,
@@ -278,8 +278,8 @@ final class ContactSyncController {
 
         await resolveDirectory()
 
-        if isFirstScan, let matched = try? database.flipcashContacts(), !matched.isEmpty {
-            await MainActor.run { self.onFlipcashMatchCount = matched.count }
+        if isFirstScan, matchedCount > 0 {
+            await MainActor.run { self.onFlipcashMatchCount = matchedCount }
         }
     }
 
@@ -320,7 +320,8 @@ final class ContactSyncController {
         logger.info("Full upload OK", metadata: ["count": "\(phones.count)"])
     }
 
-    nonisolated private func refreshFlipcashContacts(checksum: Data) async throws {
+    @discardableResult
+    nonisolated private func refreshFlipcashContacts(checksum: Data) async throws -> Int {
         // FlipClient is @MainActor and streamFlipcashContacts is sync — hop to
         // obtain the stream, iterate off-main.
         let stream = await MainActor.run {
@@ -330,8 +331,9 @@ final class ContactSyncController {
         for try await e164 in stream {
             matched.append(e164)
         }
-        try database.replaceFlipcashContacts(matched, matchedAt: .now)
-        logger.info("Refreshed flipcash contacts", metadata: ["matched": "\(matched.count)"])
+        let matchedCount = try database.replaceFlipcashContacts(matched, matchedAt: .now)
+        logger.info("Refreshed flipcash contacts", metadata: ["matched": "\(matchedCount)"])
+        return matchedCount
     }
 
     // MARK: - Permission revoke -

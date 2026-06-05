@@ -173,6 +173,9 @@ enum RecipientLoader {
             var resolvedByPlacement: [ResolvedContact] = []
             resolvedByPlacement.reserveCapacity(placements.count)
             var cnCache: [String: CNContact] = [:]
+            // The same e164 recurs across placements (one contact, many rows;
+            // one number, many contacts) — parse it through PhoneNumberKit once.
+            var nationalCache: [String: String] = [:]
 
             for placement in placements {
                 let cnContact: CNContact
@@ -188,7 +191,13 @@ enum RecipientLoader {
                     continue
                 }
 
-                let nationalPhone = Phone(placement.e164, defaultRegion: region)?.national ?? placement.e164
+                let nationalPhone: String
+                if let cached = nationalCache[placement.e164] {
+                    nationalPhone = cached
+                } else {
+                    nationalPhone = Phone(placement.e164, defaultRegion: region)?.national ?? placement.e164
+                    nationalCache[placement.e164] = nationalPhone
+                }
                 let displayName   = CNContactFormatter.string(from: cnContact, style: .fullName)
                     ?? nationalPhone
 
