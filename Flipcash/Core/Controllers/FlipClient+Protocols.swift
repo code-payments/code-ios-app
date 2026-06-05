@@ -81,11 +81,6 @@ protocol ConversationEventStreaming: AnyObject, Sendable {
     func closeConversationStream()
 }
 
-/// Public-profile lookup used to resolve a chat member's display name.
-protocol ProfileFetching: AnyObject, Sendable {
-    func fetchProfile(userID: UserID, owner: KeyPair) async throws -> Profile
-}
-
 extension FlipClient: ContactVerifying, OnrampAuthorizing, ContactSyncing,
                       ConversationFetching, ConversationMessaging,
-                      ConversationEventStreaming, ProfileFetching {}
+                      ConversationEventStreaming {}

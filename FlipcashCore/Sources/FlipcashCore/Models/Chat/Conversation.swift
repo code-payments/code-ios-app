@@ -38,20 +38,29 @@ extension Conversation {
     public func counterpart(excluding selfUserID: UserID?) -> ChatMember? {
         members.first { $0.userID != selfUserID } ?? members.first
     }
+
+    /// The signed-in user's READ watermark in this conversation, if reported.
+    public func selfReadPointer(for selfUserID: UserID?) -> MessageID? {
+        members.first { $0.userID == selfUserID }?.readPointer
+    }
 }
 
-/// A participant in a chat. The server does not yet hydrate member profiles, so
-/// `displayName` is typically empty and resolved from local contacts.
+/// A participant in a chat. `displayName` is the member's profile name from the
+/// feed payload; it may be empty when the user hasn't set one.
 public struct ChatMember: Hashable, Sendable, Identifiable {
 
     public let userID: UserID?
     public var displayName: String
+    /// This member's READ watermark: every message at or before it is read.
+    /// `nil` until the server reports one in the feed/stream.
+    public var readPointer: MessageID?
 
     public var id: String { userID?.uuidString ?? displayName }
 
-    public init(userID: UserID?, displayName: String) {
+    public init(userID: UserID?, displayName: String, readPointer: MessageID? = nil) {
         self.userID = userID
         self.displayName = displayName
+        self.readPointer = readPointer
     }
 }
 
@@ -59,5 +68,16 @@ extension ChatMember {
     public init(_ proto: Flipcash_Chat_V1_Member) {
         self.userID = try? UUID(data: proto.userID.value)
         self.displayName = proto.userProfile.displayName
+
+        var read: MessageID?
+        for pointer in proto.pointers {
+            switch pointer.type {
+            case .read:
+                read = MessageID(pointer.value)
+            case .delivered, .sent, .unknown, .UNRECOGNIZED:
+                break
+            }
+        }
+        self.readPointer = read
     }
 }

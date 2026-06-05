@@ -28,14 +28,10 @@ final class ChatController {
     let selfUserID: UserID
 
     private var store = ConversationStore()
-    /// Counterpart display names resolved from the profile service. Observed so
-    /// the feed + conversation title update when a name resolves.
-    private var resolvedNames: [UserID: String] = [:]
 
     @ObservationIgnored private let fetching: any ConversationFetching
     @ObservationIgnored private let messaging: any ConversationMessaging
     @ObservationIgnored private let streaming: any ConversationEventStreaming
-    @ObservationIgnored private let profiles: any ProfileFetching
     @ObservationIgnored private let owner: KeyPair
     @ObservationIgnored private var streamTask: Task<Void, Never>?
 
@@ -43,14 +39,12 @@ final class ChatController {
         fetching: any ConversationFetching,
         messaging: any ConversationMessaging,
         streaming: any ConversationEventStreaming,
-        profiles: any ProfileFetching,
         owner: KeyPair,
         selfUserID: UserID
     ) {
         self.fetching = fetching
         self.messaging = messaging
         self.streaming = streaming
-        self.profiles = profiles
         self.owner = owner
         self.selfUserID = selfUserID
     }
@@ -92,7 +86,6 @@ final class ChatController {
         do {
             let conversations = try await fetching.getDmChatFeed(owner: owner)
             store.setFeed(conversations)
-            await resolveNames(for: conversations)
         } catch {
             logger.error("Failed to load conversation feed")
             ErrorReporting.captureError(error, reason: "Failed to load conversation feed")
@@ -101,19 +94,14 @@ final class ChatController {
 
     // MARK: - Names
 
-    /// The counterpart's name for a conversation: resolved profile name, else
-    /// the server-provided member name, else a generic fallback.
+    /// The counterpart's name for a conversation: the server-provided member
+    /// name from the feed, else a generic fallback.
     func displayName(for conversation: Conversation) -> String {
-        guard let counterpart = conversation.counterpart(excluding: selfUserID) else {
+        guard let counterpart = conversation.counterpart(excluding: selfUserID),
+              !counterpart.displayName.isEmpty else {
             return "Flipcash User"
         }
-        if let userID = counterpart.userID, let resolved = resolvedNames[userID], !resolved.isEmpty {
-            return resolved
-        }
-        if !counterpart.displayName.isEmpty {
-            return counterpart.displayName
-        }
-        return "Flipcash User"
+        return counterpart.displayName
     }
 
     func displayName(forChatID chatID: ChatID) -> String {
@@ -121,16 +109,6 @@ final class ChatController {
             return "Flipcash User"
         }
         return displayName(for: conversation)
-    }
-
-    private func resolveNames(for conversations: [Conversation]) async {
-        for conversation in conversations {
-            guard let userID = conversation.counterpart(excluding: selfUserID)?.userID,
-                  resolvedNames[userID] == nil else { continue }
-            guard let profile = try? await profiles.fetchProfile(userID: userID, owner: owner),
-                  let name = profile.displayName, !name.isEmpty else { continue }
-            resolvedNames[userID] = name
-        }
     }
 
     // MARK: - Conversation
@@ -165,6 +143,13 @@ final class ChatController {
 
     func markRead(chatID: ChatID) async {
         guard let latest = store.messages(for: chatID).last else { return }
-        try? await messaging.markRead(owner: owner, chatID: chatID, messageID: latest.id)
+        // Skip the round-trip when the server-known READ watermark already covers
+        // the latest message. We advance the watermark locally after each success.
+        if let read = store.selfReadPointer(for: chatID, selfUserID: selfUserID), latest.id <= read {
+            return
+        }
+        if (try? await messaging.markRead(owner: owner, chatID: chatID, messageID: latest.id)) != nil {
+            store.advanceSelfReadPointer(to: latest.id, in: chatID, selfUserID: selfUserID)
+        }
     }
 }

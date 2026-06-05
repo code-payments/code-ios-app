@@ -10,7 +10,7 @@ import FlipcashAPI
 
 /// A decoded update delivered over the single per-user event stream. The
 /// streamer demultiplexes raw `ChatUpdate`s into these so the controller can
-/// apply them without touching proto types. PoC scope omits pointers/typing.
+/// apply them without touching proto types. Typing notifications are not consumed.
 public enum ChatStreamEvent: Sendable {
 
     /// New messages arrived in a chat.
@@ -21,6 +21,21 @@ public enum ChatStreamEvent: Sendable {
 
     /// Only a chat's last-activity timestamp changed — re-sort the feed.
     case lastActivityChanged(chatID: ChatID, date: Date)
+
+    /// One or more members' READ watermarks advanced.
+    case readPointersChanged(chatID: ChatID, pointers: [MemberReadPointer])
+}
+
+/// A member's READ watermark from a live pointer update: everything at or before
+/// `value` is read by `userID`.
+public struct MemberReadPointer: Sendable, Hashable {
+    public let userID: UserID
+    public let value: MessageID
+
+    public init(userID: UserID, value: MessageID) {
+        self.userID = userID
+        self.value = value
+    }
 }
 
 extension ChatStreamEvent {
@@ -48,6 +63,19 @@ extension ChatStreamEvent {
             case nil:
                 break
             }
+        }
+
+        let readPointers: [MemberReadPointer] = update.pointerUpdates.pointers.compactMap { pointer in
+            switch pointer.type {
+            case .read:
+                guard let userID = try? UUID(data: pointer.userID.value) else { return nil }
+                return MemberReadPointer(userID: userID, value: MessageID(pointer.value))
+            case .delivered, .sent, .unknown, .UNRECOGNIZED:
+                return nil
+            }
+        }
+        if !readPointers.isEmpty {
+            events.append(.readPointersChanged(chatID: chatID, pointers: readPointers))
         }
 
         return events
