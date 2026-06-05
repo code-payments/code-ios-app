@@ -85,4 +85,21 @@ struct ChatControllerTests {
         #expect(mock.didEnsure)
         #expect(mock.didClose)
     }
+
+    @Test("a streamed event is applied to the conversation store")
+    func appliesStreamedEvent() async {
+        let mock = MockConversations()
+        let controller = makeController(mock)
+        controller.start()
+
+        let message = ChatMessage(id: MessageID(value: 9), senderID: nil, text: "live", date: Date(timeIntervalSince1970: 0), unreadSeq: 0)
+        mock.emit(.newMessages(chatID: chatID(1), messages: [message]))
+
+        // The stream is consumed on a Task; poll briefly for it to apply.
+        for _ in 0..<50 where controller.messages(for: chatID(1)).isEmpty {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(controller.messages(for: chatID(1)).map(\.id.value) == [9])
+        controller.stop()
+    }
 }

@@ -426,6 +426,7 @@ final class SessionAuthenticator {
             container.session.prepareForLogout()
             container.pushController.prepareForLogout()
             container.usdcSweepOperation.cancel()
+            container.chatController.stop()
             QuickActionsController.clear()
         }
 
