@@ -73,9 +73,23 @@ struct TransportClassificationTests {
         #expect(ErrorSwap.unknown.isReportable == true)
     }
 
-    @Test("ErrorStatelessSwap suppresses transport-failure reporting")
-    func errorStatelessSwapTransport() {
+    @Test("ErrorStatelessSwap.grpcStatus is reportable only for non-transient statuses")
+    func errorStatelessSwapGRPCStatus() {
         #expect(ErrorStatelessSwap.grpcStatus(GRPCStatus(code: .deadlineExceeded, message: nil)).isReportable == false)
+        #expect(ErrorStatelessSwap.grpcStatus(GRPCStatus(code: .internalError, message: nil)).isReportable == true)
         #expect(ErrorStatelessSwap.unknown.isReportable == true)
+    }
+
+    // MARK: - Raw GRPCStatus self-classification -
+    // Unary RPCs whose failure type is the existential `Error` ship the status
+    // directly; its `ServerError` conformance classifies transient transport
+    // failures as non-reportable without a dedicated error enum.
+
+    @Test("GRPCStatus is reportable only for non-transient statuses")
+    func grpcStatusReportability() {
+        #expect(GRPCStatus(code: .deadlineExceeded, message: nil).isReportable == false)
+        #expect(GRPCStatus(code: .unavailable, message: nil).isReportable == false)
+        #expect(GRPCStatus(code: .internalError, message: nil).isReportable == true)
+        #expect(GRPCStatus(code: .cancelled, message: nil).isReportable == true)
     }
 }

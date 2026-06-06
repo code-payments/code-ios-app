@@ -111,10 +111,12 @@ public enum ErrorStatelessSwap: Error, Sendable {
 extension ErrorStatelessSwap: ServerError {
     public var isReportable: Bool {
         switch self {
-        case .signatureError, .invalidSwap, .unknown:
+        case .signatureError, .invalidSwap, .unknown, .grpcError:
             return true
-        case .denied, .transactionFailed, .grpcError, .grpcStatus:
+        case .denied, .transactionFailed:
             return false
+        case .grpcStatus(let status):
+            return !status.code.isTransientNetworkError
         }
     }
 }
