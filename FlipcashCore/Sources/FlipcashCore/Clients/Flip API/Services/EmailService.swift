@@ -55,13 +55,12 @@ class EmailService: CodeService<Flipcash_Email_V1_EmailVerificationNIOClient> {
         let call = service.checkVerificationCode(request)
         call.handle(on: queue, completion: completion) { response in
             let error = ErrorCheckEmailCode(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok {
-                logger.info("Email verification code accepted")
-                return .success(())
-            } else {
+            guard error == .ok else {
                 logger.error("Email verification code check failed", metadata: ["error": "\(error)"])
                 return .failure(error)
             }
+            logger.info("Email verification code accepted")
+            return .success(())
         }
     }
 
@@ -76,13 +75,12 @@ class EmailService: CodeService<Flipcash_Email_V1_EmailVerificationNIOClient> {
         let call = service.unlink(request)
         call.handle(on: queue, completion: completion) { response in
             let error = ErrorUnlinkEmail(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok {
-                logger.info("Email address unlinked successfully")
-                return .success(())
-            } else {
+            guard error == .ok else {
                 logger.error("Failed to unlink email address", metadata: ["error": "\(error)"])
                 return .failure(error)
             }
+            logger.info("Email address unlinked successfully")
+            return .success(())
         }
     }
 }

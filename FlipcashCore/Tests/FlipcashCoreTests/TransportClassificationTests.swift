@@ -66,17 +66,21 @@ struct TransportClassificationTests {
         #expect(ErrorLaunchCurrency.unknown.isReportable == true)
     }
 
-    @Test("ErrorSwap.grpcStatus is reportable only for non-transient statuses")
+    @Test("ErrorSwap classifies grpcStatus by transience; grpcError always reports")
     func errorSwapGRPCStatus() {
         #expect(ErrorSwap.grpcStatus(GRPCStatus(code: .deadlineExceeded, message: nil)).isReportable == false)
         #expect(ErrorSwap.grpcStatus(GRPCStatus(code: .internalError, message: nil)).isReportable == true)
+        // .grpcError is the un-typed status-future failure — deliberately reportable
+        // even for a transient-looking status, unlike the typed .grpcStatus case.
+        #expect(ErrorSwap.grpcError(GRPCStatus(code: .unavailable, message: nil)).isReportable == true)
         #expect(ErrorSwap.unknown.isReportable == true)
     }
 
-    @Test("ErrorStatelessSwap.grpcStatus is reportable only for non-transient statuses")
+    @Test("ErrorStatelessSwap classifies grpcStatus by transience; grpcError always reports")
     func errorStatelessSwapGRPCStatus() {
         #expect(ErrorStatelessSwap.grpcStatus(GRPCStatus(code: .deadlineExceeded, message: nil)).isReportable == false)
         #expect(ErrorStatelessSwap.grpcStatus(GRPCStatus(code: .internalError, message: nil)).isReportable == true)
+        #expect(ErrorStatelessSwap.grpcError(GRPCStatus(code: .unavailable, message: nil)).isReportable == true)
         #expect(ErrorStatelessSwap.unknown.isReportable == true)
     }
 

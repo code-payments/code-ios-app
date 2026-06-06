@@ -112,7 +112,7 @@ extension ErrorModeration: ServerError {
         switch self {
         case .denied, .unsupportedFormat, .unsupportedLanguage: false
         case .unknown: true
-        case .network(let error): !((error as? GRPCStatus)?.code.isTransientNetworkError ?? false)
+        case .network(let error): (error as? GRPCStatus)?.isReportable ?? true
         }
     }
 }

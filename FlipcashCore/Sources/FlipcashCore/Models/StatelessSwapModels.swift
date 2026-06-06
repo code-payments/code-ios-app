@@ -116,7 +116,7 @@ extension ErrorStatelessSwap: ServerError {
         case .denied, .transactionFailed:
             return false
         case .grpcStatus(let status):
-            return !status.code.isTransientNetworkError
+            return status.isReportable
         }
     }
 }

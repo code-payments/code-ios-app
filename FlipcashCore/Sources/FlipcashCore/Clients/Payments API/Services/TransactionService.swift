@@ -170,13 +170,12 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
         let call = service.voidGiftCard(request)
         call.handle(on: queue, completion: completion) { response in
             let error = ErrorVoidGiftCard(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok {
-                logger.info("Cash link voided", metadata: ["giftCard": "\(giftCardVault.base58)"])
-                return .success(())
-            } else {
+            guard error == .ok else {
                 logger.error("Failed to void cash link", metadata: ["error": "\(error)"])
                 return .failure(error)
             }
+            logger.info("Cash link voided", metadata: ["giftCard": "\(giftCardVault.base58)"])
+            return .success(())
         }
     }
     
@@ -729,7 +728,6 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
         
         let call = service.getIntentMetadata(request)
         call.handle(on: queue, completion: completion) { response in
-
             let result = ErrorFetchIntentMetadata(rawValue: response.result.rawValue) ?? .unknown
             guard result == .ok else {
                 return .failure(result)
@@ -767,7 +765,6 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
         
         let call = service.getLimits(request)
         call.handle(on: queue, completion: completion) { response in
-
             let error = ErrorFetchLimits(rawValue: response.result.rawValue) ?? .unknown
             guard error == .ok else {
                 logger.error("Failed to fetch transaction limits", metadata: [

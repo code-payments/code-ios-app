@@ -51,7 +51,7 @@ struct Regression_6a1b80a {
         #expect(ErrorSendVerificationCode.from(transportError: status) == expected)
     }
 
-    @Test("GRPCError.RPCTimedOut routes through .transportFailure end-to-end")
+    @Test("GRPCError.RPCTimedOut maps to a non-reportable .transportFailure")
     func rpcTimedOut_routesThroughTransportFailure() {
         let timeout = GRPCError.RPCTimedOut(.deadline(.now()))
         let status = timeout.makeGRPCStatus()

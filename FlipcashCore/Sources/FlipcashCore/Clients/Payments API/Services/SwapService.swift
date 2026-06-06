@@ -636,7 +636,7 @@ extension ErrorSwap: ServerError {
         switch self {
         case .denied, .invalidSwap: false
         case .signatureError, .failed, .unknown, .grpcError: true
-        case .grpcStatus(let status): !status.code.isTransientNetworkError
+        case .grpcStatus(let status): status.isReportable
         case .fundingIntent(let inner): inner.isReportable
         }
     }
