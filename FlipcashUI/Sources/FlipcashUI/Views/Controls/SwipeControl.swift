@@ -40,32 +40,22 @@ public struct SwipeControl: View {
     }
 
     public var body: some View {
-        ZStack {
-            Text(text)
-                .lineLimit(1)
-                .font(.appTextMedium)
-                .foregroundStyle(.textMain)
-                .padding(.horizontal, Layout.knobSize.width)
-                .opacity(state == .normal ? 1 : 0)
+        GeometryReader { geometry in
+            let maxX = geometry.size.width - Layout.knobSize.width
 
-            GeometryReader { geometry in
-                let maxX = geometry.size.width - Layout.knobSize.width
-
-                Knob(maxX: maxX, knobX: knobX, isIdle: state == .normal) {
-                    Task {
-                        state = .loading
-                        knobX = maxX + Layout.knobSize.width * 2
-                        do {
-                            try await action()
-                            state = .success
-                            try await completion?()
-                            try await Task.delay(seconds: 2)
-                        } catch {}
-                        state = .normal
-                        knobX = 0
-                    }
+            SwipingTrack(text: text, maxX: maxX, knobX: knobX, isNormal: state == .normal) {
+                Task {
+                    state = .loading
+                    knobX = maxX + Layout.knobSize.width * 2
+                    do {
+                        try await action()
+                        state = .success
+                        try await completion?()
+                        try await Task.delay(seconds: 2)
+                    } catch {}
+                    state = .normal
+                    knobX = 0
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             }
         }
         .padding(.horizontal, 4)
@@ -105,13 +95,17 @@ public struct SwipeControl: View {
     }
 }
 
-/// The draggable knob. Owns the high-frequency drag and idle-nudge state so a
-/// drag or nudge re-renders only the knob, not the whole control.
-private struct Knob: View {
+/// Owns the high-frequency drag and idle-nudge state, and renders the label and
+/// knob together so a drag (or nudge) re-renders only the track, not the
+/// control's background, border, or status overlay. As the knob advances it
+/// wipes the label away from the left, the text dissolving through a soft fade
+/// just ahead of the knob's leading edge.
+private struct SwipingTrack: View {
 
+    let text: String
     let maxX: CGFloat
     let knobX: CGFloat
-    let isIdle: Bool
+    let isNormal: Bool
     let onCommit: () -> Void
 
     @Environment(\.isEnabled) private var isEnabled
@@ -119,53 +113,80 @@ private struct Knob: View {
     @GestureState private var dragOffset: CGFloat? = nil
     @State private var isNudging = false
 
-    var body: some View {
-        let nudgeX: CGFloat = (isIdle && isEnabled && dragOffset == nil && isNudging) ? Layout.nudgeOffset : 0
+    private static let wipeGradient = LinearGradient(
+        colors: [.clear, .black], startPoint: .leading, endPoint: .trailing
+    )
 
-        RoundedRectangle(cornerRadius: Layout.knobCornerRadius)
-            .fill(.action)
-            .frame(width: Layout.knobSize.width, height: Layout.knobSize.height)
-            .overlay {
-                Image.system(.arrowRight)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: Layout.arrowSize, height: Layout.arrowSize)
-                    .foregroundStyle(.textAction)
-            }
-            .offset(x: knobX + (dragOffset ?? 0) + nudgeX)
-            .animation(.springFastestDamped, value: dragOffset)
-            .animation(.springFastestDamped, value: knobX)
-            .animation(.springFastestDamped, value: isNudging)
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .updating($dragOffset) { value, dragState, transaction in
-                        transaction.disablesAnimations = true
-                        dragState = min(max(value.translation.width, 0), maxX)
+    var body: some View {
+        let drag = dragOffset ?? 0
+        let leadingX = knobX + drag + Layout.knobSize.width
+        let nudgeX: CGFloat = (isNormal && isEnabled && dragOffset == nil && isNudging) ? Layout.nudgeOffset : 0
+
+        ZStack {
+            Text(text)
+                .lineLimit(1)
+                .font(.appTextMedium)
+                .foregroundStyle(.textMain)
+                .padding(.horizontal, Layout.knobSize.width)
+                .frame(maxWidth: .infinity) // span the track so the mask offset below is in track coordinates
+                .mask(alignment: .leading) {
+                    HStack(spacing: 0) {
+                        Self.wipeGradient
+                            .frame(width: Layout.fadeWidth)
+                        Color.black
                     }
-                    .onEnded { value in
-                        let offset = min(max(value.translation.width, 0), maxX)
-                        let velocity = value.predictedEndLocation.x - value.location.x
-                        let percent = maxX > 0 ? offset / maxX : 0
-                        guard percent > Layout.commitFraction
-                            || (percent > Layout.velocityAssistFraction && velocity > Layout.velocityAssistMinimum)
-                        else { return }
-                        onCommit()
-                    }
-            )
-            .disabled(!isIdle)
-            .task {
-                do {
-                    try await Task.delay(seconds: 3)
-                    while true {
-                        isNudging = true
-                        try await Task.delay(milliseconds: 150)
-                        isNudging = false
-                        try await Task.delay(seconds: 4)
-                    }
-                } catch {
-                    isNudging = false
+                    .offset(x: leadingX)
+                    .animation(.springFastestDamped, value: leadingX)
                 }
+                .opacity(isNormal ? 1 : 0)
+
+            RoundedRectangle(cornerRadius: Layout.knobCornerRadius)
+                .fill(.action)
+                .frame(width: Layout.knobSize.width, height: Layout.knobSize.height)
+                .overlay {
+                    Image.system(.arrowRight)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: Layout.arrowSize, height: Layout.arrowSize)
+                        .foregroundStyle(.textAction)
+                }
+                .offset(x: knobX + drag + nudgeX)
+                .animation(.springFastestDamped, value: dragOffset)
+                .animation(.springFastestDamped, value: knobX)
+                .animation(.springFastestDamped, value: isNudging)
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .updating($dragOffset) { value, dragState, transaction in
+                            transaction.disablesAnimations = true
+                            dragState = min(max(value.translation.width, 0), maxX)
+                        }
+                        .onEnded { value in
+                            let offset = min(max(value.translation.width, 0), maxX)
+                            let velocity = value.predictedEndLocation.x - value.location.x
+                            let percent = maxX > 0 ? offset / maxX : 0
+                            guard percent > Layout.commitFraction
+                                || (percent > Layout.velocityAssistFraction && velocity > Layout.velocityAssistMinimum)
+                            else { return }
+                            onCommit()
+                        }
+                )
+                .disabled(!isNormal)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .task {
+            do {
+                try await Task.delay(seconds: 3)
+                while true {
+                    isNudging = true
+                    try await Task.delay(milliseconds: 150)
+                    isNudging = false
+                    try await Task.delay(seconds: 4)
+                }
+            } catch {
+                isNudging = false
             }
+        }
     }
 }
 
@@ -175,6 +196,7 @@ private enum Layout {
     static let knobCornerRadius: CGFloat = 4
     static let arrowSize: CGFloat = 18
     static let nudgeOffset: CGFloat = 20
+    static let fadeWidth: CGFloat = 16
     static let disabledOpacity: CGFloat = 0.4
 
     static let commitFraction: CGFloat = 0.7
