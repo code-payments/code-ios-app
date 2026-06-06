@@ -25,7 +25,7 @@ struct RecipientPickerScreen: View {
     let searchText: String
 
     @Environment(ContactSyncController.self) private var contactSyncController
-    @Environment(ChatController.self) private var chatController
+    @Environment(ConversationController.self) private var conversationController
     @Environment(AppRouter.self) private var router
     @Environment(Session.self) private var session
     @Environment(RatesController.self) private var ratesController
@@ -35,9 +35,9 @@ struct RecipientPickerScreen: View {
 
     var body: some View {
         let contacts = contactSyncController.resolvedContacts
-        let chats = chatController.conversations
+        let conversations = conversationController.conversations
         return Group {
-            if contacts.isEmpty && chats.isEmpty {
+            if contacts.isEmpty && conversations.isEmpty {
                 if isLimitedAccess {
                     LimitedAccessEmptyState()
                 } else {
@@ -45,11 +45,11 @@ struct RecipientPickerScreen: View {
                 }
             } else {
                 RecipientPickerList(
-                    chats: chats,
+                    conversations: conversations,
                     filtered: filtered,
                     searchText: searchText,
                     isLimitedAccess: isLimitedAccess,
-                    onChatTap: openChat,
+                    onConversationTap: openConversation,
                     onFlipcashTap: selectRecipient,
                     onInviteTap: presentInvite,
                 )
@@ -84,8 +84,8 @@ struct RecipientPickerScreen: View {
         router.push(.sendAmount(contact: contact))
     }
 
-    private func openChat(_ chat: Conversation) {
-        router.push(.dmConversation(chatID: chat.id))
+    private func openConversation(_ conversation: Conversation) {
+        router.push(.dmConversation(conversationID: conversation.id))
     }
 
     private func presentInvite(for contact: ResolvedContact) {
@@ -198,20 +198,20 @@ private struct RecipientSearchEmptyState: View {
 
 private struct RecipientPickerList: View {
 
-    let chats: [Conversation]
+    let conversations: [Conversation]
     let filtered: ResolvedContacts
     let searchText: String
     let isLimitedAccess: Bool
-    let onChatTap: (Conversation) -> Void
+    let onConversationTap: (Conversation) -> Void
     let onFlipcashTap: (ResolvedContact) -> Void
     let onInviteTap: (ResolvedContact) -> Void
 
     var body: some View {
         List {
-            if searchText.isEmpty && !chats.isEmpty {
+            if searchText.isEmpty && !conversations.isEmpty {
                 Section {
-                    ForEach(chats) { chat in
-                        ChatRow(chat: chat, onTap: { onChatTap(chat) })
+                    ForEach(conversations) { conversation in
+                        ConversationRow(conversation: conversation, onTap: { onConversationTap(conversation) })
                     }
                 } header: {
                     RecipientSectionHeader(title: "Chats")
@@ -340,26 +340,26 @@ private struct RecipientRowTrailingAccessory: View {
     }
 }
 
-// MARK: - Chat row -
+// MARK: - Conversation row -
 
-/// A DM chat row. The server doesn't yet hydrate member profiles, so the title
+/// A DM conversation row. The server doesn't yet hydrate member profiles, so the title
 /// falls back to "Flipcash User" when the counterpart's display name is empty.
-private struct ChatRow: View {
+private struct ConversationRow: View {
 
-    let chat: Conversation
+    let conversation: Conversation
     let onTap: () -> Void
 
-    @Environment(ChatController.self) private var chatController
+    @Environment(ConversationController.self) private var conversationController
 
     private var title: String {
-        chatController.displayName(for: chat)
+        conversationController.displayName(for: conversation)
     }
 
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 12) {
                 ContactAvatarView(
-                    id: chat.id.description,
+                    id: conversation.id.description,
                     displayName: title,
                     imageData: nil,
                     size: 44
@@ -369,7 +369,7 @@ private struct ChatRow: View {
                         .font(.appTextMedium)
                         .foregroundStyle(Color.textMain)
                         .lineLimit(1)
-                    Text(chat.lastMessage?.text ?? "No messages yet")
+                    Text(conversation.lastMessage?.text ?? "No messages yet")
                         .font(.appTextSmall)
                         .foregroundStyle(Color.textSecondary)
                         .lineLimit(1)

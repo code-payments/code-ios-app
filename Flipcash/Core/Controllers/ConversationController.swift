@@ -1,5 +1,5 @@
 //
-//  ChatController.swift
+//  ConversationController.swift
 //  Flipcash
 //
 //  Copyright © 2026 Code Inc. All rights reserved.
@@ -8,17 +8,17 @@
 import Foundation
 import FlipcashCore
 
-nonisolated private let logger = Logger(label: "flipcash.chat-controller")
+nonisolated private let logger = Logger(label: "flipcash.conversation-controller")
 
 /// Session-scoped owner of the DM conversation feed and the single per-user
 /// event stream. Holds state in a pure `ConversationStore`, applies live
-/// `ChatStreamEvent`s, and resolves counterpart display names.
+/// `ConversationStreamEvent`s, and resolves counterpart display names.
 ///
 /// Depends on capability protocols (not a concrete client) so it is unit-testable
-/// with injected mocks. Inject into views via `@Environment(ChatController.self)`.
+/// with injected mocks. Inject into views via `@Environment(ConversationController.self)`.
 @MainActor
 @Observable
-final class ChatController {
+final class ConversationController {
 
     /// DM conversations, most-recent activity first.
     var conversations: [Conversation] { store.conversations }
@@ -53,7 +53,7 @@ final class ChatController {
 
     /// Open the event stream and load the initial feed. Idempotent. The stream
     /// is consumed before the feed is paged so updates landing mid-load aren't
-    /// lost (the chat-feed contract).
+    /// lost (the conversation-feed contract).
     func start() {
         guard streamTask == nil else { return }
 
@@ -104,8 +104,8 @@ final class ChatController {
         return counterpart.displayName
     }
 
-    func displayName(forChatID chatID: ChatID) -> String {
-        guard let conversation = store.conversations.first(where: { $0.id == chatID }) else {
+    func displayName(forConversationID conversationID: ConversationID) -> String {
+        guard let conversation = store.conversations.first(where: { $0.id == conversationID }) else {
             return "Flipcash User"
         }
         return displayName(for: conversation)
@@ -113,14 +113,14 @@ final class ChatController {
 
     // MARK: - Conversation
 
-    func messages(for chatID: ChatID) -> [ChatMessage] {
-        store.messages(for: chatID)
+    func messages(for conversationID: ConversationID) -> [ConversationMessage] {
+        store.messages(for: conversationID)
     }
 
-    func loadMessages(for chatID: ChatID) async {
+    func loadMessages(for conversationID: ConversationID) async {
         do {
-            let messages = try await messaging.getMessages(owner: owner, chatID: chatID)
-            store.mergeMessages(messages, into: chatID)
+            let messages = try await messaging.getMessages(owner: owner, conversationID: conversationID)
+            store.mergeMessages(messages, into: conversationID)
         } catch {
             logger.error("Failed to load conversation messages")
             ErrorReporting.captureError(error, reason: "Failed to load conversation messages")
@@ -128,11 +128,11 @@ final class ChatController {
     }
 
     @discardableResult
-    func send(_ text: String, to chatID: ChatID) async -> Bool {
+    func send(_ text: String, to conversationID: ConversationID) async -> Bool {
         do {
-            let message = try await messaging.sendMessage(owner: owner, chatID: chatID, text: text)
-            store.mergeMessages([message], into: chatID)
-            store.setLastMessage(message, in: chatID)
+            let message = try await messaging.sendMessage(owner: owner, conversationID: conversationID, text: text)
+            store.mergeMessages([message], into: conversationID)
+            store.setLastMessage(message, in: conversationID)
             return true
         } catch {
             logger.error("Failed to send conversation message")
@@ -141,15 +141,15 @@ final class ChatController {
         }
     }
 
-    func markRead(chatID: ChatID) async {
-        guard let latest = store.messages(for: chatID).last else { return }
+    func markRead(conversationID: ConversationID) async {
+        guard let latest = store.messages(for: conversationID).last else { return }
         // Skip the round-trip when the server-known READ watermark already covers
         // the latest message. We advance the watermark locally after each success.
-        if let read = store.selfReadPointer(for: chatID, selfUserID: selfUserID), latest.id <= read {
+        if let read = store.selfReadPointer(for: conversationID, selfUserID: selfUserID), latest.id <= read {
             return
         }
-        if (try? await messaging.markRead(owner: owner, chatID: chatID, messageID: latest.id)) != nil {
-            store.advanceSelfReadPointer(to: latest.id, in: chatID, selfUserID: selfUserID)
+        if (try? await messaging.markRead(owner: owner, conversationID: conversationID, messageID: latest.id)) != nil {
+            store.advanceSelfReadPointer(to: latest.id, in: conversationID, selfUserID: selfUserID)
         }
     }
 }

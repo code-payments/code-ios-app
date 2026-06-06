@@ -20,7 +20,7 @@ extension FlipClient {
             let page = try await withCheckedThrowingContinuation { c in
                 chatService.getDmChatFeed(owner: owner, pagingToken: pagingToken) { c.resume(with: $0) }
             }
-            all.append(contentsOf: page.chats)
+            all.append(contentsOf: page.conversations)
             if !page.hasMore { break }
             pagingToken = page.pagingToken
         }
@@ -28,35 +28,35 @@ extension FlipClient {
         return all
     }
 
-    public func getChat(owner: KeyPair, chatID: ChatID) async throws -> Conversation {
+    public func getChat(owner: KeyPair, conversationID: ConversationID) async throws -> Conversation {
         try await withCheckedThrowingContinuation { c in
-            chatService.getChat(owner: owner, chatID: chatID) { c.resume(with: $0) }
+            chatService.getChat(owner: owner, conversationID: conversationID) { c.resume(with: $0) }
         }
     }
 
-    public func getMessages(owner: KeyPair, chatID: ChatID) async throws -> [ChatMessage] {
+    public func getMessages(owner: KeyPair, conversationID: ConversationID) async throws -> [ConversationMessage] {
         try await withCheckedThrowingContinuation { c in
-            chatMessagingService.getMessages(owner: owner, chatID: chatID, pagingToken: nil) { c.resume(with: $0) }
+            chatMessagingService.getMessages(owner: owner, conversationID: conversationID, pagingToken: nil) { c.resume(with: $0) }
         }
     }
 
     @discardableResult
-    public func sendMessage(owner: KeyPair, chatID: ChatID, text: String) async throws -> ChatMessage {
+    public func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String) async throws -> ConversationMessage {
         try await withCheckedThrowingContinuation { c in
-            chatMessagingService.sendMessage(owner: owner, chatID: chatID, text: text) { c.resume(with: $0) }
+            chatMessagingService.sendMessage(owner: owner, conversationID: conversationID, text: text) { c.resume(with: $0) }
         }
     }
 
-    public func markRead(owner: KeyPair, chatID: ChatID, messageID: MessageID) async throws {
+    public func markRead(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws {
         try await withCheckedThrowingContinuation { c in
-            chatMessagingService.advancePointer(owner: owner, chatID: chatID, messageID: messageID) { c.resume(with: $0) }
+            chatMessagingService.advancePointer(owner: owner, conversationID: conversationID, messageID: messageID) { c.resume(with: $0) }
         }
     }
 
     // MARK: - Event stream
 
     /// Start the single per-user event stream and return its decoded events.
-    public nonisolated func openConversationStream(owner: KeyPair) -> AsyncStream<ChatStreamEvent> {
+    public nonisolated func openConversationStream(owner: KeyPair) -> AsyncStream<ConversationStreamEvent> {
         Task { await eventStreamer.start(owner: owner) }
         return eventStreamer.events
     }

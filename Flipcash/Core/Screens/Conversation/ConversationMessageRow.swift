@@ -14,7 +14,7 @@ import FlipcashUI
 /// of a same-sender run.
 struct ConversationMessageRow: View {
 
-    let message: ChatMessage
+    let message: ConversationMessage
     let isFromSelf: Bool
     let showsTimestamp: Bool
 
@@ -40,7 +40,7 @@ struct ConversationMessageRow: View {
     }
 }
 
-/// A single rounded-rectangle chat bubble. Sent bubbles read brighter; received
+/// A single rounded-rectangle conversation bubble. Sent bubbles read brighter; received
 /// bubbles sit lower-contrast — distinguished by shade and alignment.
 struct ConversationBubble: View {
 

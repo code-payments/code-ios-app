@@ -12,7 +12,7 @@ import GRPC
 private let logger = Logger(label: "flipcash.event-streamer")
 
 /// Owns the single per-user bidirectional event stream (`event.v1 StreamEvents`)
-/// and decodes chat updates into `ChatStreamEvent`s consumed via `events`. The
+/// and decodes conversation updates into `ConversationStreamEvent`s consumed via `events`. The
 /// server enforces one stream per user, so exactly one instance must exist per
 /// session; opening a second silently evicts the first. The owner must call
 /// `stop()` on logout so a stale stream doesn't evict the next session's.
@@ -23,9 +23,9 @@ public actor EventStreamer {
         Flipcash_Event_V1_StreamEventsResponse
     >
 
-    /// Decoded chat updates. Consume with `for await event in streamer.events`.
-    public nonisolated let events: AsyncStream<ChatStreamEvent>
-    private let continuation: AsyncStream<ChatStreamEvent>.Continuation
+    /// Decoded conversation updates. Consume with `for await event in streamer.events`.
+    public nonisolated let events: AsyncStream<ConversationStreamEvent>
+    private let continuation: AsyncStream<ConversationStreamEvent>.Continuation
 
     private let service: EventStreamingService
     private var owner: KeyPair?
@@ -45,7 +45,7 @@ public actor EventStreamer {
 
     init(service: EventStreamingService) {
         self.service = service
-        let (stream, continuation) = AsyncStream<ChatStreamEvent>.makeStream()
+        let (stream, continuation) = AsyncStream<ConversationStreamEvent>.makeStream()
         self.events = stream
         self.continuation = continuation
     }
@@ -168,7 +168,7 @@ public actor EventStreamer {
     }
 
     private func handleEvent(_ event: Flipcash_Event_V1_Event) {
-        for streamEvent in ChatStreamEvent.decode(event) {
+        for streamEvent in ConversationStreamEvent.decode(event) {
             continuation.yield(streamEvent)
         }
     }

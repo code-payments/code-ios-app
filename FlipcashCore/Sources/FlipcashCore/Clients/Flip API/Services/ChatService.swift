@@ -14,7 +14,7 @@ private let logger = Logger(label: "flipcash.chat-service")
 class ChatService: CodeService<Flipcash_Chat_V1_ChatNIOClient> {
 
     struct DmFeedPage: Sendable {
-        let chats: [Conversation]
+        let conversations: [Conversation]
         let pagingToken: Data
         let hasMore: Bool
     }
@@ -35,7 +35,7 @@ class ChatService: CodeService<Flipcash_Chat_V1_ChatNIOClient> {
             let error = ErrorGetDmChatFeed(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
                 let page = DmFeedPage(
-                    chats: response.chats.map(Conversation.init),
+                    conversations: response.chats.map(Conversation.init),
                     pagingToken: response.pagingToken.value,
                     hasMore: response.hasMore_p
                 )
@@ -49,9 +49,9 @@ class ChatService: CodeService<Flipcash_Chat_V1_ChatNIOClient> {
         }
     }
 
-    func getChat(owner: KeyPair, chatID: ChatID, completion: @Sendable @escaping (Result<Conversation, ErrorGetChat>) -> Void) {
+    func getChat(owner: KeyPair, conversationID: ConversationID, completion: @Sendable @escaping (Result<Conversation, ErrorGetChat>) -> Void) {
         let request = Flipcash_Chat_V1_GetChatRequest.with {
-            $0.chatID = chatID.proto
+            $0.chatID = conversationID.proto
             $0.auth = owner.authFor(message: $0)
         }
 

@@ -1,5 +1,5 @@
 //
-//  ChatMessage.swift
+//  ConversationMessage.swift
 //  FlipcashCore
 //
 //  Copyright © 2026 Code Inc. All rights reserved.
@@ -8,8 +8,8 @@
 import Foundation
 import FlipcashAPI
 
-/// A single message within a chat. PoC scope: text content only.
-public struct ChatMessage: Identifiable, Hashable, Sendable {
+/// A single message within a conversation. PoC scope: text content only.
+public struct ConversationMessage: Identifiable, Hashable, Sendable {
 
     public let id: MessageID
     public let senderID: UserID?
@@ -26,7 +26,7 @@ public struct ChatMessage: Identifiable, Hashable, Sendable {
     }
 }
 
-extension ChatMessage {
+extension ConversationMessage {
     /// Builds a message from its proto, returning nil for non-text content —
     /// the only content type the PoC renders.
     public init?(_ proto: Flipcash_Messaging_V1_Message) {

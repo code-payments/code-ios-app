@@ -15,9 +15,9 @@ private let logger = Logger(label: "flipcash.chat-messaging-service")
 /// the Payments-domain `MessagingService`, which handles bill rendezvous.
 class ChatMessagingService: CodeService<Flipcash_Messaging_V1_MessagingNIOClient> {
 
-    func getMessages(owner: KeyPair, chatID: ChatID, pageSize: Int = 50, pagingToken: Data?, completion: @Sendable @escaping (Result<[ChatMessage], ErrorGetMessages>) -> Void) {
+    func getMessages(owner: KeyPair, conversationID: ConversationID, pageSize: Int = 50, pagingToken: Data?, completion: @Sendable @escaping (Result<[ConversationMessage], ErrorGetMessages>) -> Void) {
         let request = Flipcash_Messaging_V1_GetMessagesRequest.with {
-            $0.chatID = chatID.proto
+            $0.chatID = conversationID.proto
             $0.options = .with {
                 $0.pageSize = Int32(pageSize)
                 if let pagingToken {
@@ -32,7 +32,7 @@ class ChatMessagingService: CodeService<Flipcash_Messaging_V1_MessagingNIOClient
             let error = ErrorGetMessages(rawValue: response.result.rawValue) ?? .unknown
             switch error {
             case .ok:
-                completion(.success(response.messages.messages.compactMap(ChatMessage.init)))
+                completion(.success(response.messages.messages.compactMap(ConversationMessage.init)))
             case .notFound:
                 // An empty page is reported as NOT_FOUND, not empty OK.
                 completion(.success([]))
@@ -45,9 +45,9 @@ class ChatMessagingService: CodeService<Flipcash_Messaging_V1_MessagingNIOClient
         }
     }
 
-    func sendMessage(owner: KeyPair, chatID: ChatID, text: String, completion: @Sendable @escaping (Result<ChatMessage, ErrorSendMessage>) -> Void) {
+    func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String, completion: @Sendable @escaping (Result<ConversationMessage, ErrorSendMessage>) -> Void) {
         let request = Flipcash_Messaging_V1_SendMessageRequest.with {
-            $0.chatID = chatID.proto
+            $0.chatID = conversationID.proto
             $0.content = [.with { $0.text = .with { $0.text = text } }]
             $0.clientMessageID = .with { $0.value = UUID().data }
             $0.auth = owner.authFor(message: $0)
@@ -56,7 +56,7 @@ class ChatMessagingService: CodeService<Flipcash_Messaging_V1_MessagingNIOClient
         let call = service.sendMessage(request)
         call.handle(on: queue) { response in
             let error = ErrorSendMessage(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok, response.hasMessage, let message = ChatMessage(response.message) {
+            if error == .ok, response.hasMessage, let message = ConversationMessage(response.message) {
                 completion(.success(message))
             } else {
                 logger.error("Failed to send message")
@@ -67,9 +67,9 @@ class ChatMessagingService: CodeService<Flipcash_Messaging_V1_MessagingNIOClient
         }
     }
 
-    func advancePointer(owner: KeyPair, chatID: ChatID, messageID: MessageID, completion: @Sendable @escaping (Result<Void, ErrorAdvancePointer>) -> Void) {
+    func advancePointer(owner: KeyPair, conversationID: ConversationID, messageID: MessageID, completion: @Sendable @escaping (Result<Void, ErrorAdvancePointer>) -> Void) {
         let request = Flipcash_Messaging_V1_AdvancePointerRequest.with {
-            $0.chatID = chatID.proto
+            $0.chatID = conversationID.proto
             $0.pointerType = .read
             $0.newValue = messageID.proto
             $0.auth = owner.authFor(message: $0)
