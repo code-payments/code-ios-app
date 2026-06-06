@@ -143,35 +143,27 @@ public struct EnterAmountView: View {
 extension EnterAmountView {
     enum Mode {
 
-        case phantomDeposit
-        case walletDeposit(String)
         case currency
-        case onramp
         case withdraw
         case buy
         case sell
 
         fileprivate func formatter(with currency: CurrencyCode) -> NumberFormatter {
             switch self {
-            case .currency, .onramp, .walletDeposit, .phantomDeposit, .withdraw, .buy, .sell:
+            case .currency, .withdraw, .buy, .sell:
                 return .fiat(currency: currency, minimumFractionDigits: 0)
             }
         }
 
         fileprivate var defaultValue: AmountField.DefaultValue {
             switch self {
-            case .currency, .onramp, .walletDeposit, .phantomDeposit, .withdraw, .buy, .sell: return .number("0")
+            case .currency, .withdraw, .buy, .sell: return .number("0")
             }
         }
 
         fileprivate var actionName: String {
             switch self {
-            case .phantomDeposit:
-                return "Confirm In"
-            case .walletDeposit(let walletName):
-                return "Confirm In \(walletName)"
             case .currency: return "Next"
-            case .onramp:   return "Add Cash"
             case .withdraw: return "Next"
             case .buy:      return "Buy"
             case .sell:     return "Next"
@@ -180,13 +172,7 @@ extension EnterAmountView {
 
         fileprivate var buttonStyle: CodeButton.Style {
             switch self {
-            case .phantomDeposit: return .filledCustom(Image.asset(.phantom), "Phantom")
-            case .walletDeposit:  return .filled
-            case .currency:       return .filled
-            case .onramp:         return .filledApplePay
-            case .withdraw:       return .filled
-            case .buy:            return .filled
-            case .sell:           return .filled
+            case .currency, .withdraw, .buy, .sell: return .filled
             }
         }
     }

@@ -80,16 +80,6 @@ import FlipcashCore
         #expect(calculator.currency == .cad)
     }
 
-    @Test func currency_whenModeIsOnramp_returnsUSD() {
-        let calculator = EnterAmountCalculator(
-            mode: .onramp,
-            selectedCurrency: .cad,
-            sendLimitProvider: { _ in return nil }
-        )
-
-        #expect(calculator.currency == .usd)
-    }
-
     @Test func currency_whenModeIsWithdraw_returnsSelectedCurrency() {
         let calculator = EnterAmountCalculator(
             mode: .withdraw,
@@ -98,26 +88,6 @@ import FlipcashCore
         )
 
         #expect(calculator.currency == .cad)
-    }
-
-    @Test func currency_whenModeIsWalletDeposit_returnsUSD() {
-        let calculator = EnterAmountCalculator(
-            mode: .walletDeposit("Phantom"),
-            selectedCurrency: .cad,
-            sendLimitProvider: { _ in return nil }
-        )
-
-        #expect(calculator.currency == .usd)
-    }
-
-    @Test func currency_whenModeIsPhantomDeposit_returnsUSD() {
-        let calculator = EnterAmountCalculator(
-            mode: .phantomDeposit,
-            selectedCurrency: .cad,
-            sendLimitProvider: { _ in return nil }
-        )
-
-        #expect(calculator.currency == .usd)
     }
 
     // MARK: - Max Transaction Amount Tests
@@ -200,9 +170,6 @@ import FlipcashCore
 
     static let buyStyleModes: [EnterAmountView.Mode] = [
         .buy,
-        .phantomDeposit,
-        .walletDeposit("Phantom"),
-        .onramp,
     ]
 
     @Test("Buy-style modes use maxPerDay as per-transaction limit", arguments: buyStyleModes)

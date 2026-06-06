@@ -162,14 +162,7 @@ private struct PhantomConfirmPanel: View {
                 badge: Image.asset(.buyCheckmark)
             )
         } buttonLabel: {
-            HStack(spacing: 6) {
-                Text("Confirm in your")
-                Image.asset(.phantom)
-                    .renderingMode(.template)
-                    .resizable()
-                    .frame(width: 18, height: 18)
-                Text("Phantom")
-            }
+            Text("Confirm in Phantom")
         }
     }
 }

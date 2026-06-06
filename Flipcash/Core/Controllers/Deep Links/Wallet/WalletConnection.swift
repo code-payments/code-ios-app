@@ -16,10 +16,8 @@ private let logger = Logger(label: "flipcash.wallet-connection")
 @Observable
 public final class WalletConnection {
 
-    var isShowingAmountEntry: Bool = false
-
     /// General wallet-related dialogs (connect failures, key restoration).
-    /// Swap-flow dialogs are owned by `PhantomCoordinator`.
+    /// Swap-flow dialogs are owned by `PhantomFundingOperation`.
     var dialogItem: DialogItem?
 
     private(set) var session: ConnectedWalletSession?
@@ -29,8 +27,8 @@ public final class WalletConnection {
     }
 
     /// Stream of deeplink events from Phantom — signed transactions and
-    /// errors. Consumed by `PhantomCoordinator` (constructed once per
-    /// session); finishes in `deinit` so the consumer Task exits cleanly.
+    /// errors. Consumed by the in-flight `PhantomFundingOperation`; the
+    /// stream finishes in `deinit` so the consumer Task exits cleanly.
     let deeplinkEvents: AsyncStream<DeeplinkEvent>
     private let deeplinkContinuation: AsyncStream<DeeplinkEvent>.Continuation
 
@@ -203,20 +201,13 @@ public final class WalletConnection {
             if let continuation = pendingConnect {
                 pendingConnect = nil
                 continuation.resume(returning: ())
-            } else {
-                // Legacy path — the connect was initiated from a non-async
-                // caller (e.g. CurrencyInfoScreen's Phantom entry point),
-                // which expects the amount-entry sheet to appear after
-                // connect. Callers using `connect()` handle the follow-up
-                // themselves.
-                isShowingAmountEntry = true
             }
         }
     }
     
-    /// Yields the signed transaction to the deeplink stream. The
-    /// `PhantomCoordinator` consumes the stream and runs simulation +
-    /// server-notify + chain submission against its `pendingSwap` context.
+    /// Yields the signed transaction to the deeplink stream. The in-flight
+    /// `PhantomFundingOperation` consumes the stream and runs simulation +
+    /// server-notify + chain submission for the operation.
     private func didSignTransaction(_ signedTx: String) {
         deeplinkContinuation.yield(.signed(signedTx))
     }
@@ -243,7 +234,7 @@ public final class WalletConnection {
     }
 
     /// Always deeplinks Phantom for connect, even when a Keychain session
-    /// already exists. Used by `PhantomCoordinator.start(_:)` to verify the
+    /// already exists. Used by `PhantomFundingOperation` to verify the
     /// session is live before requesting a signature — Phantom auto-approves
     /// when it still trusts our `dapp_encryption_public_key` (~sub-second
     /// round-trip), and shows the connect prompt when it doesn't.
@@ -297,9 +288,9 @@ public final class WalletConnection {
 
     /// Builds + sends a USDC→USDF transaction to Phantom for signing. The
     /// signed transaction comes back via `didReceiveURL` → `deeplinkEvents`,
-    /// where `PhantomCoordinator` matches it against its own `pendingSwap`
-    /// context. This method has no pending-state side effects of its own —
-    /// it's a pure "send sign request" service.
+    /// where the in-flight `PhantomFundingOperation` consumes it. This method
+    /// has no pending-state side effects of its own — it's a pure "send sign
+    /// request" service.
     func sendUsdcToUsdfSignRequest(
         usdc: FlipcashCore.TokenAmount,
         fundingSwapId: SwapId,
