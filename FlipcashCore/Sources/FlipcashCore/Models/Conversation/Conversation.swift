@@ -8,17 +8,17 @@
 import Foundation
 import FlipcashAPI
 
-/// A direct-message chat between two members. The server orders the feed by
-/// `lastActivity` (most recent first); the client maintains that sort locally
+/// A direct-message conversation between two members. The server orders the feed
+/// by `lastActivity` (most recent first); the client maintains that sort locally
 /// from the event stream.
 public struct Conversation: Identifiable, Hashable, Sendable {
 
-    public let id: ChatID
-    public var members: [ChatMember]
-    public var lastMessage: ChatMessage?
+    public let id: ConversationID
+    public var members: [ConversationMember]
+    public var lastMessage: ConversationMessage?
     public var lastActivity: Date
 
-    public init(id: ChatID, members: [ChatMember], lastMessage: ChatMessage?, lastActivity: Date) {
+    public init(id: ConversationID, members: [ConversationMember], lastMessage: ConversationMessage?, lastActivity: Date) {
         self.id = id
         self.members = members
         self.lastMessage = lastMessage
@@ -28,14 +28,14 @@ public struct Conversation: Identifiable, Hashable, Sendable {
 
 extension Conversation {
     public init(_ proto: Flipcash_Chat_V1_Metadata) {
-        self.id = ChatID(proto.chatID)
-        self.members = proto.members.map(ChatMember.init)
-        self.lastMessage = proto.hasLastMessage ? ChatMessage(proto.lastMessage) : nil
+        self.id = ConversationID(proto.chatID)
+        self.members = proto.members.map(ConversationMember.init)
+        self.lastMessage = proto.hasLastMessage ? ConversationMessage(proto.lastMessage) : nil
         self.lastActivity = proto.hasLastActivity ? proto.lastActivity.date : .distantPast
     }
 
     /// The member that isn't the signed-in user, used to title the conversation.
-    public func counterpart(excluding selfUserID: UserID?) -> ChatMember? {
+    public func counterpart(excluding selfUserID: UserID?) -> ConversationMember? {
         members.first { $0.userID != selfUserID } ?? members.first
     }
 
@@ -45,9 +45,9 @@ extension Conversation {
     }
 }
 
-/// A participant in a chat. `displayName` is the member's profile name from the
-/// feed payload; it may be empty when the user hasn't set one.
-public struct ChatMember: Hashable, Sendable, Identifiable {
+/// A participant in a conversation. `displayName` is the member's profile name
+/// from the feed payload; it may be empty when the user hasn't set one.
+public struct ConversationMember: Hashable, Sendable, Identifiable {
 
     public let userID: UserID?
     public var displayName: String
@@ -64,7 +64,7 @@ public struct ChatMember: Hashable, Sendable, Identifiable {
     }
 }
 
-extension ChatMember {
+extension ConversationMember {
     public init(_ proto: Flipcash_Chat_V1_Member) {
         self.userID = try? UUID(data: proto.userID.value)
         self.displayName = proto.userProfile.displayName

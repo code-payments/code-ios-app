@@ -11,28 +11,28 @@ import FlipcashCore
 /// every call; the test sets scripted responses before driving the controller.
 final class MockConversations: ConversationFetching, ConversationMessaging, ConversationEventStreaming, @unchecked Sendable {
 
-    struct Sent: Sendable { let chatID: ChatID; let text: String }
+    struct Sent: Sendable { let conversationID: ConversationID; let text: String }
 
     private let lock = NSLock()
 
     private var _feed: [Conversation] = []
-    private var _messages: [ChatMessage] = []
-    private var _sendResult: ChatMessage?
+    private var _messages: [ConversationMessage] = []
+    private var _sendResult: ConversationMessage?
     private var _sent: [Sent] = []
     private var _markedRead: [MessageID] = []
     private var _didEnsure = false
     private var _didClose = false
-    private var _streamContinuation: AsyncStream<ChatStreamEvent>.Continuation?
+    private var _streamContinuation: AsyncStream<ConversationStreamEvent>.Continuation?
 
     var feed: [Conversation] {
         get { lock.withLock { _feed } }
         set { lock.withLock { _feed = newValue } }
     }
-    var messages: [ChatMessage] {
+    var messages: [ConversationMessage] {
         get { lock.withLock { _messages } }
         set { lock.withLock { _messages = newValue } }
     }
-    var sendResult: ChatMessage? {
+    var sendResult: ConversationMessage? {
         get { lock.withLock { _sendResult } }
         set { lock.withLock { _sendResult = newValue } }
     }
@@ -42,7 +42,7 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
     var didClose: Bool { lock.withLock { _didClose } }
 
     /// Push a live event onto the stream returned by `openConversationStream`.
-    func emit(_ event: ChatStreamEvent) {
+    func emit(_ event: ConversationStreamEvent) {
         lock.withLock { _streamContinuation }?.yield(event)
     }
 
@@ -50,8 +50,8 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
 
     func getDmChatFeed(owner: KeyPair) async throws -> [Conversation] { feed }
 
-    func getChat(owner: KeyPair, chatID: ChatID) async throws -> Conversation {
-        guard let conversation = feed.first(where: { $0.id == chatID }) else {
+    func getChat(owner: KeyPair, conversationID: ConversationID) async throws -> Conversation {
+        guard let conversation = feed.first(where: { $0.id == conversationID }) else {
             throw CancellationError()
         }
         return conversation
@@ -59,24 +59,24 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
 
     // MARK: - ConversationMessaging
 
-    func getMessages(owner: KeyPair, chatID: ChatID) async throws -> [ChatMessage] { messages }
+    func getMessages(owner: KeyPair, conversationID: ConversationID) async throws -> [ConversationMessage] { messages }
 
-    func sendMessage(owner: KeyPair, chatID: ChatID, text: String) async throws -> ChatMessage {
-        lock.withLock { _sent.append(Sent(chatID: chatID, text: text)) }
-        return sendResult ?? ChatMessage(
+    func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String) async throws -> ConversationMessage {
+        lock.withLock { _sent.append(Sent(conversationID: conversationID, text: text)) }
+        return sendResult ?? ConversationMessage(
             id: MessageID(value: 1), senderID: nil, text: text,
             date: Date(timeIntervalSince1970: 0), unreadSeq: 0
         )
     }
 
-    func markRead(owner: KeyPair, chatID: ChatID, messageID: MessageID) async throws {
+    func markRead(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws {
         lock.withLock { _markedRead.append(messageID) }
     }
 
     // MARK: - ConversationEventStreaming
 
-    func openConversationStream(owner: KeyPair) -> AsyncStream<ChatStreamEvent> {
-        let (stream, continuation) = AsyncStream<ChatStreamEvent>.makeStream()
+    func openConversationStream(owner: KeyPair) -> AsyncStream<ConversationStreamEvent> {
+        let (stream, continuation) = AsyncStream<ConversationStreamEvent>.makeStream()
         lock.withLock { _streamContinuation = continuation }
         return stream
     }

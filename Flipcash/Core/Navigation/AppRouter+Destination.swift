@@ -63,10 +63,10 @@ extension AppRouter {
         // Send flow
         case sendAmount(contact: ResolvedContact)
 
-        // Chat flow
+        // Conversation flow
         /// A DM conversation, pushed from the Chats section of the recipient
-        /// picker. The counterpart's name is resolved reactively by `ChatController`.
-        case dmConversation(chatID: ChatID)
+        /// picker. The counterpart's name is resolved reactively by `ConversationController`.
+        case dmConversation(conversationID: ConversationID)
 
         /// The stack this destination naturally belongs in. Cross-stack
         /// navigation uses this to know which sheet to present.
@@ -136,8 +136,8 @@ extension AppRouter {
                 return mint.base58
             case .sendAmount(let contact):
                 return contact.contactId
-            case .dmConversation(let chatID):
-                return chatID.description
+            case .dmConversation(let conversationID):
+                return conversationID.description
             case .phantomFlow:
                 return nil
             case .discoverCurrencies, .currencyCreationSummary, .currencyCreationWizard,

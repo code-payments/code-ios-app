@@ -426,7 +426,7 @@ final class SessionAuthenticator {
             container.session.prepareForLogout()
             container.pushController.prepareForLogout()
             container.usdcSweepOperation.cancel()
-            container.chatController.stop()
+            container.conversationController.stop()
             QuickActionsController.clear()
         }
 
@@ -458,7 +458,7 @@ struct SessionContainer {
     let appRouter: AppRouter
     let usdcSweepOperation: UsdcSweepOperation
     let quickActionsController: QuickActionsController
-    let chatController: ChatController
+    let conversationController: ConversationController
 
     init(
         session: Session,
@@ -521,15 +521,15 @@ struct SessionContainer {
 
         self.quickActionsController = QuickActionsController(session: session)
 
-        let chatController = ChatController(
+        let conversationController = ConversationController(
             fetching: flipClient,
             messaging: flipClient,
             streaming: flipClient,
             owner: session.ownerKeyPair,
             selfUserID: session.userID
         )
-        chatController.start()
-        self.chatController = chatController
+        conversationController.start()
+        self.conversationController = conversationController
     }
 
     fileprivate func injectingEnvironment<SomeView>(into view: SomeView) -> some View where SomeView: View {
@@ -544,7 +544,7 @@ struct SessionContainer {
             .environment(verificationCoordinator)
             .environment(coinbaseService)
             .environment(onrampDeeplinkInbox)
-            .environment(chatController)
+            .environment(conversationController)
     }
 }
 

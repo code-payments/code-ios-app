@@ -58,25 +58,25 @@ protocol ContactSyncing: AnyObject, Sendable {
     func streamFlipcashContacts(checksum: Data, owner: KeyPair) -> AsyncThrowingStream<String, Error>
 }
 
-/// DM conversation read surface used by `ChatController` — the feed plus a
+/// DM conversation read surface used by `ConversationController` — the feed plus a
 /// single conversation by id. Maps 1:1 to the `flipcash.chat.v1.Chat` RPCs.
 protocol ConversationFetching: AnyObject, Sendable {
     func getDmChatFeed(owner: KeyPair) async throws -> [Conversation]
-    func getChat(owner: KeyPair, chatID: ChatID) async throws -> Conversation
+    func getChat(owner: KeyPair, conversationID: ConversationID) async throws -> Conversation
 }
 
-/// DM message send/read surface used by `ChatController`. Maps to the
+/// DM message send/read surface used by `ConversationController`. Maps to the
 /// `flipcash.messaging.v1.Messaging` RPCs.
 protocol ConversationMessaging: AnyObject, Sendable {
-    func getMessages(owner: KeyPair, chatID: ChatID) async throws -> [ChatMessage]
-    func sendMessage(owner: KeyPair, chatID: ChatID, text: String) async throws -> ChatMessage
-    func markRead(owner: KeyPair, chatID: ChatID, messageID: MessageID) async throws
+    func getMessages(owner: KeyPair, conversationID: ConversationID) async throws -> [ConversationMessage]
+    func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String) async throws -> ConversationMessage
+    func markRead(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws
 }
 
-/// The single per-user event stream surface used by `ChatController`. Wraps the
-/// `event.v1 StreamEvents` lifecycle behind `ChatStreamEvent`.
+/// The single per-user event stream surface used by `ConversationController`. Wraps the
+/// `event.v1 StreamEvents` lifecycle behind `ConversationStreamEvent`.
 protocol ConversationEventStreaming: AnyObject, Sendable {
-    func openConversationStream(owner: KeyPair) -> AsyncStream<ChatStreamEvent>
+    func openConversationStream(owner: KeyPair) -> AsyncStream<ConversationStreamEvent>
     func ensureConversationStreamConnected()
     func closeConversationStream()
 }

@@ -1,5 +1,5 @@
 //
-//  ChatIdentifiers.swift
+//  ConversationIdentifiers.swift
 //  FlipcashCore
 //
 //  Copyright © 2026 Code Inc. All rights reserved.
@@ -8,8 +8,8 @@
 import Foundation
 import FlipcashAPI
 
-/// Identifier for a chat, backed by the server's 32-byte ChatId.
-public struct ChatID: Hashable, Sendable, Comparable, CustomStringConvertible {
+/// Identifier for a conversation, backed by the server's 32-byte ChatId.
+public struct ConversationID: Hashable, Sendable, Comparable, CustomStringConvertible {
 
     public let data: Data
 
@@ -25,7 +25,7 @@ public struct ChatID: Hashable, Sendable, Comparable, CustomStringConvertible {
         .with { $0.value = data }
     }
 
-    public static func < (lhs: ChatID, rhs: ChatID) -> Bool {
+    public static func < (lhs: ConversationID, rhs: ConversationID) -> Bool {
         lhs.data.lexicographicallyPrecedes(rhs.data)
     }
 
@@ -34,8 +34,8 @@ public struct ChatID: Hashable, Sendable, Comparable, CustomStringConvertible {
     }
 }
 
-/// Per-chat, gapless, server-assigned message sequence number. Doubles as the
-/// sort key and pagination cursor.
+/// Per-conversation, gapless, server-assigned message sequence number. Doubles as
+/// the sort key and pagination cursor.
 public struct MessageID: Hashable, Sendable, Comparable, CustomStringConvertible {
 
     public let value: UInt64

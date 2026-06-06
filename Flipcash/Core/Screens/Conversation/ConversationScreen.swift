@@ -1,5 +1,5 @@
 //
-//  ChatScreen.swift
+//  ConversationScreen.swift
 //  Flipcash
 //
 //  Copyright © 2026 Code Inc. All rights reserved.
@@ -10,12 +10,12 @@ import FlipcashCore
 import FlipcashUI
 
 /// A DM conversation: an iMessage-style transcript + composer. Reads live
-/// messages from `ChatController`, which owns the single event stream.
-struct ChatScreen: View {
+/// messages from `ConversationController`, which owns the single event stream.
+struct ConversationScreen: View {
 
-    let chatID: ChatID
+    let conversationID: ConversationID
 
-    @Environment(ChatController.self) private var chatController
+    @Environment(ConversationController.self) private var conversationController
 
     @State private var draft = ""
     @State private var isSending = false
@@ -23,8 +23,8 @@ struct ChatScreen: View {
     @State private var didInitialRead = false
     @FocusState private var isComposerFocused: Bool
 
-    private var messages: [ChatMessage] {
-        chatController.messages(for: chatID)
+    private var messages: [ConversationMessage] {
+        conversationController.messages(for: conversationID)
     }
 
     var body: some View {
@@ -41,26 +41,26 @@ struct ChatScreen: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             } else {
-                ConversationTranscript(messages: messages, selfUserID: chatController.selfUserID)
+                ConversationTranscript(messages: messages, selfUserID: conversationController.selfUserID)
             }
         }
         .background(Color.backgroundMain)
         .safeAreaInset(edge: .bottom) {
-            ChatComposer(draft: $draft, focus: $isComposerFocused, canSend: canSend, onSend: send)
+            ConversationComposer(draft: $draft, focus: $isComposerFocused, canSend: canSend, onSend: send)
         }
-        .navigationTitle(chatController.displayName(forChatID: chatID))
+        .navigationTitle(conversationController.displayName(forConversationID: conversationID))
         .toolbarTitleDisplayMode(.inline)
         .task {
-            await chatController.loadMessages(for: chatID)
+            await conversationController.loadMessages(for: conversationID)
             hasLoaded = true
-            await chatController.markRead(chatID: chatID)
+            await conversationController.markRead(conversationID: conversationID)
             didInitialRead = true
         }
         .onChange(of: messages.last?.id) {
             // The initial load flips this from nil, which would double-fire
             // markRead alongside the .task above; only mark live arrivals.
             guard didInitialRead else { return }
-            Task { await chatController.markRead(chatID: chatID) }
+            Task { await conversationController.markRead(conversationID: conversationID) }
         }
     }
 
@@ -75,7 +75,7 @@ struct ChatScreen: View {
         draft = ""
         isComposerFocused = true
         Task {
-            await chatController.send(text, to: chatID)
+            await conversationController.send(text, to: conversationID)
             isSending = false
         }
     }
@@ -85,7 +85,7 @@ struct ChatScreen: View {
 /// run-position flags.
 private enum TranscriptItem: Identifiable {
     case separator(Date)
-    case message(ChatMessage, isFromSelf: Bool, startsRun: Bool, endsRun: Bool)
+    case message(ConversationMessage, isFromSelf: Bool, startsRun: Bool, endsRun: Bool)
 
     var id: String {
         switch self {
@@ -99,7 +99,7 @@ private enum TranscriptItem: Identifiable {
 /// message pinned natively — no scroll math, no ScrollViewReader.
 private struct ConversationTranscript: View {
 
-    let messages: [ChatMessage]
+    let messages: [ConversationMessage]
     let selfUserID: UserID
 
     var body: some View {
@@ -158,7 +158,7 @@ private struct ConversationTranscript: View {
 
 /// The bottom composer. Pinned via `.safeAreaInset`; native keyboard avoidance
 /// handles the rest — no keyboard observers.
-private struct ChatComposer: View {
+private struct ConversationComposer: View {
 
     @Binding var draft: String
     var focus: FocusState<Bool>.Binding
