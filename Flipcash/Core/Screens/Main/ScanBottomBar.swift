@@ -17,11 +17,6 @@ struct ScanBottomBar: View {
             LargeButton(
                 title: "Discover",
                 image: Image(.Icons.coins),
-                spacing: 12,
-                maxWidth: 80,
-                maxHeight: 80,
-                fullWidth: true,
-                aligment: .bottom,
                 action: onDiscover
             )
             .accessibilityIdentifier("scan-discover-button")
@@ -29,11 +24,6 @@ struct ScanBottomBar: View {
             LargeButton(
                 title: "Cash",
                 image: .asset(.cash),
-                spacing: 12,
-                maxWidth: 80,
-                maxHeight: 80,
-                fullWidth: true,
-                aligment: .bottom,
                 action: onGive
             )
             .accessibilityIdentifier("scan-cash-button")
@@ -42,11 +32,6 @@ struct ScanBottomBar: View {
                 LargeButton(
                     title: "Wallet",
                     image: .asset(.history),
-                    spacing: 12,
-                    maxWidth: 80,
-                    maxHeight: 80,
-                    fullWidth: true,
-                    aligment: .bottom,
                     action: onWallet
                 )
                 .accessibilityIdentifier("scan-wallet-button")
