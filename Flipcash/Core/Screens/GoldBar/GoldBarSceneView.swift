@@ -40,8 +40,8 @@ struct GoldBarSceneView: UIViewRepresentable {
     final class Coordinator {
         let bundle: GoldBarScene.Bundle
         private let motion = CMMotionManager()
-        private var smoothedRoll: Double = 0
-        private var smoothedPitch: Double = 0
+        // Start near the neutral held attitude so the first frame is already centered.
+        private var smoothedGravity = SIMD3<Double>(0, GoldBarLighting.neutralGravityY, -0.5)
 
         init(qrPayload: String) {
             bundle = GoldBarScene.make(qrPayload: qrPayload)
@@ -52,11 +52,10 @@ struct GoldBarSceneView: UIViewRepresentable {
             motion.deviceMotionUpdateInterval = 1.0 / 60.0
             // Delivered on .main, so assumeIsolated is safe and avoids a per-frame Task hop (Swift 6).
             motion.startDeviceMotionUpdates(using: .xArbitraryZVertical, to: .main) { [weak self] data, _ in
-                guard let self, let attitude = data?.attitude else { return }
-                let roll = attitude.roll
-                let pitch = attitude.pitch
+                guard let self, let gravity = data?.gravity else { return }
+                let g = SIMD3<Double>(gravity.x, gravity.y, gravity.z)
                 MainActor.assumeIsolated {
-                    self.apply(roll: roll, pitch: pitch)
+                    self.apply(gravity: g)
                 }
             }
         }
@@ -65,12 +64,12 @@ struct GoldBarSceneView: UIViewRepresentable {
             motion.stopDeviceMotionUpdates()
         }
 
-        private func apply(roll: Double, pitch: Double) {
-            smoothedRoll = GoldBarLighting.smoothed(previous: smoothedRoll, target: roll, factor: 0.18)
-            smoothedPitch = GoldBarLighting.smoothed(previous: smoothedPitch, target: pitch, factor: 0.18)
+        private func apply(gravity: SIMD3<Double>) {
+            smoothedGravity.x = GoldBarLighting.smoothed(previous: smoothedGravity.x, target: gravity.x, factor: 0.18)
+            smoothedGravity.y = GoldBarLighting.smoothed(previous: smoothedGravity.y, target: gravity.y, factor: 0.18)
 
-            let direction = GoldBarLighting.lightDirection(roll: smoothedRoll, pitch: smoothedPitch)
-            let envRotation = GoldBarLighting.environmentRotation(roll: smoothedRoll, pitch: smoothedPitch)
+            let direction = GoldBarLighting.lightDirection(gravity: smoothedGravity)
+            let envRotation = GoldBarLighting.environmentRotation(gravity: smoothedGravity)
 
             SCNTransaction.begin()
             SCNTransaction.animationDuration = 0.12
