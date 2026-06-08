@@ -170,7 +170,7 @@ final class SendAmountViewModel {
                 Analytics.track(event: Analytics.SendEvent.resolveNotFound)
                 logger.info("Recipient not on Flipcash", metadata: ["contactId": "\(contact.contactId)"])
                 return .notFound
-            } catch ErrorResolve.networkError where attempt == 0 {
+            } catch ErrorResolve.transportFailure where attempt == 0 {
                 continue
             } catch {
                 Analytics.track(event: Analytics.SendEvent.resolveError)
@@ -179,7 +179,7 @@ final class SendAmountViewModel {
                 return .failed(error)
             }
         }
-        return .failed(ErrorResolve.networkError)
+        return .failed(ErrorResolve.transportFailure)
     }
 
     /// Returns nil when no fresh pin is cached; otherwise the amount + pin

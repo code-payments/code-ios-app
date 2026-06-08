@@ -324,7 +324,7 @@ struct ContactSyncControllerTests {
         @Test("activate() surfaces the cached directory even when the contact sync fails")
         func activateResolvesCachedDirectoryWhenSyncFails() async throws {
             let mock = MockContactSync()
-            mock.fullUploadResult = .failure(ErrorContactSync.networkError)
+            mock.fullUploadResult = .failure(ErrorContactSync.transportFailure)
             let database = Database.mock
             try database.replaceLocalContactsSnapshot([
                 Database.LocalContact(e164: "+14155550100", contactId: "alice"),
@@ -637,11 +637,11 @@ struct ContactSyncControllerTests {
         @Test("Upload failure propagates and state stays unchanged")
         func uploadFailure_doesNotPersist() async throws {
             let mock = MockContactSync()
-            mock.fullUploadResult = .failure(ErrorContactSync.networkError)
+            mock.fullUploadResult = .failure(ErrorContactSync.transportFailure)
             let database = Database.mock
             let controller = Self.makeController(mock: mock, database: database)
 
-            await #expect(throws: ErrorContactSync.networkError) {
+            await #expect(throws: ErrorContactSync.transportFailure) {
                 try await controller.performSync(contacts: [Self.aliceContact])
             }
 
@@ -653,7 +653,7 @@ struct ContactSyncControllerTests {
         @Test("Stream failure leaves state unmodified — including pre-existing matched-set rows")
         func streamFailure_doesNotPersistAndLeavesMatchedSetIntact() async throws {
             let mock = MockContactSync()
-            mock.streamTerminalError = ErrorContactSync.networkError
+            mock.streamTerminalError = ErrorContactSync.transportFailure
             let database = Database.mock
             let controller = Self.makeController(mock: mock, database: database)
 
@@ -661,7 +661,7 @@ struct ContactSyncControllerTests {
             try Self.seedDatabase(database, checksum: priorChecksum, snapshot: [Self.aliceContact])
             try database.replaceFlipcashContacts([Self.bobContact.e164], matchedAt: .now)
 
-            await #expect(throws: ErrorContactSync.networkError) {
+            await #expect(throws: ErrorContactSync.transportFailure) {
                 try await controller.performSync(contacts: [Self.bobContact, Self.carolContact])
             }
 
@@ -833,7 +833,7 @@ struct ContactSyncControllerTests {
         @Test("Upload failure leaves the set intact, and the next foreground retries")
         func revoke_uploadFailure_retriesNextForeground() async throws {
             let mock = MockContactSync()
-            mock.fullUploadResult = .failure(ErrorContactSync.networkError)
+            mock.fullUploadResult = .failure(ErrorContactSync.transportFailure)
             let database = Database.mock
             let controller = Self.makeController(mock: mock, database: database, status: .denied)
 

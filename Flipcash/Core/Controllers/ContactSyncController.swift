@@ -492,8 +492,8 @@ final class ContactSyncController {
         switch error {
         case .ok:
             return
-        case .networkError:
-            logger.info("Sync deferred — network error (will retry on next trigger)")
+        case .transportFailure:
+            logger.info("Sync deferred — transport failure (will retry on next trigger)")
         case .checksumDrift:
             logger.info("Sync deferred — checksum drift (will retry on next trigger)")
         case .checksumMismatch:

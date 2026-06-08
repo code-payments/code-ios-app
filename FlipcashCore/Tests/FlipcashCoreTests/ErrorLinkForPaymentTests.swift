@@ -23,6 +23,7 @@ struct ErrorLinkForPaymentTests {
         #expect(ErrorLinkForPayment.ok.isReportable == false)
         #expect(ErrorLinkForPayment.denied.isReportable == false)
         #expect(ErrorLinkForPayment.notAssociated.isReportable == false)
+        #expect(ErrorLinkForPayment.transportFailure.isReportable == false)
         #expect(ErrorLinkForPayment.unknown.isReportable == true)
     }
 
