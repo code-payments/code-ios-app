@@ -46,6 +46,9 @@ struct TransportClassificationTests {
     @Test func errorSendVerificationCode() { assertClassifies(ErrorSendVerificationCode.self) }
     @Test func errorCheckVerificationCode() { assertClassifies(ErrorCheckVerificationCode.self) }
     @Test func errorUnlinkPhone() { assertClassifies(ErrorUnlinkPhone.self) }
+    @Test func errorLinkForPayment() { assertClassifies(ErrorLinkForPayment.self) }
+    @Test func errorContactSync() { assertClassifies(ErrorContactSync.self) }
+    @Test func errorResolve() { assertClassifies(ErrorResolve.self) }
 
     // MARK: - Tier 2: associated-value errors that capture the transport status -
     // These don't conform to TransportClassifiableError (they carry the status

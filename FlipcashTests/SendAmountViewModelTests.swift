@@ -249,7 +249,7 @@ struct SendAmountViewModelTests {
     func sendAction_resolveNetworkFailure_staysAndSkipsSend() async throws {
         let container = try Self.makeFundedContainer()
         let mock = MockSession()
-        mock.resolveContactHandler = { _ in throw ErrorResolve.networkError }
+        mock.resolveContactHandler = { _ in throw ErrorResolve.transportFailure }
         let viewModel = SendAmountViewModel(
             sessionContainer: container,
             contact: Self.makeContact(),
@@ -274,7 +274,7 @@ struct SendAmountViewModelTests {
         var attempts = 0
         mock.resolveContactHandler = { _ in
             attempts += 1
-            if attempts == 1 { throw ErrorResolve.networkError }
+            if attempts == 1 { throw ErrorResolve.transportFailure }
             return Self.recipient
         }
         mock.sendHandler = { _, _, _ in }
