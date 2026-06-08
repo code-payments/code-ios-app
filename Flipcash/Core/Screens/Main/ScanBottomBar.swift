@@ -32,11 +32,6 @@ struct ScanBottomBar: View {
             LargeButton(
                 title: "Send",
                 image: Image(.Icons.send),
-                spacing: 12,
-                maxWidth: 80,
-                maxHeight: 80,
-                fullWidth: true,
-                aligment: .bottom,
                 action: onSend
             )
             .accessibilityIdentifier("scan-send-button")
