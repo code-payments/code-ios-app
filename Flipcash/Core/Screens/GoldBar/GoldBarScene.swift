@@ -34,14 +34,18 @@ enum GoldBarScene {
         // Fixed camera, straight on, with subtle bloom on the hot specular.
         let cameraNode = SCNNode()
         let camera = SCNCamera()
+        // Fit the field of view to the vertical axis; the host view is constrained to the
+        // bar's aspect ratio, so the whole bar lands inside the frame with margin.
+        camera.projectionDirection = .vertical
         camera.fieldOfView = 32
+        camera.zNear = 0.1
         camera.wantsHDR = true
         camera.wantsExposureAdaptation = false
         camera.bloomIntensity = 0.35
         camera.bloomThreshold = 0.75
         camera.bloomBlurRadius = 8
         cameraNode.camera = camera
-        cameraNode.position = SCNVector3(0, 0, 2.2)
+        cameraNode.position = SCNVector3(0, 0, 1.4)
         scene.rootNode.addChildNode(cameraNode)
 
         // Directional key light — the moving hot highlight.

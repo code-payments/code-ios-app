@@ -23,7 +23,8 @@ struct GoldBarDemoScreen: View {
                     environmentIntensity: environmentIntensity,
                     relief: relief
                 )
-                .ignoresSafeArea()
+                .aspectRatio(1.0 / 0.58, contentMode: .fit)
+                .padding(.horizontal, 16)
 
                 VStack {
                     Spacer()
