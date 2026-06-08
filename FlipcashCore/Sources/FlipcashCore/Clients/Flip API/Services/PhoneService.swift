@@ -85,18 +85,14 @@ class PhoneService: CodeService<Flipcash_Phone_V1_PhoneVerificationNIOClient> {
         }
 
         let call = service.linkForPayment(request)
-        call.handle(on: queue) { response in
+        call.handle(on: queue, completion: completion) { response in
             let error = ErrorLinkForPayment(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok {
-                logger.info("Phone number linked for payment successfully")
-                completion(.success(()))
-            } else {
+            guard error == .ok else {
                 logger.error("Failed to link phone number for payment", metadata: ["error": "\(error)"])
-                completion(.failure(error))
+                return .failure(error)
             }
-
-        } failure: { error in
-            completion(.failure(.unknown))
+            logger.info("Phone number linked for payment successfully")
+            return .success(())
         }
     }
 }
@@ -143,12 +139,13 @@ public enum ErrorUnlinkPhone: Int, Error, Equatable, Sendable {
     case transportFailure = -2
 }
 
-public enum ErrorLinkForPayment: Int, Error {
+public enum ErrorLinkForPayment: Int, Error, Equatable, Sendable {
     case ok
     case denied
     /// The phone number is not associated with the requesting user.
     case notAssociated
     case unknown = -1
+    case transportFailure = -2
 }
 
 extension ErrorSendVerificationCode: ServerError, TransportClassifiableError {
@@ -178,10 +175,10 @@ extension ErrorUnlinkPhone: ServerError, TransportClassifiableError {
     }
 }
 
-extension ErrorLinkForPayment: ServerError {
+extension ErrorLinkForPayment: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .denied, .notAssociated: false
+        case .ok, .denied, .notAssociated, .transportFailure: false
         case .unknown: true
         }
     }

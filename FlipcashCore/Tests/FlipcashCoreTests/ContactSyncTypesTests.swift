@@ -43,7 +43,7 @@ struct ContactSyncTypesTests {
             (.denied,            false),
             (.tooManyContacts,   false),
             (.checksumDrift,     false),
-            (.networkError,      false),
+            (.transportFailure,  false),
             (.notFound,          false),
             (.checksumMismatch,  true),
             (.unknown,           true),
@@ -61,7 +61,7 @@ struct ContactSyncTypesTests {
             (ErrorResolve.ok,           false),
             (.denied,       false),
             (.notFound,     false),
-            (.networkError, false),
+            (.transportFailure, false),
             (.unknown,      true),
         ]
     )

@@ -29,7 +29,7 @@ final class ResolverService: CodeService<Flipcash_Resolver_V1_ResolverNIOClient>
         }
 
         let call = service.resolve(request)
-        call.handle(on: queue) { response in
+        call.handle(on: queue, completion: completion) { response in
             switch response.result {
             case .ok:
                 guard
@@ -37,39 +37,36 @@ final class ResolverService: CodeService<Flipcash_Resolver_V1_ResolverNIOClient>
                     let publicKey = try? PublicKey(addressProto.value)
                 else {
                     logger.error("Resolve OK but resolution missing address")
-                    completion(.failure(.unknown))
-                    return
+                    return .failure(.unknown)
                 }
-                completion(.success(publicKey))
+                return .success(publicKey)
             case .notFound:
-                completion(.failure(.notFound))
+                return .failure(.notFound)
             case .denied:
                 logger.warning("Resolve denied")
-                completion(.failure(.denied))
+                return .failure(.denied)
             case .UNRECOGNIZED(let raw):
                 logger.warning("Resolve unknown result", metadata: ["raw": "\(raw)"])
-                completion(.failure(.unknown))
+                return .failure(.unknown)
             }
-        } failure: { _ in
-            completion(.failure(.networkError))
         }
     }
 }
 
 // MARK: - Errors -
 
-public enum ErrorResolve: Int, Error {
+public enum ErrorResolve: Int, Error, Equatable, Sendable {
     case ok = 0
     case denied = 1
     case notFound = 2
-    case networkError = -2
+    case transportFailure = -2
     case unknown = -1
 }
 
-extension ErrorResolve: ServerError {
+extension ErrorResolve: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .denied, .notFound, .networkError: false
+        case .ok, .denied, .notFound, .transportFailure: false
         case .unknown: true
         }
     }

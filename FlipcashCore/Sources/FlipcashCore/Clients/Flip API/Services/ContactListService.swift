@@ -26,21 +26,19 @@ final class ContactListService: CodeService<Flipcash_Contact_V1_ContactListNIOCl
         }
 
         let call = service.checkSync(request)
-        call.handle(on: queue) { response in
+        call.handle(on: queue, completion: completion) { response in
             switch response.result {
             case .ok:
-                completion(.success(.ok))
+                return .success(.ok)
             case .outOfSync:
-                completion(.success(.outOfSync(serverChecksum: response.serverChecksum.value)))
+                return .success(.outOfSync(serverChecksum: response.serverChecksum.value))
             case .denied:
                 logger.warning("CheckSync denied")
-                completion(.failure(.denied))
+                return .failure(.denied)
             case .UNRECOGNIZED(let raw):
                 logger.warning("CheckSync unknown result", metadata: ["raw": "\(raw)"])
-                completion(.failure(.unknown))
+                return .failure(.unknown)
             }
-        } failure: { _ in
-            completion(.failure(.networkError))
         }
     }
 
@@ -72,29 +70,27 @@ final class ContactListService: CodeService<Flipcash_Contact_V1_ContactListNIOCl
         }
 
         let call = service.deltaUpload(request)
-        call.handle(on: queue) { response in
+        call.handle(on: queue, completion: completion) { response in
             switch response.result {
             case .ok:
                 logger.info("Contact delta upload accepted")
-                completion(.success(.ok))
+                return .success(.ok)
             case .checksumDrift:
                 logger.warning("Contact delta upload reported checksum drift")
-                completion(.success(.checksumDrift))
+                return .success(.checksumDrift)
             case .denied:
                 logger.warning("DeltaUpload denied")
-                completion(.failure(.denied))
+                return .failure(.denied)
             case .checksumMismatch:
                 logger.error("DeltaUpload checksum mismatch — client computed wrong new_checksum")
-                completion(.failure(.checksumMismatch))
+                return .failure(.checksumMismatch)
             case .tooManyContacts:
                 logger.warning("DeltaUpload rejected — too many contacts")
-                completion(.failure(.tooManyContacts))
+                return .failure(.tooManyContacts)
             case .UNRECOGNIZED(let raw):
                 logger.warning("DeltaUpload unknown result", metadata: ["raw": "\(raw)"])
-                completion(.failure(.unknown))
+                return .failure(.unknown)
             }
-        } failure: { _ in
-            completion(.failure(.networkError))
         }
     }
 
@@ -152,7 +148,7 @@ final class ContactListService: CodeService<Flipcash_Contact_V1_ContactListNIOCl
                 }
             case .failure(let error):
                 logger.error("FullUpload network error", metadata: ["error": "\(error)"])
-                completion(.failure(.networkError))
+                completion(.failure(.transportFailure))
             }
         }
     }
@@ -207,10 +203,10 @@ final class ContactListService: CodeService<Flipcash_Contact_V1_ContactListNIOCl
                 logger.warning("Flipcash contacts stream closed with non-OK status", metadata: [
                     "code": "\(status.code)"
                 ])
-                onCompletion(.failure(.networkError))
+                onCompletion(.failure(.transportFailure))
             case .failure(let error):
                 logger.error("Flipcash contacts stream network error", metadata: ["error": "\(error)"])
-                onCompletion(.failure(.networkError))
+                onCompletion(.failure(.transportFailure))
             }
         }
 
@@ -278,21 +274,21 @@ public final class ContactsStreamCancellation: @unchecked Sendable {
 
 // MARK: - Errors -
 
-public enum ErrorContactSync: Int, Error {
+public enum ErrorContactSync: Int, Error, Equatable, Sendable {
     case ok = 0
     case denied = 1
     case checksumMismatch = 2
     case tooManyContacts = 3
     case notFound = 4
     case checksumDrift = 5
-    case networkError = -2
+    case transportFailure = -2
     case unknown = -1
 }
 
-extension ErrorContactSync: ServerError {
+extension ErrorContactSync: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .denied, .tooManyContacts, .checksumDrift, .networkError, .notFound: false
+        case .ok, .denied, .tooManyContacts, .checksumDrift, .transportFailure, .notFound: false
         case .checksumMismatch, .unknown: true
         }
     }
