@@ -49,7 +49,9 @@ enum GoldBarScene {
         camera.bloomThreshold = 0.95
         camera.bloomBlurRadius = 10
         cameraNode.camera = camera
-        cameraNode.position = SCNVector3(0.14, 0.18, 2.1)
+        // Pulled back with a slight angle so the whole bar floats with margin (full silhouette
+        // + a sliver of 3D edge visible), rather than filling the frame edge-to-edge.
+        cameraNode.position = SCNVector3(0.35, 0.29, 3.35)
         cameraNode.look(at: SCNVector3Zero)
         scene.rootNode.addChildNode(cameraNode)
 
