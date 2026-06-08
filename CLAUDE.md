@@ -43,6 +43,31 @@ When adding new information, place it in the appropriate existing section. Remov
 
 ---
 
+## Architecture Docs
+
+**`docs/architecture/` is the canonical map of how the app fits together.** Read the relevant doc before changing a subsystem, and update it in the **same change** when your work alters what it describes — treat the doc edit as part of the diff, not a follow-up.
+
+**Update the matching doc when you:**
+
+- Add/remove a package or change a module boundary → `01-modules-and-boundaries.md`
+- Change DI, state ownership, or the session/auth lifecycle → `02-state-and-dependency-injection.md`
+- Add/restructure a router sheet, stack, destination, or deeplink → `03-navigation.md`
+- Add an RPC, change `CallOptions`, or touch request signing/streaming → `04-networking.md`
+- Change the schema, a cached table, or the no-migration policy → `05-persistence.md`
+- Change intent submission, `VerifiedState`, the give/grab flow, or a funding operation → `06-payments-and-operations.md`
+- Change Quarks/fiat math, the bonding curve, a domain model, or a `Validator` → `07-currency-and-domain-model.md`
+- Add/rename a FlipcashUI component or design token → `08-design-system.md`
+- Change logging, error reporting, analytics, or crypto/scanning plumbing → `09-cross-cutting-concerns.md`
+- Add, remove, or materially change a user-facing feature → `features/README.md`
+
+The full concern→doc index and per-doc watch paths live in [`docs/architecture/README.md`](docs/architecture/README.md). `README.md` and `10-separation-of-concerns.md` are cross-cutting syntheses — revisit them when the structure they summarize shifts, not on routine edits.
+
+**Scope (mirror the docs' own style):** describe *structure and intent*, not every line — usually a one-line table row or a corrected sentence is the whole change. If a doc and the code disagree, the code wins — fix the doc. Don't add per-doc "last updated" stamps; git history is the timestamp.
+
+**Verifying correctness:** this rule catches *missing* updates only. To check whether a doc is actually *correct* against the code, run `/verify-architecture-docs` — it fact-checks each doc's claims against the source and writes a drift report. Run it after large changes or periodically.
+
+---
+
 ## Behavior & Approach
 
 ### Working Style
