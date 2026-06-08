@@ -12,7 +12,7 @@ nonisolated enum GoldBarMaterialBaker {
         var pixelSize: CGSize
         var qrPayload: String
         var stampLines: [String]
-        var scratchCount: Int = 90
+        var scratchCount: Int = 150
     }
 
     struct Textures {
@@ -83,9 +83,9 @@ nonisolated enum GoldBarMaterialBaker {
 
     private static func renderRoughness(_ config: Config, qr: UIImage) -> UIImage {
         renderImage(size: config.pixelSize) { ctx, rect in
-            UIColor(white: 0.22, alpha: 1).setFill()  // polished base
+            UIColor(white: 0.26, alpha: 1).setFill()  // polished base
             ctx.fill(rect)
-            drawScratches(count: config.scratchCount, in: rect, color: UIColor(white: 0.55, alpha: 0.5), ctx: ctx)
+            drawScratches(count: config.scratchCount, in: rect, color: UIColor(white: 0.5, alpha: 0.28), ctx: ctx)
             // Etched QR + stamp read rougher.
             ctx.cgContext.saveGState()
             ctx.cgContext.clip(to: qrRect(in: config.pixelSize))
@@ -102,7 +102,7 @@ nonisolated enum GoldBarMaterialBaker {
             UIColor(white: 0.5, alpha: 1).setFill()
             ctx.fill(rect)
             drawStampText(config.stampLines, in: leftPanel(rect), color: UIColor(white: 0.32, alpha: 1))
-            drawScratches(count: config.scratchCount, in: rect, color: UIColor(white: 0.42, alpha: 0.5), ctx: ctx)
+            drawScratches(count: config.scratchCount, in: rect, color: UIColor(white: 0.62, alpha: 0.12), ctx: ctx)
             ctx.cgContext.saveGState()
             ctx.cgContext.clip(to: qrRect(in: config.pixelSize))
             qr.draw(in: qrRect(in: config.pixelSize), blendMode: .multiply, alpha: 1)
@@ -164,19 +164,21 @@ nonisolated enum GoldBarMaterialBaker {
         }
     }
 
+    /// Fine, multi-directional hairline micro-scratches (faint — real bullion, not speed lines).
     private static func drawScratches(count: Int, in rect: CGRect, color: UIColor, ctx: UIGraphicsImageRendererContext) {
-        color.setStroke()
         let cg = ctx.cgContext
-        cg.setLineWidth(max(0.5, rect.height / 900))
+        color.setStroke()
+        cg.setLineCap(.round)
         var seed: UInt64 = 0x9E3779B97F4A7C15
         func rnd() -> CGFloat {
             seed = seed &* 6364136223846793005 &+ 1442695040888963407
             return CGFloat(seed >> 33) / CGFloat(UInt32.max)
         }
         for _ in 0..<count {
+            cg.setLineWidth(0.4 + rnd() * (rect.height / 1600))
             let start = CGPoint(x: rnd() * rect.width, y: rnd() * rect.height)
-            let length = rect.width * (0.02 + rnd() * 0.12)
-            let angle = (rnd() - 0.5) * 0.5
+            let length = rect.width * (0.004 + rnd() * 0.028)
+            let angle = rnd() * .pi * 2
             cg.move(to: start)
             cg.addLine(to: CGPoint(x: start.x + cos(angle) * length, y: start.y + sin(angle) * length))
             cg.strokePath()

@@ -6,8 +6,8 @@ struct GoldBarDemoScreen: View {
 
     @Environment(\.dismiss) private var dismiss
 
-    @State private var lightIntensity: Double = 900
-    @State private var environmentIntensity: Double = 1.6
+    @State private var lightIntensity: Double = 300
+    @State private var environmentIntensity: Double = 2.2
     @State private var relief: Double = 0.85
 
     private let qrPayload = "https://flipcash.com/gold-bar-demo"
