@@ -7,7 +7,7 @@ import UIKit
 struct GoldBarMaterialBakerTests {
 
     private static let config = GoldBarMaterialBaker.Config(
-        pixelSize: CGSize(width: 1024, height: 600),
+        pixelSize: CGSize(width: 640, height: 1110),
         qrPayload: "https://flipcash.com/gold-bar-demo",
         stampLines: ["FINE GOLD", "999.9", "1 oz"]
     )

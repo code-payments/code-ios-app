@@ -14,18 +14,18 @@ enum GoldBarScene {
         let scene = SCNScene()
         scene.background.contents = UIColor(white: 0.04, alpha: 1)
 
-        // Image-based lighting — this is what makes metal look real.
+        // Image-based lighting — on metalness=1 this IS the gold's brightness, so it is bright and broad.
         scene.lightingEnvironment.contents = studioEnvironment()
-        scene.lightingEnvironment.intensity = 2.2
+        scene.lightingEnvironment.intensity = 4.8
 
-        // Geometry: a chamfered bar, large face toward the camera (−Z).
-        let box = SCNBox(width: 1.0, height: 0.58, length: 0.26, chamferRadius: 0.016)
+        // Portrait minted bar (real 1oz ≈ 24×41×2mm — thin, tall), large face toward the camera (+Z).
+        let box = SCNBox(width: 0.60, height: 1.04, length: 0.13, chamferRadius: 0.022)
         let textures = GoldBarMaterialBaker.bake(.init(
-            pixelSize: CGSize(width: 1024, height: 594),  // matches the 1.0:0.58 face aspect
+            pixelSize: CGSize(width: 640, height: 1110),  // matches the 0.60:1.04 portrait face
             qrPayload: qrPayload,
             stampLines: ["FINE GOLD", "999.9", "1 oz"]
         ))
-        // Detailed (QR/text) only on the front face; plain polished gold on the sides/back.
+        // Detailed (markings/QR) only on the front face; plain polished gold on the sides/back.
         // SCNBox material order: front(+Z), right(+X), back(−Z), left(−X), top(+Y), bottom(−Y).
         let detailed = goldMaterial(textures)
         let plain = plainGoldMaterial()
@@ -34,35 +34,50 @@ enum GoldBarScene {
         let barNode = SCNNode(geometry: box)
         scene.rootNode.addChildNode(barNode)
 
-        // Fixed camera, straight on, with subtle bloom on the hot specular.
+        // Near face-on camera with a slight hero tilt (so the QR scans and a sliver of edge shows).
         let cameraNode = SCNNode()
         let camera = SCNCamera()
-        // Fit the field of view to the vertical axis; the host view is constrained to the
-        // bar's aspect ratio, so the whole bar lands inside the frame with margin.
         camera.projectionDirection = .vertical
-        camera.fieldOfView = 32
+        camera.fieldOfView = 28
         camera.zNear = 0.1
         camera.wantsHDR = true
         camera.wantsExposureAdaptation = false
-        camera.bloomIntensity = 0.35
-        camera.bloomThreshold = 0.75
-        camera.bloomBlurRadius = 8
+        camera.exposureOffset = 0.4
+        camera.averageGray = 0.18
+        camera.whitePoint = 1.5
+        camera.bloomIntensity = 0.5
+        camera.bloomThreshold = 0.95
+        camera.bloomBlurRadius = 10
         cameraNode.camera = camera
-        // Slight 3/4 angle reveals the bar's depth (top + side), so it reads as a solid ingot.
-        cameraNode.position = SCNVector3(0.30, 0.46, 1.79)
+        cameraNode.position = SCNVector3(0.14, 0.18, 2.1)
         cameraNode.look(at: SCNVector3Zero)
         scene.rootNode.addChildNode(cameraNode)
 
-        // Directional key light — the moving hot highlight.
-        let light = SCNLight()
-        light.type = .directional
-        light.intensity = 300
-        light.color = UIColor(red: 1.0, green: 0.96, blue: 0.86, alpha: 1)
+        // Moving key — a tall narrow area soft-box whose reflection is a vertical streak that
+        // sweeps across the face as the light moves with device tilt.
+        let key = SCNLight()
+        key.type = .area
+        key.areaType = .rectangle
+        key.areaExtents = SIMD3<Float>(0.55, 2.4, 0)
+        key.intensity = 1100
+        key.color = UIColor(red: 1.0, green: 0.96, blue: 0.86, alpha: 1)
+        key.castsShadow = false
         let keyLightNode = SCNNode()
-        keyLightNode.light = light
-        keyLightNode.position = SCNVector3(0, 0.3, 1)
+        keyLightNode.light = key
+        keyLightNode.position = SCNVector3(0, 0.3, 1.4)
         keyLightNode.look(at: SCNVector3Zero)
         scene.rootNode.addChildNode(keyLightNode)
+
+        // Static rim grazing the top/side bevel so the thickness reads as a bright minted edge.
+        let rim = SCNLight()
+        rim.type = .directional
+        rim.intensity = 320
+        rim.color = UIColor(red: 1.0, green: 0.97, blue: 0.90, alpha: 1)
+        let rimNode = SCNNode()
+        rimNode.light = rim
+        rimNode.position = SCNVector3(0.7, 0.5, 0.6)
+        rimNode.look(at: SCNVector3Zero)
+        scene.rootNode.addChildNode(rimNode)
 
         return Bundle(scene: scene, keyLightNode: keyLightNode, material: detailed)
     }
@@ -74,7 +89,9 @@ enum GoldBarScene {
         material.roughness.contents = textures.roughness
         material.diffuse.contents = textures.albedo
         material.normal.contents = textures.normal
-        material.normal.intensity = 0.85
+        material.normal.intensity = 0.55
+        material.clearCoat.contents = 0.8        // thin lacquer → crisp minted sheen on top of the gold
+        material.clearCoatRoughness.contents = 0.06
         material.diffuse.wrapS = .clamp
         material.diffuse.wrapT = .clamp
         return material
@@ -85,29 +102,29 @@ enum GoldBarScene {
         let material = SCNMaterial()
         material.lightingModel = .physicallyBased
         material.metalness.contents = 1.0
-        material.roughness.contents = 0.3
-        material.diffuse.contents = UIColor(red: 0.95, green: 0.74, blue: 0.36, alpha: 1)
+        material.roughness.contents = 0.18
+        material.diffuse.contents = UIColor(red: 0.96, green: 0.78, blue: 0.40, alpha: 1)
+        material.clearCoat.contents = 0.8
+        material.clearCoatRoughness.contents = 0.06
         return material
     }
 
-    /// Studio environment: a graded sky plus horizontal strip soft-boxes. The strips reflect
-    /// as elongated streaks across the metal (not round blobs), which reads as real bullion.
+    /// Bright studio environment: a luminous warm upper hemisphere with broad horizontal soft-boxes,
+    /// fading to a navy floor. Broad + bright so a near-mirror metal face reads gold at every held angle.
     private static func studioEnvironment() -> UIImage {
         let size = CGSize(width: 1024, height: 512)
         let renderer = UIGraphicsImageRenderer(size: size)
         return renderer.image { ctx in
             let cg = ctx.cgContext
-            // Graded sky: brighter top (overhead light), dark floor.
             let bg = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
-                                colors: [UIColor(white: 0.34, alpha: 1).cgColor,
-                                         UIColor(white: 0.17, alpha: 1).cgColor,
-                                         UIColor(white: 0.05, alpha: 1).cgColor] as CFArray,
-                                locations: [0, 0.55, 1])!
+                                colors: [UIColor(red: 0.88, green: 0.85, blue: 0.78, alpha: 1).cgColor,
+                                         UIColor(red: 0.45, green: 0.45, blue: 0.47, alpha: 1).cgColor,
+                                         UIColor(red: 0.04, green: 0.05, blue: 0.09, alpha: 1).cgColor] as CFArray,
+                                locations: [0, 0.5, 1])!
             cg.drawLinearGradient(bg, start: .zero, end: CGPoint(x: 0, y: size.height), options: [])
-            // Horizontal strip soft-boxes → horizontal streak reflections.
-            drawSoftStrip(cg, size: size, centerY: 0.20, height: 0.11, brightness: 1.0)
-            drawSoftStrip(cg, size: size, centerY: 0.38, height: 0.05, brightness: 0.65)
-            drawSoftStrip(cg, size: size, centerY: 0.50, height: 0.035, brightness: 0.45)
+            drawSoftStrip(cg, size: size, centerY: 0.26, height: 0.34, brightness: 1.0)
+            drawSoftStrip(cg, size: size, centerY: 0.46, height: 0.08, brightness: 0.7)
+            drawSoftStrip(cg, size: size, centerY: 0.54, height: 0.04, brightness: 0.5)
         }
     }
 

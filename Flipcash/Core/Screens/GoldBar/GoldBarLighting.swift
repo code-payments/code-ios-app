@@ -8,21 +8,21 @@ import simd
 nonisolated enum GoldBarLighting {
 
     /// How far a unit of left/right tilt (gravity.x) pushes the highlight horizontally.
-    static let lateralGain: Double = 1.5
+    static let lateralGain: Double = 2.4
     /// How far a unit of forward/back tilt (gravity.y vs neutral) pushes the highlight vertically.
-    static let verticalGain: Double = 1.2
-    /// Environment yaw rotation per unit of left/right tilt (radians).
-    static let envYawGain: Double = 0.6
+    static let verticalGain: Double = 1.6
+    /// Environment yaw rotation per unit of left/right tilt (radians) — sweeps the broad sheen.
+    static let envYawGain: Double = 0.9
     /// Environment pitch rotation per unit of forward/back tilt (radians).
-    static let envPitchGain: Double = 0.5
+    static let envPitchGain: Double = 0.7
     /// gravity.y when the phone is held up to view it (top up, leaned back a little).
     /// The light is centered at this attitude — NOT when the phone lies flat (gravity.y == 0).
     static let neutralGravityY: Double = -0.85
     /// Resting elevation of the key light at the neutral held attitude (gives an upper sheen).
     static let restElevation: Double = 0.35
     /// Keep the highlight on the bar by clamping how far tilt can push it.
-    static let horizontalClamp: Double = 0.9
-    static let verticalClamp: Double = 1.0
+    static let horizontalClamp: Double = 1.5
+    static let verticalClamp: Double = 1.4
 
     /// Unit direction the key light sits in, for the device's gravity vector (CoreMotion device frame).
     /// Level-held → up-and-forward, centered; rolling moves it horizontally; pitching moves it vertically.

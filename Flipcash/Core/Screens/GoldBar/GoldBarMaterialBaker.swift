@@ -2,16 +2,17 @@ import UIKit
 import CoreImage
 import CoreImage.CIFilterBuiltins
 
-/// Procedurally bakes the gold bar's PBR maps (no bundled assets):
-/// - albedo: warm gold field, engraved (darker) stamp text, dark etched QR modules
-/// - roughness: smooth polished field, rougher scratches + etched regions
-/// - normal: tangent-space relief derived from a height field (stamp/QR recessed, scratches grooved)
+/// Procedurally bakes the portrait gold bar's PBR maps (no bundled assets):
+/// - albedo: warm gold field, engraved emblem + stacked markings + serial, dark etched QR
+/// - roughness: glossy polished field, rougher scratches, a slightly matte QR patch for scan contrast
+/// - normal: tangent-space relief from a height field (markings recessed, QR low-relief, fine scratches)
 nonisolated enum GoldBarMaterialBaker {
 
     struct Config {
         var pixelSize: CGSize
         var qrPayload: String
         var stampLines: [String]
+        var serial: String = "No. CH 047219"
         var scratchCount: Int = 150
     }
 
@@ -21,9 +22,8 @@ nonisolated enum GoldBarMaterialBaker {
         let roughness: UIImage
     }
 
-    // Warm 24k-ish gold field reflectance (sRGB).
-    private static let goldField = UIColor(red: 0.95, green: 0.74, blue: 0.36, alpha: 1)
-    private static let goldEngraved = UIColor(red: 0.66, green: 0.49, blue: 0.20, alpha: 1)
+    private static let goldField = UIColor(red: 0.96, green: 0.78, blue: 0.40, alpha: 1)
+    private static let goldEngraved = UIColor(red: 0.70, green: 0.52, blue: 0.22, alpha: 1)
 
     static func bake(_ config: Config) -> Textures {
         let qr = makeQRImage(payload: config.qrPayload)
@@ -37,24 +37,35 @@ nonisolated enum GoldBarMaterialBaker {
 
     // MARK: - QR
 
-    /// High error-correction QR as a crisp black-on-white mask, nearest-neighbour upscaled.
     private static func makeQRImage(payload: String) -> UIImage {
         let filter = CIFilter.qrCodeGenerator()
         filter.message = Data(payload.utf8)
         filter.correctionLevel = "H"
         let output = filter.outputImage!
-        let scale = 12.0
-        let scaled = output.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+        let scaled = output.transformed(by: CGAffineTransform(scaleX: 12, y: 12))
         let context = CIContext()
         let cg = context.createCGImage(scaled, from: scaled.extent)!
         return UIImage(cgImage: cg)
     }
 
-    /// Rect for the QR on the bar face (right third, square, with quiet-zone padding).
-    private static func qrRect(in size: CGSize) -> CGRect {
-        let side = size.height * 0.62
-        let margin = size.height * 0.19
-        return CGRect(x: size.width - side - margin, y: (size.height - side) / 2, width: side, height: side)
+    // MARK: - Portrait layout
+
+    private static func emblemRect(_ size: CGSize) -> CGRect {
+        let side = size.width * 0.22
+        return CGRect(x: (size.width - side) / 2, y: size.height * 0.085 - side / 2, width: side, height: side)
+    }
+
+    private static func textColumn(_ size: CGSize) -> CGRect {
+        CGRect(x: size.width * 0.06, y: size.height * 0.17, width: size.width * 0.88, height: size.height * 0.25)
+    }
+
+    private static func serialRect(_ size: CGSize) -> CGRect {
+        CGRect(x: size.width * 0.1, y: size.height * 0.45, width: size.width * 0.8, height: size.height * 0.035)
+    }
+
+    private static func qrRect(_ size: CGSize) -> CGRect {
+        let side = size.width * 0.62
+        return CGRect(x: (size.width - side) / 2, y: size.height * 0.72 - side / 2, width: side, height: side)
     }
 
     // MARK: - Albedo
@@ -64,12 +75,12 @@ nonisolated enum GoldBarMaterialBaker {
             goldField.setFill()
             ctx.fill(rect)
 
-            // Engraved stamp text on the left, slightly darker than the field.
-            drawStampText(config.stampLines, in: leftPanel(rect), color: goldEngraved)
+            drawEmblem(in: emblemRect(config.pixelSize), color: goldEngraved)
+            drawCenteredLines(config.stampLines, in: textColumn(config.pixelSize), weight: .heavy, color: goldEngraved)
+            drawCenteredLines([config.serial], in: serialRect(config.pixelSize), weight: .medium, color: goldEngraved)
 
             // Etched QR: dark modules over a bright gold quiet zone for contrast.
-            // Multiply blends the black-on-white QR onto gold → black modules, gold quiet zone.
-            let qframe = qrRect(in: config.pixelSize)
+            let qframe = qrRect(config.pixelSize)
             goldField.setFill()
             ctx.fill(qframe.insetBy(dx: -qframe.width * 0.06, dy: -qframe.width * 0.06))
             ctx.cgContext.saveGState()
@@ -83,34 +94,33 @@ nonisolated enum GoldBarMaterialBaker {
 
     private static func renderRoughness(_ config: Config, qr: UIImage) -> UIImage {
         renderImage(size: config.pixelSize) { ctx, rect in
-            UIColor(white: 0.26, alpha: 1).setFill()  // polished base
+            UIColor(white: 0.18, alpha: 1).setFill()  // glossy polished base
             ctx.fill(rect)
             drawScratches(count: config.scratchCount, in: rect, color: UIColor(white: 0.5, alpha: 0.28), ctx: ctx)
-            // Etched QR + stamp read rougher.
-            ctx.cgContext.saveGState()
-            ctx.cgContext.clip(to: qrRect(in: config.pixelSize))
-            qr.draw(in: qrRect(in: config.pixelSize), blendMode: .multiply, alpha: 1)
-            ctx.cgContext.restoreGState()
+            // Slightly matte QR patch so the bright mirror doesn't wash out the modules.
+            UIColor(white: 0.3, alpha: 1).setFill()
+            ctx.fill(qrRect(config.pixelSize).insetBy(dx: -qrRect(config.pixelSize).width * 0.06, dy: -qrRect(config.pixelSize).width * 0.06))
         }
     }
 
     // MARK: - Height → Normal
 
-    /// Grayscale height: mid field, recessed (darker) stamp/QR, grooved scratches.
     private static func renderHeightField(_ config: Config, qr: UIImage) -> UIImage {
         renderImage(size: config.pixelSize) { ctx, rect in
             UIColor(white: 0.5, alpha: 1).setFill()
             ctx.fill(rect)
-            drawStampText(config.stampLines, in: leftPanel(rect), color: UIColor(white: 0.32, alpha: 1))
+            drawEmblem(in: emblemRect(config.pixelSize), color: UIColor(white: 0.34, alpha: 1))
+            drawCenteredLines(config.stampLines, in: textColumn(config.pixelSize), weight: .heavy, color: UIColor(white: 0.32, alpha: 1))
+            drawCenteredLines([config.serial], in: serialRect(config.pixelSize), weight: .medium, color: UIColor(white: 0.38, alpha: 1))
             drawScratches(count: config.scratchCount, in: rect, color: UIColor(white: 0.62, alpha: 0.12), ctx: ctx)
+            // QR low-relief so the engraving doesn't shatter scan contrast under bright light.
             ctx.cgContext.saveGState()
-            ctx.cgContext.clip(to: qrRect(in: config.pixelSize))
-            qr.draw(in: qrRect(in: config.pixelSize), blendMode: .multiply, alpha: 1)
+            ctx.cgContext.clip(to: qrRect(config.pixelSize))
+            qr.draw(in: qrRect(config.pixelSize), blendMode: .multiply, alpha: 0.3)
             ctx.cgContext.restoreGState()
         }
     }
 
-    /// Tangent-space normal map from a height image via a 3x3 gradient.
     private static func normalMap(from height: UIImage) -> UIImage {
         guard let cg = height.cgImage else { return height }
         let w = cg.width, h = cg.height
@@ -121,7 +131,7 @@ nonisolated enum GoldBarMaterialBaker {
         gctx.draw(cg, in: CGRect(x: 0, y: 0, width: w, height: h))
 
         var rgba = [UInt8](repeating: 0, count: w * h * 4)
-        let strength: Float = 2.2
+        let strength: Float = 2.0
         func at(_ x: Int, _ y: Int) -> Float {
             Float(gray[min(max(y, 0), h - 1) * w + min(max(x, 0), w - 1)]) / 255
         }
@@ -147,21 +157,36 @@ nonisolated enum GoldBarMaterialBaker {
 
     // MARK: - Drawing helpers
 
-    private static func leftPanel(_ rect: CGRect) -> CGRect {
-        CGRect(x: rect.width * 0.06, y: rect.height * 0.18,
-               width: rect.width * 0.5, height: rect.height * 0.64)
-    }
-
-    private static func drawStampText(_ lines: [String], in rect: CGRect, color: UIColor) {
+    private static func drawCenteredLines(_ lines: [String], in rect: CGRect, weight: UIFont.Weight, color: UIColor) {
         guard !lines.isEmpty else { return }
         let lineHeight = rect.height / CGFloat(lines.count)
         for (index, line) in lines.enumerated() {
-            let font = UIFont.systemFont(ofSize: lineHeight * 0.55, weight: .heavy)
+            let font = UIFont.systemFont(ofSize: lineHeight * 0.6, weight: weight)
             let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
             let str = NSAttributedString(string: line, attributes: attrs)
-            let origin = CGPoint(x: rect.minX, y: rect.minY + CGFloat(index) * lineHeight + lineHeight * 0.2)
+            let textSize = str.size()
+            let origin = CGPoint(x: rect.midX - textSize.width / 2,
+                                 y: rect.minY + CGFloat(index) * lineHeight + (lineHeight - textSize.height) / 2)
             str.draw(at: origin)
         }
+    }
+
+    /// A simple engraved medallion (concentric rings + radial ticks) — generic, not a trademarked logo.
+    private static func drawEmblem(in rect: CGRect, color: UIColor) {
+        guard let cg = UIGraphicsGetCurrentContext() else { return }
+        color.setStroke()
+        cg.setLineWidth(rect.width * 0.025)
+        cg.strokeEllipse(in: rect)
+        cg.strokeEllipse(in: rect.insetBy(dx: rect.width * 0.24, dy: rect.height * 0.24))
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        let rOuter = rect.width / 2
+        let rInner = rOuter * 0.78
+        for i in 0..<12 {
+            let a = CGFloat(i) / 12 * .pi * 2
+            cg.move(to: CGPoint(x: center.x + cos(a) * rInner, y: center.y + sin(a) * rInner))
+            cg.addLine(to: CGPoint(x: center.x + cos(a) * rOuter, y: center.y + sin(a) * rOuter))
+        }
+        cg.strokePath()
     }
 
     /// Fine, multi-directional hairline micro-scratches (faint — real bullion, not speed lines).

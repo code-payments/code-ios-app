@@ -6,9 +6,9 @@ struct GoldBarDemoScreen: View {
 
     @Environment(\.dismiss) private var dismiss
 
-    @State private var lightIntensity: Double = 300
-    @State private var environmentIntensity: Double = 2.2
-    @State private var relief: Double = 0.85
+    @State private var lightIntensity: Double = 1100
+    @State private var environmentIntensity: Double = 4.8
+    @State private var relief: Double = 0.55
 
     private let qrPayload = "https://flipcash.com/gold-bar-demo"
 
@@ -23,7 +23,7 @@ struct GoldBarDemoScreen: View {
                     environmentIntensity: environmentIntensity,
                     relief: relief
                 )
-                .aspectRatio(1.0 / 0.58, contentMode: .fit)
+                .aspectRatio(0.60 / 1.04, contentMode: .fit)
                 .padding(.horizontal, 16)
 
                 VStack {
@@ -53,7 +53,7 @@ private struct GoldBarTuningPanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             LabeledSlider(title: "Light", value: $lightIntensity, range: 0...2500)
-            LabeledSlider(title: "Environment", value: $environmentIntensity, range: 0...4)
+            LabeledSlider(title: "Environment", value: $environmentIntensity, range: 0...8)
             LabeledSlider(title: "Relief", value: $relief, range: 0...2)
         }
         .padding()
