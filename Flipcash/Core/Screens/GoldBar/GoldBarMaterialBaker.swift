@@ -22,8 +22,8 @@ nonisolated enum GoldBarMaterialBaker {
         let roughness: UIImage
     }
 
-    private static let goldField = UIColor(red: 0.96, green: 0.78, blue: 0.40, alpha: 1)
-    private static let goldEngraved = UIColor(red: 0.70, green: 0.52, blue: 0.22, alpha: 1)
+    private static let goldField = UIColor(red: 1.0, green: 0.76, blue: 0.33, alpha: 1)
+    private static let goldEngraved = UIColor(red: 0.55, green: 0.40, blue: 0.15, alpha: 1)
 
     static func bake(_ config: Config) -> Textures {
         let qr = makeQRImage(payload: config.qrPayload)
@@ -94,7 +94,7 @@ nonisolated enum GoldBarMaterialBaker {
 
     private static func renderRoughness(_ config: Config, qr: UIImage) -> UIImage {
         renderImage(size: config.pixelSize) { ctx, rect in
-            UIColor(white: 0.18, alpha: 1).setFill()  // glossy polished base
+            UIColor(white: 0.15, alpha: 1).setFill()  // glossy polished base
             ctx.fill(rect)
             drawScratches(count: config.scratchCount, in: rect, color: UIColor(white: 0.5, alpha: 0.28), ctx: ctx)
             // Slightly matte QR patch so the bright mirror doesn't wash out the modules.

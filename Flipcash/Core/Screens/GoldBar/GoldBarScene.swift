@@ -16,7 +16,7 @@ enum GoldBarScene {
 
         // Image-based lighting — on metalness=1 this IS the gold's brightness, so it is bright and broad.
         scene.lightingEnvironment.contents = studioEnvironment()
-        scene.lightingEnvironment.intensity = 4.8
+        scene.lightingEnvironment.intensity = 5.2
 
         // Portrait minted bar (real 1oz ≈ 24×41×2mm — thin, tall), large face toward the camera (+Z).
         let box = SCNBox(width: 0.60, height: 1.04, length: 0.13, chamferRadius: 0.022)
@@ -42,9 +42,9 @@ enum GoldBarScene {
         camera.zNear = 0.1
         camera.wantsHDR = true
         camera.wantsExposureAdaptation = false
-        camera.exposureOffset = 0.4
+        camera.exposureOffset = 0.25
         camera.averageGray = 0.18
-        camera.whitePoint = 1.5
+        camera.whitePoint = 1.7
         camera.bloomIntensity = 0.5
         camera.bloomThreshold = 0.95
         camera.bloomBlurRadius = 10
@@ -58,9 +58,9 @@ enum GoldBarScene {
         let key = SCNLight()
         key.type = .area
         key.areaType = .rectangle
-        key.areaExtents = SIMD3<Float>(0.55, 2.4, 0)
+        key.areaExtents = SIMD3<Float>(0.8, 2.4, 0)
         key.intensity = 1100
-        key.color = UIColor(red: 1.0, green: 0.96, blue: 0.86, alpha: 1)
+        key.color = UIColor(red: 1.0, green: 0.90, blue: 0.72, alpha: 1)
         key.castsShadow = false
         let keyLightNode = SCNNode()
         keyLightNode.light = key
@@ -102,8 +102,8 @@ enum GoldBarScene {
         let material = SCNMaterial()
         material.lightingModel = .physicallyBased
         material.metalness.contents = 1.0
-        material.roughness.contents = 0.18
-        material.diffuse.contents = UIColor(red: 0.96, green: 0.78, blue: 0.40, alpha: 1)
+        material.roughness.contents = 0.15
+        material.diffuse.contents = UIColor(red: 1.0, green: 0.76, blue: 0.33, alpha: 1)
         material.clearCoat.contents = 0.8
         material.clearCoatRoughness.contents = 0.06
         return material
@@ -117,7 +117,7 @@ enum GoldBarScene {
         return renderer.image { ctx in
             let cg = ctx.cgContext
             let bg = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
-                                colors: [UIColor(red: 0.88, green: 0.85, blue: 0.78, alpha: 1).cgColor,
+                                colors: [UIColor(red: 0.82, green: 0.78, blue: 0.70, alpha: 1).cgColor,
                                          UIColor(red: 0.45, green: 0.45, blue: 0.47, alpha: 1).cgColor,
                                          UIColor(red: 0.04, green: 0.05, blue: 0.09, alpha: 1).cgColor] as CFArray,
                                 locations: [0, 0.5, 1])!
@@ -133,10 +133,11 @@ enum GoldBarScene {
         let rect = CGRect(x: 0, y: size.height * centerY - stripHeight / 2, width: size.width, height: stripHeight)
         cg.saveGState()
         cg.clip(to: rect)
+        let warm = UIColor(red: 1.0, green: 0.95, blue: 0.84, alpha: brightness)
         let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
-                                  colors: [UIColor(white: 1, alpha: 0).cgColor,
-                                           UIColor(white: 1, alpha: brightness).cgColor,
-                                           UIColor(white: 1, alpha: 0).cgColor] as CFArray,
+                                  colors: [warm.withAlphaComponent(0).cgColor,
+                                           warm.cgColor,
+                                           warm.withAlphaComponent(0).cgColor] as CFArray,
                                   locations: [0, 0.5, 1])!
         cg.drawLinearGradient(gradient, start: CGPoint(x: 0, y: rect.minY), end: CGPoint(x: 0, y: rect.maxY), options: [])
         cg.restoreGState()
