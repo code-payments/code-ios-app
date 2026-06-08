@@ -164,22 +164,12 @@ public enum ErrorFetchBalance: Int, Error, Equatable, Sendable {
     case transportFailure = -4
 }
 
-extension ErrorFetchBalance: ServerError {
+extension ErrorFetchBalance: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
         case .ok, .notFound, .accountNotInList, .transportFailure: false
         case .unknown, .parseFailed: true
         }
-    }
-}
-
-extension ErrorFetchBalance {
-    /// Classifies a gRPC failure status. Transient network conditions
-    /// (per `GRPCStatus.Code.isTransientNetworkError`) map to
-    /// `.transportFailure` so callers don't ship cold-resume noise to
-    /// Bugsnag; anything else preserves the legacy `.unknown` behavior.
-    public static func from(transportError: GRPCStatus) -> ErrorFetchBalance {
-        transportError.code.isTransientNetworkError ? .transportFailure : .unknown
     }
 }
 

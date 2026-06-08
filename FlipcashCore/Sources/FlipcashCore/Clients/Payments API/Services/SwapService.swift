@@ -475,7 +475,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
     func getSwap(
         swapId: SwapId,
         owner: KeyPair,
-        completion: @escaping (Result<SwapMetadata, ErrorGetSwap>) -> Void
+        completion: @Sendable @escaping (Result<SwapMetadata, ErrorGetSwap>) -> Void
     ) {
         logger.info("Fetching swap state", metadata: ["swapId": "\(swapId.publicKey.base58)"])
 
@@ -486,37 +486,29 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
 
         let call = service.getSwap(request)
 
-        call.response.whenCompleteBlocking(onto: queue) { result in
-            switch result {
-            case .success(let response):
-                switch response.result {
-                case .ok:
-                    guard let metadata = SwapMetadata(response.swap) else {
-                        logger.error("Failed to parse swap metadata")
-                        completion(.failure(.failedToParse))
-                        return
-                    }
-                    logger.info("Swap state fetched", metadata: ["state": "\(metadata.state)"])
-                    completion(.success(metadata))
-
-                case .notFound:
-                    // Expected during the early phase of polling a freshly
-                    // submitted swap; the caller retries on this condition.
-                    logger.debug("Swap not found")
-                    completion(.failure(.notFound))
-
-                case .denied:
-                    logger.error("Swap access denied")
-                    completion(.failure(.denied))
-
-                case .UNRECOGNIZED:
-                    logger.error("Swap fetch returned unknown result")
-                    completion(.failure(.unknown))
+        call.handle(on: queue, completion: completion) { response in
+            switch response.result {
+            case .ok:
+                guard let metadata = SwapMetadata(response.swap) else {
+                    logger.error("Failed to parse swap metadata")
+                    return .failure(.failedToParse)
                 }
+                logger.info("Swap state fetched", metadata: ["state": "\(metadata.state)"])
+                return .success(metadata)
 
-            case .failure(let error):
-                logger.error("Swap fetch gRPC error", metadata: ["error": "\(error)"])
-                completion(.failure(.unknown))
+            case .notFound:
+                // Expected during the early phase of polling a freshly
+                // submitted swap; the caller retries on this condition.
+                logger.debug("Swap not found")
+                return .failure(.notFound)
+
+            case .denied:
+                logger.error("Swap access denied")
+                return .failure(.denied)
+
+            case .UNRECOGNIZED:
+                logger.error("Swap fetch returned unknown result")
+                return .failure(.unknown)
             }
         }
     }
@@ -636,22 +628,24 @@ public enum ErrorGetSwap: Int, Error {
     case denied
     case unknown = -1
     case failedToParse = -2
+    case transportFailure = -3
 }
 
 extension ErrorSwap: ServerError {
     public var isReportable: Bool {
         switch self {
         case .denied, .invalidSwap: false
-        case .signatureError, .failed, .unknown, .grpcStatus, .grpcError: true
+        case .signatureError, .failed, .unknown, .grpcError: true
+        case .grpcStatus(let status): status.isReportable
         case .fundingIntent(let inner): inner.isReportable
         }
     }
 }
 
-extension ErrorGetSwap: ServerError {
+extension ErrorGetSwap: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .notFound, .denied: false
+        case .ok, .notFound, .denied, .transportFailure: false
         case .unknown, .failedToParse: true
         }
     }

@@ -168,18 +168,14 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
         }
 
         let call = service.voidGiftCard(request)
-        call.handle(on: queue) { response in
+        call.handle(on: queue, completion: completion) { response in
             let error = ErrorVoidGiftCard(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok {
-                logger.info("Cash link voided", metadata: ["giftCard": "\(giftCardVault.base58)"])
-                completion(.success(()))
-            } else {
+            guard error == .ok else {
                 logger.error("Failed to void cash link", metadata: ["error": "\(error)"])
-                completion(.failure(error))
+                return .failure(error)
             }
-
-        } failure: { _ in
-            completion(.failure(.unknown))
+            logger.info("Cash link voided", metadata: ["giftCard": "\(giftCardVault.base58)"])
+            return .success(())
         }
     }
     
@@ -731,28 +727,23 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
         }
         
         let call = service.getIntentMetadata(request)
-        call.handle(on: queue) { response in
-            
+        call.handle(on: queue, completion: completion) { response in
             let result = ErrorFetchIntentMetadata(rawValue: response.result.rawValue) ?? .unknown
             guard result == .ok else {
-                completion(.failure(result))
-                return
+                return .failure(result)
             }
-            
+
             do {
                 let metadata = try IntentMetadata(response.metadata)
                 logger.info("Intent metadata fetched successfully", metadata: ["intentId": "\(intentID.base58)"])
-                completion(.success(metadata))
+                return .success(metadata)
             } catch {
                 logger.error("Failed to parse intent metadata", metadata: [
                     "intentId": "\(intentID.base58)",
                     "error": "\(error)"
                 ])
-                completion(.failure(.failedToParse))
+                return .failure(.failedToParse)
             }
-            
-        } failure: { error in
-            completion(.failure(.unknown))
         }
     }
     
@@ -773,8 +764,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
         }
         
         let call = service.getLimits(request)
-        call.handle(on: queue) { response in
-            
+        call.handle(on: queue, completion: completion) { response in
             let error = ErrorFetchLimits(rawValue: response.result.rawValue) ?? .unknown
             guard error == .ok else {
                 logger.error("Failed to fetch transaction limits", metadata: [
@@ -782,8 +772,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
                     "since": "\(date.description(with: .current))",
                     "error": "\(error)"
                 ])
-                completion(.failure(error))
-                return
+                return .failure(error)
             }
 
             let limits = Limits(
@@ -795,10 +784,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
             logger.info("Transaction limits fetched successfully", metadata: [
                 "owner": "\(owner.publicKey.base58)"
             ])
-            completion(.success(limits))
-            
-        } failure: { error in
-            completion(.failure(.unknown))
+            return .success(limits)
         }
     }
     
@@ -1025,6 +1011,7 @@ public enum ErrorVoidGiftCard: Int, Error {
     case claimed
     case notFound
     case unknown = -1
+    case transportFailure = -2
 }
 
 public enum ErrorFetchIntentMetadata: Int, Error {
@@ -1033,11 +1020,13 @@ public enum ErrorFetchIntentMetadata: Int, Error {
     case denied
     case unknown = -1
     case failedToParse = -2
+    case transportFailure = -3
 }
 
 public enum ErrorFetchLimits: Int, Error {
     case ok
     case unknown = -1
+    case transportFailure = -2
 }
 
 extension ErrorSubmitIntent: ServerError {
@@ -1059,28 +1048,28 @@ extension ErrorSubmitIntent: ServerError {
     }
 }
 
-extension ErrorVoidGiftCard: ServerError {
+extension ErrorVoidGiftCard: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .denied, .claimed, .notFound: false
+        case .ok, .denied, .claimed, .notFound, .transportFailure: false
         case .unknown: true
         }
     }
 }
 
-extension ErrorFetchIntentMetadata: ServerError {
+extension ErrorFetchIntentMetadata: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .notFound, .denied: false
+        case .ok, .notFound, .denied, .transportFailure: false
         case .unknown, .failedToParse: true
         }
     }
 }
 
-extension ErrorFetchLimits: ServerError {
+extension ErrorFetchLimits: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
-        case .ok: false
+        case .ok, .transportFailure: false
         case .unknown: true
         }
     }

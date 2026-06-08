@@ -18,3 +18,15 @@ extension GRPCStatus.Code {
         }
     }
 }
+
+extension GRPCStatus: ServerError {
+
+    /// A raw transport status is non-reportable only for transient network
+    /// conditions (`GRPCStatus.Code.isTransientNetworkError`); every other code
+    /// stays reportable. This lets unary RPCs whose failure type is the
+    /// existential `Error` ship the status directly and still classify
+    /// correctly, without a dedicated `TransportClassifiableError` enum.
+    public var isReportable: Bool {
+        !code.isTransientNetworkError
+    }
+}

@@ -33,26 +33,22 @@ class ActivityService: CodeService<Flipcash_Activity_V1_ActivityFeedNIOClient> {
         }
 
         let call = service.getPagedNotifications(request)
-        call.handle(on: queue) { response in
+        call.handle(on: queue, completion: completion) { response in
             let error = ErrorFetchTransactionHistory(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok {
-                let activities = response.notifications.compactMap {
-                    do {
-                        return try Activity($0)
-                    } catch {
-                        logger.error("Failed to parse activity", metadata: ["error": "\(error)"])
-                        return nil
-                    }
-                }
-                logger.info("Fetched activities", metadata: ["count": "\(activities.count)"])
-                completion(.success(activities))
-            } else {
+            guard error == .ok else {
                 logger.error("Failed to fetch transaction history", metadata: ["owner": "\(owner.publicKey.base58)"])
-                completion(.failure(error))
+                return .failure(error)
             }
-
-        } failure: { error in
-            completion(.failure(.unknown))
+            let activities = response.notifications.compactMap {
+                do {
+                    return try Activity($0)
+                } catch {
+                    logger.error("Failed to parse activity", metadata: ["error": "\(error)"])
+                    return nil
+                }
+            }
+            logger.info("Fetched activities", metadata: ["count": "\(activities.count)"])
+            return .success(activities)
         }
     }
 
@@ -65,26 +61,22 @@ class ActivityService: CodeService<Flipcash_Activity_V1_ActivityFeedNIOClient> {
         }
 
         let call = service.getBatchNotifications(request)
-        call.handle(on: queue) { response in
+        call.handle(on: queue, completion: completion) { response in
             let error = ErrorFetchTransactionHistoryItemsByID(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok {
-                let activities = response.notifications.compactMap {
-                    do {
-                        return try Activity($0)
-                    } catch {
-                        logger.error("Failed to parse activity", metadata: ["error": "\(error)"])
-                        return nil
-                    }
-                }
-                logger.info("Fetched activities by ID", metadata: ["count": "\(activities.count)"])
-                completion(.success(activities))
-            } else {
+            guard error == .ok else {
                 logger.error("Failed to fetch transaction history items", metadata: ["owner": "\(owner.publicKey.base58)"])
-                completion(.failure(error))
+                return .failure(error)
             }
-
-        } failure: { error in
-            completion(.failure(.unknown))
+            let activities = response.notifications.compactMap {
+                do {
+                    return try Activity($0)
+                } catch {
+                    logger.error("Failed to parse activity", metadata: ["error": "\(error)"])
+                    return nil
+                }
+            }
+            logger.info("Fetched activities by ID", metadata: ["count": "\(activities.count)"])
+            return .success(activities)
         }
     }
 }
@@ -94,29 +86,31 @@ class ActivityService: CodeService<Flipcash_Activity_V1_ActivityFeedNIOClient> {
 public enum ErrorFetchTransactionHistory: Int, Error {
     case ok
     case denied
-    case unknown = -1
+    case unknown          = -1
+    case transportFailure = -2
 }
 
 public enum ErrorFetchTransactionHistoryItemsByID: Int, Error {
     case ok
     case denied
     case notFound
-    case unknown = -1
+    case unknown          = -1
+    case transportFailure = -2
 }
 
-extension ErrorFetchTransactionHistory: ServerError {
+extension ErrorFetchTransactionHistory: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .denied: false
+        case .ok, .denied, .transportFailure: false
         case .unknown: true
         }
     }
 }
 
-extension ErrorFetchTransactionHistoryItemsByID: ServerError {
+extension ErrorFetchTransactionHistoryItemsByID: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .denied, .notFound: false
+        case .ok, .denied, .notFound, .transportFailure: false
         case .unknown: true
         }
     }

@@ -43,8 +43,8 @@ class ProfileService: CodeService<Flipcash_Profile_V1_ProfileNIOClient> {
                 completion(.failure(error))
             }
 
-        } failure: { error in
-            completion(.failure(ErrorFetchProfile.unknown))
+        } failure: { status in
+            completion(.failure(ErrorFetchProfile.from(transportError: status)))
         }
     }
 }
@@ -54,13 +54,14 @@ class ProfileService: CodeService<Flipcash_Profile_V1_ProfileNIOClient> {
 public enum ErrorFetchProfile: Int, Error {
     case ok
     case notFound
-    case unknown = -1
+    case unknown          = -1
+    case transportFailure = -2
 }
 
-extension ErrorFetchProfile: ServerError {
+extension ErrorFetchProfile: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .notFound: false
+        case .ok, .notFound, .transportFailure: false
         case .unknown: true
         }
     }

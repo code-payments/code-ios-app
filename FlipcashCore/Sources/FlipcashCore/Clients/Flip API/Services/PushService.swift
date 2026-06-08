@@ -25,17 +25,13 @@ class PushService: CodeService<Flipcash_Push_V1_PushNIOClient> {
 
         let call = service.addToken(request)
 
-        call.handle(on: queue) { response in
+        call.handle(on: queue, completion: completion) { response in
             let error = ErrorAddToken(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok {
-                completion(.success(()))
-            } else {
+            guard error == .ok else {
                 logger.error("Failed to add push token", metadata: ["error": "\(error)"])
-                completion(.failure(error))
+                return .failure(error)
             }
-
-        } failure: { error in
-            completion(.failure(.unknown))
+            return .success(())
         }
     }
 
@@ -52,48 +48,46 @@ class PushService: CodeService<Flipcash_Push_V1_PushNIOClient> {
 
         let call = service.deleteTokens(request)
 
-        call.handle(on: queue) { response in
+        call.handle(on: queue, completion: completion) { response in
             let error = ErrorDeleteToken(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok {
-                logger.info("Push tokens deleted successfully")
-                completion(.success(()))
-            } else {
+            guard error == .ok else {
                 logger.error("Failed to delete push tokens", metadata: ["error": "\(error)"])
-                completion(.failure(error))
+                return .failure(error)
             }
-
-        } failure: { error in
-            completion(.failure(.unknown))
+            logger.info("Push tokens deleted successfully")
+            return .success(())
         }
     }
 }
 
 // MARK: - Errors -
 
-public enum ErrorAddToken: Int, Error, Sendable {
+public enum ErrorAddToken: Int, Error {
     case ok
     case invalidPushToken
-    case unknown = -1
+    case unknown          = -1
+    case transportFailure = -2
 }
 
-public enum ErrorDeleteToken: Int, Error, Sendable {
+public enum ErrorDeleteToken: Int, Error {
     case ok
-    case unknown = -1
+    case unknown          = -1
+    case transportFailure = -2
 }
 
-extension ErrorAddToken: ServerError {
+extension ErrorAddToken: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .invalidPushToken: false
+        case .ok, .invalidPushToken, .transportFailure: false
         case .unknown: true
         }
     }
 }
 
-extension ErrorDeleteToken: ServerError {
+extension ErrorDeleteToken: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
-        case .ok: false
+        case .ok, .transportFailure: false
         case .unknown: true
         }
     }

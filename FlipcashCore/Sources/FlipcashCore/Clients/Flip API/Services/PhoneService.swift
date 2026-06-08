@@ -24,18 +24,14 @@ class PhoneService: CodeService<Flipcash_Phone_V1_PhoneVerificationNIOClient> {
         }
 
         let call = service.sendVerificationCode(request)
-        call.handle(on: queue) { response in
+        call.handle(on: queue, completion: completion) { response in
             let error = ErrorSendVerificationCode(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok {
-                logger.info("Phone verification code sent successfully")
-                completion(.success(()))
-            } else {
+            guard error == .ok else {
                 logger.error("Failed to send phone verification code", metadata: ["error": "\(error)"])
-                completion(.failure(error))
+                return .failure(error)
             }
-
-        } failure: { error in
-            completion(.failure(.unknown))
+            logger.info("Phone verification code sent successfully")
+            return .success(())
         }
     }
 
@@ -49,18 +45,14 @@ class PhoneService: CodeService<Flipcash_Phone_V1_PhoneVerificationNIOClient> {
         }
 
         let call = service.checkVerificationCode(request)
-        call.handle(on: queue) { response in
+        call.handle(on: queue, completion: completion) { response in
             let error = ErrorCheckVerificationCode(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok {
-                logger.info("Phone verification code accepted")
-                completion(.success(()))
-            } else {
+            guard error == .ok else {
                 logger.error("Phone verification code check failed", metadata: ["error": "\(error)"])
-                completion(.failure(error))
+                return .failure(error)
             }
-
-        } failure: { error in
-            completion(.failure(.unknown))
+            logger.info("Phone verification code accepted")
+            return .success(())
         }
     }
 
@@ -73,25 +65,21 @@ class PhoneService: CodeService<Flipcash_Phone_V1_PhoneVerificationNIOClient> {
         }
 
         let call = service.unlink(request)
-        call.handle(on: queue) { response in
+        call.handle(on: queue, completion: completion) { response in
             let error = ErrorUnlinkPhone(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok {
-                logger.info("Phone number unlinked successfully")
-                completion(.success(()))
-            } else {
+            guard error == .ok else {
                 logger.error("Failed to unlink phone number", metadata: ["error": "\(error)"])
-                completion(.failure(error))
+                return .failure(error)
             }
-
-        } failure: { error in
-            completion(.failure(.unknown))
+            logger.info("Phone number unlinked successfully")
+            return .success(())
         }
     }
 }
 
 // MARK: - Errors -
 
-public enum ErrorSendVerificationCode: Int, Error {
+public enum ErrorSendVerificationCode: Int, Error, Equatable, Sendable {
     case ok
     case denied
     /// SMS is rate limited (eg. by IP, phone number, user, etc) and was not sent.
@@ -102,9 +90,10 @@ public enum ErrorSendVerificationCode: Int, Error {
     /// like a landline.
     case unsupportedPhoneType
     case unknown = -1
+    case transportFailure = -2
 }
 
-public enum ErrorCheckVerificationCode: Int, Error {
+public enum ErrorCheckVerificationCode: Int, Error, Equatable, Sendable {
     case ok
     case denied
     /// The call is rate limited (eg. by IP, phone number, etc). The code is
@@ -120,36 +109,38 @@ public enum ErrorCheckVerificationCode: Int, Error {
     /// verification using SendVerificationCode.
     case noVerification
     case unknown = -1
+    case transportFailure = -2
 }
 
-public enum ErrorUnlinkPhone: Int, Error {
+public enum ErrorUnlinkPhone: Int, Error, Equatable, Sendable {
     case ok
     case denied
     case unknown = -1
+    case transportFailure = -2
 }
 
-extension ErrorSendVerificationCode: ServerError {
+extension ErrorSendVerificationCode: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .denied, .rateLimited, .invalidPhoneNumber, .unsupportedPhoneType: false
+        case .ok, .denied, .rateLimited, .invalidPhoneNumber, .unsupportedPhoneType, .transportFailure: false
         case .unknown: true
         }
     }
 }
 
-extension ErrorCheckVerificationCode: ServerError {
+extension ErrorCheckVerificationCode: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .denied, .rateLimited, .invalidCode, .noVerification: false
+        case .ok, .denied, .rateLimited, .invalidCode, .noVerification, .transportFailure: false
         case .unknown: true
         }
     }
 }
 
-extension ErrorUnlinkPhone: ServerError {
+extension ErrorUnlinkPhone: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .denied: false
+        case .ok, .denied, .transportFailure: false
         case .unknown: true
         }
     }

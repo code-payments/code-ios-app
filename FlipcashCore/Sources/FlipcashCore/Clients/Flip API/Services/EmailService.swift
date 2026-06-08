@@ -38,7 +38,7 @@ class EmailService: CodeService<Flipcash_Email_V1_EmailVerificationNIOClient> {
             if status.code == .invalidArgument {
                 completion(.failure(.invalidEmailAddress))
             } else {
-                completion(.failure(.unknown))
+                completion(.failure(.from(transportError: status)))
             }
         }
     }
@@ -53,18 +53,14 @@ class EmailService: CodeService<Flipcash_Email_V1_EmailVerificationNIOClient> {
         }
 
         let call = service.checkVerificationCode(request)
-        call.handle(on: queue) { response in
+        call.handle(on: queue, completion: completion) { response in
             let error = ErrorCheckEmailCode(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok {
-                logger.info("Email verification code accepted")
-                completion(.success(()))
-            } else {
+            guard error == .ok else {
                 logger.error("Email verification code check failed", metadata: ["error": "\(error)"])
-                completion(.failure(error))
+                return .failure(error)
             }
-
-        } failure: { error in
-            completion(.failure(.unknown))
+            logger.info("Email verification code accepted")
+            return .success(())
         }
     }
 
@@ -77,18 +73,14 @@ class EmailService: CodeService<Flipcash_Email_V1_EmailVerificationNIOClient> {
         }
 
         let call = service.unlink(request)
-        call.handle(on: queue) { response in
+        call.handle(on: queue, completion: completion) { response in
             let error = ErrorUnlinkEmail(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok {
-                logger.info("Email address unlinked successfully")
-                completion(.success(()))
-            } else {
+            guard error == .ok else {
                 logger.error("Failed to unlink email address", metadata: ["error": "\(error)"])
-                completion(.failure(error))
+                return .failure(error)
             }
-
-        } failure: { error in
-            completion(.failure(.unknown))
+            logger.info("Email address unlinked successfully")
+            return .success(())
         }
     }
 }
@@ -103,6 +95,7 @@ public enum ErrorSendEmailCode: Int, Error {
     /// The email address is not real
     case invalidEmailAddress
     case unknown = -1
+    case transportFailure = -2
 }
 
 public enum ErrorCheckEmailCode: Int, Error {
@@ -121,36 +114,38 @@ public enum ErrorCheckEmailCode: Int, Error {
     /// verification using SendVerificationCode.
     case noVerification
     case unknown = -1
+    case transportFailure = -2
 }
 
 public enum ErrorUnlinkEmail: Int, Error {
     case ok
     case denied
     case unknown = -1
+    case transportFailure = -2
 }
 
-extension ErrorSendEmailCode: ServerError {
+extension ErrorSendEmailCode: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .denied, .rateLimited, .invalidEmailAddress: false
+        case .ok, .denied, .rateLimited, .invalidEmailAddress, .transportFailure: false
         case .unknown: true
         }
     }
 }
 
-extension ErrorCheckEmailCode: ServerError {
+extension ErrorCheckEmailCode: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .denied, .rateLimited, .invalidCode, .noVerification: false
+        case .ok, .denied, .rateLimited, .invalidCode, .noVerification, .transportFailure: false
         case .unknown: true
         }
     }
 }
 
-extension ErrorUnlinkEmail: ServerError {
+extension ErrorUnlinkEmail: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .denied: false
+        case .ok, .denied, .transportFailure: false
         case .unknown: true
         }
     }

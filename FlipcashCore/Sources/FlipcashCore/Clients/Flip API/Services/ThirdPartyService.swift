@@ -32,18 +32,14 @@ class ThirdPartyService: CodeService<Flipcash_Thirdparty_V1_ThirdPartyNIOClient>
         }
 
         let call = service.getJwt(request)
-        call.handle(on: queue) { response in
+        call.handle(on: queue, completion: completion) { response in
             let error = ErrorFetchJWT(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok {
-                logger.info("Coinbase onramp JWT fetched successfully")
-                completion(.success(response.jwt.value))
-            } else {
+            guard error == .ok else {
                 logger.error("Failed to fetch Coinbase onramp JWT", metadata: ["error": "\(error)"])
-                completion(.failure(error))
+                return .failure(error)
             }
-
-        } failure: { error in
-            completion(.failure(.unknown))
+            logger.info("Coinbase onramp JWT fetched successfully")
+            return .success(response.jwt.value)
         }
     }
 }
@@ -57,13 +53,14 @@ public enum ErrorFetchJWT: Int, Error {
     case invalidApiKey
     case phoneVerificationRequired
     case emailVerificationRequired
-    case unknown = -1
+    case unknown          = -1
+    case transportFailure = -2
 }
 
-extension ErrorFetchJWT: ServerError {
+extension ErrorFetchJWT: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .denied, .unsupportedProvider, .invalidApiKey, .phoneVerificationRequired, .emailVerificationRequired: false
+        case .ok, .denied, .unsupportedProvider, .invalidApiKey, .phoneVerificationRequired, .emailVerificationRequired, .transportFailure: false
         case .unknown: true
         }
     }
