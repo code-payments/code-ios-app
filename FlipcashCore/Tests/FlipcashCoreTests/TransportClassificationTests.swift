@@ -96,4 +96,16 @@ struct TransportClassificationTests {
         #expect(GRPCStatus(code: .internalError, message: nil).isReportable == true)
         #expect(GRPCStatus(code: .cancelled, message: nil).isReportable == true)
     }
+
+    // MARK: - Real transport errors -
+
+    @Test("A real gRPC RPCTimedOut normalizes to a non-reportable transport status")
+    func rpcTimedOutClassifiesAsNonReportable() {
+        // The unary wrapper routes NIO/gRPC errors through makeGRPCStatus() before
+        // classifying; a real RPC timeout must surface as .deadlineExceeded so it
+        // lands in the transient, non-reportable bucket.
+        let status = GRPCError.RPCTimedOut(.deadline(.now())).makeGRPCStatus()
+        #expect(status.code == .deadlineExceeded)
+        #expect(status.isReportable == false)
+    }
 }
