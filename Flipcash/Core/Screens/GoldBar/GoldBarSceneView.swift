@@ -2,7 +2,8 @@ import SwiftUI
 import SceneKit
 import CoreMotion
 
-/// Hosts the gold-bar SCNView and drives the light + environment from device tilt.
+/// Hosts the gold-bar SCNView and drives the light + environment from device tilt,
+/// or from the tuning panel's manual light controls when "Follow tilt" is off.
 /// The bar and camera never move; only the light orientation and environment rotation change.
 struct GoldBarSceneView: UIViewRepresentable {
 
@@ -10,6 +11,8 @@ struct GoldBarSceneView: UIViewRepresentable {
     var lightIntensity: Double
     var environmentIntensity: Double
     var relief: Double
+    /// Manual light placement, -1...1 on both axes; nil follows device tilt.
+    var manualLight: SIMD2<Double>?
 
     func makeCoordinator() -> Coordinator { Coordinator(qrPayload: qrPayload) }
 
@@ -17,8 +20,7 @@ struct GoldBarSceneView: UIViewRepresentable {
         let view = SCNView()
         view.scene = context.coordinator.bundle.scene
         view.backgroundColor = UIColor(white: 0.04, alpha: 1)
-        view.antialiasingMode = .multisampling4X
-        view.rendersContinuously = true
+        view.antialiasingMode = .multisampling2X
         view.allowsCameraControl = false
         context.coordinator.start()
         return view
@@ -26,10 +28,22 @@ struct GoldBarSceneView: UIViewRepresentable {
 
     func updateUIView(_ uiView: SCNView, context: Context) {
         // Scalars only — never reassign `.contents` here or the baked roughness/normal maps are lost.
-        let bundle = context.coordinator.bundle
-        bundle.keyLightNode.light?.intensity = CGFloat(lightIntensity)
-        bundle.scene.lightingEnvironment.intensity = CGFloat(environmentIntensity)
-        bundle.material.normal.intensity = CGFloat(relief)
+        // Each write is guarded so unrelated SwiftUI updates don't dirty the SceneKit scene.
+        let coordinator = context.coordinator
+        let bundle = coordinator.bundle
+        if coordinator.appliedLightIntensity != lightIntensity {
+            coordinator.appliedLightIntensity = lightIntensity
+            bundle.keyLightNode.light?.intensity = CGFloat(lightIntensity)
+        }
+        if coordinator.appliedEnvironmentIntensity != environmentIntensity {
+            coordinator.appliedEnvironmentIntensity = environmentIntensity
+            bundle.scene.lightingEnvironment.intensity = CGFloat(environmentIntensity)
+        }
+        if coordinator.appliedRelief != relief {
+            coordinator.appliedRelief = relief
+            bundle.material.normal.intensity = CGFloat(relief)
+        }
+        coordinator.setManualLight(manualLight)
     }
 
     static func dismantleUIView(_ uiView: SCNView, coordinator: Coordinator) {
@@ -39,9 +53,14 @@ struct GoldBarSceneView: UIViewRepresentable {
     @MainActor
     final class Coordinator {
         let bundle: GoldBarScene.Bundle
+        var appliedLightIntensity: Double?
+        var appliedEnvironmentIntensity: Double?
+        var appliedRelief: Double?
+
         private let motion = CMMotionManager()
         // Start near the neutral held attitude so the first frame is already centered.
         private var smoothedGravity = SIMD3<Double>(0, GoldBarLighting.neutralGravityY, -0.5)
+        private var manualGravity: SIMD3<Double>?
 
         init(qrPayload: String) {
             bundle = GoldBarScene.make(qrPayload: qrPayload)
@@ -64,21 +83,37 @@ struct GoldBarSceneView: UIViewRepresentable {
             motion.stopDeviceMotionUpdates()
         }
 
+        /// nil follows device tilt; otherwise places the light directly (also works on the
+        /// Simulator, where CoreMotion delivers nothing).
+        func setManualLight(_ light: SIMD2<Double>?) {
+            // Slider extremes scaled to land at the lighting clamps, so the full range is useful.
+            let gravity = light.map {
+                SIMD3<Double>($0.x * 0.6, GoldBarLighting.neutralGravityY + $0.y * 0.85, -0.5)
+            }
+            guard gravity != manualGravity else { return }
+            manualGravity = gravity
+            guard let gravity else { return }
+            smoothedGravity = gravity  // hand back to motion without a jump
+            positionLight(for: gravity)
+        }
+
         private func apply(gravity: SIMD3<Double>) {
+            guard manualGravity == nil else { return }
             smoothedGravity.x = GoldBarLighting.smoothed(previous: smoothedGravity.x, target: gravity.x, factor: 0.18)
             smoothedGravity.y = GoldBarLighting.smoothed(previous: smoothedGravity.y, target: gravity.y, factor: 0.18)
+            positionLight(for: smoothedGravity)
+        }
 
-            let direction = GoldBarLighting.lightDirection(gravity: smoothedGravity)
-            let envRotation = GoldBarLighting.environmentRotation(gravity: smoothedGravity)
-
-            SCNTransaction.begin()
-            SCNTransaction.animationDuration = 0.12
+        /// Direct sets — wrapping these in SCNTransaction animations at 60Hz piles up
+        /// overlapping interpolators and drops frames; the low-pass filter already smooths.
+        private func positionLight(for gravity: SIMD3<Double>) {
+            let direction = GoldBarLighting.lightDirection(gravity: gravity)
+            let envRotation = GoldBarLighting.environmentRotation(gravity: gravity)
             bundle.keyLightNode.position = SCNVector3(Float(direction.x), Float(direction.y), Float(direction.z))
             bundle.keyLightNode.look(at: SCNVector3Zero)
             let yaw = SCNMatrix4MakeRotation(Float(envRotation.yaw), 0, 1, 0)
-            let pitchM = SCNMatrix4MakeRotation(Float(envRotation.pitch), 1, 0, 0)
-            bundle.scene.lightingEnvironment.contentsTransform = SCNMatrix4Mult(yaw, pitchM)
-            SCNTransaction.commit()
+            let pitch = SCNMatrix4MakeRotation(Float(envRotation.pitch), 1, 0, 0)
+            bundle.scene.lightingEnvironment.contentsTransform = SCNMatrix4Mult(yaw, pitch)
         }
     }
 }
