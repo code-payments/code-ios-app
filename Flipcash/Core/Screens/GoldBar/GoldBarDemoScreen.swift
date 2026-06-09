@@ -11,7 +11,8 @@ struct GoldBarDemoScreen: View {
     @State private var relief: Double = 0.55
     @State private var lightX: Double = 0
     @State private var lightY: Double = GoldBarLighting.restElevation
-    @State private var barRotation: Double = 0
+    @State private var barRotationX: Double = 0
+    @State private var barRotationY: Double = 0
 
     private let qrPayload = "https://flipcash.com/gold-bar-demo"
 
@@ -26,7 +27,7 @@ struct GoldBarDemoScreen: View {
                     environmentIntensity: environmentIntensity,
                     relief: relief,
                     lightAnchor: SIMD2(lightX, lightY),
-                    barRotationDegrees: barRotation
+                    barRotationDegrees: SIMD2(barRotationX, barRotationY)
                 )
                 .ignoresSafeArea()
 
@@ -36,7 +37,8 @@ struct GoldBarDemoScreen: View {
                     relief: $relief,
                     lightX: $lightX,
                     lightY: $lightY,
-                    barRotation: $barRotation
+                    barRotationX: $barRotationX,
+                    barRotationY: $barRotationY
                 )
             }
             .toolbar {
@@ -57,7 +59,8 @@ private struct GoldBarTuningOverlay: View {
     @Binding var relief: Double
     @Binding var lightX: Double
     @Binding var lightY: Double
-    @Binding var barRotation: Double
+    @Binding var barRotationX: Double
+    @Binding var barRotationY: Double
 
     @State private var position: CGPoint?
     @State private var panelSize = CGSize(width: 300, height: 320)
@@ -76,7 +79,8 @@ private struct GoldBarTuningOverlay: View {
                 relief: $relief,
                 lightX: $lightX,
                 lightY: $lightY,
-                barRotation: $barRotation
+                barRotationX: $barRotationX,
+                barRotationY: $barRotationY
             )
             .onGeometryChange(for: CGSize.self) { $0.size } action: { panelSize = $0 }
             .onTapGesture {
@@ -158,7 +162,8 @@ private struct GoldBarTuningPanel: View {
     @Binding var relief: Double
     @Binding var lightX: Double
     @Binding var lightY: Double
-    @Binding var barRotation: Double
+    @Binding var barRotationX: Double
+    @Binding var barRotationY: Double
 
     var body: some View {
         VStack(spacing: 10) {
@@ -171,11 +176,12 @@ private struct GoldBarTuningPanel: View {
             LabeledSlider(title: "Relief", value: $relief, range: 0...2)
             LabeledSlider(title: "Light X", value: $lightX, range: -1.5...1.5)
             LabeledSlider(title: "Light Y", value: $lightY, range: -0.5...1.5)
-            LabeledSlider(title: "Rotation", value: $barRotation, range: -90...90)
+            LabeledSlider(title: "Rotation X", value: $barRotationX, range: -90...90)
+            LabeledSlider(title: "Rotation Y", value: $barRotationY, range: -90...90)
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 16)
-        .frame(width: 300)
+        .frame(width: 330)
         .background(Color.black.opacity(0.78), in: RoundedRectangle(cornerRadius: 20))
         .contentShape(RoundedRectangle(cornerRadius: 20))
     }
@@ -191,8 +197,13 @@ private struct LabeledSlider: View {
             Text(title)
                 .font(.appTextHeading)
                 .foregroundStyle(.textMain)
-                .frame(width: 100, alignment: .leading)
+                .frame(width: 92, alignment: .leading)
             Slider(value: $value, in: range)
+            Text(value, format: .number.precision(.fractionLength(0...2)))
+                .font(.appTextHeading)
+                .monospacedDigit()
+                .foregroundStyle(.textMain)
+                .frame(width: 52, alignment: .trailing)
         }
     }
 }
