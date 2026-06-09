@@ -78,4 +78,4 @@ One concrete validator per input type owns the rule, returns the canonical `Outp
 
 `Formatters/`: `NumberFormatter.fiat(...)` (locale-aware, cached behind a lock, manual single-char currency prefix, half-up rounding / `.down` when truncated) backs `FiatAmount.formatted`. `CompactCurrencyFormatStyle` renders `$1M`/`$690K` for market-cap/supply. `DateFormatter` extensions provide tiered relative dates (time today → Today/Yesterday → full weekday name within 6 days → `EEE, MMM dd` for older).
 
-> **Keypad amount strings use the locale's decimal separator** (`Metrics.localizedDecimalSeparator`, `.` as fallback) — not a hardcoded `.`. Any parser consuming `KeyPadView` output must account for the locale separator. (This reverses an older convention; CLAUDE.md still documents the keypad as always emitting `.` — that guidance is stale.)
+> **Keypad amount strings use the locale's decimal separator** (`Metrics.localizedDecimalSeparator`, `.` as fallback) — not a hardcoded `.`. Any parser consuming `KeyPadView` output must account for the locale separator.

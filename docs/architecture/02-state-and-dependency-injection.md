@@ -35,16 +35,16 @@ SessionContainer (struct)
 ├── ratesController                     verified rate/reserve proofs + live streams
 ├── historyController                   activity history sync
 ├── pushController                      APNs token registration
-├── contactSyncController               contact upload + match
+├── contactSyncController               contact upload + match (contact-sync)
 ├── walletConnection                    external-wallet sessions
 ├── verificationCoordinator             phone/email verification
 ├── coinbaseService                     Coinbase onramp orders
 ├── onrampDeeplinkInbox                 onramp deeplink callbacks
 ├── usdcSweepOperation                  USDC→USDF sweep (not in env; called from AppDelegate)
-└── quickActionsController              Home Screen shortcuts (not in env)
+└── quickActionsController              Home Screen shortcuts (not in env) (contact-sync)
 ```
 
-`Database`, `usdcSweepOperation`, and `quickActionsController` are accessed directly (via `AppDelegate.sessionContainer` or by their owners), not the environment.
+`Database`, `usdcSweepOperation`, and `quickActionsController` *(contact-sync)* are accessed directly (via `AppDelegate.sessionContainer` or by their owners), not the environment.
 
 ## `Session` — the main state object
 
@@ -60,7 +60,7 @@ Responsibility buckets:
 | Profile & flags | `profile`, `userFlags`, `syncUserPreferences()` |
 | UI presentation | `billState`, `toast`, `dialogItem`, `isShowingBillDesigner` |
 | Cash bill / ops | `scanOperation`, `sendOperation`, `showCashBill(_:)`, `receiveCash`, `dismissCashBill` |
-| Transactions | `buy`, `sell`, `withdraw`, `send`, `launchCurrency`, `resolveContact` |
+| Transactions | `buy`, `sell`, `withdraw`, `launchCurrency`, plus `send` / `resolveContact` *(contact-sync)* |
 | Lifecycle | `didBecomeActive()`, `didEnterBackground()`, `updatePostTransaction()` |
 
 DB-backed properties use an `Updateable<T>` wrapper that re-reads the query on `.databaseDidChange` and republishes into a tracked slot — SwiftUI refreshes without polling. Private deps (`client`, `database`, `ratesController`, …) are `@ObservationIgnored`.
@@ -75,7 +75,7 @@ DB-backed properties use an `Updateable<T>` wrapper that re-reads the query on `
 `SessionAuthenticator` (`@Observable`). States: `.migrating` (initial) → `.loggedOut` / `.loggedIn(SessionContainer)`. (A `.pending` case exists in the enum and is handled by `ContainerScreen`, but is currently never assigned.)
 
 - **Auto-login** (non-test): reads `UserAccount` from Keychain via `AccountManager`; if present, `completeLogin` directly (no network). Otherwise falls back to the historical account — if present, runs `flipClient.login` + `client.createAccounts` once. If `wasLoggedIn` is true but the Keychain hasn't decoded the historical account yet, the *lookup* is retried up to 6× with 1s delays.
-- **`completeLogin`** derives `owner: AccountCluster` from the mnemonic, runs `initializeDatabase(owner:)` (version-gates the SQLite store — see [05](05-persistence.md)), constructs the controllers + `Session`, fires `historyController.sync()` and (conditionally) `contactSyncController.activate()`, then sets `.loggedIn`.
+- **`completeLogin`** derives `owner: AccountCluster` from the mnemonic, runs `initializeDatabase(owner:)` (version-gates the SQLite store — see [05](05-persistence.md)), constructs the controllers + `Session`, fires `historyController.sync()` and (conditionally) `contactSyncController.activate()` *(contact-sync)*, then sets `.loggedIn`.
 - **Background polling**: a 30s `Poller` checks `fetchUnauthenticatedUserFlags` (force-upgrade gate) and `checkForUnusableAccount` (force-logout gate).
 
 `AccountManager` (`Flipcash/Core/Session/AccountManager.swift`) owns two Keychain slots: the current `UserAccount` and an iCloud-synced `historicalAccounts` map (multi-account). Logout nils the current account; historical is preserved.

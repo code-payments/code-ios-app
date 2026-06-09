@@ -1,21 +1,21 @@
 # Modules & Boundaries
 
-The codebase is split into 5 SPM packages plus the app target and one app extension (NotificationService); a share helper is embedded in the app target rather than being its own target. The split enforces a strict, acyclic dependency layering: business logic never imports UI, UI never imports the network layer, and generated code is isolated behind one package.
+The codebase is split into 5 SPM packages plus the app target and one app extension (NotificationService *(contact-sync)*); a share helper is embedded in the app target rather than being its own target. The split enforces a strict, acyclic dependency layering: business logic never imports UI, UI never imports the network layer, and generated code is isolated behind one package.
 
 ## Module inventory
 
-| Module | Type | Purpose | ~Files |
-|--------|------|---------|--------|
-| **CodeCurves** | SPM package | Ed25519 crypto — pure-C implementation (zero Swift; the `KeyPair` wrapper lives in FlipcashCore) | ~18 C/h |
-| **CodeScanner** | SPM package | C++/OpenCV "Kik Code" circular-2D encode/decode/scan; bundles OpenCV 4.10 | ~12 C++ + bridge |
-| **FlipcashAPI** | SPM package | **All** generated gRPC/protobuf Swift bindings (both backends) | ~45 (100% generated) |
-| **FlipcashCore** | SPM package | Business logic, models, gRPC service wrappers, logging, validation, formatters — **no SwiftUI** | ~216 |
-| **FlipcashUI** | SPM package | Reusable SwiftUI/UIKit components + design tokens — **no networking/persistence** | ~78 |
-| **Flipcash** | Xcode app target | Screens, navigation, controllers (Database, Session, Rates…), 3rd-party SDKs | ~205 |
-| **NotificationService** | Xcode extension | `UNNotificationServiceExtension` — resolves contact names on-device, renders communication notifications | 1 |
-| **Flipcash/Share** | Files in app target | System share-sheet wrapper (`UIActivityViewController`) for cash links | 2 |
-| **FlipcashTests** | Xcode test target | Unit/integration tests (Swift Testing) for app + Core | ~118 |
-| **FlipcashUITests** | Xcode test target | Black-box XCUITest smoke tests | ~35 |
+| Module | Type | Purpose |
+|--------|------|---------|
+| **CodeCurves** | SPM package | Ed25519 crypto — pure-C implementation (zero Swift; the `KeyPair` wrapper lives in FlipcashCore) |
+| **CodeScanner** | SPM package | C++/OpenCV "Kik Code" circular-2D encode/decode/scan; bundles OpenCV 4.10 |
+| **FlipcashAPI** | SPM package | **All** generated gRPC/protobuf Swift bindings (both backends), 100% generated |
+| **FlipcashCore** | SPM package | Business logic, models, gRPC service wrappers, logging, validation, formatters — **no SwiftUI** |
+| **FlipcashUI** | SPM package | Reusable SwiftUI/UIKit components + design tokens — **no networking/persistence** |
+| **Flipcash** | Xcode app target | Screens, navigation, controllers (Database, Session, Rates…), 3rd-party SDKs |
+| **NotificationService** *(contact-sync)* | Xcode extension | `UNNotificationServiceExtension` — resolves contact names on-device, renders communication notifications |
+| **Flipcash/Share** | Files in app target | System share-sheet wrapper (`UIActivityViewController`) for cash links |
+| **FlipcashTests** | Xcode test target | Unit/integration tests (Swift Testing) for app + Core |
+| **FlipcashUITests** | Xcode test target | Black-box XCUITest smoke tests |
 
 ## Dependency graph
 
@@ -30,7 +30,7 @@ graph TD
     Core --> Curves["CodeCurves"]
     Core --> Libs["BigDecimal · PhoneNumberKit · swift-log"]
     API --> gRPC["grpc-swift 1.x"]
-    Ext["NotificationService extension"] --> Core
+    Ext["NotificationService extension (contact-sync)"] --> Core
     Ext --> API
 ```
 *Arrows point to dependencies; the graph is acyclic.*
@@ -60,7 +60,7 @@ The observability/analytics SDKs (Firebase, Bugsnag, Mixpanel) are confined to t
 
 ## Embedded targets
 
-- **NotificationService** — runs in a tight memory/time budget. Server pushes E.164 numbers + positional placeholders; the extension queries `CNContactStore` to resolve names, and renders "Sent You Cash" pushes as `INSendMessageIntent` communication notifications (sender avatar in the banner). Imports FlipcashCore + FlipcashAPI only.
+- **NotificationService** *(contact-sync)* — runs in a tight memory/time budget. Server pushes E.164 numbers + positional placeholders; the extension queries `CNContactStore` to resolve names, and renders "Sent You Cash" pushes as `INSendMessageIntent` communication notifications (sender avatar in the banner). Imports FlipcashCore + FlipcashAPI only.
 - **Share** — `ShareCashLinkItem` (`UIActivityItemSource` providing a cash-link URL) + `ShareSheet` (`UIViewControllerRepresentable` over `UIActivityViewController`). Embedded in the app target, not a separate bundle.
 
 ## Why this matters

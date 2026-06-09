@@ -24,7 +24,7 @@ Both `@MainActor ObservableObject`, both built from `ClientConnection.appConnect
 
 Pattern: **generated `*NIOClient` stub → `CodeService<T>` subclass → method on `Client`/`FlipClient`**.
 
-`CodeService<T>` (`CodeService.swift`) is a generic base holding the connection, a `DispatchQueue`, and the generated stub (configured with `defaultCallOptions: .default` + `InterceptorFactory()`). Concrete services subclass it: `TransactionService`, `CurrencyService`, `MessagingService`, `AccountInfoService`, `SwapService` (payments side); `AccountService`, `PushService`, `ActivityService`, `PhoneService`, `EmailService`, `ProfileService`, `SettingsService`, `ModerationService`, `ContactListService`, `ResolverService`, `ThirdPartyService`, … (Flipcash side). Unary calls dispatch their result back onto the capture queue via a `handle(on:success:failure:)` helper.
+`CodeService<T>` (`CodeService.swift`) is a generic base holding the connection, a `DispatchQueue`, and the generated stub (configured with `defaultCallOptions: .default` + `InterceptorFactory()`). Concrete services subclass it: `TransactionService`, `CurrencyService`, `MessagingService`, `AccountInfoService`, `SwapService` (payments side); `AccountService`, `PushService`, `ActivityService`, `PhoneService`, `EmailService`, `ProfileService`, `SettingsService`, `ModerationService`, `ThirdPartyService`, plus `ContactListService` / `ResolverService` *(contact-sync)* (Flipcash side). Unary calls dispatch their result back onto the capture queue via a `handle(on:success:failure:)` helper.
 
 ## CallOptions — the 15s trap
 
@@ -68,10 +68,10 @@ Separate from gRPC. `SolanaRPC` (JSON-RPC 2.0 over `URLSession`, default `api.ma
 
 ## Push notifications
 
-`FlipcashCore/.../Push/`: `NotificationPayload` decodes a base64 `Flipcash_Push_V1_Payload` from `userInfo` (key `flipcash_payload`); `SubstitutionApplier` fills `{0}`/`{1}` placeholders (resolved contact names). APNs tokens registered via `PushService` (`addToken`/`deleteTokens`). The NotificationService extension resolves names on-device (see [01](01-modules-and-boundaries.md)).
+`FlipcashCore/.../Push/`: `NotificationPayload` decodes a base64 `Flipcash_Push_V1_Payload` from `userInfo` (key `flipcash_payload`); `SubstitutionApplier` fills `{0}`/`{1}` placeholders (resolved contact names). APNs tokens registered via `PushService` (`addToken`/`deleteTokens`). The NotificationService extension *(contact-sync)* resolves names on-device (see [01](01-modules-and-boundaries.md)).
 
 ## Generated code
 
 `FlipcashAPI/Sources/FlipcashAPI/` holds both proto trees: **`Payments/`** (namespace `ocp.*`: account, currency, messaging, transaction) and **`Core/`** (namespace `flipcash.*`: account, activity, contact, email, phone, profile, push, resolver, settings, moderation, …), each with a `Generated/` subdir. Regenerate via `Scripts/run -a flipcashPayments` / `flipcashCore` (needs `protoc`, `protoc-gen-swift`, `protoc-gen-grpc-swift` **v1.x**). Never edit `Generated/` by hand.
 
-> The repo root also contains an empty `FlipcashCoreAPI/` directory (and CLAUDE.md still lists it as a package). It is a legacy placeholder with no sources — all core bindings live under `FlipcashAPI/Sources/FlipcashAPI/Core/`.
+> The repo root also contains an empty `FlipcashCoreAPI/` directory. It is a legacy placeholder with no sources — all core bindings live under `FlipcashAPI/Sources/FlipcashAPI/Core/`.

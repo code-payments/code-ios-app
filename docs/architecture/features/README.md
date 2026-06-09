@@ -10,7 +10,7 @@ The dominant convention (per [10 — Separation of Concerns](../10-separation-of
 graph TD
     Scan["ScanScreen — home"] --> Give["Give — show cash bill"]
     Scan --> Grab["Scan & grab a bill"]
-    Scan --> Send["Send to a contact"]
+    Scan --> Send["Send to a contact (contact-sync)"]
     Scan --> Balance["Balance / portfolio"]
     Scan --> Discover["Discover currencies"]
     Balance --> Info["Currency info"]
@@ -26,13 +26,13 @@ graph TD
 | Feature | Purpose | Screens / VM | Pattern |
 |---------|---------|--------------|---------|
 | **Intro / Splash** | Entry point; animates into login or recovery | `Onboarding/IntroScreen` | screen-local |
-| **Login** | Phone-number auth / account creation | `Onboarding/LoginScreen` | screen-local |
+| **Login** | Log in with the 12-word access key (mnemonic entry) | `Onboarding/LoginScreen` | screen-local |
 | **Access Key** | Show/enter the 12-word Ed25519 seed (+ help) | `AccessKeyScreen`, `AccessKeyHelpScreen` | screen-local |
 | **Notification permission** | Request push permission (+ denied recovery) | `NotificationPermissionScreen`(+`Denied`) | screen-local |
-| **Onboarding flow** | Coordinates access key → contacts → phone → notifications | `OnboardingViewModel` (`@Observable`) | **VM-driven** (owns a child `PhoneVerificationViewModel`) |
+| **Onboarding flow** | Coordinates access key → notifications (contacts → phone steps *(contact-sync)*) | `OnboardingViewModel` (`@Observable`) | **VM-driven** |
 | **Email verification** | Enter email → confirm code; also a Coinbase gate | `EnterEmailScreen`, `ConfirmEmailScreen` · `EmailVerificationViewModel` | **VM-driven** (`EmailVerifying`) |
 | **Phone verification** | Enter phone → confirm SMS (+ country picker); gates Send | `EnterPhoneScreen`, `ConfirmPhoneScreen`, `CountryCodeSelectionScreen` · `PhoneVerificationViewModel` | **VM-driven** (`PhoneVerifying`) |
-| **Contacts permission** | One-shot contacts grant for Send | `ContactsPermission/ContactsPermissionScreen` | screen-local |
+| **Contacts permission** *(contact-sync)* | One-shot contacts grant for Send | `ContactsPermission/ContactsPermissionScreen` | screen-local |
 | **Account selection** | List historical accounts w/ balances; switch/delete | `Onboarding/AccountSelectionScreen` | screen-local |
 
 ## B. Money movement
@@ -42,7 +42,7 @@ graph TD
 | **Scan / Main camera** | The home screen — decodes circular cash codes + QR links | `Main/ScanScreen` · `ScanViewModel` | **VM-driven**; spawns `SendCashOperation`/`ScanCashOperation`, routes deeplinks |
 | **Cash bill** | Animated circular-code bill over the camera (live send/receive) | `Main/Bill/BillCanvas`, `BillState`, `BillValuation` | the give/grab rendezvous (see [06](../06-payments-and-operations.md)) |
 | **Give** | Amount entry for a cash-bill give | `Main/GiveScreen` · `GiveViewModel` | **VM-driven**; pins `VerifiedState`, calls `session.showCashBill` |
-| **Send (contact)** | Contact picker → amount → SMS-invite or direct transfer | `Send/SendRootScreen`, `RecipientPickerScreen`, `SendAmountScreen` · `SendAmountViewModel` | mixed; root gates contacts/phone-verify; `router.push(.sendAmount)` |
+| **Send (contact)** *(contact-sync)* | Contact picker → amount → SMS-invite or direct transfer | `Send/SendRootScreen`, `RecipientPickerScreen`, `SendAmountScreen` · `SendAmountViewModel` | mixed; root gates contacts/phone-verify; `router.push(.sendAmount)` |
 | **Buy** | Amount + method (Apple Pay / Phantom / Coinbase) | `Main/Buy/BuyAmountScreen`, `PurchaseMethodSheet`, `PhantomFlowScreen` · `BuyAmountViewModel` | **VM-driven**; nested `BuyFlowPath`; dispatches the three `FundingOperation`s |
 | **Sell** | Sell a custom currency back to USDF via the curve | `CurrencySellAmountScreen`, `CurrencySellConfirmationScreen` · `CurrencySellViewModel`(+`Confirmation`) | **VM-driven**; → swap processing |
 | **Swap processing** | Blocking screen during any buy/sell swap; polls state | `Main/Currency Swap/SwapProcessingScreen` · `SwapProcessingViewModel` | **VM-driven**; calls `updatePostTransaction` |
@@ -75,7 +75,7 @@ graph TD
 | **Beta flags** | Developer feature-flag toggles | `Settings/BetaFlagsScreen` | screen-local; `BetaFlags` |
 | **Access key backup** | Show the 12-word key from Settings | `Settings/AccessKeyBackupScreen` | screen-local |
 | **Application logs** | In-app log viewer | `Settings/ApplicationLogsScreen` | screen-local |
-| **Download app** | Full-screen prompt for a counterparty to install (over scanner) | `Main/DownloadAppScreen` | screen-local; **router destination** (gets 5-min auto-return) |
+| **Download app** | Full-screen prompt for a counterparty to install (over scanner) | `Main/DownloadAppScreen` | screen-local; **router sheet** (gets 5-min auto-return) |
 | **Force logout / upgrade** | Blocking screens on server demand | `ForceLogoutScreen`, `ForceUpgradeScreen` | screen-local |
-| **Quick actions** | Dynamic Home Screen shortcuts (Scan, flag-gated Send) | `Controllers/QuickActionsController` | no screen; deeplinks in |
+| **Quick actions** *(contact-sync)* | Dynamic Home Screen shortcuts (Scan, flag-gated Send) | `Controllers/QuickActionsController` | no screen; deeplinks in |
 | **Dialog window** | Hosts `session.dialogItem` above all sheets | `Main/DialogWindow` | infrastructure (see [08](../08-design-system.md)) |
