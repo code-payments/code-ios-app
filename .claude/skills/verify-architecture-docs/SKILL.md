@@ -2,7 +2,7 @@
 name: verify-architecture-docs
 description: Fact-check docs/architecture/*.md against the actual code — catch correctness drift (a doc says X, the code does Y), not just untouched files. Fans out one adversarial checker per doc and writes a drift report.
 argument-hint: "[--since <ref> | --doc <path>]"
-model: opus
+model: fable
 effort: max
 allowed-tools:
   - Read
