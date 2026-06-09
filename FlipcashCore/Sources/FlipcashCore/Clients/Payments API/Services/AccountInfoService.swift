@@ -8,7 +8,6 @@
 
 import Foundation
 import FlipcashAPI
-import Combine
 import GRPCCore
 
 private let logger = Logger(label: "flipcash.account-info-service")
