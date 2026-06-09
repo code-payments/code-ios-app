@@ -8,11 +8,17 @@
 
 import Foundation
 import FlipcashAPI
-import GRPC
+import GRPCCore
 
 private let logger = Logger(label: "flipcash.phone-service")
 
-class PhoneService: CodeService<Flipcash_Phone_V1_PhoneVerificationNIOClient> {
+final class PhoneService: Sendable {
+
+    private let service: Flipcash_Phone_V1_PhoneVerification.Client<AppTransport>
+
+    init(client: GRPCClient<AppTransport>) {
+        self.service = Flipcash_Phone_V1_PhoneVerification.Client(wrapping: client)
+    }
 
     func sendVerificationCode(phone: String, owner: KeyPair, completion: @Sendable @escaping (Result<(), ErrorSendVerificationCode>) -> Void) {
         logger.info("Sending phone verification code")
@@ -23,15 +29,22 @@ class PhoneService: CodeService<Flipcash_Phone_V1_PhoneVerificationNIOClient> {
             $0.auth = owner.authFor(message: $0)
         }
 
-        let call = service.sendVerificationCode(request)
-        call.handle(on: queue, completion: completion) { response in
-            let error = ErrorSendVerificationCode(rawValue: response.result.rawValue) ?? .unknown
-            guard error == .ok else {
-                logger.error("Failed to send phone verification code", metadata: ["error": "\(error)"])
-                return .failure(error)
+        Task { @MainActor in
+            do {
+                let response = try await service.sendVerificationCode(request, options: .unaryDefault)
+                let error = ErrorSendVerificationCode(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to send phone verification code", metadata: ["error": "\(error)"])
+                    completion(.failure(error))
+                    return
+                }
+                logger.info("Phone verification code sent successfully")
+                completion(.success(()))
+            } catch let error as RPCError {
+                completion(.failure(.from(transportError: error)))
+            } catch {
+                completion(.failure(.unknown))
             }
-            logger.info("Phone verification code sent successfully")
-            return .success(())
         }
     }
 
@@ -44,15 +57,22 @@ class PhoneService: CodeService<Flipcash_Phone_V1_PhoneVerificationNIOClient> {
             $0.auth = owner.authFor(message: $0)
         }
 
-        let call = service.checkVerificationCode(request)
-        call.handle(on: queue, completion: completion) { response in
-            let error = ErrorCheckVerificationCode(rawValue: response.result.rawValue) ?? .unknown
-            guard error == .ok else {
-                logger.error("Phone verification code check failed", metadata: ["error": "\(error)"])
-                return .failure(error)
+        Task { @MainActor in
+            do {
+                let response = try await service.checkVerificationCode(request, options: .unaryDefault)
+                let error = ErrorCheckVerificationCode(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Phone verification code check failed", metadata: ["error": "\(error)"])
+                    completion(.failure(error))
+                    return
+                }
+                logger.info("Phone verification code accepted")
+                completion(.success(()))
+            } catch let error as RPCError {
+                completion(.failure(.from(transportError: error)))
+            } catch {
+                completion(.failure(.unknown))
             }
-            logger.info("Phone verification code accepted")
-            return .success(())
         }
     }
 
@@ -64,15 +84,22 @@ class PhoneService: CodeService<Flipcash_Phone_V1_PhoneVerificationNIOClient> {
             $0.auth = owner.authFor(message: $0)
         }
 
-        let call = service.unlink(request)
-        call.handle(on: queue, completion: completion) { response in
-            let error = ErrorUnlinkPhone(rawValue: response.result.rawValue) ?? .unknown
-            guard error == .ok else {
-                logger.error("Failed to unlink phone number", metadata: ["error": "\(error)"])
-                return .failure(error)
+        Task { @MainActor in
+            do {
+                let response = try await service.unlink(request, options: .unaryDefault)
+                let error = ErrorUnlinkPhone(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to unlink phone number", metadata: ["error": "\(error)"])
+                    completion(.failure(error))
+                    return
+                }
+                logger.info("Phone number unlinked successfully")
+                completion(.success(()))
+            } catch let error as RPCError {
+                completion(.failure(.from(transportError: error)))
+            } catch {
+                completion(.failure(.unknown))
             }
-            logger.info("Phone number unlinked successfully")
-            return .success(())
         }
     }
 
@@ -84,15 +111,22 @@ class PhoneService: CodeService<Flipcash_Phone_V1_PhoneVerificationNIOClient> {
             $0.auth = owner.authFor(message: $0)
         }
 
-        let call = service.linkForPayment(request)
-        call.handle(on: queue, completion: completion) { response in
-            let error = ErrorLinkForPayment(rawValue: response.result.rawValue) ?? .unknown
-            guard error == .ok else {
-                logger.error("Failed to link phone number for payment", metadata: ["error": "\(error)"])
-                return .failure(error)
+        Task { @MainActor in
+            do {
+                let response = try await service.linkForPayment(request, options: .unaryDefault)
+                let error = ErrorLinkForPayment(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to link phone number for payment", metadata: ["error": "\(error)"])
+                    completion(.failure(error))
+                    return
+                }
+                logger.info("Phone number linked for payment successfully")
+                completion(.success(()))
+            } catch let error as RPCError {
+                completion(.failure(.from(transportError: error)))
+            } catch {
+                completion(.failure(.unknown))
             }
-            logger.info("Phone number linked for payment successfully")
-            return .success(())
         }
     }
 }
@@ -181,33 +215,5 @@ extension ErrorLinkForPayment: ServerError, TransportClassifiableError {
         case .ok, .denied, .notAssociated, .transportFailure: false
         case .unknown: true
         }
-    }
-}
-
-// MARK: - Interceptors -
-
-extension InterceptorFactory: Flipcash_Phone_V1_PhoneVerificationClientInterceptorFactoryProtocol {
-    func makeUnlinkInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Phone_V1_UnlinkRequest, Flipcash_Phone_V1_UnlinkResponse>] {
-        makeInterceptors()
-    }
-    
-    func makeSendVerificationCodeInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Phone_V1_SendVerificationCodeRequest, Flipcash_Phone_V1_SendVerificationCodeResponse>] {
-        makeInterceptors()
-    }
-    
-    func makeCheckVerificationCodeInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Phone_V1_CheckVerificationCodeRequest, Flipcash_Phone_V1_CheckVerificationCodeResponse>] {
-        makeInterceptors()
-    }
-
-    func makeLinkForPaymentInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Phone_V1_LinkForPaymentRequest, Flipcash_Phone_V1_LinkForPaymentResponse>] {
-        makeInterceptors()
-    }
-}
-
-// MARK: - GRPCClientType -
-
-extension Flipcash_Phone_V1_PhoneVerificationNIOClient: GRPCClientType {
-    init(channel: GRPCChannel) {
-        self.init(channel: channel, defaultCallOptions: .default, interceptors: InterceptorFactory())
     }
 }

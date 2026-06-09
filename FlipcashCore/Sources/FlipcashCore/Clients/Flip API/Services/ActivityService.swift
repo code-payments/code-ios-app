@@ -8,11 +8,17 @@
 
 import Foundation
 import FlipcashAPI
-import GRPC
+import GRPCCore
 
 private let logger = Logger(label: "flipcash.activity-service")
 
-class ActivityService: CodeService<Flipcash_Activity_V1_ActivityFeedNIOClient> {
+final class ActivityService: Sendable {
+
+    private let service: Flipcash_Activity_V1_ActivityFeed.Client<AppTransport>
+
+    init(client: GRPCClient<AppTransport>) {
+        self.service = Flipcash_Activity_V1_ActivityFeed.Client(wrapping: client)
+    }
 
     func fetchTransactionHistory(owner: KeyPair, pageSize: Int, since cursor: PublicKey?, completion: @Sendable @escaping (Result<[Activity], ErrorFetchTransactionHistory>) -> Void) {
         logger.info("Fetching transaction history", metadata: [
@@ -32,23 +38,30 @@ class ActivityService: CodeService<Flipcash_Activity_V1_ActivityFeedNIOClient> {
             $0.auth = owner.authFor(message: $0)
         }
 
-        let call = service.getPagedNotifications(request)
-        call.handle(on: queue, completion: completion) { response in
-            let error = ErrorFetchTransactionHistory(rawValue: response.result.rawValue) ?? .unknown
-            guard error == .ok else {
-                logger.error("Failed to fetch transaction history", metadata: ["owner": "\(owner.publicKey.base58)"])
-                return .failure(error)
-            }
-            let activities = response.notifications.compactMap {
-                do {
-                    return try Activity($0)
-                } catch {
-                    logger.error("Failed to parse activity", metadata: ["error": "\(error)"])
-                    return nil
+        Task { @MainActor in
+            do {
+                let response = try await service.getPagedNotifications(request, options: .unaryDefault)
+                let error = ErrorFetchTransactionHistory(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to fetch transaction history", metadata: ["owner": "\(owner.publicKey.base58)"])
+                    completion(.failure(error))
+                    return
                 }
+                let activities = response.notifications.compactMap {
+                    do {
+                        return try Activity($0)
+                    } catch {
+                        logger.error("Failed to parse activity", metadata: ["error": "\(error)"])
+                        return nil
+                    }
+                }
+                logger.info("Fetched activities", metadata: ["count": "\(activities.count)"])
+                completion(.success(activities))
+            } catch let error as RPCError {
+                completion(.failure(.from(transportError: error)))
+            } catch {
+                completion(.failure(.unknown))
             }
-            logger.info("Fetched activities", metadata: ["count": "\(activities.count)"])
-            return .success(activities)
         }
     }
 
@@ -60,23 +73,30 @@ class ActivityService: CodeService<Flipcash_Activity_V1_ActivityFeedNIOClient> {
             $0.auth = owner.authFor(message: $0)
         }
 
-        let call = service.getBatchNotifications(request)
-        call.handle(on: queue, completion: completion) { response in
-            let error = ErrorFetchTransactionHistoryItemsByID(rawValue: response.result.rawValue) ?? .unknown
-            guard error == .ok else {
-                logger.error("Failed to fetch transaction history items", metadata: ["owner": "\(owner.publicKey.base58)"])
-                return .failure(error)
-            }
-            let activities = response.notifications.compactMap {
-                do {
-                    return try Activity($0)
-                } catch {
-                    logger.error("Failed to parse activity", metadata: ["error": "\(error)"])
-                    return nil
+        Task { @MainActor in
+            do {
+                let response = try await service.getBatchNotifications(request, options: .unaryDefault)
+                let error = ErrorFetchTransactionHistoryItemsByID(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to fetch transaction history items", metadata: ["owner": "\(owner.publicKey.base58)"])
+                    completion(.failure(error))
+                    return
                 }
+                let activities = response.notifications.compactMap {
+                    do {
+                        return try Activity($0)
+                    } catch {
+                        logger.error("Failed to parse activity", metadata: ["error": "\(error)"])
+                        return nil
+                    }
+                }
+                logger.info("Fetched activities by ID", metadata: ["count": "\(activities.count)"])
+                completion(.success(activities))
+            } catch let error as RPCError {
+                completion(.failure(.from(transportError: error)))
+            } catch {
+                completion(.failure(.unknown))
             }
-            logger.info("Fetched activities by ID", metadata: ["count": "\(activities.count)"])
-            return .success(activities)
         }
     }
 }
@@ -113,29 +133,5 @@ extension ErrorFetchTransactionHistoryItemsByID: ServerError, TransportClassifia
         case .ok, .denied, .notFound, .transportFailure: false
         case .unknown: true
         }
-    }
-}
-
-// MARK: - Interceptors -
-
-extension InterceptorFactory: Flipcash_Activity_V1_ActivityFeedClientInterceptorFactoryProtocol {
-    func makeGetBatchNotificationsInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Activity_V1_GetBatchNotificationsRequest, Flipcash_Activity_V1_GetBatchNotificationsResponse>] {
-        makeInterceptors()
-    }
-    
-    func makeGetPagedNotificationsInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Activity_V1_GetPagedNotificationsRequest, Flipcash_Activity_V1_GetPagedNotificationsResponse>] {
-        makeInterceptors()
-    }
-    
-    func makeGetLatestNotificationsInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Activity_V1_GetLatestNotificationsRequest, Flipcash_Activity_V1_GetLatestNotificationsResponse>] {
-        makeInterceptors()
-    }
-}
-
-// MARK: - GRPCClientType -
-
-extension Flipcash_Activity_V1_ActivityFeedNIOClient: GRPCClientType {
-    init(channel: GRPCChannel) {
-        self.init(channel: channel, defaultCallOptions: .default, interceptors: InterceptorFactory())
     }
 }
