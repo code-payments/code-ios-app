@@ -7,7 +7,6 @@ let package = Package(
     name: "FlipcashCore",
     platforms: [
         .iOS(.v18),
-        .macOS(.v15),
     ],
     products: [
         .library(
