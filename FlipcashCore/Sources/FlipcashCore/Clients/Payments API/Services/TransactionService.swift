@@ -602,6 +602,7 @@ final class TransactionService: Sendable {
                         "intentId": "\(intent.id.base58)",
                         "error": "\(error)"
                     ])
+                    reference.cancel()
                     completion(.failure(.unknown))
                 }
 
