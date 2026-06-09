@@ -322,7 +322,7 @@ Every router mutation logs one INFO entry under `flipcash.router` — filter by 
 | Technology | Version/Notes |
 |------------|---------------|
 | Swift | 6.0 (language mode); Xcode toolchain 16.x |
-| iOS Minimum | 17.0 |
+| iOS Minimum | 18.0 |
 | UI Framework | SwiftUI (primary), UIKit (AppDelegate, navigation) |
 | Testing | Swift Testing (`import Testing`) |
 | Database | SQLite via SQLite.swift (fork, see below) |
