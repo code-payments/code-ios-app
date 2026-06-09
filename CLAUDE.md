@@ -43,6 +43,31 @@ When adding new information, place it in the appropriate existing section. Remov
 
 ---
 
+## Architecture Docs
+
+**`docs/architecture/` is the canonical map of how the app fits together.** Read the relevant doc before changing a subsystem, and update it in the **same change** when your work alters what it describes — treat the doc edit as part of the diff, not a follow-up.
+
+**Update the matching doc when you:**
+
+- Add/remove a package or change a module boundary → `01-modules-and-boundaries.md`
+- Change DI, state ownership, or the session/auth lifecycle → `02-state-and-dependency-injection.md`
+- Add/restructure a router sheet, stack, destination, or deeplink → `03-navigation.md`
+- Add an RPC, change `CallOptions`, or touch request signing/streaming → `04-networking.md`
+- Change the schema, a cached table, or the no-migration policy → `05-persistence.md`
+- Change intent submission, `VerifiedState`, the give/grab flow, or a funding operation → `06-payments-and-operations.md`
+- Change Quarks/fiat math, the bonding curve, a domain model, or a `Validator` → `07-currency-and-domain-model.md`
+- Add/rename a FlipcashUI component or design token → `08-design-system.md`
+- Change logging, error reporting, analytics, or crypto/scanning plumbing → `09-cross-cutting-concerns.md`
+- Add, remove, or materially change a user-facing feature → `features/README.md`
+
+The full concern→doc index and per-doc watch paths live in [`docs/architecture/README.md`](docs/architecture/README.md). `README.md` and `10-separation-of-concerns.md` are cross-cutting syntheses — revisit them when the structure they summarize shifts, not on routine edits.
+
+**Scope (mirror the docs' own style):** describe *structure and intent*, not every line — usually a one-line table row or a corrected sentence is the whole change. If a doc and the code disagree, the code wins — fix the doc. Don't add per-doc "last updated" stamps; git history is the timestamp.
+
+**Verifying correctness:** this rule catches *missing* updates only. To check whether a doc is actually *correct* against the code, run `/verify-architecture-docs` — it fact-checks each doc's claims against the source and writes a drift report. Run it after large changes or periodically.
+
+---
+
 ## Behavior & Approach
 
 ### Working Style
@@ -219,7 +244,7 @@ Open `Code.xcodeproj` in Xcode 16.x. Swift packages resolve automatically on fir
 
 ### Regenerating Protos
 
-Swift gRPC bindings in `FlipcashAPI/Sources/FlipcashAPI/Generated` and `FlipcashCoreAPI/Sources/FlipcashCoreAPI/Generated` are generated from `.proto` files pulled from the server-protobuf repos. To regenerate:
+Swift gRPC bindings in `FlipcashAPI/Sources/FlipcashAPI/Payments/Generated` and `FlipcashAPI/Sources/FlipcashAPI/Core/Generated` are generated from `.proto` files pulled from the server-protobuf repos. To regenerate:
 
 ```
 cd Scripts
@@ -335,8 +360,7 @@ Every router mutation logs one INFO entry under `flipcash.router` — filter by 
 Flipcash/          # Main app - focus here
 FlipcashCore/      # Business logic, models, clients
 FlipcashUI/        # UI components, theme
-FlipcashAPI/       # gRPC proto definitions
-FlipcashCoreAPI/   # gRPC proto definitions for core services
+FlipcashAPI/       # gRPC proto definitions (Payments/ and Core/ domains)
 CodeCurves/        # Ed25519 cryptography
 CodeScanner/       # C++/OpenCV circular code scanning (see below)
 ```
@@ -555,7 +579,7 @@ Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
 | `matchedGeometryEffect` applied after `.frame` | **`.matchedGeometryEffect` must come BEFORE `.frame` in the modifier chain.** Wrong order causes hero animations to fail silently: you see two separate views fading in/out at their own static positions instead of one morphing element. Paul Hudson's hackingwithswift example uses the wrong order and does not work on current iOS. Correct: `Rectangle().fill(.red).matchedGeometryEffect(id:in:).frame(width:height:)`. Incorrect: `Rectangle().fill(.red).frame(width:height:).matchedGeometryEffect(id:in:)`. Also note: `.transition(.identity)` on a parent containing matched views **kills the animation entirely** — matched geometry needs the parent view to remain in the tree briefly for interpolation, and `.identity` removes it instantly. |
 | Binding the same `dialogItem` to `.dialog(item:)` on two views in the live hierarchy | `dialog(item:)` is `.sheet(item:)` under the hood (`Dialog+View.swift`). When two views in the live tree bind the same observable — e.g. `ScanScreen` *and* a sheet `ScanScreen` is currently presenting — both attempt to present the dialog, and UIKit logs `Currently, only presenting a single sheet is supported`. For dialogs that need to fire across sheet boundaries (a viewmodel referenced by both `ScanScreen` and a router-presented sheet, or an error that fires *while* a sheet is being torn down), route through `session.dialogItem`. `DialogWindow` hosts that binding in a separate `UIWindow` at `UIWindow.Level.alert` and renders above every sheet without joining the main window's presentation queue. Per-screen state that's only ever bound by one view in the tree (e.g. a `@State DialogItem?` on a leaf) is fine to keep local. |
 | Calling `router.present(.x)` next to a viewmodel mutator that may *block* the flow | A viewmodel that surfaces a blocking error via `session.dialogItem` (e.g. `GiveViewModel.showNoBalanceError`) does not stop the router — `DialogWindow` renders the dialog above the sheet, but the sheet is still presented underneath and reappears once the dialog is dismissed. Gate the router on the precondition: expose `attemptPresent() -> Bool` on the viewmodel and write `if vm.attemptPresent() { router.present(.x) }`. Putting the check inside an `isPresented` `didSet` is not enough — the router call still runs unconditionally on the next line. |
-| Parsing keypad-emitted amounts with `NumberFormatter.decimal(from:)` | `KeyPadView` always emits "." as the decimal separator regardless of device locale. `NumberFormatter.decimal(from:)` is locale-aware and falls through `genericDecimal` and `generic` (style `.none`) — on non-"." locales those parse "0.69" as 0, silently breaking fee gates and limit comparisons (the user types the displayed minimum and the gate fires anyway). **Use `Decimal(string:)` for any string the keypad produced** — it always treats "." as the decimal separator and matches the established pattern in `EnterAmountView.isExceedingLimit`. `NumberFormatter.decimal(from:)` is appropriate only when parsing currency-formatted strings (already through the formatter, locale-correct). |
+| Parsing keypad-emitted amount strings | `KeyPadView`'s decimal key inserts **`Metrics.localizedDecimalSeparator`** (`Locale.current.decimalSeparator`), NOT a hardcoded "." — on comma-decimal locales the bound string contains ",". `Decimal(string:)` only understands "." (it silently truncates `"1,50"` → 1), and `NumberFormatter.decimal(from:)` falls through `genericDecimal`/`generic` and parses `"0.69"` as 0 on non-"." locales. **Normalize first**: replace `Metrics.localizedDecimalSeparator` with "." in the keypad string, then parse with `Decimal(string:)`. Several existing parsers (`BuyAmountViewModel.computeAmount`, `WithdrawViewModel`) still assume the keypad emits "." — don't copy that pattern. |
 
 ---
 
@@ -604,14 +628,15 @@ Database:
 ### Key Constants
 
 ```swift
-// USDC
-PublicKey.usdc // Main stablecoin mint
-PublicKey.usdc.mintDecimals // 6
+// Mints
+PublicKey.usdf // Main stablecoin mint
+PublicKey.mintDecimals // .usdf → 6; every other mint INCLUDING .usdc → 10
+                       // (USDC's real 6-decimal precision comes from MintMetadata.usdc.decimals)
 
-// Bonding Curve
-BondingCurve.startPrice  // $0.01
-BondingCurve.endPrice    // $1,000,000
-BondingCurve.maxSupply   // 21,000,000 tokens
+// Bonding Curve (DiscreteBondingCurve — step-based, mirrors the on-chain program)
+DiscreteBondingCurve.maxSupply  // 21,000,000 tokens
+DiscreteBondingCurve.stepSize   // 100 tokens/step
+DiscreteBondingCurve.tableSize  // 210,001 entries (pre-computed .bin resources)
 ```
 
 ### Xcode MCP Server
