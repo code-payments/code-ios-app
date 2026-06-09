@@ -236,7 +236,7 @@ struct DeepLinkAction {
                     let rate = container.ratesController.rateForBalanceCurrency()
                     guard container.session.hasGiveableBalance(for: rate) else {
                         container.session.dialogItem = .noGiveableBalance {
-                            container.appRouter.present(.discover)
+                            container.appRouter.navigate(to: .deposit)
                         }
                         return
                     }

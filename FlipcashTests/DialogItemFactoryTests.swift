@@ -6,6 +6,7 @@
 import Foundation
 import Testing
 import FlipcashUI
+@testable import Flipcash
 
 @MainActor
 @Suite("DialogItem factory semantics")
@@ -65,5 +66,18 @@ struct DialogItemFactoryTests {
 
         let dismissableSuccess = DialogItem.success(title: "x", subtitle: "y", dismissable: true)
         #expect(dismissableSuccess.dismissable == true)
+    }
+
+    @Test(".noGiveableBalance uses the deposit-funds design")
+    func noGiveableBalance_depositDesign() {
+        let item = DialogItem.noGiveableBalance(onDeposit: {})
+        #expect(item.title == "No Balance Yet")
+        #expect(item.subtitle == "Deposit funds to give cash")
+        #expect(item.style == .standard)
+        #expect(item.actions.count == 2)
+        #expect(item.actions[0].title == "Deposit Funds")
+        #expect(item.actions[0].kind == .standard)
+        #expect(item.actions[1].title == "Cancel")
+        #expect(item.actions[1].kind == .subtle)
     }
 }

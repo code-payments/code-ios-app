@@ -667,3 +667,39 @@ struct SessionOfflineCacheTests {
         #expect(session.userFlags == nil)
     }
 }
+
+@MainActor
+@Suite("Session.hasGiveableBalance")
+struct SessionHasGiveableBalanceTests {
+
+    @Test("Fresh account (USDF at zero) has no giveable balance")
+    func freshAccount_hasNone() throws {
+        let container = try SessionContainer.makeTest(holdings: [
+            .init(mint: .usdf, quarks: 0),
+        ])
+        #expect(container.session.hasGiveableBalance(for: .oneToOne) == false)
+    }
+
+    @Test("USDF balance alone is not giveable — USDF is never sent peer-to-peer")
+    func usdfOnly_isNotGiveable() throws {
+        let container = try SessionContainer.makeTest(holdings: [
+            .init(mint: .usdf, quarks: 5 * 10_000_000_000),
+        ])
+        #expect(container.session.hasGiveableBalance(for: .oneToOne) == false)
+    }
+
+    @Test("A funded non-USDF balance is giveable")
+    func fundedNonUSDF_isGiveable() throws {
+        let container = try SessionContainer.makeTest(holdings: [
+            .init(mint: .usdf, quarks: 0),
+            .init(
+                mint: .makeLaunchpad(
+                    address: .jeffy,
+                    supplyFromBonding: 1_000_000 * 10_000_000_000
+                ),
+                quarks: 10 * 10_000_000_000
+            ),
+        ])
+        #expect(container.session.hasGiveableBalance(for: .oneToOne) == true)
+    }
+}
