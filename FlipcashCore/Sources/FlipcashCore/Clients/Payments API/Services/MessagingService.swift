@@ -125,7 +125,9 @@ final class MessagingService: Sendable {
                 for try await message in response.messages {
                     let messages = message.messages.compactMap { try? StreamMessage($0) }
 
-                    Task { @MainActor in
+                    // Awaiting (not spawning a Task per batch) preserves batch
+                    // ordering — v1 delivered batches through a serial queue.
+                    await MainActor.run {
                         completion(.success(messages))
                     }
                 }

@@ -50,7 +50,15 @@ public class FlipClient: ObservableObject {
         )
         let client = GRPCClient(transport: transport, interceptors: [UserAgentClientInterceptor()])
         self.grpcClient = client
-        self.connectionTask = Task { try? await client.runConnections() }
+        self.connectionTask = Task {
+            do {
+                try await client.runConnections()
+            } catch {
+                // Only reachable on a fatal transport error (graceful shutdown
+                // returns normally) — every RPC after this point will fail.
+                logger.error("Flip connection loop terminated", metadata: ["error": "\(error)"])
+            }
+        }
 
         self.accountService     = AccountService(client: client)
         self.activityService    = ActivityService(client: client)
@@ -78,7 +86,14 @@ public class FlipClient: ObservableObject {
     /// Pre-warm the connection by issuing a lightweight unauthenticated call.
     /// The response is irrelevant — we only need the transport to start connecting.
     public func warmUpChannel() {
-        accountService.fetchUnauthenticatedUserFlags { _ in }
+        accountService.fetchUnauthenticatedUserFlags { result in
+            switch result {
+            case .success:
+                logger.info("Flip channel warm-up succeeded")
+            case .failure:
+                logger.warning("Flip channel warm-up completed (channel reconnecting)")
+            }
+        }
     }
 }
 

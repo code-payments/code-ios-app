@@ -5,6 +5,7 @@
 
 import Foundation
 import GRPCCore
+import Synchronization
 
 /// v2 replacement for `BidirectionalStreamReference`.
 ///
@@ -21,13 +22,16 @@ import GRPCCore
 /// caller explicitly `cancel()`s, since that is deliberate teardown (e.g. after a
 /// terminal response), not a stream error. This prevents a cancel-induced
 /// `CancellationError` from delivering a second, spurious completion.
-public final class BidirectionalGRPCStream<Request: Sendable, Response: Sendable>: @unchecked Sendable {
+public final class BidirectionalGRPCStream<Request: Sendable, Response: Sendable>: Sendable {
+
+    private struct State {
+        var task: Task<Void, Never>?
+        var didFinish = false
+    }
 
     private let outbound: AsyncStream<Request>
     private let continuation: AsyncStream<Request>.Continuation
-    private let lock = NSLock()
-    private var didFinish = false
-    private var task: Task<Void, Never>?
+    private let state = Mutex(State())
 
     public init() {
         (self.outbound, self.continuation) = AsyncStream.makeStream(of: Request.self)
@@ -36,14 +40,15 @@ public final class BidirectionalGRPCStream<Request: Sendable, Response: Sendable
     /// Opens the stream. `perform` runs the concrete v2 RPC: it should drain
     /// `requests` into the call's `RPCWriter` and forward each inbound message to
     /// `onResponse`. The producing/consuming happens inside `perform` so the
-    /// generated method's closure scope stays satisfied.
+    /// generated method's closure scope stays satisfied. Must be called at most
+    /// once per instance.
     public func open(
         onResponse: @escaping @Sendable (Response) -> Void,
         onComplete: @escaping @Sendable (Result<Void, any Error>) -> Void = { _ in },
         perform: @escaping @Sendable (_ requests: AsyncStream<Request>, _ onResponse: @escaping @Sendable (Response) -> Void) async throws -> Void
     ) {
         let requests = outbound
-        task = Task { [weak self] in
+        let task = Task { [weak self] in
             let result: Result<Void, any Error>
             do {
                 try await perform(requests, onResponse)
@@ -53,13 +58,22 @@ public final class BidirectionalGRPCStream<Request: Sendable, Response: Sendable
             }
             self?.finish(result, onComplete)
         }
+        let cancelImmediately = state.withLock { state -> Bool in
+            precondition(state.task == nil, "open() called twice on the same stream")
+            state.task = task
+            return state.didFinish
+        }
+        if cancelImmediately {
+            task.cancel()
+        }
     }
 
     private func finish(_ result: Result<Void, any Error>, _ onComplete: @escaping @Sendable (Result<Void, any Error>) -> Void) {
-        lock.lock()
-        let alreadyFinished = didFinish
-        didFinish = true
-        lock.unlock()
+        let alreadyFinished = state.withLock { state -> Bool in
+            let was = state.didFinish
+            state.didFinish = true
+            return was
+        }
         guard !alreadyFinished else { return }
         onComplete(result)
     }
@@ -73,16 +87,17 @@ public final class BidirectionalGRPCStream<Request: Sendable, Response: Sendable
     /// Suppresses the terminal `onComplete` callback — explicit teardown is not a
     /// stream error.
     public func cancel() {
-        lock.lock()
-        didFinish = true
-        lock.unlock()
+        let task = state.withLock { state -> Task<Void, Never>? in
+            state.didFinish = true
+            return state.task
+        }
         continuation.finish()
         task?.cancel()
     }
 
     deinit {
         continuation.finish()
-        task?.cancel()
+        state.withLock { $0.task }?.cancel()
     }
 }
 
@@ -90,13 +105,23 @@ public final class BidirectionalGRPCStream<Request: Sendable, Response: Sendable
 ///
 /// Server streams have no outbound writer, so this is just a retained, cancellable
 /// `Task` running the v2 call whose `onResponse` iterates the inbound messages.
-/// Like `BidirectionalGRPCStream`, `onComplete` fires once and is suppressed on
-/// explicit `cancel()`.
-public final class ServerGRPCStream: @unchecked Sendable {
+/// Like `BidirectionalGRPCStream`, `onComplete` fires once per open and is
+/// suppressed on explicit `cancel()`.
+///
+/// Unlike the bidirectional adapter, `open` may be called again after the
+/// previous call completed — `MessagingService` re-subscribes on the same handle
+/// when the server closes the stream, so the `AnyCancellable` held by the caller
+/// keeps cancelling the *current* connection. `cancel()` is sticky: once
+/// cancelled, later `open` calls are no-ops.
+public final class ServerGRPCStream: Sendable {
 
-    private let lock = NSLock()
-    private var didFinish = false
-    private var task: Task<Void, Never>?
+    private struct State {
+        var task: Task<Void, Never>?
+        var didFinish = false
+        var isCancelled = false
+    }
+
+    private let state = Mutex(State())
 
     public init() {}
 
@@ -104,7 +129,14 @@ public final class ServerGRPCStream: @unchecked Sendable {
         onComplete: @escaping @Sendable (Result<Void, any Error>) -> Void = { _ in },
         perform: @escaping @Sendable () async throws -> Void
     ) {
-        task = Task { [weak self] in
+        let proceed = state.withLock { state -> Bool in
+            guard !state.isCancelled else { return false }
+            state.didFinish = false
+            return true
+        }
+        guard proceed else { return }
+
+        let task = Task { [weak self] in
             let result: Result<Void, any Error>
             do {
                 try await perform()
@@ -114,25 +146,35 @@ public final class ServerGRPCStream: @unchecked Sendable {
             }
             self?.finish(result, onComplete)
         }
+        let cancelImmediately = state.withLock { state -> Bool in
+            state.task = task
+            return state.isCancelled
+        }
+        if cancelImmediately {
+            task.cancel()
+        }
     }
 
     private func finish(_ result: Result<Void, any Error>, _ onComplete: @escaping @Sendable (Result<Void, any Error>) -> Void) {
-        lock.lock()
-        let alreadyFinished = didFinish
-        didFinish = true
-        lock.unlock()
-        guard !alreadyFinished else { return }
+        let suppressed = state.withLock { state -> Bool in
+            let was = state.didFinish || state.isCancelled
+            state.didFinish = true
+            return was
+        }
+        guard !suppressed else { return }
         onComplete(result)
     }
 
     public func cancel() {
-        lock.lock()
-        didFinish = true
-        lock.unlock()
+        let task = state.withLock { state -> Task<Void, Never>? in
+            state.isCancelled = true
+            state.didFinish = true
+            return state.task
+        }
         task?.cancel()
     }
 
     deinit {
-        task?.cancel()
+        state.withLock { $0.task }?.cancel()
     }
 }
