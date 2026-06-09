@@ -627,14 +627,15 @@ Database:
 ### Key Constants
 
 ```swift
-// USDC
-PublicKey.usdc // Main stablecoin mint
-PublicKey.usdc.mintDecimals // 6
+// Mints
+PublicKey.usdf // Main stablecoin mint
+PublicKey.mintDecimals // .usdf → 6; every other mint INCLUDING .usdc → 10
+                       // (USDC's real 6-decimal precision comes from MintMetadata.usdc.decimals)
 
-// Bonding Curve
-BondingCurve.startPrice  // $0.01
-BondingCurve.endPrice    // $1,000,000
-BondingCurve.maxSupply   // 21,000,000 tokens
+// Bonding Curve (DiscreteBondingCurve — step-based, mirrors the on-chain program)
+DiscreteBondingCurve.maxSupply  // 21,000,000 tokens
+DiscreteBondingCurve.stepSize   // 100 tokens/step
+DiscreteBondingCurve.tableSize  // 210,001 entries (pre-computed .bin resources)
 ```
 
 ### Xcode MCP Server
