@@ -36,24 +36,19 @@ extension Client {
     /// down the underlying gRPC stream.
     public func discoverCurrencies(category: DiscoverCategory) -> AsyncThrowingStream<[MintMetadata], Error> {
         AsyncThrowingStream { continuation in
-            let ref = currencyService.discover(category: category) { mints in
+            let stream = currencyService.discover(category: category) { mints in
                 continuation.yield(mints)
-            }
-
-            ref.stream?.status.whenComplete { result in
+            } onComplete: { result in
                 switch result {
-                case .success(let status) where status.code == .ok:
+                case .success:
                     continuation.finish()
-                case .success(let status):
-                    continuation.finish(throwing: status)
                 case .failure(let error):
                     continuation.finish(throwing: error)
                 }
             }
 
-            nonisolated(unsafe) let unsafeRef = ref
             continuation.onTermination = { @Sendable _ in
-                unsafeRef.cancel()
+                stream.cancel()
             }
         }
     }
