@@ -25,10 +25,13 @@ nonisolated enum GoldBarLighting {
     static let verticalClamp: Double = 1.4
 
     /// Unit direction the key light sits in, for the device's gravity vector (CoreMotion device frame).
-    /// Level-held → up-and-forward, centered; rolling moves it horizontally; pitching moves it vertically.
-    static func lightDirection(gravity: SIMD3<Double>) -> SIMD3<Double> {
-        let x = clamp(gravity.x * lateralGain, horizontalClamp)
-        let y = restElevation + clamp((gravity.y - neutralGravityY) * verticalGain, verticalClamp)
+    /// `anchor` is the light's rest position; tilt sweeps the highlight around it.
+    static func lightDirection(
+        gravity: SIMD3<Double>,
+        anchor: SIMD2<Double> = SIMD2(0, restElevation)
+    ) -> SIMD3<Double> {
+        let x = anchor.x + clamp(gravity.x * lateralGain, horizontalClamp)
+        let y = anchor.y + clamp((gravity.y - neutralGravityY) * verticalGain, verticalClamp)
         let z = 1.0
         return simd_normalize(SIMD3(x, y, z))
     }

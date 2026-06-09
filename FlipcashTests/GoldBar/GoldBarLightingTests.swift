@@ -54,6 +54,20 @@ struct GoldBarLightingTests {
         #expect(abs(extreme - atClamp) < 0.0001)
     }
 
+    @Test("Anchor shifts the light's rest position; tilt still sweeps around it")
+    func lightDirection_anchor_shiftsRestPosition() {
+        let centered = GoldBarLighting.lightDirection(gravity: Self.neutral)
+        let shiftedRight = GoldBarLighting.lightDirection(gravity: Self.neutral, anchor: SIMD2(0.8, GoldBarLighting.restElevation))
+        let raised = GoldBarLighting.lightDirection(gravity: Self.neutral, anchor: SIMD2(0, 1.0))
+        #expect(shiftedRight.x > centered.x)
+        #expect(raised.y > centered.y)
+
+        // Tilt sweeps relative to the anchored rest position.
+        let anchored = SIMD2<Double>(0.8, GoldBarLighting.restElevation)
+        let tilted = GoldBarLighting.lightDirection(gravity: SIMD3(0.3, GoldBarLighting.neutralGravityY, -0.5), anchor: anchored)
+        #expect(tilted.x > shiftedRight.x)
+    }
+
     @Test("Smoothing moves a fixed fraction toward the target")
     func smoothed_movesTowardTarget() {
         #expect(GoldBarLighting.smoothed(previous: 0, target: 1, factor: 0.25) == 0.25)

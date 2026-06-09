@@ -2,8 +2,7 @@ import SwiftUI
 import SceneKit
 import CoreMotion
 
-/// Hosts the gold-bar SCNView and drives the light + environment from device tilt,
-/// or from the tuning panel's manual light controls when "Follow tilt" is off.
+/// Hosts the gold-bar SCNView and drives the light + environment from device tilt.
 /// The bar and camera never move; only the light orientation and environment rotation change.
 struct GoldBarSceneView: UIViewRepresentable {
 
@@ -11,8 +10,8 @@ struct GoldBarSceneView: UIViewRepresentable {
     var lightIntensity: Double
     var environmentIntensity: Double
     var relief: Double
-    /// Manual light placement, -1...1 on both axes; nil follows device tilt.
-    var manualLight: SIMD2<Double>?
+    /// Rest position of the key light; tilt sweeps the highlight around this anchor.
+    var lightAnchor: SIMD2<Double>
 
     func makeCoordinator() -> Coordinator { Coordinator(qrPayload: qrPayload) }
 
@@ -43,7 +42,7 @@ struct GoldBarSceneView: UIViewRepresentable {
             coordinator.appliedRelief = relief
             bundle.material.normal.intensity = CGFloat(relief)
         }
-        coordinator.setManualLight(manualLight)
+        coordinator.setLightAnchor(lightAnchor)
     }
 
     static func dismantleUIView(_ uiView: SCNView, coordinator: Coordinator) {
@@ -60,7 +59,7 @@ struct GoldBarSceneView: UIViewRepresentable {
         private let motion = CMMotionManager()
         // Start near the neutral held attitude so the first frame is already centered.
         private var smoothedGravity = SIMD3<Double>(0, GoldBarLighting.neutralGravityY, -0.5)
-        private var manualGravity: SIMD3<Double>?
+        private var lightAnchor: SIMD2<Double>?
 
         init(qrPayload: String) {
             bundle = GoldBarScene.make(qrPayload: qrPayload)
@@ -83,22 +82,15 @@ struct GoldBarSceneView: UIViewRepresentable {
             motion.stopDeviceMotionUpdates()
         }
 
-        /// nil follows device tilt; otherwise places the light directly (also works on the
-        /// Simulator, where CoreMotion delivers nothing).
-        func setManualLight(_ light: SIMD2<Double>?) {
-            // Slider extremes scaled to land at the lighting clamps, so the full range is useful.
-            let gravity = light.map {
-                SIMD3<Double>($0.x * 0.6, GoldBarLighting.neutralGravityY + $0.y * 0.85, -0.5)
-            }
-            guard gravity != manualGravity else { return }
-            manualGravity = gravity
-            guard let gravity else { return }
-            smoothedGravity = gravity  // hand back to motion without a jump
-            positionLight(for: gravity)
+        /// Moves the light's rest anchor; tilt keeps sweeping around it. Repositions
+        /// immediately, so it's also live on the Simulator where CoreMotion never ticks.
+        func setLightAnchor(_ anchor: SIMD2<Double>) {
+            guard anchor != lightAnchor else { return }
+            lightAnchor = anchor
+            positionLight(for: smoothedGravity)
         }
 
         private func apply(gravity: SIMD3<Double>) {
-            guard manualGravity == nil else { return }
             smoothedGravity.x = GoldBarLighting.smoothed(previous: smoothedGravity.x, target: gravity.x, factor: 0.18)
             smoothedGravity.y = GoldBarLighting.smoothed(previous: smoothedGravity.y, target: gravity.y, factor: 0.18)
             positionLight(for: smoothedGravity)
@@ -107,7 +99,8 @@ struct GoldBarSceneView: UIViewRepresentable {
         /// Direct sets — wrapping these in SCNTransaction animations at 60Hz piles up
         /// overlapping interpolators and drops frames; the low-pass filter already smooths.
         private func positionLight(for gravity: SIMD3<Double>) {
-            let direction = GoldBarLighting.lightDirection(gravity: gravity)
+            let anchor = lightAnchor ?? SIMD2(0, GoldBarLighting.restElevation)
+            let direction = GoldBarLighting.lightDirection(gravity: gravity, anchor: anchor)
             let envRotation = GoldBarLighting.environmentRotation(gravity: gravity)
             bundle.keyLightNode.position = SCNVector3(Float(direction.x), Float(direction.y), Float(direction.z))
             bundle.keyLightNode.look(at: SCNVector3Zero)

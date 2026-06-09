@@ -9,9 +9,8 @@ struct GoldBarDemoScreen: View {
     @State private var lightIntensity: Double = 1100
     @State private var environmentIntensity: Double = 5.2
     @State private var relief: Double = 0.55
-    @State private var followsTilt = true
     @State private var lightX: Double = 0
-    @State private var lightY: Double = 0
+    @State private var lightY: Double = GoldBarLighting.restElevation
 
     private let qrPayload = "https://flipcash.com/gold-bar-demo"
 
@@ -25,7 +24,7 @@ struct GoldBarDemoScreen: View {
                     lightIntensity: lightIntensity,
                     environmentIntensity: environmentIntensity,
                     relief: relief,
-                    manualLight: followsTilt ? nil : SIMD2(lightX, lightY)
+                    lightAnchor: SIMD2(lightX, lightY)
                 )
                 .ignoresSafeArea()
 
@@ -33,7 +32,6 @@ struct GoldBarDemoScreen: View {
                     lightIntensity: $lightIntensity,
                     environmentIntensity: $environmentIntensity,
                     relief: $relief,
-                    followsTilt: $followsTilt,
                     lightX: $lightX,
                     lightY: $lightY
                 )
@@ -54,12 +52,11 @@ private struct GoldBarTuningOverlay: View {
     @Binding var lightIntensity: Double
     @Binding var environmentIntensity: Double
     @Binding var relief: Double
-    @Binding var followsTilt: Bool
     @Binding var lightX: Double
     @Binding var lightY: Double
 
     @State private var position: CGPoint?
-    @State private var panelSize = CGSize(width: 300, height: 360)
+    @State private var panelSize = CGSize(width: 300, height: 320)
     @State private var dragStart: CGPoint?
     @State private var isStashed = false
 
@@ -73,7 +70,6 @@ private struct GoldBarTuningOverlay: View {
                 lightIntensity: $lightIntensity,
                 environmentIntensity: $environmentIntensity,
                 relief: $relief,
-                followsTilt: $followsTilt,
                 lightX: $lightX,
                 lightY: $lightY
             )
@@ -90,8 +86,10 @@ private struct GoldBarTuningOverlay: View {
         }
     }
 
+    /// Measured in global space: the panel moves with the finger, so a local-space
+    /// translation would oscillate against the moving view and glitch.
     private func dragGesture(from current: CGPoint, in container: CGSize) -> some Gesture {
-        DragGesture(minimumDistance: 1)
+        DragGesture(minimumDistance: 1, coordinateSpace: .global)
             .onChanged { value in
                 let start = dragStart ?? current
                 dragStart = start
@@ -153,34 +151,25 @@ private struct GoldBarTuningPanel: View {
     @Binding var lightIntensity: Double
     @Binding var environmentIntensity: Double
     @Binding var relief: Double
-    @Binding var followsTilt: Bool
     @Binding var lightX: Double
     @Binding var lightY: Double
 
     var body: some View {
         VStack(spacing: 10) {
             Capsule()
-                .fill(.secondary)
+                .fill(.white.opacity(0.35))
                 .frame(width: 36, height: 5)
                 .padding(.top, 10)
             LabeledSlider(title: "Light", value: $lightIntensity, range: 0...2500)
             LabeledSlider(title: "Environment", value: $environmentIntensity, range: 0...8)
             LabeledSlider(title: "Relief", value: $relief, range: 0...2)
-            Toggle("Follow tilt", isOn: $followsTilt)
-                .font(.appTextHeading)
-                .foregroundStyle(.textSecondary)
-                .tint(.textSuccess)
-            LabeledSlider(title: "Light X", value: $lightX, range: -1...1)
-                .disabled(followsTilt)
-                .opacity(followsTilt ? 0.4 : 1)
-            LabeledSlider(title: "Light Y", value: $lightY, range: -1...1)
-                .disabled(followsTilt)
-                .opacity(followsTilt ? 0.4 : 1)
+            LabeledSlider(title: "Light X", value: $lightX, range: -1.5...1.5)
+            LabeledSlider(title: "Light Y", value: $lightY, range: -0.5...1.5)
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 16)
         .frame(width: 300)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+        .background(Color.black.opacity(0.78), in: RoundedRectangle(cornerRadius: 20))
         .contentShape(RoundedRectangle(cornerRadius: 20))
     }
 }
@@ -194,7 +183,7 @@ private struct LabeledSlider: View {
         HStack {
             Text(title)
                 .font(.appTextHeading)
-                .foregroundStyle(.textSecondary)
+                .foregroundStyle(.textMain)
                 .frame(width: 100, alignment: .leading)
             Slider(value: $value, in: range)
         }
