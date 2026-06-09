@@ -6,10 +6,8 @@ import UIKit
 @Suite("GoldBarMaterialBaker")
 struct GoldBarMaterialBakerTests {
 
-    private static let config = GoldBarMaterialBaker.Config(
-        pixelSize: CGSize(width: 640, height: 1110),
-        qrPayload: "https://flipcash.com/gold-bar-demo",
-        stampLines: ["FINE GOLD", "999.9", "1 oz"]
+    private static let config = GoldBarMaterialBaker.Config.full(
+        qrPayload: "https://flipcash.com/gold-bar-demo"
     )
 
     @Test("Baked etched QR still decodes to its payload (scannable)")
@@ -32,6 +30,16 @@ struct GoldBarMaterialBakerTests {
         for image in [textures.albedo, textures.normal, textures.roughness] {
             #expect(image.size.width == expected.width)
             #expect(image.size.height == expected.height)
+        }
+    }
+
+    @Test("Preview bake produces all maps at the preview size")
+    func previewBake_producesMaps() {
+        let config = GoldBarMaterialBaker.Config.preview(qrPayload: "https://flipcash.com/gold-bar-demo")
+        let textures = GoldBarMaterialBaker.bake(config)
+        for image in [textures.albedo, textures.normal, textures.roughness] {
+            #expect(image.size.width == config.pixelSize.width)
+            #expect(image.size.height == config.pixelSize.height)
         }
     }
 }

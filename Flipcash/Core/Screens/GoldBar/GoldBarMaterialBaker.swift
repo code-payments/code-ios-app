@@ -14,9 +14,33 @@ nonisolated enum GoldBarMaterialBaker {
         var stampLines: [String]
         var serial: String = "No. CH 047219"
         var scratchCount: Int = 150
+        var includesQR: Bool = true
+
+        /// Full-quality maps for the portrait bar face. Expensive — bake off the main thread.
+        static func full(qrPayload: String) -> Config {
+            Config(
+                pixelSize: CGSize(width: 640, height: 1110),
+                qrPayload: qrPayload,
+                stampLines: ["FINE GOLD", "999.9", "1 oz"]
+            )
+        }
+
+        /// Tiny maps that bake in milliseconds (no CoreImage involved) — the low-res
+        /// stand-in shown while the full set bakes in the background.
+        static func preview(qrPayload: String) -> Config {
+            Config(
+                pixelSize: CGSize(width: 96, height: 166),
+                qrPayload: qrPayload,
+                stampLines: ["FINE GOLD", "999.9", "1 oz"],
+                scratchCount: 0,
+                includesQR: false
+            )
+        }
     }
 
-    struct Textures {
+    // UIImage is immutable and documented thread-safe; baked maps cross from the
+    // background bake task back to the main actor.
+    struct Textures: @unchecked Sendable {
         let albedo: UIImage
         let normal: UIImage
         let roughness: UIImage
@@ -26,7 +50,7 @@ nonisolated enum GoldBarMaterialBaker {
     private static let goldEngraved = UIColor(red: 0.55, green: 0.40, blue: 0.15, alpha: 1)
 
     static func bake(_ config: Config) -> Textures {
-        let qr = makeQRImage(payload: config.qrPayload)
+        let qr = config.includesQR ? makeQRImage(payload: config.qrPayload) : darkPatchImage()
         let height = renderHeightField(config, qr: qr)
         return Textures(
             albedo: renderAlbedo(config, qr: qr),
@@ -37,15 +61,26 @@ nonisolated enum GoldBarMaterialBaker {
 
     // MARK: - QR
 
+    // CIContext is thread-safe and expensive to create; shared across bakes.
+    private nonisolated(unsafe) static let qrContext = CIContext()
+
     private static func makeQRImage(payload: String) -> UIImage {
         let filter = CIFilter.qrCodeGenerator()
         filter.message = Data(payload.utf8)
         filter.correctionLevel = "H"
         let output = filter.outputImage!
         let scaled = output.transformed(by: CGAffineTransform(scaleX: 12, y: 12))
-        let context = CIContext()
-        let cg = context.createCGImage(scaled, from: scaled.extent)!
+        let cg = qrContext.createCGImage(scaled, from: scaled.extent)!
         return UIImage(cgImage: cg)
+    }
+
+    /// Stand-in for the QR in preview bakes: a flat dark patch where the code will appear,
+    /// drawn through the same multiply-blend path as the real QR.
+    private static func darkPatchImage() -> UIImage {
+        renderImage(size: CGSize(width: 8, height: 8)) { ctx, rect in
+            UIColor(white: 0.06, alpha: 1).setFill()
+            ctx.fill(rect)
+        }
     }
 
     // MARK: - Portrait layout
@@ -131,21 +166,28 @@ nonisolated enum GoldBarMaterialBaker {
         gctx.draw(cg, in: CGRect(x: 0, y: 0, width: w, height: h))
 
         var rgba = [UInt8](repeating: 0, count: w * h * 4)
-        let strength: Float = 2.0
-        func at(_ x: Int, _ y: Int) -> Float {
-            Float(gray[min(max(y, 0), h - 1) * w + min(max(x, 0), w - 1)]) / 255
-        }
-        for y in 0..<h {
-            for x in 0..<w {
-                let dx = (at(x + 1, y) - at(x - 1, y)) * strength
-                let dy = (at(x, y + 1) - at(x, y - 1)) * strength
-                var n = SIMD3<Float>(-dx, -dy, 1)
-                n /= max(0.0001, (n.x * n.x + n.y * n.y + n.z * n.z).squareRoot())
-                let i = (y * w + x) * 4
-                rgba[i]     = UInt8(max(0, min(255, (n.x * 0.5 + 0.5) * 255)))
-                rgba[i + 1] = UInt8(max(0, min(255, (n.y * 0.5 + 0.5) * 255)))
-                rgba[i + 2] = UInt8(max(0, min(255, (n.z * 0.5 + 0.5) * 255)))
-                rgba[i + 3] = 255
+        let scale: Float = 2.0 / 255  // gradient strength, folded with the 0...255 → 0...1 conversion
+        gray.withUnsafeBufferPointer { src in
+            rgba.withUnsafeMutableBufferPointer { dst in
+                for y in 0..<h {
+                    let row = y * w
+                    let rowAbove = max(y - 1, 0) * w
+                    let rowBelow = min(y + 1, h - 1) * w
+                    for x in 0..<w {
+                        let left = src[row + max(x - 1, 0)]
+                        let right = src[row + min(x + 1, w - 1)]
+                        let up = src[rowAbove + x]
+                        let down = src[rowBelow + x]
+                        let dx = Float(Int(right) - Int(left)) * scale
+                        let dy = Float(Int(down) - Int(up)) * scale
+                        let invLen = 1 / (dx * dx + dy * dy + 1).squareRoot()
+                        let i = (row + x) * 4
+                        dst[i]     = UInt8(max(0, min(255, (-dx * invLen * 0.5 + 0.5) * 255)))
+                        dst[i + 1] = UInt8(max(0, min(255, (-dy * invLen * 0.5 + 0.5) * 255)))
+                        dst[i + 2] = UInt8(max(0, min(255, (invLen * 0.5 + 0.5) * 255)))
+                        dst[i + 3] = 255
+                    }
+                }
             }
         }
         let rgbaCS = CGColorSpaceCreateDeviceRGB()

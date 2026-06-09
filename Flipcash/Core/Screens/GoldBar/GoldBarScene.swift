@@ -11,7 +11,11 @@ enum GoldBarScene {
         let material: SCNMaterial
     }
 
-    static func make(qrPayload: String) -> Bundle {
+    /// Full-resolution maps from the most recent bake; a re-presentation skips the
+    /// preview phase and opens at full quality immediately.
+    static var cachedTextures: (payload: String, textures: GoldBarMaterialBaker.Textures)?
+
+    static func make(textures: GoldBarMaterialBaker.Textures) -> Bundle {
         let scene = SCNScene()
         scene.background.contents = UIColor(white: 0.04, alpha: 1)
 
@@ -21,11 +25,6 @@ enum GoldBarScene {
 
         // Portrait minted bar (real 1oz ≈ 24×41×2mm — thin, tall), large face toward the camera (+Z).
         let box = SCNBox(width: 0.60, height: 1.04, length: 0.13, chamferRadius: 0.022)
-        let textures = GoldBarMaterialBaker.bake(.init(
-            pixelSize: CGSize(width: 640, height: 1110),  // matches the 0.60:1.04 portrait face
-            qrPayload: qrPayload,
-            stampLines: ["FINE GOLD", "999.9", "1 oz"]
-        ))
         // Detailed (markings/QR) only on the front face; plain polished gold on the sides/back.
         // SCNBox material order: front(+Z), right(+X), back(−Z), left(−X), top(+Y), bottom(−Y).
         let detailed = goldMaterial(textures)

@@ -73,7 +73,31 @@ struct GoldBarSceneView: UIViewRepresentable {
         private var lightAnchor: SIMD2<Double>?
 
         init(qrPayload: String) {
-            bundle = GoldBarScene.make(qrPayload: qrPayload)
+            if let cached = GoldBarScene.cachedTextures, cached.payload == qrPayload {
+                bundle = GoldBarScene.make(textures: cached.textures)
+            } else {
+                // Milliseconds-cheap preview maps so presentation never waits on the bake;
+                // the full-resolution set fades in when the background bake completes.
+                bundle = GoldBarScene.make(textures: GoldBarMaterialBaker.bake(.preview(qrPayload: qrPayload)))
+                bakeFullTextures(qrPayload: qrPayload)
+            }
+        }
+
+        private func bakeFullTextures(qrPayload: String) {
+            let material = bundle.material
+            Task {
+                let config = GoldBarMaterialBaker.Config.full(qrPayload: qrPayload)
+                let textures = await Task.detached(priority: .userInitiated) {
+                    GoldBarMaterialBaker.bake(config)
+                }.value
+                GoldBarScene.cachedTextures = (qrPayload, textures)
+                SCNTransaction.begin()
+                SCNTransaction.animationDuration = 0.3
+                material.diffuse.contents = textures.albedo
+                material.normal.contents = textures.normal
+                material.roughness.contents = textures.roughness
+                SCNTransaction.commit()
+            }
         }
 
         func start() {
