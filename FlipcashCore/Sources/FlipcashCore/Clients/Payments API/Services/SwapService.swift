@@ -507,37 +507,37 @@ final class SwapService: Sendable {
         request.owner = owner.publicKey.solanaAccountID
         request.signature = request.sign(with: owner)
 
-        Task { @MainActor in
+        Task {
             do {
                 let response = try await service.getSwap(request, options: .unaryDefault)
                 switch response.result {
                 case .ok:
                     guard let metadata = SwapMetadata(response.swap) else {
                         logger.error("Failed to parse swap metadata")
-                        completion(.failure(.failedToParse))
+                        await MainActor.run { completion(.failure(.failedToParse)) }
                         return
                     }
                     logger.info("Swap state fetched", metadata: ["state": "\(metadata.state)"])
-                    completion(.success(metadata))
+                    await MainActor.run { completion(.success(metadata)) }
 
                 case .notFound:
                     // Expected during the early phase of polling a freshly
                     // submitted swap; the caller retries on this condition.
                     logger.debug("Swap not found")
-                    completion(.failure(.notFound))
+                    await MainActor.run { completion(.failure(.notFound)) }
 
                 case .denied:
                     logger.error("Swap access denied")
-                    completion(.failure(.denied))
+                    await MainActor.run { completion(.failure(.denied)) }
 
                 case .UNRECOGNIZED:
                     logger.error("Swap fetch returned unknown result")
-                    completion(.failure(.unknown))
+                    await MainActor.run { completion(.failure(.unknown)) }
                 }
             } catch let error as RPCError {
-                completion(.failure(ErrorGetSwap.from(transportError: error)))
+                await MainActor.run { completion(.failure(ErrorGetSwap.from(transportError: error))) }
             } catch {
-                completion(.failure(.unknown))
+                await MainActor.run { completion(.failure(.unknown)) }
             }
         }
     }

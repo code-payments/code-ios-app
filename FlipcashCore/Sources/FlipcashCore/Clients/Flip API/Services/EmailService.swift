@@ -28,26 +28,26 @@ final class EmailService: Sendable {
             $0.auth = owner.authFor(message: $0)
         }
 
-        Task { @MainActor in
+        Task {
             do {
                 let response = try await service.sendVerificationCode(request, options: .unaryDefault)
                 let error = ErrorSendEmailCode(rawValue: response.result.rawValue) ?? .unknown
                 if error == .ok {
                     logger.info("Email verification code sent successfully")
-                    completion(.success(()))
+                    await MainActor.run { completion(.success(())) }
                 } else {
                     logger.error("Failed to send email verification code", metadata: ["error": "\(error)"])
-                    completion(.failure(error))
+                    await MainActor.run { completion(.failure(error)) }
                 }
             } catch let error as RPCError {
                 // PGV field validation surfaces as invalidArgument before the result handler runs.
                 if error.code == .invalidArgument {
-                    completion(.failure(.invalidEmailAddress))
+                    await MainActor.run { completion(.failure(.invalidEmailAddress)) }
                 } else {
-                    completion(.failure(.from(transportError: error)))
+                    await MainActor.run { completion(.failure(.from(transportError: error))) }
                 }
             } catch {
-                completion(.failure(.unknown))
+                await MainActor.run { completion(.failure(.unknown)) }
             }
         }
     }
@@ -61,21 +61,21 @@ final class EmailService: Sendable {
             $0.auth = owner.authFor(message: $0)
         }
 
-        Task { @MainActor in
+        Task {
             do {
                 let response = try await service.checkVerificationCode(request, options: .unaryDefault)
                 let error = ErrorCheckEmailCode(rawValue: response.result.rawValue) ?? .unknown
                 guard error == .ok else {
                     logger.error("Email verification code check failed", metadata: ["error": "\(error)"])
-                    completion(.failure(error))
+                    await MainActor.run { completion(.failure(error)) }
                     return
                 }
                 logger.info("Email verification code accepted")
-                completion(.success(()))
+                await MainActor.run { completion(.success(())) }
             } catch let error as RPCError {
-                completion(.failure(.from(transportError: error)))
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
             } catch {
-                completion(.failure(.unknown))
+                await MainActor.run { completion(.failure(.unknown)) }
             }
         }
     }
@@ -88,21 +88,21 @@ final class EmailService: Sendable {
             $0.auth = owner.authFor(message: $0)
         }
 
-        Task { @MainActor in
+        Task {
             do {
                 let response = try await service.unlink(request, options: .unaryDefault)
                 let error = ErrorUnlinkEmail(rawValue: response.result.rawValue) ?? .unknown
                 guard error == .ok else {
                     logger.error("Failed to unlink email address", metadata: ["error": "\(error)"])
-                    completion(.failure(error))
+                    await MainActor.run { completion(.failure(error)) }
                     return
                 }
                 logger.info("Email address unlinked successfully")
-                completion(.success(()))
+                await MainActor.run { completion(.success(())) }
             } catch let error as RPCError {
-                completion(.failure(.from(transportError: error)))
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
             } catch {
-                completion(.failure(.unknown))
+                await MainActor.run { completion(.failure(.unknown)) }
             }
         }
     }

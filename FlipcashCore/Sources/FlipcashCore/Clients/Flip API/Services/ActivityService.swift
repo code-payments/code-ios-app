@@ -38,13 +38,13 @@ final class ActivityService: Sendable {
             $0.auth = owner.authFor(message: $0)
         }
 
-        Task { @MainActor in
+        Task {
             do {
                 let response = try await service.getPagedNotifications(request, options: .unaryDefault)
                 let error = ErrorFetchTransactionHistory(rawValue: response.result.rawValue) ?? .unknown
                 guard error == .ok else {
                     logger.error("Failed to fetch transaction history", metadata: ["owner": "\(owner.publicKey.base58)"])
-                    completion(.failure(error))
+                    await MainActor.run { completion(.failure(error)) }
                     return
                 }
                 let activities = response.notifications.compactMap {
@@ -56,11 +56,11 @@ final class ActivityService: Sendable {
                     }
                 }
                 logger.info("Fetched activities", metadata: ["count": "\(activities.count)"])
-                completion(.success(activities))
+                await MainActor.run { completion(.success(activities)) }
             } catch let error as RPCError {
-                completion(.failure(.from(transportError: error)))
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
             } catch {
-                completion(.failure(.unknown))
+                await MainActor.run { completion(.failure(.unknown)) }
             }
         }
     }
@@ -73,13 +73,13 @@ final class ActivityService: Sendable {
             $0.auth = owner.authFor(message: $0)
         }
 
-        Task { @MainActor in
+        Task {
             do {
                 let response = try await service.getBatchNotifications(request, options: .unaryDefault)
                 let error = ErrorFetchTransactionHistoryItemsByID(rawValue: response.result.rawValue) ?? .unknown
                 guard error == .ok else {
                     logger.error("Failed to fetch transaction history items", metadata: ["owner": "\(owner.publicKey.base58)"])
-                    completion(.failure(error))
+                    await MainActor.run { completion(.failure(error)) }
                     return
                 }
                 let activities = response.notifications.compactMap {
@@ -91,11 +91,11 @@ final class ActivityService: Sendable {
                     }
                 }
                 logger.info("Fetched activities by ID", metadata: ["count": "\(activities.count)"])
-                completion(.success(activities))
+                await MainActor.run { completion(.success(activities)) }
             } catch let error as RPCError {
-                completion(.failure(.from(transportError: error)))
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
             } catch {
-                completion(.failure(.unknown))
+                await MainActor.run { completion(.failure(.unknown)) }
             }
         }
     }

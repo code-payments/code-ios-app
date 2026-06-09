@@ -37,21 +37,21 @@ final class ThirdPartyService: Sendable {
             $0.auth   = owner.authFor(message: $0)
         }
 
-        Task { @MainActor in
+        Task {
             do {
                 let response = try await service.getJwt(request, options: .unaryDefault)
                 let error = ErrorFetchJWT(rawValue: response.result.rawValue) ?? .unknown
                 guard error == .ok else {
                     logger.error("Failed to fetch Coinbase onramp JWT", metadata: ["error": "\(error)"])
-                    completion(.failure(error))
+                    await MainActor.run { completion(.failure(error)) }
                     return
                 }
                 logger.info("Coinbase onramp JWT fetched successfully")
-                completion(.success(response.jwt.value))
+                await MainActor.run { completion(.success(response.jwt.value)) }
             } catch let error as RPCError {
-                completion(.failure(.from(transportError: error)))
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
             } catch {
-                completion(.failure(.unknown))
+                await MainActor.run { completion(.failure(.unknown)) }
             }
         }
     }

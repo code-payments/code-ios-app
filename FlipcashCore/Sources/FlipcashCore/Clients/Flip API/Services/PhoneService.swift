@@ -29,21 +29,21 @@ final class PhoneService: Sendable {
             $0.auth = owner.authFor(message: $0)
         }
 
-        Task { @MainActor in
+        Task {
             do {
                 let response = try await service.sendVerificationCode(request, options: .unaryDefault)
                 let error = ErrorSendVerificationCode(rawValue: response.result.rawValue) ?? .unknown
                 guard error == .ok else {
                     logger.error("Failed to send phone verification code", metadata: ["error": "\(error)"])
-                    completion(.failure(error))
+                    await MainActor.run { completion(.failure(error)) }
                     return
                 }
                 logger.info("Phone verification code sent successfully")
-                completion(.success(()))
+                await MainActor.run { completion(.success(())) }
             } catch let error as RPCError {
-                completion(.failure(.from(transportError: error)))
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
             } catch {
-                completion(.failure(.unknown))
+                await MainActor.run { completion(.failure(.unknown)) }
             }
         }
     }
@@ -57,21 +57,21 @@ final class PhoneService: Sendable {
             $0.auth = owner.authFor(message: $0)
         }
 
-        Task { @MainActor in
+        Task {
             do {
                 let response = try await service.checkVerificationCode(request, options: .unaryDefault)
                 let error = ErrorCheckVerificationCode(rawValue: response.result.rawValue) ?? .unknown
                 guard error == .ok else {
                     logger.error("Phone verification code check failed", metadata: ["error": "\(error)"])
-                    completion(.failure(error))
+                    await MainActor.run { completion(.failure(error)) }
                     return
                 }
                 logger.info("Phone verification code accepted")
-                completion(.success(()))
+                await MainActor.run { completion(.success(())) }
             } catch let error as RPCError {
-                completion(.failure(.from(transportError: error)))
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
             } catch {
-                completion(.failure(.unknown))
+                await MainActor.run { completion(.failure(.unknown)) }
             }
         }
     }
@@ -84,21 +84,21 @@ final class PhoneService: Sendable {
             $0.auth = owner.authFor(message: $0)
         }
 
-        Task { @MainActor in
+        Task {
             do {
                 let response = try await service.unlink(request, options: .unaryDefault)
                 let error = ErrorUnlinkPhone(rawValue: response.result.rawValue) ?? .unknown
                 guard error == .ok else {
                     logger.error("Failed to unlink phone number", metadata: ["error": "\(error)"])
-                    completion(.failure(error))
+                    await MainActor.run { completion(.failure(error)) }
                     return
                 }
                 logger.info("Phone number unlinked successfully")
-                completion(.success(()))
+                await MainActor.run { completion(.success(())) }
             } catch let error as RPCError {
-                completion(.failure(.from(transportError: error)))
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
             } catch {
-                completion(.failure(.unknown))
+                await MainActor.run { completion(.failure(.unknown)) }
             }
         }
     }

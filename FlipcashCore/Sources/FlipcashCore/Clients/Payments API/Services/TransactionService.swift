@@ -171,21 +171,21 @@ final class TransactionService: Sendable {
             $0.signature = $0.sign(with: owner)
         }
 
-        Task { @MainActor in
+        Task {
             do {
                 let response = try await service.voidGiftCard(request, options: .unaryDefault)
                 let error = ErrorVoidGiftCard(rawValue: response.result.rawValue) ?? .unknown
                 guard error == .ok else {
                     logger.error("Failed to void cash link", metadata: ["error": "\(error)"])
-                    completion(.failure(error))
+                    await MainActor.run { completion(.failure(error)) }
                     return
                 }
                 logger.info("Cash link voided", metadata: ["giftCard": "\(giftCardVault.base58)"])
-                completion(.success(()))
+                await MainActor.run { completion(.success(())) }
             } catch let error as RPCError {
-                completion(.failure(ErrorVoidGiftCard.from(transportError: error)))
+                await MainActor.run { completion(.failure(ErrorVoidGiftCard.from(transportError: error))) }
             } catch {
-                completion(.failure(.unknown))
+                await MainActor.run { completion(.failure(.unknown)) }
             }
         }
     }
@@ -734,30 +734,30 @@ final class TransactionService: Sendable {
             $0.signature = $0.sign(with: owner)
         }
 
-        Task { @MainActor in
+        Task {
             do {
                 let response = try await service.getIntentMetadata(request, options: .unaryDefault)
                 let result = ErrorFetchIntentMetadata(rawValue: response.result.rawValue) ?? .unknown
                 guard result == .ok else {
-                    completion(.failure(result))
+                    await MainActor.run { completion(.failure(result)) }
                     return
                 }
 
                 do {
                     let metadata = try IntentMetadata(response.metadata)
                     logger.info("Intent metadata fetched successfully", metadata: ["intentId": "\(intentID.base58)"])
-                    completion(.success(metadata))
+                    await MainActor.run { completion(.success(metadata)) }
                 } catch {
                     logger.error("Failed to parse intent metadata", metadata: [
                         "intentId": "\(intentID.base58)",
                         "error": "\(error)"
                     ])
-                    completion(.failure(.failedToParse))
+                    await MainActor.run { completion(.failure(.failedToParse)) }
                 }
             } catch let error as RPCError {
-                completion(.failure(ErrorFetchIntentMetadata.from(transportError: error)))
+                await MainActor.run { completion(.failure(ErrorFetchIntentMetadata.from(transportError: error))) }
             } catch {
-                completion(.failure(.unknown))
+                await MainActor.run { completion(.failure(.unknown)) }
             }
         }
     }
@@ -778,7 +778,7 @@ final class TransactionService: Sendable {
             $0.signature     = $0.sign(with: owner)
         }
 
-        Task { @MainActor in
+        Task {
             do {
                 let response = try await service.getLimits(request, options: .unaryDefault)
                 let error = ErrorFetchLimits(rawValue: response.result.rawValue) ?? .unknown
@@ -788,7 +788,7 @@ final class TransactionService: Sendable {
                         "since": "\(date.description(with: .current))",
                         "error": "\(error)"
                     ])
-                    completion(.failure(error))
+                    await MainActor.run { completion(.failure(error)) }
                     return
                 }
 
@@ -801,11 +801,11 @@ final class TransactionService: Sendable {
                 logger.info("Transaction limits fetched successfully", metadata: [
                     "owner": "\(owner.publicKey.base58)"
                 ])
-                completion(.success(limits))
+                await MainActor.run { completion(.success(limits)) }
             } catch let error as RPCError {
-                completion(.failure(ErrorFetchLimits.from(transportError: error)))
+                await MainActor.run { completion(.failure(ErrorFetchLimits.from(transportError: error))) }
             } catch {
-                completion(.failure(.unknown))
+                await MainActor.run { completion(.failure(.unknown)) }
             }
         }
     }
@@ -820,7 +820,7 @@ final class TransactionService: Sendable {
             $0.mint    = mint.solanaAccountID
         }
 
-        Task { @MainActor in
+        Task {
             do {
                 let response = try await service.canWithdrawToAccount(request, options: .unaryDefault)
 
@@ -836,7 +836,7 @@ final class TransactionService: Sendable {
                     ) : .zero(mint: mint)
                 )
 
-                completion(.success(metadata))
+                await MainActor.run { completion(.success(metadata)) }
 
             } catch {
 
@@ -849,7 +849,7 @@ final class TransactionService: Sendable {
                     fee: .zero(mint: mint)
                 )
 
-                completion(.success(metadata))
+                await MainActor.run { completion(.success(metadata)) }
             }
         }
     }
