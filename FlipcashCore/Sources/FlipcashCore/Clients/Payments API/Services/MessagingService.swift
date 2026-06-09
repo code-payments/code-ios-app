@@ -143,14 +143,18 @@ final class MessagingService: Sendable {
             $0.signature = $0.sign(with: rendezvous)
         }
 
-        Task { @MainActor in
+        Task {
             do {
                 let response = try await service.pollMessages(request, options: .unaryDefault)
                 let messages = response.messages.compactMap { try? StreamMessage($0) }
                 logger.info("Fetched messages", metadata: ["count": "\(response.messages.count)"])
-                completion(.success(messages))
+                await MainActor.run {
+                    completion(.success(messages))
+                }
             } catch {
-                completion(.failure(error))
+                await MainActor.run {
+                    completion(.failure(error))
+                }
             }
         }
     }
@@ -167,20 +171,26 @@ final class MessagingService: Sendable {
             }
         }
 
-        Task { @MainActor in
+        Task {
             do {
                 let response = try await service.ackMessages(request, options: .unaryDefault)
                 switch response.result {
                 case .ok:
                     logger.info("Messages acknowledged successfully")
-                    completion(.success(()))
+                    await MainActor.run {
+                        completion(.success(()))
+                    }
 
                 case .UNRECOGNIZED:
                     logger.error("Failed to acknowledge messages")
-                    completion(.failure(ErrorGeneric.unknown))
+                    await MainActor.run {
+                        completion(.failure(ErrorGeneric.unknown))
+                    }
                 }
             } catch {
-                completion(.failure(error))
+                await MainActor.run {
+                    completion(.failure(error))
+                }
             }
         }
     }
@@ -261,7 +271,7 @@ final class MessagingService: Sendable {
             }
         }
 
-        Task { @MainActor in
+        Task {
             do {
                 let response = try await service.sendMessage(request, options: .unaryDefault)
                 let isStreamOpen: Bool
@@ -277,9 +287,13 @@ final class MessagingService: Sendable {
                     "messageId": "\(response.messageID.hexEncoded)",
                     "streamOpen": "\(isStreamOpen)"
                 ])
-                completion(.success(isStreamOpen))
+                await MainActor.run {
+                    completion(.success(isStreamOpen))
+                }
             } catch {
-                completion(.failure(error))
+                await MainActor.run {
+                    completion(.failure(error))
+                }
             }
         }
     }

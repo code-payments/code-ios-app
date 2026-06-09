@@ -39,7 +39,7 @@ final class AccountInfoService: Sendable {
             request.requestingOwnerSignature = requestingSignature
         }
 
-        Task { @MainActor in
+        Task {
             do {
                 let response = try await service.getTokenAccountInfos(request, options: .unaryDefault)
 
@@ -54,23 +54,23 @@ final class AccountInfoService: Sendable {
                     }.first
 
                     if let account {
-                        completion(.success(account))
+                        await MainActor.run { completion(.success(account)) }
                     } else {
                         logger.error("Account not in list of accounts returned", metadata: [
                             "expectedType": "\(type)",
                             "returnedCount": "\(response.tokenAccountInfos.count)",
                         ])
-                        completion(.failure(error))
+                        await MainActor.run { completion(.failure(error)) }
                     }
 
                 } else {
                     logger.error("Failed to fetch account info", metadata: ["owner": "\(owner.publicKey.base58)"])
-                    completion(.failure(error))
+                    await MainActor.run { completion(.failure(error)) }
                 }
             } catch let error as RPCError {
-                completion(.failure(.from(transportError: error)))
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
             } catch {
-                completion(.failure(.unknown))
+                await MainActor.run { completion(.failure(.unknown)) }
             }
         }
     }
@@ -106,7 +106,7 @@ final class AccountInfoService: Sendable {
             $0.signature = $0.sign(with: owner)
         }
 
-        Task { @MainActor in
+        Task {
             do {
                 let response = try await service.getTokenAccountInfos(request, options: .unaryDefault)
                 let error = ErrorFetchBalance(rawValue: response.result.rawValue) ?? .unknown
@@ -115,21 +115,21 @@ final class AccountInfoService: Sendable {
                     let account = response.tokenAccountInfos.compactMap {
                         $0.value.accountType == .associatedTokenAccount ? (try? AccountInfo($0.value)) : nil
                     }.first
-                    completion(.success(account))
+                    await MainActor.run { completion(.success(account)) }
                 case .notFound:
                     // No ATA for this mint yet — caller treats as zero balance.
-                    completion(.success(nil))
+                    await MainActor.run { completion(.success(nil)) }
                 case .unknown, .accountNotInList, .parseFailed, .transportFailure:
                     logger.error("Failed to fetch associated token account", metadata: [
                         "owner": "\(owner.publicKey.base58)",
                         "mint": "\(mint.base58)",
                     ])
-                    completion(.failure(error))
+                    await MainActor.run { completion(.failure(error)) }
                 }
             } catch let error as RPCError {
-                completion(.failure(.from(transportError: error)))
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
             } catch {
-                completion(.failure(.unknown))
+                await MainActor.run { completion(.failure(.unknown)) }
             }
         }
     }
@@ -140,7 +140,7 @@ final class AccountInfoService: Sendable {
             $0.signature = $0.sign(with: owner)
         }
 
-        Task { @MainActor in
+        Task {
             do {
                 let response = try await service.getTokenAccountInfos(request, options: .unaryDefault)
                 let error = ErrorFetchBalance(rawValue: response.result.rawValue) ?? .unknown
@@ -151,16 +151,16 @@ final class AccountInfoService: Sendable {
                         (try? AccountInfo($0.value))
                     }
 
-                    completion(.success(accounts))
+                    await MainActor.run { completion(.success(accounts)) }
 
                 } else {
                     logger.error("Failed to fetch primary accounts", metadata: ["owner": "\(owner.publicKey.base58)"])
-                    completion(.failure(error))
+                    await MainActor.run { completion(.failure(error)) }
                 }
             } catch let error as RPCError {
-                completion(.failure(.from(transportError: error)))
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
             } catch {
-                completion(.failure(.unknown))
+                await MainActor.run { completion(.failure(.unknown)) }
             }
         }
     }

@@ -28,7 +28,7 @@ final class ProfileService: Sendable {
             $0.auth = owner.authFor(message: $0)
         }
 
-        Task { @MainActor in
+        Task {
             do {
                 let response = try await service.getProfile(request, options: .unaryDefault)
 
@@ -37,23 +37,23 @@ final class ProfileService: Sendable {
                     logger.info("Profile fetched successfully")
                     do {
                         let profile = try Profile(response.userProfile)
-                        completion(.success(profile))
+                        await MainActor.run { completion(.success(profile)) }
                     } catch {
-                        completion(.failure(error))
+                        await MainActor.run { completion(.failure(error)) }
                     }
 
                 } else if error == .notFound {
                     logger.info("Profile not found, returning empty profile")
-                    completion(.success(.empty))
+                    await MainActor.run { completion(.success(.empty)) }
 
                 } else {
                     logger.error("Failed to fetch profile", metadata: ["userId": "\(userID)"])
-                    completion(.failure(error))
+                    await MainActor.run { completion(.failure(error)) }
                 }
             } catch let error as RPCError {
-                completion(.failure(ErrorFetchProfile.from(transportError: error)))
+                await MainActor.run { completion(.failure(ErrorFetchProfile.from(transportError: error))) }
             } catch {
-                completion(.failure(ErrorFetchProfile.unknown))
+                await MainActor.run { completion(.failure(ErrorFetchProfile.unknown)) }
             }
         }
     }

@@ -39,7 +39,7 @@ final class CurrencyService: Sendable {
         var request = Ocp_Currency_V1_GetMintsRequest()
         request.addresses = mints.map(\.solanaAccountID)
 
-        Task { @MainActor in
+        Task {
             do {
                 let response = try await service.getMints(request, options: .unaryDefault)
                 var result: [PublicKey: MintMetadata] = [:]
@@ -51,9 +51,9 @@ final class CurrencyService: Sendable {
                         result[address] = metadata
                     }
                 }
-                completion(.success(result))
+                await MainActor.run { completion(.success(result)) }
             } catch {
-                completion(.failure(error))
+                await MainActor.run { completion(.failure(error)) }
             }
         }
     }
@@ -71,7 +71,7 @@ final class CurrencyService: Sendable {
         request.currencyCode = currencyCode
         request.predefinedRange = range
 
-        Task { @MainActor in
+        Task {
             do {
                 let response = try await service.getHistoricalMintData(request, options: .unaryDefault)
                 switch response.result {
@@ -83,18 +83,18 @@ final class CurrencyService: Sendable {
                         )
                     }
                     logger.info("Fetched historical mint data", metadata: ["count": "\(dataPoints.count)"])
-                    completion(.success(dataPoints))
+                    await MainActor.run { completion(.success(dataPoints)) }
 
                 case .notFound:
-                    completion(.failure(ErrorRateHistory.notFound))
+                    await MainActor.run { completion(.failure(ErrorRateHistory.notFound)) }
 
                 case .missingData, .UNRECOGNIZED:
-                    completion(.failure(ErrorRateHistory.unknown))
+                    await MainActor.run { completion(.failure(ErrorRateHistory.unknown)) }
                 }
             } catch let error as RPCError {
-                completion(.failure(ErrorRateHistory.from(transportError: error)))
+                await MainActor.run { completion(.failure(ErrorRateHistory.from(transportError: error))) }
             } catch {
-                completion(.failure(ErrorRateHistory.unknown))
+                await MainActor.run { completion(.failure(ErrorRateHistory.unknown)) }
             }
         }
     }
@@ -136,20 +136,20 @@ final class CurrencyService: Sendable {
         var request = Ocp_Currency_V1_CheckAvailabilityRequest()
         request.name = name
 
-        Task { @MainActor in
+        Task {
             do {
                 let response = try await service.checkAvailability(request, options: .unaryDefault)
                 switch response.result {
                 case .ok:
                     logger.info("Currency availability check", metadata: ["is_available": "\(response.isAvailable)"])
-                    completion(.success(response.isAvailable))
+                    await MainActor.run { completion(.success(response.isAvailable)) }
                 case .UNRECOGNIZED:
                     logger.error("Availability check returned unrecognized result")
-                    completion(.failure(ErrorGeneric.unknown))
+                    await MainActor.run { completion(.failure(ErrorGeneric.unknown)) }
                 }
             } catch {
                 logger.error("Availability check gRPC error", metadata: ["error": "\(error)"])
-                completion(.failure(error))
+                await MainActor.run { completion(.failure(error)) }
             }
         }
     }
@@ -204,38 +204,38 @@ final class CurrencyService: Sendable {
         if let iconAttestation { request.iconModerationAttestation = iconAttestation.currencyProto }
         request.signature = request.sign(with: owner)
 
-        Task { @MainActor in
+        Task {
             do {
                 let response = try await service.launch(request, options: .unaryDefault)
                 switch response.result {
                 case .ok:
                     guard let mint = try? PublicKey(response.mint.value) else {
                         logger.error("Launch succeeded but mint key invalid")
-                        completion(.failure(.unknown))
+                        await MainActor.run { completion(.failure(.unknown)) }
                         return
                     }
                     logger.info("Currency launched", metadata: ["mint": "\(mint.base58)"])
-                    completion(.success(mint))
+                    await MainActor.run { completion(.success(mint)) }
 
                 case .denied:
                     logger.error("Currency launch denied")
-                    completion(.failure(.denied))
+                    await MainActor.run { completion(.failure(.denied)) }
 
                 case .nameExists:
                     logger.info("Currency launch: name exists")
-                    completion(.failure(.nameExists))
+                    await MainActor.run { completion(.failure(.nameExists)) }
 
                 case .invalidIcon:
                     logger.error("Currency launch: invalid icon")
-                    completion(.failure(.invalidIcon))
+                    await MainActor.run { completion(.failure(.invalidIcon)) }
 
                 case .UNRECOGNIZED:
                     logger.error("Launch returned unrecognized result")
-                    completion(.failure(.unknown))
+                    await MainActor.run { completion(.failure(.unknown)) }
                 }
             } catch {
                 logger.error("Launch gRPC error", metadata: ["error": "\(error)"])
-                completion(.failure(.network(error)))
+                await MainActor.run { completion(.failure(.network(error))) }
             }
         }
     }

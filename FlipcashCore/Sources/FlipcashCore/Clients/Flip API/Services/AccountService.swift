@@ -28,26 +28,26 @@ final class AccountService: Sendable {
             $0.signature = $0.sign(with: owner)
         }
 
-        Task { @MainActor in
+        Task {
             do {
                 let response = try await service.register(request, options: .unaryDefault)
                 let error = ErrorRegisterAccount(rawValue: response.result.rawValue) ?? .unknown
                 guard error == .ok else {
                     logger.error("Failed to register account", metadata: ["owner": "\(owner.publicKey.base58)"])
-                    completion(.failure(error))
+                    await MainActor.run { completion(.failure(error)) }
                     return
                 }
                 guard let userID = try? UUID(data: response.userID.value) else {
                     logger.error("Registered account returned an unparseable user ID", metadata: ["owner": "\(owner.publicKey.base58)"])
-                    completion(.failure(.unknown))
+                    await MainActor.run { completion(.failure(.unknown)) }
                     return
                 }
                 logger.info("Account registered successfully")
-                completion(.success(userID))
+                await MainActor.run { completion(.success(userID)) }
             } catch let error as RPCError {
-                completion(.failure(.from(transportError: error)))
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
             } catch {
-                completion(.failure(.unknown))
+                await MainActor.run { completion(.failure(.unknown)) }
             }
         }
     }
@@ -60,26 +60,26 @@ final class AccountService: Sendable {
             $0.auth = owner.authFor(message: $0)
         }
 
-        Task { @MainActor in
+        Task {
             do {
                 let response = try await service.login(request, options: .unaryDefault)
                 let error = ErrorLoginAccount(rawValue: response.result.rawValue) ?? .unknown
                 guard error == .ok else {
                     logger.error("Failed to login", metadata: ["owner": "\(owner.publicKey.base58)"])
-                    completion(.failure(error))
+                    await MainActor.run { completion(.failure(error)) }
                     return
                 }
                 guard let userID = try? UUID(data: response.userID.value) else {
                     logger.error("Login returned an unparseable user ID", metadata: ["owner": "\(owner.publicKey.base58)"])
-                    completion(.failure(.unknown))
+                    await MainActor.run { completion(.failure(.unknown)) }
                     return
                 }
                 logger.info("Login succeeded")
-                completion(.success(userID))
+                await MainActor.run { completion(.success(userID)) }
             } catch let error as RPCError {
-                completion(.failure(.from(transportError: error)))
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
             } catch {
-                completion(.failure(.unknown))
+                await MainActor.run { completion(.failure(.unknown)) }
             }
         }
     }
@@ -98,21 +98,21 @@ final class AccountService: Sendable {
             $0.auth = owner.authFor(message: $0)
         }
 
-        Task { @MainActor in
+        Task {
             do {
                 let response = try await service.getUserFlags(request, options: .unaryDefault)
                 let error = ErrorFetchUserFlags(rawValue: response.result.rawValue) ?? .unknown
                 guard error == .ok else {
                     logger.error("Failed to fetch user flags", metadata: ["owner": "\(owner.publicKey.base58)"])
-                    completion(.failure(error))
+                    await MainActor.run { completion(.failure(error)) }
                     return
                 }
                 logger.info("User flags fetched successfully")
-                completion(.success(UserFlags(response.userFlags)))
+                await MainActor.run { completion(.success(UserFlags(response.userFlags))) }
             } catch let error as RPCError {
-                completion(.failure(.from(transportError: error)))
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
             } catch {
-                completion(.failure(.unknown))
+                await MainActor.run { completion(.failure(.unknown)) }
             }
         }
     }
@@ -126,20 +126,20 @@ final class AccountService: Sendable {
             }
         }
 
-        Task { @MainActor in
+        Task {
             do {
                 let response = try await service.getUnauthenticatedUserFlags(request, options: .unaryDefault)
                 let error = ErrorFetchUnauthenticatedUserFlags(rawValue: response.result.rawValue) ?? .unknown
                 guard error == .ok else {
                     logger.error("Failed to fetch unauthenticated user flags")
-                    completion(.failure(error))
+                    await MainActor.run { completion(.failure(error)) }
                     return
                 }
-                completion(.success(UnauthenticatedUserFlags(response.userFlags)))
+                await MainActor.run { completion(.success(UnauthenticatedUserFlags(response.userFlags))) }
             } catch let error as RPCError {
-                completion(.failure(.from(transportError: error)))
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
             } catch {
-                completion(.failure(.unknown))
+                await MainActor.run { completion(.failure(.unknown)) }
             }
         }
     }

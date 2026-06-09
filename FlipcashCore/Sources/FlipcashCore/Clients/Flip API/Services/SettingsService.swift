@@ -33,21 +33,21 @@ final class SettingsService: Sendable {
             $0.auth = owner.authFor(message: $0)
         }
 
-        Task { @MainActor in
+        Task {
             do {
                 let response = try await service.updateSettings(request, options: .unaryDefault)
                 let error = ErrorUpdateSettings(rawValue: response.result.rawValue) ?? .unknown
                 guard error == .ok else {
                     logger.error("Failed to update settings", metadata: ["error": "\(error)"])
-                    completion(.failure(error))
+                    await MainActor.run { completion(.failure(error)) }
                     return
                 }
                 logger.info("Settings updated successfully")
-                completion(.success(()))
+                await MainActor.run { completion(.success(())) }
             } catch let error as RPCError {
-                completion(.failure(.from(transportError: error)))
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
             } catch {
-                completion(.failure(.unknown))
+                await MainActor.run { completion(.failure(.unknown)) }
             }
         }
     }
