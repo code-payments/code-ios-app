@@ -19,6 +19,8 @@ let package = Package(
         .package(url: "https://github.com/marmelroy/PhoneNumberKit", from: "4.1.4"),
         .package(url: "https://github.com/mgriebling/BigDecimal", from: "3.0.2"),
         .package(url: "https://github.com/apple/swift-log", from: "1.6.0"),
+        .package(url: "https://github.com/grpc/grpc-swift-2.git", from: "2.4.0"),
+        .package(url: "https://github.com/grpc/grpc-swift-nio-transport.git", from: "2.0.0"),
         .package(path: "../CodeCurves"),
         .package(path: "../FlipcashAPI"),
     ],
@@ -30,6 +32,8 @@ let package = Package(
                 .product(name: "BigDecimal", package: "BigDecimal"),
                 .product(name: "PhoneNumberKit", package: "PhoneNumberKit"),
                 .product(name: "Logging", package: "swift-log"),
+                .product(name: "GRPCCore", package: "grpc-swift-2"),
+                .product(name: "GRPCNIOTransportHTTP2", package: "grpc-swift-nio-transport"),
                 .product(name: "FlipcashAPI", package: "FlipcashAPI"),
             ],
             resources: [
