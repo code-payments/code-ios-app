@@ -219,7 +219,7 @@ Open `Code.xcodeproj` in Xcode 16.x. Swift packages resolve automatically on fir
 
 ### Regenerating Protos
 
-Swift gRPC bindings in `FlipcashAPI/Sources/FlipcashAPI/Generated` and `FlipcashCoreAPI/Sources/FlipcashCoreAPI/Generated` are generated from `.proto` files pulled from the server-protobuf repos. To regenerate:
+Swift gRPC bindings in `FlipcashAPI/Sources/FlipcashAPI/Payments/Generated` and `FlipcashAPI/Sources/FlipcashAPI/Core/Generated` are generated from `.proto` files pulled from the server-protobuf repos. To regenerate:
 
 ```
 cd Scripts
@@ -232,7 +232,7 @@ Each invocation clones the latest `.proto` files from the upstream repo, replace
 **Required tools** (checked by the script; aborts if missing):
 - `protoc` — `brew install protobuf`
 - `protoc-gen-swift` — `brew install swift-protobuf`
-- `protoc-gen-grpc-swift` (version **1.x**, not 2.x) — `./Scripts/install-grpc-swift-1-plugin.sh`
+- `protoc-gen-grpc-swift-2` (grpc-swift **2.x**) — `./Scripts/install-grpc-swift-2-plugin.sh`
 
 **Never modify files under `Generated/` directly** — changes will be overwritten on the next regen.
 
@@ -260,32 +260,24 @@ Container (DI)
 - **Session** is the main state object after authentication
 - **Controllers** handle business logic and data persistence
 
-### gRPC Call Options
+### gRPC Call Options (v2)
 
-Two `CallOptions` presets exist in `CodeService.swift` — using the wrong one causes subtle bugs:
+Per-RPC deadlines are passed via `GRPCCore.CallOptions` on each call — there is no shared `CodeService` preset anymore. The v1 rule still holds in the v2 shape:
 
-| Preset | Timeout | Use For | Example RPCs |
-|--------|---------|---------|-------------|
-| `.default` | 15 seconds | **Unary** RPCs (request → response) | `fetchMessages`, `sendMessage`, `createAccounts` |
-| `.streaming` | None | **Server-streaming** and **bidirectional** RPCs | `openMessageStream`, `submitIntent`, `streamLiveMintData`, `statefulSwap` |
+| RPC kind | Deadline | How |
+|----------|----------|-----|
+| **Unary** (request → response) | 15 seconds | pass `options: .unaryDefault` (defined in `GRPCTransport.swift`) |
+| **Server-streaming / bidirectional** | None | pass nothing (`.defaults`) — a stray deadline silently kills long-lived streams |
 
-The `defaultCallOptions` on each gRPC client is `.default`, so unary RPCs get the 15s timeout automatically. **Streaming RPCs must explicitly pass `callOptions: .streaming`** — omitting it silently applies the 15s deadline, killing long-lived streams.
-
-```swift
-// ❌ BAD: Uses default 15s timeout — stream dies silently
-let stream = service.openMessageStream(request) { response in ... }
-
-// ✅ GOOD: No timeout — stream stays open, managed by keepalive
-let stream = service.openMessageStream(request, callOptions: .streaming) { response in ... }
-```
+Streaming RPCs run through the `BidirectionalGRPCStream` / `ServerGRPCStream` adapters in `GRPCStream.swift`, which bridge v2's closure-scoped streaming (`requestProducer:` / `onResponse:`) to a retained, multi-sender handle (`sendMessage` / `cancel`). The transport and the shared `UserAgentClientInterceptor` are configured once on the `GRPCClient` in `Client.swift` / `FlipClient.swift`; the `runConnections()` task must stay retained for the client's lifetime.
 
 ### Transport Failure Classification
 
-A gRPC transport failure (request timeout / unavailable channel) is a network condition, not a code defect — it must never reach Bugsnag. The `TransportClassifiableError` protocol + the `Result`-returning `UnaryCall.handle` overload make this automatic.
+A gRPC transport failure (request timeout / unavailable channel) is a network condition, not a code defect — it must never reach Bugsnag. The `TransportClassifiableError` protocol carries this guarantee.
 
-- **New unary RPCs:** use the overload — `call.handle(on: queue, completion: completion) { response in … return .success / .failure }` — and conform the error enum to `TransportClassifiableError`. That just means giving it a `.transportFailure` case (marked `isReportable == false`) alongside its `.unknown` case; those two cases satisfy the protocol and the single shared `from(transportError:)` default does the mapping — you don't write one per enum. Never hand-write `failure: { completion(.failure(.unknown)) }` — that ships timeouts as a reportable `.unknown`. The `Failure: TransportClassifiableError` constraint enforces this at compile time.
-- **Associated-value error enums** (cases like `.grpcStatus`/`.network`): make `isReportable` return `false` when the captured status is transient (`status.code.isTransientNetworkError`), mirroring `ErrorSubmitIntent` / `ErrorSwap` / `ErrorStatelessSwap`.
-- **Unary RPCs whose failure type is the existential `Error`** (e.g. `fetchMessages`, `fetchMints` — no dedicated error enum to conform): `GRPCStatus` itself conforms to `ServerError` with `isReportable == !code.isTransientNetworkError`, so shipping the raw status via `completion(.failure(status))` classifies transient transport failures automatically — no per-call-site mapping needed.
+- **Typed error enums:** conform the enum to `TransportClassifiableError` (give it a `.transportFailure` case — `isReportable == false` — alongside `.unknown`), then in the call's `catch` map via `ErrorX.from(transportError: rpcError)`. The single shared `from(transportError: RPCError)` default does the mapping — you don't write one per enum. Never map a timeout to a reportable `.unknown`.
+- **Associated-value error enums** (cases like `.grpcStatus(RPCError)` / `.network(Error)`): make `isReportable` return `false` when the captured error is transient (`rpcError.code.isTransientNetworkError`, or `(error as? ServerError)?.isReportable ?? true`), mirroring `ErrorSubmitIntent` / `ErrorSwap` / `ErrorStatelessSwap` / `ErrorModeration`.
+- **Unary RPCs whose failure type is the existential `Error`:** `RPCError` itself conforms to `ServerError` with `isReportable == !code.isTransientNetworkError`, so shipping the raw error via `completion(.failure(error))` classifies transient transport failures automatically — no per-call-site mapping needed.
 - `FlipcashCoreTests/TransportClassificationTests` asserts every conformer is wired — add a line when you add a classifiable error.
 
 ### Navigation: AppRouter
@@ -326,7 +318,7 @@ Every router mutation logs one INFO entry under `flipcash.router` — filter by 
 | UI Framework | SwiftUI (primary), UIKit (AppDelegate, navigation) |
 | Testing | Swift Testing (`import Testing`) |
 | Database | SQLite via SQLite.swift (fork, see below) |
-| Networking | gRPC via grpc-swift |
+| Networking | gRPC via grpc-swift 2 (GRPCCore + Network.framework TransportServices) |
 | Crypto | Ed25519 via CodeCurves |
 
 ### Package Structure
@@ -335,8 +327,7 @@ Every router mutation logs one INFO entry under `flipcash.router` — filter by 
 Flipcash/          # Main app - focus here
 FlipcashCore/      # Business logic, models, clients
 FlipcashUI/        # UI components, theme
-FlipcashAPI/       # gRPC proto definitions
-FlipcashCoreAPI/   # gRPC proto definitions for core services
+FlipcashAPI/       # gRPC proto definitions + generated v2 bindings (Payments/ + Core/)
 CodeCurves/        # Ed25519 cryptography
 CodeScanner/       # C++/OpenCV circular code scanning (see below)
 ```
@@ -548,7 +539,7 @@ Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
 | Adding unnecessary abstractions | Keep it simple, solve the current problem |
 | Completing a transaction without refreshing balances | Call `session.updatePostTransaction()` after any transaction completes |
 | Canceling/modifying `SendCashOperation` in `dismissCashBill` | **Never** explicitly call `cancel()` or `invalidateMessageStream()` on `SendCashOperation` from `dismissCashBill`. After a grab, the received bill is a **live** `SendCashOperation` that others can scan ("quick give and grab" chain). Setting `sendOperation = nil` is fine (deinit cleans up), but explicit teardown kills a live bill. The operation's `complete()` method handles stream teardown on success/failure. |
-| Using default `CallOptions` for streaming RPCs | Streaming RPCs (`openMessageStream`, `submitIntent`, `streamLiveMintData`, `statefulSwap`) must use `callOptions: .streaming`. The default 15s timeout silently kills long-lived streams. See [gRPC Call Options](#grpc-call-options). |
+| Giving a streaming RPC a deadline | Streaming RPCs (`openMessageStream`, `submitIntent`, `streamLiveMintData`, `statefulSwap`) run through the `BidirectionalGRPCStream`/`ServerGRPCStream` adapters with NO per-call deadline (`.defaults`). A stray deadline silently kills long-lived streams. See [gRPC Call Options](#grpc-call-options). |
 | Showing a received bill without `verifiedState` | Every call to `showCashBill` must pass `verifiedState` — even for `received: true` bills. The received bill creates a live `SendCashOperation` for the "quick give and grab" chain. Without `verifiedState`, launchpad currency transfers fail with "reserve state is required". Both `receiveCash` (scan) and `receiveCashLink` (deep link) must provide it. |
 | Nesting a `NavigationStack` inside another stack's destination | Crashes with `SwiftUI.AnyNavigationPath.Error.comparisonTypeMismatch` on push/pop/push. Drop the inner stack; register `.navigationDestination(for: SubFlowPath.self)` on the destination's root view and push sub-flow steps via `router.pushAny(_:on:)`. The parent stack's `NavigationPath` carries both the typed `Destination` cases and the sub-flow's Hashable values. |
 | Cross-stack `navigate(to:)` shows stale leaf data | When two destinations have the same case but different associated values (e.g., `.currencyInfo(A)` → `.currencyInfo(B)`), SwiftUI keeps the existing view at the same path depth and `@State` survives — the leaf renders with old data. Add `.id(value)` to the destination view in `DestinationView` so each value forces a fresh view identity. |

@@ -109,15 +109,6 @@
       }
     },
     {
-      "identity" : "grpc-swift",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/grpc/grpc-swift.git",
-      "state" : {
-        "revision" : "ac715c584bb1e2e5cdfb7684ccb46fab8dafc641",
-        "version" : "1.27.4"
-      }
-    },
-    {
       "identity" : "grpc-swift-2",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/grpc/grpc-swift-2.git",

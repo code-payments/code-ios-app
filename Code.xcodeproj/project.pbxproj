@@ -408,7 +408,6 @@
 			);
 			mainGroup = 9AED10F7258BE1310088D902;
 			packageReferences = (
-				9A1654D526790419000A135E /* XCRemoteSwiftPackageReference "grpc-swift" */,
 				9ACE172927E6287C00ACA047 /* XCRemoteSwiftPackageReference "mixpanel-swift" */,
 				9A1A827528660A6F00A4979F /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 				9A476D482978884700C5B5CE /* XCRemoteSwiftPackageReference "bugsnag-cocoa" */,
@@ -1436,14 +1435,6 @@
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 1.0.2;
-			};
-		};
-		9A1654D526790419000A135E /* XCRemoteSwiftPackageReference "grpc-swift" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/grpc/grpc-swift.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.22.0;
 			};
 		};
 		9A1A827528660A6F00A4979F /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {

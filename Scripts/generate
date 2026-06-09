@@ -5,8 +5,8 @@
 # Install with Homebrew:
 #    brew install protobuf swift-protobuf
 #
-# Install grpc-swift 1.x plugin (Homebrew only has 2.x):
-#    ./Scripts/install-grpc-swift-1-plugin.sh
+# Install the grpc-swift 2.x plugin:
+#    ./Scripts/install-grpc-swift-2-plugin.sh
 #
 # After installation, you may need to restart your terminal or IDE.
 
@@ -31,27 +31,18 @@ if ! command -v protoc-gen-swift &> /dev/null; then
     MISSING=1
 fi
 
-# Check if gRPC Swift 1.x plugin is available
-if ! command -v protoc-gen-grpc-swift &> /dev/null; then
-    echo "Error: protoc-gen-grpc-swift is not installed or not in PATH"
-    echo "Install it with: ./Scripts/install-grpc-swift-1-plugin.sh"
+# Check if the gRPC Swift 2.x plugin is available
+if ! command -v protoc-gen-grpc-swift-2 &> /dev/null; then
+    echo "Error: protoc-gen-grpc-swift-2 is not installed or not in PATH"
+    echo "Install it with: ./Scripts/install-grpc-swift-2-plugin.sh"
     MISSING=1
-else
-    GRPC_VERSION=$(protoc-gen-grpc-swift --version 2>&1 || true)
-    if [[ ! "$GRPC_VERSION" =~ ^protoc-gen-grpc-swift\ 1\. ]]; then
-        echo "Error: protoc-gen-grpc-swift must be version 1.x, found: $GRPC_VERSION"
-        echo "Homebrew installs 2.x which is incompatible."
-        echo "Install 1.x with: ./Scripts/install-grpc-swift-1-plugin.sh"
-        MISSING=1
-    fi
 fi
 
 if [[ $MISSING -ne 0 ]]; then
     exit 1
 fi
 
-GRPC_PLUGIN="grpc-swift"
-echo "Using protoc $(protoc --version), protoc-gen-swift $(protoc-gen-swift --version 2>&1), protoc-gen-grpc-swift $(protoc-gen-grpc-swift --version 2>&1)"
+echo "Using protoc $(protoc --version), protoc-gen-swift $(protoc-gen-swift --version 2>&1), protoc-gen-grpc-swift-2 $(protoc-gen-grpc-swift-2 --version 2>&1)"
 
 CURRENT_DIR=$(pwd)
 PROTO_DIR="${1:-}"
@@ -76,23 +67,33 @@ echo "Output dir: ${OUTPUT_DIR}"
 rm -rf "${OUTPUT_DIR}"
 mkdir "${OUTPUT_DIR}"
 
-# Swift gRPC Options
+# SwiftProtobuf Options
 # https://github.com/apple/swift-protobuf/blob/main/Documentation/PLUGIN.md
 #
-# Swift Protobuf Options
-# https://github.com/grpc/grpc-swift/blob/main/docs/plugin.md
+# gRPC Swift 2.x Options
+# https://github.com/grpc/grpc-swift-protobuf/blob/main/Sources/GRPCProtobufGenerator/Documentation.docc
 
 find "$PROTO_DIR" -name "*.proto" | while read PROTO_FILE
 do
+    # SwiftProtobuf messages for every proto.
     protoc \
-        -I$PROTO_DIR \
+        -I"$PROTO_DIR" \
         "$PROTO_FILE" \
-        --${GRPC_PLUGIN}_opt=Visibility=Public \
-        --${GRPC_PLUGIN}_opt=FileNaming=PathToUnderscores \
-        --${GRPC_PLUGIN}_out="$OUTPUT_DIR" \
         --swift_opt=Visibility=Public \
         --swift_opt=FileNaming=PathToUnderscores \
         --swift_out="$OUTPUT_DIR"
+
+    # gRPC v2 client bindings only for protos that declare a service.
+    if grep -q '^service ' "$PROTO_FILE"; then
+        protoc \
+            -I"$PROTO_DIR" \
+            "$PROTO_FILE" \
+            --grpc-swift-2_opt=Visibility=Public \
+            --grpc-swift-2_opt=Server=false \
+            --grpc-swift-2_opt=Client=true \
+            --grpc-swift-2_opt=FileNaming=PathToUnderscores \
+            --grpc-swift-2_out="$OUTPUT_DIR"
+    fi
 done
 
 # Rename generated files to include the custom prefix
