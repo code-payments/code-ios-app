@@ -26,6 +26,8 @@ struct RecipientPickerScreen: View {
 
     @Environment(ContactSyncController.self) private var contactSyncController
     @Environment(AppRouter.self) private var router
+    @Environment(Session.self) private var session
+    @Environment(RatesController.self) private var ratesController
 
     @State private var filtered: ResolvedContacts = .empty
     @State private var inviteTarget: ResolvedContact?
@@ -69,6 +71,12 @@ struct RecipientPickerScreen: View {
 
     private func selectRecipient(_ contact: ResolvedContact) {
         Analytics.track(event: Analytics.SendEvent.tapRecipient)
+        guard session.hasGiveableBalance(for: ratesController.rateForBalanceCurrency()) else {
+            session.dialogItem = .noGiveableBalance {
+                router.navigate(to: .deposit)
+            }
+            return
+        }
         router.push(.sendAmount(contact: contact))
     }
 
