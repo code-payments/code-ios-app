@@ -12,6 +12,8 @@ struct GoldBarSceneView: UIViewRepresentable {
     var relief: Double
     /// Rest position of the key light; tilt sweeps the highlight around this anchor.
     var lightAnchor: SIMD2<Double>
+    /// Bar yaw in degrees; 0 faces the user dead-on.
+    var barRotationDegrees: Double
 
     func makeCoordinator() -> Coordinator { Coordinator(qrPayload: qrPayload) }
 
@@ -42,6 +44,10 @@ struct GoldBarSceneView: UIViewRepresentable {
             coordinator.appliedRelief = relief
             bundle.material.normal.intensity = CGFloat(relief)
         }
+        if coordinator.appliedBarRotation != barRotationDegrees {
+            coordinator.appliedBarRotation = barRotationDegrees
+            bundle.barNode.eulerAngles.y = Float(barRotationDegrees * .pi / 180)
+        }
         coordinator.setLightAnchor(lightAnchor)
     }
 
@@ -55,6 +61,7 @@ struct GoldBarSceneView: UIViewRepresentable {
         var appliedLightIntensity: Double?
         var appliedEnvironmentIntensity: Double?
         var appliedRelief: Double?
+        var appliedBarRotation: Double?
 
         private let motion = CMMotionManager()
         // Start near the neutral held attitude so the first frame is already centered.

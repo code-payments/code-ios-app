@@ -7,6 +7,7 @@ enum GoldBarScene {
     struct Bundle {
         let scene: SCNScene
         let keyLightNode: SCNNode
+        let barNode: SCNNode
         let material: SCNMaterial
     }
 
@@ -49,9 +50,9 @@ enum GoldBarScene {
         camera.bloomThreshold = 0.95
         camera.bloomBlurRadius = 10
         cameraNode.camera = camera
-        // Pulled back with a slight angle so the whole bar floats with margin (full silhouette
-        // + a sliver of 3D edge visible), rather than filling the frame edge-to-edge.
-        cameraNode.position = SCNVector3(0.35, 0.29, 3.35)
+        // Face-on by default, pulled back so the whole bar floats with margin; the demo's
+        // Rotation slider turns the bar itself to reveal its 3D edges.
+        cameraNode.position = SCNVector3(0, 0, 3.35)
         cameraNode.look(at: SCNVector3Zero)
         scene.rootNode.addChildNode(cameraNode)
 
@@ -81,7 +82,7 @@ enum GoldBarScene {
         rimNode.look(at: SCNVector3Zero)
         scene.rootNode.addChildNode(rimNode)
 
-        return Bundle(scene: scene, keyLightNode: keyLightNode, material: detailed)
+        return Bundle(scene: scene, keyLightNode: keyLightNode, barNode: barNode, material: detailed)
     }
 
     private static func goldMaterial(_ textures: GoldBarMaterialBaker.Textures) -> SCNMaterial {

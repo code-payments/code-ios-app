@@ -11,6 +11,7 @@ struct GoldBarDemoScreen: View {
     @State private var relief: Double = 0.55
     @State private var lightX: Double = 0
     @State private var lightY: Double = GoldBarLighting.restElevation
+    @State private var barRotation: Double = 0
 
     private let qrPayload = "https://flipcash.com/gold-bar-demo"
 
@@ -24,7 +25,8 @@ struct GoldBarDemoScreen: View {
                     lightIntensity: lightIntensity,
                     environmentIntensity: environmentIntensity,
                     relief: relief,
-                    lightAnchor: SIMD2(lightX, lightY)
+                    lightAnchor: SIMD2(lightX, lightY),
+                    barRotationDegrees: barRotation
                 )
                 .ignoresSafeArea()
 
@@ -33,7 +35,8 @@ struct GoldBarDemoScreen: View {
                     environmentIntensity: $environmentIntensity,
                     relief: $relief,
                     lightX: $lightX,
-                    lightY: $lightY
+                    lightY: $lightY,
+                    barRotation: $barRotation
                 )
             }
             .toolbar {
@@ -54,6 +57,7 @@ private struct GoldBarTuningOverlay: View {
     @Binding var relief: Double
     @Binding var lightX: Double
     @Binding var lightY: Double
+    @Binding var barRotation: Double
 
     @State private var position: CGPoint?
     @State private var panelSize = CGSize(width: 300, height: 320)
@@ -71,7 +75,8 @@ private struct GoldBarTuningOverlay: View {
                 environmentIntensity: $environmentIntensity,
                 relief: $relief,
                 lightX: $lightX,
-                lightY: $lightY
+                lightY: $lightY,
+                barRotation: $barRotation
             )
             .onGeometryChange(for: CGSize.self) { $0.size } action: { panelSize = $0 }
             .onTapGesture {
@@ -153,6 +158,7 @@ private struct GoldBarTuningPanel: View {
     @Binding var relief: Double
     @Binding var lightX: Double
     @Binding var lightY: Double
+    @Binding var barRotation: Double
 
     var body: some View {
         VStack(spacing: 10) {
@@ -165,6 +171,7 @@ private struct GoldBarTuningPanel: View {
             LabeledSlider(title: "Relief", value: $relief, range: 0...2)
             LabeledSlider(title: "Light X", value: $lightX, range: -1.5...1.5)
             LabeledSlider(title: "Light Y", value: $lightY, range: -0.5...1.5)
+            LabeledSlider(title: "Rotation", value: $barRotation, range: -90...90)
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 16)
