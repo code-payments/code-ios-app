@@ -19,7 +19,7 @@ The dependency graph only ever points down (see [01](01-modules-and-boundaries.m
 
 ## 2. MVVM, but only where it earns its keep
 
-- **ViewModels** exist for multi-screen flows, async-operation coordination, or complex state (onboarding, verification, buy/sell/swap, withdraw, send-amount, currency creation).
+- **ViewModels** exist for multi-screen flows, async-operation coordination, or complex state (onboarding, verification, buy/sell/swap, withdraw, send-amount *(contact-sync)*, currency creation).
 - **Standalone, self-contained screens** use `@State` + `@Observable` directly and make router calls inline in their action closures (balance, settings, deposit, discovery, most modals).
 
 The test is *complexity and reach*, not *every screen gets a VM*. See the [feature catalog](features/README.md) for which features fall on which side.

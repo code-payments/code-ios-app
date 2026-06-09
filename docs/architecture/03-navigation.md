@@ -34,9 +34,9 @@ Core mutators:
 
 - **`.balance`** — `currencyInfo(mint)`, `currencyInfoForDeposit(mint)`, `discoverCurrencies`, `currencyCreationSummary`, `currencyCreationWizard`, `transactionHistory(mint)`, `give(mint)`, `withdrawCurrency(mint)`, `usdcDepositAddress`, `phantomFlow(...)`, …
 - **`.settings`** — `settingsMyAccount`, `settingsAppSettings`, `settingsAdvancedFeatures`, `settingsBetaFlags`, `accessKey`, `deposit`, `depositAddress(mint)`, `withdraw`, …
-- **`.send`** — `sendAmount(contact:)`
+- **`.send`** — `sendAmount(contact:)` *(contact-sync)*
 
-`AppRouter+DestinationView.swift` (`DestinationView`) is the single exhaustive `Destination → View` map. Screens whose case can recur with a different payload (`currencyInfo`, `give`, `sendAmount`) apply `.id(value)` so a cross-stack `navigate` forces fresh view identity (otherwise SwiftUI keeps the stale leaf's `@State`).
+`AppRouter+DestinationView.swift` (`DestinationView`) is the single exhaustive `Destination → View` map. Screens whose case can recur with a different payload (`currencyInfo`, `give`, `sendAmount` *(contact-sync)*) apply `.id(value)` so a cross-stack `navigate` forces fresh view identity (otherwise SwiftUI keeps the stale leaf's `@State`).
 
 ## Top-level sheets
 
@@ -49,7 +49,7 @@ Core mutators:
 | `.give` | `.give` | Give cash (gated on `hasGiveableBalance`) |
 | `.discover` | `.discover` | Currency discovery |
 | `.buy(mint)` | `.buy` | **Nested-only** — `Stack.buy.sheet` is `nil` because the mint can't be synthesized from the stack |
-| `.send` | `.send` | Send flow (flag-gated) |
+| `.send` | `.send` | Send flow *(contact-sync)* |
 | `.downloadApp` | `.downloadApp` | Full-screen overlay over the scanner |
 
 Each sheet root applies `.appRouterDestinations(...)` (registers `.navigationDestination(for: Destination.self)`). The `RoutedSheet` container inside `ScanScreen` applies `.appRouterNestedSheet(...)` **once**, enabling nested sheets for whichever root sheet is currently showing.
@@ -73,7 +73,7 @@ Each sheet root applies `.appRouterDestinations(...)` (registers `.navigationDes
 | `/login#e=<entropy>` | already logged-in → `session.attemptLogin` (confirm, then `switchAccount`); else `switchAccount` directly |
 | `/cash#e=<entropy>` | `session.receiveCashLink(mnemonic:)` |
 | `/token/<mint>` | `appRouter.navigate(to: .currencyInfo(mint))` |
-| `/give`, `/balance`, `/discover`, `/send` | `appRouter.present(sheet)` (gated where relevant) |
+| `/give`, `/balance`, `/discover`, `/send` *(contact-sync)* | `appRouter.present(sheet)` (gated where relevant) |
 
 Push notifications route through the same URL mechanism. Auto-return is consumed atomically before deeplink navigation so `dismissAll` can't clobber a concurrent `navigate`.
 

@@ -14,7 +14,7 @@ graph LR
 
 | Layer | What lives here | Implementation |
 |-------|-----------------|----------------|
-| **SQLite** | All cached server data: balances, mint metadata, activity history, rates, verified proofs, limits, profile, user flags, contact-sync state, local contacts snapshot | `Database.swift` over the `dbart01/SQLite.swift` fork |
+| **SQLite** | All cached server data: balances, mint metadata, activity history, rates, verified proofs, limits, profile, user flags, plus contact-sync state + local contacts snapshot *(contact-sync)* | `Database.swift` over the `dbart01/SQLite.swift` fork |
 | **Keychain** | Secrets: current `UserAccount` (keypair), `historicalAccounts` (iCloud-synced) | `AccountManager` via a `@SecureCodable` wrapper |
 | **UserDefaults** | Preferences/flags only: `wasLoggedIn`, `launchCount`, camera prefs, `balanceCurrency`, `recentCurrencies`, `localCurrencyAdded`, `storedTokenMint`, `betaFlags` | a custom `@Defaults` wrapper (the project does **not** use `@AppStorage`) |
 
@@ -43,15 +43,15 @@ graph LR
 | `verified_rate` | currency | Raw signed `rateProto` per fiat |
 | `verified_reserve` | mint | Raw signed `reserveProto` per launchpad mint |
 | `profile` / `userFlags` | 1 (singleton) | Serialized blobs |
-| `contact_sync_state` | 1 (singleton) | Sync cursor (checksum) |
-| `flipcash_contact` | e164 | Numbers server-confirmed on Flipcash |
-| `local_contacts_snapshot` | (e164, contactId) | Last uploaded contact set; `contactId` resolves name/avatar at render |
+| `contact_sync_state` | 1 (singleton) | Sync cursor (checksum) *(contact-sync)* |
+| `flipcash_contact` | e164 | Numbers server-confirmed on Flipcash *(contact-sync)* |
+| `local_contacts_snapshot` | (e164, contactId) | Last uploaded contact set; `contactId` resolves name/avatar at render *(contact-sync)* |
 
 Custom `Value` conformances store `UInt64` as `Int64`, `PublicKey`/`Key32` as `Blob`, `CurrencyCode` as `String`.
 
 ## Query organization
 
-Extension-per-concern, all `nonisolated extension Database`: `Database+Balance`, `+Activities`, `+Rates`, `+VerifiedProtos` (conforms `Database` to `VerifiedProtoStore`), `+Limits`, `+Profile`, `+ContactSync`. Each owns the reads/upserts for its domain.
+Extension-per-concern, all `nonisolated extension Database`: `Database+Balance`, `+Activities`, `+Rates`, `+VerifiedProtos` (conforms `Database` to `VerifiedProtoStore`), `+Limits`, `+Profile`, `+ContactSync` *(contact-sync)*. Each owns the reads/upserts for its domain.
 
 Row models live in `Database/Models/`. Only two dedicated structs exist — `StoredBalance` (from the `balance JOIN mint` query, computes the USDF equivalent inline via the bonding curve) and `StoredMintMetadata` (converts to/from the domain `MintMetadata`). Singleton-row tables decode directly to their domain type inline; no separate model struct.
 

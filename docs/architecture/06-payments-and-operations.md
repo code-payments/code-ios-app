@@ -27,7 +27,7 @@ A payment is submitted via the **`submitIntent` bidirectional stream** (`Transac
 Freshness: client ceiling `clientMaxAge = 13 min` (2-min buffer under the server's 15-min limit); `SendCashOperation` also pre-flights a 15-min ceiling on the reserve proof before transfer.
 
 ### The pin-at-compute invariant
-Amount-entry viewmodels (`BuyAmountViewModel`, `CurrencySellViewModel`, `WithdrawViewModel`, `GiveViewModel`, `SendAmountViewModel`) call `prepareSubmission()` **at commit time** to pin the `VerifiedState`, and compute `ExchangedFiat.quarks` against *that same proof's rate*. The pinned state is carried unchanged through `Session.showCashBill → BillDescription.verifiedState → SendCashOperation` / `createCashLink`.
+Amount-entry viewmodels (`BuyAmountViewModel`, `CurrencySellViewModel`, `WithdrawViewModel`, `GiveViewModel`, and `SendAmountViewModel` *(contact-sync)*) call `prepareSubmission()` **at commit time** to pin the `VerifiedState`, and compute `ExchangedFiat.quarks` against *that same proof's rate*. The pinned state is carried unchanged through `Session.showCashBill → BillDescription.verifiedState → SendCashOperation` / `createCashLink`.
 
 > Using a different (or re-fetched) proof at the transfer step makes `quarks × rate` disagree with what the server validates → "native amount does not match expected value" rejection. Pin once, at compute.
 

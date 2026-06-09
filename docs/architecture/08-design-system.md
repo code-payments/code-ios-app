@@ -25,7 +25,7 @@ graph TD
 - **Controls**: `SwipeControl` (slide-to-confirm, idle-nudge), `KeyPadView` (numeric; the decimal key uses `Metrics.localizedDecimalSeparator` — the device locale's separator, `.` as fallback).
 - **Bill**: `BillView` (full cash-bill renderer — gradient, security strip, textures, rotated labels, centered code; `drawingGroup`), `CodeView`, `KikCode` (pure-Swift circular code generator — independent of the `CodeScanner` package).
 - **Chart**: `StockChart` (+ `ChartViewModel`), `ChartLineView`, `ChartRangePicker` (1D/1W/1M/1Y/all).
-- **Contacts**: `ContactAvatarView` (image or monogram, `NSCache`-backed).
+- **Contacts**: `ContactAvatarView` (image or monogram, `NSCache`-backed) *(contact-sync)*.
 - **Misc**: `AmountText`/`AmountField`, `Flag`, `Badge`/`Bubble`/`BadgedIcon`, `QRCode`, `TwoFactorCodeView`, `CheckView`, `LoadingView`/`CircularLoadingView`, `ExpandableText`, `TextBubble`, `AccessKey`, `ValueAppreciation`.
 - **List**: `ListHeader`, `Row` (insets, `.chevron`/`.loader` accessory, auto separator).
 - **Modifiers**: `.badged(count:)`, `.vSeparator`/`.hSeparator` (pixel-precise hairlines), `.if(condition:)`, `.liquidGlassButtonStyle`.
