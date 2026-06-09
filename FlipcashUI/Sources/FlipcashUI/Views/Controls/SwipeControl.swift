@@ -44,18 +44,7 @@ public struct SwipeControl: View {
             let maxX = geometry.size.width - Layout.knobSize.width
 
             SwipingTrack(text: text, maxX: maxX, knobX: knobX, isNormal: state == .normal) {
-                Task {
-                    state = .loading
-                    knobX = maxX + Layout.knobSize.width * 2
-                    do {
-                        try await action()
-                        state = .success
-                        try await completion?()
-                        try await Task.delay(seconds: 2)
-                    } catch {}
-                    state = .normal
-                    knobX = 0
-                }
+                Task { await commit(maxX: maxX) }
             }
         }
         .padding(.horizontal, 4)
@@ -66,7 +55,7 @@ public struct SwipeControl: View {
         .overlay {
             ZStack {
                 RoundedRectangle(cornerRadius: Metrics.buttonRadius)
-                    .stroke(.textSecondary.opacity(0.3), lineWidth: 1 / displayScale)
+                    .stroke(Metrics.inputFieldStrokeColor(highlighted: false), lineWidth: 1 / displayScale)
 
                 switch state {
                 case .normal:
@@ -93,13 +82,26 @@ public struct SwipeControl: View {
             }
         }
     }
+
+    private func commit(maxX: CGFloat) async {
+        state = .loading
+        knobX = maxX + Layout.knobSize.width * 2
+        do {
+            try await action()
+            state = .success
+            try await completion?()
+            try await Task.delay(seconds: 2)
+        } catch {}
+        state = .normal
+        knobX = 0
+    }
 }
 
 /// Owns the high-frequency drag and idle-nudge state, and renders the label and
 /// knob together so a drag (or nudge) re-renders only the track, not the
 /// control's background, border, or status overlay. As the knob advances it
-/// wipes the label away from the left, the text dissolving through a soft fade
-/// just ahead of the knob's leading edge.
+/// masks the label away from the left and fades the still-visible remainder
+/// toward transparent.
 private struct SwipingTrack: View {
 
     let text: String
@@ -113,16 +115,13 @@ private struct SwipingTrack: View {
     @GestureState private var dragOffset: CGFloat? = nil
     @State private var isNudging = false
 
-    private static let wipeGradient = LinearGradient(
-        colors: [.clear, .black], startPoint: .leading, endPoint: .trailing
-    )
-
     var body: some View {
-        let drag = dragOffset ?? 0
-        let leadingX = knobX + drag + Layout.knobSize.width
+        let position = knobX + (dragOffset ?? 0)
+        let leadingX = position + Layout.knobSize.width
+        let labelOpacity = maxX > 0 ? 1 - min(max(position / maxX, 0), 1) : 1
         let nudgeX: CGFloat = (isNormal && isEnabled && dragOffset == nil && isNudging) ? Layout.nudgeOffset : 0
 
-        ZStack {
+        ZStack(alignment: .leading) {
             Text(text)
                 .lineLimit(1)
                 .font(.appTextMedium)
@@ -130,13 +129,10 @@ private struct SwipingTrack: View {
                 .padding(.horizontal, Layout.knobSize.width)
                 .frame(maxWidth: .infinity) // span the track so the mask offset below is in track coordinates
                 .mask(alignment: .leading) {
-                    HStack(spacing: 0) {
-                        Self.wipeGradient
-                            .frame(width: Layout.fadeWidth)
-                        Color.black
-                    }
-                    .offset(x: leadingX)
-                    .animation(.springFastestDamped, value: leadingX)
+                    Color.black
+                        .opacity(labelOpacity)
+                        .offset(x: leadingX)
+                        .animation(.springFastestDamped, value: leadingX)
                 }
                 .opacity(isNormal ? 1 : 0)
 
@@ -150,10 +146,8 @@ private struct SwipingTrack: View {
                         .frame(width: Layout.arrowSize, height: Layout.arrowSize)
                         .foregroundStyle(.textAction)
                 }
-                .offset(x: knobX + drag + nudgeX)
-                .animation(.springFastestDamped, value: dragOffset)
-                .animation(.springFastestDamped, value: knobX)
-                .animation(.springFastestDamped, value: isNudging)
+                .offset(x: position + nudgeX)
+                .animation(.springFastestDamped, value: position + nudgeX)
                 .gesture(
                     DragGesture(minimumDistance: 0)
                         .updating($dragOffset) { value, dragState, transaction in
@@ -171,7 +165,6 @@ private struct SwipingTrack: View {
                         }
                 )
                 .disabled(!isNormal)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task {
@@ -196,7 +189,6 @@ private enum Layout {
     static let knobCornerRadius: CGFloat = 4
     static let arrowSize: CGFloat = 18
     static let nudgeOffset: CGFloat = 20
-    static let fadeWidth: CGFloat = 16
     static let disabledOpacity: CGFloat = 0.4
 
     static let commitFraction: CGFloat = 0.7
