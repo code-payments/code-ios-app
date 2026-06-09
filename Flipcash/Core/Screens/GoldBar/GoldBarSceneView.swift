@@ -19,34 +19,47 @@ struct GoldBarSceneView: UIViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator(qrPayload: qrPayload) }
 
-    func makeUIView(context: Context) -> SCNView {
-        let view = SCNView()
-        view.backgroundColor = UIColor(white: 0.04, alpha: 1)
-        view.antialiasingMode = .multisampling2X
-        view.allowsCameraControl = false
-        // Attaching the scene is deferred until `prepare` has compiled its shaders and
-        // uploaded textures off the main thread — attached up front, the first frame
-        // blocks presentation on the whole compile (seconds on a cold launch).
+    func makeUIView(context: Context) -> UIView {
+        // An empty container comes back immediately: every SceneKit/Metal step (view
+        // creation, shader compile, scene attach) lands main-thread hitches, so all of
+        // it is deferred past the cover transition, where the placeholder hides it.
+        let container = UIView()
+        container.backgroundColor = UIColor(white: 0.04, alpha: 1)
         let coordinator = context.coordinator
         let onReady = onSceneReady
         Task {
+            try? await Task.sleep(for: .milliseconds(600))  // cover transition runs ~0.5s
+            guard !coordinator.isStopped else { return }
+
+            let bundle = coordinator.buildSceneIfNeeded()
+            let view = SCNView()
+            view.backgroundColor = UIColor(white: 0.04, alpha: 1)
+            view.antialiasingMode = .multisampling2X
+            view.allowsCameraControl = false
             await withCheckedContinuation { continuation in
-                view.prepare([coordinator.bundle.scene]) { _ in
+                view.prepare([bundle.scene]) { _ in
                     continuation.resume()
                 }
             }
-            view.scene = coordinator.bundle.scene
+            guard !coordinator.isStopped else { return }
+
+            view.scene = bundle.scene
+            view.frame = container.bounds
+            view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            container.addSubview(view)
+            coordinator.scnView = view
             coordinator.start()
             onReady()
         }
-        return view
+        return container
     }
 
-    func updateUIView(_ uiView: SCNView, context: Context) {
+    func updateUIView(_ uiView: UIView, context: Context) {
         // Scalars only — never reassign `.contents` here or the baked roughness/normal maps are lost.
         // Each write is guarded so unrelated SwiftUI updates don't dirty the SceneKit scene.
         let coordinator = context.coordinator
-        let bundle = coordinator.bundle
+        coordinator.setLightAnchor(lightAnchor)
+        guard let bundle = coordinator.bundle else { return }  // re-applied via the onSceneReady re-render
         if coordinator.appliedLightIntensity != lightIntensity {
             coordinator.appliedLightIntensity = lightIntensity
             bundle.keyLightNode.light?.intensity = CGFloat(lightIntensity)
@@ -67,41 +80,65 @@ struct GoldBarSceneView: UIViewRepresentable {
                 0
             )
         }
-        coordinator.setLightAnchor(lightAnchor)
     }
 
-    static func dismantleUIView(_ uiView: SCNView, coordinator: Coordinator) {
+    static func dismantleUIView(_ uiView: UIView, coordinator: Coordinator) {
         coordinator.stop()
     }
 
     @MainActor
     final class Coordinator {
-        let bundle: GoldBarScene.Bundle
+        private(set) var bundle: GoldBarScene.Bundle?
         var appliedLightIntensity: Double?
         var appliedEnvironmentIntensity: Double?
         var appliedRelief: Double?
         var appliedBarRotation: SIMD2<Double>?
 
+        private let qrPayload: String
         private let motion = CMMotionManager()
         // Start near the neutral held attitude so the first frame is already centered.
         private var smoothedGravity = SIMD3<Double>(0, GoldBarLighting.neutralGravityY, -0.5)
         private var lightAnchor: SIMD2<Double>?
 
         init(qrPayload: String) {
+            self.qrPayload = qrPayload
+        }
+
+        /// Builds the scene on first call — kept out of init so presenting the cover does
+        /// no scene work at all; the deferred task behind the placeholder calls this.
+        func buildSceneIfNeeded() -> GoldBarScene.Bundle {
+            if let bundle { return bundle }
+            let built: GoldBarScene.Bundle
             if let cached = GoldBarScene.cachedTextures, cached.payload == qrPayload {
-                bundle = GoldBarScene.make(textures: cached.textures)
+                built = GoldBarScene.make(textures: cached.textures)
             } else {
-                // Milliseconds-cheap preview maps so presentation never waits on the bake;
-                // the full-resolution set fades in when the background bake completes.
-                bundle = GoldBarScene.make(textures: GoldBarMaterialBaker.bake(.preview(qrPayload: qrPayload)))
+                // Milliseconds-cheap preview maps so the bar never waits on the bake;
+                // the full-resolution set arrives when the background bake completes.
+                built = GoldBarScene.make(textures: GoldBarMaterialBaker.bake(.preview(qrPayload: qrPayload)))
+            }
+            bundle = built
+            if GoldBarScene.cachedTextures?.payload != qrPayload {
                 bakeFullTextures(qrPayload: qrPayload)
             }
+            positionLight(for: smoothedGravity)
+            return built
         }
 
         private func bakeFullTextures(qrPayload: String) {
-            let material = bundle.material
-            Task {
+            guard let material = bundle?.material else { return }
+            Task { [weak self] in
                 let textures = await GoldBarScene.fullTextures(qrPayload: qrPayload)
+                // Upload the new maps to the GPU off the main thread first, so the swap
+                // below is a cheap pointer change instead of a mid-frame texture upload.
+                if let view = self?.scnView {
+                    let staging = SCNMaterial()
+                    staging.diffuse.contents = textures.albedo
+                    staging.normal.contents = textures.normal
+                    staging.roughness.contents = textures.roughness
+                    await withCheckedContinuation { continuation in
+                        view.prepare([staging]) { _ in continuation.resume() }
+                    }
+                }
                 SCNTransaction.begin()
                 SCNTransaction.animationDuration = 0.3
                 material.diffuse.contents = textures.albedo
@@ -111,9 +148,11 @@ struct GoldBarSceneView: UIViewRepresentable {
             }
         }
 
+        weak var scnView: SCNView?
+
         // start() can arrive after stop() when the cover is dismissed mid-prepare —
         // motion must not be left running on a torn-down view.
-        private var isStopped = false
+        private(set) var isStopped = false
 
         func start() {
             guard !isStopped, motion.isDeviceMotionAvailable else { return }
@@ -158,6 +197,7 @@ struct GoldBarSceneView: UIViewRepresentable {
         /// Direct sets — wrapping these in SCNTransaction animations at 60Hz piles up
         /// overlapping interpolators and drops frames; the low-pass filter already smooths.
         private func positionLight(for gravity: SIMD3<Double>) {
+            guard let bundle else { return }  // scene not built yet; reapplied on build
             lastAppliedGravity = gravity
             let anchor = lightAnchor ?? SIMD2(0, GoldBarLighting.restElevation)
             let direction = GoldBarLighting.lightDirection(gravity: gravity, anchor: anchor)
