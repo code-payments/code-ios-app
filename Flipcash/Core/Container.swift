@@ -29,7 +29,9 @@ class Container {
     init() {
         Self.configureFirebase()
         
-        self.client                 = Client(network: .mainNet)
+        // v2 transport construction is throwing, but it cannot fail for our fixed
+        // DNS + TLS config (mirrors the v1 ClientConnection which never threw).
+        self.client                 = try! Client(network: .mainNet)
         self.flipClient             = FlipClient(network: .mainNet)
         self.accountManager         = AccountManager()
         self.betaFlags              = BetaFlags.shared

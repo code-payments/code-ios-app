@@ -5,7 +5,7 @@
 
 import Foundation
 import FlipcashAPI
-import GRPC
+import GRPCCore
 
 // MARK: - Server parameters -
 
@@ -105,7 +105,7 @@ public enum ErrorStatelessSwap: Error, Sendable {
     /// gRPC transport error.
     case grpcError(Error)
     /// gRPC stream closed with a non-OK status.
-    case grpcStatus(GRPCStatus)
+    case grpcStatus(RPCError)
 }
 
 extension ErrorStatelessSwap: ServerError {

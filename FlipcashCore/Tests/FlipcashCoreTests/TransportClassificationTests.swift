@@ -82,19 +82,19 @@ struct TransportClassificationTests {
 
     @Test("ErrorSwap classifies grpcStatus by transience; grpcError always reports")
     func errorSwapGRPCStatus() {
-        #expect(ErrorSwap.grpcStatus(GRPCStatus(code: .deadlineExceeded, message: nil)).isReportable == false)
-        #expect(ErrorSwap.grpcStatus(GRPCStatus(code: .internalError, message: nil)).isReportable == true)
-        // .grpcError is the un-typed status-future failure — deliberately reportable
-        // even for a transient-looking status, unlike the typed .grpcStatus case.
-        #expect(ErrorSwap.grpcError(GRPCStatus(code: .unavailable, message: nil)).isReportable == true)
+        #expect(ErrorSwap.grpcStatus(RPCError(code: .deadlineExceeded, message: "")).isReportable == false)
+        #expect(ErrorSwap.grpcStatus(RPCError(code: .internalError, message: "")).isReportable == true)
+        // .grpcError is the un-typed failure — deliberately reportable even for a
+        // transient-looking status, unlike the typed .grpcStatus case.
+        #expect(ErrorSwap.grpcError(RPCError(code: .unavailable, message: "")).isReportable == true)
         #expect(ErrorSwap.unknown.isReportable == true)
     }
 
     @Test("ErrorStatelessSwap classifies grpcStatus by transience; grpcError always reports")
     func errorStatelessSwapGRPCStatus() {
-        #expect(ErrorStatelessSwap.grpcStatus(GRPCStatus(code: .deadlineExceeded, message: nil)).isReportable == false)
-        #expect(ErrorStatelessSwap.grpcStatus(GRPCStatus(code: .internalError, message: nil)).isReportable == true)
-        #expect(ErrorStatelessSwap.grpcError(GRPCStatus(code: .unavailable, message: nil)).isReportable == true)
+        #expect(ErrorStatelessSwap.grpcStatus(RPCError(code: .deadlineExceeded, message: "")).isReportable == false)
+        #expect(ErrorStatelessSwap.grpcStatus(RPCError(code: .internalError, message: "")).isReportable == true)
+        #expect(ErrorStatelessSwap.grpcError(RPCError(code: .unavailable, message: "")).isReportable == true)
         #expect(ErrorStatelessSwap.unknown.isReportable == true)
     }
 

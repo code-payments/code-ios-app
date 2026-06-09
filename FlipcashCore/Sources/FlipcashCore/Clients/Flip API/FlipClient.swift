@@ -101,6 +101,18 @@ extension FlipClient: ConnectivityStateDelegate {
     }
 }
 
+// MARK: - v1 connection (Core is still on grpc-swift v1 until its cutover) -
+
+extension ClientConnection {
+    public static func appConnection(host: String, port: Int) -> ClientConnection {
+        .usingTLSBackedByNIOSSL(on: MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount))
+        .withErrorDelegate(CodeServiceErrorDelegate())
+        .withKeepalive(.init(interval: .seconds(30), timeout: .seconds(10), permitWithoutCalls: true))
+        .withConnectionIdleTimeout(.minutes(5))
+        .connect(host: host, port: port)
+    }
+}
+
 extension FlipClient {
     public static let mock = FlipClient(network: .mainNet)
 }
