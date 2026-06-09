@@ -8,11 +8,17 @@
 
 import Foundation
 import FlipcashAPI
-import GRPC
+import GRPCCore
 
 private let logger = Logger(label: "flipcash.profile-service")
 
-class ProfileService: CodeService<Flipcash_Profile_V1_ProfileNIOClient> {
+final class ProfileService: Sendable {
+
+    private let service: Flipcash_Profile_V1_Profile.Client<AppTransport>
+
+    init(client: GRPCClient<AppTransport>) {
+        self.service = Flipcash_Profile_V1_Profile.Client(wrapping: client)
+    }
 
     func fetchProfile(userID: UserID, owner: KeyPair, completion: @Sendable @escaping (Result<Profile, Error>) -> Void) {
         logger.info("Fetching profile", metadata: ["userId": "\(userID)"])
@@ -22,29 +28,33 @@ class ProfileService: CodeService<Flipcash_Profile_V1_ProfileNIOClient> {
             $0.auth = owner.authFor(message: $0)
         }
 
-        let call = service.getProfile(request)
-        call.handle(on: queue) { response in
-            let error = ErrorFetchProfile(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok {
-                logger.info("Profile fetched successfully")
-                do {
-                    let profile = try Profile(response.userProfile)
-                    completion(.success(profile))
-                } catch {
+        Task { @MainActor in
+            do {
+                let response = try await service.getProfile(request, options: .unaryDefault)
+
+                let error = ErrorFetchProfile(rawValue: response.result.rawValue) ?? .unknown
+                if error == .ok {
+                    logger.info("Profile fetched successfully")
+                    do {
+                        let profile = try Profile(response.userProfile)
+                        completion(.success(profile))
+                    } catch {
+                        completion(.failure(error))
+                    }
+
+                } else if error == .notFound {
+                    logger.info("Profile not found, returning empty profile")
+                    completion(.success(.empty))
+
+                } else {
+                    logger.error("Failed to fetch profile", metadata: ["userId": "\(userID)"])
                     completion(.failure(error))
                 }
-
-            } else if error == .notFound {
-                logger.info("Profile not found, returning empty profile")
-                completion(.success(.empty))
-
-            } else {
-                logger.error("Failed to fetch profile", metadata: ["userId": "\(userID)"])
-                completion(.failure(error))
+            } catch let error as RPCError {
+                completion(.failure(ErrorFetchProfile.from(transportError: error)))
+            } catch {
+                completion(.failure(ErrorFetchProfile.unknown))
             }
-
-        } failure: { status in
-            completion(.failure(ErrorFetchProfile.from(transportError: status)))
         }
     }
 }
@@ -64,33 +74,5 @@ extension ErrorFetchProfile: ServerError, TransportClassifiableError {
         case .ok, .notFound, .transportFailure: false
         case .unknown: true
         }
-    }
-}
-
-// MARK: - Interceptors -
-
-extension InterceptorFactory: Flipcash_Profile_V1_ProfileClientInterceptorFactoryProtocol {
-    func makeGetProfileInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Profile_V1_GetProfileRequest, Flipcash_Profile_V1_GetProfileResponse>] {
-        makeInterceptors()
-    }
-    
-    func makeSetDisplayNameInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Profile_V1_SetDisplayNameRequest, Flipcash_Profile_V1_SetDisplayNameResponse>] {
-        makeInterceptors()
-    }
-    
-    func makeLinkSocialAccountInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Profile_V1_LinkSocialAccountRequest, Flipcash_Profile_V1_LinkSocialAccountResponse>] {
-        makeInterceptors()
-    }
-    
-    func makeUnlinkSocialAccountInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Profile_V1_UnlinkSocialAccountRequest, Flipcash_Profile_V1_UnlinkSocialAccountResponse>] {
-        makeInterceptors()
-    }
-}
-
-// MARK: - GRPCClientType -
-
-extension Flipcash_Profile_V1_ProfileNIOClient: GRPCClientType {
-    init(channel: GRPCChannel) {
-        self.init(channel: channel, defaultCallOptions: .default, interceptors: InterceptorFactory())
     }
 }
