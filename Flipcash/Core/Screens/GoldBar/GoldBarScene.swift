@@ -15,6 +15,27 @@ enum GoldBarScene {
     /// preview phase and opens at full quality immediately.
     static var cachedTextures: (payload: String, textures: GoldBarMaterialBaker.Textures)?
 
+    private static var inflightBake: (payload: String, task: Task<GoldBarMaterialBaker.Textures, Never>)?
+
+    /// Returns the full-resolution maps, baking off the main thread at most once per payload —
+    /// concurrent presentations share the in-flight bake instead of spawning their own.
+    static func fullTextures(qrPayload: String) async -> GoldBarMaterialBaker.Textures {
+        if let cached = cachedTextures, cached.payload == qrPayload {
+            return cached.textures
+        }
+        if let inflight = inflightBake, inflight.payload == qrPayload {
+            return await inflight.task.value
+        }
+        let task = Task.detached(priority: .userInitiated) {
+            GoldBarMaterialBaker.bake(.full(qrPayload: qrPayload))
+        }
+        inflightBake = (qrPayload, task)
+        let textures = await task.value
+        cachedTextures = (qrPayload, textures)
+        inflightBake = nil
+        return textures
+    }
+
     static func make(textures: GoldBarMaterialBaker.Textures) -> Bundle {
         let scene = SCNScene()
         scene.background.contents = UIColor(white: 0.04, alpha: 1)

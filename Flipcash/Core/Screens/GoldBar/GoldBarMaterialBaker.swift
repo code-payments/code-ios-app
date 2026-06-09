@@ -161,9 +161,12 @@ nonisolated enum GoldBarMaterialBaker {
         let w = cg.width, h = cg.height
         var gray = [UInt8](repeating: 0, count: w * h)
         let grayCS = CGColorSpaceCreateDeviceGray()
-        let gctx = CGContext(data: &gray, width: w, height: h, bitsPerComponent: 8,
-                             bytesPerRow: w, space: grayCS, bitmapInfo: CGImageAlphaInfo.none.rawValue)!
-        gctx.draw(cg, in: CGRect(x: 0, y: 0, width: w, height: h))
+        // The buffer pointer is only valid inside the closure, so the context must not outlive it.
+        gray.withUnsafeMutableBufferPointer { buffer in
+            let gctx = CGContext(data: buffer.baseAddress, width: w, height: h, bitsPerComponent: 8,
+                                 bytesPerRow: w, space: grayCS, bitmapInfo: CGImageAlphaInfo.none.rawValue)!
+            gctx.draw(cg, in: CGRect(x: 0, y: 0, width: w, height: h))
+        }
 
         var rgba = [UInt8](repeating: 0, count: w * h * 4)
         let scale: Float = 2.0 / 255  // gradient strength, folded with the 0...255 → 0...1 conversion
@@ -191,10 +194,13 @@ nonisolated enum GoldBarMaterialBaker {
             }
         }
         let rgbaCS = CGColorSpaceCreateDeviceRGB()
-        let rctx = CGContext(data: &rgba, width: w, height: h, bitsPerComponent: 8,
-                             bytesPerRow: w * 4, space: rgbaCS,
-                             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
-        return UIImage(cgImage: rctx.makeImage()!)
+        let image = rgba.withUnsafeMutableBufferPointer { buffer -> CGImage in
+            let rctx = CGContext(data: buffer.baseAddress, width: w, height: h, bitsPerComponent: 8,
+                                 bytesPerRow: w * 4, space: rgbaCS,
+                                 bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+            return rctx.makeImage()!
+        }
+        return UIImage(cgImage: image)
     }
 
     // MARK: - Drawing helpers
@@ -239,7 +245,7 @@ nonisolated enum GoldBarMaterialBaker {
         var seed: UInt64 = 0x9E3779B97F4A7C15
         func rnd() -> CGFloat {
             seed = seed &* 6364136223846793005 &+ 1442695040888963407
-            return CGFloat(seed >> 33) / CGFloat(UInt32.max)
+            return CGFloat(seed >> 33) / CGFloat(UInt64(1) << 31)  // top 31 bits → [0, 1)
         }
         for _ in 0..<count {
             cg.setLineWidth(0.4 + rnd() * (rect.height / 1600))

@@ -86,11 +86,7 @@ struct GoldBarSceneView: UIViewRepresentable {
         private func bakeFullTextures(qrPayload: String) {
             let material = bundle.material
             Task {
-                let config = GoldBarMaterialBaker.Config.full(qrPayload: qrPayload)
-                let textures = await Task.detached(priority: .userInitiated) {
-                    GoldBarMaterialBaker.bake(config)
-                }.value
-                GoldBarScene.cachedTextures = (qrPayload, textures)
+                let textures = await GoldBarScene.fullTextures(qrPayload: qrPayload)
                 SCNTransaction.begin()
                 SCNTransaction.animationDuration = 0.3
                 material.diffuse.contents = textures.albedo
