@@ -20,14 +20,14 @@ extension DialogItem {
         )
     }
 
-    /// Nudges the user to discover currencies when they attempt to Give
-    /// with no balance.
-    static func noGiveableBalance(onDiscover: @escaping () -> Void) -> DialogItem {
+    /// Nudges the user to deposit funds when they attempt to give or send
+    /// with no giveable balance.
+    static func noGiveableBalance(onDeposit: @escaping () -> Void) -> DialogItem {
         .info(
             title: "No Balance Yet",
-            subtitle: "Buy a currency to get started, or get another Flipcash user to give you some cash"
+            subtitle: "Deposit funds to give cash"
         ) {
-            .standard("Discover Currencies", action: onDiscover);
+            .standard("Deposit Funds", action: onDeposit);
             .cancel()
         }
     }

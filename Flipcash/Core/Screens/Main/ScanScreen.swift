@@ -314,7 +314,7 @@ struct ScanScreen: View {
         let rate = sessionContainer.ratesController.rateForBalanceCurrency()
         guard session.hasGiveableBalance(for: rate) else {
             session.dialogItem = .noGiveableBalance {
-                router.present(.discover)
+                router.navigate(to: .deposit)
             }
             return
         }
