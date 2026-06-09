@@ -21,6 +21,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-log", from: "1.6.0"),
         .package(url: "https://github.com/grpc/grpc-swift-2.git", from: "2.4.0"),
         .package(url: "https://github.com/grpc/grpc-swift-nio-transport.git", from: "2.0.0"),
+        .package(url: "https://github.com/apple/swift-nio.git", from: "2.81.0"),
         .package(path: "../CodeCurves"),
         .package(path: "../FlipcashAPI"),
     ],
@@ -34,6 +35,7 @@ let package = Package(
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "GRPCCore", package: "grpc-swift-2"),
                 .product(name: "GRPCNIOTransportHTTP2", package: "grpc-swift-nio-transport"),
+                .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "FlipcashAPI", package: "FlipcashAPI"),
             ],
             resources: [
@@ -43,7 +45,10 @@ let package = Package(
         ),
         .testTarget(
             name: "FlipcashCoreTests",
-            dependencies: ["FlipcashCore"]
+            dependencies: [
+                "FlipcashCore",
+                .product(name: "GRPCInProcessTransport", package: "grpc-swift-2"),
+            ]
         ),
     ]
 )

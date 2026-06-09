@@ -117,6 +117,11 @@ public final class ServerGRPCStream: Sendable {
 
     private struct State {
         var task: Task<Void, Never>?
+        /// Bumped on every `open`. A task's terminal `finish` only delivers
+        /// `onComplete` when its generation is still current, so a superseded
+        /// connection (re-open while in flight) can never fire a stale
+        /// completion or trigger a spurious reconnect.
+        var generation = 0
         var didFinish = false
         var isCancelled = false
     }
@@ -129,12 +134,13 @@ public final class ServerGRPCStream: Sendable {
         onComplete: @escaping @Sendable (Result<Void, any Error>) -> Void = { _ in },
         perform: @escaping @Sendable () async throws -> Void
     ) {
-        let proceed = state.withLock { state -> Bool in
-            guard !state.isCancelled else { return false }
+        let generation: Int? = state.withLock { state in
+            guard !state.isCancelled else { return nil }
+            state.generation += 1
             state.didFinish = false
-            return true
+            return state.generation
         }
-        guard proceed else { return }
+        guard let generation else { return }
 
         let task = Task { [weak self] in
             let result: Result<Void, any Error>
@@ -144,22 +150,25 @@ public final class ServerGRPCStream: Sendable {
             } catch {
                 result = .failure(error)
             }
-            self?.finish(result, onComplete)
+            self?.finish(generation, result, onComplete)
         }
-        let cancelImmediately = state.withLock { state -> Bool in
+        let (previousTask, cancelImmediately) = state.withLock { state -> (Task<Void, Never>?, Bool) in
+            guard state.generation == generation else { return (nil, true) }
+            let previous = state.task
             state.task = task
-            return state.isCancelled
+            return (previous, state.isCancelled)
         }
+        previousTask?.cancel()
         if cancelImmediately {
             task.cancel()
         }
     }
 
-    private func finish(_ result: Result<Void, any Error>, _ onComplete: @escaping @Sendable (Result<Void, any Error>) -> Void) {
+    private func finish(_ generation: Int, _ result: Result<Void, any Error>, _ onComplete: @escaping @Sendable (Result<Void, any Error>) -> Void) {
         let suppressed = state.withLock { state -> Bool in
-            let was = state.didFinish || state.isCancelled
+            guard state.generation == generation, !state.didFinish, !state.isCancelled else { return true }
             state.didFinish = true
-            return was
+            return false
         }
         guard !suppressed else { return }
         onComplete(result)
