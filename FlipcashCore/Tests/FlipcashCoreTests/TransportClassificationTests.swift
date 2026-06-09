@@ -6,6 +6,7 @@
 import Foundation
 import Testing
 import GRPC
+import GRPCCore
 @testable import FlipcashCore
 
 @Suite("Transport classification — classifiable errors route transient gRPC failures to a non-reportable case")
@@ -15,9 +16,14 @@ struct TransportClassificationTests {
     /// a generic over the concrete type (not a list of erased closures) keeps
     /// arguments `Sendable`-free and the call type-safe.
     private func assertClassifies<E: TransportClassifiableError>(_ type: E.Type) {
+        // v1 (GRPCStatus) classification
         #expect(E.from(transportError: GRPCStatus(code: .deadlineExceeded, message: nil)).isReportable == false)
         #expect(E.from(transportError: GRPCStatus(code: .unavailable, message: nil)).isReportable == false)
         #expect(E.from(transportError: GRPCStatus(code: .internalError, message: nil)).isReportable == true)
+        // v2 (RPCError) classification — identical semantics
+        #expect(E.from(transportError: RPCError(code: .deadlineExceeded, message: "")).isReportable == false)
+        #expect(E.from(transportError: RPCError(code: .unavailable, message: "")).isReportable == false)
+        #expect(E.from(transportError: RPCError(code: .internalError, message: "")).isReportable == true)
     }
 
     // MARK: - Registry (one line per TransportClassifiableError conformer) -
@@ -103,6 +109,18 @@ struct TransportClassificationTests {
         #expect(GRPCStatus(code: .unavailable, message: nil).isReportable == false)
         #expect(GRPCStatus(code: .internalError, message: nil).isReportable == true)
         #expect(GRPCStatus(code: .cancelled, message: nil).isReportable == true)
+    }
+
+    // MARK: - Raw RPCError self-classification (gRPC v2) -
+    // The v2 equivalent of the GRPCStatus self-classification above: transient
+    // transport codes stay non-reportable so they never reach Bugsnag.
+
+    @Test("RPCError is reportable only for non-transient codes")
+    func rpcErrorReportability() {
+        #expect(RPCError(code: .deadlineExceeded, message: "").isReportable == false)
+        #expect(RPCError(code: .unavailable, message: "").isReportable == false)
+        #expect(RPCError(code: .internalError, message: "").isReportable == true)
+        #expect(RPCError(code: .cancelled, message: "").isReportable == true)
     }
 
     // MARK: - Real transport errors -
