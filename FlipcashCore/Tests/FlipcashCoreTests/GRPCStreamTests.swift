@@ -118,6 +118,35 @@ struct GRPCStreamTests {
         #expect(performed.withLock { $0 } == false)
     }
 
+    @Test("Re-open supersedes an in-flight connection — the stale completion never fires")
+    func serverStreamReopenSupersedesInFlight() async throws {
+        let stream = ServerGRPCStream()
+        let (started, startedContinuation) = AsyncStream.makeStream(of: Void.self)
+        let completions = Mutex<[String]>([])
+
+        stream.open(onComplete: { _ in
+            completions.withLock { $0.append("first") }
+        }) {
+            startedContinuation.yield(())
+            try await Task.sleep(for: .seconds(60))
+        }
+        _ = await started.first { _ in true }
+
+        let (done, doneContinuation) = AsyncStream.makeStream(of: Void.self)
+        stream.open(onComplete: { _ in
+            completions.withLock { $0.append("second") }
+            doneContinuation.yield(())
+        }) {
+            // Returns immediately — supersedes the sleeping first connection.
+        }
+        _ = await done.first { _ in true }
+
+        // Give the superseded (cancelled) first task time to run its finish path,
+        // which the generation guard must suppress.
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(completions.withLock { $0 } == ["second"])
+    }
+
     @Test("Server stream cancel suppresses onComplete")
     func serverStreamCancelSuppressesOnComplete() async throws {
         let stream = ServerGRPCStream()

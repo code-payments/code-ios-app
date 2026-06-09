@@ -5,6 +5,9 @@
 
 import GRPCCore
 import GRPCNIOTransportHTTP2
+import NIOCore
+
+private let logger = Logger(label: "flipcash.grpc-transport")
 
 /// The app's gRPC v2 client transport type (Network.framework on iOS).
 public typealias AppTransport = HTTP2ClientTransport.TransportServices
@@ -39,6 +42,14 @@ enum GRPCTransport {
             allowWithoutCalls: true
         )
         config.connection.maxIdleTime = .seconds(5 * 60)
+        // v1 logged connectivity-state transitions via ConnectivityStateDelegate,
+        // which has no v2 equivalent on GRPCClient. Logging each new TCP
+        // connection keeps the (re)connect signal that cold-resume reconnect
+        // diagnoses rely on.
+        config.channelDebuggingCallbacks.onCreateTCPConnection = { channel in
+            logger.info("gRPC connection established", metadata: ["host": "\(host)"])
+            return channel.eventLoop.makeSucceededFuture(())
+        }
         return try HTTP2ClientTransport.TransportServices(
             target: .dns(host: host, port: port),
             transportSecurity: .tls,

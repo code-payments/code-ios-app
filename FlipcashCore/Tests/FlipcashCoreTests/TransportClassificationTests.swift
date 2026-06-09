@@ -6,6 +6,7 @@
 import Foundation
 import Testing
 import GRPCCore
+import GRPCInProcessTransport
 @testable import FlipcashCore
 
 @Suite("Transport classification — classifiable errors route transient gRPC failures to a non-reportable case")
@@ -103,5 +104,63 @@ struct TransportClassificationTests {
         #expect(RPCError(code: .unavailable, message: "").isReportable == false)
         #expect(RPCError(code: .internalError, message: "").isReportable == true)
         #expect(RPCError(code: .cancelled, message: "").isReportable == true)
+    }
+
+    // MARK: - Real transport errors -
+
+    /// End-to-end proof that a REAL deadline expiry in the v2 stack — not a
+    /// hand-built RPCError — surfaces as `.deadlineExceeded` and stays
+    /// non-reportable. Runs hermetically over the in-process transport against
+    /// a handler that outlives the call's timeout.
+    @Test("A real deadline expiry surfaces as RPCError.deadlineExceeded and stays non-reportable")
+    func realDeadlineExpiryClassifiesAsNonReportable() async throws {
+        let method = MethodDescriptor(fullyQualifiedService: "test.Slow", method: "Sleep")
+        let transport = InProcessTransport()
+        var router = RPCRouter<InProcessTransport.Server>()
+        router.registerHandler(forMethod: method, deserializer: UTF8Codec(), serializer: UTF8Codec()) { _, _ in
+            try await Task.sleep(for: .seconds(60))
+            return StreamingServerResponse(single: ServerResponse(message: "too late"))
+        }
+        let server = GRPCServer(transport: transport.server, router: router)
+        let client = GRPCClient(transport: transport.client)
+
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            group.addTask { try await server.serve() }
+            group.addTask { try await client.runConnections() }
+
+            var options = CallOptions.defaults
+            options.timeout = .milliseconds(100)
+
+            var caught: RPCError?
+            do {
+                _ = try await client.unary(
+                    request: ClientRequest(message: "ping"),
+                    descriptor: method,
+                    serializer: UTF8Codec(),
+                    deserializer: UTF8Codec(),
+                    options: options
+                ) { try $0.message }
+            } catch let error as RPCError {
+                caught = error
+            }
+
+            let rpcError = try #require(caught)
+            #expect(rpcError.code == .deadlineExceeded)
+            #expect(rpcError.isReportable == false)
+
+            client.beginGracefulShutdown()
+            server.beginGracefulShutdown()
+            group.cancelAll()
+        }
+    }
+}
+
+private struct UTF8Codec: MessageSerializer, MessageDeserializer {
+    func serialize<Bytes: GRPCContiguousBytes>(_ message: String) throws -> Bytes {
+        Bytes(Array(message.utf8))
+    }
+
+    func deserialize<Bytes: GRPCContiguousBytes>(_ serializedMessageBytes: Bytes) throws -> String {
+        serializedMessageBytes.withUnsafeBytes { String(decoding: $0, as: UTF8.self) }
     }
 }
