@@ -62,7 +62,7 @@ nonisolated enum GoldBarMaterialBaker {
     // MARK: - QR
 
     // CIContext is thread-safe and expensive to create; shared across bakes.
-    private nonisolated(unsafe) static let qrContext = CIContext()
+    private static let qrContext = CIContext()
 
     private static func makeQRImage(payload: String) -> UIImage {
         let filter = CIFilter.qrCodeGenerator()

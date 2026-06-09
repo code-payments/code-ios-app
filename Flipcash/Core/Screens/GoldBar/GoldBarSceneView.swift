@@ -14,16 +14,31 @@ struct GoldBarSceneView: UIViewRepresentable {
     var lightAnchor: SIMD2<Double>
     /// Bar rotation in degrees: x turns left/right, y tilts up/down; zero faces the user dead-on.
     var barRotationDegrees: SIMD2<Double>
+    /// Called once the scene is attached and renderable — the placeholder above can fade out.
+    var onSceneReady: () -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(qrPayload: qrPayload) }
 
     func makeUIView(context: Context) -> SCNView {
         let view = SCNView()
-        view.scene = context.coordinator.bundle.scene
         view.backgroundColor = UIColor(white: 0.04, alpha: 1)
         view.antialiasingMode = .multisampling2X
         view.allowsCameraControl = false
-        context.coordinator.start()
+        // Attaching the scene is deferred until `prepare` has compiled its shaders and
+        // uploaded textures off the main thread — attached up front, the first frame
+        // blocks presentation on the whole compile (seconds on a cold launch).
+        let coordinator = context.coordinator
+        let onReady = onSceneReady
+        Task {
+            await withCheckedContinuation { continuation in
+                view.prepare([coordinator.bundle.scene]) { _ in
+                    continuation.resume()
+                }
+            }
+            view.scene = coordinator.bundle.scene
+            coordinator.start()
+            onReady()
+        }
         return view
     }
 
@@ -96,8 +111,12 @@ struct GoldBarSceneView: UIViewRepresentable {
             }
         }
 
+        // start() can arrive after stop() when the cover is dismissed mid-prepare —
+        // motion must not be left running on a torn-down view.
+        private var isStopped = false
+
         func start() {
-            guard motion.isDeviceMotionAvailable else { return }
+            guard !isStopped, motion.isDeviceMotionAvailable else { return }
             motion.deviceMotionUpdateInterval = 1.0 / 60.0
             // Delivered on .main, so assumeIsolated is safe and avoids a per-frame Task hop (Swift 6).
             motion.startDeviceMotionUpdates(using: .xArbitraryZVertical, to: .main) { [weak self] data, _ in
@@ -110,6 +129,7 @@ struct GoldBarSceneView: UIViewRepresentable {
         }
 
         func stop() {
+            isStopped = true
             motion.stopDeviceMotionUpdates()
         }
 
