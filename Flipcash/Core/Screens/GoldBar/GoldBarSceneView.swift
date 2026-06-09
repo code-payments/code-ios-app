@@ -141,15 +141,24 @@ struct GoldBarSceneView: UIViewRepresentable {
             positionLight(for: smoothedGravity)
         }
 
+        private var lastAppliedGravity = SIMD3<Double>(0, GoldBarLighting.neutralGravityY, -0.5)
+
         private func apply(gravity: SIMD3<Double>) {
             smoothedGravity.x = GoldBarLighting.smoothed(previous: smoothedGravity.x, target: gravity.x, factor: 0.18)
             smoothedGravity.y = GoldBarLighting.smoothed(previous: smoothedGravity.y, target: gravity.y, factor: 0.18)
+            // Dead-band: sensor noise never settles, so without this the scene is dirtied —
+            // and re-rendered — 60 times a second even while the phone is held still.
+            // Skipping sub-perceptual deltas lets the view idle (battery, thermals).
+            let delta = max(abs(smoothedGravity.x - lastAppliedGravity.x),
+                            abs(smoothedGravity.y - lastAppliedGravity.y))
+            guard delta > 0.0025 else { return }
             positionLight(for: smoothedGravity)
         }
 
         /// Direct sets — wrapping these in SCNTransaction animations at 60Hz piles up
         /// overlapping interpolators and drops frames; the low-pass filter already smooths.
         private func positionLight(for gravity: SIMD3<Double>) {
+            lastAppliedGravity = gravity
             let anchor = lightAnchor ?? SIMD2(0, GoldBarLighting.restElevation)
             let direction = GoldBarLighting.lightDirection(gravity: gravity, anchor: anchor)
             let envRotation = GoldBarLighting.environmentRotation(gravity: gravity)
