@@ -26,9 +26,11 @@ extension CallOptions {
 /// VPN, and proxy — matching what the v1 `ClientConnection` used under the hood.
 enum GRPCTransport {
 
-    /// Keepalive ported from the v1 connection (30s interval / 10s timeout,
-    /// permitted without active calls) so long-lived bidirectional streams
-    /// survive idle periods. TLS uses the system trust store.
+    /// Keepalive and idle timeout ported from the v1 connection (30s ping
+    /// interval / 10s ping timeout, permitted without active calls; connections
+    /// idle for 5 minutes are closed and re-established on the next RPC) so
+    /// long-lived bidirectional streams survive idle periods. TLS uses the
+    /// system trust store.
     static func makeTransportServices(host: String, port: Int) throws -> HTTP2ClientTransport.TransportServices {
         var config = HTTP2ClientTransport.TransportServices.Config.defaults
         config.connection.keepalive = .init(
@@ -36,6 +38,7 @@ enum GRPCTransport {
             timeout: .seconds(10),
             allowWithoutCalls: true
         )
+        config.connection.maxIdleTime = .seconds(5 * 60)
         return try HTTP2ClientTransport.TransportServices(
             target: .dns(host: host, port: port),
             transportSecurity: .tls,

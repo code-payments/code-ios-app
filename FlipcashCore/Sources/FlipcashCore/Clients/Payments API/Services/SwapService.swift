@@ -11,6 +11,7 @@ import FlipcashAPI
 import Combine
 import GRPCCore
 import SwiftProtobuf
+import Synchronization
 
 private let logger = Logger(label: "flipcash.swap-service")
 
@@ -131,9 +132,10 @@ final class SwapService: Sendable {
         // the server requires owner == swap_authority.
         let swapAuthority: KeyPair = isNewCurrencyLaunch ? owner : (KeyPair.generate() ?? owner)
 
-        // Store server parameters when received
-        nonisolated(unsafe) var receivedServerParameters: VerifiedSwapMetadata.ServerParameters?
-        nonisolated(unsafe) var verifiedMetadataSignature: Signature?
+        // Cross-message state: written when server parameters arrive, read on
+        // .success. Responses arrive serially on the stream's single task, and
+        // the Mutex makes the cross-closure mutation provably data-race-free.
+        let pendingSwap = Mutex<(serverParameters: VerifiedSwapMetadata.ServerParameters?, signature: Signature?)>((nil, nil))
 
         reference.open(onResponse: { response in
             switch response.response {
@@ -158,7 +160,7 @@ final class SwapService: Sendable {
                     }
 
                     // Store for later use in success response
-                    receivedServerParameters = serverParameters
+                    pendingSwap.withLock { $0.serverParameters = serverParameters }
 
                     // Construct verified metadata for signing
                     let verifiedMetadata = VerifiedSwapMetadata(
@@ -184,7 +186,7 @@ final class SwapService: Sendable {
                         return
                     }
                     let signatures = transaction.signatures(using: owner, swapAuthority)
-                    verifiedMetadataSignature = signatures.first
+                    pendingSwap.withLock { $0.signature = signatures.first }
 
                     // Send both signatures back to server
                     let submitSignature = Ocp_Transaction_V1_StatefulSwapRequest.with {
@@ -236,7 +238,7 @@ final class SwapService: Sendable {
                         nonce: params.nonce,
                         blockhash: params.blockhash
                     )
-                    receivedServerParameters = serverParameters
+                    pendingSwap.withLock { $0.serverParameters = serverParameters }
 
                     // Build the atomic launch-and-first-buy transaction. The owner
                     // is also the swap_authority for new-currency flows, so only
@@ -265,7 +267,7 @@ final class SwapService: Sendable {
                     ])
 
                     let signatures = transaction.signatures(using: owner)
-                    verifiedMetadataSignature = signatures.first
+                    pendingSwap.withLock { $0.signature = signatures.first }
 
                     let submitSignature = Ocp_Transaction_V1_StatefulSwapRequest.with {
                         $0.submitSignatures = .with {
@@ -305,7 +307,7 @@ final class SwapService: Sendable {
                         nonce: serverParameters.nonce,
                         blockhash: serverParameters.blockhash
                     )
-                    receivedServerParameters = stablecoinServerParams
+                    pendingSwap.withLock { $0.serverParameters = stablecoinServerParams }
 
                     let transaction = TransactionBuilder.swapUsdfToUsdc(
                         serverParameters: serverParameters,
@@ -316,7 +318,7 @@ final class SwapService: Sendable {
                         feeAmount: resolvedFeeAmount.quarks
                     )
                     let signatures = transaction.signatures(using: owner, swapAuthority)
-                    verifiedMetadataSignature = signatures.first
+                    pendingSwap.withLock { $0.signature = signatures.first }
 
                     let submitSignature = Ocp_Transaction_V1_StatefulSwapRequest.with {
                         $0.submitSignatures = .with {
@@ -342,8 +344,9 @@ final class SwapService: Sendable {
                 // 3. If submitted signature is valid, we'll receive a success
                 // and the swap state will be created on the server
             case .success:
-                guard let serverParams = receivedServerParameters,
-                      let signature = verifiedMetadataSignature else {
+                let pending = pendingSwap.withLock { $0 }
+                guard let serverParams = pending.serverParameters,
+                      let signature = pending.signature else {
                     logger.error("Swap success received but missing server parameters or signature")
                     reference.cancel()
                     completion(.failure(.unknown))

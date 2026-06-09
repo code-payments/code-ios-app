@@ -39,7 +39,15 @@ public class Client: ObservableObject {
         )
         let client = GRPCClient(transport: transport, interceptors: [UserAgentClientInterceptor()])
         self.grpcClient = client
-        self.connectionTask = Task { try? await client.runConnections() }
+        self.connectionTask = Task {
+            do {
+                try await client.runConnections()
+            } catch {
+                // Only reachable on a fatal transport error (graceful shutdown
+                // returns normally) — every RPC after this point will fail.
+                logger.error("Payment connection loop terminated", metadata: ["error": "\(error)"])
+            }
+        }
 
         self.accountService     = AccountInfoService(client: client)
         self.transactionService = TransactionService(client: client)
@@ -59,7 +67,14 @@ public class Client: ObservableObject {
     /// Pre-warm the connection by issuing a lightweight unary call. The response
     /// is irrelevant — we only need the transport to start connecting.
     public func warmUpChannel() {
-        currencyService.fetchMint(mint: .usdf) { _ in }
+        currencyService.fetchMint(mint: .usdf) { result in
+            switch result {
+            case .success:
+                logger.info("Channel warm-up succeeded")
+            case .failure:
+                logger.warning("Channel warm-up completed (channel reconnecting)")
+            }
+        }
     }
 
     // MARK: - Streaming -
