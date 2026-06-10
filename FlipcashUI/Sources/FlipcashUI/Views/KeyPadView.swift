@@ -255,7 +255,6 @@ extension KeyPadView {
 extension KeyPadView {
     public enum Style {
         case borderless
-        case round
     }
 }
 
@@ -373,15 +372,8 @@ private extension KeyPadView {
         // MARK: - Body -
         
         var body: some View {
-            switch style {
-            case .round:
-                button(for: content)
-                    .buttonStyle(KeyPadRoundStyle(size: size))
-                
-            case .borderless:
-                button(for: content)
-                    .buttonStyle(KeyPadBorderlessStyle(size: size))
-            }
+            button(for: content)
+                .buttonStyle(KeyPadBorderlessStyle(size: size))
         }
         
         @ViewBuilder private func button(for content: ButtonContent) -> some View {
@@ -425,27 +417,6 @@ private extension KeyPadView {
 public enum ButtonAction {
     case insert(String)
     case delete
-}
-
-// MARK: - KeyPadRoundStyle -
-
-private struct KeyPadRoundStyle: ButtonStyle {
-    
-    private let size: CGSize
-    
-    init(size: CGSize) {
-        self.size = size
-    }
-    
-    func makeBody(configuration: Configuration) -> some View {
-        configuration
-            .label
-            .scaleEffect(configuration.isPressed ? 1.5 : 1.0, anchor: .center)
-            .frame(width: size.width, height: size.height)
-            .background(configuration.isPressed ? Color.white.opacity(0.15) : Color.white.opacity(0.08))
-            .foregroundStyle(configuration.isPressed ? Color.white.opacity(0.5) : .white)
-            .cornerRadius(45.0)
-    }
 }
 
 // MARK: - KeyPadBorderlessStyle -

@@ -64,7 +64,6 @@ public struct BillView: View {
                 width: width,
                 height: height
             )
-//            print("Calculated new size: \(newSize), from: \(size)")
             return newSize
             
         } else {
@@ -80,7 +79,6 @@ public struct BillView: View {
                 width: width,
                 height: height
             )
-//            print("Calculated new size: \(newSize), from: \(size)")
             return newSize
         }
     }
@@ -161,7 +159,6 @@ public struct BillView: View {
                         Image.asset(.waves)
                             .resizable()
                             .aspectRatio(contentMode: .fill)
-                            .rotationEffect(.degrees(0))
                             .position(x: geometry.size.width * 0.5, y: geometry.size.height * 0.9)
                             .mask(geometry.clipShape(fill: .white))
                     }
@@ -361,10 +358,6 @@ private extension GeometryProxy {
     
     var valuePadding: CGFloat {
         ceil(size.width * 0.025)
-    }
-    
-    var halfSize: CGSize {
-        CGSize(width: size.width * 0.5, height: size.height * 0.5)
     }
     
     var linesHeight: CGFloat {

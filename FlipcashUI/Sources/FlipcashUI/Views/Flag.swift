@@ -47,14 +47,6 @@ extension Flag {
         
         case fiat(Region)
         case crypto(CurrencyCode)
-        
-        public static func from(region: Region?, currency: CurrencyCode) -> Style {
-            if let region = region {
-                return .fiat(region)
-            } else {
-                return .crypto(currency)
-            }
-        }
     }
 }
 

@@ -16,15 +16,7 @@ public enum FontBook {
         registerFont(named: "AvenirNextLTPro-Demi", extension: "otf")
         registerFont(named: "AvenirNextLTPro-Medium", extension: "otf")
         registerFont(named: "AvenirNextLTPro-Regular", extension: "otf")
-        
-        registerFont(named: "Manrope-ExtraLight", extension: "ttf")
-        registerFont(named: "Manrope-Light", extension: "ttf")
-        registerFont(named: "Manrope-Regular", extension: "ttf")
-        registerFont(named: "Manrope-Medium", extension: "ttf")
-        registerFont(named: "Manrope-SemiBold", extension: "ttf")
-        registerFont(named: "Manrope-Bold", extension: "ttf")
-        registerFont(named: "Manrope-ExtraBold", extension: "ttf")
-        
+
         registerFont(named: "RobotoMono-Regular", extension: "ttf")
     }
     
@@ -61,11 +53,7 @@ import UIKit
 // MARK: - UIKit -
 
 extension UIFont {
-    
-    public static func fixedWidth(size: CGFloat, weight: Weight = .regular) -> UIFont {
-        UIFont(name: "Menlo-Bold", size: size)!
-    }
-    
+
     public static func roboto(size: CGFloat) -> UIFont {
         UIFont(name: "RobotoMono-Regular", size: size)!
     }
@@ -86,31 +74,6 @@ extension UIFont {
             fatalError("[FontBook] Failed to initialize UIKit app font. Unsupported font weight requested: \(weight)")
         }
     }
-    
-    private static func manrope(weight: Weight) -> String {
-        switch weight {
-        case .ultraLight:
-            return "Manrope-ExtraLight"
-        case .thin:
-            return "Manrope-ExtraLight"
-        case .light:
-            return "Manrope-Light"
-        case .regular:
-            return "Manrope-Regular"
-        case .medium:
-            return "Manrope-Medium"
-        case .semibold:
-            return "Manrope-SemiBold"
-        case .bold:
-            return "Manrope-Bold"
-        case .heavy:
-            return "Manrope-ExtraBold"
-        case .black:
-            return "Manrope-ExtraBold"
-        default:
-            fatalError("[FontBook] Failed to initialize UIKit app font. Unsupported font weight requested: \(weight)")
-        }
-    }
 }
 
 #endif
@@ -118,11 +81,7 @@ extension UIFont {
 // MARK: - SwiftUI -
 
 extension Font {
-    
-    public static func fixedWidth(size: CGFloat, weight: Weight = .regular) -> Font {
-        .custom("Menlo-Bold", size: size)
-    }
-    
+
     public static func roboto(size: CGFloat) -> Font {
         .custom("RobotoMono-Regular", size: size)
     }
@@ -139,31 +98,6 @@ extension Font {
             return "AvenirNextLTPro-Medium"
         case .bold, .heavy, .black:
             return "AvenirNextLTPro-Demi"
-        default:
-            fatalError("[FontBook] Failed to initialize SwiftUI app font. Unsupported font weight requested: \(weight)")
-        }
-    }
-    
-    private static func manrope(weight: Weight) -> String {
-        switch weight {
-        case .ultraLight:
-            return "Manrope-ExtraLight"
-        case .thin:
-            return "Manrope-ExtraLight"
-        case .light:
-            return "Manrope-Light"
-        case .regular:
-            return "Manrope-Regular"
-        case .medium:
-            return "Manrope-Medium"
-        case .semibold:
-            return "Manrope-SemiBold"
-        case .bold:
-            return "Manrope-Bold"
-        case .heavy:
-            return "Manrope-ExtraBold"
-        case .black:
-            return "Manrope-ExtraBold"
         default:
             fatalError("[FontBook] Failed to initialize SwiftUI app font. Unsupported font weight requested: \(weight)")
         }
