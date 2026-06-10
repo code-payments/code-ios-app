@@ -350,7 +350,6 @@ class WithdrawViewModel {
 
         let result = session.hasSufficientFunds(for: exchangedFiat)
 
-        // Use switch for exhaustive checking - compiler will error if new cases are added
         switch result {
         case .sufficient:
             pushEnterAddressScreen()

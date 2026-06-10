@@ -1,5 +1,5 @@
 //
-//  BigDecimal.swift
+//  BigDecimal+Operations.swift
 //  FlipcashCore
 //
 //  Created by Raul Riera on 2026-02-07.

@@ -67,7 +67,6 @@ extension CommandType where Definition.RawValue: FixedWidthInteger {
         
         var data = instruction.data
         
-        // Consume the command type into the void
         _ = data.consume(commandByteLength)
         
         return data

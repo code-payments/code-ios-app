@@ -68,7 +68,6 @@ extension IntentSendCashLink {
                 $0.destination  = giftCard.cluster.vaultPublicKey.solanaAccountID
                 $0.mint         = exchangedFiat.mint.solanaAccountID
 
-                // Use clientExchangeData with embedded proofs for submitting intents
                 $0.clientExchangeData = .with {
                     $0.mint = exchangedFiat.mint.solanaAccountID
                     $0.quarks = exchangedFiat.onChainAmount.quarks

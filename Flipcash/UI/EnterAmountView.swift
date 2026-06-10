@@ -1,5 +1,5 @@
 //
-//  WithdrawAmountScreen.swift
+//  EnterAmountView.swift
 //  Code
 //
 //  Created by Dima Bart on 2021-04-05.

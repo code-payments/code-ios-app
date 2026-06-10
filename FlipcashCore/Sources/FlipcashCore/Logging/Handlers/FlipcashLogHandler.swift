@@ -3,8 +3,7 @@ import Logging
 import os
 
 /// Single log handler that processes entries once and dispatches to
-/// console, ring buffer, and file writer. Replaces MultiplexLogHandler
-/// to avoid 3x entry construction and middleware processing per log call.
+/// console, ring buffer, and file writer.
 struct FlipcashLogHandler: LogHandler {
 
     var logLevel: Logging.Logger.Level

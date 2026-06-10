@@ -76,7 +76,6 @@ public struct SolanaTransaction: Equatable, Sendable {
         
         instructions.forEach {
             accounts.append(
-                // Maybe needs to be .program()
                 .program(publicKey: $0.program)
             )
             accounts.append(contentsOf: $0.accounts)

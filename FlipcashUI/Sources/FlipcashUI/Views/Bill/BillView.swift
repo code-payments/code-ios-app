@@ -39,7 +39,6 @@ public struct BillView: View {
         self.string     = fiat.formatted(suffix: nil)
         self.billSize   = Self.size(fitting: canvasSize, aspectRatio: aspectRatio)
 
-        // Use provided colors or get default colors based on mint
         // Invert the color since the coordinate space given by theserver is not the same as iOS
         self.backgroundColors = backgroundColors?.reversed() ?? Self.defaultColors(for: mint)
     }

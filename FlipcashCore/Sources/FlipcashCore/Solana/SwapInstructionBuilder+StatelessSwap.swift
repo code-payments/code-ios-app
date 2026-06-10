@@ -50,8 +50,7 @@ extension SwapInstructionBuilder {
         }
 
         // Owner's destination-mint VM Deposit ATA — the address Geyser watches.
-        // Same derivation as `SwapInstructionBuilder+NewCurrency.swift`: ATA
-        // owned by the VM Deposit PDA, not by the user authority directly.
+        // The ATA is owned by the VM Deposit PDA, not by the user authority directly.
         guard let ownerToVmDepositPda = PublicKey.deriveDepositAccount(
             owner: owner,
             mint: toMint.address,
@@ -98,9 +97,7 @@ extension SwapInstructionBuilder {
             fatalError("Failed to derive Coinbase whitelist address")
         }
 
-        // Fee recipient's source-mint ATA — fee is paid in the from-mint,
-        // matching the existing USDF→USDC pattern in
-        // `SwapInstructionBuilder+UsdfToUsdc.swift`.
+        // Fee recipient's source-mint ATA — fee is paid in the from-mint.
         guard let feeRecipientFromAta = PublicKey.deriveAssociatedAccount(
             from: serverParameters.poolFeeRecipient,
             mint: fromMint.address

@@ -117,7 +117,6 @@ struct LoginScreen: View {
             return
         }
         
-        // Remove suggestions
         suggestAutoCompleteResults(for: "")
         
         dismissKeyboard()

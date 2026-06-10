@@ -22,8 +22,6 @@ public struct VersionedMessageV0: Equatable, Sendable {
     public func encode() -> Data {
         var data = Data()
         data.append(Byte(MessageVersion.v0.rawValue + messageVersionSerializationOffset))
-        // message content
-        // same as legacy
         data.append(header.encode())
         data.append(
             ShortVec.encode(staticAccountKeys.map { $0.data })
@@ -154,7 +152,6 @@ extension VersionedMessageV0 {
             addressTableLookups.append(lookup)
         }
 
-        // Now we have everything, store it
         self.header = header
         self.staticAccountKeys = staticKeys
         self.recentBlockhash = hash

@@ -1,5 +1,5 @@
 //
-//  AutoUpdating.swift
+//  Updateable.swift
 //  Code
 //
 //  Created by Dima Bart on 2024-12-23.
