@@ -82,8 +82,6 @@ struct CurrencyCreationWizardScreen: View {
         var id: String { swapId.publicKey.base58 }
     }
 
-    static let nameCharLimit = 32
-    static let descriptionCharLimit = 500
     static let iconCircleSize: CGFloat = 150
 
     /// USDF amount the user buys to mint their first bill. Driven by the
@@ -183,7 +181,7 @@ struct CurrencyCreationWizardScreen: View {
                     NameStep(
                         state: state,
                         focusedField: $focusedField,
-                        characterLimit: Self.nameCharLimit,
+                        characterLimit: CurrencyNameValidator.maxLength,
                         isValidating: isValidating,
                         onNext: { validateAndAdvanceName() }
                     )
@@ -203,7 +201,7 @@ struct CurrencyCreationWizardScreen: View {
                     DescriptionStep(
                         state: state,
                         focusedField: $focusedField,
-                        characterLimit: Self.descriptionCharLimit,
+                        characterLimit: CurrencyCreationState.descriptionCharLimit,
                         isValidating: isValidating,
                         onNext: { validateAndAdvanceDescription() }
                     )
@@ -421,7 +419,7 @@ struct CurrencyCreationWizardScreen: View {
             isValidating = true
             defer { isValidating = false }
 
-            let name = state.currencyName
+            guard let name = state.validatedCurrencyName else { return }
 
             // 1. Uniqueness check
             let isAvailable: Bool
@@ -1164,7 +1162,7 @@ private struct DescriptionStep: View {
                 }
             }
             .buttonStyle(.filled)
-            .disabled(state.currencyDescription.allSatisfy(\.isWhitespace) || isValidating)
+            .disabled(!state.isCurrencyDescriptionValid || isValidating)
             .padding(.bottom, 20)
         }
         .padding(.horizontal, 20)
