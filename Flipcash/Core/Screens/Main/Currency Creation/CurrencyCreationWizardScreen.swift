@@ -82,8 +82,6 @@ struct CurrencyCreationWizardScreen: View {
         var id: String { swapId.publicKey.base58 }
     }
 
-    static let nameCharLimit = 32
-    static let descriptionCharLimit = 500
     static let iconCircleSize: CGFloat = 150
 
     /// USDF amount the user buys to mint their first bill. Driven by the
@@ -183,7 +181,7 @@ struct CurrencyCreationWizardScreen: View {
                     NameStep(
                         state: state,
                         focusedField: $focusedField,
-                        characterLimit: Self.nameCharLimit,
+                        characterLimit: CurrencyNameValidator.maxLength,
                         isValidating: isValidating,
                         onNext: { validateAndAdvanceName() }
                     )
@@ -203,7 +201,7 @@ struct CurrencyCreationWizardScreen: View {
                     DescriptionStep(
                         state: state,
                         focusedField: $focusedField,
-                        characterLimit: Self.descriptionCharLimit,
+                        characterLimit: CurrencyCreationState.descriptionCharLimit,
                         isValidating: isValidating,
                         onNext: { validateAndAdvanceDescription() }
                     )
@@ -421,7 +419,7 @@ struct CurrencyCreationWizardScreen: View {
             isValidating = true
             defer { isValidating = false }
 
-            let name = state.currencyName
+            guard let name = state.validatedCurrencyName else { return }
 
             // 1. Uniqueness check
             let isAvailable: Bool
@@ -1006,11 +1004,7 @@ private struct NameStep: View {
                 .focused($focusedField, equals: .name)
                 .padding(.top, 32)
                 .disabled(isValidating)
-                .onChange(of: state.currencyName) { _, newValue in
-                    if newValue.count > characterLimit {
-                        state.currencyName = String(newValue.prefix(characterLimit))
-                    }
-                }
+                .characterLimit(characterLimit, text: $state.currencyName)
 
             Spacer()
 
@@ -1138,11 +1132,7 @@ private struct DescriptionStep: View {
                         .focused($focusedField, equals: .description)
                         .padding(.top, 16)
                         .disabled(isValidating)
-                        .onChange(of: state.currencyDescription) { _, newValue in
-                            if newValue.count > characterLimit {
-                                state.currencyDescription = String(newValue.prefix(characterLimit))
-                            }
-                        }
+                        .characterLimit(characterLimit, text: $state.currencyDescription)
 
                     Color.clear.frame(height: 100)
                 }
@@ -1164,7 +1154,7 @@ private struct DescriptionStep: View {
                 }
             }
             .buttonStyle(.filled)
-            .disabled(state.currencyDescription.allSatisfy(\.isWhitespace) || isValidating)
+            .disabled(!state.isCurrencyDescriptionValid || isValidating)
             .padding(.bottom, 20)
         }
         .padding(.horizontal, 20)
@@ -1318,5 +1308,27 @@ private struct ImagePickerWithEditor: UIViewControllerRepresentable {
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
             onDismiss()
         }
+    }
+}
+
+// MARK: - CharacterLimit
+
+private struct CharacterLimit: ViewModifier {
+    @Binding var text: String
+    let limit: Int
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: text) { _, newValue in
+                if newValue.count > limit {
+                    text = String(newValue.prefix(limit))
+                }
+            }
+    }
+}
+
+private extension View {
+    func characterLimit(_ limit: Int, text: Binding<String>) -> some View {
+        modifier(CharacterLimit(text: text, limit: limit))
     }
 }

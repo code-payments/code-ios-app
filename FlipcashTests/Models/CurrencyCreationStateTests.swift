@@ -12,90 +12,36 @@ import FlipcashCore
 @Suite("CurrencyCreationState")
 struct CurrencyCreationStateTests {
 
-    // MARK: - isCurrencyNameValid
+    // MARK: - Validation routing
 
-    @Test("empty name is invalid")
-    func emptyName_invalid() {
-        let state = CurrencyCreationState()
-        state.currencyName = ""
-        #expect(state.isCurrencyNameValid == false)
-    }
-
-    @Test("single printable ASCII char is valid")
-    func singleChar_valid() {
-        let state = CurrencyCreationState()
-        state.currencyName = "A"
-        #expect(state.isCurrencyNameValid == true)
-    }
-
-    @Test("exactly 32 chars is valid")
-    func thirtyTwoChars_valid() {
-        let state = CurrencyCreationState()
-        state.currencyName = String(repeating: "A", count: 32)
-        #expect(state.isCurrencyNameValid == true)
-    }
-
-    @Test("more than 32 chars is invalid")
-    func moreThan32Chars_invalid() {
-        let state = CurrencyCreationState()
-        state.currencyName = String(repeating: "A", count: 33)
-        #expect(state.isCurrencyNameValid == false)
-    }
-
-    @Test("name with internal space is valid")
-    func internalSpace_valid() {
+    @Test("valid name passes and surfaces the validated form")
+    func validName_passesValidation() {
         let state = CurrencyCreationState()
         state.currencyName = "My Coin"
-        #expect(state.isCurrencyNameValid == true)
+        #expect(state.isCurrencyNameValid)
+        #expect(state.validatedCurrencyName == "My Coin")
     }
 
-    @Test("leading space is invalid")
-    func leadingSpace_invalid() {
+    @Test("invalid name fails and yields no validated form")
+    func invalidName_failsValidation() {
         let state = CurrencyCreationState()
         state.currencyName = " Coin"
         #expect(state.isCurrencyNameValid == false)
+        #expect(state.validatedCurrencyName == nil)
     }
 
-    @Test("trailing space is invalid")
-    func trailingSpace_invalid() {
+    @Test("non-blank description within the limit is valid")
+    func description_withinLimit_valid() {
         let state = CurrencyCreationState()
-        state.currencyName = "Coin "
-        #expect(state.isCurrencyNameValid == false)
+        state.currencyDescription = "A coin for testing"
+        #expect(state.isCurrencyDescriptionValid)
     }
 
-    @Test("whitespace-only is invalid")
-    func whitespaceOnly_invalid() {
+    @Test("description over the limit is invalid")
+    func overlongDescription_invalid() {
         let state = CurrencyCreationState()
-        state.currencyName = "   "
-        #expect(state.isCurrencyNameValid == false)
-    }
-
-    @Test("non-ASCII characters are invalid")
-    func nonASCII_invalid() {
-        let state = CurrencyCreationState()
-        state.currencyName = "café"
-        #expect(state.isCurrencyNameValid == false)
-    }
-
-    @Test("emoji is invalid")
-    func emoji_invalid() {
-        let state = CurrencyCreationState()
-        state.currencyName = "Coin🎉"
-        #expect(state.isCurrencyNameValid == false)
-    }
-
-    @Test("newline is invalid")
-    func newline_invalid() {
-        let state = CurrencyCreationState()
-        state.currencyName = "Co\nin"
-        #expect(state.isCurrencyNameValid == false)
-    }
-
-    @Test("printable ASCII punctuation is valid")
-    func printableAsciiPunctuation_valid() {
-        let state = CurrencyCreationState()
-        state.currencyName = "Coin!$#@"
-        #expect(state.isCurrencyNameValid == true)
+        state.currencyDescription = String(repeating: "x", count: CurrencyCreationState.descriptionCharLimit + 1)
+        #expect(state.isCurrencyDescriptionValid == false)
     }
 
     // MARK: - Attestation invalidation on field edit

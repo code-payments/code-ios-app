@@ -46,6 +46,7 @@ final class PhoneVerificationViewModel: PhoneVerifying {
     @ObservationIgnored private let owner: KeyPair
 
     @ObservationIgnored private let phoneFormatter = PhoneFormatter()
+    @ObservationIgnored private let phoneValidator = PhoneValidator()
 
     // MARK: - Analytics hooks -
 
@@ -107,7 +108,7 @@ final class PhoneVerificationViewModel: PhoneVerifying {
     }
 
     var phone: Phone? {
-        Phone(enteredPhone)
+        phoneValidator.validate(enteredPhone)
     }
 
     var canSendVerificationCode: Bool {

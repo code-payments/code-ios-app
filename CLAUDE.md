@@ -182,7 +182,7 @@ To suppress reporting for a specific error type, conform it to `ServerError` (in
 
 ### Form Input Validation: Use the `Validator` Family
 
-**Validate free-form input through `Validator` (in `FlipcashCore/Sources/FlipcashCore/Validation/`), not inline regex/trim/length checks.** Each input type gets a concrete validator (`EmailValidator`, and the in-flight `PhoneValidator` / `LengthValidator`) that owns the rule, returns the canonical form, and is unit-testable in isolation.
+**Validate free-form input through `Validator` (in `FlipcashCore/Sources/FlipcashCore/Validation/`), not inline regex/trim/length checks.** Each input type gets a concrete validator (`EmailValidator`, `PhoneValidator`, `CurrencyNameValidator`, `LengthValidator`) that owns the rule, returns the canonical form, and is unit-testable in isolation.
 
 ```swift
 // ❌ BAD: inline rule in the viewmodel — drifts from the server contract, untestable
