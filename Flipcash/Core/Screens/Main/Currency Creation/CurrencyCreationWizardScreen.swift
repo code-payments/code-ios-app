@@ -1004,11 +1004,7 @@ private struct NameStep: View {
                 .focused($focusedField, equals: .name)
                 .padding(.top, 32)
                 .disabled(isValidating)
-                .onChange(of: state.currencyName) { _, newValue in
-                    if newValue.count > characterLimit {
-                        state.currencyName = String(newValue.prefix(characterLimit))
-                    }
-                }
+                .characterLimit(characterLimit, text: $state.currencyName)
 
             Spacer()
 
@@ -1136,11 +1132,7 @@ private struct DescriptionStep: View {
                         .focused($focusedField, equals: .description)
                         .padding(.top, 16)
                         .disabled(isValidating)
-                        .onChange(of: state.currencyDescription) { _, newValue in
-                            if newValue.count > characterLimit {
-                                state.currencyDescription = String(newValue.prefix(characterLimit))
-                            }
-                        }
+                        .characterLimit(characterLimit, text: $state.currencyDescription)
 
                     Color.clear.frame(height: 100)
                 }
@@ -1316,5 +1308,27 @@ private struct ImagePickerWithEditor: UIViewControllerRepresentable {
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
             onDismiss()
         }
+    }
+}
+
+// MARK: - CharacterLimit
+
+private struct CharacterLimit: ViewModifier {
+    @Binding var text: String
+    let limit: Int
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: text) { _, newValue in
+                if newValue.count > limit {
+                    text = String(newValue.prefix(limit))
+                }
+            }
+    }
+}
+
+private extension View {
+    func characterLimit(_ limit: Int, text: Binding<String>) -> some View {
+        modifier(CharacterLimit(text: text, limit: limit))
     }
 }
