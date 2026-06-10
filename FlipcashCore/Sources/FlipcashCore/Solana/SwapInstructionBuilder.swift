@@ -31,16 +31,6 @@ public struct SwapInstructionBuilder {
         memoryIndex: UInt32,
     ) {
         switch serverParameters.kind {
-        case .stateless(let params):
-            return (
-                payer: params.payer,
-                alts: params.alts,
-                computeUnitLimit: params.computeUnitLimit,
-                computeUnitPrice: params.computeUnitPrice,
-                memo: params.memoValue,
-                memoryAccount: params.memoryAccount,
-                memoryIndex: params.memoryIndex
-            )
         case .stateful(let params):
             return (
                 payer: params.payer,

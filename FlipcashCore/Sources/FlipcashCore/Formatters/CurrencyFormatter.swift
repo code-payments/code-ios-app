@@ -109,17 +109,6 @@ extension NumberFormatter {
 }
 
 extension NumberFormatter {
-    internal static let kin: NumberFormatter = {
-        let f = NumberFormatter()
-        f.numberStyle = .decimal
-        f.minimumFractionDigits = 0
-        f.maximumFractionDigits = 0
-        f.generatesDecimalNumbers = true
-        return f
-    }()
-}
-
-extension NumberFormatter {
     public func string(from decimal: Decimal) -> String? {
         string(from: decimal as NSNumber)
     }

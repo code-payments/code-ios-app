@@ -54,8 +54,6 @@ public struct AccountInfo: Equatable, Sendable {
     ///  3. The balance could have been received, so the total balance can show
     ///     as zero.
     public var exchangedFiat: ExchangedFiat?
-    
-    public var nextPoolIndex: Int?
 
     /// The USD cost basis for this account, which can be used to compute currency
     /// appreciation/depreciation
@@ -82,7 +80,7 @@ public struct AccountInfo: Equatable, Sendable {
 
     // MARK: - Init -
 
-    init(address: PublicKey, mint: PublicKey, owner: PublicKey?, authority: PublicKey?, balanceSource: BalanceSource, quarks: UInt64, managementState: ManagementState, blockchainState: BlockchainState, claimState: ClaimState, exchangedFiat: ExchangedFiat?, nextPoolIndex: Int?, usdCostBasis: Double, mintMetadata: MintMetadata? = nil, isGiftCardIssuer: Bool = false) {
+    init(address: PublicKey, mint: PublicKey, owner: PublicKey?, authority: PublicKey?, balanceSource: BalanceSource, quarks: UInt64, managementState: ManagementState, blockchainState: BlockchainState, claimState: ClaimState, exchangedFiat: ExchangedFiat?, usdCostBasis: Double, mintMetadata: MintMetadata? = nil, isGiftCardIssuer: Bool = false) {
         self.address           = address
         self.mint              = mint
         self.owner             = owner
@@ -93,7 +91,6 @@ public struct AccountInfo: Equatable, Sendable {
         self.blockchainState   = blockchainState
         self.claimState        = claimState
         self.exchangedFiat     = exchangedFiat
-        self.nextPoolIndex     = nextPoolIndex
         self.usdCostBasis      = usdCostBasis
         self.mintMetadata      = mintMetadata
         self.isGiftCardIssuer  = isGiftCardIssuer
@@ -270,7 +267,6 @@ extension AccountInfo {
             blockchainState: blockchainState,
             claimState: claimState,
             exchangedFiat: exchangedFiat,
-            nextPoolIndex: nil,
             usdCostBasis: info.usdCostBasis,
             mintMetadata: mintMetadata,
             isGiftCardIssuer: info.isGiftCardIssuer

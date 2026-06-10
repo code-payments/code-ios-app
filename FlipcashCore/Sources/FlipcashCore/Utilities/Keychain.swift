@@ -50,7 +50,7 @@ public class Keychain {
         return nil
     }
     
-    public static func data(for key: String, migrateIfNeeded: Bool = true) -> Data? {
+    public static func data(for key: String) -> Data? {
         let query = Query(
             .account(key),
             .matchLimit(.one),

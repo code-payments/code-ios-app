@@ -9,10 +9,6 @@
 import Foundation
 
 extension Data {
-    func canConsume(_ length: Int) -> Bool {
-        count >= length
-    }
-        
     mutating func consume(_ length: Int) -> Data {
         if length > 0 {
             let data = Data(prefix(length))

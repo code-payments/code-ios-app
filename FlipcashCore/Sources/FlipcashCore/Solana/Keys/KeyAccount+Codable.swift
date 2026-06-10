@@ -34,6 +34,5 @@ extension KeyAccount {
     enum CodingKeys: String, CodingKey {
         case mnemonic
         case derivedKey
-        case tokenAccount
     }
 }

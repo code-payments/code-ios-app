@@ -115,8 +115,7 @@ struct SwapInstructionBuilderBuySellValidationTests {
             coreMintMetadata: coreMint,
             targetMintMetadata: targetMint,
             amount: 1_000_000,
-            minOutput: 0,
-            maxSlippage: 0
+            minOutput: 0
         )
     }
 
@@ -133,8 +132,7 @@ struct SwapInstructionBuilderBuySellValidationTests {
             sourceMintMetadata: sourceMint,
             coreMintMetadata: coreMint,
             amount: 1_000_000,
-            minOutput: 0,
-            maxSlippage: 0
+            minOutput: 0
         )
     }
 

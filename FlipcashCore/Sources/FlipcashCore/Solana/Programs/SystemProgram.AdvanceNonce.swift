@@ -43,10 +43,6 @@ extension SystemProgram.AdvanceNonce: InstructionType {
     public init(instruction: Instruction) throws {
         try SystemProgram.parse(.advanceNonceAccount, instruction: instruction, expectingAccounts: 3)
         
-        guard instruction.accounts.count == 3 else {
-            throw NSError(domain: "Invalid accounts", code: 0)
-        }
-        
         self.init(
             nonce: instruction.accounts[0].publicKey,
             authority: instruction.accounts[2].publicKey  // Skip index 1 (sysvar)

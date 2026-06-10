@@ -70,7 +70,6 @@ class AccountService: CodeService<Flipcash_Account_V1_AccountNIOClient> {
             $0.platform = .apple
 
             if let countryCode = Locale.current.region?.identifier {
-//                $0.countryCode = .with { $0.value = "us"}
                 $0.countryCode = .with { $0.value = countryCode }
             }
 
