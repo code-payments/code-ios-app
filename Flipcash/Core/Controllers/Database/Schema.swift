@@ -129,16 +129,6 @@ nonisolated struct VerifiedReserveTable: Sendable {
     let reserveProto = Expression <Data>   ("reserveProto")
 }
 
-nonisolated extension Expression {
-    func alias(_ alias: String) -> Expression<Datatype> {
-        Expression(alias)
-    }
-
-    func casting<T>(to type: T.Type) -> Expression<T> {
-        Expression<T>(template)
-    }
-}
-
 // MARK: - Tables -
 
 nonisolated extension Database {
@@ -267,12 +257,6 @@ nonisolated extension Database {
                 t.column(userFlagsTable.data)
             })
         }
-
-        try createIndexesIfNeeded()
-    }
-    
-    private func createIndexesIfNeeded() throws {
-        
     }
 }
 

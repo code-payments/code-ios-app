@@ -78,19 +78,6 @@ class CurrencyInfoViewModel {
         ).nativeAmount
     }
 
-    /// The user's USDF reserve balance converted to the display currency.
-    /// Returns `nil` when the user has no USDF balance.
-    var reserveBalance: ExchangedFiat? {
-        guard let stored = session.balance(for: .usdf) else { return nil }
-
-        let rate = ratesController.rateForBalanceCurrency()
-        return ExchangedFiat.compute(
-            onChainAmount: TokenAmount(wholeTokens: stored.usdf.value, mint: .usdf),
-            rate: rate,
-            supplyQuarks: nil
-        )
-    }
-
     /// The absolute appreciation (or depreciation) of this currency's balance
     /// relative to its cost basis, converted to the display currency.
     /// Returns zero with `isPositive: true` when

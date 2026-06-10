@@ -20,52 +20,6 @@ enum ErrorReporting {
         isEnabled = true
     }
 
-    static func breadcrumb(_ breadcrumb: Breadcrumb) {
-        guard isEnabled else { return }
-        Bugsnag.leaveBreadcrumb(
-            breadcrumb.rawValue,
-            metadata: nil,
-            type: .navigation
-        )
-    }
-    
-    enum BreadcrumbType {
-        case user
-        case process
-        case request
-        
-        var value: BSGBreadcrumbType {
-            switch self {
-            case .user:    return .user
-            case .process: return .process
-            case .request: return .request
-            }
-        }
-    }
-    
-    static func breadcrumb(name: String, metadata: [String: Any] = [:], exchangedFiat: ExchangedFiat? = nil, fiat: FiatAmount? = nil, type: BreadcrumbType) {
-        guard isEnabled else { return }
-        var container: [String: Any] = [:]
-        
-        metadata.forEach { key, value in
-            container[key] = value
-        }
-        
-        if let exchangedFiat {
-            container["exchangedFiat"] = exchangedFiat.descriptionDictionary
-        }
-        
-        if let fiat {
-            container["fiat"] = fiat.formatted()
-        }
-        
-        Bugsnag.leaveBreadcrumb(
-            name,
-            metadata: container,
-            type: type.value
-        )
-    }
-    
     static func capturePayment(error: Swift.Error, rendezvous: PublicKey, exchangedFiat: ExchangedFiat, verifiedState: VerifiedState? = nil, reason: String? = nil, file: String = #file, function: String = #function, line: Int = #line) {
         capture(error, reason: reason, file: file, function: function, line: line) { userInfo in
             userInfo["rendezvous"]    = rendezvous.base58
@@ -170,7 +124,3 @@ enum ErrorReporting {
 }
 
 nonisolated class Fault: NSError, @unchecked Sendable {}
-
-enum Breadcrumb: String {
-    case placeholder = "Placeholder"
-}

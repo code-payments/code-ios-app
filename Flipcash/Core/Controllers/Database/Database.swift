@@ -42,14 +42,6 @@ nonisolated class Database: @unchecked Sendable {
         reader.busyTimeout = 2000 // 2 Sec
         
         try createTablesIfNeeded()
-        
-//        writer.trace { sql in
-//            print("[WRITER]: \(sql)")
-//        }
-//
-//        reader.trace { sql in
-//            print("[READER]: \(sql)")
-//        }
     }
     
     // MARK: - Transaction -
@@ -59,7 +51,6 @@ nonisolated class Database: @unchecked Sendable {
     /// it will always captured in transaction {}
     @inline(__always)
     func transaction(silent: Bool = false, _ block: (Database) throws -> Void) rethrows {
-//        let start = Date.now
         do {
             let startChangeCount = writer.totalChanges
             try writer.transaction { [unowned self] in
@@ -91,9 +82,7 @@ nonisolated class Database: @unchecked Sendable {
             
         } catch {
             logger.error("Transaction error", metadata: ["error": "\(error)"])
-//            ErrorReporting.captureError(error)
         }
-//        print("[DB TX]: \(Date.now.timeIntervalSince1970 - start.timeIntervalSince1970) seconds")
     }
     
     // MARK: - Versioning -

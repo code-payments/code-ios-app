@@ -152,36 +152,9 @@ final class DeepLinkController {
     }
 }
 
-extension DeepLinkController {
-    enum Error: Swift.Error {
-        case failedToParsePaymentRequest
-        case failedToParseLoginRequest
-        case failedToParseTipLink
-        case failedToParseGiftCard
-    }
-}
-
 struct DeepLinkAction {
 
     let kind: Kind
-    
-//    var confirmationDescription: ConfirmationDescription? {
-//        switch kind {
-//        case .accessKey:
-//            guard sessionAuthenticator.isLoggedIn else {
-//                return nil
-//            }
-//            
-//            return .init(
-//                confirmation: "Log Out",
-//                title: "You're currently logged into an account. Please ensure you have saved your Access Key before proceeding. Would you like to logout and login with a new account?",
-//                description: nil
-//            )
-//            
-//        case .receiveCashLink:
-//            return nil // Don't need confirmation
-//        }
-//    }
     
     private let sessionAuthenticator: SessionAuthenticator
     
@@ -278,15 +251,5 @@ struct VerificationDescription: Identifiable, Equatable {
 
     var id: String {
         "\(email):\(code)"
-    }
-}
-
-// MARK: - ConfirmationDescription -
-
-extension DeepLinkAction {
-    struct ConfirmationDescription {
-        var confirmation: String
-        var title: String?
-        var description: String?
     }
 }

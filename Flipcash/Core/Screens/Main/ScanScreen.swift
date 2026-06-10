@@ -201,7 +201,6 @@ struct ScanScreen: View {
     private func preferredCanvasSize() -> CGSize {
         var rect = UIScreen.main.bounds
         
-//        rect.size.height -= 54.0 // Top Bar
         rect.size.height -= 70.0 // Bottom bar
         
         return rect.insetBy(dx: 20, dy: 20).size
@@ -323,9 +322,6 @@ struct ScanScreen: View {
 
     private func dismissBill() {
         session.dismissCashBill(style: .slide)
-//        if let action = session.billState.secondaryAction {
-//            action.action()
-//        }
     }
 }
 

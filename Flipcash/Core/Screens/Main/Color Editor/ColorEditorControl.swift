@@ -138,7 +138,6 @@ private extension ColorEditorControl {
                     },
                     onTap: {
                         bouncingSwatchIndex = index
-                        withAnimation(.spring(response: 0.14, dampingFraction: 0.65)) {}
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
                             withAnimation(.spring(response: 0.18, dampingFraction: 0.82)) {
                                 bouncingSwatchIndex = nil

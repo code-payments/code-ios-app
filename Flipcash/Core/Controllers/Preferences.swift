@@ -57,7 +57,4 @@ class Preferences {
 extension UserDefaults {
     @Defaults(.cameraAutoStartDisabled)
     static var cameraAutoStartDisabled: Bool?
-
-    @Defaults(.cameraEnabledState)
-    static var cameraEnabled: Bool?
 }

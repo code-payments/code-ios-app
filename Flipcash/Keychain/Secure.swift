@@ -17,29 +17,6 @@ enum SecureKey: String {
 }
 
 @propertyWrapper
-struct SecureData {
-    
-    var wrappedValue: Data? {
-        get {
-            return Keychain.data(for: key.rawValue)
-        }
-        set {
-            if let newValue = newValue {
-                Keychain.set(newValue, for: key.rawValue)
-            } else {
-                Keychain.delete(key.rawValue)
-            }
-        }
-    }
-    
-    private let key: SecureKey
-    
-    init(_ key: SecureKey) {
-        self.key = key
-    }
-}
-
-@propertyWrapper
 struct SecureString {
     
     var wrappedValue: String? {
@@ -109,7 +86,3 @@ struct SecureCodable<T> where T: Codable {
         return try? decoder.decode(T.self, from: data)
     }
 }
-
-//private extension Keychain {
-//    static let secure = Keychain()
-//}
