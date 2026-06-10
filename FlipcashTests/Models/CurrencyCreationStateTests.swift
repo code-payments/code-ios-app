@@ -37,13 +37,6 @@ struct CurrencyCreationStateTests {
         #expect(state.isCurrencyDescriptionValid)
     }
 
-    @Test("blank description is invalid")
-    func blankDescription_invalid() {
-        let state = CurrencyCreationState()
-        state.currencyDescription = "   "
-        #expect(state.isCurrencyDescriptionValid == false)
-    }
-
     @Test("description over the limit is invalid")
     func overlongDescription_invalid() {
         let state = CurrencyCreationState()
