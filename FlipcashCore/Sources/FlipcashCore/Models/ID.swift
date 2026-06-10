@@ -38,19 +38,6 @@ extension ID {
             return nil
         }
     }
-    
-    public var uuid: UUID {
-        guard data.count == 16 else {
-            fatalError("ID is not 16 bytes, instead \(data.count) bytes were provided.")
-        }
-        
-        return UUID(uuid: (
-            data[0],  data[1],  data[2],  data[3],
-            data[4],  data[5],  data[6],  data[7],
-            data[8],  data[9],  data[10], data[11],
-            data[12], data[13], data[14], data[15]
-        ))
-    }
 }
 
 extension ID: Comparable {

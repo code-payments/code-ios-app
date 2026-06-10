@@ -86,8 +86,6 @@ nonisolated class Database: @unchecked Sendable {
                         coalesceMask: .onName,
                         forModes: [.common]
                     )
-                } else {
-                    print("Transaction detected no changes. Skipping commit...")
                 }
             }
             

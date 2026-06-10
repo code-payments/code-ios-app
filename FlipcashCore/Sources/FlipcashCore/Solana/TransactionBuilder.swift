@@ -7,28 +7,6 @@
 
 enum TransactionBuilder {}
 
-// MARK: - Helper Methods
-
-extension TransactionBuilder {
-    
-    /// Derives the temporary token account for a given owner and mint
-    private static func deriveTemporaryAccount(owner: PublicKey, mint: PublicKey) -> PublicKey {
-        guard let pda = PublicKey.deriveAssociatedAccount(from: owner, mint: mint) else {
-            fatalError("Failed to derive temporary account for owner: \(owner), mint: \(mint)")
-        }
-        return pda.publicKey
-    }
-    
-    /// Derives the VM swap account for a given owner and mint
-    private static func deriveVMSwapAccount(owner: PublicKey, mint: PublicKey, vmMetadata: VMMetadata) -> PublicKey {
-        // The VM swap account is typically the associated token account of the VM for the given mint
-        guard let pda = PublicKey.deriveAssociatedAccount(from: vmMetadata.vm, mint: mint) else {
-            fatalError("Failed to derive VM swap account for VM: \(vmMetadata.vm), mint: \(mint)")
-        }
-        return pda.publicKey
-    }
-}
-
 // MARK: - Swap Transaction Builder
 
 extension TransactionBuilder {
@@ -41,7 +19,7 @@ extension TransactionBuilder {
         amount: UInt64,
         minOutput: UInt64 = 0,
         slippageBasisPoints: UInt64 = 0
-    ) -> SolanaTransaction {
+    ) throws -> SolanaTransaction {
         // Extract server-provided parameters
         let (payer, blockhash, alts): (PublicKey, Hash?, [AddressLookupTable]) = switch responseParams.kind {
         case .stateful(let params):
@@ -51,17 +29,17 @@ extension TransactionBuilder {
         case .newCurrency:
             // New-currency launches go through TransactionBuilder.swapNewCurrency,
             // which consumes the ReserveNewCurrency params directly.
-            fatalError("TransactionBuilder.swap cannot be used with a new-currency launch")
+            throw SwapTransactionBuildError.unsupportedServerParameters
         case .stablecoin:
             // Stablecoin (USDF → USDC) withdraws go through swapUsdfToUsdc.
-            fatalError("TransactionBuilder.swap cannot be used with a stablecoin withdraw")
+            throw SwapTransactionBuildError.unsupportedServerParameters
         }
-        
+
         let coreMint = MintMetadata.usdf
-        
+
         let instructions = switch direction {
         case .buy(let targetMint):
-            SwapInstructionBuilder.buildBuyInstructions(
+            try SwapInstructionBuilder.buildBuyInstructions(
                 serverParameters: responseParams,
                 nonce: metadata.serverParameters.nonce,
                 authority: authority,
@@ -74,7 +52,7 @@ extension TransactionBuilder {
             )
 
         case .sell(let sourceMint):
-            SwapInstructionBuilder.buildSellInstructions(
+            try SwapInstructionBuilder.buildSellInstructions(
                 serverParameters: responseParams,
                 nonce: metadata.serverParameters.nonce,
                 authority: authority,
@@ -88,7 +66,7 @@ extension TransactionBuilder {
 
         case .withdraw:
             // Stablecoin (USDF → USDC) withdraws go through swapUsdfToUsdc.
-            fatalError("TransactionBuilder.swap cannot build a stablecoin withdraw transaction")
+            throw SwapTransactionBuildError.unsupportedServerParameters
         }
         
         return SolanaTransaction.init(
@@ -170,8 +148,8 @@ extension TransactionBuilder {
         authority: PublicKey,
         swapAmount: UInt64,
         feeAmount: UInt64
-    ) -> SolanaTransaction {
-        let instructions = SwapInstructionBuilder.newCurrencyLaunch(
+    ) throws -> SolanaTransaction {
+        let instructions = try SwapInstructionBuilder.newCurrencyLaunch(
             serverParams: responseParams,
             authority: authority,
             swapAmount: swapAmount,

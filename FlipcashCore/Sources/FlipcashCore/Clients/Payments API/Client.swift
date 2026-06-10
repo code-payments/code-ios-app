@@ -99,5 +99,5 @@ extension Client: ConnectivityStateDelegate {
 }
 
 extension Client {
-    public static let mock = Client(network: .testNet)
+    public static let mock = Client(network: .mainNet)
 }

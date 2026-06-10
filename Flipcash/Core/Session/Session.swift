@@ -432,7 +432,7 @@ class Session {
             // Return the balance amount so the caller sends the
             // actual balance instead of the requested amount.
             if deltaToBalanceInFiat <= Decimal(tolerance) {
-                print("Attempt max send, within error tolerance")
+                logger.info("Attempt max send, within error tolerance")
                 return .sufficient(amountToSend: exchangedBalance)
             } else {
                 return .insufficient(shortfall: exchangedFiat.subtracting(exchangedBalance))
@@ -900,9 +900,7 @@ class Session {
         // we first saw the bill and match
         // it to the rendezvous
         grabStarts[payload.rendezvous.publicKey] = .now
-        
-        print("Scanned: \(payload.fiat.formatted()) \(payload.fiat.currency)")
-        
+
         guard scanOperation == nil else {
             return
         }
