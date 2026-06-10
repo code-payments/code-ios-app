@@ -21,7 +21,7 @@ extension Metrics {
     public static let buttonPadding: CGFloat = 20.0
     public static let buttonLineWidth: CGFloat = 1.0
 
-    public static var localizedDecimalSeparator: String {
+    public nonisolated static var localizedDecimalSeparator: String {
         Locale.current.decimalSeparator ?? "."
     }
     

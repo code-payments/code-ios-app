@@ -36,7 +36,7 @@ final class GiveViewModel {
             return nil
         }
 
-        guard let amount = NumberFormatter.decimal(from: enteredAmount), amount > 0 else {
+        guard let amount = KeyPadView.amount(from: enteredAmount), amount > 0 else {
             return nil
         }
 
@@ -199,7 +199,7 @@ final class GiveViewModel {
         ) else { return nil }
 
         guard !enteredAmount.isEmpty,
-              let entered = NumberFormatter.decimal(from: enteredAmount),
+              let entered = KeyPadView.amount(from: enteredAmount),
               entered > 0 else { return nil }
 
         guard let pinnedSupply = pin.supplyFromBonding else { return nil }
