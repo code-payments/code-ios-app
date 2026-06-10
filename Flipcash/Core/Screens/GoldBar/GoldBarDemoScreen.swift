@@ -15,7 +15,7 @@ struct GoldBarDemoScreen: View {
     @State private var barRotationY: Double = 0
     @State private var isSceneReady = false
 
-    private let qrPayload = "https://flipcash.com/gold-bar-demo"
+    private let codeData = Data.placeholder35
 
     var body: some View {
         NavigationStack {
@@ -23,7 +23,7 @@ struct GoldBarDemoScreen: View {
                 Color(white: 0.04).ignoresSafeArea()
 
                 GoldBarSceneView(
-                    qrPayload: qrPayload,
+                    codeData: codeData,
                     lightIntensity: lightIntensity,
                     environmentIntensity: environmentIntensity,
                     relief: relief,

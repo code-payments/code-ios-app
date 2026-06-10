@@ -13,25 +13,25 @@ enum GoldBarScene {
 
     /// Full-resolution maps from the most recent bake; a re-presentation skips the
     /// preview phase and opens at full quality immediately.
-    static var cachedTextures: (payload: String, textures: GoldBarMaterialBaker.Textures)?
+    static var cachedTextures: (payload: Data, textures: GoldBarMaterialBaker.Textures)?
 
-    private static var inflightBake: (payload: String, task: Task<GoldBarMaterialBaker.Textures, Never>)?
+    private static var inflightBake: (payload: Data, task: Task<GoldBarMaterialBaker.Textures, Never>)?
 
     /// Returns the full-resolution maps, baking off the main thread at most once per payload —
     /// concurrent presentations share the in-flight bake instead of spawning their own.
-    static func fullTextures(qrPayload: String) async -> GoldBarMaterialBaker.Textures {
-        if let cached = cachedTextures, cached.payload == qrPayload {
+    static func fullTextures(payload: Data, code: UIImage) async -> GoldBarMaterialBaker.Textures {
+        if let cached = cachedTextures, cached.payload == payload {
             return cached.textures
         }
-        if let inflight = inflightBake, inflight.payload == qrPayload {
+        if let inflight = inflightBake, inflight.payload == payload {
             return await inflight.task.value
         }
         let task = Task.detached(priority: .userInitiated) {
-            GoldBarMaterialBaker.bake(.full(qrPayload: qrPayload))
+            GoldBarMaterialBaker.bake(.full(code: code))
         }
-        inflightBake = (qrPayload, task)
+        inflightBake = (payload, task)
         let textures = await task.value
-        cachedTextures = (qrPayload, textures)
+        cachedTextures = (payload, textures)
         inflightBake = nil
         return textures
     }

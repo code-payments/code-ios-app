@@ -1,39 +1,38 @@
 import UIKit
-import CoreImage
-import CoreImage.CIFilterBuiltins
 
 /// Procedurally bakes the portrait gold bar's PBR maps (no bundled assets):
-/// - albedo: warm gold field, engraved emblem + stacked markings + serial, dark etched QR
-/// - roughness: glossy polished field, rougher scratches, a slightly matte QR patch for scan contrast
-/// - normal: tangent-space relief from a height field (markings recessed, QR low-relief, fine scratches)
+/// - albedo: warm gold field, engraved emblem + stacked markings + serial, dark etched Kik code
+/// - roughness: glossy polished field, rougher scratches, a slightly matte code patch for scan contrast
+/// - normal: tangent-space relief from a height field (markings recessed, code low-relief, fine scratches)
 nonisolated enum GoldBarMaterialBaker {
 
-    struct Config {
+    // UIImage is immutable and documented thread-safe; the config crosses into the
+    // detached bake task.
+    struct Config: @unchecked Sendable {
         var pixelSize: CGSize
-        var qrPayload: String
+        /// Pre-rendered Kik code (dark on transparent), etched into the lower band.
+        var code: UIImage
         var stampLines: [String]
         var serial: String = "No. CH 047219"
         var scratchCount: Int = 150
-        var includesQR: Bool = true
 
         /// Full-quality maps for the portrait bar face. Expensive — bake off the main thread.
-        static func full(qrPayload: String) -> Config {
+        static func full(code: UIImage) -> Config {
             Config(
                 pixelSize: CGSize(width: 640, height: 1110),
-                qrPayload: qrPayload,
+                code: code,
                 stampLines: ["FINE GOLD", "999.9", "1 oz"]
             )
         }
 
-        /// Tiny maps that bake in milliseconds (no CoreImage involved) — the low-res
-        /// stand-in shown while the full set bakes in the background.
-        static func preview(qrPayload: String) -> Config {
+        /// Tiny maps that bake in milliseconds — the low-res stand-in shown while the
+        /// full set bakes in the background.
+        static func preview(code: UIImage) -> Config {
             Config(
                 pixelSize: CGSize(width: 96, height: 166),
-                qrPayload: qrPayload,
+                code: code,
                 stampLines: ["FINE GOLD", "999.9", "1 oz"],
-                scratchCount: 0,
-                includesQR: false
+                scratchCount: 0
             )
         }
     }
@@ -50,37 +49,12 @@ nonisolated enum GoldBarMaterialBaker {
     private static let goldEngraved = UIColor(red: 0.55, green: 0.40, blue: 0.15, alpha: 1)
 
     static func bake(_ config: Config) -> Textures {
-        let qr = config.includesQR ? makeQRImage(payload: config.qrPayload) : darkPatchImage()
-        let height = renderHeightField(config, qr: qr)
+        let height = renderHeightField(config)
         return Textures(
-            albedo: renderAlbedo(config, qr: qr),
+            albedo: renderAlbedo(config),
             normal: normalMap(from: height),
-            roughness: renderRoughness(config, qr: qr)
+            roughness: renderRoughness(config)
         )
-    }
-
-    // MARK: - QR
-
-    // CIContext is thread-safe and expensive to create; shared across bakes.
-    private static let qrContext = CIContext()
-
-    private static func makeQRImage(payload: String) -> UIImage {
-        let filter = CIFilter.qrCodeGenerator()
-        filter.message = Data(payload.utf8)
-        filter.correctionLevel = "H"
-        let output = filter.outputImage!
-        let scaled = output.transformed(by: CGAffineTransform(scaleX: 12, y: 12))
-        let cg = qrContext.createCGImage(scaled, from: scaled.extent)!
-        return UIImage(cgImage: cg)
-    }
-
-    /// Stand-in for the QR in preview bakes: a flat dark patch where the code will appear,
-    /// drawn through the same multiply-blend path as the real QR.
-    private static func darkPatchImage() -> UIImage {
-        renderImage(size: CGSize(width: 8, height: 8)) { ctx, rect in
-            UIColor(white: 0.06, alpha: 1).setFill()
-            ctx.fill(rect)
-        }
     }
 
     // MARK: - Portrait layout
@@ -98,14 +72,14 @@ nonisolated enum GoldBarMaterialBaker {
         CGRect(x: size.width * 0.1, y: size.height * 0.45, width: size.width * 0.8, height: size.height * 0.035)
     }
 
-    private static func qrRect(_ size: CGSize) -> CGRect {
+    private static func codeRect(_ size: CGSize) -> CGRect {
         let side = size.width * 0.62
         return CGRect(x: (size.width - side) / 2, y: size.height * 0.72 - side / 2, width: side, height: side)
     }
 
     // MARK: - Albedo
 
-    private static func renderAlbedo(_ config: Config, qr: UIImage) -> UIImage {
+    private static func renderAlbedo(_ config: Config) -> UIImage {
         renderImage(size: config.pixelSize) { ctx, rect in
             goldField.setFill()
             ctx.fill(rect)
@@ -114,33 +88,28 @@ nonisolated enum GoldBarMaterialBaker {
             drawCenteredLines(config.stampLines, in: textColumn(config.pixelSize), weight: .heavy, color: goldEngraved)
             drawCenteredLines([config.serial], in: serialRect(config.pixelSize), weight: .medium, color: goldEngraved)
 
-            // Etched QR: dark modules over a bright gold quiet zone for contrast.
-            let qframe = qrRect(config.pixelSize)
-            goldField.setFill()
-            ctx.fill(qframe.insetBy(dx: -qframe.width * 0.06, dy: -qframe.width * 0.06))
-            ctx.cgContext.saveGState()
-            ctx.cgContext.clip(to: qframe)
-            qr.draw(in: qframe, blendMode: .multiply, alpha: 1)
-            ctx.cgContext.restoreGState()
+            // Etched code: dark dots laser-etched into the gold (transparent pixels leave it untouched).
+            config.code.draw(in: codeRect(config.pixelSize), blendMode: .multiply, alpha: 1)
         }
     }
 
     // MARK: - Roughness
 
-    private static func renderRoughness(_ config: Config, qr: UIImage) -> UIImage {
+    private static func renderRoughness(_ config: Config) -> UIImage {
         renderImage(size: config.pixelSize) { ctx, rect in
             UIColor(white: 0.15, alpha: 1).setFill()  // glossy polished base
             ctx.fill(rect)
             drawScratches(count: config.scratchCount, in: rect, color: UIColor(white: 0.5, alpha: 0.28), ctx: ctx)
-            // Slightly matte QR patch so the bright mirror doesn't wash out the modules.
+            // Slightly matte code patch so the bright mirror doesn't wash out the dots.
+            let patch = codeRect(config.pixelSize)
             UIColor(white: 0.3, alpha: 1).setFill()
-            ctx.fill(qrRect(config.pixelSize).insetBy(dx: -qrRect(config.pixelSize).width * 0.06, dy: -qrRect(config.pixelSize).width * 0.06))
+            ctx.cgContext.fillEllipse(in: patch.insetBy(dx: -patch.width * 0.06, dy: -patch.width * 0.06))
         }
     }
 
     // MARK: - Height → Normal
 
-    private static func renderHeightField(_ config: Config, qr: UIImage) -> UIImage {
+    private static func renderHeightField(_ config: Config) -> UIImage {
         renderImage(size: config.pixelSize) { ctx, rect in
             UIColor(white: 0.5, alpha: 1).setFill()
             ctx.fill(rect)
@@ -148,11 +117,8 @@ nonisolated enum GoldBarMaterialBaker {
             drawCenteredLines(config.stampLines, in: textColumn(config.pixelSize), weight: .heavy, color: UIColor(white: 0.32, alpha: 1))
             drawCenteredLines([config.serial], in: serialRect(config.pixelSize), weight: .medium, color: UIColor(white: 0.38, alpha: 1))
             drawScratches(count: config.scratchCount, in: rect, color: UIColor(white: 0.62, alpha: 0.12), ctx: ctx)
-            // QR low-relief so the engraving doesn't shatter scan contrast under bright light.
-            ctx.cgContext.saveGState()
-            ctx.cgContext.clip(to: qrRect(config.pixelSize))
-            qr.draw(in: qrRect(config.pixelSize), blendMode: .multiply, alpha: 0.3)
-            ctx.cgContext.restoreGState()
+            // Code low-relief so the engraving doesn't shatter scan contrast under bright light.
+            config.code.draw(in: codeRect(config.pixelSize), blendMode: .multiply, alpha: 0.3)
         }
     }
 

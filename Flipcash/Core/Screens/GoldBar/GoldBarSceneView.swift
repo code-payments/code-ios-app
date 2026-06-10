@@ -6,7 +6,7 @@ import CoreMotion
 /// The bar and camera never move; only the light orientation and environment rotation change.
 struct GoldBarSceneView: UIViewRepresentable {
 
-    let qrPayload: String
+    let codeData: Data
     var lightIntensity: Double
     var environmentIntensity: Double
     var relief: Double
@@ -17,7 +17,7 @@ struct GoldBarSceneView: UIViewRepresentable {
     /// Called once the scene is attached and renderable — the placeholder above can fade out.
     var onSceneReady: () -> Void
 
-    func makeCoordinator() -> Coordinator { Coordinator(qrPayload: qrPayload) }
+    func makeCoordinator() -> Coordinator { Coordinator(codeData: codeData) }
 
     func makeUIView(context: Context) -> UIView {
         // An empty container comes back immediately: every SceneKit/Metal step (view
@@ -94,14 +94,14 @@ struct GoldBarSceneView: UIViewRepresentable {
         var appliedRelief: Double?
         var appliedBarRotation: SIMD2<Double>?
 
-        private let qrPayload: String
+        private let codeData: Data
         private let motion = CMMotionManager()
         // Start near the neutral held attitude so the first frame is already centered.
         private var smoothedGravity = SIMD3<Double>(0, GoldBarLighting.neutralGravityY, -0.5)
         private var lightAnchor: SIMD2<Double>?
 
-        init(qrPayload: String) {
-            self.qrPayload = qrPayload
+        init(codeData: Data) {
+            self.codeData = codeData
         }
 
         /// Builds the scene on first call — kept out of init so presenting the cover does
@@ -109,25 +109,27 @@ struct GoldBarSceneView: UIViewRepresentable {
         func buildSceneIfNeeded() -> GoldBarScene.Bundle {
             if let bundle { return bundle }
             let built: GoldBarScene.Bundle
-            if let cached = GoldBarScene.cachedTextures, cached.payload == qrPayload {
+            if let cached = GoldBarScene.cachedTextures, cached.payload == codeData {
                 built = GoldBarScene.make(textures: cached.textures)
+                bundle = built
             } else {
-                // Milliseconds-cheap preview maps so the bar never waits on the bake;
-                // the full-resolution set arrives when the background bake completes.
-                built = GoldBarScene.make(textures: GoldBarMaterialBaker.bake(.preview(qrPayload: qrPayload)))
-            }
-            bundle = built
-            if GoldBarScene.cachedTextures?.payload != qrPayload {
-                bakeFullTextures(qrPayload: qrPayload)
+                // The Kik code renders once on the main actor (ImageRenderer); the
+                // milliseconds-cheap preview maps mean the bar never waits on the bake,
+                // and the full-resolution set arrives when the background bake completes.
+                let code = GoldBarCodeRenderer.image(for: codeData, side: 480)
+                built = GoldBarScene.make(textures: GoldBarMaterialBaker.bake(.preview(code: code)))
+                bundle = built
+                bakeFullTextures(code: code)
             }
             positionLight(for: smoothedGravity)
             return built
         }
 
-        private func bakeFullTextures(qrPayload: String) {
+        private func bakeFullTextures(code: UIImage) {
             guard let material = bundle?.material else { return }
+            let payload = codeData
             Task { [weak self] in
-                let textures = await GoldBarScene.fullTextures(qrPayload: qrPayload)
+                let textures = await GoldBarScene.fullTextures(payload: payload, code: code)
                 // Upload the new maps to the GPU off the main thread first, so the swap
                 // below is a cheap pointer change instead of a mid-frame texture upload.
                 if let view = self?.scnView {
