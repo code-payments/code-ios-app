@@ -172,11 +172,3 @@ struct BetaFlagsScreen: View {
         isShowingUnlinkAlert = true
     }
 }
-
-extension BetaFlagsScreen {
-    struct Option {
-        var title: String
-        var description: String
-        var binding: Binding<Bool>
-    }
-}

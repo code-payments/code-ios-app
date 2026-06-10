@@ -115,8 +115,6 @@ final class AccountInfoService: CodeService<Ocp_Account_V1_AccountNIOClient> {
     }
 
     func fetchPrimaryAccounts(owner: KeyPair, completion: @Sendable @escaping (Result<[AccountInfo], ErrorFetchBalance>) -> Void) {
-//        trace(.send, components: "Owner: \(owner.publicKey.base58)")
-
         let request = Ocp_Account_V1_GetTokenAccountInfosRequest.with {
             $0.owner = owner.publicKey.solanaAccountID
             $0.signature = $0.sign(with: owner)

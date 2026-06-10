@@ -32,7 +32,6 @@ extension SwapInstructionBuilder {
         coreMintMetadata: MintMetadata,
         amount: UInt64,
         minOutput: UInt64,
-        maxSlippage: UInt64,
     ) throws -> [Instruction] {
         guard let coreVM = coreMintMetadata.vmMetadata else {
             throw SwapTransactionBuildError.missingMintMetadata(symbol: coreMintMetadata.symbol)

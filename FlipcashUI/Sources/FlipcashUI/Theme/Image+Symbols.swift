@@ -14,10 +14,6 @@ extension Image {
         Image(systemName: systemSymbol.rawValue)
     }
     
-    public static func symbol(_ name: Symbol) -> Image {
-        Image(name.rawValue, bundle: Bundle.module)
-    }
-    
     public static func asset(_ name: Asset) -> Image  {
         Image(name.rawValue, bundle: Bundle.module)
     }
@@ -69,17 +65,6 @@ public enum SystemSymbol: String {
     case person = "person.fill"
 }
 
-// MARK: - Symbol -
-
-public enum Symbol: String {
-//    case kin = "kin"
-//    case kinLarge = "kin.large"
-    case code = "code"
-    case google = "google"
-    case hexSmall = "hex.small.fill"
-    case hexLarge = "hex.large.fill"
-}
-
 // MARK: - Asset -
 
 public enum Asset: String, Sendable {
@@ -92,8 +77,6 @@ public enum Asset: String, Sendable {
     case checkmark
     case checkmarkLarge
     case google = "google.button"
-//    case kin = "kin.button"
-//    case kinLarge = "kin.button.large"
     case codeBrand
     case codeLogo
     case invites

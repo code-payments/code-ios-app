@@ -36,27 +36,6 @@ struct UInt64ScaleDownTests {
     }
 }
 
-// MARK: - scaleDownInt
-
-@Suite("UInt64.scaleDownInt")
-struct UInt64ScaleDownIntTests {
-
-    @Test("Performs integer division by 10^d")
-    func integerDivision() {
-        #expect((123_456_789 as UInt64).scaleDownInt(4) == 12_345)
-    }
-
-    @Test("Truncates rather than rounds")
-    func truncates() {
-        #expect((999_999 as UInt64).scaleDownInt(6) == 0)
-    }
-
-    @Test("Exact match returns whole units")
-    func exactMatch() {
-        #expect((5_000_000 as UInt64).scaleDownInt(6) == 5)
-    }
-}
-
 // MARK: - scaleUp
 
 @Suite("UInt64.scaleUp")
@@ -77,16 +56,5 @@ struct UInt64ScaleUpTests {
         // UInt64.max / 10_000 ≈ 1_844_674_407_370_955
         let quarks: UInt64 = 1_844_674_407_370_955
         #expect(quarks.scaleUp(4) == 18_446_744_073_709_550_000)
-    }
-
-    // MARK: - Roundtrip
-
-    @Test("scaleUp and scaleDownInt are inverse operations")
-    func roundtrip() {
-        let original: UInt64 = 475_000
-        let scaled = original.scaleUp(6)
-
-        #expect(scaled == 475_000_000_000)
-        #expect(scaled.scaleDownInt(6) == original)
     }
 }

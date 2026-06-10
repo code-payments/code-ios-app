@@ -293,26 +293,6 @@ extension VerifiedSwapMetadata.ServerParameters {
     }
 }
 
-//extension VerifiedSwapMetadata.ServerParameters {
-//    public init?(_ proto: Code_Transaction_V2_StartSwapResponse.ServerParameters.CurrencyCreator) {
-//        guard
-//            let nonce = try? PublicKey(proto.nonce.value),
-//            let blockhash = try? Hash(proto.blockhash.value)
-//        else {
-//            return nil
-//        }
-//        
-//        self.init(nonce: nonce, blockhash: blockhash)
-//    }
-//    
-//    public var proto: Code_Transaction_V2_StartSwapResponse.ServerParameters.CurrencyCreator {
-//        .with {
-//            $0.nonce = nonce.solanaAccountID
-//            $0.blockhash = .with { $0.value = blockhash.data }
-//        }
-//    }
-//}
-
 extension VerifiedSwapMetadata {
     public init?(_ proto: Ocp_Transaction_V1_VerifiedSwapMetadata) {
         let clientParams: ClientParameters
@@ -433,42 +413,9 @@ public struct SwapResponseServerParameters {
     }
     
     public enum Kind {
-        case stateless(CurrencyCreatorStateless)
         case stateful(CurrencyCreatorStateful)
         case newCurrency(ReserveNewCurrency)
         case stablecoin(CoinbaseStableSwapServerParameters)
-    }
-    
-    // Server parameters for stateless buy/sell flows
-    public struct CurrencyCreatorStateless {
-        public let payer: PublicKey
-        public let recentBlockhash: Hash
-        public let alts: [AddressLookupTable]
-        public let computeUnitLimit: UInt32
-        public let computeUnitPrice: UInt64
-        public let memoValue: String
-        public let memoryAccount: PublicKey
-        public let memoryIndex: UInt32
-        
-        public init(
-            payer: PublicKey,
-            recentBlockhash: Hash,
-            alts: [AddressLookupTable],
-            computeUnitLimit: UInt32,
-            computeUnitPrice: UInt64,
-            memoValue: String,
-            memoryAccount: PublicKey,
-            memoryIndex: UInt32
-        ) {
-            self.payer = payer
-            self.recentBlockhash = recentBlockhash
-            self.alts = alts
-            self.computeUnitLimit = computeUnitLimit
-            self.computeUnitPrice = computeUnitPrice
-            self.memoValue = memoValue
-            self.memoryAccount = memoryAccount
-            self.memoryIndex = memoryIndex
-        }
     }
     
     // Server parameters for stateful buy/sell flows
@@ -588,44 +535,6 @@ public struct SwapResponseServerParameters {
 }
 
 // MARK: - Proto Conversion -
-
-extension SwapResponseServerParameters.CurrencyCreatorStateless {
-//    public init?(_ proto: Ocp_Transaction_V1_SwapResponse.ServerParameters.CurrencyCreatorStateless) {
-//        guard
-//            let payer = try? PublicKey(proto.payer.value),
-//            let recentBlockhash = try? Hash(proto.recentBlockhash.value),
-//            let memoryAccount = try? PublicKey(proto.memoryAccount.value)
-//        else {
-//            return nil
-//        }
-//        
-//        let alts = proto.alts.compactMap { AddressLookupTable($0) }
-//        
-//        self.init(
-//            payer: payer,
-//            recentBlockhash: recentBlockhash,
-//            alts: alts,
-//            computeUnitLimit: proto.computeUnitLimit,
-//            computeUnitPrice: proto.computeUnitPrice,
-//            memoValue: proto.memoValue,
-//            memoryAccount: memoryAccount,
-//            memoryIndex: proto.memoryIndex
-//        )
-//    }
-//    
-//    public var proto: Code_Transaction_V2_SwapResponse.ServerParameters.CurrencyCreatorStateless {
-//        .with {
-//            $0.payer = payer.solanaAccountID
-//            $0.recentBlockhash = .with { $0.value = recentBlockhash.data }
-//            $0.alts = alts.map { $0.proto }
-//            $0.computeUnitLimit = computeUnitLimit
-//            $0.computeUnitPrice = computeUnitPrice
-//            $0.memoValue = memoValue
-//            $0.memoryAccount = memoryAccount.solanaAccountID
-//            $0.memoryIndex = memoryIndex
-//        }
-//    }
-}
 
 extension SwapResponseServerParameters.CurrencyCreatorStateful {
     public init?(_ proto: Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveExistingCurrencyServerParameters) {

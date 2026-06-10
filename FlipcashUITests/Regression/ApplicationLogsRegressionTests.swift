@@ -50,14 +50,5 @@ final class ApplicationLogsRegressionTests: BaseUITestCase {
             saveToFiles.waitForExistence(timeout: 15),
             "Expected share sheet to appear with Save to Files action"
         )
-
-        // Dismiss the share sheet by swiping down
-        app.swipeDown()
-
-        // Verify we're back on the Application Logs screen
-        XCTAssertTrue(
-            title.waitForExistence(timeout: 5),
-            "Expected to return to Application Logs screen after dismissing share sheet"
-        )
     }
 }

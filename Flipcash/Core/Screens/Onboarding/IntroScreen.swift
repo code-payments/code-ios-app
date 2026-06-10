@@ -13,7 +13,6 @@ struct IntroScreen: View {
     
     @Environment(SessionAuthenticator.self) private var sessionAuthenticator
     
-    @State private var isShowingLogin          = false
     @State private var isShowingPrivacyPolicy  = false
     @State private var isShowingTermsOfService = false
     
@@ -120,7 +119,6 @@ struct IntroScreen: View {
                 }
             }
         }
-        .navigationViewStyle(.stack)
     }
 }
 

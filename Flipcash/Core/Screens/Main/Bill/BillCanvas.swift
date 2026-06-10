@@ -285,11 +285,9 @@ private class _BillCanvasController: UIViewController {
     
     private func setState(_ state: State, animated: Bool) {
         guard state != self.state else {
-//            print("setState(\(animated ? "animated" : "-")): unchanged")
             return
         }
-        
-//        print("setState(\(animated ? "animated" : "-")): \(self.state) -> \(state)")
+
         let oldState = self.state
         self.state = state
         
@@ -427,8 +425,6 @@ private class _BillCanvasController: UIViewController {
     }
     
     private func resize() {
-//        host.view.sizeToFit()
-        
         if let hostView = host?.view {
             var bounds = hostView.bounds
             bounds.size = canvasSize()
@@ -441,7 +437,6 @@ private class _BillCanvasController: UIViewController {
         
         if let _ = host?.view {
             resize()
-//            print("Host view bounds: \(view.layer.frame), bounds: \(self.view.bounds)")
         }
     }
 }
@@ -463,19 +458,6 @@ private enum State: Equatable {
     case center
     case centerDeflated
     case centerInflated
-}
-
-// MARK: - View -
-
-private extension UIView {
-    func shake() {
-        let shake = CAKeyframeAnimation(keyPath: "transform.translation.x")
-        shake.timingFunction = CAMediaTimingFunction(name: .easeOut)
-        shake.duration = 0.8
-        shake.values = [-5.0, -20.0, 20.0, -20.0, 20.0, -10.0, 10.0, -5.0, 5.0, 0.0]
-        
-        layer.add(shake, forKey: "shake")
-    }
 }
 
 // MARK: - CGPoint -

@@ -75,29 +75,6 @@ class Session {
         owner.authority.keyPair
     }
     
-//    var totalUSDC: Fiat {
-//        try! Fiat(
-//            fiatDecimal: aggregateBalance.totalUSDC,
-//            currencyCode: .usd
-//        )
-//    }
-//    
-//    var exchangedBalance: ExchangedFiat {
-//        try! ExchangedFiat(
-//            underlying: totalUSDC,
-//            rate: ratesController.rateForBalanceCurrency(),
-//            mint: .usdc
-//        )
-//    }
-//    
-//    var exchangedEntryBalance: ExchangedFiat {
-//        try! ExchangedFiat(
-//            underlying: totalUSDC,
-//            rate: ratesController.rateForEntryCurrency(),
-//            mint: .usdc
-//        )
-//    }
-    
     /// Returns the server-provided send limit for the given currency, or `nil` if limits
     /// haven't been fetched yet. Callers pick the field appropriate for their flow:
     /// - Give: `nextTransaction` (remaining daily allowance, capped at `maxPerTransaction`)
@@ -596,7 +573,6 @@ class Session {
             }
             
             toast = toastQueue.pop()
-//            trace(.note, components: "Showing toast: \(toast!.amount.formatted())")
             
             try await Task.delay(seconds: 3)
             toast = nil
@@ -1523,71 +1499,6 @@ class Session {
         }
     }
     
-//    func showCashLinkBillWithShareSheet(exchangedFiat: ExchangedFiat) {
-//        let operation = SendCashOperation(
-//            client: client,
-//            owner: owner,
-//            exchangedFiat: exchangedFiat
-//        )
-//        
-//        let payload = operation.payload
-//        
-//        let owner    = owner
-//        let giftCard = GiftCardCluster()
-//        let item     = ShareCashLinkItem(giftCard: giftCard, exchangedFiat: exchangedFiat)
-//        
-//        ShareSheet.present(activityItem: item) { [weak self] didShare in
-//            guard let self = self else { return }
-//            
-//            if didShare {
-//                self.enqueue(toast: .init(
-//                    amount: exchangedFiat.converted,
-//                    isDeposit: false
-//                ))
-//            }
-//            
-//            self.dismissCashBill(style: didShare ? .pop : .slide)
-//            
-//            if didShare {
-//                Task {
-//                    do {
-//                        try await self.client.sendCashLink(
-//                            exchangedFiat: exchangedFiat,
-//                            ownerCluster: owner,
-//                            giftCard: giftCard,
-//                            rendezvous: payload.rendezvous.publicKey
-//                        )
-//                        
-//                        self.updateBalance()
-//                        
-//                    } catch {
-//                        
-//                        ErrorReporting.captureError(error)
-//                        
-//                        Analytics.transfer(
-//                            event: .sendCashLink,
-//                            exchangedFiat: exchangedFiat,
-//                            successful: false,
-//                            error: error
-//                        )
-//                        
-//                        // TODO: Show error
-//                    }
-//                }
-//            }
-//        }
-//        
-//        Task {
-//            try await Task.delay(milliseconds: 350)
-//            
-//            sendOperation     = operation
-//            presentationState = .visible(.slide)
-//            billState         = .init(
-//                bill: .cash(payload)
-//            )
-//        }
-//    }
-    
     // MARK: - Helpers -
 
     /// Throws `Error.verifiedStateStale` if the proof is past `clientMaxAge`.
@@ -1615,13 +1526,10 @@ class Session {
 
 extension Session {
     enum Error: Swift.Error {
-        case cashLinkCreationFailed
         case vmMetadataMissing
         case mintNotFound
         case insufficientBalance
-        case missingVerifiedState
         case missingSupply
-        case unableToConvertToFiat
         case verifiedStateStale
     }
 }

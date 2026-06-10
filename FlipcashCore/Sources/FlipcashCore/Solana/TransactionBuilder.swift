@@ -17,15 +17,12 @@ extension TransactionBuilder {
         swapAuthority: PublicKey,
         direction: SwapDirection,
         amount: UInt64,
-        minOutput: UInt64 = 0,
-        slippageBasisPoints: UInt64 = 0
+        minOutput: UInt64 = 0
     ) throws -> SolanaTransaction {
         // Extract server-provided parameters
-        let (payer, blockhash, alts): (PublicKey, Hash?, [AddressLookupTable]) = switch responseParams.kind {
+        let (payer, blockhash, alts): (PublicKey, Hash, [AddressLookupTable]) = switch responseParams.kind {
         case .stateful(let params):
             (params.payer, metadata.serverParameters.blockhash, params.alts)
-        case .stateless(let params):
-            (params.payer, params.recentBlockhash, params.alts)
         case .newCurrency:
             // New-currency launches go through TransactionBuilder.swapNewCurrency,
             // which consumes the ReserveNewCurrency params directly.
@@ -48,7 +45,6 @@ extension TransactionBuilder {
                 targetMintMetadata: targetMint,
                 amount: amount,
                 minOutput: minOutput,
-                maxSlippage: slippageBasisPoints,
             )
 
         case .sell(let sourceMint):
@@ -61,7 +57,6 @@ extension TransactionBuilder {
                 coreMintMetadata: coreMint,
                 amount: amount,
                 minOutput: minOutput,
-                maxSlippage: slippageBasisPoints,
             )
 
         case .withdraw:

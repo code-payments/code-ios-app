@@ -32,9 +32,5 @@ let package = Package(
                 .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
             ]
         ),
-        .testTarget(
-            name: "FlipcashUITests",
-            dependencies: ["FlipcashUI"]
-        ),
     ]
 )

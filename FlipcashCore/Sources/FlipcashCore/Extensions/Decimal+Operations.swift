@@ -22,10 +22,6 @@ extension Decimal {
         return rounded
     }
 
-    func roundedInt() -> Int {
-        (rounded(to: 0) as NSDecimalNumber).intValue
-    }
-
     private func pow10(_ n: Int) -> Decimal {
         var result: Decimal = 1
         for _ in 0..<n {

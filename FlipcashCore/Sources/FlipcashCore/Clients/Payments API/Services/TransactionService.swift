@@ -632,14 +632,6 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
                 
                 container.append(contentsOf: errors)
 
-//                let expectedTransactions = error.errorDetails.compactMap { SolanaTransaction(data: $0.invalidSignature.expectedTransaction.value) }
-//                let producedTransactions = intent.actions.flatMap { $0.transactions() }
-//                let expectedHashes = expectedTransactions.enumerated().map { "Expected (\($0.0): \(SHA256.digest($0.1.encode()).hexEncodedString())" }
-//                let producedHashes = producedTransactions.enumerated().map { "Produced (\($0.0): \(SHA256.digest($0.1.encode()).hexEncodedString())" }
-//
-//                container.append(contentsOf: expectedHashes)
-//                container.append(contentsOf: producedHashes)
-
                 logger.error("Intent submission error", metadata: [
                     "type": "\(T.self)",
                     "code": "\(error.code)",

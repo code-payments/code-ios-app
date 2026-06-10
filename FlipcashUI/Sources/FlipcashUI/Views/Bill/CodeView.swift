@@ -32,7 +32,6 @@ public struct CodeView: View {
                             .resizable()
                             .aspectRatio(contentMode: .fit)
                             .scaleEffect(0.6)
-//                            .font(.default(size: 150))
                             .foregroundStyle(.black)
                             .padding(.leading, 6)
                     }
@@ -41,7 +40,6 @@ public struct CodeView: View {
                 )
                 .scaleEffect(KikCode.innerRingRatio)
         }
-//        .drawingGroup()
         .scaledToFit()
     }
 }

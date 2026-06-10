@@ -498,9 +498,7 @@ public enum WalletConnectionError: Error, LocalizedError {
 extension WalletConnection {
     enum Error: Swift.Error {
         case noSession
-        case missingVerifiedState
         case invalidURL
-        case simulationFailed(logs: [String])
     }
 }
 

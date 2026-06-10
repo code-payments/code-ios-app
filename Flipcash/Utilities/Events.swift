@@ -342,13 +342,6 @@ extension Analytics {
 private extension String {
     static let success  = "Success"
     static let failure  = "Failure"
-    static let shown    = "Shown"
-    static let hidden   = "Hidden"
-    static let timedOut = "Timed Out"
-    static let pop      = "Pop"
-    static let slide    = "Slide"
-    static let yes      = "Yes"
-    static let no       = "No"
 }
 
 extension Decimal {

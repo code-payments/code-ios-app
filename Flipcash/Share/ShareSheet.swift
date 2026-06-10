@@ -8,30 +8,8 @@
 import SwiftUI
 import FlipcashUI
 
-struct ShareSheet: UIViewControllerRepresentable {
+enum ShareSheet {
 
-    let activityItem: UIActivityItemSource
-    let completion: (Bool) -> Void
-    
-    // MARK: - Init -
-    
-    init(activityItem: UIActivityItemSource, completion: @escaping (Bool) -> Void) {
-        self.activityItem = activityItem
-        self.completion = completion
-    }
-    
-    // MARK: - UIViewControllerRepresentable -
-    
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        let controller = UIActivityViewController(activityItems: [activityItem], applicationActivities: nil)
-        controller.completionWithItemsHandler = { activityType, isCompleted, returnedItems, error in
-            completion(isCompleted)
-        }
-        return controller
-    }
-
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
-    
     // MARK: - Static Invocation -
     
     static func present(activityItem: UIActivityItemSource, completion: @escaping (Bool) -> Void) {

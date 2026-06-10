@@ -20,8 +20,6 @@ class StreamReference<Request, Response>: Cancellable {
         self.stream = stream
     }
     
-    deinit {}
-    
     func cancel() {
         stream?.cancel(promise: nil)
     }
@@ -40,8 +38,6 @@ public class BidirectionalStreamReference<Request, Response>: Cancellable, @unch
     init(stream: BidirectionalStreamingCall<Request, Response>) {
         self.stream = stream
     }
-
-    deinit {}
 
     // MARK: - Cancel -
 

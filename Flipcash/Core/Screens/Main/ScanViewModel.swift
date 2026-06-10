@@ -82,7 +82,6 @@ class ScanViewModel {
             Haptics.tap()
         }
         
-//        trace(.note, components: scannedRendezvous.map { $0.base58 })
         scannedRendezvous.insert(payload.rendezvous.publicKey)
         
         logger.debug("Scanned payload", metadata: [

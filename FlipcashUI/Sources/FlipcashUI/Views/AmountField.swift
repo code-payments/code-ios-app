@@ -248,7 +248,6 @@ public struct AmountField: View {
             return char.occuring(count)
         }
 
-//        print(chars.map { $0.id })
         return chars
     }
 }
@@ -345,48 +344,12 @@ struct AmountField_Previews: PreviewProvider {
     static let suffix = " of Kin"
     static var previews: some View {
         Group {
-//            VStack {
-//                Animator()
-//            }
-//            .padding(20.0)
-//            .previewLayout(.fixed(width: 300, height: 150))
-            
             AmountField(content: .constant("122"), defaultValue: "0", flagStyle: .fiat(.us), formatter: .fiat(currency: .usd), suffix: suffix)
                 .previewLayout(.fixed(width: 450, height: 100))
             AmountField(content: .constant("123456"), defaultValue: "0", flagStyle: .fiat(.us), formatter: .fiat(currency: .usd), suffix: suffix)
                 .previewLayout(.fixed(width: 450, height: 100))
             AmountField(content: .constant("1234567890"), defaultValue: "0", flagStyle: .fiat(.us), formatter: .fiat(currency: .usd), suffix: suffix)
                 .previewLayout(.fixed(width: 450, height: 100))
-        }
-    }
-}
-
-// MARK: - Animator -
-
-private extension AmountField_Previews {
-    struct Animator: View {
-        
-        private static let startValue:     String = "122"
-        private static let endValue:       String = "1224"
-        
-        @State var content: String = Animator.startValue
-        
-        var body: some View {
-            AmountField(content: $content, defaultValue: "0", flagStyle: .fiat(.us), formatter: .fiat(currency: .usd))
-                .onAppear {
-                    appendCharacter()
-                }
-        }
-        
-        private func appendCharacter() {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                if content > Animator.startValue {
-                    content = Animator.startValue
-                } else {
-                    content = Animator.endValue
-                }
-                appendCharacter()
-            }
         }
     }
 }

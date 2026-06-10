@@ -118,10 +118,4 @@ extension ActionGroup: CustomStringConvertible, CustomDebugStringConvertible {
             
         }.joined(separator: "\n")
     }
-    
-    func prettyPrinted() {
-        debugDescription.components(separatedBy: .newlines).forEach {
-            print($0)
-        }
-    }
 }

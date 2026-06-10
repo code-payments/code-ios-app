@@ -50,11 +50,3 @@ struct ForceLogoutScreen: View {
     ForceLogoutScreen()
         .environment(SessionAuthenticator.mock)
 }
-
-struct ForceLogoutScreen_Previews: PreviewProvider {
-    static var previews: some View {
-        ForceLogoutScreen()
-            .environment(SessionAuthenticator.mock)
-            .preferredColorScheme(.dark)
-    }
-}

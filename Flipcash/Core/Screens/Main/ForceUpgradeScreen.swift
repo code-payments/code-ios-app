@@ -55,10 +55,3 @@ struct ForceUpgradeScreen: View {
 #Preview {
     ForceUpgradeScreen()
 }
-
-struct ForceUpgradeScreen_Previews: PreviewProvider {
-    static var previews: some View {
-        ForceUpgradeScreen()
-            .preferredColorScheme(.dark)
-    }
-}

@@ -17,11 +17,6 @@ extension UInt64 {
         return Decimal(self) / factor
     }
     
-    public func scaleDownInt(_ d: Int) -> UInt64 {
-        let factor = pow10(d)
-        return self / factor
-    }
-
     public func scaleUp(_ d: Int) -> UInt64 {
         let factor = pow10(d)
         let (result, overflow) = self.multipliedReportingOverflow(by: factor)

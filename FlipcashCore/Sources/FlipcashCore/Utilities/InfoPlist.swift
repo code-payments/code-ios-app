@@ -66,7 +66,7 @@ public enum InfoPlist {
             }
         }
         
-        public func value(for key: String, bundle: Bundle? = nil) throws -> Value {
+        public func value(for key: String) throws -> Value {
             switch self {
             case .array, .string, .integer:
                 throw Error.invalidType

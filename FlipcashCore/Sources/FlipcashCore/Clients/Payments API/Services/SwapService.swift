@@ -566,7 +566,6 @@ public enum ErrorSwap: Error, CustomStringConvertible, CustomDebugStringConverti
     /// Swap metadata failed server-side validation. `reasons` carries the
     /// server's `ReasonStringErrorDetails` values when present.
     case invalidSwap(reasons: [String])
-    case failed
     case unknown
     case grpcStatus(GRPCStatus)
     /// gRPC error
@@ -620,8 +619,6 @@ public enum ErrorSwap: Error, CustomStringConvertible, CustomDebugStringConverti
                 return "invalidSwap"
             }
             return "invalidSwap(\(reasons))"
-        case .failed:
-            return "failed"
         case .unknown:
             return "unknown"
         case .grpcStatus(let status):
@@ -651,7 +648,7 @@ extension ErrorSwap: ServerError {
     public var isReportable: Bool {
         switch self {
         case .denied, .invalidSwap: false
-        case .signatureError, .failed, .unknown, .grpcError: true
+        case .signatureError, .unknown, .grpcError: true
         case .grpcStatus(let status): status.isReportable
         case .fundingIntent(let inner): inner.isReportable
         }
