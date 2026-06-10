@@ -168,14 +168,22 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                     )
 
                     // Build the swap transaction and sign with both owner and swapAuthority
-                    let transaction = TransactionBuilder.swap(
-                        responseParams: responseParams,
-                        metadata: verifiedMetadata,
-                        authority: owner.publicKey,
-                        swapAuthority: swapAuthority.publicKey,
-                        direction: direction,
-                        amount: amount.quarks
-                    )
+                    let transaction: SolanaTransaction
+                    do {
+                        transaction = try TransactionBuilder.swap(
+                            responseParams: responseParams,
+                            metadata: verifiedMetadata,
+                            authority: owner.publicKey,
+                            swapAuthority: swapAuthority.publicKey,
+                            direction: direction,
+                            amount: amount.quarks
+                        )
+                    } catch {
+                        logger.error("Failed to build swap transaction", metadata: ["error": "\(error)"])
+                        _ = reference.stream?.sendEnd()
+                        completion(.failure(.unknown))
+                        return
+                    }
                     let signatures = transaction.signatures(using: owner, swapAuthority)
                     verifiedMetadataSignature = signatures.first
 
@@ -234,12 +242,20 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                     // Build the atomic launch-and-first-buy transaction. The owner
                     // is also the swap_authority for new-currency flows, so only
                     // one signature is required.
-                    let transaction = TransactionBuilder.swapNewCurrency(
-                        responseParams: params,
-                        authority: owner.publicKey,
-                        swapAmount: amount.quarks,
-                        feeAmount: resolvedFeeAmount.quarks
-                    )
+                    let transaction: SolanaTransaction
+                    do {
+                        transaction = try TransactionBuilder.swapNewCurrency(
+                            responseParams: params,
+                            authority: owner.publicKey,
+                            swapAmount: amount.quarks,
+                            feeAmount: resolvedFeeAmount.quarks
+                        )
+                    } catch {
+                        logger.error("Failed to build swap transaction", metadata: ["error": "\(error)"])
+                        _ = reference.stream?.sendEnd()
+                        completion(.failure(.unknown))
+                        return
+                    }
 
                     // Log the serialized transaction so it can be diffed against
                     // the server's `expected_transaction` when `signatureError`

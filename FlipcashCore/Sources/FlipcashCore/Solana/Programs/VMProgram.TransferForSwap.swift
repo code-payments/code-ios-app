@@ -63,7 +63,7 @@ extension VMProgram.TransferForSwap: InstructionType {
             swapAta: instruction.accounts[4].publicKey,
             destination: instruction.accounts[5].publicKey,
             amount: UInt64(bytes: Array(data.prefix(8)))!,
-            bump: data[1]
+            bump: data[8]
         )
     }
     

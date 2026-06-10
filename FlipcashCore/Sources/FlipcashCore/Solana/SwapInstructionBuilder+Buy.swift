@@ -33,24 +33,28 @@ extension SwapInstructionBuilder {
         amount: UInt64,
         minOutput: UInt64,
         maxSlippage: UInt64,
-    ) -> [Instruction] {
+    ) throws -> [Instruction] {
         guard let coreVM = coreMintMetadata.vmMetadata else {
-            fatalError("Core mint must have VM metadata")
+            throw SwapTransactionBuildError.missingMintMetadata(symbol: coreMintMetadata.symbol)
         }
         guard let targetVM = targetMintMetadata.vmMetadata else {
-            fatalError("Target mint must have VM metadata")
+            throw SwapTransactionBuildError.missingMintMetadata(symbol: targetMintMetadata.symbol)
         }
-        
+
         guard let targetLaunchpad = targetMintMetadata.launchpadMetadata else {
-            fatalError("Target mint must have launchpad metadata")
+            throw SwapTransactionBuildError.missingMintMetadata(symbol: targetMintMetadata.symbol)
         }
-        
-        let serverParams = extractServerParameters(serverParameters)
-        
+
+        let serverParams = try extractServerParameters(serverParameters)
+
+        guard let memoryIndex = UInt16(exactly: serverParams.memoryIndex) else {
+            throw SwapTransactionBuildError.invalidServerParameter("memoryIndex")
+        }
+
         guard let coreTimelockAccounts = coreMintMetadata.timelockSwapAccounts(owner: authority) else {
-            fatalError("Failed to derive PDA for \(coreMintMetadata.symbol)")
+            throw SwapTransactionBuildError.missingMintMetadata(symbol: coreMintMetadata.symbol)
         }
-        
+
         let createTemporaryCoreMint = AssociatedTokenProgram.CreateIdempotent(
             subsidizer: serverParams.payer,
             owner: swapAuthority,
@@ -112,7 +116,7 @@ extension SwapInstructionBuilder {
             CurrencyCreatorProgram.BuyAndDepositIntoVm(
                 amount: amount,
                 minOutAmount: minOutput,
-                vmMemoryIndex: UInt16(serverParams.memoryIndex),
+                vmMemoryIndex: memoryIndex,
                 buyer: swapAuthority,
                 pool: targetLaunchpad.liquidityPool,
                 targetMint: targetMintMetadata.address,

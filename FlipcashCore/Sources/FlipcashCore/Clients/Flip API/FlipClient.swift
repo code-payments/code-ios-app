@@ -90,5 +90,5 @@ extension FlipClient: ConnectivityStateDelegate {
 }
 
 extension FlipClient {
-    public static let mock = FlipClient(network: .testNet)
+    public static let mock = FlipClient(network: .mainNet)
 }

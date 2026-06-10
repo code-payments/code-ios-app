@@ -37,25 +37,10 @@ struct ShareSheet: UIViewControllerRepresentable {
     static func present(activityItem: UIActivityItemSource, completion: @escaping (Bool) -> Void) {
         let controller = UIActivityViewController(activityItems: [activityItem], applicationActivities: nil)
 
-        controller.completionWithItemsHandler = { activityType, isCompleted, returnedItems, error in
-            var result = "Share sheet finished(\(isCompleted ? 1 : 0))"
-            
-            if let activityType = activityType {
-                result = "\(result)\n - Type: \(activityType)"
-            }
-            
-            if let returnedItems = returnedItems {
-                result = "\(result)\n - Returned: \(returnedItems)"
-            }
-            
-            if let error = error {
-                result = "\(result)\n - Error: \(error)"
-            }
-            
-            print(result)
+        controller.completionWithItemsHandler = { _, isCompleted, _, _ in
             completion(isCompleted)
         }
-        
+
         UIApplication.shared.rootViewController?.present(controller, animated: true, completion: nil)
     }
     

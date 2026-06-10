@@ -32,10 +32,7 @@ class CodeExtractor: CameraSessionExtractor {
         if let wholeImage = try image.extractSample() {
             for quality in qualities {
                 if let (_, payload) = Self.processSample(sample: wholeImage, quality: quality) {
-                    print("Whole scan [X]: \(quality)")
                     return payload
-                } else {
-                    print("Whole scan [ ]: \(quality)")
                 }
             }
         }

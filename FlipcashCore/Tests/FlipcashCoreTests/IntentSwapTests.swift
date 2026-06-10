@@ -33,8 +33,8 @@ struct IntentSwapTests {
         let intent = try makeIntent()
         let params = try makeServerParameters()
 
-        let sigs1 = intent.sign(using: params)
-        let sigs2 = intent.sign(using: params)
+        let sigs1 = try intent.sign(using: params)
+        let sigs2 = try intent.sign(using: params)
 
         #expect(sigs1 == sigs2)
     }

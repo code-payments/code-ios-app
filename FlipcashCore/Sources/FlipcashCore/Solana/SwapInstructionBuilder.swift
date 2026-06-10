@@ -8,13 +8,20 @@
 
 import Foundation
 
+/// Failure building a swap transaction from server-provided parameters.
+public enum SwapTransactionBuildError: Swift.Error, Equatable {
+    case unsupportedServerParameters
+    case missingMintMetadata(symbol: String)
+    case invalidServerParameter(String)
+}
+
 /// Helper to construct buy/sell/swap transaction instructions following the standard patterns.
 public struct SwapInstructionBuilder {
-    
+
     // MARK: - Helper Methods
-    
+
     /// Extracts compute budget and memo parameters from server response
-    internal static func extractServerParameters(_ serverParameters: SwapResponseServerParameters) -> (
+    internal static func extractServerParameters(_ serverParameters: SwapResponseServerParameters) throws -> (
         payer: PublicKey,
         alts: [AddressLookupTable],
         computeUnitLimit: UInt32,
@@ -48,11 +55,12 @@ public struct SwapInstructionBuilder {
             // New-currency launches use a dedicated builder
             // (SwapInstructionBuilder.newCurrencyLaunch) that consumes the
             // ReserveNewCurrency params directly and never calls this helper.
-            fatalError("extractServerParameters cannot be used with a new-currency launch")
+            throw SwapTransactionBuildError.unsupportedServerParameters
         case .stablecoin:
-            // Stablecoin (USDF → USDC) withdraws use a dedicated instruction
-            // builder that is not yet implemented and never calls this helper.
-            fatalError("extractServerParameters cannot be used with a stablecoin withdraw")
+            // Stablecoin (USDF → USDC) withdraws use a dedicated builder
+            // (SwapInstructionBuilder.buildUsdfToUsdcSwapInstructions) that
+            // consumes the stablecoin params directly and never calls this helper.
+            throw SwapTransactionBuildError.unsupportedServerParameters
         }
     }
 }

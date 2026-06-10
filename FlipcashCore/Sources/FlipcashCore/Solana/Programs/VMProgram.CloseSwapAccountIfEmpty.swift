@@ -47,8 +47,12 @@ extension VMProgram {
 extension VMProgram.CloseSwapAccountIfEmpty: InstructionType {
     
     public init(instruction: Instruction) throws {
-        let data = try VMProgram.parse(.closeSwapAccountIfEmpty, instruction: instruction, expectingAccounts: 6)
-        
+        let data = try VMProgram.parse(.closeSwapAccountIfEmpty, instruction: instruction, expectingAccounts: 7)
+
+        guard data.count >= 1 else {
+            throw CommandParseError.payloadNotFound
+        }
+
         self.init(
             vmAuthority: instruction.accounts[0].publicKey,
             vm: instruction.accounts[1].publicKey,
@@ -56,7 +60,7 @@ extension VMProgram.CloseSwapAccountIfEmpty: InstructionType {
             swapPda: instruction.accounts[3].publicKey,
             swapAta: instruction.accounts[4].publicKey,
             destination: instruction.accounts[5].publicKey,
-            bump: data[1]
+            bump: data[0]
         )
     }
     

@@ -38,22 +38,15 @@ final class AccountInfoService: CodeService<Ocp_Account_V1_AccountNIOClient> {
             
             let error = ErrorFetchBalance(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
-                let account = response.tokenAccountInfos.compactMap {
-                    if $0.value.accountType == type.proto, let account = try? AccountInfo($0.value) {
-                        return account
-                    } else {
-                        return nil
-                    }
-                }.first
-                
-                if let account {
+                switch Self.accountInfo(in: response, type: type) {
+                case .success(let account):
                     completion(.success(account))
-                } else {
+                case .failure(let failure):
                     logger.error("Account not in list of accounts returned", metadata: [
                         "expectedType": "\(type)",
                         "returnedCount": "\(response.tokenAccountInfos.count)",
                     ])
-                    completion(.failure(error))
+                    completion(.failure(failure))
                 }
 
             } else {
@@ -63,6 +56,22 @@ final class AccountInfoService: CodeService<Ocp_Account_V1_AccountNIOClient> {
 
         } failure: { error in
             completion(.failure(.from(transportError: error)))
+        }
+    }
+
+    static func accountInfo(in response: Ocp_Account_V1_GetTokenAccountInfosResponse, type: AccountInfoType) -> Result<AccountInfo, ErrorFetchBalance> {
+        let account = response.tokenAccountInfos.compactMap {
+            if $0.value.accountType == type.proto, let account = try? AccountInfo($0.value) {
+                return account
+            } else {
+                return nil
+            }
+        }.first
+
+        if let account {
+            return .success(account)
+        } else {
+            return .failure(.accountNotInList)
         }
     }
 

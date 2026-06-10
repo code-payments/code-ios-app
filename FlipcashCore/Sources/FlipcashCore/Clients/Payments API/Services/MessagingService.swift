@@ -260,9 +260,7 @@ class MessagingService: CodeService<Ocp_Messaging_V1_MessagingNIOClient> {
             switch response.result {
             case .ok:
                 isStreamOpen = true
-            case .noActiveStream:
-                isStreamOpen = false
-            default:
+            case .noActiveStream, .UNRECOGNIZED:
                 isStreamOpen = false
             }
             logger.info("Message sent", metadata: [

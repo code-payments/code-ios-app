@@ -7,6 +7,8 @@
 
 import Foundation
 
+private let logger = Logger(label: "flipcash.solana")
+
 public struct LegacyMessage: Equatable, Sendable {
     
     public var header: Message.Header
@@ -55,21 +57,23 @@ public struct LegacyMessage: Equatable, Sendable {
 extension LegacyMessage {
     
     public init?(data: Data) {
-        print("unmarshalling legacy message")
         var payload = data
-        
+
         // Decode `header`
         guard let header = Message.Header(data: payload.consume(Message.Header.length)) else {
             return nil
         }
-        
+
         // Decode `accountKeys`
         let (accountCount, accountData) = ShortVec.decodeLength(payload)
-        print("account count: \(accountCount), account data: \(accountData.debugDescription)")
-        guard let messageAccounts = accountData.chunk(size: PublicKey.length, count: accountCount, block: { try! PublicKey($0) }) else {
+        guard
+            let messageAccounts = accountData.chunk(size: PublicKey.length, count: accountCount, block: { try? PublicKey($0) })?.compactMap({ $0 }),
+            messageAccounts.count == accountCount
+        else {
+            logger.error("Failed to decode legacy message accounts")
             return nil
         }
-        
+
         payload = accountData.tail(from: PublicKey.length * accountCount)
         
         // Decode `recentBlockHash`
@@ -111,7 +115,10 @@ extension LegacyMessage {
         let instructions = compiledInstructions.compactMap { $0.decompile(using: metaAccounts) }
         
         guard instructions.count == compiledInstructions.count else {
-            print("instruction count mismatch, \(instructions.count) != \(compiledInstructions.count)")
+            logger.error("Legacy message instruction count mismatch", metadata: [
+                "decompiled": "\(instructions.count)",
+                "compiled": "\(compiledInstructions.count)"
+            ])
             return nil
         }
         

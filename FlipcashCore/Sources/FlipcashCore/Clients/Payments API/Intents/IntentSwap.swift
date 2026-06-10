@@ -31,13 +31,13 @@ class IntentSwap {
         self.proofSignature = proofSignature
     }
     
-    func sign(using parameters: SwapResponseServerParameters) -> [Signature] {
-        let transaction = transaction(using: parameters)
+    func sign(using parameters: SwapResponseServerParameters) throws -> [Signature] {
+        let transaction = try transaction(using: parameters)
         return transaction.signatures(using: owner, swapAuthority)
     }
-    
-    func transaction(using parameters: SwapResponseServerParameters) -> SolanaTransaction {
-        TransactionBuilder.swap(
+
+    func transaction(using parameters: SwapResponseServerParameters) throws -> SolanaTransaction {
+        try TransactionBuilder.swap(
             responseParams: parameters,
             metadata: verifiedMetadata,
             authority: owner.publicKey,
@@ -59,10 +59,12 @@ extension IntentSwap {
         guard let parameters else {
             throw Error.missingSwapParametersProvided
         }
-        
+
+        let signatures = try sign(using: parameters)
+
         return .with {
             $0.submitSignatures = .with {
-                $0.transactionSignatures = sign(using: parameters).map({ key in
+                $0.transactionSignatures = signatures.map({ key in
                     key.proto
                 })
             }

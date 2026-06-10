@@ -193,7 +193,7 @@ struct LoginScreen: View {
     }
     
     private func dismissKeyboard() {
-        isFocused = true
+        isFocused = false
     }
 }
 

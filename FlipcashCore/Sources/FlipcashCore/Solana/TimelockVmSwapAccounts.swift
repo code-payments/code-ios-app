@@ -17,23 +17,32 @@ public struct TimelockVmSwapAccounts: Equatable, Sendable {
 
 extension TimelockVmSwapAccounts {
     public init(with owner: PublicKey, mint: PublicKey, vm: VMMetadata) throws {
-        
+        guard let lockout = Byte(exactly: vm.lockDurationInDays) else {
+            throw Error.invalidLockDuration
+        }
+
         guard let pda = PublicKey.deriveSwapAddress(
             owner: owner,
             mint: mint,
             timeAuthority: vm.authority,
-            lockout: Byte(vm.lockDurationInDays)
+            lockout: lockout
         ) else {
             fatalError("Failed to derive PDA")
         }
-        
+
         guard let ata = PublicKey.deriveAssociatedAccount(
             from: pda.publicKey,
             mint: mint
         ) else {
             fatalError("Failed to derive ATA")
         }
-        
+
         self.init(pda: pda, ata: ata)
+    }
+}
+
+extension TimelockVmSwapAccounts {
+    public enum Error: Swift.Error {
+        case invalidLockDuration
     }
 }

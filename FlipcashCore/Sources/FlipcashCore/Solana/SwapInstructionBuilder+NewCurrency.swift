@@ -27,7 +27,7 @@ extension SwapInstructionBuilder {
         authority: PublicKey,
         swapAmount: UInt64,
         feeAmount: UInt64
-    ) -> [Instruction] {
+    ) throws -> [Instruction] {
         let coreMint = MintMetadata.usdf
         guard let coreVM = coreMint.vmMetadata else {
             fatalError("USDF must have VM metadata")
@@ -61,7 +61,9 @@ extension SwapInstructionBuilder {
         // Derive the new VM that will hold deposits of the newly-launched
         // currency. The VM is keyed on (mint=targetMint, authority, lockDuration).
         // Seeds: ["code_vm", targetMint, authority, [lockDuration]].
-        let lockDuration = Byte(serverParams.vmLockDurationInDays)
+        guard let lockDuration = Byte(exactly: serverParams.vmLockDurationInDays) else {
+            throw SwapTransactionBuildError.invalidServerParameter("vmLockDurationInDays")
+        }
         guard let newVmAccount = PublicKey.deriveVMAccount(
             mint: targetMint,
             timeAuthority: serverParams.authority,
@@ -159,6 +161,9 @@ extension SwapInstructionBuilder {
         )
 
         // 6. Reserve::InitializePool
+        guard let sellFeeBps = UInt16(exactly: serverParams.sellFeeBps) else {
+            throw SwapTransactionBuildError.invalidServerParameter("sellFeeBps")
+        }
         instructions.append(
             CurrencyCreatorProgram.InitializePool(
                 authority: serverParams.authority,
@@ -168,7 +173,7 @@ extension SwapInstructionBuilder {
                 pool: pool,
                 vaultA: vaultA,
                 vaultB: vaultB,
-                sellFeeBps: UInt16(serverParams.sellFeeBps),
+                sellFeeBps: sellFeeBps,
                 poolBump: poolBump,
                 vaultABump: vaultABump,
                 vaultBBump: vaultBBump
