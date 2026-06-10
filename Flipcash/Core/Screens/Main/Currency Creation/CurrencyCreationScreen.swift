@@ -64,7 +64,7 @@ final class CurrencyCreationState {
     var encodedIconData: Data?
 
     @ObservationIgnored private let nameValidator = CurrencyNameValidator()
-    @ObservationIgnored private let descriptionValidator = LengthValidator(maxLength: Self.descriptionCharLimit)
+    @ObservationIgnored private let descriptionValidator = LengthValidator(maxLength: CurrencyCreationState.descriptionCharLimit)
 
     /// The name accepted by the Launch RPC's contract, or nil while the
     /// current input is invalid. This exact string flows to availability,
