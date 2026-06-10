@@ -95,7 +95,6 @@ public struct ChartLineView: View {
             LongPressGestureView(
                 minimumDuration: 0.15,
                 onBegan: { [dataPoints, onScrubChange] location in
-                    // Find closest point by normalized position
                     if let normalizedX: Double = proxy.value(atX: location.x),
                        let closest = dataPoints.min(by: {
                            abs($0.normalizedPosition - normalizedX) < abs($1.normalizedPosition - normalizedX)
@@ -105,7 +104,6 @@ public struct ChartLineView: View {
                     Self.triggerSelectionHaptic(at: location)
                 },
                 onChanged: { [dataPoints, onScrubChange] location in
-                    // Find closest point by normalized position
                     if let normalizedX: Double = proxy.value(atX: location.x),
                        let closest = dataPoints.min(by: {
                            abs($0.normalizedPosition - normalizedX) < abs($1.normalizedPosition - normalizedX)
@@ -151,7 +149,6 @@ public struct ChartLineView: View {
         if #available(iOS 17.5, *) {
             generator.selectionChanged(at: location)
         } else {
-            // Fallback on earlier versions
             generator.selectionChanged()
         }
     }

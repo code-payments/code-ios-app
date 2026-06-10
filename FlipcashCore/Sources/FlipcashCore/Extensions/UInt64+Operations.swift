@@ -1,5 +1,5 @@
 //
-//  Decimal+Operations.swift
+//  UInt64+Operations.swift
 //  FlipcashCore
 //
 //  Created by Raul Riera on 2026-02-07.

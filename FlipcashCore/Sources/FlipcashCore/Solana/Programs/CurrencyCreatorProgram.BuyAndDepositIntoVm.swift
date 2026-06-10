@@ -13,7 +13,7 @@ extension CurrencyCreatorProgram {
     /// Buy tokens from a launchpad currency and deposit them into a VM account.
     /// This performs a bounded buy operation where the maximum slippage is controlled.
     ///
-    /// Account structure (matching Android/server implementation):
+    /// Account structure:
     /// 0. `[writable, signer]` Buyer/authority (payer and signer)
     /// 1. `[]` Pool account
     /// 2. `[]` Target token mint

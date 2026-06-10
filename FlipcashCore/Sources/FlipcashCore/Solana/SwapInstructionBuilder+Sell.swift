@@ -14,14 +14,11 @@ extension SwapInstructionBuilder {
     ///   - serverParameters: Server-provided parameters including compute budget and memo
     ///   - nonce: The nonce account
     ///   - authority: The authority signing the transaction
+    ///   - swapAuthority: The swap authority signing the transaction
     ///   - sourceMintMetadata: Metadata for the source mint (launchpad currency)
     ///   - coreMintMetadata: Metadata for the Core Mint (destination)
-    ///   - fromMintTemporary: Temporary account for the source mint
-    ///   - fromMintOwner: Owner of the from mint account
-    ///   - vmSwapAccount: VM swap ATA for the source mint
     ///   - amount: Amount to sell
     ///   - minOutput: Minimum output required
-    ///   - additionalAccounts: Additional accounts required by the currency creator program
     /// - Returns: Array of instructions in the correct order
     public static func buildSellInstructions(
         serverParameters: SwapResponseServerParameters,

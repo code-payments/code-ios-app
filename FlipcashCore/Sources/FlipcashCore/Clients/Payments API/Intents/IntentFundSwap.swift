@@ -68,7 +68,6 @@ extension IntentFundSwap {
                 $0.destinationOwner = destinationOwner.solanaAccountID
                 $0.mint = amount.mint.solanaAccountID
 
-                // Use clientExchangeData with embedded proofs for submitting intents
                 $0.clientExchangeData = .with {
                     $0.mint = amount.mint.solanaAccountID
                     $0.quarks = amount.onChainAmount.quarks

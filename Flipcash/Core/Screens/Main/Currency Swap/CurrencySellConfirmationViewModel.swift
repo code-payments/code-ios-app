@@ -17,6 +17,7 @@ class CurrencySellConfirmationViewModel {
 
     var dialogItem: DialogItem?
     private(set) var actionButtonState: ButtonState = .normal
+    /// Swap id of a successfully submitted sell. The confirmation screen observes this to push the processing screen.
     var pendingSwapId: SwapId?
 
     var canDismissSheet: Bool = false
@@ -72,7 +73,6 @@ class CurrencySellConfirmationViewModel {
         Task {
             do {
                 let swapId = try await session.sell(amount: amount, verifiedState: pinnedState, in: mint)
-                // Navigate to processing screen
                 pendingSwapId = swapId
             } catch Session.Error.verifiedStateStale {
                 // Session.assertFresh already logged this. Reset button only.

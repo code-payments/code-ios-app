@@ -196,7 +196,6 @@ class Session {
             try? self?.database.getLimits()
         }
 
-        // Ensure we have a valid token selected on initialization
         ensureValidTokenSelection()
 
         registerPoller()

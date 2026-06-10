@@ -17,8 +17,6 @@ extension SwapInstructionBuilder {
     ///   - swapAuthority: The swap authority signing the transaction
     ///   - coreMintMetadata: Metadata for the Core Mint (source)
     ///   - targetMintMetadata: Metadata for the target mint (destination)
-    ///   - coreMintTemporary: Temporary account for Core Mint
-    ///   - coreMintOwner: Owner of the Core Mint account
     ///   - amount: Amount to buy
     ///   - minOutput: Minimum output required
     /// - Returns: Array of instructions in the correct order

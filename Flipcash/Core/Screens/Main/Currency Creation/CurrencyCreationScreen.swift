@@ -70,6 +70,3 @@ final class CurrencyCreationState {
 /// Matches server validation pattern `^[!-~]([ -~]*[!-~])?$`:
 /// printable ASCII, no leading or trailing space, 1+ chars.
 private let currencyNameAllowedPattern = #/^[!-~]([ -~]*[!-~])?$/#
-
-// MARK: - CurrencyCreationFlow
-

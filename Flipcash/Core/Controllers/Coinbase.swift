@@ -30,10 +30,8 @@ public actor Coinbase {
 
     public func createOrder(request: OnrampOrderRequest, idempotencyKey: UUID? = nil) async throws -> OnrampOrderResponse {
 
-        // 1. Build URL
         let url = config.baseURL.appendingPathComponent("onramp/orders")
         
-        // 2. Encode body
         let bodyData: Data
         do {
             bodyData = try encoder.encode(request)
@@ -41,7 +39,6 @@ public actor Coinbase {
             throw Error.decoding(error)
         }
         
-        // 3. Build request
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
         urlRequest.httpBody   = bodyData
@@ -54,7 +51,6 @@ public actor Coinbase {
         let token = try await config.bearerTokenProvider("POST", "platform/v2/onramp/orders")
         urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
-        // 4. Fire
         let (data, response): (Data, URLResponse)
         do {
             (data, response) = try await config.urlSession.data(for: urlRequest)
@@ -63,7 +59,6 @@ public actor Coinbase {
             throw Error.transport(error)
         }
 
-        // 5. Validate
         guard let http = response as? HTTPURLResponse else {
             throw Error.invalidResponse
         }
@@ -86,7 +81,6 @@ public actor Coinbase {
             }
         }
         
-        // 6. Decode
         do {
             return try decoder.decode(OnrampOrderResponse.self, from: data)
         } catch {

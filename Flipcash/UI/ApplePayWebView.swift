@@ -121,10 +121,6 @@ extension ApplePayWebView {
             parent.onMessage?(applePayEvent)
         }
 
-        public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            // Optional: handle load completion
-        }
-
         public func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
             logger.error("Navigation failed", metadata: ["error": "\(error.localizedDescription)"])
         }

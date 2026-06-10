@@ -13,7 +13,7 @@ extension CurrencyCreatorProgram {
     /// Sell tokens from a launchpad currency and deposit the proceeds into a VM account.
     /// This performs a bounded sell operation where the minimum output is controlled.
     ///
-    /// Account structure (matching Android/server implementation):
+    /// Account structure:
     /// 0. `[writable, signer]` Seller/authority (payer and signer)
     /// 1. `[writable]` Pool account
     /// 2. `[]` Target token mint

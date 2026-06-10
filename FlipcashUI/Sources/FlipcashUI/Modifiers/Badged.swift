@@ -78,7 +78,6 @@ struct Badged_Previews: PreviewProvider {
     static var previews: some View {
         Background(color: .blue) {
             Button {
-                // Do nothing
             } label: {
                 Rectangle()
                     .fill(.red)

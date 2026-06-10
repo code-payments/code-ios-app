@@ -96,8 +96,6 @@ public nonisolated struct GradientStop: Identifiable, Equatable, Sendable {
     
     @MainActor
     init(from color: Color) {
-        // Convert Color to HSB - this is a simplified approach
-        // In production, you might want more precise color space conversion
         let uiColor = UIColor(color)
         var h: CGFloat = 0
         var s: CGFloat = 0

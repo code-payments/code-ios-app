@@ -52,7 +52,6 @@ nonisolated enum KikCode {
         var dots: [UIBezierPath] = []
         var arcs: [UIBezierPath] = []
         
-        // Then draw the inner circle
         centerPath.addArc(
             withCenter: center,
             radius: innerRingWidth,
