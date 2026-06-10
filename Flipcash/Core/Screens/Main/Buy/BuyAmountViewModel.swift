@@ -309,10 +309,7 @@ final class BuyAmountViewModel: Identifiable {
     }
 
     private func computeAmount(using rate: Rate) -> ExchangedFiat? {
-        guard !enteredAmount.isEmpty else { return nil }
-        // Use Decimal(string:) — the keypad always emits "." regardless of locale.
-        // NumberFormatter.decimal(from:) breaks on non-"." locales (CLAUDE.md pitfall).
-        guard let amount = Decimal(string: enteredAmount) else { return nil }
+        guard let amount = KeyPadView.amount(from: enteredAmount) else { return nil }
         return ExchangedFiat(
             nativeAmount: FiatAmount(value: amount, currency: rate.currency),
             rate: rate

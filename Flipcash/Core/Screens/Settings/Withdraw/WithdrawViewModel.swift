@@ -70,13 +70,9 @@ class WithdrawViewModel {
     }
 
     /// Compares the raw entered Decimal against `minimumWithdrawAmount`.
-    /// Uses `Decimal(string:)` (always "." separator, matching the keypad's
-    /// output and `EnterAmountView.isExceedingLimit`) instead of the
-    /// locale-aware `NumberFormatter.decimal(from:)`, which on non-"."
-    /// locales parses "0.69" as 0 and falsely fires the gate.
     var isBelowMinimumWithdraw: Bool {
         guard let minimum = minimumWithdrawAmount else { return false }
-        guard let entered = Decimal(string: enteredAmount) else { return false }
+        guard let entered = KeyPadView.amount(from: enteredAmount) else { return false }
         return entered < minimum.value
     }
 
@@ -282,7 +278,7 @@ class WithdrawViewModel {
             return nil
         }
 
-        guard let amount = NumberFormatter.decimal(from: enteredAmount) else {
+        guard let amount = KeyPadView.amount(from: enteredAmount) else {
             return nil
         }
 

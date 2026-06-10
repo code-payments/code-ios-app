@@ -85,6 +85,20 @@ public struct KeyPadView: View {
 }
 
 extension KeyPadView {
+    /// Parses a keypad-emitted amount string into a `Decimal`. The keypad's
+    /// decimal key inserts `Metrics.localizedDecimalSeparator`, which
+    /// `Decimal(string:)` only understands as "." — so the separator is
+    /// normalized before parsing.
+    public nonisolated static func amount(
+        from string: String,
+        separator: String = Metrics.localizedDecimalSeparator
+    ) -> Decimal? {
+        guard !string.isEmpty else { return nil }
+        return Decimal(string: string.replacingOccurrences(of: separator, with: "."))
+    }
+}
+
+extension KeyPadView {
     public struct Actuator {
         
         @Binding var content: String

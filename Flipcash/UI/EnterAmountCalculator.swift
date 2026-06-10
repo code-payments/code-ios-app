@@ -7,6 +7,7 @@
 
 import Foundation
 import FlipcashCore
+import FlipcashUI
 
 nonisolated struct EnterAmountCalculator {
     /// Provides the full SendLimit for a given currency
@@ -49,7 +50,7 @@ nonisolated struct EnterAmountCalculator {
     // MARK: - Static
 
     static func isWithinDisplayLimit(enteredAmount: String, max: FiatAmount) -> Bool {
-        guard let amount = NumberFormatter.decimal(from: enteredAmount), amount > 0 else {
+        guard let amount = KeyPadView.amount(from: enteredAmount), amount > 0 else {
             return false
         }
         // Use a currency-aware formatter to parse back the display value.
