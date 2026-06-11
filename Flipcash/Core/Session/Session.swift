@@ -984,7 +984,13 @@ class Session {
         )
         
         let payload = operation.payload
-        
+
+        // USDF presents as the gold bar — start its texture bake now so the
+        // full-resolution maps are ready before the canvas finishes sliding in.
+        if billDescription.exchangedFiat.mint == .usdf {
+            GoldBarTextureStore.shared.preheat(key: .usdfBill(fiat: payload.fiat, codeData: payload.codeData()))
+        }
+
         var primaryAction: BillState.PrimaryAction? = .init(asset: .airplane, title: "Send as a Link") { [weak self, weak operation] in
             if let operation, let self {
                 // Suppress grab-request processing on the rendezvous stream
