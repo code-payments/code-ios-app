@@ -69,19 +69,19 @@ final class AccountInfoService: Sendable {
     }
 
     static func accountInfo(in response: Ocp_Account_V1_GetTokenAccountInfosResponse, type: AccountInfoType) -> Result<AccountInfo, ErrorFetchBalance> {
-        let account = response.tokenAccountInfos.compactMap {
-            if $0.value.accountType == type.proto, let account = try? AccountInfo($0.value) {
-                return account
-            } else {
-                return nil
-            }
-        }.first
+        let matching = response.tokenAccountInfos.values.filter {
+            $0.accountType == type.proto
+        }
 
-        if let account {
-            return .success(account)
-        } else {
+        guard !matching.isEmpty else {
             return .failure(.accountNotInList)
         }
+
+        guard let account = matching.compactMap({ try? AccountInfo($0) }).first else {
+            return .failure(.parseFailed)
+        }
+
+        return .success(account)
     }
 
     /// Fetches the user's plain SPL associated token account for a specific
