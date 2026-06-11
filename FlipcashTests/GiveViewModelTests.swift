@@ -75,6 +75,30 @@ struct GiveViewModelTests {
         )
     }
 
+    // MARK: - prepareSubmission
+
+    @Test("prepareSubmission (USDF) succeeds without a bonding supply")
+    func prepareSubmission_usdf_succeedsWithoutSupply() async throws {
+        let sessionContainer = SessionContainer.mock
+        sessionContainer.ratesController.configureTestRates(
+            balanceCurrency: .cad,
+            rates: [Rate(fx: 1.35, currency: .cad)]
+        )
+        await sessionContainer.ratesController.verifiedProtoService.saveRates([
+            .freshRate(currencyCode: "CAD", rate: 1.35)
+        ])
+
+        let viewModel = GiveViewModel(container: .mock, sessionContainer: sessionContainer, mint: nil)
+        viewModel.selectCurrencyAction(exchangedBalance: Self.createExchangedBalance(mint: .usdf, quarks: 1_000_000))
+        viewModel.enteredAmount = "1"
+
+        // USDF has no bonding supply; requiring one made this nil → "Rate Unavailable".
+        let submission = try #require(await viewModel.prepareSubmission())
+        #expect(submission.amount.onChainAmount.mint == .usdf)
+        #expect(submission.amount.onChainAmount.quarks > 0)
+        #expect(submission.pinnedState.exchangeRate == 1.35)
+    }
+
     // MARK: - Initialization Tests
 
     @Test
