@@ -48,8 +48,8 @@ struct ToastQueue {
 /// a cash transfer completes (give, grab, send link, or receive link).
 ///
 /// Displayed as "+$X" for deposits or "-$X" for withdrawals. Consumption is
-/// driven by ``Session``, which shows each toast for 3 seconds with a 1-second
-/// gap between consecutive toasts, pausing while a bill is on screen.
+/// driven by ``ToastController``, which shows each toast for 3 seconds with a
+/// 1-second gap between consecutive toasts, pausing while a bill is on screen.
 struct Toast: Equatable, Hashable {
 
     /// The transaction amount.

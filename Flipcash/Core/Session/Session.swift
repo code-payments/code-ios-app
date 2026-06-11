@@ -18,7 +18,7 @@ protocol SessionDelegate: AnyObject {
 /// Central state object for an authenticated user session.
 ///
 /// Holds balances, transaction limits, user profile, and UI presentation
-/// state (bill display, toasts, dialogs). Balances and limits auto-refresh
+/// state (bill display, dialogs). Balances and limits auto-refresh
 /// from the local database via ``Updateable`` whenever `.databaseDidChange`
 /// is posted.
 ///
@@ -44,10 +44,6 @@ class Session {
 
     /// Post-transaction amount display, shown as a sheet.
     var valuation: BillValuation? = nil
-
-    /// The currently visible balance-change toast, or `nil` when none is shown.
-    /// Set by ``consumeToast()`` and cleared after a 3-second display window.
-    var toast: Toast? = nil
 
     /// App-wide modal dialog (confirmations, errors). Presented by
     /// ``DialogWindow`` in a separate `UIWindow` above all sheets.
@@ -164,22 +160,20 @@ class Session {
     @ObservationIgnored private var scanOperation: ScanCashOperation?
     @ObservationIgnored private var sendOperation: SendCashOperation?
 
-    /// Buffered toasts waiting to be displayed. Observation is ignored because
-    /// the queue is an internal detail — only the published ``toast`` property
-    /// drives UI updates.
-    @ObservationIgnored private var toastQueue = ToastQueue()
+    @ObservationIgnored private let toastController: ToastController
 
     private var updateableBalances: Updateable<[StoredBalance]>!
     private var updateableLimits: Updateable<Limits?>!
 
     // MARK: - Init -
 
-    init(container: Container, historyController: HistoryController, ratesController: RatesController, database: Database, keyAccount: KeyAccount, owner: AccountCluster, userID: UserID) {
+    init(container: Container, historyController: HistoryController, ratesController: RatesController, toastController: ToastController, database: Database, keyAccount: KeyAccount, owner: AccountCluster, userID: UserID) {
         self.container         = container
         self.client            = container.client
         self.flipClient        = container.flipClient
         self.ratesController   = ratesController
         self.historyController = historyController
+        self.toastController   = toastController
         self.database          = database
         self.keyAccount        = keyAccount
         self.owner             = owner
@@ -194,6 +188,10 @@ class Session {
 
         self.updateableLimits = Updateable { [weak self] in
             try? self?.database.getLimits()
+        }
+
+        toastController.isSuppressed = { [weak self] in
+            self?.isShowingBill ?? false
         }
 
         ensureValidTokenSelection()
@@ -523,63 +521,6 @@ class Session {
 
             try database.insert(mints: [mintMetadata], date: .now)
             return try await fetchMintMetadata(mint: mint)
-        }
-    }
-    
-    // MARK: - Toast -
-
-    /// Enqueues a toast and kicks off consumption if no toast is currently visible.
-    private func show(toast: Toast) {
-        enqueue(toast: toast)
-        if self.toast == nil {
-            consumeToast()
-        }
-    }
-
-    /// Adds a toast to the queue without triggering consumption.
-    ///
-    /// Preferred over ``show(toast:)`` when consumption will be triggered
-    /// externally (e.g. after a bill is dismissed via ``dismissCashBill``).
-    private func enqueue(toast: Toast) {
-        toastQueue.insert(toast)
-    }
-
-    /// Pops the next toast from the queue and displays it for 3 seconds.
-    ///
-    /// Consumption is deferred while a bill is on screen — ``dismissCashBill``
-    /// calls this method once the bill is cleared so queued toasts resume.
-    /// After each toast, a 1-second gap separates consecutive notifications.
-    private func consumeToast() {
-        guard toastQueue.hasToasts else {
-            return
-        }
-        
-        Task {
-            // Wait for bill animation to finish
-            // before showing the toast
-            try await Task.delay(milliseconds: 500)
-            
-            // Ensure that there's no bills showing
-            // otherwise we'll wait for dismissBill
-            // to consume the toast
-            guard !isShowingBill else {
-                logger.debug("Bill showing, waiting for toasts to resume...")
-                return
-            }
-            
-            guard toastQueue.hasToasts else {
-                return
-            }
-            
-            toast = toastQueue.pop()
-            
-            try await Task.delay(seconds: 3)
-            toast = nil
-            
-            if toastQueue.hasToasts {
-                try await Task.delay(milliseconds: 1000)
-                consumeToast()
-            }
         }
     }
     
@@ -968,7 +909,7 @@ class Session {
     func showCashBill(_ billDescription: BillDescription) {
         // Only inbound bills enqueue a "+$" deposit toast; sent bills don't.
         if billDescription.received {
-            enqueue(toast: .init(
+            toastController.enqueue(.init(
                 amount: billDescription.exchangedFiat.nativeAmount,
                 isDeposit: true
             ))
@@ -1096,7 +1037,7 @@ class Session {
                 try await operation.start()
 
                 // Toast: someone grabbed the user's bill (-amount)
-                self?.enqueue(toast: .init(
+                self?.toastController.enqueue(.init(
                     amount: billDescription.exchangedFiat.nativeAmount,
                     isDeposit: false
                 ))
@@ -1157,7 +1098,7 @@ class Session {
                     try await Task.delay(milliseconds: 250)
 
                     // Toast: user confirmed sending a cash link (-amount)
-                    self.enqueue(toast: .init(
+                    self.toastController.enqueue(.init(
                         amount: exchangedFiat.nativeAmount,
                         isDeposit: false
                     ))
@@ -1207,7 +1148,7 @@ class Session {
 
         // Consume toast after bill state is cleared
         // so isShowingBill returns false
-        consumeToast()
+        toastController.consume()
     }
     
     // MARK: - Cash Links -

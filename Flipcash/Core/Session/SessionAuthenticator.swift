@@ -235,21 +235,25 @@ final class SessionAuthenticator {
             owner: owner.authority.keyPair,
             client: container.flipClient
         )
-        
+
+        let toastController = ToastController()
+
         let session = Session(
             container: container,
             historyController: historyController,
             ratesController: ratesController,
+            toastController: toastController,
             database: database,
             keyAccount: initializedAccount.keyAccount,
             owner: owner,
             userID: initializedAccount.userID
         )
-        
+
         let walletConnection = WalletConnection(owner: owner)
 
         return SessionContainer(
             session: session,
+            toastController: toastController,
             database: database,
             client: container.client,
             walletConnection: walletConnection,
@@ -419,6 +423,7 @@ final class SessionAuthenticator {
 struct SessionContainer {
 
     let session: Session
+    let toastController: ToastController
     let database: Database
     let walletConnection: WalletConnection
     let ratesController: RatesController
@@ -433,6 +438,7 @@ struct SessionContainer {
 
     init(
         session: Session,
+        toastController: ToastController,
         database: Database,
         client: Client,
         walletConnection: WalletConnection,
@@ -442,6 +448,7 @@ struct SessionContainer {
         flipClient: FlipClient
     ) {
         self.session = session
+        self.toastController = toastController
         self.database = database
         self.walletConnection = walletConnection
         self.ratesController = ratesController

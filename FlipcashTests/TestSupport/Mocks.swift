@@ -60,12 +60,14 @@ extension Session {
     static func makeMock(
         database: Database,
         historyController: HistoryController? = nil,
-        ratesController: RatesController? = nil
+        ratesController: RatesController? = nil,
+        toastController: ToastController? = nil
     ) -> Session {
         Session(
             container: .mock,
             historyController: historyController ?? HistoryController(container: .mock, database: database, owner: .mock),
             ratesController: ratesController ?? RatesController(container: .mock, database: database),
+            toastController: toastController ?? ToastController(),
             database: database,
             keyAccount: .mock,
             owner: .init(
@@ -88,13 +90,16 @@ extension SessionContainer {
         let database = Database.mock
         let ratesController = RatesController(container: .mock, database: database)
         let historyController = HistoryController(container: .mock, database: database, owner: .mock)
+        let toastController = ToastController()
         let session = Session.makeMock(
             database: database,
             historyController: historyController,
-            ratesController: ratesController
+            ratesController: ratesController,
+            toastController: toastController
         )
         return .init(
             session: session,
+            toastController: toastController,
             database: database,
             client: Container.mock.client,
             walletConnection: .mock,

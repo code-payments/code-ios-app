@@ -27,7 +27,7 @@ struct ScanScreen: View {
     @State private var billDesignerColors: [Color] = ColorEditorControl.randomDerivedColors()
 
     private var toast: String? {
-        if let toast = session.toast {
+        if let toast = toastController.toast {
             let formatted = toast.amount.formatted()
             if toast.isDeposit {
                 return "+\(formatted)"
@@ -55,13 +55,15 @@ struct ScanScreen: View {
     
     private let container: Container
     private let sessionContainer: SessionContainer
-    
+    private let toastController: ToastController
+
     // MARK: - Init -
-    
+
     init(container: Container, sessionContainer: SessionContainer) {
         self.container        = container
         self.sessionContainer = sessionContainer
         self.session          = sessionContainer.session
+        self.toastController  = sessionContainer.toastController
         
         self.viewModel = ScanViewModel(
             container: container,

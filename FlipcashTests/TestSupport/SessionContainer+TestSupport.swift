@@ -55,10 +55,12 @@ extension SessionContainer {
         }
 
         let ratesController = RatesController(container: .mock, database: database)
+        let toastController = ToastController()
         let session = Session(
             container: .mock,
             historyController: .mock,
             ratesController: ratesController,
+            toastController: toastController,
             database: database,
             keyAccount: .mock,
             owner: .init(
@@ -71,6 +73,7 @@ extension SessionContainer {
 
         return SessionContainer(
             session: session,
+            toastController: toastController,
             database: database,
             client: Container.mock.client,
             walletConnection: .mock,
