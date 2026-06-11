@@ -41,6 +41,9 @@ final class GoldBarSceneHost {
         view.backgroundColor = .clear
         view.antialiasingMode = .multisampling2X
         view.allowsCameraControl = false
+        // 2x is visually indistinguishable on a smooth metal surface and cuts
+        // fragment/bandwidth work ~2.25x; the etched code must still scan.
+        view.contentScaleFactor = min(2, view.traitCollection.displayScale)
         self.view = view
         warmTask = Task {
             let code = GoldBarCodeRenderer.image(for: .placeholder35, side: 64)
