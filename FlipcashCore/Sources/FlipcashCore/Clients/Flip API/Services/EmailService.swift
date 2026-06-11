@@ -8,11 +8,17 @@
 
 import Foundation
 import FlipcashAPI
-import GRPC
+import GRPCCore
 
 private let logger = Logger(label: "flipcash.email-service")
 
-class EmailService: CodeService<Flipcash_Email_V1_EmailVerificationNIOClient> {
+final class EmailService: Sendable {
+
+    private let service: Flipcash_Email_V1_EmailVerification.Client<AppTransport>
+
+    init(client: GRPCClient<AppTransport>) {
+        self.service = Flipcash_Email_V1_EmailVerification.Client(wrapping: client)
+    }
 
     func sendEmailVerification(email: String, owner: KeyPair, completion: @Sendable @escaping (Result<(), ErrorSendEmailCode>) -> Void) {
         logger.info("Sending email verification code")
@@ -22,23 +28,26 @@ class EmailService: CodeService<Flipcash_Email_V1_EmailVerificationNIOClient> {
             $0.auth = owner.authFor(message: $0)
         }
 
-        let call = service.sendVerificationCode(request)
-        call.handle(on: queue) { response in
-            let error = ErrorSendEmailCode(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok {
-                logger.info("Email verification code sent successfully")
-                completion(.success(()))
-            } else {
-                logger.error("Failed to send email verification code", metadata: ["error": "\(error)"])
-                completion(.failure(error))
-            }
-
-        } failure: { status in
-            // PGV field validation surfaces as invalidArgument before the result handler runs.
-            if status.code == .invalidArgument {
-                completion(.failure(.invalidEmailAddress))
-            } else {
-                completion(.failure(.from(transportError: status)))
+        Task {
+            do {
+                let response = try await service.sendVerificationCode(request, options: .unaryDefault)
+                let error = ErrorSendEmailCode(rawValue: response.result.rawValue) ?? .unknown
+                if error == .ok {
+                    logger.info("Email verification code sent successfully")
+                    await MainActor.run { completion(.success(())) }
+                } else {
+                    logger.error("Failed to send email verification code", metadata: ["error": "\(error)"])
+                    await MainActor.run { completion(.failure(error)) }
+                }
+            } catch let error as RPCError {
+                // PGV field validation surfaces as invalidArgument before the result handler runs.
+                if error.code == .invalidArgument {
+                    await MainActor.run { completion(.failure(.invalidEmailAddress)) }
+                } else {
+                    await MainActor.run { completion(.failure(.from(transportError: error))) }
+                }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
             }
         }
     }
@@ -52,15 +61,22 @@ class EmailService: CodeService<Flipcash_Email_V1_EmailVerificationNIOClient> {
             $0.auth = owner.authFor(message: $0)
         }
 
-        let call = service.checkVerificationCode(request)
-        call.handle(on: queue, completion: completion) { response in
-            let error = ErrorCheckEmailCode(rawValue: response.result.rawValue) ?? .unknown
-            guard error == .ok else {
-                logger.error("Email verification code check failed", metadata: ["error": "\(error)"])
-                return .failure(error)
+        Task {
+            do {
+                let response = try await service.checkVerificationCode(request, options: .unaryDefault)
+                let error = ErrorCheckEmailCode(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Email verification code check failed", metadata: ["error": "\(error)"])
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
+                logger.info("Email verification code accepted")
+                await MainActor.run { completion(.success(())) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
             }
-            logger.info("Email verification code accepted")
-            return .success(())
         }
     }
 
@@ -72,15 +88,22 @@ class EmailService: CodeService<Flipcash_Email_V1_EmailVerificationNIOClient> {
             $0.auth = owner.authFor(message: $0)
         }
 
-        let call = service.unlink(request)
-        call.handle(on: queue, completion: completion) { response in
-            let error = ErrorUnlinkEmail(rawValue: response.result.rawValue) ?? .unknown
-            guard error == .ok else {
-                logger.error("Failed to unlink email address", metadata: ["error": "\(error)"])
-                return .failure(error)
+        Task {
+            do {
+                let response = try await service.unlink(request, options: .unaryDefault)
+                let error = ErrorUnlinkEmail(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to unlink email address", metadata: ["error": "\(error)"])
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
+                logger.info("Email address unlinked successfully")
+                await MainActor.run { completion(.success(())) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
             }
-            logger.info("Email address unlinked successfully")
-            return .success(())
         }
     }
 }
@@ -148,29 +171,5 @@ extension ErrorUnlinkEmail: ServerError, TransportClassifiableError {
         case .ok, .denied, .transportFailure: false
         case .unknown: true
         }
-    }
-}
-
-// MARK: - Interceptors -
-
-extension InterceptorFactory: Flipcash_Email_V1_EmailVerificationClientInterceptorFactoryProtocol {
-    func makeUnlinkInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Email_V1_UnlinkRequest, Flipcash_Email_V1_UnlinkResponse>] {
-        makeInterceptors()
-    }
-    
-    func makeSendVerificationCodeInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Email_V1_SendVerificationCodeRequest, Flipcash_Email_V1_SendVerificationCodeResponse>] {
-        makeInterceptors()
-    }
-    
-    func makeCheckVerificationCodeInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Email_V1_CheckVerificationCodeRequest, Flipcash_Email_V1_CheckVerificationCodeResponse>] {
-        makeInterceptors()
-    }
-}
-
-// MARK: - GRPCClientType -
-
-extension Flipcash_Email_V1_EmailVerificationNIOClient: GRPCClientType {
-    init(channel: GRPCChannel) {
-        self.init(channel: channel, defaultCallOptions: .default, interceptors: InterceptorFactory())
     }
 }

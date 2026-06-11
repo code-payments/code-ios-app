@@ -8,11 +8,17 @@
 
 import Foundation
 import FlipcashAPI
-import GRPC
+import GRPCCore
 
 private let logger = Logger(label: "flipcash.push-service")
 
-class PushService: CodeService<Flipcash_Push_V1_PushNIOClient> {
+final class PushService: Sendable {
+
+    private let service: Flipcash_Push_V1_Push.Client<AppTransport>
+
+    init(client: GRPCClient<AppTransport>) {
+        self.service = Flipcash_Push_V1_Push.Client(wrapping: client)
+    }
 
     func addToken(token: String, installationID: String, owner: KeyPair, completion: @Sendable @escaping (Result<(), ErrorAddToken>) -> Void) {
 
@@ -23,15 +29,21 @@ class PushService: CodeService<Flipcash_Push_V1_PushNIOClient> {
             $0.auth       = owner.authFor(message: $0)
         }
 
-        let call = service.addToken(request)
-
-        call.handle(on: queue, completion: completion) { response in
-            let error = ErrorAddToken(rawValue: response.result.rawValue) ?? .unknown
-            guard error == .ok else {
-                logger.error("Failed to add push token", metadata: ["error": "\(error)"])
-                return .failure(error)
+        Task {
+            do {
+                let response = try await service.addToken(request, options: .unaryDefault)
+                let error = ErrorAddToken(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to add push token", metadata: ["error": "\(error)"])
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
+                await MainActor.run { completion(.success(())) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
             }
-            return .success(())
         }
     }
 
@@ -46,16 +58,22 @@ class PushService: CodeService<Flipcash_Push_V1_PushNIOClient> {
             $0.auth       = owner.authFor(message: $0)
         }
 
-        let call = service.deleteTokens(request)
-
-        call.handle(on: queue, completion: completion) { response in
-            let error = ErrorDeleteToken(rawValue: response.result.rawValue) ?? .unknown
-            guard error == .ok else {
-                logger.error("Failed to delete push tokens", metadata: ["error": "\(error)"])
-                return .failure(error)
+        Task {
+            do {
+                let response = try await service.deleteTokens(request, options: .unaryDefault)
+                let error = ErrorDeleteToken(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to delete push tokens", metadata: ["error": "\(error)"])
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
+                logger.info("Push tokens deleted successfully")
+                await MainActor.run { completion(.success(())) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
             }
-            logger.info("Push tokens deleted successfully")
-            return .success(())
         }
     }
 }
@@ -90,25 +108,5 @@ extension ErrorDeleteToken: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: false
         case .unknown: true
         }
-    }
-}
-
-// MARK: - Interceptors -
-
-extension InterceptorFactory: Flipcash_Push_V1_PushClientInterceptorFactoryProtocol {
-    func makeAddTokenInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Push_V1_AddTokenRequest, Flipcash_Push_V1_AddTokenResponse>] {
-        makeInterceptors()
-    }
-    
-    func makeDeleteTokensInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Push_V1_DeleteTokensRequest, Flipcash_Push_V1_DeleteTokensResponse>] {
-        makeInterceptors()
-    }
-}
-
-// MARK: - GRPCClientType -
-
-extension Flipcash_Push_V1_PushNIOClient: GRPCClientType {
-    init(channel: GRPCChannel) {
-        self.init(channel: channel, defaultCallOptions: .default, interceptors: InterceptorFactory())
     }
 }

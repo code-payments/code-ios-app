@@ -8,12 +8,18 @@
 
 import Foundation
 import FlipcashAPI
-import GRPC
+import GRPCCore
 
 private let logger = Logger(label: "flipcash.account-service")
 
-class AccountService: CodeService<Flipcash_Account_V1_AccountNIOClient> {
-    
+final class AccountService: Sendable {
+
+    private let service: Flipcash_Account_V1_Account.Client<AppTransport>
+
+    init(client: GRPCClient<AppTransport>) {
+        self.service = Flipcash_Account_V1_Account.Client(wrapping: client)
+    }
+
     func register(owner: KeyPair, completion: @Sendable @escaping (Result<UserID, ErrorRegisterAccount>) -> Void) {
         logger.info("Registering account", metadata: ["owner": "\(owner.publicKey.base58)"])
 
@@ -22,22 +28,30 @@ class AccountService: CodeService<Flipcash_Account_V1_AccountNIOClient> {
             $0.signature = $0.sign(with: owner)
         }
 
-        let call = service.register(request)
-        call.handle(on: queue, completion: completion) { response in
-            let error = ErrorRegisterAccount(rawValue: response.result.rawValue) ?? .unknown
-            guard error == .ok else {
-                logger.error("Failed to register account", metadata: ["owner": "\(owner.publicKey.base58)"])
-                return .failure(error)
+        Task {
+            do {
+                let response = try await service.register(request, options: .unaryDefault)
+                let error = ErrorRegisterAccount(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to register account", metadata: ["owner": "\(owner.publicKey.base58)"])
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
+                guard let userID = try? UUID(data: response.userID.value) else {
+                    logger.error("Registered account returned an unparseable user ID", metadata: ["owner": "\(owner.publicKey.base58)"])
+                    await MainActor.run { completion(.failure(.unknown)) }
+                    return
+                }
+                logger.info("Account registered successfully")
+                await MainActor.run { completion(.success(userID)) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
             }
-            guard let userID = try? UUID(data: response.userID.value) else {
-                logger.error("Registered account returned an unparseable user ID", metadata: ["owner": "\(owner.publicKey.base58)"])
-                return .failure(.unknown)
-            }
-            logger.info("Account registered successfully")
-            return .success(userID)
         }
     }
-    
+
     func login(owner: KeyPair, completion: @Sendable @escaping (Result<UserID, ErrorLoginAccount>) -> Void) {
         logger.info("Logging in", metadata: ["owner": "\(owner.publicKey.base58)"])
 
@@ -46,22 +60,30 @@ class AccountService: CodeService<Flipcash_Account_V1_AccountNIOClient> {
             $0.auth = owner.authFor(message: $0)
         }
 
-        let call = service.login(request)
-        call.handle(on: queue, completion: completion) { response in
-            let error = ErrorLoginAccount(rawValue: response.result.rawValue) ?? .unknown
-            guard error == .ok else {
-                logger.error("Failed to login", metadata: ["owner": "\(owner.publicKey.base58)"])
-                return .failure(error)
+        Task {
+            do {
+                let response = try await service.login(request, options: .unaryDefault)
+                let error = ErrorLoginAccount(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to login", metadata: ["owner": "\(owner.publicKey.base58)"])
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
+                guard let userID = try? UUID(data: response.userID.value) else {
+                    logger.error("Login returned an unparseable user ID", metadata: ["owner": "\(owner.publicKey.base58)"])
+                    await MainActor.run { completion(.failure(.unknown)) }
+                    return
+                }
+                logger.info("Login succeeded")
+                await MainActor.run { completion(.success(userID)) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
             }
-            guard let userID = try? UUID(data: response.userID.value) else {
-                logger.error("Login returned an unparseable user ID", metadata: ["owner": "\(owner.publicKey.base58)"])
-                return .failure(.unknown)
-            }
-            logger.info("Login succeeded")
-            return .success(userID)
         }
     }
-    
+
     func fetchUserFlags(userID: UserID, owner: KeyPair, completion: @Sendable @escaping (Result<UserFlags, ErrorFetchUserFlags>) -> Void) {
         logger.info("Fetching user flags", metadata: ["userId": "\(userID)"])
 
@@ -76,15 +98,22 @@ class AccountService: CodeService<Flipcash_Account_V1_AccountNIOClient> {
             $0.auth = owner.authFor(message: $0)
         }
 
-        let call = service.getUserFlags(request)
-        call.handle(on: queue, completion: completion) { response in
-            let error = ErrorFetchUserFlags(rawValue: response.result.rawValue) ?? .unknown
-            guard error == .ok else {
-                logger.error("Failed to fetch user flags", metadata: ["owner": "\(owner.publicKey.base58)"])
-                return .failure(error)
+        Task {
+            do {
+                let response = try await service.getUserFlags(request, options: .unaryDefault)
+                let error = ErrorFetchUserFlags(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to fetch user flags", metadata: ["owner": "\(owner.publicKey.base58)"])
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
+                logger.info("User flags fetched successfully")
+                await MainActor.run { completion(.success(UserFlags(response.userFlags))) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
             }
-            logger.info("User flags fetched successfully")
-            return .success(UserFlags(response.userFlags))
         }
     }
 
@@ -97,14 +126,21 @@ class AccountService: CodeService<Flipcash_Account_V1_AccountNIOClient> {
             }
         }
 
-        let call = service.getUnauthenticatedUserFlags(request)
-        call.handle(on: queue, completion: completion) { response in
-            let error = ErrorFetchUnauthenticatedUserFlags(rawValue: response.result.rawValue) ?? .unknown
-            guard error == .ok else {
-                logger.error("Failed to fetch unauthenticated user flags")
-                return .failure(error)
+        Task {
+            do {
+                let response = try await service.getUnauthenticatedUserFlags(request, options: .unaryDefault)
+                let error = ErrorFetchUnauthenticatedUserFlags(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to fetch unauthenticated user flags")
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
+                await MainActor.run { completion(.success(UnauthenticatedUserFlags(response.userFlags))) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
             }
-            return .success(UnauthenticatedUserFlags(response.userFlags))
         }
     }
 }
@@ -173,33 +209,5 @@ extension ErrorFetchUnauthenticatedUserFlags: ServerError, TransportClassifiable
         case .ok, .transportFailure: false
         case .unknown: true
         }
-    }
-}
-
-// MARK: - Interceptors -
-
-extension InterceptorFactory: Flipcash_Account_V1_AccountClientInterceptorFactoryProtocol {
-    func makeGetUnauthenticatedUserFlagsInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Account_V1_GetUnauthenticatedUserFlagsRequest, Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse>] {
-        makeInterceptors()
-    }
-    
-    func makeRegisterInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Account_V1_RegisterRequest, Flipcash_Account_V1_RegisterResponse>] {
-        makeInterceptors()
-    }
-    
-    func makeLoginInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Account_V1_LoginRequest, Flipcash_Account_V1_LoginResponse>] {
-        makeInterceptors()
-    }
-    
-    func makeGetUserFlagsInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Account_V1_GetUserFlagsRequest, Flipcash_Account_V1_GetUserFlagsResponse>] {
-        makeInterceptors()
-    }
-}
-
-// MARK: - GRPCClientType -
-
-extension Flipcash_Account_V1_AccountNIOClient: GRPCClientType {
-    init(channel: GRPCChannel) {
-        self.init(channel: channel, defaultCallOptions: .default, interceptors: InterceptorFactory())
     }
 }

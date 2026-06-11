@@ -7,20 +7,22 @@
 //
 
 import Foundation
-import Combine
-import NIO
-import GRPC
+import GRPCCore
 
 private let logger = Logger(label: "flipcash.payment-client")
 
 @MainActor
 public class Client: ObservableObject {
-    
+
     public let network: Network
-    public let channel: ClientConnection
-    
-    public let queue: DispatchQueue
-    
+
+    private let grpcClient: GRPCClient<AppTransport>
+
+    /// The long-running connection loop. gRPC v2 does nothing until
+    /// `runConnections()` is running, and it must be retained for the client's
+    /// lifetime — dropping this task makes the client inert and every RPC hangs.
+    private let connectionTask: Task<Void, Never>
+
     internal let accountService: AccountInfoService
     internal let transactionService: TransactionService
     internal let currencyService: CurrencyService
@@ -28,32 +30,42 @@ public class Client: ObservableObject {
 
     // MARK: - Init -
 
-    public init(network: Network) {
+    public init(network: Network) throws {
         self.network = network
-        self.queue   = .main
-        self.channel = ClientConnection.appConnection(
+
+        let transport = try GRPCTransport.makeTransportServices(
             host: network.hostForPayments,
             port: network.port
         )
+        let client = GRPCClient(transport: transport, interceptors: [UserAgentClientInterceptor()])
+        self.grpcClient = client
+        self.connectionTask = Task {
+            do {
+                try await client.runConnections()
+            } catch {
+                // Only reachable on a fatal transport error (graceful shutdown
+                // returns normally) — every RPC after this point will fail.
+                logger.error("Payment connection loop terminated", metadata: ["error": "\(error)"])
+            }
+        }
 
-        self.accountService     = AccountInfoService(channel: channel, queue: queue)
-        self.transactionService = TransactionService(channel: channel, queue: queue)
-        self.currencyService    = CurrencyService(channel: channel, queue: queue)
-        self.messagingService   = MessagingService(channel: channel, queue: queue)
-
-        self.channel.connectivity.delegate = self
+        self.accountService     = AccountInfoService(client: client)
+        self.transactionService = TransactionService(client: client)
+        self.currencyService    = CurrencyService(client: client)
+        self.messagingService   = MessagingService(client: client)
     }
-    
+
     deinit {
-        logger.debug("Deallocating Client")
+        // Graceful shutdown drains in-flight streams before the connection closes;
+        // cancelling the task ends the connection loop.
+        grpcClient.beginGracefulShutdown()
+        connectionTask.cancel()
     }
 
     // MARK: - Channel Lifecycle -
 
-    /// Pre-warm the gRPC channel by triggering a lightweight unary call.
-    /// Forces TCP+TLS reconnection if the underlying socket died during
-    /// backgrounding (common: errno 57 / unavailable 14).
-    /// The response is irrelevant — we only need the channel to start connecting.
+    /// Pre-warm the connection by issuing a lightweight unary call. The response
+    /// is irrelevant — we only need the transport to start connecting.
     public func warmUpChannel() {
         currencyService.fetchMint(mint: .usdf) { result in
             switch result {
@@ -76,28 +88,6 @@ public class Client: ObservableObject {
     }
 }
 
-extension ClientConnection {
-    public static func appConnection(host: String, port: Int) -> ClientConnection {
-        .usingTLSBackedByNIOSSL(on: MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount))
-        .withErrorDelegate(CodeServiceErrorDelegate())
-        .withKeepalive(.init(interval: .seconds(30), timeout: .seconds(10), permitWithoutCalls: true))
-        .withConnectionIdleTimeout(.minutes(5))
-        .connect(host: host, port: port)
-    }
-}
-
-// MARK: - ConnectivityStateDelegate -
-
-extension Client: ConnectivityStateDelegate {
-    public nonisolated func connectivityStateDidChange(from oldState: ConnectivityState, to newState: ConnectivityState) {
-        logger.info("Payment channel: \(oldState) → \(newState)")
-    }
-
-    public nonisolated func connectionStartedQuiescing() {
-        logger.notice("Payment channel quiescing")
-    }
-}
-
 extension Client {
-    public static let mock = Client(network: .mainNet)
+    public static let mock = try! Client(network: .mainNet)
 }

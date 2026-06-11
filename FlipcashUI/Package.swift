@@ -6,8 +6,7 @@ import PackageDescription
 let package = Package(
     name: "FlipcashUI",
     platforms: [
-        .iOS(.v17),
-        .macOS(.v14),
+        .iOS(.v18),
     ],
     products: [
         .library(

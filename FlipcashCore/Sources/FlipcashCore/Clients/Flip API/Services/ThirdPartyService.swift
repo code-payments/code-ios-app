@@ -8,11 +8,17 @@
 
 import Foundation
 import FlipcashAPI
-import GRPC
+import GRPCCore
 
 private let logger = Logger(label: "flipcash.third-party-service")
 
-class ThirdPartyService: CodeService<Flipcash_Thirdparty_V1_ThirdPartyNIOClient> {
+final class ThirdPartyService: Sendable {
+
+    private let service: Flipcash_Thirdparty_V1_ThirdParty.Client<AppTransport>
+
+    init(client: GRPCClient<AppTransport>) {
+        self.service = Flipcash_Thirdparty_V1_ThirdParty.Client(wrapping: client)
+    }
 
     func fetchCoinbaseOnrampJWT(apiKey: String, owner: KeyPair, method: String, path: String, completion: @Sendable @escaping (Result<String, ErrorFetchJWT>) -> Void) {
         logger.info("Fetching Coinbase onramp JWT", metadata: [
@@ -31,15 +37,22 @@ class ThirdPartyService: CodeService<Flipcash_Thirdparty_V1_ThirdPartyNIOClient>
             $0.auth   = owner.authFor(message: $0)
         }
 
-        let call = service.getJwt(request)
-        call.handle(on: queue, completion: completion) { response in
-            let error = ErrorFetchJWT(rawValue: response.result.rawValue) ?? .unknown
-            guard error == .ok else {
-                logger.error("Failed to fetch Coinbase onramp JWT", metadata: ["error": "\(error)"])
-                return .failure(error)
+        Task {
+            do {
+                let response = try await service.getJwt(request, options: .unaryDefault)
+                let error = ErrorFetchJWT(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to fetch Coinbase onramp JWT", metadata: ["error": "\(error)"])
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
+                logger.info("Coinbase onramp JWT fetched successfully")
+                await MainActor.run { completion(.success(response.jwt.value)) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
             }
-            logger.info("Coinbase onramp JWT fetched successfully")
-            return .success(response.jwt.value)
         }
     }
 }
@@ -63,21 +76,5 @@ extension ErrorFetchJWT: ServerError, TransportClassifiableError {
         case .ok, .denied, .unsupportedProvider, .invalidApiKey, .phoneVerificationRequired, .emailVerificationRequired, .transportFailure: false
         case .unknown: true
         }
-    }
-}
-
-// MARK: - Interceptors -
-
-extension InterceptorFactory: Flipcash_Thirdparty_V1_ThirdPartyClientInterceptorFactoryProtocol {
-    func makeGetJwtInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Thirdparty_V1_GetJwtRequest, Flipcash_Thirdparty_V1_GetJwtResponse>] {
-        makeInterceptors()
-    }
-}
-
-// MARK: - GRPCClientType -
-
-extension Flipcash_Thirdparty_V1_ThirdPartyNIOClient: GRPCClientType {
-    init(channel: GRPCChannel) {
-        self.init(channel: channel, defaultCallOptions: .default, interceptors: InterceptorFactory())
     }
 }

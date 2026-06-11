@@ -7,20 +7,21 @@
 //
 
 import Foundation
-import Combine
-import NIO
-import GRPC
+import GRPCCore
 
 private let logger = Logger(label: "flipcash.flip-client")
 
 @MainActor
 public class FlipClient: ObservableObject {
-    
+
     public let network: Network
-    public let channel: ClientConnection
-    
-    public let queue: DispatchQueue
-    
+
+    private let grpcClient: GRPCClient<AppTransport>
+
+    /// The long-running connection loop. Must be retained for the client's
+    /// lifetime — dropping this task makes the client inert and every RPC hangs.
+    private let connectionTask: Task<Void, Never>
+
     internal let accountService: AccountService
     internal let activityService: ActivityService
     internal let pushService: PushService
@@ -33,38 +34,45 @@ public class FlipClient: ObservableObject {
 
     // MARK: - Init -
 
-    public init(network: Network) {
+    public init(network: Network) throws {
         self.network = network
-        self.queue   = .main
-        self.channel = ClientConnection.appConnection(
+
+        let transport = try GRPCTransport.makeTransportServices(
             host: network.hostForCore,
             port: network.port
         )
+        let client = GRPCClient(transport: transport, interceptors: [UserAgentClientInterceptor()])
+        self.grpcClient = client
+        self.connectionTask = Task {
+            do {
+                try await client.runConnections()
+            } catch {
+                // Only reachable on a fatal transport error (graceful shutdown
+                // returns normally) — every RPC after this point will fail.
+                logger.error("Flip connection loop terminated", metadata: ["error": "\(error)"])
+            }
+        }
 
-        self.accountService    = AccountService(channel: channel, queue: queue)
-        self.activityService   = ActivityService(channel: channel, queue: queue)
-        self.pushService       = PushService(channel: channel, queue: queue)
-        self.thirdPartyService = ThirdPartyService(channel: channel, queue: queue)
-        self.phoneService      = PhoneService(channel: channel, queue: queue)
-        self.emailService      = EmailService(channel: channel, queue: queue)
-        self.profileService    = ProfileService(channel: channel, queue: queue)
-        self.settingsService   = SettingsService(channel: channel, queue: queue)
-        self.moderationService = ModerationService(channel: channel, queue: queue)
-
-        self.channel.connectivity.delegate = self
+        self.accountService    = AccountService(client: client)
+        self.activityService   = ActivityService(client: client)
+        self.pushService       = PushService(client: client)
+        self.thirdPartyService = ThirdPartyService(client: client)
+        self.phoneService      = PhoneService(client: client)
+        self.emailService      = EmailService(client: client)
+        self.profileService    = ProfileService(client: client)
+        self.settingsService   = SettingsService(client: client)
+        self.moderationService = ModerationService(client: client)
     }
-    
+
     deinit {
-        logger.debug("Deallocating FlipClient")
+        grpcClient.beginGracefulShutdown()
+        connectionTask.cancel()
     }
 
     // MARK: - Channel Lifecycle -
 
-    /// Pre-warm the gRPC channel by triggering a lightweight unauthenticated
-    /// call. Forces TCP+TLS reconnection if the underlying socket died during
-    /// backgrounding so the next caller-initiated RPC doesn't pay the full
-    /// reconnect cost against its own deadline.
-    /// The response is irrelevant — we only need the channel to start connecting.
+    /// Pre-warm the connection by issuing a lightweight unauthenticated call.
+    /// The response is irrelevant — we only need the transport to start connecting.
     public func warmUpChannel() {
         accountService.fetchUnauthenticatedUserFlags { result in
             switch result {
@@ -77,18 +85,6 @@ public class FlipClient: ObservableObject {
     }
 }
 
-// MARK: - ConnectivityStateDelegate -
-
-extension FlipClient: ConnectivityStateDelegate {
-    public nonisolated func connectivityStateDidChange(from oldState: ConnectivityState, to newState: ConnectivityState) {
-        logger.info("Flip channel: \(oldState) → \(newState)")
-    }
-
-    public nonisolated func connectionStartedQuiescing() {
-        logger.notice("Flip channel quiescing")
-    }
-}
-
 extension FlipClient {
-    public static let mock = FlipClient(network: .mainNet)
+    public static let mock = try! FlipClient(network: .mainNet)
 }

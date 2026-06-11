@@ -5,7 +5,8 @@
 
 import Foundation
 import Testing
-import GRPC
+import GRPCCore
+import GRPCInProcessTransport
 @testable import FlipcashCore
 
 @Suite("Transport classification — classifiable errors route transient gRPC failures to a non-reportable case")
@@ -15,9 +16,9 @@ struct TransportClassificationTests {
     /// a generic over the concrete type (not a list of erased closures) keeps
     /// arguments `Sendable`-free and the call type-safe.
     private func assertClassifies<E: TransportClassifiableError>(_ type: E.Type) {
-        #expect(E.from(transportError: GRPCStatus(code: .deadlineExceeded, message: nil)).isReportable == false)
-        #expect(E.from(transportError: GRPCStatus(code: .unavailable, message: nil)).isReportable == false)
-        #expect(E.from(transportError: GRPCStatus(code: .internalError, message: nil)).isReportable == true)
+        #expect(E.from(transportError: RPCError(code: .deadlineExceeded, message: "")).isReportable == false)
+        #expect(E.from(transportError: RPCError(code: .unavailable, message: "")).isReportable == false)
+        #expect(E.from(transportError: RPCError(code: .internalError, message: "")).isReportable == true)
     }
 
     // MARK: - Registry (one line per TransportClassifiableError conformer) -
@@ -47,65 +48,111 @@ struct TransportClassificationTests {
     @Test func errorCheckVerificationCode() { assertClassifies(ErrorCheckVerificationCode.self) }
     @Test func errorUnlinkPhone() { assertClassifies(ErrorUnlinkPhone.self) }
 
-    // MARK: - Tier 2: associated-value errors that capture the transport status -
-    // These don't conform to TransportClassifiableError (they carry the status
-    // in a case rather than mapping to a dedicated one), so their `isReportable`
-    // is asserted directly.
+    // MARK: - Tier 2: associated-value errors that capture the transport error -
+    // These don't conform to TransportClassifiableError (they carry the error in a
+    // case rather than mapping to a dedicated one), so their `isReportable` is
+    // asserted directly.
 
-    @Test("ErrorModeration.network is reportable only for non-transient statuses")
+    @Test("ErrorModeration.network is reportable only for non-transient errors")
     func errorModerationNetwork() {
-        #expect(ErrorModeration.network(GRPCStatus(code: .deadlineExceeded, message: nil)).isReportable == false)
-        #expect(ErrorModeration.network(GRPCStatus(code: .internalError, message: nil)).isReportable == true)
+        #expect(ErrorModeration.network(RPCError(code: .deadlineExceeded, message: "")).isReportable == false)
+        #expect(ErrorModeration.network(RPCError(code: .internalError, message: "")).isReportable == true)
         #expect(ErrorModeration.unknown.isReportable == true)
     }
 
-    @Test("ErrorLaunchCurrency.network is reportable only for non-transient statuses")
+    @Test("ErrorLaunchCurrency.network is reportable only for non-transient errors")
     func errorLaunchCurrencyNetwork() {
-        #expect(ErrorLaunchCurrency.network(GRPCStatus(code: .deadlineExceeded, message: nil)).isReportable == false)
-        #expect(ErrorLaunchCurrency.network(GRPCStatus(code: .internalError, message: nil)).isReportable == true)
+        #expect(ErrorLaunchCurrency.network(RPCError(code: .deadlineExceeded, message: "")).isReportable == false)
+        #expect(ErrorLaunchCurrency.network(RPCError(code: .internalError, message: "")).isReportable == true)
         #expect(ErrorLaunchCurrency.unknown.isReportable == true)
     }
 
     @Test("ErrorSwap classifies grpcStatus by transience; grpcError always reports")
-    func errorSwapGRPCStatus() {
-        #expect(ErrorSwap.grpcStatus(GRPCStatus(code: .deadlineExceeded, message: nil)).isReportable == false)
-        #expect(ErrorSwap.grpcStatus(GRPCStatus(code: .internalError, message: nil)).isReportable == true)
-        // .grpcError is the un-typed status-future failure — deliberately reportable
-        // even for a transient-looking status, unlike the typed .grpcStatus case.
-        #expect(ErrorSwap.grpcError(GRPCStatus(code: .unavailable, message: nil)).isReportable == true)
+    func errorSwapClassification() {
+        #expect(ErrorSwap.grpcStatus(RPCError(code: .deadlineExceeded, message: "")).isReportable == false)
+        #expect(ErrorSwap.grpcStatus(RPCError(code: .internalError, message: "")).isReportable == true)
+        // .grpcError is the un-typed failure — deliberately reportable even for a
+        // transient-looking code, unlike the typed .grpcStatus case.
+        #expect(ErrorSwap.grpcError(RPCError(code: .unavailable, message: "")).isReportable == true)
         #expect(ErrorSwap.unknown.isReportable == true)
     }
 
     @Test("ErrorStatelessSwap classifies grpcStatus by transience; grpcError always reports")
-    func errorStatelessSwapGRPCStatus() {
-        #expect(ErrorStatelessSwap.grpcStatus(GRPCStatus(code: .deadlineExceeded, message: nil)).isReportable == false)
-        #expect(ErrorStatelessSwap.grpcStatus(GRPCStatus(code: .internalError, message: nil)).isReportable == true)
-        #expect(ErrorStatelessSwap.grpcError(GRPCStatus(code: .unavailable, message: nil)).isReportable == true)
+    func errorStatelessSwapClassification() {
+        #expect(ErrorStatelessSwap.grpcStatus(RPCError(code: .deadlineExceeded, message: "")).isReportable == false)
+        #expect(ErrorStatelessSwap.grpcStatus(RPCError(code: .internalError, message: "")).isReportable == true)
+        #expect(ErrorStatelessSwap.grpcError(RPCError(code: .unavailable, message: "")).isReportable == true)
         #expect(ErrorStatelessSwap.unknown.isReportable == true)
     }
 
-    // MARK: - Raw GRPCStatus self-classification -
-    // Unary RPCs whose failure type is the existential `Error` ship the status
+    // MARK: - Raw RPCError self-classification -
+    // Unary RPCs whose failure type is the existential `Error` ship the RPCError
     // directly; its `ServerError` conformance classifies transient transport
     // failures as non-reportable without a dedicated error enum.
 
-    @Test("GRPCStatus is reportable only for non-transient statuses")
-    func grpcStatusReportability() {
-        #expect(GRPCStatus(code: .deadlineExceeded, message: nil).isReportable == false)
-        #expect(GRPCStatus(code: .unavailable, message: nil).isReportable == false)
-        #expect(GRPCStatus(code: .internalError, message: nil).isReportable == true)
-        #expect(GRPCStatus(code: .cancelled, message: nil).isReportable == true)
+    @Test("RPCError is reportable only for non-transient codes")
+    func rpcErrorReportability() {
+        #expect(RPCError(code: .deadlineExceeded, message: "").isReportable == false)
+        #expect(RPCError(code: .unavailable, message: "").isReportable == false)
+        #expect(RPCError(code: .internalError, message: "").isReportable == true)
+        #expect(RPCError(code: .cancelled, message: "").isReportable == true)
     }
 
     // MARK: - Real transport errors -
 
-    @Test("A real gRPC RPCTimedOut normalizes to a non-reportable transport status")
-    func rpcTimedOutClassifiesAsNonReportable() {
-        // The unary wrapper routes NIO/gRPC errors through makeGRPCStatus() before
-        // classifying; a real RPC timeout must surface as .deadlineExceeded so it
-        // lands in the transient, non-reportable bucket.
-        let status = GRPCError.RPCTimedOut(.deadline(.now())).makeGRPCStatus()
-        #expect(status.code == .deadlineExceeded)
-        #expect(status.isReportable == false)
+    /// End-to-end proof that a REAL deadline expiry in the v2 stack — not a
+    /// hand-built RPCError — surfaces as `.deadlineExceeded` and stays
+    /// non-reportable. Runs hermetically over the in-process transport against
+    /// a handler that outlives the call's timeout.
+    @Test("A real deadline expiry surfaces as RPCError.deadlineExceeded and stays non-reportable")
+    func realDeadlineExpiryClassifiesAsNonReportable() async throws {
+        let method = MethodDescriptor(fullyQualifiedService: "test.Slow", method: "Sleep")
+        let transport = InProcessTransport()
+        var router = RPCRouter<InProcessTransport.Server>()
+        router.registerHandler(forMethod: method, deserializer: UTF8Codec(), serializer: UTF8Codec()) { _, _ in
+            try await Task.sleep(for: .seconds(60))
+            return StreamingServerResponse(single: ServerResponse(message: "too late"))
+        }
+        let server = GRPCServer(transport: transport.server, router: router)
+        let client = GRPCClient(transport: transport.client)
+
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            group.addTask { try await server.serve() }
+            group.addTask { try await client.runConnections() }
+
+            var options = CallOptions.defaults
+            options.timeout = .milliseconds(100)
+
+            var caught: RPCError?
+            do {
+                _ = try await client.unary(
+                    request: ClientRequest(message: "ping"),
+                    descriptor: method,
+                    serializer: UTF8Codec(),
+                    deserializer: UTF8Codec(),
+                    options: options
+                ) { try $0.message }
+            } catch let error as RPCError {
+                caught = error
+            }
+
+            let rpcError = try #require(caught)
+            #expect(rpcError.code == .deadlineExceeded)
+            #expect(rpcError.isReportable == false)
+
+            client.beginGracefulShutdown()
+            server.beginGracefulShutdown()
+            group.cancelAll()
+        }
+    }
+}
+
+private struct UTF8Codec: MessageSerializer, MessageDeserializer {
+    func serialize<Bytes: GRPCContiguousBytes>(_ message: String) throws -> Bytes {
+        Bytes(Array(message.utf8))
+    }
+
+    func deserialize<Bytes: GRPCContiguousBytes>(_ serializedMessageBytes: Bytes) throws -> String {
+        serializedMessageBytes.withUnsafeBytes { String(decoding: $0, as: UTF8.self) }
     }
 }

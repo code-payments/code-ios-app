@@ -9,59 +9,65 @@
 import Foundation
 import FlipcashAPI
 import Combine
-import GRPC
+import GRPCCore
 import SwiftProtobuf
 
 private let logger = Logger(label: "flipcash.messaging-service")
 
-class MessagingService: CodeService<Ocp_Messaging_V1_MessagingNIOClient> {
-    
+final class MessagingService: Sendable {
+
+    private let service: Ocp_Messaging_V1_Messaging.Client<AppTransport>
+
+    init(client: GRPCClient<AppTransport>) {
+        self.service = Ocp_Messaging_V1_Messaging.Client(wrapping: client)
+    }
+
     func openMessageStream(rendezvous: KeyPair, completion: @MainActor @Sendable @escaping (Result<[StreamMessage], Error>) -> Void) -> AnyCancellable {
         logger.info("Opening message stream", metadata: ["rendezvous": "\(rendezvous.publicKey.base58)"])
-        
+
         let request = Ocp_Messaging_V1_OpenMessageStreamRequest.with {
             $0.rendezvousKey = rendezvous.publicKey.codeRendezvousKey
             $0.signature = $0.sign(with: rendezvous)
         }
-        
-        let streamReference = StreamReference<Ocp_Messaging_V1_OpenMessageStreamRequest, Ocp_Messaging_V1_OpenMessageStreamResponse>()
-        openMessageStream(assigningTo: streamReference, request: request, rendezvous: rendezvous.publicKey, completion: completion)
-        
+
+        let stream = ServerGRPCStream()
+        openMessageStream(on: stream, request: request, rendezvous: rendezvous.publicKey, completion: completion)
+
         return AnyCancellable {
-            streamReference.cancel()
+            stream.cancel()
         }
     }
-    
-    private func openMessageStream(assigningTo reference: StreamReference<Ocp_Messaging_V1_OpenMessageStreamRequest, Ocp_Messaging_V1_OpenMessageStreamResponse>, request: Ocp_Messaging_V1_OpenMessageStreamRequest, rendezvous: PublicKey, completion: @MainActor @Sendable @escaping (Result<[StreamMessage], Error>) -> Void) {
-        let queue = self.queue
-        let stream = service.openMessageStream(request, callOptions: .streaming) { response in
-            let messages = response.messages.compactMap { try? StreamMessage($0) }
-                        
-            Task { @MainActor in
-                completion(.success(messages))
-            }
-        }
-        
-        stream.status.whenCompleteBlocking(onto: queue) { [weak self, weak reference] result in
-            guard let self = self, let streamReference = reference else { return }
-            
-            if case .success(let status) = result, status.code == .unavailable {
-                // Reconnect only if the stream was closed as a result of
-                // server actions and not cancelled by the client, etc.
+
+    private func openMessageStream(on stream: ServerGRPCStream, request: Ocp_Messaging_V1_OpenMessageStreamRequest, rendezvous: PublicKey, completion: @MainActor @Sendable @escaping (Result<[StreamMessage], Error>) -> Void) {
+        stream.open(onComplete: { [weak self] result in
+            guard let self else { return }
+
+            // Reconnect only if the stream was closed as a result of
+            // server actions and not cancelled by the client, etc.
+            if case .failure(let error) = result, let rpcError = error as? RPCError, rpcError.code == .unavailable {
                 logger.debug("Reconnecting message stream", metadata: ["rendezvous": "\(rendezvous.base58)"])
                 self.openMessageStream(
-                    assigningTo: streamReference,
+                    on: stream,
                     request: request,
                     rendezvous: rendezvous,
                     completion: completion
                 )
             }
+        }) {
+            try await self.service.openMessageStream(request) { response in
+                for try await message in response.messages {
+                    let messages = message.messages.compactMap { try? StreamMessage($0) }
+
+                    // Awaiting (not spawning a Task per batch) preserves batch
+                    // ordering — v1 delivered batches through a serial queue.
+                    await MainActor.run {
+                        completion(.success(messages))
+                    }
+                }
+            }
         }
-        
-        reference.cancel()
-        reference.stream = stream
     }
-    
+
     func fetchMessages(rendezvous: KeyPair, completion: @Sendable @escaping (Result<[StreamMessage], Error>) -> Void) {
         logger.info("Fetching messages", metadata: ["rendezvous": "\(rendezvous.publicKey.base58)"])
 
@@ -70,18 +76,22 @@ class MessagingService: CodeService<Ocp_Messaging_V1_MessagingNIOClient> {
             $0.signature = $0.sign(with: rendezvous)
         }
 
-        let call = service.pollMessages(request)
-
-        call.handle(on: queue) { response in
-            let messages = response.messages.compactMap { try? StreamMessage($0) }
-            logger.info("Fetched messages", metadata: ["count": "\(response.messages.count)"])
-            completion(.success(messages))
-            
-        } failure: { error in
-            completion(.failure(error))
+        Task {
+            do {
+                let response = try await service.pollMessages(request, options: .unaryDefault)
+                let messages = response.messages.compactMap { try? StreamMessage($0) }
+                logger.info("Fetched messages", metadata: ["count": "\(response.messages.count)"])
+                await MainActor.run {
+                    completion(.success(messages))
+                }
+            } catch {
+                await MainActor.run {
+                    completion(.failure(error))
+                }
+            }
         }
     }
-    
+
     func acknowledge(messages: [StreamMessage], rendezvous: PublicKey, completion: @Sendable @escaping (Result<Void, Error>) -> Void) {
         let ids = messages.map { $0.id }
 
@@ -94,23 +104,30 @@ class MessagingService: CodeService<Ocp_Messaging_V1_MessagingNIOClient> {
             }
         }
 
-        let call = service.ackMessages(request)
-        call.handle(on: queue) { response in
-            switch response.result {
-            case .ok:
-                logger.info("Messages acknowledged successfully")
-                completion(.success(()))
+        Task {
+            do {
+                let response = try await service.ackMessages(request, options: .unaryDefault)
+                switch response.result {
+                case .ok:
+                    logger.info("Messages acknowledged successfully")
+                    await MainActor.run {
+                        completion(.success(()))
+                    }
 
-            case .UNRECOGNIZED:
-                logger.error("Failed to acknowledge messages")
-                completion(.failure(ErrorGeneric.unknown))
+                case .UNRECOGNIZED:
+                    logger.error("Failed to acknowledge messages")
+                    await MainActor.run {
+                        completion(.failure(ErrorGeneric.unknown))
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    completion(.failure(error))
+                }
             }
-            
-        } failure: { error in
-            completion(.failure(error))
         }
     }
-    
+
     private func requestToGrabBill(destination: PublicKey) -> Ocp_Messaging_V1_Message {
         .with {
             $0.requestToGrabBill = .with {
@@ -118,7 +135,7 @@ class MessagingService: CodeService<Ocp_Messaging_V1_MessagingNIOClient> {
             }
         }
     }
-    
+
     private func requestToGiveBill(mint: PublicKey, exchangeData: Ocp_Transaction_V1_VerifiedExchangeData?) -> Ocp_Messaging_V1_Message {
         .with {
             $0.requestToGiveBill = .with {
@@ -129,27 +146,27 @@ class MessagingService: CodeService<Ocp_Messaging_V1_MessagingNIOClient> {
             }
         }
     }
-    
+
     func verifyRequestToGrabBill(destination: PublicKey, rendezvous: PublicKey, signature: Signature) -> Bool {
         let messageData = try! requestToGrabBill(destination: destination).serializedData()
         return rendezvous.verify(signature: signature, data: messageData)
     }
-    
+
     func sendRequestToGrabBill(destination: PublicKey, rendezvous: KeyPair, completion: @Sendable @escaping (Result<Bool, Error>) -> Void) {
         logger.info("Sending request to grab bill", metadata: [
             "destination": "\(destination.base58)",
             "rendezvous": "\(rendezvous.publicKey.base58)"
         ])
-        
+
         let message = requestToGrabBill(destination: destination)
-        
+
         sendRendezvousMessage(
             message: message,
             rendezvous: rendezvous,
             completion: completion
         )
     }
-    
+
     func sendRequestToGiveBill(mint: PublicKey, exchangedFiat: ExchangedFiat, verifiedState: VerifiedState?, rendezvous: KeyPair, completion: @Sendable @escaping (Result<Bool, Error>) -> Void) {
         logger.info("Sending request to give bill", metadata: [
             "mint": "\(mint.base58)",
@@ -177,7 +194,7 @@ class MessagingService: CodeService<Ocp_Messaging_V1_MessagingNIOClient> {
             completion: completion
         )
     }
-    
+
     private func sendRendezvousMessage(message: Ocp_Messaging_V1_Message, rendezvous: KeyPair, completion: @Sendable @escaping (Result<Bool, Error>) -> Void) {
         let request = Ocp_Messaging_V1_SendMessageRequest.with {
             $0.message = message
@@ -186,24 +203,29 @@ class MessagingService: CodeService<Ocp_Messaging_V1_MessagingNIOClient> {
                 $0.value = rendezvous.sign(try! message.serializedData()).data
             }
         }
-        
-        let call = service.sendMessage(request)
-        call.handle(on: queue) { response in
-            let isStreamOpen: Bool
-            switch response.result {
-            case .ok:
-                isStreamOpen = true
-            case .noActiveStream, .UNRECOGNIZED:
-                isStreamOpen = false
+
+        Task {
+            do {
+                let response = try await service.sendMessage(request, options: .unaryDefault)
+                let isStreamOpen: Bool
+                switch response.result {
+                case .ok:
+                    isStreamOpen = true
+                case .noActiveStream, .UNRECOGNIZED:
+                    isStreamOpen = false
+                }
+                logger.info("Message sent", metadata: [
+                    "messageId": "\(response.messageID.hexEncoded)",
+                    "streamOpen": "\(isStreamOpen)"
+                ])
+                await MainActor.run {
+                    completion(.success(isStreamOpen))
+                }
+            } catch {
+                await MainActor.run {
+                    completion(.failure(error))
+                }
             }
-            logger.info("Message sent", metadata: [
-                "messageId": "\(response.messageID.hexEncoded)",
-                "streamOpen": "\(isStreamOpen)"
-            ])
-            completion(.success(isStreamOpen))
-            
-        } failure: { error in
-            completion(.failure(error))
         }
     }
 }
@@ -213,38 +235,6 @@ class MessagingService: CodeService<Ocp_Messaging_V1_MessagingNIOClient> {
 extension MessagingService {
     enum MessagingError: Error {
         case failedToParsePaymentRequests
-    }
-}
-
-// MARK: - Interceptors -
-
-extension InterceptorFactory: Ocp_Messaging_V1_MessagingClientInterceptorFactoryProtocol {
-    func makeOpenMessageStreamWithKeepAliveInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveRequest, FlipcashAPI.Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveResponse>] {
-        makeInterceptors()
-    }
-    
-    func makePollMessagesInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Messaging_V1_PollMessagesRequest, FlipcashAPI.Ocp_Messaging_V1_PollMessagesResponse>] {
-        makeInterceptors()
-    }
-    
-    func makeSendMessageInterceptors() -> [ClientInterceptor<Ocp_Messaging_V1_SendMessageRequest, Ocp_Messaging_V1_SendMessageResponse>] {
-        makeInterceptors()
-    }
-    
-    func makeAckMessagesInterceptors() -> [ClientInterceptor<Ocp_Messaging_V1_AckMessagesRequest, Ocp_Messaging_V1_AckMesssagesResponse>] {
-        makeInterceptors()
-    }
-    
-    func makeOpenMessageStreamInterceptors() -> [ClientInterceptor<Ocp_Messaging_V1_OpenMessageStreamRequest, Ocp_Messaging_V1_OpenMessageStreamResponse>] {
-        makeInterceptors()
-    }
-}
-
-// MARK: - GRPCClientType -
-
-extension Ocp_Messaging_V1_MessagingNIOClient: GRPCClientType {
-    init(channel: GRPCChannel) {
-        self.init(channel: channel, defaultCallOptions: .default, interceptors: InterceptorFactory())
     }
 }
 

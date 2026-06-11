@@ -34,16 +34,9 @@ if ! command -v protoc-gen-swift &> /dev/null; then
     MISSING=1
 fi
 
-if ! command -v protoc-gen-grpc-swift &> /dev/null; then
-    echo "Error: protoc-gen-grpc-swift is not installed. Install with: ./Scripts/install-grpc-swift-1-plugin.sh"
+if ! command -v protoc-gen-grpc-swift-2 &> /dev/null; then
+    echo "Error: protoc-gen-grpc-swift-2 is not installed. Install with: ./Scripts/install-grpc-swift-2-plugin.sh"
     MISSING=1
-else
-    GRPC_VERSION=$(protoc-gen-grpc-swift --version 2>&1 || true)
-    if [[ ! "$GRPC_VERSION" =~ ^protoc-gen-grpc-swift\ 1\. ]]; then
-        echo "Error: protoc-gen-grpc-swift must be version 1.x, found: $GRPC_VERSION"
-        echo "Install 1.x with: ./Scripts/install-grpc-swift-1-plugin.sh"
-        MISSING=1
-    fi
 fi
 
 if [[ $MISSING -ne 0 ]]; then

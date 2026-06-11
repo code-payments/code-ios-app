@@ -5,11 +5,17 @@
 
 import Foundation
 import FlipcashAPI
-import GRPC
+import GRPCCore
 
 private let logger = Logger(label: "flipcash.settings-service")
 
-class SettingsService: CodeService<Flipcash_Settings_V1_SettingsNIOClient> {
+final class SettingsService: Sendable {
+
+    private let service: Flipcash_Settings_V1_Settings.Client<AppTransport>
+
+    init(client: GRPCClient<AppTransport>) {
+        self.service = Flipcash_Settings_V1_Settings.Client(wrapping: client)
+    }
 
     func updateSettings(locale: String?, region: String?, owner: KeyPair, completion: @Sendable @escaping (Result<Void, ErrorUpdateSettings>) -> Void) {
         logger.info("Updating settings", metadata: [
@@ -27,15 +33,22 @@ class SettingsService: CodeService<Flipcash_Settings_V1_SettingsNIOClient> {
             $0.auth = owner.authFor(message: $0)
         }
 
-        let call = service.updateSettings(request)
-        call.handle(on: queue, completion: completion) { response in
-            let error = ErrorUpdateSettings(rawValue: response.result.rawValue) ?? .unknown
-            guard error == .ok else {
-                logger.error("Failed to update settings", metadata: ["error": "\(error)"])
-                return .failure(error)
+        Task {
+            do {
+                let response = try await service.updateSettings(request, options: .unaryDefault)
+                let error = ErrorUpdateSettings(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to update settings", metadata: ["error": "\(error)"])
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
+                logger.info("Settings updated successfully")
+                await MainActor.run { completion(.success(())) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
             }
-            logger.info("Settings updated successfully")
-            return .success(())
         }
     }
 }
@@ -57,21 +70,5 @@ extension ErrorUpdateSettings: ServerError, TransportClassifiableError {
         case .ok, .denied, .invalidLocale, .invalidRegion, .transportFailure: false
         case .unknown: true
         }
-    }
-}
-
-// MARK: - Interceptors -
-
-extension InterceptorFactory: Flipcash_Settings_V1_SettingsClientInterceptorFactoryProtocol {
-    func makeUpdateSettingsInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Settings_V1_UpdateSettingsRequest, Flipcash_Settings_V1_UpdateSettingsResponse>] {
-        makeInterceptors()
-    }
-}
-
-// MARK: - GRPCClientType -
-
-extension Flipcash_Settings_V1_SettingsNIOClient: GRPCClientType {
-    init(channel: GRPCChannel) {
-        self.init(channel: channel, defaultCallOptions: .default, interceptors: InterceptorFactory())
     }
 }
