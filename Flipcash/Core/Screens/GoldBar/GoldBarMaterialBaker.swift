@@ -37,7 +37,9 @@ nonisolated enum GoldBarMaterialBaker {
         let roughness: UIImage
     }
 
-    private static let goldField = UIColor(red: 1.0, green: 0.76, blue: 0.33, alpha: 1)
+    /// The bar's base gold reflectance — also the plain material on the bar's
+    /// unmarked faces, so the front face and sides read as one metal.
+    static let goldField = UIColor(red: 1.0, green: 0.76, blue: 0.33, alpha: 1)
     private static let goldEngraved = UIColor(red: 0.55, green: 0.40, blue: 0.15, alpha: 1)
 
     static func bake(_ config: Config) -> Textures {
@@ -103,9 +105,9 @@ nonisolated enum GoldBarMaterialBaker {
             drawCenteredLines(config.stampLines, in: textColumn(config.pixelSize), weight: .heavy, color: UIColor(white: 0.32, alpha: 1))
             drawCenteredLines([config.serial], in: serialRect(config.pixelSize), weight: .medium, color: UIColor(white: 0.38, alpha: 1))
             drawScratches(count: config.scratchCount, in: rect, color: UIColor(white: 0.62, alpha: 0.12), ctx: ctx)
-            // Pressed recess: the blurred stamp gives rounded walls (like the pressed
-            // app-icon logo), the sharp pass sinks the recess floor. The blur must stay
-            // well under the dot radius or each dot reads as a mound in a moat.
+            // Pressed recess: the blurred stamp gives rounded walls, the sharp pass
+            // sinks the recess floor. The blur must stay well under the dot radius
+            // or each dot reads as a mound in a moat.
             let frame = codeRect(config.pixelSize)
             blurred(config.code, radius: 3).draw(in: frame, blendMode: .multiply, alpha: 0.5)
             config.code.draw(in: frame, blendMode: .multiply, alpha: 0.45)

@@ -3,8 +3,7 @@ import UIKit
 import FlipcashUI
 
 /// Compiles the gold bar's SceneKit shaders once, offscreen, so the first real bar
-/// presents without the multi-second cold-compile stall — the gold bar's equivalent
-/// of ScanScreen keeping a BillView pre-rendered in the bill canvas.
+/// presents without the multi-second cold-compile stall.
 @MainActor
 final class GoldBarPrewarmer {
 

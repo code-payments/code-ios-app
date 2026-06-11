@@ -116,7 +116,7 @@ enum GoldBarScene {
         material.lightingModel = .physicallyBased
         material.metalness.contents = 1.0
         material.roughness.contents = 0.15
-        material.diffuse.contents = UIColor(red: 1.0, green: 0.76, blue: 0.33, alpha: 1)
+        material.diffuse.contents = GoldBarMaterialBaker.goldField
         material.clearCoat.contents = 0.8
         material.clearCoatRoughness.contents = 0.06
         return material
