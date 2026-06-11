@@ -1,3 +1,4 @@
+#if DEBUG
 import SwiftUI
 import FlipcashCore
 import FlipcashUI
@@ -8,7 +9,6 @@ struct GoldBarDemoScreen: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var tuning = GoldBarTuning.standard
-    @State private var isSceneReady = false
 
     private let codeData = Data.placeholder35
 
@@ -17,19 +17,10 @@ struct GoldBarDemoScreen: View {
             ZStack {
                 Color(white: 0.04).ignoresSafeArea()
 
-                GoldBarSceneView(
+                GoldBarView(
                     key: .init(payload: codeData, stampLines: ["$25.00"], serial: PublicKey.usdf.base58),
-                    tuning: tuning,
-                    onSceneReady: {
-                        withAnimation(.easeOut(duration: 0.3)) {
-                            isSceneReady = true
-                        }
-                    }
+                    tuning: tuning
                 )
-
-                GoldBarPlaceholder()
-                    .opacity(isSceneReady ? 0 : 1)
-                    .allowsHitTesting(false)
 
                 GoldBarTuningOverlay(tuning: $tuning)
             }
@@ -38,32 +29,6 @@ struct GoldBarDemoScreen: View {
                     CloseButton { dismiss() }
                 }
             }
-        }
-    }
-}
-
-/// Flat gold stand-in shown while SceneKit compiles the scene off the main thread.
-/// Sized and positioned to match the rendered bar so the crossfade doesn't jump.
-struct GoldBarPlaceholder: View {
-    var body: some View {
-        GeometryReader { geo in
-            let height = geo.size.height * 0.80
-            let width = height * (0.60 / 1.04)
-            RoundedRectangle(cornerRadius: height * 0.021)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color(red: 1.0, green: 0.85, blue: 0.45),
-                            Color(red: 0.93, green: 0.72, blue: 0.32),
-                            Color(red: 0.80, green: 0.58, blue: 0.22),
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .frame(width: width, height: height)
-                .position(x: geo.size.width / 2, y: geo.size.height / 2)
-                .shadow(color: Color(red: 1.0, green: 0.8, blue: 0.4).opacity(0.35), radius: 24)
         }
     }
 }
@@ -205,3 +170,4 @@ private struct LabeledSlider: View {
         }
     }
 }
+#endif

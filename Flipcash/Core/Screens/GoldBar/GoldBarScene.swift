@@ -11,6 +11,12 @@ enum GoldBarScene {
         let material: SCNMaterial
     }
 
+    /// Bar proportions in scene units (real 1oz minted bar ≈ 24×41×2mm — thin, tall).
+    static let barSize = SIMD3<Double>(0.60, 1.04, 0.13)
+    static let chamferRadius: Double = 0.022
+    /// Fraction of the viewport height the bar fills at the fixed camera distance.
+    static let viewportHeightFill: Double = 0.80
+
     /// Unit direction the key light sits in, for a rest anchor (x lateral, y elevation).
     static func lightDirection(anchor: SIMD2<Double>) -> SIMD3<Double> {
         simd_normalize(SIMD3(anchor.x, anchor.y, 1))
@@ -26,8 +32,9 @@ enum GoldBarScene {
         scene.lightingEnvironment.contents = environmentImage
         scene.lightingEnvironment.intensity = CGFloat(GoldBarTuning.standard.environmentIntensity)
 
-        // Portrait minted bar (real 1oz ≈ 24×41×2mm — thin, tall), large face toward the camera (+Z).
-        let box = SCNBox(width: 0.60, height: 1.04, length: 0.13, chamferRadius: 0.022)
+        // Portrait minted bar, large face toward the camera (+Z).
+        let box = SCNBox(width: CGFloat(barSize.x), height: CGFloat(barSize.y),
+                         length: CGFloat(barSize.z), chamferRadius: CGFloat(chamferRadius))
         // Detailed (markings/QR) only on the front face; plain polished gold on the sides/back.
         // SCNBox material order: front(+Z), right(+X), back(−Z), left(−X), top(+Y), bottom(−Y).
         let detailed = goldMaterial(textures)
@@ -52,8 +59,8 @@ enum GoldBarScene {
         camera.bloomThreshold = 0.95
         camera.bloomBlurRadius = 10
         cameraNode.camera = camera
-        // Face-on, framed so the bar fills ~80% of the viewport height — bill-sized
-        // when hosted in the bill canvas, with margin for the slight motion lean.
+        // Face-on, framed so the bar fills `viewportHeightFill` of the viewport height —
+        // bill-sized when hosted in the bill canvas, with margin for the slight motion lean.
         cameraNode.position = SCNVector3(0, 0, 2.6)
         cameraNode.look(at: SCNVector3Zero)
         scene.rootNode.addChildNode(cameraNode)
