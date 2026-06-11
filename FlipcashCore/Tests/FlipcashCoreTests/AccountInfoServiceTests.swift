@@ -27,6 +27,19 @@ struct AccountInfoServiceTests {
         #expect(result == .failure(.accountNotInList))
     }
 
+    @Test("OK response whose only matching account fails to parse resolves to parseFailed")
+    func matchingTypeUnparseable_returnsParseFailed() {
+        var info = makeTokenAccountInfo(accountType: .remoteSendGiftCard)
+        info.owner.value = Data(repeating: 1, count: 5) // truncated key — AccountInfo init throws
+
+        var response = Ocp_Account_V1_GetTokenAccountInfosResponse()
+        response.tokenAccountInfos = ["giftCard": info]
+
+        let result = AccountInfoService.accountInfo(in: response, type: .giftCard)
+
+        #expect(result == .failure(.parseFailed))
+    }
+
     @Test("OK response containing the requested account type resolves to the parsed account")
     func matchingType_returnsParsedAccount() throws {
         let address = try PublicKey(Data(repeating: 1, count: 32))
