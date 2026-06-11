@@ -3,7 +3,7 @@
 //  Flipcash
 //
 
-import UIKit
+import Foundation
 import FlipcashUI
 import FlipcashCore
 

@@ -5,7 +5,7 @@
 //  Created by Dima Bart on 2025-04-15.
 //
 
-import UIKit
+import Foundation
 import FlipcashUI
 import FlipcashCore
 
