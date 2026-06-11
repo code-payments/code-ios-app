@@ -16,9 +16,7 @@ struct SettingsAdvancedFeaturesScreen: View {
 
     private let insets = EdgeInsets(top: 25, leading: 0, bottom: 25, trailing: 0)
 
-    #if DEBUG
     @State private var isShowingGoldBarDemo = false
-    #endif
 
     var body: some View {
         Background(color: .backgroundMain) {
@@ -36,12 +34,10 @@ struct SettingsAdvancedFeaturesScreen: View {
                         router.push(.settingsApplicationLogs)
                     }
 
-                    #if DEBUG
                     SettingsRow(systemImage: "rectangle.portrait.on.rectangle.portrait.angled", title: "Gold Bar Demo", insets: insets) {
                         GoldBarTextureStore.shared.preheat(key: GoldBarDemoScreen.demoKey)
                         isShowingGoldBarDemo = true
                     }
-                    #endif
                 }
                 .font(.appDisplayXS)
                 .foregroundStyle(.textMain)
@@ -50,10 +46,8 @@ struct SettingsAdvancedFeaturesScreen: View {
         }
         .navigationTitle("Advanced Features")
         .toolbarTitleDisplayMode(.inline)
-        #if DEBUG
         .fullScreenCover(isPresented: $isShowingGoldBarDemo) {
             GoldBarDemoScreen()
         }
-        #endif
     }
 }

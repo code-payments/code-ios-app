@@ -1,9 +1,8 @@
-#if DEBUG
 import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-/// Standalone DEBUG demo: a tilt-reactive gold bar with a floating PiP-style tuning panel.
+/// Standalone demo: a tilt-reactive gold bar with a floating PiP-style tuning panel.
 struct GoldBarDemoScreen: View {
 
     @Environment(\.dismiss) private var dismiss
@@ -38,30 +37,21 @@ struct GoldBarDemoScreen: View {
 
 /// Owns the floating panel's position so drags re-render only this overlay, never the scene view.
 /// Mirrors system PiP: 1:1 drag from anywhere on the panel, momentum snap to the nearest corner
-/// on release, and a fling past a screen edge stashes the panel with a tab peeking; tap to restore.
+/// on release. The panel always stays fully on screen.
 private struct GoldBarTuningOverlay: View {
     @Binding var tuning: GoldBarTuning
 
     @State private var position: CGPoint?
     @State private var panelSize = CGSize(width: 300, height: 320)
     @State private var dragStart: CGPoint?
-    @State private var isStashed = false
 
     private let margin: CGFloat = 12
-    private let stashPeek: CGFloat = 32
 
     var body: some View {
         GeometryReader { geo in
             let current = position ?? restingPosition(in: geo.size)
             GoldBarTuningPanel(tuning: $tuning)
             .onGeometryChange(for: CGSize.self) { $0.size } action: { panelSize = $0 }
-            .onTapGesture {
-                guard isStashed else { return }
-                isStashed = false
-                withAnimation(.spring(response: 0.38, dampingFraction: 0.8)) {
-                    position = nearestCorner(to: current, in: geo.size)
-                }
-            }
             .gesture(dragGesture(from: current, in: geo.size))
             .position(current)
         }
@@ -82,12 +72,8 @@ private struct GoldBarTuningOverlay: View {
                 dragStart = nil
                 let projected = CGPoint(x: start.x + value.predictedEndTranslation.width,
                                         y: start.y + value.predictedEndTranslation.height)
-                let stashedEdge = stashEdge(for: projected, in: container)
-                isStashed = stashedEdge != nil
-                let target = stashedEdge.map { stashPosition(edge: $0, y: projected.y, in: container) }
-                    ?? nearestCorner(to: projected, in: container)
                 withAnimation(.spring(response: 0.38, dampingFraction: 0.8)) {
-                    position = target
+                    position = nearestCorner(to: projected, in: container)
                 }
             }
     }
@@ -104,27 +90,6 @@ private struct GoldBarTuningOverlay: View {
             ? margin + panelSize.height / 2
             : container.height - margin - panelSize.height / 2
         return CGPoint(x: x, y: y)
-    }
-
-    /// A fling whose projected center crosses a vertical screen edge stashes the panel there.
-    private func stashEdge(for projected: CGPoint, in container: CGSize) -> HorizontalEdge? {
-        if projected.x < 0 { return .leading }
-        if projected.x > container.width { return .trailing }
-        return nil
-    }
-
-    private func stashPosition(edge: HorizontalEdge, y: CGFloat, in container: CGSize) -> CGPoint {
-        let x: CGFloat = switch edge {
-        case .leading: -panelSize.width / 2 + stashPeek
-        case .trailing: container.width + panelSize.width / 2 - stashPeek
-        }
-        let minY = margin + panelSize.height / 2
-        let maxY = container.height - margin - panelSize.height / 2
-        return CGPoint(x: x, y: min(max(y, minY), maxY))
-    }
-
-    private enum HorizontalEdge {
-        case leading, trailing
     }
 }
 
@@ -173,4 +138,3 @@ private struct LabeledSlider: View {
         }
     }
 }
-#endif
