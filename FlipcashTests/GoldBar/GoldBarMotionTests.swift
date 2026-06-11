@@ -1,12 +1,11 @@
 import Testing
-import simd
 @testable import Flipcash
 
 @Suite("GoldBarMotion")
 struct GoldBarMotionTests {
 
     /// Phone held up to view it (top up, leaned back a little) — the centered rest attitude.
-    private static let neutral = SIMD3<Double>(0, GoldBarMotion.neutralGravityY, -0.5)
+    private static let neutral = GoldBarMotion.neutralGravity
 
     @Test("Neutral held attitude leaves the bar facing the user")
     func barRotation_neutral_isZero() {

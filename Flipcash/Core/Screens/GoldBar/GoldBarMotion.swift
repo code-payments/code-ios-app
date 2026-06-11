@@ -1,6 +1,3 @@
-import Foundation
-import simd
-
 /// Pure mapping from the device's gravity vector to a slight lean of the bar —
 /// the light stays fixed and the bar leans with the device, sweeping the
 /// reflections. Referenced to a *held* viewing attitude (not flat-on-desk).
@@ -9,6 +6,9 @@ nonisolated enum GoldBarMotion {
     /// gravity.y when the phone is held up to view it (top up, leaned back a little).
     /// The bar sits face-on at this attitude — NOT when the phone lies flat (gravity.y == 0).
     static let neutralGravityY: Double = -0.85
+    /// The gravity vector at the neutral held attitude — motion smoothing starts
+    /// and resets here so the first frame is already centered.
+    static let neutralGravity = SIMD3<Double>(0, neutralGravityY, -0.5)
 
     /// Degrees of bar yaw per unit of left/right tilt (gravity.x).
     static let yawGain: Double = 36

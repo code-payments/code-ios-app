@@ -160,14 +160,13 @@ public final class CameraSession<T>: AnyCameraSession, @unchecked Sendable where
 
         session.addInput(input)
 
-        let output = videoOutput
-        output.setSampleBufferDelegate(videoDelegate, queue: videoDelegate.queue)
+        videoOutput.setSampleBufferDelegate(videoDelegate, queue: videoDelegate.queue)
 
-        guard session.canAddOutput(output) else {
+        guard session.canAddOutput(videoOutput) else {
             throw Error.outputAddFailed
         }
 
-        session.addOutput(output)
+        session.addOutput(videoOutput)
 
         let metadataOutput = AVCaptureMetadataOutput()
         metadataOutput.setMetadataObjectsDelegate(metadataDelegate, queue: metadataDelegate.queue)

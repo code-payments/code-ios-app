@@ -24,8 +24,8 @@ final class GoldBarSceneHost {
     private var tuning = GoldBarTuning.standard
 
     private let motion = CMMotionManager()
-    private var smoothedGravity = SIMD3<Double>(0, GoldBarMotion.neutralGravityY, -0.5)
-    private var lastAppliedGravity = SIMD3<Double>(0, GoldBarMotion.neutralGravityY, -0.5)
+    private var smoothedGravity = GoldBarMotion.neutralGravity
+    private var lastAppliedGravity = GoldBarMotion.neutralGravity
     private var motionRotation = SIMD2<Double>(0, 0)
 
     init(store: GoldBarTextureStore = .shared) {
@@ -47,13 +47,18 @@ final class GoldBarSceneHost {
         self.view = view
         warmTask = Task {
             let code = GoldBarCodeRenderer.image(for: .placeholder35, side: 64)
-            let textures = GoldBarMaterialBaker.bake(GoldBarMaterialBaker.Config(
+            let config = GoldBarMaterialBaker.Config(
                 pixelSize: CGSize(width: 96, height: 166),
                 code: code,
                 stampLines: ["0"],
                 serial: "0",
                 scratchCount: 0
-            ))
+            )
+            // Off-main like the store's full bakes — the scan screen is live
+            // and interactive while this warms.
+            let textures = await Task.detached(priority: .utility) {
+                GoldBarMaterialBaker.bake(config)
+            }.value
             let bundle = GoldBarScene.make(textures: textures)
             await withCheckedContinuation { continuation in
                 view.prepare([bundle.scene]) { _ in continuation.resume() }
@@ -136,7 +141,7 @@ final class GoldBarSceneHost {
     /// bill's lean never carries over.
     private func resetMotionState() {
         motion.stopDeviceMotionUpdates()
-        smoothedGravity = SIMD3(0, GoldBarMotion.neutralGravityY, -0.5)
+        smoothedGravity = GoldBarMotion.neutralGravity
         lastAppliedGravity = smoothedGravity
         motionRotation = SIMD2(0, 0)
     }

@@ -1,5 +1,3 @@
-import Foundation
-
 /// The bar's adjustable look. `standard` is the tuned production look and the
 /// demo sliders' starting values.
 struct GoldBarTuning: Equatable {

@@ -127,8 +127,8 @@ struct ScanScreen: View {
             try? await Task.sleep(for: .seconds(1))  // let the scan screen settle first
             GoldBarSceneHost.shared.warmUpIfNeeded()
         }
-        .onChange(of: session.isShowingBill, initial: true) { _, isShowingBill in
-            viewModel.setFrameExtractionEnabled(!isShowingBill)
+        .onChange(of: session.isShowingBill, initial: true) { _, _ in
+            viewModel.reconcileFrameExtraction()
         }
         .sheet(item: $session.valuation) { valuation in
             PartialSheet(background: .clear, canAccessBackground: true) {

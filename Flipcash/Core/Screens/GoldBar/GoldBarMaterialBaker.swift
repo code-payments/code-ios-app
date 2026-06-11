@@ -177,24 +177,23 @@ nonisolated enum GoldBarMaterialBaker {
         vDSP.multiply(scale, dx, result: &dx)
         vDSP.multiply(scale, dy, result: &dy)
 
-        // invLen = 1 / sqrt(dx² + dy² + 1)
+        // invLen = 1 / sqrt(dx² + dy² + 1), computed in place — these planes are
+        // ~2.8MB each at full resolution, so reuse beats fresh allocations.
         var lenSquared = [Float](repeating: 0, count: count)
         vDSP.multiply(dx, dx, result: &lenSquared)
         var dySquared = [Float](repeating: 0, count: count)
         vDSP.multiply(dy, dy, result: &dySquared)
         vDSP.add(lenSquared, dySquared, result: &lenSquared)
         vDSP.add(1, lenSquared, result: &lenSquared)
-        var invLen = [Float](repeating: 0, count: count)
-        vForce.rsqrt(lenSquared, result: &invLen)
+        vForce.rsqrt(lenSquared, result: &lenSquared)
+        let invLen = lenSquared
 
-        var nx = [Float](repeating: 0, count: count)
-        vDSP.multiply(dx, invLen, result: &nx)
-        var ny = [Float](repeating: 0, count: count)
-        vDSP.multiply(dy, invLen, result: &ny)
+        vDSP.multiply(dx, invLen, result: &dx)
+        vDSP.multiply(dy, invLen, result: &dy)
 
-        let r = bytePlane(nx, scale: -127.5, count: count)
-        let g = bytePlane(ny, scale: 127.5, count: count)
-        let b = bytePlane(invLen, scale: 127.5, count: count)
+        let r = bytePlane(dx, scale: -127.5)
+        let g = bytePlane(dy, scale: 127.5)
+        let b = bytePlane(invLen, scale: 127.5)
         var rgba = interleavedRGBA(r: r, g: g, b: b, width: w, height: h)
 
         let image = rgba.withUnsafeMutableBufferPointer { buffer -> CGImage in
@@ -207,8 +206,8 @@ nonisolated enum GoldBarMaterialBaker {
     }
 
     /// values·scale + 127.5, clipped to bytes.
-    private static func bytePlane(_ values: [Float], scale: Float, count: Int) -> [UInt8] {
-        var f = [Float](repeating: 0, count: count)
+    private static func bytePlane(_ values: [Float], scale: Float) -> [UInt8] {
+        var f = [Float](repeating: 0, count: values.count)
         vDSP.multiply(scale, values, result: &f)
         vDSP.add(127.5, f, result: &f)
         vDSP.clip(f, to: 0...255, result: &f)

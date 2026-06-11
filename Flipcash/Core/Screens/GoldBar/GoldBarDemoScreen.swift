@@ -14,10 +14,9 @@ struct GoldBarDemoScreen: View {
 
     /// Preheat this key at the presenting tap (as `showCashBill` does for bills)
     /// so the demo opens with the bake already done.
-    static let demoKey = GoldBarTextureStore.Key(
-        payload: .placeholder35,
-        stampLines: ["$25.00"],
-        serial: PublicKey.usdf.base58
+    static let demoKey: GoldBarTextureStore.Key = .usdfBill(
+        fiat: FiatAmount(value: 25, currency: .usd),
+        codeData: .placeholder35
     )
 
     var body: some View {

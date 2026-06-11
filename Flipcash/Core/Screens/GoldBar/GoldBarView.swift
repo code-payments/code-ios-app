@@ -21,9 +21,11 @@ struct GoldBarView: View {
                 }
             )
 
-            GoldBarPlaceholder()
-                .opacity(isSceneReady ? 0 : 1)
-                .allowsHitTesting(false)
+            if !isSceneReady {
+                GoldBarPlaceholder()
+                    .transition(.opacity)
+                    .allowsHitTesting(false)
+            }
         }
     }
 }
