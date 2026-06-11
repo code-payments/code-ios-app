@@ -13,21 +13,25 @@ struct GoldBarSceneView: UIViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator(key: key) }
 
-    // The SCNView attaches as soon as the baked textures and prepared scene are
-    // ready — typically while the cover is still sliding in — with the placeholder
-    // covering the gap. Shader variants are precompiled by GoldBarPrewarmer.
+    /// Motion-driven rendering stays out of the cover transition: re-rendering
+    /// the scene on the main thread while the presentation animates drops frames.
+    private static let motionStartDelay: Duration = .milliseconds(600)
+
+    // The scene attaches as soon as the baked textures are prepared — typically
+    // while the cover is still sliding in — renders one frame, and holds it.
+    // Motion (and with it per-tick re-rendering) starts after the transition.
     func makeUIView(context: Context) -> UIView {
-        let container = UIView()
-        container.backgroundColor = .clear
+        // Created at mount, before the transition's first frame, so the Metal
+        // layer/renderer setup cost never lands mid-animation.
+        let view = SCNView()
+        view.backgroundColor = .clear
+        view.antialiasingMode = .multisampling2X
+        view.allowsCameraControl = false
         let coordinator = context.coordinator
         let onReady = onSceneReady
         Task {
             let bundle = await coordinator.buildSceneIfNeeded()
             guard !coordinator.isStopped else { return }
-            let view = SCNView()
-            view.backgroundColor = .clear
-            view.antialiasingMode = .multisampling2X
-            view.allowsCameraControl = false
             await withCheckedContinuation { continuation in
                 view.prepare([bundle.scene]) { _ in
                     continuation.resume()
@@ -36,14 +40,14 @@ struct GoldBarSceneView: UIViewRepresentable {
             guard !coordinator.isStopped else { return }
 
             view.scene = bundle.scene
-            view.frame = container.bounds
-            view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-            container.addSubview(view)
             coordinator.scnView = view
-            coordinator.start()
             onReady()
+
+            try? await Task.sleep(for: Self.motionStartDelay)
+            guard !coordinator.isStopped else { return }
+            coordinator.start()
         }
-        return container
+        return view
     }
 
     func updateUIView(_ uiView: UIView, context: Context) {
