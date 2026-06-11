@@ -96,11 +96,16 @@ private class _BillCanvasController: UIViewController {
             switch bill {
             case .cash(let payload, let mint, let billColors):
                 if mint == .usdf {
+                    let codeData = payload.codeData()
+                    // Fresh identity per payload: the scene coordinator captures the code and
+                    // amount at creation, so a reused view would show the previous bill's bar
+                    // (stale amount + a dead scannable code).
                     GoldBarBillView(
                         fiat: payload.fiat,
-                        data: payload.codeData(),
+                        data: codeData,
                         canvasSize: canvasSize()
                     )
+                    .id(codeData)
                 } else {
                     let parsedColors: [Color]? = {
                         guard !billColors.isEmpty else { return nil }
@@ -213,11 +218,25 @@ private class _BillCanvasController: UIViewController {
             restoreBrightness()
             cancelDrag()
 
+            // Once the slide-out finishes, drop the dismissed bill's content so its
+            // hosted view dismantles — the gold bar's scene and motion updates would
+            // otherwise keep running offscreen for the rest of the session.
+            let teardownContent: VoidAction = { [weak self] in
+                guard let self else { return }
+                switch self.presentationState {
+                case .hidden:
+                    self.bill = nil
+                    self.host?.rootView = AnyView(self.content(bill: nil))
+                case .visible:
+                    break  // re-presented mid-dismissal; keep the live content
+                }
+            }
+
             switch style {
             case .pop:
-                setState(.centerInflated, animated: true)
+                setState(.centerInflated, animated: true, completion: teardownContent)
             case .slide:
-                setState(.bottom, animated: true)
+                setState(.bottom, animated: true, completion: teardownContent)
             }
         }
     }
@@ -291,15 +310,16 @@ private class _BillCanvasController: UIViewController {
 
     // MARK: - State Changes -
     
-    private func setState(_ state: State, animated: Bool) {
+    private func setState(_ state: State, animated: Bool, completion: VoidAction? = nil) {
         guard state != self.state else {
+            completion?()
             return
         }
 
         let oldState = self.state
         self.state = state
-        
-        transitionState(from: oldState, to: state, animated: animated, completion: nil)
+
+        transitionState(from: oldState, to: state, animated: animated, completion: completion)
     }
     
     private func transitionState(from fromState: State, to toState: State, animated: Bool, completion: VoidAction? = nil) {
@@ -354,6 +374,7 @@ private class _BillCanvasController: UIViewController {
             
         default:
             applyState(toState)
+            completion?()
         }
     }
     
