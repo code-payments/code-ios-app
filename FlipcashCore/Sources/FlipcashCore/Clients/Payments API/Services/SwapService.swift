@@ -180,7 +180,7 @@ final class SwapService: Sendable {
                         )
                     } catch {
                         logger.error("Failed to build swap transaction", metadata: ["error": "\(error)"])
-                        _ = reference.stream?.sendEnd()
+                        reference.cancel()
                         completion(.failure(.unknown))
                         return
                     }
@@ -252,7 +252,7 @@ final class SwapService: Sendable {
                         )
                     } catch {
                         logger.error("Failed to build swap transaction", metadata: ["error": "\(error)"])
-                        _ = reference.stream?.sendEnd()
+                        reference.cancel()
                         completion(.failure(.unknown))
                         return
                     }

@@ -45,22 +45,15 @@ final class AccountInfoService: Sendable {
 
                 let error = ErrorFetchBalance(rawValue: response.result.rawValue) ?? .unknown
                 if error == .ok {
-                    let account = response.tokenAccountInfos.compactMap {
-                        if $0.value.accountType == type.proto, let account = try? AccountInfo($0.value) {
-                            return account
-                        } else {
-                            return nil
-                        }
-                    }.first
-
-                    if let account {
+                    switch Self.accountInfo(in: response, type: type) {
+                    case .success(let account):
                         await MainActor.run { completion(.success(account)) }
-                    } else {
+                    case .failure(let failure):
                         logger.error("Account not in list of accounts returned", metadata: [
                             "expectedType": "\(type)",
                             "returnedCount": "\(response.tokenAccountInfos.count)",
                         ])
-                        await MainActor.run { completion(.failure(error)) }
+                        await MainActor.run { completion(.failure(failure)) }
                     }
 
                 } else {

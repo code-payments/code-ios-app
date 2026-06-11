@@ -22,73 +22,6 @@ final class MessagingService: Sendable {
         self.service = Ocp_Messaging_V1_Messaging.Client(wrapping: client)
     }
 
-//    typealias KeepAliveMessageStreamReference = BidirectionalStreamReference<Code_Messaging_V1_OpenMessageStreamWithKeepAliveRequest, Code_Messaging_V1_OpenMessageStreamWithKeepAliveResponse>
-//
-//    func openKeepaliveMessageStream(completion: @escaping (Result<[StreamMessage], Error>) -> Void) -> AnyCancellable {
-//        trace(.open, components: "Opening keepalive message stream.")
-//
-//        let request = Code_Messaging_V1_OpenMessageStreamWithKeepAliveRequest.with {
-//            $0.request = .with {
-//                $0.rendezvousKey = rendezvous.publicKey.codeRendezvousKey
-//                $0.signature = $0.sign(with: rendezvous)
-//            }
-//        }
-//
-//        let streamReference = KeepAliveMessageStreamReference()
-//        streamReference.retain()
-//
-//        openKeepAliveMessageStream(
-//            assigningTo: streamReference,
-//            completion: completion
-//        )
-//
-//        return AnyCancellable {
-//            streamReference.release()
-//            streamReference.cancel()
-//        }
-//    }
-//
-//    private func openKeepAliveMessageStream(assigningTo reference: KeepAliveMessageStreamReference, completion: @escaping (Result<[StreamMessage], Error>) -> Void) {
-//        let queue = self.queue
-//        let stream = service.openMessageStreamWithKeepAlive { response in
-//            guard let result = response.responseOrPing else {
-//                trace(.failure, components: "Server sent empty message. This is unexpected.")
-//                return
-//            }
-//
-//            switch result {
-//            case .response(let response):
-//
-//                let messages = response.messages.compactMap { try? StreamMessage($0) }
-//                queue.async {
-//                    trace(.receive, components: "Received \(messages.count) messages.")
-//                    completion(.success(messages))
-//                }
-//
-//            case .ping(let ping):
-//                // TODO: Implement
-//                break
-//            }
-//        }
-//
-//        stream.status.whenCompleteBlocking(onto: queue) { [weak self, weak reference] result in
-//            guard let self = self, let streamReference = reference else { return }
-//
-//            if case .success(let status) = result, status.code == .unavailable {
-//                // Reconnect only if the stream was closed as a result of
-//                // server actions and not cancelled by the client, etc.
-//                trace(.note, components: "Reconnecting keepalive stream...")
-//                self.openKeepAliveMessageStream(
-//                    assigningTo: streamReference,
-//                    completion: completion
-//                )
-//            }
-//        }
-//
-//        reference.cancel()
-//        reference.stream = stream
-//    }
-
     func openMessageStream(rendezvous: KeyPair, completion: @MainActor @Sendable @escaping (Result<[StreamMessage], Error>) -> Void) -> AnyCancellable {
         logger.info("Opening message stream", metadata: ["rendezvous": "\(rendezvous.publicKey.base58)"])
 
@@ -278,9 +211,7 @@ final class MessagingService: Sendable {
                 switch response.result {
                 case .ok:
                     isStreamOpen = true
-                case .noActiveStream:
-                    isStreamOpen = false
-                default:
+                case .noActiveStream, .UNRECOGNIZED:
                     isStreamOpen = false
                 }
                 logger.info("Message sent", metadata: [

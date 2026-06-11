@@ -89,5 +89,5 @@ public class Client: ObservableObject {
 }
 
 extension Client {
-    public static let mock = try! Client(network: .testNet)
+    public static let mock = try! Client(network: .mainNet)
 }

@@ -19,8 +19,6 @@ struct GRPCTransportTests {
     @Test("Transport construction does not throw for any production host", arguments: [
         Network.mainNet.hostForPayments,
         Network.mainNet.hostForCore,
-        Network.testNet.hostForPayments,
-        Network.testNet.hostForCore,
     ])
     func makeTransportServicesDoesNotThrow(host: String) {
         #expect(throws: Never.self) {
