@@ -1,4 +1,5 @@
 import UIKit
+import CoreImage
 
 /// Procedurally bakes the portrait gold bar's PBR maps (no bundled assets):
 /// - albedo: warm gold field, engraved emblem + stacked markings + serial, dark etched Kik code
@@ -84,8 +85,9 @@ nonisolated enum GoldBarMaterialBaker {
             drawCenteredLines(config.stampLines, in: textColumn(config.pixelSize), weight: .heavy, color: goldEngraved)
             drawCenteredLines([config.serial], in: serialRect(config.pixelSize), weight: .medium, color: goldEngraved)
 
-            // Etched code: dark dots laser-etched into the gold (transparent pixels leave it untouched).
-            config.code.draw(in: codeRect(config.pixelSize), blendMode: .multiply, alpha: 1)
+            // Pressed-in code: the recess floor is darkened gold (cavity shading), not ink —
+            // the depth itself comes from the height field below.
+            config.code.draw(in: codeRect(config.pixelSize), blendMode: .multiply, alpha: 0.5)
         }
     }
 
@@ -112,10 +114,28 @@ nonisolated enum GoldBarMaterialBaker {
             drawCenteredLines(config.stampLines, in: textColumn(config.pixelSize), weight: .heavy, color: UIColor(white: 0.32, alpha: 1))
             drawCenteredLines([config.serial], in: serialRect(config.pixelSize), weight: .medium, color: UIColor(white: 0.38, alpha: 1))
             drawScratches(count: config.scratchCount, in: rect, color: UIColor(white: 0.62, alpha: 0.12), ctx: ctx)
-            // Code low-relief so the engraving doesn't shatter scan contrast under bright light.
-            config.code.draw(in: codeRect(config.pixelSize), blendMode: .multiply, alpha: 0.3)
+            // Pressed recess: the blurred stamp gives rounded walls (like the pressed
+            // app-icon logo), the sharp pass sinks the recess floor. The blur must stay
+            // well under the dot radius or each dot reads as a mound in a moat.
+            let frame = codeRect(config.pixelSize)
+            blurred(config.code, radius: 3).draw(in: frame, blendMode: .multiply, alpha: 0.5)
+            config.code.draw(in: frame, blendMode: .multiply, alpha: 0.45)
         }
     }
+
+    /// Soft-walled version of a stamp mask — blurring the height stamp turns a hard
+    /// etch into a pressed recess with rounded walls.
+    private static func blurred(_ image: UIImage, radius: CGFloat) -> UIImage {
+        guard let input = CIImage(image: image) else { return image }
+        let output = input.clampedToExtent()
+            .applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: radius])
+            .cropped(to: input.extent)
+        guard let cg = blurContext.createCGImage(output, from: output.extent) else { return image }
+        return UIImage(cgImage: cg)
+    }
+
+    // CIContext is thread-safe and expensive to create; shared across bakes.
+    private static let blurContext = CIContext()
 
     private static func normalMap(from height: UIImage) -> UIImage {
         guard let cg = height.cgImage else { return height }
@@ -146,8 +166,11 @@ nonisolated enum GoldBarMaterialBaker {
                         let dy = Float(Int(down) - Int(up)) * scale
                         let invLen = 1 / (dx * dx + dy * dy + 1).squareRoot()
                         let i = (row + x) * 4
+                        // Green is NOT negated: with the key light anchored low and frontal,
+                        // the flipped vertical response shades marks dark-on-top, which is
+                        // what reads as "pressed into the bar" (eyes assume light from above).
                         dst[i]     = UInt8(max(0, min(255, (-dx * invLen * 0.5 + 0.5) * 255)))
-                        dst[i + 1] = UInt8(max(0, min(255, (-dy * invLen * 0.5 + 0.5) * 255)))
+                        dst[i + 1] = UInt8(max(0, min(255, (dy * invLen * 0.5 + 0.5) * 255)))
                         dst[i + 2] = UInt8(max(0, min(255, (invLen * 0.5 + 0.5) * 255)))
                         dst[i + 3] = 255
                     }
