@@ -204,7 +204,7 @@ class CurrencyLaunchProcessingViewModel {
     /// "reserve state cannot be provided for core mint". Returns `nil` when
     /// the verified state or balance are unexpectedly missing (the polling
     /// loop should have guaranteed both by now).
-    func prepareBillHandoff(session: Session, ratesController: RatesController) async -> Session.BillDescription? {
+    func prepareBillHandoff(session: Session, ratesController: RatesController) async -> Session.Cash.BillDescription? {
         isReceivingBill = true
         defer { isReceivingBill = false }
 
@@ -252,7 +252,7 @@ class CurrencyLaunchProcessingViewModel {
             return nil
         }
 
-        return Session.BillDescription(
+        return Session.Cash.BillDescription(
             kind: .cash,
             exchangedFiat: balanceFiat,
             received: true,

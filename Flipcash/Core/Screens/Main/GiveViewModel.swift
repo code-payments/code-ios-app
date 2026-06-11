@@ -167,7 +167,7 @@ final class GiveViewModel {
 
                 try await Task.delay(milliseconds: 50)
 
-                session.showCashBill(
+                session.cash.showBill(
                     .init(
                         kind: .cash,
                         exchangedFiat: amountToSend,

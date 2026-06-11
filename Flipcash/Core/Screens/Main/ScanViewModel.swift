@@ -70,7 +70,7 @@ class ScanViewModel {
             return
         }
 
-        guard !session.isProcessingScan else {
+        guard !session.cash.isProcessingScan else {
             return
         }
 
@@ -92,7 +92,7 @@ class ScanViewModel {
         
         switch payload.kind {
         case .cash, .cashMulticurrency:
-            session.receiveCash(payload) { [weak self] result in
+            session.cash.receive(payload) { [weak self] result in
                 switch result {
                 case .success:
                     break
@@ -125,7 +125,7 @@ class ScanViewModel {
             return
         }
 
-        guard !session.isProcessingScan else {
+        guard !session.cash.isProcessingScan else {
             return
         }
 

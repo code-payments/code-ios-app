@@ -83,7 +83,7 @@ struct TransactionHistoryScreen: View {
     private func cancelCashLink(metadata: Activity.CashLinkMetadata) {
         Task {
             do {
-                try await session.cancelCashLink(giftCardVault: metadata.vault)
+                try await session.cash.cancelLink(giftCardVault: metadata.vault)
             } catch {
                 ErrorReporting.captureError(error, reason: "Failed to cancel cash link", metadata: [
                     "vault": metadata.vault.base58,

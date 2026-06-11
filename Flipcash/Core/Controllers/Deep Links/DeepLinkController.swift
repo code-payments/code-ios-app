@@ -188,7 +188,7 @@ struct DeepLinkAction {
         case .receiveCashLink(let mnemonic):
             if case .loggedIn(let container) = sessionAuthenticator.state {
                 Analytics.deeplinkRouted(kind: kind)
-                container.session.receiveCashLink(mnemonic: mnemonic)
+                container.session.cash.receiveLink(mnemonic: mnemonic)
             }
 
         case .verifyEmail(let description):

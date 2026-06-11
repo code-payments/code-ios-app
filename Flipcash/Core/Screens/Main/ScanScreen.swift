@@ -323,7 +323,7 @@ struct ScanScreen: View {
     }
 
     private func dismissBill() {
-        session.dismissCashBill(style: .slide)
+        session.cash.dismissBill(style: .slide)
     }
 }
 

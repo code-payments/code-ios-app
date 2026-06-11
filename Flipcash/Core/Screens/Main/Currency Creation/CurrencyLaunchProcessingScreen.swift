@@ -88,7 +88,7 @@ struct CurrencyLaunchProcessingScreen: View {
         // revealing it underneath the closing sheet.
         try? await Task.sleep(for: AppRouter.dismissAnimationDuration)
         if let description {
-            session.showCashBill(description)
+            session.cash.showBill(description)
         }
     }
 }

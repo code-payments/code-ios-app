@@ -266,8 +266,8 @@ struct Regression_native_amount_mismatch {
         #expect(submission.amount.currencyRate.fx == Decimal(1.35))
         #expect(submission.amount.currencyRate.fx != Decimal(1.37))
 
-        // And the VerifiedState carried into Session.showCashBill →
-        // SendCashOperation / createCashLink must be the pinned proof — with
+        // And the VerifiedState carried into session.cash.showBill →
+        // SendCashOperation / createLink must be the pinned proof — with
         // pinned supply, not the live `selectedBalance.stored.supplyFromBonding`.
         #expect(submission.pinnedState.exchangeRate == 1.35)
         #expect(submission.pinnedState.supplyFromBonding == pinnedSupply)
