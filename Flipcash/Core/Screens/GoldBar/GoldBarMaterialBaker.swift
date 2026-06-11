@@ -1,5 +1,6 @@
 import UIKit
 import CoreImage
+import Accelerate
 
 /// Procedurally bakes the portrait gold bar's PBR maps (no bundled assets):
 /// - albedo: warm gold field, engraved emblem + stacked markings + serial, dark etched Kik code
@@ -137,54 +138,117 @@ nonisolated enum GoldBarMaterialBaker {
     // CIContext is thread-safe and expensive to create; shared across bakes.
     private static let blurContext = CIContext()
 
-    private static func normalMap(from height: UIImage) -> UIImage {
+    /// Tangent-space normal map from a grayscale height image via central
+    /// differences, vectorized with vDSP/vImage.
+    /// Green is NOT negated: with the key light anchored low and frontal, the
+    /// flipped vertical response shades marks dark-on-top, which is what reads
+    /// as "pressed into the bar" (eyes assume light from above).
+    static func normalMap(from height: UIImage) -> UIImage {
         guard let cg = height.cgImage else { return height }
         let w = cg.width, h = cg.height
-        var gray = [UInt8](repeating: 0, count: w * h)
-        let grayCS = CGColorSpaceCreateDeviceGray()
+        let count = w * h
+
+        var gray = [UInt8](repeating: 0, count: count)
         // The buffer pointer is only valid inside the closure, so the context must not outlive it.
         gray.withUnsafeMutableBufferPointer { buffer in
-            let gctx = CGContext(data: buffer.baseAddress, width: w, height: h, bitsPerComponent: 8,
-                                 bytesPerRow: w, space: grayCS, bitmapInfo: CGImageAlphaInfo.none.rawValue)!
-            gctx.draw(cg, in: CGRect(x: 0, y: 0, width: w, height: h))
+            let ctx = CGContext(data: buffer.baseAddress, width: w, height: h, bitsPerComponent: 8,
+                                bytesPerRow: w, space: CGColorSpaceCreateDeviceGray(),
+                                bitmapInfo: CGImageAlphaInfo.none.rawValue)!
+            ctx.draw(cg, in: CGRect(x: 0, y: 0, width: w, height: h))
         }
 
-        var rgba = [UInt8](repeating: 0, count: w * h * 4)
-        let scale: Float = 2.0 / 255  // gradient strength, folded with the 0...255 → 0...1 conversion
-        gray.withUnsafeBufferPointer { src in
-            rgba.withUnsafeMutableBufferPointer { dst in
-                for y in 0..<h {
-                    let row = y * w
-                    let rowAbove = max(y - 1, 0) * w
-                    let rowBelow = min(y + 1, h - 1) * w
-                    for x in 0..<w {
-                        let left = src[row + max(x - 1, 0)]
-                        let right = src[row + min(x + 1, w - 1)]
-                        let up = src[rowAbove + x]
-                        let down = src[rowBelow + x]
-                        let dx = Float(Int(right) - Int(left)) * scale
-                        let dy = Float(Int(down) - Int(up)) * scale
-                        let invLen = 1 / (dx * dx + dy * dy + 1).squareRoot()
-                        let i = (row + x) * 4
-                        // Green is NOT negated: with the key light anchored low and frontal,
-                        // the flipped vertical response shades marks dark-on-top, which is
-                        // what reads as "pressed into the bar" (eyes assume light from above).
-                        dst[i]     = UInt8(max(0, min(255, (-dx * invLen * 0.5 + 0.5) * 255)))
-                        dst[i + 1] = UInt8(max(0, min(255, (dy * invLen * 0.5 + 0.5) * 255)))
-                        dst[i + 2] = UInt8(max(0, min(255, (invLen * 0.5 + 0.5) * 255)))
-                        dst[i + 3] = 255
+        var heightF = [Float](repeating: 0, count: count)
+        vDSP.convertElements(of: gray, to: &heightF)  // 0...255
+
+        // Central differences. The bulk vsub bleeds across row boundaries for dx;
+        // the per-row fix-up below replicates the neighboring column instead.
+        var dx = [Float](repeating: 0, count: count)
+        var dy = [Float](repeating: 0, count: count)
+        heightF.withUnsafeBufferPointer { src in
+            dx.withUnsafeMutableBufferPointer { dst in
+                // dst[i+1] = src[i+2] - src[i]  (vDSP_vsub computes C = B - A)
+                vDSP_vsub(src.baseAddress!, 1, src.baseAddress! + 2, 1, dst.baseAddress! + 1, 1, vDSP_Length(count - 2))
+            }
+            dy.withUnsafeMutableBufferPointer { dst in
+                // dst[row r] = src[row r+1] - src[row r-1] for interior rows
+                vDSP_vsub(src.baseAddress!, 1, src.baseAddress! + 2 * w, 1, dst.baseAddress! + w, 1, vDSP_Length(count - 2 * w))
+            }
+        }
+        for row in 0..<h {
+            let base = row * w
+            dx[base] = dx[base + 1]
+            dx[base + w - 1] = dx[base + w - 2]
+        }
+        dy.replaceSubrange(0..<w, with: dy[w..<(2 * w)])
+        dy.replaceSubrange((count - w)..<count, with: dy[(count - 2 * w)..<(count - w)])
+
+        // Gradient strength folded with the 0...255 → 0...1 conversion.
+        let scale: Float = 2.0 / 255
+        vDSP.multiply(scale, dx, result: &dx)
+        vDSP.multiply(scale, dy, result: &dy)
+
+        // invLen = 1 / sqrt(dx² + dy² + 1)
+        var lenSquared = [Float](repeating: 0, count: count)
+        vDSP.multiply(dx, dx, result: &lenSquared)
+        var dySquared = [Float](repeating: 0, count: count)
+        vDSP.multiply(dy, dy, result: &dySquared)
+        vDSP.add(lenSquared, dySquared, result: &lenSquared)
+        vDSP.add(1, lenSquared, result: &lenSquared)
+        var invLen = [Float](repeating: 0, count: count)
+        vForce.rsqrt(lenSquared, result: &invLen)
+
+        var nx = [Float](repeating: 0, count: count)
+        vDSP.multiply(dx, invLen, result: &nx)
+        var ny = [Float](repeating: 0, count: count)
+        vDSP.multiply(dy, invLen, result: &ny)
+
+        let r = bytePlane(nx, scale: -127.5, count: count)
+        let g = bytePlane(ny, scale: 127.5, count: count)
+        let b = bytePlane(invLen, scale: 127.5, count: count)
+        var rgba = interleavedRGBA(r: r, g: g, b: b, width: w, height: h)
+
+        let image = rgba.withUnsafeMutableBufferPointer { buffer -> CGImage in
+            let ctx = CGContext(data: buffer.baseAddress, width: w, height: h, bitsPerComponent: 8,
+                                bytesPerRow: w * 4, space: CGColorSpaceCreateDeviceRGB(),
+                                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+            return ctx.makeImage()!
+        }
+        return UIImage(cgImage: image)
+    }
+
+    /// values·scale + 127.5, clipped to bytes.
+    private static func bytePlane(_ values: [Float], scale: Float, count: Int) -> [UInt8] {
+        var f = [Float](repeating: 0, count: count)
+        vDSP.multiply(scale, values, result: &f)
+        vDSP.add(127.5, f, result: &f)
+        vDSP.clip(f, to: 0...255, result: &f)
+        return vDSP.floatingPointToInteger(f, integerType: UInt8.self, rounding: .towardNearestInteger)
+    }
+
+    private static func interleavedRGBA(r: [UInt8], g: [UInt8], b: [UInt8], width: Int, height: Int) -> [UInt8] {
+        var r = r, g = g, b = b
+        var a = [UInt8](repeating: 255, count: width * height)
+        var rgba = [UInt8](repeating: 0, count: width * height * 4)
+        r.withUnsafeMutableBufferPointer { rp in
+            g.withUnsafeMutableBufferPointer { gp in
+                b.withUnsafeMutableBufferPointer { bp in
+                    a.withUnsafeMutableBufferPointer { ap in
+                        rgba.withUnsafeMutableBufferPointer { out in
+                            func plane(_ p: UnsafeMutableBufferPointer<UInt8>) -> vImage_Buffer {
+                                vImage_Buffer(data: p.baseAddress, height: vImagePixelCount(height),
+                                              width: vImagePixelCount(width), rowBytes: width)
+                            }
+                            var rBuf = plane(rp), gBuf = plane(gp), bBuf = plane(bp), aBuf = plane(ap)
+                            var dst = vImage_Buffer(data: out.baseAddress, height: vImagePixelCount(height),
+                                                    width: vImagePixelCount(width), rowBytes: width * 4)
+                            // Plane argument order is the output memory order — R,G,B,A yields RGBA8888.
+                            vImageConvert_Planar8toARGB8888(&rBuf, &gBuf, &bBuf, &aBuf, &dst, vImage_Flags(kvImageNoFlags))
+                        }
                     }
                 }
             }
         }
-        let rgbaCS = CGColorSpaceCreateDeviceRGB()
-        let image = rgba.withUnsafeMutableBufferPointer { buffer -> CGImage in
-            let rctx = CGContext(data: buffer.baseAddress, width: w, height: h, bitsPerComponent: 8,
-                                 bytesPerRow: w * 4, space: rgbaCS,
-                                 bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
-            return rctx.makeImage()!
-        }
-        return UIImage(cgImage: image)
+        return rgba
     }
 
     // MARK: - Drawing helpers

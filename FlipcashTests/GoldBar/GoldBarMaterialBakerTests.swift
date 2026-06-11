@@ -54,6 +54,36 @@ struct GoldBarMaterialBakerTests {
         }
     }
 
+    // MARK: - Normal map conventions
+
+    @Test("Flat height field maps to the neutral normal")
+    func normalMap_flatField_neutral() {
+        let flat = grayImage(width: 16, height: 16) { _, _ in 0.5 }
+        let normal = GoldBarMaterialBaker.normalMap(from: flat)
+        let px = rgba(of: normal, x: 8, y: 8)
+        #expect(abs(Int(px.r) - 128) <= 1)
+        #expect(abs(Int(px.g) - 128) <= 1)
+        #expect(px.b >= 254)
+    }
+
+    @Test("Height rising to the right tilts normals away from +X (red below neutral)")
+    func normalMap_horizontalRamp_redBelowNeutral() {
+        let ramp = grayImage(width: 16, height: 16) { x, _ in CGFloat(x) / 15 }
+        let normal = GoldBarMaterialBaker.normalMap(from: ramp)
+        let px = rgba(of: normal, x: 8, y: 8)
+        #expect(px.r < 120)
+        #expect(abs(Int(px.g) - 128) <= 1)
+    }
+
+    @Test("Height rising downward keeps green above neutral (pressed-look convention)")
+    func normalMap_verticalRamp_greenAboveNeutral() {
+        let ramp = grayImage(width: 16, height: 16) { _, y in CGFloat(y) / 15 }
+        let normal = GoldBarMaterialBaker.normalMap(from: ramp)
+        let px = rgba(of: normal, x: 8, y: 8)
+        #expect(px.g > 136)
+        #expect(abs(Int(px.r) - 128) <= 1)
+    }
+
     // MARK: - Pixel sampling
 
     private func averageLuminance(of image: UIImage, in rect: CGRect) -> Double? {
@@ -84,5 +114,30 @@ struct GoldBarMaterialBakerTests {
             ctx.fill(CGRect(origin: .zero, size: image.size))
             image.draw(at: .zero)
         }
+    }
+
+    private func grayImage(width: Int, height: Int, value: (Int, Int) -> CGFloat) -> UIImage {
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        return UIGraphicsImageRenderer(size: CGSize(width: width, height: height), format: format).image { ctx in
+            for y in 0..<height {
+                for x in 0..<width {
+                    UIColor(white: value(x, y), alpha: 1).setFill()
+                    ctx.fill(CGRect(x: x, y: y, width: 1, height: 1))
+                }
+            }
+        }
+    }
+
+    private func rgba(of image: UIImage, x: Int, y: Int) -> (r: UInt8, g: UInt8, b: UInt8) {
+        let cg = image.cgImage!
+        var pixel = [UInt8](repeating: 0, count: 4)
+        pixel.withUnsafeMutableBufferPointer { buffer in
+            let ctx = CGContext(data: buffer.baseAddress, width: 1, height: 1, bitsPerComponent: 8,
+                                bytesPerRow: 4, space: CGColorSpaceCreateDeviceRGB(),
+                                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+            ctx.draw(cg, in: CGRect(x: -x, y: -(cg.height - 1 - y), width: cg.width, height: cg.height))
+        }
+        return (pixel[0], pixel[1], pixel[2])
     }
 }
