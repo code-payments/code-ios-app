@@ -86,5 +86,5 @@ public class FlipClient: ObservableObject {
 }
 
 extension FlipClient {
-    public static let mock = try! FlipClient(network: .testNet)
+    public static let mock = try! FlipClient(network: .mainNet)
 }

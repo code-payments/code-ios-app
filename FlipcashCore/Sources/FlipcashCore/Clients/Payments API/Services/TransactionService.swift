@@ -572,7 +572,7 @@ final class TransactionService: Sendable {
         reference.open(onResponse: { response in
             switch response.response {
 
-            // 2. Upon successful submission of intent action the server will
+            // Upon successful submission of intent action the server will
             // respond with parameters that we'll need to apply to the intent
             // before crafting and signing the transactions.
             case .serverParameters(let parameters):
@@ -603,7 +603,7 @@ final class TransactionService: Sendable {
                     completion(.failure(.unknown))
                 }
 
-            // 3. If submitted transaction signatures are valid and match
+            // If submitted transaction signatures are valid and match
             // the server, we'll receive a success for the submitted intent.
             case .success(let success):
                 logger.info("Intent submitted successfully", metadata: [
@@ -614,7 +614,7 @@ final class TransactionService: Sendable {
                 reference.cancel()
                 completion(.success(intent))
 
-            // 3. If the submitted transaction signatures don't match, the
+            // If the submitted transaction signatures don't match, the
             // intent is considered failed. Something must have gone wrong
             // on the transaction creation or signing on our side.
             case .error(let error):
