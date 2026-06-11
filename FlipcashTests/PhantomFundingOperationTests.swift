@@ -26,7 +26,7 @@ struct PhantomFundingOperationTests {
             return resolvedSwapId
         }
 
-        let op = PhantomFundingOperation(walletConnection: wallet, session: session, rpc: rpc)
+        let op = PhantomFundingOperation(walletConnection: wallet, purchases: session, rpc: rpc)
         let payload = PaymentOperation.BuyPayload(
             mint: .jeffy,
             currencyName: "TestCoin",
@@ -72,7 +72,7 @@ struct PhantomFundingOperationTests {
             return resolvedSwapId
         }
 
-        let op = PhantomFundingOperation(walletConnection: wallet, session: session, rpc: rpc)
+        let op = PhantomFundingOperation(walletConnection: wallet, purchases: session, rpc: rpc)
         let payload = PaymentOperation.LaunchPayload(
             currencyName: "NewCoin",
             total: .mockOne,
@@ -105,7 +105,7 @@ struct PhantomFundingOperationTests {
     func cancel_duringEducation_throws() async throws {
         let op = PhantomFundingOperation(
             walletConnection: MockTransactionSigning(),
-            session: MockSession(),
+            purchases: MockSession(),
             rpc: MockSolanaRPC()
         )
         let payload = PaymentOperation.BuyPayload(
@@ -143,7 +143,7 @@ struct PhantomFundingOperationTests {
 
         let op = PhantomFundingOperation(
             walletConnection: wallet,
-            session: session,
+            purchases: session,
             rpc: MockSolanaRPC()
         )
         let payload = PaymentOperation.BuyPayload(
@@ -184,7 +184,7 @@ struct PhantomFundingOperationTests {
 
         let op = PhantomFundingOperation(
             walletConnection: wallet,
-            session: session,
+            purchases: session,
             rpc: MockSolanaRPC()
         )
         let payload = PaymentOperation.BuyPayload(
@@ -227,7 +227,7 @@ struct PhantomFundingOperationTests {
 
         let op = PhantomFundingOperation(
             walletConnection: wallet,
-            session: MockSession(),
+            purchases: MockSession(),
             rpc: MockSolanaRPC()
         )
         let payload = PaymentOperation.BuyPayload(
@@ -265,7 +265,7 @@ struct PhantomFundingOperationTests {
         let mintedKey = PublicKey.jeffy
         session.launchCurrencyHandler = { _ in mintedKey }
 
-        let op = PhantomFundingOperation(walletConnection: wallet, session: session, rpc: MockSolanaRPC())
+        let op = PhantomFundingOperation(walletConnection: wallet, purchases: session, rpc: MockSolanaRPC())
         let payload = PaymentOperation.LaunchPayload.fixture()
 
         let task = Task { try await op.start(.launch(payload)) }
@@ -300,7 +300,7 @@ struct PhantomFundingOperationTests {
             return resolvedSwapId
         }
 
-        let op = PhantomFundingOperation(walletConnection: wallet, session: session, rpc: MockSolanaRPC())
+        let op = PhantomFundingOperation(walletConnection: wallet, purchases: session, rpc: MockSolanaRPC())
         let payload = PaymentOperation.LaunchPayload(
             currencyName: "NewCoin",
             total: .mockOne,
@@ -334,7 +334,7 @@ struct PhantomFundingOperationTests {
 
         let op = PhantomFundingOperation(
             walletConnection: wallet,
-            session: session,
+            purchases: session,
             rpc: MockSolanaRPC()
         )
         let payload = PaymentOperation.LaunchPayload(

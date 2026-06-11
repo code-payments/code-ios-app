@@ -146,7 +146,8 @@ final class BuyAmountViewModel: Identifiable {
     ) {
         let operation = CoinbaseFundingOperation(
             coinbaseService: coinbaseService,
-            session: session
+            identity: session,
+            purchases: session.purchases
         )
         fundingOperation = operation
 
@@ -201,7 +202,7 @@ final class BuyAmountViewModel: Identifiable {
     ) {
         let operation = PhantomFundingOperation(
             walletConnection: walletConnection,
-            session: session
+            purchases: session.purchases
         )
         fundingOperation = operation
 
@@ -259,7 +260,7 @@ final class BuyAmountViewModel: Identifiable {
                 amount: amount,
                 verifiedState: pin
             )
-            let operation = ReservesFundingOperation(session: session)
+            let operation = ReservesFundingOperation(purchases: session.purchases)
             let swap = try await operation.start(.buy(payload))
             actionButtonState = .normal
             router.pushAny(BuyFlowPath.processing(
@@ -269,7 +270,7 @@ final class BuyAmountViewModel: Identifiable {
                 swapType: swap.swapType
             ))
         } catch Session.Error.insufficientBalance {
-            // Race: balance gate said OK but session.buy disagreed. Route to picker.
+            // Race: balance gate said OK but the buy disagreed. Route to picker.
             actionButtonState = .normal
             routeToPicker(amount: amount, pin: pin)
         } catch Session.Error.verifiedStateStale {

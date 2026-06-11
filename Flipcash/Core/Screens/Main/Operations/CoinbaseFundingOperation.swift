@@ -12,11 +12,11 @@ private let logger = Logger(label: "flipcash.coinbase-funding")
 /// Funds a buy or launch via the Coinbase Apple Pay onramp.
 ///
 /// Flow:
-/// 1. `.launch` only — preflight `session.launchCurrency` so server-side
+/// 1. `.launch` only — preflight `purchases.launchCurrency` so server-side
 ///    rejections (denied / nameExists / invalidIcon) throw before we
 ///    create the Coinbase order.
 /// 2. `state = .working` — `coinbase.createOrder(...)` is awaited.
-/// 3. Server-side swap is recorded via `session.buyWithCoinbaseOnramp` /
+/// 3. Server-side swap is recorded via `purchases.buyWithCoinbaseOnramp` /
 ///    `buyNewCurrencyWithCoinbaseOnramp` BEFORE Apple Pay commits, so the
 ///    backend correlates the Coinbase order with our swap intent.
 /// 4. Order is published to `CoinbaseService` — this triggers the root
@@ -53,18 +53,21 @@ final class CoinbaseFundingOperation: FundingOperation {
     private(set) var didTimeOut: Bool = false
 
     @ObservationIgnored private let coinbaseService: CoinbaseService
-    @ObservationIgnored private let session: any (AccountProviding & ProfileProviding & OnrampBuying & CurrencyLaunching)
+    @ObservationIgnored private let identity: any (AccountProviding & ProfileProviding)
+    @ObservationIgnored private let purchases: any (OnrampBuying & CurrencyLaunching)
     @ObservationIgnored private let idleTimer: ApplePayIdleTimer
 
     @ObservationIgnored private var runTask: Task<StartedSwap, Error>?
 
     init(
         coinbaseService: CoinbaseService,
-        session: any (AccountProviding & ProfileProviding & OnrampBuying & CurrencyLaunching),
+        identity: any (AccountProviding & ProfileProviding),
+        purchases: any (OnrampBuying & CurrencyLaunching),
         applePayIdleTimeout: Duration = .seconds(60)
     ) {
         self.coinbaseService = coinbaseService
-        self.session = session
+        self.identity = identity
+        self.purchases = purchases
         self.idleTimer = ApplePayIdleTimer(timeout: applePayIdleTimeout)
     }
 
@@ -144,7 +147,7 @@ final class CoinbaseFundingOperation: FundingOperation {
                 throw FundingOperationError.unexpectedFailure(reason: "Missing launch attestations")
             }
             state = .working
-            let mint = try await session.launchCurrency(
+            let mint = try await purchases.launchCurrency(
                 name: payload.currencyName,
                 description: attestations.description,
                 billColors: attestations.billColors,
@@ -158,7 +161,7 @@ final class CoinbaseFundingOperation: FundingOperation {
     }
 
     private func checkRequirements() throws {
-        guard let profile = session.profile,
+        guard let profile = identity.profile,
               profile.isPhoneVerified,
               profile.isEmailVerified else {
             throw FundingOperationError.requirementUnsatisfied(.verifiedContact)
@@ -166,19 +169,19 @@ final class CoinbaseFundingOperation: FundingOperation {
     }
 
     private func createOrder(for operation: PaymentOperation) async throws -> OnrampOrderResponse {
-        guard let profile = session.profile,
+        guard let profile = identity.profile,
               let email = profile.email,
               let phone = profile.phone?.e164 else {
             throw FundingOperationError.requirementUnsatisfied(.verifiedContact)
         }
         guard let usdfSwapAccounts = MintMetadata.usdf.timelockSwapAccounts(
-            owner: session.owner.authorityPublicKey
+            owner: identity.owner.authorityPublicKey
         ) else {
             logger.error("Failed to derive USDF swap accounts for Coinbase order")
             throw FundingOperationError.unexpectedFailure(reason: "Couldn't derive USDF swap accounts")
         }
 
-        let userRef = session.ownerKeyPair.publicKey.base58
+        let userRef = identity.ownerKeyPair.publicKey.base58
         let orderRef = "\(userRef):\(UUID().uuidString)"
 
         do {
@@ -245,7 +248,7 @@ final class CoinbaseFundingOperation: FundingOperation {
                 rate: payload.amount.currencyRate,
                 supplyQuarks: nil
             )
-            let swapId = try await session.buyWithCoinbaseOnramp(
+            let swapId = try await purchases.buyWithCoinbaseOnramp(
                 amount: fundedAmount,
                 of: payload.mint,
                 orderId: order.id
@@ -261,7 +264,7 @@ final class CoinbaseFundingOperation: FundingOperation {
             // `launchFee` are built from server-supplied USDF quark
             // integers at `.oneToOne` rate, so the sum is already an
             // exact USDF value Coinbase records verbatim.
-            let swapId = try await session.buyNewCurrencyWithCoinbaseOnramp(
+            let swapId = try await purchases.buyNewCurrencyWithCoinbaseOnramp(
                 amount: payload.launchAmount,
                 feeAmount: payload.launchFee,
                 mint: mint,

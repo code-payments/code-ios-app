@@ -13,7 +13,7 @@ private let logger = Logger(label: "flipcash.phantom-funding")
 /// connect + sign flow.
 ///
 /// Flow (the connect and sign steps each loop on wallet-side cancel):
-/// 1. `.launch` only — preflight `session.launchCurrency` so server-side
+/// 1. `.launch` only — preflight `purchases.launchCurrency` so server-side
 ///    rejections (denied / nameExists / invalidIcon) throw before we hand
 ///    the user off to Phantom.
 /// 2. `state = .awaitingUserAction(.education)` — host renders the
@@ -51,7 +51,7 @@ final class PhantomFundingOperation: FundingOperation {
     private(set) var launchedMint: PublicKey?
 
     @ObservationIgnored private let walletConnection: any TransactionSigning
-    @ObservationIgnored private let session: any (ExternalFundingBuying & CurrencyLaunching)
+    @ObservationIgnored private let purchases: any (ExternalFundingBuying & CurrencyLaunching)
     @ObservationIgnored private let rpc: any SolanaRPC
 
     @ObservationIgnored private var runTask: Task<StartedSwap, Error>?
@@ -59,11 +59,11 @@ final class PhantomFundingOperation: FundingOperation {
 
     init(
         walletConnection: any TransactionSigning,
-        session: any (ExternalFundingBuying & CurrencyLaunching),
+        purchases: any (ExternalFundingBuying & CurrencyLaunching),
         rpc: any SolanaRPC = SolanaJSONRPCClient()
     ) {
         self.walletConnection = walletConnection
-        self.session = session
+        self.purchases = purchases
         self.rpc = rpc
     }
 
@@ -198,7 +198,7 @@ final class PhantomFundingOperation: FundingOperation {
                 throw FundingOperationError.unexpectedFailure(reason: "Missing launch attestations")
             }
             state = .working
-            let mint = try await session.launchCurrency(
+            let mint = try await purchases.launchCurrency(
                 name: payload.currencyName,
                 description: attestations.description,
                 billColors: attestations.billColors,
@@ -269,7 +269,7 @@ final class PhantomFundingOperation: FundingOperation {
 
         switch operation {
         case .buy(let payload):
-            swapId = try await session.buyWithExternalFunding(
+            swapId = try await purchases.buyWithExternalFunding(
                 swapId: fundingSwapId,
                 amount: payload.amount,
                 of: payload.mint,
@@ -283,7 +283,7 @@ final class PhantomFundingOperation: FundingOperation {
                 logger.error("Launch reached submit step without a preflighted mint")
                 throw FundingOperationError.unexpectedFailure(reason: "Missing launched mint")
             }
-            swapId = try await session.buyNewCurrencyWithExternalFunding(
+            swapId = try await purchases.buyNewCurrencyWithExternalFunding(
                 amount: payload.launchAmount,
                 feeAmount: payload.launchFee,
                 mint: mint,

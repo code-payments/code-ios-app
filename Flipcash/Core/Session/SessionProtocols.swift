@@ -116,13 +116,14 @@ protocol CurrencyLaunching: AnyObject {
     ) async throws -> PublicKey
 }
 
-// MARK: - Session conformance
+// MARK: - Conformances
 
 extension Session: AccountProviding,
                     ProfileProviding,
                     ProfileManaging,
-                    MintMetadataFetching,
-                    ReservesBuying,
-                    ExternalFundingBuying,
-                    OnrampBuying,
-                    CurrencyLaunching {}
+                    MintMetadataFetching {}
+
+extension Session.Purchases: ReservesBuying,
+                              ExternalFundingBuying,
+                              OnrampBuying,
+                              CurrencyLaunching {}

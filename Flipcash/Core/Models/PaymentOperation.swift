@@ -45,21 +45,21 @@ nonisolated enum PaymentOperation: Hashable, Sendable, Identifiable {
         let launchFee: ExchangedFiat
 
         /// Launch-time metadata (icon, description, billColors, moderation
-        /// attestations) the operation needs to call `session.launchCurrency`.
+        /// attestations) the operation needs to call `purchases.launchCurrency`.
         /// Required for any operation that performs the launch step
         /// (`ReservesFundingOperation`, future Phantom / Coinbase launches);
         /// nil while the payload is still flowing through the funding picker.
         let attestations: LaunchAttestations?
 
         /// Pinned exchange-rate proof required by the reserves-funded launch
-        /// path (`session.buyNewCurrency`). Other funding paths submit via
+        /// path (`session.purchases.buyNewCurrency`). Other funding paths submit via
         /// external-funding RPCs that don't take a verified state, so this is
         /// nil for them.
         let verifiedState: VerifiedState?
 
         /// Mint from a prior attempt whose launch step succeeded but whose
         /// downstream funding step (Phantom sign, Coinbase Apple Pay) failed.
-        /// When set, the operation skips `session.launchCurrency` and reuses
+        /// When set, the operation skips `purchases.launchCurrency` and reuses
         /// this mint — without this hint a retry re-runs the launch and the
         /// server returns `nameExists` (the prior attempt already minted
         /// under the same name). The reserves path has a parallel recovery
@@ -87,7 +87,7 @@ nonisolated enum PaymentOperation: Hashable, Sendable, Identifiable {
     }
 
     /// Bundles the launch-time metadata a funding operation hands to
-    /// `session.launchCurrency`. Lives alongside `PaymentOperation.LaunchPayload`
+    /// `purchases.launchCurrency`. Lives alongside `PaymentOperation.LaunchPayload`
     /// so the wizard's launch state has a single packing target.
     nonisolated struct LaunchAttestations: Hashable, Sendable {
         let description: String

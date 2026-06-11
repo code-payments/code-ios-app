@@ -569,7 +569,7 @@ struct CurrencyCreationWizardScreen: View {
 
     // MARK: - Launch + Buy
 
-    /// Records the mint produced by a successful `session.launchCurrency`
+    /// Records the mint produced by a successful `purchases.launchCurrency`
     /// call so a subsequent retry can skip the launch step and avoid
     /// `nameExists`. No-op when `mint` is nil (operation never got past
     /// preflight). Callers pass the wizard name in effect when the snapshot
@@ -630,7 +630,7 @@ struct CurrencyCreationWizardScreen: View {
                 verifiedState: verifiedState
             )
 
-            let operation = ReservesFundingOperation(session: session)
+            let operation = ReservesFundingOperation(purchases: session.purchases)
             let swap: StartedSwap
             do {
                 swap = try await operation.start(.launch(payload))
@@ -652,7 +652,7 @@ struct CurrencyCreationWizardScreen: View {
                         "mint": "\(existing.mint.base58)",
                     ])
                     do {
-                        let retrySwapId = try await session.buyNewCurrency(
+                        let retrySwapId = try await session.purchases.buyNewCurrency(
                             amount: launchAmount,
                             feeAmount: launchFee,
                             verifiedState: verifiedState,
@@ -805,7 +805,7 @@ struct CurrencyCreationWizardScreen: View {
     private func startPhantomLaunchFunding(payment: PaymentOperation) {
         let operation = PhantomFundingOperation(
             walletConnection: walletConnection,
-            session: session
+            purchases: session.purchases
         )
         fundingOperation = operation
 
@@ -897,7 +897,8 @@ struct CurrencyCreationWizardScreen: View {
     private func runCoinbaseLaunchOperation(payment: PaymentOperation) {
         let operation = CoinbaseFundingOperation(
             coinbaseService: coinbaseService,
-            session: session
+            identity: session,
+            purchases: session.purchases
         )
         fundingOperation = operation
 

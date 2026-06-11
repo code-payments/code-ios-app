@@ -12,8 +12,8 @@ private let logger = Logger(label: "flipcash.reserves-funding")
 /// Funds a buy or launch out of the user's USDF balance ("reserves"). No
 /// external sign, no overlay UI — the simplest concrete `FundingOperation`.
 ///
-/// `.buy` calls `session.buy(...)` directly. `.launch` calls
-/// `session.launchCurrency(...)` followed by `session.buyNewCurrency(...)`,
+/// `.buy` calls `purchases.buy(...)` directly. `.launch` calls
+/// `purchases.launchCurrency(...)` followed by `purchases.buyNewCurrency(...)`,
 /// using the verifiedState pinned by the wizard at submission time.
 @Observable
 final class ReservesFundingOperation: FundingOperation {
@@ -27,11 +27,11 @@ final class ReservesFundingOperation: FundingOperation {
     /// re-launch and hit `nameExists`.
     private(set) var launchedMint: PublicKey?
 
-    @ObservationIgnored private let session: any (ReservesBuying & CurrencyLaunching)
+    @ObservationIgnored private let purchases: any (ReservesBuying & CurrencyLaunching)
     @ObservationIgnored private var runTask: Task<StartedSwap, Error>?
 
-    init(session: any (ReservesBuying & CurrencyLaunching)) {
-        self.session = session
+    init(purchases: any (ReservesBuying & CurrencyLaunching)) {
+        self.purchases = purchases
     }
 
     isolated deinit {
@@ -61,7 +61,7 @@ final class ReservesFundingOperation: FundingOperation {
 
         switch operation {
         case .buy(let payload):
-            let swapId = try await session.buy(
+            let swapId = try await purchases.buy(
                 amount: payload.amount,
                 verifiedState: payload.verifiedState,
                 of: payload.mint
@@ -90,7 +90,7 @@ final class ReservesFundingOperation: FundingOperation {
                     logger.error("Reserves launch invoked without attestations")
                     throw FundingOperationError.unexpectedFailure(reason: "Missing launch attestations")
                 }
-                mint = try await session.launchCurrency(
+                mint = try await purchases.launchCurrency(
                     name: payload.currencyName,
                     description: attestations.description,
                     billColors: attestations.billColors,
@@ -102,7 +102,7 @@ final class ReservesFundingOperation: FundingOperation {
             }
             launchedMint = mint
 
-            let swapId = try await session.buyNewCurrency(
+            let swapId = try await purchases.buyNewCurrency(
                 amount: payload.launchAmount,
                 feeAmount: payload.launchFee,
                 verifiedState: verifiedState,

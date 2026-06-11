@@ -19,7 +19,7 @@ struct ReservesFundingOperationTests {
         let recordedSwapId = SwapId.generate()
         session.buyHandler = { _, _, _ in recordedSwapId }
 
-        let op = ReservesFundingOperation(session: session)
+        let op = ReservesFundingOperation(purchases: session)
         let payload = PaymentOperation.BuyPayload(
             mint: .jeffy,
             currencyName: "TestCoin",
@@ -41,7 +41,7 @@ struct ReservesFundingOperationTests {
         let session = MockSession()
         session.buyHandler = { _, _, _ in throw MockError.insufficient }
 
-        let op = ReservesFundingOperation(session: session)
+        let op = ReservesFundingOperation(purchases: session)
         let payload = PaymentOperation.BuyPayload(
             mint: .jeffy,
             currencyName: "TestCoin",
@@ -64,7 +64,7 @@ struct ReservesFundingOperationTests {
         session.launchCurrencyHandler = { _ in mintedKey }
         session.buyNewCurrencyHandler = { _, _, _, _, _ in recordedSwapId }
 
-        let op = ReservesFundingOperation(session: session)
+        let op = ReservesFundingOperation(purchases: session)
         let payload = PaymentOperation.LaunchPayload(
             currencyName: "NewCoin",
             total: .mockOne,
@@ -88,7 +88,7 @@ struct ReservesFundingOperationTests {
     @Test("Launch without attestations throws unexpectedFailure")
     func launch_missingAttestations_throws() async {
         let session = MockSession()
-        let op = ReservesFundingOperation(session: session)
+        let op = ReservesFundingOperation(purchases: session)
         let payload = PaymentOperation.LaunchPayload(
             currencyName: "NewCoin",
             total: .mockOne,
@@ -109,7 +109,7 @@ struct ReservesFundingOperationTests {
     @Test("Launch without verifiedState throws unexpectedFailure")
     func launch_missingVerifiedState_throws() async {
         let session = MockSession()
-        let op = ReservesFundingOperation(session: session)
+        let op = ReservesFundingOperation(purchases: session)
         let payload = PaymentOperation.LaunchPayload(
             currencyName: "NewCoin",
             total: .mockOne,
@@ -130,7 +130,7 @@ struct ReservesFundingOperationTests {
         let session = MockSession()
         session.launchCurrencyHandler = { _ in throw MockError.launchRejected }
 
-        let op = ReservesFundingOperation(session: session)
+        let op = ReservesFundingOperation(purchases: session)
         let payload = PaymentOperation.LaunchPayload(
             currencyName: "NewCoin",
             total: .mockOne,
@@ -157,7 +157,7 @@ struct ReservesFundingOperationTests {
             return SwapId.generate()
         }
 
-        let op = ReservesFundingOperation(session: session)
+        let op = ReservesFundingOperation(purchases: session)
         let payload = PaymentOperation.BuyPayload(
             mint: .jeffy,
             currencyName: "TestCoin",
@@ -185,7 +185,7 @@ struct ReservesFundingOperationTests {
             return SwapId.generate()
         }
 
-        let concrete = ReservesFundingOperation(session: session)
+        let concrete = ReservesFundingOperation(purchases: session)
         let existential: any FundingOperation = concrete
 
         #expect(existential.state == .idle)

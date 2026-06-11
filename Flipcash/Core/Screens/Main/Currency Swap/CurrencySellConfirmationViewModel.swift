@@ -72,7 +72,7 @@ class CurrencySellConfirmationViewModel {
 
         Task {
             do {
-                let swapId = try await session.sell(amount: amount, verifiedState: pinnedState, in: mint)
+                let swapId = try await session.purchases.sell(amount: amount, verifiedState: pinnedState, in: mint)
                 pendingSwapId = swapId
             } catch Session.Error.verifiedStateStale {
                 // Session.assertFresh already logged this. Reset button only.

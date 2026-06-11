@@ -227,7 +227,8 @@ private struct Env {
         // Long timeout so the idle timer never fires during tests.
         self.op = CoinbaseFundingOperation(
             coinbaseService: coinbaseService,
-            session: session,
+            identity: session,
+            purchases: session,
             applePayIdleTimeout: .seconds(60)
         )
     }
