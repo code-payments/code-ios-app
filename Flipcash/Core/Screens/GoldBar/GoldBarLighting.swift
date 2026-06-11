@@ -28,10 +28,11 @@ nonisolated enum GoldBarLighting {
     }
 
     /// Slight bar rotation (degrees) for a device tilt: x yaws left/right, y pitches up/down.
+    /// The bar mirrors the phone's plane — tilt the top away and the bar leans away with it.
     static func barRotationDegrees(gravity: SIMD3<Double>) -> SIMD2<Double> {
         SIMD2(
             clamp(gravity.x * yawGain, maxYawDegrees),
-            clamp((gravity.y - neutralGravityY) * pitchGain, maxPitchDegrees)
+            clamp((neutralGravityY - gravity.y) * pitchGain, maxPitchDegrees)
         )
     }
 

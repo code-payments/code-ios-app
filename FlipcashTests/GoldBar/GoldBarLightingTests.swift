@@ -27,21 +27,23 @@ struct GoldBarLightingTests {
         #expect(abs(rotation.y) < 0.0001)
     }
 
-    @Test("Rolling tilts the bar's yaw; leaning tilts its pitch")
+    @Test("Rolling tilts the bar's yaw; leaning tilts its pitch, mirroring the phone")
     func barRotation_followsTilt() {
         let rolled = GoldBarLighting.barRotationDegrees(gravity: SIMD3(0.3, GoldBarLighting.neutralGravityY, -0.5))
         #expect(rolled.x > 0)
         #expect(abs(rolled.y) < 0.0001)
 
-        let leanedBack = GoldBarLighting.barRotationDegrees(gravity: SIMD3(0, -0.5, -0.8))
-        #expect(leanedBack.y > 0)
+        // Phone tilted forward (top away, toward flat) → the bar's top leans away too.
+        let tiltedForward = GoldBarLighting.barRotationDegrees(gravity: SIMD3(0, -0.5, -0.8))
+        #expect(tiltedForward.y < 0)
     }
 
     @Test("Rotation is clamped so the bar only leans slightly")
     func barRotation_clamped() {
+        // Rolled hard right and tilted fully flat — both axes hit their clamps.
         let extreme = GoldBarLighting.barRotationDegrees(gravity: SIMD3(1.0, 0, 0))
         #expect(extreme.x == GoldBarLighting.maxYawDegrees)
-        #expect(extreme.y == GoldBarLighting.maxPitchDegrees)
+        #expect(extreme.y == -GoldBarLighting.maxPitchDegrees)
     }
 
     @Test("Smoothing moves a fixed fraction toward the target")
