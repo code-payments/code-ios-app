@@ -35,6 +35,12 @@ struct GoldBarSceneView: UIViewRepresentable {
         let coordinator = context.coordinator
         let onReady = onSceneReady
         Task {
+            // Past the first presentation frames, so the code render (~15ms on main)
+            // can't join the tap; the bake itself runs off-main from here.
+            try? await Task.sleep(for: .milliseconds(150))
+            coordinator.startEarlyBake()
+        }
+        Task {
             try? await Task.sleep(for: .milliseconds(600))  // cover transition runs ~0.5s
             guard !coordinator.isStopped else { return }
 
@@ -116,11 +122,35 @@ struct GoldBarSceneView: UIViewRepresentable {
             self.serial = serial
         }
 
+        private var codeImage: UIImage?
+
+        private var textureKey: GoldBarScene.TextureKey {
+            GoldBarScene.TextureKey(payload: codeData, stampLines: stampLines, serial: serial)
+        }
+
+        private func renderCodeIfNeeded() -> UIImage {
+            if let codeImage { return codeImage }
+            let code = GoldBarCodeRenderer.image(for: codeData, side: 480)
+            codeImage = code
+            return code
+        }
+
+        /// Starts the full-resolution bake before the scene exists — the bake is
+        /// off-main, so by the time the deferred attach runs, the texture cache is
+        /// usually already full quality and the preview phase is skipped entirely.
+        func startEarlyBake() {
+            guard !isStopped else { return }
+            let key = textureKey
+            guard GoldBarScene.cachedTextures?.key != key else { return }
+            let code = renderCodeIfNeeded()
+            Task { _ = await GoldBarScene.fullTextures(key: key, code: code) }
+        }
+
         /// Builds the scene on first call — kept out of init so presenting the cover does
         /// no scene work at all; the deferred task behind the placeholder calls this.
         func buildSceneIfNeeded() -> GoldBarScene.Bundle {
             if let bundle { return bundle }
-            let key = GoldBarScene.TextureKey(payload: codeData, stampLines: stampLines, serial: serial)
+            let key = textureKey
             let built: GoldBarScene.Bundle
             if let cached = GoldBarScene.cachedTextures, cached.key == key {
                 built = GoldBarScene.make(textures: cached.textures)
@@ -128,8 +158,9 @@ struct GoldBarSceneView: UIViewRepresentable {
             } else {
                 // The Kik code renders once on the main actor (ImageRenderer); the
                 // milliseconds-cheap preview maps mean the bar never waits on the bake,
-                // and the full-resolution set arrives when the background bake completes.
-                let code = GoldBarCodeRenderer.image(for: codeData, side: 480)
+                // and the full-resolution set arrives when the background bake completes
+                // (shared with any bake startEarlyBake already has in flight).
+                let code = renderCodeIfNeeded()
                 built = GoldBarScene.make(textures: GoldBarMaterialBaker.bake(
                     .preview(code: code, stampLines: stampLines, serial: serial)
                 ))

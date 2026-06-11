@@ -13,12 +13,14 @@ nonisolated enum GoldBarLighting {
     static let restAnchor = SIMD2<Double>(0, 1.12)
 
     /// Degrees of bar yaw per unit of left/right tilt (gravity.x).
-    static let yawGain: Double = 18
+    static let yawGain: Double = 36
     /// Degrees of bar pitch per unit of forward/back tilt (gravity.y vs neutral).
-    static let pitchGain: Double = 14
-    /// Subtle by design — the bar leans with the device, it doesn't spin.
-    static let maxYawDegrees: Double = 8
-    static let maxPitchDegrees: Double = 6
+    static let pitchGain: Double = 24
+    /// Big enough that the lean itself is visible (a flat bar's silhouette barely
+    /// changes under ~10°, which reads as the light moving instead), small enough
+    /// that the bar never turns away.
+    static let maxYawDegrees: Double = 18
+    static let maxPitchDegrees: Double = 12
 
     /// Unit direction the key light sits in, for a rest anchor (x lateral, y elevation).
     static func lightDirection(anchor: SIMD2<Double>) -> SIMD3<Double> {
