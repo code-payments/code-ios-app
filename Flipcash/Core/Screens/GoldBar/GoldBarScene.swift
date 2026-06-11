@@ -16,39 +16,6 @@ enum GoldBarScene {
     static let defaultEnvironmentIntensity: Double = 3.73
     static let defaultRelief: Double = 2.0
 
-    /// Everything that bakes into the face textures — text changes must miss the cache.
-    struct TextureKey: Equatable {
-        let payload: Data
-        let stampLines: [String]
-        let serial: String
-    }
-
-    /// Full-resolution maps from the most recent bake; a re-presentation skips the
-    /// preview phase and opens at full quality immediately.
-    static var cachedTextures: (key: TextureKey, textures: GoldBarMaterialBaker.Textures)?
-
-    private static var inflightBake: (key: TextureKey, task: Task<GoldBarMaterialBaker.Textures, Never>)?
-
-    /// Returns the full-resolution maps, baking off the main thread at most once per key —
-    /// concurrent presentations share the in-flight bake instead of spawning their own.
-    static func fullTextures(key: TextureKey, code: UIImage) async -> GoldBarMaterialBaker.Textures {
-        if let cached = cachedTextures, cached.key == key {
-            return cached.textures
-        }
-        if let inflight = inflightBake, inflight.key == key {
-            return await inflight.task.value
-        }
-        let config = GoldBarMaterialBaker.Config.full(code: code, stampLines: key.stampLines, serial: key.serial)
-        let task = Task.detached(priority: .userInitiated) {
-            GoldBarMaterialBaker.bake(config)
-        }
-        inflightBake = (key, task)
-        let textures = await task.value
-        cachedTextures = (key, textures)
-        inflightBake = nil
-        return textures
-    }
-
     static func make(textures: GoldBarMaterialBaker.Textures) -> Bundle {
         let scene = SCNScene()
         // Transparent: the bar composites over whatever is behind it (the scan screen,
@@ -56,7 +23,7 @@ enum GoldBarScene {
         scene.background.contents = UIColor.clear
 
         // Image-based lighting — on metalness=1 this IS the gold's brightness, so it is bright and broad.
-        scene.lightingEnvironment.contents = studioEnvironment()
+        scene.lightingEnvironment.contents = environmentImage
         scene.lightingEnvironment.intensity = CGFloat(defaultEnvironmentIntensity)
 
         // Portrait minted bar (real 1oz ≈ 24×41×2mm — thin, tall), large face toward the camera (+Z).
@@ -147,6 +114,9 @@ enum GoldBarScene {
         material.clearCoatRoughness.contents = 0.06
         return material
     }
+
+    /// Rendered once — identical for every scene (bill, demo, prewarm).
+    private static let environmentImage = studioEnvironment()
 
     /// Bright studio environment: a luminous warm upper hemisphere with broad horizontal soft-boxes,
     /// fading to a navy floor. Broad + bright so a near-mirror metal face reads gold at every held angle.

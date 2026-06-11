@@ -6,11 +6,7 @@ import CoreMotion
 /// reflections); the key light stays fixed at its anchor. Camera never moves.
 struct GoldBarSceneView: UIViewRepresentable {
 
-    let codeData: Data
-    /// Engraved lines stacked on the upper face (the amount, in production).
-    let stampLines: [String]
-    /// Engraved serial line (the USDF public key, in production).
-    let serial: String
+    let key: GoldBarTextureStore.Key
     var lightIntensity: Double
     var environmentIntensity: Double
     var relief: Double
@@ -22,29 +18,24 @@ struct GoldBarSceneView: UIViewRepresentable {
     /// Called once the scene is attached and renderable — the placeholder above can fade out.
     var onSceneReady: () -> Void
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator(codeData: codeData, stampLines: stampLines, serial: serial)
-    }
+    /// Past the cover transition (~0.5s): every SceneKit/Metal step (view
+    /// creation, shader compile, scene attach) lands main-thread hitches, so all
+    /// of it is deferred until the placeholder hides it.
+    private static let sceneAttachDelay: Duration = .milliseconds(600)
+
+    func makeCoordinator() -> Coordinator { Coordinator(key: key) }
 
     func makeUIView(context: Context) -> UIView {
-        // An empty container comes back immediately: every SceneKit/Metal step (view
-        // creation, shader compile, scene attach) lands main-thread hitches, so all of
-        // it is deferred past the cover transition, where the placeholder hides it.
         let container = UIView()
         container.backgroundColor = .clear
         let coordinator = context.coordinator
         let onReady = onSceneReady
         Task {
-            // Past the first presentation frames, so the code render (~15ms on main)
-            // can't join the tap; the bake itself runs off-main from here.
-            try? await Task.sleep(for: .milliseconds(150))
-            coordinator.startEarlyBake()
-        }
-        Task {
-            try? await Task.sleep(for: .milliseconds(600))  // cover transition runs ~0.5s
+            try? await Task.sleep(for: Self.sceneAttachDelay)
             guard !coordinator.isStopped else { return }
 
-            let bundle = coordinator.buildSceneIfNeeded()
+            let bundle = await coordinator.buildSceneIfNeeded()
+            guard !coordinator.isStopped else { return }
             let view = SCNView()
             view.backgroundColor = .clear
             view.antialiasingMode = .multisampling2X
@@ -105,9 +96,7 @@ struct GoldBarSceneView: UIViewRepresentable {
         // motion must not be left running on a torn-down view.
         private(set) var isStopped = false
 
-        private let codeData: Data
-        private let stampLines: [String]
-        private let serial: String
+        private let key: GoldBarTextureStore.Key
         private let motion = CMMotionManager()
         // Start near the neutral held attitude so the first frame is already centered.
         private var smoothedGravity = SIMD3<Double>(0, GoldBarLighting.neutralGravityY, -0.5)
@@ -116,89 +105,20 @@ struct GoldBarSceneView: UIViewRepresentable {
         private var baseRotation = SIMD2<Double>(0, 0)
         private var motionRotation = SIMD2<Double>(0, 0)
 
-        init(codeData: Data, stampLines: [String], serial: String) {
-            self.codeData = codeData
-            self.stampLines = stampLines
-            self.serial = serial
+        init(key: GoldBarTextureStore.Key) {
+            self.key = key
         }
 
-        private var codeImage: UIImage?
-
-        private var textureKey: GoldBarScene.TextureKey {
-            GoldBarScene.TextureKey(payload: codeData, stampLines: stampLines, serial: serial)
-        }
-
-        private func renderCodeIfNeeded() -> UIImage {
-            if let codeImage { return codeImage }
-            let code = GoldBarCodeRenderer.image(for: codeData, side: 480)
-            codeImage = code
-            return code
-        }
-
-        /// Starts the full-resolution bake before the scene exists — the bake is
-        /// off-main, so by the time the deferred attach runs, the texture cache is
-        /// usually already full quality and the preview phase is skipped entirely.
-        func startEarlyBake() {
-            guard !isStopped else { return }
-            let key = textureKey
-            guard GoldBarScene.cachedTextures?.key != key else { return }
-            let code = renderCodeIfNeeded()
-            Task { _ = await GoldBarScene.fullTextures(key: key, code: code) }
-        }
-
-        /// Builds the scene on first call — kept out of init so presenting the cover does
-        /// no scene work at all; the deferred task behind the placeholder calls this.
-        func buildSceneIfNeeded() -> GoldBarScene.Bundle {
+        /// Awaits the store's full-resolution maps (already baked or in flight
+        /// when `showCashBill` preheated) and assembles the scene once.
+        func buildSceneIfNeeded() async -> GoldBarScene.Bundle {
             if let bundle { return bundle }
-            let key = textureKey
-            let built: GoldBarScene.Bundle
-            if let cached = GoldBarScene.cachedTextures, cached.key == key {
-                built = GoldBarScene.make(textures: cached.textures)
-                bundle = built
-            } else {
-                // The Kik code renders once on the main actor (ImageRenderer); the
-                // milliseconds-cheap preview maps mean the bar never waits on the bake,
-                // and the full-resolution set arrives when the background bake completes
-                // (shared with any bake startEarlyBake already has in flight).
-                let code = renderCodeIfNeeded()
-                built = GoldBarScene.make(textures: GoldBarMaterialBaker.bake(
-                    .preview(code: code, stampLines: stampLines, serial: serial)
-                ))
-                bundle = built
-                bakeFullTextures(key: key, code: code)
-            }
+            let textures = await GoldBarTextureStore.shared.textures(for: key)
+            let built = GoldBarScene.make(textures: textures)
+            bundle = built
             positionLight()
             applyBarRotation()
             return built
-        }
-
-        private func bakeFullTextures(key: GoldBarScene.TextureKey, code: UIImage) {
-            guard let material = bundle?.material else { return }
-            Task { [weak self] in
-                let textures = await GoldBarScene.fullTextures(key: key, code: code)
-                // Upload the new maps to the GPU off the main thread first, so the swap
-                // below is a cheap pointer change instead of a mid-frame texture upload.
-                if let view = self?.scnView {
-                    let staging = SCNMaterial()
-                    staging.diffuse.contents = textures.albedo
-                    staging.normal.contents = textures.normal
-                    staging.roughness.contents = textures.roughness
-                    await withCheckedContinuation { continuation in
-                        view.prepare([staging]) { _ in continuation.resume() }
-                    }
-                }
-                // On-demand rendering draws no frames during an implicit animation, which
-                // turns the crossfade into a hard cut — drive frames just for its duration.
-                self?.scnView?.rendersContinuously = true
-                SCNTransaction.begin()
-                SCNTransaction.animationDuration = 0.3
-                material.diffuse.contents = textures.albedo
-                material.normal.contents = textures.normal
-                material.roughness.contents = textures.roughness
-                SCNTransaction.commit()
-                try? await Task.sleep(for: .milliseconds(400))
-                self?.scnView?.rendersContinuously = false
-            }
         }
 
         func start() {

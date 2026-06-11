@@ -43,10 +43,16 @@ struct GoldBarMaterialBakerTests {
         }
     }
 
-    @Test("Preview bake produces all maps at the preview size")
-    func previewBake_producesMaps() {
+    @Test("Small (prewarm-sized) bake produces all maps")
+    func smallBake_producesMaps() {
         let code = GoldBarCodeRenderer.image(for: .placeholder35, side: 480)
-        let config = GoldBarMaterialBaker.Config.preview(code: code, stampLines: ["$25.00"], serial: "5AMAA9JV9H97YYVxx8F6FsCMmTwXSuTTQneiup4RYAUQ")
+        let config = GoldBarMaterialBaker.Config(
+            pixelSize: CGSize(width: 96, height: 166),
+            code: code,
+            stampLines: ["$25.00"],
+            serial: "TEST",
+            scratchCount: 0
+        )
         let textures = GoldBarMaterialBaker.bake(config)
         for image in [textures.albedo, textures.normal, textures.roughness] {
             #expect(image.size.width == config.pixelSize.width)

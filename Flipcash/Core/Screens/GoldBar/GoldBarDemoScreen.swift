@@ -24,9 +24,7 @@ struct GoldBarDemoScreen: View {
                 Color(white: 0.04).ignoresSafeArea()
 
                 GoldBarSceneView(
-                    codeData: codeData,
-                    stampLines: ["$25.00"],
-                    serial: PublicKey.usdf.base58,
+                    key: .init(payload: codeData, stampLines: ["$25.00"], serial: PublicKey.usdf.base58),
                     lightIntensity: lightIntensity,
                     environmentIntensity: environmentIntensity,
                     relief: relief,

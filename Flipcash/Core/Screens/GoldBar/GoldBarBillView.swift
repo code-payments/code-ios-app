@@ -16,9 +16,7 @@ struct GoldBarBillView: View {
     var body: some View {
         ZStack {
             GoldBarSceneView(
-                codeData: data,
-                stampLines: [fiat.formatted(suffix: nil)],
-                serial: PublicKey.usdf.base58,
+                key: .usdfBill(fiat: fiat, codeData: data),
                 lightIntensity: GoldBarScene.defaultLightIntensity,
                 environmentIntensity: GoldBarScene.defaultEnvironmentIntensity,
                 relief: GoldBarScene.defaultRelief,

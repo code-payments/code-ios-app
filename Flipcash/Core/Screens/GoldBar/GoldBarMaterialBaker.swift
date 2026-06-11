@@ -27,18 +27,6 @@ nonisolated enum GoldBarMaterialBaker {
                 serial: serial
             )
         }
-
-        /// Tiny maps that bake in milliseconds — the low-res stand-in shown while the
-        /// full set bakes in the background.
-        static func preview(code: UIImage, stampLines: [String], serial: String) -> Config {
-            Config(
-                pixelSize: CGSize(width: 96, height: 166),
-                code: code,
-                stampLines: stampLines,
-                serial: serial,
-                scratchCount: 0
-            )
-        }
     }
 
     // UIImage is immutable and documented thread-safe; baked maps cross from the
