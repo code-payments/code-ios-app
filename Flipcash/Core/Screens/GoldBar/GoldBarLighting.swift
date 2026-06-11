@@ -10,7 +10,7 @@ nonisolated enum GoldBarLighting {
     /// The bar sits face-on at this attitude — NOT when the phone lies flat (gravity.y == 0).
     static let neutralGravityY: Double = -0.85
     /// Rest position of the key light (the tuned default; the demo's Light X/Y sliders move it).
-    static let restAnchor = SIMD2<Double>(0, 1.12)
+    static let restAnchor = SIMD2<Double>(0, 0.36)
 
     /// Degrees of bar yaw per unit of left/right tilt (gravity.x).
     static let yawGain: Double = 36

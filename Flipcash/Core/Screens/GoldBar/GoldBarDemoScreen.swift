@@ -38,7 +38,6 @@ struct GoldBarDemoScreen: View {
                         }
                     }
                 )
-                .ignoresSafeArea()
 
                 GoldBarPlaceholder()
                     .opacity(isSceneReady ? 0 : 1)
@@ -86,7 +85,6 @@ struct GoldBarPlaceholder: View {
                 .position(x: geo.size.width / 2, y: geo.size.height / 2)
                 .shadow(color: Color(red: 1.0, green: 0.8, blue: 0.4).opacity(0.35), radius: 24)
         }
-        .ignoresSafeArea()
     }
 }
 
