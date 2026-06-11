@@ -40,13 +40,23 @@ class ScanViewModel {
         do {
             try cameraSession.configureDevices()
             cameraSession.start()
+            // The connection outlives login sessions and the camera may come up
+            // while a bill is already presented — reconcile, never assume the
+            // configured default.
+            cameraSession.setFrameExtractionEnabled(!session.isShowingBill)
         } catch {
             logger.error("Error configuring camera session", metadata: ["error": "\(error)"])
         }
     }
-    
+
     func stopCamera() {
         cameraSession.stop()
+    }
+
+    /// Pauses Kik-code frame extraction while a bill is presented — the camera
+    /// and live preview keep running; only the per-frame scan work stops.
+    func setFrameExtractionEnabled(_ enabled: Bool) {
+        cameraSession.setFrameExtractionEnabled(enabled)
     }
     
     // MARK: - Scanning -

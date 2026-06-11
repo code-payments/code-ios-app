@@ -35,6 +35,22 @@ struct SessionTests {
         return .mock
     }
 
+    // MARK: - Bill Presentation
+
+    @Test("A presented USDF bill (gold bar) counts as showing a bill")
+    static func isShowingBill_includesGoldBar() {
+        let session = Session.mock
+        #expect(!session.isShowingBill)
+
+        let payload = CashCode.Payload(
+            kind: .cash,
+            fiat: FiatAmount(value: 5, currency: .usd),
+            nonce: Data([0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x10])
+        )
+        session.billState.bill = .cash(payload, mint: .usdf, billColors: [])
+        #expect(session.isShowingBill)
+    }
+
     // MARK: - Sufficient Funds Tests
 
     @Test
