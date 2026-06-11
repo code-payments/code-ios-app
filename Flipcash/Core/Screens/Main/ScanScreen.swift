@@ -123,7 +123,10 @@ struct ScanScreen: View {
         .animation(.easeInOut(duration: 0.3), value: preferences.cameraEnabled)
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: session.isShowingBillDesigner)
         .ignoresSafeArea(.keyboard)
-        .task { GoldBarPrewarmer.shared.prewarmIfNeeded() }
+        .task {
+            try? await Task.sleep(for: .seconds(1))  // let the scan screen settle first
+            GoldBarSceneHost.shared.warmUpIfNeeded()
+        }
         .onChange(of: session.isShowingBill, initial: true) { _, isShowingBill in
             viewModel.setFrameExtractionEnabled(!isShowingBill)
         }

@@ -6,6 +6,7 @@ import FlipcashUI
 struct GoldBarDemoScreen: View {
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(Session.self) private var session
 
     @State private var tuning = GoldBarTuning.standard
 
@@ -30,6 +31,11 @@ struct GoldBarDemoScreen: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     CloseButton { dismiss() }
                 }
+            }
+            .onChange(of: session.isShowingBill) { _, isShowingBill in
+                // One pooled SCNView — a presenting bill takes it, so the demo
+                // steps aside instead of showing an empty stage.
+                if isShowingBill { dismiss() }
             }
         }
     }

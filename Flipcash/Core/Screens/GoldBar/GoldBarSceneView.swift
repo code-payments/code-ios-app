@@ -1,9 +1,8 @@
 import SwiftUI
 import SceneKit
-import CoreMotion
 
-/// Hosts the gold-bar SCNView. Device tilt leans the bar slightly (sweeping its
-/// reflections); the key light stays fixed at its anchor. Camera never moves.
+/// Hosts the pooled gold-bar SCNView for one presentation: adopts it from
+/// `GoldBarSceneHost`, parents it, and releases it on dismantle.
 struct GoldBarSceneView: UIViewRepresentable {
 
     let key: GoldBarTextureStore.Key
@@ -11,145 +10,47 @@ struct GoldBarSceneView: UIViewRepresentable {
     /// Called once the scene is attached and renderable — the placeholder above can fade out.
     var onSceneReady: () -> Void
 
-    func makeCoordinator() -> Coordinator { Coordinator(key: key) }
-
     /// Motion-driven rendering stays out of the cover transition: re-rendering
     /// the scene on the main thread while the presentation animates drops frames.
     private static let motionStartDelay: Duration = .milliseconds(600)
 
-    // The scene attaches as soon as the baked textures are prepared — typically
-    // while the cover is still sliding in — renders one frame, and holds it.
-    // Motion (and with it per-tick re-rendering) starts after the transition.
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
     func makeUIView(context: Context) -> UIView {
-        // Created at mount, before the transition's first frame, so the Metal
-        // layer/renderer setup cost never lands mid-animation.
-        let view = SCNView()
-        view.backgroundColor = .clear
-        view.antialiasingMode = .multisampling2X
-        view.allowsCameraControl = false
+        let container = UIView()
+        container.backgroundColor = .clear
         let coordinator = context.coordinator
         let onReady = onSceneReady
         Task {
-            let bundle = await coordinator.buildSceneIfNeeded()
+            // Liveness BEFORE adopting: a presenter dismantled before this task
+            // runs must not steal ownership (and content) from a live one.
             guard !coordinator.isStopped else { return }
-            await withCheckedContinuation { continuation in
-                view.prepare([bundle.scene]) { _ in
-                    continuation.resume()
-                }
-            }
-            guard !coordinator.isStopped else { return }
-
-            view.scene = bundle.scene
-            coordinator.scnView = view
+            guard let view = await GoldBarSceneHost.shared.adopt(key: key, tuning: tuning, token: coordinator.token),
+                  !coordinator.isStopped else { return }
+            view.frame = container.bounds
+            view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            container.addSubview(view)
             onReady()
 
             try? await Task.sleep(for: Self.motionStartDelay)
             guard !coordinator.isStopped else { return }
-            coordinator.start()
+            GoldBarSceneHost.shared.startMotion(token: coordinator.token)
         }
-        return view
+        return container
     }
 
     func updateUIView(_ uiView: UIView, context: Context) {
-        context.coordinator.apply(tuning)
+        GoldBarSceneHost.shared.apply(tuning, token: context.coordinator.token)
     }
 
     static func dismantleUIView(_ uiView: UIView, coordinator: Coordinator) {
-        coordinator.stop()
+        coordinator.isStopped = true
+        GoldBarSceneHost.shared.release(token: coordinator.token)
     }
 
     @MainActor
     final class Coordinator {
-        private(set) var bundle: GoldBarScene.Bundle?
-        weak var scnView: SCNView?
-
-        // start() can arrive after stop() when the cover is dismissed mid-prepare —
-        // motion must not be left running on a torn-down view.
-        private(set) var isStopped = false
-
-        private let key: GoldBarTextureStore.Key
-        private let motion = CMMotionManager()
-        // Start near the neutral held attitude so the first frame is already centered.
-        private var smoothedGravity = SIMD3<Double>(0, GoldBarMotion.neutralGravityY, -0.5)
-        private var lastAppliedGravity = SIMD3<Double>(0, GoldBarMotion.neutralGravityY, -0.5)
-        private var tuning = GoldBarTuning.standard
-        private var motionRotation = SIMD2<Double>(0, 0)
-
-        init(key: GoldBarTextureStore.Key) {
-            self.key = key
-        }
-
-        /// Awaits the store's full-resolution maps (usually already baked or in
-        /// flight via a preheat) and assembles the scene once.
-        func buildSceneIfNeeded() async -> GoldBarScene.Bundle {
-            if let bundle { return bundle }
-            let textures = await GoldBarTextureStore.shared.textures(for: key)
-            let built = GoldBarScene.make(textures: textures)
-            bundle = built
-            applyTuningToScene()
-            applyBarRotation()
-            return built
-        }
-
-        /// Scalars only — never reassign material `.contents` or the baked
-        /// roughness/normal maps are lost. Guarded on the whole value so
-        /// unrelated SwiftUI updates don't dirty the SceneKit scene.
-        func apply(_ new: GoldBarTuning) {
-            guard new != tuning else { return }
-            tuning = new
-            applyTuningToScene()
-            applyBarRotation()
-        }
-
-        func start() {
-            guard !isStopped, motion.isDeviceMotionAvailable else { return }
-            motion.deviceMotionUpdateInterval = 1.0 / 60.0
-            // Delivered on .main, so assumeIsolated is safe and avoids a per-frame Task hop (Swift 6).
-            motion.startDeviceMotionUpdates(using: .xArbitraryZVertical, to: .main) { [weak self] data, _ in
-                guard let self, let gravity = data?.gravity else { return }
-                let g = SIMD3<Double>(gravity.x, gravity.y, gravity.z)
-                MainActor.assumeIsolated {
-                    self.apply(gravity: g)
-                }
-            }
-        }
-
-        func stop() {
-            isStopped = true
-            motion.stopDeviceMotionUpdates()
-        }
-
-        private func applyTuningToScene() {
-            guard let bundle else { return }  // scene not built yet; applied on build
-            bundle.keyLightNode.light?.intensity = CGFloat(tuning.lightIntensity)
-            bundle.scene.lightingEnvironment.intensity = CGFloat(tuning.environmentIntensity)
-            bundle.material.normal.intensity = CGFloat(tuning.relief)
-            let direction = GoldBarScene.lightDirection(anchor: tuning.lightAnchor)
-            bundle.keyLightNode.position = SCNVector3(Float(direction.x), Float(direction.y), Float(direction.z))
-            bundle.keyLightNode.look(at: SCNVector3Zero)
-        }
-
-        private func apply(gravity: SIMD3<Double>) {
-            smoothedGravity.x = GoldBarMotion.smoothed(previous: smoothedGravity.x, target: gravity.x, factor: GoldBarMotion.smoothingFactor)
-            smoothedGravity.y = GoldBarMotion.smoothed(previous: smoothedGravity.y, target: gravity.y, factor: GoldBarMotion.smoothingFactor)
-            // Dead-band: sensor noise never settles, so without this the scene is dirtied —
-            // and re-rendered — 60 times a second even while the phone is held still.
-            // Skipping sub-perceptual deltas lets the view idle (battery, thermals).
-            let delta = max(abs(smoothedGravity.x - lastAppliedGravity.x),
-                            abs(smoothedGravity.y - lastAppliedGravity.y))
-            guard delta > GoldBarMotion.gravityDeadBand else { return }
-            lastAppliedGravity = smoothedGravity
-            motionRotation = GoldBarMotion.barRotationDegrees(gravity: smoothedGravity)
-            applyBarRotation()
-        }
-
-        /// Direct sets — wrapping these in SCNTransaction animations at 60Hz piles up
-        /// overlapping interpolators and drops frames; the low-pass filter already smooths.
-        private func applyBarRotation() {
-            guard let bundle else { return }  // scene not built yet; applied on build
-            let yaw = (tuning.barRotationDegrees.x + motionRotation.x) * .pi / 180
-            let pitch = (tuning.barRotationDegrees.y + motionRotation.y) * .pi / 180
-            bundle.barNode.eulerAngles = SCNVector3(Float(pitch), Float(yaw), 0)
-        }
+        var isStopped = false
+        var token: ObjectIdentifier { ObjectIdentifier(self) }
     }
 }
