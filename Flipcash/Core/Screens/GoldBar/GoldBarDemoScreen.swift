@@ -7,13 +7,7 @@ struct GoldBarDemoScreen: View {
 
     @Environment(\.dismiss) private var dismiss
 
-    @State private var lightIntensity: Double = GoldBarScene.defaultLightIntensity
-    @State private var environmentIntensity: Double = GoldBarScene.defaultEnvironmentIntensity
-    @State private var relief: Double = GoldBarScene.defaultRelief
-    @State private var lightX: Double = GoldBarLighting.restAnchor.x
-    @State private var lightY: Double = GoldBarLighting.restAnchor.y
-    @State private var barRotationX: Double = 0
-    @State private var barRotationY: Double = 0
+    @State private var tuning = GoldBarTuning.standard
     @State private var isSceneReady = false
 
     private let codeData = Data.placeholder35
@@ -25,11 +19,7 @@ struct GoldBarDemoScreen: View {
 
                 GoldBarSceneView(
                     key: .init(payload: codeData, stampLines: ["$25.00"], serial: PublicKey.usdf.base58),
-                    lightIntensity: lightIntensity,
-                    environmentIntensity: environmentIntensity,
-                    relief: relief,
-                    lightAnchor: SIMD2(lightX, lightY),
-                    barRotationDegrees: SIMD2(barRotationX, barRotationY),
+                    tuning: tuning,
                     onSceneReady: {
                         withAnimation(.easeOut(duration: 0.3)) {
                             isSceneReady = true
@@ -41,15 +31,7 @@ struct GoldBarDemoScreen: View {
                     .opacity(isSceneReady ? 0 : 1)
                     .allowsHitTesting(false)
 
-                GoldBarTuningOverlay(
-                    lightIntensity: $lightIntensity,
-                    environmentIntensity: $environmentIntensity,
-                    relief: $relief,
-                    lightX: $lightX,
-                    lightY: $lightY,
-                    barRotationX: $barRotationX,
-                    barRotationY: $barRotationY
-                )
+                GoldBarTuningOverlay(tuning: $tuning)
             }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -90,13 +72,7 @@ struct GoldBarPlaceholder: View {
 /// Mirrors system PiP: 1:1 drag from anywhere on the panel, momentum snap to the nearest corner
 /// on release, and a fling past a screen edge stashes the panel with a tab peeking; tap to restore.
 private struct GoldBarTuningOverlay: View {
-    @Binding var lightIntensity: Double
-    @Binding var environmentIntensity: Double
-    @Binding var relief: Double
-    @Binding var lightX: Double
-    @Binding var lightY: Double
-    @Binding var barRotationX: Double
-    @Binding var barRotationY: Double
+    @Binding var tuning: GoldBarTuning
 
     @State private var position: CGPoint?
     @State private var panelSize = CGSize(width: 300, height: 320)
@@ -109,15 +85,7 @@ private struct GoldBarTuningOverlay: View {
     var body: some View {
         GeometryReader { geo in
             let current = position ?? restingPosition(in: geo.size)
-            GoldBarTuningPanel(
-                lightIntensity: $lightIntensity,
-                environmentIntensity: $environmentIntensity,
-                relief: $relief,
-                lightX: $lightX,
-                lightY: $lightY,
-                barRotationX: $barRotationX,
-                barRotationY: $barRotationY
-            )
+            GoldBarTuningPanel(tuning: $tuning)
             .onGeometryChange(for: CGSize.self) { $0.size } action: { panelSize = $0 }
             .onTapGesture {
                 guard isStashed else { return }
@@ -193,13 +161,7 @@ private struct GoldBarTuningOverlay: View {
 }
 
 private struct GoldBarTuningPanel: View {
-    @Binding var lightIntensity: Double
-    @Binding var environmentIntensity: Double
-    @Binding var relief: Double
-    @Binding var lightX: Double
-    @Binding var lightY: Double
-    @Binding var barRotationX: Double
-    @Binding var barRotationY: Double
+    @Binding var tuning: GoldBarTuning
 
     var body: some View {
         VStack(spacing: 10) {
@@ -207,13 +169,13 @@ private struct GoldBarTuningPanel: View {
                 .fill(.white.opacity(0.35))
                 .frame(width: 36, height: 5)
                 .padding(.top, 10)
-            LabeledSlider(title: "Light", value: $lightIntensity, range: 0...2500)
-            LabeledSlider(title: "Environment", value: $environmentIntensity, range: 0...8)
-            LabeledSlider(title: "Relief", value: $relief, range: 0...2)
-            LabeledSlider(title: "Light X", value: $lightX, range: -1.5...1.5)
-            LabeledSlider(title: "Light Y", value: $lightY, range: -0.5...1.5)
-            LabeledSlider(title: "Rotation X", value: $barRotationX, range: -90...90)
-            LabeledSlider(title: "Rotation Y", value: $barRotationY, range: -90...90)
+            LabeledSlider(title: "Light", value: $tuning.lightIntensity, range: 0...2500)
+            LabeledSlider(title: "Environment", value: $tuning.environmentIntensity, range: 0...8)
+            LabeledSlider(title: "Relief", value: $tuning.relief, range: 0...2)
+            LabeledSlider(title: "Light X", value: $tuning.lightAnchor.x, range: -1.5...1.5)
+            LabeledSlider(title: "Light Y", value: $tuning.lightAnchor.y, range: -0.5...1.5)
+            LabeledSlider(title: "Rotation X", value: $tuning.barRotationDegrees.x, range: -90...90)
+            LabeledSlider(title: "Rotation Y", value: $tuning.barRotationDegrees.y, range: -90...90)
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 16)

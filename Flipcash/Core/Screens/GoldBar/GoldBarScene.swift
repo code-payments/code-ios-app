@@ -11,10 +11,10 @@ enum GoldBarScene {
         let material: SCNMaterial
     }
 
-    /// The tuned look (also the demo sliders' starting values).
-    static let defaultLightIntensity: Double = 1034
-    static let defaultEnvironmentIntensity: Double = 3.73
-    static let defaultRelief: Double = 2.0
+    /// Unit direction the key light sits in, for a rest anchor (x lateral, y elevation).
+    static func lightDirection(anchor: SIMD2<Double>) -> SIMD3<Double> {
+        simd_normalize(SIMD3(anchor.x, anchor.y, 1))
+    }
 
     static func make(textures: GoldBarMaterialBaker.Textures) -> Bundle {
         let scene = SCNScene()
@@ -24,7 +24,7 @@ enum GoldBarScene {
 
         // Image-based lighting — on metalness=1 this IS the gold's brightness, so it is bright and broad.
         scene.lightingEnvironment.contents = environmentImage
-        scene.lightingEnvironment.intensity = CGFloat(defaultEnvironmentIntensity)
+        scene.lightingEnvironment.intensity = CGFloat(GoldBarTuning.standard.environmentIntensity)
 
         // Portrait minted bar (real 1oz ≈ 24×41×2mm — thin, tall), large face toward the camera (+Z).
         let box = SCNBox(width: 0.60, height: 1.04, length: 0.13, chamferRadius: 0.022)
@@ -64,12 +64,12 @@ enum GoldBarScene {
         key.type = .area
         key.areaType = .rectangle
         key.areaExtents = SIMD3<Float>(0.8, 2.4, 0)
-        key.intensity = CGFloat(defaultLightIntensity)
+        key.intensity = CGFloat(GoldBarTuning.standard.lightIntensity)
         key.color = UIColor(red: 1.0, green: 0.90, blue: 0.72, alpha: 1)
         key.castsShadow = false
         let keyLightNode = SCNNode()
         keyLightNode.light = key
-        let anchor = GoldBarLighting.lightDirection(anchor: GoldBarLighting.restAnchor)
+        let anchor = lightDirection(anchor: GoldBarTuning.standard.lightAnchor)
         keyLightNode.position = SCNVector3(Float(anchor.x), Float(anchor.y), Float(anchor.z))
         keyLightNode.look(at: SCNVector3Zero)
         scene.rootNode.addChildNode(keyLightNode)
@@ -95,7 +95,7 @@ enum GoldBarScene {
         material.roughness.contents = textures.roughness
         material.diffuse.contents = textures.albedo
         material.normal.contents = textures.normal
-        material.normal.intensity = CGFloat(defaultRelief)
+        material.normal.intensity = CGFloat(GoldBarTuning.standard.relief)
         material.clearCoat.contents = 0.8        // thin lacquer → crisp minted sheen on top of the gold
         material.clearCoatRoughness.contents = 0.06
         material.diffuse.wrapS = .clamp

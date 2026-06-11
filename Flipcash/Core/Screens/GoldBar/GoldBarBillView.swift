@@ -17,11 +17,6 @@ struct GoldBarBillView: View {
         ZStack {
             GoldBarSceneView(
                 key: .usdfBill(fiat: fiat, codeData: data),
-                lightIntensity: GoldBarScene.defaultLightIntensity,
-                environmentIntensity: GoldBarScene.defaultEnvironmentIntensity,
-                relief: GoldBarScene.defaultRelief,
-                lightAnchor: GoldBarLighting.restAnchor,
-                barRotationDegrees: SIMD2(0, 0),
                 onSceneReady: {
                     withAnimation(.easeOut(duration: 0.3)) {
                         isSceneReady = true
