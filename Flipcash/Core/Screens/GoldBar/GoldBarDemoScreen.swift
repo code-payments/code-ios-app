@@ -6,7 +6,9 @@ import FlipcashUI
 struct GoldBarDemoScreen: View {
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(Session.self) private var session
+    /// Optional: the demo renders fine without a session (previews, harnesses);
+    /// with one, it yields the pooled bar to presenting bills below.
+    @Environment(Session.self) private var session: Session?
 
     @State private var tuning = GoldBarTuning.standard
 
@@ -32,7 +34,7 @@ struct GoldBarDemoScreen: View {
                     CloseButton { dismiss() }
                 }
             }
-            .onChange(of: session.isShowingBill) { _, isShowingBill in
+            .onChange(of: session?.isShowingBill ?? false) { _, isShowingBill in
                 // One pooled SCNView — a presenting bill takes it, so the demo
                 // steps aside instead of showing an empty stage.
                 if isShowingBill { dismiss() }

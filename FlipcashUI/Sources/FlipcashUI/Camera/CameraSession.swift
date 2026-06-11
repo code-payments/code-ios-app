@@ -75,10 +75,10 @@ public final class CameraSession<T>: AnyCameraSession, @unchecked Sendable where
     public nonisolated(unsafe) let extractor: T
     public nonisolated let session: AVCaptureSession
 
-    // SAFETY: written and read only on `videoDelegate.queue` (the same serial
-    // queue start()/stop() and the extraction toggle use), never from any
-    // other thread.
-    private nonisolated(unsafe) var videoOutput: AVCaptureVideoDataOutput?
+    // Created at init (not during configure) so the extraction toggle can
+    // capture it directly — before it joins the session it has no connection
+    // and the toggle is a no-op.
+    private nonisolated let videoOutput = AVCaptureVideoDataOutput()
 
     private var isConfigured: Bool = false
     private let videoDelegate: VideoDelegate
@@ -160,7 +160,7 @@ public final class CameraSession<T>: AnyCameraSession, @unchecked Sendable where
 
         session.addInput(input)
 
-        let output = AVCaptureVideoDataOutput()
+        let output = videoOutput
         output.setSampleBufferDelegate(videoDelegate, queue: videoDelegate.queue)
 
         guard session.canAddOutput(output) else {
@@ -168,10 +168,6 @@ public final class CameraSession<T>: AnyCameraSession, @unchecked Sendable where
         }
 
         session.addOutput(output)
-        // Serial FIFO queue: ordered before any extraction toggle enqueued later.
-        videoDelegate.queue.async { [weak self] in
-            self?.videoOutput = output
-        }
 
         let metadataOutput = AVCaptureMetadataOutput()
         metadataOutput.setMetadataObjectsDelegate(metadataDelegate, queue: metadataDelegate.queue)
@@ -243,8 +239,9 @@ public final class CameraSession<T>: AnyCameraSession, @unchecked Sendable where
     /// session and live preview keep running; only the video-data connection
     /// is toggled, so there is no restart latency.
     public func setFrameExtractionEnabled(_ enabled: Bool) {
-        videoDelegate.queue.async { [weak self] in
-            self?.videoOutput?.connection(with: .video)?.isEnabled = enabled
+        let output = videoOutput
+        videoDelegate.queue.async {
+            output.connection(with: .video)?.isEnabled = enabled
         }
     }
     
