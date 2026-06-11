@@ -127,7 +127,7 @@ final class GiveViewModel {
             return ExchangedBalance(stored: stored, exchangedFiat: stored.computeExchangedValue(with: rate))
         }
 
-        let giveable = session.balances(for: rate).filter { $0.stored.mint != .usdf }
+        let giveable = session.balances(for: rate)
 
         if let stored = ratesController.selectedTokenMint,
            let match = giveable.first(where: { $0.stored.mint == stored }) {

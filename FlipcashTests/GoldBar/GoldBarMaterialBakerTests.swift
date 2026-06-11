@@ -20,7 +20,7 @@ struct GoldBarMaterialBakerTests {
     @Test("Etched code darkens the albedo's code region (etch contrast)")
     func bakedCode_darkensAlbedo() throws {
         let code = GoldBarCodeRenderer.image(for: .placeholder35, side: 480)
-        let textures = GoldBarMaterialBaker.bake(.full(code: code))
+        let textures = GoldBarMaterialBaker.bake(.full(code: code, stampLines: ["$25.00"], serial: "5AMAA9JV9H97YYVxx8F6FsCMmTwXSuTTQneiup4RYAUQ"))
         let size = textures.albedo.size
 
         // Center of the code band vs a plain-gold strip between serial and code.
@@ -35,7 +35,7 @@ struct GoldBarMaterialBakerTests {
     @Test("All maps are produced at the requested pixel size")
     func bakedTextures_matchRequestedSize() {
         let code = GoldBarCodeRenderer.image(for: .placeholder35, side: 480)
-        let config = GoldBarMaterialBaker.Config.full(code: code)
+        let config = GoldBarMaterialBaker.Config.full(code: code, stampLines: ["$25.00"], serial: "5AMAA9JV9H97YYVxx8F6FsCMmTwXSuTTQneiup4RYAUQ")
         let textures = GoldBarMaterialBaker.bake(config)
         for image in [textures.albedo, textures.normal, textures.roughness] {
             #expect(image.size.width == config.pixelSize.width)
@@ -46,7 +46,7 @@ struct GoldBarMaterialBakerTests {
     @Test("Preview bake produces all maps at the preview size")
     func previewBake_producesMaps() {
         let code = GoldBarCodeRenderer.image(for: .placeholder35, side: 480)
-        let config = GoldBarMaterialBaker.Config.preview(code: code)
+        let config = GoldBarMaterialBaker.Config.preview(code: code, stampLines: ["$25.00"], serial: "5AMAA9JV9H97YYVxx8F6FsCMmTwXSuTTQneiup4RYAUQ")
         let textures = GoldBarMaterialBaker.bake(config)
         for image in [textures.albedo, textures.normal, textures.roughness] {
             #expect(image.size.width == config.pixelSize.width)

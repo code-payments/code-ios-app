@@ -2,29 +2,36 @@ import SwiftUI
 import SceneKit
 import CoreMotion
 
-/// Hosts the gold-bar SCNView and drives the light + environment from device tilt.
-/// The bar and camera never move; only the light orientation and environment rotation change.
+/// Hosts the gold-bar SCNView. Device tilt leans the bar slightly (sweeping its
+/// reflections); the key light stays fixed at its anchor. Camera never moves.
 struct GoldBarSceneView: UIViewRepresentable {
 
     let codeData: Data
+    /// Engraved lines stacked on the upper face (the amount, in production).
+    let stampLines: [String]
+    /// Engraved serial line (the USDF public key, in production).
+    let serial: String
     var lightIntensity: Double
     var environmentIntensity: Double
     var relief: Double
-    /// Rest position of the key light; tilt sweeps the highlight around this anchor.
+    /// Rest position of the key light.
     var lightAnchor: SIMD2<Double>
-    /// Bar rotation in degrees: x turns left/right, y tilts up/down; zero faces the user dead-on.
+    /// Base bar rotation in degrees: x turns left/right, y tilts up/down; device
+    /// motion adds a slight lean on top of this.
     var barRotationDegrees: SIMD2<Double>
     /// Called once the scene is attached and renderable — the placeholder above can fade out.
     var onSceneReady: () -> Void
 
-    func makeCoordinator() -> Coordinator { Coordinator(codeData: codeData) }
+    func makeCoordinator() -> Coordinator {
+        Coordinator(codeData: codeData, stampLines: stampLines, serial: serial)
+    }
 
     func makeUIView(context: Context) -> UIView {
         // An empty container comes back immediately: every SceneKit/Metal step (view
         // creation, shader compile, scene attach) lands main-thread hitches, so all of
         // it is deferred past the cover transition, where the placeholder hides it.
         let container = UIView()
-        container.backgroundColor = UIColor(white: 0.04, alpha: 1)
+        container.backgroundColor = .clear
         let coordinator = context.coordinator
         let onReady = onSceneReady
         Task {
@@ -33,7 +40,7 @@ struct GoldBarSceneView: UIViewRepresentable {
 
             let bundle = coordinator.buildSceneIfNeeded()
             let view = SCNView()
-            view.backgroundColor = UIColor(white: 0.04, alpha: 1)
+            view.backgroundColor = .clear
             view.antialiasingMode = .multisampling2X
             view.allowsCameraControl = false
             await withCheckedContinuation { continuation in
@@ -59,6 +66,7 @@ struct GoldBarSceneView: UIViewRepresentable {
         // Each write is guarded so unrelated SwiftUI updates don't dirty the SceneKit scene.
         let coordinator = context.coordinator
         coordinator.setLightAnchor(lightAnchor)
+        coordinator.setBaseRotation(barRotationDegrees)
         guard let bundle = coordinator.bundle else { return }  // re-applied via the onSceneReady re-render
         if coordinator.appliedLightIntensity != lightIntensity {
             coordinator.appliedLightIntensity = lightIntensity
@@ -72,14 +80,6 @@ struct GoldBarSceneView: UIViewRepresentable {
             coordinator.appliedRelief = relief
             bundle.material.normal.intensity = CGFloat(relief)
         }
-        if coordinator.appliedBarRotation != barRotationDegrees {
-            coordinator.appliedBarRotation = barRotationDegrees
-            bundle.barNode.eulerAngles = SCNVector3(
-                Float(barRotationDegrees.y * .pi / 180),
-                Float(barRotationDegrees.x * .pi / 180),
-                0
-            )
-        }
     }
 
     static func dismantleUIView(_ uiView: UIView, coordinator: Coordinator) {
@@ -92,24 +92,37 @@ struct GoldBarSceneView: UIViewRepresentable {
         var appliedLightIntensity: Double?
         var appliedEnvironmentIntensity: Double?
         var appliedRelief: Double?
-        var appliedBarRotation: SIMD2<Double>?
+
+        weak var scnView: SCNView?
+
+        // start() can arrive after stop() when the cover is dismissed mid-prepare —
+        // motion must not be left running on a torn-down view.
+        private(set) var isStopped = false
 
         private let codeData: Data
+        private let stampLines: [String]
+        private let serial: String
         private let motion = CMMotionManager()
         // Start near the neutral held attitude so the first frame is already centered.
         private var smoothedGravity = SIMD3<Double>(0, GoldBarLighting.neutralGravityY, -0.5)
-        private var lightAnchor: SIMD2<Double>?
+        private var lastAppliedGravity = SIMD3<Double>(0, GoldBarLighting.neutralGravityY, -0.5)
+        private var lightAnchor = GoldBarLighting.restAnchor
+        private var baseRotation = SIMD2<Double>(0, 0)
+        private var motionRotation = SIMD2<Double>(0, 0)
 
-        init(codeData: Data) {
+        init(codeData: Data, stampLines: [String], serial: String) {
             self.codeData = codeData
+            self.stampLines = stampLines
+            self.serial = serial
         }
 
         /// Builds the scene on first call — kept out of init so presenting the cover does
         /// no scene work at all; the deferred task behind the placeholder calls this.
         func buildSceneIfNeeded() -> GoldBarScene.Bundle {
             if let bundle { return bundle }
+            let key = GoldBarScene.TextureKey(payload: codeData, stampLines: stampLines, serial: serial)
             let built: GoldBarScene.Bundle
-            if let cached = GoldBarScene.cachedTextures, cached.payload == codeData {
+            if let cached = GoldBarScene.cachedTextures, cached.key == key {
                 built = GoldBarScene.make(textures: cached.textures)
                 bundle = built
             } else {
@@ -117,19 +130,21 @@ struct GoldBarSceneView: UIViewRepresentable {
                 // milliseconds-cheap preview maps mean the bar never waits on the bake,
                 // and the full-resolution set arrives when the background bake completes.
                 let code = GoldBarCodeRenderer.image(for: codeData, side: 480)
-                built = GoldBarScene.make(textures: GoldBarMaterialBaker.bake(.preview(code: code)))
+                built = GoldBarScene.make(textures: GoldBarMaterialBaker.bake(
+                    .preview(code: code, stampLines: stampLines, serial: serial)
+                ))
                 bundle = built
-                bakeFullTextures(code: code)
+                bakeFullTextures(key: key, code: code)
             }
-            positionLight(for: smoothedGravity)
+            positionLight()
+            applyBarRotation()
             return built
         }
 
-        private func bakeFullTextures(code: UIImage) {
+        private func bakeFullTextures(key: GoldBarScene.TextureKey, code: UIImage) {
             guard let material = bundle?.material else { return }
-            let payload = codeData
             Task { [weak self] in
-                let textures = await GoldBarScene.fullTextures(payload: payload, code: code)
+                let textures = await GoldBarScene.fullTextures(key: key, code: code)
                 // Upload the new maps to the GPU off the main thread first, so the swap
                 // below is a cheap pointer change instead of a mid-frame texture upload.
                 if let view = self?.scnView {
@@ -150,12 +165,6 @@ struct GoldBarSceneView: UIViewRepresentable {
             }
         }
 
-        weak var scnView: SCNView?
-
-        // start() can arrive after stop() when the cover is dismissed mid-prepare —
-        // motion must not be left running on a torn-down view.
-        private(set) var isStopped = false
-
         func start() {
             guard !isStopped, motion.isDeviceMotionAvailable else { return }
             motion.deviceMotionUpdateInterval = 1.0 / 60.0
@@ -174,15 +183,20 @@ struct GoldBarSceneView: UIViewRepresentable {
             motion.stopDeviceMotionUpdates()
         }
 
-        /// Moves the light's rest anchor; tilt keeps sweeping around it. Repositions
-        /// immediately, so it's also live on the Simulator where CoreMotion never ticks.
+        /// Moves the light's rest anchor. Repositions immediately, so it's also live on
+        /// the Simulator where CoreMotion never ticks.
         func setLightAnchor(_ anchor: SIMD2<Double>) {
             guard anchor != lightAnchor else { return }
             lightAnchor = anchor
-            positionLight(for: smoothedGravity)
+            positionLight()
         }
 
-        private var lastAppliedGravity = SIMD3<Double>(0, GoldBarLighting.neutralGravityY, -0.5)
+        /// Base rotation from the demo's Rotation X/Y sliders; motion leans on top of it.
+        func setBaseRotation(_ degrees: SIMD2<Double>) {
+            guard degrees != baseRotation else { return }
+            baseRotation = degrees
+            applyBarRotation()
+        }
 
         private func apply(gravity: SIMD3<Double>) {
             smoothedGravity.x = GoldBarLighting.smoothed(previous: smoothedGravity.x, target: gravity.x, factor: 0.18)
@@ -193,22 +207,25 @@ struct GoldBarSceneView: UIViewRepresentable {
             let delta = max(abs(smoothedGravity.x - lastAppliedGravity.x),
                             abs(smoothedGravity.y - lastAppliedGravity.y))
             guard delta > 0.0025 else { return }
-            positionLight(for: smoothedGravity)
+            lastAppliedGravity = smoothedGravity
+            motionRotation = GoldBarLighting.barRotationDegrees(gravity: smoothedGravity)
+            applyBarRotation()
         }
 
         /// Direct sets — wrapping these in SCNTransaction animations at 60Hz piles up
         /// overlapping interpolators and drops frames; the low-pass filter already smooths.
-        private func positionLight(for gravity: SIMD3<Double>) {
+        private func applyBarRotation() {
             guard let bundle else { return }  // scene not built yet; reapplied on build
-            lastAppliedGravity = gravity
-            let anchor = lightAnchor ?? SIMD2(0, GoldBarLighting.restElevation)
-            let direction = GoldBarLighting.lightDirection(gravity: gravity, anchor: anchor)
-            let envRotation = GoldBarLighting.environmentRotation(gravity: gravity)
+            let yaw = (baseRotation.x + motionRotation.x) * .pi / 180
+            let pitch = (baseRotation.y + motionRotation.y) * .pi / 180
+            bundle.barNode.eulerAngles = SCNVector3(Float(pitch), Float(yaw), 0)
+        }
+
+        private func positionLight() {
+            guard let bundle else { return }  // scene not built yet; reapplied on build
+            let direction = GoldBarLighting.lightDirection(anchor: lightAnchor)
             bundle.keyLightNode.position = SCNVector3(Float(direction.x), Float(direction.y), Float(direction.z))
             bundle.keyLightNode.look(at: SCNVector3Zero)
-            let yaw = SCNMatrix4MakeRotation(Float(envRotation.yaw), 0, 1, 0)
-            let pitch = SCNMatrix4MakeRotation(Float(envRotation.pitch), 1, 0, 0)
-            bundle.scene.lightingEnvironment.contentsTransform = SCNMatrix4Mult(yaw, pitch)
         }
     }
 }

@@ -11,38 +11,53 @@ enum GoldBarScene {
         let material: SCNMaterial
     }
 
+    /// The tuned look (also the demo sliders' starting values).
+    static let defaultLightIntensity: Double = 1034
+    static let defaultEnvironmentIntensity: Double = 3.73
+    static let defaultRelief: Double = 2.0
+
+    /// Everything that bakes into the face textures — text changes must miss the cache.
+    struct TextureKey: Equatable {
+        let payload: Data
+        let stampLines: [String]
+        let serial: String
+    }
+
     /// Full-resolution maps from the most recent bake; a re-presentation skips the
     /// preview phase and opens at full quality immediately.
-    static var cachedTextures: (payload: Data, textures: GoldBarMaterialBaker.Textures)?
+    static var cachedTextures: (key: TextureKey, textures: GoldBarMaterialBaker.Textures)?
 
-    private static var inflightBake: (payload: Data, task: Task<GoldBarMaterialBaker.Textures, Never>)?
+    private static var inflightBake: (key: TextureKey, task: Task<GoldBarMaterialBaker.Textures, Never>)?
 
-    /// Returns the full-resolution maps, baking off the main thread at most once per payload —
+    /// Returns the full-resolution maps, baking off the main thread at most once per key —
     /// concurrent presentations share the in-flight bake instead of spawning their own.
-    static func fullTextures(payload: Data, code: UIImage) async -> GoldBarMaterialBaker.Textures {
-        if let cached = cachedTextures, cached.payload == payload {
+    static func fullTextures(key: TextureKey, code: UIImage) async -> GoldBarMaterialBaker.Textures {
+        if let cached = cachedTextures, cached.key == key {
             return cached.textures
         }
-        if let inflight = inflightBake, inflight.payload == payload {
+        if let inflight = inflightBake, inflight.key == key {
             return await inflight.task.value
         }
+        let config = GoldBarMaterialBaker.Config.full(code: code, stampLines: key.stampLines, serial: key.serial)
         let task = Task.detached(priority: .userInitiated) {
-            GoldBarMaterialBaker.bake(.full(code: code))
+            GoldBarMaterialBaker.bake(config)
         }
-        inflightBake = (payload, task)
+        inflightBake = (key, task)
         let textures = await task.value
-        cachedTextures = (payload, textures)
+        cachedTextures = (key, textures)
         inflightBake = nil
         return textures
     }
 
     static func make(textures: GoldBarMaterialBaker.Textures) -> Bundle {
         let scene = SCNScene()
-        scene.background.contents = UIColor(white: 0.04, alpha: 1)
+        // Transparent: the bar composites over whatever is behind it (the scan screen,
+        // the demo's backdrop) exactly like the bill does.
+        scene.background.contents = UIColor.clear
 
         // Image-based lighting — on metalness=1 this IS the gold's brightness, so it is bright and broad.
         scene.lightingEnvironment.contents = studioEnvironment()
-        scene.lightingEnvironment.intensity = 5.2
+        scene.lightingEnvironment.intensity = CGFloat(defaultEnvironmentIntensity)
 
         // Portrait minted bar (real 1oz ≈ 24×41×2mm — thin, tall), large face toward the camera (+Z).
         let box = SCNBox(width: 0.60, height: 1.04, length: 0.13, chamferRadius: 0.022)
@@ -70,24 +85,25 @@ enum GoldBarScene {
         camera.bloomThreshold = 0.95
         camera.bloomBlurRadius = 10
         cameraNode.camera = camera
-        // Face-on by default, pulled back so the whole bar floats with margin; the demo's
-        // Rotation slider turns the bar itself to reveal its 3D edges.
-        cameraNode.position = SCNVector3(0, 0, 3.35)
+        // Face-on, framed so the bar fills ~80% of the viewport height — bill-sized
+        // when hosted in the bill canvas, with margin for the slight motion lean.
+        cameraNode.position = SCNVector3(0, 0, 2.6)
         cameraNode.look(at: SCNVector3Zero)
         scene.rootNode.addChildNode(cameraNode)
 
-        // Moving key — a tall narrow area soft-box whose reflection is a vertical streak that
-        // sweeps across the face as the light moves with device tilt.
+        // Fixed key — a tall narrow area soft-box anchored at the tuned rest position;
+        // device tilt leans the bar itself, sweeping its reflection of this light.
         let key = SCNLight()
         key.type = .area
         key.areaType = .rectangle
         key.areaExtents = SIMD3<Float>(0.8, 2.4, 0)
-        key.intensity = 1100
+        key.intensity = CGFloat(defaultLightIntensity)
         key.color = UIColor(red: 1.0, green: 0.90, blue: 0.72, alpha: 1)
         key.castsShadow = false
         let keyLightNode = SCNNode()
         keyLightNode.light = key
-        keyLightNode.position = SCNVector3(0, 0.3, 1.4)
+        let anchor = GoldBarLighting.lightDirection(anchor: GoldBarLighting.restAnchor)
+        keyLightNode.position = SCNVector3(Float(anchor.x), Float(anchor.y), Float(anchor.z))
         keyLightNode.look(at: SCNVector3Zero)
         scene.rootNode.addChildNode(keyLightNode)
 
@@ -112,7 +128,7 @@ enum GoldBarScene {
         material.roughness.contents = textures.roughness
         material.diffuse.contents = textures.albedo
         material.normal.contents = textures.normal
-        material.normal.intensity = 0.55
+        material.normal.intensity = CGFloat(defaultRelief)
         material.clearCoat.contents = 0.8        // thin lacquer → crisp minted sheen on top of the gold
         material.clearCoatRoughness.contents = 0.06
         material.diffuse.wrapS = .clamp

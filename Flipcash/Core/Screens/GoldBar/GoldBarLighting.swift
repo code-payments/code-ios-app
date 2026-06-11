@@ -1,45 +1,36 @@
 import Foundation
 import simd
 
-/// Pure mapping from the device's gravity vector to the gold bar's key-light direction
-/// and environment rotation. Referenced to a *held* viewing attitude (not flat-on-desk),
-/// so the highlight is centered when the phone is picked up and sweeps as you tilt from there.
-/// No SceneKit state — deterministic and unit-testable.
+/// Pure mapping from the device's gravity vector to a slight rotation of the bar itself —
+/// the light stays fixed and the bar leans with the device, sweeping the reflections.
+/// Referenced to a *held* viewing attitude (not flat-on-desk). No SceneKit state.
 nonisolated enum GoldBarLighting {
 
-    /// How far a unit of left/right tilt (gravity.x) pushes the highlight horizontally.
-    static let lateralGain: Double = 2.4
-    /// How far a unit of forward/back tilt (gravity.y vs neutral) pushes the highlight vertically.
-    static let verticalGain: Double = 1.6
-    /// Environment yaw rotation per unit of left/right tilt (radians) — sweeps the broad sheen.
-    static let envYawGain: Double = 0.9
-    /// Environment pitch rotation per unit of forward/back tilt (radians).
-    static let envPitchGain: Double = 0.7
     /// gravity.y when the phone is held up to view it (top up, leaned back a little).
-    /// The light is centered at this attitude — NOT when the phone lies flat (gravity.y == 0).
+    /// The bar sits face-on at this attitude — NOT when the phone lies flat (gravity.y == 0).
     static let neutralGravityY: Double = -0.85
-    /// Resting elevation of the key light at the neutral held attitude (gives an upper sheen).
-    static let restElevation: Double = 0.35
-    /// Keep the highlight on the bar by clamping how far tilt can push it.
-    static let horizontalClamp: Double = 1.5
-    static let verticalClamp: Double = 1.4
+    /// Rest position of the key light (the tuned default; the demo's Light X/Y sliders move it).
+    static let restAnchor = SIMD2<Double>(0, 1.12)
 
-    /// Unit direction the key light sits in, for the device's gravity vector (CoreMotion device frame).
-    /// `anchor` is the light's rest position; tilt sweeps the highlight around it.
-    static func lightDirection(
-        gravity: SIMD3<Double>,
-        anchor: SIMD2<Double> = SIMD2(0, restElevation)
-    ) -> SIMD3<Double> {
-        let x = anchor.x + clamp(gravity.x * lateralGain, horizontalClamp)
-        let y = anchor.y + clamp((gravity.y - neutralGravityY) * verticalGain, verticalClamp)
-        let z = 1.0
-        return simd_normalize(SIMD3(x, y, z))
+    /// Degrees of bar yaw per unit of left/right tilt (gravity.x).
+    static let yawGain: Double = 18
+    /// Degrees of bar pitch per unit of forward/back tilt (gravity.y vs neutral).
+    static let pitchGain: Double = 14
+    /// Subtle by design — the bar leans with the device, it doesn't spin.
+    static let maxYawDegrees: Double = 8
+    static let maxPitchDegrees: Double = 6
+
+    /// Unit direction the key light sits in, for a rest anchor (x lateral, y elevation).
+    static func lightDirection(anchor: SIMD2<Double>) -> SIMD3<Double> {
+        simd_normalize(SIMD3(anchor.x, anchor.y, 1))
     }
 
-    /// Yaw/pitch (radians) to rotate the lighting environment so reflections sweep with tilt.
-    static func environmentRotation(gravity: SIMD3<Double>) -> (yaw: Double, pitch: Double) {
-        (yaw: clamp(gravity.x, 1) * envYawGain,
-         pitch: clamp(gravity.y - neutralGravityY, 1) * envPitchGain)
+    /// Slight bar rotation (degrees) for a device tilt: x yaws left/right, y pitches up/down.
+    static func barRotationDegrees(gravity: SIMD3<Double>) -> SIMD2<Double> {
+        SIMD2(
+            clamp(gravity.x * yawGain, maxYawDegrees),
+            clamp((gravity.y - neutralGravityY) * pitchGain, maxPitchDegrees)
+        )
     }
 
     /// Exponential smoothing toward `target`; `factor` in 0...1 (higher = snappier).

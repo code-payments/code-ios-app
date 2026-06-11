@@ -1,4 +1,5 @@
 import SwiftUI
+import FlipcashCore
 import FlipcashUI
 
 /// Standalone DEBUG demo: a tilt-reactive gold bar with a floating PiP-style tuning panel.
@@ -6,11 +7,11 @@ struct GoldBarDemoScreen: View {
 
     @Environment(\.dismiss) private var dismiss
 
-    @State private var lightIntensity: Double = 1100
-    @State private var environmentIntensity: Double = 5.2
-    @State private var relief: Double = 0.55
-    @State private var lightX: Double = 0
-    @State private var lightY: Double = GoldBarLighting.restElevation
+    @State private var lightIntensity: Double = GoldBarScene.defaultLightIntensity
+    @State private var environmentIntensity: Double = GoldBarScene.defaultEnvironmentIntensity
+    @State private var relief: Double = GoldBarScene.defaultRelief
+    @State private var lightX: Double = GoldBarLighting.restAnchor.x
+    @State private var lightY: Double = GoldBarLighting.restAnchor.y
     @State private var barRotationX: Double = 0
     @State private var barRotationY: Double = 0
     @State private var isSceneReady = false
@@ -24,6 +25,8 @@ struct GoldBarDemoScreen: View {
 
                 GoldBarSceneView(
                     codeData: codeData,
+                    stampLines: ["$25.00"],
+                    serial: PublicKey.usdf.base58,
                     lightIntensity: lightIntensity,
                     environmentIntensity: environmentIntensity,
                     relief: relief,
@@ -62,10 +65,10 @@ struct GoldBarDemoScreen: View {
 
 /// Flat gold stand-in shown while SceneKit compiles the scene off the main thread.
 /// Sized and positioned to match the rendered bar so the crossfade doesn't jump.
-private struct GoldBarPlaceholder: View {
+struct GoldBarPlaceholder: View {
     var body: some View {
         GeometryReader { geo in
-            let height = geo.size.height * 0.62
+            let height = geo.size.height * 0.80
             let width = height * (0.60 / 1.04)
             RoundedRectangle(cornerRadius: height * 0.021)
                 .fill(

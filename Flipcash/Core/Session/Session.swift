@@ -143,12 +143,12 @@ class Session {
         updateableBalances.value.first { $0.mint == mint }
     }
 
-    /// True when the user has at least one non-USDF balance with a displayable
-    /// fiat value. Skips the sort + allocate that `balances(for:)` does, so
-    /// callers gating a presentation pay only the early-exit predicate cost.
+    /// True when the user has at least one balance with a displayable fiat value.
+    /// Skips the sort + allocate that `balances(for:)` does, so callers gating a
+    /// presentation pay only the early-exit predicate cost.
     func hasGiveableBalance(for rate: Rate) -> Bool {
         updateableBalances.value.contains { stored in
-            stored.mint != .usdf && stored.computeExchangedValue(with: rate).hasDisplayableValue()
+            stored.computeExchangedValue(with: rate).hasDisplayableValue()
         }
     }
     

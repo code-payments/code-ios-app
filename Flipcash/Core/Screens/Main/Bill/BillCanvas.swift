@@ -95,21 +95,29 @@ private class _BillCanvasController: UIViewController {
         if let bill = bill {
             switch bill {
             case .cash(let payload, let mint, let billColors):
-                let parsedColors: [Color]? = {
-                    guard !billColors.isEmpty else { return nil }
-                    let colors = billColors.compactMap { Color(hex: $0) }
-                    // All-or-nothing: if any color fails to parse, fall back to default
-                    return colors.count == billColors.count ? colors : nil
-                }()
+                if mint == .usdf {
+                    GoldBarBillView(
+                        fiat: payload.fiat,
+                        data: payload.codeData(),
+                        canvasSize: canvasSize()
+                    )
+                } else {
+                    let parsedColors: [Color]? = {
+                        guard !billColors.isEmpty else { return nil }
+                        let colors = billColors.compactMap { Color(hex: $0) }
+                        // All-or-nothing: if any color fails to parse, fall back to default
+                        return colors.count == billColors.count ? colors : nil
+                    }()
 
-                BillView(
-                    fiat: payload.fiat,
-                    data: payload.codeData(),
-                    canvasSize: canvasSize(),
-                    backgroundColors: parsedColors,
-                    mint: mint,
-                    action: action
-                )
+                    BillView(
+                        fiat: payload.fiat,
+                        data: payload.codeData(),
+                        canvasSize: canvasSize(),
+                        backgroundColors: parsedColors,
+                        mint: mint,
+                        action: action
+                    )
+                }
             }
 
         } else {

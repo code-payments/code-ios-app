@@ -13,25 +13,27 @@ nonisolated enum GoldBarMaterialBaker {
         /// Pre-rendered Kik code (dark on transparent), etched into the lower band.
         var code: UIImage
         var stampLines: [String]
-        var serial: String = "No. CH 047219"
+        var serial: String
         var scratchCount: Int = 150
 
         /// Full-quality maps for the portrait bar face. Expensive — bake off the main thread.
-        static func full(code: UIImage) -> Config {
+        static func full(code: UIImage, stampLines: [String], serial: String) -> Config {
             Config(
                 pixelSize: CGSize(width: 640, height: 1110),
                 code: code,
-                stampLines: ["FINE GOLD", "999.9", "1 oz"]
+                stampLines: stampLines,
+                serial: serial
             )
         }
 
         /// Tiny maps that bake in milliseconds — the low-res stand-in shown while the
         /// full set bakes in the background.
-        static func preview(code: UIImage) -> Config {
+        static func preview(code: UIImage, stampLines: [String], serial: String) -> Config {
             Config(
                 pixelSize: CGSize(width: 96, height: 166),
                 code: code,
-                stampLines: ["FINE GOLD", "999.9", "1 oz"],
+                stampLines: stampLines,
+                serial: serial,
                 scratchCount: 0
             )
         }
@@ -59,17 +61,12 @@ nonisolated enum GoldBarMaterialBaker {
 
     // MARK: - Portrait layout
 
-    private static func emblemRect(_ size: CGSize) -> CGRect {
-        let side = size.width * 0.22
-        return CGRect(x: (size.width - side) / 2, y: size.height * 0.085 - side / 2, width: side, height: side)
-    }
-
     private static func textColumn(_ size: CGSize) -> CGRect {
-        CGRect(x: size.width * 0.06, y: size.height * 0.17, width: size.width * 0.88, height: size.height * 0.25)
+        CGRect(x: size.width * 0.06, y: size.height * 0.20, width: size.width * 0.88, height: size.height * 0.14)
     }
 
     private static func serialRect(_ size: CGSize) -> CGRect {
-        CGRect(x: size.width * 0.1, y: size.height * 0.45, width: size.width * 0.8, height: size.height * 0.035)
+        CGRect(x: size.width * 0.08, y: size.height * 0.43, width: size.width * 0.84, height: size.height * 0.03)
     }
 
     private static func codeRect(_ size: CGSize) -> CGRect {
@@ -84,7 +81,6 @@ nonisolated enum GoldBarMaterialBaker {
             goldField.setFill()
             ctx.fill(rect)
 
-            drawEmblem(in: emblemRect(config.pixelSize), color: goldEngraved)
             drawCenteredLines(config.stampLines, in: textColumn(config.pixelSize), weight: .heavy, color: goldEngraved)
             drawCenteredLines([config.serial], in: serialRect(config.pixelSize), weight: .medium, color: goldEngraved)
 
@@ -113,7 +109,6 @@ nonisolated enum GoldBarMaterialBaker {
         renderImage(size: config.pixelSize) { ctx, rect in
             UIColor(white: 0.5, alpha: 1).setFill()
             ctx.fill(rect)
-            drawEmblem(in: emblemRect(config.pixelSize), color: UIColor(white: 0.34, alpha: 1))
             drawCenteredLines(config.stampLines, in: textColumn(config.pixelSize), weight: .heavy, color: UIColor(white: 0.32, alpha: 1))
             drawCenteredLines([config.serial], in: serialRect(config.pixelSize), weight: .medium, color: UIColor(white: 0.38, alpha: 1))
             drawScratches(count: config.scratchCount, in: rect, color: UIColor(white: 0.62, alpha: 0.12), ctx: ctx)
@@ -175,32 +170,25 @@ nonisolated enum GoldBarMaterialBaker {
         guard !lines.isEmpty else { return }
         let lineHeight = rect.height / CGFloat(lines.count)
         for (index, line) in lines.enumerated() {
-            let font = UIFont.systemFont(ofSize: lineHeight * 0.6, weight: weight)
-            let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
-            let str = NSAttributedString(string: line, attributes: attrs)
+            var fontSize = lineHeight * 0.6
+            var str = NSAttributedString(
+                string: line,
+                attributes: [.font: UIFont.systemFont(ofSize: fontSize, weight: weight), .foregroundColor: color]
+            )
+            // Long lines (the serial is a 44-char public key) shrink to fit the band.
+            let width = str.size().width
+            if width > rect.width {
+                fontSize *= rect.width / width
+                str = NSAttributedString(
+                    string: line,
+                    attributes: [.font: UIFont.systemFont(ofSize: fontSize, weight: weight), .foregroundColor: color]
+                )
+            }
             let textSize = str.size()
             let origin = CGPoint(x: rect.midX - textSize.width / 2,
                                  y: rect.minY + CGFloat(index) * lineHeight + (lineHeight - textSize.height) / 2)
             str.draw(at: origin)
         }
-    }
-
-    /// A simple engraved medallion (concentric rings + radial ticks) — generic, not a trademarked logo.
-    private static func drawEmblem(in rect: CGRect, color: UIColor) {
-        guard let cg = UIGraphicsGetCurrentContext() else { return }
-        color.setStroke()
-        cg.setLineWidth(rect.width * 0.025)
-        cg.strokeEllipse(in: rect)
-        cg.strokeEllipse(in: rect.insetBy(dx: rect.width * 0.24, dy: rect.height * 0.24))
-        let center = CGPoint(x: rect.midX, y: rect.midY)
-        let rOuter = rect.width / 2
-        let rInner = rOuter * 0.78
-        for i in 0..<12 {
-            let a = CGFloat(i) / 12 * .pi * 2
-            cg.move(to: CGPoint(x: center.x + cos(a) * rInner, y: center.y + sin(a) * rInner))
-            cg.addLine(to: CGPoint(x: center.x + cos(a) * rOuter, y: center.y + sin(a) * rOuter))
-        }
-        cg.strokePath()
     }
 
     /// Fine, multi-directional hairline micro-scratches (faint — real bullion, not speed lines).
