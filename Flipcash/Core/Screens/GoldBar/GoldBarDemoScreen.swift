@@ -10,17 +10,20 @@ struct GoldBarDemoScreen: View {
 
     @State private var tuning = GoldBarTuning.standard
 
-    private let codeData = Data.placeholder35
+    /// Preheat this key at the presenting tap (as `showCashBill` does for bills)
+    /// so the demo opens with the bake already done.
+    static let demoKey = GoldBarTextureStore.Key(
+        payload: .placeholder35,
+        stampLines: ["$25.00"],
+        serial: PublicKey.usdf.base58
+    )
 
     var body: some View {
         NavigationStack {
             ZStack {
                 Color(white: 0.04).ignoresSafeArea()
 
-                GoldBarView(
-                    key: .init(payload: codeData, stampLines: ["$25.00"], serial: PublicKey.usdf.base58),
-                    tuning: tuning
-                )
+                GoldBarView(key: Self.demoKey, tuning: tuning)
 
                 GoldBarTuningOverlay(tuning: $tuning)
             }

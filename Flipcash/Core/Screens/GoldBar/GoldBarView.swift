@@ -15,7 +15,7 @@ struct GoldBarView: View {
                 key: key,
                 tuning: tuning,
                 onSceneReady: {
-                    withAnimation(.easeOut(duration: 0.3)) {
+                    withAnimation(.easeOut(duration: 0.15)) {
                         isSceneReady = true
                     }
                 }

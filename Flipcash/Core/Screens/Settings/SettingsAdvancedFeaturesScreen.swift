@@ -38,6 +38,7 @@ struct SettingsAdvancedFeaturesScreen: View {
 
                     #if DEBUG
                     SettingsRow(systemImage: "rectangle.portrait.on.rectangle.portrait.angled", title: "Gold Bar Demo", insets: insets) {
+                        GoldBarTextureStore.shared.preheat(key: GoldBarDemoScreen.demoKey)
                         isShowingGoldBarDemo = true
                     }
                     #endif

@@ -11,22 +11,17 @@ struct GoldBarSceneView: UIViewRepresentable {
     /// Called once the scene is attached and renderable — the placeholder above can fade out.
     var onSceneReady: () -> Void
 
-    /// Past the cover transition (~0.5s): every SceneKit/Metal step (view
-    /// creation, shader compile, scene attach) lands main-thread hitches, so all
-    /// of it is deferred until the placeholder hides it.
-    private static let sceneAttachDelay: Duration = .milliseconds(600)
-
     func makeCoordinator() -> Coordinator { Coordinator(key: key) }
 
+    // The SCNView attaches as soon as the baked textures and prepared scene are
+    // ready — typically while the cover is still sliding in — with the placeholder
+    // covering the gap. Shader variants are precompiled by GoldBarPrewarmer.
     func makeUIView(context: Context) -> UIView {
         let container = UIView()
         container.backgroundColor = .clear
         let coordinator = context.coordinator
         let onReady = onSceneReady
         Task {
-            try? await Task.sleep(for: Self.sceneAttachDelay)
-            guard !coordinator.isStopped else { return }
-
             let bundle = await coordinator.buildSceneIfNeeded()
             guard !coordinator.isStopped else { return }
             let view = SCNView()
