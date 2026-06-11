@@ -202,15 +202,6 @@ final class GiveViewModel {
               let entered = KeyPadView.amount(from: enteredAmount),
               entered > 0 else { return nil }
 
-        // USDF has no bonding curve — compute's USDF path never reads the supply.
-        let pinnedSupply: UInt64
-        if mint == .usdf {
-            pinnedSupply = 0
-        } else {
-            guard let supply = pin.supplyFromBonding else { return nil }
-            pinnedSupply = supply
-        }
-
         let nativeEntered = FiatAmount(value: entered, currency: pin.rate.currency)
         let balance = session.balance(for: mint)
 
@@ -218,7 +209,7 @@ final class GiveViewModel {
             fromEntered: nativeEntered,
             rate: pin.rate,
             mint: mint,
-            supplyQuarks: pinnedSupply,
+            supplyQuarks: pin.supplyFromBonding,
             balance: balance.map(\.usdf),
             tokenBalanceQuarks: balance?.quarks
         ) else { return nil }

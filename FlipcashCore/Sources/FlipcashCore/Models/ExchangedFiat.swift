@@ -131,7 +131,8 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
     ///   - amount: User-entered fiat amount (in `rate.currency`).
     ///   - rate: Fiat FX rate for the selected currency.
     ///   - mint: Target token mint.
-    ///   - supplyQuarks: Current token supply in quarks (10 decimals).
+    ///   - supplyQuarks: Current token supply in quarks (10 decimals). Required
+    ///     for bonded mints (`nil` returns `nil`); ignored for USDF.
     ///   - balance: Optional USDF-equivalent balance cap. When provided the entered
     ///     amount is **silently capped** to this USD value. Use this for flows
     ///     (Buy/Sell) where FX rounding can cause the entered fiat to slightly
@@ -144,7 +145,7 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
         fromEntered amount: FiatAmount,
         rate: Rate,
         mint: PublicKey,
-        supplyQuarks: UInt64,
+        supplyQuarks: UInt64?,
         balance: FiatAmount? = nil,
         tokenBalanceQuarks: UInt64? = nil,
     ) -> ExchangedFiat? {
@@ -170,6 +171,7 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
         }
 
         // Bonded: resolve token quarks via curve.
+        guard let supplyQuarks else { return nil }
         let cappedNative = cappedUSD.converting(to: rate)
         guard let valuation = bondingCurve.tokensForValueExchange(
             fiat: BigDecimal(cappedNative.value),
