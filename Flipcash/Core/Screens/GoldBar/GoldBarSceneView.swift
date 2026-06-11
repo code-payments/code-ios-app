@@ -187,12 +187,17 @@ struct GoldBarSceneView: UIViewRepresentable {
                         view.prepare([staging]) { _ in continuation.resume() }
                     }
                 }
+                // On-demand rendering draws no frames during an implicit animation, which
+                // turns the crossfade into a hard cut — drive frames just for its duration.
+                self?.scnView?.rendersContinuously = true
                 SCNTransaction.begin()
                 SCNTransaction.animationDuration = 0.3
                 material.diffuse.contents = textures.albedo
                 material.normal.contents = textures.normal
                 material.roughness.contents = textures.roughness
                 SCNTransaction.commit()
+                try? await Task.sleep(for: .milliseconds(400))
+                self?.scnView?.rendersContinuously = false
             }
         }
 
