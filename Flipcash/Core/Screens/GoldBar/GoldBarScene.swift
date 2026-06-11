@@ -24,8 +24,8 @@ enum GoldBarScene {
 
     static func make(textures: GoldBarMaterialBaker.Textures) -> Bundle {
         let scene = SCNScene()
-        // Transparent: the bar composites over whatever is behind it (the scan screen,
-        // the demo's backdrop) exactly like the bill does.
+        // Transparent: the bar composites over whatever is behind it (the scan
+        // screen, the demo's backdrop).
         scene.background.contents = UIColor.clear
 
         // Image-based lighting — on metalness=1 this IS the gold's brightness, so it is bright and broad.

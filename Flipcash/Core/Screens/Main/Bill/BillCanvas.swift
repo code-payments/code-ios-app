@@ -312,7 +312,17 @@ private class _BillCanvasController: UIViewController {
     
     private func setState(_ state: State, animated: Bool, completion: VoidAction? = nil) {
         guard state != self.state else {
-            completion?()
+            if let completion {
+                // Swipe-dismiss starts this same transition from the gesture handler
+                // before the session-driven update arrives — ride the in-flight
+                // animator so the completion fires when the slide-out actually lands,
+                // not mid-animation.
+                if let animator, animator.isRunning {
+                    animator.addCompletion { _ in completion() }
+                } else {
+                    completion()
+                }
+            }
             return
         }
 

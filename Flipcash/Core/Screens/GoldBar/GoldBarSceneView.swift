@@ -80,8 +80,8 @@ struct GoldBarSceneView: UIViewRepresentable {
             self.key = key
         }
 
-        /// Awaits the store's full-resolution maps (already baked or in flight
-        /// when `showCashBill` preheated) and assembles the scene once.
+        /// Awaits the store's full-resolution maps (usually already baked or in
+        /// flight via a preheat) and assembles the scene once.
         func buildSceneIfNeeded() async -> GoldBarScene.Bundle {
             if let bundle { return bundle }
             let textures = await GoldBarTextureStore.shared.textures(for: key)
