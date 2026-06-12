@@ -21,6 +21,24 @@ public struct ConversationID: Hashable, Sendable, Comparable, CustomStringConver
         self.data = proto.value
     }
 
+    /// Decodes the base64url form the server uses in `/chat/{chatId}` deep
+    /// links. Fails unless the decoded value is the exact 32-byte ChatId
+    /// length. Accepts both padded and unpadded input.
+    public init?(base64URLEncoded string: String) {
+        let base64 = string
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        let padded = base64.padding(
+            toLength: (base64.count + 3) / 4 * 4,
+            withPad: "=",
+            startingAt: 0
+        )
+        guard let data = Data(base64Encoded: padded), data.count == 32 else {
+            return nil
+        }
+        self.data = data
+    }
+
     public var proto: Flipcash_Common_V1_ChatId {
         .with { $0.value = data }
     }

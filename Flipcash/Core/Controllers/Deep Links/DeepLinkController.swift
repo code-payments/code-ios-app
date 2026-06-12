@@ -94,6 +94,9 @@ final class DeepLinkController {
         case .token(let mint):
             return actionForCurrencyInfo(mint: mint)
 
+        case .chat(let conversationID):
+            return actionForChat(conversationID: conversationID)
+
         case .give:
             return actionForOpenSheet(.give)
 
@@ -143,6 +146,13 @@ final class DeepLinkController {
     private func actionForCurrencyInfo(mint: PublicKey) -> DeepLinkAction {
         DeepLinkAction(
             kind: .currencyInfo(mint),
+            sessionAuthenticator: sessionAuthenticator
+        )
+    }
+
+    private func actionForChat(conversationID: ConversationID) -> DeepLinkAction {
+        DeepLinkAction(
+            kind: .chat(conversationID),
             sessionAuthenticator: sessionAuthenticator
         )
     }
@@ -205,6 +215,12 @@ struct DeepLinkAction {
                 container.appRouter.navigate(to: .currencyInfo(mint))
             }
 
+        case .chat(let conversationID):
+            if case .loggedIn(let container) = sessionAuthenticator.state {
+                Analytics.deeplinkRouted(kind: kind)
+                container.appRouter.navigate(to: .dmConversation(.existing(conversationID)))
+            }
+
         case .openSheet(let sheet):
             if case .loggedIn(let container) = sessionAuthenticator.state {
                 Analytics.deeplinkRouted(kind: kind)
@@ -234,6 +250,7 @@ extension DeepLinkAction {
         case receiveCashLink(MnemonicPhrase)
         case verifyEmail(VerificationDescription)
         case currencyInfo(PublicKey)
+        case chat(ConversationID)
         case openSheet(AppRouter.SheetPresentation)
     }
 }
@@ -245,6 +262,7 @@ extension DeepLinkAction.Kind {
         case .receiveCashLink:  "CashLink"
         case .verifyEmail:      "EmailVerification"
         case .currencyInfo:     "TokenInfo"
+        case .chat:             "Chat"
         case .openSheet(let sheet): "Sheet:\(sheet)"
         }
     }

@@ -120,6 +120,53 @@ struct RouteTests {
         #expect(Route(url: noMintUniversalLink) == nil)
     }
 
+    @Test("Chat route parses a base64url chat ID from both URL formats")
+    func chatRoute() {
+        // The server encodes the 32-byte ChatId with base64.URLEncoding (padded).
+        let idData = Data((0..<32).map { UInt8($0) })
+        let encoded = idData.base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+
+        let deepLink = URL(string: "flipcash://chat/\(encoded)")!
+        let universalLink = URL(string: "https://app.flipcash.com/chat/\(encoded)")!
+
+        if case .chat(let id) = Route(url: deepLink)?.path {
+            #expect(id.data == idData)
+        } else {
+            Issue.record("Deep link should parse as .chat with the decoded ID")
+        }
+
+        if case .chat(let id) = Route(url: universalLink)?.path {
+            #expect(id.data == idData)
+        } else {
+            Issue.record("Universal link should parse as .chat with the decoded ID")
+        }
+
+        // Unpadded base64url also decodes
+        let unpadded = encoded.replacingOccurrences(of: "=", with: "")
+        let unpaddedLink = URL(string: "https://app.flipcash.com/chat/\(unpadded)")!
+
+        if case .chat(let id) = Route(url: unpaddedLink)?.path {
+            #expect(id.data == idData)
+        } else {
+            Issue.record("Unpadded base64url should parse as .chat with the decoded ID")
+        }
+
+        // Wrong length - both formats should return nil
+        let shortID = Data((0..<16).map { UInt8($0) }).base64EncodedString()
+        #expect(Route(url: URL(string: "flipcash://chat/\(shortID)")!) == nil)
+        #expect(Route(url: URL(string: "https://app.flipcash.com/chat/\(shortID)")!) == nil)
+
+        // Not base64 - both formats should return nil
+        #expect(Route(url: URL(string: "flipcash://chat/not.valid.base64")!) == nil)
+        #expect(Route(url: URL(string: "https://app.flipcash.com/chat/not.valid.base64")!) == nil)
+
+        // Missing ID - both formats should return nil
+        #expect(Route(url: URL(string: "flipcash://chat")!) == nil)
+        #expect(Route(url: URL(string: "https://app.flipcash.com/chat")!) == nil)
+    }
+
     // MARK: - Sheet Routes -
     //
     // The home-screen quick actions open sheets via these routes. The
