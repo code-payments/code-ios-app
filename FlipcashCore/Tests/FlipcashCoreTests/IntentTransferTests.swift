@@ -46,7 +46,7 @@ struct IntentTransferTests {
         }
 
         #expect(payment.isWithdrawal == false)
-        #expect(payment.isRemoteSend == false)
+        #expect(payment.isIndirectSend == false)
         #expect(payment.source == cluster.vaultPublicKey.solanaAccountID)
         #expect(payment.destination == destination.solanaAccountID)
     }

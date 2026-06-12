@@ -7,8 +7,8 @@ option java_package = "com.codeinc.gen.messaging.v1";
 option objc_class_prefix = "CPBMessagingV1";
 
 import "common/v1/model.proto";
-import "currency/v1/currency_service.proto";
-import "transaction/v1/transaction_service.proto";
+import "currency/v1/ocp_currency_service.proto";
+import "transaction/v1/ocp_transaction_service.proto";
 import "validate/validate.proto";
 
 service Messaging {

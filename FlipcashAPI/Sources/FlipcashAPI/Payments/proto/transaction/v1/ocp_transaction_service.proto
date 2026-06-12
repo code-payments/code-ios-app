@@ -7,7 +7,7 @@ option java_package = "com.codeinc.gen.transaction.v1";
 option objc_class_prefix = "APBTransactionV1";
 
 import "common/v1/model.proto";
-import "currency/v1/currency_service.proto";
+import "currency/v1/ocp_currency_service.proto";
 import "google/protobuf/timestamp.proto";
 import "validate/validate.proto";
 
@@ -870,6 +870,9 @@ message Metadata {
         ReceivePaymentsPubliclyMetadata receive_payments_publicly = 3;
         PublicDistributionMetadata      public_distribution       = 4;
     }
+
+    // Optional app-level metadata
+    AppMetadata app_metadata = 10;
 }
 
 // Open a set of accounts
@@ -909,7 +912,7 @@ message OpenAccountsMetadata {
 //   actions.push_back(FeePaymentAction(PRIMARY, feeAccount, feeAmount))
 // }
 //
-// Action Spec (Remote Send):
+// Action Spec (Indirect Send):
 //
 // actions = [
 //   OpenAccountAction(REMOTE_SEND_GIFT_CARD),
@@ -943,7 +946,7 @@ message SendPublicPaymentMetadata {
     bool is_withdrawal = 5;
 
     // Is the payment going to a new gift card? Note is_withdrawal must be false.
-    bool is_remote_send = 6;
+    bool is_indirect_send = 6;
 
     // The mint that this intent will be operating against
     common.v1.SolanaAccountId mint = 7 [(validate.rules).message.required = true];;
@@ -952,7 +955,7 @@ message SendPublicPaymentMetadata {
 // Receive funds into a user-owned account publicly. All use cases of this intent
 // close the account, so all funds must be moved.
 //
-// Action Spec (Remote Send):
+// Action Spec (Indirect Send):
 //
 // actions = [NoPrivacyWithdrawAction(REMOTE_SEND_GIFT_CARD, PRIMARY, quarks)]
 message ReceivePaymentsPubliclyMetadata {
@@ -964,9 +967,9 @@ message ReceivePaymentsPubliclyMetadata {
 
     // Is the receipt of funds from a remote send gift card? Currently, this is
     // the only use case for this intent and validation enforces the flag to true.
-    bool is_remote_send = 3 [(validate.rules).bool.const = true];
+    bool is_indirect_send = 3 [(validate.rules).bool.const = true];
 
-    // If is_remote_send is true, the original exchange data that was provided as
+    // If is_indirect_send is true, the original exchange data that was provided as
     // part of creating the gift card account. This is purely a server-provided value.
     // SubmitIntent will disallow this being set.
     ExchangeData exchange_data = 4;
@@ -1370,4 +1373,12 @@ enum FundingSource {
     FUNDING_SOURCE_SUBMIT_INTENT   = 1;
     FUNDING_SOURCE_EXTERNAL_WALLET = 2;
     FUNDING_SOURCE_COINBASE_ONRAMP = 3;
+}
+
+// AppMetadata is additional app-level metadata provided for an intent
+message AppMetadata {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 1
+        max_len: 4096
+    }];
 }

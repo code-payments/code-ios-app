@@ -109,7 +109,7 @@ struct IntentWithdrawTests {
         }
 
         #expect(metadata.sendPublicPayment.isWithdrawal == true)
-        #expect(metadata.sendPublicPayment.isRemoteSend == false)
+        #expect(metadata.sendPublicPayment.isIndirectSend == false)
 
         let exchangeData = metadata.sendPublicPayment.clientExchangeData
         #expect(exchangeData.quarks == 5_000_000)

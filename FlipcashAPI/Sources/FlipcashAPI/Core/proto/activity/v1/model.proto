@@ -7,6 +7,7 @@ option java_package = "com.codeinc.flipcash.gen.activity.v1";
 option objc_class_prefix = "FCPBActivityV1";
 
 import "common/v1/common.proto";
+import "phone/v1/model.proto";
 import "google/protobuf/timestamp.proto";
 import "validate/validate.proto";
 
@@ -40,29 +41,35 @@ message Notification {
 
     // Additional metadata for this notification specific to the notification
     oneof additional_metadata {
-        GaveCryptoNotificationMetadata        gave_crypto        = 7;
-        ReceivedCryptoNotificationMetadata    received_crypto    = 8;
-        WithdrewCryptoNotificationMetadata    withdrew_crypto    = 9;
-        SentCryptoNotificationMetadata        sent_crypto        = 10;
-        DepositedCryptoNotificationMetadata   deposited_crypto   = 11;
-        BoughtCryptoNotificationMetadata      bought_crypto      = 12;
-        SoldCryptoNotificationMetadata        sold_crypto        = 13;
+        DirectlySentCryptoNotificationMetadata   directly_sent_crypto   = 7;
+        ReceivedCryptoNotificationMetadata       received_crypto        = 8;
+        WithdrewCryptoNotificationMetadata       withdrew_crypto        = 9;
+        IndirectlySentCryptoNotificationMetadata indirectly_sent_crypto = 10;
+        DepositedCryptoNotificationMetadata      deposited_crypto       = 11;
+        BoughtCryptoNotificationMetadata         bought_crypto          = 12;
+        SoldCryptoNotificationMetadata           sold_crypto            = 13;
     }
 
     reserved 6; // Deprecated WelcomeBonusNotificationMetadata
 }
 
-message GaveCryptoNotificationMetadata {
+message DirectlySentCryptoNotificationMetadata {
+    oneof destination_identifier {
+        phone.v1.PhoneNumber phone = 1;
+    }
 }
 
 message ReceivedCryptoNotificationMetadata {
+    oneof source_identifier {
+        phone.v1.PhoneNumber phone = 1;
+    }
 }
 
 message WithdrewCryptoNotificationMetadata {
     SwapState swap_state = 1 [(validate.rules).enum.not_in = 0];
 }
 
-message SentCryptoNotificationMetadata {
+message IndirectlySentCryptoNotificationMetadata {
     // The vault of the gift card account that was created for the cash link
     common.v1.PublicKey vault = 1 [(validate.rules).message.required = true];
 

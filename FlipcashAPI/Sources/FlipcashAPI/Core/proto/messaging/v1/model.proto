@@ -70,6 +70,7 @@ message Content {
         option (validate.required) = true;
 
         TextContent text = 1;
+        CashContent cash = 2;
     }
 }
 
@@ -79,6 +80,17 @@ message TextContent {
         min_len: 1
         max_len: 4096
     }];
+}
+
+message CashContent {
+    // Intent ID identifying the cash transaction at the OCP layer
+    common.v1.IntentId intent_id = 1 [(validate.rules).message.required = true];
+
+    // The amount of cash that was sent
+    common.v1.CryptoPaymentAmount amount = 2 [(validate.rules).message.required = true];
+
+    // Reserved for receiver, which will is required for group chats
+    reserved 3;
 }
 
 // Pointer in a chat indicating a user's message history state in a chat.

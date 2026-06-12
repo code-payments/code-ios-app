@@ -65,7 +65,7 @@ extension IntentTransfer {
                 }
 
                 $0.isWithdrawal = false
-                $0.isRemoteSend = false
+                $0.isIndirectSend = false
 
                 if let destinationOwner {
                     $0.destinationOwner = destinationOwner.solanaAccountID

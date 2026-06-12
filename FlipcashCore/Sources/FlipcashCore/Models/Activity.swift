@@ -107,13 +107,13 @@ extension Activity.Kind {
     init(_ proto: Flipcash_Activity_V1_Notification.OneOf_AdditionalMetadata?) {
         if let proto {
             switch proto {
-            case .gaveCrypto:
+            case .directlySentCrypto:
                 self = .gave
             case .receivedCrypto:
                 self = .received
             case .withdrewCrypto:
                 self = .withdrew
-            case .sentCrypto:
+            case .indirectlySentCrypto:
                 self = .cashLink
             case .depositedCrypto:
                 self = .deposited
@@ -134,9 +134,9 @@ extension Activity.Metadata {
         guard let proto else { return nil }
 
         switch proto {
-        case .gaveCrypto, .receivedCrypto, .withdrewCrypto, .depositedCrypto, .boughtCrypto, .soldCrypto:
+        case .directlySentCrypto, .receivedCrypto, .withdrewCrypto, .depositedCrypto, .boughtCrypto, .soldCrypto:
             return nil
-        case .sentCrypto(let metadata):
+        case .indirectlySentCrypto(let metadata):
             do {
                 self = try .cashLink(.init(metadata))
             } catch {

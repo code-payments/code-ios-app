@@ -134,10 +134,19 @@ public struct Flipcash_Messaging_V1_Content: Sendable {
     set {type = .text(newValue)}
   }
 
+  public var cash: Flipcash_Messaging_V1_CashContent {
+    get {
+      if case .cash(let v)? = type {return v}
+      return Flipcash_Messaging_V1_CashContent()
+    }
+    set {type = .cash(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Type: Equatable, Sendable {
     case text(Flipcash_Messaging_V1_TextContent)
+    case cash(Flipcash_Messaging_V1_CashContent)
 
   }
 
@@ -155,6 +164,39 @@ public struct Flipcash_Messaging_V1_TextContent: Sendable {
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
+}
+
+public struct Flipcash_Messaging_V1_CashContent: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Intent ID identifying the cash transaction at the OCP layer
+  public var intentID: Flipcash_Common_V1_IntentId {
+    get {_intentID ?? Flipcash_Common_V1_IntentId()}
+    set {_intentID = newValue}
+  }
+  /// Returns true if `intentID` has been explicitly set.
+  public var hasIntentID: Bool {self._intentID != nil}
+  /// Clears the value of `intentID`. Subsequent reads from it will return its default value.
+  public mutating func clearIntentID() {self._intentID = nil}
+
+  /// The amount of cash that was sent
+  public var amount: Flipcash_Common_V1_CryptoPaymentAmount {
+    get {_amount ?? Flipcash_Common_V1_CryptoPaymentAmount()}
+    set {_amount = newValue}
+  }
+  /// Returns true if `amount` has been explicitly set.
+  public var hasAmount: Bool {self._amount != nil}
+  /// Clears the value of `amount`. Subsequent reads from it will return its default value.
+  public mutating func clearAmount() {self._amount = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _intentID: Flipcash_Common_V1_IntentId? = nil
+  fileprivate var _amount: Flipcash_Common_V1_CryptoPaymentAmount? = nil
 }
 
 /// Pointer in a chat indicating a user's message history state in a chat.
@@ -479,7 +521,7 @@ extension Flipcash_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._M
 
 extension Flipcash_Messaging_V1_Content: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Content"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}text\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}text\0\u{1}cash\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -500,6 +542,19 @@ extension Flipcash_Messaging_V1_Content: SwiftProtobuf.Message, SwiftProtobuf._M
           self.type = .text(v)
         }
       }()
+      case 2: try {
+        var v: Flipcash_Messaging_V1_CashContent?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .cash(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .cash(v)
+        }
+      }()
       default: break
       }
     }
@@ -510,9 +565,17 @@ extension Flipcash_Messaging_V1_Content: SwiftProtobuf.Message, SwiftProtobuf._M
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
     // https://github.com/apple/swift-protobuf/issues/1182
-    try { if case .text(let v)? = self.type {
+    switch self.type {
+    case .text?: try {
+      guard case .text(let v)? = self.type else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
+    }()
+    case .cash?: try {
+      guard case .cash(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    }()
+    case nil: break
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -548,6 +611,45 @@ extension Flipcash_Messaging_V1_TextContent: SwiftProtobuf.Message, SwiftProtobu
 
   public static func ==(lhs: Flipcash_Messaging_V1_TextContent, rhs: Flipcash_Messaging_V1_TextContent) -> Bool {
     if lhs.text != rhs.text {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Messaging_V1_CashContent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CashContent"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}intent_id\0\u{1}amount\0\u{c}\u{3}\u{1}")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._intentID) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._amount) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._intentID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._amount {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Messaging_V1_CashContent, rhs: Flipcash_Messaging_V1_CashContent) -> Bool {
+    if lhs._intentID != rhs._intentID {return false}
+    if lhs._amount != rhs._amount {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
