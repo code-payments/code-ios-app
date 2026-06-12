@@ -60,13 +60,13 @@ final class NotificationService: UNNotificationServiceExtension {
         bestAttemptContent.title = SubstitutionApplier.apply(
             template: bestAttemptContent.title,
             resolutions: zip(titleContacts, payload.titleSubstitutions).map { contact, substitution in
-                contact?.name ?? nationalNumber(substitution.contact)
+                displayText(contact: contact, phone: substitution.contact)
             }
         )
         bestAttemptContent.body = SubstitutionApplier.apply(
             template: bestAttemptContent.body,
             resolutions: payload.bodySubstitutions.map { substitution in
-                resolve(substitution.contact)?.name ?? nationalNumber(substitution.contact)
+                displayText(contact: resolve(substitution.contact), phone: substitution.contact)
             }
         )
         bestAttemptContent.threadIdentifier = payload.groupKey
@@ -92,10 +92,11 @@ final class NotificationService: UNNotificationServiceExtension {
         }
     }
 
-    /// The display for an unmatched number: the number itself, nationally
-    /// formatted (e.g. "(747) 217-6923"), falling back to the raw E.164.
-    private func nationalNumber(_ phone: Flipcash_Phone_V1_PhoneNumber) -> String {
-        Phone(phone.value)?.national ?? phone.value
+    /// The substitution display: the matched contact's name, else the number
+    /// itself in national format (e.g. "(747) 217-6923"), falling back to the
+    /// raw E.164.
+    private func displayText(contact: ResolvedContact?, phone: Flipcash_Phone_V1_PhoneNumber) -> String {
+        contact?.name ?? Phone(phone.value)?.national ?? phone.value
     }
 
     /// Returns the contact matching `phone`, or `nil` if no contact matches, the

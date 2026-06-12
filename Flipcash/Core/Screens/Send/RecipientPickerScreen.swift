@@ -207,6 +207,15 @@ nonisolated enum RecipientListItem: Identifiable, Equatable {
         }
     }
 
+    var contact: ResolvedContact? {
+        switch self {
+        case .contact(let contact), .matched(let contact, _):
+            contact
+        case .conversation:
+            nil
+        }
+    }
+
     var conversation: Conversation? {
         switch self {
         case .contact:
@@ -321,6 +330,52 @@ private struct RecipientPickerList: View {
 
 // MARK: - Rows -
 
+/// The chrome every picker row shares: a full-row button with avatar,
+/// title/subtitle, and a trailing accessory.
+private struct RecipientRowScaffold<Trailing: View>: View {
+
+    let avatarID: String
+    let title: String
+    let subtitle: String
+    let imageData: Data?
+    let accessibilityLabel: String
+    let onTap: () -> Void
+    @ViewBuilder let trailing: Trailing
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 12) {
+                ContactAvatarView(
+                    id: avatarID,
+                    displayName: title,
+                    imageData: imageData,
+                    size: 44
+                )
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.appTextMedium)
+                        .foregroundStyle(Color.textMain)
+                        .lineLimit(1)
+                    Text(subtitle)
+                        .font(.appTextSmall)
+                        .foregroundStyle(Color.textSecondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 12)
+                trailing
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .listRowInsets(EdgeInsets(top: 14, leading: 20, bottom: 14, trailing: 20))
+        .listRowBackground(Color.clear)
+        .listRowSeparatorTint(.rowSeparator)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(accessibilityLabel))
+        .accessibilityAddTraits(.isButton)
+    }
+}
+
 /// A merged "On Flipcash" row. Contact rows show the phone number; rows with
 /// a conversation show the last-message preview and swap the chevron for the
 /// unread dot while the chat has unread messages.
@@ -366,54 +421,25 @@ private struct RecipientListItemRow: View {
         }
     }
 
-    private var avatarImageData: Data? {
-        switch item {
-        case .contact(let contact), .matched(let contact, _):
-            contact.imageData
-        case .conversation:
-            nil
-        }
-    }
-
     var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 12) {
-                ContactAvatarView(
-                    id: avatarID,
-                    displayName: title,
-                    imageData: avatarImageData,
-                    size: 44
-                )
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.appTextMedium)
-                        .foregroundStyle(Color.textMain)
-                        .lineLimit(1)
-                    Text(subtitle)
-                        .font(.appTextSmall)
-                        .foregroundStyle(Color.textSecondary)
-                        .lineLimit(1)
-                }
-                Spacer(minLength: 12)
-                if hasUnread {
-                    Circle()
-                        .fill(Color.unreadIndicator)
-                        .frame(width: 16, height: 16)
-                } else {
-                    Image(systemName: "chevron.right")
-                        .font(.appTextSmall)
-                        .foregroundStyle(Color.textSecondary)
-                }
+        RecipientRowScaffold(
+            avatarID: avatarID,
+            title: title,
+            subtitle: subtitle,
+            imageData: item.contact?.imageData,
+            accessibilityLabel: hasUnread ? "\(title), \(subtitle), unread messages" : "\(title), \(subtitle)",
+            onTap: onTap
+        ) {
+            if hasUnread {
+                Circle()
+                    .fill(Color.unreadIndicator)
+                    .frame(width: 16, height: 16)
+            } else {
+                Image(systemName: "chevron.right")
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textSecondary)
             }
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .listRowInsets(EdgeInsets(top: 14, leading: 20, bottom: 14, trailing: 20))
-        .listRowBackground(Color.clear)
-        .listRowSeparatorTint(.rowSeparator)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(hasUnread ? "\(title), \(subtitle), unread messages" : "\(title), \(subtitle)"))
-        .accessibilityAddTraits(.isButton)
     }
 }
 
@@ -425,44 +451,24 @@ private struct RecipientRow: View {
     let onInvite: () -> Void
 
     var body: some View {
-        Button(action: onInvite) {
-            HStack(spacing: 12) {
-                ContactAvatarView(
-                    id: contact.contactId,
-                    displayName: contact.displayName,
-                    imageData: contact.imageData,
-                    size: 44
-                )
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(contact.displayName)
-                        .font(.appTextMedium)
-                        .foregroundStyle(Color.textMain)
-                        .lineLimit(1)
-                    Text(contact.nationalPhone)
-                        .font(.appTextSmall)
-                        .foregroundStyle(Color.textSecondary)
-                        .lineLimit(1)
+        RecipientRowScaffold(
+            avatarID: contact.contactId,
+            title: contact.displayName,
+            subtitle: contact.nationalPhone,
+            imageData: contact.imageData,
+            accessibilityLabel: "\(contact.displayName), \(contact.nationalPhone)",
+            onTap: onInvite
+        ) {
+            Text("Invite")
+                .font(.appTextSmall)
+                .foregroundStyle(Color.textMain)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background {
+                    RoundedRectangle(cornerRadius: Metrics.buttonRadius)
+                        .fill(Color.backgroundRow)
                 }
-                Spacer(minLength: 12)
-                Text("Invite")
-                    .font(.appTextSmall)
-                    .foregroundStyle(Color.textMain)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background {
-                        RoundedRectangle(cornerRadius: Metrics.buttonRadius)
-                            .fill(Color.backgroundRow)
-                    }
-            }
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .listRowInsets(EdgeInsets(top: 14, leading: 20, bottom: 14, trailing: 20))
-        .listRowBackground(Color.clear)
-        .listRowSeparatorTint(.rowSeparator)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("\(contact.displayName), \(contact.nationalPhone)"))
-        .accessibilityAddTraits(.isButton)
         .accessibilityActions {
             Button("Invite", action: onInvite)
         }

@@ -23,6 +23,9 @@ nonisolated enum ConversationBubbleStyle {
     static let receivedFill = Color.white.opacity(0.02)
     /// Hairline border on every bubble.
     static let stroke = Color.white.opacity(0.03)
+    /// Secondary labels in the transcript: card captions, token names, and
+    /// date headers (white @ 50%).
+    static let secondaryText = Color.white.opacity(0.5)
 
     static func fill(isFromSelf: Bool) -> Color {
         isFromSelf ? sentFill : receivedFill
@@ -46,6 +49,42 @@ nonisolated enum ConversationBubbleStyle {
         } else {
             return RectangleCornerRadii(topLeading: top, bottomLeading: bottom, bottomTrailing: baseRadius, topTrailing: baseRadius)
         }
+    }
+}
+
+/// The bubble's fill + hairline border, drawn as explicit shape views so the
+/// corner radii interpolate when grouping changes (the `in:` form snaps).
+private struct ConversationBubbleChrome: ViewModifier {
+
+    let isFromSelf: Bool
+    let groupedAbove: Bool
+    let groupedBelow: Bool
+
+    private var shape: UnevenRoundedRectangle {
+        UnevenRoundedRectangle(
+            cornerRadii: ConversationBubbleStyle.cornerRadii(
+                isFromSelf: isFromSelf,
+                groupedAbove: groupedAbove,
+                groupedBelow: groupedBelow
+            ),
+            style: .continuous
+        )
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .background { shape.fill(ConversationBubbleStyle.fill(isFromSelf: isFromSelf)) }
+            .overlay { shape.strokeBorder(ConversationBubbleStyle.stroke, lineWidth: 1) }
+    }
+}
+
+extension View {
+    fileprivate func bubbleChrome(isFromSelf: Bool, groupedAbove: Bool, groupedBelow: Bool) -> some View {
+        modifier(ConversationBubbleChrome(
+            isFromSelf: isFromSelf,
+            groupedAbove: groupedAbove,
+            groupedBelow: groupedBelow
+        ))
     }
 }
 
@@ -135,27 +174,13 @@ struct ConversationBubble: View {
     var groupedAbove: Bool = false
     var groupedBelow: Bool = false
 
-    private var shape: UnevenRoundedRectangle {
-        UnevenRoundedRectangle(
-            cornerRadii: ConversationBubbleStyle.cornerRadii(
-                isFromSelf: isFromSelf,
-                groupedAbove: groupedAbove,
-                groupedBelow: groupedBelow
-            ),
-            style: .continuous
-        )
-    }
-
     var body: some View {
         Text(text)
             .font(.appTextMessage)
             .foregroundStyle(Color.textMain)
             .padding(.horizontal, 12)
             .padding(.vertical, 9)
-            // Fill + border drawn as explicit shape views so the corner radii
-            // interpolate when grouping changes (the `in:` form snaps).
-            .background { shape.fill(ConversationBubbleStyle.fill(isFromSelf: isFromSelf)) }
-            .overlay { shape.strokeBorder(ConversationBubbleStyle.stroke, lineWidth: 1) }
+            .bubbleChrome(isFromSelf: isFromSelf, groupedAbove: groupedAbove, groupedBelow: groupedBelow)
             .frame(maxWidth: ConversationBubbleStyle.textMaxWidth, alignment: isFromSelf ? .trailing : .leading)
     }
 }
@@ -181,17 +206,6 @@ struct ConversationCashBubble: View {
     /// Spring for the digit roll, started after the bubble's insertion lands.
     private static let amountRollSpring = Animation.spring(duration: 0.6).delay(0.2)
 
-    private var shape: UnevenRoundedRectangle {
-        UnevenRoundedRectangle(
-            cornerRadii: ConversationBubbleStyle.cornerRadii(
-                isFromSelf: isFromSelf,
-                groupedAbove: groupedAbove,
-                groupedBelow: groupedBelow
-            ),
-            style: .continuous
-        )
-    }
-
     /// The token branding in the card's corner. USDF reads as plain "Cash";
     /// launchpad currencies show their name and icon when the balance
     /// metadata is cached.
@@ -210,7 +224,7 @@ struct ConversationCashBubble: View {
                 }
                 Text(tokenBalance?.name ?? "Cash")
                     .font(.appTextHeading)
-                    .foregroundStyle(Color.white.opacity(0.5))
+                    .foregroundStyle(ConversationBubbleStyle.secondaryText)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .padding(.leading, 11)
@@ -219,7 +233,7 @@ struct ConversationCashBubble: View {
             VStack(spacing: 4) {
                 Text(isFromSelf ? "You sent" : "You received")
                     .font(.appTextCaption)
-                    .foregroundStyle(Color.white.opacity(0.5))
+                    .foregroundStyle(ConversationBubbleStyle.secondaryText)
 
                 HStack(spacing: 11) {
                     Flag(style: amount.nativeAmount.currency.flagStyle, size: .regular)
@@ -231,10 +245,7 @@ struct ConversationCashBubble: View {
             }
         }
         .frame(width: ConversationBubbleStyle.cashSize.width, height: ConversationBubbleStyle.cashSize.height)
-        // Fill + border drawn as explicit shape views so the corner radii
-        // interpolate when grouping changes (the `in:` form snaps).
-        .background { shape.fill(ConversationBubbleStyle.fill(isFromSelf: isFromSelf)) }
-        .overlay { shape.strokeBorder(ConversationBubbleStyle.stroke, lineWidth: 1) }
+        .bubbleChrome(isFromSelf: isFromSelf, groupedAbove: groupedAbove, groupedBelow: groupedBelow)
         .onAppear {
             guard animatesAmount, !showsFinalAmount else { return }
             withAnimation(Self.amountRollSpring) {
@@ -271,10 +282,10 @@ struct ConversationDateSeparator: View {
         HStack(spacing: 4) {
             Text(day)
                 .font(.appTextHeading)
-                .foregroundStyle(Color.white.opacity(0.5))
+                .foregroundStyle(ConversationBubbleStyle.secondaryText)
             Text(date.formatted(date: .omitted, time: .shortened))
                 .font(.appTextCaption)
-                .foregroundStyle(Color.white.opacity(0.5))
+                .foregroundStyle(ConversationBubbleStyle.secondaryText)
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 8)

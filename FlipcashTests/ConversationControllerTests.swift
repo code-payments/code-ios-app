@@ -16,6 +16,14 @@ struct ConversationControllerTests {
         ConversationID(data: Data(repeating: byte, count: 32))
     }
 
+    /// Polls briefly for work the controller runs on its own task (stream
+    /// consumption, feed paging) to land. Gives up after ~1s.
+    private func waitUntil(_ condition: () -> Bool) async {
+        for _ in 0..<50 where !condition() {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+    }
+
     private func makeController(
         _ mock: MockConversations,
         selfUserID: UserID = UUID(),
@@ -190,9 +198,7 @@ struct ConversationControllerTests {
         mock.emit(.newMessages(conversationID: conversationID(1), messages: [message]))
 
         // The stream is consumed on a Task; poll briefly for it to apply.
-        for _ in 0..<50 where controller.messages(for: conversationID(1)).isEmpty {
-            try? await Task.sleep(for: .milliseconds(20))
-        }
+        await waitUntil { !controller.messages(for: conversationID(1)).isEmpty }
         #expect(controller.messages(for: conversationID(1)).map(\.id.value) == [9])
         controller.stop()
     }
@@ -207,9 +213,7 @@ struct ConversationControllerTests {
         controller.start()
         // start() pages the feed on its own task; wait for it before scripting
         // the new chat so the assertion isolates the hydration.
-        for _ in 0..<50 where controller.conversations.isEmpty {
-            try? await Task.sleep(for: .milliseconds(20))
-        }
+        await waitUntil { !controller.conversations.isEmpty }
         #expect(controller.conversations.map(\.id) == [conversationID(1)])
 
         // A brand-new chat (created by a first payment) starts streaming
@@ -223,9 +227,7 @@ struct ConversationControllerTests {
         mock.emit(.newMessages(conversationID: conversationID(2), messages: [message]))
 
         // The stream is consumed on a Task; poll briefly for the hydration.
-        for _ in 0..<50 where controller.conversations.count < 2 {
-            try? await Task.sleep(for: .milliseconds(20))
-        }
+        await waitUntil { controller.conversations.count >= 2 }
         #expect(controller.conversations.map(\.id) == [conversationID(2), conversationID(1)])
         controller.stop()
     }

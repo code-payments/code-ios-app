@@ -114,7 +114,9 @@ final class ConversationController {
                 let conversation = try await fetching.getChat(owner: owner, conversationID: conversationID)
                 store.apply(.metadataRefresh(conversation))
             } catch {
-                logger.error("Failed to hydrate conversation referenced by the event stream")
+                logger.error("Failed to hydrate conversation referenced by the event stream", metadata: [
+                    "conversationID": "\(conversationID)",
+                ])
                 ErrorReporting.captureError(error, reason: "Failed to hydrate conversation referenced by the event stream")
             }
         }
@@ -136,6 +138,10 @@ final class ConversationController {
 
     // MARK: - Names
 
+    /// Counterpart name shown when neither the synced contacts nor the feed
+    /// provides one.
+    static let fallbackCounterpartName = "Flipcash User"
+
     /// The counterpart's name for a conversation: the synced contact's
     /// address-book name, else the server-provided member name from the feed,
     /// else a generic fallback.
@@ -145,7 +151,7 @@ final class ConversationController {
         }
         guard let counterpart = conversation.counterpart(excluding: selfUserID),
               !counterpart.displayName.isEmpty else {
-            return "Flipcash User"
+            return Self.fallbackCounterpartName
         }
         return counterpart.displayName
     }
@@ -154,7 +160,7 @@ final class ConversationController {
         if let conversation = store.conversations.first(where: { $0.id == conversationID }) {
             return displayName(for: conversation)
         }
-        return contactName(for: conversationID) ?? "Flipcash User"
+        return contactName(for: conversationID) ?? Self.fallbackCounterpartName
     }
 
     private func contactName(for conversationID: ConversationID) -> String? {
