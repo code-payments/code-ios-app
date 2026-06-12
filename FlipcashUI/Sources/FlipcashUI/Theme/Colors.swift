@@ -32,6 +32,8 @@ extension ShapeStyle where Self == Color {
     public static var backgroundRow: Color               { Color.white.opacity(0.05) }
     public static var rowSeparator: Color                { Color.white.opacity(0.1) }
 
+    public static var unreadIndicator: Color             { Color(r: 10,  g: 132, b: 255) }
+
     public static var checkmarkBackground: Color         { Color.white }
 }
 

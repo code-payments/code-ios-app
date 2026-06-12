@@ -43,6 +43,15 @@ extension Conversation {
     public func selfReadPointer(for selfUserID: UserID?) -> MessageID? {
         members.first { $0.userID == selfUserID }?.readPointer
     }
+
+    /// Whether the latest message postdates the signed-in user's READ
+    /// watermark. A missing watermark means nothing has been read yet, so any
+    /// message counts as unread.
+    public func hasUnread(for selfUserID: UserID?) -> Bool {
+        guard let lastMessage else { return false }
+        guard let read = selfReadPointer(for: selfUserID) else { return true }
+        return read < lastMessage.id
+    }
 }
 
 /// A participant in a conversation. `displayName` is the member's profile name

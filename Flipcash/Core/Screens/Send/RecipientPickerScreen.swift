@@ -355,6 +355,10 @@ private struct ConversationRow: View {
         }
     }
 
+    private var hasUnread: Bool {
+        conversation.hasUnread(for: conversationController.selfUserID)
+    }
+
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 12) {
@@ -375,9 +379,15 @@ private struct ConversationRow: View {
                         .lineLimit(1)
                 }
                 Spacer(minLength: 12)
-                Image(systemName: "chevron.right")
-                    .font(.appTextSmall)
-                    .foregroundStyle(Color.textSecondary)
+                if hasUnread {
+                    Circle()
+                        .fill(Color.unreadIndicator)
+                        .frame(width: 16, height: 16)
+                } else {
+                    Image(systemName: "chevron.right")
+                        .font(.appTextSmall)
+                        .foregroundStyle(Color.textSecondary)
+                }
             }
             .contentShape(Rectangle())
         }
@@ -386,7 +396,7 @@ private struct ConversationRow: View {
         .listRowBackground(Color.clear)
         .listRowSeparatorTint(.rowSeparator)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(title))
+        .accessibilityLabel(Text(hasUnread ? "\(title), unread messages" : title))
         .accessibilityAddTraits(.isButton)
     }
 }
