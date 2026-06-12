@@ -46,7 +46,7 @@ struct ConversationTranscriptItemTests {
 
     @Test("Empty transcript produces no items")
     func items_empty_returnsEmpty() {
-        let items = ConversationTranscriptItem.items(from: [], selfUserID: Self.selfID)
+        let items = ConversationTranscriptItem.items(from: [], selfUserID: Self.selfID, seenBoundary: nil)
         #expect(items.isEmpty)
     }
 
@@ -54,7 +54,8 @@ struct ConversationTranscriptItemTests {
     func items_firstMessage_showsSeparator() {
         let items = ConversationTranscriptItem.items(
             from: [Self.message(id: 1, from: Self.selfID, minutesAfterEpoch: 0)],
-            selfUserID: Self.selfID
+            selfUserID: Self.selfID,
+            seenBoundary: nil
         )
         #expect(Self.separatorCount(of: items) == 1)
         guard case .separator = items.first else {
@@ -70,7 +71,8 @@ struct ConversationTranscriptItemTests {
                 Self.message(id: 1, from: Self.selfID, minutesAfterEpoch: 0),
                 Self.message(id: 2, from: Self.otherID, minutesAfterEpoch: 1),
             ],
-            selfUserID: Self.selfID
+            selfUserID: Self.selfID,
+            seenBoundary: nil
         )
         #expect(Self.separatorCount(of: items) == 1)
     }
@@ -82,7 +84,8 @@ struct ConversationTranscriptItemTests {
                 Self.message(id: 1, from: Self.selfID, minutesAfterEpoch: 0),
                 Self.message(id: 2, from: Self.selfID, minutesAfterEpoch: 16),
             ],
-            selfUserID: Self.selfID
+            selfUserID: Self.selfID,
+            seenBoundary: nil
         )
         #expect(Self.separatorCount(of: items) == 2)
 
@@ -99,7 +102,8 @@ struct ConversationTranscriptItemTests {
                 Self.message(id: 2, from: Self.selfID, minutesAfterEpoch: 1),
                 Self.message(id: 3, from: Self.selfID, minutesAfterEpoch: 2),
             ],
-            selfUserID: Self.selfID
+            selfUserID: Self.selfID,
+            seenBoundary: nil
         )
         let positions = Self.positions(of: items)
         #expect(positions[0].groupedAbove == false)
@@ -117,7 +121,8 @@ struct ConversationTranscriptItemTests {
                 Self.message(id: 1, from: Self.selfID, minutesAfterEpoch: 0),
                 Self.message(id: 2, from: Self.otherID, minutesAfterEpoch: 1),
             ],
-            selfUserID: Self.selfID
+            selfUserID: Self.selfID,
+            seenBoundary: nil
         )
         let positions = Self.positions(of: items)
         #expect(positions[0].groupedBelow == false)
@@ -134,10 +139,34 @@ struct ConversationTranscriptItemTests {
                 Self.message(id: 2, from: Self.selfID, minutesAfterEpoch: 1),
                 Self.message(id: 3, from: Self.otherID, minutesAfterEpoch: 2),
             ],
-            selfUserID: Self.selfID
+            selfUserID: Self.selfID,
+            seenBoundary: nil
         )
         let positions = Self.positions(of: items)
         #expect(positions.map(\.isLatestFromSelf) == [false, true, false])
+    }
+
+    @Test(
+        "Messages past the READ watermark are unseen; at or before it, seen",
+        arguments: [
+            (nil, [true, true, true]),       // never read — everything animates once
+            (UInt64(1), [false, true, true]),
+            (UInt64(2), [false, false, true]),
+            (UInt64(3), [false, false, false]),
+            (UInt64(9), [false, false, false]), // watermark past the transcript
+        ] as [(UInt64?, [Bool])]
+    )
+    func items_seenBoundary_classifiesUnseen(boundary: UInt64?, expected: [Bool]) {
+        let items = ConversationTranscriptItem.items(
+            from: [
+                Self.message(id: 1, from: Self.otherID, minutesAfterEpoch: 0),
+                Self.message(id: 2, from: Self.otherID, minutesAfterEpoch: 1),
+                Self.message(id: 3, from: Self.selfID, minutesAfterEpoch: 2),
+            ],
+            selfUserID: Self.selfID,
+            seenBoundary: boundary.map(MessageID.init(value:))
+        )
+        #expect(Self.positions(of: items).map(\.isUnseen) == expected)
     }
 }
 

@@ -19,6 +19,9 @@ nonisolated enum ConversationTranscriptItem: Identifiable, Equatable {
         let groupedAbove: Bool
         let groupedBelow: Bool
         let isLatestFromSelf: Bool
+        /// Whether the message postdates the signed-in user's READ watermark —
+        /// it has never been on screen, so it animates in this once.
+        let isUnseen: Bool
     }
 
     case separator(Date)
@@ -32,10 +35,12 @@ nonisolated enum ConversationTranscriptItem: Identifiable, Equatable {
     }
 
     /// Inserts a date header across `gap`-sized time gaps and computes each
-    /// message's grouping within its same-sender run.
+    /// message's grouping within its same-sender run. `seenBoundary` is the
+    /// user's READ watermark; a nil boundary means nothing was ever read.
     static func items(
         from messages: [ConversationMessage],
         selfUserID: UserID,
+        seenBoundary: MessageID?,
         gap: TimeInterval = 15 * 60
     ) -> [ConversationTranscriptItem] {
         let latestFromSelfID = messages.last { $0.senderID == selfUserID }?.id
@@ -67,25 +72,25 @@ nonisolated enum ConversationTranscriptItem: Identifiable, Equatable {
                 isFromSelf: isFromSelf,
                 groupedAbove: groupedAbove,
                 groupedBelow: groupedBelow,
-                isLatestFromSelf: message.id == latestFromSelfID
+                isLatestFromSelf: message.id == latestFromSelfID,
+                isUnseen: seenBoundary.map { message.id > $0 } ?? true
             )))
         }
         return items
     }
 }
 
-/// The scrolling transcript. A `ScrollViewReader` scrolls the newest message
-/// into view on open, on new arrivals, and as the keyboard rises or falls.
+/// The scrolling transcript. Born bottom-anchored; a `ScrollViewReader`
+/// scrolls the newest message into view on new arrivals and as the keyboard
+/// rises or falls.
 struct ConversationTranscript: View {
 
     let messages: [ConversationMessage]
     let selfUserID: UserID
+    /// The signed-in user's READ watermark. Messages past it animate in —
+    /// the once-per-message "never seen" animation.
+    let seenBoundary: MessageID?
     let onBackgroundTap: () -> Void
-
-    /// Messages present when the transcript mounted. Bubbles inserted later
-    /// (live arrivals, the cash card after a send) roll their amount in;
-    /// history renders statically.
-    @State private var initialMessageIDs: Set<MessageID>?
 
     /// New bubble scale + opacity insertion.
     private static let insertionSpring = Animation.spring(duration: 0.23, bounce: 0.27)
@@ -115,7 +120,7 @@ struct ConversationTranscript: View {
                                 groupedAbove: position.groupedAbove,
                                 groupedBelow: position.groupedBelow,
                                 showsDelivered: position.isLatestFromSelf,
-                                animatesAmount: initialMessageIDs.map { !$0.contains(message.id) } ?? false
+                                animatesAmount: position.isUnseen
                             )
                             // A new bubble scales + fades in from its aligned edge.
                             .transition(
@@ -135,20 +140,17 @@ struct ConversationTranscript: View {
                 .animation(Self.insertionSpring, value: messages.count)
             }
             .scrollDismissesKeyboard(.interactively)
-            // One primitive — "show the bottom" — fired at each moment it
-            // should be shown. No scroll anchors: a thread too short to
-            // scroll just no-ops and stays at the top.
-            //
-            //   • open a populated thread at the newest message. Run
-            //     immediately and again after the first layout pass — onAppear
-            //     can fire before the list is measured, which makes a lone
-            //     scrollTo a no-op.
+            // The anchor positions the first paint at the newest message, but
+            // it resolves against the lazy stack's *estimated* height — on
+            // long transcripts the real layout can land mid-thread. The
+            // instant scrollTo on appear (again after the first layout pass,
+            // when the list is actually measured) corrects any residue.
+            .defaultScrollAnchor(.bottom)
             .onAppear {
-                if initialMessageIDs == nil {
-                    initialMessageIDs = Set(messages.map(\.id))
+                proxy.scrollTo(Self.bottomAnchor, anchor: .bottom)
+                DispatchQueue.main.async {
+                    proxy.scrollTo(Self.bottomAnchor, anchor: .bottom)
                 }
-                scrollToBottom(proxy)
-                DispatchQueue.main.async { scrollToBottom(proxy) }
             }
             //   • a message arrives (sent or received) → spring down to it
             .onChange(of: messages.count) {
@@ -167,19 +169,14 @@ struct ConversationTranscript: View {
     }
 
     /// Scrolls the newest content into view. A thread too short to scroll
-    /// no-ops and stays at the top. Pass an `animation` to ease the scroll;
-    /// omit for an instant jump (e.g. opening the thread).
-    private func scrollToBottom(_ proxy: ScrollViewProxy, animation: Animation? = nil) {
-        if let animation {
-            withAnimation(animation) { proxy.scrollTo(Self.bottomAnchor, anchor: .bottom) }
-        } else {
-            proxy.scrollTo(Self.bottomAnchor, anchor: .bottom)
-        }
+    /// no-ops and stays at the top.
+    private func scrollToBottom(_ proxy: ScrollViewProxy, animation: Animation) {
+        withAnimation(animation) { proxy.scrollTo(Self.bottomAnchor, anchor: .bottom) }
     }
 
     /// Kept on this child view (whose inputs exclude the composer draft) so
     /// keystrokes don't recompute it.
     private var items: [ConversationTranscriptItem] {
-        ConversationTranscriptItem.items(from: messages, selfUserID: selfUserID)
+        ConversationTranscriptItem.items(from: messages, selfUserID: selfUserID, seenBoundary: seenBoundary)
     }
 }

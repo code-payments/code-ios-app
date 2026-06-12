@@ -27,11 +27,13 @@ struct ConversationControllerTests {
     private func makeController(
         _ mock: MockConversations,
         selfUserID: UserID = UUID(),
-        naming: MockDMContactNaming = MockDMContactNaming()
+        naming: MockDMContactNaming = MockDMContactNaming(),
+        database: Database? = nil
     ) -> ConversationController {
         ConversationController(
             fetching: mock, messaging: mock, streaming: mock,
             contactNaming: naming,
+            database: database ?? (try! .makeTemp()),
             owner: .generate()!, selfUserID: selfUserID
         )
     }
@@ -230,5 +232,57 @@ struct ConversationControllerTests {
         await waitUntil { controller.conversations.count >= 2 }
         #expect(controller.conversations.map(\.id) == [conversationID(2), conversationID(1)])
         controller.stop()
+    }
+
+    // MARK: - Persistence -
+
+    @Test("init hydrates the feed and transcripts from the database before any fetch")
+    func hydratesFromDatabase() throws {
+        let database = try Database.makeTemp()
+        let conversation = Conversation(
+            id: conversationID(1), members: [],
+            lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 100)
+        )
+        try database.upsertConversation(conversation)
+        try database.upsertConversationMessages(
+            [
+                ConversationMessage(id: MessageID(value: 1), senderID: nil, content: .text("hi"), date: Date(timeIntervalSince1970: 10), unreadSeq: 1),
+                ConversationMessage(id: MessageID(value: 2), senderID: nil, content: .text("there"), date: Date(timeIntervalSince1970: 20), unreadSeq: 2),
+            ],
+            conversationID: conversationID(1)
+        )
+
+        // No start(): everything below comes from the local cache.
+        let controller = makeController(MockConversations(), database: database)
+
+        #expect(controller.conversations.map(\.id) == [conversationID(1)])
+        #expect(controller.messages(for: conversationID(1)).map(\.id.value) == [1, 2])
+    }
+
+    @Test("loadFeed, loadMessages, and markRead persist — a fresh controller rehydrates the same state")
+    func persistsAcrossControllers() async throws {
+        let database = try Database.makeTemp()
+        let selfUserID = UUID()
+        let mock = MockConversations()
+        mock.feed = [Conversation(
+            id: conversationID(1),
+            members: [ConversationMember(userID: selfUserID, displayName: "Self", readPointer: nil)],
+            lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 100)
+        )]
+        mock.messages = [
+            ConversationMessage(id: MessageID(value: 1), senderID: nil, content: .text("hi"), date: Date(timeIntervalSince1970: 10), unreadSeq: 1),
+            ConversationMessage(id: MessageID(value: 2), senderID: nil, content: .text("there"), date: Date(timeIntervalSince1970: 20), unreadSeq: 2),
+        ]
+        let controller = makeController(mock, selfUserID: selfUserID, database: database)
+        await controller.loadFeed()
+        await controller.loadMessages(for: conversationID(1))
+        await controller.markRead(conversationID: conversationID(1))
+
+        let rehydrated = makeController(MockConversations(), selfUserID: selfUserID, database: database)
+
+        #expect(rehydrated.conversations.map(\.id) == [conversationID(1)])
+        #expect(rehydrated.messages(for: conversationID(1)).map(\.id.value) == [1, 2])
+        let pointer = rehydrated.conversations.first?.selfReadPointer(for: selfUserID)
+        #expect(pointer == MessageID(value: 2))
     }
 }

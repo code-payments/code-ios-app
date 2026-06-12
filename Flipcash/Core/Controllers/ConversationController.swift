@@ -40,6 +40,7 @@ final class ConversationController {
     @ObservationIgnored private let messaging: any ConversationMessaging
     @ObservationIgnored private let streaming: any ConversationEventStreaming
     @ObservationIgnored private let contactNaming: any DMContactNaming
+    @ObservationIgnored private let database: Database
     @ObservationIgnored private let owner: KeyPair
     @ObservationIgnored private var streamTask: Task<Void, Never>?
     @ObservationIgnored private var hydratingConversationIDs: Set<ConversationID> = []
@@ -49,6 +50,7 @@ final class ConversationController {
         messaging: any ConversationMessaging,
         streaming: any ConversationEventStreaming,
         contactNaming: any DMContactNaming,
+        database: Database,
         owner: KeyPair,
         selfUserID: UserID
     ) {
@@ -56,8 +58,27 @@ final class ConversationController {
         self.messaging = messaging
         self.streaming = streaming
         self.contactNaming = contactNaming
+        self.database = database
         self.owner = owner
         self.selfUserID = selfUserID
+        hydrateFromDatabase()
+    }
+
+    /// Seeds the store from the local cache so the feed, unread state, and
+    /// transcripts render before any network round-trip.
+    private func hydrateFromDatabase() {
+        do {
+            let conversations = try database.getConversations()
+            guard !conversations.isEmpty else { return }
+            store.setFeed(conversations)
+            for conversation in conversations {
+                let messages = try database.getConversationMessages(conversationID: conversation.id)
+                store.mergeMessages(messages, into: conversation.id)
+            }
+        } catch {
+            logger.error("Failed to hydrate conversations from the database")
+            ErrorReporting.captureError(error, reason: "Failed to hydrate conversations from the database")
+        }
     }
 
     // MARK: - Lifecycle
@@ -73,6 +94,7 @@ final class ConversationController {
             for await event in events {
                 guard let self else { return }
                 self.store.apply(event)
+                self.persist(event: event)
                 self.hydrateIfUnknown(event)
             }
         }
@@ -113,6 +135,7 @@ final class ConversationController {
             do {
                 let conversation = try await fetching.getChat(owner: owner, conversationID: conversationID)
                 store.apply(.metadataRefresh(conversation))
+                persistConversation(conversationID)
             } catch {
                 logger.error("Failed to hydrate conversation referenced by the event stream", metadata: [
                     "conversationID": "\(conversationID)",
@@ -130,9 +153,44 @@ final class ConversationController {
         do {
             let conversations = try await fetching.getDmChatFeed(owner: owner)
             store.setFeed(conversations)
+            persist { try database.replaceConversationFeed(store.conversations) }
         } catch {
             logger.error("Failed to load conversation feed")
             ErrorReporting.captureError(error, reason: "Failed to load conversation feed")
+        }
+    }
+
+    // MARK: - Persistence
+
+    /// Mirror a stream event into the local cache, from the store's
+    /// post-`apply` state so monotonic rules (read pointers) hold.
+    private func persist(event: ConversationStreamEvent) {
+        switch event {
+        case .newMessages(let conversationID, let messages):
+            persist { try database.upsertConversationMessages(messages, conversationID: conversationID) }
+            persistConversation(conversationID)
+        case .metadataRefresh(let conversation):
+            persistConversation(conversation.id)
+        case .lastActivityChanged(let conversationID, _),
+             .readPointersChanged(let conversationID, _):
+            persistConversation(conversationID)
+        }
+    }
+
+    /// Persist the store's current version of a conversation. No-ops for
+    /// conversations the store doesn't know yet — `hydrateIfUnknown` follows
+    /// up with the fetched metadata.
+    private func persistConversation(_ conversationID: ConversationID) {
+        guard let conversation = store.conversations.first(where: { $0.id == conversationID }) else { return }
+        persist { try database.upsertConversation(conversation) }
+    }
+
+    private func persist(_ write: () throws -> Void) {
+        do {
+            try write()
+        } catch {
+            logger.error("Failed to persist conversation state")
+            ErrorReporting.captureError(error, reason: "Failed to persist conversation state")
         }
     }
 
@@ -181,6 +239,7 @@ final class ConversationController {
         do {
             let messages = try await messaging.getMessages(owner: owner, conversationID: conversationID)
             store.mergeMessages(messages, into: conversationID)
+            persist { try database.upsertConversationMessages(messages, conversationID: conversationID) }
         } catch {
             logger.error("Failed to load conversation messages")
             ErrorReporting.captureError(error, reason: "Failed to load conversation messages")
@@ -193,6 +252,8 @@ final class ConversationController {
             let message = try await messaging.sendMessage(owner: owner, conversationID: conversationID, text: text)
             store.mergeMessages([message], into: conversationID)
             store.setLastMessage(message, in: conversationID)
+            persist { try database.upsertConversationMessages([message], conversationID: conversationID) }
+            persistConversation(conversationID)
             return true
         } catch {
             logger.error("Failed to send conversation message")
@@ -210,6 +271,7 @@ final class ConversationController {
         }
         if (try? await messaging.markRead(owner: owner, conversationID: conversationID, messageID: latest.id)) != nil {
             store.advanceSelfReadPointer(to: latest.id, in: conversationID, selfUserID: selfUserID)
+            persistConversation(conversationID)
         }
     }
 }

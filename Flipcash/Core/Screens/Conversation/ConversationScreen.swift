@@ -105,15 +105,30 @@ struct ConversationScreen: View {
         return conversationController.messages(for: conversationID)
     }
 
+    /// The READ watermark messages must postdate to count as never-seen.
+    /// Derived live: `markRead` advances it after the open, so a bubble
+    /// animates the first time it's on screen and renders statically on
+    /// every open after that.
+    private var seenBoundary: MessageID? {
+        guard let conversationID else { return nil }
+        return conversationController.conversations
+            .first { $0.id == conversationID }?
+            .selfReadPointer(for: conversationController.selfUserID)
+    }
+
     var body: some View {
         Group {
             if chatExists && !hasLoaded && messages.isEmpty {
                 LoadingView(color: .textMain)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
+                // Until the first `onAppear` seeds `displayedMessages`, render
+                // the store's cached transcript directly so a re-opened chat's
+                // first frame is complete — no mass insertion after the fact.
                 ConversationTranscript(
-                    messages: displayedMessages,
+                    messages: hasAppeared ? displayedMessages : messages,
                     selfUserID: conversationController.selfUserID,
+                    seenBoundary: seenBoundary,
                     onBackgroundTap: dismissKeyboard
                 )
             }
@@ -163,9 +178,7 @@ struct ConversationScreen: View {
         .task(id: chatExists ? conversationID : nil) {
             guard chatExists, let conversationID else { return }
             await conversationController.loadMessages(for: conversationID)
-            if displayedMessages.isEmpty {
-                displayedMessages = conversationController.messages(for: conversationID)
-            }
+            displayedMessages = conversationController.messages(for: conversationID)
             hasLoaded = true
             await conversationController.markRead(conversationID: conversationID)
             didInitialRead = true
@@ -186,6 +199,7 @@ struct ConversationScreen: View {
                 refreshChatBinding()
                 syncDisplayedAfterReturn()
             } else {
+                displayedMessages = messages
                 hasAppeared = true
             }
         }

@@ -159,6 +159,45 @@ nonisolated struct LocalContactsSnapshotTable: Sendable {
     let contactId = Expression <String> ("contactId")
 }
 
+// DM conversation feed. Members and messages live in their own tables; the
+// feed's last-message preview is the newest row in `conversation_message`.
+nonisolated struct ConversationTable: Sendable {
+    static let name = "conversation"
+
+    let table        = Table(Self.name)
+    let id           = Expression <Data> ("id")          // 32-byte ChatId
+    let lastActivity = Expression <Date> ("lastActivity")
+}
+
+nonisolated struct ConversationMemberTable: Sendable {
+    static let name = "conversation_member"
+
+    let table          = Table(Self.name)
+    let conversationId = Expression <Data>    ("conversationId")
+    let userId         = Expression <UUID?>   ("userId")
+    let displayName    = Expression <String>  ("displayName")
+    let readPointer    = Expression <UInt64?> ("readPointer")
+}
+
+// One row per message; cash content is decomposed across the amount columns
+// the same way `activity` stores ExchangedFiat.
+nonisolated struct ConversationMessageTable: Sendable {
+    static let name = "conversation_message"
+
+    let table          = Table(Self.name)
+    let conversationId = Expression <Data>          ("conversationId")
+    let id             = Expression <UInt64>        ("id")
+    let senderId       = Expression <UUID?>         ("senderId")
+    let kind           = Expression <Int>           ("kind")
+    let text           = Expression <String?>       ("text")
+    let quarks         = Expression <UInt64?>       ("quarks")
+    let nativeAmount   = Expression <Double?>       ("nativeAmount")
+    let currency       = Expression <CurrencyCode?> ("currency")
+    let mint           = Expression <PublicKey?>    ("mint")
+    let date           = Expression <Date>          ("date")
+    let unreadSeq      = Expression <UInt64>        ("unreadSeq")
+}
+
 nonisolated extension Expression {
     func alias(_ alias: String) -> Expression<Datatype> {
         Expression(alias)
@@ -329,6 +368,48 @@ nonisolated extension Database {
                 t.column(localContactsSnapshotTable.e164)
                 t.column(localContactsSnapshotTable.contactId)
                 t.primaryKey(localContactsSnapshotTable.e164, localContactsSnapshotTable.contactId)
+            })
+        }
+
+        let conversationTable = ConversationTable()
+
+        try writer.transaction {
+            try writer.run(conversationTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                t.column(conversationTable.id, primaryKey: true)
+                t.column(conversationTable.lastActivity)
+            })
+        }
+
+        let conversationMemberTable = ConversationMemberTable()
+
+        try writer.transaction {
+            // Rowid table: `userId` is nullable (the server may omit it), so it
+            // can't join a WITHOUT ROWID primary key. Writes replace a
+            // conversation's members wholesale.
+            try writer.run(conversationMemberTable.table.create(ifNotExists: true) { t in
+                t.column(conversationMemberTable.conversationId)
+                t.column(conversationMemberTable.userId)
+                t.column(conversationMemberTable.displayName)
+                t.column(conversationMemberTable.readPointer)
+            })
+        }
+
+        let conversationMessageTable = ConversationMessageTable()
+
+        try writer.transaction {
+            try writer.run(conversationMessageTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                t.column(conversationMessageTable.conversationId)
+                t.column(conversationMessageTable.id)
+                t.column(conversationMessageTable.senderId)
+                t.column(conversationMessageTable.kind)
+                t.column(conversationMessageTable.text)
+                t.column(conversationMessageTable.quarks)
+                t.column(conversationMessageTable.nativeAmount)
+                t.column(conversationMessageTable.currency)
+                t.column(conversationMessageTable.mint)
+                t.column(conversationMessageTable.date)
+                t.column(conversationMessageTable.unreadSeq)
+                t.primaryKey(conversationMessageTable.conversationId, conversationMessageTable.id)
             })
         }
 
