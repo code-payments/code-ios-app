@@ -55,7 +55,7 @@ protocol ContactSyncing: AnyObject, Sendable {
 
     func uploadAllContacts(phones: [String], checksum: Data, owner: KeyPair) async throws
 
-    func streamFlipcashContacts(checksum: Data, owner: KeyPair) -> AsyncThrowingStream<String, Error>
+    func streamFlipcashContacts(checksum: Data, owner: KeyPair) -> AsyncThrowingStream<MatchedContact, Error>
 }
 
 /// DM conversation read surface used by `ConversationController` — the feed plus a

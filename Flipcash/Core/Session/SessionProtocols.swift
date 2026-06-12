@@ -133,7 +133,8 @@ protocol DirectSending: AnyObject {
     func send(
         amount: ExchangedFiat,
         verifiedState: VerifiedState,
-        to destination: PublicKey
+        to destination: PublicKey,
+        chat: ChatPaymentMetadata?
     ) async throws
 }
 

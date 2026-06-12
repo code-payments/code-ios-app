@@ -327,9 +327,9 @@ final class ContactSyncController {
         let stream = await MainActor.run {
             client.streamFlipcashContacts(checksum: checksum, owner: ownerKeyPair)
         }
-        var matched: [String] = []
-        for try await e164 in stream {
-            matched.append(e164)
+        var matched: [MatchedContact] = []
+        for try await contact in stream {
+            matched.append(contact)
         }
         let matchedCount = try database.replaceFlipcashContacts(matched, matchedAt: .now)
         logger.info("Refreshed flipcash contacts", metadata: ["matched": "\(matchedCount)"])

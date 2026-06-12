@@ -329,7 +329,7 @@ struct ContactSyncControllerTests {
             try database.replaceLocalContactsSnapshot([
                 Database.LocalContact(e164: "+14155550100", contactId: "alice"),
             ])
-            try database.replaceFlipcashContacts(["+14155550100"], matchedAt: .now)
+            try database.replaceFlipcashContacts([MatchedContact(e164: "+14155550100")], matchedAt: .now)
             let controller = Self.makeController(mock: mock, database: database, status: .authorized)
 
             controller.activate()
@@ -478,7 +478,7 @@ struct ContactSyncControllerTests {
         @Test("First sync — no stored checksum → full upload + matched-set stream")
         func firstSync_fullUploadAndStream() async throws {
             let mock = MockContactSync()
-            mock.streamYields = ["+14155550101"]
+            mock.streamYields = [MatchedContact(e164: "+14155550101")]
             let database = Database.mock
             let controller = Self.makeController(mock: mock, database: database)
 
@@ -496,13 +496,13 @@ struct ContactSyncControllerTests {
             #expect(storedState.checksum == ContactSyncController.checksum(of: contacts.map(\.e164)))
 
             #expect(Set(try database.localContactsSnapshot().map(\.e164)) == Set(contacts.map(\.e164)))
-            #expect(Set(try database.flipcashContacts()) == ["+14155550101"])
+            #expect(Set(try database.flipcashContacts().map(\.e164)) == ["+14155550101"])
         }
 
         @Test("refreshMatchedSet re-pulls and persists the matched set when a prior sync exists")
         func refreshMatchedSet_rePullsWhenSynced() async throws {
             let mock = MockContactSync()
-            mock.streamYields = [Self.bobContact.e164]
+            mock.streamYields = [MatchedContact(e164: Self.bobContact.e164)]
             let database = Database.mock
             let storedChecksum = ContactSyncController.checksum(of: [Self.aliceContact.e164])
             try Self.seedDatabase(database, checksum: storedChecksum, snapshot: [Self.aliceContact])
@@ -513,7 +513,7 @@ struct ContactSyncControllerTests {
             #expect(mock.streamCalls == [storedChecksum])
             #expect(mock.fullCalls.isEmpty)
             #expect(mock.deltaCalls.isEmpty)
-            #expect(Set(try database.flipcashContacts()) == [Self.bobContact.e164])
+            #expect(Set(try database.flipcashContacts().map(\.e164)) == [Self.bobContact.e164])
         }
 
         @Test("refreshMatchedSet is a no-op without a prior sync")
@@ -531,7 +531,7 @@ struct ContactSyncControllerTests {
         func steadyState_skipsUploadButRefreshesMatchedSet() async throws {
             let mock = MockContactSync()
             mock.checkSyncResult = .success(.ok)
-            mock.streamYields = [Self.bobContact.e164]
+            mock.streamYields = [MatchedContact(e164: Self.bobContact.e164)]
             let database = Database.mock
             let controller = Self.makeController(mock: mock, database: database)
 
@@ -545,7 +545,7 @@ struct ContactSyncControllerTests {
             #expect(mock.deltaCalls.isEmpty)
             #expect(mock.fullCalls.isEmpty)
             #expect(mock.streamCalls == [storedChecksum])
-            #expect(Set(try database.flipcashContacts()) == [Self.bobContact.e164])
+            #expect(Set(try database.flipcashContacts().map(\.e164)) == [Self.bobContact.e164])
         }
 
         @Test("Local-changed — stored snapshot present → delta upload + stream")
@@ -659,7 +659,7 @@ struct ContactSyncControllerTests {
 
             let priorChecksum = ContactSyncController.checksum(of: [Self.aliceContact.e164])
             try Self.seedDatabase(database, checksum: priorChecksum, snapshot: [Self.aliceContact])
-            try database.replaceFlipcashContacts([Self.bobContact.e164], matchedAt: .now)
+            try database.replaceFlipcashContacts([MatchedContact(e164: Self.bobContact.e164)], matchedAt: .now)
 
             await #expect(throws: ErrorContactSync.transportFailure) {
                 try await controller.performSync(contacts: [Self.bobContact, Self.carolContact])
@@ -671,7 +671,7 @@ struct ContactSyncControllerTests {
             let storedState = try database.contactSyncState()
             #expect(storedState.checksum == priorChecksum)
             #expect(Set(try database.localContactsSnapshot().map(\.e164)) == [Self.aliceContact.e164])
-            #expect(Set(try database.flipcashContacts()) == [Self.bobContact.e164])
+            #expect(Set(try database.flipcashContacts().map(\.e164)) == [Self.bobContact.e164])
         }
 
         @Test("CheckSync `.denied` from server propagates")
@@ -697,7 +697,7 @@ struct ContactSyncControllerTests {
         @Test("First scan signals how many contacts the server matched")
         func firstScan_withMatches_signalsCount() async throws {
             let mock = MockContactSync()
-            mock.streamYields = [Self.bobContact.e164, Self.carolContact.e164]
+            mock.streamYields = [MatchedContact(e164: Self.bobContact.e164), MatchedContact(e164: Self.carolContact.e164)]
             let database = Database.mock
             let controller = Self.makeController(mock: mock, database: database)
 
@@ -721,7 +721,7 @@ struct ContactSyncControllerTests {
         @Test("A later sync never re-signals")
         func laterSync_doesNotReSignal() async throws {
             let mock = MockContactSync()
-            mock.streamYields = [Self.bobContact.e164]
+            mock.streamYields = [MatchedContact(e164: Self.bobContact.e164)]
             let database = Database.mock
             let controller = Self.makeController(mock: mock, database: database)
 
@@ -770,7 +770,7 @@ struct ContactSyncControllerTests {
             ))
             try database.replaceLocalContactsSnapshot(contacts)
             if !matched.isEmpty {
-                try database.replaceFlipcashContacts(matched, matchedAt: Date(timeIntervalSince1970: 1_716_000_000))
+                try database.replaceFlipcashContacts(matched.map { MatchedContact(e164: $0) }, matchedAt: Date(timeIntervalSince1970: 1_716_000_000))
             }
         }
 
@@ -878,7 +878,7 @@ struct ContactSyncControllerTests {
                 checksum: ContactSyncController.checksum(of: [Self.aliceContact.e164])
             ))
             try database.replaceLocalContactsSnapshot([Self.aliceContact])
-            try database.replaceFlipcashContacts([Self.aliceContact.e164], matchedAt: Date(timeIntervalSince1970: 1_716_000_000))
+            try database.replaceFlipcashContacts([MatchedContact(e164: Self.aliceContact.e164)], matchedAt: Date(timeIntervalSince1970: 1_716_000_000))
 
             await controller.clearServerContactSetForAccountDeletion()
 

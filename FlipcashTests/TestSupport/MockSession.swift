@@ -199,17 +199,19 @@ final class MockSession:
         let amount: ExchangedFiat
         let verifiedState: VerifiedState
         let destination: PublicKey
+        let chat: ChatPaymentMetadata?
     }
 
     var sendHandler: (@MainActor (ExchangedFiat, VerifiedState, PublicKey) async throws -> Void)?
 
     private(set) var sendCalls: [SendCall] = []
 
-    func send(amount: ExchangedFiat, verifiedState: VerifiedState, to destination: PublicKey) async throws {
+    func send(amount: ExchangedFiat, verifiedState: VerifiedState, to destination: PublicKey, chat: ChatPaymentMetadata?) async throws {
         sendCalls.append(SendCall(
             amount: amount,
             verifiedState: verifiedState,
-            destination: destination
+            destination: destination,
+            chat: chat
         ))
         guard let handler = sendHandler else {
             throw MockSessionError.unimplemented(method: "send")

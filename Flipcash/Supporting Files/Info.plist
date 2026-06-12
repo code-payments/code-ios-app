@@ -20,7 +20,7 @@
 		<string>INSendMessageIntent</string>
 	</array>
 	<key>SQLiteVersion</key>
-	<integer>14</integer>
+	<integer>15</integer>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

@@ -23,7 +23,12 @@ struct ConversationMessageRow: View {
             if isFromSelf { Spacer(minLength: 40) }
 
             VStack(alignment: isFromSelf ? .trailing : .leading, spacing: 2) {
-                ConversationBubble(text: message.text, isFromSelf: isFromSelf)
+                switch message.content {
+                case .text(let text):
+                    ConversationBubble(text: text, isFromSelf: isFromSelf)
+                case .cash(let amount):
+                    ConversationCashBubble(amount: amount, isFromSelf: isFromSelf)
+                }
                 if showsTimestamp {
                     Text(message.date, format: .dateTime.hour().minute())
                         .font(.appTextSmall)
@@ -36,7 +41,14 @@ struct ConversationMessageRow: View {
         }
         .padding(.horizontal, 16)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text("\(isFromSelf ? "You" : "Them"): \(message.text)"))
+        .accessibilityLabel(Text("\(isFromSelf ? "You" : "Them"): \(accessibilityText)"))
+    }
+
+    private var accessibilityText: String {
+        switch message.content {
+        case .text(let text): text
+        case .cash(let amount): "\(amount.nativeAmount.formatted()) cash"
+        }
     }
 }
 
@@ -57,6 +69,32 @@ struct ConversationBubble: View {
                 isFromSelf ? Color.white.opacity(0.18) : Color.white.opacity(0.07),
                 in: .rect(cornerRadius: 20)
             )
+    }
+}
+
+/// A cash-payment bubble: the transferred amount over a "Cash" caption. Uses
+/// the same shade pairing as text bubbles so direction stays readable.
+struct ConversationCashBubble: View {
+
+    let amount: ExchangedFiat
+    let isFromSelf: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("Cash")
+                .font(.appTextSmall)
+                .foregroundStyle(Color.textSecondary)
+            Text(amount.nativeAmount.formatted())
+                .font(.appTextMessage)
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.textMain)
+        }
+        .padding(.vertical, 9)
+        .padding(.horizontal, 13)
+        .background(
+            isFromSelf ? Color.white.opacity(0.18) : Color.white.opacity(0.07),
+            in: .rect(cornerRadius: 20)
+        )
     }
 }
 

@@ -5,6 +5,7 @@
 
 import Testing
 import Foundation
+import FlipcashCore
 @testable import Flipcash
 
 @Suite("Database+ContactSync")
@@ -56,43 +57,52 @@ struct DatabaseContactSyncTests {
         #expect(try db.flipcashContacts().isEmpty)
     }
 
-    @Test("replaceFlipcashContacts then read returns the same set")
+    @Test("replaceFlipcashContacts then read returns the same set, including DM chat IDs")
     func contacts_roundTrip() throws {
         let db = Database.mock
-        let phones = ["+15551234567", "+447700900000", "+5215551234567"]
+        let contacts = [
+            MatchedContact(e164: "+15551234567", dmChatID: Data(repeating: 0x01, count: 32)),
+            MatchedContact(e164: "+447700900000", dmChatID: nil),
+            MatchedContact(e164: "+5215551234567", dmChatID: Data(repeating: 0x02, count: 32)),
+        ]
 
-        try db.replaceFlipcashContacts(phones, matchedAt: .now)
+        try db.replaceFlipcashContacts(contacts, matchedAt: .now)
 
-        #expect(Set(try db.flipcashContacts()) == Set(phones))
+        #expect(Set(try db.flipcashContacts()) == Set(contacts))
     }
 
     @Test("replaceFlipcashContacts replaces the existing set wholesale")
     func contacts_replaceIsWholesale() throws {
         let db = Database.mock
-        try db.replaceFlipcashContacts(["+15551234567", "+447700900000"], matchedAt: .now)
-        try db.replaceFlipcashContacts(["+5215551234567"], matchedAt: .now)
+        try db.replaceFlipcashContacts([MatchedContact(e164: "+15551234567"), MatchedContact(e164: "+447700900000")], matchedAt: .now)
+        try db.replaceFlipcashContacts([MatchedContact(e164: "+5215551234567")], matchedAt: .now)
 
-        #expect(try db.flipcashContacts() == ["+5215551234567"])
+        #expect(try db.flipcashContacts() == [MatchedContact(e164: "+5215551234567")])
     }
 
     @Test("replaceFlipcashContacts with empty array drains the table")
     func contacts_replaceWithEmptyDrains() throws {
         let db = Database.mock
-        try db.replaceFlipcashContacts(["+15551234567", "+447700900000"], matchedAt: .now)
+        try db.replaceFlipcashContacts([MatchedContact(e164: "+15551234567"), MatchedContact(e164: "+447700900000")], matchedAt: .now)
         try db.replaceFlipcashContacts([], matchedAt: .now)
 
         #expect(try db.flipcashContacts().isEmpty)
     }
 
-    @Test("replaceFlipcashContacts deduplicates a server-emitted duplicate")
+    @Test("replaceFlipcashContacts deduplicates a server-emitted duplicate on e164")
     func contacts_dedupesDuplicateInput() throws {
         let db = Database.mock
         try db.replaceFlipcashContacts(
-            ["+15551234567", "+15551234567", "+15551234567"],
+            [
+                MatchedContact(e164: "+15551234567", dmChatID: Data(repeating: 0x01, count: 32)),
+                MatchedContact(e164: "+15551234567", dmChatID: nil),
+                MatchedContact(e164: "+15551234567", dmChatID: Data(repeating: 0x02, count: 32)),
+            ],
             matchedAt: .now
         )
 
-        #expect(try db.flipcashContacts() == ["+15551234567"])
+        // First occurrence wins, including its DM chat ID.
+        #expect(try db.flipcashContacts() == [MatchedContact(e164: "+15551234567", dmChatID: Data(repeating: 0x01, count: 32))])
     }
 
     // MARK: - Local Snapshot -

@@ -22,6 +22,19 @@ nonisolated struct ResolvedContact: Identifiable, Hashable, Sendable {
     let phoneE164: String
     let nationalPhone: String
     let imageData: Data?
+    /// The server-issued DM ChatId for this contact; nil until contact sync
+    /// has stored one. A chat that doesn't exist yet is initiated by sending
+    /// the contact cash.
+    let dmChatID: Data?
+
+    init(contactId: String, displayName: String, phoneE164: String, nationalPhone: String, imageData: Data?, dmChatID: Data? = nil) {
+        self.contactId = contactId
+        self.displayName = displayName
+        self.phoneE164 = phoneE164
+        self.nationalPhone = nationalPhone
+        self.imageData = imageData
+        self.dmChatID = dmChatID
+    }
 
     /// Composite identity for `ForEach`. A picker row corresponds to one
     /// (contactId, e164) pair; the same address-book contact with three
@@ -144,16 +157,21 @@ enum RecipientLoader {
     static func load(database: Database) async -> ResolvedContacts {
         await Task.detached(priority: .userInitiated) {
             let snapshot: [Database.LocalContact]
-            let flipcashSet: Set<String>
+            let matched: [MatchedContact]
             do {
                 snapshot = try database.localContactsSnapshot()
-                flipcashSet = Set(try database.flipcashContacts())
+                matched = try database.flipcashContacts()
             } catch {
                 logger.error("Failed to read contact-sync tables", metadata: [
                     "error": "\(error)",
                 ])
                 return ResolvedContacts.empty
             }
+            let flipcashSet = Set(matched.map(\.e164))
+            let dmChatIDByPhone = Dictionary(
+                matched.compactMap { contact in contact.dmChatID.map { (contact.e164, $0) } },
+                uniquingKeysWith: { first, _ in first }
+            )
 
             let store = CNContactStore()
             // `CNContactFormatter.descriptorForRequiredKeys(for:)` returns the
@@ -207,6 +225,7 @@ enum RecipientLoader {
                     phoneE164: placement.e164,
                     nationalPhone: nationalPhone,
                     imageData: cnContact.thumbnailImageData,
+                    dmChatID: dmChatIDByPhone[placement.e164],
                 ))
             }
 

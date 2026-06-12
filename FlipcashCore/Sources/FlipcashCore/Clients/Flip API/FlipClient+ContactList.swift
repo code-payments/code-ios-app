@@ -37,17 +37,17 @@ extension FlipClient {
         }
     }
 
-    /// Yields each matched phone (E.164) individually. Throws on `denied`,
+    /// Yields each matched contact individually. Throws on `denied`,
     /// `checksumDrift`, or network failure; `notFound` is a successful
     /// 0-match completion. Cancelling the consuming task cancels the call.
-    public func streamFlipcashContacts(checksum: Data, owner: KeyPair) -> AsyncThrowingStream<String, Error> {
+    public func streamFlipcashContacts(checksum: Data, owner: KeyPair) -> AsyncThrowingStream<MatchedContact, Error> {
         AsyncThrowingStream { continuation in
             let cancellable = contactListService.getFlipcashContacts(
                 checksum: checksum,
                 owner: owner
             ) { batch in
-                for e164 in batch.phones {
-                    continuation.yield(e164)
+                for contact in batch.contacts {
+                    continuation.yield(contact)
                 }
                 switch batch.result {
                 case .ok, .notFound:

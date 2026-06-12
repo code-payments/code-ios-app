@@ -133,7 +133,8 @@ final class SendAmountViewModel {
                 try await sender.send(
                     amount: amountToSend,
                     verifiedState: pinnedState,
-                    to: recipient
+                    to: recipient,
+                    chat: chatPaymentMetadata()
                 )
                 Analytics.track(event: Analytics.SendEvent.sendSuccess)
                 return .success
@@ -143,6 +144,21 @@ final class SendAmountViewModel {
                 return .failed
             }
         }
+    }
+
+    /// Chat context for posting this payment into the contact's DM. Requires
+    /// the contact's server-issued chat ID and the sender's own payment-linked
+    /// phone; without both, the payment submits without chat metadata.
+    private func chatPaymentMetadata() -> ChatPaymentMetadata? {
+        guard let dmChatID = contact.dmChatID,
+              let ownPhone = session.profile?.phone else {
+            return nil
+        }
+        return ChatPaymentMetadata(
+            chatID: ConversationID(data: dmChatID),
+            sourcePhoneE164: ownPhone.e164,
+            destinationPhoneE164: contact.phoneE164
+        )
     }
 
     // MARK: - Recipient resolution -

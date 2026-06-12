@@ -20,16 +20,18 @@ final class IntentTransfer: IntentType {
     let destinationOwner: PublicKey?
     let exchangedFiat: ExchangedFiat
     let verifiedState: VerifiedState
-    let extendedMetadata: Google_Protobuf_Any?
+    /// Serialized `flipcash.intent.v1.AppMetadata`. Set on contact DM sends so
+    /// the server posts the payment into the chat; `nil` everywhere else.
+    let appMetadata: Data?
 
     var actionGroup: ActionGroup
 
-    init(rendezvous: PublicKey, sourceCluster: AccountCluster, destination: PublicKey, destinationOwner: PublicKey? = nil, exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, extendedMetadata: Google_Protobuf_Any? = nil) {
+    init(rendezvous: PublicKey, sourceCluster: AccountCluster, destination: PublicKey, destinationOwner: PublicKey? = nil, exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, appMetadata: Data? = nil) {
         self.id               = rendezvous
         self.sourceCluster    = sourceCluster
         self.exchangedFiat    = exchangedFiat
         self.verifiedState    = verifiedState
-        self.extendedMetadata = extendedMetadata
+        self.appMetadata      = appMetadata
         self.destination      = destination
         self.destinationOwner = destinationOwner
 
@@ -70,6 +72,10 @@ extension IntentTransfer {
                 if let destinationOwner {
                     $0.destinationOwner = destinationOwner.solanaAccountID
                 }
+            }
+
+            if let appMetadata {
+                $0.appMetadata = .with { $0.value = appMetadata }
             }
         }
     }

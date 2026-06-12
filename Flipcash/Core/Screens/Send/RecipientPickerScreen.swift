@@ -355,6 +355,14 @@ private struct ConversationRow: View {
         conversationController.displayName(for: conversation)
     }
 
+    private var preview: String {
+        switch conversation.lastMessage?.content {
+        case .text(let text): text
+        case .cash(let amount): "Cash · \(amount.nativeAmount.formatted())"
+        case nil: "No messages yet"
+        }
+    }
+
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 12) {
@@ -369,7 +377,7 @@ private struct ConversationRow: View {
                         .font(.appTextMedium)
                         .foregroundStyle(Color.textMain)
                         .lineLimit(1)
-                    Text(conversation.lastMessage?.text ?? "No messages yet")
+                    Text(preview)
                         .font(.appTextSmall)
                         .foregroundStyle(Color.textSecondary)
                         .lineLimit(1)

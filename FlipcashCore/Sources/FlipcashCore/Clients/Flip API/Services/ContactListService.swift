@@ -184,10 +184,15 @@ final class ContactListService: CodeService<Flipcash_Contact_V1_ContactListNIOCl
             // rather than routing through `Phone(_:)`. Going through
             // `PhoneNumberKit` would silently drop any string it can't parse,
             // decoupling the local matched-set from the server's truth.
-            let e164s = response.contacts.map { $0.phone.value }
+            let contacts = response.contacts.map {
+                MatchedContact(
+                    e164: $0.phone.value,
+                    dmChatID: $0.hasDmChatID && !$0.dmChatID.value.isEmpty ? $0.dmChatID.value : nil
+                )
+            }
             let batch = FlipcashContactsBatch(
                 result: FlipcashContactsBatch.Result(response.result),
-                phones: e164s
+                contacts: contacts
             )
             queue.async { onResponse(batch) }
         }
@@ -234,6 +239,20 @@ public enum DeltaUploadResult: Equatable, Sendable {
     case checksumDrift
 }
 
+/// A phone the server matched as being on Flipcash, with the DM chat ID for
+/// that contact when one exists.
+public struct MatchedContact: Equatable, Hashable, Sendable {
+    public let e164: String
+    /// The server's 32-byte DM ChatId; nil when absent. A chat that doesn't
+    /// exist yet is initiated by sending the contact cash.
+    public let dmChatID: Data?
+
+    public init(e164: String, dmChatID: Data? = nil) {
+        self.e164 = e164
+        self.dmChatID = dmChatID
+    }
+}
+
 public struct FlipcashContactsBatch: Equatable, Sendable {
     public enum Result: Equatable, Sendable {
         case ok
@@ -244,7 +263,7 @@ public struct FlipcashContactsBatch: Equatable, Sendable {
     }
 
     public let result: Result
-    public let phones: [String]
+    public let contacts: [MatchedContact]
 }
 
 extension FlipcashContactsBatch.Result {

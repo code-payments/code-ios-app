@@ -64,7 +64,7 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
     func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String) async throws -> ConversationMessage {
         lock.withLock { _sent.append(Sent(conversationID: conversationID, text: text)) }
         return sendResult ?? ConversationMessage(
-            id: MessageID(value: 1), senderID: nil, text: text,
+            id: MessageID(value: 1), senderID: nil, content: .text(text),
             date: Date(timeIntervalSince1970: 0), unreadSeq: 0
         )
     }

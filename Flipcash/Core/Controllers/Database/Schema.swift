@@ -145,6 +145,7 @@ nonisolated struct FlipcashContactTable: Sendable {
 
     let table     = Table(Self.name)
     let e164      = Expression <String> ("e164")
+    let dmChatId  = Expression <Data?>  ("dmChatId")
     let matchedAt = Expression <Date>   ("matchedAt")
 }
 
@@ -311,6 +312,7 @@ nonisolated extension Database {
         try writer.transaction {
             try writer.run(flipcashContactTable.table.create(ifNotExists: true, withoutRowid: true) { t in
                 t.column(flipcashContactTable.e164, primaryKey: true)
+                t.column(flipcashContactTable.dmChatId)
                 t.column(flipcashContactTable.matchedAt)
             })
         }

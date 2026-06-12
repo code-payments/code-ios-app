@@ -37,7 +37,7 @@ struct ConversationStreamEventDecodeTests {
             Issue.record("expected .newMessages"); return
         }
         #expect(conversationID == ConversationID(data: conversationBytes))
-        #expect(messages.map(\.text) == ["hi", "yo"])
+        #expect(messages.map(\.content) == [.text("hi"), .text("yo")])
     }
 
     @Test("FullRefresh metadata decodes to a metadataRefresh event")

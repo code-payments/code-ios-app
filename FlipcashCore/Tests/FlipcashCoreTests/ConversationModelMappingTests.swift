@@ -27,12 +27,59 @@ struct ConversationModelMappingTests {
         let message = try #require(ConversationMessage(proto))
         #expect(message.id == MessageID(value: 7))
         #expect(message.senderID == senderUUID)
-        #expect(message.text == "hello")
+        #expect(message.content == .text("hello"))
         #expect(message.date == Date(timeIntervalSince1970: 1_700_000_000))
         #expect(message.unreadSeq == 3)
     }
 
-    @Test("Message with no text content returns nil")
+    @Test("Cash message maps the payment amount")
+    func cashMessageParses() throws {
+        let mintBytes = Data(repeating: 0x02, count: 32)
+        let proto = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = .with { $0.value = 11 }
+            $0.content = [.with {
+                $0.cash = .with {
+                    $0.intentID = .with { $0.value = Data(repeating: 0x03, count: 32) }
+                    $0.amount = .with {
+                        $0.currency = "usd"
+                        $0.nativeAmount = 5.0
+                        $0.quarks = 5_000_000
+                        $0.mint = .with { $0.value = mintBytes }
+                    }
+                }
+            }]
+        }
+
+        let message = try #require(ConversationMessage(proto))
+        guard case .cash(let amount) = message.content else {
+            Issue.record("Expected cash content")
+            return
+        }
+        #expect(amount.nativeAmount.value == 5.0)
+        #expect(amount.nativeAmount.currency == .usd)
+        #expect(amount.onChainAmount.quarks == 5_000_000)
+        #expect(amount.mint == (try PublicKey(mintBytes)))
+    }
+
+    @Test("Cash message with a malformed amount returns nil")
+    func cashMessageMalformedAmountReturnsNil() {
+        let proto = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = .with { $0.value = 12 }
+            // Missing mint bytes — ExchangedFiat(proto:) must reject it.
+            $0.content = [.with {
+                $0.cash = .with {
+                    $0.amount = .with {
+                        $0.currency = "usd"
+                        $0.nativeAmount = 5.0
+                        $0.quarks = 5_000_000
+                    }
+                }
+            }]
+        }
+        #expect(ConversationMessage(proto) == nil)
+    }
+
+    @Test("Message with no content returns nil")
     func nonTextReturnsNil() {
         let proto = Flipcash_Messaging_V1_Message.with {
             $0.messageID = .with { $0.value = 1 }
@@ -55,7 +102,7 @@ struct ConversationModelMappingTests {
 
         let conversation = Conversation(proto)
         #expect(conversation.id == ConversationID(data: conversationBytes))
-        #expect(conversation.lastMessage?.text == "last")
+        #expect(conversation.lastMessage?.content == .text("last"))
         #expect(conversation.lastActivity == Date(timeIntervalSince1970: 1_700_000_500))
     }
 

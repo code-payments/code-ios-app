@@ -889,7 +889,7 @@ class Session {
     /// The recipient's vault is derived from `recipientOwner` + mint +
     /// VM time-authority and carried alongside `recipientOwner` so the
     /// server recognises a Code-managed destination.
-    func send(amount: ExchangedFiat, verifiedState: VerifiedState, to recipientOwner: PublicKey) async throws {
+    func send(amount: ExchangedFiat, verifiedState: VerifiedState, to recipientOwner: PublicKey, chat: ChatPaymentMetadata?) async throws {
         try assertFresh(verifiedState, operation: "send", currency: amount.nativeAmount.currency, mint: amount.mint)
 
         let mint = amount.mint
@@ -911,6 +911,7 @@ class Session {
             "recipientOwner": "\(recipientOwner.base58)",
             "recipientVault": "\(recipientVault.base58)",
             "rendezvous": "\(rendezvous.base58)",
+            "hasChatMetadata": "\(chat != nil)",
         ])
 
         do {
@@ -920,6 +921,7 @@ class Session {
                 owner: owner.use(mint: mint, timeAuthority: vmAuthority),
                 destination: recipientVault,
                 destinationOwner: recipientOwner,
+                chatMetadata: chat,
                 rendezvous: rendezvous
             )
 

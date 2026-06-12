@@ -35,7 +35,7 @@ final class MockContactSync: ContactSyncing, @unchecked Sendable {
     private var _checkSyncResult:    Result<CheckSyncResult, Error>   = .success(.ok)
     private var _deltaUploadResult:  Result<DeltaUploadResult, Error> = .success(.ok)
     private var _fullUploadResult:   Result<Void, Error>              = .success(())
-    private var _streamYields:       [String] = []
+    private var _streamYields:       [MatchedContact] = []
     private var _streamTerminalError: Error?
 
     var checkSyncCalls: [Data]    { lock.withLock { _checkSyncCalls } }
@@ -55,7 +55,7 @@ final class MockContactSync: ContactSyncing, @unchecked Sendable {
         get { lock.withLock { _fullUploadResult } }
         set { lock.withLock { _fullUploadResult = newValue } }
     }
-    var streamYields: [String] {
+    var streamYields: [MatchedContact] {
         get { lock.withLock { _streamYields } }
         set { lock.withLock { _streamYields = newValue } }
     }
@@ -101,12 +101,12 @@ final class MockContactSync: ContactSyncing, @unchecked Sendable {
         try scripted.get()
     }
 
-    func streamFlipcashContacts(checksum: Data, owner: KeyPair) -> AsyncThrowingStream<String, Error> {
+    func streamFlipcashContacts(checksum: Data, owner: KeyPair) -> AsyncThrowingStream<MatchedContact, Error> {
         lock.withLock { _streamCalls.append(checksum) }
         return AsyncThrowingStream { [self] continuation in
             // Reads scripted values inside the producer so mutations after
             // construction (but before iteration) take effect.
-            let (yields, terminalError): ([String], Error?) = lock.withLock {
+            let (yields, terminalError): ([MatchedContact], Error?) = lock.withLock {
                 (_streamYields, _streamTerminalError)
             }
             for value in yields {

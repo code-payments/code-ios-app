@@ -42,28 +42,29 @@ nonisolated extension Database {
 
     // MARK: - Flipcash Contacts -
 
-    /// E.164 phone numbers the server has confirmed are on Flipcash.
-    func flipcashContacts() throws -> [String] {
+    /// Contacts the server has confirmed are on Flipcash, with their DM chat IDs.
+    func flipcashContacts() throws -> [MatchedContact] {
         let table = FlipcashContactTable()
-        let rows = try reader.prepareRowIterator(table.table.select(table.e164))
-        return try rows.map { $0[table.e164] }
+        let rows = try reader.prepareRowIterator(table.table.select(table.e164, table.dmChatId))
+        return try rows.map { MatchedContact(e164: $0[table.e164], dmChatID: $0[table.dmChatId]) }
     }
 
     /// Replace the matched-contacts set with the server's latest response and
     /// return the deduped count persisted.
     /// Atomic — readers observe either the old set or the new set, never a partial join.
-    /// Deduplicates `e164s` defensively in case the server ever streams the same number twice.
+    /// Deduplicates on `e164` defensively in case the server ever streams the same number twice.
     @discardableResult
-    func replaceFlipcashContacts(_ e164s: [String], matchedAt: Date) throws -> Int {
+    func replaceFlipcashContacts(_ contacts: [MatchedContact], matchedAt: Date) throws -> Int {
         let table = FlipcashContactTable()
         var seen: Set<String> = []
-        let deduped = e164s.filter { seen.insert($0).inserted }
+        let deduped = contacts.filter { seen.insert($0.e164).inserted }
         try writer.transaction {
             try writer.run(table.table.delete())
-            for e164 in deduped {
+            for contact in deduped {
                 try writer.run(
                     table.table.insert(
-                        table.e164 <- e164,
+                        table.e164 <- contact.e164,
+                        table.dmChatId <- contact.dmChatID,
                         table.matchedAt <- matchedAt
                     )
                 )

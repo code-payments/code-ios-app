@@ -38,7 +38,7 @@ struct ConversationControllerTests {
     @Test("send records the message and appends it to the conversation")
     func send() async {
         let mock = MockConversations()
-        mock.sendResult = ConversationMessage(id: MessageID(value: 7), senderID: nil, text: "hello", date: Date(timeIntervalSince1970: 0), unreadSeq: 0)
+        mock.sendResult = ConversationMessage(id: MessageID(value: 7), senderID: nil, content: .text("hello"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0)
         let controller = makeController(mock)
 
         let ok = await controller.send("hello", to: conversationID(1))
@@ -50,7 +50,7 @@ struct ConversationControllerTests {
     @Test("markRead advances to the latest loaded message")
     func markRead() async {
         let mock = MockConversations()
-        mock.messages = [ConversationMessage(id: MessageID(value: 5), senderID: nil, text: "x", date: Date(timeIntervalSince1970: 0), unreadSeq: 0)]
+        mock.messages = [ConversationMessage(id: MessageID(value: 5), senderID: nil, content: .text("x"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0)]
         let controller = makeController(mock)
 
         await controller.loadMessages(for: conversationID(1))
@@ -71,7 +71,7 @@ struct ConversationControllerTests {
             lastMessage: nil,
             lastActivity: Date(timeIntervalSince1970: 0)
         )]
-        mock.messages = [ConversationMessage(id: MessageID(value: 5), senderID: nil, text: "x", date: Date(timeIntervalSince1970: 0), unreadSeq: 0)]
+        mock.messages = [ConversationMessage(id: MessageID(value: 5), senderID: nil, content: .text("x"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0)]
         let controller = makeController(mock, selfUserID: me)
 
         await controller.loadFeed()
@@ -93,7 +93,7 @@ struct ConversationControllerTests {
             lastMessage: nil,
             lastActivity: Date(timeIntervalSince1970: 0)
         )]
-        mock.messages = [ConversationMessage(id: MessageID(value: 5), senderID: nil, text: "x", date: Date(timeIntervalSince1970: 0), unreadSeq: 0)]
+        mock.messages = [ConversationMessage(id: MessageID(value: 5), senderID: nil, content: .text("x"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0)]
         let controller = makeController(mock, selfUserID: me)
 
         await controller.loadFeed()
@@ -153,7 +153,7 @@ struct ConversationControllerTests {
         let controller = makeController(mock)
         controller.start()
 
-        let message = ConversationMessage(id: MessageID(value: 9), senderID: nil, text: "live", date: Date(timeIntervalSince1970: 0), unreadSeq: 0)
+        let message = ConversationMessage(id: MessageID(value: 9), senderID: nil, content: .text("live"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0)
         mock.emit(.newMessages(conversationID: conversationID(1), messages: [message]))
 
         // The stream is consumed on a Task; poll briefly for it to apply.

@@ -26,7 +26,7 @@ struct ConversationStoreTests {
     }
 
     private func message(_ id: UInt64, _ text: String = "hi", at: TimeInterval = 0) -> ConversationMessage {
-        ConversationMessage(id: MessageID(value: id), senderID: nil, text: text, date: Date(timeIntervalSince1970: at), unreadSeq: 0)
+        ConversationMessage(id: MessageID(value: id), senderID: nil, content: .text(text), date: Date(timeIntervalSince1970: at), unreadSeq: 0)
     }
 
     @Test("setFeed sorts by last activity, most recent first")
@@ -48,7 +48,7 @@ struct ConversationStoreTests {
 
         let messages = store.messages(for: conversationID(1))
         #expect(messages.map(\.id.value) == [1, 2, 3])
-        #expect(messages.first?.text == "updated") // last write wins per id
+        #expect(messages.first?.content == .text("updated")) // last write wins per id
     }
 
     @Test("mergeMessages fast-appends strictly-newer messages in order")
@@ -67,7 +67,7 @@ struct ConversationStoreTests {
         store.mergeMessages([message(2, "echo")], into: conversationID(1))    // equal id → fallback dedups
         let messages = store.messages(for: conversationID(1))
         #expect(messages.map(\.id.value) == [1, 2])
-        #expect(messages.last?.text == "echo")
+        #expect(messages.last?.content == .text("echo"))
     }
 
     @Test("newMessages event appends and bumps the conversation's last activity")
@@ -79,7 +79,7 @@ struct ConversationStoreTests {
         #expect(store.messages(for: conversationID(1)).map(\.id.value) == [5])
         // conversation 1 moves to the front after its new activity
         #expect(store.conversations.first?.id == conversationID(1))
-        #expect(store.conversations.first?.lastMessage?.text == "yo")
+        #expect(store.conversations.first?.lastMessage?.content == .text("yo"))
     }
 
     @Test("lastActivityChanged re-sorts the feed")

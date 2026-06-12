@@ -610,7 +610,8 @@ struct SessionSendVerifiedStateTests {
             try await session.send(
                 amount: Self.amount,
                 verifiedState: stale,
-                to: PublicKey.generate()!
+                to: PublicKey.generate()!,
+                chat: nil
             )
         }
     }

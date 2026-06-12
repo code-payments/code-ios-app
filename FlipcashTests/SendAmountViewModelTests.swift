@@ -16,13 +16,14 @@ struct SendAmountViewModelTests {
 
     private static let recipient: PublicKey = .generate()!
 
-    static func makeContact(displayName: String = "Alice") -> ResolvedContact {
+    static func makeContact(displayName: String = "Alice", dmChatID: Data? = nil) -> ResolvedContact {
         ResolvedContact(
             contactId: "test-contact",
             displayName: displayName,
             phoneE164: "+15551234567",
             nationalPhone: "(555) 123-4567",
-            imageData: nil
+            imageData: nil,
+            dmChatID: dmChatID
         )
     }
 
@@ -362,6 +363,57 @@ struct SendAmountViewModelTests {
         #expect(mock.sendCalls.count == 1)
         #expect(mock.sendCalls.first?.destination == Self.recipient)
         #expect(container.session.dialogItem == nil)
+    }
+
+    @Test("sendAction attaches chat metadata when the contact has a DM chat and own phone is linked")
+    func sendAction_withDmChatAndOwnPhone_attachesChatMetadata() async throws {
+        let container = try await Self.makeReadyToSendContainer()
+        let ownPhone = try #require(Phone("+14155550100"))
+        container.session.profile = Profile(displayName: "Me", phone: ownPhone, email: nil)
+        let mock = MockSession()
+        mock.resolveContactHandler = { _ in Self.recipient }
+        mock.sendHandler = { _, _, _ in }
+        let dmChatID = Data(repeating: 0x07, count: 32)
+        let viewModel = SendAmountViewModel(
+            sessionContainer: container,
+            contact: Self.makeContact(dmChatID: dmChatID),
+            mint: .usdf,
+            sender: mock,
+            resolver: mock
+        )
+        viewModel.enteredAmount = "5"
+
+        let outcome = await viewModel.sendAction()
+
+        #expect(outcome == .success)
+        let chat = try #require(mock.sendCalls.first?.chat)
+        #expect(chat.chatID == ConversationID(data: dmChatID))
+        #expect(chat.sourcePhoneE164 == ownPhone.e164)
+        #expect(chat.destinationPhoneE164 == "+15551234567")
+    }
+
+    @Test("sendAction submits without chat metadata when the contact has no DM chat")
+    func sendAction_withoutDmChat_sendsWithNilChat() async throws {
+        let container = try await Self.makeReadyToSendContainer()
+        let ownPhone = try #require(Phone("+14155550100"))
+        container.session.profile = Profile(displayName: "Me", phone: ownPhone, email: nil)
+        let mock = MockSession()
+        mock.resolveContactHandler = { _ in Self.recipient }
+        mock.sendHandler = { _, _, _ in }
+        let viewModel = SendAmountViewModel(
+            sessionContainer: container,
+            contact: Self.makeContact(),
+            mint: .usdf,
+            sender: mock,
+            resolver: mock
+        )
+        viewModel.enteredAmount = "5"
+
+        let outcome = await viewModel.sendAction()
+
+        #expect(outcome == .success)
+        #expect(mock.sendCalls.count == 1)
+        #expect(mock.sendCalls.first?.chat == nil)
     }
 
     @Test("sendAction returns .failed with a dialog when the send itself throws")
