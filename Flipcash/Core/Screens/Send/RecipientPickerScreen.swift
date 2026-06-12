@@ -186,6 +186,61 @@ private struct RecipientSearchEmptyState: View {
     }
 }
 
+// MARK: - List items -
+
+/// One row of the merged "On Flipcash" section: a synced contact, a DM
+/// conversation, or both joined by the contact's `dmChatID`. Rows with a
+/// conversation sort by activity (newest first) ahead of chat-less contacts,
+/// which keep the directory's order.
+nonisolated enum RecipientListItem: Identifiable, Equatable {
+
+    case contact(ResolvedContact)
+    case conversation(Conversation)
+    case matched(ResolvedContact, Conversation)
+
+    var id: String {
+        switch self {
+        case .contact(let contact), .matched(let contact, _):
+            contact.id
+        case .conversation(let conversation):
+            conversation.id.description
+        }
+    }
+
+    var conversation: Conversation? {
+        switch self {
+        case .contact:
+            nil
+        case .conversation(let conversation), .matched(_, let conversation):
+            conversation
+        }
+    }
+
+    static func items(contacts: [ResolvedContact], conversations: [Conversation]) -> [RecipientListItem] {
+        var unmatched: [ConversationID: Conversation] = [:]
+        for conversation in conversations {
+            unmatched[conversation.id] = conversation
+        }
+
+        var active: [RecipientListItem] = []
+        var chatless: [RecipientListItem] = []
+        for contact in contacts {
+            if let chatID = contact.dmChatID.map(ConversationID.init(data:)),
+               let conversation = unmatched.removeValue(forKey: chatID) {
+                active.append(.matched(contact, conversation))
+            } else {
+                chatless.append(.contact(contact))
+            }
+        }
+        for conversation in conversations where unmatched[conversation.id] != nil {
+            active.append(.conversation(conversation))
+        }
+
+        active.sort { ($0.conversation?.lastActivity ?? .distantPast) > ($1.conversation?.lastActivity ?? .distantPast) }
+        return active + chatless
+    }
+}
+
 // MARK: - List -
 
 private struct RecipientPickerList: View {
@@ -198,25 +253,34 @@ private struct RecipientPickerList: View {
     let onFlipcashTap: (ResolvedContact) -> Void
     let onInviteTap: (ResolvedContact) -> Void
 
+    /// Searching filters by contact, so conversations whose counterpart isn't
+    /// a synced contact only appear with an empty query — matched rows keep
+    /// their conversation join either way.
+    private var items: [RecipientListItem] {
+        var items = RecipientListItem.items(contacts: filtered.onFlipcash, conversations: conversations)
+        if !searchText.isEmpty {
+            items.removeAll { item in
+                if case .conversation = item { true } else { false }
+            }
+        }
+        return items
+    }
+
     var body: some View {
         List {
-            if searchText.isEmpty && !conversations.isEmpty {
+            if !items.isEmpty {
                 Section {
-                    ForEach(conversations) { conversation in
-                        ConversationRow(conversation: conversation, onTap: { onConversationTap(conversation) })
-                    }
-                } header: {
-                    RecipientSectionHeader(title: "Recents")
-                }
-                .listSectionSeparator(.hidden, edges: .top)
-            }
-            if !filtered.onFlipcash.isEmpty {
-                Section {
-                    ForEach(filtered.onFlipcash) { contact in
-                        RecipientRow(
-                            contact: contact,
-                            trailing: .chevron,
-                            onTap: { onFlipcashTap(contact) }
+                    ForEach(items) { item in
+                        RecipientListItemRow(
+                            item: item,
+                            onTap: {
+                                switch item {
+                                case .contact(let contact), .matched(let contact, _):
+                                    onFlipcashTap(contact)
+                                case .conversation(let conversation):
+                                    onConversationTap(conversation)
+                                }
+                            }
                         )
                     }
                 } header: {
@@ -229,8 +293,7 @@ private struct RecipientPickerList: View {
                     ForEach(filtered.invite) { contact in
                         RecipientRow(
                             contact: contact,
-                            trailing: .invite { onInviteTap(contact) },
-                            onTap: { onInviteTap(contact) }
+                            onInvite: { onInviteTap(contact) }
                         )
                     }
                 } header: {
@@ -245,6 +308,9 @@ private struct RecipientPickerList: View {
         .listStyle(.grouped)
         .scrollContentBackground(.hidden)
         .scrollDismissesKeyboard(.interactively)
+        // New messages re-sort and re-style rows — animate those moves. Keyed
+        // to the feed so search-driven filtering stays instant.
+        .animation(.snappy, value: conversations)
         .overlay {
             if !searchText.isEmpty && filtered.isEmpty {
                 RecipientSearchEmptyState(searchText: searchText)
@@ -253,119 +319,69 @@ private struct RecipientPickerList: View {
     }
 }
 
-// MARK: - Row -
+// MARK: - Rows -
 
-private enum RecipientRowTrailing {
-    case chevron
-    case invite(() -> Void)
-}
+/// A merged "On Flipcash" row. Contact rows show the phone number; rows with
+/// a conversation show the last-message preview and swap the chevron for the
+/// unread dot while the chat has unread messages.
+private struct RecipientListItemRow: View {
 
-private struct RecipientRow: View {
-
-    let contact: ResolvedContact
-    let trailing: RecipientRowTrailing
-    let onTap: () -> Void
-
-    var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 12) {
-                ContactAvatarView(
-                    id: contact.contactId,
-                    displayName: contact.displayName,
-                    imageData: contact.imageData,
-                    size: 44
-                )
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(contact.displayName)
-                        .font(.appTextMedium)
-                        .foregroundStyle(Color.textMain)
-                        .lineLimit(1)
-                    Text(contact.nationalPhone)
-                        .font(.appTextSmall)
-                        .foregroundStyle(Color.textSecondary)
-                        .lineLimit(1)
-                }
-                Spacer(minLength: 12)
-                RecipientRowTrailingAccessory(trailing: trailing)
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .listRowInsets(EdgeInsets(top: 14, leading: 20, bottom: 14, trailing: 20))
-        .listRowBackground(Color.clear)
-        .listRowSeparatorTint(.rowSeparator)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("\(contact.displayName), \(contact.nationalPhone)"))
-        .accessibilityAddTraits(.isButton)
-        .accessibilityActions {
-            if case .invite(let action) = trailing {
-                Button("Invite", action: action)
-            }
-        }
-    }
-}
-
-private struct RecipientRowTrailingAccessory: View {
-
-    let trailing: RecipientRowTrailing
-
-    var body: some View {
-        switch trailing {
-        case .chevron:
-            Image(systemName: "chevron.right")
-                .font(.appTextSmall)
-                .foregroundStyle(Color.textSecondary)
-        case .invite(let action):
-            Button(action: action) {
-                Text("Invite")
-                    .font(.appTextSmall)
-                    .foregroundStyle(Color.textMain)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background {
-                        RoundedRectangle(cornerRadius: Metrics.buttonRadius)
-                            .fill(Color.backgroundRow)
-                    }
-            }
-            .buttonStyle(.plain)
-        }
-    }
-}
-
-// MARK: - Conversation row -
-
-/// A DM conversation row. The server doesn't yet hydrate member profiles, so the title
-/// falls back to "Flipcash User" when the counterpart's display name is empty.
-private struct ConversationRow: View {
-
-    let conversation: Conversation
+    let item: RecipientListItem
     let onTap: () -> Void
 
     @Environment(ConversationController.self) private var conversationController
 
     private var title: String {
-        conversationController.displayName(for: conversation)
+        switch item {
+        case .contact(let contact), .matched(let contact, _):
+            contact.displayName
+        case .conversation(let conversation):
+            conversationController.displayName(for: conversation)
+        }
     }
 
-    private var preview: String {
-        switch conversation.lastMessage?.content {
-        case .text(let text): text
-        case .cash(let amount): "Cash · \(amount.nativeAmount.formatted())"
-        case nil: "No messages yet"
+    private var subtitle: String {
+        switch item {
+        case .contact(let contact):
+            contact.nationalPhone
+        case .conversation(let conversation), .matched(_, let conversation):
+            switch conversation.lastMessage?.content {
+            case .text(let text): text
+            case .cash(let amount): "Cash · \(amount.nativeAmount.formatted())"
+            case nil: "No messages yet"
+            }
         }
     }
 
     private var hasUnread: Bool {
-        conversation.hasUnread(for: conversationController.selfUserID)
+        item.conversation?.hasUnread(for: conversationController.selfUserID) ?? false
+    }
+
+    private var avatarID: String {
+        switch item {
+        case .contact(let contact), .matched(let contact, _):
+            contact.contactId
+        case .conversation(let conversation):
+            conversation.id.description
+        }
+    }
+
+    private var avatarImageData: Data? {
+        switch item {
+        case .contact(let contact), .matched(let contact, _):
+            contact.imageData
+        case .conversation:
+            nil
+        }
     }
 
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 12) {
                 ContactAvatarView(
-                    id: conversation.id.description,
+                    id: avatarID,
                     displayName: title,
-                    imageData: nil,
+                    imageData: avatarImageData,
                     size: 44
                 )
                 VStack(alignment: .leading, spacing: 2) {
@@ -373,7 +389,7 @@ private struct ConversationRow: View {
                         .font(.appTextMedium)
                         .foregroundStyle(Color.textMain)
                         .lineLimit(1)
-                    Text(preview)
+                    Text(subtitle)
                         .font(.appTextSmall)
                         .foregroundStyle(Color.textSecondary)
                         .lineLimit(1)
@@ -396,8 +412,60 @@ private struct ConversationRow: View {
         .listRowBackground(Color.clear)
         .listRowSeparatorTint(.rowSeparator)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(hasUnread ? "\(title), unread messages" : title))
+        .accessibilityLabel(Text(hasUnread ? "\(title), \(subtitle), unread messages" : "\(title), \(subtitle)"))
         .accessibilityAddTraits(.isButton)
+    }
+}
+
+/// A "Not on Flipcash Yet" row: the whole row and its trailing button both
+/// start an invite.
+private struct RecipientRow: View {
+
+    let contact: ResolvedContact
+    let onInvite: () -> Void
+
+    var body: some View {
+        Button(action: onInvite) {
+            HStack(spacing: 12) {
+                ContactAvatarView(
+                    id: contact.contactId,
+                    displayName: contact.displayName,
+                    imageData: contact.imageData,
+                    size: 44
+                )
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(contact.displayName)
+                        .font(.appTextMedium)
+                        .foregroundStyle(Color.textMain)
+                        .lineLimit(1)
+                    Text(contact.nationalPhone)
+                        .font(.appTextSmall)
+                        .foregroundStyle(Color.textSecondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 12)
+                Text("Invite")
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textMain)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background {
+                        RoundedRectangle(cornerRadius: Metrics.buttonRadius)
+                            .fill(Color.backgroundRow)
+                    }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .listRowInsets(EdgeInsets(top: 14, leading: 20, bottom: 14, trailing: 20))
+        .listRowBackground(Color.clear)
+        .listRowSeparatorTint(.rowSeparator)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("\(contact.displayName), \(contact.nationalPhone)"))
+        .accessibilityAddTraits(.isButton)
+        .accessibilityActions {
+            Button("Invite", action: onInvite)
+        }
     }
 }
 
