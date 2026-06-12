@@ -519,3 +519,11 @@ final class ContactSyncController {
         }
     }
 }
+
+// MARK: - DM contact naming -
+
+extension ContactSyncController: DMContactNaming {
+    func contactDisplayName(forDMChat conversationID: ConversationID) -> String? {
+        resolvedContacts.onFlipcash.first { $0.dmChatID == conversationID.data }?.displayName
+    }
+}

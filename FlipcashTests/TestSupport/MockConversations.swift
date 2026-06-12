@@ -84,3 +84,13 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
     func ensureConversationStreamConnected() { lock.withLock { _didEnsure = true } }
     func closeConversationStream() { lock.withLock { _didClose = true } }
 }
+
+@MainActor
+final class MockDMContactNaming: DMContactNaming {
+
+    var names: [ConversationID: String] = [:]
+
+    func contactDisplayName(forDMChat conversationID: ConversationID) -> String? {
+        names[conversationID]
+    }
+}

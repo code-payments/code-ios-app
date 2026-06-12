@@ -10,6 +10,13 @@ import FlipcashCore
 
 nonisolated private let logger = Logger(label: "flipcash.conversation-controller")
 
+/// Resolves a DM chat to the synced contact's address-book display name.
+@MainActor
+protocol DMContactNaming: AnyObject {
+    /// Returns nil when no synced contact carries that DM chat ID.
+    func contactDisplayName(forDMChat conversationID: ConversationID) -> String?
+}
+
 /// Session-scoped owner of the DM conversation feed and the single per-user
 /// event stream. Holds state in a pure `ConversationStore`, applies live
 /// `ConversationStreamEvent`s, and resolves counterpart display names.
@@ -32,6 +39,7 @@ final class ConversationController {
     @ObservationIgnored private let fetching: any ConversationFetching
     @ObservationIgnored private let messaging: any ConversationMessaging
     @ObservationIgnored private let streaming: any ConversationEventStreaming
+    @ObservationIgnored private let contactNaming: any DMContactNaming
     @ObservationIgnored private let owner: KeyPair
     @ObservationIgnored private var streamTask: Task<Void, Never>?
 
@@ -39,12 +47,14 @@ final class ConversationController {
         fetching: any ConversationFetching,
         messaging: any ConversationMessaging,
         streaming: any ConversationEventStreaming,
+        contactNaming: any DMContactNaming,
         owner: KeyPair,
         selfUserID: UserID
     ) {
         self.fetching = fetching
         self.messaging = messaging
         self.streaming = streaming
+        self.contactNaming = contactNaming
         self.owner = owner
         self.selfUserID = selfUserID
     }
@@ -94,9 +104,13 @@ final class ConversationController {
 
     // MARK: - Names
 
-    /// The counterpart's name for a conversation: the server-provided member
-    /// name from the feed, else a generic fallback.
+    /// The counterpart's name for a conversation: the synced contact's
+    /// address-book name, else the server-provided member name from the feed,
+    /// else a generic fallback.
     func displayName(for conversation: Conversation) -> String {
+        if let contactName = contactName(for: conversation.id) {
+            return contactName
+        }
         guard let counterpart = conversation.counterpart(excluding: selfUserID),
               !counterpart.displayName.isEmpty else {
             return "Flipcash User"
@@ -105,10 +119,18 @@ final class ConversationController {
     }
 
     func displayName(forConversationID conversationID: ConversationID) -> String {
-        guard let conversation = store.conversations.first(where: { $0.id == conversationID }) else {
-            return "Flipcash User"
+        if let conversation = store.conversations.first(where: { $0.id == conversationID }) {
+            return displayName(for: conversation)
         }
-        return displayName(for: conversation)
+        return contactName(for: conversationID) ?? "Flipcash User"
+    }
+
+    private func contactName(for conversationID: ConversationID) -> String? {
+        guard let name = contactNaming.contactDisplayName(forDMChat: conversationID),
+              !name.isEmpty else {
+            return nil
+        }
+        return name
     }
 
     // MARK: - Conversation

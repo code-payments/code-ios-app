@@ -16,9 +16,14 @@ struct ConversationControllerTests {
         ConversationID(data: Data(repeating: byte, count: 32))
     }
 
-    private func makeController(_ mock: MockConversations, selfUserID: UserID = UUID()) -> ConversationController {
+    private func makeController(
+        _ mock: MockConversations,
+        selfUserID: UserID = UUID(),
+        naming: MockDMContactNaming = MockDMContactNaming()
+    ) -> ConversationController {
         ConversationController(
             fetching: mock, messaging: mock, streaming: mock,
+            contactNaming: naming,
             owner: .generate()!, selfUserID: selfUserID
         )
     }
@@ -135,6 +140,34 @@ struct ConversationControllerTests {
 
         await controller.loadFeed()
         #expect(controller.displayName(forConversationID: conversationID(1)) == "Flipcash User")
+    }
+
+    @Test("prefers the synced contact's address-book name over the member name")
+    func contactNameWinsOverMemberName() async {
+        let me = UUID()
+        let mock = MockConversations()
+        mock.feed = [Conversation(
+            id: conversationID(1),
+            members: [ConversationMember(userID: me, displayName: ""), ConversationMember(userID: UUID(), displayName: "Alice")],
+            lastMessage: nil,
+            lastActivity: Date(timeIntervalSince1970: 0)
+        )]
+        let naming = MockDMContactNaming()
+        naming.names = [conversationID(1): "Alice Appleseed"]
+        let controller = makeController(mock, selfUserID: me, naming: naming)
+
+        await controller.loadFeed()
+        #expect(controller.displayName(forConversationID: conversationID(1)) == "Alice Appleseed")
+    }
+
+    @Test("resolves the contact name for a conversation not yet in the feed")
+    func contactNameWithoutFeedConversation() {
+        let naming = MockDMContactNaming()
+        naming.names = [conversationID(2): "Bob"]
+        let controller = makeController(MockConversations(), naming: naming)
+
+        #expect(controller.displayName(forConversationID: conversationID(2)) == "Bob")
+        #expect(controller.displayName(forConversationID: conversationID(3)) == "Flipcash User")
     }
 
     @Test("ensureConnected and stop route to the streaming surface")
