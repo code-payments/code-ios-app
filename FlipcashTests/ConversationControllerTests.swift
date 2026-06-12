@@ -196,4 +196,37 @@ struct ConversationControllerTests {
         #expect(controller.messages(for: conversationID(1)).map(\.id.value) == [9])
         controller.stop()
     }
+
+    @Test("a streamed message for an unknown conversation hydrates it into the feed at the top")
+    func hydratesUnknownConversation() async {
+        let mock = MockConversations()
+        let existing = Conversation(id: conversationID(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 100))
+        mock.feed = [existing]
+        let controller = makeController(mock)
+
+        controller.start()
+        // start() pages the feed on its own task; wait for it before scripting
+        // the new chat so the assertion isolates the hydration.
+        for _ in 0..<50 where controller.conversations.isEmpty {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(controller.conversations.map(\.id) == [conversationID(1)])
+
+        // A brand-new chat (created by a first payment) starts streaming
+        // before the loaded feed knows it; getChat resolves it server-side.
+        let newConversation = Conversation(
+            id: conversationID(2), members: [],
+            lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 200)
+        )
+        mock.feed = [existing, newConversation]
+        let message = ConversationMessage(id: MessageID(value: 1), senderID: nil, content: .text("first"), date: Date(timeIntervalSince1970: 200), unreadSeq: 0)
+        mock.emit(.newMessages(conversationID: conversationID(2), messages: [message]))
+
+        // The stream is consumed on a Task; poll briefly for the hydration.
+        for _ in 0..<50 where controller.conversations.count < 2 {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(controller.conversations.map(\.id) == [conversationID(2), conversationID(1)])
+        controller.stop()
+    }
 }

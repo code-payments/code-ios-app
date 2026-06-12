@@ -52,26 +52,29 @@ final class NotificationService: UNNotificationServiceExtension {
         }
 
         // Only the `.contact` substitution kind ships today, resolved to a local
-        // name (or "Someone you know" when unresolved — never the raw phone). The
-        // server's per-substitution `fallback` is reserved for future kinds this
-        // client doesn't yet recognize.
-        let titleResolutions = payload.titleSubstitutions.map { resolve($0.contact) }
-        let bodyResolutions = payload.bodySubstitutions.map { resolve($0.contact) }
+        // name, or to the number itself (national format) when no contact
+        // matches — the sender is never anonymous. The server's per-substitution
+        // `fallback` is reserved for future kinds this client doesn't yet recognize.
+        let titleContacts = payload.titleSubstitutions.map { resolve($0.contact) }
 
         bestAttemptContent.title = SubstitutionApplier.apply(
             template: bestAttemptContent.title,
-            resolutions: titleResolutions.map { $0?.name }
+            resolutions: zip(titleContacts, payload.titleSubstitutions).map { contact, substitution in
+                contact?.name ?? nationalNumber(substitution.contact)
+            }
         )
         bestAttemptContent.body = SubstitutionApplier.apply(
             template: bestAttemptContent.body,
-            resolutions: bodyResolutions.map { $0?.name }
+            resolutions: payload.bodySubstitutions.map { substitution in
+                resolve(substitution.contact)?.name ?? nationalNumber(substitution.contact)
+            }
         )
         bestAttemptContent.threadIdentifier = payload.groupKey
 
         // "Sent You Cash" (CHAT) renders as a communication notification so the
         // sender's avatar — or the system monogram fallback — shows like a chat
         // app. Other categories keep the Flipcash app icon.
-        if payload.category == .chat, let sender = titleResolutions.compactMap({ $0 }).first {
+        if payload.category == .chat, let sender = titleContacts.compactMap({ $0 }).first {
             contentHandler(communicationContent(
                 from: bestAttemptContent,
                 sender: sender,
@@ -87,6 +90,12 @@ final class NotificationService: UNNotificationServiceExtension {
         if let contentHandler, let bestAttemptContent {
             contentHandler(bestAttemptContent)
         }
+    }
+
+    /// The display for an unmatched number: the number itself, nationally
+    /// formatted (e.g. "(747) 217-6923"), falling back to the raw E.164.
+    private func nationalNumber(_ phone: Flipcash_Phone_V1_PhoneNumber) -> String {
+        Phone(phone.value)?.national ?? phone.value
     }
 
     /// Returns the contact matching `phone`, or `nil` if no contact matches, the

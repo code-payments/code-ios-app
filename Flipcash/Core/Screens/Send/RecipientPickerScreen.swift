@@ -27,8 +27,6 @@ struct RecipientPickerScreen: View {
     @Environment(ContactSyncController.self) private var contactSyncController
     @Environment(ConversationController.self) private var conversationController
     @Environment(AppRouter.self) private var router
-    @Environment(Session.self) private var session
-    @Environment(RatesController.self) private var ratesController
 
     @State private var filtered: ResolvedContacts = .empty
     @State private var inviteTarget: ResolvedContact?
@@ -75,17 +73,11 @@ struct RecipientPickerScreen: View {
 
     private func selectRecipient(_ contact: ResolvedContact) {
         Analytics.track(event: Analytics.SendEvent.tapRecipient)
-        guard session.hasGiveableBalance(for: ratesController.rateForBalanceCurrency()) else {
-            session.dialogItem = .noGiveableBalance {
-                router.navigate(to: .deposit)
-            }
-            return
-        }
-        router.push(.sendAmount(contact: contact))
+        router.push(.dmConversation(.contact(contact)))
     }
 
     private func openConversation(_ conversation: Conversation) {
-        router.push(.dmConversation(conversationID: conversation.id))
+        router.push(.dmConversation(.existing(conversation.id)))
     }
 
     private func presentInvite(for contact: ResolvedContact) {
@@ -214,7 +206,7 @@ private struct RecipientPickerList: View {
                         ConversationRow(conversation: conversation, onTap: { onConversationTap(conversation) })
                     }
                 } header: {
-                    RecipientSectionHeader(title: "Chats")
+                    RecipientSectionHeader(title: "Recents")
                 }
                 .listSectionSeparator(.hidden, edges: .top)
             }

@@ -65,8 +65,9 @@ extension AppRouter {
 
         // Conversation flow
         /// A DM conversation, pushed from the Chats section of the recipient
-        /// picker. The counterpart's name is resolved reactively by `ConversationController`.
-        case dmConversation(conversationID: ConversationID)
+        /// picker (`.existing`) or by tapping a synced contact (`.contact`) —
+        /// in that case the chat may not exist yet; the first payment creates it.
+        case dmConversation(ConversationContext)
 
         /// The stack this destination naturally belongs in. Cross-stack
         /// navigation uses this to know which sheet to present.
@@ -136,8 +137,10 @@ extension AppRouter {
                 return mint.base58
             case .sendAmount(let contact):
                 return contact.contactId
-            case .dmConversation(let conversationID):
+            case .dmConversation(.existing(let conversationID)):
                 return conversationID.description
+            case .dmConversation(.contact(let contact)):
+                return contact.contactId
             case .phantomFlow:
                 return nil
             case .discoverCurrencies, .currencyCreationSummary, .currencyCreationWizard,

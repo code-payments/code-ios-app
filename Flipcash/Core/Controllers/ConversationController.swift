@@ -42,6 +42,7 @@ final class ConversationController {
     @ObservationIgnored private let contactNaming: any DMContactNaming
     @ObservationIgnored private let owner: KeyPair
     @ObservationIgnored private var streamTask: Task<Void, Never>?
+    @ObservationIgnored private var hydratingConversationIDs: Set<ConversationID> = []
 
     init(
         fetching: any ConversationFetching,
@@ -70,7 +71,9 @@ final class ConversationController {
         let events = streaming.openConversationStream(owner: owner)
         streamTask = Task { [weak self] in
             for await event in events {
-                self?.store.apply(event)
+                guard let self else { return }
+                self.store.apply(event)
+                self.hydrateIfUnknown(event)
             }
         }
 
@@ -86,6 +89,35 @@ final class ConversationController {
     /// Re-open the stream after returning from background.
     func ensureConnected() {
         streaming.ensureConversationStreamConnected()
+    }
+
+    /// Fetches metadata for a conversation the stream referenced before the
+    /// feed knows it — a chat just created by the user's first payment to a
+    /// contact, or by someone else's first payment to the user — so it joins
+    /// the feed (and the picker's Recents) immediately.
+    private func hydrateIfUnknown(_ event: ConversationStreamEvent) {
+        let conversationID: ConversationID
+        switch event {
+        case .newMessages(let id, _), .lastActivityChanged(let id, _), .readPointersChanged(let id, _):
+            conversationID = id
+        case .metadataRefresh:
+            return
+        }
+        guard !store.conversations.contains(where: { $0.id == conversationID }),
+              !hydratingConversationIDs.contains(conversationID) else {
+            return
+        }
+        hydratingConversationIDs.insert(conversationID)
+        Task {
+            defer { hydratingConversationIDs.remove(conversationID) }
+            do {
+                let conversation = try await fetching.getChat(owner: owner, conversationID: conversationID)
+                store.apply(.metadataRefresh(conversation))
+            } catch {
+                logger.error("Failed to hydrate conversation referenced by the event stream")
+                ErrorReporting.captureError(error, reason: "Failed to hydrate conversation referenced by the event stream")
+            }
+        }
     }
 
     // MARK: - Feed
