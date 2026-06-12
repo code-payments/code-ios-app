@@ -390,44 +390,90 @@ private struct ConversationTranscript: View {
     /// New bubble scale + opacity insertion.
     private static let insertionSpring = Animation.spring(duration: 0.23, bounce: 0.27)
 
+    /// New message sent/received — the list springs down to the newest bubble.
+    private static let scrollSpring = Animation.spring(duration: 0.30, bounce: 0.12)
+
+    /// Scroll that rides the keyboard up/down.
+    private static let keyboardScrollSpring = Animation.spring(duration: 0.30, bounce: 0)
+
+    /// Identity of the message stack; every scroll-to-bottom targets its
+    /// bottom edge.
+    private static let bottomAnchor = "conversation-bottom"
+
     var body: some View {
-        ScrollView {
-            LazyVStack(spacing: 8) {
-                ForEach(items) { item in
-                    switch item {
-                    case .separator(let date):
-                        ConversationDateSeparator(date: date)
-                    case .message(let message, let position):
-                        ConversationMessageRow(
-                            message: message,
-                            isFromSelf: position.isFromSelf,
-                            groupedAbove: position.groupedAbove,
-                            groupedBelow: position.groupedBelow,
-                            showsDelivered: position.isLatestFromSelf,
-                            animatesAmount: initialMessageIDs.map { !$0.contains(message.id) } ?? false
-                        )
-                        .id(message.id)
-                        // A new bubble scales + fades in from its aligned edge.
-                        .transition(
-                            .scale(scale: 0.95, anchor: position.isFromSelf ? .trailing : .leading)
-                                .combined(with: .opacity)
-                        )
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 8) {
+                    ForEach(items) { item in
+                        switch item {
+                        case .separator(let date):
+                            ConversationDateSeparator(date: date)
+                        case .message(let message, let position):
+                            ConversationMessageRow(
+                                message: message,
+                                isFromSelf: position.isFromSelf,
+                                groupedAbove: position.groupedAbove,
+                                groupedBelow: position.groupedBelow,
+                                showsDelivered: position.isLatestFromSelf,
+                                animatesAmount: initialMessageIDs.map { !$0.contains(message.id) } ?? false
+                            )
+                            // A new bubble scales + fades in from its aligned edge.
+                            .transition(
+                                .scale(scale: 0.95, anchor: position.isFromSelf ? .trailing : .leading)
+                                    .combined(with: .opacity)
+                            )
+                        }
                     }
                 }
+                // Every scroll-to-bottom targets the stack's bottom edge.
+                .id(Self.bottomAnchor)
+                .padding(.vertical, 12)
+                // Tapping empty space lowers the keyboard; bubbles consume their
+                // own taps (see ConversationMessageRow).
+                .contentShape(Rectangle())
+                .onTapGesture(perform: onBackgroundTap)
+                .animation(Self.insertionSpring, value: messages.count)
             }
-            .padding(.vertical, 12)
-            // Tapping empty space lowers the keyboard; bubbles consume their
-            // own taps (see ConversationMessageRow).
-            .contentShape(Rectangle())
-            .onTapGesture(perform: onBackgroundTap)
-            .animation(Self.insertionSpring, value: messages.count)
+            .scrollDismissesKeyboard(.interactively)
+            // One primitive — "show the bottom" — fired at each moment it
+            // should be shown. No scroll anchors: a thread too short to
+            // scroll just no-ops and stays at the top.
+            //
+            //   • open a populated thread at the newest message. Run
+            //     immediately and again after the first layout pass — onAppear
+            //     can fire before the list is measured, which makes a lone
+            //     scrollTo a no-op.
+            .onAppear {
+                if initialMessageIDs == nil {
+                    initialMessageIDs = Set(messages.map(\.id))
+                }
+                scrollToBottom(proxy)
+                DispatchQueue.main.async { scrollToBottom(proxy) }
+            }
+            //   • a message arrives (sent or received) → spring down to it
+            .onChange(of: messages.count) {
+                scrollToBottom(proxy, animation: Self.scrollSpring)
+            }
+            //   • keyboard rises → ride the newest message up with it
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+                scrollToBottom(proxy, animation: Self.keyboardScrollSpring)
+            }
+            //   • keyboard falls (swipe, tap-blank, system) → keep the thread
+            //     pinned down
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+                scrollToBottom(proxy, animation: Self.keyboardScrollSpring)
+            }
         }
-        .defaultScrollAnchor(.bottom)
-        .scrollDismissesKeyboard(.interactively)
-        .onAppear {
-            if initialMessageIDs == nil {
-                initialMessageIDs = Set(messages.map(\.id))
-            }
+    }
+
+    /// Scrolls the newest content into view. A thread too short to scroll
+    /// no-ops and stays at the top. Pass an `animation` to ease the scroll;
+    /// omit for an instant jump (e.g. opening the thread).
+    private func scrollToBottom(_ proxy: ScrollViewProxy, animation: Animation? = nil) {
+        if let animation {
+            withAnimation(animation) { proxy.scrollTo(Self.bottomAnchor, anchor: .bottom) }
+        } else {
+            proxy.scrollTo(Self.bottomAnchor, anchor: .bottom)
         }
     }
 
@@ -476,7 +522,14 @@ private struct ConversationBottomBar: View {
         .animation(Self.swapSpring, value: isComposing)
         .animation(Self.swapSpring, value: showsSendMessage)
         .padding(.bottom, 8)
-        .background(Color.backgroundMain)
+        .background {
+            LinearGradient(
+                gradient: Gradient(colors: [Color.backgroundMain, Color.backgroundMain, .clear]),
+                startPoint: .bottom,
+                endPoint: .top
+            )
+            .ignoresSafeArea()
+        }
     }
 }
 
