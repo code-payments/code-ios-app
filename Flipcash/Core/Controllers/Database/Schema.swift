@@ -161,12 +161,14 @@ nonisolated struct LocalContactsSnapshotTable: Sendable {
 
 // DM conversation feed. Members and messages live in their own tables; the
 // feed's last-message preview is the newest row in `conversation_message`.
+// Dates are stored as raw `timeIntervalSinceReferenceDate` doubles — decoding
+// is a struct init instead of the bundled codec's per-row DateFormatter parse.
 nonisolated struct ConversationTable: Sendable {
     static let name = "conversation"
 
     let table        = Table(Self.name)
-    let id           = Expression <Data> ("id")          // 32-byte ChatId
-    let lastActivity = Expression <Date> ("lastActivity")
+    let id           = Expression <Data>   ("id")          // 32-byte ChatId
+    let lastActivity = Expression <Double> ("lastActivity")
 }
 
 nonisolated struct ConversationMemberTable: Sendable {
@@ -191,10 +193,10 @@ nonisolated struct ConversationMessageTable: Sendable {
     let kind           = Expression <Int>           ("kind")
     let text           = Expression <String?>       ("text")
     let quarks         = Expression <UInt64?>       ("quarks")
-    let nativeAmount   = Expression <Double?>       ("nativeAmount")
+    let nativeAmount   = Expression <String?>       ("nativeAmount")
     let currency       = Expression <CurrencyCode?> ("currency")
     let mint           = Expression <PublicKey?>    ("mint")
-    let date           = Expression <Date>          ("date")
+    let date           = Expression <Double>        ("date")
     let unreadSeq      = Expression <UInt64>        ("unreadSeq")
 }
 

@@ -12,16 +12,13 @@ import FlipcashCore
 @Suite("ConversationController")
 struct ConversationControllerTests {
 
-    private func conversationID(_ byte: UInt8) -> ConversationID {
-        ConversationID(data: Data(repeating: byte, count: 32))
-    }
-
     /// Polls briefly for work the controller runs on its own task (stream
-    /// consumption, feed paging) to land. Gives up after ~1s.
-    private func waitUntil(_ condition: () -> Bool) async {
+    /// consumption, feed paging) to land. Fails the test after ~1s.
+    private func waitUntil(_ condition: () -> Bool) async throws {
         for _ in 0..<50 where !condition() {
             try? await Task.sleep(for: .milliseconds(20))
         }
+        try #require(condition(), "Timed out waiting for condition after ~1s")
     }
 
     private func makeController(
@@ -33,21 +30,22 @@ struct ConversationControllerTests {
         ConversationController(
             fetching: mock, messaging: mock, streaming: mock,
             contactNaming: naming,
-            database: database ?? (try! .makeTemp()),
+            database: database ?? (try! Database.makeTemp().database),
             owner: .generate()!, selfUserID: selfUserID
         )
     }
+
 
     @Test("loadFeed populates conversations sorted by activity")
     func loadFeed() async {
         let mock = MockConversations()
         mock.feed = [
-            Conversation(id: conversationID(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 100)),
-            Conversation(id: conversationID(2), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 200)),
+            Conversation(id: ConversationID.test(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 100)),
+            Conversation(id: ConversationID.test(2), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 200)),
         ]
         let controller = makeController(mock)
         await controller.loadFeed()
-        #expect(controller.conversations.map(\.id) == [conversationID(2), conversationID(1)])
+        #expect(controller.conversations.map(\.id) == [ConversationID.test(2), ConversationID.test(1)])
     }
 
     @Test("send records the message and appends it to the conversation")
@@ -56,10 +54,10 @@ struct ConversationControllerTests {
         mock.sendResult = ConversationMessage(id: MessageID(value: 7), senderID: nil, content: .text("hello"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0)
         let controller = makeController(mock)
 
-        let ok = await controller.send("hello", to: conversationID(1))
+        let ok = await controller.send("hello", to: ConversationID.test(1))
         #expect(ok)
         #expect(mock.sent.map(\.text) == ["hello"])
-        #expect(controller.messages(for: conversationID(1)).map(\.id.value) == [7])
+        #expect(controller.messages(for: ConversationID.test(1)).map(\.id.value) == [7])
     }
 
     @Test("markRead advances to the latest loaded message")
@@ -68,8 +66,8 @@ struct ConversationControllerTests {
         mock.messages = [ConversationMessage(id: MessageID(value: 5), senderID: nil, content: .text("x"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0)]
         let controller = makeController(mock)
 
-        await controller.loadMessages(for: conversationID(1))
-        await controller.markRead(conversationID: conversationID(1))
+        await controller.loadMessages(for: ConversationID.test(1))
+        await controller.markRead(conversationID: ConversationID.test(1))
         #expect(mock.markedRead == [MessageID(value: 5)])
     }
 
@@ -78,7 +76,7 @@ struct ConversationControllerTests {
         let me = UUID()
         let mock = MockConversations()
         mock.feed = [Conversation(
-            id: conversationID(1),
+            id: ConversationID.test(1),
             members: [
                 ConversationMember(userID: me, displayName: "", readPointer: MessageID(value: 5)),
                 ConversationMember(userID: UUID(), displayName: "Alice"),
@@ -90,8 +88,8 @@ struct ConversationControllerTests {
         let controller = makeController(mock, selfUserID: me)
 
         await controller.loadFeed()
-        await controller.loadMessages(for: conversationID(1))
-        await controller.markRead(conversationID: conversationID(1))
+        await controller.loadMessages(for: ConversationID.test(1))
+        await controller.markRead(conversationID: ConversationID.test(1))
         #expect(mock.markedRead.isEmpty)
     }
 
@@ -100,7 +98,7 @@ struct ConversationControllerTests {
         let me = UUID()
         let mock = MockConversations()
         mock.feed = [Conversation(
-            id: conversationID(1),
+            id: ConversationID.test(1),
             members: [
                 ConversationMember(userID: me, displayName: "", readPointer: MessageID(value: 3)),
                 ConversationMember(userID: UUID(), displayName: "Alice"),
@@ -112,9 +110,9 @@ struct ConversationControllerTests {
         let controller = makeController(mock, selfUserID: me)
 
         await controller.loadFeed()
-        await controller.loadMessages(for: conversationID(1))
-        await controller.markRead(conversationID: conversationID(1))
-        await controller.markRead(conversationID: conversationID(1))
+        await controller.loadMessages(for: ConversationID.test(1))
+        await controller.markRead(conversationID: ConversationID.test(1))
+        await controller.markRead(conversationID: ConversationID.test(1))
         #expect(mock.markedRead == [MessageID(value: 5)])
     }
 
@@ -124,7 +122,7 @@ struct ConversationControllerTests {
         let other = UUID()
         let mock = MockConversations()
         mock.feed = [Conversation(
-            id: conversationID(1),
+            id: ConversationID.test(1),
             members: [ConversationMember(userID: me, displayName: ""), ConversationMember(userID: other, displayName: "Alice")],
             lastMessage: nil,
             lastActivity: Date(timeIntervalSince1970: 0)
@@ -132,7 +130,7 @@ struct ConversationControllerTests {
         let controller = makeController(mock, selfUserID: me)
 
         await controller.loadFeed()
-        #expect(controller.displayName(forConversationID: conversationID(1)) == "Alice")
+        #expect(controller.displayName(forConversationID: ConversationID.test(1)) == "Alice")
     }
 
     @Test("falls back to a generic title when the counterpart has no name")
@@ -141,7 +139,7 @@ struct ConversationControllerTests {
         let other = UUID()
         let mock = MockConversations()
         mock.feed = [Conversation(
-            id: conversationID(1),
+            id: ConversationID.test(1),
             members: [ConversationMember(userID: me, displayName: ""), ConversationMember(userID: other, displayName: "")],
             lastMessage: nil,
             lastActivity: Date(timeIntervalSince1970: 0)
@@ -149,7 +147,7 @@ struct ConversationControllerTests {
         let controller = makeController(mock, selfUserID: me)
 
         await controller.loadFeed()
-        #expect(controller.displayName(forConversationID: conversationID(1)) == "Flipcash User")
+        #expect(controller.displayName(forConversationID: ConversationID.test(1)) == "Flipcash User")
     }
 
     @Test("prefers the synced contact's address-book name over the member name")
@@ -157,27 +155,27 @@ struct ConversationControllerTests {
         let me = UUID()
         let mock = MockConversations()
         mock.feed = [Conversation(
-            id: conversationID(1),
+            id: ConversationID.test(1),
             members: [ConversationMember(userID: me, displayName: ""), ConversationMember(userID: UUID(), displayName: "Alice")],
             lastMessage: nil,
             lastActivity: Date(timeIntervalSince1970: 0)
         )]
         let naming = MockDMContactNaming()
-        naming.names = [conversationID(1): "Alice Appleseed"]
+        naming.names = [ConversationID.test(1): "Alice Appleseed"]
         let controller = makeController(mock, selfUserID: me, naming: naming)
 
         await controller.loadFeed()
-        #expect(controller.displayName(forConversationID: conversationID(1)) == "Alice Appleseed")
+        #expect(controller.displayName(forConversationID: ConversationID.test(1)) == "Alice Appleseed")
     }
 
     @Test("resolves the contact name for a conversation not yet in the feed")
     func contactNameWithoutFeedConversation() {
         let naming = MockDMContactNaming()
-        naming.names = [conversationID(2): "Bob"]
+        naming.names = [ConversationID.test(2): "Bob"]
         let controller = makeController(MockConversations(), naming: naming)
 
-        #expect(controller.displayName(forConversationID: conversationID(2)) == "Bob")
-        #expect(controller.displayName(forConversationID: conversationID(3)) == "Flipcash User")
+        #expect(controller.displayName(forConversationID: ConversationID.test(2)) == "Bob")
+        #expect(controller.displayName(forConversationID: ConversationID.test(3)) == "Flipcash User")
     }
 
     @Test("ensureConnected and stop route to the streaming surface")
@@ -191,56 +189,60 @@ struct ConversationControllerTests {
     }
 
     @Test("a streamed event is applied to the conversation store")
-    func appliesStreamedEvent() async {
+    func appliesStreamedEvent() async throws {
         let mock = MockConversations()
         let controller = makeController(mock)
         controller.start()
+        // start() hydrates the cache before opening the stream; emitting
+        // earlier would drop the event on the floor.
+        try await waitUntil { mock.streamOpened }
 
         let message = ConversationMessage(id: MessageID(value: 9), senderID: nil, content: .text("live"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0)
-        mock.emit(.newMessages(conversationID: conversationID(1), messages: [message]))
+        mock.emit(.newMessages(conversationID: ConversationID.test(1), messages: [message]))
 
         // The stream is consumed on a Task; poll briefly for it to apply.
-        await waitUntil { !controller.messages(for: conversationID(1)).isEmpty }
-        #expect(controller.messages(for: conversationID(1)).map(\.id.value) == [9])
+        try await waitUntil { !controller.messages(for: ConversationID.test(1)).isEmpty }
+        #expect(controller.messages(for: ConversationID.test(1)).map(\.id.value) == [9])
         controller.stop()
     }
 
     @Test("a streamed message for an unknown conversation hydrates it into the feed at the top")
-    func hydratesUnknownConversation() async {
+    func hydratesUnknownConversation() async throws {
         let mock = MockConversations()
-        let existing = Conversation(id: conversationID(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 100))
+        let existing = Conversation(id: ConversationID.test(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 100))
         mock.feed = [existing]
         let controller = makeController(mock)
 
         controller.start()
         // start() pages the feed on its own task; wait for it before scripting
         // the new chat so the assertion isolates the hydration.
-        await waitUntil { !controller.conversations.isEmpty }
-        #expect(controller.conversations.map(\.id) == [conversationID(1)])
+        try await waitUntil { !controller.conversations.isEmpty }
+        #expect(controller.conversations.map(\.id) == [ConversationID.test(1)])
 
         // A brand-new chat (created by a first payment) starts streaming
         // before the loaded feed knows it; getChat resolves it server-side.
         let newConversation = Conversation(
-            id: conversationID(2), members: [],
+            id: ConversationID.test(2), members: [],
             lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 200)
         )
         mock.feed = [existing, newConversation]
         let message = ConversationMessage(id: MessageID(value: 1), senderID: nil, content: .text("first"), date: Date(timeIntervalSince1970: 200), unreadSeq: 0)
-        mock.emit(.newMessages(conversationID: conversationID(2), messages: [message]))
+        mock.emit(.newMessages(conversationID: ConversationID.test(2), messages: [message]))
 
         // The stream is consumed on a Task; poll briefly for the hydration.
-        await waitUntil { controller.conversations.count >= 2 }
-        #expect(controller.conversations.map(\.id) == [conversationID(2), conversationID(1)])
+        try await waitUntil { controller.conversations.count >= 2 }
+        #expect(controller.conversations.map(\.id) == [ConversationID.test(2), ConversationID.test(1)])
         controller.stop()
     }
 
     // MARK: - Persistence -
 
-    @Test("init hydrates the feed and transcripts from the database before any fetch")
-    func hydratesFromDatabase() throws {
-        let database = try Database.makeTemp()
+    @Test("hydration seeds the feed and transcripts from the database without any fetch")
+    func hydratesFromDatabase() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
         let conversation = Conversation(
-            id: conversationID(1), members: [],
+            id: ConversationID.test(1), members: [],
             lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 100)
         )
         try database.upsertConversation(conversation)
@@ -249,23 +251,28 @@ struct ConversationControllerTests {
                 ConversationMessage(id: MessageID(value: 1), senderID: nil, content: .text("hi"), date: Date(timeIntervalSince1970: 10), unreadSeq: 1),
                 ConversationMessage(id: MessageID(value: 2), senderID: nil, content: .text("there"), date: Date(timeIntervalSince1970: 20), unreadSeq: 2),
             ],
-            conversationID: conversationID(1)
+            conversationID: ConversationID.test(1)
         )
 
-        // No start(): everything below comes from the local cache.
         let controller = makeController(MockConversations(), database: database)
 
-        #expect(controller.conversations.map(\.id) == [conversationID(1)])
-        #expect(controller.messages(for: conversationID(1)).map(\.id.value) == [1, 2])
+        // Init does no disk I/O — the store is empty until hydration runs.
+        #expect(controller.conversations.isEmpty)
+
+        await controller.hydrateFromDatabase()
+
+        #expect(controller.conversations.map(\.id) == [ConversationID.test(1)])
+        #expect(controller.messages(for: ConversationID.test(1)).map(\.id.value) == [1, 2])
     }
 
     @Test("loadFeed, loadMessages, and markRead persist — a fresh controller rehydrates the same state")
     func persistsAcrossControllers() async throws {
-        let database = try Database.makeTemp()
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
         let selfUserID = UUID()
         let mock = MockConversations()
         mock.feed = [Conversation(
-            id: conversationID(1),
+            id: ConversationID.test(1),
             members: [ConversationMember(userID: selfUserID, displayName: "Self", readPointer: nil)],
             lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 100)
         )]
@@ -275,13 +282,15 @@ struct ConversationControllerTests {
         ]
         let controller = makeController(mock, selfUserID: selfUserID, database: database)
         await controller.loadFeed()
-        await controller.loadMessages(for: conversationID(1))
-        await controller.markRead(conversationID: conversationID(1))
+        await controller.loadMessages(for: ConversationID.test(1))
+        await controller.markRead(conversationID: ConversationID.test(1))
 
-        let rehydrated = makeController(MockConversations(), selfUserID: selfUserID, database: database)
+        let freshDatabase = try Database(url: url)
+        let rehydrated = makeController(MockConversations(), selfUserID: selfUserID, database: freshDatabase)
+        await rehydrated.hydrateFromDatabase()
 
-        #expect(rehydrated.conversations.map(\.id) == [conversationID(1)])
-        #expect(rehydrated.messages(for: conversationID(1)).map(\.id.value) == [1, 2])
+        #expect(rehydrated.conversations.map(\.id) == [ConversationID.test(1)])
+        #expect(rehydrated.messages(for: ConversationID.test(1)).map(\.id.value) == [1, 2])
         let pointer = rehydrated.conversations.first?.selfReadPointer(for: selfUserID)
         #expect(pointer == MessageID(value: 2))
     }

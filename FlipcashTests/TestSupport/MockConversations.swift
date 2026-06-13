@@ -40,6 +40,9 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
     var markedRead: [MessageID] { lock.withLock { _markedRead } }
     var didEnsure: Bool { lock.withLock { _didEnsure } }
     var didClose: Bool { lock.withLock { _didClose } }
+    /// Whether `openConversationStream` has been called — events emitted
+    /// before that are dropped, so tests wait on this before `emit(_:)`.
+    var streamOpened: Bool { lock.withLock { _streamContinuation != nil } }
 
     /// Push a live event onto the stream returned by `openConversationStream`.
     func emit(_ event: ConversationStreamEvent) {

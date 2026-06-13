@@ -149,7 +149,7 @@ struct ConversationTranscriptItemTests {
     @Test(
         "Messages past the READ watermark are unseen; at or before it, seen",
         arguments: [
-            (nil, [true, true, true]),       // never read — everything animates once
+            (nil, [false, false, false]),    // unknown watermark → static, never animate
             (UInt64(1), [false, true, true]),
             (UInt64(2), [false, false, true]),
             (UInt64(3), [false, false, false]),

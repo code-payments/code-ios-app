@@ -52,7 +52,9 @@ struct HistoryControllerTests {
 
     @Test("Initial loadingState is .loading before any mint is active")
     func initialStateIsLoading() throws {
-        let controller = Self.makeController(database: try Database.makeTemp())
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let controller = Self.makeController(database: database)
         #expect(controller.loadingState == .loading)
     }
 
@@ -60,7 +62,8 @@ struct HistoryControllerTests {
 
     @Test("setActiveMint loads the mint's activities from the local DB")
     func setActiveMintLoadsActivities() async throws {
-        let db = try Database.makeTemp()
+        let (db, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
         let pending = Self.makeCashLinkActivity(
             state: .pending, canCancel: true, title: "Sending $1.00",
         )
@@ -78,7 +81,8 @@ struct HistoryControllerTests {
 
     @Test("setActiveMint with the same mint is a no-op — sync() is the refresh path")
     func setActiveMintSameMintDoesNotReload() async throws {
-        let db = try Database.makeTemp()
+        let (db, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
         let pending = Self.makeCashLinkActivity(
             state: .pending, canCancel: true, title: "Sending $1.00",
         )
@@ -104,7 +108,8 @@ struct HistoryControllerTests {
 
     @Test("setActiveMint with a different mint switches the slice")
     func setActiveMintSwitchesSlice() async throws {
-        let db = try Database.makeTemp()
+        let (db, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
         let usdfActivity = Self.makeCashLinkActivity(
             state: .pending, canCancel: true, title: "Sending $1.00",
         )
@@ -125,7 +130,8 @@ struct HistoryControllerTests {
 
     @Test("reload picks up DB writes for the active mint — the post-sync refresh path")
     func reloadReflectsDBWrite() async throws {
-        let db = try Database.makeTemp()
+        let (db, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
         let pending = Self.makeCashLinkActivity(
             state: .pending, canCancel: true, title: "Sending $1.00",
         )

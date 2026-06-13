@@ -36,7 +36,8 @@ struct Regression_69ea049e {
 
     @Test("async getActivities returns every persisted activity for the mint, off the main thread")
     func asyncReturnsPersistedActivities() async throws {
-        let db = try Database.makeTemp()
+        let (db, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
 
         // Insert rows so the read path exercises row mapping +
         // NSDateFormatter parsing — the site of the ANR inside

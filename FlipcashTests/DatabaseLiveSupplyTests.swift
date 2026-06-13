@@ -16,10 +16,6 @@ struct DatabaseLiveSupplyTests {
 
     // MARK: - Helpers
 
-    private static func makeDatabase() -> Database {
-        try! Database.makeTemp()
-    }
-
     private static func makeLaunchpadMint(
         address: PublicKey = .jeffy,
         supplyFromBonding: UInt64 = 50_000 * 10_000_000_000
@@ -31,7 +27,8 @@ struct DatabaseLiveSupplyTests {
 
     @Test("updateLiveSupply updates supplyFromBonding in mint table")
     func updateLiveSupply_updatesMintTable() throws {
-        let db = Self.makeDatabase()
+        let (db, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
         let mint = PublicKey.jeffy
         let originalSupply: UInt64 = 50_000 * 10_000_000_000
         let newSupply: UInt64 = 60_000 * 10_000_000_000
@@ -57,7 +54,8 @@ struct DatabaseLiveSupplyTests {
 
     @Test("updateLiveSupply overwrites on repeated calls")
     func updateLiveSupply_overwrites() throws {
-        let db = Self.makeDatabase()
+        let (db, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
         let mint = PublicKey.jeffy
 
         let metadata = Self.makeLaunchpadMint(address: mint)
@@ -79,7 +77,8 @@ struct DatabaseLiveSupplyTests {
 
     @Test("getBalances reflects live supply update")
     func getBalances_reflectsLiveUpdate() throws {
-        let db = Self.makeDatabase()
+        let (db, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
         let mint = PublicKey.jeffy
         let liveSupply: UInt64 = 75_000 * 10_000_000_000
 
@@ -99,7 +98,8 @@ struct DatabaseLiveSupplyTests {
 
     @Test("getMintMetadata reflects live supply update")
     func getMintMetadata_reflectsLiveUpdate() throws {
-        let db = Self.makeDatabase()
+        let (db, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
         let mint = PublicKey.jeffy
         let liveSupply: UInt64 = 80_000 * 10_000_000_000
 

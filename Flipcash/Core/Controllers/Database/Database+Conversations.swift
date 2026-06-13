@@ -13,6 +13,25 @@ nonisolated extension Database {
 
     // MARK: - Get -
 
+    /// Async wrapper that runs the synchronous cache reads off the caller's
+    /// actor so session start never blocks the main thread on row decoding.
+    func loadConversationCache() async throws -> (conversations: [Conversation], messages: [ConversationID: [ConversationMessage]]) {
+        try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    let conversations = try self.getConversations()
+                    var messages: [ConversationID: [ConversationMessage]] = [:]
+                    for conversation in conversations {
+                        messages[conversation.id] = try self.getConversationMessages(conversationID: conversation.id)
+                    }
+                    continuation.resume(returning: (conversations, messages))
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
     /// The cached DM feed, most-recent activity first, with members and the
     /// newest stored message as the `lastMessage` preview.
     func getConversations() throws -> [Conversation] {
@@ -41,9 +60,20 @@ nonisolated extension Database {
                 id: ConversationID(data: id),
                 members: membersByConversation[id] ?? [],
                 lastMessage: try latestMessage(conversationId: id),
-                lastActivity: row[c.lastActivity]
+                lastActivity: Date(timeIntervalSinceReferenceDate: row[c.lastActivity])
             )
         }
+    }
+
+    /// The newest stored message for a conversation, or nil when none is cached.
+    private func latestMessage(conversationId: Data) throws -> ConversationMessage? {
+        let m = ConversationMessageTable()
+        guard let row = try reader.pluck(
+            m.table.filter(m.conversationId == conversationId).order(m.id.desc)
+        ) else {
+            return nil
+        }
+        return conversationMessage(from: row)
     }
 
     /// All cached messages for a conversation, oldest first.
@@ -53,16 +83,6 @@ nonisolated extension Database {
             m.table.filter(m.conversationId == conversationID.data).order(m.id.asc)
         )
         return try rows.map { conversationMessage(from: $0) }.compactMap { $0 }
-    }
-
-    private func latestMessage(conversationId: Data) throws -> ConversationMessage? {
-        let m = ConversationMessageTable()
-        guard let row = try reader.pluck(
-            m.table.filter(m.conversationId == conversationId).order(m.id.desc)
-        ) else {
-            return nil
-        }
-        return conversationMessage(from: row)
     }
 
     // MARK: - Write -
@@ -97,14 +117,36 @@ nonisolated extension Database {
         }
     }
 
+    /// Newest messages kept per conversation. The slack is hysteresis: pruning
+    /// only fires once a conversation exceeds the window by this much, so
+    /// steady-state single-message writes don't pay a prune each time.
+    static let messageWindow = 100
+    static let messageWindowSlack = 20
+
     /// Upsert messages for a conversation (insert-or-replace on the
-    /// (conversation, id) key).
+    /// (conversation, id) key), then prune anything older than the window.
     func upsertConversationMessages(_ messages: [ConversationMessage], conversationID: ConversationID) throws {
         try writer.transaction {
             for message in messages {
                 try writeMessage(message, conversationId: conversationID.data)
             }
+            try pruneMessages(conversationId: conversationID.data)
         }
+    }
+
+    /// Must be called inside a `writer.transaction`. Deletes all but the
+    /// newest ``messageWindow`` rows once the count exceeds the window plus
+    /// ``messageWindowSlack``; older history stays on the server behind the
+    /// paging token. Pruning only fires once count exceeds the threshold to
+    /// avoid churn on steady-state writes.
+    private func pruneMessages(conversationId: Data) throws {
+        let m = ConversationMessageTable()
+        let scoped = m.table.filter(m.conversationId == conversationId)
+        guard try writer.scalar(scoped.count) > Self.messageWindow + Self.messageWindowSlack else { return }
+        guard let cutoff = try writer.pluck(
+            scoped.order(m.id.desc).limit(1, offset: Self.messageWindow - 1)
+        ) else { return }
+        try writer.run(scoped.filter(m.id < cutoff[m.id]).delete())
     }
 
     /// Must be called inside a `writer.transaction`.
@@ -115,7 +157,7 @@ nonisolated extension Database {
         try writer.run(
             c.table.upsert(
                 c.id           <- conversation.id.data,
-                c.lastActivity <- conversation.lastActivity,
+                c.lastActivity <- conversation.lastActivity.timeIntervalSinceReferenceDate,
                 onConflictOf: c.id
             )
         )
@@ -144,7 +186,7 @@ nonisolated extension Database {
         let kind: Int
         var text: String?
         var quarks: UInt64?
-        var nativeAmount: Double?
+        var nativeAmount: String?
         var currency: CurrencyCode?
         var mint: PublicKey?
 
@@ -155,7 +197,7 @@ nonisolated extension Database {
         case .cash(let amount):
             kind = 1
             quarks = amount.onChainAmount.quarks
-            nativeAmount = amount.nativeAmount.doubleValue
+            nativeAmount = amount.nativeAmount.value.description
             currency = amount.nativeAmount.currency
             mint = amount.mint
         }
@@ -172,7 +214,7 @@ nonisolated extension Database {
                 m.nativeAmount   <- nativeAmount,
                 m.currency       <- currency,
                 m.mint           <- mint,
-                m.date           <- message.date,
+                m.date           <- message.date.timeIntervalSinceReferenceDate,
                 m.unreadSeq      <- message.unreadSeq
             )
         )
@@ -180,24 +222,25 @@ nonisolated extension Database {
 
     // MARK: - Decode -
 
-    /// Returns nil for rows this client can't represent (unknown kind, or a
-    /// cash row missing its amount columns).
+    /// Returns nil for rows this client can't represent (unknown kind, a text
+    /// row missing its text, or a cash row missing its amount columns).
     private func conversationMessage(from row: RowIterator.Element) -> ConversationMessage? {
         let m = ConversationMessageTable()
 
         let content: ConversationMessage.Content
         switch row[m.kind] {
         case 0:
-            content = .text(row[m.text] ?? "")
+            guard let text = row[m.text] else { return nil }
+            content = .text(text)
         case 1:
             guard let quarks = row[m.quarks],
-                  let nativeAmount = row[m.nativeAmount],
+                  let nativeAmount = row[m.nativeAmount].flatMap({ Decimal(string: $0) }),
                   let currency = row[m.currency],
                   let mint = row[m.mint] else {
                 return nil
             }
             let onChain = TokenAmount(quarks: quarks, mint: mint)
-            let native = FiatAmount(value: Decimal(nativeAmount), currency: currency)
+            let native = FiatAmount(value: nativeAmount, currency: currency)
             // Synthesize the FX rate from the stored amounts, mirroring the
             // activity table's ExchangedFiat decomposition.
             let fx: Decimal = onChain.decimalValue > 0
@@ -216,7 +259,7 @@ nonisolated extension Database {
             id: MessageID(value: row[m.id]),
             senderID: row[m.senderId],
             content: content,
-            date: row[m.date],
+            date: Date(timeIntervalSinceReferenceDate: row[m.date]),
             unreadSeq: row[m.unreadSeq]
         )
     }

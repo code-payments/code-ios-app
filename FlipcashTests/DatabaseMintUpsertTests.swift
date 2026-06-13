@@ -15,10 +15,6 @@ struct DatabaseMintUpsertTests {
 
     // MARK: - Helpers
 
-    private static func makeDatabase() throws -> Database {
-        try Database.makeTemp()
-    }
-
     /// A mint WITHOUT launchpadMetadata — simulates what fetchMints()
     /// returns when the server omits bonding curve data.
     private static func makeStaticMint(address: PublicKey = .jeffy) -> MintMetadata {
@@ -42,7 +38,8 @@ struct DatabaseMintUpsertTests {
 
     @Test("Upserting mint without launchpadMetadata preserves existing supplyFromBonding")
     func upsertWithoutLaunchpad_preservesSupply() throws {
-        let db = try Self.makeDatabase()
+        let (db, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
         let mint = PublicKey.jeffy
         let supply: UInt64 = 50_000 * 10_000_000_000
 
@@ -63,7 +60,8 @@ struct DatabaseMintUpsertTests {
 
     @Test("Upserting mint with launchpadMetadata updates supplyFromBonding")
     func upsertWithLaunchpad_updatesSupply() throws {
-        let db = try Self.makeDatabase()
+        let (db, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
         let mint = PublicKey.jeffy
         let oldSupply: UInt64 = 50_000 * 10_000_000_000
         let newSupply: UInt64 = 75_000 * 10_000_000_000
@@ -80,7 +78,8 @@ struct DatabaseMintUpsertTests {
 
     @Test("Live supply update is not overwritten by mint upsert without launchpadMetadata")
     func liveSupplyNotOverwrittenByStaticUpsert() throws {
-        let db = try Self.makeDatabase()
+        let (db, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
         let mint = PublicKey.jeffy
         let initialSupply: UInt64 = 50_000 * 10_000_000_000
         let liveSupply: UInt64 = 80_000 * 10_000_000_000
@@ -105,7 +104,8 @@ struct DatabaseMintUpsertTests {
 
     @Test("Balance is visible after mint upsert without launchpadMetadata")
     func balanceVisibleAfterStaticUpsert() throws {
-        let db = try Self.makeDatabase()
+        let (db, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
         let mint = PublicKey.jeffy
         let supply: UInt64 = 50_000 * 10_000_000_000
         let quarks: UInt64 = 1_000_000_000_000

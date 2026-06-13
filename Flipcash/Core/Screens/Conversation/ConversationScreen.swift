@@ -51,6 +51,16 @@ struct ConversationScreen: View {
     @State private var displayedMessages: [ConversationMessage] = []
     @State private var isTopmost = false
 
+    /// The READ watermark captured once, when the transcript first shows
+    /// content. Messages past it animate the first time they're seen; at or
+    /// before it they render statically. Captured (not derived) so a cold open
+    /// whose feed hydrates *after* the bubbles mount can't reclassify history
+    /// mid-flight and replay the amount roll. Stays `nil` only on a genuine
+    /// cold first run with no read pointer yet — which renders statically,
+    /// matching a warm launch.
+    @State private var seenBoundary: MessageID?
+    @State private var didCaptureSeenBoundary = false
+
     /// Horizontal space the back button (leading) reserves on each side of the
     /// centered title item, so the avatar + name can left-align inside a
     /// centered, full-width principal stack.
@@ -105,15 +115,14 @@ struct ConversationScreen: View {
         return conversationController.messages(for: conversationID)
     }
 
-    /// The READ watermark messages must postdate to count as never-seen.
-    /// Derived live: `markRead` advances it after the open, so a bubble
-    /// animates the first time it's on screen and renders statically on
-    /// every open after that.
-    private var seenBoundary: MessageID? {
-        guard let conversationID else { return nil }
-        return conversationController.conversations
+    /// Latch the READ watermark the first time the transcript has content, so
+    /// it's fixed before any cash bubble mounts.
+    private func captureSeenBoundaryIfNeeded() {
+        guard !didCaptureSeenBoundary, let conversationID, !messages.isEmpty else { return }
+        seenBoundary = conversationController.conversations
             .first { $0.id == conversationID }?
             .selfReadPointer(for: conversationController.selfUserID)
+        didCaptureSeenBoundary = true
     }
 
     var body: some View {
@@ -179,6 +188,7 @@ struct ConversationScreen: View {
             guard chatExists, let conversationID else { return }
             await conversationController.loadMessages(for: conversationID)
             displayedMessages = conversationController.messages(for: conversationID)
+            captureSeenBoundaryIfNeeded()
             hasLoaded = true
             await conversationController.markRead(conversationID: conversationID)
             didInitialRead = true
@@ -200,6 +210,7 @@ struct ConversationScreen: View {
                 syncDisplayedAfterReturn()
             } else {
                 displayedMessages = messages
+                captureSeenBoundaryIfNeeded()
                 hasAppeared = true
             }
         }

@@ -15,11 +15,15 @@ private let logger = Logger(label: "flipcash.chat-messaging-service")
 /// the Payments-domain `MessagingService`, which handles bill rendezvous.
 class ChatMessagingService: CodeService<Flipcash_Messaging_V1_MessagingNIOClient> {
 
+    /// Fetches the newest `pageSize` messages (descending on the wire — without
+    /// an explicit order the server defaults to ascending and a long chat's
+    /// first page would be its OLDEST messages), returned oldest-first.
     func getMessages(owner: KeyPair, conversationID: ConversationID, pageSize: Int = 50, pagingToken: Data?, completion: @Sendable @escaping (Result<[ConversationMessage], ErrorGetMessages>) -> Void) {
         let request = Flipcash_Messaging_V1_GetMessagesRequest.with {
             $0.chatID = conversationID.proto
             $0.options = .with {
                 $0.pageSize = Int32(pageSize)
+                $0.order = .desc
                 if let pagingToken {
                     $0.pagingToken = .with { $0.value = pagingToken }
                 }
@@ -32,7 +36,7 @@ class ChatMessagingService: CodeService<Flipcash_Messaging_V1_MessagingNIOClient
             let error = ErrorGetMessages(rawValue: response.result.rawValue) ?? .unknown
             switch error {
             case .ok:
-                completion(.success(response.messages.messages.compactMap(ConversationMessage.init)))
+                completion(.success(Array(response.messages.messages.compactMap(ConversationMessage.init).reversed())))
             case .notFound:
                 // An empty page is reported as NOT_FOUND, not empty OK.
                 completion(.success([]))

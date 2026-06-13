@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftUI
 import FlipcashCore
 
 nonisolated private let logger = Logger(label: "flipcash.conversation-controller")
@@ -42,6 +43,7 @@ final class ConversationController {
     @ObservationIgnored private let contactNaming: any DMContactNaming
     @ObservationIgnored private let database: Database
     @ObservationIgnored private let owner: KeyPair
+    @ObservationIgnored private var startTask: Task<Void, Never>?
     @ObservationIgnored private var streamTask: Task<Void, Never>?
     @ObservationIgnored private var hydratingConversationIDs: Set<ConversationID> = []
 
@@ -61,34 +63,47 @@ final class ConversationController {
         self.database = database
         self.owner = owner
         self.selfUserID = selfUserID
-        hydrateFromDatabase()
     }
 
     /// Seeds the store from the local cache so the feed, unread state, and
-    /// transcripts render before any network round-trip.
-    private func hydrateFromDatabase() {
+    /// transcripts render without a network round-trip. Rows decode off the
+    /// main actor; the merge is animation-suppressed so a surface that's
+    /// already on screen doesn't play insertion transitions for cached history.
+    func hydrateFromDatabase() async {
         do {
-            let conversations = try database.getConversations()
-            guard !conversations.isEmpty else { return }
-            store.setFeed(conversations)
-            for conversation in conversations {
-                let messages = try database.getConversationMessages(conversationID: conversation.id)
-                store.mergeMessages(messages, into: conversation.id)
+            let cache = try await database.loadConversationCache()
+            guard !cache.conversations.isEmpty else { return }
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                store.setFeed(cache.conversations)
+                for (conversationID, messages) in cache.messages {
+                    store.mergeMessages(messages, into: conversationID)
+                }
             }
         } catch {
-            logger.error("Failed to hydrate conversations from the database")
-            ErrorReporting.captureError(error, reason: "Failed to hydrate conversations from the database")
+            logger.error("Failed to load conversation cache", metadata: ["error": "\(error)"])
+            ErrorReporting.captureError(error, reason: "Failed to load conversation cache")
         }
     }
 
     // MARK: - Lifecycle
 
-    /// Open the event stream and load the initial feed. Idempotent. The stream
-    /// is consumed before the feed is paged so updates landing mid-load aren't
-    /// lost (the conversation-feed contract).
+    /// Hydrate from the local cache, open the event stream, then load the
+    /// feed — in that order, so cached state lands before live events and the
+    /// stream is consumed before the feed is paged (updates landing mid-load
+    /// aren't lost). Idempotent; does no work on the calling thread.
     func start() {
-        guard streamTask == nil else { return }
+        guard startTask == nil else { return }
+        startTask = Task {
+            await hydrateFromDatabase()
+            openStream()
+            await loadFeed()
+        }
+    }
 
+    private func openStream() {
+        guard streamTask == nil else { return }
         let events = streaming.openConversationStream(owner: owner)
         streamTask = Task { [weak self] in
             for await event in events {
@@ -98,11 +113,11 @@ final class ConversationController {
                 self.hydrateIfUnknown(event)
             }
         }
-
-        Task { await loadFeed() }
     }
 
     func stop() {
+        startTask?.cancel()
+        startTask = nil
         streamTask?.cancel()
         streamTask = nil
         streaming.closeConversationStream()
@@ -139,6 +154,7 @@ final class ConversationController {
             } catch {
                 logger.error("Failed to hydrate conversation referenced by the event stream", metadata: [
                     "conversationID": "\(conversationID)",
+                    "error": "\(error)",
                 ])
                 ErrorReporting.captureError(error, reason: "Failed to hydrate conversation referenced by the event stream")
             }
@@ -153,9 +169,9 @@ final class ConversationController {
         do {
             let conversations = try await fetching.getDmChatFeed(owner: owner)
             store.setFeed(conversations)
-            persist { try database.replaceConversationFeed(store.conversations) }
+            persist(operation: "replace-feed") { try database.replaceConversationFeed(store.conversations) }
         } catch {
-            logger.error("Failed to load conversation feed")
+            logger.error("Failed to load conversation feed", metadata: ["error": "\(error)"])
             ErrorReporting.captureError(error, reason: "Failed to load conversation feed")
         }
     }
@@ -167,10 +183,10 @@ final class ConversationController {
     private func persist(event: ConversationStreamEvent) {
         switch event {
         case .newMessages(let conversationID, let messages):
-            persist { try database.upsertConversationMessages(messages, conversationID: conversationID) }
+            persist(operation: "upsert-messages") { try database.upsertConversationMessages(messages, conversationID: conversationID) }
             persistConversation(conversationID)
         case .metadataRefresh(let conversation):
-            persistConversation(conversation.id)
+            persistConversation(conversation)
         case .lastActivityChanged(let conversationID, _),
              .readPointersChanged(let conversationID, _):
             persistConversation(conversationID)
@@ -182,15 +198,22 @@ final class ConversationController {
     /// up with the fetched metadata.
     private func persistConversation(_ conversationID: ConversationID) {
         guard let conversation = store.conversations.first(where: { $0.id == conversationID }) else { return }
-        persist { try database.upsertConversation(conversation) }
+        persistConversation(conversation)
     }
 
-    private func persist(_ write: () throws -> Void) {
+    private func persistConversation(_ conversation: Conversation) {
+        persist(operation: "upsert-conversation") { try database.upsertConversation(conversation) }
+    }
+
+    private func persist(operation: String, _ write: () throws -> Void) {
         do {
             try write()
         } catch {
-            logger.error("Failed to persist conversation state")
-            ErrorReporting.captureError(error, reason: "Failed to persist conversation state")
+            logger.error("Failed to persist conversation state", metadata: [
+                "operation": "\(operation)",
+                "error": "\(error)",
+            ])
+            ErrorReporting.captureError(error, reason: "Failed to persist conversation state [\(operation)]")
         }
     }
 
@@ -239,9 +262,12 @@ final class ConversationController {
         do {
             let messages = try await messaging.getMessages(owner: owner, conversationID: conversationID)
             store.mergeMessages(messages, into: conversationID)
-            persist { try database.upsertConversationMessages(messages, conversationID: conversationID) }
+            persist(operation: "load-messages") { try database.upsertConversationMessages(messages, conversationID: conversationID) }
         } catch {
-            logger.error("Failed to load conversation messages")
+            logger.error("Failed to load conversation messages", metadata: [
+                "conversationID": "\(conversationID)",
+                "error": "\(error)",
+            ])
             ErrorReporting.captureError(error, reason: "Failed to load conversation messages")
         }
     }
@@ -252,11 +278,14 @@ final class ConversationController {
             let message = try await messaging.sendMessage(owner: owner, conversationID: conversationID, text: text)
             store.mergeMessages([message], into: conversationID)
             store.setLastMessage(message, in: conversationID)
-            persist { try database.upsertConversationMessages([message], conversationID: conversationID) }
+            persist(operation: "send-message") { try database.upsertConversationMessages([message], conversationID: conversationID) }
             persistConversation(conversationID)
             return true
         } catch {
-            logger.error("Failed to send conversation message")
+            logger.error("Failed to send conversation message", metadata: [
+                "conversationID": "\(conversationID)",
+                "error": "\(error)",
+            ])
             ErrorReporting.captureError(error, reason: "Failed to send conversation message")
             return false
         }

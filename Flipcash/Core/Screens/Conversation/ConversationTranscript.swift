@@ -73,7 +73,10 @@ nonisolated enum ConversationTranscriptItem: Identifiable, Equatable {
                 groupedAbove: groupedAbove,
                 groupedBelow: groupedBelow,
                 isLatestFromSelf: message.id == latestFromSelfID,
-                isUnseen: seenBoundary.map { message.id > $0 } ?? true
+                // Unknown watermark (cold first run, feed not hydrated yet) →
+                // treat as seen so history renders statically instead of every
+                // cash card rolling its amount at once.
+                isUnseen: seenBoundary.map { message.id > $0 } ?? false
             )))
         }
         return items
