@@ -32,20 +32,18 @@ class ChatMessagingService: CodeService<Flipcash_Messaging_V1_MessagingNIOClient
         }
 
         let call = service.getMessages(request)
-        call.handle(on: queue) { response in
+        call.handle(on: queue, completion: completion) { response in
             let error = ErrorGetMessages(rawValue: response.result.rawValue) ?? .unknown
             switch error {
             case .ok:
-                completion(.success(Array(response.messages.messages.compactMap(ConversationMessage.init).reversed())))
+                return .success(Array(response.messages.messages.compactMap(ConversationMessage.init).reversed()))
             case .notFound:
                 // An empty page is reported as NOT_FOUND, not empty OK.
-                completion(.success([]))
-            case .denied, .unknown:
+                return .success([])
+            case .denied, .unknown, .transportFailure:
                 logger.error("Failed to fetch messages")
-                completion(.failure(error))
+                return .failure(error)
             }
-        } failure: { _ in
-            completion(.failure(.unknown))
         }
     }
 
@@ -58,16 +56,14 @@ class ChatMessagingService: CodeService<Flipcash_Messaging_V1_MessagingNIOClient
         }
 
         let call = service.sendMessage(request)
-        call.handle(on: queue) { response in
+        call.handle(on: queue, completion: completion) { response in
             let error = ErrorSendMessage(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok, response.hasMessage, let message = ConversationMessage(response.message) {
-                completion(.success(message))
+                return .success(message)
             } else {
                 logger.error("Failed to send message")
-                completion(.failure(error == .ok ? .unknown : error))
+                return .failure(error == .ok ? .unknown : error)
             }
-        } failure: { _ in
-            completion(.failure(.unknown))
         }
     }
 
@@ -80,11 +76,9 @@ class ChatMessagingService: CodeService<Flipcash_Messaging_V1_MessagingNIOClient
         }
 
         let call = service.advancePointer(request)
-        call.handle(on: queue) { response in
+        call.handle(on: queue, completion: completion) { response in
             let error = ErrorAdvancePointer(rawValue: response.result.rawValue) ?? .unknown
-            completion(error == .ok ? .success(()) : .failure(error))
-        } failure: { _ in
-            completion(.failure(.unknown))
+            return error == .ok ? .success(()) : .failure(error)
         }
     }
 }
@@ -95,44 +89,47 @@ public enum ErrorGetMessages: Int, Error {
     case ok
     case denied
     case notFound
-    case unknown = -1
+    case unknown          = -1
+    case transportFailure = -2
 }
 
 public enum ErrorSendMessage: Int, Error {
     case ok
     case denied
-    case unknown = -1
+    case unknown          = -1
+    case transportFailure = -2
 }
 
 public enum ErrorAdvancePointer: Int, Error {
     case ok
     case denied
     case messageNotFound
-    case unknown = -1
+    case unknown          = -1
+    case transportFailure = -2
 }
 
-extension ErrorGetMessages: ServerError {
+extension ErrorGetMessages: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .denied, .notFound: false
+        case .ok, .denied, .notFound, .transportFailure: false
         case .unknown: true
         }
     }
 }
 
-extension ErrorSendMessage: ServerError {
+extension ErrorSendMessage: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .denied: false
+        case .ok, .denied, .transportFailure: false
         case .unknown: true
         }
     }
 }
 
-extension ErrorAdvancePointer: ServerError {
+extension ErrorAdvancePointer: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .denied, .messageNotFound: false
+        case .ok, .denied, .messageNotFound, .transportFailure: false
         case .unknown: true
         }
     }

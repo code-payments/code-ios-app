@@ -31,7 +31,7 @@ class ChatService: CodeService<Flipcash_Chat_V1_ChatNIOClient> {
         }
 
         let call = service.getDmChatFeed(request)
-        call.handle(on: queue) { response in
+        call.handle(on: queue, completion: completion) { response in
             let error = ErrorGetDmChatFeed(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
                 let page = DmFeedPage(
@@ -39,13 +39,11 @@ class ChatService: CodeService<Flipcash_Chat_V1_ChatNIOClient> {
                     pagingToken: response.pagingToken.value,
                     hasMore: response.hasMore_p
                 )
-                completion(.success(page))
+                return .success(page)
             } else {
                 logger.error("Failed to fetch DM chat feed")
-                completion(.failure(error))
+                return .failure(error)
             }
-        } failure: { _ in
-            completion(.failure(.unknown))
         }
     }
 
@@ -56,16 +54,14 @@ class ChatService: CodeService<Flipcash_Chat_V1_ChatNIOClient> {
         }
 
         let call = service.getChat(request)
-        call.handle(on: queue) { response in
+        call.handle(on: queue, completion: completion) { response in
             let error = ErrorGetChat(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok, response.hasMetadata {
-                completion(.success(Conversation(response.metadata)))
+                return .success(Conversation(response.metadata))
             } else {
                 logger.error("Failed to fetch chat")
-                completion(.failure(error == .ok ? .notFound : error))
+                return .failure(error == .ok ? .notFound : error)
             }
-        } failure: { _ in
-            completion(.failure(.unknown))
         }
     }
 }
@@ -76,29 +72,31 @@ public enum ErrorGetDmChatFeed: Int, Error {
     case ok
     case denied
     case notFound
-    case unknown = -1
+    case unknown          = -1
+    case transportFailure = -2
 }
 
 public enum ErrorGetChat: Int, Error {
     case ok
     case denied
     case notFound
-    case unknown = -1
+    case unknown          = -1
+    case transportFailure = -2
 }
 
-extension ErrorGetDmChatFeed: ServerError {
+extension ErrorGetDmChatFeed: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .denied, .notFound: false
+        case .ok, .denied, .notFound, .transportFailure: false
         case .unknown: true
         }
     }
 }
 
-extension ErrorGetChat: ServerError {
+extension ErrorGetChat: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
-        case .ok, .denied, .notFound: false
+        case .ok, .denied, .notFound, .transportFailure: false
         case .unknown: true
         }
     }
