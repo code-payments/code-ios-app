@@ -35,14 +35,11 @@ struct ConversationScreen: View {
     @Environment(Session.self) private var session
     @Environment(RatesController.self) private var ratesController
 
-    @State private var draft = ""
-    @State private var isSending = false
     @State private var hasLoaded = false
     @State private var didInitialRead = false
     @State private var isComposing = false
     @State private var hasAppeared = false
     @State private var navBarWidth: CGFloat = 0
-    @FocusState private var isComposerFocused: Bool
 
     /// The READ watermark captured once, when the transcript first shows
     /// content. Messages past it animate the first time they're seen; at or
@@ -138,11 +135,8 @@ struct ConversationScreen: View {
                 showsSendCash: contact != nil,
                 showsSendMessage: chatExists,
                 isComposing: $isComposing,
-                draft: $draft,
-                focus: $isComposerFocused,
-                canSend: canSend,
-                onSendCash: sendCash,
-                onSendText: send
+                conversationID: conversationID,
+                onSendCash: sendCash
             )
         }
         .navigationTitle("")
@@ -170,7 +164,7 @@ struct ConversationScreen: View {
         }
         // While composing, a downward swipe should lower the keyboard — not
         // tear down the whole Send sheet.
-        .interactiveDismissDisabled(isComposerFocused)
+        .interactiveDismissDisabled(isComposing)
         // Keyed on existence, not just the ID: a matched contact's chat ID is
         // pre-assigned, and fetching messages for a chat the server hasn't
         // created yet error-reports. Fires when the chat materializes.
@@ -196,15 +190,6 @@ struct ConversationScreen: View {
                 hasAppeared = true
             }
         }
-        // Collapse to the action buttons when the composer loses focus
-        // (keyboard dismissed). Focus-driven, not a keyboard notification.
-        .onChange(of: isComposerFocused) { _, focused in
-            if !focused { isComposing = false }
-        }
-    }
-
-    private var canSend: Bool {
-        !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSending
     }
 
     private func sendCash() {
@@ -216,19 +201,6 @@ struct ConversationScreen: View {
             return
         }
         router.push(.sendAmount(contact: contact))
-    }
-
-    private func send() {
-        guard let conversationID else { return }
-        let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, !isSending else { return }
-        isSending = true
-        draft = ""
-        isComposerFocused = true
-        Task {
-            await conversationController.send(text, to: conversationID)
-            isSending = false
-        }
     }
 
     /// Resigns the first responder directly via UIKit so the keyboard lowers

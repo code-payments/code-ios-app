@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import FlipcashCore
 import FlipcashUI
 
 /// Send Cash / Send Message buttons, swapped for the message composer while
@@ -16,20 +17,26 @@ struct ConversationBottomBar: View {
     let showsSendCash: Bool
     let showsSendMessage: Bool
     @Binding var isComposing: Bool
-    @Binding var draft: String
-    var focus: FocusState<Bool>.Binding
-    let canSend: Bool
+    let conversationID: ConversationID?
     let onSendCash: () -> Void
-    let onSendText: () -> Void
+
+    @Environment(ConversationController.self) private var conversationController
+    @State private var draft = ""
+    @State private var isSending = false
+    @FocusState private var isComposerFocused: Bool
 
     /// Action bar ⇄ composer swap — the button group springs in/out (scaling
     /// from 95%) while the composer fades.
     private static let swapSpring = Animation.spring(duration: 0.27, bounce: 0.31)
 
+    private var canSend: Bool {
+        !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSending
+    }
+
     var body: some View {
         ZStack {
             if isComposing {
-                ConversationComposer(draft: $draft, focus: focus, canSend: canSend, onSend: onSendText)
+                ConversationComposer(draft: $draft, focus: $isComposerFocused, canSend: canSend, onSend: send)
                     .transition(.opacity)
             } else {
                 ConversationActionBar(
@@ -51,6 +58,24 @@ struct ConversationBottomBar: View {
                 endPoint: .top
             )
             .ignoresSafeArea()
+        }
+        // Collapse to the action buttons when the composer loses focus
+        // (keyboard dismissed). Focus-driven, not a keyboard notification.
+        .onChange(of: isComposerFocused) { _, focused in
+            if !focused { isComposing = false }
+        }
+    }
+
+    private func send() {
+        guard let conversationID else { return }
+        let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty, !isSending else { return }
+        isSending = true
+        draft = ""
+        isComposerFocused = true
+        Task {
+            await conversationController.send(text, to: conversationID)
+            isSending = false
         }
     }
 }
