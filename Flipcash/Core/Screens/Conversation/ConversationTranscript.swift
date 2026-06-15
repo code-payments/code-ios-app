@@ -128,17 +128,28 @@ struct ConversationTranscript: View {
                 .onTapGesture(perform: onBackgroundTap)
                 .animation(Self.insertionSpring, value: messages.count)
             }
-            // Opens at the newest message and rides new arrivals down.
             .defaultScrollAnchor(.bottom)
             .scrollDismissesKeyboard(.interactively)
-            // The keyboard rising scrolls the newest into view — which also
-            // forces the lazy rows to re-realize (the layout change otherwise
-            // leaves the transcript blank until a manual scroll).
+            // defaultScrollAnchor sets the first paint but doesn't realize the
+            // lazy rows of a long transcript — without this it opens blank until
+            // a manual scroll. The deferred second pass corrects the estimated-
+            // height residue once the rows are measured. (Short transcripts that
+            // fit the viewport don't scroll, so they stay top-aligned.)
+            .onAppear {
+                scrollToBottom(proxy)
+                DispatchQueue.main.async { scrollToBottom(proxy) }
+            }
+            // The keyboard rising rides the newest message up (and re-realizes
+            // the rows the keyboard layout change would otherwise blank).
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
-                guard let lastID = items.last?.id else { return }
-                withAnimation { proxy.scrollTo(lastID, anchor: .bottom) }
+                withAnimation { scrollToBottom(proxy) }
             }
         }
+    }
+
+    private func scrollToBottom(_ proxy: ScrollViewProxy) {
+        guard let lastID = items.last?.id else { return }
+        proxy.scrollTo(lastID, anchor: .bottom)
     }
 
     /// Kept on this child view (whose inputs exclude the composer draft) so
