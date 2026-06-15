@@ -125,6 +125,7 @@ struct ConversationScreen: View {
                     messages: messages,
                     selfUserID: conversationController.selfUserID,
                     seenBoundary: seenBoundary,
+                    isComposing: isComposing,
                     onBackgroundTap: dismissKeyboard
                 )
             }

@@ -92,10 +92,19 @@ struct ConversationTranscript: View {
     /// The signed-in user's READ watermark. Messages past it animate in —
     /// the once-per-message "never seen" animation.
     let seenBoundary: MessageID?
+    /// Whether the composer is open. Opening it arms a one-shot scroll that
+    /// fires on the next keyboard appearance, so the newest message rides up
+    /// with the keyboard. Arming on this — not the keyboard event itself —
+    /// means a cancelled back-swipe (which churns the keyboard frame but never
+    /// reopens the composer) finds the flag disarmed and can't scroll.
+    let isComposing: Bool
     let onBackgroundTap: () -> Void
 
     /// New bubble scale + opacity insertion.
     private static let insertionSpring = Animation.spring(duration: 0.23, bounce: 0.27)
+
+    /// Armed when the composer opens, consumed by the next keyboard appearance.
+    @State private var scrollOnKeyboard = false
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -139,9 +148,16 @@ struct ConversationTranscript: View {
                 scrollToBottom(proxy)
                 DispatchQueue.main.async { scrollToBottom(proxy) }
             }
-            // The keyboard rising rides the newest message up (and re-realizes
-            // the rows the keyboard layout change would otherwise blank).
+            // Composer opened → arm a scroll for when the keyboard appears.
+            .onChange(of: isComposing) { _, composing in
+                if composing { scrollOnKeyboard = true }
+            }
+            // The keyboard's final frame is known here, so the newest message
+            // lands just above it. Only fires for an armed (composer-driven)
+            // appearance — not the keyboard churn of a cancelled back-swipe.
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+                guard scrollOnKeyboard else { return }
+                scrollOnKeyboard = false
                 withAnimation { scrollToBottom(proxy) }
             }
         }
