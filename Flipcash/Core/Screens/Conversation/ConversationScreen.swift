@@ -44,13 +44,6 @@ struct ConversationScreen: View {
     @State private var navBarWidth: CGFloat = 0
     @FocusState private var isComposerFocused: Bool
 
-    /// What the transcript renders. Synced from the controller only while this
-    /// screen is frontmost, so messages that land while the amount screen
-    /// covers it (the cash card after a send) insert with a visible animation
-    /// on return instead of already sitting in the list.
-    @State private var displayedMessages: [ConversationMessage] = []
-    @State private var isTopmost = false
-
     /// The READ watermark captured once, when the transcript first shows
     /// content. Messages past it animate the first time they're seen; at or
     /// before it they render statically. Captured (not derived) so a cold open
@@ -131,11 +124,8 @@ struct ConversationScreen: View {
                 LoadingView(color: .textMain)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                // Until the first `onAppear` seeds `displayedMessages`, render
-                // the store's cached transcript directly so a re-opened chat's
-                // first frame is complete — no mass insertion after the fact.
                 ConversationTranscript(
-                    messages: hasAppeared ? displayedMessages : messages,
+                    messages: messages,
                     selfUserID: conversationController.selfUserID,
                     seenBoundary: seenBoundary,
                     onBackgroundTap: dismissKeyboard
@@ -187,15 +177,10 @@ struct ConversationScreen: View {
         .task(id: chatExists ? conversationID : nil) {
             guard chatExists, let conversationID else { return }
             await conversationController.loadMessages(for: conversationID)
-            displayedMessages = conversationController.messages(for: conversationID)
             captureSeenBoundaryIfNeeded()
             hasLoaded = true
             await conversationController.markRead(conversationID: conversationID)
             didInitialRead = true
-        }
-        .onChange(of: messages) {
-            guard isTopmost else { return }
-            displayedMessages = messages
         }
         .onChange(of: messages.last?.id) {
             // The initial load flips this from nil, which would double-fire
@@ -204,18 +189,12 @@ struct ConversationScreen: View {
             Task { await conversationController.markRead(conversationID: conversationID) }
         }
         .onAppear {
-            isTopmost = true
             if hasAppeared {
                 refreshChatBinding()
-                syncDisplayedAfterReturn()
             } else {
-                displayedMessages = messages
                 captureSeenBoundaryIfNeeded()
                 hasAppeared = true
             }
-        }
-        .onDisappear {
-            isTopmost = false
         }
         // Collapse to the action buttons when the composer loses focus
         // (keyboard dismissed). Focus-driven, not a keyboard notification.
@@ -253,22 +232,10 @@ struct ConversationScreen: View {
     }
 
     /// Resigns the first responder directly via UIKit so the keyboard lowers
-    /// regardless of whether @FocusState is in sync; the keyboardWillHide
-    /// observer then handles the composer → buttons swap.
+    /// regardless of whether @FocusState is in sync; the focus-change handler
+    /// then collapses the composer back to the action buttons.
     private func dismissKeyboard() {
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-    }
-
-    /// Plays the insertion animation for messages that landed while the amount
-    /// screen covered this one. Deferred past the pop transition so the new
-    /// cash card visibly springs in instead of being consumed mid-navigation.
-    private func syncDisplayedAfterReturn() {
-        guard displayedMessages != messages else { return }
-        Task {
-            try? await Task.delay(milliseconds: 400)
-            guard !Task.isCancelled else { return }
-            displayedMessages = messages
-        }
     }
 
     /// After returning from the amount screen for a contact's first payment,
