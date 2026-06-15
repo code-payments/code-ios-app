@@ -61,7 +61,7 @@ struct RecipientPickerScreen: View {
                 recipient: contact.phoneE164,
                 onFinish: { result in
                     logger.info("Invite composer finished", metadata: [
-                        "outcome": "\(outcomeName(result))",
+                        "outcome": "\(result)",
                     ])
                     inviteTarget = nil
                 },
@@ -88,15 +88,6 @@ struct RecipientPickerScreen: View {
             // Fall back to the system share sheet with the download URL only.
             logger.info("Presenting share fallback (iMessage unavailable)")
             ShareSheet.present(url: URL.downloadApp)
-        }
-    }
-
-    private func outcomeName(_ result: MessageComposeResult) -> String {
-        switch result {
-        case .sent:       return "sent"
-        case .cancelled:  return "cancelled"
-        case .failed:     return "failed"
-        @unknown default: return "unknown"
         }
     }
 

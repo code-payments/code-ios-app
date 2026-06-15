@@ -166,7 +166,7 @@ final class SendAmountViewModel {
     private enum RecipientResolution {
         case resolved(PublicKey)
         case notFound
-        case failed(Error)
+        case failed
     }
 
     /// Resolves the recipient, retrying once on a transient network error, and
@@ -192,10 +192,10 @@ final class SendAmountViewModel {
                 Analytics.track(event: Analytics.SendEvent.resolveError)
                 logger.error("Recipient resolve failed", metadata: ["contactId": "\(contact.contactId)", "error": "\(error)"])
                 ErrorReporting.captureError(error, reason: "Contact resolve failed")
-                return .failed(error)
+                return .failed
             }
         }
-        return .failed(ErrorResolve.transportFailure)
+        return .failed
     }
 
     /// Returns nil when no fresh pin is cached; otherwise the amount + pin

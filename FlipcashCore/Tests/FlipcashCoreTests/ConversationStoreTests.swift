@@ -51,15 +51,6 @@ struct ConversationStoreTests {
         #expect(messages.first?.content == .text("updated")) // last write wins per id
     }
 
-    @Test("mergeMessages fast-appends strictly-newer messages in order")
-    func messagesFastAppend() {
-        var store = ConversationStore()
-        store.mergeMessages([message(1), message(2)], into: conversationID(1))
-        store.mergeMessages([message(3)], into: conversationID(1))            // strictly newer → fast path
-        store.mergeMessages([message(5), message(4)], into: conversationID(1)) // newer batch, out of order within
-        #expect(store.messages(for: conversationID(1)).map(\.id.value) == [1, 2, 3, 4, 5])
-    }
-
     @Test("mergeMessages dedupes a re-delivered newest message (send echo)")
     func messagesDedupeEcho() {
         var store = ConversationStore()

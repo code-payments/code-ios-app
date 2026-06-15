@@ -80,31 +80,6 @@ nonisolated private extension ResolvedContact {
 /// the controller's cached output rather than re-loading on every appear.
 enum RecipientLoader {
 
-    /// One placement per snapshot row. The snapshot uses a composite
-    /// `(e164, contactId)` PK, so each pair survives — multiple phones on
-    /// one contact, or one phone shared across multiple contacts, all
-    /// come through here.
-    nonisolated struct ContactPlacement: Equatable, Sendable {
-        let contactId: String
-        let e164: String
-        let isOnFlipcash: Bool
-    }
-
-    /// Direct map of every snapshot row to a placement, annotated with
-    /// whether the e164 is on Flipcash. No grouping or filtering.
-    nonisolated static func placements(
-        snapshot: [Database.LocalContact],
-        flipcashSet: Set<String>,
-    ) -> [ContactPlacement] {
-        snapshot.map { entry in
-            ContactPlacement(
-                contactId: entry.contactId,
-                e164: entry.e164,
-                isOnFlipcash: flipcashSet.contains(entry.e164),
-            )
-        }
-    }
-
     /// One row per displayed phone number. A payment to a number reaches the
     /// same recipient regardless of which contact it came from, so contacts
     /// that share a nationally-formatted number — including extension/format
@@ -184,48 +159,47 @@ enum RecipientLoader {
                 CNContactThumbnailImageDataKey as CNKeyDescriptor,
             ]
             let region = Region.current ?? .us
-            let placements = placements(snapshot: snapshot, flipcashSet: flipcashSet)
 
-            // Resolve every placement first; cache `unifiedContact` lookups
+            // Resolve every snapshot row first; cache `unifiedContact` lookups
             // so the same contactId across rows doesn't hit CN repeatedly.
             var resolvedByPlacement: [ResolvedContact] = []
-            resolvedByPlacement.reserveCapacity(placements.count)
+            resolvedByPlacement.reserveCapacity(snapshot.count)
             var cnCache: [String: CNContact] = [:]
-            // The same e164 recurs across placements (one contact, many rows;
+            // The same e164 recurs across rows (one contact, many rows;
             // one number, many contacts) — parse it through PhoneNumberKit once.
             var nationalCache: [String: String] = [:]
 
-            for placement in placements {
+            for entry in snapshot {
                 let cnContact: CNContact
-                if let cached = cnCache[placement.contactId] {
+                if let cached = cnCache[entry.contactId] {
                     cnContact = cached
                 } else if let fetched = try? store.unifiedContact(
-                    withIdentifier: placement.contactId,
+                    withIdentifier: entry.contactId,
                     keysToFetch: keys,
                 ) {
-                    cnCache[placement.contactId] = fetched
+                    cnCache[entry.contactId] = fetched
                     cnContact = fetched
                 } else {
                     continue
                 }
 
                 let nationalPhone: String
-                if let cached = nationalCache[placement.e164] {
+                if let cached = nationalCache[entry.e164] {
                     nationalPhone = cached
                 } else {
-                    nationalPhone = Phone(placement.e164, defaultRegion: region)?.national ?? placement.e164
-                    nationalCache[placement.e164] = nationalPhone
+                    nationalPhone = Phone(entry.e164, defaultRegion: region)?.national ?? entry.e164
+                    nationalCache[entry.e164] = nationalPhone
                 }
                 let displayName   = CNContactFormatter.string(from: cnContact, style: .fullName)
                     ?? nationalPhone
 
                 resolvedByPlacement.append(ResolvedContact(
-                    contactId: placement.contactId,
+                    contactId: entry.contactId,
                     displayName: displayName,
-                    phoneE164: placement.e164,
+                    phoneE164: entry.e164,
                     nationalPhone: nationalPhone,
                     imageData: cnContact.thumbnailImageData,
-                    dmChatID: dmChatIDByPhone[placement.e164],
+                    dmChatID: dmChatIDByPhone[entry.e164],
                 ))
             }
 

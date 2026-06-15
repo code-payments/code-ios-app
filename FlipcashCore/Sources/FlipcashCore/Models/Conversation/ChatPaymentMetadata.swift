@@ -13,7 +13,7 @@ import SwiftProtobuf
 /// post the payment as a cash message in the contact's DM (creating the chat
 /// if it doesn't exist yet). Both phones must be payment-linked to their
 /// respective accounts or the server rejects the intent.
-public struct ChatPaymentMetadata: Equatable, Hashable, Sendable {
+public struct ChatPaymentMetadata: Sendable {
 
     public let chatID: ConversationID
     public let sourcePhoneE164: String

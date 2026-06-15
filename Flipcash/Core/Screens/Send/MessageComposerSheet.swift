@@ -7,24 +7,17 @@ import MessageUI
 import SwiftUI
 
 /// SwiftUI wrapper around `MFMessageComposeViewController` for prefilled
-/// iMessage invites. Present from a `.sheet(item:)` and clear the bound
-/// item from `onFinish` so SwiftUI tears the sheet down once the user
-/// taps Send, Cancel, or hits a failure.
-///
-/// Gate presentation with ``isAvailable`` — the composer is absent on
-/// devices that aren't configured for iMessage (iPad without SIM, etc.).
+/// iMessage invites. Gate presentation with ``isAvailable``.
 struct MessageComposerSheet: UIViewControllerRepresentable {
 
-    /// Placeholder invite body. Marketing-final copy lands before ship.
+    /// Placeholder invite body.
     static let placeholderBody = """
     You should download Flipcash, a new way to send cash
 
     \(URL.downloadApp.absoluteString)
     """
 
-    /// Whether `MFMessageComposeViewController` can be presented on this
-    /// device. Mirrors `MFMessageComposeViewController.canSendText()` so
-    /// callers don't need to import `MessageUI` themselves.
+    /// Whether the composer can be presented on this device.
     static var isAvailable: Bool { MFMessageComposeViewController.canSendText() }
 
     let recipient: String

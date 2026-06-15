@@ -66,9 +66,9 @@ final class ConversationController {
     }
 
     /// Seeds the store from the local cache so the feed, unread state, and
-    /// transcripts render without a network round-trip. Rows decode off the
-    /// main actor; the merge is animation-suppressed so a surface that's
-    /// already on screen doesn't play insertion transitions for cached history.
+    /// transcripts render without a network round-trip. The merge is
+    /// animation-suppressed so on-screen surfaces don't play insertion
+    /// transitions for cached history.
     func hydrateFromDatabase() async {
         do {
             let cache = try await database.loadConversationCache()
@@ -89,10 +89,8 @@ final class ConversationController {
 
     // MARK: - Lifecycle
 
-    /// Hydrate from the local cache, open the event stream, then load the
-    /// feed — in that order, so cached state lands before live events and the
-    /// stream is consumed before the feed is paged (updates landing mid-load
-    /// aren't lost). Idempotent; does no work on the calling thread.
+    /// Hydrates from the local cache, opens the event stream, then loads the
+    /// feed — in that order so live events aren't lost mid-load. Idempotent.
     func start() {
         guard startTask == nil else { return }
         startTask = Task {
@@ -129,9 +127,8 @@ final class ConversationController {
     }
 
     /// Fetches metadata for a conversation the stream referenced before the
-    /// feed knows it — a chat just created by the user's first payment to a
-    /// contact, or by someone else's first payment to the user — so it joins
-    /// the feed (and the picker's Recents) immediately.
+    /// feed knows it, so it joins the feed immediately. No-ops for known or
+    /// in-flight conversations.
     private func hydrateIfUnknown(_ event: ConversationStreamEvent) {
         let conversationID: ConversationID
         switch event {
@@ -178,7 +175,7 @@ final class ConversationController {
 
     // MARK: - Persistence
 
-    /// Mirror a stream event into the local cache, from the store's
+    /// Mirrors a stream event into the local cache. Reads from the store's
     /// post-`apply` state so monotonic rules (read pointers) hold.
     private func persist(event: ConversationStreamEvent) {
         switch event {
@@ -193,9 +190,8 @@ final class ConversationController {
         }
     }
 
-    /// Persist the store's current version of a conversation. No-ops for
-    /// conversations the store doesn't know yet — `hydrateIfUnknown` follows
-    /// up with the fetched metadata.
+    /// Persists the store's current version of a conversation. No-ops for
+    /// conversations the store doesn't know yet.
     private func persistConversation(_ conversationID: ConversationID) {
         guard let conversation = store.conversations.first(where: { $0.id == conversationID }) else { return }
         persistConversation(conversation)
@@ -298,9 +294,16 @@ final class ConversationController {
         if let read = store.selfReadPointer(for: conversationID, selfUserID: selfUserID), latest.id <= read {
             return
         }
-        if (try? await messaging.markRead(owner: owner, conversationID: conversationID, messageID: latest.id)) != nil {
+        do {
+            try await messaging.markRead(owner: owner, conversationID: conversationID, messageID: latest.id)
             store.advanceSelfReadPointer(to: latest.id, in: conversationID, selfUserID: selfUserID)
             persistConversation(conversationID)
+        } catch {
+            logger.error("Failed to mark conversation read", metadata: [
+                "conversationID": "\(conversationID)",
+                "error": "\(error)",
+            ])
+            ErrorReporting.captureError(error, reason: "Failed to mark conversation read")
         }
     }
 }

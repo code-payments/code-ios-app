@@ -102,7 +102,7 @@ private struct ConversationComposer: View {
     private static let sendButtonSpring = Animation.spring(duration: 0.17, bounce: 0.34)
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 10) {
+        let field = HStack(alignment: .bottom, spacing: 10) {
             TextField("Message", text: $draft, axis: .vertical)
                 .font(.appTextMessage)
                 .foregroundStyle(Color.textMain)
@@ -131,21 +131,18 @@ private struct ConversationComposer: View {
         .padding(.leading, 14)
         .padding(.trailing, 8)
         .padding(.vertical, 8)
-        .modifier(ComposerGlass())
+
+        // Liquid-glass background on iOS 26; ultra-thin material below.
+        return Group {
+            if #available(iOS 26, *) {
+                field.glassEffect(.regular.interactive(), in: .rect(cornerRadius: 14))
+            } else {
+                field.background(.ultraThinMaterial, in: .rect(cornerRadius: 14))
+            }
+        }
         .padding(.horizontal, 12)
         // Focus must be requested after the field joins the hierarchy; setting
         // it in the Send Message tap (same transaction) can silently fail.
         .onAppear { focus.wrappedValue = true }
-    }
-}
-
-/// Liquid-glass background on iOS 26; ultra-thin material below.
-private struct ComposerGlass: ViewModifier {
-    func body(content: Content) -> some View {
-        if #available(iOS 26, *) {
-            content.glassEffect(.regular.interactive(), in: .rect(cornerRadius: 14))
-        } else {
-            content.background(.ultraThinMaterial, in: .rect(cornerRadius: 14))
-        }
     }
 }

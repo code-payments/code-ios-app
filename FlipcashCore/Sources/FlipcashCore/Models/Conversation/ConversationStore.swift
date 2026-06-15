@@ -33,26 +33,12 @@ public struct ConversationStore: Sendable {
     public mutating func mergeMessages(_ incoming: [ConversationMessage], into conversationID: ConversationID) {
         guard !incoming.isEmpty else { return }
         let current = messagesByConversation[conversationID] ?? []
-        let sortedIncoming = incoming.sorted { $0.id < $1.id }
 
-        // Fast path: the live case is appending strictly-newer messages to an
-        // existing transcript. Equal ids (the send echo) route to the fallback
-        // so last-write-wins dedup still holds.
-        if let lastCurrent = current.last, let firstIncoming = sortedIncoming.first,
-           firstIncoming.id > lastCurrent.id {
-            var merged = current
-            merged.reserveCapacity(current.count + sortedIncoming.count)
-            merged.append(contentsOf: sortedIncoming)
-            messagesByConversation[conversationID] = merged
-            return
-        }
-
-        // Fallback: first load, out-of-order backfill, or a duplicate id.
         var byID = Dictionary(
             current.map { ($0.id, $0) },
             uniquingKeysWith: { _, new in new }
         )
-        for message in sortedIncoming {
+        for message in incoming {
             byID[message.id] = message
         }
         messagesByConversation[conversationID] = byID.values.sorted { $0.id < $1.id }

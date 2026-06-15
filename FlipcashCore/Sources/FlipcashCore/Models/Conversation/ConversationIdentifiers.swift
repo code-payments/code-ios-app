@@ -9,7 +9,7 @@ import Foundation
 import FlipcashAPI
 
 /// Identifier for a conversation, backed by the server's 32-byte ChatId.
-public struct ConversationID: Hashable, Sendable, Comparable, CustomStringConvertible {
+public struct ConversationID: Hashable, Sendable, CustomStringConvertible {
 
     public let data: Data
 
@@ -41,10 +41,6 @@ public struct ConversationID: Hashable, Sendable, Comparable, CustomStringConver
 
     public var proto: Flipcash_Common_V1_ChatId {
         .with { $0.value = data }
-    }
-
-    public static func < (lhs: ConversationID, rhs: ConversationID) -> Bool {
-        lhs.data.lexicographicallyPrecedes(rhs.data)
     }
 
     public var description: String {

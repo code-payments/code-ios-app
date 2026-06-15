@@ -171,8 +171,8 @@ struct ConversationBubble: View {
 
     let text: String
     let isFromSelf: Bool
-    var groupedAbove: Bool = false
-    var groupedBelow: Bool = false
+    let groupedAbove: Bool
+    let groupedBelow: Bool
 
     var body: some View {
         Text(text)
@@ -192,12 +192,12 @@ struct ConversationCashBubble: View {
 
     let amount: ExchangedFiat
     let isFromSelf: Bool
-    var groupedAbove: Bool = false
-    var groupedBelow: Bool = false
+    let groupedAbove: Bool
+    let groupedBelow: Bool
     /// Rolls the amount in from zero with a numeric text transition. Set only
     /// for bubbles inserted into an already-mounted transcript so history
     /// renders statically.
-    var animatesAmount: Bool = false
+    let animatesAmount: Bool
 
     @State private var showsFinalAmount = false
 
@@ -240,7 +240,7 @@ struct ConversationCashBubble: View {
                     Text(displayedAmount.formatted())
                         .font(ConversationBubbleStyle.amountFont)
                         .foregroundStyle(Color.textMain)
-                        .contentTransition(.numericText(value: displayedAmountValue))
+                        .contentTransition(.numericText(value: NSDecimalNumber(decimal: displayedAmount.value).doubleValue))
                 }
             }
         }
@@ -259,10 +259,6 @@ struct ConversationCashBubble: View {
             return FiatAmount(value: 0, currency: amount.nativeAmount.currency)
         }
         return amount.nativeAmount
-    }
-
-    private var displayedAmountValue: Double {
-        NSDecimalNumber(decimal: displayedAmount.value).doubleValue
     }
 }
 

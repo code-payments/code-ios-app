@@ -134,11 +134,9 @@ nonisolated extension Database {
         }
     }
 
-    /// Must be called inside a `writer.transaction`. Deletes all but the
-    /// newest ``messageWindow`` rows once the count exceeds the window plus
-    /// ``messageWindowSlack``; older history stays on the server behind the
-    /// paging token. Pruning only fires once count exceeds the threshold to
-    /// avoid churn on steady-state writes.
+    /// Deletes all but the newest ``messageWindow`` rows once the count exceeds
+    /// the window plus ``messageWindowSlack``. Must be called inside a
+    /// `writer.transaction`.
     private func pruneMessages(conversationId: Data) throws {
         let m = ConversationMessageTable()
         let scoped = m.table.filter(m.conversationId == conversationId)
