@@ -13,33 +13,22 @@ struct ConnectPhoneEmptyState: View {
     let onConnect: () -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            VStack(spacing: 20) {
-                Spacer()
-                Image(.Icons.send)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 80, height: 80)
-                    .foregroundStyle(Color.textSecondary)
-                Spacer()
+        ContentUnavailableView {
+            Label {
                 Text("Connect Phone To Send")
-                    .font(.appTitle)
+                    .font(.appTextLarge)
                     .foregroundStyle(Color.textMain)
-                    .multilineTextAlignment(.center)
-                Text("Connect your phone number to send cash")
-                    .font(.appTextMedium)
-                    .foregroundStyle(Color.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 300)
-                Spacer()
+            } icon: {
+                Image(.Icons.send)
             }
-
-            Spacer()
-
+        } description: {
+            Text("Connect your phone number to send cash")
+                .font(.appTextMedium)
+                .foregroundStyle(Color.textSecondary)
+        } actions: {
             Button("Connect Your Phone Number", action: onConnect)
                 .buttonStyle(.filled)
         }
-        .padding(20)
     }
 }
 
