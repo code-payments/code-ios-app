@@ -180,7 +180,7 @@ struct ConversationScreen: View {
         }
         // While composing, a downward swipe should lower the keyboard — not
         // tear down the whole Send sheet.
-        .interactiveDismissDisabled(isComposing)
+        .interactiveDismissDisabled(isComposerFocused)
         // Keyed on existence, not just the ID: a matched contact's chat ID is
         // pre-assigned, and fetching messages for a chat the server hasn't
         // created yet error-reports. Fires when the chat materializes.
@@ -217,12 +217,10 @@ struct ConversationScreen: View {
         .onDisappear {
             isTopmost = false
         }
-        // Keyboard fell (swipe, tap-blank, system) → bring the action buttons
-        // back. Keyed off the keyboard notification, not @FocusState, which
-        // doesn't reliably round-trip through interactive dismissals.
-        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
-            isComposerFocused = false
-            isComposing = false
+        // Collapse to the action buttons when the composer loses focus
+        // (keyboard dismissed). Focus-driven, not a keyboard notification.
+        .onChange(of: isComposerFocused) { _, focused in
+            if !focused { isComposing = false }
         }
     }
 

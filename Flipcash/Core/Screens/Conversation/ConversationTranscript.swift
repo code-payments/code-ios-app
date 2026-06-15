@@ -83,9 +83,8 @@ nonisolated enum ConversationTranscriptItem: Identifiable, Equatable {
     }
 }
 
-/// The scrolling transcript. Born bottom-anchored; a `ScrollViewReader`
-/// scrolls the newest message into view on new arrivals and as the keyboard
-/// rises or falls.
+/// The scrolling transcript: a bottom-anchored `ScrollView` whose newest
+/// message stays in view as rows append, via `defaultScrollAnchor(.bottom)`.
 struct ConversationTranscript: View {
 
     let messages: [ConversationMessage]
@@ -97,16 +96,6 @@ struct ConversationTranscript: View {
 
     /// New bubble scale + opacity insertion.
     private static let insertionSpring = Animation.spring(duration: 0.23, bounce: 0.27)
-
-    /// New message sent/received — the list springs down to the newest bubble.
-    private static let scrollSpring = Animation.spring(duration: 0.30, bounce: 0.12)
-
-    /// Scroll that rides the keyboard up/down.
-    private static let keyboardScrollSpring = Animation.spring(duration: 0.30, bounce: 0)
-
-    /// Identity of the message stack; every scroll-to-bottom targets its
-    /// bottom edge.
-    private static let bottomAnchor = "conversation-bottom"
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -133,48 +122,23 @@ struct ConversationTranscript: View {
                         }
                     }
                 }
-                // Every scroll-to-bottom targets the stack's bottom edge.
-                .id(Self.bottomAnchor)
                 .padding(.vertical, 12)
-                // Tapping empty space lowers the keyboard; bubbles consume their
-                // own taps (see ConversationMessageRow).
+                // Tapping empty space lowers the keyboard; bubbles consume their own taps.
                 .contentShape(Rectangle())
                 .onTapGesture(perform: onBackgroundTap)
                 .animation(Self.insertionSpring, value: messages.count)
             }
-            .scrollDismissesKeyboard(.interactively)
-            // The anchor positions the first paint at the newest message, but
-            // it resolves against the lazy stack's *estimated* height — on
-            // long transcripts the real layout can land mid-thread. The
-            // instant scrollTo on appear (again after the first layout pass,
-            // when the list is actually measured) corrects any residue.
+            // Opens at the newest message and rides new arrivals down.
             .defaultScrollAnchor(.bottom)
-            .onAppear {
-                proxy.scrollTo(Self.bottomAnchor, anchor: .bottom)
-                DispatchQueue.main.async {
-                    proxy.scrollTo(Self.bottomAnchor, anchor: .bottom)
-                }
-            }
-            //   • a message arrives (sent or received) → spring down to it
-            .onChange(of: messages.count) {
-                scrollToBottom(proxy, animation: Self.scrollSpring)
-            }
-            //   • keyboard rises → ride the newest message up with it
+            .scrollDismissesKeyboard(.interactively)
+            // The keyboard rising scrolls the newest into view — which also
+            // forces the lazy rows to re-realize (the layout change otherwise
+            // leaves the transcript blank until a manual scroll).
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
-                scrollToBottom(proxy, animation: Self.keyboardScrollSpring)
-            }
-            //   • keyboard falls (swipe, tap-blank, system) → keep the thread
-            //     pinned down
-            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
-                scrollToBottom(proxy, animation: Self.keyboardScrollSpring)
+                guard let lastID = items.last?.id else { return }
+                withAnimation { proxy.scrollTo(lastID, anchor: .bottom) }
             }
         }
-    }
-
-    /// Scrolls the newest content into view. A thread too short to scroll
-    /// no-ops and stays at the top.
-    private func scrollToBottom(_ proxy: ScrollViewProxy, animation: Animation) {
-        withAnimation(animation) { proxy.scrollTo(Self.bottomAnchor, anchor: .bottom) }
     }
 
     /// Kept on this child view (whose inputs exclude the composer draft) so
