@@ -193,6 +193,9 @@ struct ChatScrollView<Content: View>: View {
             content
         }
         .scrollPosition($scrollPosition)
+        // Drag the transcript down to lower the keyboard, the way Messages does;
+        // the composer's focus-loss handler then collapses it back to the action bar.
+        .scrollDismissesKeyboard(.interactively)
         .onScrollGeometryChange(for: Bool.self) { geometry in
             let bottomEdge = geometry.contentOffset.y + geometry.containerSize.height
             return bottomEdge >= geometry.contentSize.height - bottomThreshold
