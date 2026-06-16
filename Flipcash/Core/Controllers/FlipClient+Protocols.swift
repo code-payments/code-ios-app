@@ -68,7 +68,9 @@ protocol ConversationFetching: AnyObject, Sendable {
 /// DM message send/read surface used by `ConversationController`. Maps to the
 /// `flipcash.messaging.v1.Messaging` RPCs.
 protocol ConversationMessaging: AnyObject, Sendable {
-    func getMessages(owner: KeyPair, conversationID: ConversationID) async throws -> [ConversationMessage]
+    /// Fetches a page of messages. `before == nil` returns the newest page;
+    /// pass the oldest currently-loaded id to page strictly older (history).
+    func getMessages(owner: KeyPair, conversationID: ConversationID, before: MessageID?) async throws -> [ConversationMessage]
     func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String) async throws -> ConversationMessage
     func markRead(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws
 }

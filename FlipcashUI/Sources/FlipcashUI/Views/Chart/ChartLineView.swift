@@ -146,11 +146,7 @@ public struct ChartLineView: View {
     
     private static func triggerSelectionHaptic(at location: CGPoint) {
         let generator = UISelectionFeedbackGenerator()
-        if #available(iOS 17.5, *) {
-            generator.selectionChanged(at: location)
-        } else {
-            generator.selectionChanged()
-        }
+        generator.selectionChanged(at: location)
     }
 }
 

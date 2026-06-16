@@ -175,4 +175,12 @@ struct ConversationModelMappingTests {
 
         #expect(conversation.counterpartReadReceipt(excluding: me) == nil)
     }
+
+    @Test("MessageID paging token is the value as 8 big-endian bytes (server PageTokenFromID contract)")
+    func messageIDPagingTokenEncoding() {
+        // Mirrors the server's `binary.BigEndian.PutUint64` in
+        // messaging.PageTokenFromID — 0x0102030405060708 → bytes 01…08.
+        #expect(MessageID(value: 0x0102_0304_0506_0708).pagingToken == Data([1, 2, 3, 4, 5, 6, 7, 8]))
+        #expect(MessageID(value: 1).pagingToken == Data([0, 0, 0, 0, 0, 0, 0, 1]))
+    }
 }

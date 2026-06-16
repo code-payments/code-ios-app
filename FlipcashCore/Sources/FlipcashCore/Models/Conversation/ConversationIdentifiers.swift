@@ -66,6 +66,14 @@ public struct MessageID: Hashable, Sendable, Comparable, CustomStringConvertible
         .with { $0.value = value }
     }
 
+    /// The opaque paging cursor for fetching messages older than this one: the
+    /// gapless `value` as 8 big-endian bytes, matching the server's
+    /// `PageTokenFromID`. Passed as `QueryOptions.pagingToken` with `order: .desc`
+    /// to resume strictly older than this message.
+    public var pagingToken: Data {
+        withUnsafeBytes(of: value.bigEndian) { Data($0) }
+    }
+
     public static func < (lhs: MessageID, rhs: MessageID) -> Bool {
         lhs.value < rhs.value
     }

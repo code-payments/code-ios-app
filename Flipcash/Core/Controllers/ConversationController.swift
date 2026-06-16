@@ -46,6 +46,7 @@ final class ConversationController {
     @ObservationIgnored private var startTask: Task<Void, Never>?
     @ObservationIgnored private var streamTask: Task<Void, Never>?
     @ObservationIgnored private var hydratingConversationIDs: Set<ConversationID> = []
+    @ObservationIgnored private var markReadTasks: [ConversationID: Task<Void, Never>] = [:]
 
     init(
         fetching: any ConversationFetching,
@@ -132,6 +133,8 @@ final class ConversationController {
         startTask = nil
         streamTask?.cancel()
         streamTask = nil
+        markReadTasks.values.forEach { $0.cancel() }
+        markReadTasks.removeAll()
         streaming.closeConversationStream()
     }
 
@@ -270,7 +273,7 @@ final class ConversationController {
 
     func loadMessages(for conversationID: ConversationID) async {
         do {
-            let messages = try await messaging.getMessages(owner: owner, conversationID: conversationID)
+            let messages = try await messaging.getMessages(owner: owner, conversationID: conversationID, before: nil)
             store.mergeMessages(messages, into: conversationID)
             persist(operation: "load-messages") { try database.upsertConversationMessages(messages, conversationID: conversationID) }
         } catch {
@@ -279,6 +282,57 @@ final class ConversationController {
                 "error": "\(error)",
             ])
             ErrorReporting.captureError(error, reason: "Failed to load conversation messages")
+        }
+    }
+
+    // MARK: - Pagination
+
+    /// Per-conversation older-history paging state, observed so the transcript can
+    /// show its top loading row and gate re-triggers.
+    private struct OlderPageState { var isLoading = false; var hasMore = true }
+    private var olderPageState: [ConversationID: OlderPageState] = [:]
+
+    /// Whether older history may still exist server-side. True until an older
+    /// page comes back empty (NOT_FOUND).
+    func hasMoreOlderMessages(for conversationID: ConversationID) -> Bool {
+        olderPageState[conversationID]?.hasMore ?? true
+    }
+
+    /// Whether an older page is currently in flight for this conversation.
+    func isLoadingOlderMessages(for conversationID: ConversationID) -> Bool {
+        olderPageState[conversationID]?.isLoading ?? false
+    }
+
+    /// Pages strictly older than the oldest loaded message and prepends the page
+    /// to the in-memory window. The newest-100 are the DB cache; older pages are
+    /// session-only (persisting them would just be pruned), so a reopen re-pages.
+    /// No-ops while a page is in flight or once history is exhausted.
+    func loadOlderMessages(for conversationID: ConversationID) async {
+        guard hasMoreOlderMessages(for: conversationID), !isLoadingOlderMessages(for: conversationID) else { return }
+        guard let oldest = store.messages(for: conversationID).first?.id else { return }
+
+        olderPageState[conversationID, default: OlderPageState()].isLoading = true
+        defer { olderPageState[conversationID]?.isLoading = false }
+
+        do {
+            let older = try await messaging.getMessages(owner: owner, conversationID: conversationID, before: oldest)
+            if older.isEmpty {
+                olderPageState[conversationID]?.hasMore = false
+            } else {
+                // Prepended history must not play insertion transitions — match the
+                // animation-suppressed merge used for the cache hydrate.
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    store.mergeMessages(older, into: conversationID)
+                }
+            }
+        } catch {
+            logger.error("Failed to load older conversation messages", metadata: [
+                "conversationID": "\(conversationID)",
+                "error": "\(error)",
+            ])
+            ErrorReporting.captureError(error, reason: "Failed to load older conversation messages")
         }
     }
 
@@ -298,6 +352,18 @@ final class ConversationController {
             ])
             ErrorReporting.captureError(error, reason: "Failed to send conversation message")
             return false
+        }
+    }
+
+    /// Debounced read-pointer advance: collapses a burst of arrivals into a
+    /// single `markRead` round-trip ~400ms after the last one, instead of one
+    /// RPC per incoming message.
+    func scheduleMarkRead(conversationID: ConversationID) {
+        markReadTasks[conversationID]?.cancel()
+        markReadTasks[conversationID] = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(400))
+            guard !Task.isCancelled else { return }
+            await self?.markRead(conversationID: conversationID)
         }
     }
 

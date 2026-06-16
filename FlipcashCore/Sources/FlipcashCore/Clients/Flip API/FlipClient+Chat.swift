@@ -34,9 +34,9 @@ extension FlipClient {
         }
     }
 
-    public func getMessages(owner: KeyPair, conversationID: ConversationID) async throws -> [ConversationMessage] {
+    public func getMessages(owner: KeyPair, conversationID: ConversationID, before: MessageID?) async throws -> [ConversationMessage] {
         try await withCheckedThrowingContinuation { c in
-            chatMessagingService.getMessages(owner: owner, conversationID: conversationID, pagingToken: nil) { c.resume(with: $0) }
+            chatMessagingService.getMessages(owner: owner, conversationID: conversationID, pagingToken: before?.pagingToken) { c.resume(with: $0) }
         }
     }
 

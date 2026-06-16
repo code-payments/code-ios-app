@@ -235,6 +235,57 @@ struct ConversationControllerTests {
         controller.stop()
     }
 
+    // MARK: - Pagination -
+
+    @Test("loadOlderMessages pages before the oldest loaded id and prepends the page")
+    func loadOlderMessagesPrepends() async {
+        let mock = MockConversations()
+        mock.messages = [
+            ConversationMessage(id: MessageID(value: 5), senderID: nil, content: .text("e"), date: Date(timeIntervalSince1970: 50), unreadSeq: 5),
+            ConversationMessage(id: MessageID(value: 6), senderID: nil, content: .text("f"), date: Date(timeIntervalSince1970: 60), unreadSeq: 6),
+        ]
+        mock.olderMessages = [
+            ConversationMessage(id: MessageID(value: 3), senderID: nil, content: .text("c"), date: Date(timeIntervalSince1970: 30), unreadSeq: 3),
+            ConversationMessage(id: MessageID(value: 4), senderID: nil, content: .text("d"), date: Date(timeIntervalSince1970: 40), unreadSeq: 4),
+        ]
+        let controller = makeController(mock)
+        await controller.loadMessages(for: ConversationID.test(1))
+
+        await controller.loadOlderMessages(for: ConversationID.test(1))
+
+        // Paged strictly before the oldest loaded id, prepended oldest-first.
+        #expect(mock.olderQueries == [MessageID(value: 5)])
+        #expect(controller.messages(for: ConversationID.test(1)).map(\.id.value) == [3, 4, 5, 6])
+        #expect(controller.hasMoreOlderMessages(for: ConversationID.test(1)))
+    }
+
+    @Test("an empty older page ends pagination and short-circuits further queries")
+    func loadOlderMessagesExhausted() async {
+        let mock = MockConversations()
+        mock.messages = [ConversationMessage(id: MessageID(value: 5), senderID: nil, content: .text("e"), date: Date(timeIntervalSince1970: 50), unreadSeq: 5)]
+        mock.olderMessages = []
+        let controller = makeController(mock)
+        await controller.loadMessages(for: ConversationID.test(1))
+
+        await controller.loadOlderMessages(for: ConversationID.test(1))
+        #expect(mock.olderQueries == [MessageID(value: 5)])
+        #expect(!controller.hasMoreOlderMessages(for: ConversationID.test(1)))
+
+        // Exhausted → a further call doesn't hit the network again.
+        await controller.loadOlderMessages(for: ConversationID.test(1))
+        #expect(mock.olderQueries == [MessageID(value: 5)])
+    }
+
+    @Test("loadOlderMessages no-ops when no messages are loaded yet")
+    func loadOlderMessagesNoOpWhenEmpty() async {
+        let mock = MockConversations()
+        let controller = makeController(mock)
+
+        await controller.loadOlderMessages(for: ConversationID.test(1))
+
+        #expect(mock.olderQueries.isEmpty)
+    }
+
     // MARK: - Persistence -
 
     @Test("hydration seeds the feed and transcripts from the database without any fetch")

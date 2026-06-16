@@ -40,8 +40,14 @@ nonisolated enum ConversationTranscriptItem: Identifiable, Equatable {
     var id: String {
         switch self {
         case .separator(let date): "sep-\(date.timeIntervalSince1970)"
-        case .message(let message, _): "msg-\(message.id.value)"
+        case .message(let message, _): Self.rowID(for: message.id)
         }
+    }
+
+    /// The scroll identity of a message row — the single source the `ForEach` id
+    /// and the programmatic `scrollTo(id:)` targets both resolve through.
+    static func rowID(for messageID: MessageID) -> String {
+        "msg-\(messageID.value)"
     }
 
     /// Inserts a date header across `gap`-sized time gaps and computes each
@@ -102,8 +108,9 @@ nonisolated enum ConversationTranscriptItem: Identifiable, Equatable {
     }
 }
 
-/// The scrolling transcript: a bottom-anchored `ScrollView` whose newest
-/// message stays in view as rows append, via `defaultScrollAnchor(.bottom)`.
+/// The scrolling transcript: a bottom-anchored `ScrollView`
+/// (`defaultScrollAnchor(.bottom)`) that opens on the newest message and pages
+/// older history in at the top.
 struct ConversationTranscript: View {
 
     let messages: [ConversationMessage]
@@ -114,93 +121,107 @@ struct ConversationTranscript: View {
     /// The counterpart's READ watermark + read time, driving the "Read 3:42 PM"
     /// receipt. Derived live (not captured) so it updates as they read.
     let counterpartRead: ReadReceiptState?
-    /// Whether the composer is open. Opening it arms a one-shot scroll that
-    /// fires on the next keyboard appearance, so the newest message rides up
-    /// with the keyboard. Arming on this — not the keyboard event itself —
-    /// means a cancelled back-swipe (which churns the keyboard frame but never
-    /// reopens the composer) finds the flag disarmed and can't scroll.
+    /// Whether the composer is open.
     let isComposing: Bool
     let onBackgroundTap: () -> Void
+    /// Whether older history may still be paged in. Keeps the invisible top
+    /// trigger present, whose appearance fires `onLoadOlder`.
+    let hasMoreOlder: Bool
+    /// Whether an older page is in flight right now. Drives the spinner so it
+    /// shows only during a fetch, not perpetually while more history exists.
+    let isLoadingOlder: Bool
+    let onLoadOlder: () -> Void
 
     /// New bubble scale + opacity insertion.
     private static let insertionSpring = Animation.spring(duration: 0.23, bounce: 0.27)
 
+    /// Programmatic scroll target for the two moves `defaultScrollAnchor(.bottom)`
+    /// can't make on its own — it only holds the bottom: riding the newest message
+    /// up when the keyboard opens, and holding position when an older page prepends.
+    @State private var scrollPosition = ScrollPosition()
     /// Armed when the composer opens, consumed by the next keyboard appearance.
     @State private var scrollOnKeyboard = false
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 8) {
-                    ForEach(items) { item in
-                        switch item {
-                        case .separator(let date):
-                            ConversationDateSeparator(date: date)
-                        case .message(let message, let position):
-                            ConversationMessageRow(
-                                message: message,
-                                isFromSelf: position.isFromSelf,
-                                groupedAbove: position.groupedAbove,
-                                groupedBelow: position.groupedBelow,
-                                receipt: position.receipt,
-                                animatesAmount: position.isUnseen
-                            )
-                            // A new bubble scales + fades in from its aligned edge.
-                            .transition(
-                                .scale(scale: 0.95, anchor: position.isFromSelf ? .trailing : .leading)
-                                    .combined(with: .opacity)
-                            )
-                        }
+        let items = ConversationTranscriptItem.items(
+            from: messages,
+            selfUserID: selfUserID,
+            seenBoundary: seenBoundary,
+            counterpartRead: counterpartRead
+        )
+
+        ScrollView {
+            LazyVStack(spacing: 8) {
+                // Invisible top trigger: paging fires when this scrolls into view
+                // (i.e. the top is reached), never on open since it sits above the
+                // newest message and is off-screen there.
+                if hasMoreOlder {
+                    Color.clear
+                        .frame(height: 1)
+                        .onAppear(perform: onLoadOlder)
+                }
+                // The spinner shows only while a page is actually loading — not
+                // perpetually whenever more history exists — so it can't sit at the
+                // top looking stuck after a page has already loaded beneath it.
+                if isLoadingOlder {
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                }
+                ForEach(items) { item in
+                    switch item {
+                    case .separator(let date):
+                        ConversationDateSeparator(date: date)
+                    case .message(let message, let position):
+                        ConversationMessageRow(
+                            message: message,
+                            isFromSelf: position.isFromSelf,
+                            groupedAbove: position.groupedAbove,
+                            groupedBelow: position.groupedBelow,
+                            receipt: position.receipt,
+                            animatesAmount: position.isUnseen
+                        )
+                        // A new bubble scales + fades in from its aligned edge.
+                        .transition(
+                            .scale(scale: 0.95, anchor: position.isFromSelf ? .trailing : .leading)
+                                .combined(with: .opacity)
+                        )
                     }
                 }
-                .padding(.vertical, 12)
-                // Tapping empty space lowers the keyboard; bubbles consume their own taps.
-                .contentShape(Rectangle())
-                .onTapGesture(perform: onBackgroundTap)
-                .animation(Self.insertionSpring, value: messages.count)
             }
-            .defaultScrollAnchor(.bottom)
-            .scrollDismissesKeyboard(.interactively)
-            // defaultScrollAnchor sets the first paint but doesn't realize the
-            // lazy rows of a long transcript — without this it opens blank until
-            // a manual scroll. The deferred second pass corrects the estimated-
-            // height residue once the rows are measured. (Short transcripts that
-            // fit the viewport don't scroll, so they stay top-aligned.)
-            .onAppear {
-                scrollToBottom(proxy)
-                DispatchQueue.main.async { scrollToBottom(proxy) }
-            }
-            // The on-open paint anchors the bottom of whatever's loaded — the
-            // cached messages. The server fetch (and live arrivals) append newer
-            // messages below the fold afterwards; defaultScrollAnchor pins only
-            // the first paint, so follow the bottom explicitly when the newest
-            // message changes. Non-animated to keep the open free of a scroll nudge.
-            .onChange(of: messages.last?.id) {
-                scrollToBottom(proxy)
-            }
-            // Composer opened → arm a scroll for when the keyboard appears.
-            .onChange(of: isComposing) { _, composing in
-                if composing { scrollOnKeyboard = true }
-            }
-            // The keyboard's final frame is known here, so the newest message
-            // lands just above it. Only fires for an armed (composer-driven)
-            // appearance — not the keyboard churn of a cancelled back-swipe.
-            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
-                guard scrollOnKeyboard else { return }
-                scrollOnKeyboard = false
-                withAnimation { scrollToBottom(proxy) }
-            }
+            .padding(.vertical, 12)
+            // Tapping empty space lowers the keyboard; bubbles consume their own taps.
+            .contentShape(Rectangle())
+            .onTapGesture(perform: onBackgroundTap)
+            .animation(Self.insertionSpring, value: messages.count)
         }
-    }
-
-    private func scrollToBottom(_ proxy: ScrollViewProxy) {
-        guard let lastID = items.last?.id else { return }
-        proxy.scrollTo(lastID, anchor: .bottom)
-    }
-
-    /// Kept on this child view (whose inputs exclude the composer draft) so
-    /// keystrokes don't recompute it.
-    private var items: [ConversationTranscriptItem] {
-        ConversationTranscriptItem.items(from: messages, selfUserID: selfUserID, seenBoundary: seenBoundary, counterpartRead: counterpartRead)
+        // Anchor content to the bottom: the transcript opens on the newest message
+        // (above the composer) and stays pinned as off-screen rows realize and as
+        // new messages arrive while at the bottom. The layout-level bottom anchor
+        // positions from the bottom up, so it lands on the true newest message
+        // regardless of how the rows above the fold are estimated.
+        .defaultScrollAnchor(.bottom)
+        .scrollPosition($scrollPosition)
+        .scrollDismissesKeyboard(.interactively)
+        // Older page prepended (oldest id moved earlier): snap the previously-oldest
+        // message back to the top so the new page lands above it and the loader rides
+        // off-screen, instead of the viewport pinning at offset 0 with the new
+        // messages stuffed under the loader. Lets the user keep scrolling up into them.
+        .onChange(of: messages.first?.id) { oldFirst, newFirst in
+            guard let oldFirst, let newFirst, newFirst < oldFirst else { return }
+            scrollPosition.scrollTo(id: ConversationTranscriptItem.rowID(for: oldFirst), anchor: .top)
+        }
+        // Arm a one-shot scroll for the next keyboard frame, so the newest message
+        // rides up above the keyboard. Arming on isComposing (not the keyboard event)
+        // means a cancelled back-swipe — which churns the keyboard but never reopens
+        // the composer — finds the flag disarmed and can't scroll.
+        .onChange(of: isComposing) { _, composing in
+            if composing { scrollOnKeyboard = true }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+            guard scrollOnKeyboard, let lastID = messages.last?.id else { return }
+            scrollOnKeyboard = false
+            withAnimation { scrollPosition.scrollTo(id: ConversationTranscriptItem.rowID(for: lastID), anchor: .bottom) }
+        }
     }
 }

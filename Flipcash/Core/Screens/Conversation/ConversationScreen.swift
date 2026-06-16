@@ -105,6 +105,25 @@ struct ConversationScreen: View {
         return conversationController.messages(for: conversationID)
     }
 
+    /// Whether older history can still be paged in — only once some messages are
+    /// loaded, since the oldest one is the cursor to page back from.
+    private var hasMoreOlderMessages: Bool {
+        guard let conversationID, !messages.isEmpty else { return false }
+        return conversationController.hasMoreOlderMessages(for: conversationID)
+    }
+
+    /// Whether an older page is currently being fetched, so the transcript can
+    /// show its loading spinner only during the fetch.
+    private var isLoadingOlderMessages: Bool {
+        guard let conversationID else { return false }
+        return conversationController.isLoadingOlderMessages(for: conversationID)
+    }
+
+    private func loadOlderMessages() {
+        guard let conversationID else { return }
+        Task { await conversationController.loadOlderMessages(for: conversationID) }
+    }
+
     /// The counterpart's read watermark + time, read live from the observable
     /// controller (not captured like `seenBoundary`) so the receipt updates the
     /// moment they read.
@@ -137,7 +156,10 @@ struct ConversationScreen: View {
                     seenBoundary: seenBoundary,
                     counterpartRead: counterpartRead,
                     isComposing: isComposing,
-                    onBackgroundTap: dismissKeyboard
+                    onBackgroundTap: dismissKeyboard,
+                    hasMoreOlder: hasMoreOlderMessages,
+                    isLoadingOlder: isLoadingOlderMessages,
+                    onLoadOlder: loadOlderMessages
                 )
             }
         }
@@ -162,6 +184,21 @@ struct ConversationScreen: View {
                     width: max(navBarWidth - Self.titleSideInset * 2, 0)
                 )
             }
+            #if DEBUG
+            ToolbarItem(placement: .topBarTrailing) {
+                if let conversationID, chatExists {
+                    Menu {
+                        ForEach([25, 100, 250], id: \.self) { count in
+                            Button("Blast \(count) messages") {
+                                Task { await conversationController.blastMessages(count: count, into: conversationID) }
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "bolt.fill")
+                    }
+                }
+            }
+            #endif
         }
         .background {
             // Measure the bar width so the centered title item can be sized to
@@ -192,7 +229,7 @@ struct ConversationScreen: View {
             // The initial load flips this from nil, which would double-fire
             // markRead alongside the .task above; only mark live arrivals.
             guard didInitialRead, let conversationID else { return }
-            Task { await conversationController.markRead(conversationID: conversationID) }
+            conversationController.scheduleMarkRead(conversationID: conversationID)
         }
         .onAppear {
             if hasAppeared {

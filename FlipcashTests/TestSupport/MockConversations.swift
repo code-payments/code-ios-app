@@ -17,6 +17,8 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
 
     private var _feed: [Conversation] = []
     private var _messages: [ConversationMessage] = []
+    private var _olderMessages: [ConversationMessage] = []
+    private var _olderQueries: [MessageID] = []
     private var _sendResult: ConversationMessage?
     private var _sent: [Sent] = []
     private var _markedRead: [MessageID] = []
@@ -32,6 +34,13 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
         get { lock.withLock { _messages } }
         set { lock.withLock { _messages = newValue } }
     }
+    /// Scripted older page returned when `getMessages` is called with `before != nil`.
+    var olderMessages: [ConversationMessage] {
+        get { lock.withLock { _olderMessages } }
+        set { lock.withLock { _olderMessages = newValue } }
+    }
+    /// The `before` cursors `getMessages` was paged with.
+    var olderQueries: [MessageID] { lock.withLock { _olderQueries } }
     var sendResult: ConversationMessage? {
         get { lock.withLock { _sendResult } }
         set { lock.withLock { _sendResult = newValue } }
@@ -62,7 +71,11 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
 
     // MARK: - ConversationMessaging
 
-    func getMessages(owner: KeyPair, conversationID: ConversationID) async throws -> [ConversationMessage] { messages }
+    func getMessages(owner: KeyPair, conversationID: ConversationID, before: MessageID?) async throws -> [ConversationMessage] {
+        guard let before else { return messages }
+        lock.withLock { _olderQueries.append(before) }
+        return olderMessages
+    }
 
     func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String) async throws -> ConversationMessage {
         lock.withLock { _sent.append(Sent(conversationID: conversationID, text: text)) }

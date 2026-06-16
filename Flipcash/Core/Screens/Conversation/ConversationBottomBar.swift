@@ -57,7 +57,12 @@ struct ConversationBottomBar: View {
                 startPoint: .bottom,
                 endPoint: .top
             )
-            .ignoresSafeArea()
+            // Scope the bleed to the bottom edge only. The bar is the measured
+            // content of the transcript's bottom `.safeAreaInset`; an all-edges
+            // ignore makes the bar read as extending to the screen bottom, which
+            // collapses the scroll-content inset by the home-indicator height and
+            // drops the newest message under the bar.
+            .ignoresSafeArea(edges: .bottom)
         }
         // Collapse to the action buttons when the composer loses focus
         // (keyboard dismissed). Focus-driven, not a keyboard notification.
