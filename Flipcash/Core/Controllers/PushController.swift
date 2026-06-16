@@ -105,7 +105,15 @@ class PushController {
         
         unregisterAPNS()
     }
-    
+
+    // MARK: - Badge -
+
+    /// Clears the app icon badge. Called when the app becomes active so a
+    /// server-set badge count doesn't linger after the user has opened the app.
+    func clearBadgeCount() {
+        center.setBadgeCount(0)
+    }
+
     // MARK: - Authorization Status -
 
     /// Re-fetches the notification authorization status from the system.

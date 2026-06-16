@@ -116,6 +116,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             sessionContainer?.usdcSweepOperation.start()
             sessionContainer?.contactSyncController.didBecomeActive()
             sessionContainer?.conversationController.ensureConnected()
+            sessionContainer?.pushController.clearBadgeCount()
         case .inactive:
             break
         @unknown default:
