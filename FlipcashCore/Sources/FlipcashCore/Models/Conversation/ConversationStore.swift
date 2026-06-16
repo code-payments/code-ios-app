@@ -53,13 +53,15 @@ public struct ConversationStore: Sendable {
     /// Locally advance the signed-in user's READ watermark after a successful
     /// markRead so the next call can short-circuit.
     public mutating func advanceSelfReadPointer(to messageID: MessageID, in conversationID: ConversationID, selfUserID: UserID) {
-        advanceReadPointer(to: messageID, for: selfUserID, in: conversationID)
+        // Self's read time is never surfaced — only the counterpart's receipt
+        // shows one — so advance the watermark without a timestamp.
+        advanceReadPointer(to: messageID, for: selfUserID, at: nil, in: conversationID)
     }
 
     /// Monotonically advance a member's READ watermark; never moves it backward.
     /// `date` is when the pointer was advanced (for the read receipt); stored
     /// only when the watermark actually moves.
-    private mutating func advanceReadPointer(to messageID: MessageID, for userID: UserID, at date: Date? = nil, in conversationID: ConversationID) {
+    private mutating func advanceReadPointer(to messageID: MessageID, for userID: UserID, at date: Date?, in conversationID: ConversationID) {
         guard let convoIndex = conversations.firstIndex(where: { $0.id == conversationID }),
               let memberIndex = conversations[convoIndex].members.firstIndex(where: { $0.userID == userID }) else {
             return
