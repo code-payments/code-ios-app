@@ -174,11 +174,12 @@ nonisolated struct ConversationTable: Sendable {
 nonisolated struct ConversationMemberTable: Sendable {
     static let name = "conversation_member"
 
-    let table          = Table(Self.name)
-    let conversationId = Expression <Data>    ("conversationId")
-    let userId         = Expression <UUID?>   ("userId")
-    let displayName    = Expression <String>  ("displayName")
-    let readPointer    = Expression <UInt64?> ("readPointer")
+    let table                 = Table(Self.name)
+    let conversationId        = Expression <Data>    ("conversationId")
+    let userId                = Expression <UUID?>   ("userId")
+    let displayName           = Expression <String>  ("displayName")
+    let readPointer           = Expression <UInt64?> ("readPointer")
+    let readPointerTimestamp  = Expression <Double?> ("readPointerTimestamp")
 }
 
 // One row per message; cash content is decomposed across the amount columns
@@ -393,6 +394,7 @@ nonisolated extension Database {
                 t.column(conversationMemberTable.userId)
                 t.column(conversationMemberTable.displayName)
                 t.column(conversationMemberTable.readPointer)
+                t.column(conversationMemberTable.readPointerTimestamp)
             })
         }
 

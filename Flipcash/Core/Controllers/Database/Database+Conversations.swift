@@ -44,7 +44,8 @@ nonisolated extension Database {
                 member: ConversationMember(
                     userID: row[m.userId],
                     displayName: row[m.displayName],
-                    readPointer: row[m.readPointer].map(MessageID.init(value:))
+                    readPointer: row[m.readPointer].map(MessageID.init(value:)),
+                    readPointerTimestamp: row[m.readPointerTimestamp].map { Date(timeIntervalSinceReferenceDate: $0) }
                 )
             )
         }
@@ -164,10 +165,11 @@ nonisolated extension Database {
         for member in conversation.members {
             try writer.run(
                 m.table.insert(
-                    m.conversationId <- conversation.id.data,
-                    m.userId         <- member.userID,
-                    m.displayName    <- member.displayName,
-                    m.readPointer    <- member.readPointer?.value
+                    m.conversationId        <- conversation.id.data,
+                    m.userId                <- member.userID,
+                    m.displayName           <- member.displayName,
+                    m.readPointer           <- member.readPointer?.value,
+                    m.readPointerTimestamp  <- member.readPointerTimestamp?.timeIntervalSinceReferenceDate
                 )
             )
         }

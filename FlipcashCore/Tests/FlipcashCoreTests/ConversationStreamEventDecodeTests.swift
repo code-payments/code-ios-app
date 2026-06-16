@@ -100,9 +100,10 @@ struct ConversationStreamEventDecodeTests {
         if case .lastActivityChanged = decoded.last {} else { Issue.record("last should be .lastActivityChanged") }
     }
 
-    @Test("READ pointer updates decode to a readPointersChanged event; DELIVERED is dropped")
+    @Test("READ pointer updates decode to a readPointersChanged event with the read time; DELIVERED is dropped")
     func readPointers() {
         let userBytes = Data((0..<16).map { UInt8($0) })
+        let readAt = Date(timeIntervalSince1970: 1_700_000_000)
         let event = Flipcash_Event_V1_Event.with {
             $0.chatUpdate = .with {
                 $0.chat = .with { $0.value = conversationBytes }
@@ -112,6 +113,7 @@ struct ConversationStreamEventDecodeTests {
                             $0.type = .read
                             $0.userID = .with { $0.value = userBytes }
                             $0.value = .with { $0.value = 7 }
+                            $0.ts = .init(date: readAt)
                         },
                         .with {
                             $0.type = .delivered
@@ -129,6 +131,7 @@ struct ConversationStreamEventDecodeTests {
         }
         #expect(conversationID == ConversationID(data: conversationBytes))
         #expect(pointers.map(\.value) == [MessageID(value: 7)])
+        #expect(pointers.map(\.date) == [readAt])
     }
 
     @Test("Non-conversation events decode to nothing")

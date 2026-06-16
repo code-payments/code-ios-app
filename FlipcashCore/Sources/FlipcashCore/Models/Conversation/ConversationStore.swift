@@ -57,7 +57,9 @@ public struct ConversationStore: Sendable {
     }
 
     /// Monotonically advance a member's READ watermark; never moves it backward.
-    private mutating func advanceReadPointer(to messageID: MessageID, for userID: UserID, in conversationID: ConversationID) {
+    /// `date` is when the pointer was advanced (for the read receipt); stored
+    /// only when the watermark actually moves.
+    private mutating func advanceReadPointer(to messageID: MessageID, for userID: UserID, at date: Date? = nil, in conversationID: ConversationID) {
         guard let convoIndex = conversations.firstIndex(where: { $0.id == conversationID }),
               let memberIndex = conversations[convoIndex].members.firstIndex(where: { $0.userID == userID }) else {
             return
@@ -66,6 +68,7 @@ public struct ConversationStore: Sendable {
             return
         }
         conversations[convoIndex].members[memberIndex].readPointer = messageID
+        conversations[convoIndex].members[memberIndex].readPointerTimestamp = date
     }
 
     /// Bump a conversation's last message + activity and re-sort the feed.
@@ -92,7 +95,7 @@ public struct ConversationStore: Sendable {
             sort()
         case .readPointersChanged(let conversationID, let pointers):
             for pointer in pointers {
-                advanceReadPointer(to: pointer.value, for: pointer.userID, in: conversationID)
+                advanceReadPointer(to: pointer.value, for: pointer.userID, at: pointer.date, in: conversationID)
             }
         }
     }

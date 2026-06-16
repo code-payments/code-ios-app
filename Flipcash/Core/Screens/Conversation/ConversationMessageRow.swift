@@ -89,15 +89,16 @@ extension View {
 }
 
 /// A message bubble row, aligned trailing for the signed-in user and leading
-/// for the counterpart. Shows a "Delivered" receipt under the user's latest
-/// sent message.
+/// for the counterpart. Shows a "Delivered" / "Read 3:42 PM" receipt under the
+/// user's latest sent message.
 struct ConversationMessageRow: View {
 
     let message: ConversationMessage
     let isFromSelf: Bool
     let groupedAbove: Bool
     let groupedBelow: Bool
-    let showsDelivered: Bool
+    /// Set only on the user's latest sent message, `nil` otherwise.
+    let receipt: MessageReceipt?
     let animatesAmount: Bool
 
     /// Bubble corner-radius morph as messages group/ungroup.
@@ -138,11 +139,19 @@ struct ConversationMessageRow: View {
                 if !isFromSelf { Spacer(minLength: 60) }
             }
 
-            if isFromSelf, showsDelivered {
-                Text("Delivered")
+            if isFromSelf, let receipt {
+                Text(receiptText(for: receipt))
                     .font(.appTextCaption)
                     .foregroundStyle(Color.textSecondary)
                     .padding(.trailing, 10)
+                    // Cross-fade the text when Delivered → Read swaps in place
+                    // (same view identity, so a transition wouldn't fire).
+                    .contentTransition(.opacity)
+                    // Animate that swap — the transcript's message-count trigger
+                    // doesn't fire on a read-pointer advance.
+                    .animation(.easeInOut(duration: 0.2), value: receipt)
+                    // Insertion/removal of the receipt itself as the latest
+                    // message changes.
                     .transition(.asymmetric(
                         insertion: .scale(scale: 0.95).combined(with: .opacity),
                         removal: .identity
@@ -155,13 +164,27 @@ struct ConversationMessageRow: View {
         .accessibilityLabel(Text(accessibilityText))
     }
 
+    private func receiptText(for receipt: MessageReceipt) -> String {
+        switch receipt {
+        case .delivered:
+            return "Delivered"
+        case .read(let date):
+            return date.map { "Read \($0.formatted(date: .omitted, time: .shortened))" } ?? "Read"
+        }
+    }
+
     private var accessibilityText: String {
+        let base: String
         switch message.content {
         case .text(let text):
-            "\(isFromSelf ? "You" : "Them"): \(text)"
+            base = "\(isFromSelf ? "You" : "Them"): \(text)"
         case .cash(let amount):
-            "\(isFromSelf ? "You sent" : "You received") \(amount.nativeAmount.formatted())"
+            base = "\(isFromSelf ? "You sent" : "You received") \(amount.nativeAmount.formatted())"
         }
+        // The combined label overrides the caption child, so fold the receipt
+        // in so VoiceOver announces "Read 3:42 PM".
+        guard isFromSelf, let receipt else { return base }
+        return "\(base), \(receiptText(for: receipt))"
     }
 }
 

@@ -131,8 +131,8 @@ struct ConversationTranscriptItemTests {
         #expect(positions[1].isFromSelf == false)
     }
 
-    @Test("Only the latest own message is marked for the Delivered receipt")
-    func items_latestFromSelf_marksOnlyNewestOwnMessage() {
+    @Test("Only the latest own message carries a receipt; nil counterpart read → Delivered")
+    func items_receipt_marksOnlyNewestOwnMessageDelivered() {
         let items = ConversationTranscriptItem.items(
             from: [
                 Self.message(id: 1, from: Self.selfID, minutesAfterEpoch: 0),
@@ -143,7 +143,47 @@ struct ConversationTranscriptItemTests {
             seenBoundary: nil
         )
         let positions = Self.positions(of: items)
-        #expect(positions.map(\.isLatestFromSelf) == [false, true, false])
+        #expect(positions.map(\.receipt) == [nil, .delivered, nil])
+    }
+
+    @Test("Counterpart read pointer at or past the latest own message shows Read with their time")
+    func items_receipt_counterpartReadShowsReadWithTime() {
+        let readAt = Self.epoch.addingTimeInterval(500)
+        let items = ConversationTranscriptItem.items(
+            from: [
+                Self.message(id: 1, from: Self.selfID, minutesAfterEpoch: 0),
+                Self.message(id: 2, from: Self.selfID, minutesAfterEpoch: 1),
+            ],
+            selfUserID: Self.selfID,
+            seenBoundary: nil,
+            counterpartRead: ReadReceiptState(pointer: MessageID(value: 2), date: readAt)
+        )
+        #expect(Self.positions(of: items).map(\.receipt) == [nil, .read(readAt)])
+    }
+
+    @Test("Counterpart read pointer behind the latest own message stays Delivered")
+    func items_receipt_counterpartBehindStaysDelivered() {
+        let items = ConversationTranscriptItem.items(
+            from: [
+                Self.message(id: 1, from: Self.selfID, minutesAfterEpoch: 0),
+                Self.message(id: 2, from: Self.selfID, minutesAfterEpoch: 1),
+            ],
+            selfUserID: Self.selfID,
+            seenBoundary: nil,
+            counterpartRead: ReadReceiptState(pointer: MessageID(value: 1), date: Self.epoch)
+        )
+        #expect(Self.positions(of: items).map(\.receipt) == [nil, .delivered])
+    }
+
+    @Test("A received message never carries a receipt even when read")
+    func items_receipt_receivedMessageHasNone() {
+        let items = ConversationTranscriptItem.items(
+            from: [Self.message(id: 1, from: Self.otherID, minutesAfterEpoch: 0)],
+            selfUserID: Self.selfID,
+            seenBoundary: nil,
+            counterpartRead: ReadReceiptState(pointer: MessageID(value: 9), date: Self.epoch)
+        )
+        #expect(Self.positions(of: items).map(\.receipt) == [nil])
     }
 
     @Test(

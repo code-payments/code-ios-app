@@ -122,4 +122,57 @@ struct ConversationModelMappingTests {
 
         #expect(conversation.counterpart(excluding: me)?.userID == other)
     }
+
+    @Test("Member maps the READ pointer's value and read time")
+    func memberMapsReadPointerTimestamp() {
+        let userUUID = UUID()
+        let readAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let proto = Flipcash_Chat_V1_Member.with {
+            $0.userID = .with { $0.value = userUUID.data }
+            $0.pointers = [.with {
+                $0.type = .read
+                $0.value = .with { $0.value = 8 }
+                $0.ts = .init(date: readAt)
+            }]
+        }
+
+        let member = ConversationMember(proto)
+        #expect(member.readPointer == MessageID(value: 8))
+        #expect(member.readPointerTimestamp == readAt)
+    }
+
+    @Test("counterpartReadReceipt returns the other member's pointer and read time")
+    func counterpartReadReceiptReturnsOtherMember() {
+        let me = UUID()
+        let other = UUID()
+        let readAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let conversation = Conversation(
+            id: ConversationID(data: Data(repeating: 0x01, count: 32)),
+            members: [
+                ConversationMember(userID: me, displayName: "Me", readPointer: MessageID(value: 4)),
+                ConversationMember(userID: other, displayName: "Alice", readPointer: MessageID(value: 6), readPointerTimestamp: readAt),
+            ],
+            lastMessage: nil,
+            lastActivity: .now
+        )
+
+        #expect(conversation.counterpartReadReceipt(excluding: me) == ReadReceiptState(pointer: MessageID(value: 6), date: readAt))
+    }
+
+    @Test("counterpartReadReceipt is nil before the counterpart has read anything")
+    func counterpartReadReceiptNilWithoutPointer() {
+        let me = UUID()
+        let other = UUID()
+        let conversation = Conversation(
+            id: ConversationID(data: Data(repeating: 0x01, count: 32)),
+            members: [
+                ConversationMember(userID: me, displayName: "Me", readPointer: MessageID(value: 4)),
+                ConversationMember(userID: other, displayName: "Alice"),
+            ],
+            lastMessage: nil,
+            lastActivity: .now
+        )
+
+        #expect(conversation.counterpartReadReceipt(excluding: me) == nil)
+    }
 }

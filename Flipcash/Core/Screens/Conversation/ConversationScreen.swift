@@ -105,6 +105,16 @@ struct ConversationScreen: View {
         return conversationController.messages(for: conversationID)
     }
 
+    /// The counterpart's read watermark + time, read live from the observable
+    /// controller (not captured like `seenBoundary`) so the receipt updates the
+    /// moment they read.
+    private var counterpartRead: ReadReceiptState? {
+        guard let conversationID else { return nil }
+        return conversationController.conversations
+            .first { $0.id == conversationID }?
+            .counterpartReadReceipt(excluding: conversationController.selfUserID)
+    }
+
     /// Latch the READ watermark the first time the transcript has content, so
     /// it's fixed before any cash bubble mounts.
     private func captureSeenBoundaryIfNeeded() {
@@ -125,6 +135,7 @@ struct ConversationScreen: View {
                     messages: messages,
                     selfUserID: conversationController.selfUserID,
                     seenBoundary: seenBoundary,
+                    counterpartRead: counterpartRead,
                     isComposing: isComposing,
                     onBackgroundTap: dismissKeyboard
                 )

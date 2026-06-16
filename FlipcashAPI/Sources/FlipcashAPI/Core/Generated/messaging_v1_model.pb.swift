@@ -232,6 +232,16 @@ public struct Flipcash_Messaging_V1_Pointer: Sendable {
   /// Clears the value of `value`. Subsequent reads from it will return its default value.
   public mutating func clearValue() {self._value = nil}
 
+  /// Timestamp the pointer was last advanced at
+  public var ts: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {_ts ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_ts = newValue}
+  }
+  /// Returns true if `ts` has been explicitly set.
+  public var hasTs: Bool {self._ts != nil}
+  /// Clears the value of `ts`. Subsequent reads from it will return its default value.
+  public mutating func clearTs() {self._ts = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum TypeEnum: SwiftProtobuf.Enum, Swift.CaseIterable {
@@ -282,6 +292,7 @@ public struct Flipcash_Messaging_V1_Pointer: Sendable {
 
   fileprivate var _userID: Flipcash_Common_V1_UserId? = nil
   fileprivate var _value: Flipcash_Messaging_V1_MessageId? = nil
+  fileprivate var _ts: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
 public struct Flipcash_Messaging_V1_MessageIdBatch: Sendable {
@@ -657,7 +668,7 @@ extension Flipcash_Messaging_V1_CashContent: SwiftProtobuf.Message, SwiftProtobu
 
 extension Flipcash_Messaging_V1_Pointer: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Pointer"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}type\0\u{3}user_id\0\u{1}value\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}type\0\u{3}user_id\0\u{1}value\0\u{1}ts\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -668,6 +679,7 @@ extension Flipcash_Messaging_V1_Pointer: SwiftProtobuf.Message, SwiftProtobuf._M
       case 1: try { try decoder.decodeSingularEnumField(value: &self.type) }()
       case 2: try { try decoder.decodeSingularMessageField(value: &self._userID) }()
       case 3: try { try decoder.decodeSingularMessageField(value: &self._value) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._ts) }()
       default: break
       }
     }
@@ -687,6 +699,9 @@ extension Flipcash_Messaging_V1_Pointer: SwiftProtobuf.Message, SwiftProtobuf._M
     try { if let v = self._value {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
     } }()
+    try { if let v = self._ts {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -694,6 +709,7 @@ extension Flipcash_Messaging_V1_Pointer: SwiftProtobuf.Message, SwiftProtobuf._M
     if lhs.type != rhs.type {return false}
     if lhs._userID != rhs._userID {return false}
     if lhs._value != rhs._value {return false}
+    if lhs._ts != rhs._ts {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

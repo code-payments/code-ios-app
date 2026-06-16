@@ -27,14 +27,17 @@ public enum ConversationStreamEvent: Sendable {
 }
 
 /// A member's READ watermark from a live pointer update: everything at or before
-/// `value` is read by `userID`.
+/// `value` is read by `userID`. `date` is when they advanced the pointer, for
+/// the read receipt; `nil` when the server omits the timestamp.
 public struct MemberReadPointer: Sendable, Hashable {
     public let userID: UserID
     public let value: MessageID
+    public let date: Date?
 
-    public init(userID: UserID, value: MessageID) {
+    public init(userID: UserID, value: MessageID, date: Date? = nil) {
         self.userID = userID
         self.value = value
+        self.date = date
     }
 }
 
@@ -69,7 +72,7 @@ extension ConversationStreamEvent {
             switch pointer.type {
             case .read:
                 guard let userID = try? UUID(data: pointer.userID.value) else { return nil }
-                return MemberReadPointer(userID: userID, value: MessageID(pointer.value))
+                return MemberReadPointer(userID: userID, value: MessageID(pointer.value), date: pointer.hasTs ? pointer.ts.date : nil)
             case .delivered, .sent, .unknown, .UNRECOGNIZED:
                 return nil
             }

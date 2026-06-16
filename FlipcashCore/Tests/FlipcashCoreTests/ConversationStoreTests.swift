@@ -108,4 +108,24 @@ struct ConversationStoreTests {
         store.apply(.readPointersChanged(conversationID: conversationID(1), pointers: [MemberReadPointer(userID: me, value: MessageID(value: 3))]))
         #expect(store.selfReadPointer(for: conversationID(1), selfUserID: me) == MessageID(value: 5))
     }
+
+    @Test("readPointersChanged stores the read time when the watermark advances, and leaves it on a stale update")
+    func applyReadPointers_storesTimestamp() {
+        let me = UUID()
+        let readAt = Date(timeIntervalSince1970: 1_700_000_000)
+        var store = ConversationStore()
+        store.setFeed([Conversation(
+            id: conversationID(1),
+            members: [ConversationMember(userID: me, displayName: "", readPointer: MessageID(value: 2))],
+            lastMessage: nil,
+            lastActivity: Date(timeIntervalSince1970: 0)
+        )])
+
+        store.apply(.readPointersChanged(conversationID: conversationID(1), pointers: [MemberReadPointer(userID: me, value: MessageID(value: 5), date: readAt)]))
+        #expect(store.conversations.first?.members.first?.readPointerTimestamp == readAt)
+
+        // A backward (stale) update is a no-op: the time stays put.
+        store.apply(.readPointersChanged(conversationID: conversationID(1), pointers: [MemberReadPointer(userID: me, value: MessageID(value: 3), date: Date(timeIntervalSince1970: 0))]))
+        #expect(store.conversations.first?.members.first?.readPointerTimestamp == readAt)
+    }
 }

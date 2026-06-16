@@ -10,6 +10,14 @@ import UIKit
 import Combine
 import FlipcashCore
 
+/// The delivery receipt shown under the user's latest sent message: `delivered`
+/// until the counterpart reads it, then `read` with the time they read (nil when
+/// the server omits the timestamp).
+nonisolated enum MessageReceipt: Equatable {
+    case delivered
+    case read(Date?)
+}
+
 /// A transcript entry: a date header, or a message with its position within
 /// its same-sender run. Grouping never crosses a date header.
 nonisolated enum ConversationTranscriptItem: Identifiable, Equatable {
@@ -18,7 +26,9 @@ nonisolated enum ConversationTranscriptItem: Identifiable, Equatable {
         let isFromSelf: Bool
         let groupedAbove: Bool
         let groupedBelow: Bool
-        let isLatestFromSelf: Bool
+        /// The receipt to show beneath this message — set only on the user's
+        /// latest sent message, `nil` everywhere else.
+        let receipt: MessageReceipt?
         /// Whether the message postdates the signed-in user's READ watermark —
         /// it has never been on screen, so it animates in this once.
         let isUnseen: Bool
@@ -41,6 +51,7 @@ nonisolated enum ConversationTranscriptItem: Identifiable, Equatable {
         from messages: [ConversationMessage],
         selfUserID: UserID,
         seenBoundary: MessageID?,
+        counterpartRead: ReadReceiptState? = nil,
         gap: TimeInterval = 15 * 60
     ) -> [ConversationTranscriptItem] {
         let latestFromSelfID = messages.last { $0.senderID == selfUserID }?.id
@@ -68,11 +79,19 @@ nonisolated enum ConversationTranscriptItem: Identifiable, Equatable {
                     && $0.date.timeIntervalSince(message.date) <= gap
             } == true
 
+            // Receipt only on the latest sent message: Read (with the
+            // counterpart's read time) once their pointer reaches it, else
+            // Delivered. nil counterpart pointer → Delivered, matching the
+            // prior behaviour before they've read anything.
+            let receipt: MessageReceipt? = message.id == latestFromSelfID
+                ? (counterpartRead.map { $0.pointer >= message.id ? .read($0.date) : .delivered } ?? .delivered)
+                : nil
+
             items.append(.message(message, Position(
                 isFromSelf: isFromSelf,
                 groupedAbove: groupedAbove,
                 groupedBelow: groupedBelow,
-                isLatestFromSelf: message.id == latestFromSelfID,
+                receipt: receipt,
                 // Unknown watermark (cold first run, feed not hydrated yet) →
                 // treat as seen so history renders statically instead of every
                 // cash card rolling its amount at once.
@@ -92,6 +111,9 @@ struct ConversationTranscript: View {
     /// The signed-in user's READ watermark. Messages past it animate in —
     /// the once-per-message "never seen" animation.
     let seenBoundary: MessageID?
+    /// The counterpart's READ watermark + read time, driving the "Read 3:42 PM"
+    /// receipt. Derived live (not captured) so it updates as they read.
+    let counterpartRead: ReadReceiptState?
     /// Whether the composer is open. Opening it arms a one-shot scroll that
     /// fires on the next keyboard appearance, so the newest message rides up
     /// with the keyboard. Arming on this — not the keyboard event itself —
@@ -120,7 +142,7 @@ struct ConversationTranscript: View {
                                 isFromSelf: position.isFromSelf,
                                 groupedAbove: position.groupedAbove,
                                 groupedBelow: position.groupedBelow,
-                                showsDelivered: position.isLatestFromSelf,
+                                receipt: position.receipt,
                                 animatesAmount: position.isUnseen
                             )
                             // A new bubble scales + fades in from its aligned edge.
@@ -148,6 +170,14 @@ struct ConversationTranscript: View {
                 scrollToBottom(proxy)
                 DispatchQueue.main.async { scrollToBottom(proxy) }
             }
+            // The on-open paint anchors the bottom of whatever's loaded — the
+            // cached messages. The server fetch (and live arrivals) append newer
+            // messages below the fold afterwards; defaultScrollAnchor pins only
+            // the first paint, so follow the bottom explicitly when the newest
+            // message changes. Non-animated to keep the open free of a scroll nudge.
+            .onChange(of: messages.last?.id) {
+                scrollToBottom(proxy)
+            }
             // Composer opened → arm a scroll for when the keyboard appears.
             .onChange(of: isComposing) { _, composing in
                 if composing { scrollOnKeyboard = true }
@@ -171,6 +201,6 @@ struct ConversationTranscript: View {
     /// Kept on this child view (whose inputs exclude the composer draft) so
     /// keystrokes don't recompute it.
     private var items: [ConversationTranscriptItem] {
-        ConversationTranscriptItem.items(from: messages, selfUserID: selfUserID, seenBoundary: seenBoundary)
+        ConversationTranscriptItem.items(from: messages, selfUserID: selfUserID, seenBoundary: seenBoundary, counterpartRead: counterpartRead)
     }
 }

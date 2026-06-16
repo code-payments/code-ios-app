@@ -109,7 +109,21 @@ final class ConversationController {
                 self.store.apply(event)
                 self.persist(event: event)
                 self.hydrateIfUnknown(event)
+                self.logCounterpartRead(event)
             }
+        }
+    }
+
+    /// Surfaces a counterpart's READ pointer advance — the signal behind the
+    /// "Read 3:42 PM" receipt — so it can be traced in the log stream.
+    private func logCounterpartRead(_ event: ConversationStreamEvent) {
+        guard case .readPointersChanged(let conversationID, let pointers) = event else { return }
+        for pointer in pointers where pointer.userID != selfUserID {
+            logger.info("Counterpart advanced read pointer", metadata: [
+                "conversationID": "\(conversationID)",
+                "messageID": "\(pointer.value.value)",
+                "readAt": "\(pointer.date.map { "\($0)" } ?? "nil")",
+            ])
         }
     }
 

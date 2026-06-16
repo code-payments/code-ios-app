@@ -115,6 +115,9 @@ message Pointer {
     // Everything at or before this message ID is considered to have the state
     // inferred by the type of pointer.
     MessageId value = 3 [(validate.rules).message.required = true];
+
+    // Timestamp the pointer was last advanced at
+    google.protobuf.Timestamp ts = 4 [(validate.rules).timestamp.required = true];
 }
 
 message MessageIdBatch {
