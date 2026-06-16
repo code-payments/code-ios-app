@@ -105,23 +105,11 @@ struct ConversationScreen: View {
         return conversationController.messages(for: conversationID)
     }
 
-    /// Whether older history can still be paged in — only once some messages are
-    /// loaded, since the oldest one is the cursor to page back from.
-    private var hasMoreOlderMessages: Bool {
-        guard let conversationID, !messages.isEmpty else { return false }
-        return conversationController.hasMoreOlderMessages(for: conversationID)
-    }
-
     /// Whether an older page is currently being fetched, so the transcript can
     /// show its loading spinner only during the fetch.
     private var isLoadingOlderMessages: Bool {
         guard let conversationID else { return false }
         return conversationController.isLoadingOlderMessages(for: conversationID)
-    }
-
-    private func loadOlderMessages() {
-        guard let conversationID else { return }
-        Task { await conversationController.loadOlderMessages(for: conversationID) }
     }
 
     /// The counterpart's read watermark + time, read live from the observable
@@ -155,11 +143,8 @@ struct ConversationScreen: View {
                     selfUserID: conversationController.selfUserID,
                     seenBoundary: seenBoundary,
                     counterpartRead: counterpartRead,
-                    isComposing: isComposing,
-                    onBackgroundTap: dismissKeyboard,
-                    hasMoreOlder: hasMoreOlderMessages,
                     isLoadingOlder: isLoadingOlderMessages,
-                    onLoadOlder: loadOlderMessages
+                    onBackgroundTap: dismissKeyboard
                 )
             }
         }
@@ -184,21 +169,6 @@ struct ConversationScreen: View {
                     width: max(navBarWidth - Self.titleSideInset * 2, 0)
                 )
             }
-            #if DEBUG
-            ToolbarItem(placement: .topBarTrailing) {
-                if let conversationID, chatExists {
-                    Menu {
-                        ForEach([25, 100, 250], id: \.self) { count in
-                            Button("Blast \(count) messages") {
-                                Task { await conversationController.blastMessages(count: count, into: conversationID) }
-                            }
-                        }
-                    } label: {
-                        Image(systemName: "bolt.fill")
-                    }
-                }
-            }
-            #endif
         }
         .background {
             // Measure the bar width so the centered title item can be sized to
@@ -224,6 +194,11 @@ struct ConversationScreen: View {
             hasLoaded = true
             await conversationController.markRead(conversationID: conversationID)
             didInitialRead = true
+
+            // The transcript holds the full history (no incremental paging), so
+            // scrolling up always reaches the first message. The user stays pinned
+            // at the newest while it pages in behind them.
+            await conversationController.loadFullHistory(for: conversationID)
         }
         .onChange(of: messages.last?.id) {
             // The initial load flips this from nil, which would double-fire
