@@ -48,6 +48,20 @@ class BetaFlags {
         writeToCache()
     }
     
+    /// Resets every flag, then enables each option named in the
+    /// `--beta-flags=<comma-separated rawValues>` launch argument.
+    func applyLaunchArgumentOverrides() {
+        let prefix = "--beta-flags="
+        let enabled = CommandLine.arguments
+            .first { $0.hasPrefix(prefix) }?
+            .dropFirst(prefix.count)
+            .split(separator: ",")
+            .compactMap { Option(rawValue: String($0)) }
+
+        options = Set(enabled ?? [])
+        writeToCache()
+    }
+
     /// Toggles whether the beta features section is visible in Settings.
     /// Controlled by the 9-tap easter egg on the app version label.
     func setAccessGranted(_ granted: Bool) {
@@ -97,6 +111,7 @@ extension BetaFlags {
 
         case vibrateOnScan
         case enableCoinbase
+        case enableSend
 
         var id: String {
             localizedTitle
@@ -108,6 +123,8 @@ extension BetaFlags {
                 return "Vibrate on scan"
             case .enableCoinbase:
                 return "Enable Coinbase"
+            case .enableSend:
+                return "Enable Send"
             }
         }
 
@@ -117,6 +134,8 @@ extension BetaFlags {
                 return "If enabled, the device will vibrate to indicate that the camera has registered the code on the bill"
             case .enableCoinbase:
                 return "If enabled, Coinbase onramp will be available regardless of region"
+            case .enableSend:
+                return "If enabled, the Send feature is available from the scan screen"
             }
         }
     }

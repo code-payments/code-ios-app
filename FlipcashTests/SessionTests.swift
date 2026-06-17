@@ -677,6 +677,54 @@ struct SessionOfflineCacheTests {
     }
 }
 
+/// Runs serialized — the beta-flag cases mutate the `BetaFlags.shared`
+/// singleton (UserDefaults-backed), so parallel execution with any other
+/// suite that reads `enableSend` would race on the global flag.
+@Suite("Session.canSend", .serialized)
+@MainActor
+struct SessionCanSendTests {
+
+    private static func makeUserFlags(enablePhoneNumberSend: Bool) -> UserFlags {
+        UserFlags(
+            isRegistered: true,
+            isStaff: false,
+            onrampProviders: [],
+            preferredOnrampProvider: .coinbaseVirtual,
+            minBuildNumber: 0,
+            billExchangeDataTimeout: nil,
+            newCurrencyPurchaseAmount: .zero(mint: .usdf),
+            newCurrencyFeeAmount: .zero(mint: .usdf),
+            withdrawalFeeAmount: .zero(mint: .usdf),
+            minimumHolderValue: .zero(mint: .usdf),
+            enablePhoneNumberSend: enablePhoneNumberSend
+        )
+    }
+
+    private static func withSendBetaFlag<R>(enabled: Bool, _ body: () throws -> R) rethrows -> R {
+        let original = BetaFlags.shared.hasEnabled(.enableSend)
+        BetaFlags.shared.set(.enableSend, enabled: enabled)
+        defer { BetaFlags.shared.set(.enableSend, enabled: original) }
+        return try body()
+    }
+
+    @Test(
+        "canSend is the beta flag OR the server flag",
+        arguments: [
+            (beta: false, server: false, expected: false),
+            (beta: false, server: true,  expected: true),
+            (beta: true,  server: false, expected: true),
+            (beta: true,  server: true,  expected: true),
+        ]
+    )
+    func canSend(beta: Bool, server: Bool, expected: Bool) {
+        Self.withSendBetaFlag(enabled: beta) {
+            let session = Session.makeMock(database: .mock)
+            session.userFlags = Self.makeUserFlags(enablePhoneNumberSend: server)
+            #expect(session.canSend == expected)
+        }
+    }
+}
+
 @MainActor
 @Suite("Session.hasGiveableBalance")
 struct SessionHasGiveableBalanceTests {

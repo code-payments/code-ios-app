@@ -255,6 +255,7 @@ struct ScanScreen: View {
             Spacer()
             ScanBottomBar(
                 toast: toast,
+                showSend: session.canSend,
                 onGive: presentGive,
                 onWallet: { router.present(.balance) },
                 onDiscover: { router.present(.discover) },
