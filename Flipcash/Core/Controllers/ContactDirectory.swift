@@ -42,6 +42,26 @@ nonisolated struct ResolvedContact: Identifiable, Hashable, Sendable {
     var id: String { "\(contactId)|\(phoneE164)" }
 }
 
+extension ResolvedContact {
+    /// Builds a send target for a DM counterpart who isn't in the address book,
+    /// from the phone number the server shared on their chat member, so Send Cash
+    /// works before the person is a synced contact. `nil` when no number is on
+    /// file. The phone resolves the recipient and `dmChatID` carries the chat
+    /// payment metadata; the display fields aren't read by the send flow.
+    init?(counterpart member: ConversationMember, dmChatID: Data?) {
+        guard let phoneE164 = member.phoneE164, !phoneE164.isEmpty else { return nil }
+        let national = member.formattedPhoneNumber ?? phoneE164
+        self.init(
+            contactId: phoneE164,
+            displayName: national,
+            phoneE164: phoneE164,
+            nationalPhone: national,
+            imageData: nil,
+            dmChatID: dmChatID
+        )
+    }
+}
+
 nonisolated struct ResolvedContacts: Equatable, Sendable {
     var onFlipcash: [ResolvedContact]
     var invite: [ResolvedContact]
