@@ -100,8 +100,8 @@ nonisolated enum ConversationTranscriptItem: Identifiable, Equatable {
     }
 }
 
-/// The chat transcript: a bottom-anchored `ChatScrollView` (atelier's mechanism)
-/// holding the full message history, so scrolling up reaches the first message.
+/// The chat transcript: a bottom-anchored `ChatScrollView` holding the full
+/// message history, so scrolling up reaches the first message.
 struct ConversationTranscript: View {
 
     let messages: [ConversationMessage]
@@ -174,10 +174,9 @@ private struct ScrollMetrics: Equatable {
     let contentHeight: CGFloat
 }
 
-/// A bottom-anchored scroll view for chat-style content — copied from atelier's
-/// `ChatScrollView` (`Packages/AtelierDesign/.../ChatScrollView.swift`). The only
-/// changes are design-token substitutions (atelier's `Spacing`/`Motion`/`.glassEffect`
-/// → literals + material) so it builds in this app.
+/// A bottom-anchored scroll view for chat-style content: it opens pinned to the
+/// newest message and keeps following the bottom as content arrives, until the
+/// user scrolls away.
 struct ChatScrollView<Content: View>: View {
     @ViewBuilder let content: Content
 
@@ -186,9 +185,9 @@ struct ChatScrollView<Content: View>: View {
     /// Whether to keep snapping to the newest message as content changes. Stays on
     /// — pinning the view to the bottom through the async first load, the full
     /// history paging in, and sent/received messages — until the user drags away,
-    /// and re-engages when they scroll back to the bottom. (Flipcash adaptation:
-    /// atelier gated the follow on `isAtBottom`, which the async load flips false
-    /// at the wrong moment, landing the open mid-list.)
+    /// and re-engages when they scroll back to the bottom. Tracked separately from
+    /// `isAtBottom`, which the async first load flips false at the wrong moment and
+    /// would otherwise land the open mid-list.
     @State private var followsBottom = true
     /// Whether the scroll view is settled (not interacting, decelerating, or animating).
     /// The follow re-engages only while idle, so the transient "at bottom" flip a keyboard
@@ -204,6 +203,8 @@ struct ChatScrollView<Content: View>: View {
             content
         }
         .scrollPosition($scrollPosition)
+        // Open at the newest message using SwiftUI's first-class chat anchor.
+        .modifier(InitialBottomAnchor())
         // Drag the transcript down to lower the keyboard, the way Messages does;
         // the composer's focus-loss handler then collapses it back to the action bar.
         .scrollDismissesKeyboard(.interactively)
@@ -218,12 +219,15 @@ struct ChatScrollView<Content: View>: View {
             ScrollMetrics(containerHeight: geometry.containerSize.height,
                           contentHeight: geometry.contentSize.height)
         } action: { old, new in
-            // Snap to the newest message when content actually grows (a message arrives,
-            // older history pages in). A container resize — the keyboard raising or
-            // lowering — makes SwiftUI momentarily misreport the content height; skipping
-            // changes that coincide with one keeps that wobble from driving scrollTo.
+            // Re-assert the bottom on any content-height change while following — not just
+            // growth. The mount-time landing targets the LazyVStack's *estimated* height;
+            // when its rows measure and the estimate corrects downward, a growth-only check
+            // misses it and leaves the open parked in empty space (the sporadic blank). The
+            // container-stable guard still skips the keyboard raise/lower, which momentarily
+            // misreports the content height. The re-scroll realizes the bottom rows and the
+            // height then settles, so this converges rather than looping.
             let containerStable = new.containerHeight == old.containerHeight
-            if followsBottom, containerStable, new.contentHeight > old.contentHeight {
+            if followsBottom, containerStable, new.contentHeight != old.contentHeight {
                 scrollPosition.scrollTo(edge: .bottom)
             }
         }
@@ -259,5 +263,19 @@ struct ChatScrollView<Content: View>: View {
         }
         .buttonStyle(.plain)
         .background(.regularMaterial, in: Circle())
+    }
+}
+
+/// Pins the scroll view's first frame to the newest message via SwiftUI's chat
+/// anchor (iOS 18+). Scoped to `.initialOffset`, so it only sets the opening
+/// position and leaves the keyboard- and growth-driven follow to manage every
+/// later scroll. Below iOS 18 the initial `ScrollPosition(edge: .bottom)` does it.
+private struct InitialBottomAnchor: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 18, *) {
+            content.defaultScrollAnchor(.bottom, for: .initialOffset)
+        } else {
+            content
+        }
     }
 }
