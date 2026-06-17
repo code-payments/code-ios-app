@@ -42,9 +42,16 @@ public struct ContactAvatarView: View {
                     endPoint: UnitPoint(x: 0.5, y: 1)
                 )
                 .overlay {
-                    Text(Self.initials(for: displayName))
-                        .font(.appTextMedium)
-                        .foregroundStyle(Color.textMain)
+                    switch Self.monogram(for: displayName) {
+                    case .initials(let text):
+                        Text(text)
+                            .font(.appTextMedium)
+                            .foregroundStyle(Color.textMain)
+                    case .placeholder:
+                        Image(systemName: "person.fill")
+                            .font(.system(size: size * 0.5))
+                            .foregroundStyle(Color.textMain)
+                    }
                 }
             }
         }
@@ -55,20 +62,29 @@ public struct ContactAvatarView: View {
         .accessibilityAddTraits(.isImage)
     }
 
-    /// Two-letter monogram for a display name. Two-word names yield the first
-    /// letter of the first and last words; single-word names yield the first
-    /// two characters; an empty or whitespace-only name yields `"?"`.
-    nonisolated public static func initials(for displayName: String) -> String {
-        let trimmed = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return "?" }
+    /// The avatar's text content: letter initials drawn from the display name,
+    /// or `.placeholder` when there are none — in which case the avatar shows a
+    /// generic person glyph instead of an unreadable monogram.
+    nonisolated public enum Monogram: Equatable, Sendable {
+        case initials(String)
+        case placeholder
+    }
 
-        let words = trimmed.split(separator: " ", omittingEmptySubsequences: true)
-        if words.count >= 2 {
-            let first = words.first?.first.map(String.init) ?? ""
-            let last = words.last?.first.map(String.init) ?? ""
-            return (first + last).uppercased()
+    /// A two-letter monogram, considering only words that begin with a letter:
+    /// two such words yield the first letter of the first and last; a single
+    /// word yields its first two characters. A name with no letter-leading
+    /// words (e.g. a bare phone number) yields `.placeholder`.
+    nonisolated public static func monogram(for displayName: String) -> Monogram {
+        let words = displayName
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .split(separator: " ", omittingEmptySubsequences: true)
+            .filter { $0.first?.isLetter == true }
+        guard let first = words.first else { return .placeholder }
+        if words.count >= 2, let last = words.last {
+            let initials = String(first.prefix(1)) + String(last.prefix(1))
+            return .initials(initials.uppercased())
         }
-        return String(words[0].prefix(2)).uppercased()
+        return .initials(String(first.prefix(2)).uppercased())
     }
 }
 
@@ -111,8 +127,14 @@ nonisolated public final class ContactAvatarCache: @unchecked Sendable {
         .background(Color.backgroundMain)
 }
 
-#Preview("Initials — empty") {
-    ContactAvatarView(id: "p3", displayName: "   ")
+#Preview("Placeholder — phone number") {
+    ContactAvatarView(id: "p3", displayName: "(586) 980-2333")
+        .padding()
+        .background(Color.backgroundMain)
+}
+
+#Preview("Placeholder — empty") {
+    ContactAvatarView(id: "p4", displayName: "   ")
         .padding()
         .background(Color.backgroundMain)
 }
