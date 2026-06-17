@@ -129,6 +129,88 @@ nonisolated struct VerifiedReserveTable: Sendable {
     let reserveProto = Expression <Data>   ("reserveProto")
 }
 
+// Single-row table holding the contact-sync state machine cursor.
+// Primary key is always 1.
+nonisolated struct ContactSyncStateTable: Sendable {
+    static let name = "contact_sync_state"
+
+    let table         = Table(Self.name)
+    let id            = Expression <Int>   ("id")
+    let checksum      = Expression <Data?> ("checksum")
+}
+
+// E.164 phones the server has confirmed are on Flipcash.
+nonisolated struct FlipcashContactTable: Sendable {
+    static let name = "flipcash_contact"
+
+    let table     = Table(Self.name)
+    let e164      = Expression <String> ("e164")
+    let dmChatId  = Expression <Data?>  ("dmChatId")
+    let matchedAt = Expression <Date>   ("matchedAt")
+}
+
+// Last contact set uploaded to the server. Joined with CNContactStore at
+// render time via `contactId` so name/avatar resolution stays current.
+nonisolated struct LocalContactsSnapshotTable: Sendable {
+    static let name = "local_contacts_snapshot"
+
+    let table     = Table(Self.name)
+    let e164      = Expression <String> ("e164")
+    let contactId = Expression <String> ("contactId")
+}
+
+// DM conversation feed. Members and messages live in their own tables; the
+// feed's last-message preview is the newest row in `conversation_message`.
+// Dates are stored as raw `timeIntervalSinceReferenceDate` doubles — decoding
+// is a struct init instead of the bundled codec's per-row DateFormatter parse.
+nonisolated struct ConversationTable: Sendable {
+    static let name = "conversation"
+
+    let table        = Table(Self.name)
+    let id           = Expression <Data>   ("id")          // 32-byte ChatId
+    let lastActivity = Expression <Double> ("lastActivity")
+}
+
+nonisolated struct ConversationMemberTable: Sendable {
+    static let name = "conversation_member"
+
+    let table                 = Table(Self.name)
+    let conversationId        = Expression <Data>    ("conversationId")
+    let userId                = Expression <UUID?>   ("userId")
+    let displayName           = Expression <String>  ("displayName")
+    let readPointer           = Expression <UInt64?> ("readPointer")
+    let readPointerTimestamp  = Expression <Double?> ("readPointerTimestamp")
+}
+
+// One row per message; cash content is decomposed across the amount columns
+// the same way `activity` stores ExchangedFiat.
+nonisolated struct ConversationMessageTable: Sendable {
+    static let name = "conversation_message"
+
+    let table          = Table(Self.name)
+    let conversationId = Expression <Data>          ("conversationId")
+    let id             = Expression <UInt64>        ("id")
+    let senderId       = Expression <UUID?>         ("senderId")
+    let kind           = Expression <Int>           ("kind")
+    let text           = Expression <String?>       ("text")
+    let quarks         = Expression <UInt64?>       ("quarks")
+    let nativeAmount   = Expression <String?>       ("nativeAmount")
+    let currency       = Expression <CurrencyCode?> ("currency")
+    let mint           = Expression <PublicKey?>    ("mint")
+    let date           = Expression <Double>        ("date")
+    let unreadSeq      = Expression <UInt64>        ("unreadSeq")
+}
+
+nonisolated extension Expression {
+    func alias(_ alias: String) -> Expression<Datatype> {
+        Expression(alias)
+    }
+
+    func casting<T>(to type: T.Type) -> Expression<T> {
+        Expression<T>(template)
+    }
+}
+
 // MARK: - Tables -
 
 nonisolated extension Database {
@@ -257,6 +339,89 @@ nonisolated extension Database {
                 t.column(userFlagsTable.data)
             })
         }
+
+        let contactSyncStateTable = ContactSyncStateTable()
+
+        try writer.transaction {
+            try writer.run(contactSyncStateTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                t.column(contactSyncStateTable.id, primaryKey: true)
+                t.column(contactSyncStateTable.checksum)
+            })
+        }
+
+        let flipcashContactTable = FlipcashContactTable()
+
+        try writer.transaction {
+            try writer.run(flipcashContactTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                t.column(flipcashContactTable.e164, primaryKey: true)
+                t.column(flipcashContactTable.dmChatId)
+                t.column(flipcashContactTable.matchedAt)
+            })
+        }
+
+        let localContactsSnapshotTable = LocalContactsSnapshotTable()
+
+        try writer.transaction {
+            // Composite PK (e164, contactId): the same phone number may
+            // appear on multiple address-book contacts (a household
+            // landline, a shop number on several cards). The picker shows
+            // every (name, number) pair, so the snapshot has to preserve
+            // them all.
+            try writer.run(localContactsSnapshotTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                t.column(localContactsSnapshotTable.e164)
+                t.column(localContactsSnapshotTable.contactId)
+                t.primaryKey(localContactsSnapshotTable.e164, localContactsSnapshotTable.contactId)
+            })
+        }
+
+        let conversationTable = ConversationTable()
+
+        try writer.transaction {
+            try writer.run(conversationTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                t.column(conversationTable.id, primaryKey: true)
+                t.column(conversationTable.lastActivity)
+            })
+        }
+
+        let conversationMemberTable = ConversationMemberTable()
+
+        try writer.transaction {
+            // Rowid table: `userId` is nullable (the server may omit it), so it
+            // can't join a WITHOUT ROWID primary key. Writes replace a
+            // conversation's members wholesale.
+            try writer.run(conversationMemberTable.table.create(ifNotExists: true) { t in
+                t.column(conversationMemberTable.conversationId)
+                t.column(conversationMemberTable.userId)
+                t.column(conversationMemberTable.displayName)
+                t.column(conversationMemberTable.readPointer)
+                t.column(conversationMemberTable.readPointerTimestamp)
+            })
+        }
+
+        let conversationMessageTable = ConversationMessageTable()
+
+        try writer.transaction {
+            try writer.run(conversationMessageTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                t.column(conversationMessageTable.conversationId)
+                t.column(conversationMessageTable.id)
+                t.column(conversationMessageTable.senderId)
+                t.column(conversationMessageTable.kind)
+                t.column(conversationMessageTable.text)
+                t.column(conversationMessageTable.quarks)
+                t.column(conversationMessageTable.nativeAmount)
+                t.column(conversationMessageTable.currency)
+                t.column(conversationMessageTable.mint)
+                t.column(conversationMessageTable.date)
+                t.column(conversationMessageTable.unreadSeq)
+                t.primaryKey(conversationMessageTable.conversationId, conversationMessageTable.id)
+            })
+        }
+
+        try createIndexesIfNeeded()
+    }
+    
+    private func createIndexesIfNeeded() throws {
+        
     }
 }
 

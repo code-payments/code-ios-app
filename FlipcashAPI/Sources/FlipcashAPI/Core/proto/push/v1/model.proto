@@ -54,6 +54,9 @@ message Navigation {
 
         // Currency info page for the provided mint 
         common.v1.PublicKey currency_info = 1;
+
+        // Chat for the provided ID
+        common.v1.ChatId chat_id = 2;
     }
 }
 

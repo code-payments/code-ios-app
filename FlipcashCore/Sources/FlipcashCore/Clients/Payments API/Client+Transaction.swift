@@ -46,13 +46,16 @@ extension Client {
         )
     }
     
-    public func transfer(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, owner: AccountCluster, destination: PublicKey, rendezvous: PublicKey) async throws {
+    public func transfer(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, owner: AccountCluster, destination: PublicKey, destinationOwner: PublicKey? = nil, chatMetadata: ChatPaymentMetadata? = nil, rendezvous: PublicKey) async throws {
+        let appMetadata = try chatMetadata?.serializedAppMetadata()
         _ = try await withCheckedThrowingContinuation { c in
             transactionService.transfer(
                 exchangedFiat: exchangedFiat,
                 verifiedState: verifiedState,
                 sourceCluster: owner,
                 destination: destination,
+                destinationOwner: destinationOwner,
+                appMetadata: appMetadata,
                 owner: owner.authority.keyPair,
                 rendezvous: rendezvous
             ) { c.resume(with: $0) }

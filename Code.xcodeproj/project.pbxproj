@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		4C7D70012FC8892D0091C7A4 /* NotificationService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 4C7D6FFA2FC8892D0091C7A4 /* NotificationService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		4C7D80012FC8892D0091C7A4 /* FlipcashCore in Frameworks */ = {isa = PBXBuildFile; productRef = 9ABDD1942D9D7B61006B6CDA /* FlipcashCore */; };
 		4CB225762F77260D0075874E /* FirebaseInstallations in Frameworks */ = {isa = PBXBuildFile; productRef = 4CB225752F77260D0075874E /* FirebaseInstallations */; };
 		4CB225782F7726500075874E /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 4CB225772F7726500075874E /* FirebaseMessaging */; };
 		508AF9C6D67C4CD29DE10A16 /* TweetNacl in Frameworks */ = {isa = PBXBuildFile; productRef = 2B166ABF94584FEF9C368C81 /* TweetNacl */; };
@@ -26,6 +28,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		4C7D6FFF2FC8892D0091C7A4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9AED10F8258BE1310088D902 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4C7D6FF92FC8892D0091C7A4;
+			remoteInfo = NotificationService;
+		};
 		9A516F8A2D9B12EA00AF478B /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 9AED10F8258BE1310088D902 /* Project object */;
@@ -42,7 +51,22 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		4C7D70022FC8892D0091C7A4 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				4C7D70012FC8892D0091C7A4 /* NotificationService.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		4C7D6FFA2FC8892D0091C7A4 /* NotificationService.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		88FB56DF2EE0AB2F0014EC5F /* CLAUDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CLAUDE.md; sourceTree = "<group>"; };
 		88FB56E12EE0AB810014EC5F /* 2025-11-27-swap-rpc-analysis.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2025-11-27-swap-rpc-analysis.md"; sourceTree = "<group>"; };
 		88FB56E32EE0AB810014EC5F /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
@@ -66,6 +90,13 @@
 			);
 			target = 9A516F922D9B12EA00AF478B /* FlipcashUITests */;
 		};
+		4C7D70082FC8892D0091C7A4 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 4C7D6FF92FC8892D0091C7A4 /* NotificationService */;
+		};
 		9AC0156E2DA579120030298E /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -77,12 +108,21 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		4C7D6FFB2FC8892D0091C7A4 /* NotificationService */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (4C7D70082FC8892D0091C7A4 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = NotificationService; sourceTree = "<group>"; };
 		9A516F7B2D9B12E900AF478B /* Flipcash */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (9AC0156E2DA579120030298E /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Flipcash; sourceTree = "<group>"; };
 		9A516F8C2D9B12EA00AF478B /* FlipcashTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = FlipcashTests; sourceTree = "<group>"; };
 		9A516F962D9B12EA00AF478B /* FlipcashUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (4C025B362F69DC1F00914087 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = FlipcashUITests; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		4C7D6FF72FC8892D0091C7A4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4C7D80012FC8892D0091C7A4 /* FlipcashCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		9A516F772D9B12E800AF478B /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -164,6 +204,7 @@
 				9A516F7B2D9B12E900AF478B /* Flipcash */,
 				9A516F8C2D9B12EA00AF478B /* FlipcashTests */,
 				9A516F962D9B12EA00AF478B /* FlipcashUITests */,
+				4C7D6FFB2FC8892D0091C7A4 /* NotificationService */,
 				9AED1101258BE1310088D902 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -174,6 +215,7 @@
 				9A516F7A2D9B12E900AF478B /* Flipcash.app */,
 				9A516F892D9B12EA00AF478B /* FlipcashTests.xctest */,
 				9A516F932D9B12EA00AF478B /* FlipcashUITests.xctest */,
+				4C7D6FFA2FC8892D0091C7A4 /* NotificationService.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -192,6 +234,29 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		4C7D6FF92FC8892D0091C7A4 /* NotificationService */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4C7D70072FC8892D0091C7A4 /* Build configuration list for PBXNativeTarget "NotificationService" */;
+			buildPhases = (
+				4C7D6FF62FC8892D0091C7A4 /* Sources */,
+				4C7D6FF72FC8892D0091C7A4 /* Frameworks */,
+				4C7D6FF82FC8892D0091C7A4 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				4C7D6FFB2FC8892D0091C7A4 /* NotificationService */,
+			);
+			name = NotificationService;
+			packageProductDependencies = (
+				9ABDD1942D9D7B61006B6CDA /* FlipcashCore */,
+			);
+			productName = NotificationService;
+			productReference = 4C7D6FFA2FC8892D0091C7A4 /* NotificationService.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		9A516F792D9B12E800AF478B /* Flipcash */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 9A516F9B2D9B12EA00AF478B /* Build configuration list for PBXNativeTarget "Flipcash" */;
@@ -200,10 +265,12 @@
 				9A516F762D9B12E800AF478B /* Sources */,
 				9A516F772D9B12E800AF478B /* Frameworks */,
 				9A516F782D9B12E800AF478B /* Resources */,
+				4C7D70022FC8892D0091C7A4 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				4C7D70002FC8892D0091C7A4 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				9A516F7B2D9B12E900AF478B /* Flipcash */,
@@ -275,9 +342,12 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastSwiftUpdateCheck = 1620;
+				LastSwiftUpdateCheck = 2650;
 				LastUpgradeCheck = 1540;
 				TargetAttributes = {
+					4C7D6FF92FC8892D0091C7A4 = {
+						CreatedOnToolsVersion = 26.5;
+					};
 					9A516F792D9B12E800AF478B = {
 						CreatedOnToolsVersion = 16.2;
 					};
@@ -355,11 +425,19 @@
 				9A516F792D9B12E800AF478B /* Flipcash */,
 				9A516F882D9B12EA00AF478B /* FlipcashTests */,
 				9A516F922D9B12EA00AF478B /* FlipcashUITests */,
+				4C7D6FF92FC8892D0091C7A4 /* NotificationService */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		4C7D6FF82FC8892D0091C7A4 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		9A516F782D9B12E800AF478B /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -413,6 +491,13 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		4C7D6FF62FC8892D0091C7A4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		9A516F762D9B12E800AF478B /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -437,6 +522,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		4C7D70002FC8892D0091C7A4 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 4C7D6FF92FC8892D0091C7A4 /* NotificationService */;
+			targetProxy = 4C7D6FFF2FC8892D0091C7A4 /* PBXContainerItemProxy */;
+		};
 		9A516F8B2D9B12EA00AF478B /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 9A516F792D9B12E800AF478B /* Flipcash */;
@@ -450,6 +540,156 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		4C7D70032FC8892D0091C7A4 /* Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 272;
+				DEVELOPMENT_TEAM = SC677X4LH6;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NotificationService/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = NotificationService;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.12.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.NotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Development;
+		};
+		4C7D70042FC8892D0091C7A4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 272;
+				DEVELOPMENT_TEAM = SC677X4LH6;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NotificationService/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = NotificationService;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.12.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.NotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		4C7D70052FC8892D0091C7A4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 272;
+				DEVELOPMENT_TEAM = SC677X4LH6;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NotificationService/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = NotificationService;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.12.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.NotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		4C7D70062FC8892D0091C7A4 /* Release Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 272;
+				DEVELOPMENT_TEAM = SC677X4LH6;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NotificationService/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = NotificationService;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.12.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.NotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = "Release Development";
+		};
 		9A1654E7268381BB000A135E /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 9A592D762B17AF5500735BB0 /* base.xcconfig */;
@@ -605,11 +845,12 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Flipcash;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Flipcash enables you to receive cash by pointing your camera at the digital bill displayed on another user's phone.";
+				INFOPLIST_KEY_NSContactsUsageDescription = "Sync your contacts to easily send cash to people you know on Flipcash.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key to your library.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -659,11 +900,12 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Flipcash;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Flipcash enables you to receive cash by pointing your camera at the digital bill displayed on another user's phone.";
+				INFOPLIST_KEY_NSContactsUsageDescription = "Sync your contacts to easily send cash to people you know on Flipcash.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key to your library.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -709,11 +951,12 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Flipcash;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Flipcash enables you to receive cash by pointing your camera at the digital bill displayed on another user's phone.";
+				INFOPLIST_KEY_NSContactsUsageDescription = "Sync your contacts to easily send cash to people you know on Flipcash.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key to your library.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -758,11 +1001,12 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Flipcash;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Flipcash enables you to receive cash by pointing your camera at the digital bill displayed on another user's phone.";
+				INFOPLIST_KEY_NSContactsUsageDescription = "Sync your contacts to easily send cash to people you know on Flipcash.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key to your library.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -1121,6 +1365,17 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		4C7D70072FC8892D0091C7A4 /* Build configuration list for PBXNativeTarget "NotificationService" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4C7D70032FC8892D0091C7A4 /* Development */,
+				4C7D70042FC8892D0091C7A4 /* Debug */,
+				4C7D70052FC8892D0091C7A4 /* Release */,
+				4C7D70062FC8892D0091C7A4 /* Release Development */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		9A516F9B2D9B12EA00AF478B /* Build configuration list for PBXNativeTarget "Flipcash" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

@@ -70,7 +70,9 @@ class Session {
     @ObservationIgnored let keyAccount: KeyAccount
     @ObservationIgnored let owner: AccountCluster
     @ObservationIgnored let userID: UserID
-    
+
+    @ObservationIgnored private var hasLinkedPhoneForPayment = false
+
     var ownerKeyPair: KeyPair {
         owner.authority.keyPair
     }
@@ -282,8 +284,9 @@ class Session {
 
         profile = fetched
         try? database.insertProfile(fetched)
+        Task { await linkPhoneForPaymentIfNeeded() }
     }
-    
+
     func unlinkProfile() async throws {
         if let profile {
             if let email = profile.email {
@@ -315,6 +318,27 @@ class Session {
 
         userFlags = fetched
         try? database.insertUserFlags(fetched)
+        Task { await linkPhoneForPaymentIfNeeded() }
+    }
+
+    /// Links an already-verified phone for payment once per session. Best-effort; server-idempotent.
+    private func linkPhoneForPaymentIfNeeded() async {
+        // TODO: gate on (BetaFlags || userFlags?.enablePhoneNumberSend) once
+        // enablePhoneNumberSend ships; runs unconditionally until then.
+        guard let phone = profile?.phone,
+              !hasLinkedPhoneForPayment else { return }
+        // Claim before the await so two concurrent callers can't double-fire; released on failure below.
+        hasLinkedPhoneForPayment = true
+        do {
+            try await Task.retry(maxAttempts: 3, delay: .milliseconds(500)) {
+                try await flipClient.linkForPayment(phone: phone.e164, owner: ownerKeyPair)
+            }
+        } catch is CancellationError {
+            hasLinkedPhoneForPayment = false
+        } catch {
+            hasLinkedPhoneForPayment = false
+            ErrorReporting.captureError(error)
+        }
     }
 
     // MARK: - Settings Sync -
@@ -853,8 +877,75 @@ class Session {
         }
     }
     
+    // MARK: - Send -
+
+    /// Resolves a contact's E.164 phone to their payment-destination owner.
+    /// Throws `ErrorResolve.notFound` when the contact isn't on Flipcash.
+    func resolveContact(e164: String) async throws -> PublicKey {
+        try await flipClient.resolvePhone(e164, owner: ownerKeyPair)
+    }
+
+    /// Submits a direct payment to a resolved recipient.
+    /// The recipient's vault is derived from `recipientOwner` + mint +
+    /// VM time-authority and carried alongside `recipientOwner` so the
+    /// server recognises a Code-managed destination.
+    func send(amount: ExchangedFiat, verifiedState: VerifiedState, to recipientOwner: PublicKey, chat: ChatPaymentMetadata?) async throws {
+        try assertFresh(verifiedState, operation: "send", currency: amount.nativeAmount.currency, mint: amount.mint)
+
+        let mint = amount.mint
+        guard let vmAuthority = try database.getVMAuthority(mint: mint) else {
+            throw Error.vmMetadataMissing
+        }
+
+        let recipientVault = TimelockDerivedAccounts(
+            owner: recipientOwner,
+            mint: mint,
+            timeAuthority: vmAuthority
+        ).vault.publicKey
+
+        let rendezvous = PublicKey.generate()!
+
+        logger.info("Sending direct transfer", metadata: [
+            "amount": "\(amount.nativeAmount.formatted())",
+            "mint": "\(mint.base58)",
+            "recipientOwner": "\(recipientOwner.base58)",
+            "recipientVault": "\(recipientVault.base58)",
+            "rendezvous": "\(rendezvous.base58)",
+            "hasChatMetadata": "\(chat != nil)",
+        ])
+
+        do {
+            try await client.transfer(
+                exchangedFiat: amount,
+                verifiedState: verifiedState,
+                owner: owner.use(mint: mint, timeAuthority: vmAuthority),
+                destination: recipientVault,
+                destinationOwner: recipientOwner,
+                chatMetadata: chat,
+                rendezvous: rendezvous
+            )
+
+            updatePostTransaction()
+
+        } catch {
+            guard !(error is CancellationError) else { throw error }
+            logger.error("Send failed", metadata: [
+                "recipientOwner": "\(recipientOwner.base58)",
+                "rendezvous": "\(rendezvous.base58)",
+                "amount": "\(amount.nativeAmount.formatted())",
+                "error": "\(error)",
+            ])
+            ErrorReporting.capturePayment(
+                error: error,
+                rendezvous: rendezvous,
+                exchangedFiat: amount
+            )
+            throw error
+        }
+    }
+
     // MARK: - Cash -
-    
+
     /// Completes a face-to-face bill grab after the camera scans a cash code.
     ///
     /// ## Device A (Sender)
@@ -1524,7 +1615,8 @@ class Session {
 // MARK: - Errors -
 
 extension Session {
-    enum Error: Swift.Error {
+    enum Error: Swift.Error, Equatable {
+        case cashLinkCreationFailed
         case vmMetadataMissing
         case mintNotFound
         case insufficientBalance

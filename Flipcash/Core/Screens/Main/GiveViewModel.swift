@@ -32,59 +32,12 @@ final class GiveViewModel {
     private(set) var selectedBalance: ExchangedBalance?
 
     private var enteredFiat: ExchangedFiat? {
-        guard !enteredAmount.isEmpty else {
-            return nil
-        }
-
-        guard let amount = KeyPadView.amount(from: enteredAmount), amount > 0 else {
-            return nil
-        }
-
-        guard let selectedBalance else {
-            return nil
-        }
-
-        let mint = selectedBalance.stored.mint
-
-        // Only applies for bonded tokens
-        if mint != .usdf {
-            guard let supplyQuarks = selectedBalance.stored.supplyFromBonding else {
-                return nil
-            }
-
-            let rate = ratesController.rateForBalanceCurrency()
-            let entered = FiatAmount(value: amount, currency: rate.currency)
-
-            if let viaCurve = ExchangedFiat.compute(
-                fromEntered: entered,
-                rate: rate,
-                mint: mint,
-                supplyQuarks: supplyQuarks
-            ) {
-                return viaCurve
-            }
-
-            // Curve could not price the entered amount (requested > TVL).
-            // Build a synthetic ExchangedFiat so `hasSufficientFunds` sees an
-            // over-balance request and returns `.insufficient` with a shortfall
-            // derived from `nativeAmount`. The onChainAmount is a sentinel —
-            // this ExchangedFiat is never transported.
-            return ExchangedFiat(
-                onChainAmount: TokenAmount(
-                    quarks: selectedBalance.stored.quarks + 1,
-                    mint: mint
-                ),
-                nativeAmount: entered,
-                currencyRate: rate
-            )
-
-        } else {
-            let rate = ratesController.rateForBalanceCurrency()
-            return ExchangedFiat(
-                nativeAmount: FiatAmount(value: amount, currency: rate.currency),
-                rate: rate
-            )
-        }
+        guard let amount = KeyPadView.amount(from: enteredAmount),
+              let selectedBalance else { return nil }
+        return selectedBalance.enteredFiat(
+            for: amount,
+            rate: ratesController.rateForBalanceCurrency()
+        )
     }
 
     // MARK: - Init -
@@ -94,11 +47,7 @@ final class GiveViewModel {
     init(container: Container, sessionContainer: SessionContainer, mint: PublicKey?) {
         let session          = sessionContainer.session
         let ratesController  = sessionContainer.ratesController
-        let resolved         = Self.resolveInitialBalance(
-            mint: mint,
-            session: session,
-            ratesController: ratesController
-        )
+        let resolved         = ratesController.resolveInitialBalance(mint: mint, session: session)
 
         self.container        = container
         self.sessionContainer = sessionContainer
@@ -109,32 +58,6 @@ final class GiveViewModel {
         if let resolved, ratesController.selectedTokenMint != resolved.stored.mint {
             ratesController.selectToken(resolved.stored.mint)
         }
-    }
-
-    /// Caller's `mint` wins; otherwise prefer the stored selection, then the
-    /// highest-value giveable balance. The two-tier fallback exists because
-    /// `RatesController.selectedTokenMint` is a *global* selector and may
-    /// point to `.usdf` or to a sub-threshold balance that no longer appears
-    /// in `Session.balances(for:)`.
-    private static func resolveInitialBalance(
-        mint: PublicKey?,
-        session: Session,
-        ratesController: RatesController
-    ) -> ExchangedBalance? {
-        let rate = ratesController.rateForBalanceCurrency()
-
-        if let mint, let stored = session.balance(for: mint) {
-            return ExchangedBalance(stored: stored, exchangedFiat: stored.computeExchangedValue(with: rate))
-        }
-
-        let giveable = session.balances(for: rate).filter { $0.stored.mint != .usdf }
-
-        if let stored = ratesController.selectedTokenMint,
-           let match = giveable.first(where: { $0.stored.mint == stored }) {
-            return match
-        }
-
-        return giveable.first
     }
 
     // MARK: - Action -

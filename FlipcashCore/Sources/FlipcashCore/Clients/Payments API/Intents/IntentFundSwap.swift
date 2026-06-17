@@ -79,7 +79,7 @@ extension IntentFundSwap {
                 }
 
                 $0.isWithdrawal = true
-                $0.isRemoteSend = false
+                $0.isIndirectSend = false
             }
         }
     }

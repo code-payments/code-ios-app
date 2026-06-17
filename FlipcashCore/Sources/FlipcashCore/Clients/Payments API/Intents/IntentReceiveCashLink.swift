@@ -41,10 +41,10 @@ extension IntentReceiveCashLink {
     func metadata() -> Ocp_Transaction_V1_Metadata {
         .with {
             $0.receivePaymentsPublicly = .with {
-                $0.source       = giftCard.cluster.vaultPublicKey.solanaAccountID
-                $0.quarks       = usdf.quarks
-                $0.mint         = giftCard.mint.solanaAccountID
-                $0.isRemoteSend = true
+                $0.source         = giftCard.cluster.vaultPublicKey.solanaAccountID
+                $0.quarks         = usdf.quarks
+                $0.mint           = giftCard.mint.solanaAccountID
+                $0.isIndirectSend = true
             }
         }
     }

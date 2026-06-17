@@ -32,49 +32,6 @@ struct GiveViewModelTests {
         return viewModel
     }
 
-    /// Helper to create ExchangedBalance
-    static func createExchangedBalance(
-        mint: PublicKey = .usdf,
-        quarks: UInt64 = 1_000_000,
-        supplyQuarks: UInt64? = nil
-    ) -> ExchangedBalance {
-        // For non-USDF tokens, supplyQuarks is required by StoredBalance
-        // For USDF, supplyQuarks should be nil
-        let effectiveSupplyQuarks: UInt64?
-        let effectiveSellFeeBps: Int?
-
-        if mint == .usdf {
-            effectiveSupplyQuarks = nil
-            effectiveSellFeeBps = nil
-        } else {
-            // Non-USDF tokens must have supply
-            // Use 10,000 tokens default (10,000 * 10^10 quarks)
-            effectiveSupplyQuarks = supplyQuarks ?? 10_000 * 10_000_000_000
-            effectiveSellFeeBps = 0
-        }
-
-        let stored = try! StoredBalance(
-            quarks: quarks,
-            symbol: mint == .usdf ? "USDF" : "TOKEN",
-            name: mint == .usdf ? "USDF Coin" : "Test Token",
-            supplyFromBonding: effectiveSupplyQuarks,
-            sellFeeBps: effectiveSellFeeBps,
-            mint: mint,
-            vmAuthority: mint == .usdf ? nil : .usdcAuthority,
-            updatedAt: Date(),
-            imageURL: nil,
-            costBasis: 0
-        )
-        return ExchangedBalance(
-            stored: stored,
-            exchangedFiat: ExchangedFiat.compute(
-                onChainAmount: TokenAmount(quarks: quarks, mint: mint),
-                rate: .oneToOne,
-                supplyQuarks: effectiveSupplyQuarks
-            )
-        )
-    }
-
     // MARK: - Initialization Tests
 
     @Test
@@ -95,7 +52,7 @@ struct GiveViewModelTests {
     @Test("Selecting a currency syncs selectedBalance and ratesController")
     func testSelectCurrency_SyncsBalanceAndRatesController() {
         let viewModel = Self.createViewModel()
-        let balance = Self.createExchangedBalance(
+        let balance = ExchangedBalance.makeTest(
             mint: .jeffy,
             quarks: 1_000_000_000_000,
             supplyQuarks: 10_000 * 10_000_000_000
@@ -111,12 +68,12 @@ struct GiveViewModelTests {
     @Test("Switching currency updates both selectedBalance and ratesController")
     func testSelectCurrency_SwitchingUpdatesSync() {
         let viewModel = Self.createViewModel()
-        let firstBalance = Self.createExchangedBalance(
+        let firstBalance = ExchangedBalance.makeTest(
             mint: .jeffy,
             quarks: 1_000_000_000_000,
             supplyQuarks: 10_000 * 10_000_000_000
         )
-        let secondBalance = Self.createExchangedBalance(
+        let secondBalance = ExchangedBalance.makeTest(
             mint: .usdf,
             quarks: 5_000_000
         )
@@ -136,7 +93,7 @@ struct GiveViewModelTests {
     @Test("Selecting a currency clears entered amount")
     func testSelectCurrency_ClearsEnteredAmount() {
         let viewModel = Self.createViewModel()
-        let balance = Self.createExchangedBalance()
+        let balance = ExchangedBalance.makeTest()
         viewModel.enteredAmount = "42.00"
 
         viewModel.selectCurrencyAction(exchangedBalance: balance)
@@ -150,7 +107,7 @@ struct GiveViewModelTests {
     func testCanGive_EmptyAmount_ReturnsFalse() {
         // Given: View model with no amount entered
         let viewModel = Self.createViewModel()
-        let balance = Self.createExchangedBalance()
+        let balance = ExchangedBalance.makeTest()
         viewModel.selectCurrencyAction(exchangedBalance: balance)
         viewModel.enteredAmount = ""
 
@@ -162,7 +119,7 @@ struct GiveViewModelTests {
     func testCanGive_InvalidAmount_ReturnsFalse() {
         // Given: View model with invalid amount
         let viewModel = Self.createViewModel()
-        let balance = Self.createExchangedBalance()
+        let balance = ExchangedBalance.makeTest()
         viewModel.selectCurrencyAction(exchangedBalance: balance)
         viewModel.enteredAmount = "invalid"
 
@@ -174,7 +131,7 @@ struct GiveViewModelTests {
     func testCanGive_ZeroAmount_ReturnsFalse() {
         // Given: View model with zero amount
         let viewModel = Self.createViewModel()
-        let balance = Self.createExchangedBalance()
+        let balance = ExchangedBalance.makeTest()
         viewModel.selectCurrencyAction(exchangedBalance: balance)
         viewModel.enteredAmount = "0"
 
@@ -197,7 +154,7 @@ struct GiveViewModelTests {
     func testCanGive_ValidAmountAndBalance_ReturnsTrue() {
         // Given: View model with valid amount and balance
         let viewModel = Self.createViewModel()
-        let balance = Self.createExchangedBalance()
+        let balance = ExchangedBalance.makeTest()
         viewModel.selectCurrencyAction(exchangedBalance: balance)
         viewModel.enteredAmount = "10"
 
@@ -212,7 +169,7 @@ struct GiveViewModelTests {
         // Given: View model with some entered amount
         let viewModel = Self.createViewModel()
         viewModel.enteredAmount = "100"
-        let balance = Self.createExchangedBalance()
+        let balance = ExchangedBalance.makeTest()
 
         // When: Selecting a currency
         viewModel.selectCurrencyAction(exchangedBalance: balance)
@@ -228,7 +185,7 @@ struct GiveViewModelTests {
     func testEnteredFiat_USDC_CalculatesCorrectly() {
         // Given: View model with USDC balance
         let viewModel = Self.createViewModel()
-        let balance = Self.createExchangedBalance(
+        let balance = ExchangedBalance.makeTest(
             mint: .usdf,
             quarks: 100_000_000
         )
@@ -250,7 +207,7 @@ struct GiveViewModelTests {
         // Given: View model with bonded token
         // 10,000 tokens supply supports reasonable exchange amounts
         let viewModel = Self.createViewModel()
-        let balance = Self.createExchangedBalance(
+        let balance = ExchangedBalance.makeTest(
             mint: .jeffy,
             quarks: 1_000_000_000_000, // 100 tokens (10 decimals)
             supplyQuarks: 10_000 * 10_000_000_000 // 10,000 tokens supply
@@ -269,7 +226,7 @@ struct GiveViewModelTests {
     func testEnteredFiat_BondedToken_AmountAtMaxBalance() {
         // Given: View model with bonded token where user has significant balance
         let viewModel = Self.createViewModel()
-        let balance = Self.createExchangedBalance(
+        let balance = ExchangedBalance.makeTest(
             mint: .jeffy,
             quarks: 5_000_000_000_000, // 500 tokens (10 decimals)
             supplyQuarks: 50_000 * 10_000_000_000 // 50,000 tokens supply
@@ -288,7 +245,7 @@ struct GiveViewModelTests {
     func testEnteredFiat_BondedToken_LargeSupply() {
         // Given: View model with large supply (100,000 tokens)
         let viewModel = Self.createViewModel()
-        let balance = Self.createExchangedBalance(
+        let balance = ExchangedBalance.makeTest(
             mint: .jeffy,
             quarks: 10_000_000_000_000, // 1,000 tokens
             supplyQuarks: 100_000 * 10_000_000_000 // 100,000 tokens supply
@@ -309,7 +266,7 @@ struct GiveViewModelTests {
     func testEnteredAmount_NegativeValue_CanGiveFalse() {
         // Given: View model with negative amount
         let viewModel = Self.createViewModel()
-        let balance = Self.createExchangedBalance()
+        let balance = ExchangedBalance.makeTest()
         viewModel.selectCurrencyAction(exchangedBalance: balance)
         viewModel.enteredAmount = "-10"
 
@@ -321,7 +278,7 @@ struct GiveViewModelTests {
     func testEnteredAmount_VeryLargeValue_HandledCorrectly() {
         // Given: View model with very large amount
         let viewModel = Self.createViewModel()
-        let balance = Self.createExchangedBalance(quarks: UInt64.max)
+        let balance = ExchangedBalance.makeTest(quarks: UInt64.max)
         viewModel.selectCurrencyAction(exchangedBalance: balance)
         viewModel.enteredAmount = "999999999.99"
 
@@ -336,7 +293,7 @@ struct GiveViewModelTests {
     func testEnteredAmount_DecimalPlaces_HandledCorrectly() {
         // Given: View model with many decimal places
         let viewModel = Self.createViewModel()
-        let balance = Self.createExchangedBalance()
+        let balance = ExchangedBalance.makeTest()
         viewModel.selectCurrencyAction(exchangedBalance: balance)
         viewModel.enteredAmount = "10.123456789"
 
@@ -355,7 +312,7 @@ struct GiveViewModelTests {
         // Given: View model with bonded token and modest supply
         // 1,000 tokens supply, user tries to exchange $100 (valid)
         let viewModel = Self.createViewModel()
-        let balance = Self.createExchangedBalance(
+        let balance = ExchangedBalance.makeTest(
             mint: .jeffy,
             quarks: 10_000_000_000_000, // 1,000 tokens
             supplyQuarks: 1_000 * 10_000_000_000 // 1,000 tokens supply
@@ -374,7 +331,7 @@ struct GiveViewModelTests {
     func testEnteredFiat_BondedToken_AmountWellUnderMaxSupply_Succeeds() {
         // Given: View model where entered amount is well under max supply value
         let viewModel = Self.createViewModel()
-        let balance = Self.createExchangedBalance(
+        let balance = ExchangedBalance.makeTest(
             mint: .jeffy,
             quarks: 100_000_000_000_000, // 10,000 tokens
             supplyQuarks: 50_000 * 10_000_000_000 // 50,000 tokens supply
@@ -473,6 +430,40 @@ struct GiveViewModelTests {
         container.ratesController.selectToken(.usdcAuthority)
 
         let viewModel = GiveViewModel(container: .mock, sessionContainer: container, mint: .jeffy)
+
+        #expect(viewModel.selectedBalance?.stored.mint == .jeffy)
+        #expect(container.ratesController.selectedTokenMint == .jeffy)
+    }
+
+    @Test("Init with no mint and no prior selection skips USDF and auto-selects a giveable currency")
+    func testInit_NoMint_NoSelection_SkipsUSDF() throws {
+        let container = try SessionContainer.makeTest(holdings: [
+            .init(mint: .usdf, quarks: 100_000_000_000), // $100k USDF — sorts first
+            .init(
+                mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: 10_000 * 10_000_000_000),
+                quarks: 1_000_000_000_000
+            ),
+        ])
+        container.ratesController.selectedTokenMint = nil
+
+        let viewModel = GiveViewModel(container: .mock, sessionContainer: container, mint: nil)
+
+        #expect(viewModel.selectedBalance?.stored.mint == .jeffy)
+        #expect(container.ratesController.selectedTokenMint == .jeffy)
+    }
+
+    @Test("Init with a stale USDF global selection still resolves to a giveable currency")
+    func testInit_NoMint_StaleUSDFSelection_SkipsUSDF() throws {
+        let container = try SessionContainer.makeTest(holdings: [
+            .init(mint: .usdf, quarks: 100_000_000_000),
+            .init(
+                mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: 10_000 * 10_000_000_000),
+                quarks: 1_000_000_000_000
+            ),
+        ])
+        container.ratesController.selectToken(.usdf)
+
+        let viewModel = GiveViewModel(container: .mock, sessionContainer: container, mint: nil)
 
         #expect(viewModel.selectedBalance?.stored.mint == .jeffy)
         #expect(container.ratesController.selectedTokenMint == .jeffy)

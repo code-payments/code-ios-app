@@ -85,9 +85,11 @@ nonisolated extension Route {
         case cash
         case verifyEmail
         case token(PublicKey)
+        case chat(ConversationID)
         case give
         case balance
         case discover
+        case send
         case unknown(String)
         
         static func parse(path: String) -> Path? {
@@ -114,6 +116,11 @@ nonisolated extension Route {
                     return nil
                 }
                 return .token(mint)
+            case "chat":
+                guard components.count > 1, let id = ConversationID(base64URLEncoded: components[1]) else {
+                    return nil
+                }
+                return .chat(id)
             case "give":
                 return .give
             case "balance":
@@ -125,6 +132,8 @@ nonisolated extension Route {
                 return .unknown(url.lastPathComponent)
             case "discover":
                 return .discover
+            case "send":
+                return .send
             default:
                 return .unknown(url.lastPathComponent)
             }

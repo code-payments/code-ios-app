@@ -7,7 +7,7 @@ import XCTest
 
 final class CreateAccountSmokeTests: BaseUITestCase {
 
-    override var resetPermissions: [XCUIProtectedResource] { [.photos] }
+    override var resetPermissions: [XCUIProtectedResource] { [.photos, .contacts] }
 
     // MARK: - Tests
 
@@ -22,6 +22,12 @@ final class CreateAccountSmokeTests: BaseUITestCase {
         // tapping during the animation can miss the button.
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         waitUntilHittableAndTap(springboard.buttons["Allow"])
+
+        // Onboarding phone verification — forced for new registrations.
+        allowPhoneVerificationIfNeeded()
+
+        // Contacts permission screen (may be skipped if already prompted)
+        allowContactsIfNeeded()
 
         // Push notification permission screen (may be skipped if already granted)
         allowPushNotificationsIfNeeded()
@@ -39,6 +45,12 @@ final class CreateAccountSmokeTests: BaseUITestCase {
 
         // Confirmation dialog: "Are You Sure?"
         waitAndTap(app.buttons["Yes, I Wrote Them Down"])
+
+        // Onboarding phone verification — forced for new registrations.
+        allowPhoneVerificationIfNeeded()
+
+        // Contacts permission screen (may be skipped if already prompted)
+        allowContactsIfNeeded()
 
         // Push notification permission screen (may be skipped if already granted)
         allowPushNotificationsIfNeeded()

@@ -165,11 +165,22 @@ public struct Flipcash_Push_V1_Navigation: Sendable {
     set {type = .currencyInfo(newValue)}
   }
 
+  /// Chat for the provided ID
+  public var chatID: Flipcash_Common_V1_ChatId {
+    get {
+      if case .chatID(let v)? = type {return v}
+      return Flipcash_Common_V1_ChatId()
+    }
+    set {type = .chatID(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Type: Equatable, Sendable {
     /// Currency info page for the provided mint 
     case currencyInfo(Flipcash_Common_V1_PublicKey)
+    /// Chat for the provided ID
+    case chatID(Flipcash_Common_V1_ChatId)
 
   }
 
@@ -274,7 +285,7 @@ extension Flipcash_Push_V1_Payload.Category: SwiftProtobuf._ProtoNameProviding {
 
 extension Flipcash_Push_V1_Navigation: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Navigation"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}currency_info\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}currency_info\0\u{3}chat_id\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -295,6 +306,19 @@ extension Flipcash_Push_V1_Navigation: SwiftProtobuf.Message, SwiftProtobuf._Mes
           self.type = .currencyInfo(v)
         }
       }()
+      case 2: try {
+        var v: Flipcash_Common_V1_ChatId?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .chatID(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .chatID(v)
+        }
+      }()
       default: break
       }
     }
@@ -305,9 +329,17 @@ extension Flipcash_Push_V1_Navigation: SwiftProtobuf.Message, SwiftProtobuf._Mes
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
     // https://github.com/apple/swift-protobuf/issues/1182
-    try { if case .currencyInfo(let v)? = self.type {
+    switch self.type {
+    case .currencyInfo?: try {
+      guard case .currencyInfo(let v)? = self.type else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
+    }()
+    case .chatID?: try {
+      guard case .chatID(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    }()
+    case nil: break
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 

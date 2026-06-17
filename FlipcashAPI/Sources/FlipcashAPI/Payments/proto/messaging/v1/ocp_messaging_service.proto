@@ -1,0 +1,246 @@
+syntax = "proto3";
+
+package ocp.messaging.v1;
+
+option go_package = "github.com/code-payments/ocp-protobuf-api/generated/go/messaging/v1;messaging";
+option java_package = "com.codeinc.gen.messaging.v1";
+option objc_class_prefix = "CPBMessagingV1";
+
+import "common/v1/model.proto";
+import "currency/v1/ocp_currency_service.proto";
+import "transaction/v1/ocp_transaction_service.proto";
+import "validate/validate.proto";
+
+service Messaging {
+    // OpenMessageStream opens a stream of messages. Messages are routed using the
+    // public key of a rendezvous keypair derived by both the sender and the
+    // recipient of the messages. The sender may be a client or server.
+    //
+    // Messages are expected to be acked once they have been processed by the client.
+    // Ack'd messages will no longer be delivered on future OpenMessageStream calls,
+    // and are eligible for deletion from the service. Clients should, however, handle
+    // duplicate delivery of messages.
+    //
+    // For giving/grabbing a bill, the expected flow is as follows:
+    //   1. The payment sender creates a multi-mint cash scan code.
+    //   2. The payment sender calls OpenMessageStream on the rendezvous public key.
+    //   3. The payment sender uses SendMessage to send the mint in a RequestToGiveBill message.
+    //   4. The payment sender shows the bill with the scan code containing the rendezvous public key.
+    //   4. The payment recipient scans the code.
+    //   5. The payment recipient uses PollMessages to get the RequestToGiveBill message from part 3.
+    //   6. The payment recipient sends the destination address in a RequestToGrabBill message.
+    //   7. The payment sender receives the RequestToGrabBill message in real time, submits the intent
+    //      for the payment to the provided destination, and then closes the stream.
+    rpc OpenMessageStream(OpenMessageStreamRequest) returns (stream OpenMessageStreamResponse);
+
+    // OpenMessageStreamWithKeepAlive is like OpenMessageStream, but enables a ping/pong
+    // keepalive to determine the health of the stream at both the client and server.
+    //
+    // The keepalive protocol is as follows:
+    //   1. Client initiates a stream by sending an OpenMessageStreamRequest.
+    //   2. Upon stream initialization, server begins the keepalive protocol.
+    //   3. Server sends a ping to the client.
+    //   4. Client responds with a pong as fast as possible, making note of
+    //      the delay for when to expect the next ping.
+    //   5. Steps 3 and 4 are repeated until the stream is explicitly terminated
+    //      or is deemed to be unhealthy.
+    //
+    // Client notes:
+    // * Client should be careful to process messages async, so any responses to pings are
+    //   not delayed.
+    // * Clients should implement a reasonable backoff strategy upon continued timeout failures.
+    // * Clients that abuse pong messages may have their streams terminated by server.
+    //
+    // At any point in the stream, server will respond with messages in real time as
+    // they are observed. Messages sent over the stream should not affect the ping/pong
+    // protocol timings. Individual protocols for payment flows remain the same, and are
+    // documented in OpenMessageStream.
+    //
+    // Note: This API will enforce OpenMessageStreamRequest.signature is set as part of migration
+    //       to this newer protocol
+    rpc OpenMessageStreamWithKeepAlive(stream OpenMessageStreamWithKeepAliveRequest) returns (stream OpenMessageStreamWithKeepAliveResponse);
+
+    // PollMessages is like OpenMessageStream, but uses a polling flow for receiving
+    // messages. Updates are not real-time and depedent on the polling interval.
+    // This RPC supports all message types.
+    //
+    // This is a temporary RPC until OpenMessageStream can be built out generically on
+    // both client and server, while supporting things like multiple listeners.
+    rpc PollMessages(PollMessagesRequest) returns (PollMessagesResponse);
+
+    // AckMessages acks one or more messages that have been successfully delivered to
+    // the client.
+    rpc AckMessages(AckMessagesRequest) returns (AckMesssagesResponse);
+
+    // SendMessage sends a message.
+    rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
+}
+
+message OpenMessageStreamRequest {
+    RendezvousKey rendezvous_key = 1 [(validate.rules).message.required = true];
+
+    // The signature is of serialize(OpenMessageStreamRequest) using rendezvous_key.
+    //
+    // todo: Make required once clients migrate
+    common.v1.Signature signature = 2 [(validate.rules).message.required = false];
+}
+
+message OpenMessageStreamResponse {
+    repeated Message messages = 1 [(validate.rules).repeated = {
+        min_items: 1
+        max_items: 1024
+    }];
+}
+
+message OpenMessageStreamWithKeepAliveRequest {
+    oneof request_or_pong {
+        option (validate.required) = true;
+
+        OpenMessageStreamRequest request = 1;
+        common.v1.ClientPong pong = 2;
+    }
+}
+
+message OpenMessageStreamWithKeepAliveResponse {
+    oneof response_or_ping {
+        option (validate.required) = true;
+
+        OpenMessageStreamResponse response = 1;
+        common.v1.ServerPing ping = 2;
+    }
+}
+
+message PollMessagesRequest {
+    RendezvousKey rendezvous_key = 1 [(validate.rules).message.required = true];
+
+    // The signature is of serialize(PollMessagesRequest) using rendezvous_key.
+    common.v1.Signature signature = 2 [(validate.rules).message.required = true];
+}
+
+message PollMessagesResponse {
+    repeated Message messages = 1 [(validate.rules).repeated = {
+        min_items: 0
+        max_items: 1024
+    }];
+}
+
+message AckMessagesRequest {
+    RendezvousKey rendezvous_key = 1 [(validate.rules).message.required = true];
+
+    repeated MessageId message_ids = 2 [(validate.rules).repeated = {
+        min_items: 1
+        max_items: 1024
+    }];
+}
+
+message AckMesssagesResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+    }
+}
+
+message SendMessageRequest {
+    // The message to send. Types of messages clients can send are restricted.
+    Message message = 1 [(validate.rules).message.required = true];
+
+    // The rendezvous key that the message should be routed to.
+    RendezvousKey rendezvous_key = 2 [(validate.rules).message.required = true];
+
+    // The signature is of serialize(Message) using the PrivateKey of the keypair.
+    common.v1.Signature signature = 3 [(validate.rules).message.required = true];
+}
+
+message SendMessageResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+        NO_ACTIVE_STREAM = 1;
+    }
+
+    // Set if result == OK.
+    MessageId message_id = 2;
+}
+
+// RendezvousKey is a unique key pair, typically derived from a scan code payload,
+// which is used to establish a secure communication channel anonymously to coordinate
+// a flow using messages.
+message RendezvousKey {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 32
+        max_len: 32
+    }];
+}
+
+// MessageId identifies a message. It is only guaranteed to be unique when
+// paired with a destination (i.e. the rendezvous public key).
+message MessageId {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 16
+        max_len: 16
+    }];
+}
+
+// Request that a pulled out bill be sent to the requested address.
+//
+// This message type is only initiated by clients.
+message RequestToGrabBill {
+    // Requestor is the virtual token account on the VM to which a payment
+    // should be sent.
+    common.v1.SolanaAccountId requestor_account = 1 [(validate.rules).message.required = true];
+}
+
+message RequestToGiveBillServerContext {
+    // Mint metadata for the bill's mint
+    currency.v1.Mint mint_metadata = 1 [(validate.rules).message.required = true];
+}
+
+// Request that a bill be given in the desired mint
+//
+// This message type is only initiated by clients.
+message RequestToGiveBill {
+    // The mint that the bill will be received in
+    common.v1.SolanaAccountId mint = 1 [(validate.rules).message.required = true];
+
+    // The validated exchange data that was used to compute the fiat value of the give
+    // to support subsequent gives. Clients should be aware of timeouts and dismiss a
+    // bill if the threshold is met.
+    transaction.v1.VerifiedExchangeData exchange_data = 2;
+}
+
+message Message {
+    // MessageId is the Id of the message. This ID is generated by the
+    // server, and will _always_ be set when receiving a message.
+    //
+    // Server generates the message to:
+    //     1. Reserve the ability for any future ID changes
+    //     2. Prevent clients attempting to collide message IDs.
+    MessageId id = 1 [(validate.rules).message.required = false];
+
+    // The signature sent from SendMessageRequest, which will be injected by server.
+    // This enables clients to ensure no MITM attacks were performed to hijack contents
+    // of the typed message. This is only applicable for messages not generated by server.
+    common.v1.Signature send_message_request_signature = 2 [(validate.rules).message.required = false];
+
+    oneof kind {
+        option (validate.required) = true;
+
+        //
+        // Section: Cash
+        //
+
+        RequestToGrabBill request_to_grab_bill = 3;
+        RequestToGiveBill request_to_give_bill = 4;
+    }
+
+    // Additional server-provided context for messages sent by client
+    AdditionalServerContext additional_context = 5;
+}
+
+message AdditionalServerContext {
+    oneof type {
+        option (validate.required) = true;
+
+        RequestToGiveBillServerContext request_to_give_bill = 1;
+    }
+}

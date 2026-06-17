@@ -105,7 +105,15 @@ class PushController {
         
         unregisterAPNS()
     }
-    
+
+    // MARK: - Badge -
+
+    /// Clears the app icon badge. Called when the app becomes active so a
+    /// server-set badge count doesn't linger after the user has opened the app.
+    func clearBadgeCount() {
+        center.setBadgeCount(0)
+    }
+
     // MARK: - Authorization Status -
 
     /// Re-fetches the notification authorization status from the system.
@@ -191,6 +199,8 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
         
         Messaging.messaging().appDidReceiveMessage(notification.request.content.userInfo)
 
+        postContactJoinIfNeeded(notification.request.content.userInfo)
+
         // We intentionally don't call handleTargetUrlIfNeeded here.
         // Deep link navigation should only happen when user taps the notification,
         // which is handled in didReceive. This prevents unwanted navigation when
@@ -208,6 +218,8 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
         
         Messaging.messaging().appDidReceiveMessage(response.notification.request.content.userInfo)
         
+        postContactJoinIfNeeded(response.notification.request.content.userInfo)
+
         let aps = response.notification.request.content.userInfo["aps"] as? [String: Any]
         handleTargetUrlIfNeeded(aps?["target_url"] as? String)
         
@@ -237,6 +249,16 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
                 object: nil,
                 userInfo: ["url": url]
             )
+        }
+    }
+
+    /// Posts `.contactDidJoinReceived` for a CONTACT_JOIN push so the contact-sync
+    /// controller re-pulls the matched set and the recipient list reclassifies the
+    /// joiner without waiting for a local address-book change.
+    private func postContactJoinIfNeeded(_ userInfo: [AnyHashable: Any]) {
+        guard NotificationPayload.isContactJoin(userInfo) else { return }
+        Task { @MainActor in
+            NotificationCenter.default.post(name: .contactDidJoinReceived, object: nil)
         }
     }
 }

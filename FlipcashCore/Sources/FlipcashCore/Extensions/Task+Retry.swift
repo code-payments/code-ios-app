@@ -11,14 +11,17 @@ extension Task where Success == Never, Failure == Never {
 
     /// Runs `body`, retrying up to `maxAttempts - 1` times if the thrown
     /// error satisfies `shouldRetry`. Sleeps `delay` between attempts.
-    /// The error from the final attempt is rethrown.
+    /// The error from the final attempt is rethrown. `CancellationError` is
+    /// never retried — it rethrows immediately so cancellation propagates
+    /// promptly, regardless of `shouldRetry`.
     ///
     /// - Parameters:
     ///   - maxAttempts: Total number of tries, including the first.
     ///     Must be at least 1.
     ///   - delay: Time to sleep between attempts.
-    ///   - shouldRetry: Predicate over the thrown error. Defaults to
-    ///     retrying every error. Return `false` to short-circuit.
+    ///   - shouldRetry: Predicate over the thrown error (never consulted for
+    ///     `CancellationError`). Defaults to retrying every other error.
+    ///     Return `false` to short-circuit.
     ///   - body: The async operation to attempt.
     public static func retry<T>(
         maxAttempts: Int,
@@ -33,6 +36,7 @@ extension Task where Success == Never, Failure == Never {
             do {
                 return try await body()
             } catch {
+                if error is CancellationError { throw error }
                 if attempt >= maxAttempts || !shouldRetry(error) {
                     throw error
                 }

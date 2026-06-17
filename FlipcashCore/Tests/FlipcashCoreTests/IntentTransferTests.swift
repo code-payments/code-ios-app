@@ -46,7 +46,7 @@ struct IntentTransferTests {
         }
 
         #expect(payment.isWithdrawal == false)
-        #expect(payment.isRemoteSend == false)
+        #expect(payment.isIndirectSend == false)
         #expect(payment.source == cluster.vaultPublicKey.solanaAccountID)
         #expect(payment.destination == destination.solanaAccountID)
     }
@@ -90,13 +90,45 @@ struct IntentTransferTests {
 
 extension IntentTransferTests {
 
+    // MARK: - App Metadata
+
+    @Test("Metadata omits app metadata by default")
+    func metadataOmitsAppMetadataByDefault() throws {
+        let intent = try makeIntent()
+        #expect(intent.metadata().hasAppMetadata == false)
+    }
+
+    @Test("Metadata carries serialized chat app metadata that decodes back")
+    func metadataCarriesChatAppMetadata() throws {
+        let chatID = ConversationID(data: Data(repeating: 0x05, count: 32))
+        let chat = ChatPaymentMetadata(
+            chatID: chatID,
+            sourcePhoneE164: "+14155550100",
+            destinationPhoneE164: "+14155550101"
+        )
+        let intent = try makeIntent(appMetadata: chat.serializedAppMetadata())
+
+        let metadata = intent.metadata()
+        #expect(metadata.hasAppMetadata)
+
+        let decoded = try Flipcash_Intent_V1_AppMetadata(serializedBytes: metadata.appMetadata.value)
+        guard case .chat(let chatMetadata)? = decoded.domain else {
+            Issue.record("Expected chat domain metadata")
+            return
+        }
+        #expect(chatMetadata.chatID.value == chatID.data)
+        #expect(chatMetadata.contactDmPayment.source.value == "+14155550100")
+        #expect(chatMetadata.contactDmPayment.destination.value == "+14155550101")
+    }
+
     private func makeIntent(
         sourceCluster: AccountCluster = .mock,
         destination: PublicKey = .generate()!,
         quarks: UInt64 = 1_000_000,
         verifiedState: VerifiedState = VerifiedState(
             rateProto: .makeTest(currencyCode: "usd", rate: 1.0)
-        )
+        ),
+        appMetadata: Data? = nil
     ) throws -> IntentTransfer {
         let exchangedFiat = ExchangedFiat(
             nativeAmount: FiatAmount.usd(Decimal(quarks) / 1_000_000),
@@ -108,7 +140,8 @@ extension IntentTransferTests {
             sourceCluster: sourceCluster,
             destination: destination,
             exchangedFiat: exchangedFiat,
-            verifiedState: verifiedState
+            verifiedState: verifiedState,
+            appMetadata: appMetadata
         )
     }
 }

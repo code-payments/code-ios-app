@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Contacts
 import FlipcashCore
 import FlipcashUI
 
@@ -225,17 +226,38 @@ final class SessionAuthenticator {
             owner: owner
         )
         historyController.sync()
-        
+
         let ratesController = RatesController(
             container: container,
             database: database
         )
-        
+
         let pushController = PushController(
             owner: owner.authority.keyPair,
             client: container.flipClient
         )
-        
+
+        let contactSyncController = ContactSyncController(
+            client: container.flipClient,
+            database: database,
+            owner: owner
+        )
+
+        // Activate at bootstrap only when contacts are accessible (full or
+        // limited) AND a phone is already verified. A new user who granted
+        // contacts during onboarding but hasn't verified a phone yet must not
+        // sync — or fire the "already on Flipcash" dialog — before completing
+        // the Send phone step. In-screen activation handles the post-verify case.
+        Task.detached { [contactSyncController, database] in
+            let status = CNContactStore.authorizationStatus(for: .contacts)
+            guard status.allowsContactAccess else { return }
+            let storedProfile = (try? database.getProfile()) ?? nil
+            guard storedProfile?.isPhoneVerified == true else { return }
+            await MainActor.run {
+                contactSyncController.activate()
+            }
+        }
+
         let session = Session(
             container: container,
             historyController: historyController,
@@ -245,7 +267,7 @@ final class SessionAuthenticator {
             owner: owner,
             userID: initializedAccount.userID
         )
-        
+
         let walletConnection = WalletConnection(owner: owner)
 
         return SessionContainer(
@@ -256,6 +278,7 @@ final class SessionAuthenticator {
             ratesController: ratesController,
             historyController: historyController,
             pushController: pushController,
+            contactSyncController: contactSyncController,
             flipClient: container.flipClient
         )
     }
@@ -362,6 +385,7 @@ final class SessionAuthenticator {
         )
         
         state = .loggedIn(session)
+        session.quickActionsController.configure()
         UserDefaults.wasLoggedIn = true
 
         Analytics.setIdentity(initializedAccount.userID)
@@ -402,6 +426,8 @@ final class SessionAuthenticator {
             container.session.prepareForLogout()
             container.pushController.prepareForLogout()
             container.usdcSweepOperation.cancel()
+            container.conversationController.stop()
+            QuickActionsController.clear()
         }
 
         accountManager.resetForLogout()
@@ -424,12 +450,15 @@ struct SessionContainer {
     let ratesController: RatesController
     let historyController: HistoryController
     let pushController: PushController
+    let contactSyncController: ContactSyncController
     let flipClient: FlipClient
     let onrampDeeplinkInbox: OnrampDeeplinkInbox
     let verificationCoordinator: VerificationCoordinator
     let coinbaseService: CoinbaseService
     let appRouter: AppRouter
     let usdcSweepOperation: UsdcSweepOperation
+    let quickActionsController: QuickActionsController
+    let conversationController: ConversationController
 
     init(
         session: Session,
@@ -439,6 +468,7 @@ struct SessionContainer {
         ratesController: RatesController,
         historyController: HistoryController,
         pushController: PushController,
+        contactSyncController: ContactSyncController,
         flipClient: FlipClient
     ) {
         self.session = session
@@ -447,6 +477,7 @@ struct SessionContainer {
         self.ratesController = ratesController
         self.historyController = historyController
         self.pushController = pushController
+        self.contactSyncController = contactSyncController
         self.flipClient = flipClient
         let deeplinkInbox = OnrampDeeplinkInbox()
         self.onrampDeeplinkInbox = deeplinkInbox
@@ -487,6 +518,20 @@ struct SessionContainer {
                 await session?.updatePostTransaction()
             }
         )
+
+        self.quickActionsController = QuickActionsController(session: session)
+
+        let conversationController = ConversationController(
+            fetching: flipClient,
+            messaging: flipClient,
+            streaming: flipClient,
+            contactNaming: contactSyncController,
+            database: database,
+            owner: session.ownerKeyPair,
+            selfUserID: session.userID
+        )
+        conversationController.start()
+        self.conversationController = conversationController
     }
 
     fileprivate func injectingEnvironment<SomeView>(into view: SomeView) -> some View where SomeView: View {
@@ -496,10 +541,12 @@ struct SessionContainer {
             .environment(ratesController)
             .environment(historyController)
             .environment(pushController)
+            .environment(contactSyncController)
             .environment(walletConnection)
             .environment(verificationCoordinator)
             .environment(coinbaseService)
             .environment(onrampDeeplinkInbox)
+            .environment(conversationController)
     }
 }
 

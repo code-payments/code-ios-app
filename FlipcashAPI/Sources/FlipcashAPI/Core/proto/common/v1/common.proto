@@ -58,6 +58,20 @@ message UserId {
     }];
 }
 
+message ChatId {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 32
+        max_len: 32
+    }];
+}
+
+message IntentId {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 32
+        max_len: 32
+    }];
+}
+
 // AppInstallId is a unque ID tied to a client app installation. It does not
 // identify a device. Value should remain private and not be shared across
 // installs.

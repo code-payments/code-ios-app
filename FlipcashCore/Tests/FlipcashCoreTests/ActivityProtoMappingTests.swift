@@ -82,11 +82,11 @@ struct ActivityProtoMappingTests {
         #expect(activity.state == .completed)
     }
 
-    // MARK: Kind mapping — payload-less variants + nil (sentCrypto has its own test)
+    // MARK: Kind mapping — payload-less variants + nil (indirectlySentCrypto has its own test)
 
     @Test("Notification metadata maps to Activity.Kind with no carried metadata", arguments: [
         (
-            Flipcash_Activity_V1_Notification.OneOf_AdditionalMetadata.gaveCrypto(Flipcash_Activity_V1_GaveCryptoNotificationMetadata()),
+            Flipcash_Activity_V1_Notification.OneOf_AdditionalMetadata.directlySentCrypto(Flipcash_Activity_V1_DirectlySentCryptoNotificationMetadata()),
             Activity.Kind.gave,
         ),
         (
@@ -119,13 +119,13 @@ struct ActivityProtoMappingTests {
         #expect(activity.metadata == nil)
     }
 
-    @Test("sentCrypto metadata maps to Kind.cashLink AND populates CashLinkMetadata")
+    @Test("indirectlySentCrypto metadata maps to Kind.cashLink AND populates CashLinkMetadata")
     func kindSentCashLink() throws {
-        var sent = Flipcash_Activity_V1_SentCryptoNotificationMetadata()
+        var sent = Flipcash_Activity_V1_IndirectlySentCryptoNotificationMetadata()
         sent.vault.value = Self.vaultBytes
         sent.canInitiateCancelAction = true
 
-        let activity = try Activity(baseNotification(metadata: .sentCrypto(sent)))
+        let activity = try Activity(baseNotification(metadata: .indirectlySentCrypto(sent)))
         let expectedVault = try PublicKey(Self.vaultBytes)
 
         #expect(activity.kind == .cashLink)

@@ -21,7 +21,7 @@ extension Activity {
 }
 
 extension Activity.CashLinkMetadata {
-    init(_ proto: Flipcash_Activity_V1_SentCryptoNotificationMetadata) throws {
+    init(_ proto: Flipcash_Activity_V1_IndirectlySentCryptoNotificationMetadata) throws {
         self.init(
             vault: try PublicKey(proto.vault.value),
             canCancel: proto.canInitiateCancelAction

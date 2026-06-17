@@ -79,7 +79,7 @@ extension IntentSendCashLink {
                 }
 
                 $0.isWithdrawal = false
-                $0.isRemoteSend = true
+                $0.isIndirectSend = true
             }
         }
     }

@@ -96,7 +96,7 @@ extension IntentWithdraw {
                 }
 
                 $0.isWithdrawal = true
-                $0.isRemoteSend = false
+                $0.isIndirectSend = false
 
                 if let owner = destinationMetadata.destination.owner {
                     $0.destinationOwner = owner.solanaAccountID

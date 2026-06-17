@@ -257,7 +257,8 @@ struct ScanScreen: View {
                 toast: toast,
                 onGive: presentGive,
                 onWallet: { router.present(.balance) },
-                onDiscover: { router.present(.discover) }
+                onDiscover: { router.present(.discover) },
+                onSend: { router.present(.send) }
             )
         }
         .opacity(session.isShowingBillDesigner ? 0 : 1)
@@ -398,6 +399,8 @@ private struct RoutedSheet: View {
                         }
                     }
             }
+        case .send:
+            SendRootScreen(container: container, sessionContainer: sessionContainer)
         }
     }
 }

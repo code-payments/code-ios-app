@@ -11,10 +11,6 @@ import Testing
 @Suite("Profile + UserFlags offline cache round-trip")
 struct DatabaseProfileTests {
 
-    private static func makeDatabase() throws -> Database {
-        try Database.makeTemp()
-    }
-
     private static let richUserFlags = UserFlags(
         isRegistered: true,
         isStaff: false,
@@ -25,7 +21,8 @@ struct DatabaseProfileTests {
         newCurrencyPurchaseAmount: TokenAmount(quarks: 5_000_000, mint: .usdf),
         newCurrencyFeeAmount: TokenAmount(quarks: 1_000_000, mint: .usdf),
         withdrawalFeeAmount: TokenAmount(quarks: 50_000, mint: .usdf),
-        minimumHolderValue: TokenAmount(quarks: 100_000, mint: .usdf)
+        minimumHolderValue: TokenAmount(quarks: 100_000, mint: .usdf),
+        enablePhoneNumberSend: true
     )
 
     /// Restricted account: no onramp providers, unset timeout, zero fees.
@@ -39,14 +36,16 @@ struct DatabaseProfileTests {
         newCurrencyPurchaseAmount: .zero(mint: .usdf),
         newCurrencyFeeAmount: .zero(mint: .usdf),
         withdrawalFeeAmount: .zero(mint: .usdf),
-        minimumHolderValue: .zero(mint: .usdf)
+        minimumHolderValue: .zero(mint: .usdf),
+        enablePhoneNumberSend: false
     )
 
     // MARK: - Empty (fresh install) -
 
     @Test("Empty database returns nil for profile and userFlags")
     func emptyDatabase_returnsNil() throws {
-        let db = try Self.makeDatabase()
+        let (db, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
         #expect(try db.getProfile() == nil)
         #expect(try db.getUserFlags() == nil)
     }
@@ -55,7 +54,8 @@ struct DatabaseProfileTests {
 
     @Test("Profile survives an insert/read round-trip with verification flags intact")
     func profile_roundTrip_preservesFields() throws {
-        let db = try Self.makeDatabase()
+        let (db, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
         let original = Profile.verifiedFixture
 
         try db.insertProfile(original)
@@ -68,7 +68,8 @@ struct DatabaseProfileTests {
 
     @Test("Re-inserting a profile replaces the single cached row")
     func profile_insert_upsertsSingleRow() throws {
-        let db = try Self.makeDatabase()
+        let (db, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
 
         try db.insertProfile(Profile.verifiedFixture)
         try db.insertProfile(Profile(displayName: "Updated", phone: Optional<Phone>.none, email: nil))
@@ -86,7 +87,8 @@ struct DatabaseProfileTests {
         arguments: [DatabaseProfileTests.richUserFlags, DatabaseProfileTests.minimalUserFlags]
     )
     func userFlags_roundTrip(original: UserFlags) throws {
-        let db = try Self.makeDatabase()
+        let (db, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
 
         try db.insertUserFlags(original)
         let restored = try #require(try db.getUserFlags())
