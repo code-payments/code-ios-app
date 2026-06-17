@@ -86,6 +86,10 @@ public struct ConversationMember: Hashable, Sendable, Identifiable {
 
     public let userID: UserID?
     public var displayName: String
+    /// The member's E.164 phone number, when the server shared it. For DM chats
+    /// the server populates this per member so each party can resolve the other
+    /// to a contact; `nil` for group chats and when no number is on file.
+    public var phoneE164: String?
     /// This member's READ watermark: every message at or before it is read.
     /// `nil` until the server reports one in the feed/stream.
     public var readPointer: MessageID?
@@ -95,11 +99,20 @@ public struct ConversationMember: Hashable, Sendable, Identifiable {
 
     public var id: String { userID?.uuidString ?? displayName }
 
-    public init(userID: UserID?, displayName: String, readPointer: MessageID? = nil, readPointerTimestamp: Date? = nil) {
+    public init(userID: UserID?, displayName: String, phoneE164: String? = nil, readPointer: MessageID? = nil, readPointerTimestamp: Date? = nil) {
         self.userID = userID
         self.displayName = displayName
+        self.phoneE164 = phoneE164
         self.readPointer = readPointer
         self.readPointerTimestamp = readPointerTimestamp
+    }
+
+    /// The member's phone number formatted for display, used as a conversation
+    /// title fallback before the generic name. National format, falling back to
+    /// the raw E.164 when it can't be parsed.
+    public var formattedPhoneNumber: String? {
+        guard let phoneE164, !phoneE164.isEmpty else { return nil }
+        return Phone(phoneE164)?.national ?? phoneE164
     }
 }
 
@@ -107,6 +120,7 @@ extension ConversationMember {
     public init(_ proto: Flipcash_Chat_V1_Member) {
         self.userID = try? UUID(data: proto.userID.value)
         self.displayName = proto.userProfile.displayName
+        self.phoneE164 = proto.userProfile.phoneNumber.value.isEmpty ? nil : proto.userProfile.phoneNumber.value
 
         var read: MessageID?
         var readAt: Date?

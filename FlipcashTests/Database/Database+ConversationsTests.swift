@@ -237,13 +237,13 @@ struct DatabaseConversationsTests {
 
     // MARK: - Conversations -
 
-    @Test("A conversation round-trips with members, read pointers, and the newest message as preview")
+    @Test("A conversation round-trips with members, phone numbers, read pointers, and the newest message as preview")
     func conversationRoundTrip() throws {
         let (database, url) = try Database.makeTemp()
         defer { Database.removeTemp(at: url) }
         let members = [
             ConversationMember(userID: selfID, displayName: "Self", readPointer: MessageID(value: 1)),
-            ConversationMember(userID: otherID, displayName: "Them", readPointer: nil),
+            ConversationMember(userID: otherID, displayName: "Them", phoneE164: "+14155550100", readPointer: nil),
         ]
         let preview = textMessage(id: 2, at: 60)
         let stored = conversation(byte: 1, members: members, lastMessage: preview)

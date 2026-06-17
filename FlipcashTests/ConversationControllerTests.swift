@@ -133,7 +133,27 @@ struct ConversationControllerTests {
         #expect(controller.displayName(forConversationID: ConversationID.test(1)) == "Alice")
     }
 
-    @Test("falls back to a generic title when the counterpart has no name")
+    @Test("falls back to the counterpart's phone number when it has no name")
+    func counterpartPhoneFallback() async {
+        let me = UUID()
+        let other = UUID()
+        let mock = MockConversations()
+        mock.feed = [Conversation(
+            id: ConversationID.test(1),
+            members: [
+                ConversationMember(userID: me, displayName: ""),
+                ConversationMember(userID: other, displayName: "", phoneE164: "+14155550100"),
+            ],
+            lastMessage: nil,
+            lastActivity: Date(timeIntervalSince1970: 0)
+        )]
+        let controller = makeController(mock, selfUserID: me)
+
+        await controller.loadFeed()
+        #expect(controller.displayName(forConversationID: ConversationID.test(1)) == "(415) 555-0100")
+    }
+
+    @Test("falls back to a generic title when the counterpart has no name or phone")
     func counterpartNameFallback() async {
         let me = UUID()
         let other = UUID()
