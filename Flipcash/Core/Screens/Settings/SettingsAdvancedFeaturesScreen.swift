@@ -12,7 +12,6 @@ import FlipcashUI
 struct SettingsAdvancedFeaturesScreen: View {
 
     @Environment(AppRouter.self) private var router
-    @Environment(Session.self) private var session
     @Environment(BetaFlags.self) private var betaFlags
 
     private let insets = EdgeInsets(top: 25, leading: 0, bottom: 25, trailing: 0)
@@ -29,14 +28,6 @@ struct SettingsAdvancedFeaturesScreen: View {
                     }
                     .padding(insets)
                     .vSeparator(color: .rowSeparator, position: .bottom)
-
-                    SettingsRow(systemImage: "slider.horizontal.3", title: "Bill Designer", insets: insets) {
-                        Task {
-                            router.dismissSheet()
-                            try await Task.delay(milliseconds: 250)
-                            session.isShowingBillDesigner = true
-                        }
-                    }
 
                     SettingsRow(systemImage: "doc.text", title: "Application Logs", insets: insets) {
                         router.push(.settingsApplicationLogs)
