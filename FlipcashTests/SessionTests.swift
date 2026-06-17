@@ -707,30 +707,20 @@ struct SessionCanSendTests {
         return try body()
     }
 
-    @Test("The server flag enablePhoneNumberSend enables Send")
-    func serverFlagEnablesSend() throws {
-        try Self.withSendBetaFlag(enabled: false) {
+    @Test(
+        "canSend is the beta flag OR the server flag",
+        arguments: [
+            (beta: false, server: false, expected: false),
+            (beta: false, server: true,  expected: true),
+            (beta: true,  server: false, expected: true),
+            (beta: true,  server: true,  expected: true),
+        ]
+    )
+    func canSend(beta: Bool, server: Bool, expected: Bool) {
+        Self.withSendBetaFlag(enabled: beta) {
             let session = Session.makeMock(database: .mock)
-            session.userFlags = Self.makeUserFlags(enablePhoneNumberSend: true)
-            #expect(session.canSend)
-        }
-    }
-
-    @Test("Send is off when neither the beta flag nor the server flag is set")
-    func defaultsOff() throws {
-        try Self.withSendBetaFlag(enabled: false) {
-            let session = Session.makeMock(database: .mock)
-            session.userFlags = Self.makeUserFlags(enablePhoneNumberSend: false)
-            #expect(!session.canSend)
-        }
-    }
-
-    @Test("The beta flag enables Send even without the server flag")
-    func betaFlagEnablesSend() throws {
-        try Self.withSendBetaFlag(enabled: true) {
-            let session = Session.makeMock(database: .mock)
-            session.userFlags = Self.makeUserFlags(enablePhoneNumberSend: false)
-            #expect(session.canSend)
+            session.userFlags = Self.makeUserFlags(enablePhoneNumberSend: server)
+            #expect(session.canSend == expected)
         }
     }
 }
