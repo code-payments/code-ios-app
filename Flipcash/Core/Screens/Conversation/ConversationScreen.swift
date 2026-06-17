@@ -78,6 +78,22 @@ struct ConversationScreen: View {
         }
     }
 
+    /// Who Send Cash pays: the synced address-book contact when there is one,
+    /// otherwise a target built from the counterpart's shared phone number so a
+    /// chat with a non-contact can still receive cash. `nil` only when neither a
+    /// contact nor a counterpart phone number is available.
+    private var sendTarget: ResolvedContact? {
+        if let contact {
+            return contact
+        }
+        guard let conversationID,
+              let counterpart = conversationController.conversation(withID: conversationID)?
+                .counterpart(excluding: conversationController.selfUserID) else {
+            return nil
+        }
+        return ResolvedContact(counterpart: counterpart, dmChatID: conversationID.data)
+    }
+
     /// Whether the DM chat actually exists server-side. Matched contacts carry
     /// a pre-assigned `dmChatID` before any payment (the first intent needs it),
     /// so the ID alone doesn't mean the chat was created — require it to be in
@@ -88,7 +104,7 @@ struct ConversationScreen: View {
         case .existing:
             return true
         case .contact:
-            return conversationController.conversations.contains { $0.id == conversationID }
+            return conversationController.conversation(withID: conversationID) != nil
                 || !conversationController.messages(for: conversationID).isEmpty
         }
     }
@@ -117,8 +133,7 @@ struct ConversationScreen: View {
     /// moment they read.
     private var counterpartRead: ReadReceiptState? {
         guard let conversationID else { return nil }
-        return conversationController.conversations
-            .first { $0.id == conversationID }?
+        return conversationController.conversation(withID: conversationID)?
             .counterpartReadReceipt(excluding: conversationController.selfUserID)
     }
 
@@ -126,8 +141,7 @@ struct ConversationScreen: View {
     /// it's fixed before any cash bubble mounts.
     private func captureSeenBoundaryIfNeeded() {
         guard !didCaptureSeenBoundary, let conversationID, !messages.isEmpty else { return }
-        seenBoundary = conversationController.conversations
-            .first { $0.id == conversationID }?
+        seenBoundary = conversationController.conversation(withID: conversationID)?
             .selfReadPointer(for: conversationController.selfUserID)
         didCaptureSeenBoundary = true
     }
@@ -151,7 +165,7 @@ struct ConversationScreen: View {
         .background(Color.backgroundMain)
         .safeAreaInset(edge: .bottom) {
             ConversationBottomBar(
-                showsSendCash: contact != nil,
+                showsSendCash: sendTarget != nil,
                 showsSendMessage: chatExists,
                 isComposing: $isComposing,
                 conversationID: conversationID,
@@ -217,14 +231,14 @@ struct ConversationScreen: View {
     }
 
     private func sendCash() {
-        guard let contact else { return }
+        guard let sendTarget else { return }
         guard session.hasGiveableBalance(for: ratesController.rateForBalanceCurrency()) else {
             session.dialogItem = .noGiveableBalance {
                 router.navigate(to: .deposit)
             }
             return
         }
-        router.push(.sendAmount(contact: contact))
+        router.push(.sendAmount(contact: sendTarget))
     }
 
     /// Resigns the first responder directly via UIKit so the keyboard lowers
@@ -256,7 +270,7 @@ struct ConversationScreen: View {
                 // Done only once the FEED has the chat — messages arriving over
                 // the stream flip `chatExists` early, but the picker's Recents
                 // section reads the feed.
-                guard conversationController.conversations.contains(where: { $0.id == conversationID }) else { continue }
+                guard conversationController.conversation(withID: conversationID) != nil else { continue }
                 await conversationController.loadMessages(for: conversationID)
                 break
             }

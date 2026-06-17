@@ -32,6 +32,11 @@ final class ConversationController {
     var conversations: [Conversation] { store.conversations }
     private(set) var isLoadingFeed = false
 
+    /// The conversation with this ID, if the feed currently holds it.
+    func conversation(withID id: ConversationID) -> Conversation? {
+        conversations.first { $0.id == id }
+    }
+
     /// The signed-in user, used to tell own messages from the counterpart's.
     let selfUserID: UserID
 
