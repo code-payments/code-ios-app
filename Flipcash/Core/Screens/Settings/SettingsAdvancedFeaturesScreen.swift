@@ -24,7 +24,7 @@ struct SettingsAdvancedFeaturesScreen: View {
                     HStack(spacing: 12) {
                         Image(systemName: "paperplane")
                             .frame(minWidth: 45)
-                        Toggle("Send Cash", isOn: betaFlags.bindingFor(option: .enableSend))
+                        Toggle("Beta Feature: Send Cash", isOn: betaFlags.bindingFor(option: .enableSend))
                             .tint(.textSuccess)
                     }
                     .padding(insets)
