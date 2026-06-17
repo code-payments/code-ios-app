@@ -232,22 +232,24 @@ final class ConversationController {
 
     // MARK: - Names
 
-    /// Counterpart name shown when neither the synced contacts nor the feed
-    /// provides one.
+    /// Counterpart name shown when neither the synced contacts, the feed, nor a
+    /// shared phone number provides one.
     static let fallbackCounterpartName = "Flipcash User"
 
     /// The counterpart's name for a conversation: the synced contact's
     /// address-book name, else the server-provided member name from the feed,
-    /// else a generic fallback.
+    /// else the counterpart's shared phone number, else a generic fallback.
     func displayName(for conversation: Conversation) -> String {
         if let contactName = contactName(for: conversation.id) {
             return contactName
         }
-        guard let counterpart = conversation.counterpart(excluding: selfUserID),
-              !counterpart.displayName.isEmpty else {
+        guard let counterpart = conversation.counterpart(excluding: selfUserID) else {
             return Self.fallbackCounterpartName
         }
-        return counterpart.displayName
+        if !counterpart.displayName.isEmpty {
+            return counterpart.displayName
+        }
+        return counterpart.formattedPhoneNumber ?? Self.fallbackCounterpartName
     }
 
     func displayName(forConversationID conversationID: ConversationID) -> String {

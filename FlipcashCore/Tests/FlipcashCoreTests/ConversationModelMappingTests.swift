@@ -141,6 +141,31 @@ struct ConversationModelMappingTests {
         #expect(member.readPointerTimestamp == readAt)
     }
 
+    @Test("Member maps the shared phone number and formats it for display")
+    func memberMapsPhoneNumber() {
+        let proto = Flipcash_Chat_V1_Member.with {
+            $0.userID = .with { $0.value = UUID().data }
+            $0.userProfile = .with {
+                $0.phoneNumber = .with { $0.value = "+14155550100" }
+            }
+        }
+
+        let member = ConversationMember(proto)
+        #expect(member.phoneE164 == "+14155550100")
+        #expect(member.formattedPhoneNumber == "(415) 555-0100")
+    }
+
+    @Test("Member has no phone number when the profile omits one")
+    func memberWithoutPhoneNumber() {
+        let proto = Flipcash_Chat_V1_Member.with {
+            $0.userID = .with { $0.value = UUID().data }
+        }
+
+        let member = ConversationMember(proto)
+        #expect(member.phoneE164 == nil)
+        #expect(member.formattedPhoneNumber == nil)
+    }
+
     @Test("counterpartReadReceipt returns the other member's pointer and read time")
     func counterpartReadReceiptReturnsOtherMember() {
         let me = UUID()

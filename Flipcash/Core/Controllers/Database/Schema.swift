@@ -178,6 +178,7 @@ nonisolated struct ConversationMemberTable: Sendable {
     let conversationId        = Expression <Data>    ("conversationId")
     let userId                = Expression <UUID?>   ("userId")
     let displayName           = Expression <String>  ("displayName")
+    let phoneE164             = Expression <String?> ("phoneE164")
     let readPointer           = Expression <UInt64?> ("readPointer")
     let readPointerTimestamp  = Expression <Double?> ("readPointerTimestamp")
 }
@@ -393,6 +394,7 @@ nonisolated extension Database {
                 t.column(conversationMemberTable.conversationId)
                 t.column(conversationMemberTable.userId)
                 t.column(conversationMemberTable.displayName)
+                t.column(conversationMemberTable.phoneE164)
                 t.column(conversationMemberTable.readPointer)
                 t.column(conversationMemberTable.readPointerTimestamp)
             })

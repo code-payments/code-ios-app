@@ -44,6 +44,7 @@ nonisolated extension Database {
                 member: ConversationMember(
                     userID: row[m.userId],
                     displayName: row[m.displayName],
+                    phoneE164: row[m.phoneE164],
                     readPointer: row[m.readPointer].map(MessageID.init(value:)),
                     readPointerTimestamp: row[m.readPointerTimestamp].map { Date(timeIntervalSinceReferenceDate: $0) }
                 )
@@ -168,6 +169,7 @@ nonisolated extension Database {
                     m.conversationId        <- conversation.id.data,
                     m.userId                <- member.userID,
                     m.displayName           <- member.displayName,
+                    m.phoneE164             <- member.phoneE164,
                     m.readPointer           <- member.readPointer?.value,
                     m.readPointerTimestamp  <- member.readPointerTimestamp?.timeIntervalSinceReferenceDate
                 )
