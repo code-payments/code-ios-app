@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import Contacts
 import UserNotifications
 import FlipcashUI
 import FlipcashCore
@@ -131,8 +130,9 @@ class OnboardingViewModel {
         try await Task.delay(milliseconds: 500) // Delay deferred state change
     }
 
-    /// Advances to push permission when undetermined, otherwise finishes login.
-    private func advanceFromContactsStep() async {
+    /// Phone-step success handler: advance to push permission when undetermined,
+    /// otherwise finish login. Contacts access is requested later, from Send.
+    private func advanceFromPhoneVerificationStep() async {
         let pushStatus = await PushController.fetchStatus()
         switch pushStatus {
         case .notDetermined:
@@ -216,16 +216,6 @@ class OnboardingViewModel {
         Analytics.buttonTapped(name: .skipPush)
     }
 
-    // MARK: - Contacts permission -
-
-    func allowContactsAction() {
-        Task { await advanceFromContactsStep() }
-    }
-
-    func skipContactsAction() {
-        Task { await advanceFromContactsStep() }
-    }
-
     // MARK: - Registration -
 
     private func registerAccount(mnemonic: MnemonicPhrase) async throws {
@@ -279,10 +269,6 @@ class OnboardingViewModel {
         path.append(.pushNotificationsDenied)
     }
 
-    func navigateToContactsPermissions() {
-        path.append(.contactsPermissions)
-    }
-
     func navigateToPhoneVerification() {
         if phoneVerificationViewModel == nil {
             let vm = PhoneVerificationViewModel(
@@ -306,27 +292,6 @@ class OnboardingViewModel {
         path.append(.confirmPhoneNumberCode)
     }
 
-    /// Phone-step success handler. Routes to contacts priming when
-    /// unprompted, otherwise to push + completeLogin.
-    func advanceFromPhoneVerificationStep() async {
-        let contactsStatus = await Task.detached {
-            CNContactStore.authorizationStatus(for: .contacts)
-        }.value
-        if let next = Self.destinationAfterPhoneStep(contactsStatus: contactsStatus) {
-            path.append(next)
-        } else {
-            await advanceFromContactsStep()
-        }
-    }
-
-    /// `.notDetermined` → `.contactsPermissions`; any other status → nil
-    /// (post-contacts flow takes over).
-    nonisolated static func destinationAfterPhoneStep(
-        contactsStatus: CNAuthorizationStatus
-    ) -> OnboardingPath? {
-        contactsStatus == .notDetermined ? .contactsPermissions : nil
-    }
-
 }
 
 // MARK: - Path -
@@ -340,5 +305,4 @@ nonisolated enum OnboardingPath {
     case confirmPhoneNumberCode
     case pushNotifications
     case pushNotificationsDenied
-    case contactsPermissions
 }
