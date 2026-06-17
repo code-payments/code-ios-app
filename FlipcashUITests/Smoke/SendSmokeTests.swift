@@ -59,7 +59,7 @@ final class SendSmokeTests: BaseUITestCase {
         // header assertions above stand on their own — skip the rest.
         guard inviteHeader.exists else { return }
 
-        waitAndTap(app.buttons["Invite"].firstMatch)
+        waitAndTap(app.buttons["Anna Haro, (555) 522-8243"].firstMatch)
 
         // `MFMessageComposeViewController.canSendText()` returns `false`
         // on the simulator, so `RecipientPickerScreen.presentInvite(for:)`
