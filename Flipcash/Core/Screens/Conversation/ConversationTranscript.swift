@@ -167,6 +167,13 @@ struct ConversationTranscriptRow: View {
 /// considered "at the bottom" for auto-scroll purposes.
 private nonisolated let bottomThreshold: CGFloat = 80
 
+/// The transcript's container and content heights, sampled together so the follow
+/// can tell genuine content growth from a keyboard-driven container resize.
+private struct ScrollMetrics: Equatable {
+    let containerHeight: CGFloat
+    let contentHeight: CGFloat
+}
+
 /// A bottom-anchored scroll view for chat-style content — copied from atelier's
 /// `ChatScrollView` (`Packages/AtelierDesign/.../ChatScrollView.swift`). The only
 /// changes are design-token substitutions (atelier's `Spacing`/`Motion`/`.glassEffect`
@@ -183,6 +190,10 @@ struct ChatScrollView<Content: View>: View {
     /// atelier gated the follow on `isAtBottom`, which the async load flips false
     /// at the wrong moment, landing the open mid-list.)
     @State private var followsBottom = true
+    /// Whether the scroll view is settled (not interacting, decelerating, or animating).
+    /// The follow re-engages only while idle, so the transient "at bottom" flip a keyboard
+    /// or momentum settle produces mid-scroll can't re-arm it.
+    @State private var isScrollIdle = true
 
     init(@ViewBuilder content: () -> Content) {
         self.content = content()
@@ -201,16 +212,23 @@ struct ChatScrollView<Content: View>: View {
             return bottomEdge >= geometry.contentSize.height - bottomThreshold
         } action: { _, newValue in
             isAtBottom = newValue
-            if newValue { followsBottom = true }
+            if newValue, isScrollIdle { followsBottom = true }
         }
-        .onScrollGeometryChange(for: CGFloat.self) { geometry in
-            geometry.contentSize.height
-        } action: { oldHeight, newHeight in
-            if followsBottom, newHeight > oldHeight {
+        .onScrollGeometryChange(for: ScrollMetrics.self) { geometry in
+            ScrollMetrics(containerHeight: geometry.containerSize.height,
+                          contentHeight: geometry.contentSize.height)
+        } action: { old, new in
+            // Snap to the newest message when content actually grows (a message arrives,
+            // older history pages in). A container resize — the keyboard raising or
+            // lowering — makes SwiftUI momentarily misreport the content height; skipping
+            // changes that coincide with one keeps that wobble from driving scrollTo.
+            let containerStable = new.containerHeight == old.containerHeight
+            if followsBottom, containerStable, new.contentHeight > old.contentHeight {
                 scrollPosition.scrollTo(edge: .bottom)
             }
         }
         .onScrollPhaseChange { _, newPhase in
+            isScrollIdle = newPhase == .idle
             if newPhase == .interacting { followsBottom = false }
         }
         .onAppear {
