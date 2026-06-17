@@ -13,22 +13,25 @@ struct ConnectPhoneEmptyState: View {
     let onConnect: () -> Void
 
     var body: some View {
-        ContentUnavailableView {
-            Label {
+        VStack(spacing: 0) {
+            Spacer()
+            VStack(spacing: 12) {
+                Image(.Icons.send)
+                    .foregroundStyle(Color.textSecondary)
                 Text("Connect Phone To Send")
                     .font(.appTextLarge)
                     .foregroundStyle(Color.textMain)
-            } icon: {
-                Image(.Icons.send)
+                    .multilineTextAlignment(.center)
+                Text("Connect your phone number to send cash")
+                    .font(.appTextMedium)
+                    .foregroundStyle(Color.textSecondary)
+                    .multilineTextAlignment(.center)
             }
-        } description: {
-            Text("Connect your phone number to send cash")
-                .font(.appTextMedium)
-                .foregroundStyle(Color.textSecondary)
-        } actions: {
+            Spacer()
             Button("Connect Your Phone Number", action: onConnect)
                 .buttonStyle(.filled)
         }
+        .padding(20)
     }
 }
 
