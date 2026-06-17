@@ -24,11 +24,18 @@ class BaseUITestCase: XCTestCase {
     /// Example: `[.photos, .camera]`
     var resetPermissions: [XCUIProtectedResource] { [] }
 
+    /// Beta-flag option rawValues to enable for the test via `--beta-flags`.
+    var enabledBetaFlags: [String] { [] }
+
     override func setUp() async throws {
         try await super.setUp()
         continueAfterFailure = false
 
         app.launchArguments = ["--ui-testing", "-AppleLocale", "en_US", "-AppleLanguages", "(en)"]
+
+        if !enabledBetaFlags.isEmpty {
+            app.launchArguments.append("--beta-flags=\(enabledBetaFlags.joined(separator: ","))")
+        }
 
         for permission in resetPermissions {
             app.resetAuthorizationStatus(for: permission)

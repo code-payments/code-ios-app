@@ -100,7 +100,11 @@ class Session {
     var hasCoinbaseOnramp: Bool {
         BetaFlags.shared.hasEnabled(.enableCoinbase) || userFlags?.hasCoinbase == true
     }
-    
+
+    var canSend: Bool {
+        BetaFlags.shared.hasEnabled(.enableSend) || userFlags?.enablePhoneNumberSend == true
+    }
+
     var hasPreferredOnrampProvider: Bool {
         userFlags?.hasPreferredOnrampProvider == true
     }
@@ -323,9 +327,8 @@ class Session {
 
     /// Links an already-verified phone for payment once per session. Best-effort; server-idempotent.
     private func linkPhoneForPaymentIfNeeded() async {
-        // TODO: gate on (BetaFlags || userFlags?.enablePhoneNumberSend) once
-        // enablePhoneNumberSend ships; runs unconditionally until then.
-        guard let phone = profile?.phone,
+        guard canSend,
+              let phone = profile?.phone,
               !hasLinkedPhoneForPayment else { return }
         // Claim before the await so two concurrent callers can't double-fire; released on failure below.
         hasLinkedPhoneForPayment = true

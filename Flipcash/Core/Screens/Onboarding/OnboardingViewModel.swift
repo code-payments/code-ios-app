@@ -123,15 +123,19 @@ class OnboardingViewModel {
         accessKeyButtonState = .success
         try await Task.delay(milliseconds: 500)
 
-        // No Session yet (completeLogin runs after the permission gates),
-        // and a fresh registration has no verified phone. Always show.
-        navigateToPhoneVerification()
+        // Phone verification only exists to power Send; show it when the Send
+        // beta flag is on, otherwise advance straight to the next step.
+        if BetaFlags.shared.hasEnabled(.enableSend) {
+            navigateToPhoneVerification()
+        } else {
+            await advanceFromPhoneVerificationStep()
+        }
 
         try await Task.delay(milliseconds: 500) // Delay deferred state change
     }
 
-    /// Phone-step success handler: advance to push permission when undetermined,
-    /// otherwise finish login. Contacts access is requested later, from Send.
+    /// Advances past the phone step: requests push permission when undetermined,
+    /// otherwise finishes login. Contacts access is requested later, from Send.
     private func advanceFromPhoneVerificationStep() async {
         let pushStatus = await PushController.fetchStatus()
         switch pushStatus {

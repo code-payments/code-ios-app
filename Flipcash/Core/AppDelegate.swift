@@ -60,6 +60,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
         if Container.isRunningUITests {
             UIView.setAnimationsEnabled(false)
+            BetaFlags.shared.applyLaunchArgumentOverrides()
         }
 
         NotificationCenter.default.addObserver(

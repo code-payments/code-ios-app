@@ -677,6 +677,64 @@ struct SessionOfflineCacheTests {
     }
 }
 
+/// Runs serialized — the beta-flag cases mutate the `BetaFlags.shared`
+/// singleton (UserDefaults-backed), so parallel execution with any other
+/// suite that reads `enableSend` would race on the global flag.
+@Suite("Session.canSend", .serialized)
+@MainActor
+struct SessionCanSendTests {
+
+    private static func makeUserFlags(enablePhoneNumberSend: Bool) -> UserFlags {
+        UserFlags(
+            isRegistered: true,
+            isStaff: false,
+            onrampProviders: [],
+            preferredOnrampProvider: .coinbaseVirtual,
+            minBuildNumber: 0,
+            billExchangeDataTimeout: nil,
+            newCurrencyPurchaseAmount: .zero(mint: .usdf),
+            newCurrencyFeeAmount: .zero(mint: .usdf),
+            withdrawalFeeAmount: .zero(mint: .usdf),
+            minimumHolderValue: .zero(mint: .usdf),
+            enablePhoneNumberSend: enablePhoneNumberSend
+        )
+    }
+
+    private static func withSendBetaFlag<R>(enabled: Bool, _ body: () throws -> R) rethrows -> R {
+        let original = BetaFlags.shared.hasEnabled(.enableSend)
+        BetaFlags.shared.set(.enableSend, enabled: enabled)
+        defer { BetaFlags.shared.set(.enableSend, enabled: original) }
+        return try body()
+    }
+
+    @Test("The server flag enablePhoneNumberSend enables Send")
+    func serverFlagEnablesSend() throws {
+        try Self.withSendBetaFlag(enabled: false) {
+            let session = Session.makeMock(database: .mock)
+            session.userFlags = Self.makeUserFlags(enablePhoneNumberSend: true)
+            #expect(session.canSend)
+        }
+    }
+
+    @Test("Send is off when neither the beta flag nor the server flag is set")
+    func defaultsOff() throws {
+        try Self.withSendBetaFlag(enabled: false) {
+            let session = Session.makeMock(database: .mock)
+            session.userFlags = Self.makeUserFlags(enablePhoneNumberSend: false)
+            #expect(!session.canSend)
+        }
+    }
+
+    @Test("The beta flag enables Send even without the server flag")
+    func betaFlagEnablesSend() throws {
+        try Self.withSendBetaFlag(enabled: true) {
+            let session = Session.makeMock(database: .mock)
+            session.userFlags = Self.makeUserFlags(enablePhoneNumberSend: false)
+            #expect(session.canSend)
+        }
+    }
+}
+
 @MainActor
 @Suite("Session.hasGiveableBalance")
 struct SessionHasGiveableBalanceTests {

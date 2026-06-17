@@ -8,6 +8,7 @@ import FlipcashUI
 
 struct ScanBottomBar: View {
     let toast: String?
+    let showSend: Bool
     let onGive: () -> Void
     let onWallet: () -> Void
     let onDiscover: () -> Void
@@ -29,12 +30,14 @@ struct ScanBottomBar: View {
             )
             .accessibilityIdentifier("scan-cash-button")
 
-            LargeButton(
-                title: "Send",
-                image: Image(.Icons.send),
-                action: onSend
-            )
-            .accessibilityIdentifier("scan-send-button")
+            if showSend {
+                LargeButton(
+                    title: "Send",
+                    image: Image(.Icons.send),
+                    action: onSend
+                )
+                .accessibilityIdentifier("scan-send-button")
+            }
 
             ToastContainer(toast: toast) {
                 LargeButton(
