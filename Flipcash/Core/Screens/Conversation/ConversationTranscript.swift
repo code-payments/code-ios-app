@@ -100,8 +100,8 @@ nonisolated enum ConversationTranscriptItem: Identifiable, Equatable {
     }
 }
 
-/// The chat transcript: a bottom-anchored `ChatScrollView` (atelier's mechanism)
-/// holding the full message history, so scrolling up reaches the first message.
+/// The chat transcript: a bottom-anchored `ChatScrollView` holding the full
+/// message history, so scrolling up reaches the first message.
 struct ConversationTranscript: View {
 
     let messages: [ConversationMessage]
@@ -117,6 +117,10 @@ struct ConversationTranscript: View {
     let isLoadingOlder: Bool
     let onBackgroundTap: () -> Void
 
+    /// How many of the newest rows render eagerly. Large enough to always exceed a
+    /// viewport so the open never lands on an unrealized row.
+    private static let eagerTailCount = 40
+
     var body: some View {
         let items = ConversationTranscriptItem.items(
             from: messages,
@@ -124,15 +128,24 @@ struct ConversationTranscript: View {
             seenBoundary: seenBoundary,
             counterpartRead: counterpartRead
         )
+        // Newest run eager, older history lazy: a LazyVStack jumped to its bottom never
+        // materializes those rows (the open goes blank), so a non-lazy tail guarantees
+        // the open lands on rendered rows.
+        let tailStart = max(0, items.count - Self.eagerTailCount)
+        let history = items[..<tailStart]
+        let tail = items[tailStart...]
 
-        ChatScrollView {
-            LazyVStack(spacing: 8) {
-                if isLoadingOlder {
-                    ProgressView()
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
+        ChatScrollView(bottomID: items.last?.id) {
+            VStack(spacing: 8) {
+                LazyVStack(spacing: 8) {
+                    if isLoadingOlder {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                    }
+                    ForEach(history) { ConversationTranscriptRow(item: $0) }
                 }
-                ForEach(items) { ConversationTranscriptRow(item: $0) }
+                ForEach(tail) { ConversationTranscriptRow(item: $0) }
             }
             .padding(.vertical, 12)
             // Tapping empty space lowers the keyboard; bubbles consume their own taps.
@@ -174,84 +187,98 @@ private struct ScrollMetrics: Equatable {
     let contentHeight: CGFloat
 }
 
-/// A bottom-anchored scroll view for chat-style content — copied from atelier's
-/// `ChatScrollView` (`Packages/AtelierDesign/.../ChatScrollView.swift`). The only
-/// changes are design-token substitutions (atelier's `Spacing`/`Motion`/`.glassEffect`
-/// → literals + material) so it builds in this app.
+/// A bottom-anchored scroll view for chat-style content: it opens pinned to the
+/// newest message and keeps following the bottom as content arrives, until the
+/// user scrolls away.
 struct ChatScrollView<Content: View>: View {
+    /// Identity of the newest row. Scrolled to by identity, not the content edge,
+    /// because a `LazyVStack` won't materialize its bottom rows for a far offset jump.
+    let bottomID: String?
     @ViewBuilder let content: Content
 
-    @State private var scrollPosition = ScrollPosition(edge: .bottom)
     @State private var isAtBottom = true
-    /// Whether to keep snapping to the newest message as content changes. Stays on
-    /// — pinning the view to the bottom through the async first load, the full
-    /// history paging in, and sent/received messages — until the user drags away,
-    /// and re-engages when they scroll back to the bottom. (Flipcash adaptation:
-    /// atelier gated the follow on `isAtBottom`, which the async load flips false
-    /// at the wrong moment, landing the open mid-list.)
+    /// Whether to keep snapping to the newest message as content changes — on until
+    /// the user drags away, re-engaging when they scroll back to the bottom. Kept
+    /// separate from `isAtBottom`, which the async first load flips false mid-open.
     @State private var followsBottom = true
     /// Whether the scroll view is settled (not interacting, decelerating, or animating).
     /// The follow re-engages only while idle, so the transient "at bottom" flip a keyboard
     /// or momentum settle produces mid-scroll can't re-arm it.
     @State private var isScrollIdle = true
 
-    init(@ViewBuilder content: () -> Content) {
+    init(bottomID: String?, @ViewBuilder content: () -> Content) {
+        self.bottomID = bottomID
         self.content = content()
     }
 
     var body: some View {
-        ScrollView {
-            content
-        }
-        .scrollPosition($scrollPosition)
-        // Drag the transcript down to lower the keyboard, the way Messages does;
-        // the composer's focus-loss handler then collapses it back to the action bar.
-        .scrollDismissesKeyboard(.interactively)
-        .onScrollGeometryChange(for: Bool.self) { geometry in
-            let bottomEdge = geometry.contentOffset.y + geometry.containerSize.height
-            return bottomEdge >= geometry.contentSize.height - bottomThreshold
-        } action: { _, newValue in
-            isAtBottom = newValue
-            if newValue, isScrollIdle { followsBottom = true }
-        }
-        .onScrollGeometryChange(for: ScrollMetrics.self) { geometry in
-            ScrollMetrics(containerHeight: geometry.containerSize.height,
-                          contentHeight: geometry.contentSize.height)
-        } action: { old, new in
-            // Snap to the newest message when content actually grows (a message arrives,
-            // older history pages in). A container resize — the keyboard raising or
-            // lowering — makes SwiftUI momentarily misreport the content height; skipping
-            // changes that coincide with one keeps that wobble from driving scrollTo.
-            let containerStable = new.containerHeight == old.containerHeight
-            if followsBottom, containerStable, new.contentHeight > old.contentHeight {
-                scrollPosition.scrollTo(edge: .bottom)
+        ScrollViewReader { proxy in
+            ScrollView {
+                content
             }
-        }
-        .onScrollPhaseChange { _, newPhase in
-            isScrollIdle = newPhase == .idle
-            if newPhase == .interacting { followsBottom = false }
-        }
-        .onAppear {
-            scrollPosition.scrollTo(edge: .bottom)
-        }
-        .overlay(alignment: .bottom) {
-            Group {
-                if !isAtBottom {
-                    scrollToBottomButton
-                        .padding(.bottom, 8)
-                        .transition(.scale.combined(with: .opacity))
+            // Anchor the opening offset to the bottom at layout time; an onAppear scroll
+            // races a cached conversation's full content and can land at the top. Scoped
+            // to `.initialOffset` — the follow below owns every later scroll.
+            .defaultScrollAnchor(.bottom, for: .initialOffset)
+            // Drag the transcript down to lower the keyboard, the way Messages does;
+            // the composer's focus-loss handler then collapses it back to the action bar.
+            .scrollDismissesKeyboard(.interactively)
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                let bottomEdge = geometry.contentOffset.y + geometry.containerSize.height
+                return bottomEdge >= geometry.contentSize.height - bottomThreshold
+            } action: { _, newValue in
+                isAtBottom = newValue
+                if newValue, isScrollIdle { followsBottom = true }
+            }
+            .onScrollGeometryChange(for: ScrollMetrics.self) { geometry in
+                ScrollMetrics(containerHeight: geometry.containerSize.height,
+                              contentHeight: geometry.contentSize.height)
+            } action: { old, new in
+                // Re-pin to the newest row as content grows while following (a message
+                // arrives, history pages in). The container-stable guard skips the keyboard
+                // resize, and growth-only avoids yanking the user down on a row's shrink.
+                let containerStable = new.containerHeight == old.containerHeight
+                if followsBottom, containerStable, new.contentHeight > old.contentHeight {
+                    proxy.scrollToNewest(bottomID)
                 }
             }
-            .animation(.spring(duration: 0.3), value: isAtBottom)
+            .onScrollPhaseChange { _, newPhase in
+                isScrollIdle = newPhase == .idle
+                if newPhase == .interacting { followsBottom = false }
+            }
+            .overlay(alignment: .bottom) {
+                Group {
+                    if !isAtBottom {
+                        ScrollToNewestButton { proxy.scrollToNewest(bottomID, animated: true) }
+                            .padding(.bottom, 8)
+                            .transition(.scale.combined(with: .opacity))
+                    }
+                }
+                .animation(.spring(duration: 0.3), value: isAtBottom)
+            }
         }
     }
+}
 
-    private var scrollToBottomButton: some View {
-        Button {
-            withAnimation(.spring(duration: 0.3)) {
-                scrollPosition.scrollTo(edge: .bottom)
-            }
-        } label: {
+private extension ScrollViewProxy {
+    /// Scrolls to the chat's newest row by identity (no-op when empty), which makes the
+    /// `LazyVStack` realize it where an offset jump would not.
+    func scrollToNewest(_ id: String?, animated: Bool = false) {
+        guard let id else { return }
+        if animated {
+            withAnimation(.spring(duration: 0.3)) { scrollTo(id, anchor: .bottom) }
+        } else {
+            scrollTo(id, anchor: .bottom)
+        }
+    }
+}
+
+/// The circular "scroll to newest" affordance shown once the user has scrolled up.
+private struct ScrollToNewestButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
             Image(systemName: "arrow.down")
                 .font(.body.weight(.semibold))
                 .frame(width: 32, height: 32)
