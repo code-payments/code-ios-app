@@ -9,7 +9,7 @@ import FlipcashCore
 
 struct ApplicationLogsScreen: View {
 
-    @State private var isExporting = false
+    @State private var exportedLogs: URL?
 
     var body: some View {
         Background(color: .backgroundMain) {
@@ -35,27 +35,22 @@ struct ApplicationLogsScreen: View {
 
                 Spacer()
 
-                Button {
-                    isExporting = true
-                    Task {
-                        defer { isExporting = false }
-                        if let url = try? await LogStore.shared.exportLogs() {
-                            ShareSheet.present(url: url)
-                        }
-                    }
-                } label: {
-                    if isExporting {
-                        ProgressView()
-                    } else {
+                if let exportedLogs {
+                    ShareLink(item: exportedLogs) {
                         Text("Share Logs")
                     }
+                    .buttonStyle(.filled)
+                    .padding(20)
+                } else {
+                    ProgressView()
+                        .padding(20)
                 }
-                .buttonStyle(.filled)
-                .disabled(isExporting)
-                .padding(20)
             }
         }
         .navigationTitle("Application Logs")
         .toolbarTitleDisplayMode(.inline)
+        .task {
+            exportedLogs = try? await LogStore.shared.exportLogs()
+        }
     }
 }
