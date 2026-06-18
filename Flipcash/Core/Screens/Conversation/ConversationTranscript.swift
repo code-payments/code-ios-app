@@ -178,7 +178,7 @@ struct ConversationTranscriptRow: View {
 
 /// Distance from the bottom edge (in points) within which the scroll view is
 /// considered "at the bottom" for auto-scroll purposes.
-private nonisolated let bottomThreshold: CGFloat = 80
+private nonisolated let bottomThreshold: CGFloat = 90
 
 /// The transcript's container and content heights, sampled together so the follow
 /// can tell genuine content growth from a keyboard-driven container resize.
@@ -281,7 +281,7 @@ private struct ScrollToNewestButton: View {
         Button(action: action) {
             Image(systemName: "arrow.down")
                 .font(.body.weight(.semibold))
-                .frame(width: 32, height: 32)
+                .frame(width: 44, height: 44)
                 .contentShape(.interaction, Circle())
         }
         .buttonStyle(.plain)

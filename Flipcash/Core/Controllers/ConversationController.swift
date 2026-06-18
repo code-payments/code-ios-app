@@ -37,6 +37,11 @@ final class ConversationController {
         conversations.first { $0.id == id }
     }
 
+    /// Number of conversations with unread messages for the signed-in user.
+    var unreadConversationCount: Int {
+        conversations.filter { $0.hasUnread(for: selfUserID) }.count
+    }
+
     /// The signed-in user, used to tell own messages from the counterpart's.
     let selfUserID: UserID
 

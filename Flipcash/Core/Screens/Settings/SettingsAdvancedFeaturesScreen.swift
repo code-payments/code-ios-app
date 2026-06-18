@@ -12,7 +12,6 @@ import FlipcashUI
 struct SettingsAdvancedFeaturesScreen: View {
 
     @Environment(AppRouter.self) private var router
-    @Environment(BetaFlags.self) private var betaFlags
 
     private let insets = EdgeInsets(top: 25, leading: 0, bottom: 25, trailing: 0)
 
@@ -20,14 +19,9 @@ struct SettingsAdvancedFeaturesScreen: View {
         Background(color: .backgroundMain) {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "paperplane")
-                            .frame(minWidth: 45)
-                        Toggle("Beta Feature: Send Cash", isOn: betaFlags.bindingFor(option: .enableSend))
-                            .tint(.textSuccess)
+                    SettingsRow(asset: .debug, title: "Beta Features", badge: .beta, insets: insets) {
+                        router.push(.settingsAdvancedBetaFeatures)
                     }
-                    .padding(insets)
-                    .vSeparator(color: .rowSeparator, position: .bottom)
 
                     SettingsRow(systemImage: "doc.text", title: "Application Logs", insets: insets) {
                         router.push(.settingsApplicationLogs)
@@ -38,7 +32,7 @@ struct SettingsAdvancedFeaturesScreen: View {
                 .padding(.horizontal, 20)
             }
         }
-        .navigationTitle("Advanced Features")
+        .navigationTitle("Advanced")
         .toolbarTitleDisplayMode(.inline)
     }
 }

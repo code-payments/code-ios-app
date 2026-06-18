@@ -13,7 +13,8 @@ public struct Bubble: View {
     public let size: Size
     public let count: Int
     public let hasMore: Bool
-    
+    public let color: Color
+
     private var decoration: String {
         if hasMore {
             return "+"
@@ -21,13 +22,14 @@ public struct Bubble: View {
             return ""
         }
     }
-    
-    public init(size: Size, count: Int, hasMore: Bool = false) {
+
+    public init(size: Size, count: Int, hasMore: Bool = false, color: Color = .textSuccess) {
         self.size = size
         self.count = count
         self.hasMore = hasMore
+        self.color = color
     }
-    
+
     public var body: some View {
         Text("\(count)\(decoration)")
             .foregroundStyle(.textMain)
@@ -36,7 +38,7 @@ public struct Bubble: View {
             .padding(.vertical, 2)
             .padding(.horizontal, 6)
             .frame(minWidth: size.dimension, minHeight: size.dimension)
-            .background(Color.textSuccess)
+            .background(color)
             .cornerRadius(999)
     }
 }
