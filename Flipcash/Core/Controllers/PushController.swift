@@ -108,8 +108,9 @@ class PushController {
 
     // MARK: - Badge -
 
-    /// Clears the app icon badge. Called when the app becomes active so a
-    /// server-set badge count doesn't linger after the user has opened the app.
+    /// Clears the app icon badge. Called when the app becomes active and when it
+    /// enters the background, so a server-set badge count doesn't linger after the
+    /// user has opened the app.
     func clearBadgeCount() {
         center.setBadgeCount(0)
     }

@@ -107,6 +107,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             lastBackgroundedAt = .now
             sessionContainer?.session.didEnterBackground()
             container.preferences.appDidEnterBackground()
+            sessionContainer?.pushController.clearBadgeCount()
         case .active:
             logger.info("scenePhase → active")
             container.client.warmUpChannel()
