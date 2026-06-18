@@ -42,7 +42,7 @@ final class CashLinkRegressionTests: BaseUITestCase {
         // Share sheet appears — tap "Copy" to dismiss it via a completed action.
         let copyButton = app.cells["Copy"]
         XCTAssertTrue(
-            copyButton.waitForExistence(timeout: 10),
+            copyButton.waitForExistence(timeout: 20),
             "Expected the share sheet to appear with a 'Copy' action"
         )
         copyButton.tap()

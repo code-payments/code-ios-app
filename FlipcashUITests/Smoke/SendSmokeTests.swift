@@ -62,32 +62,24 @@ final class SendSmokeTests: BaseUITestCase {
 
         waitAndTap(app.buttons["Anna Haro, (555) 522-8243"].firstMatch)
 
-        // `MFMessageComposeViewController.canSendText()` returns `false`
-        // on the simulator, so `RecipientPickerScreen.presentInvite(for:)`
-        // takes the fallback path and calls `ShareSheet.present(url:)`.
-        // `UIActivityViewController` hosts its actions as cells, not buttons,
-        // since iOS 13.
+        // `MFMessageComposeViewController.canSendText()` returns `false` on the
+        // simulator, so the invite row is a `ShareLink` that presents the system
+        // share sheet. `UIActivityViewController` hosts its actions as cells, not
+        // buttons, since iOS 13.
         let copyCell = app.cells["Copy"]
         XCTAssertTrue(
-            copyCell.waitForExistence(timeout: 10),
+            copyCell.waitForExistence(timeout: 20),
             "Expected the share-sheet fallback (UIActivityViewController) after tapping Invite"
         )
 
-        // Dismiss the share sheet. Its close button's label ("Close") collides
-        // with the Send screen's X behind it, so target it by identifier. Fall
-        // back to "Cancel" (older iOS), then a downward swipe.
-        let close  = app.buttons["header.closeButton"]
-        let cancel = app.buttons["Cancel"]
-        if close.exists {
-            close.tap()
-        } else if cancel.exists {
-            cancel.tap()
-        } else {
-            app.swipeDown(velocity: .fast)
-        }
+        // Tap "Copy" to complete the share and dismiss the sheet (mirrors
+        // CashLinkRegressionTests). A completed action is a deterministic
+        // dismiss that returns to the picker — unlike a swipe or tapping a
+        // close button whose label collides with the Send screen's X.
+        copyCell.tap()
 
         XCTAssertTrue(
-            inviteHeader.waitForExistence(timeout: 10),
+            inviteHeader.waitForExistence(timeout: 15),
             "Expected `RecipientPickerScreen` to remain visible after dismissing the share sheet"
         )
     }

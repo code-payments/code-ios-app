@@ -81,14 +81,7 @@ struct RecipientPickerScreen: View {
     }
 
     private func presentInvite(for contact: ResolvedContact) {
-        if MessageComposerSheet.isAvailable {
-            inviteTarget = contact
-        } else {
-            // iMessage isn't configured on this device (iPad without SIM, etc.).
-            // Fall back to the system share sheet with the download URL only.
-            logger.info("Presenting share fallback (iMessage unavailable)")
-            ShareSheet.present(url: URL.downloadApp)
-        }
+        inviteTarget = contact
     }
 
     private func refilter() {
@@ -335,35 +328,68 @@ private struct RecipientRowScaffold<Trailing: View>: View {
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 12) {
-                ContactAvatarView(
-                    id: avatarID,
-                    displayName: title,
-                    imageData: imageData,
-                    size: 44
-                )
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.appTextMedium)
-                        .foregroundStyle(Color.textMain)
-                        .lineLimit(1)
-                    Text(subtitle)
-                        .font(.appTextSmall)
-                        .foregroundStyle(Color.textSecondary)
-                        .lineLimit(1)
-                }
-                Spacer(minLength: 12)
+            RecipientRowBody(
+                avatarID: avatarID,
+                title: title,
+                subtitle: subtitle,
+                imageData: imageData
+            ) {
                 trailing
             }
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .listRowInsets(EdgeInsets(top: 14, leading: 20, bottom: 14, trailing: 20))
-        .listRowBackground(Color.clear)
-        .listRowSeparatorTint(.rowSeparator)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(accessibilityLabel))
-        .accessibilityAddTraits(.isButton)
+        .recipientRowChrome(accessibilityLabel: accessibilityLabel)
+    }
+}
+
+/// The visual content of a picker row: avatar, title/subtitle, and a trailing
+/// accessory. Shared by the tappable `RecipientRowScaffold` and the `ShareLink`
+/// invite-fallback row.
+private struct RecipientRowBody<Trailing: View>: View {
+
+    let avatarID: String
+    let title: String
+    let subtitle: String
+    let imageData: Data?
+    @ViewBuilder let trailing: Trailing
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ContactAvatarView(
+                id: avatarID,
+                displayName: title,
+                imageData: imageData,
+                size: 44
+            )
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.appTextMedium)
+                    .foregroundStyle(Color.textMain)
+                    .lineLimit(1)
+                Text(subtitle)
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textSecondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 12)
+            trailing
+        }
+        .contentShape(Rectangle())
+    }
+}
+
+private extension View {
+    /// Row chrome shared by every picker row: list insets, clear background,
+    /// separator tint, and single-element button accessibility. Applied to the
+    /// row's `Button` or `ShareLink`.
+    func recipientRowChrome(accessibilityLabel: String) -> some View {
+        self
+            .buttonStyle(.plain)
+            .listRowInsets(EdgeInsets(top: 14, leading: 20, bottom: 14, trailing: 20))
+            .listRowBackground(Color.clear)
+            .listRowSeparatorTint(.rowSeparator)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text(accessibilityLabel))
+            .accessibilityAddTraits(.isButton)
     }
 }
 
@@ -434,35 +460,61 @@ private struct RecipientListItemRow: View {
     }
 }
 
-/// A "Not on Flipcash Yet" row: the whole row and its trailing button both
-/// start an invite.
+/// A "Not on Flipcash Yet" row. With iMessage available the whole row opens the
+/// invite composer; otherwise it shares the download link through the system
+/// share sheet via `ShareLink`, so SwiftUI owns the presentation.
 private struct RecipientRow: View {
 
     let contact: ResolvedContact
     let onInvite: () -> Void
 
+    private var accessibilityLabel: String {
+        "\(contact.displayName), \(contact.nationalPhone)"
+    }
+
     var body: some View {
-        RecipientRowScaffold(
-            avatarID: contact.contactId,
-            title: contact.displayName,
-            subtitle: contact.nationalPhone,
-            imageData: contact.imageData,
-            accessibilityLabel: "\(contact.displayName), \(contact.nationalPhone)",
-            onTap: onInvite
-        ) {
-            Text("Invite")
-                .font(.appTextSmall)
-                .foregroundStyle(Color.textMain)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background {
-                    RoundedRectangle(cornerRadius: Metrics.buttonRadius)
-                        .fill(Color.backgroundRow)
+        if MessageComposerSheet.isAvailable {
+            RecipientRowScaffold(
+                avatarID: contact.contactId,
+                title: contact.displayName,
+                subtitle: contact.nationalPhone,
+                imageData: contact.imageData,
+                accessibilityLabel: accessibilityLabel,
+                onTap: onInvite
+            ) {
+                InvitePill()
+            }
+            .accessibilityActions {
+                Button("Invite", action: onInvite)
+            }
+        } else {
+            ShareLink(item: URL.downloadApp) {
+                RecipientRowBody(
+                    avatarID: contact.contactId,
+                    title: contact.displayName,
+                    subtitle: contact.nationalPhone,
+                    imageData: contact.imageData
+                ) {
+                    InvitePill()
                 }
+            }
+            .recipientRowChrome(accessibilityLabel: accessibilityLabel)
         }
-        .accessibilityActions {
-            Button("Invite", action: onInvite)
-        }
+    }
+}
+
+/// The trailing "Invite" pill on a "Not on Flipcash Yet" row.
+private struct InvitePill: View {
+    var body: some View {
+        Text("Invite")
+            .font(.appTextSmall)
+            .foregroundStyle(Color.textMain)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background {
+                RoundedRectangle(cornerRadius: Metrics.buttonRadius)
+                    .fill(Color.backgroundRow)
+            }
     }
 }
 

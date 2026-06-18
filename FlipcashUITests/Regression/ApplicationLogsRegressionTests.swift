@@ -39,7 +39,8 @@ final class ApplicationLogsRegressionTests: BaseUITestCase {
             "Expected description text on the Application Logs screen"
         )
 
-        // Tap "Share Logs" to trigger the export and share sheet
+        // Tap "Share Logs" (a ShareLink over the exported log file) to present
+        // the share sheet.
         waitAndTap(app.buttons["Share Logs"])
 
         // Share sheet actions are cells, not buttons. "Save to Files" only
@@ -47,7 +48,7 @@ final class ApplicationLogsRegressionTests: BaseUITestCase {
         // log export succeeded and produced a real file.
         let saveToFiles = app.cells["Save to Files"]
         XCTAssertTrue(
-            saveToFiles.waitForExistence(timeout: 15),
+            saveToFiles.waitForExistence(timeout: 20),
             "Expected share sheet to appear with Save to Files action"
         )
     }

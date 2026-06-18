@@ -21,12 +21,6 @@ enum ShareSheet {
 
         UIApplication.shared.rootViewController?.present(controller, animated: true, completion: nil)
     }
-    
-    static func present(url: URL) {
-        let controller = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-        
-        UIApplication.shared.rootViewController?.present(controller, animated: true, completion: nil)
-    }
 }
 
 // MARK: - UIApplication -
