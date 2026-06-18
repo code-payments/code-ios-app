@@ -85,6 +85,9 @@ struct DestinationView: View {
         case .settingsAdvancedFeatures:
             SettingsAdvancedFeaturesScreen()
 
+        case .settingsAdvancedBetaFeatures:
+            SettingsAdvancedBetaFeaturesScreen()
+
         case .settingsAppSettings:
             SettingsAppSettingsScreen()
 

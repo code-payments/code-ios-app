@@ -57,16 +57,16 @@ struct SettingsScreen: View {
                                 router.push(.settingsAppSettings)
                             }
 
-                            SettingsRow(asset: .sliders, title: "Advanced Features", insets: insets) {
+                            SettingsRow(asset: .sliders, title: "Advanced", insets: insets) {
                                 router.push(.settingsAdvancedFeatures)
                             }
 
                             if betaFlags.accessGranted {
-                                SettingsRow(asset: .debug, title: "Beta Features", badge: betaBadge, insets: insets) {
+                                SettingsRow(asset: .debug, title: "Beta Features", badge: .beta, insets: insets) {
                                     router.push(.settingsBetaFlags)
                                 }
 
-                                SettingsRow(asset: .switchAccounts, title: "Switch Accounts", badge: betaBadge, insets: insets) {
+                                SettingsRow(asset: .switchAccounts, title: "Switch Accounts", badge: .beta, insets: insets) {
                                     router.push(.settingsAccountSelection)
                                 }
                             }
@@ -103,10 +103,6 @@ struct SettingsScreen: View {
             .appRouterDestinations(container: container, sessionContainer: sessionContainer)
         }
     }
-
-    // MARK: - Helpers -
-
-    private let betaBadge = Badge(decoration: .circle(.textWarning), text: "Beta")
 
     // MARK: - Actions -
 

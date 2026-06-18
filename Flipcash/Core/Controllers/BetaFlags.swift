@@ -124,7 +124,7 @@ extension BetaFlags {
             case .enableCoinbase:
                 return "Enable Coinbase"
             case .enableSend:
-                return "Enable Send"
+                return "Send Cash"
             }
         }
 

@@ -44,6 +44,7 @@ extension AppRouter {
         // Settings flow
         case settingsMyAccount
         case settingsAdvancedFeatures
+        case settingsAdvancedBetaFeatures
         case settingsAppSettings
         case settingsBetaFlags
         case settingsAccountSelection
@@ -79,8 +80,8 @@ extension AppRouter {
                  .usdcDepositEducation, .usdcDepositAddress,
                  .phantomFlow:
                 return .balance
-            case .settingsMyAccount, .settingsAdvancedFeatures, .settingsAppSettings,
-                 .settingsBetaFlags, .settingsAccountSelection,
+            case .settingsMyAccount, .settingsAdvancedFeatures, .settingsAdvancedBetaFeatures,
+                 .settingsAppSettings, .settingsBetaFlags, .settingsAccountSelection,
                  .settingsApplicationLogs, .accessKey, .deposit, .depositCurrencyList,
                  .depositAddress, .withdraw:
                 return .settings
@@ -109,6 +110,7 @@ extension AppRouter {
             case .phantomFlow:                  "phantomFlow"
             case .settingsMyAccount:            "settingsMyAccount"
             case .settingsAdvancedFeatures:     "settingsAdvancedFeatures"
+            case .settingsAdvancedBetaFeatures: "settingsAdvancedBetaFeatures"
             case .settingsAppSettings:          "settingsAppSettings"
             case .settingsBetaFlags:            "settingsBetaFlags"
             case .settingsAccountSelection:     "settingsAccountSelection"
@@ -145,8 +147,8 @@ extension AppRouter {
                 return nil
             case .discoverCurrencies, .currencyCreationSummary, .currencyCreationWizard,
                  .usdcDepositEducation, .usdcDepositAddress,
-                 .settingsMyAccount, .settingsAdvancedFeatures, .settingsAppSettings,
-                 .settingsBetaFlags, .settingsAccountSelection,
+                 .settingsMyAccount, .settingsAdvancedFeatures, .settingsAdvancedBetaFeatures,
+                 .settingsAppSettings, .settingsBetaFlags, .settingsAccountSelection,
                  .settingsApplicationLogs, .accessKey, .deposit, .depositCurrencyList,
                  .withdraw:
                 return nil

@@ -48,3 +48,8 @@ struct SettingsRow: View {
         }
     }
 }
+
+extension Badge {
+    /// The "Beta" pill shown on settings rows that gate beta features.
+    static let beta = Badge(decoration: .circle(.textWarning), text: "Beta")
+}
