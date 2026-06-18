@@ -38,51 +38,54 @@ public struct LargeButton: View {
 
 // MARK: - Icon -
 
-/// The 40×40 button icon. When `badgeCount > 0` it carries a count badge whose
-/// pill is clipped out of the icon — a badge-shaped hole is masked away so the
-/// background shows through the ring around the pill, like a native app-icon badge.
+/// The 40×40 button icon. When `badgeCount > 0` it carries a count badge that is
+/// clipped out of the icon: the pill draws over a `destinationOut` capsule that
+/// erases a ring around it, so the background shows through — like a native
+/// app-icon badge. The pill and its hole are one view, so they scale and fade
+/// together as the badge transitions in and out.
 private struct LargeButtonIcon: View {
 
     let image: Image
     let badgeCount: Int
 
-    private let ring: CGFloat = 2
+    /// Resting size of the pill (a touch smaller than its natural size) and the
+    /// transparent gap punched around it.
+    private let badgeScale: CGFloat = 0.85
+    private let ring: CGFloat = 3
     private let offset = CGSize(width: 14, height: -10)
 
-    private var displayCount: Int { min(badgeCount, 100) }
-    private var showsMore: Bool { badgeCount > 100 }
+    /// Holds the last non-zero count so the pill keeps showing it while it
+    /// animates out, instead of flashing "0".
+    @State private var shownCount = 0
+
+    private var displayCount: Int { min(shownCount, 100) }
+    private var showsMore: Bool { shownCount > 100 }
+    private var isVisible: Bool { badgeCount > 0 }
 
     var body: some View {
-        let icon = image
+        image
             .resizable()
             .scaledToFit()
             .frame(width: 40, height: 40)
-
-        if badgeCount > 0 {
-            icon
-                .mask(alignment: .topTrailing) {
-                    // Keep the whole icon except a badge-shaped hole — the pill plus
-                    // a thin ring — punched out of it. A hidden Bubble sizes the hole
-                    // to the pill so it tracks the count width ("5" vs "100+").
-                    Rectangle()
-                        .overlay(alignment: .topTrailing) {
-                            Bubble(size: .regular, count: displayCount, hasMore: showsMore)
-                                .fixedSize()
-                                .hidden()
-                                .padding(ring)
-                                .background(Capsule().fill(Color.black).blendMode(.destinationOut))
-                                .offset(x: offset.width, y: offset.height)
-                        }
-                        .compositingGroup()
-                }
-                .overlay(alignment: .topTrailing) {
-                    Bubble(size: .regular, count: displayCount, hasMore: showsMore, color: .unreadIndicator)
-                        .fixedSize()
-                        .offset(x: offset.width, y: offset.height)
-                }
-        } else {
-            icon
-        }
+            .overlay(alignment: .topTrailing) {
+                Bubble(size: .regular, count: displayCount, hasMore: showsMore, color: .unreadIndicator)
+                    .fixedSize()
+                    .padding(ring)
+                    .background(Capsule().fill(Color.black).blendMode(.destinationOut))
+                    // Explicit scaleEffect anchored on the pill's own center so it
+                    // grows/shrinks in place. (`.transition(.scale)` here anchors on
+                    // the compositingGroup's bounds — the whole icon — and drifts.)
+                    .scaleEffect(isVisible ? badgeScale : 0, anchor: .center)
+                    .opacity(isVisible ? 1 : 0)
+                    .offset(x: offset.width, y: offset.height)
+            }
+            // Scopes the `destinationOut` erase to the icon + badge only, so the
+            // ring punches through the icon rather than the screen behind it.
+            .compositingGroup()
+            .animation(.bouncy, value: badgeCount > 0)
+            .onChange(of: badgeCount, initial: true) { _, newValue in
+                if newValue > 0 { shownCount = newValue }
+            }
     }
 }
 
