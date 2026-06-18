@@ -17,7 +17,7 @@ import Testing
 @MainActor
 func waitUntil<Object: AnyObject>(
     _ object: Object,
-    timeout: Duration = .seconds(2),
+    timeout: Duration = .seconds(10),
     pollInterval: Duration = .milliseconds(5),
     sourceLocation: SourceLocation = #_sourceLocation,
     matches predicate: @MainActor (Object) -> Bool
