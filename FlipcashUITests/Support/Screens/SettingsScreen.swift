@@ -20,7 +20,7 @@ struct SettingsUIScreen {
 
     var myAccountRow: XCUIElement { app.buttons["My Account"] }
     var withdrawButton: XCUIElement { app.buttons["Withdraw"] }
-    var advancedFeaturesRow: XCUIElement { app.buttons["Advanced Features"] }
+    var advancedFeaturesRow: XCUIElement { app.buttons["Advanced"] }
     var accessKeyRow: XCUIElement { app.buttons["Access Key"] }
     var depositButton: XCUIElement { app.buttons["Deposit"] }
     var applicationLogsRow: XCUIElement { app.buttons["Application Logs"] }
