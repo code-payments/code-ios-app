@@ -262,10 +262,13 @@ struct ConversationCashBubble: View {
                     Flag(style: amount.nativeAmount.currency.flagStyle, size: .regular)
                     Text(displayedAmount.formatted())
                         .font(ConversationBubbleStyle.amountFont)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
                         .foregroundStyle(Color.textMain)
                         .contentTransition(.numericText(value: NSDecimalNumber(decimal: displayedAmount.value).doubleValue))
                 }
             }
+            .padding(.horizontal, 16)
         }
         .frame(width: ConversationBubbleStyle.cashSize.width, height: ConversationBubbleStyle.cashSize.height)
         .bubbleChrome(isFromSelf: isFromSelf, groupedAbove: groupedAbove, groupedBelow: groupedBelow)
