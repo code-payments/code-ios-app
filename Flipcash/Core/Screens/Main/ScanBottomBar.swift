@@ -9,6 +9,7 @@ import FlipcashUI
 struct ScanBottomBar: View {
     let toast: String?
     let showSend: Bool
+    let sendBadgeCount: Int
     let onGive: () -> Void
     let onWallet: () -> Void
     let onDiscover: () -> Void
@@ -34,6 +35,7 @@ struct ScanBottomBar: View {
                 LargeButton(
                     title: "Send",
                     image: Image(.Icons.send),
+                    badgeCount: sendBadgeCount,
                     action: onSend
                 )
                 .accessibilityIdentifier("scan-send-button")

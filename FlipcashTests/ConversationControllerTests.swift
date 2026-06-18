@@ -48,6 +48,45 @@ struct ConversationControllerTests {
         #expect(controller.conversations.map(\.id) == [ConversationID.test(2), ConversationID.test(1)])
     }
 
+    @Test("unreadConversationCount counts only conversations with unread messages")
+    func unreadConversationCount() async {
+        let me = UUID()
+        let mock = MockConversations()
+        mock.feed = [
+            // Unread: last message is past the self read pointer.
+            Conversation(
+                id: ConversationID.test(1),
+                members: [ConversationMember(userID: me, displayName: "", readPointer: MessageID(value: 1))],
+                lastMessage: ConversationMessage(id: MessageID(value: 5), senderID: nil, content: .text("x"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0),
+                lastActivity: Date(timeIntervalSince1970: 400)
+            ),
+            // Read: the read pointer covers the last message.
+            Conversation(
+                id: ConversationID.test(2),
+                members: [ConversationMember(userID: me, displayName: "", readPointer: MessageID(value: 5))],
+                lastMessage: ConversationMessage(id: MessageID(value: 5), senderID: nil, content: .text("y"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0),
+                lastActivity: Date(timeIntervalSince1970: 300)
+            ),
+            // Empty: no last message is never unread.
+            Conversation(
+                id: ConversationID.test(3),
+                members: [ConversationMember(userID: me, displayName: "")],
+                lastMessage: nil,
+                lastActivity: Date(timeIntervalSince1970: 200)
+            ),
+            // Unread: a message with no read pointer.
+            Conversation(
+                id: ConversationID.test(4),
+                members: [ConversationMember(userID: me, displayName: "", readPointer: nil)],
+                lastMessage: ConversationMessage(id: MessageID(value: 2), senderID: nil, content: .text("z"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0),
+                lastActivity: Date(timeIntervalSince1970: 100)
+            ),
+        ]
+        let controller = makeController(mock, selfUserID: me)
+        await controller.loadFeed()
+        #expect(controller.unreadConversationCount == 2)
+    }
+
     @Test("send records the message and appends it to the conversation")
     func send() async {
         let mock = MockConversations()

@@ -256,6 +256,7 @@ struct ScanScreen: View {
             ScanBottomBar(
                 toast: toast,
                 showSend: session.canSend,
+                sendBadgeCount: sessionContainer.conversationController.unreadConversationCount,
                 onGive: presentGive,
                 onWallet: { router.present(.balance) },
                 onDiscover: { router.present(.discover) },
