@@ -35,6 +35,10 @@ struct ConversationScreen: View {
     @Environment(Session.self) private var session
     @Environment(RatesController.self) private var ratesController
 
+    /// Renders the transcript with the fully-UIKit chat instead of the SwiftUI one. Off by
+    /// default; flipped from Settings ▸ Advanced (DEBUG) to compare the two on-device.
+    @AppStorage("usesUIKitChat") private var usesUIKitChat = false
+
     @State private var hasLoaded = false
     @State private var didInitialRead = false
     @State private var isComposing = false
@@ -121,6 +125,19 @@ struct ConversationScreen: View {
         return conversationController.messages(for: conversationID)
     }
 
+    /// The transcript's messages mapped to the UIKit chat's display model. Cash branding mirrors
+    /// the SwiftUI bubble: USDF reads as "Cash"; a launchpad currency uses its cached name.
+    private var mappedMessages: [ChatMessage] {
+        ChatMessage.from(
+            messages,
+            selfUserID: conversationController.selfUserID,
+            cashBranding: { fiat in
+                guard fiat.mint != .usdf, let balance = session.balance(for: fiat.mint) else { return ("Cash", nil) }
+                return (balance.name, balance.imageURL)
+            }
+        )
+    }
+
     /// Whether an older page is currently being fetched, so the transcript can
     /// show its loading spinner only during the fetch.
     private var isLoadingOlderMessages: Bool {
@@ -148,30 +165,48 @@ struct ConversationScreen: View {
 
     var body: some View {
         Group {
-            if chatExists && !hasLoaded && messages.isEmpty {
-                LoadingView(color: .textMain)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                ConversationTranscript(
-                    messages: messages,
-                    selfUserID: conversationController.selfUserID,
-                    seenBoundary: seenBoundary,
-                    counterpartRead: counterpartRead,
-                    isLoadingOlder: isLoadingOlderMessages,
-                    onBackgroundTap: dismissKeyboard
+            if usesUIKitChat {
+                // The UIKit transcript hosts the bar internally and owns all keyboard handling,
+                // so there's no SwiftUI `.safeAreaInset` bar here.
+                ChatScreenRepresentable(
+                    messages: mappedMessages,
+                    onReachTop: loadOlderMessages,
+                    showsSendCash: sendTarget != nil,
+                    showsSendMessage: chatExists,
+                    isComposing: $isComposing,
+                    conversationID: conversationID,
+                    onSendCash: sendCash,
+                    conversationController: conversationController
                 )
+                .ignoresSafeArea(.keyboard)
+            } else {
+                Group {
+                    if chatExists && !hasLoaded && messages.isEmpty {
+                        LoadingView(color: .textMain)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        ConversationTranscript(
+                            messages: messages,
+                            selfUserID: conversationController.selfUserID,
+                            seenBoundary: seenBoundary,
+                            counterpartRead: counterpartRead,
+                            isLoadingOlder: isLoadingOlderMessages,
+                            onBackgroundTap: dismissKeyboard
+                        )
+                    }
+                }
+                .safeAreaInset(edge: .bottom) {
+                    ConversationBottomBar(
+                        showsSendCash: sendTarget != nil,
+                        showsSendMessage: chatExists,
+                        isComposing: $isComposing,
+                        conversationID: conversationID,
+                        onSendCash: sendCash
+                    )
+                }
             }
         }
         .background(Color.backgroundMain)
-        .safeAreaInset(edge: .bottom) {
-            ConversationBottomBar(
-                showsSendCash: sendTarget != nil,
-                showsSendMessage: chatExists,
-                isComposing: $isComposing,
-                conversationID: conversationID,
-                onSendCash: sendCash
-            )
-        }
         .navigationTitle("")
         .toolbarTitleDisplayMode(.inline)
         .toolbar {
@@ -209,10 +244,13 @@ struct ConversationScreen: View {
             await conversationController.markRead(conversationID: conversationID)
             didInitialRead = true
 
-            // The transcript holds the full history (no incremental paging), so
-            // scrolling up always reaches the first message. The user stays pinned
-            // at the newest while it pages in behind them.
-            await conversationController.loadFullHistory(for: conversationID)
+            // The SwiftUI transcript can't preserve scroll offset on prepend, so it loads the
+            // full history up front and stays pinned at the newest while it pages in behind. The
+            // UIKit transcript preserves offset on prepend, so it pages older on demand
+            // (`onReachTop → loadOlderMessages`) instead — never the whole history at once.
+            if !usesUIKitChat {
+                await conversationController.loadFullHistory(for: conversationID)
+            }
         }
         .onChange(of: messages.last?.id) {
             // The initial load flips this from nil, which would double-fire
@@ -239,6 +277,15 @@ struct ConversationScreen: View {
             return
         }
         router.push(.sendAmount(contact: sendTarget))
+    }
+
+    /// Fetches the next older page when the UIKit transcript nears the top. Guarded so the
+    /// continuously-fired signal never stacks requests or pages past the first message.
+    private func loadOlderMessages() {
+        guard let conversationID,
+              conversationController.hasMoreOlderMessages(for: conversationID),
+              !conversationController.isLoadingOlderMessages(for: conversationID) else { return }
+        Task { await conversationController.loadOlderMessages(for: conversationID) }
     }
 
     /// Resigns the first responder directly via UIKit so the keyboard lowers

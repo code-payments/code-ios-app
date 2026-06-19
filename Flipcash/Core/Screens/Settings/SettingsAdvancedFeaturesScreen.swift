@@ -13,6 +13,11 @@ struct SettingsAdvancedFeaturesScreen: View {
 
     @Environment(AppRouter.self) private var router
 
+    #if DEBUG
+    @State private var showsChatDemo = false
+    @AppStorage("usesUIKitChat") private var usesUIKitChat = false
+    #endif
+
     private let insets = EdgeInsets(top: 25, leading: 0, bottom: 25, trailing: 0)
 
     var body: some View {
@@ -26,6 +31,15 @@ struct SettingsAdvancedFeaturesScreen: View {
                     SettingsRow(systemImage: "doc.text", title: "Application Logs", insets: insets) {
                         router.push(.settingsApplicationLogs)
                     }
+
+                    #if DEBUG
+                    SettingsRow(systemImage: "bubble.left.and.bubble.right", title: "Chat (UIKit) demo", insets: insets) {
+                        showsChatDemo = true
+                    }
+
+                    Toggle("Use UIKit chat in real conversations", isOn: $usesUIKitChat)
+                        .padding(.vertical, 25)
+                    #endif
                 }
                 .font(.appDisplayXS)
                 .foregroundStyle(.textMain)
@@ -34,5 +48,10 @@ struct SettingsAdvancedFeaturesScreen: View {
         }
         .navigationTitle("Advanced")
         .toolbarTitleDisplayMode(.inline)
+        #if DEBUG
+        .fullScreenCover(isPresented: $showsChatDemo) {
+            ChatDemoScreen()
+        }
+        #endif
     }
 }

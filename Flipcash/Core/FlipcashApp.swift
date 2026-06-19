@@ -19,17 +19,27 @@ struct FlipcashApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContainerScreen(container: appDelegate.container)
-                .injectingEnvironment(from: appDelegate.container)
-                .preferredColorScheme(.dark)
-                .tint(Color.textMain)
-                .onOpenURL { url in
-                    appDelegate.handleOpenURL(url: url)
+            Group {
+                #if DEBUG
+                if ProcessInfo.processInfo.arguments.contains("-ChatDemo") {
+                    ChatDemoScreen()
+                } else {
+                    ContainerScreen(container: appDelegate.container)
                 }
-                .withDialogWindow(
-                    sessionAuthenticator: appDelegate.container.sessionAuthenticator
-                )
-                .onScenePhaseChange(appDelegate: appDelegate)
+                #else
+                ContainerScreen(container: appDelegate.container)
+                #endif
+            }
+            .injectingEnvironment(from: appDelegate.container)
+            .preferredColorScheme(.dark)
+            .tint(Color.textMain)
+            .onOpenURL { url in
+                appDelegate.handleOpenURL(url: url)
+            }
+            .withDialogWindow(
+                sessionAuthenticator: appDelegate.container.sessionAuthenticator
+            )
+            .onScenePhaseChange(appDelegate: appDelegate)
         }
     }
 }

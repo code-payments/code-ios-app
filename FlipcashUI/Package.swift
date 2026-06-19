@@ -17,12 +17,14 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "../FlipcashCore"),
+        .package(url: "https://github.com/ekazaev/ChatLayout", from: "2.4.2"),
     ],
     targets: [
         .target(
             name: "FlipcashUI",
             dependencies: [
                 .product(name: "FlipcashCore", package: "FlipcashCore"),
+                .product(name: "ChatLayout", package: "ChatLayout", condition: .when(platforms: [.iOS])),
             ],
             resources: [
                 .process("Assets")
