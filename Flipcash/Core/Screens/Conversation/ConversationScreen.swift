@@ -125,10 +125,11 @@ struct ConversationScreen: View {
         return conversationController.messages(for: conversationID)
     }
 
-    /// The transcript's messages mapped to the UIKit chat's display model. Cash branding mirrors
-    /// the SwiftUI bubble: USDF reads as "Cash"; a launchpad currency uses its cached name.
-    private var mappedMessages: [ChatMessage] {
-        ChatMessage.from(
+    /// The transcript's messages mapped to the UIKit chat's display items (messages + date
+    /// separators). Cash branding mirrors the SwiftUI bubble: USDF reads as "Cash"; a launchpad
+    /// currency uses its cached name + icon.
+    private var mappedItems: [ChatItem] {
+        ChatItem.from(
             messages,
             selfUserID: conversationController.selfUserID,
             cashBranding: { fiat in
@@ -169,7 +170,7 @@ struct ConversationScreen: View {
                 // The UIKit transcript hosts the bar internally and owns all keyboard handling,
                 // so there's no SwiftUI `.safeAreaInset` bar here.
                 ChatScreenRepresentable(
-                    messages: mappedMessages,
+                    items: mappedItems,
                     onReachTop: loadOlderMessages,
                     showsSendCash: sendTarget != nil,
                     showsSendMessage: chatExists,

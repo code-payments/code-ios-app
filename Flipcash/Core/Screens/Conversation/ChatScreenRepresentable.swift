@@ -17,7 +17,7 @@ import FlipcashUI
 /// guide) so the keyboard avoidance stays entirely in UIKit.
 struct ChatScreenRepresentable: UIViewControllerRepresentable {
 
-    let messages: [ChatMessage]
+    let items: [ChatItem]
     /// Fired when the transcript nears the top — the owner fetches the next older page (the
     /// transcript preserves scroll offset across the prepend). This is the incremental
     /// reverse-infinite paging that the UIKit rebuild exists to enable.
@@ -34,9 +34,9 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         host.view.backgroundColor = .clear
         let screen = ChatScreenViewController(barView: host.view, barViewController: host)
         screen.onReachTop = onReachTop
-        screen.update(messages: messages)
+        screen.update(items: items)
         context.coordinator.host = host
-        context.coordinator.lastMessageID = messages.last?.id
+        context.coordinator.lastItemID = items.last?.id
         return screen
     }
 
@@ -46,15 +46,17 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         context.coordinator.host?.rootView = bar()
         screen.onReachTop = onReachTop
 
-        // Scroll only when the user's *own* message was just appended (a new trailing id from me).
-        // Received messages and prepended history (the same trailing id) leave the position alone.
-        let newLast = messages.last?.id
-        let appendedOwn = newLast != context.coordinator.lastMessageID && messages.last?.sender == .me
-        screen.update(messages: messages)
+        // Scroll only when the user's *own* message was just appended (a new trailing id, and the
+        // last item is a message from me). Received messages and prepended history (the same
+        // trailing id) leave the position alone.
+        let newLast = items.last?.id
+        let lastIsOwnMessage = if case .message(let message) = items.last { message.sender == .me } else { false }
+        let appendedOwn = newLast != context.coordinator.lastItemID && lastIsOwnMessage
+        screen.update(items: items)
         if appendedOwn {
             screen.scrollToBottom(animated: true)
         }
-        context.coordinator.lastMessageID = newLast
+        context.coordinator.lastItemID = newLast
     }
 
     private func bar() -> AnyView {
@@ -74,6 +76,6 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
 
     @MainActor final class Coordinator {
         var host: UIHostingController<AnyView>?
-        var lastMessageID: String?
+        var lastItemID: String?
     }
 }

@@ -1,5 +1,5 @@
 //
-//  ChatMessage+Conversation.swift
+//  ChatItem+Conversation.swift
 //  Flipcash
 //
 //  Copyright © 2026 Code Inc. All rights reserved.
@@ -9,23 +9,31 @@ import Foundation
 import FlipcashCore
 import FlipcashUI
 
-extension ChatMessage {
+extension ChatItem {
 
-    /// Maps a conversation's messages to display-ready chat rows: resolves sender side, formats
-    /// cash amounts, derives the currency flag, and computes same-sender grouping the same way the
-    /// transcript does (a run is broken by a sender change or a gap longer than `gap`). Pure —
-    /// `cashBranding` supplies the token name + launchpad icon so this stays testable; it defaults
-    /// to plain "Cash" (USDF), and the screen injects bonded-mint branding from `Session`.
+    /// Maps a conversation's messages to display-ready transcript items: resolves sender side,
+    /// formats cash amounts, derives the currency flag, inserts a date separator before the first
+    /// message and whenever a gap longer than `gap` opens, and computes same-sender grouping the
+    /// way the transcript does. Pure — `cashBranding` supplies the token name + launchpad icon so
+    /// this stays testable; it defaults to plain "Cash" (USDF), and the screen injects bonded-mint
+    /// branding from `Session`.
     static func from(
         _ messages: [ConversationMessage],
         selfUserID: UserID,
         gap: TimeInterval = 15 * 60,
         cashBranding: (ExchangedFiat) -> (token: String, iconURL: URL?) = { _ in ("Cash", nil) }
-    ) -> [ChatMessage] {
-        messages.enumerated().map { index, message in
+    ) -> [ChatItem] {
+        var items: [ChatItem] = []
+        for (index, message) in messages.enumerated() {
             let isFromSelf = message.senderID == selfUserID
             let previous = index > 0 ? messages[index - 1] : nil
             let next = index + 1 < messages.count ? messages[index + 1] : nil
+
+            // A separator opens the transcript and breaks any run longer than the gap.
+            let showsSeparator = previous.map { message.date.timeIntervalSince($0.date) > gap } ?? true
+            if showsSeparator {
+                items.append(.dateSeparator(id: "sep-\(message.id.value)", text: Self.separatorText(for: message.date)))
+            }
 
             let groupedAbove = previous.map {
                 ($0.senderID == selfUserID) == isFromSelf && message.date.timeIntervalSince($0.date) <= gap
@@ -34,7 +42,7 @@ extension ChatMessage {
                 ($0.senderID == selfUserID) == isFromSelf && $0.date.timeIntervalSince(message.date) <= gap
             } ?? false
 
-            let content: Content
+            let content: ChatMessage.Content
             switch message.content {
             case .text(let text):
                 content = .text(text)
@@ -50,13 +58,27 @@ extension ChatMessage {
                 ))
             }
 
-            return ChatMessage(
+            items.append(.message(ChatMessage(
                 id: "\(message.id.value)",
                 content: content,
                 sender: isFromSelf ? .me : .other,
                 isContinuationFromPrevious: groupedAbove,
                 isContinuedByNext: groupedBelow
-            )
+            )))
         }
+        return items
+    }
+
+    /// "Today 12:13 PM" / "Yesterday 9:05 AM" / "Jun 18 4:30 PM" — mirrors the SwiftUI separator.
+    private static func separatorText(for date: Date) -> String {
+        let day: String
+        if Calendar.current.isDateInToday(date) {
+            day = "Today"
+        } else if Calendar.current.isDateInYesterday(date) {
+            day = "Yesterday"
+        } else {
+            day = date.formatted(.dateTime.month().day())
+        }
+        return "\(day) \(date.formatted(date: .omitted, time: .shortened))"
     }
 }

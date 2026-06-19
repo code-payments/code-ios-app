@@ -73,7 +73,7 @@ public final class ChatScreenViewController: UIViewController {
 
     // MARK: - Data passthrough
 
-    public func update(messages: [ChatMessage]) { transcript.update(messages: messages) }
+    public func update(items: [ChatItem]) { transcript.update(items: items) }
     public func scrollToBottom(animated: Bool = true) { transcript.scrollToBottom(animated: animated) }
 
     // MARK: - Bar inset

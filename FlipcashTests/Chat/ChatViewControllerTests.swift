@@ -13,15 +13,15 @@ import UIKit
 @Suite("ChatViewController rendering")
 struct ChatViewControllerTests {
 
-    private func message(_ i: Int, _ sender: ChatMessage.Sender = .me) -> ChatMessage {
-        ChatMessage(id: "msg-\(i)", text: "message \(i)", sender: sender)
+    private func item(_ i: Int, _ sender: ChatMessage.Sender = .me) -> ChatItem {
+        .message(ChatMessage(id: "msg-\(i)", text: "message \(i)", sender: sender))
     }
 
     @Test("Update renders one item per message")
     func update_rendersOneItemPerMessage() {
         let controller = ChatViewController()
         controller.loadViewIfNeeded()
-        controller.update(messages: (0..<12).map { message($0, $0.isMultiple(of: 2) ? .me : .other) })
+        controller.update(items: (0..<12).map { item($0, $0.isMultiple(of: 2) ? .me : .other) })
         #expect(controller.collectionView.numberOfItems(inSection: 0) == 12)
     }
 
@@ -29,16 +29,16 @@ struct ChatViewControllerTests {
     func update_replacesPreviousTranscript() {
         let controller = ChatViewController()
         controller.loadViewIfNeeded()
-        controller.update(messages: (0..<5).map { message($0) })
+        controller.update(items: (0..<5).map { item($0) })
         #expect(controller.collectionView.numberOfItems(inSection: 0) == 5)
-        controller.update(messages: (0..<3).map { message(100 + $0, .other) })
+        controller.update(items: (0..<3).map { item(100 + $0, .other) })
         #expect(controller.collectionView.numberOfItems(inSection: 0) == 3)
     }
 
-    @Test("Messages pushed before the view loads are applied once it loads")
+    @Test("Items pushed before the view loads are applied once it loads")
     func update_beforeViewLoads_appliesOnLoad() {
         let controller = ChatViewController()
-        controller.update(messages: (0..<4).map { message($0) })
+        controller.update(items: (0..<4).map { item($0) })
         controller.loadViewIfNeeded()
         #expect(controller.collectionView.numberOfItems(inSection: 0) == 4)
     }
@@ -47,9 +47,9 @@ struct ChatViewControllerTests {
     func update_prependOlderPage_growsTranscript() {
         let controller = ChatViewController()
         controller.loadViewIfNeeded()
-        controller.update(messages: (80..<100).map { message($0) })
+        controller.update(items: (80..<100).map { item($0) })
         #expect(controller.collectionView.numberOfItems(inSection: 0) == 20)
-        controller.update(messages: (60..<100).map { message($0) })
+        controller.update(items: (60..<100).map { item($0) })
         #expect(controller.collectionView.numberOfItems(inSection: 0) == 40)
     }
 
@@ -57,10 +57,10 @@ struct ChatViewControllerTests {
     func update_appendMessage_growsByOne() {
         let controller = ChatViewController()
         controller.loadViewIfNeeded()
-        let base = (0..<10).map { message($0) }
-        controller.update(messages: base)
+        let base = (0..<10).map { item($0) }
+        controller.update(items: base)
         #expect(controller.collectionView.numberOfItems(inSection: 0) == 10)
-        controller.update(messages: base + [message(99, .other)])
+        controller.update(items: base + [item(99, .other)])
         #expect(controller.collectionView.numberOfItems(inSection: 0) == 11)
     }
 
@@ -78,8 +78,8 @@ struct ChatViewControllerTests {
         window.rootViewController = controller
         window.makeKeyAndVisible()
 
-        controller.update(messages: (0..<40).map {
-            message($0, $0.isMultiple(of: 2) ? .me : .other)
+        controller.update(items: (0..<40).map {
+            item($0, $0.isMultiple(of: 2) ? .me : .other)
         })
 
         // Let layout and self-sizing settle across a few main-runloop turns.

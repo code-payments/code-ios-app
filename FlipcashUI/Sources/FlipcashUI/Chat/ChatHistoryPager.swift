@@ -118,8 +118,8 @@ private final class PaginatingChatPreviewController: UIViewController {
         view.addSubview(chat.view)
         chat.didMove(toParent: self)
 
-        chat.update(messages: pager.messages)
-        pager.onChange = { [weak chat] messages in chat?.update(messages: messages) }
+        chat.update(items: pager.messages.map { .message($0) })
+        pager.onChange = { [weak chat] messages in chat?.update(items: messages.map { .message($0) }) }
         chat.onReachTop = { [weak self] in
             guard let self, !pager.isLoadingOlder, pager.hasMoreOlder else { return }
             Task { await pager.loadOlderPage() }

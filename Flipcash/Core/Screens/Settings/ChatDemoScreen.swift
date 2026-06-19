@@ -77,7 +77,7 @@ final class ChatDemoHarness {
         push()
     }
 
-    private func push() { screen.update(messages: pager.messages + appended) }
+    private func push() { screen.update(items: (pager.messages + appended).map { .message($0) }) }
 
     func send(_ text: String) {
         sentCount += 1
