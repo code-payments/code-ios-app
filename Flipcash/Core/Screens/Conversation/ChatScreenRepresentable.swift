@@ -30,12 +30,13 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     let conversationController: ConversationController
 
     func makeUIViewController(context: Context) -> ChatScreenViewController {
-        let host = UIHostingController(rootView: bar())
+        let host = UIHostingController(rootView: bar(coordinator: context.coordinator))
         host.view.backgroundColor = .clear
         let screen = ChatScreenViewController(barView: host.view, barViewController: host)
         screen.onReachTop = onReachTop
         screen.update(items: items)
         context.coordinator.host = host
+        context.coordinator.screen = screen
         context.coordinator.lastMessageID = lastMessageID(of: items)
         return screen
     }
@@ -43,7 +44,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     func updateUIViewController(_ screen: ChatScreenViewController, context: Context) {
         // Re-supply the bar with current inputs; SwiftUI diffs it, so the composer's draft and
         // focus survive across updates.
-        context.coordinator.host?.rootView = bar()
+        context.coordinator.host?.rootView = bar(coordinator: context.coordinator)
         screen.onReachTop = onReachTop
 
         // Scroll only when the user's *own* message was just appended — a new trailing message id
@@ -67,7 +68,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         lastMessage(of: items)?.id
     }
 
-    private func bar() -> AnyView {
+    private func bar(coordinator: Coordinator) -> AnyView {
         AnyView(
             ConversationBottomBar(
                 showsSendCash: showsSendCash,
@@ -77,6 +78,15 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
                 onSendCash: onSendCash
             )
             .environment(conversationController)
+            // Take the natural height at the proposed width so the composer can grow to its full
+            // multiline height, then report that measured height to the UIKit screen, which drives
+            // the bar's height constraint. This keeps the bar's frame matched to its content — the
+            // hosting controller's intrinsic size mis-measures and lets the composer overflow under
+            // the keyboard.
+            .fixedSize(horizontal: false, vertical: true)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+                coordinator.screen?.setBarHeight(height)
+            }
         )
     }
 
@@ -84,6 +94,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
 
     @MainActor final class Coordinator {
         var host: UIHostingController<AnyView>?
+        weak var screen: ChatScreenViewController?
         var lastMessageID: String?
     }
 }

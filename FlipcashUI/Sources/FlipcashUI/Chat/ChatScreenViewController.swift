@@ -23,6 +23,10 @@ public final class ChatScreenViewController: UIViewController {
     private let transcript = ChatViewController()
     private let barView: UIView
     private let barViewController: UIViewController?
+    /// Driven by the bar's *measured* SwiftUI height (`setBarHeight`), so the bar's frame matches its
+    /// content exactly — a hosting controller's intrinsic size mis-measures multiline growth and lets
+    /// the composer overflow below its frame, under the keyboard.
+    private var barHeightConstraint: NSLayoutConstraint!
 
     /// - Parameters:
     ///   - barView: the view pinned over the transcript's bottom, riding the keyboard.
@@ -57,6 +61,7 @@ public final class ChatScreenViewController: UIViewController {
         view.addSubview(barView)
         barViewController?.didMove(toParent: self)
 
+        barHeightConstraint = barView.heightAnchor.constraint(equalToConstant: 80)
         NSLayoutConstraint.activate([
             transcript.view.topAnchor.constraint(equalTo: view.topAnchor),
             transcript.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
@@ -68,7 +73,16 @@ public final class ChatScreenViewController: UIViewController {
             // The keyboard layout guide tracks the keyboard (interactively too), so the bar rides
             // it automatically; when the keyboard is down the guide rests at the bottom safe area.
             barView.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor),
+            barHeightConstraint,
         ])
+    }
+
+    /// Set the bar's height to its measured SwiftUI content height. Pinned at the bottom to the
+    /// keyboard guide, so growing the constant grows the bar *upward* — it can never push content
+    /// below the keyboard.
+    public func setBarHeight(_ height: CGFloat) {
+        guard barHeightConstraint != nil, barHeightConstraint.constant != height else { return }
+        barHeightConstraint.constant = height
     }
 
     // MARK: - Data passthrough
