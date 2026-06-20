@@ -50,8 +50,9 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         // Scroll only when the user's *own* message was just appended — a new trailing message id
         // (skipping any trailing receipt) that is from me. Received messages and prepended history
         // leave the position alone.
-        let newLastMessageID = lastMessageID(of: items)
-        let lastIsOwnMessage = if case .message(let message) = lastMessage(of: items) { message.sender == .me } else { false }
+        let newLastMessage = lastMessage(of: items)
+        let newLastMessageID = newLastMessage?.id
+        let lastIsOwnMessage = if case .message(let message) = newLastMessage { message.sender == .me } else { false }
         let appendedOwn = newLastMessageID != context.coordinator.lastMessageID && lastIsOwnMessage
         screen.update(items: items)
         if appendedOwn {

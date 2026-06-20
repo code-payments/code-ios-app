@@ -77,6 +77,20 @@ public final class ChatScreenViewController: UIViewController {
         ])
     }
 
+    public override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        // Bridge the transcript's scroll view to the navigation bar so the iOS 26 toolbar
+        // scroll-edge effect engages as content scrolls under it. The bar reflects the SwiftUI
+        // hosting controller (the navigation controller's direct child), not this nested
+        // representable VC, so the content scroll view has to be set there — a hosted UIKit scroll
+        // view isn't auto-detected the way a SwiftUI `ScrollView` is.
+        var host: UIViewController = self
+        while let parent = host.parent, !(parent is UINavigationController) {
+            host = parent
+        }
+        host.setContentScrollView(transcript.collectionView, for: .top)
+    }
+
     /// Set the bar's height to its measured SwiftUI content height. Pinned at the bottom to the
     /// keyboard guide, so growing the constant grows the bar *upward* — it can never push content
     /// below the keyboard.

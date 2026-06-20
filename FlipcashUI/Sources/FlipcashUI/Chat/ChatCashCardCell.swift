@@ -17,7 +17,7 @@ public final class ChatCashCardCell: UICollectionViewCell {
 
     public static let reuseIdentifier = "ChatCashCardCell"
 
-    /// The card's fixed footprint, matching the SwiftUI cash bubble.
+    /// The card's fixed footprint.
     private static let cardSize = CGSize(width: 232, height: 170)
 
     private let card = BubbleBackgroundView()
@@ -37,8 +37,8 @@ public final class ChatCashCardCell: UICollectionViewCell {
         contentView.addSubview(card)
 
         configureCircle(coinIcon, diameter: 13)
-        tokenLabel.font = .default(size: 12, weight: .bold) // .appTextHeading
-        tokenLabel.textColor = UIColor.white.withAlphaComponent(0.5) // secondaryText
+        tokenLabel.font = .default(size: 12, weight: .bold)
+        tokenLabel.textColor = UIColor.white.withAlphaComponent(0.5)
 
         let tokenRow = UIStackView(arrangedSubviews: [coinIcon, tokenLabel])
         tokenRow.spacing = 4
@@ -46,12 +46,12 @@ public final class ChatCashCardCell: UICollectionViewCell {
         tokenRow.translatesAutoresizingMaskIntoConstraints = false
         card.addSubview(tokenRow)
 
-        captionLabel.font = .default(size: 12, weight: .bold) // .appTextCaption (bold in UIKit)
-        captionLabel.textColor = UIColor.white.withAlphaComponent(0.5) // secondaryText
+        captionLabel.font = .default(size: 12, weight: .bold)
+        captionLabel.textColor = UIColor.white.withAlphaComponent(0.5)
 
         configureCircle(flag, diameter: 30)
-        amountLabel.font = .default(size: 38, weight: .bold) // amountFont
-        amountLabel.textColor = .white // .textMain
+        amountLabel.font = .default(size: 38, weight: .bold)
+        amountLabel.textColor = .white
         amountLabel.numberOfLines = 1
         amountLabel.adjustsFontSizeToFitWidth = true
         amountLabel.minimumScaleFactor = 0.5
@@ -136,8 +136,12 @@ public final class ChatCashCardCell: UICollectionViewCell {
                 groupedBelow: message.isContinuedByNext
             )
         )
-        leadingConstraint.isActive = message.sender == .other
-        trailingConstraint.isActive = message.sender == .me
+        applyAlignment(isFromSelf: message.sender == .me)
+    }
+
+    private func applyAlignment(isFromSelf: Bool) {
+        leadingConstraint.isActive = !isFromSelf
+        trailingConstraint.isActive = isFromSelf
     }
 }
 

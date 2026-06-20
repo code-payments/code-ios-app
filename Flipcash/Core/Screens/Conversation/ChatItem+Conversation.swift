@@ -83,10 +83,10 @@ extension ChatItem {
     private static func receiptText(for messageID: MessageID, counterpartRead: (pointer: MessageID, date: Date?)?) -> String {
         guard let read = counterpartRead, read.pointer >= messageID else { return "Delivered" }
         guard let date = read.date else { return "Read" }
-        return "Read \(date.formatted(date: .omitted, time: .shortened))"
+        return "Read \(date.formattedTime())"
     }
 
-    /// "Today 12:13 PM" / "Yesterday 9:05 AM" / "Jun 18 4:30 PM" — mirrors the SwiftUI separator.
+    /// "Today 12:13 PM" / "Yesterday 9:05 AM" / "Jun 18 4:30 PM".
     private static func separatorText(for date: Date) -> String {
         let day: String
         if Calendar.current.isDateInToday(date) {
@@ -96,6 +96,6 @@ extension ChatItem {
         } else {
             day = date.formatted(.dateTime.month().day())
         }
-        return "\(day) \(date.formatted(date: .omitted, time: .shortened))"
+        return "\(day) \(date.formattedTime())"
     }
 }

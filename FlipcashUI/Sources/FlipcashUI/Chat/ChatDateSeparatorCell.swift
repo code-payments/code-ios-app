@@ -18,8 +18,8 @@ public final class ChatDateSeparatorCell: UICollectionViewCell {
 
     public override init(frame: CGRect) {
         super.init(frame: frame)
-        label.font = .default(size: 12, weight: .bold) // .appTextHeading
-        label.textColor = UIColor.white.withAlphaComponent(0.5) // secondaryText
+        label.font = .default(size: 12, weight: .bold)
+        label.textColor = UIColor.white.withAlphaComponent(0.5)
         label.textAlignment = .center
         label.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(label)

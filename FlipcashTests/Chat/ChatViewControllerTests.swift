@@ -64,13 +64,6 @@ struct ChatViewControllerTests {
         #expect(controller.collectionView.numberOfItems(inSection: 0) == 11)
     }
 
-    @Test("Jump-to-bottom button shows only past one viewport from the bottom")
-    func jumpButton_visibilityThreshold() {
-        #expect(!ChatViewController.shouldShowJumpButton(distanceFromBottom: 0, viewportHeight: 800))
-        #expect(!ChatViewController.shouldShowJumpButton(distanceFromBottom: 800, viewportHeight: 800))
-        #expect(ChatViewController.shouldShowJumpButton(distanceFromBottom: 801, viewportHeight: 800))
-    }
-
     @Test("Opens at the bottom (newest message) on first layout")
     func opensAtBottom() async {
         let controller = ChatViewController()

@@ -30,8 +30,8 @@ public final class ChatBubbleView: UIView {
         addSubview(background)
 
         label.numberOfLines = 0
-        label.font = .default(size: 16, weight: .medium) // .appTextMessage
-        label.textColor = .white // .textMain
+        label.font = .default(size: 16, weight: .medium)
+        label.textColor = .white
         label.translatesAutoresizingMaskIntoConstraints = false
         addSubview(label)
 

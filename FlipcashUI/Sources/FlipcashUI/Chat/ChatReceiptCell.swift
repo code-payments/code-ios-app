@@ -18,8 +18,8 @@ public final class ChatReceiptCell: UICollectionViewCell {
 
     public override init(frame: CGRect) {
         super.init(frame: frame)
-        label.font = .default(size: 12, weight: .medium) // .appTextCaption
-        label.textColor = UIColor.white.withAlphaComponent(0.5) // secondaryText
+        label.font = .default(size: 12, weight: .medium)
+        label.textColor = UIColor.white.withAlphaComponent(0.5)
         label.textAlignment = .right
         label.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(label)

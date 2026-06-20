@@ -31,10 +31,6 @@ public final class ChatViewController: UICollectionViewController {
     /// The widest a bubble may grow, as a share of the collection view's width.
     private static let maxBubbleWidthFraction: CGFloat = 0.78
 
-    /// The user must be at least this many viewport-heights from the bottom for the
-    /// jump-to-bottom button to appear.
-    private static let jumpButtonViewportThreshold: CGFloat = 1
-
     /// Within this many points of the bottom counts as "at the bottom".
     private static let bottomThreshold: CGFloat = 50
 
@@ -47,28 +43,11 @@ public final class ChatViewController: UICollectionViewController {
     /// True until the first non-empty content has been scrolled to the bottom. The open is
     /// deferred to `viewDidLayoutSubviews` so it runs once the collection view has real bounds.
     private var needsInitialScroll = false
-    /// Breathing room kept below the last item, above the bar — mirrors the SwiftUI transcript's
-    /// `.padding(.vertical, 12)` so a trailing receipt doesn't sit flush against the bar.
+    /// Breathing room kept below the last item, above the bar, so a trailing receipt doesn't sit
+    /// flush against the bar.
     private static let bottomContentPadding: CGFloat = 12
     /// True while a batch update animates, so the top trigger doesn't re-fire mid-update.
     private var isUpdating = false
-    private var isJumpButtonVisible = false
-    private var jumpButtonBottomConstraint: NSLayoutConstraint?
-
-    /// A floating "scroll to newest" affordance, shown once the user is a screen or more up.
-    private lazy var jumpButton: UIButton = {
-        var config = UIButton.Configuration.gray()
-        config.image = UIImage(systemName: "chevron.down")
-        config.cornerStyle = .capsule
-        config.baseForegroundColor = .secondaryLabel
-        let button = UIButton(configuration: config, primaryAction: UIAction { [weak self] _ in
-            self?.scrollToBottom(animated: true)
-        })
-        button.translatesAutoresizingMaskIntoConstraints = false
-        button.alpha = 0
-        button.isUserInteractionEnabled = false
-        return button
-    }()
 
     public init() {
         super.init(collectionViewLayout: chatLayout)
@@ -107,13 +86,11 @@ public final class ChatViewController: UICollectionViewController {
         collectionView.register(ChatCashCardCell.self, forCellWithReuseIdentifier: ChatCashCardCell.reuseIdentifier)
         collectionView.register(ChatDateSeparatorCell.self, forCellWithReuseIdentifier: ChatDateSeparatorCell.reuseIdentifier)
         collectionView.register(ChatReceiptCell.self, forCellWithReuseIdentifier: ChatReceiptCell.reuseIdentifier)
-        setUpJumpButton()
         collectionView.reloadData()
     }
 
     public override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        positionJumpButton()
         performInitialScrollIfNeeded()
     }
 
@@ -121,31 +98,16 @@ public final class ChatViewController: UICollectionViewController {
         // The system changed the adjusted inset — on-device this is the keyboard showing or hiding.
         // If the user was at the bottom, follow it so the newest message stays just above the
         // keyboard; a reader who scrolled up is left where they are.
-        positionJumpButton()
         guard wasAtBottom, !needsInitialScroll, !isUpdating, !items.isEmpty else { return }
         scrollToBottom(animated: false)
-    }
-
-    /// Pinned to the scroll view's *frame* guide (not its content), so it floats in place
-    /// instead of scrolling away with the messages.
-    private func setUpJumpButton() {
-        collectionView.addSubview(jumpButton)
-        let bottom = jumpButton.bottomAnchor.constraint(equalTo: collectionView.frameLayoutGuide.bottomAnchor, constant: -16)
-        jumpButtonBottomConstraint = bottom
-        NSLayoutConstraint.activate([
-            jumpButton.widthAnchor.constraint(equalToConstant: 40),
-            jumpButton.heightAnchor.constraint(equalToConstant: 40),
-            jumpButton.trailingAnchor.constraint(equalTo: collectionView.frameLayoutGuide.trailingAnchor, constant: -16),
-            bottom,
-        ])
     }
 
     // MARK: - Updates
 
     /// Replace the rendered transcript. Push-driven: the owner decides what's shown and when. The
-    /// diff is computed by DifferenceKit and applied via `reload(using:)`, exactly as the ChatLayout
-    /// example does, so `keepContentOffsetAtBottomOnBatchUpdates` keeps a new arrival pinned to the
-    /// bottom (and a prepended older page anchored in place) with no hand-rolled scrolling.
+    /// diff is computed by DifferenceKit and applied via `reload(using:)`, so
+    /// `keepContentOffsetAtBottomOnBatchUpdates` keeps a new arrival pinned to the bottom (and a
+    /// prepended older page anchored in place) with no hand-rolled scrolling.
     public func update(items newItems: [ChatItem]) {
         // The owner re-pushes on every observable change (read receipts, the live stream, paging
         // flags), most of which don't change the list. Bail on an identical push so we don't reload.
@@ -159,8 +121,8 @@ public final class ChatViewController: UICollectionViewController {
             return
         }
 
-        // First load (or a clear): a plain reload, then open at the newest message. The example
-        // likewise reloads the initial batch rather than animating every row in.
+        // First load (or a clear): a plain reload, then open at the newest message rather than
+        // animating every row in.
         if wasEmpty || newItems.isEmpty {
             items = newItems
             collectionView.reloadData()
@@ -260,13 +222,10 @@ public final class ChatViewController: UICollectionViewController {
         )
         guard animated else {
             chatLayout.restoreContentOffset(with: snapshot)
-            updateJumpButton()
             // The first restore positions by the estimate; once the bottom cells self-size, re-anchor
             // so a tall last cell (cash card, long message) sits fully above the bar, not short.
             DispatchQueue.main.async { [weak self] in
-                guard let self else { return }
-                chatLayout.restoreContentOffset(with: snapshot)
-                updateJumpButton()
+                self?.chatLayout.restoreContentOffset(with: snapshot)
             }
             return
         }
@@ -279,12 +238,10 @@ public final class ChatViewController: UICollectionViewController {
         }, completion: { _ in
             // Lock to the exact bottom edge once the animation lands (the estimate may have moved).
             self.chatLayout.restoreContentOffset(with: snapshot)
-            self.updateJumpButton()
         })
     }
 
     public override func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        updateJumpButton()
         // Track "at the bottom" only from real user scrolling, so an inset change (keyboard) or
         // content settling doesn't flip it.
         if scrollView.isDragging || scrollView.isDecelerating {
@@ -303,26 +260,6 @@ public final class ChatViewController: UICollectionViewController {
         }
     }
 
-    /// Whether the jump-to-bottom button should show, given how far the user is from the bottom.
-    static func shouldShowJumpButton(distanceFromBottom: CGFloat, viewportHeight: CGFloat) -> Bool {
-        distanceFromBottom > viewportHeight * jumpButtonViewportThreshold
-    }
-
-    private func updateJumpButton() {
-        let distanceFromBottom = chatLayout.collectionViewContentSize.height
-            - collectionView.bounds.height
-            + collectionView.adjustedContentInset.bottom
-            - collectionView.contentOffset.y
-        let visible = Self.shouldShowJumpButton(
-            distanceFromBottom: distanceFromBottom,
-            viewportHeight: collectionView.bounds.height
-        )
-        guard visible != isJumpButtonVisible else { return }
-        isJumpButtonVisible = visible
-        jumpButton.isUserInteractionEnabled = visible
-        UIView.animate(withDuration: 0.2) { self.jumpButton.alpha = visible ? 1 : 0 }
-    }
-
     /// Reserve room at the bottom for an overlaying bar (and the keyboard, when the screen pushes
     /// it up). The bottom-most visible item is captured and re-anchored across the inset change via
     /// ChatLayout's own snapshot, so at-bottom stays at-bottom (content lifts above the bar) and
@@ -339,12 +276,6 @@ public final class ChatViewController: UICollectionViewController {
         if let snapshot {
             chatLayout.restoreContentOffset(with: snapshot)
         }
-        positionJumpButton()
-    }
-
-    /// Keep the jump button just above the bar (and keyboard), i.e. above the adjusted inset.
-    private func positionJumpButton() {
-        jumpButtonBottomConstraint?.constant = -(collectionView.adjustedContentInset.bottom + 16)
     }
 }
 

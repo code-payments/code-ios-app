@@ -35,25 +35,10 @@ struct ConversationScreen: View {
     @Environment(Session.self) private var session
     @Environment(RatesController.self) private var ratesController
 
-    /// Renders the transcript with the fully-UIKit chat instead of the SwiftUI one. Off by
-    /// default; flipped from Settings ▸ Advanced (DEBUG) to compare the two on-device.
-    @AppStorage("usesUIKitChat") private var usesUIKitChat = false
-
-    @State private var hasLoaded = false
     @State private var didInitialRead = false
     @State private var isComposing = false
     @State private var hasAppeared = false
     @State private var navBarWidth: CGFloat = 0
-
-    /// The READ watermark captured once, when the transcript first shows
-    /// content. Messages past it animate the first time they're seen; at or
-    /// before it they render statically. Captured (not derived) so a cold open
-    /// whose feed hydrates *after* the bubbles mount can't reclassify history
-    /// mid-flight and replay the amount roll. Stays `nil` only on a genuine
-    /// cold first run with no read pointer yet — which renders statically,
-    /// matching a warm launch.
-    @State private var seenBoundary: MessageID?
-    @State private var didCaptureSeenBoundary = false
 
     /// Horizontal space the back button (leading) reserves on each side of the
     /// centered title item, so the avatar + name can left-align inside a
@@ -140,74 +125,32 @@ struct ConversationScreen: View {
         )
     }
 
-    /// Whether an older page is currently being fetched, so the transcript can
-    /// show its loading spinner only during the fetch.
-    private var isLoadingOlderMessages: Bool {
-        guard let conversationID else { return false }
-        return conversationController.isLoadingOlderMessages(for: conversationID)
-    }
-
     /// The counterpart's read watermark + time, read live from the observable
-    /// controller (not captured like `seenBoundary`) so the receipt updates the
-    /// moment they read.
+    /// controller so the receipt updates the moment they read.
     private var counterpartRead: ReadReceiptState? {
         guard let conversationID else { return nil }
         return conversationController.conversation(withID: conversationID)?
             .counterpartReadReceipt(excluding: conversationController.selfUserID)
     }
 
-    /// Latch the READ watermark the first time the transcript has content, so
-    /// it's fixed before any cash bubble mounts.
-    private func captureSeenBoundaryIfNeeded() {
-        guard !didCaptureSeenBoundary, let conversationID, !messages.isEmpty else { return }
-        seenBoundary = conversationController.conversation(withID: conversationID)?
-            .selfReadPointer(for: conversationController.selfUserID)
-        didCaptureSeenBoundary = true
-    }
-
     var body: some View {
-        Group {
-            if usesUIKitChat {
-                // The UIKit transcript hosts the bar internally and owns all keyboard handling,
-                // so there's no SwiftUI `.safeAreaInset` bar here.
-                ChatScreenRepresentable(
-                    items: mappedItems,
-                    onReachTop: loadOlderMessages,
-                    showsSendCash: sendTarget != nil,
-                    showsSendMessage: chatExists,
-                    isComposing: $isComposing,
-                    conversationID: conversationID,
-                    onSendCash: sendCash,
-                    conversationController: conversationController
-                )
-                .ignoresSafeArea(.keyboard)
-            } else {
-                Group {
-                    if chatExists && !hasLoaded && messages.isEmpty {
-                        LoadingView(color: .textMain)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else {
-                        ConversationTranscript(
-                            messages: messages,
-                            selfUserID: conversationController.selfUserID,
-                            seenBoundary: seenBoundary,
-                            counterpartRead: counterpartRead,
-                            isLoadingOlder: isLoadingOlderMessages,
-                            onBackgroundTap: dismissKeyboard
-                        )
-                    }
-                }
-                .safeAreaInset(edge: .bottom) {
-                    ConversationBottomBar(
-                        showsSendCash: sendTarget != nil,
-                        showsSendMessage: chatExists,
-                        isComposing: $isComposing,
-                        conversationID: conversationID,
-                        onSendCash: sendCash
-                    )
-                }
-            }
-        }
+        // The UIKit transcript hosts the bar internally and owns all keyboard handling, so there's
+        // no SwiftUI `.safeAreaInset` bar here.
+        ChatScreenRepresentable(
+            items: mappedItems,
+            onReachTop: loadOlderMessages,
+            showsSendCash: sendTarget != nil,
+            showsSendMessage: chatExists,
+            isComposing: $isComposing,
+            conversationID: conversationID,
+            onSendCash: sendCash,
+            conversationController: conversationController
+        )
+        .ignoresSafeArea(.keyboard)
+        // Extend the transcript under the navigation bar so content scrolls beneath it — that's
+        // what lets the iOS 26 toolbar scroll-edge effect materialize. The collection view keeps a
+        // top content inset (it adjusts for the safe area) so messages stay readable below the bar.
+        .ignoresSafeArea(.container, edges: .top)
         .background(Color.backgroundMain)
         .navigationTitle("")
         .toolbarTitleDisplayMode(.inline)
@@ -241,18 +184,8 @@ struct ConversationScreen: View {
         .task(id: chatExists ? conversationID : nil) {
             guard chatExists, let conversationID else { return }
             await conversationController.loadMessages(for: conversationID)
-            captureSeenBoundaryIfNeeded()
-            hasLoaded = true
             await conversationController.markRead(conversationID: conversationID)
             didInitialRead = true
-
-            // The SwiftUI transcript can't preserve scroll offset on prepend, so it loads the
-            // full history up front and stays pinned at the newest while it pages in behind. The
-            // UIKit transcript preserves offset on prepend, so it pages older on demand
-            // (`onReachTop → loadOlderMessages`) instead — never the whole history at once.
-            if !usesUIKitChat {
-                await conversationController.loadFullHistory(for: conversationID)
-            }
         }
         .onChange(of: messages.last?.id) {
             // The initial load flips this from nil, which would double-fire
@@ -264,7 +197,6 @@ struct ConversationScreen: View {
             if hasAppeared {
                 refreshChatBinding()
             } else {
-                captureSeenBoundaryIfNeeded()
                 hasAppeared = true
             }
         }
@@ -288,13 +220,6 @@ struct ConversationScreen: View {
               conversationController.hasMoreOlderMessages(for: conversationID),
               !conversationController.isLoadingOlderMessages(for: conversationID) else { return }
         Task { await conversationController.loadOlderMessages(for: conversationID) }
-    }
-
-    /// Resigns the first responder directly via UIKit so the keyboard lowers
-    /// regardless of whether @FocusState is in sync; the focus-change handler
-    /// then collapses the composer back to the action buttons.
-    private func dismissKeyboard() {
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 
     /// After returning from the amount screen for a contact's first payment,

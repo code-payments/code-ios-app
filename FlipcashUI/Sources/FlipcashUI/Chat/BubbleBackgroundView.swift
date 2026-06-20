@@ -10,10 +10,10 @@ import UIKit
 import SwiftUI
 
 /// The shared chrome behind every chat bubble and cash card: a white-opacity fill with a hairline
-/// border and the *exact* SwiftUI bubble shape. A same-sender run flattens the inner corners from
-/// 12 to 6, which needs continuous, per-corner radii — UIKit's `cornerCurve`/`maskedCorners` can't
-/// express that, so the path is taken straight from SwiftUI's `UnevenRoundedRectangle(.continuous)`
-/// (pure geometry, no hosted SwiftUI views) and drawn into a `CAShapeLayer`.
+/// border and a continuous, per-corner rounded shape. A same-sender run flattens the inner corners
+/// from 12 to 6, which UIKit's `cornerCurve`/`maskedCorners` can't express, so the path is taken
+/// straight from SwiftUI's `UnevenRoundedRectangle(.continuous)` (pure geometry, no hosted SwiftUI
+/// views) and drawn into a `CAShapeLayer`.
 final class BubbleBackgroundView: UIView {
 
     /// Base corner radius; the inner corner of a grouped run uses `groupedRadius`.
@@ -28,7 +28,7 @@ final class BubbleBackgroundView: UIView {
         super.init(frame: frame)
         layer.mask = shapeMask
         borderLayer.fillColor = UIColor.clear.cgColor
-        borderLayer.strokeColor = UIColor.white.withAlphaComponent(0.03).cgColor // stroke
+        borderLayer.strokeColor = UIColor.white.withAlphaComponent(0.03).cgColor
         borderLayer.lineWidth = 1
         layer.addSublayer(borderLayer)
     }
@@ -53,12 +53,12 @@ final class BubbleBackgroundView: UIView {
     /// White-opacity fill for a sender. Designed for the app's dark conversation background.
     static func fill(isFromSelf: Bool) -> UIColor {
         isFromSelf
-            ? UIColor.white.withAlphaComponent(0.08)  // sentFill
-            : UIColor.white.withAlphaComponent(0.02)  // receivedFill
+            ? UIColor.white.withAlphaComponent(0.08)
+            : UIColor.white.withAlphaComponent(0.02)
     }
 
-    /// Per-corner radii mirroring the SwiftUI bubble: a same-sender run flattens the inner corners
-    /// (nearest the avatar column) from 12 to 6 so stacked bubbles read as one column.
+    /// Per-corner radii: a same-sender run flattens the inner corners (nearest the avatar column)
+    /// from 12 to 6 so stacked bubbles read as one column.
     static func radii(isFromSelf: Bool, groupedAbove: Bool, groupedBelow: Bool) -> RectangleCornerRadii {
         let top = groupedAbove ? groupedRadius : baseRadius
         let bottom = groupedBelow ? groupedRadius : baseRadius

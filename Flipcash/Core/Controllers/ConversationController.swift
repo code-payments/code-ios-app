@@ -348,20 +348,6 @@ final class ConversationController {
         }
     }
 
-    /// Pages the entire older history into the in-memory window, so the transcript
-    /// can scroll up to the first message without incremental paging. Stops when a
-    /// page makes no progress (e.g. a fetch error) so it can't spin, and honors
-    /// cancellation when the conversation is dismissed.
-    func loadFullHistory(for conversationID: ConversationID) async {
-        var previousOldest: MessageID?
-        while hasMoreOlderMessages(for: conversationID), !Task.isCancelled {
-            let oldest = store.messages(for: conversationID).first?.id
-            guard oldest != previousOldest else { break }
-            previousOldest = oldest
-            await loadOlderMessages(for: conversationID)
-        }
-    }
-
     @discardableResult
     func send(_ text: String, to conversationID: ConversationID) async -> Bool {
         do {
