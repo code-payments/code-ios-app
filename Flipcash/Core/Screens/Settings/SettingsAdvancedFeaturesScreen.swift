@@ -14,7 +14,6 @@ struct SettingsAdvancedFeaturesScreen: View {
     @Environment(AppRouter.self) private var router
 
     #if DEBUG
-    @State private var showsChatDemo = false
     @AppStorage("usesUIKitChat") private var usesUIKitChat = false
     #endif
 
@@ -33,10 +32,6 @@ struct SettingsAdvancedFeaturesScreen: View {
                     }
 
                     #if DEBUG
-                    SettingsRow(systemImage: "bubble.left.and.bubble.right", title: "Chat (UIKit) demo", insets: insets) {
-                        showsChatDemo = true
-                    }
-
                     Toggle("Use UIKit chat in real conversations", isOn: $usesUIKitChat)
                         .padding(.vertical, 25)
                     #endif
@@ -48,10 +43,5 @@ struct SettingsAdvancedFeaturesScreen: View {
         }
         .navigationTitle("Advanced")
         .toolbarTitleDisplayMode(.inline)
-        #if DEBUG
-        .fullScreenCover(isPresented: $showsChatDemo) {
-            ChatDemoScreen()
-        }
-        #endif
     }
 }

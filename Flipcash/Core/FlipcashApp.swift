@@ -19,17 +19,7 @@ struct FlipcashApp: App {
 
     var body: some Scene {
         WindowGroup {
-            Group {
-                #if DEBUG
-                if ProcessInfo.processInfo.arguments.contains("-ChatDemo") {
-                    ChatDemoScreen()
-                } else {
-                    ContainerScreen(container: appDelegate.container)
-                }
-                #else
-                ContainerScreen(container: appDelegate.container)
-                #endif
-            }
+            ContainerScreen(container: appDelegate.container)
             .injectingEnvironment(from: appDelegate.container)
             .preferredColorScheme(.dark)
             .tint(Color.textMain)

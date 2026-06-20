@@ -10,9 +10,9 @@ import UIKit
 import SwiftUI
 
 /// The full chat screen, entirely in UIKit: the transcript fills the view and an injected bar
-/// floats over its bottom (so content flows under it). The bar is supplied by the owner — a
-/// `ChatComposerBar` in the demo, a hosted SwiftUI Send Cash bar in the app — so this screen
-/// stays agnostic about *what* the bar is and only owns layout + keyboard handling.
+/// floats over its bottom (so content flows under it). The bar is supplied by the owner — a hosted
+/// SwiftUI Send Cash / Send Message bar — so this screen stays agnostic about *what* the bar is and
+/// only owns layout + keyboard handling.
 ///
 /// Keyboard handling is deliberately *not* hand-rolled. The host's safe area already grows to
 /// include the keyboard, so the bar is pinned to the keyboard layout guide (it rides the keyboard
