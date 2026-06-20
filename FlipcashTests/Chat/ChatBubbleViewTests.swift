@@ -7,44 +7,45 @@
 
 import Testing
 import UIKit
+import SwiftUI
 @testable import FlipcashUI
 
 @MainActor
 @Suite("Bubble corner grouping")
 struct ChatBubbleViewCornerTests {
 
-    private let base = BubbleBackgroundView.baseRadius     // 12
+    private let base = BubbleBackgroundView.baseRadius      // 12
     private let grouped = BubbleBackgroundView.groupedRadius // 6
 
     @Test("A standalone bubble uses the base radius on all four corners")
     func standalone_allBase() {
-        let c = BubbleBackgroundView.corners(isFromSelf: true, groupedAbove: false, groupedBelow: false)
-        #expect(c == BubbleBackgroundView.Corners(topLeft: base, topRight: base, bottomLeft: base, bottomRight: base))
+        let r = BubbleBackgroundView.radii(isFromSelf: true, groupedAbove: false, groupedBelow: false)
+        #expect(r == RectangleCornerRadii(topLeading: base, bottomLeading: base, bottomTrailing: base, topTrailing: base))
     }
 
-    @Test("A self bubble continued below flattens only its inner (right) bottom corner")
+    @Test("A self bubble continued below flattens only its inner (trailing) bottom corner")
     func selfContinuedBelow_flattensInnerBottom() {
-        let c = BubbleBackgroundView.corners(isFromSelf: true, groupedAbove: false, groupedBelow: true)
-        #expect(c.bottomRight == grouped) // inner bottom flattened
-        #expect(c.bottomLeft == base)     // outer bottom kept
-        #expect(c.topRight == base)       // top untouched
+        let r = BubbleBackgroundView.radii(isFromSelf: true, groupedAbove: false, groupedBelow: true)
+        #expect(r.bottomTrailing == grouped) // inner bottom flattened to 6
+        #expect(r.bottomLeading == base)     // outer kept
+        #expect(r.topTrailing == base)       // top untouched
     }
 
-    @Test("An other bubble continued from above flattens only its inner (left) top corner")
+    @Test("An other bubble continued from above flattens only its inner (leading) top corner")
     func otherContinuedAbove_flattensInnerTop() {
-        let c = BubbleBackgroundView.corners(isFromSelf: false, groupedAbove: true, groupedBelow: false)
-        #expect(c.topLeft == grouped) // inner top flattened
-        #expect(c.topRight == base)   // outer top kept
-        #expect(c.bottomLeft == base) // bottom untouched
+        let r = BubbleBackgroundView.radii(isFromSelf: false, groupedAbove: true, groupedBelow: false)
+        #expect(r.topLeading == grouped) // inner top flattened to 6
+        #expect(r.topTrailing == base)   // outer kept
+        #expect(r.bottomLeading == base) // bottom untouched
     }
 
-    @Test("A middle bubble in a self run flattens both inner (right) corners")
+    @Test("A middle bubble in a self run flattens both inner (trailing) corners")
     func selfMiddleOfRun_flattensBothInner() {
-        let c = BubbleBackgroundView.corners(isFromSelf: true, groupedAbove: true, groupedBelow: true)
-        #expect(c.topRight == grouped)
-        #expect(c.bottomRight == grouped)
-        #expect(c.topLeft == base)    // outer kept
-        #expect(c.bottomLeft == base)
+        let r = BubbleBackgroundView.radii(isFromSelf: true, groupedAbove: true, groupedBelow: true)
+        #expect(r.topTrailing == grouped)
+        #expect(r.bottomTrailing == grouped)
+        #expect(r.topLeading == base)    // outer kept
+        #expect(r.bottomLeading == base)
     }
 }
 

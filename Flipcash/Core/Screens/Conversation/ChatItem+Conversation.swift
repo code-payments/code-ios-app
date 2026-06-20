@@ -21,8 +21,11 @@ extension ChatItem {
         _ messages: [ConversationMessage],
         selfUserID: UserID,
         gap: TimeInterval = 15 * 60,
+        counterpartRead: (pointer: MessageID, date: Date?)? = nil,
         cashBranding: (ExchangedFiat) -> (token: String, iconURL: URL?) = { _ in ("Cash", nil) }
     ) -> [ChatItem] {
+        // Only the user's latest sent message carries a receipt.
+        let latestFromSelfID = messages.last { $0.senderID == selfUserID }?.id
         var items: [ChatItem] = []
         for (index, message) in messages.enumerated() {
             let isFromSelf = message.senderID == selfUserID
@@ -65,8 +68,22 @@ extension ChatItem {
                 isContinuationFromPrevious: groupedAbove,
                 isContinuedByNext: groupedBelow
             )))
+
+            if isFromSelf, message.id == latestFromSelfID {
+                items.append(.receipt(
+                    id: "receipt-\(message.id.value)",
+                    text: Self.receiptText(for: message.id, counterpartRead: counterpartRead)
+                ))
+            }
         }
         return items
+    }
+
+    /// "Read 3:42 PM" once the counterpart's read pointer reaches the message, else "Delivered".
+    private static func receiptText(for messageID: MessageID, counterpartRead: (pointer: MessageID, date: Date?)?) -> String {
+        guard let read = counterpartRead, read.pointer >= messageID else { return "Delivered" }
+        guard let date = read.date else { return "Read" }
+        return "Read \(date.formatted(date: .omitted, time: .shortened))"
     }
 
     /// "Today 12:13 PM" / "Yesterday 9:05 AM" / "Jun 18 4:30 PM" — mirrors the SwiftUI separator.

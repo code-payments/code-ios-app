@@ -18,6 +18,7 @@ let package = Package(
     dependencies: [
         .package(path: "../FlipcashCore"),
         .package(url: "https://github.com/ekazaev/ChatLayout", from: "2.4.2"),
+        .package(url: "https://github.com/ra1028/DifferenceKit", from: "1.3.0"),
     ],
     targets: [
         .target(
@@ -25,6 +26,7 @@ let package = Package(
             dependencies: [
                 .product(name: "FlipcashCore", package: "FlipcashCore"),
                 .product(name: "ChatLayout", package: "ChatLayout", condition: .when(platforms: [.iOS])),
+                .product(name: "DifferenceKit", package: "DifferenceKit"),
             ],
             resources: [
                 .process("Assets")

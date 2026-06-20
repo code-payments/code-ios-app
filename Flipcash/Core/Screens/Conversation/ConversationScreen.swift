@@ -132,6 +132,7 @@ struct ConversationScreen: View {
         ChatItem.from(
             messages,
             selfUserID: conversationController.selfUserID,
+            counterpartRead: counterpartRead.map { (pointer: $0.pointer, date: $0.date) },
             cashBranding: { fiat in
                 guard fiat.mint != .usdf, let balance = session.balance(for: fiat.mint) else { return ("Cash", nil) }
                 return (balance.name, balance.imageURL)

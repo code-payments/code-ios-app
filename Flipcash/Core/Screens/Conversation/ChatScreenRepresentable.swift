@@ -36,7 +36,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onReachTop = onReachTop
         screen.update(items: items)
         context.coordinator.host = host
-        context.coordinator.lastItemID = items.last?.id
+        context.coordinator.lastMessageID = lastMessageID(of: items)
         return screen
     }
 
@@ -46,17 +46,25 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         context.coordinator.host?.rootView = bar()
         screen.onReachTop = onReachTop
 
-        // Scroll only when the user's *own* message was just appended (a new trailing id, and the
-        // last item is a message from me). Received messages and prepended history (the same
-        // trailing id) leave the position alone.
-        let newLast = items.last?.id
-        let lastIsOwnMessage = if case .message(let message) = items.last { message.sender == .me } else { false }
-        let appendedOwn = newLast != context.coordinator.lastItemID && lastIsOwnMessage
+        // Scroll only when the user's *own* message was just appended — a new trailing message id
+        // (skipping any trailing receipt) that is from me. Received messages and prepended history
+        // leave the position alone.
+        let newLastMessageID = lastMessageID(of: items)
+        let lastIsOwnMessage = if case .message(let message) = lastMessage(of: items) { message.sender == .me } else { false }
+        let appendedOwn = newLastMessageID != context.coordinator.lastMessageID && lastIsOwnMessage
         screen.update(items: items)
         if appendedOwn {
             screen.scrollToBottom(animated: true)
         }
-        context.coordinator.lastItemID = newLast
+        context.coordinator.lastMessageID = newLastMessageID
+    }
+
+    private func lastMessage(of items: [ChatItem]) -> ChatItem? {
+        items.last { if case .message = $0 { true } else { false } }
+    }
+
+    private func lastMessageID(of items: [ChatItem]) -> String? {
+        lastMessage(of: items)?.id
     }
 
     private func bar() -> AnyView {
@@ -76,6 +84,6 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
 
     @MainActor final class Coordinator {
         var host: UIHostingController<AnyView>?
-        var lastItemID: String?
+        var lastMessageID: String?
     }
 }

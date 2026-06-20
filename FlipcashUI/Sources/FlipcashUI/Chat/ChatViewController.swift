@@ -9,6 +9,7 @@
 import UIKit
 import SwiftUI
 import ChatLayout
+import DifferenceKit
 
 /// A standalone chat transcript: a `ChatLayout`-backed collection view that opens at the
 /// newest message and renders whatever `[ChatMessage]` it is handed. Dumb and push-driven —
@@ -46,6 +47,9 @@ public final class ChatViewController: UICollectionViewController {
     /// True until the first non-empty content has been scrolled to the bottom. The open is
     /// deferred to `viewDidLayoutSubviews` so it runs once the collection view has real bounds.
     private var needsInitialScroll = false
+    /// Breathing room kept below the last item, above the bar — mirrors the SwiftUI transcript's
+    /// `.padding(.vertical, 12)` so a trailing receipt doesn't sit flush against the bar.
+    private static let bottomContentPadding: CGFloat = 12
     /// True while a batch update animates, so the top trigger doesn't re-fire mid-update.
     private var isUpdating = false
     private var isJumpButtonVisible = false
@@ -69,7 +73,7 @@ public final class ChatViewController: UICollectionViewController {
     public init() {
         super.init(collectionViewLayout: chatLayout)
         chatLayout.delegate = self
-        chatLayout.settings.interItemSpacing = 4
+        chatLayout.settings.interItemSpacing = 8
         // ChatLayout owns the bottom anchoring: stay pinned to the newest message across batch
         // updates (so an append at the bottom follows and a prepend preserves position), and sit
         // content at the bottom when it's shorter than the viewport.
@@ -102,6 +106,7 @@ public final class ChatViewController: UICollectionViewController {
         collectionView.register(ChatMessageCell.self, forCellWithReuseIdentifier: ChatMessageCell.reuseIdentifier)
         collectionView.register(ChatCashCardCell.self, forCellWithReuseIdentifier: ChatCashCardCell.reuseIdentifier)
         collectionView.register(ChatDateSeparatorCell.self, forCellWithReuseIdentifier: ChatDateSeparatorCell.reuseIdentifier)
+        collectionView.register(ChatReceiptCell.self, forCellWithReuseIdentifier: ChatReceiptCell.reuseIdentifier)
         setUpJumpButton()
         collectionView.reloadData()
     }
@@ -137,70 +142,58 @@ public final class ChatViewController: UICollectionViewController {
 
     // MARK: - Updates
 
-    /// Replace the rendered transcript. Push-driven: the owner decides what's shown and when.
-    /// A pure prepend (older page) or append (new message) is sent as an `insertItems` batch
-    /// update so ChatLayout can keep the content anchored; any other change reloads. Appends
-    /// animate (new messages arriving while you watch); prepends never do.
+    /// Replace the rendered transcript. Push-driven: the owner decides what's shown and when. The
+    /// diff is computed by DifferenceKit and applied via `reload(using:)`, exactly as the ChatLayout
+    /// example does, so `keepContentOffsetAtBottomOnBatchUpdates` keeps a new arrival pinned to the
+    /// bottom (and a prepended older page anchored in place) with no hand-rolled scrolling.
     public func update(items newItems: [ChatItem]) {
         // The owner re-pushes on every observable change (read receipts, the live stream, paging
-        // flags), most of which don't change the list. Bail on an identical push — otherwise the
-        // `else` below would `reloadData` and discard the scroll position on every re-render.
+        // flags), most of which don't change the list. Bail on an identical push so we don't reload.
         guard newItems != items else { return }
-        let old = items
-        items = newItems
-        if old.isEmpty, !newItems.isEmpty {
+        let wasEmpty = items.isEmpty
+        if wasEmpty, !newItems.isEmpty {
             needsInitialScroll = true
         }
-        guard isViewLoaded else { return }
+        guard isViewLoaded else {
+            items = newItems
+            return
+        }
 
-        if old.isEmpty || newItems.isEmpty {
+        // First load (or a clear): a plain reload, then open at the newest message. The example
+        // likewise reloads the initial batch rather than animating every row in.
+        if wasEmpty || newItems.isEmpty {
+            items = newItems
             collectionView.reloadData()
             performInitialScrollIfNeeded()
-        } else if let prepended = prependedCount(old: old, new: newItems) {
-            insertItems(range: 0..<prepended, animated: false)
-        } else if let appended = appendedCount(old: old, new: newItems) {
-            insertItems(range: (newItems.count - appended)..<newItems.count, animated: true)
-        } else {
-            // A change that's neither a clean prepend nor append. Reload, but keep the
-            // bottom-anchored position so it doesn't jump.
-            let snapshot = chatLayout.getContentOffsetSnapshot(from: .bottom)
-            collectionView.reloadData()
-            if let snapshot {
-                chatLayout.restoreContentOffset(with: snapshot)
-            }
+            return
         }
-    }
 
-    /// `new` ends with `old` (by id) → the prepended count; nil otherwise. Matched by id, not
-    /// full value: prepending older messages re-groups the old boundary row (it gains a
-    /// `groupedAbove`), which a value comparison would miss — sending the update to a reload that
-    /// loses the scroll position. By id it stays a clean prepend that ChatLayout anchors.
-    private func prependedCount(old: [ChatItem], new: [ChatItem]) -> Int? {
-        guard new.count > old.count, new.suffix(old.count).map(\.id) == old.map(\.id) else { return nil }
-        return new.count - old.count
-    }
-
-    /// `new` starts with `old` (by id) → the appended count; nil otherwise.
-    private func appendedCount(old: [ChatItem], new: [ChatItem]) -> Int? {
-        guard new.count > old.count, new.prefix(old.count).map(\.id) == old.map(\.id) else { return nil }
-        return new.count - old.count
-    }
-
-    private func insertItems(range: Range<Int>, animated: Bool) {
+        let changeset = StagedChangeset(source: items, target: newItems).flattenIfPossible()
+        guard !changeset.isEmpty else {
+            items = newItems
+            return
+        }
         isUpdating = true
-        let indexPaths = range.map { IndexPath(item: $0, section: 0) }
-        let apply = {
-            self.collectionView.performBatchUpdates {
-                self.collectionView.insertItems(at: indexPaths)
-            } completion: { [weak self] _ in
+        collectionView.reload(
+            using: changeset,
+            // A change too large to animate falls back to a reload that keeps the bottom-anchored
+            // position rather than animating hundreds of rows.
+            interrupt: { $0.changeCount > 100 },
+            onInterruptedReload: { [weak self] in
+                guard let self else { return }
+                let snapshot = chatLayout.getContentOffsetSnapshot(from: .bottom)
+                collectionView.reloadData()
+                if let snapshot {
+                    chatLayout.restoreContentOffset(with: snapshot)
+                }
+            },
+            completion: { [weak self] _ in
                 self?.isUpdating = false
+            },
+            setData: { [weak self] data in
+                self?.items = data
             }
-        }
-        if animated {
-            apply()
-        } else {
-            UIView.performWithoutAnimation(apply)
-        }
+        )
     }
 
     // MARK: - Data source
@@ -216,6 +209,13 @@ public final class ChatViewController: UICollectionViewController {
                 withReuseIdentifier: ChatDateSeparatorCell.reuseIdentifier,
                 for: indexPath
             ) as! ChatDateSeparatorCell
+            cell.configure(text: text)
+            return cell
+        case .receipt(_, let text):
+            let cell = collectionView.dequeueReusableCell(
+                withReuseIdentifier: ChatReceiptCell.reuseIdentifier,
+                for: indexPath
+            ) as! ChatReceiptCell
             cell.configure(text: text)
             return cell
         case .message(let message):
@@ -261,6 +261,13 @@ public final class ChatViewController: UICollectionViewController {
         guard animated else {
             chatLayout.restoreContentOffset(with: snapshot)
             updateJumpButton()
+            // The first restore positions by the estimate; once the bottom cells self-size, re-anchor
+            // so a tall last cell (cash card, long message) sits fully above the bar, not short.
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                chatLayout.restoreContentOffset(with: snapshot)
+                updateJumpButton()
+            }
             return
         }
         let target = chatLayout.collectionViewContentSize.height
@@ -324,10 +331,11 @@ public final class ChatViewController: UICollectionViewController {
         // Never change the inset mid-batch-update: ChatLayout can't account for an inset change
         // during `performBatchUpdates`, which is what made an append (a send) overshoot. The next
         // layout pass after the update re-applies it.
-        guard isViewLoaded, !isUpdating, abs(collectionView.contentInset.bottom - inset) > 0.5 else { return }
+        let target = inset + Self.bottomContentPadding
+        guard isViewLoaded, !isUpdating, abs(collectionView.contentInset.bottom - target) > 0.5 else { return }
         let snapshot = chatLayout.getContentOffsetSnapshot(from: .bottom)
-        collectionView.contentInset.bottom = inset
-        collectionView.verticalScrollIndicatorInsets.bottom = inset
+        collectionView.contentInset.bottom = target
+        collectionView.verticalScrollIndicatorInsets.bottom = target
         if let snapshot {
             chatLayout.restoreContentOffset(with: snapshot)
         }

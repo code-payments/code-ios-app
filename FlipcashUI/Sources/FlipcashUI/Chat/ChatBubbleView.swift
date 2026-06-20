@@ -55,7 +55,7 @@ public final class ChatBubbleView: UIView {
         }
         background.apply(
             fill: BubbleBackgroundView.fill(isFromSelf: message.sender == .me),
-            corners: BubbleBackgroundView.corners(
+            radii: BubbleBackgroundView.radii(
                 isFromSelf: message.sender == .me,
                 groupedAbove: message.isContinuationFromPrevious,
                 groupedBelow: message.isContinuedByNext

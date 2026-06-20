@@ -7,11 +7,13 @@
 
 #if canImport(UIKit)
 import UIKit
+import SwiftUI
 
 /// The shared chrome behind every chat bubble and cash card: a white-opacity fill with a hairline
-/// border and independent per-corner radii. A same-sender run flattens the inner corners from 12
-/// to 6, which `cornerRadius`/`maskedCorners` can't express (they force one radius), so the shape
-/// is drawn as a `UIBezierPath` mask plus a stroked border layer.
+/// border and the *exact* SwiftUI bubble shape. A same-sender run flattens the inner corners from
+/// 12 to 6, which needs continuous, per-corner radii — UIKit's `cornerCurve`/`maskedCorners` can't
+/// express that, so the path is taken straight from SwiftUI's `UnevenRoundedRectangle(.continuous)`
+/// (pure geometry, no hosted SwiftUI views) and drawn into a `CAShapeLayer`.
 final class BubbleBackgroundView: UIView {
 
     /// Base corner radius; the inner corner of a grouped run uses `groupedRadius`.
@@ -20,7 +22,7 @@ final class BubbleBackgroundView: UIView {
 
     private let shapeMask = CAShapeLayer()
     private let borderLayer = CAShapeLayer()
-    private var corners = Corners(topLeft: baseRadius, topRight: baseRadius, bottomLeft: baseRadius, bottomRight: baseRadius)
+    private var radii = RectangleCornerRadii(topLeading: baseRadius, bottomLeading: baseRadius, bottomTrailing: baseRadius, topTrailing: baseRadius)
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -34,15 +36,15 @@ final class BubbleBackgroundView: UIView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    func apply(fill: UIColor, corners: Corners) {
+    func apply(fill: UIColor, radii: RectangleCornerRadii) {
         backgroundColor = fill
-        self.corners = corners
+        self.radii = radii
         setNeedsLayout()
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        let path = Self.path(in: bounds, corners: corners)
+        let path = UnevenRoundedRectangle(cornerRadii: radii, style: .continuous).path(in: bounds).cgPath
         shapeMask.path = path
         borderLayer.path = path
         borderLayer.frame = bounds
@@ -55,43 +57,16 @@ final class BubbleBackgroundView: UIView {
             : UIColor.white.withAlphaComponent(0.02)  // receivedFill
     }
 
-    /// The four corner radii for a bubble. A same-sender run flattens the inner corners (the ones
-    /// nearest the avatar column) from 12 to 6 so stacked bubbles read as one column.
-    struct Corners: Equatable {
-        var topLeft: CGFloat
-        var topRight: CGFloat
-        var bottomLeft: CGFloat
-        var bottomRight: CGFloat
-    }
-
-    /// Pure mapping of sender + grouping to the four radii, mirroring the SwiftUI bubble.
-    static func corners(isFromSelf: Bool, groupedAbove: Bool, groupedBelow: Bool) -> Corners {
+    /// Per-corner radii mirroring the SwiftUI bubble: a same-sender run flattens the inner corners
+    /// (nearest the avatar column) from 12 to 6 so stacked bubbles read as one column.
+    static func radii(isFromSelf: Bool, groupedAbove: Bool, groupedBelow: Bool) -> RectangleCornerRadii {
         let top = groupedAbove ? groupedRadius : baseRadius
         let bottom = groupedBelow ? groupedRadius : baseRadius
-        // Self bubbles hug the trailing edge, so their inner (right) corners flatten; received
-        // bubbles hug the leading edge, so their inner (left) corners flatten.
         if isFromSelf {
-            return Corners(topLeft: baseRadius, topRight: top, bottomLeft: baseRadius, bottomRight: bottom)
+            return RectangleCornerRadii(topLeading: baseRadius, bottomLeading: baseRadius, bottomTrailing: bottom, topTrailing: top)
         } else {
-            return Corners(topLeft: top, topRight: baseRadius, bottomLeft: bottom, bottomRight: baseRadius)
+            return RectangleCornerRadii(topLeading: top, bottomLeading: bottom, bottomTrailing: baseRadius, topTrailing: baseRadius)
         }
-    }
-
-    /// A rounded-rect path with independent per-corner radii.
-    static func path(in rect: CGRect, corners c: Corners) -> CGPath {
-        let path = UIBezierPath()
-        let (minX, minY, maxX, maxY) = (rect.minX, rect.minY, rect.maxX, rect.maxY)
-        path.move(to: CGPoint(x: minX + c.topLeft, y: minY))
-        path.addLine(to: CGPoint(x: maxX - c.topRight, y: minY))
-        path.addArc(withCenter: CGPoint(x: maxX - c.topRight, y: minY + c.topRight), radius: c.topRight, startAngle: -.pi / 2, endAngle: 0, clockwise: true)
-        path.addLine(to: CGPoint(x: maxX, y: maxY - c.bottomRight))
-        path.addArc(withCenter: CGPoint(x: maxX - c.bottomRight, y: maxY - c.bottomRight), radius: c.bottomRight, startAngle: 0, endAngle: .pi / 2, clockwise: true)
-        path.addLine(to: CGPoint(x: minX + c.bottomLeft, y: maxY))
-        path.addArc(withCenter: CGPoint(x: minX + c.bottomLeft, y: maxY - c.bottomLeft), radius: c.bottomLeft, startAngle: .pi / 2, endAngle: .pi, clockwise: true)
-        path.addLine(to: CGPoint(x: minX, y: minY + c.topLeft))
-        path.addArc(withCenter: CGPoint(x: minX + c.topLeft, y: minY + c.topLeft), radius: c.topLeft, startAngle: .pi, endAngle: .pi * 1.5, clockwise: true)
-        path.close()
-        return path.cgPath
     }
 }
 #endif

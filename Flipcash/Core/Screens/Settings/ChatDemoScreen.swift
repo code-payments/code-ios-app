@@ -27,6 +27,9 @@ struct ChatDemoScreen: View {
                 Button("Receive") { harness.receive() }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
+                Button("Receive $") { harness.receiveCash() }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
                 Spacer()
                 Button { dismiss() } label: {
                     Image(systemName: "xmark.circle.fill")
@@ -89,6 +92,18 @@ final class ChatDemoHarness {
     func receive() {
         receivedCount += 1
         appended.append(ChatMessage(id: "recv-\(receivedCount)", text: "Incoming message \(receivedCount) — should NOT auto-scroll.", sender: .other))
+        push()
+    }
+
+    /// Append a fresh received cash card — a clean append (sender `.other`), so it exercises the
+    /// exact insert path the device hits when real cash arrives over the message stream.
+    func receiveCash() {
+        receivedCount += 1
+        appended.append(ChatMessage(
+            id: "recv-cash-\(receivedCount)",
+            content: .cash(ChatCashContent(amount: "$0.01", token: "Cash", flagImageName: "us")),
+            sender: .other
+        ))
         push()
     }
 }
