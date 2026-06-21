@@ -72,4 +72,70 @@ struct NotificationPayloadTests {
         let garbage = Data([0xff, 0xff, 0xff, 0xff, 0xff]).base64EncodedString()
         #expect(NotificationPayload.decode([NotificationPayload.userInfoKey: garbage]) == nil)
     }
+
+    // MARK: - chatID
+
+    /// The 32-byte ChatId used across the chat-targeting tests.
+    private static let chatIDBytes = Data((0..<32).map { UInt8($0) })
+
+    private static func base64(for payload: Flipcash_Push_V1_Payload) throws -> String {
+        try payload.serializedData().base64EncodedString()
+    }
+
+    @Test("chatID returns the target conversation for a CHAT push")
+    func chatIDForChatPush() throws {
+        let payload = Flipcash_Push_V1_Payload.with {
+            $0.category = .chat
+            $0.navigation = .with { $0.chatID = .with { $0.value = Self.chatIDBytes } }
+        }
+        let userInfo = [NotificationPayload.userInfoKey: try Self.base64(for: payload)]
+        #expect(NotificationPayload.chatID(userInfo) == ConversationID(data: Self.chatIDBytes))
+    }
+
+    @Test("chatID resolves a CHAT push nested under aps")
+    func chatIDNestedUnderAps() throws {
+        let payload = Flipcash_Push_V1_Payload.with {
+            $0.category = .chat
+            $0.navigation = .with { $0.chatID = .with { $0.value = Self.chatIDBytes } }
+        }
+        let userInfo = ["aps": [NotificationPayload.userInfoKey: try Self.base64(for: payload)]]
+        #expect(NotificationPayload.chatID(userInfo) == ConversationID(data: Self.chatIDBytes))
+    }
+
+    @Test("chatID is nil for a non-chat payload")
+    func chatIDNilForNonChat() {
+        #expect(NotificationPayload.chatID([NotificationPayload.userInfoKey: Self.knownPayloadBase64]) == nil)
+    }
+
+    @Test("chatID is nil for a CHAT push without chat navigation")
+    func chatIDNilWhenNavigationMissing() throws {
+        let payload = Flipcash_Push_V1_Payload.with { $0.category = .chat }
+        let userInfo = [NotificationPayload.userInfoKey: try Self.base64(for: payload)]
+        #expect(NotificationPayload.chatID(userInfo) == nil)
+    }
+
+    @Test("chatID is nil for a non-chat category even when chat navigation is present")
+    func chatIDNilForNonChatCategoryWithChatNavigation() throws {
+        let payload = Flipcash_Push_V1_Payload.with {
+            $0.category = .default
+            $0.navigation = .with { $0.chatID = .with { $0.value = Self.chatIDBytes } }
+        }
+        let userInfo = [NotificationPayload.userInfoKey: try Self.base64(for: payload)]
+        #expect(NotificationPayload.chatID(userInfo) == nil)
+    }
+
+    @Test("chatID is nil for a CHAT push whose navigation targets currency info")
+    func chatIDNilForCurrencyInfoNavigation() throws {
+        let payload = Flipcash_Push_V1_Payload.with {
+            $0.category = .chat
+            $0.navigation = .with { $0.currencyInfo = .with { $0.value = Self.chatIDBytes } }
+        }
+        let userInfo = [NotificationPayload.userInfoKey: try Self.base64(for: payload)]
+        #expect(NotificationPayload.chatID(userInfo) == nil)
+    }
+
+    @Test("chatID is nil when no payload is present")
+    func chatIDNilWhenAbsent() {
+        #expect(NotificationPayload.chatID([:]) == nil)
+    }
 }

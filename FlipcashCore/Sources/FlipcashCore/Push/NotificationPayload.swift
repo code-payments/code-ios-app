@@ -28,4 +28,12 @@ public enum NotificationPayload {
     public static func isContactJoin(_ userInfo: [AnyHashable: Any]) -> Bool {
         decode(userInfo)?.category == .contactJoin
     }
+
+    /// The conversation a CHAT push targets, or `nil` when the push isn't a chat
+    /// message or carries no chat navigation.
+    public static func chatID(_ userInfo: [AnyHashable: Any]) -> ConversationID? {
+        guard let payload = decode(userInfo), payload.category == .chat else { return nil }
+        guard case .chatID(let chatID) = payload.navigation.type else { return nil }
+        return ConversationID(chatID)
+    }
 }

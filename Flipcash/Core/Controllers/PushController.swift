@@ -28,6 +28,13 @@ class PushController {
     /// The current notification authorization status, refreshed on app activation.
     private(set) var authorizationStatus: UNAuthorizationStatus = .notDetermined
 
+    /// Queried in the foreground to decide whether an incoming chat push targets
+    /// the conversation the user is already viewing, in which case it's suppressed.
+    var isViewingConversation: (@MainActor (ConversationID) -> Bool)? {
+        get { delegate.isViewingConversation }
+        set { delegate.isViewingConversation = newValue }
+    }
+
     @ObservationIgnored private let owner: KeyPair
     @ObservationIgnored private let client: FlipClient
     @ObservationIgnored private let center: UNUserNotificationCenter
@@ -184,7 +191,8 @@ extension PushController {
 private class NotificationDelegate: NSObject, @preconcurrency UNUserNotificationCenterDelegate, @preconcurrency MessagingDelegate {
     
     var didReceiveFCMToken: (@MainActor (String?) async throws -> Void)?
-    
+    var isViewingConversation: (@MainActor (ConversationID) -> Bool)?
+
     override init() {
         super.init()
     }
@@ -198,9 +206,11 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
             "body":     "\(notification.request.content.body)",
         ])
         
-        Messaging.messaging().appDidReceiveMessage(notification.request.content.userInfo)
+        let userInfo = notification.request.content.userInfo
 
-        postContactJoinIfNeeded(notification.request.content.userInfo)
+        Messaging.messaging().appDidReceiveMessage(userInfo)
+
+        postContactJoinIfNeeded(userInfo)
 
         // We intentionally don't call handleTargetUrlIfNeeded here.
         // Deep link navigation should only happen when user taps the notification,
@@ -210,7 +220,17 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
         Task { @MainActor in
             NotificationCenter.default.post(name: .pushNotificationWillPresent, object: nil)
         }
-        
+
+        // Stay silent for the conversation the user is already reading; other
+        // chats and every non-chat push still present normally.
+        if let conversationID = NotificationPayload.chatID(userInfo),
+           isViewingConversation?(conversationID) == true {
+            logger.info("Suppressing chat push for the open conversation", metadata: [
+                "conversationID": "\(conversationID)",
+            ])
+            return []
+        }
+
         return [.badge, .list, .sound, .banner]
     }
     

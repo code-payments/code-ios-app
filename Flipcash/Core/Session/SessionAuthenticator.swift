@@ -532,6 +532,12 @@ struct SessionContainer {
         )
         conversationController.start()
         self.conversationController = conversationController
+
+        // Suppress foreground chat pushes for the conversation that's currently
+        // on screen — the user is already reading it.
+        pushController.isViewingConversation = { [weak conversationController] conversationID in
+            conversationController?.visibleConversationID == conversationID
+        }
     }
 
     fileprivate func injectingEnvironment<SomeView>(into view: SomeView) -> some View where SomeView: View {
