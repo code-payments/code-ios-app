@@ -167,6 +167,40 @@ struct RouteTests {
         #expect(Route(url: URL(string: "https://app.flipcash.com/chat")!) == nil)
     }
 
+    @Test("Chat send-cash route parses /chat/{id}/send to .chatSendCash")
+    func chatSendCashRoute() {
+        let idData = Data((0..<32).map { UInt8($0) })
+        let encoded = ConversationID(data: idData).base64URLEncoded
+
+        // /chat/{id}/send → .chatSendCash
+        let deepLink = URL(string: "flipcash://chat/\(encoded)/send")!
+        let universalLink = URL(string: "https://app.flipcash.com/chat/\(encoded)/send")!
+
+        if case .chatSendCash(let id) = Route(url: deepLink)?.path {
+            #expect(id.data == idData)
+        } else {
+            Issue.record("Deep link /chat/{id}/send should parse as .chatSendCash")
+        }
+
+        if case .chatSendCash(let id) = Route(url: universalLink)?.path {
+            #expect(id.data == idData)
+        } else {
+            Issue.record("Universal link /chat/{id}/send should parse as .chatSendCash")
+        }
+    }
+
+    @Test("Plain /chat/{id} still parses as .chat, not .chatSendCash")
+    func chatRouteUnaffectedBySendCashPath() {
+        let idData = Data((0..<32).map { UInt8($0) })
+        let encoded = ConversationID(data: idData).base64URLEncoded
+
+        if case .chat(let id) = Route(url: URL(string: "flipcash://chat/\(encoded)")!)?.path {
+            #expect(id.data == idData)
+        } else {
+            Issue.record("Plain /chat/{id} should still parse as .chat")
+        }
+    }
+
     // MARK: - Sheet Routes -
     //
     // The home-screen quick actions open sheets via these routes. The

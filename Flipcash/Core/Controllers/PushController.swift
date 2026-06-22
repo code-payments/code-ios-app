@@ -59,6 +59,8 @@ class PushController {
         center.delegate = delegate
         Messaging.messaging().delegate = delegate
 
+        registerNotificationCategories()
+
         activeObserver = NotificationCenter.default.addObserver(
             forName: UIApplication.didBecomeActiveNotification,
             object: nil,
@@ -156,6 +158,30 @@ class PushController {
         )
     }
     
+    // MARK: - Categories -
+
+    private func registerNotificationCategories() {
+        let reply = UNTextInputNotificationAction(
+            identifier: ChatNotificationCategory.replyActionID,
+            title: "Reply",
+            options: [],
+            textInputButtonTitle: "Send",
+            textInputPlaceholder: "Message"
+        )
+        let sendCash = UNNotificationAction(
+            identifier: ChatNotificationCategory.sendCashActionID,
+            title: "Send Cash",
+            options: [.foreground]
+        )
+        let category = UNNotificationCategory(
+            identifier: ChatNotificationCategory.id,
+            actions: [reply, sendCash],
+            intentIdentifiers: [],
+            options: []
+        )
+        center.setNotificationCategories([category])
+    }
+
     // MARK: - Registration -
 
     private func registerAPNS() {
@@ -236,14 +262,23 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
     
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
         logger.info("Received notification response", metadata: ["action": "\(response.actionIdentifier)"])
-        
+
         Messaging.messaging().appDidReceiveMessage(response.notification.request.content.userInfo)
-        
+
         postContactJoinIfNeeded(response.notification.request.content.userInfo)
 
-        let aps = response.notification.request.content.userInfo["aps"] as? [String: Any]
-        handleTargetUrlIfNeeded(aps?["target_url"] as? String)
-        
+        if response.actionIdentifier == ChatNotificationCategory.sendCashActionID,
+           let payload = NotificationPayload.decode(response.notification.request.content.userInfo),
+           case .chatID(let chatID) = payload.navigation.type
+        {
+            let conversationID = ConversationID(chatID)
+            let url = URL(string: "flipcash://chat/\(conversationID.base64URLEncoded)/send")!
+            handleTargetUrlIfNeeded(url.absoluteString)
+        } else {
+            let aps = response.notification.request.content.userInfo["aps"] as? [String: Any]
+            handleTargetUrlIfNeeded(aps?["target_url"] as? String)
+        }
+
         Task { @MainActor in
             NotificationCenter.default.post(name: .pushNotificationReceived, object: nil)
         }

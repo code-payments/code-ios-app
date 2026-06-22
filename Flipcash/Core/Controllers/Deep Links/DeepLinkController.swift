@@ -97,6 +97,9 @@ final class DeepLinkController {
         case .chat(let conversationID):
             return actionForChat(conversationID: conversationID)
 
+        case .chatSendCash(let conversationID):
+            return actionForChatSendCash(conversationID: conversationID)
+
         case .give:
             return actionForOpenSheet(.give)
 
@@ -153,6 +156,13 @@ final class DeepLinkController {
     private func actionForChat(conversationID: ConversationID) -> DeepLinkAction {
         DeepLinkAction(
             kind: .chat(conversationID),
+            sessionAuthenticator: sessionAuthenticator
+        )
+    }
+
+    private func actionForChatSendCash(conversationID: ConversationID) -> DeepLinkAction {
+        DeepLinkAction(
+            kind: .chatSendCash(conversationID),
             sessionAuthenticator: sessionAuthenticator
         )
     }
@@ -223,6 +233,19 @@ struct DeepLinkAction {
                 container.appRouter.present(.conversation(.existing(conversationID)))
             }
 
+        case .chatSendCash(let conversationID):
+            if case .loggedIn(let container) = sessionAuthenticator.state {
+                Analytics.deeplinkRouted(kind: kind)
+                let conversation = container.conversationController.conversation(withID: conversationID)
+                if let target = ChatNotificationRouter.sendTarget(
+                    forChatID: conversationID,
+                    conversation: conversation,
+                    selfUserID: container.session.userID
+                ), container.session.canSend {
+                    container.appRouter.navigate(to: .sendAmount(contact: target))
+                }
+            }
+
         case .openSheet(let sheet):
             if case .loggedIn(let container) = sessionAuthenticator.state {
                 Analytics.deeplinkRouted(kind: kind)
@@ -253,6 +276,7 @@ extension DeepLinkAction {
         case verifyEmail(VerificationDescription)
         case currencyInfo(PublicKey)
         case chat(ConversationID)
+        case chatSendCash(ConversationID)
         case openSheet(AppRouter.SheetPresentation)
     }
 }
@@ -260,11 +284,12 @@ extension DeepLinkAction {
 extension DeepLinkAction.Kind {
     var analyticsName: String {
         switch self {
-        case .accessKey:        "Login"
-        case .receiveCashLink:  "CashLink"
-        case .verifyEmail:      "EmailVerification"
-        case .currencyInfo:     "TokenInfo"
-        case .chat:             "Chat"
+        case .accessKey:            "Login"
+        case .receiveCashLink:      "CashLink"
+        case .verifyEmail:          "EmailVerification"
+        case .currencyInfo:         "TokenInfo"
+        case .chat:                 "Chat"
+        case .chatSendCash:         "ChatSendCash"
         case .openSheet(let sheet): "Sheet:\(sheet)"
         }
     }
