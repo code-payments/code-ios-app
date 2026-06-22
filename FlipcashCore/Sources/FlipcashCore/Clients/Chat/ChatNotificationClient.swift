@@ -11,7 +11,7 @@ import GRPC
 /// A lean gRPC façade for fetching and sending chat messages from a
 /// notification extension. Constructs only the `ChatMessagingService` —
 /// no `FlipClient` or `Client` graph is required.
-public final class ChatNotificationClient {
+public final class ChatNotificationClient: @unchecked Sendable {
 
     private let messagingService: ChatMessagingService
 

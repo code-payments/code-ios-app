@@ -28,6 +28,10 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
     private var items: [ChatItem] = []
     private var statusLabel: UILabel?
 
+    /// Single client shared across fetch and reply to avoid allocating multiple
+    /// NIO event-loop groups per notification.
+    private lazy var client = ChatNotificationClient()
+
     /// Preserved across didReceive calls so reply can reuse them.
     private var conversationID: ConversationID?
     private var ownerKeyPair: KeyPair?
@@ -62,7 +66,6 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
 
         Task { @MainActor in
             do {
-                let client = ChatNotificationClient()
                 let messages = try await client.getMessages(
                     owner: account.keyAccount.owner,
                     conversationID: conversationID,
@@ -99,7 +102,6 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
             let text = textResponse.userText
             Task { @MainActor in
                 do {
-                    let client = ChatNotificationClient()
                     let sent = try await client.sendMessage(
                         owner: ownerKeyPair,
                         conversationID: conversationID,
