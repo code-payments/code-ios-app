@@ -20,16 +20,16 @@ struct FlipcashApp: App {
     var body: some Scene {
         WindowGroup {
             ContainerScreen(container: appDelegate.container)
-            .injectingEnvironment(from: appDelegate.container)
-            .preferredColorScheme(.dark)
-            .tint(Color.textMain)
-            .onOpenURL { url in
-                appDelegate.handleOpenURL(url: url)
-            }
-            .withDialogWindow(
-                sessionAuthenticator: appDelegate.container.sessionAuthenticator
-            )
-            .onScenePhaseChange(appDelegate: appDelegate)
+                .injectingEnvironment(from: appDelegate.container)
+                .preferredColorScheme(.dark)
+                .tint(Color.textMain)
+                .onOpenURL { url in
+                    appDelegate.handleOpenURL(url: url)
+                }
+                .withDialogWindow(
+                    sessionAuthenticator: appDelegate.container.sessionAuthenticator
+                )
+                .onScenePhaseChange(appDelegate: appDelegate)
         }
     }
 }
