@@ -50,11 +50,13 @@ public final class ChatMessageCell: UICollectionViewCell {
         applyAlignment(isFromSelf: message.sender == .me)
     }
 
-    /// Exactly one horizontal edge is pinned, so the bubble hugs its content and the
-    /// opposite edge floats — the cell never holds both constraints active at once.
+    /// Exactly one horizontal edge is pinned, so the bubble hugs its content and the opposite
+    /// edge floats. Both edges are deactivated before the wanted one is activated: a recycled cell
+    /// still carries its prior encapsulated layout width, so momentarily pinning both edges
+    /// over-constrains its width and trips Auto Layout's unsatisfiable-constraints check.
     private func applyAlignment(isFromSelf: Bool) {
-        leadingConstraint.isActive = !isFromSelf
-        trailingConstraint.isActive = isFromSelf
+        NSLayoutConstraint.deactivate([leadingConstraint, trailingConstraint])
+        (isFromSelf ? trailingConstraint : leadingConstraint).isActive = true
     }
 }
 

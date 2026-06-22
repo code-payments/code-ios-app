@@ -71,9 +71,16 @@ public final class ChatCashCardCell: UICollectionViewCell {
         leadingConstraint = card.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12)
         trailingConstraint = card.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12)
 
+        // The card has a fixed height, so pinning it to both the top and bottom of the contentView
+        // would conflict with ChatLayout's estimated cell height during the first (pre-self-sizing)
+        // layout pass. The bottom pin yields (priority 999) to that estimate, avoiding an
+        // unsatisfiable-constraints break while still driving the cell to self-size to the card.
+        let cardBottom = card.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
+        cardBottom.priority = UILayoutPriority(999)
+
         NSLayoutConstraint.activate([
             card.topAnchor.constraint(equalTo: contentView.topAnchor),
-            card.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+            cardBottom,
             card.widthAnchor.constraint(equalToConstant: Self.cardSize.width),
             card.heightAnchor.constraint(equalToConstant: Self.cardSize.height),
 
@@ -139,9 +146,13 @@ public final class ChatCashCardCell: UICollectionViewCell {
         applyAlignment(isFromSelf: message.sender == .me)
     }
 
+    /// Exactly one horizontal edge is pinned, so the fixed-width card hugs its sender's side.
+    /// Both edges are deactivated before the wanted one is activated: momentarily pinning both
+    /// edges over-constrains the card's fixed width and trips Auto Layout's unsatisfiable-
+    /// constraints check when the cell is recycled with a flipped sender.
     private func applyAlignment(isFromSelf: Bool) {
-        leadingConstraint.isActive = !isFromSelf
-        trailingConstraint.isActive = isFromSelf
+        NSLayoutConstraint.deactivate([leadingConstraint, trailingConstraint])
+        (isFromSelf ? trailingConstraint : leadingConstraint).isActive = true
     }
 }
 
