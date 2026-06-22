@@ -43,6 +43,17 @@ public struct ConversationID: Hashable, Sendable, CustomStringConvertible {
         .with { $0.value = data }
     }
 
+    /// The base64url form the server uses in `/chat/{chatId}` deep links —
+    /// the inverse of ``init(base64URLEncoded:)``. Unpadded, with the URL-safe
+    /// `-`/`_` alphabet, so it drops straight into a `flipcash://chat/` path
+    /// without percent-encoding.
+    public var base64URLEncoded: String {
+        data.base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+    }
+
     public var description: String {
         data.hexString()
     }
