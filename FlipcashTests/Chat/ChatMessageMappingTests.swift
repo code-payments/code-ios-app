@@ -38,6 +38,10 @@ struct ChatMessageMappingTests {
         items.filter { if case .dateSeparator = $0 { true } else { false } }.count
     }
 
+    private func receiptText(_ items: [ChatItem]) -> String? {
+        items.compactMap { if case .receipt(_, let text) = $0 { text } else { nil } }.last
+    }
+
     @Test("Same-sender run within the gap groups; a sender change breaks it; gaps add separators")
     func grouping() {
         let messages = [
@@ -96,5 +100,41 @@ struct ChatMessageMappingTests {
         #expect(cash.token == "Cash")
         #expect(cash.amount == fiat.nativeAmount.formatted())
         #expect(cash.flagImageName != nil) // currency flag derived from the currency
+    }
+
+    @Test("The latest sent message reads Delivered until the read pointer reaches it")
+    func receiptDelivered() {
+        let items = ChatItem.from(
+            [text(1, me, "hi", after: 0)],
+            selfUserID: me,
+            counterpartRead: (pointer: MessageID(value: 0), date: nil)
+        )
+        #expect(receiptText(items) == "Delivered")
+    }
+
+    @Test("A read pointer without a timestamp reads Read")
+    func receiptReadWithoutDate() {
+        let items = ChatItem.from(
+            [text(1, me, "hi", after: 0)],
+            selfUserID: me,
+            counterpartRead: (pointer: MessageID(value: 1), date: nil)
+        )
+        #expect(receiptText(items) == "Read")
+    }
+
+    @Test("A read from days ago renders the relative day, not a bare time")
+    func receiptUsesRelativeDay() {
+        // Guards the hookup: with the old `formattedTime()` this read as "Read 3:42 PM".
+        let calendar = Calendar.current
+        let noon = calendar.date(bySettingHour: 12, minute: 0, second: 0, of: .now)!
+        let threeDaysAgo = calendar.date(byAdding: .day, value: -3, to: noon)!
+        let weekday = calendar.weekdaySymbols[calendar.component(.weekday, from: threeDaysAgo) - 1]
+
+        let items = ChatItem.from(
+            [text(1, me, "hi", after: 0)],
+            selfUserID: me,
+            counterpartRead: (pointer: MessageID(value: 1), date: threeDaysAgo)
+        )
+        #expect(receiptText(items) == "Read \(weekday)")
     }
 }
