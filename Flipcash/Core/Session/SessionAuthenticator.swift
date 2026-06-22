@@ -98,6 +98,10 @@ final class SessionAuthenticator {
             return
         }
 
+        // Copy the owner key into the shared access group so a notification
+        // extension can authenticate. Idempotent; preserves the legacy item.
+        SharedKeychainMigration.migrateOwnerKeyIfNeeded()
+
         initializeState { userAccount in
             let initializedAccount = InitializedAccount(
                 keyAccount: userAccount.keyAccount,
