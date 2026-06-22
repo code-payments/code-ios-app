@@ -87,6 +87,7 @@ nonisolated extension Route {
         case token(PublicKey)
         case chat(ConversationID)
         case chatContact(Phone)
+        case chatSendCash(ConversationID)
         case give
         case balance
         case discover
@@ -128,6 +129,10 @@ nonisolated extension Route {
                 // Require the "+" so a bare national number can't misparse against
                 // PhoneNumberKit's implicit US region.
                 if let id = ConversationID(base64URLEncoded: components[1]) {
+                    // `/chat/{id}/send` opens the Send Cash sheet over the chat.
+                    if components.count > 2, components[2] == "send" {
+                        return .chatSendCash(id)
+                    }
                     return .chat(id)
                 }
                 if components[1].hasPrefix("+"), let phone = Phone(components[1]) {
