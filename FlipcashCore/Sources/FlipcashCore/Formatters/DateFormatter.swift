@@ -25,14 +25,6 @@ extension DateFormatter {
         return f
     }()
     
-    public static let relativeTime: DateFormatter = {
-        let f = DateFormatter()
-        f.dateStyle = .none
-        f.timeStyle = .short
-        f.doesRelativeDateFormatting = true
-        return f
-    }()
-    
     public static let timeFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateStyle = .none
