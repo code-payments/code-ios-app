@@ -71,6 +71,12 @@ final class NotificationService: UNNotificationServiceExtension {
         )
         bestAttemptContent.threadIdentifier = payload.groupKey
 
+        // Tag chat pushes with the category so the Reply and Send Cash actions
+        // (registered in the app) attach to the notification.
+        if payload.category == .chat {
+            bestAttemptContent.categoryIdentifier = ChatNotificationCategory.id
+        }
+
         // "Sent You Cash" (CHAT) renders as a communication notification so the
         // sender's avatar — or the system monogram fallback — shows like a chat
         // app. Other categories keep the Flipcash app icon.
