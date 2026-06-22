@@ -79,11 +79,12 @@ extension ChatItem {
         return items
     }
 
-    /// "Read 3:42 PM" once the counterpart's read pointer reaches the message, else "Delivered".
+    /// "Read 3:42 PM" / "Read Yesterday" / "Read Monday" / "Read Tue, Jun 17" once the counterpart's
+    /// read pointer reaches the message, else "Delivered".
     private static func receiptText(for messageID: MessageID, counterpartRead: (pointer: MessageID, date: Date?)?) -> String {
         guard let read = counterpartRead, read.pointer >= messageID else { return "Delivered" }
         guard let date = read.date else { return "Read" }
-        return "Read \(date.formattedTime())"
+        return "Read \(date.formattedRelatively(useTimeForToday: true))"
     }
 
     /// "Today 12:13 PM" / "Yesterday 9:05 AM" / "Jun 18 4:30 PM".
