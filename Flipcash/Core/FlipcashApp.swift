@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoreSpotlight
 import FlipcashUI
 
 /// The main entry point for Flipcash.
@@ -25,6 +26,12 @@ struct FlipcashApp: App {
                 .tint(Color.textMain)
                 .onOpenURL { url in
                     appDelegate.handleOpenURL(url: url)
+                }
+                .onContinueUserActivity(CSSearchableItemActionType) { activity in
+                    appDelegate.handleContinue(activity)
+                }
+                .onContinueUserActivity(AppUserActivity.openChat) { activity in
+                    appDelegate.handleContinue(activity)
                 }
                 .withDialogWindow(
                     sessionAuthenticator: appDelegate.container.sessionAuthenticator

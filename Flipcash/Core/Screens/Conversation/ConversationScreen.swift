@@ -232,6 +232,19 @@ struct ConversationScreen: View {
                 conversationController.visibleConversationID = nil
             }
         }
+        // Donate the open chat for Siri prediction, Handoff, and Spotlight.
+        // Only an existing chat carries an id worth resuming; a contact without
+        // a chat yet has nothing to hand off to.
+        .userActivity(AppUserActivity.openChat, isActive: chatExists && conversationID != nil) { activity in
+            guard let conversationID else { return }
+            activity.title = title
+            activity.userInfo = [AppUserActivity.chatIDKey: conversationID.base64URLEncoded]
+            activity.requiredUserInfoKeys = [AppUserActivity.chatIDKey]
+            activity.persistentIdentifier = conversationID.base64URLEncoded
+            activity.isEligibleForSearch = true
+            activity.isEligibleForHandoff = true
+            activity.isEligibleForPrediction = true
+        }
     }
 
     /// Marks this conversation as the one on screen — the gate for foreground-banner suppression and
