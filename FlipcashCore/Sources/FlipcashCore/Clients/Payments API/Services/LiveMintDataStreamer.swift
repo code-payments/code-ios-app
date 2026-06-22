@@ -28,7 +28,7 @@ public actor LiveMintDataStreamer {
     private var subscribedMints: Set<PublicKey> = []
     private var isStreaming = false
     private var isReconnecting = false
-    private var reconnectAttempts = 0
+    private var backoff = ReconnectBackoff()
     private var reconnectTask: Task<Void, Never>?
     private var pingTimeoutTask: Task<Void, Never>?
     private var pingTracker = PingTracker()
@@ -41,8 +41,6 @@ public actor LiveMintDataStreamer {
     /// The server typically aborts the stream in response, so the next
     /// close should reconnect immediately without backoff.
     private var sentSubscriptionUpdate = false
-    private static let maxReconnectDelay: TimeInterval = 30.0
-    private static let baseReconnectDelay: TimeInterval = 1.0
 
     // MARK: - Init
 
@@ -99,7 +97,7 @@ public actor LiveMintDataStreamer {
         isStreaming = false
         isReconnecting = false
         sentSubscriptionUpdate = false
-        reconnectAttempts = 0
+        backoff.reset()
         pingTimeoutTask?.cancel()
         pingTimeoutTask = nil
         pingTracker = PingTracker()
@@ -153,9 +151,7 @@ public actor LiveMintDataStreamer {
         pingTimeoutTask = nil
         pingTracker = PingTracker()
 
-        // Reset reconnect state on successful stream open
         isReconnecting = false
-        reconnectAttempts = 0
 
         logger.info("Opening live mint data stream", metadata: ["count": "\(subscribedMints.count)"])
 
@@ -226,6 +222,11 @@ public actor LiveMintDataStreamer {
     }
 
     private func handlePing(_ ping: Ocp_Common_V1_ServerPing) {
+        // A received ping is the stream's proof of life — the only safe point to
+        // clear the reconnect backoff, so a stream that dies before its first ping
+        // keeps escalating the delay instead of hammering reconnect.
+        backoff.reset()
+
         let timeout = pingTracker.receivedPing(updatedTimeout: Int(ping.pingDelay.seconds))
         schedulePingTimeout(seconds: timeout)
 
@@ -295,7 +296,7 @@ public actor LiveMintDataStreamer {
         reconnectTask?.cancel()
         reconnectTask = nil
         isReconnecting = false
-        reconnectAttempts = 0
+        backoff.reset()
         streamReference?.destroy()
         streamReference = nil
     }
@@ -335,19 +336,13 @@ public actor LiveMintDataStreamer {
         streamReference?.destroy()
         streamReference = nil
 
-        // Calculate exponential backoff delay
-        reconnectAttempts += 1
-        let delay = min(
-            Self.baseReconnectDelay * pow(2.0, Double(reconnectAttempts - 1)),
-            Self.maxReconnectDelay
-        )
+        let delay = backoff.next()
 
         logger.debug("Reconnecting live mint data stream", metadata: [
             "delaySeconds": "\(delay)",
-            "attempt": "\(reconnectAttempts)"
+            "attempt": "\(backoff.attempts)"
         ])
 
-        // Delay before reconnecting with exponential backoff
         reconnectTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(delay))
             guard !Task.isCancelled else { return }

@@ -33,15 +33,13 @@ public actor EventStreamer {
     private var streamReference: StreamReference?
     private var isStreaming = false
     private var isReconnecting = false
-    private var reconnectAttempts = 0
+    private var backoff = ReconnectBackoff()
     private var reconnectTask: Task<Void, Never>?
     private var pingTimeoutTask: Task<Void, Never>?
     private var pingTracker = PingTracker()
     /// Bumped on every `openStream()`; gRPC callbacks capture the value at open
     /// time so a torn-down stream's late status can't tear down its replacement.
     private var streamGeneration: UInt = 0
-    private static let maxReconnectDelay: TimeInterval = 30
-    private static let baseReconnectDelay: TimeInterval = 1
 
     init(service: EventStreamingService) {
         self.service = service
@@ -85,7 +83,7 @@ public actor EventStreamer {
     public func stop() {
         isStreaming = false
         isReconnecting = false
-        reconnectAttempts = 0
+        backoff.reset()
         owner = nil
         pingTimeoutTask?.cancel()
         pingTimeoutTask = nil
@@ -113,7 +111,6 @@ public actor EventStreamer {
         pingTimeoutTask = nil
         pingTracker = PingTracker()
         isReconnecting = false
-        reconnectAttempts = 0
 
         streamGeneration += 1
         let generation = streamGeneration
@@ -174,6 +171,11 @@ public actor EventStreamer {
     }
 
     private func handlePing(_ ping: Flipcash_Event_V1_ServerPing) {
+        // A received ping is the stream's proof of life — the only safe point to
+        // clear the reconnect backoff, so a stream that dies before its first ping
+        // keeps escalating the delay instead of hammering reconnect.
+        backoff.reset()
+
         let timeout = pingTracker.receivedPing(updatedTimeout: Int(ping.pingDelay.seconds))
         schedulePingTimeout(seconds: timeout)
 
@@ -235,7 +237,7 @@ public actor EventStreamer {
         reconnectTask?.cancel()
         reconnectTask = nil
         isReconnecting = false
-        reconnectAttempts = 0
+        backoff.reset()
         streamReference?.destroy()
         streamReference = nil
     }
@@ -259,15 +261,11 @@ public actor EventStreamer {
         streamReference?.destroy()
         streamReference = nil
 
-        reconnectAttempts += 1
-        let delay = min(
-            Self.baseReconnectDelay * pow(2.0, Double(reconnectAttempts - 1)),
-            Self.maxReconnectDelay
-        )
+        let delay = backoff.next()
 
         logger.debug("Reconnecting event stream", metadata: [
             "delaySeconds": "\(delay)",
-            "attempt": "\(reconnectAttempts)",
+            "attempt": "\(backoff.attempts)",
         ])
 
         reconnectTask = Task { [weak self] in
