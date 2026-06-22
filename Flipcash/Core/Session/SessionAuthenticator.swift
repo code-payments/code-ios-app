@@ -427,6 +427,7 @@ final class SessionAuthenticator {
             container.pushController.prepareForLogout()
             container.usdcSweepOperation.cancel()
             container.conversationController.stop()
+            container.chatSpotlightIndexer.stop()
             QuickActionsController.clear()
         }
 
@@ -459,6 +460,7 @@ struct SessionContainer {
     let usdcSweepOperation: UsdcSweepOperation
     let quickActionsController: QuickActionsController
     let conversationController: ConversationController
+    let chatSpotlightIndexer: ChatSpotlightIndexer
 
     init(
         session: Session,
@@ -538,6 +540,13 @@ struct SessionContainer {
         pushController.isViewingConversation = { [weak conversationController] conversationID in
             conversationController?.visibleConversationID == conversationID
         }
+
+        let chatSpotlightIndexer = ChatSpotlightIndexer(
+            controller: conversationController,
+            contactSyncController: contactSyncController
+        )
+        chatSpotlightIndexer.start()
+        self.chatSpotlightIndexer = chatSpotlightIndexer
     }
 
     fileprivate func injectingEnvironment<SomeView>(into view: SomeView) -> some View where SomeView: View {
