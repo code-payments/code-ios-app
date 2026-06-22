@@ -26,6 +26,7 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
 
     private var collectionView: UICollectionView!
     private var items: [ChatItem] = []
+    private var statusLabel: UILabel?
 
     /// Preserved across didReceive calls so reply can reuse them.
     private var conversationID: ConversationID?
@@ -159,11 +160,13 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
             collectionView.reloadData()
 
         case .loaded(let chatItems):
+            clearStatusLabel()
             items = chatItems
             collectionView.reloadData()
             updatePreferredContentSize()
 
         case .empty:
+            clearStatusLabel()
             items = []
             collectionView.reloadData()
             updatePreferredContentSize()
@@ -177,6 +180,7 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
 
     @MainActor
     private func appendItem(_ item: ChatItem) {
+        clearStatusLabel()
         items.append(item)
         collectionView.reloadData()
         updatePreferredContentSize()
@@ -194,6 +198,7 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
     // MARK: - Error UI -
 
     private func showStatusLabel(_ text: String) {
+        clearStatusLabel()
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
         label.text = text
@@ -205,7 +210,13 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
             label.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             label.centerYAnchor.constraint(equalTo: view.centerYAnchor),
         ])
+        statusLabel = label
         preferredContentSize = CGSize(width: view.bounds.width, height: 44)
+    }
+
+    private func clearStatusLabel() {
+        statusLabel?.removeFromSuperview()
+        statusLabel = nil
     }
 
     private func showSendError() {
