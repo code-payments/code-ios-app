@@ -7,11 +7,15 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		47DDE1F353D72DB6C899D6E0 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EC0A077F6E7EE1EB0853134B /* Foundation.framework */; };
 		4C7D70012FC8892D0091C7A4 /* NotificationService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 4C7D6FFA2FC8892D0091C7A4 /* NotificationService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		4C7D80012FC8892D0091C7A4 /* FlipcashCore in Frameworks */ = {isa = PBXBuildFile; productRef = 9ABDD1942D9D7B61006B6CDA /* FlipcashCore */; };
 		4CB225762F77260D0075874E /* FirebaseInstallations in Frameworks */ = {isa = PBXBuildFile; productRef = 4CB225752F77260D0075874E /* FirebaseInstallations */; };
 		4CB225782F7726500075874E /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 4CB225772F7726500075874E /* FirebaseMessaging */; };
 		508AF9C6D67C4CD29DE10A16 /* TweetNacl in Frameworks */ = {isa = PBXBuildFile; productRef = 2B166ABF94584FEF9C368C81 /* TweetNacl */; };
+		56BF88A54E7F0C5DAB42710A /* FlipcashCore in Frameworks */ = {isa = PBXBuildFile; productRef = 8DFC9D975C89EBB9B4E50C4D /* FlipcashCore */; };
+		7531D04D33DB0C02B873BF36 /* NotificationContent.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C402C27F9E020E000EBA2936 /* NotificationContent.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		81E1A94ED8796D1522C2E2B7 /* NotificationViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E679C9CB11F511DF4EE5B34 /* NotificationViewController.swift */; };
 		88FB56E02EE0AB2F0014EC5F /* CLAUDE.md in Resources */ = {isa = PBXBuildFile; fileRef = 88FB56DF2EE0AB2F0014EC5F /* CLAUDE.md */; };
 		88FB56E52EE0AB810014EC5F /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 88FB56E32EE0AB810014EC5F /* README.md */; };
 		88FB56E62EE0AB810014EC5F /* 2025-11-27-swap-rpc-analysis.md in Resources */ = {isa = PBXBuildFile; fileRef = 88FB56E12EE0AB810014EC5F /* 2025-11-27-swap-rpc-analysis.md */; };
@@ -25,9 +29,17 @@
 		9AD1265E2DA98ADC0048141F /* SQLite in Frameworks */ = {isa = PBXBuildFile; productRef = 9AD1265D2DA98ADC0048141F /* SQLite */; };
 		9ADEF1D72DD627C0001B260A /* Bugsnag in Frameworks */ = {isa = PBXBuildFile; productRef = 9ADEF1D62DD627C0001B260A /* Bugsnag */; };
 		9ADEF1D92DD627C6001B260A /* Mixpanel in Frameworks */ = {isa = PBXBuildFile; productRef = 9ADEF1D82DD627C6001B260A /* Mixpanel */; };
+		A3BE11B009F4E2EF7ED93F05 /* FlipcashUI in Frameworks */ = {isa = PBXBuildFile; productRef = EFFC929EC8849F357BE7F997 /* FlipcashUI */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		04567E8F80F37BC6F81DEE61 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9AED10F8258BE1310088D902 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 554904D5CE93303B1F28329F;
+			remoteInfo = NotificationContent;
+		};
 		4C7D6FFF2FC8892D0091C7A4 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 9AED10F8258BE1310088D902 /* Project object */;
@@ -59,6 +71,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				4C7D70012FC8892D0091C7A4 /* NotificationService.appex in Embed Foundation Extensions */,
+				7531D04D33DB0C02B873BF36 /* NotificationContent.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -67,6 +80,7 @@
 
 /* Begin PBXFileReference section */
 		4C7D6FFA2FC8892D0091C7A4 /* NotificationService.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		4E679C9CB11F511DF4EE5B34 /* NotificationViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NotificationViewController.swift; sourceTree = "<group>"; };
 		88FB56DF2EE0AB2F0014EC5F /* CLAUDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CLAUDE.md; sourceTree = "<group>"; };
 		88FB56E12EE0AB810014EC5F /* 2025-11-27-swap-rpc-analysis.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2025-11-27-swap-rpc-analysis.md"; sourceTree = "<group>"; };
 		88FB56E32EE0AB810014EC5F /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
@@ -80,24 +94,28 @@
 		9AA197072CE51ABB00FE1703 /* CodeCurves */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = CodeCurves; sourceTree = "<group>"; };
 		9ABDD1962D9D7C2E006B6CDA /* FlipcashAPI */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = FlipcashAPI; sourceTree = "<group>"; };
 		9AD5E64B25F2BF3E007388AE /* opencv2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = opencv2.framework; sourceTree = "<group>"; };
+		A361ABDE10578BE8E8859E31 /* NotificationContent.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = NotificationContent.entitlements; sourceTree = "<group>"; };
+		B2ECA4ED4ED388070B77FCD7 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		C402C27F9E020E000EBA2936 /* NotificationContent.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NotificationContent.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		EC0A077F6E7EE1EB0853134B /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		4C025B362F69DC1F00914087 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+		4C025B362F69DC1F00914087 /* Exceptions for "FlipcashUITests" folder in "FlipcashUITests" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 			);
 			target = 9A516F922D9B12EA00AF478B /* FlipcashUITests */;
 		};
-		4C7D70082FC8892D0091C7A4 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+		4C7D70082FC8892D0091C7A4 /* Exceptions for "NotificationService" folder in "NotificationService" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 			);
 			target = 4C7D6FF92FC8892D0091C7A4 /* NotificationService */;
 		};
-		9AC0156E2DA579120030298E /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+		9AC0156E2DA579120030298E /* Exceptions for "Flipcash" folder in "Flipcash" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				"Supporting Files/apple-app-site-association",
@@ -108,13 +126,66 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		4C7D6FFB2FC8892D0091C7A4 /* NotificationService */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (4C7D70082FC8892D0091C7A4 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = NotificationService; sourceTree = "<group>"; };
-		9A516F7B2D9B12E900AF478B /* Flipcash */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (9AC0156E2DA579120030298E /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Flipcash; sourceTree = "<group>"; };
-		9A516F8C2D9B12EA00AF478B /* FlipcashTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = FlipcashTests; sourceTree = "<group>"; };
-		9A516F962D9B12EA00AF478B /* FlipcashUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (4C025B362F69DC1F00914087 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = FlipcashUITests; sourceTree = "<group>"; };
+		4C7D6FFB2FC8892D0091C7A4 /* NotificationService */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				4C7D70082FC8892D0091C7A4 /* Exceptions for "NotificationService" folder in "NotificationService" target */,
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = NotificationService;
+			sourceTree = "<group>";
+		};
+		9A516F7B2D9B12E900AF478B /* Flipcash */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				9AC0156E2DA579120030298E /* Exceptions for "Flipcash" folder in "Flipcash" target */,
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = Flipcash;
+			sourceTree = "<group>";
+		};
+		9A516F8C2D9B12EA00AF478B /* FlipcashTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = FlipcashTests;
+			sourceTree = "<group>";
+		};
+		9A516F962D9B12EA00AF478B /* FlipcashUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				4C025B362F69DC1F00914087 /* Exceptions for "FlipcashUITests" folder in "FlipcashUITests" target */,
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = FlipcashUITests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		1B6F963A954302E324130214 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				47DDE1F353D72DB6C899D6E0 /* Foundation.framework in Frameworks */,
+				56BF88A54E7F0C5DAB42710A /* FlipcashCore in Frameworks */,
+				A3BE11B009F4E2EF7ED93F05 /* FlipcashUI in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		4C7D6FF72FC8892D0091C7A4 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -159,6 +230,17 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		1DE68FD2D78ED8BA7ACC542F /* NotificationContent */ = {
+			isa = PBXGroup;
+			children = (
+				4E679C9CB11F511DF4EE5B34 /* NotificationViewController.swift */,
+				B2ECA4ED4ED388070B77FCD7 /* Info.plist */,
+				A361ABDE10578BE8E8859E31 /* NotificationContent.entitlements */,
+			);
+			name = NotificationContent;
+			path = NotificationContent;
+			sourceTree = "<group>";
+		};
 		88FB56E22EE0AB810014EC5F /* plans */ = {
 			isa = PBXGroup;
 			children = (
@@ -206,6 +288,8 @@
 				9A516F962D9B12EA00AF478B /* FlipcashUITests */,
 				4C7D6FFB2FC8892D0091C7A4 /* NotificationService */,
 				9AED1101258BE1310088D902 /* Products */,
+				DE3C8C53AB74589FBE36B004 /* Frameworks */,
+				1DE68FD2D78ED8BA7ACC542F /* NotificationContent */,
 			);
 			sourceTree = "<group>";
 		};
@@ -216,6 +300,7 @@
 				9A516F892D9B12EA00AF478B /* FlipcashTests.xctest */,
 				9A516F932D9B12EA00AF478B /* FlipcashUITests.xctest */,
 				4C7D6FFA2FC8892D0091C7A4 /* NotificationService.appex */,
+				C402C27F9E020E000EBA2936 /* NotificationContent.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -229,6 +314,22 @@
 				9A0C7F8E2DA0379A0018C7CB /* FlipcashUI */,
 			);
 			name = Packages;
+			sourceTree = "<group>";
+		};
+		A2C1D925AA58EE6DFD1C4022 /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				EC0A077F6E7EE1EB0853134B /* Foundation.framework */,
+			);
+			name = iOS;
+			sourceTree = "<group>";
+		};
+		DE3C8C53AB74589FBE36B004 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				A2C1D925AA58EE6DFD1C4022 /* iOS */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -257,6 +358,27 @@
 			productReference = 4C7D6FFA2FC8892D0091C7A4 /* NotificationService.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		554904D5CE93303B1F28329F /* NotificationContent */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 371A55E2554524D8CDBA32B3 /* Build configuration list for PBXNativeTarget "NotificationContent" */;
+			buildPhases = (
+				19FA9A33BC65E07F1E0C744A /* Sources */,
+				1B6F963A954302E324130214 /* Frameworks */,
+				0D1BAC92A8904A35DE905ADA /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = NotificationContent;
+			packageProductDependencies = (
+				8DFC9D975C89EBB9B4E50C4D /* FlipcashCore */,
+				EFFC929EC8849F357BE7F997 /* FlipcashUI */,
+			);
+			productName = NotificationContent;
+			productReference = C402C27F9E020E000EBA2936 /* NotificationContent.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		9A516F792D9B12E800AF478B /* Flipcash */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 9A516F9B2D9B12EA00AF478B /* Build configuration list for PBXNativeTarget "Flipcash" */;
@@ -271,6 +393,7 @@
 			);
 			dependencies = (
 				4C7D70002FC8892D0091C7A4 /* PBXTargetDependency */,
+				47A27522041981A8EE511CE8 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				9A516F7B2D9B12E900AF478B /* Flipcash */,
@@ -411,7 +534,7 @@
 				9ACE172927E6287C00ACA047 /* XCRemoteSwiftPackageReference "mixpanel-swift" */,
 				9A1A827528660A6F00A4979F /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 				9A476D482978884700C5B5CE /* XCRemoteSwiftPackageReference "bugsnag-cocoa" */,
-				9A9499D62CFB829300DC219B /* XCRemoteSwiftPackageReference "SQLite" */,
+				9A9499D62CFB829300DC219B /* XCRemoteSwiftPackageReference "SQLite.swift" */,
 				9A8D9A3D2D78C2E200E755B9 /* XCRemoteSwiftPackageReference "Kingfisher" */,
 				10A6C0E8F8974C1887219D41 /* XCRemoteSwiftPackageReference "tweetnacl-swiftwrap" */,
 				9A444EE52E8C414D002B1E39 /* XCRemoteSwiftPackageReference "BigDecimal" */,
@@ -425,11 +548,19 @@
 				9A516F882D9B12EA00AF478B /* FlipcashTests */,
 				9A516F922D9B12EA00AF478B /* FlipcashUITests */,
 				4C7D6FF92FC8892D0091C7A4 /* NotificationService */,
+				554904D5CE93303B1F28329F /* NotificationContent */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		0D1BAC92A8904A35DE905ADA /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		4C7D6FF82FC8892D0091C7A4 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -490,6 +621,14 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		19FA9A33BC65E07F1E0C744A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				81E1A94ED8796D1522C2E2B7 /* NotificationViewController.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		4C7D6FF62FC8892D0091C7A4 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -521,6 +660,12 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		47A27522041981A8EE511CE8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = NotificationContent;
+			target = 554904D5CE93303B1F28329F /* NotificationContent */;
+			targetProxy = 04567E8F80F37BC6F81DEE61 /* PBXContainerItemProxy */;
+		};
 		4C7D70002FC8892D0091C7A4 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 4C7D6FF92FC8892D0091C7A4 /* NotificationService */;
@@ -688,6 +833,47 @@
 				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = "Release Development";
+		};
+		4CBD160721BD7B5207D62D56 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_ENTITLEMENTS = NotificationContent/NotificationContent.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 272;
+				DEVELOPMENT_TEAM = SC677X4LH6;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NotificationContent/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = NotificationContent;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.12.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.NotificationContent;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
 		};
 		9A1654E7268381BB000A135E /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -1361,9 +1547,133 @@
 			};
 			name = Release;
 		};
+		BF8938E4E5820474A413F15F /* Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_ENTITLEMENTS = NotificationContent/NotificationContent.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 272;
+				DEVELOPMENT_TEAM = SC677X4LH6;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NotificationContent/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = NotificationContent;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.12.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.NotificationContent;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Development;
+		};
+		D8C9CB3DDBC0E7A87BC380D3 /* Release Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_ENTITLEMENTS = NotificationContent/NotificationContent.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 272;
+				DEVELOPMENT_TEAM = SC677X4LH6;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NotificationContent/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = NotificationContent;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.12.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.NotificationContent;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = "Release Development";
+		};
+		EB7612F59762D71910310905 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_ENTITLEMENTS = NotificationContent/NotificationContent.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 272;
+				DEVELOPMENT_TEAM = SC677X4LH6;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NotificationContent/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = NotificationContent;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.12.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.app.ios.NotificationContent;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		371A55E2554524D8CDBA32B3 /* Build configuration list for PBXNativeTarget "NotificationContent" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BF8938E4E5820474A413F15F /* Development */,
+				4CBD160721BD7B5207D62D56 /* Debug */,
+				EB7612F59762D71910310905 /* Release */,
+				D8C9CB3DDBC0E7A87BC380D3 /* Release Development */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		4C7D70072FC8892D0091C7A4 /* Build configuration list for PBXNativeTarget "NotificationService" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -1469,7 +1779,7 @@
 				minimumVersion = 8.3.0;
 			};
 		};
-		9A9499D62CFB829300DC219B /* XCRemoteSwiftPackageReference "SQLite" */ = {
+		9A9499D62CFB829300DC219B /* XCRemoteSwiftPackageReference "SQLite.swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/dbart01/SQLite.swift";
 			requirement = {
@@ -1503,6 +1813,10 @@
 			package = 9A1A827528660A6F00A4979F /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseMessaging;
 		};
+		8DFC9D975C89EBB9B4E50C4D /* FlipcashCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FlipcashCore;
+		};
 		9A017D682EAC1DE200216925 /* Kingfisher */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 9A8D9A3D2D78C2E200E755B9 /* XCRemoteSwiftPackageReference "Kingfisher" */;
@@ -1527,7 +1841,7 @@
 		};
 		9AD1265D2DA98ADC0048141F /* SQLite */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 9A9499D62CFB829300DC219B /* XCRemoteSwiftPackageReference "SQLite" */;
+			package = 9A9499D62CFB829300DC219B /* XCRemoteSwiftPackageReference "SQLite.swift" */;
 			productName = SQLite;
 		};
 		9ADEF1D62DD627C0001B260A /* Bugsnag */ = {
@@ -1539,6 +1853,10 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 9ACE172927E6287C00ACA047 /* XCRemoteSwiftPackageReference "mixpanel-swift" */;
 			productName = Mixpanel;
+		};
+		EFFC929EC8849F357BE7F997 /* FlipcashUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FlipcashUI;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
