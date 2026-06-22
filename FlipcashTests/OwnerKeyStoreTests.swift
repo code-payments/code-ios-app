@@ -29,6 +29,19 @@ struct OwnerKeyStoreTests {
 
     // MARK: - Round-trip -
 
+    @Test("loadOwnerAccount returns the correct UserAccount after a shared-group write")
+    func loadOwnerAccount_sharedGroupWrite_returnsCorrectAccount() throws {
+        let group = try sharedGroup()
+        defer { Keychain.delete(OwnerKeyStore.ownerAccountKey, accessGroup: group) }
+
+        let data = try JSONEncoder().encode(Self.mockAccount)
+        #expect(Keychain.set(data, for: OwnerKeyStore.ownerAccountKey, accessGroup: group))
+
+        let loaded = OwnerKeyStore.loadOwnerAccount()
+        #expect(loaded?.userID == Self.mockAccount.userID)
+        #expect(loaded?.keyAccount.owner.publicKey == Self.mockAccount.keyAccount.owner.publicKey)
+    }
+
     @Test("loadOwnerKeyPair returns the correct public key after a shared-group write")
     func loadOwnerKeyPair_sharedGroupWrite_returnsCorrectPublicKey() throws {
         let group = try sharedGroup()
