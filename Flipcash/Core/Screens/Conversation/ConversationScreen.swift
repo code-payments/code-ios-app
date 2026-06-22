@@ -194,10 +194,24 @@ struct ConversationScreen: View {
             conversationController.scheduleMarkRead(conversationID: conversationID)
         }
         .onAppear {
+            // Suppress foreground chat banners while this transcript is on
+            // screen — set every appear, including a pop back from Send.
+            conversationController.visibleConversationID = conversationID
             if hasAppeared {
                 refreshChatBinding()
             } else {
                 hasAppeared = true
+            }
+        }
+        // A matched contact's chat is created mid-screen on the first payment,
+        // flipping the ID from nil to the new conversation; track it live.
+        .onChange(of: conversationID) { _, id in
+            conversationController.visibleConversationID = id
+        }
+        .onDisappear {
+            // Guarded so a forward push that already set another ID isn't cleared.
+            if conversationController.visibleConversationID == conversationID {
+                conversationController.visibleConversationID = nil
             }
         }
     }

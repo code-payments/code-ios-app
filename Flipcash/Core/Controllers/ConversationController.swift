@@ -45,6 +45,12 @@ final class ConversationController {
     /// The signed-in user, used to tell own messages from the counterpart's.
     let selfUserID: UserID
 
+    /// The conversation currently on screen, set by `ConversationScreen` while
+    /// it's visible and cleared when it leaves. Read by the push delegate to
+    /// suppress foreground banners for the open chat; never drives a view, so
+    /// it's excluded from observation.
+    @ObservationIgnored var visibleConversationID: ConversationID?
+
     private var store = ConversationStore()
 
     @ObservationIgnored private let fetching: any ConversationFetching
