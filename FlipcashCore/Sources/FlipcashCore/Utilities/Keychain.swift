@@ -34,6 +34,7 @@ public class Keychain {
         )
         if let accessGroup {
             query.insert(.accessGroup(accessGroup))
+            query.insert(.accessible(.afterFirstUnlock))
         }
 
         // Keychain will reject any insert queries for
@@ -124,6 +125,7 @@ public class Keychain {
             .service("Flipcash (\(probeKey))"),
             .account(probeKey),
             .class(.genericPassword),
+            .accessible(.afterFirstUnlock),
             .value(Data([0x00]))
         )
 
