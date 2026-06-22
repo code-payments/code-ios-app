@@ -18,6 +18,18 @@ public enum OwnerKeyStore {
     /// main app target.
     public static let ownerAccountKey = "com.flipcash.account.userAccount"
 
+    /// Loads the signed-in `UserAccount` from the shared keychain access group,
+    /// returning both the owner `KeyPair` and the user's `UserID`.
+    ///
+    /// Returns `nil` under the same conditions as `loadOwnerKeyPair()`.
+    public static func loadOwnerAccount() -> UserAccount? {
+        guard
+            let group = Keychain.sharedAccessGroup,
+            let data = Keychain.data(for: ownerAccountKey, accessGroup: group)
+        else { return nil }
+        return try? JSONDecoder().decode(UserAccount.self, from: data)
+    }
+
     /// Loads the owner `KeyPair` from the shared keychain access group.
     ///
     /// Returns `nil` when:
@@ -28,11 +40,6 @@ public enum OwnerKeyStore {
     /// The notification content extension has no access to the app's
     /// legacy application-identifier group, so there is no fallback read.
     public static func loadOwnerKeyPair() -> KeyPair? {
-        guard
-            let group = Keychain.sharedAccessGroup,
-            let data = Keychain.data(for: ownerAccountKey, accessGroup: group),
-            let account = try? JSONDecoder().decode(UserAccount.self, from: data)
-        else { return nil }
-        return account.keyAccount.owner
+        loadOwnerAccount()?.keyAccount.owner
     }
 }
