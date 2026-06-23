@@ -9,93 +9,30 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-/// Send Cash / Send Message buttons, swapped for the message composer while
-/// composing. Hosted inside the UIKit chat screen, pinned to the keyboard.
-struct ConversationBottomBar: View {
+/// Shared state for the action bar and the composer. They live in separately-anchored
+/// hosted views (safe area vs keyboard), so they share state through this model rather
+/// than a parent; each reads `isComposing` to animate its own fade.
+@MainActor @Observable final class ConversationBarModel {
+    var isComposing = false
+    var draft = ""
+    var isSending = false
 
-    let showsSendCash: Bool
-    let showsSendMessage: Bool
-    let conversationID: ConversationID?
-    let onSendCash: () -> Void
-    /// Reports composing state to the host, which drives `interactiveDismissDisabled`.
-    let onComposingChange: (Bool) -> Void
-
-    @Environment(ConversationController.self) private var conversationController
-    @State private var draft = ""
-    @State private var isSending = false
-    /// Local @State, not an injected binding — the swap only animates when composing
-    /// changes inside the bar's own view tree.
-    @State private var isComposing = false
-    @FocusState private var isComposerFocused: Bool
-
-    /// Action bar ⇄ composer swap — the button group springs in/out (scaling
-    /// from 95%) while the composer fades.
-    private static let swapSpring = Animation.spring(duration: 0.27, bounce: 0.31)
-
-    private var canSend: Bool {
+    var canSend: Bool {
         !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSending
-    }
-
-    var body: some View {
-        ZStack {
-            if isComposing {
-                ConversationComposer(draft: $draft, focus: $isComposerFocused, canSend: canSend, onSend: send)
-                    .transition(.opacity)
-            } else {
-                ConversationActionBar(
-                    showsSendCash: showsSendCash,
-                    showsSendMessage: showsSendMessage,
-                    onSendCash: onSendCash,
-                    onSendMessage: { isComposing = true }
-                )
-                .transition(.scale(scale: 0.95).combined(with: .opacity))
-            }
-        }
-        .animation(Self.swapSpring, value: isComposing)
-        .animation(Self.swapSpring, value: showsSendMessage)
-        .padding(.bottom, 8)
-        .background {
-            LinearGradient(
-                gradient: Gradient(colors: [Color.backgroundMain, Color.backgroundMain, .clear]),
-                startPoint: .bottom,
-                endPoint: .top
-            )
-            // Scope the bleed to the bottom edge only. The bar is the measured
-            // content of the transcript's bottom `.safeAreaInset`; an all-edges
-            // ignore makes the bar read as extending to the screen bottom, which
-            // collapses the scroll-content inset by the home-indicator height and
-            // drops the newest message under the bar.
-            .ignoresSafeArea(edges: .bottom)
-        }
-        // Collapse to the action buttons when the composer loses focus
-        // (keyboard dismissed). Focus-driven, not a keyboard notification.
-        .onChange(of: isComposerFocused) { _, focused in
-            if !focused { isComposing = false }
-        }
-        .onChange(of: isComposing) { _, composing in onComposingChange(composing) }
-    }
-
-    private func send() {
-        guard let conversationID else { return }
-        let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, !isSending else { return }
-        isSending = true
-        draft = ""
-        isComposerFocused = true
-        Task {
-            await conversationController.send(text, to: conversationID)
-            isSending = false
-        }
     }
 }
 
+/// Action bar ⇄ composer swap — the button group springs in/out (scaling
+/// from 95%) while the composer fades.
+private let barSwapSpring = Animation.spring(duration: 0.27, bounce: 0.31)
+
 /// Send Cash alone until the chat exists, then Send Cash + Send Message.
-private struct ConversationActionBar: View {
+struct ConversationActionBar: View {
 
     let showsSendCash: Bool
     let showsSendMessage: Bool
     let onSendCash: () -> Void
-    let onSendMessage: () -> Void
+    let model: ConversationBarModel
 
     var body: some View {
         HStack(spacing: 10) {
@@ -106,7 +43,7 @@ private struct ConversationActionBar: View {
             if showsSendMessage {
                 // Material-only frosted button (no fill) — matches the .filled
                 // metrics (full width, 60pt tall, 6pt radius, appTextMedium).
-                Button(action: onSendMessage) {
+                Button(action: { withAnimation(barSwapSpring) { model.isComposing = true } }) {
                     Text("Send Message")
                         .font(.appTextMedium)
                         .foregroundStyle(Color.textMain)
@@ -120,34 +57,43 @@ private struct ConversationActionBar: View {
         }
         .padding(.horizontal, 16)
         .padding(.top, 8)
+        .padding(.bottom, 8)
+        .animation(barSwapSpring, value: showsSendMessage)
+        // Scales + fades out in place while composing. The bar is pinned to the safe
+        // area (in the UIKit screen), so it never rides the keyboard.
+        .scaleEffect(model.isComposing ? 0.95 : 1)
+        .modifier(BarGradientBackground())
+        .opacity(model.isComposing ? 0 : 1)
+        .animation(barSwapSpring, value: model.isComposing)
     }
 }
 
 /// The glass type box: a multiline field with a send button that appears once
 /// there's text. Swiping the chat down lowers the keyboard and the box.
-private struct ConversationComposer: View {
+struct ConversationComposer: View {
 
-    @Binding var draft: String
-    var focus: FocusState<Bool>.Binding
-    let canSend: Bool
-    let onSend: () -> Void
+    let conversationID: ConversationID?
+    @Bindable var model: ConversationBarModel
+
+    @Environment(ConversationController.self) private var conversationController
+    @FocusState private var isFocused: Bool
 
     /// Send button scale-in/out as text appears/clears.
     private static let sendButtonSpring = Animation.spring(duration: 0.17, bounce: 0.34)
 
     var body: some View {
         let field = HStack(alignment: .bottom, spacing: 10) {
-            TextField("Message", text: $draft, axis: .vertical)
+            TextField("Message", text: $model.draft, axis: .vertical)
                 .font(.appTextMessage)
                 .foregroundStyle(Color.textMain)
                 .tint(.white)
                 .lineLimit(1...5)
-                .focused(focus)
+                .focused($isFocused)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .frame(minHeight: 34)
 
-            if canSend {
-                Button(action: onSend) {
+            if model.canSend {
+                Button(action: send) {
                     Image(systemName: "arrow.up")
                         .font(.default(size: 16, weight: .bold))
                         .foregroundStyle(Color.textAction)
@@ -161,7 +107,7 @@ private struct ConversationComposer: View {
                 .transition(.scale(scale: 0.6).combined(with: .opacity))
             }
         }
-        .animation(Self.sendButtonSpring, value: canSend)
+        .animation(Self.sendButtonSpring, value: model.canSend)
         .padding(.leading, 14)
         .padding(.trailing, 8)
         .padding(.vertical, 8)
@@ -175,8 +121,47 @@ private struct ConversationComposer: View {
             }
         }
         .padding(.horizontal, 12)
-        // Focus must be requested after the field joins the hierarchy; setting
-        // it in the Send Message tap (same transaction) can silently fail.
-        .onAppear { focus.wrappedValue = true }
+        .padding(.bottom, 8)
+        .modifier(BarGradientBackground())
+        .opacity(model.isComposing ? 1 : 0)
+        .animation(barSwapSpring, value: model.isComposing)
+        // Focus follows composing. The field is already mounted, so this is reliable —
+        // `.onAppear` would raise the keyboard on screen entry. Losing focus (keyboard
+        // swiped down) ends composing.
+        .onChange(of: model.isComposing) { _, composing in isFocused = composing }
+        .onChange(of: isFocused) { _, focused in if !focused { withAnimation(barSwapSpring) { model.isComposing = false } } }
+    }
+
+    private func send() {
+        guard let conversationID else { return }
+        let text = model.draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty, !model.isSending else { return }
+        model.isSending = true
+        model.draft = ""
+        isFocused = true
+        Task {
+            await conversationController.send(text, to: conversationID)
+            model.isSending = false
+        }
+    }
+}
+
+/// Bottom-edge fade so transcript content scrolling under the bar dissolves into
+/// the background.
+private struct BarGradientBackground: ViewModifier {
+    func body(content: Content) -> some View {
+        content.background {
+            LinearGradient(
+                gradient: Gradient(colors: [Color.backgroundMain, Color.backgroundMain, .clear]),
+                startPoint: .bottom,
+                endPoint: .top
+            )
+            // Scope the bleed to the bottom edge only. The bar is the measured
+            // content of the transcript's bottom `.safeAreaInset`; an all-edges
+            // ignore makes the bar read as extending to the screen bottom, which
+            // collapses the scroll-content inset by the home-indicator height and
+            // drops the newest message under the bar.
+            .ignoresSafeArea(edges: .bottom)
+        }
     }
 }

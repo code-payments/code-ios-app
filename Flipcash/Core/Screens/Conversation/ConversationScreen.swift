@@ -36,7 +36,7 @@ struct ConversationScreen: View {
     @Environment(RatesController.self) private var ratesController
 
     @State private var didInitialRead = false
-    @State private var isComposing = false
+    @State private var barModel = ConversationBarModel()
     @State private var navBarWidth: CGFloat = 0
 
     /// Horizontal space the back button (leading) reserves on each side of the
@@ -140,10 +140,10 @@ struct ConversationScreen: View {
             onReachTop: loadOlderMessages,
             showsSendCash: sendTarget != nil,
             showsSendMessage: chatExists,
-            onComposingChange: { isComposing = $0 },
             conversationID: conversationID,
             onSendCash: sendCash,
-            conversationController: conversationController
+            conversationController: conversationController,
+            barModel: barModel
         )
         .ignoresSafeArea(.keyboard)
         // Extend the transcript under the navigation bar so content scrolls beneath it — that's
@@ -176,7 +176,7 @@ struct ConversationScreen: View {
         }
         // While composing, a downward swipe should lower the keyboard — not
         // tear down the whole Send sheet.
-        .interactiveDismissDisabled(isComposing)
+        .interactiveDismissDisabled(barModel.isComposing)
         // Keyed on existence, not just the ID: a matched contact's chat ID is
         // pre-assigned, and fetching messages for a chat the server hasn't
         // created yet error-reports. Fires when the chat materializes.
