@@ -268,7 +268,7 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
         postContactJoinIfNeeded(response.notification.request.content.userInfo)
 
         if response.actionIdentifier == ChatNotificationCategory.sendCashActionID,
-           let conversationID = NotificationPayload.chatConversationID(from: response.notification.request.content.userInfo)
+           let conversationID = NotificationPayload.chatID(response.notification.request.content.userInfo)
         {
             let url = URL(string: "flipcash://chat/\(conversationID.base64URLEncoded)/send")!
             handleTargetUrlIfNeeded(url.absoluteString)

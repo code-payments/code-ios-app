@@ -268,7 +268,10 @@ struct DeepLinkAction {
                     selfUserID: container.session.userID
                 ), container.session.canSend {
                     Analytics.deeplinkRouted(kind: kind)
-                    container.appRouter.navigate(to: .sendAmount(contact: target))
+                    // Open the chat as the root sheet, then stack Send Cash on top, so
+                    // dismissing the amount entry lands back in the conversation.
+                    container.appRouter.present(.conversation(.existing(conversationID)))
+                    container.appRouter.presentNested(.sendAmount(target))
                 }
             }
 
