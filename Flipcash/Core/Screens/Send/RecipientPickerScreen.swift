@@ -339,7 +339,7 @@ private struct RecipientRowScaffold<Trailing: View>: View {
 
     let avatarID: String
     let title: String
-    let subtitle: String
+    let subtitle: String?
     let imageData: Data?
     let accessibilityLabel: String
     let onTap: () -> Void
@@ -367,7 +367,7 @@ private struct RecipientRowBody<Trailing: View>: View {
 
     let avatarID: String
     let title: String
-    let subtitle: String
+    let subtitle: String?
     let imageData: Data?
     @ViewBuilder let trailing: Trailing
 
@@ -384,10 +384,12 @@ private struct RecipientRowBody<Trailing: View>: View {
                     .font(.appTextMedium)
                     .foregroundStyle(Color.textMain)
                     .lineLimit(1)
-                Text(subtitle)
-                    .font(.appTextSmall)
-                    .foregroundStyle(Color.textSecondary)
-                    .lineLimit(1)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.appTextSmall)
+                        .foregroundStyle(Color.textSecondary)
+                        .lineLimit(1)
+                }
             }
             Spacer(minLength: 12)
             trailing
@@ -412,9 +414,9 @@ private extension View {
     }
 }
 
-/// A merged "On Flipcash" row. Contact rows show the phone number; rows with
-/// a conversation show the last-message preview and swap the chevron for the
-/// unread dot while the chat has unread messages.
+/// A merged "On Flipcash" row. Rows with a conversation show the last-message
+/// preview; chatless contacts and chats with no messages show no subtitle. An
+/// unread chat marks the row with a leading dot.
 private struct RecipientListItemRow: View {
 
     let item: RecipientListItem
@@ -431,12 +433,12 @@ private struct RecipientListItemRow: View {
         }
     }
 
-    private var subtitle: String {
+    private var subtitle: String? {
         switch item {
-        case .contact(let contact):
-            return contact.nationalPhone
+        case .contact:
+            return nil
         case .conversation(let conversation), .matched(_, let conversation):
-            guard let message = conversation.lastMessage else { return "No messages yet" }
+            guard let message = conversation.lastMessage else { return nil }
             switch message.content {
             case .text(let text):
                 return text
@@ -460,23 +462,33 @@ private struct RecipientListItemRow: View {
         }
     }
 
+    private var accessibilityLabel: String {
+        let base = subtitle.map { "\(title), \($0)" } ?? title
+        return hasUnread ? "\(base), unread messages" : base
+    }
+
     var body: some View {
         RecipientRowScaffold(
             avatarID: avatarID,
             title: title,
             subtitle: subtitle,
             imageData: item.contact?.imageData,
-            accessibilityLabel: hasUnread ? "\(title), \(subtitle), unread messages" : "\(title), \(subtitle)",
+            accessibilityLabel: accessibilityLabel,
             onTap: onTap
         ) {
+            Image(systemName: "chevron.right")
+                .font(.appTextSmall)
+                .foregroundStyle(Color.textSecondary)
+        }
+        .overlay(alignment: .leading) {
             if hasUnread {
+                // Offset into the row's leading inset so the dot sits in the
+                // margin left of the avatar.
                 Circle()
                     .fill(Color.unreadIndicator)
-                    .frame(width: 16, height: 16)
-            } else {
-                Image(systemName: "chevron.right")
-                    .font(.appTextSmall)
-                    .foregroundStyle(Color.textSecondary)
+                    .frame(width: 10, height: 10)
+                    .offset(x: -15)
+                    .accessibilityHidden(true)
             }
         }
     }
