@@ -16,6 +16,7 @@
 		56BF88A54E7F0C5DAB42710A /* FlipcashCore in Frameworks */ = {isa = PBXBuildFile; productRef = 8DFC9D975C89EBB9B4E50C4D /* FlipcashCore */; };
 		7531D04D33DB0C02B873BF36 /* NotificationContent.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C402C27F9E020E000EBA2936 /* NotificationContent.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		81E1A94ED8796D1522C2E2B7 /* NotificationViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E679C9CB11F511DF4EE5B34 /* NotificationViewController.swift */; };
+		8778E6B10D2DD83ABE8E2969 /* UserNotificationsUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B4C2CDF828ABA73672DA87AB /* UserNotificationsUI.framework */; };
 		88FB56E02EE0AB2F0014EC5F /* CLAUDE.md in Resources */ = {isa = PBXBuildFile; fileRef = 88FB56DF2EE0AB2F0014EC5F /* CLAUDE.md */; };
 		88FB56E52EE0AB810014EC5F /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 88FB56E32EE0AB810014EC5F /* README.md */; };
 		88FB56E62EE0AB810014EC5F /* 2025-11-27-swap-rpc-analysis.md in Resources */ = {isa = PBXBuildFile; fileRef = 88FB56E12EE0AB810014EC5F /* 2025-11-27-swap-rpc-analysis.md */; };
@@ -30,6 +31,7 @@
 		9ADEF1D72DD627C0001B260A /* Bugsnag in Frameworks */ = {isa = PBXBuildFile; productRef = 9ADEF1D62DD627C0001B260A /* Bugsnag */; };
 		9ADEF1D92DD627C6001B260A /* Mixpanel in Frameworks */ = {isa = PBXBuildFile; productRef = 9ADEF1D82DD627C6001B260A /* Mixpanel */; };
 		A3BE11B009F4E2EF7ED93F05 /* FlipcashUI in Frameworks */ = {isa = PBXBuildFile; productRef = EFFC929EC8849F357BE7F997 /* FlipcashUI */; };
+		B4D66444ACFD12F6C0FE8FA2 /* UserNotifications.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D542CC6E03E2DF4F10D1BFE7 /* UserNotifications.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -96,7 +98,9 @@
 		9AD5E64B25F2BF3E007388AE /* opencv2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = opencv2.framework; sourceTree = "<group>"; };
 		A361ABDE10578BE8E8859E31 /* NotificationContent.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = NotificationContent.entitlements; sourceTree = "<group>"; };
 		B2ECA4ED4ED388070B77FCD7 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B4C2CDF828ABA73672DA87AB /* UserNotificationsUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UserNotificationsUI.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/UserNotificationsUI.framework; sourceTree = DEVELOPER_DIR; };
 		C402C27F9E020E000EBA2936 /* NotificationContent.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NotificationContent.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		D542CC6E03E2DF4F10D1BFE7 /* UserNotifications.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UserNotifications.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/UserNotifications.framework; sourceTree = DEVELOPER_DIR; };
 		EC0A077F6E7EE1EB0853134B /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 /* End PBXFileReference section */
 
@@ -183,6 +187,8 @@
 				47DDE1F353D72DB6C899D6E0 /* Foundation.framework in Frameworks */,
 				56BF88A54E7F0C5DAB42710A /* FlipcashCore in Frameworks */,
 				A3BE11B009F4E2EF7ED93F05 /* FlipcashUI in Frameworks */,
+				8778E6B10D2DD83ABE8E2969 /* UserNotificationsUI.framework in Frameworks */,
+				B4D66444ACFD12F6C0FE8FA2 /* UserNotifications.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -320,6 +326,8 @@
 			isa = PBXGroup;
 			children = (
 				EC0A077F6E7EE1EB0853134B /* Foundation.framework */,
+				B4C2CDF828ABA73672DA87AB /* UserNotificationsUI.framework */,
+				D542CC6E03E2DF4F10D1BFE7 /* UserNotifications.framework */,
 			);
 			name = iOS;
 			sourceTree = "<group>";

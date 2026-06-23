@@ -36,9 +36,15 @@ extension ChatItem {
             case .text(let text):
                 content = .text(text)
             case .cash(let fiat):
+                // Mirror the app's cash mapping: the flag comes from the currency's region and
+                // loads from the FlipcashUI bundle, so it resolves inside an extension. The token
+                // name normally comes from the app's mint-branding service, which the extension
+                // can't reach — fall back to the currency code.
+                let currency = fiat.nativeAmount.currency
                 content = .cash(ChatCashContent(
                     amount: fiat.nativeAmount.formatted(),
-                    token: "Cash"
+                    token: currency.rawValue.uppercased(),
+                    flagImageName: currency.region?.rawValue ?? currency.rawValue.uppercased()
                 ))
             }
 
