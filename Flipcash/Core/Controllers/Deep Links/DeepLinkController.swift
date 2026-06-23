@@ -268,11 +268,10 @@ struct DeepLinkAction {
                     selfUserID: container.session.userID
                 ), container.session.canSend {
                     Analytics.deeplinkRouted(kind: kind)
-                    // Mount the chat instantly (no slide-up) and animate only the Send
-                    // Cash sheet on top, so it opens directly with the chat already
-                    // behind it — dismissing the amount entry lands back in the chat.
-                    container.appRouter.present(.conversation(.existing(conversationID)), animated: false)
-                    container.appRouter.presentNested(.sendAmount(target))
+                    // Open the Send Cash amount entry directly as the sheet — one
+                    // animation, no chat behind it. Dismissing returns to where the
+                    // user was (the chat itself is reachable via the chat deeplink).
+                    container.appRouter.present(.sendAmount(target))
                 }
             }
 

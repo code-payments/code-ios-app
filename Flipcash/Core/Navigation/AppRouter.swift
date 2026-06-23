@@ -233,17 +233,7 @@ final class AppRouter {
     /// sheet mounts — so a re-open lands at root. A sheet swap (presenting a
     /// different sheet without going through `dismissSheet` first) leaves
     /// both paths intact, preserving the original "swap-and-return" behaviour.
-    func present(_ sheet: SheetPresentation, animated: Bool = true) {
-        guard animated else {
-            // Mount this sheet without its slide-up so a sheet stacked on top
-            // (presentNested) is the only thing that animates — e.g. opening Send
-            // Cash over a chat from a deeplink lands on the amount sheet with the
-            // chat already behind it, instead of animating the chat in first.
-            var transaction = Transaction()
-            transaction.disablesAnimations = true
-            withTransaction(transaction) { present(sheet) }
-            return
-        }
+    func present(_ sheet: SheetPresentation) {
         // Roots that are re-entered fresh (the conversation root — see `resetsStackOnPresent`) clear
         // their stack up front, before any branch below. One rule covers every re-entry: idempotent
         // re-present, chat→chat swap, swap-away-then-return, and a re-present with a nested sheet above.
