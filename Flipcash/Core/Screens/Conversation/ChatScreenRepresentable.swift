@@ -10,11 +10,11 @@ import UIKit
 import FlipcashCore
 import FlipcashUI
 
-/// Hosts the fully-UIKit chat (transcript + the Send Cash / Send Message bar) inside SwiftUI.
-/// SwiftUI does only two things: supply the already-mapped messages and host the bar so its
-/// send + cash actions keep working. All scroll, keyboard, and flow-under behavior lives in the
-/// UIKit screen. The bar is hosted *inside* the UIKit screen (pinned to the keyboard layout
-/// guide) so the keyboard avoidance stays entirely in UIKit.
+/// Hosts the fully-UIKit chat (transcript + bars) inside SwiftUI. SwiftUI supplies the already-mapped
+/// messages and hosts two bars — the Send Cash / Send Message action bar (pinned to the safe area)
+/// and the composer (pinned to the keyboard). All scroll, keyboard, and flow-under behavior lives in
+/// the UIKit screen. Both bars share `barModel`, so the swap animates through observation rather than
+/// `UIHostingController.rootView` reassignment (which can't carry it).
 struct ChatScreenRepresentable: UIViewControllerRepresentable {
 
     let items: [ChatItem]
@@ -24,29 +24,39 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     let onReachTop: () -> Void
     let showsSendCash: Bool
     let showsSendMessage: Bool
-    /// Reports the bar's composing state so the screen can drive `interactiveDismissDisabled`.
-    let onComposingChange: (Bool) -> Void
     let conversationID: ConversationID?
     let onSendCash: () -> Void
     let conversationController: ConversationController
+    let barModel: ConversationBarModel
 
     func makeUIViewController(context: Context) -> ChatScreenViewController {
-        let host = UIHostingController(rootView: bar(coordinator: context.coordinator))
-        host.view.backgroundColor = .clear
-        let screen = ChatScreenViewController(barView: host.view, barViewController: host)
+        let restingHost = UIHostingController(rootView: restingBar(coordinator: context.coordinator))
+        let keyboardHost = UIHostingController(rootView: keyboardBar(coordinator: context.coordinator))
+        restingHost.view.backgroundColor = .clear
+        keyboardHost.view.backgroundColor = .clear
+        let screen = ChatScreenViewController(
+            restingBar: restingHost.view,
+            keyboardBar: keyboardHost.view,
+            restingBarController: restingHost,
+            keyboardBarController: keyboardHost
+        )
         screen.onReachTop = onReachTop
         screen.update(items: items)
-        context.coordinator.host = host
+        screen.setComposing(barModel.isComposing)
+        context.coordinator.restingHost = restingHost
+        context.coordinator.keyboardHost = keyboardHost
         context.coordinator.screen = screen
         context.coordinator.lastMessageID = lastMessageID(of: items)
         return screen
     }
 
     func updateUIViewController(_ screen: ChatScreenViewController, context: Context) {
-        // Re-supply the bar with current inputs; SwiftUI diffs it, so the composer's draft and
+        // Re-supply both bars with current inputs; SwiftUI diffs them, so the composer's draft and
         // focus survive across updates.
-        context.coordinator.host?.rootView = bar(coordinator: context.coordinator)
+        context.coordinator.restingHost?.rootView = restingBar(coordinator: context.coordinator)
+        context.coordinator.keyboardHost?.rootView = keyboardBar(coordinator: context.coordinator)
         screen.onReachTop = onReachTop
+        screen.setComposing(barModel.isComposing)
 
         // Scroll only when the user's *own* message was just appended — a new trailing message id
         // (skipping any trailing receipt) that is from me. Received messages and prepended history
@@ -70,33 +80,46 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         lastMessage(of: items)?.id
     }
 
-    private func bar(coordinator: Coordinator) -> AnyView {
+    private func restingBar(coordinator: Coordinator) -> AnyView {
         AnyView(
-            ConversationBottomBar(
+            ConversationActionBar(
                 showsSendCash: showsSendCash,
                 showsSendMessage: showsSendMessage,
-                conversationID: conversationID,
                 onSendCash: onSendCash,
-                onComposingChange: onComposingChange
+                model: barModel
             )
-            .environment(conversationController)
-            // Take the natural height at the proposed width so the composer can grow to its full
-            // multiline height, then report that measured height to the UIKit screen, which drives
-            // the bar's height constraint. This keeps the bar's frame matched to its content — the
-            // hosting controller's intrinsic size mis-measures and lets the composer overflow under
-            // the keyboard.
-            .fixedSize(horizontal: false, vertical: true)
-            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
-                coordinator.screen?.setBarHeight(height)
-            }
+            .modifier(MeasuredBarHeight { coordinator.screen?.setRestingBarHeight($0) })
+        )
+    }
+
+    private func keyboardBar(coordinator: Coordinator) -> AnyView {
+        AnyView(
+            ConversationComposer(conversationID: conversationID, model: barModel)
+                .environment(conversationController)
+                .modifier(MeasuredBarHeight { coordinator.screen?.setKeyboardBarHeight($0) })
         )
     }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     @MainActor final class Coordinator {
-        var host: UIHostingController<AnyView>?
+        var restingHost: UIHostingController<AnyView>?
+        var keyboardHost: UIHostingController<AnyView>?
         weak var screen: ChatScreenViewController?
         var lastMessageID: String?
+    }
+}
+
+/// Reports a hosted bar's measured natural height to the UIKit screen, which drives its height
+/// constraint. Take the natural height at the proposed width so the composer can grow to its full
+/// multiline height — the hosting controller's intrinsic size mis-measures and lets the composer
+/// overflow under the keyboard.
+private struct MeasuredBarHeight: ViewModifier {
+    let report: (CGFloat) -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .fixedSize(horizontal: false, vertical: true)
+            .onGeometryChange(for: CGFloat.self, of: { $0.size.height }, action: report)
     }
 }
