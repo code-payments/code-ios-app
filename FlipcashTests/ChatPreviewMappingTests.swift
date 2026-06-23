@@ -83,7 +83,7 @@ struct ChatPreviewMappingTests {
         #expect(msg.content == .text("see you soon"))
     }
 
-    @Test("Cash message maps to .cash content with formatted amount and 'Cash' token")
+    @Test("Cash message maps to .cash content with formatted amount, currency token, and flag")
     func cashContentMaps() {
         let messages = [cashMessage(id: 1, senderID: otherID, amount: 5.00)]
         let items = ChatItem.preview(from: messages, selfUserID: meID)
@@ -96,7 +96,8 @@ struct ChatPreviewMappingTests {
             Issue.record("Expected .cash content")
             return
         }
-        #expect(cash.token == "Cash")
+        #expect(cash.token == "USD")
+        #expect(cash.flagImageName != nil)
         // Amount is a non-empty formatted string (locale-sensitive; just check non-empty)
         #expect(!cash.amount.isEmpty)
     }
