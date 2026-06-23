@@ -29,18 +29,21 @@ public struct FilledButtonStyle: ButtonStyle {
     private let textDisabledColor: Color
     private let overlayColor: Color
     private let overlayDisabledColor: Color
+    private let isCompact: Bool
 
     /// Internal only. Use the static accessors (e.g., `.filled`, `.filled20`) instead.
     init(
         textColor: Color,
         textDisabledColor: Color,
         overlayColor: Color,
-        overlayDisabledColor: Color
+        overlayDisabledColor: Color,
+        isCompact: Bool
     ) {
         self.textColor = textColor
         self.textDisabledColor = textDisabledColor
         self.overlayColor = overlayColor
         self.overlayDisabledColor = overlayDisabledColor
+        self.isCompact = isCompact
     }
 
     public func makeBody(configuration: Configuration) -> some View {
@@ -48,7 +51,7 @@ public struct FilledButtonStyle: ButtonStyle {
             .font(.appTextMedium)
             .foregroundStyle(isEnabled ? textColor : textDisabledColor)
             .frame(maxWidth: .infinity)
-            .frame(height: Metrics.buttonHeight)
+            .frame(height: isCompact ? Metrics.buttonHeightThin : Metrics.buttonHeight)
             .background {
                 RoundedRectangle(cornerRadius: Metrics.buttonRadius)
                     .fill(isEnabled ? overlayColor : overlayDisabledColor)
@@ -65,16 +68,30 @@ extension ButtonStyle where Self == FilledButtonStyle {
             textColor: .textAction,
             textDisabledColor: .textMain.opacity(0.2),
             overlayColor: .action,
-            overlayDisabledColor: .action.opacity(0.1)
+            overlayDisabledColor: .action.opacity(0.1),
+            isCompact: false
         )
     }
+    
+    /// A full-width filled button with the primary action color (compact variant).
+    public static var filledCompact: FilledButtonStyle {
+        .init(
+            textColor: .textAction,
+            textDisabledColor: .textMain.opacity(0.2),
+            overlayColor: .action,
+            overlayDisabledColor: .action.opacity(0.1),
+            isCompact: true
+        )
+    }
+    
     /// A full-width filled button at 20% action color opacity.
     public static var filled20: FilledButtonStyle {
         .init(
             textColor: .textMain,
             textDisabledColor: .textMain.opacity(0.2),
             overlayColor: .action.opacity(0.2),
-            overlayDisabledColor: .action.opacity(0.2)
+            overlayDisabledColor: .action.opacity(0.2),
+            isCompact: false
         )
     }
 }

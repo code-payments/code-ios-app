@@ -11,12 +11,33 @@ import FlipcashUI
 
 nonisolated private let logger = Logger(label: "flipcash.recipient-picker")
 
+/// How much of the address book the Send picker can show. Derived from
+/// `CNAuthorizationStatus` once the picker is reachable — never `.notDetermined`,
+/// which is gated to the priming screen.
+nonisolated enum RecipientContactAccess: Equatable {
+    case full       // .authorized — full directory
+    case limited    // .limited (iOS 18+) — shared subset + "Add More Contacts" footer
+    case denied     // .denied / .restricted — conversations only + CTA card
+
+    /// `nil` when the status isn't picker-reachable — `.notDetermined` routes to
+    /// the priming screen instead.
+    init?(_ status: CNAuthorizationStatus) {
+        switch status {
+        case .authorized:           self = .full
+        case .limited:              self = .limited
+        case .denied, .restricted:  self = .denied
+        case .notDetermined:        return nil
+        @unknown default:           return nil
+        }
+    }
+}
+
 /// Send section's primary view. Renders `contactSyncController.resolvedContacts`.
 struct RecipientPickerScreen: View {
 
-    /// `true` when contacts are shared under iOS 18 limited access. Drives the
-    /// limited-access empty state shown when nothing has been shared yet.
-    let isLimitedAccess: Bool
+    /// How much of the address book is available — drives the empty states and
+    /// the list footer (limited → "Add More Contacts", denied → CTA card).
+    let contactAccess: RecipientContactAccess
 
     /// Injected from `SendRootScreen`, which owns the `.searchable`. The search
     /// field has to be present from the moment the Send sheet mounts — a
@@ -34,23 +55,26 @@ struct RecipientPickerScreen: View {
     var body: some View {
         let contacts = contactSyncController.resolvedContacts
         let conversations = conversationController.conversations
+        // Denied always renders the list so the CTA card shows; full/limited fall
+        // back to an empty state only when there's nothing to list.
+        let showList = contactAccess == .denied || !(contacts.isEmpty && conversations.isEmpty)
         return Group {
-            if contacts.isEmpty && conversations.isEmpty {
-                if isLimitedAccess {
-                    LimitedAccessEmptyState()
-                } else {
-                    RecipientPickerEmptyState()
-                }
-            } else {
+            if showList {
                 RecipientPickerList(
                     conversations: conversations,
                     filtered: filtered,
                     searchText: searchText,
-                    isLimitedAccess: isLimitedAccess,
+                    contactAccess: contactAccess,
                     onConversationTap: openConversation,
                     onFlipcashTap: selectRecipient,
                     onInviteTap: presentInvite,
                 )
+            } else {
+                switch contactAccess {
+                case .limited: LimitedAccessEmptyState()
+                case .full:    RecipientPickerEmptyState()
+                case .denied:  EmptyView()  // unreachable — denied always shows the list
+                }
             }
         }
         .onAppear { refilter() }
@@ -123,28 +147,6 @@ private struct LimitedAccessEmptyState: View {
                 URL.openSettings()
             }
         }
-    }
-}
-
-/// Footer under the populated recipient list in iOS limited access. Routes to
-/// Settings to share more contacts — adding them in-app is unavailable on
-/// iOS 26 (FB14821786).
-private struct LimitedAccessSettingsFooter: View {
-    var body: some View {
-        Button {
-            URL.openSettings()
-        } label: {
-            Text("Choose more contacts in Settings")
-                .font(.appTextSmall)
-                .foregroundStyle(Color.textSecondary)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.vertical, 16)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
-        .listRowBackground(Color.clear)
-        .listRowSeparator(.hidden)
     }
 }
 
@@ -241,7 +243,7 @@ private struct RecipientPickerList: View {
     let conversations: [Conversation]
     let filtered: ResolvedContacts
     let searchText: String
-    let isLimitedAccess: Bool
+    let contactAccess: RecipientContactAccess
     let onConversationTap: (Conversation) -> Void
     let onFlipcashTap: (ResolvedContact) -> Void
     let onInviteTap: (ResolvedContact) -> Void
@@ -294,18 +296,35 @@ private struct RecipientPickerList: View {
                 }
                 .listSectionSeparator(.hidden, edges: .top)
             }
-            if isLimitedAccess && !filtered.isEmpty {
-                LimitedAccessSettingsFooter()
+            switch contactAccess {
+            case .denied:
+                SendMoneyPromoCard()
+                    .listRowInsets(EdgeInsets(top: 16, leading: 20, bottom: 16, trailing: 20))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            case .limited:
+                if !filtered.isEmpty {
+                    AddMoreContactsFooter()
+                        .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                }
+            case .full:
+                EmptyView()
             }
         }
         .listStyle(.grouped)
+        .listSectionSpacing(.compact)
         .scrollContentBackground(.hidden)
         .scrollDismissesKeyboard(.interactively)
         // New messages re-sort and re-style rows — animate those moves. Keyed
         // to the feed so search-driven filtering stays instant.
         .animation(.snappy, value: conversations)
         .overlay {
-            if !searchText.isEmpty && filtered.isEmpty {
+            // Search isn't meaningful under denied access (no contacts to match,
+            // conversations are intentionally hidden while searching), so skip
+            // the "No Results" overlay there and keep the CTA card visible.
+            if !searchText.isEmpty && filtered.isEmpty && contactAccess != .denied {
                 RecipientSearchEmptyState(searchText: searchText)
             }
         }
@@ -415,12 +434,15 @@ private struct RecipientListItemRow: View {
     private var subtitle: String {
         switch item {
         case .contact(let contact):
-            contact.nationalPhone
+            return contact.nationalPhone
         case .conversation(let conversation), .matched(_, let conversation):
-            switch conversation.lastMessage?.content {
-            case .text(let text): text
-            case .cash(let amount): "Cash · \(amount.nativeAmount.formatted())"
-            case nil: "No messages yet"
+            guard let message = conversation.lastMessage else { return "No messages yet" }
+            switch message.content {
+            case .text(let text):
+                return text
+            case .cash(let amount):
+                let verb = message.isFromSelf(conversationController.selfUserID) ? "You sent" : "You received"
+                return "\(verb) \(amount.nativeAmount.formatted())"
             }
         }
     }
@@ -507,14 +529,7 @@ private struct RecipientRow: View {
 private struct InvitePill: View {
     var body: some View {
         Text("Invite")
-            .font(.appTextSmall)
-            .foregroundStyle(Color.textMain)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background {
-                RoundedRectangle(cornerRadius: Metrics.buttonRadius)
-                    .fill(Color.backgroundRow)
-            }
+            .pill(.standard)
     }
 }
 

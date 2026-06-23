@@ -26,23 +26,3 @@ struct CNAuthorizationStatusAllowsContactAccessTests {
         #expect(status.allowsContactAccess == expected)
     }
 }
-
-@Suite("CNAuthorizationStatus.isLimited")
-struct CNAuthorizationStatusIsLimitedTests {
-
-    private static let cases: [(CNAuthorizationStatus, Bool)] = [
-        (.limited,       true),
-        (.authorized,    false),
-        (.notDetermined, false),
-        (.denied,        false),
-        (.restricted,    false),
-    ]
-
-    @Test(
-        "isLimited is true only for .limited",
-        arguments: cases,
-    )
-    func isLimited(status: CNAuthorizationStatus, expected: Bool) {
-        #expect(status.isLimited == expected)
-    }
-}
