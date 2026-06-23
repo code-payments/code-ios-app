@@ -25,18 +25,4 @@ extension CNAuthorizationStatus {
             false
         }
     }
-
-    /// `true` only for `.limited` (iOS 18+ partial access). Pattern-matched for
-    /// the same iOS 17 compile-safety reason as ``allowsContactAccess``, and
-    /// `nonisolated` for the same off-main-access reason.
-    nonisolated var isLimited: Bool {
-        switch self {
-        case .limited:
-            true
-        case .notDetermined, .denied, .restricted, .authorized:
-            false
-        @unknown default:
-            false
-        }
-    }
 }

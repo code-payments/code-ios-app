@@ -36,7 +36,7 @@ struct SendRootScreen: View {
         @Bindable var router = router
         return Group {
             switch step {
-            case .ready:
+            case .ready(let access):
                 // The ready state gets its own stack so `.searchable` is present
                 // from the stack's mount — that's what makes iOS 26 render the
                 // nav-bar drawer. A `.searchable` added later (gated to a step, or
@@ -45,7 +45,7 @@ struct SendRootScreen: View {
                 NavigationStack(path: $router[.send]) {
                     Background(color: .backgroundMain) {
                         RecipientPickerScreen(
-                            isLimitedAccess: contactsAuthorizer.status.isLimited,
+                            contactAccess: access,
                             searchText: searchText
                         )
                     }
@@ -128,7 +128,7 @@ struct SendRootScreen: View {
         case needsPhone
         case loading
         case needsContacts
-        case ready
+        case ready(RecipientContactAccess)
     }
 
     private var step: Step {
@@ -138,10 +138,18 @@ struct SendRootScreen: View {
         guard didResolveContactsStatus else {
             return .loading
         }
-        guard contactsAuthorizer.status.allowsContactAccess else {
+        // `.notDetermined` isn't picker-reachable — route it to the priming screen.
+        guard let access = RecipientContactAccess(contactsAuthorizer.status) else {
             return .needsContacts
         }
-        return contactSyncController.isDirectoryReady ? .ready : .loading
+        switch access {
+        case .denied:
+            // Contacts are unavailable, but existing conversations aren't — drop
+            // into the picker so it can show them alongside the CTA card.
+            return .ready(access)
+        case .full, .limited:
+            return contactSyncController.isDirectoryReady ? .ready(access) : .loading
+        }
     }
 
     // MARK: - Phone verification handoff -

@@ -34,6 +34,13 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
 }
 
 extension ConversationMessage {
+    /// `true` when this message was sent by the given user.
+    public func isFromSelf(_ selfUserID: UserID) -> Bool {
+        senderID == selfUserID
+    }
+}
+
+extension ConversationMessage {
     /// Builds a message from its proto, returning nil for content the client
     /// can't represent (unknown type, or a cash amount that fails to parse).
     public init?(_ proto: Flipcash_Messaging_V1_Message) {

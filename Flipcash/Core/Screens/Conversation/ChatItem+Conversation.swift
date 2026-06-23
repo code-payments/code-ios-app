@@ -25,10 +25,10 @@ extension ChatItem {
         cashBranding: (ExchangedFiat) -> (token: String, iconURL: URL?) = { _ in ("Cash", nil) }
     ) -> [ChatItem] {
         // Only the user's latest sent message carries a receipt.
-        let latestFromSelfID = messages.last { $0.senderID == selfUserID }?.id
+        let latestFromSelfID = messages.last { $0.isFromSelf(selfUserID) }?.id
         var items: [ChatItem] = []
         for (index, message) in messages.enumerated() {
-            let isFromSelf = message.senderID == selfUserID
+            let isFromSelf = message.isFromSelf(selfUserID)
             let previous = index > 0 ? messages[index - 1] : nil
             let next = index + 1 < messages.count ? messages[index + 1] : nil
 
@@ -39,10 +39,10 @@ extension ChatItem {
             }
 
             let groupedAbove = previous.map {
-                ($0.senderID == selfUserID) == isFromSelf && message.date.timeIntervalSince($0.date) <= gap
+                $0.isFromSelf(selfUserID) == isFromSelf && message.date.timeIntervalSince($0.date) <= gap
             } ?? false
             let groupedBelow = next.map {
-                ($0.senderID == selfUserID) == isFromSelf && $0.date.timeIntervalSince(message.date) <= gap
+                $0.isFromSelf(selfUserID) == isFromSelf && $0.date.timeIntervalSince(message.date) <= gap
             } ?? false
 
             let content: ChatMessage.Content

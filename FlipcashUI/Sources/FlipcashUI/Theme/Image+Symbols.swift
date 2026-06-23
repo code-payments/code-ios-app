@@ -61,8 +61,6 @@ public enum SystemSymbol: String {
     case speakerSlash = "speaker.slash.fill"
     
     case lockDashed = "lock.app.dashed"
-    
-    case person = "person.fill"
 }
 
 // MARK: - Asset -
@@ -169,6 +167,7 @@ public enum Asset: String, Sendable {
     case myAccount
     case send
     case send2
+    case people = "IconPeople"
     case cancel
     case dollar
     case gift

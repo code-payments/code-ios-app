@@ -33,26 +33,17 @@ public struct ContactAvatarView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fill)
             } else {
-                LinearGradient(
-                    stops: [
-                        Gradient.Stop(color: Color(red: 0.25, green: 0.25, blue: 0.25), location: 0.00),
-                        Gradient.Stop(color: Color(red: 0.13, green: 0.13, blue: 0.13), location: 1.00),
-                    ],
-                    startPoint: UnitPoint(x: 0.5, y: 0),
-                    endPoint: UnitPoint(x: 0.5, y: 1)
-                )
-                .overlay {
-                    switch Self.monogram(for: displayName) {
-                    case .initials(let text):
-                        Text(text)
-                            .font(.appTextMedium)
-                            .foregroundStyle(Color.textMain)
-                    case .placeholder:
-                        Image(systemName: "person.fill")
-                            .font(.system(size: size * 0.5))
-                            .foregroundStyle(Color.textMain)
+                LinearGradient.avatarPlaceholder
+                    .overlay {
+                        switch Self.monogram(for: displayName) {
+                        case .initials(let text):
+                            Text(text)
+                                .font(.appTextMedium)
+                                .foregroundStyle(Color.textMain)
+                        case .placeholder:
+                            PeopleSilhouette(size: size)
+                        }
                     }
-                }
             }
         }
         .frame(width: size, height: size)
@@ -113,6 +104,43 @@ nonisolated public final class ContactAvatarCache: @unchecked Sendable {
         cache.setObject(image, forKey: key as NSString)
         return image
     }
+}
+
+/// The shared "people" silhouette glyph. The avatar placeholder and the
+/// stacked-people footer icon both render this over `LinearGradient.avatarPlaceholder`.
+/// Fills its circular container from the bottom (like a portrait) and blends
+/// subtly into the gradient. Expects a square container (an avatar circle's
+/// `.overlay`), which `scaledToFill` fills; `size` only scales the top inset.
+public struct PeopleSilhouette: View {
+
+    public let size: CGFloat
+
+    public init(size: CGFloat) {
+        self.size = size
+    }
+
+    public var body: some View {
+        Image.asset(.people)
+            .resizable()
+            .scaledToFill()
+            .padding(.top, size * 0.25)
+            .foregroundStyle(Color.textMain)
+            .blendMode(.overlay)
+    }
+}
+
+public extension LinearGradient {
+    /// The dark vertical gradient behind contact avatar placeholders and the
+    /// people glyphs composed from them (e.g. the "Add More Contacts" footer
+    /// icon), so both stay in sync.
+    static let avatarPlaceholder = LinearGradient(
+        stops: [
+            Gradient.Stop(color: Color(red: 0.25, green: 0.25, blue: 0.25), location: 0.00),
+            Gradient.Stop(color: Color(red: 0.13, green: 0.13, blue: 0.13), location: 1.00),
+        ],
+        startPoint: UnitPoint(x: 0.5, y: 0),
+        endPoint: UnitPoint(x: 0.5, y: 1)
+    )
 }
 
 #Preview("Initials — two names") {
