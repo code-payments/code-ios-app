@@ -10,19 +10,22 @@ import FlipcashCore
 import FlipcashUI
 
 /// Send Cash / Send Message buttons, swapped for the message composer while
-/// composing. Pinned via `.safeAreaInset`; native keyboard avoidance handles
-/// the rest.
+/// composing. Hosted inside the UIKit chat screen, pinned to the keyboard.
 struct ConversationBottomBar: View {
 
     let showsSendCash: Bool
     let showsSendMessage: Bool
-    @Binding var isComposing: Bool
     let conversationID: ConversationID?
     let onSendCash: () -> Void
+    /// Reports composing state to the host, which drives `interactiveDismissDisabled`.
+    let onComposingChange: (Bool) -> Void
 
     @Environment(ConversationController.self) private var conversationController
     @State private var draft = ""
     @State private var isSending = false
+    /// Local @State, not an injected binding — the swap only animates when composing
+    /// changes inside the bar's own view tree.
+    @State private var isComposing = false
     @FocusState private var isComposerFocused: Bool
 
     /// Action bar ⇄ composer swap — the button group springs in/out (scaling
@@ -69,6 +72,7 @@ struct ConversationBottomBar: View {
         .onChange(of: isComposerFocused) { _, focused in
             if !focused { isComposing = false }
         }
+        .onChange(of: isComposing) { _, composing in onComposingChange(composing) }
     }
 
     private func send() {

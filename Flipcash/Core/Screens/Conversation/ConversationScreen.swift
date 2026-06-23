@@ -141,7 +141,7 @@ struct ConversationScreen: View {
             onReachTop: loadOlderMessages,
             showsSendCash: sendTarget != nil,
             showsSendMessage: chatExists,
-            isComposing: $isComposing,
+            onComposingChange: { isComposing = $0 },
             conversationID: conversationID,
             onSendCash: sendCash,
             conversationController: conversationController

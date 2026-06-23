@@ -24,7 +24,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     let onReachTop: () -> Void
     let showsSendCash: Bool
     let showsSendMessage: Bool
-    @Binding var isComposing: Bool
+    /// Reports the bar's composing state so the screen can drive `interactiveDismissDisabled`.
+    let onComposingChange: (Bool) -> Void
     let conversationID: ConversationID?
     let onSendCash: () -> Void
     let conversationController: ConversationController
@@ -74,9 +75,9 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
             ConversationBottomBar(
                 showsSendCash: showsSendCash,
                 showsSendMessage: showsSendMessage,
-                isComposing: $isComposing,
                 conversationID: conversationID,
-                onSendCash: onSendCash
+                onSendCash: onSendCash,
+                onComposingChange: onComposingChange
             )
             .environment(conversationController)
             // Take the natural height at the proposed width so the composer can grow to its full
