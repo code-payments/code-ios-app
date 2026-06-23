@@ -63,7 +63,7 @@ struct SendAmountScreen: View {
                     case .success:
                         didSucceed = true
                     case .recipientNotFound:
-                        router.popTopmost()
+                        router.dismissSheet()
                         throw SendDismissed()
                     case .failed:
                         throw SendDismissed()
@@ -92,16 +92,19 @@ struct SendAmountScreen: View {
         .onChange(of: viewModel.depositMint) { _, mint in
             guard let mint else { return }
             viewModel.depositMint = nil
-            router.push(.currencyInfoForDeposit(mint))
+            // Adding cash is a Wallet flow, so cross-stack to its Currency Info
+            // (which auto-presents Buy) rather than burying it in the Send sheet —
+            // `navigate` also keeps Buy from stacking a third level deep.
+            router.navigate(to: .currencyInfoForDeposit(mint))
         }
-        // Hold the success checkmark briefly, then return to the contact list.
+        // Hold the success checkmark briefly, then dismiss back to the chat.
         // Tied to the view via `.task` so a dismissal during the hold cancels
-        // the pop instead of firing it on a screen that's already gone.
+        // the dismiss instead of firing it on a screen that's already gone.
         .task(id: didSucceed) {
             guard didSucceed else { return }
             try? await Task.delay(seconds: 1)
             guard !Task.isCancelled else { return }
-            router.popTopmost()
+            router.dismissSheet()
         }
         .sheet(isPresented: $isShowingTokenSelection) {
             SelectCurrencyScreen(isPresented: $isShowingTokenSelection) { balance in

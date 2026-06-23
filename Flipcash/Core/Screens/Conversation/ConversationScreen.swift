@@ -37,7 +37,6 @@ struct ConversationScreen: View {
 
     @State private var didInitialRead = false
     @State private var isComposing = false
-    @State private var hasAppeared = false
     @State private var navBarWidth: CGFloat = 0
 
     /// Horizontal space the back button (leading) reserves on each side of the
@@ -194,14 +193,14 @@ struct ConversationScreen: View {
             conversationController.scheduleMarkRead(conversationID: conversationID)
         }
         .onAppear {
-            // Suppress foreground chat banners while this transcript is on
-            // screen — set every appear, including a pop back from Send.
+            // Suppress foreground chat banners while this transcript is on screen.
             conversationController.visibleConversationID = conversationID
-            if hasAppeared {
-                refreshChatBinding()
-            } else {
-                hasAppeared = true
-            }
+        }
+        // Send Cash stacks the amount entry as a cover, so the chat stays
+        // mounted and `onAppear` won't re-fire when it's dismissed. Poll for the
+        // chat the first payment just created the moment that cover tears down.
+        .onChange(of: router.presentedSheet) { old, _ in
+            if case .sendAmount? = old { refreshChatBinding() }
         }
         // A matched contact's chat is created mid-screen on the first payment,
         // flipping the ID from nil to the new conversation; track it live.
@@ -224,7 +223,7 @@ struct ConversationScreen: View {
             }
             return
         }
-        router.push(.sendAmount(contact: sendTarget))
+        router.presentNested(.sendAmount(sendTarget))
     }
 
     /// Fetches the next older page when the UIKit transcript nears the top. Guarded so the

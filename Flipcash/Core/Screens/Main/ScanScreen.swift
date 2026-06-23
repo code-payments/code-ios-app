@@ -403,6 +403,16 @@ private struct RoutedSheet: View {
             }
         case .send:
             SendRootScreen(container: container, sessionContainer: sessionContainer)
+        case .conversation(let context):
+            // A chat entered as the root (bottom) view — deeplink / push
+            // notification. The picker → chat flow pushes `.dmConversation`
+            // onto the `.send` stack instead.
+            ConversationSheetRoot(context: context)
+        case .sendAmount:
+            // Nested-only sheet — Send Cash enters it via
+            // `presentNested(.sendAmount)`. Rendering EmptyView at root is a
+            // defensive no-op, mirroring `.buy`.
+            EmptyView()
         }
     }
 }

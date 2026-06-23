@@ -21,6 +21,14 @@ extension AppRouter {
         case buy(PublicKey)
         case downloadApp
         case send
+        /// A DM conversation as a root sheet — the chat is the bottom view.
+        /// Entered via deeplink / push notification (`present(.conversation)`)
+        /// so no recipient picker sits beneath it. The picker → chat flow keeps
+        /// pushing `Destination.dmConversation` onto the `.send` stack instead.
+        case conversation(ConversationContext)
+        /// Send Cash amount entry, stacked on top of the chat via
+        /// `presentNested(.sendAmount)`. Dismissing it reveals the chat.
+        case sendAmount(ResolvedContact)
 
         var id: Self { self }
 
@@ -29,13 +37,15 @@ extension AppRouter {
         /// re-presentation starts at root rather than restoring the stale leaf.
         var stack: Stack {
             switch self {
-            case .balance:     .balance
-            case .settings:    .settings
-            case .give:        .give
-            case .discover:    .discover
-            case .buy:         .buy
-            case .downloadApp: .downloadApp
-            case .send:        .send
+            case .balance:      .balance
+            case .settings:     .settings
+            case .give:         .give
+            case .discover:     .discover
+            case .buy:          .buy
+            case .downloadApp:  .downloadApp
+            case .send:         .send
+            case .conversation: .conversation
+            case .sendAmount:   .sendAmount
             }
         }
 
@@ -44,13 +54,15 @@ extension AppRouter {
         /// comparing the stringly-typed `description`.
         var caseKind: CaseKind {
             switch self {
-            case .balance:     .balance
-            case .settings:    .settings
-            case .give:        .give
-            case .discover:    .discover
-            case .buy:         .buy
-            case .downloadApp: .downloadApp
-            case .send:        .send
+            case .balance:      .balance
+            case .settings:     .settings
+            case .give:         .give
+            case .discover:     .discover
+            case .buy:          .buy
+            case .downloadApp:  .downloadApp
+            case .send:         .send
+            case .conversation: .conversation
+            case .sendAmount:   .sendAmount
             }
         }
 
@@ -62,17 +74,21 @@ extension AppRouter {
             case buy
             case downloadApp
             case send
+            case conversation
+            case sendAmount
         }
 
         var description: String {
             switch self {
-            case .balance:     "balance"
-            case .settings:    "settings"
-            case .give:        "give"
-            case .discover:    "discover"
-            case .buy:         "buy"
-            case .downloadApp: "downloadApp"
-            case .send:        "send"
+            case .balance:      "balance"
+            case .settings:     "settings"
+            case .give:         "give"
+            case .discover:     "discover"
+            case .buy:          "buy"
+            case .downloadApp:  "downloadApp"
+            case .send:         "send"
+            case .conversation: "conversation"
+            case .sendAmount:   "sendAmount"
             }
         }
     }

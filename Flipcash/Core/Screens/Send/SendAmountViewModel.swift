@@ -12,9 +12,9 @@ private let logger = Logger(label: "flipcash.send-amount")
 @Observable
 final class SendAmountViewModel {
 
-    /// Result of a send attempt. `.success` and `.recipientNotFound` both return
-    /// the screen to the contact list; `.failed` keeps it on amount entry. Error
-    /// copy is surfaced internally via `session.dialogItem`.
+    /// Result of a send attempt. `.success` and `.recipientNotFound` both dismiss
+    /// the sheet back to the chat; `.failed` keeps it on amount entry. Error copy
+    /// is surfaced internally via `session.dialogItem`.
     enum SendOutcome: Equatable {
         case success
         case recipientNotFound

@@ -218,7 +218,9 @@ struct DeepLinkAction {
         case .chat(let conversationID):
             if case .loggedIn(let container) = sessionAuthenticator.state {
                 Analytics.deeplinkRouted(kind: kind)
-                container.appRouter.navigate(to: .dmConversation(.existing(conversationID)))
+                // Present the chat as the root (bottom) sheet so anything stacked
+                // on top — Send Cash — reveals the chat when dismissed.
+                container.appRouter.present(.conversation(.existing(conversationID)))
             }
 
         case .openSheet(let sheet):

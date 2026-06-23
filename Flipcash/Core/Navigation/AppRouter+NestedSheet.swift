@@ -7,6 +7,7 @@
 
 import SwiftUI
 import FlipcashCore
+import FlipcashUI
 
 extension View {
 
@@ -80,7 +81,13 @@ private struct NestedSheetRootView: View {
                 sessionContainer: sessionContainer
             )
 
-        case .balance, .settings, .give, .discover, .downloadApp, .send:
+        case .sendAmount(let contact):
+            SendAmountSheetRoot(
+                contact: contact,
+                sessionContainer: sessionContainer
+            )
+
+        case .balance, .settings, .give, .discover, .downloadApp, .send, .conversation:
             // Root-only sheets — they shouldn't be presented as nested. If
             // they ever are, we fall through to an empty view; the warning
             // in `presentNested` logs the mistake.
@@ -121,6 +128,28 @@ private struct BuySheetRoot: View {
             // share the same screens reached from the Wallet sheet, so register
             // the app-wide destination map here too.
             .appRouterDestinations(container: container, sessionContainer: sessionContainer)
+        }
+    }
+}
+
+/// Root view for the `.sendAmount(contact)` nested sheet — Send Cash stacks it on
+/// top of the chat. The `NavigationStack` is unbound: nothing pushes onto this
+/// stack, so it exists only to render the screen's toolbar.
+private struct SendAmountSheetRoot: View {
+
+    let contact: ResolvedContact
+    let sessionContainer: SessionContainer
+
+    @Environment(AppRouter.self) private var router
+
+    var body: some View {
+        NavigationStack {
+            SendAmountScreen(sessionContainer: sessionContainer, contact: contact)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        CloseButton(action: router.dismissSheet)
+                    }
+                }
         }
     }
 }
