@@ -39,7 +39,7 @@ struct ChatMessageMappingTests {
     }
 
     private func receiptText(_ items: [ChatItem]) -> String? {
-        items.compactMap { if case .receipt(_, let text) = $0 { text } else { nil } }.last
+        items.compactMap { if case .message(let message) = $0 { message.receipt } else { nil } }.last
     }
 
     @Test("Same-sender run within the gap groups; a sender change breaks it; gaps add separators")
@@ -120,6 +120,36 @@ struct ChatMessageMappingTests {
             counterpartRead: (pointer: MessageID(value: 1), date: nil)
         )
         #expect(receiptText(items) == "Read")
+    }
+
+    @Test("Appending one sent message is a single clean insert — the receipt rides on the message")
+    func appendingOneMessageIsACleanInsert() {
+        // Two of my messages, then I append a third (same sender, within the grouping gap).
+        let before = ChatItem.from([text(1, me, "a", after: 0), text(2, me, "b", after: 60)], selfUserID: me)
+        let after = ChatItem.from([text(1, me, "a", after: 0), text(2, me, "b", after: 60), text(3, me, "c", after: 120)], selfUserID: me)
+
+        let beforeByID = Dictionary(uniqueKeysWithValues: before.map { ($0.id, $0) })
+        let afterByID = Dictionary(uniqueKeysWithValues: after.map { ($0.id, $0) })
+        let beforeIDs = Set(beforeByID.keys)
+        let afterIDs = Set(afterByID.keys)
+
+        let inserted = afterIDs.subtracting(beforeIDs)
+        let deleted = beforeIDs.subtracting(afterIDs)
+        let reconfigured = beforeIDs.intersection(afterIDs).filter { beforeByID[$0] != afterByID[$0] }
+        func receipt(_ id: String) -> String? {
+            if case .message(let m) = afterByID[id] { m.receipt } else { nil }
+        }
+
+        // The delivery line rides on the message, so there is no separate receipt row to insert or
+        // delete — appending is purely the new bubble. ChatLayout receives one clean insert.
+        #expect(inserted == ["3"])
+        #expect(deleted.isEmpty)
+        // The previous bubble reconfigures in place — it both loses the receipt and flips its grouping
+        // flag — via reconfigureItems, which does not animate as an insert/delete.
+        #expect(reconfigured == ["2"])
+        // Concretely: the receipt moved from the old latest bubble onto the new one.
+        #expect(receipt("3") == "Delivered")
+        #expect(receipt("2") == nil)
     }
 
     @Test("A read from days ago renders the relative day, not a bare time")

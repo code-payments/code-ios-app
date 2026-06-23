@@ -85,7 +85,6 @@ public final class ChatViewController: UICollectionViewController {
         collectionView.register(ChatMessageCell.self, forCellWithReuseIdentifier: ChatMessageCell.reuseIdentifier)
         collectionView.register(ChatCashCardCell.self, forCellWithReuseIdentifier: ChatCashCardCell.reuseIdentifier)
         collectionView.register(ChatDateSeparatorCell.self, forCellWithReuseIdentifier: ChatDateSeparatorCell.reuseIdentifier)
-        collectionView.register(ChatReceiptCell.self, forCellWithReuseIdentifier: ChatReceiptCell.reuseIdentifier)
         collectionView.reloadData()
     }
 
@@ -171,13 +170,6 @@ public final class ChatViewController: UICollectionViewController {
                 withReuseIdentifier: ChatDateSeparatorCell.reuseIdentifier,
                 for: indexPath
             ) as! ChatDateSeparatorCell
-            cell.configure(text: text)
-            return cell
-        case .receipt(_, let text):
-            let cell = collectionView.dequeueReusableCell(
-                withReuseIdentifier: ChatReceiptCell.reuseIdentifier,
-                for: indexPath
-            ) as! ChatReceiptCell
             cell.configure(text: text)
             return cell
         case .message(let message):

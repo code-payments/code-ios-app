@@ -26,6 +26,8 @@ public final class ChatCashCardCell: UICollectionViewCell {
     private let flag = UIImageView()
     private let captionLabel = UILabel()
     private let amountLabel = UILabel()
+    private let receipt = ChatReceiptLabel()
+    private let column = UIStackView()
     private var leadingConstraint: NSLayoutConstraint!
     private var trailingConstraint: NSLayoutConstraint!
     private var iconTask: Task<Void, Never>?
@@ -34,7 +36,6 @@ public final class ChatCashCardCell: UICollectionViewCell {
         super.init(frame: frame)
 
         card.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(card)
 
         configureCircle(coinIcon, diameter: 13)
         tokenLabel.font = .default(size: 12, weight: .bold)
@@ -68,19 +69,26 @@ public final class ChatCashCardCell: UICollectionViewCell {
         centerStack.translatesAutoresizingMaskIntoConstraints = false
         card.addSubview(centerStack)
 
-        leadingConstraint = card.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12)
-        trailingConstraint = card.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12)
+        column.axis = .vertical
+        column.spacing = 4
+        column.addArrangedSubview(card)
+        column.addArrangedSubview(receipt)
+        column.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(column)
 
-        // The card has a fixed height, so pinning it to both the top and bottom of the contentView
-        // would conflict with ChatLayout's estimated cell height during the first (pre-self-sizing)
-        // layout pass. The bottom pin yields (priority 999) to that estimate, avoiding an
-        // unsatisfiable-constraints break while still driving the cell to self-size to the card.
-        let cardBottom = card.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
-        cardBottom.priority = UILayoutPriority(999)
+        leadingConstraint = column.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12)
+        trailingConstraint = column.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12)
+
+        // The card has a fixed height, so pinning the column to both the top and bottom of the
+        // contentView would conflict with ChatLayout's estimated cell height during the first
+        // (pre-self-sizing) layout pass. The bottom pin yields (priority 999) to that estimate,
+        // avoiding an unsatisfiable-constraints break while still driving the cell to self-size.
+        let columnBottom = column.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
+        columnBottom.priority = UILayoutPriority(999)
 
         NSLayoutConstraint.activate([
-            card.topAnchor.constraint(equalTo: contentView.topAnchor),
-            cardBottom,
+            column.topAnchor.constraint(equalTo: contentView.topAnchor),
+            columnBottom,
             card.widthAnchor.constraint(equalToConstant: Self.cardSize.width),
             card.heightAnchor.constraint(equalToConstant: Self.cardSize.height),
 
@@ -154,13 +162,16 @@ public final class ChatCashCardCell: UICollectionViewCell {
                 groupedBelow: message.isContinuedByNext
             )
         )
+        receipt.text = message.receipt
+        receipt.isHidden = message.receipt == nil
+        column.alignment = message.sender == .me ? .trailing : .leading
         applyAlignment(isFromSelf: message.sender == .me)
     }
 
-    /// Exactly one horizontal edge is pinned, so the fixed-width card hugs its sender's side.
-    /// Both edges are deactivated before the wanted one is activated: momentarily pinning both
-    /// edges over-constrains the card's fixed width and trips Auto Layout's unsatisfiable-
-    /// constraints check when the cell is recycled with a flipped sender.
+    /// Exactly one horizontal edge is pinned, so the column hugs its sender's side. Both edges are
+    /// deactivated before the wanted one is activated: momentarily pinning both edges over-constrains
+    /// the fixed-width card and trips Auto Layout's unsatisfiable-constraints check when the cell is
+    /// recycled with a flipped sender.
     private func applyAlignment(isFromSelf: Bool) {
         NSLayoutConstraint.deactivate([leadingConstraint, trailingConstraint])
         (isFromSelf ? trailingConstraint : leadingConstraint).isActive = true
