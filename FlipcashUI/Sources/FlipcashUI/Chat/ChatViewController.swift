@@ -279,9 +279,19 @@ public final class ChatViewController: UICollectionViewController {
     }
 }
 
-/// Defaults give `.auto` self-sizing and `.fullWidth` alignment — exactly right for rows
-/// that align their own bubble. Nothing to override.
-extension ChatViewController: ChatLayoutDelegate {}
+/// `.auto` self-sizing and `.fullWidth` alignment fit the text/date/receipt rows, which size to
+/// their own content. The cash card is a fixed 232×170 footprint, so it gets an exact height: an
+/// inserted self-sizing cell is placed at the small estimate and relies on a follow-up self-size
+/// pass that iOS 26 skips mid-animated-batch-update, leaving the card clipped to the estimate.
+/// An exact size is applied on insert with no self-size pass, so it can't regress.
+extension ChatViewController: ChatLayoutDelegate {
+    public func sizeForItem(_ chatLayout: CollectionViewChatLayout, at indexPath: IndexPath) -> ItemSize {
+        if case .message(let message) = items[indexPath.item], case .cash = message.content {
+            return .exact(CGSize(width: collectionView.bounds.width, height: ChatCashCardCell.cardSize.height))
+        }
+        return .auto
+    }
+}
 
 #Preview("Transcript") {
     let controller = ChatViewController()

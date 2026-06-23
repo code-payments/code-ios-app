@@ -18,7 +18,7 @@ public final class ChatCashCardCell: UICollectionViewCell {
     public static let reuseIdentifier = "ChatCashCardCell"
 
     /// The card's fixed footprint.
-    private static let cardSize = CGSize(width: 232, height: 170)
+    static let cardSize = CGSize(width: 232, height: 170)
 
     private let card = BubbleBackgroundView()
     private let coinIcon = UIImageView()
@@ -112,6 +112,17 @@ public final class ChatCashCardCell: UICollectionViewCell {
         super.prepareForReuse()
         iconTask?.cancel()
         coinIcon.image = nil
+    }
+
+    /// The card is a fixed height, so supply it directly rather than letting the cell self-size.
+    /// An inserted cell is placed at ChatLayout's small estimate and is supposed to self-size up on
+    /// the next pass — but iOS 26 skips that pass during an animated batch update, leaving the card
+    /// clipped to the estimate (the bottom pin is only priority 999, so nothing forces the height).
+    /// Returning the height here makes it deterministic. Per ChatLayout's contract, do NOT call
+    /// `super` — it re-measures via Auto Layout and re-trips the estimate-vs-999 conflict.
+    public override func preferredLayoutAttributesFitting(_ layoutAttributes: UICollectionViewLayoutAttributes) -> UICollectionViewLayoutAttributes {
+        layoutAttributes.frame.size.height = Self.cardSize.height
+        return layoutAttributes
     }
 
     public func configure(with message: ChatMessage) {
