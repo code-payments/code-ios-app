@@ -48,7 +48,8 @@ enum AppIntentContext {
     /// router path the in-chat Send Cash button drives.
     static func openSendFlow(to contact: ResolvedContact) {
         guard let router = loggedInContainer?.appRouter else { return }
-        router.present(.conversation(.contact(contact)))
+        // Mount the chat instantly and animate only the Send Cash sheet on top.
+        router.present(.conversation(.contact(contact)), animated: false)
         router.presentNested(.sendAmount(contact))
     }
 }
