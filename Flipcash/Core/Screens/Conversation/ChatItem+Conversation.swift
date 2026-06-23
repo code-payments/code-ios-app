@@ -61,20 +61,20 @@ extension ChatItem {
                 ))
             }
 
+            // The delivery line rides on the latest sent message itself, not a separate row, so a
+            // send diffs to a clean insert instead of tearing a receipt row down and rebuilding it.
+            let receipt: String? = isFromSelf && message.id == latestFromSelfID
+                ? Self.receiptText(for: message.id, counterpartRead: counterpartRead)
+                : nil
+
             items.append(.message(ChatMessage(
                 id: "\(message.id.value)",
                 content: content,
                 sender: isFromSelf ? .me : .other,
                 isContinuationFromPrevious: groupedAbove,
-                isContinuedByNext: groupedBelow
+                isContinuedByNext: groupedBelow,
+                receipt: receipt
             )))
-
-            if isFromSelf, message.id == latestFromSelfID {
-                items.append(.receipt(
-                    id: "receipt-\(message.id.value)",
-                    text: Self.receiptText(for: message.id, counterpartRead: counterpartRead)
-                ))
-            }
         }
         return items
     }
