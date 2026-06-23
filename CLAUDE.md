@@ -620,10 +620,8 @@ BondingCurve.maxSupply   // 21,000,000 tokens
 
 **Fall back to `./Scripts/build.sh` and `./Scripts/test.sh`** when the MCP server is not connected. See [Running the App & Tests](#running-the-app--tests) for usage. For edge cases the scripts don't cover (e.g., a one-off destination, `xcodebuild clean`), drop down to raw `xcodebuild`.
 
-**Physical-device builds require the script fallback even when MCP is connected.** XcodeBuildMCP only enables simulator workflow tools by default — `build_run_sim`, `test_sim`, etc. Device tools (`build_run_dev`, …) are gated behind a separate workflow flag the user has not enabled. So when the user asks to build on their device, the correct pattern is:
+**Device builds.** XcodeBuildMCP ships device tools (`build_device`, `build_run_device`, `test_device`, `list_devices`, etc.) in its `device` workflow. They're available whenever `device` is in the `XCODEBUILDMCP_ENABLED_WORKFLOWS` list in your `.mcp.json` (that file is per-developer and gitignored — add `device` to the comma-separated list to turn them on). Use device tools the same way as the simulator ones. If they're not present (workflow not enabled, or the MCP server hasn't reloaded its config), silently fall back to `./Scripts/build.sh --device` — **never narrate which path you took.**
 
-1. Acknowledge that device tools aren't enabled in XcodeBuildMCP — fall back to `xcodebuild` + `devicectl`.
-2. Run `xcrun devicectl list devices` to confirm a paired iPhone is available. **Do not use `xcrun xctrace list devices`** — it mislabels paired iPhones as `Offline` and will lead you to falsely claim no device is connected.
-3. Invoke `./Scripts/build.sh --device` (optionally `--device "<name substring>"`), which resolves the UDID via devicectl and feeds `platform=iOS,id=<udid>` to xcodebuild.
+When you need to confirm a paired iPhone, use the `list_devices` MCP tool (or `xcrun devicectl list devices`). **Do not use `xcrun xctrace list devices`** — it mislabels paired iPhones as `Offline` and will lead you to falsely claim no device is connected.
 
-If the user says "build on my device," take them at their word and follow this flow — don't push back claiming only simulators are available. Tests remain simulator-only.
+If the user says "build on my device," take them at their word and just do it — don't push back claiming only simulators are available. Tests remain simulator-only.
