@@ -74,8 +74,8 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
     // MARK: - UNNotificationContentExtension -
 
     func didReceive(_ notification: UNNotification) {
-        guard let conversationID = NotificationPayload.chatConversationID(
-            from: notification.request.content.userInfo
+        guard let conversationID = NotificationPayload.chatID(
+            notification.request.content.userInfo
         ) else {
             // Not a chat push — leave the default banner.
             return
@@ -310,7 +310,7 @@ extension NotificationViewController: UICollectionViewDataSource {
                 cell.configure(with: message)
                 return cell
             }
-        case .dateSeparator, .receipt:
+        case .dateSeparator:
             // The preview mapping only emits .message rows.
             return collectionView.dequeueReusableCell(
                 withReuseIdentifier: ChatMessageCell.reuseIdentifier,

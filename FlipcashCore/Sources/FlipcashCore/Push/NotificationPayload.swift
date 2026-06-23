@@ -36,15 +36,4 @@ public enum NotificationPayload {
         guard case .chatID(let chatID) = payload.navigation.type else { return nil }
         return ConversationID(chatID)
     }
-
-    /// Extracts the chat `ConversationID` from a push's navigation payload, if present.
-    /// Callers that can't import `FlipcashAPI` (e.g. the notification content extension)
-    /// use this instead of accessing `payload.navigation.type` directly.
-    public static func chatConversationID(from userInfo: [AnyHashable: Any]) -> ConversationID? {
-        guard
-            let payload = decode(userInfo),
-            case .chatID(let chatID) = payload.navigation.type
-        else { return nil }
-        return ConversationID(chatID)
-    }
 }
