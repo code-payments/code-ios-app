@@ -181,15 +181,6 @@ struct DestinationView: View {
         case .phantomFlow(let fundingOperation):
             PhantomFlowScreen(fundingOperation: fundingOperation)
 
-        // MARK: - Send flow
-
-        case .sendAmount(let contact):
-            SendAmountScreen(
-                sessionContainer: sessionContainer,
-                contact: contact
-            )
-            .id(contact)
-
         // MARK: - Conversation flow
 
         case .dmConversation(let context):

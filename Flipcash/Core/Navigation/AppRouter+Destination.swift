@@ -61,13 +61,12 @@ extension AppRouter {
         case depositAddress(PublicKey)
         case withdraw
 
-        // Send flow
-        case sendAmount(contact: ResolvedContact)
-
         // Conversation flow
         /// A DM conversation, pushed from the Chats section of the recipient
         /// picker (`.existing`) or by tapping a synced contact (`.contact`) —
         /// in that case the chat may not exist yet; the first payment creates it.
+        /// Send Cash presents the amount entry as `SheetPresentation.sendAmount`
+        /// over this; deeplinks enter the chat as `SheetPresentation.conversation`.
         case dmConversation(ConversationContext)
 
         /// The stack this destination naturally belongs in. Cross-stack
@@ -85,7 +84,7 @@ extension AppRouter {
                  .settingsApplicationLogs, .accessKey, .deposit, .depositCurrencyList,
                  .depositAddress, .withdraw:
                 return .settings
-            case .sendAmount, .dmConversation:
+            case .dmConversation:
                 return .send
             }
         }
@@ -120,7 +119,6 @@ extension AppRouter {
             case .depositCurrencyList:          "depositCurrencyList"
             case .depositAddress:               "depositAddress"
             case .withdraw:                     "withdraw"
-            case .sendAmount:                   "sendAmount"
             case .dmConversation:               "dmConversation"
             }
         }
@@ -137,8 +135,6 @@ extension AppRouter {
                  .withdrawCurrency(let mint),
                  .depositAddress(let mint):
                 return mint.base58
-            case .sendAmount(let contact):
-                return contact.contactId
             case .dmConversation(.existing(let conversationID)):
                 return conversationID.description
             case .dmConversation(.contact(let contact)):
