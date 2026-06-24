@@ -14,61 +14,69 @@ import FlipcashUI
 
 final class NotificationViewController: UIViewController, UNNotificationContentExtension {
 
-    // MARK: - State -
-
-    private enum ViewState {
-        case loading
-        case loaded([ChatItem])
-        case empty
-        case error(String)
-    }
-
     // MARK: - Properties -
 
-    private var collectionView: UICollectionView!
-    private var items: [ChatItem] = []
+    /// The app's real chat transcript, embedded so the preview renders, sizes, scrolls,
+    /// and opens at the newest message exactly like the in-app chat.
+    private let chat = ChatViewController()
     private var statusLabel: UILabel?
 
-    /// Mirrors the app's "background" color asset (display-P3 25,25,26). Hardcoded
-    /// because that asset lives in the app bundle, so `Color("background")` can't
-    /// resolve it from this extension's bundle. The chat bubbles are white-on-dark
-    /// by design, so the background must be this dark value or they render invisibly.
+    /// Mirrors the app's "background" color asset (display-P3 25,25,26). Hardcoded because
+    /// that asset lives in the app bundle, so `Color("background")` can't resolve it here.
     private static let chatBackground = UIColor(
         displayP3Red: 25 / 255, green: 25 / 255, blue: 26 / 255, alpha: 1
     )
 
-    /// Matches the real chat (ChatViewController).
-    private static let maxBubbleWidthFraction: CGFloat = 0.78
-    private static let interItemSpacing: CGFloat = 8
-
-    /// How many recent messages the preview shows, and how often it re-checks the
-    /// server for new ones while the notification stays expanded.
-    private static let previewLimit = 5
+    /// Recent messages to show, and how often to re-check the server while expanded.
+    private static let previewLimit = 3
     private static let pollInterval: TimeInterval = 2.5
+    /// The panel sizes to its content up to this; taller transcripts scroll (newest pinned
+    /// at the bottom) instead of clipping, like the chat screen.
+    private static let maxContentHeight: CGFloat = 440
 
-    /// Single client shared across fetch and reply to avoid allocating multiple
-    /// NIO event-loop groups per notification.
     private lazy var client = ChatNotificationClient()
-
-    /// Preserved across didReceive calls so reply and polling can reuse them.
     private var conversationID: ConversationID?
     private var ownerKeyPair: KeyPair?
     private var selfUserID: UserID?
-
-    /// Re-fetches recent messages while the notification is expanded so the
-    /// counterparty's new messages appear live. Cancelled when the view goes away.
     private var pollTask: Task<Void, Never>?
+    /// True once messages have been rendered, so polling/reply failures don't clobber them
+    /// and the panel sizing kicks in.
+    private var hasContent = false
 
     // MARK: - Lifecycle -
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        // The chat bubbles are white-on-dark by design; the app forces dark mode,
-        // so the extension must too or the bubbles render invisibly on a light background.
         overrideUserInterfaceStyle = .dark
         view.backgroundColor = Self.chatBackground
         FontBook.registerApplicationFonts()
-        setupCollectionView()
+
+        addChild(chat)
+        chat.view.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(chat.view)
+        NSLayoutConstraint.activate([
+            chat.view.topAnchor.constraint(equalTo: view.topAnchor),
+            chat.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            chat.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            chat.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
+        chat.didMove(toParent: self)
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        guard hasContent else { return }
+        updatePanelSize()
+    }
+
+    /// Sizes the panel to the transcript's content height (capped) — short conversations
+    /// fit exactly, taller ones cap and scroll. Reads ChatLayout's `contentSize`, which is
+    /// the true content height (bottom-anchoring only offsets cells, it doesn't pad it).
+    private func updatePanelSize() {
+        let target = max(min(chat.collectionView.contentSize.height, Self.maxContentHeight), 44)
+        if abs(preferredContentSize.height - target) > 0.5 {
+            preferredContentSize = CGSize(width: view.bounds.width, height: target)
+        }
     }
 
     // MARK: - UNNotificationContentExtension -
@@ -81,54 +89,16 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
             return
         }
         guard let account = OwnerKeyStore.loadOwnerAccount() else {
-            // Not signed in — leave the default banner.
+            // Owner key unavailable (e.g. before first unlock) — hint rather than blank.
+            showStatusLabel("Open Flipcash to view this message")
             return
         }
         self.conversationID = conversationID
         self.ownerKeyPair = account.keyAccount.owner
         self.selfUserID = account.userID
 
-        apply(.loading)
         Task { @MainActor in await loadMessages() }
         startPolling()
-    }
-
-    /// Fetches the recent messages and renders them. Safe to call repeatedly (the poll
-    /// does); a transient failure keeps the current content rather than clobbering it.
-    @MainActor
-    private func loadMessages() async {
-        guard let conversationID, let ownerKeyPair, let selfUserID else { return }
-        do {
-            let messages = try await client.getMessages(
-                owner: ownerKeyPair,
-                conversationID: conversationID,
-                limit: Self.previewLimit
-            )
-            if messages.isEmpty {
-                if items.isEmpty { apply(.empty) }
-            } else {
-                apply(.loaded(ChatItem.preview(from: messages, selfUserID: selfUserID, limit: Self.previewLimit)))
-            }
-        } catch {
-            if items.isEmpty { apply(.error("Couldn't load messages")) }
-        }
-    }
-
-    private func startPolling() {
-        pollTask?.cancel()
-        pollTask = Task { @MainActor [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(Self.pollInterval))
-                if Task.isCancelled { break }
-                await self?.loadMessages()
-            }
-        }
-    }
-
-    override func viewDidDisappear(_ animated: Bool) {
-        super.viewDidDisappear(animated)
-        pollTask?.cancel()
-        pollTask = nil
     }
 
     func didReceive(
@@ -150,22 +120,17 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
             let text = textResponse.userText
             Task { @MainActor in
                 do {
-                    let sent = try await client.sendMessage(
+                    _ = try await client.sendMessage(
                         owner: ownerKeyPair,
                         conversationID: conversationID,
                         text: text
                     )
-                    let sentItem = ChatItem.message(ChatMessage(
-                        id: String(sent.id.value),
-                        text: text,
-                        sender: .me
-                    ))
-                    appendItem(sentItem)
-                    completion(.doNotDismiss)
+                    // Re-fetch so the sent message appears in the transcript.
+                    await loadMessages()
                 } catch {
-                    showStatusLabel("Couldn't send message")
-                    completion(.doNotDismiss)
+                    // Leave the transcript as-is; the message simply wasn't sent.
                 }
+                completion(.doNotDismiss)
             }
 
         case ChatNotificationCategory.sendCashActionID:
@@ -176,83 +141,53 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
         }
     }
 
-    // MARK: - Collection view setup -
+    // MARK: - Loading -
 
-    private func setupCollectionView() {
-        let itemSize = NSCollectionLayoutSize(
-            widthDimension: .fractionalWidth(1),
-            heightDimension: .estimated(44)
-        )
-        let item = NSCollectionLayoutItem(layoutSize: itemSize)
-        let group = NSCollectionLayoutGroup.vertical(layoutSize: itemSize, subitems: [item])
-        let section = NSCollectionLayoutSection(group: group)
-        section.interGroupSpacing = Self.interItemSpacing
-        section.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0)
-        let layout = UICollectionViewCompositionalLayout(section: section)
-
-        collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
-        collectionView.translatesAutoresizingMaskIntoConstraints = false
-        collectionView.backgroundColor = Self.chatBackground
-        collectionView.isScrollEnabled = false
-        collectionView.dataSource = self
-        collectionView.register(ChatMessageCell.self, forCellWithReuseIdentifier: ChatMessageCell.reuseIdentifier)
-        collectionView.register(ChatCashCardCell.self, forCellWithReuseIdentifier: ChatCashCardCell.reuseIdentifier)
-
-        view.addSubview(collectionView)
-        NSLayoutConstraint.activate([
-            collectionView.topAnchor.constraint(equalTo: view.topAnchor),
-            collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-        ])
-    }
-
-    // MARK: - State application -
-
+    /// Fetches recent messages and feeds them to the transcript. Safe to call repeatedly
+    /// (the poll does); a transient failure keeps whatever is already shown.
     @MainActor
-    private func apply(_ state: ViewState) {
-        switch state {
-        case .loading:
-            items = []
-            collectionView.reloadData()
-            showStatusLabel("Loading…")
-
-        case .loaded(let chatItems):
-            clearStatusLabel()
-            items = chatItems
-            collectionView.reloadData()
-            updatePreferredContentSize()
-
-        case .empty:
-            items = []
-            collectionView.reloadData()
-            showStatusLabel("No messages")
-
-        case .error(let message):
-            items = []
-            collectionView.reloadData()
-            showStatusLabel(message)
+    private func loadMessages() async {
+        guard let conversationID, let ownerKeyPair, let selfUserID else { return }
+        do {
+            let messages = try await client.getMessages(
+                owner: ownerKeyPair,
+                conversationID: conversationID,
+                limit: Self.previewLimit
+            )
+            if messages.isEmpty {
+                if !hasContent { showStatusLabel("No messages") }
+            } else {
+                clearStatusLabel()
+                hasContent = true
+                chat.update(items: ChatItem.preview(from: messages, selfUserID: selfUserID, limit: Self.previewLimit))
+                // The transcript lays out asynchronously and the parent won't re-lay out on
+                // its own, so force the layout now and size the panel to the real content.
+                chat.collectionView.layoutIfNeeded()
+                updatePanelSize()
+            }
+        } catch {
+            if !hasContent { showStatusLabel("Couldn't load messages") }
         }
     }
 
-    @MainActor
-    private func appendItem(_ item: ChatItem) {
-        clearStatusLabel()
-        items.append(item)
-        collectionView.reloadData()
-        updatePreferredContentSize()
+    private func startPolling() {
+        pollTask?.cancel()
+        pollTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(Self.pollInterval))
+                if Task.isCancelled { break }
+                await self?.loadMessages()
+            }
+        }
     }
 
-    private func updatePreferredContentSize() {
-        collectionView.layoutIfNeeded()
-        let contentHeight = min(collectionView.contentSize.height, 320)
-        preferredContentSize = CGSize(
-            width: view.bounds.width,
-            height: max(contentHeight, 44)
-        )
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        pollTask?.cancel()
+        pollTask = nil
     }
 
-    // MARK: - Error UI -
+    // MARK: - Status UI -
 
     private func showStatusLabel(_ text: String) {
         clearStatusLabel()
@@ -276,46 +211,5 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
     private func clearStatusLabel() {
         statusLabel?.removeFromSuperview()
         statusLabel = nil
-    }
-}
-
-// MARK: - UICollectionViewDataSource -
-
-extension NotificationViewController: UICollectionViewDataSource {
-
-    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        items.count
-    }
-
-    func collectionView(
-        _ collectionView: UICollectionView,
-        cellForItemAt indexPath: IndexPath
-    ) -> UICollectionViewCell {
-        let item = items[indexPath.item]
-        switch item {
-        case .message(let message):
-            switch message.content {
-            case .text:
-                let cell = collectionView.dequeueReusableCell(
-                    withReuseIdentifier: ChatMessageCell.reuseIdentifier,
-                    for: indexPath
-                ) as! ChatMessageCell  // swiftlint:disable:this force_cast
-                cell.configure(with: message, maxWidth: collectionView.bounds.width * Self.maxBubbleWidthFraction)
-                return cell
-            case .cash:
-                let cell = collectionView.dequeueReusableCell(
-                    withReuseIdentifier: ChatCashCardCell.reuseIdentifier,
-                    for: indexPath
-                ) as! ChatCashCardCell  // swiftlint:disable:this force_cast
-                cell.configure(with: message)
-                return cell
-            }
-        case .dateSeparator:
-            // The preview mapping only emits .message rows.
-            return collectionView.dequeueReusableCell(
-                withReuseIdentifier: ChatMessageCell.reuseIdentifier,
-                for: indexPath
-            )
-        }
     }
 }
