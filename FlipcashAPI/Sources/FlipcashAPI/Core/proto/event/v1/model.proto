@@ -79,17 +79,37 @@ message ChatUpdate {
     // The chat that this update is for
     common.v1.ChatId chat = 1 [(validate.rules).message.required = true];
 
-    // If present, new real-time messages sent on the chat
-    messaging.v1.MessageBatch new_messages = 2;
+    // If present, new real-time messages sent on the chat.
+    //
+    // Deprecated: superseded by `events` (Event.message_sent), which is
+    // sequenced and gap-detectable. New messages now arrive as events.
+    messaging.v1.MessageBatch new_messages = 2 [deprecated = true];
 
-    // If present, message pointer updates for members in the chat
+    // If present, message pointer updates for members in the chat. Pointers are
+    // convergent (monotonic, last-writer-wins), so they ride the stream as a
+    // best-effort overlay and are reconciled from current state on reconnect —
+    // they are intentionally NOT part of the gap-detected event log.
     messaging.v1.PointerBatch pointer_updates = 3;
 
-    // If present, message typing notification state changes for members in the chat
+    // If present, message typing notification state changes for members in the
+    // chat. Transient and best-effort — not part of the event log.
     messaging.v1.IsTypingNotificationBatch is_typing_notifications = 4;
 
     // If present, updates to the chat metadata
     repeated chat.v1.MetadataUpdate metadata_updates = 5 [(validate.rules).repeated = {
         max_items: 1024 // Arbitrary
     }];
+
+    // If present, durable event-log events for the chat (messages sent, edited,
+    // and deleted). These are contiguous and ordered: clients apply them by
+    // ascending Event.sequence and gap-detect via Event.sequence/count, catching
+    // up with Messaging.GetDelta on a gap. This supersedes new_messages.
+    messaging.v1.EventBatch events = 6;
+
+    // If present, best-effort real-time reaction changes for messages in the
+    // chat. Like pointer_updates, reactions are a convergent overlay — NOT part
+    // of the gap-detected event log; clients apply them last-writer-wins by
+    // ReactionUpdate.sequence and reconcile any misses by refreshing a message's
+    // ReactionSummary on view.
+    messaging.v1.ReactionUpdateBatch reaction_updates = 7;
 }

@@ -109,6 +109,48 @@ public struct Flipcash_Messaging_V1_Message: Sendable {
   /// unread_seq of the message at their READ pointer.
   public var unreadSeq: UInt64 = 0
 
+  /// If set, the timestamp this message was last edited at. Absent on messages
+  /// that have never been edited. The content above always reflects the
+  /// current (materialized) state, so clients render it directly; this field
+  /// only drives an "edited" affordance. Deletions are represented in content
+  /// via DeletedContent, not here.
+  public var lastEditedTs: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {_lastEditedTs ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_lastEditedTs = newValue}
+  }
+  /// Returns true if `lastEditedTs` has been explicitly set.
+  public var hasLastEditedTs: Bool {self._lastEditedTs != nil}
+  /// Clears the value of `lastEditedTs`. Subsequent reads from it will return its default value.
+  public mutating func clearLastEditedTs() {self._lastEditedTs = nil}
+
+  /// The event-log sequence at which this message reached its current state:
+  /// the point of the most recent mutation (send, edit, or delete) affecting
+  /// it. A per-message VERSION stamp — distinct from message_id (fixed
+  /// identity/order) and unread_seq (unread accounting) — that advances on
+  /// every edit/delete while message_id stays fixed.
+  ///
+  /// It makes a Message self-locating regardless of how it was obtained (event
+  /// stream, GetMessages, SendMessage echo, last_message, push). Clients apply
+  /// last-writer-wins by this value: ignore a copy whose event_sequence is <=
+  /// the version already held, otherwise insert/replace. Cross-message gap
+  /// detection is separate, via the live event log's Event.sequence/count and
+  /// GetDelta catch-up.
+  public var eventSequence: UInt64 = 0
+
+  /// Aggregate reaction state for this message, current as of the time it was
+  /// read. This is a convergent overlay, NOT part of the content versioned by
+  /// event_sequence: reactions change without advancing event_sequence, so
+  /// clients refresh it on view and via live reaction updates rather than
+  /// through the event log.
+  public var reactions: Flipcash_Messaging_V1_ReactionSummary {
+    get {_reactions ?? Flipcash_Messaging_V1_ReactionSummary()}
+    set {_reactions = newValue}
+  }
+  /// Returns true if `reactions` has been explicitly set.
+  public var hasReactions: Bool {self._reactions != nil}
+  /// Clears the value of `reactions`. Subsequent reads from it will return its default value.
+  public mutating func clearReactions() {self._reactions = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -116,6 +158,8 @@ public struct Flipcash_Messaging_V1_Message: Sendable {
   fileprivate var _messageID: Flipcash_Messaging_V1_MessageId? = nil
   fileprivate var _senderID: Flipcash_Common_V1_UserId? = nil
   fileprivate var _ts: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+  fileprivate var _lastEditedTs: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+  fileprivate var _reactions: Flipcash_Messaging_V1_ReactionSummary? = nil
 }
 
 /// Content for a chat message
@@ -142,11 +186,47 @@ public struct Flipcash_Messaging_V1_Content: Sendable {
     set {type = .cash(newValue)}
   }
 
+  public var reply: Flipcash_Messaging_V1_ReplyContent {
+    get {
+      if case .reply(let v)? = type {return v}
+      return Flipcash_Messaging_V1_ReplyContent()
+    }
+    set {type = .reply(newValue)}
+  }
+
+  public var media: Flipcash_Messaging_V1_MediaContent {
+    get {
+      if case .media(let v)? = type {return v}
+      return Flipcash_Messaging_V1_MediaContent()
+    }
+    set {type = .media(newValue)}
+  }
+
+  public var system: Flipcash_Messaging_V1_SystemContent {
+    get {
+      if case .system(let v)? = type {return v}
+      return Flipcash_Messaging_V1_SystemContent()
+    }
+    set {type = .system(newValue)}
+  }
+
+  public var deleted: Flipcash_Messaging_V1_DeletedContent {
+    get {
+      if case .deleted(let v)? = type {return v}
+      return Flipcash_Messaging_V1_DeletedContent()
+    }
+    set {type = .deleted(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Type: Equatable, Sendable {
     case text(Flipcash_Messaging_V1_TextContent)
     case cash(Flipcash_Messaging_V1_CashContent)
+    case reply(Flipcash_Messaging_V1_ReplyContent)
+    case media(Flipcash_Messaging_V1_MediaContent)
+    case system(Flipcash_Messaging_V1_SystemContent)
+    case deleted(Flipcash_Messaging_V1_DeletedContent)
 
   }
 
@@ -166,6 +246,7 @@ public struct Flipcash_Messaging_V1_TextContent: Sendable {
   public init() {}
 }
 
+/// Cash content
 public struct Flipcash_Messaging_V1_CashContent: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -197,6 +278,410 @@ public struct Flipcash_Messaging_V1_CashContent: Sendable {
 
   fileprivate var _intentID: Flipcash_Common_V1_IntentId? = nil
   fileprivate var _amount: Flipcash_Common_V1_CryptoPaymentAmount? = nil
+}
+
+/// Reply content
+public struct Flipcash_Messaging_V1_ReplyContent: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// ID of the message being replied to
+  public var repliedMessageID: Flipcash_Messaging_V1_MessageId {
+    get {_repliedMessageID ?? Flipcash_Messaging_V1_MessageId()}
+    set {_repliedMessageID = newValue}
+  }
+  /// Returns true if `repliedMessageID` has been explicitly set.
+  public var hasRepliedMessageID: Bool {self._repliedMessageID != nil}
+  /// Clears the value of `repliedMessageID`. Subsequent reads from it will return its default value.
+  public mutating func clearRepliedMessageID() {self._repliedMessageID = nil}
+
+  /// Reply message content. Allowed content types are:
+  ///  - TextContent
+  ///  - MediaContent
+  public var content: [Flipcash_Messaging_V1_Content] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _repliedMessageID: Flipcash_Messaging_V1_MessageId? = nil
+}
+
+/// Media content (images, video, etc.)
+public struct Flipcash_Messaging_V1_MediaContent: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The media items attached to this message
+  public var items: [Flipcash_Messaging_V1_MediaItem] = []
+
+  /// Optional caption rendered alongside the media
+  public var caption: Flipcash_Messaging_V1_TextContent {
+    get {_caption ?? Flipcash_Messaging_V1_TextContent()}
+    set {_caption = newValue}
+  }
+  /// Returns true if `caption` has been explicitly set.
+  public var hasCaption: Bool {self._caption != nil}
+  /// Clears the value of `caption`. Subsequent reads from it will return its default value.
+  public mutating func clearCaption() {self._caption = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _caption: Flipcash_Messaging_V1_TextContent? = nil
+}
+
+public struct Flipcash_Messaging_V1_MediaItem: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Client-provided handle to the blob holding the media bytes, already
+  /// uploaded out-of-band via the blob service.
+  public var blobID: Flipcash_Blob_V1_BlobId {
+    get {_blobID ?? Flipcash_Blob_V1_BlobId()}
+    set {_blobID = newValue}
+  }
+  /// Returns true if `blobID` has been explicitly set.
+  public var hasBlobID: Bool {self._blobID != nil}
+  /// Clears the value of `blobID`. Subsequent reads from it will return its default value.
+  public mutating func clearBlobID() {self._blobID = nil}
+
+  /// Server-authoritative blob metadata (mime type, size, download URL, and
+  /// the kind-specific descriptors such as image dimensions/preview), resolved
+  /// from the blob record. Omitted on SendMessage and populated on
+  /// stored/returned messages.
+  public var blob: Flipcash_Blob_V1_BlobMetadata {
+    get {_blob ?? Flipcash_Blob_V1_BlobMetadata()}
+    set {_blob = newValue}
+  }
+  /// Returns true if `blob` has been explicitly set.
+  public var hasBlob: Bool {self._blob != nil}
+  /// Clears the value of `blob`. Subsequent reads from it will return its default value.
+  public mutating func clearBlob() {self._blob = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _blobID: Flipcash_Blob_V1_BlobId? = nil
+  fileprivate var _blob: Flipcash_Blob_V1_BlobMetadata? = nil
+}
+
+/// System message content
+public struct Flipcash_Messaging_V1_SystemContent: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Best-effort, server-rendered text in the user's locale setting. Today this
+  /// is the only way to display a system message; once the structured `event`
+  /// oneof exists it becomes a fallback, rendered ONLY when the client does not
+  /// recognize the variant (old client, new server). It is not localized per
+  /// viewer — clients that know a variant render their own localized string.
+  public var fallbackText: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Deleted message content
+public struct Flipcash_Messaging_V1_DeletedContent: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Timestamp the message was deleted. Set whenever a message is tombstoned;
+  /// clients can surface it as a "deleted" affordance. This is the deletion
+  /// analog of Message.last_edited_ts, kept here so all deletion state lives in
+  /// the content rather than as a separate flag on Message.
+  public var deletedTs: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {_deletedTs ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_deletedTs = newValue}
+  }
+  /// Returns true if `deletedTs` has been explicitly set.
+  public var hasDeletedTs: Bool {self._deletedTs != nil}
+  /// Clears the value of `deletedTs`. Subsequent reads from it will return its default value.
+  public mutating func clearDeletedTs() {self._deletedTs = nil}
+
+  /// When present, the user that deleted the message. If not present, a it is
+  /// a system-level deletion (eg. moderation check).
+  public var deletedBy: Flipcash_Common_V1_UserId {
+    get {_deletedBy ?? Flipcash_Common_V1_UserId()}
+    set {_deletedBy = newValue}
+  }
+  /// Returns true if `deletedBy` has been explicitly set.
+  public var hasDeletedBy: Bool {self._deletedBy != nil}
+  /// Clears the value of `deletedBy`. Subsequent reads from it will return its default value.
+  public mutating func clearDeletedBy() {self._deletedBy = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _deletedTs: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+  fileprivate var _deletedBy: Flipcash_Common_V1_UserId? = nil
+}
+
+/// Emoji identifies an emoji used in a reaction. The value is a unicode emoji
+/// sequence — a single grapheme cluster, which may include modifiers such as a
+/// skin-tone selector or ZWJ joins — or a custom emoji identifier where
+/// supported.
+public struct Flipcash_Messaging_V1_Emoji: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Structural bounds only — these bound size as defense-in-depth (min_len/
+  /// max_len count code points, max_bytes counts bytes; a complex ZWJ or
+  /// tag-flag sequence is ~8 code points but ~32 bytes, so both earn their
+  /// keep). True emoji validity (a real grapheme, normalization, any supported
+  /// set) is enforced in server code, not here.
+  public var value: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Reactor identifies a user who reacted to a message and when they did so.
+public struct Flipcash_Messaging_V1_Reactor: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var userID: Flipcash_Common_V1_UserId {
+    get {_userID ?? Flipcash_Common_V1_UserId()}
+    set {_userID = newValue}
+  }
+  /// Returns true if `userID` has been explicitly set.
+  public var hasUserID: Bool {self._userID != nil}
+  /// Clears the value of `userID`. Subsequent reads from it will return its default value.
+  public mutating func clearUserID() {self._userID = nil}
+
+  /// Timestamp the user added this reaction.
+  public var reactedTs: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {_reactedTs ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_reactedTs = newValue}
+  }
+  /// Returns true if `reactedTs` has been explicitly set.
+  public var hasReactedTs: Bool {self._reactedTs != nil}
+  /// Clears the value of `reactedTs`. Subsequent reads from it will return its default value.
+  public mutating func clearReactedTs() {self._reactedTs = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _userID: Flipcash_Common_V1_UserId? = nil
+  fileprivate var _reactedTs: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+}
+
+/// ReactionSummary is the aggregate reaction state attached to a message. It is
+/// bounded: the number of distinct reaction types per message is capped, so the
+/// summary stays small no matter how many users reacted. The full reactor list
+/// for any emoji is fetched on demand (paged), never inlined here.
+public struct Flipcash_Messaging_V1_ReactionSummary: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The message these reactions belong to.
+  public var messageID: Flipcash_Messaging_V1_MessageId {
+    get {_messageID ?? Flipcash_Messaging_V1_MessageId()}
+    set {_messageID = newValue}
+  }
+  /// Returns true if `messageID` has been explicitly set.
+  public var hasMessageID: Bool {self._messageID != nil}
+  /// Clears the value of `messageID`. Subsequent reads from it will return its default value.
+  public mutating func clearMessageID() {self._messageID = nil}
+
+  /// One entry per distinct emoji reacted to this message
+  public var reactions: [Flipcash_Messaging_V1_EmojiReaction] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _messageID: Flipcash_Messaging_V1_MessageId? = nil
+}
+
+/// EmojiReaction aggregates all reactions of a single emoji on a message.
+public struct Flipcash_Messaging_V1_EmojiReaction: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The emoji reacted with.
+  public var emoji: Flipcash_Messaging_V1_Emoji {
+    get {_emoji ?? Flipcash_Messaging_V1_Emoji()}
+    set {_emoji = newValue}
+  }
+  /// Returns true if `emoji` has been explicitly set.
+  public var hasEmoji: Bool {self._emoji != nil}
+  /// Clears the value of `emoji`. Subsequent reads from it will return its default value.
+  public mutating func clearEmoji() {self._emoji = nil}
+
+  /// Total number of users who reacted with this emoji. Authoritative and may
+  /// be arbitrarily large; the individual reactor identities are not all
+  /// returned here.
+  public var count: UInt64 = 0
+
+  /// Whether the requesting user reacted with this emoji. Per-viewer: count and
+  /// sample_reactors are shareable across users, but this bit is computed for
+  /// the caller.
+  public var reactedBySelf: Bool = false
+
+  /// A small sample of reactors, with their reaction timestamps (e.g. for
+  /// rendering a few avatars), capped well below count. The complete, paged
+  /// reactor list is fetched on demand via GetReactors.
+  public var sampleReactors: [Flipcash_Messaging_V1_Reactor] = []
+
+  /// Monotonic version of this emoji's aggregate on the message, assigned by
+  /// the server and advanced on every change to it. Ordering only: clients
+  /// apply reaction updates last-writer-wins by this value per (message, emoji)
+  /// — and per actor for reacted_by_self — and treat a loaded summary as stale
+  /// when a higher sequence arrives. It is NOT the chat event sequence
+  /// (reactions never advance that), and it is NOT gapless: it carries no
+  /// gap-detection meaning.
+  public var sequence: UInt64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _emoji: Flipcash_Messaging_V1_Emoji? = nil
+}
+
+/// ReactionUpdate is a best-effort, real-time reaction change for a single
+/// (message, emoji) cell. Reactions are a convergent overlay, so these ride the
+/// event stream OUTSIDE the gap-detected event log — a missed update is not
+/// caught up via GetDelta but reconciled by refreshing the message's
+/// ReactionSummary on view.
+public struct Flipcash_Messaging_V1_ReactionUpdate: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The message whose reactions changed.
+  public var messageID: Flipcash_Messaging_V1_MessageId {
+    get {_messageID ?? Flipcash_Messaging_V1_MessageId()}
+    set {_messageID = newValue}
+  }
+  /// Returns true if `messageID` has been explicitly set.
+  public var hasMessageID: Bool {self._messageID != nil}
+  /// Clears the value of `messageID`. Subsequent reads from it will return its default value.
+  public mutating func clearMessageID() {self._messageID = nil}
+
+  /// The emoji that was added or removed.
+  public var emoji: Flipcash_Messaging_V1_Emoji {
+    get {_emoji ?? Flipcash_Messaging_V1_Emoji()}
+    set {_emoji = newValue}
+  }
+  /// Returns true if `emoji` has been explicitly set.
+  public var hasEmoji: Bool {self._emoji != nil}
+  /// Clears the value of `emoji`. Subsequent reads from it will return its default value.
+  public mutating func clearEmoji() {self._emoji = nil}
+
+  /// The user who added or removed the reaction. A client renders
+  /// reacted_by_self by comparing this to itself, so a reaction made on the
+  /// user's other device is reflected.
+  public var actor: Flipcash_Common_V1_UserId {
+    get {_actor ?? Flipcash_Common_V1_UserId()}
+    set {_actor = newValue}
+  }
+  /// Returns true if `actor` has been explicitly set.
+  public var hasActor: Bool {self._actor != nil}
+  /// Clears the value of `actor`. Subsequent reads from it will return its default value.
+  public mutating func clearActor() {self._actor = nil}
+
+  public var action: Flipcash_Messaging_V1_ReactionUpdate.Action = .unknown
+
+  /// The emoji's total reactor count after this change. 0 means no reactors
+  /// remain and the client should drop the entry from the summary.
+  public var count: UInt64 = 0
+
+  /// The emoji aggregate's new version after this change. Clients apply
+  /// last-writer-wins by this value: ignore the count if sequence <= the
+  /// count watermark held, and ignore the actor's reacted_by_self toggle if
+  /// sequence <= the per-actor watermark held. Matches EmojiReaction.sequence.
+  public var sequence: UInt64 = 0
+
+  /// When the actor reacted. On ADDED, clients record this as the actor's
+  /// Reactor.reacted_ts (e.g. when slotting them into sample_reactors); ignored
+  /// for REMOVED. This is a display timestamp, distinct from `sequence`, which
+  /// is the ordering key.
+  public var reactedTs: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {_reactedTs ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_reactedTs = newValue}
+  }
+  /// Returns true if `reactedTs` has been explicitly set.
+  public var hasReactedTs: Bool {self._reactedTs != nil}
+  /// Clears the value of `reactedTs`. Subsequent reads from it will return its default value.
+  public mutating func clearReactedTs() {self._reactedTs = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Action: SwiftProtobuf.Enum, Swift.CaseIterable {
+    public typealias RawValue = Int
+    case unknown // = 0
+    case added // = 1
+    case removed // = 2
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .unknown
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .unknown
+      case 1: self = .added
+      case 2: self = .removed
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .unknown: return 0
+      case .added: return 1
+      case .removed: return 2
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+    // The compiler won't synthesize support with the UNRECOGNIZED case.
+    public static let allCases: [Flipcash_Messaging_V1_ReactionUpdate.Action] = [
+      .unknown,
+      .added,
+      .removed,
+    ]
+
+  }
+
+  public init() {}
+
+  fileprivate var _messageID: Flipcash_Messaging_V1_MessageId? = nil
+  fileprivate var _emoji: Flipcash_Messaging_V1_Emoji? = nil
+  fileprivate var _actor: Flipcash_Common_V1_UserId? = nil
+  fileprivate var _reactedTs: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+}
+
+public struct Flipcash_Messaging_V1_ReactionUpdateBatch: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var reactionUpdates: [Flipcash_Messaging_V1_ReactionUpdate] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
 }
 
 /// Pointer in a chat indicating a user's message history state in a chat.
@@ -325,6 +810,129 @@ public struct Flipcash_Messaging_V1_PointerBatch: Sendable {
   // methods supported on all messages.
 
   public var pointers: [Flipcash_Messaging_V1_Pointer] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Event is a contiguous run of one or more durable mutations to a chat, delivered
+/// atomically — the unit of the chat's event log. Newly sent messages, edits,
+/// and deletions are all mutations within an event.
+///
+/// Only content-bearing, non-idempotent mutations live in the log, because that is
+/// what gap detection protects: missing one means missing data. Convergent state
+/// such as pointer advances (last-writer-wins, monotonic) and transient signals
+/// such as typing notifications are delivered out-of-band and fetched as current
+/// state, NOT replayed through this log.
+///
+/// Clients apply events in ascending sequence order and use the sequence/count
+/// pair to detect gaps; on a gap they catch up via GetDelta.
+public struct Flipcash_Messaging_V1_Event: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Per-chat event sequence valued AFTER this event applies: the END of the
+  /// half-open range (sequence - count, sequence] this event occupies. This is
+  /// a SEPARATE sequence from MessageId — edits and deletions advance it
+  /// without minting a new MessageId.
+  public var sequence: UInt64 = 0
+
+  /// The number of points this event consumes, equal to the number of
+  /// mutations it carries — each mutation is one point. The mutation at index
+  /// i sits at point (sequence - count + 1 + i). Clients gap-detect with
+  /// local + count == sequence, so a server that begins emitting count > 1
+  /// (e.g. a bulk delete) needs no client change.
+  public var count: UInt32 = 0
+
+  /// Timestamp this event occurred at.
+  public var ts: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {_ts ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_ts = newValue}
+  }
+  /// Returns true if `ts` has been explicitly set.
+  public var hasTs: Bool {self._ts != nil}
+  /// Clears the value of `ts`. Subsequent reads from it will return its default value.
+  public mutating func clearTs() {self._ts = nil}
+
+  /// The mutations in this event, ascending by point. Length must equal count.
+  public var mutations: [Flipcash_Messaging_V1_Mutation] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _ts: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+}
+
+/// Mutation is a single point in the event log: one message sent, edited, or
+/// deleted. Each carries the full materialized state of the affected message, so
+/// clients apply it by inserting or replacing their cached copy without a
+/// refetch.
+public struct Flipcash_Messaging_V1_Mutation: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var type: Flipcash_Messaging_V1_Mutation.OneOf_Type? = nil
+
+  /// A newly sent message. Inserts a new message_id at the tail of the
+  /// chat. This is the only mutation that advances the MessageId sequence.
+  public var messageSent: Flipcash_Messaging_V1_Message {
+    get {
+      if case .messageSent(let v)? = type {return v}
+      return Flipcash_Messaging_V1_Message()
+    }
+    set {type = .messageSent(newValue)}
+  }
+
+  /// An edit to an existing message (same message_id, updated content,
+  /// last_edited_ts set).
+  public var messageEdited: Flipcash_Messaging_V1_Message {
+    get {
+      if case .messageEdited(let v)? = type {return v}
+      return Flipcash_Messaging_V1_Message()
+    }
+    set {type = .messageEdited(newValue)}
+  }
+
+  /// A deletion of an existing message (same message_id, content replaced
+  /// with DeletedContent). The message_id is retained as a tombstone, so
+  /// the MessageId sequence stays gapless.
+  public var messageDeleted: Flipcash_Messaging_V1_Message {
+    get {
+      if case .messageDeleted(let v)? = type {return v}
+      return Flipcash_Messaging_V1_Message()
+    }
+    set {type = .messageDeleted(newValue)}
+  }
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum OneOf_Type: Equatable, Sendable {
+    /// A newly sent message. Inserts a new message_id at the tail of the
+    /// chat. This is the only mutation that advances the MessageId sequence.
+    case messageSent(Flipcash_Messaging_V1_Message)
+    /// An edit to an existing message (same message_id, updated content,
+    /// last_edited_ts set).
+    case messageEdited(Flipcash_Messaging_V1_Message)
+    /// A deletion of an existing message (same message_id, content replaced
+    /// with DeletedContent). The message_id is retained as a tombstone, so
+    /// the MessageId sequence stays gapless.
+    case messageDeleted(Flipcash_Messaging_V1_Message)
+
+  }
+
+  public init() {}
+}
+
+public struct Flipcash_Messaging_V1_EventBatch: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var events: [Flipcash_Messaging_V1_Event] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -478,7 +1086,7 @@ extension Flipcash_Messaging_V1_ClientMessageId: SwiftProtobuf.Message, SwiftPro
 
 extension Flipcash_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Message"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}message_id\0\u{3}sender_id\0\u{1}content\0\u{1}ts\0\u{3}unread_seq\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}message_id\0\u{3}sender_id\0\u{1}content\0\u{1}ts\0\u{3}unread_seq\0\u{3}last_edited_ts\0\u{3}event_sequence\0\u{1}reactions\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -491,6 +1099,9 @@ extension Flipcash_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._M
       case 3: try { try decoder.decodeRepeatedMessageField(value: &self.content) }()
       case 4: try { try decoder.decodeSingularMessageField(value: &self._ts) }()
       case 5: try { try decoder.decodeSingularUInt64Field(value: &self.unreadSeq) }()
+      case 6: try { try decoder.decodeSingularMessageField(value: &self._lastEditedTs) }()
+      case 7: try { try decoder.decodeSingularUInt64Field(value: &self.eventSequence) }()
+      case 8: try { try decoder.decodeSingularMessageField(value: &self._reactions) }()
       default: break
       }
     }
@@ -516,6 +1127,15 @@ extension Flipcash_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._M
     if self.unreadSeq != 0 {
       try visitor.visitSingularUInt64Field(value: self.unreadSeq, fieldNumber: 5)
     }
+    try { if let v = self._lastEditedTs {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+    } }()
+    if self.eventSequence != 0 {
+      try visitor.visitSingularUInt64Field(value: self.eventSequence, fieldNumber: 7)
+    }
+    try { if let v = self._reactions {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -525,6 +1145,9 @@ extension Flipcash_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._M
     if lhs.content != rhs.content {return false}
     if lhs._ts != rhs._ts {return false}
     if lhs.unreadSeq != rhs.unreadSeq {return false}
+    if lhs._lastEditedTs != rhs._lastEditedTs {return false}
+    if lhs.eventSequence != rhs.eventSequence {return false}
+    if lhs._reactions != rhs._reactions {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -532,7 +1155,7 @@ extension Flipcash_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._M
 
 extension Flipcash_Messaging_V1_Content: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Content"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}text\0\u{1}cash\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}text\0\u{1}cash\0\u{1}reply\0\u{1}media\0\u{1}system\0\u{1}deleted\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -566,6 +1189,58 @@ extension Flipcash_Messaging_V1_Content: SwiftProtobuf.Message, SwiftProtobuf._M
           self.type = .cash(v)
         }
       }()
+      case 3: try {
+        var v: Flipcash_Messaging_V1_ReplyContent?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .reply(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .reply(v)
+        }
+      }()
+      case 4: try {
+        var v: Flipcash_Messaging_V1_MediaContent?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .media(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .media(v)
+        }
+      }()
+      case 5: try {
+        var v: Flipcash_Messaging_V1_SystemContent?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .system(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .system(v)
+        }
+      }()
+      case 6: try {
+        var v: Flipcash_Messaging_V1_DeletedContent?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .deleted(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .deleted(v)
+        }
+      }()
       default: break
       }
     }
@@ -584,6 +1259,22 @@ extension Flipcash_Messaging_V1_Content: SwiftProtobuf.Message, SwiftProtobuf._M
     case .cash?: try {
       guard case .cash(let v)? = self.type else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    }()
+    case .reply?: try {
+      guard case .reply(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    }()
+    case .media?: try {
+      guard case .media(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    }()
+    case .system?: try {
+      guard case .system(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    }()
+    case .deleted?: try {
+      guard case .deleted(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
     }()
     case nil: break
     }
@@ -661,6 +1352,452 @@ extension Flipcash_Messaging_V1_CashContent: SwiftProtobuf.Message, SwiftProtobu
   public static func ==(lhs: Flipcash_Messaging_V1_CashContent, rhs: Flipcash_Messaging_V1_CashContent) -> Bool {
     if lhs._intentID != rhs._intentID {return false}
     if lhs._amount != rhs._amount {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Messaging_V1_ReplyContent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ReplyContent"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}replied_message_id\0\u{1}content\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._repliedMessageID) }()
+      case 2: try { try decoder.decodeRepeatedMessageField(value: &self.content) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._repliedMessageID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if !self.content.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.content, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Messaging_V1_ReplyContent, rhs: Flipcash_Messaging_V1_ReplyContent) -> Bool {
+    if lhs._repliedMessageID != rhs._repliedMessageID {return false}
+    if lhs.content != rhs.content {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Messaging_V1_MediaContent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".MediaContent"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}items\0\u{1}caption\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.items) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._caption) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.items.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.items, fieldNumber: 1)
+    }
+    try { if let v = self._caption {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Messaging_V1_MediaContent, rhs: Flipcash_Messaging_V1_MediaContent) -> Bool {
+    if lhs.items != rhs.items {return false}
+    if lhs._caption != rhs._caption {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Messaging_V1_MediaItem: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".MediaItem"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}blob_id\0\u{1}blob\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._blobID) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._blob) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._blobID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._blob {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Messaging_V1_MediaItem, rhs: Flipcash_Messaging_V1_MediaItem) -> Bool {
+    if lhs._blobID != rhs._blobID {return false}
+    if lhs._blob != rhs._blob {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Messaging_V1_SystemContent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SystemContent"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}fallback_text\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.fallbackText) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.fallbackText.isEmpty {
+      try visitor.visitSingularStringField(value: self.fallbackText, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Messaging_V1_SystemContent, rhs: Flipcash_Messaging_V1_SystemContent) -> Bool {
+    if lhs.fallbackText != rhs.fallbackText {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Messaging_V1_DeletedContent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".DeletedContent"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}deleted_ts\0\u{3}deleted_by\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._deletedTs) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._deletedBy) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._deletedTs {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._deletedBy {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Messaging_V1_DeletedContent, rhs: Flipcash_Messaging_V1_DeletedContent) -> Bool {
+    if lhs._deletedTs != rhs._deletedTs {return false}
+    if lhs._deletedBy != rhs._deletedBy {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Messaging_V1_Emoji: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Emoji"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}value\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.value) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.value.isEmpty {
+      try visitor.visitSingularStringField(value: self.value, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Messaging_V1_Emoji, rhs: Flipcash_Messaging_V1_Emoji) -> Bool {
+    if lhs.value != rhs.value {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Messaging_V1_Reactor: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Reactor"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}user_id\0\u{3}reacted_ts\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._userID) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._reactedTs) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._userID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._reactedTs {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Messaging_V1_Reactor, rhs: Flipcash_Messaging_V1_Reactor) -> Bool {
+    if lhs._userID != rhs._userID {return false}
+    if lhs._reactedTs != rhs._reactedTs {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Messaging_V1_ReactionSummary: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ReactionSummary"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}message_id\0\u{1}reactions\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._messageID) }()
+      case 2: try { try decoder.decodeRepeatedMessageField(value: &self.reactions) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._messageID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if !self.reactions.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.reactions, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Messaging_V1_ReactionSummary, rhs: Flipcash_Messaging_V1_ReactionSummary) -> Bool {
+    if lhs._messageID != rhs._messageID {return false}
+    if lhs.reactions != rhs.reactions {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Messaging_V1_EmojiReaction: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".EmojiReaction"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}emoji\0\u{1}count\0\u{3}reacted_by_self\0\u{3}sample_reactors\0\u{1}sequence\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._emoji) }()
+      case 2: try { try decoder.decodeSingularUInt64Field(value: &self.count) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.reactedBySelf) }()
+      case 4: try { try decoder.decodeRepeatedMessageField(value: &self.sampleReactors) }()
+      case 5: try { try decoder.decodeSingularUInt64Field(value: &self.sequence) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._emoji {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if self.count != 0 {
+      try visitor.visitSingularUInt64Field(value: self.count, fieldNumber: 2)
+    }
+    if self.reactedBySelf != false {
+      try visitor.visitSingularBoolField(value: self.reactedBySelf, fieldNumber: 3)
+    }
+    if !self.sampleReactors.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.sampleReactors, fieldNumber: 4)
+    }
+    if self.sequence != 0 {
+      try visitor.visitSingularUInt64Field(value: self.sequence, fieldNumber: 5)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Messaging_V1_EmojiReaction, rhs: Flipcash_Messaging_V1_EmojiReaction) -> Bool {
+    if lhs._emoji != rhs._emoji {return false}
+    if lhs.count != rhs.count {return false}
+    if lhs.reactedBySelf != rhs.reactedBySelf {return false}
+    if lhs.sampleReactors != rhs.sampleReactors {return false}
+    if lhs.sequence != rhs.sequence {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Messaging_V1_ReactionUpdate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ReactionUpdate"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}message_id\0\u{1}emoji\0\u{1}actor\0\u{1}action\0\u{1}count\0\u{1}sequence\0\u{3}reacted_ts\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._messageID) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._emoji) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._actor) }()
+      case 4: try { try decoder.decodeSingularEnumField(value: &self.action) }()
+      case 5: try { try decoder.decodeSingularUInt64Field(value: &self.count) }()
+      case 6: try { try decoder.decodeSingularUInt64Field(value: &self.sequence) }()
+      case 7: try { try decoder.decodeSingularMessageField(value: &self._reactedTs) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._messageID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._emoji {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._actor {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    if self.action != .unknown {
+      try visitor.visitSingularEnumField(value: self.action, fieldNumber: 4)
+    }
+    if self.count != 0 {
+      try visitor.visitSingularUInt64Field(value: self.count, fieldNumber: 5)
+    }
+    if self.sequence != 0 {
+      try visitor.visitSingularUInt64Field(value: self.sequence, fieldNumber: 6)
+    }
+    try { if let v = self._reactedTs {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Messaging_V1_ReactionUpdate, rhs: Flipcash_Messaging_V1_ReactionUpdate) -> Bool {
+    if lhs._messageID != rhs._messageID {return false}
+    if lhs._emoji != rhs._emoji {return false}
+    if lhs._actor != rhs._actor {return false}
+    if lhs.action != rhs.action {return false}
+    if lhs.count != rhs.count {return false}
+    if lhs.sequence != rhs.sequence {return false}
+    if lhs._reactedTs != rhs._reactedTs {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Messaging_V1_ReactionUpdate.Action: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0UNKNOWN\0\u{1}ADDED\0\u{1}REMOVED\0")
+}
+
+extension Flipcash_Messaging_V1_ReactionUpdateBatch: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ReactionUpdateBatch"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}reaction_updates\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.reactionUpdates) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.reactionUpdates.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.reactionUpdates, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Messaging_V1_ReactionUpdateBatch, rhs: Flipcash_Messaging_V1_ReactionUpdateBatch) -> Bool {
+    if lhs.reactionUpdates != rhs.reactionUpdates {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -804,6 +1941,169 @@ extension Flipcash_Messaging_V1_PointerBatch: SwiftProtobuf.Message, SwiftProtob
 
   public static func ==(lhs: Flipcash_Messaging_V1_PointerBatch, rhs: Flipcash_Messaging_V1_PointerBatch) -> Bool {
     if lhs.pointers != rhs.pointers {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Messaging_V1_Event: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Event"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}sequence\0\u{1}count\0\u{1}ts\0\u{1}mutations\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularUInt64Field(value: &self.sequence) }()
+      case 2: try { try decoder.decodeSingularUInt32Field(value: &self.count) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._ts) }()
+      case 4: try { try decoder.decodeRepeatedMessageField(value: &self.mutations) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.sequence != 0 {
+      try visitor.visitSingularUInt64Field(value: self.sequence, fieldNumber: 1)
+    }
+    if self.count != 0 {
+      try visitor.visitSingularUInt32Field(value: self.count, fieldNumber: 2)
+    }
+    try { if let v = self._ts {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    if !self.mutations.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.mutations, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Messaging_V1_Event, rhs: Flipcash_Messaging_V1_Event) -> Bool {
+    if lhs.sequence != rhs.sequence {return false}
+    if lhs.count != rhs.count {return false}
+    if lhs._ts != rhs._ts {return false}
+    if lhs.mutations != rhs.mutations {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Messaging_V1_Mutation: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Mutation"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}message_sent\0\u{3}message_edited\0\u{3}message_deleted\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try {
+        var v: Flipcash_Messaging_V1_Message?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .messageSent(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .messageSent(v)
+        }
+      }()
+      case 2: try {
+        var v: Flipcash_Messaging_V1_Message?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .messageEdited(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .messageEdited(v)
+        }
+      }()
+      case 3: try {
+        var v: Flipcash_Messaging_V1_Message?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .messageDeleted(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .messageDeleted(v)
+        }
+      }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    switch self.type {
+    case .messageSent?: try {
+      guard case .messageSent(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    }()
+    case .messageEdited?: try {
+      guard case .messageEdited(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    }()
+    case .messageDeleted?: try {
+      guard case .messageDeleted(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    }()
+    case nil: break
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Messaging_V1_Mutation, rhs: Flipcash_Messaging_V1_Mutation) -> Bool {
+    if lhs.type != rhs.type {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Messaging_V1_EventBatch: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".EventBatch"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}events\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.events) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.events.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.events, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Messaging_V1_EventBatch, rhs: Flipcash_Messaging_V1_EventBatch) -> Bool {
+    if lhs.events != rhs.events {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

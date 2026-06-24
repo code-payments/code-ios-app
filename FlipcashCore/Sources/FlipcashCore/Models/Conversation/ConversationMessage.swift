@@ -52,7 +52,7 @@ extension ConversationMessage {
                 return nil
             }
             self.content = .cash(amount)
-        case .none:
+        case .reply, .media, .system, .deleted, .none:
             return nil
         }
 

@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package flipcash.blob.v1;
+
+option go_package = "github.com/code-payments/flipcash2-protobuf-api/generated/go/blob/v1;blobpb";
+option java_package = "com.codeinc.flipcash.gen.blob.v1";
+option objc_class_prefix = "FPBBlobV1";
+
+import "validate/validate.proto";
+
+// Opaque, client-held handle to a stored blob. This is the durable identity for
+// the bytes; the bytes it points at are immutable once the upload is finalized.
+message BlobId {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 16
+        max_len: 16
+    }];
+}
+
+// Server-authoritative metadata describing a stored blob. Never set by clients.
+// With the exception of download_url, every field is intrinsic to the stored
+// bytes and immutable, derived once by the server.
+message BlobMetadata {
+    // MIME type (e.g. "image/jpeg").
+    string mime_type = 1 [(validate.rules).string = {
+        min_len: 1
+        max_len: 255
+    }];
+
+    // Total size of the blob in bytes.
+    uint64 size_bytes = 2 [(validate.rules).uint64.gte = 1];
+
+    // Ephemeral, server-minted URL for fetching the blob bytes. Unlike the
+    // other fields it is NOT intrinsic to the blob: it is re-issued on every
+    // fetch, may expire (signed URL with a short TTL), and is authorized at
+    // mint time, not at fetch time. Clients MUST NOT persist or cache it across
+    // fetches; treat the BlobId as the durable handle and this as disposable.
+    string download_url = 3 [(validate.rules).string = {
+        uri: true
+        max_len: 2048
+    }];
+
+    // Kind-specific metadata the server derived from the bytes. Exactly one
+    // variant is set for a recognized media kind; left unset for opaque blobs.
+    // Only images are supported today; video/audio/etc. will be added as new
+    // variants.
+    oneof kind {
+        ImageMetadata image = 4;
+    }
+}
+
+// Intrinsic descriptors for a still image.
+message ImageMetadata {
+    // Pixel dimensions, for reserving layout before the bytes arrive.
+    uint32 width  = 1 [(validate.rules).uint32.gte = 1];
+    uint32 height = 2 [(validate.rules).uint32.gte = 1];
+
+    // Compact preview shown while the full image downloads (BlurHash string).
+    string blurhash = 3 [(validate.rules).string.max_len = 64];
+}

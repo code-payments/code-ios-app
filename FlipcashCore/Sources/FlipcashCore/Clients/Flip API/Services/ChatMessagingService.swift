@@ -146,7 +146,39 @@ extension InterceptorFactory: Flipcash_Messaging_V1_MessagingClientInterceptorFa
         makeInterceptors()
     }
 
+    func makeGetDeltaInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Messaging_V1_GetDeltaRequest, Flipcash_Messaging_V1_GetDeltaResponse>] {
+        makeInterceptors()
+    }
+
     func makeSendMessageInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Messaging_V1_SendMessageRequest, Flipcash_Messaging_V1_SendMessageResponse>] {
+        makeInterceptors()
+    }
+
+    func makeEditMessageInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Messaging_V1_EditMessageRequest, Flipcash_Messaging_V1_EditMessageResponse>] {
+        makeInterceptors()
+    }
+
+    func makeDeleteMessageInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Messaging_V1_DeleteMessageRequest, Flipcash_Messaging_V1_DeleteMessageResponse>] {
+        makeInterceptors()
+    }
+
+    func makeAddReactionInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Messaging_V1_AddReactionRequest, Flipcash_Messaging_V1_AddReactionResponse>] {
+        makeInterceptors()
+    }
+
+    func makeRemoveReactionInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Messaging_V1_RemoveReactionRequest, Flipcash_Messaging_V1_RemoveReactionResponse>] {
+        makeInterceptors()
+    }
+
+    func makeGetReactorsInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Messaging_V1_GetReactorsRequest, Flipcash_Messaging_V1_GetReactorsResponse>] {
+        makeInterceptors()
+    }
+
+    func makeGetReactionSummaryInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Messaging_V1_GetReactionSummaryRequest, Flipcash_Messaging_V1_GetReactionSummaryResponse>] {
+        makeInterceptors()
+    }
+
+    func makeGetReactionSummariesInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Messaging_V1_GetReactionSummariesRequest, Flipcash_Messaging_V1_GetReactionSummariesResponse>] {
         makeInterceptors()
     }
 

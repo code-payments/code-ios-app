@@ -14,11 +14,75 @@ service Messaging {
     // GetMessage gets a single message in a chat
     rpc GetMessage(GetMessageRequest) returns (GetMessageResponse);
 
-    // GetMessages gets the set of messages for a chat using a paged and batched APIs
+    // GetMessages gets the set of messages for a chat using paged and batched APIs
     rpc GetMessages(GetMessagesRequest) returns (GetMessagesResponse);
+
+    // GetDelta returns, for cold-boot and reconnect catch-up, the current state
+    // of every message changed since the client's cursor, up to the chat's
+    // current head. It is a state delta, not a contiguous replay: each changed
+    // message appears once in its latest state and the client applies it
+    // last-writer-wins. Transient signals (typing) and convergent state
+    // (pointers, reactions) are fetched separately, not returned here.
+    //
+    // GetDelta always catches up to the head; there is no caller-specified
+    // upper bound. An online client that detects a gap while already receiving
+    // live updates does NOT bound the fetch: it calls GetDelta to the head and
+    // lets last-writer-wins (Message.event_sequence) absorb the overlap with
+    // live events buffered during the call — a message delivered by both paths
+    // is applied once, newest wins. A client may also wait briefly for an
+    // out-of-order live update to close a small gap before calling at all.
+    //
+    // On stream completion the client advances its cursor to the highest
+    // checkpoint_sequence it received, which equals latest_sequence — the client
+    // is now at the head. When the client is already current the server sends a
+    // single response with messages omitted (and checkpoint_sequence unset),
+    // leaving the cursor unchanged; latest_sequence still reports the head.
+    //
+    // This is a BOUNDED server stream: the server emits one or more batches and
+    // then completes once the delta up to the head (as of stream open) is
+    // exhausted. Unlike StreamEvents it does NOT stay open for live updates.
+    // Streaming the delta in batches avoids a per-page round trip; the server may
+    // currently send the whole delta as a single response, so clients must handle
+    // any number of batches and treat stream completion as "caught up."
+    //
+    // The Result field is meaningful on the first response and is OK for
+    // subsequent data batches; a terminal DENIED or RESET_REQUIRED is delivered
+    // as a single response that ends the stream.
+    rpc GetDelta(GetDeltaRequest) returns (stream GetDeltaResponse);
 
     // SendMessage sends a message to a chat.
     rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
+
+    // EditMessage edits the content of a message the caller previously sent.
+    rpc EditMessage(EditMessageRequest) returns (EditMessageResponse);
+
+    // DeleteMessage deletes a message the caller previously sent. The message is
+    // tombstoned (content replaced with DeletedContent), not removed, so the
+    // per-chat MessageId sequence stays gapless.
+    rpc DeleteMessage(DeleteMessageRequest) returns (DeleteMessageResponse);
+
+    // AddReaction adds the caller's reaction with a given emoji to a message.
+    // Idempotent: re-adding the same emoji the caller already reacted with is a
+    // no-op success.
+    rpc AddReaction(AddReactionRequest) returns (AddReactionResponse);
+
+    // RemoveReaction removes the caller's reaction with a given emoji from a
+    // message. Idempotent: removing a reaction the caller does not have is a
+    // no-op success.
+    rpc RemoveReaction(RemoveReactionRequest) returns (RemoveReactionResponse);
+
+    // GetReactors returns the paged list of users who reacted to a message with
+    // a given emoji — the on-demand drill-down behind EmojiReaction.count, which
+    // never inlines the full reactor list.
+    rpc GetReactors(GetReactorsRequest) returns (GetReactorsResponse);
+
+    // GetReactionSummary fetches the current aggregate reaction state for a
+    // single message.
+    rpc GetReactionSummary(GetReactionSummaryRequest) returns (GetReactionSummaryResponse);
+
+    // GetReactionSummaries fetches the current aggregate reaction state using
+    // paged and batched APIs
+    rpc GetReactionSummaries(GetReactionSummariesRequest) returns (GetReactionSummariesResponse);
 
     // AdvancePointer advances a pointer in message history for a chat member.
     rpc AdvancePointer(AdvancePointerRequest) returns (AdvancePointerResponse);
@@ -72,11 +136,67 @@ message GetMessagesResponse {
     MessageBatch messages = 2;
 }
 
+message GetDeltaRequest {
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
+
+    // The latest event sequence the client has already applied. The server
+    // returns the current state of messages whose event_sequence is greater than
+    // this value, up to the current head. Use 0 to fetch from the beginning of
+    // the retained log.
+    uint64 after_sequence = 2;
+
+    common.v1.Auth auth = 10 [(validate.rules).message.required = true];
+}
+
+message GetDeltaResponse {
+    Result result = 1;
+    enum Result {
+        OK             = 0;
+        DENIED         = 1;
+        // after_sequence is older than the oldest state the server can still
+        // resolve a delta for. The client must discard its cursor and re-sync
+        // chat history from GetMessages before resuming the event stream.
+        RESET_REQUIRED = 2;
+    }
+
+    // A batch of changed messages in STRICTLY ASCENDING event_sequence order,
+    // continuing in order across batches (every sequence in a batch is higher
+    // than every sequence in the prior batch). Across the whole stream this is
+    // the current state of every message changed since after_sequence, up to the
+    // head; a message normally appears once in its latest state, but one
+    // re-edited mid-stream may reappear at its new, higher sequence (apply
+    // last-writer-wins). Omitted (not an empty batch) when there are no changes
+    // to report — e.g. when the client is already current; the server still
+    // sets latest_sequence and the stream then completes. Note MessageBatch
+    // itself requires at least one message, so "no changes" is signaled by
+    // leaving this field unset, never by an empty batch.
+    MessageBatch messages = 2;
+
+    // The chat's latest event sequence (head) as of stream open — the target this
+    // catch-up converges to. Informational while streaming: it tells the client
+    // how far the chat has advanced before the final batch arrives. Once the
+    // stream completes, the client's cursor equals this; it does not need
+    // contiguous coverage of the intervening points, only the resulting state.
+    uint64 latest_sequence = 3;
+
+    // Resume checkpoint: the event_sequence through which the delta is complete
+    // as of this batch — the batch's high-water mark, monotonically increasing
+    // across the stream toward latest_sequence. Persist it AFTER fully applying
+    // the batch. If the stream drops mid-catch-up, resume by calling GetDelta
+    // again with after_sequence set to the last checkpoint_sequence received.
+    // Because event_sequence only ever increases, this resumes exactly where you
+    // left off with no skipped messages (and at worst a harmless last-writer-wins
+    // re-apply of the boundary).
+    uint64 checkpoint_sequence = 4;
+}
+
 message SendMessageRequest {
     common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
 
     // Allowed content types that can be sent by client:
     //  - TextContent
+    //  - ReplyContent
+    //  - MediaContent
     repeated Content content = 2 [(validate.rules).repeated = {
         min_items: 1
         max_items: 1
@@ -100,6 +220,230 @@ message SendMessageResponse {
     // The chat message that was sent if the RPC was succesful, which includes
     // server-side metadata like the generated message ID and official timestamp
     Message message = 2;
+}
+
+message EditMessageRequest {
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
+
+    MessageId message_id = 2 [(validate.rules).message.required = true];
+
+    // The new content for the message. Allowed content types match SendMessage:
+    //  - TextContent
+    //  - ReplyContent
+    //  - MediaContent
+    repeated Content content = 3 [(validate.rules).repeated = {
+        min_items: 1
+        max_items: 1
+    }];
+
+    // Required optimistic-concurrency guard: the message's event_sequence as the
+    // client last observed it. The server applies the edit only if the message's
+    // current event_sequence still equals this value, and returns CONFLICT
+    // otherwise — so an edit based on a stale version (e.g. a concurrent
+    // edit/delete from the sender's other device) is rejected rather than
+    // clobbering the newer state. There is no last-writer-wins path.
+    uint64 expected_event_sequence = 4 [(validate.rules).uint64.gte = 1];
+
+    common.v1.Auth auth = 10 [(validate.rules).message.required = true];
+}
+
+message EditMessageResponse {
+    Result result = 1;
+    enum Result {
+        OK                = 0;
+        DENIED            = 1;
+        MESSAGE_NOT_FOUND = 2;
+        CANNOT_EDIT       = 3;
+        // The message changed since expected_event_sequence (a concurrent
+        // edit/delete won). The edit was not applied; `message` carries the
+        // current state for the client to reconcile against and retry.
+        CONFLICT          = 4;
+    }
+
+    // On OK, the updated materialized message (advanced event_sequence,
+    // last_edited_ts set). On CONFLICT, the message's current state.
+    Message message = 2;
+}
+
+message DeleteMessageRequest {
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
+
+    MessageId message_id = 2 [(validate.rules).message.required = true];
+
+    // Required optimistic-concurrency guard: the message's event_sequence as the
+    // client last observed it. The server applies the delete only if the
+    // message's current event_sequence still equals this value, and returns
+    // CONFLICT otherwise — so a delete based on a stale version is rejected
+    // rather than racing a concurrent edit/delete. There is no
+    // last-writer-wins path.
+    uint64 expected_event_sequence = 3 [(validate.rules).uint64.gte = 1];
+
+    common.v1.Auth auth = 10 [(validate.rules).message.required = true];
+}
+
+message DeleteMessageResponse {
+    Result result = 1;
+    enum Result {
+        OK                = 0;
+        DENIED            = 1;
+        MESSAGE_NOT_FOUND = 2;
+        CANNOT_DELETE     = 3;
+        // The message changed since expected_event_sequence (a concurrent
+        // edit/delete won). The delete was not applied; `message` carries the
+        // current state for the client to reconcile against and retry.
+        CONFLICT          = 4;
+    }
+
+    // On OK, the tombstoned materialized message (content replaced with
+    // DeletedContent, event_sequence advanced). On CONFLICT, the current state.
+    Message message = 2;
+}
+
+message AddReactionRequest {
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
+
+    MessageId message_id = 2 [(validate.rules).message.required = true];
+
+    // The emoji to react with.
+    Emoji emoji = 3 [(validate.rules).message.required = true];
+
+    common.v1.Auth auth = 10 [(validate.rules).message.required = true];
+}
+
+message AddReactionResponse {
+    Result result = 1;
+    enum Result {
+        OK                      = 0;
+        DENIED                  = 1;
+        MESSAGE_NOT_FOUND       = 2;
+        CANNOT_REACT            = 3;
+        // Adding this emoji would exceed the per-message distinct reaction-type
+        // cap. Reactions to emojis already present on the message are unaffected.
+        TOO_MANY_REACTION_TYPES = 4;
+    }
+
+    // The affected emoji's aggregate after the add (count, reacted_by_self true).
+    EmojiReaction reaction = 2;
+}
+
+message RemoveReactionRequest {
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
+
+    MessageId message_id = 2 [(validate.rules).message.required = true];
+
+    // The emoji whose reaction to remove for the caller.
+    Emoji emoji = 3 [(validate.rules).message.required = true];
+
+    common.v1.Auth auth = 10 [(validate.rules).message.required = true];
+}
+
+message RemoveReactionResponse {
+    Result result = 1;
+    enum Result {
+        OK                = 0;
+        DENIED            = 1;
+        MESSAGE_NOT_FOUND = 2;
+    }
+
+    // The affected emoji's aggregate after the removal
+    EmojiReaction reaction = 2;
+}
+
+message GetReactorsRequest {
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
+
+    MessageId message_id = 2 [(validate.rules).message.required = true];
+
+    // The emoji whose reactors to list.
+    Emoji emoji = 3 [(validate.rules).message.required = true];
+
+    // Paging over the reactor list (server-ordered, typically most-recent
+    // first). Leave options.paging_token unset on the first request; on every
+    // subsequent request, set it to the paging_token from the most recent
+    // response to advance through the list. The token is opaque and
+    // server-generated; do not construct it.
+    common.v1.QueryOptions options = 4;
+
+    common.v1.Auth auth = 10 [(validate.rules).message.required = true];
+}
+
+message GetReactorsResponse {
+    Result result = 1;
+    enum Result {
+        OK                = 0;
+        DENIED            = 1;
+        MESSAGE_NOT_FOUND = 2;
+    }
+
+    // A page of users who reacted with the requested emoji, with their reaction
+    // timestamps. Empty when the message exists but has no reactors for the emoji.
+    repeated Reactor reactors = 2 [(validate.rules).repeated = {
+        max_items: 100
+    }];
+
+    // The server-generated cursor advanced past this page. The client MUST send
+    // the most recent value back in options.paging_token on the next
+    // GetReactorsRequest to fetch the following page. Set when result is OK and
+    // has_more is true.
+    common.v1.PagingToken paging_token = 3;
+
+    // HasMore indicates whether further pages of reactors remain. When false,
+    // the reactor list has been fully read. When true, the client should issue
+    // another GetReactorsRequest with the returned paging_token.
+    bool has_more = 4;
+}
+
+message GetReactionSummaryRequest {
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
+
+    MessageId message_id = 2 [(validate.rules).message.required = true];
+
+    common.v1.Auth auth = 10 [(validate.rules).message.required = true];
+}
+
+message GetReactionSummaryResponse {
+    Result result = 1;
+    enum Result {
+        OK                = 0;
+        DENIED            = 1;
+        MESSAGE_NOT_FOUND = 2;
+    }
+
+    // The aggregate reaction state for the message. reacted_by_self is computed
+    // for the caller; clients still apply per (message, emoji) by
+    // EmojiReaction.sequence, so a summary that is slightly behind a live update
+    // is harmlessly ignored rather than regressing state.
+    ReactionSummary summary = 2;
+}
+
+message GetReactionSummariesRequest {
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
+
+    oneof query {
+        option (validate.required) = true;
+
+        common.v1.QueryOptions options      = 2;
+        MessageIdBatch         message_ids  = 3;
+    }
+
+    common.v1.Auth auth = 10 [(validate.rules).message.required = true];
+}
+
+message GetReactionSummariesResponse {
+    Result result = 1;
+    enum Result {
+        OK     = 0;
+        DENIED = 1;
+    }
+
+    // One summary per requested message, keyed by ReactionSummary.message_id.
+    // reacted_by_self in each summary is computed for the caller; clients still
+    // apply per (message, emoji) by EmojiReaction.sequence,  so a summary that
+    // is slightly behind a live update is harmlessly ignored rather than regressing
+    // state.
+    repeated ReactionSummary summaries = 2 [(validate.rules).repeated = {
+        max_items: 100
+    }];
 }
 
 message AdvancePointerRequest {
