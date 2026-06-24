@@ -271,13 +271,9 @@ public final class ChatViewController: UICollectionViewController {
     }
 }
 
-/// Every row self-sizes to its own content: text and date rows to their text, and the cash card to
-/// its fixed-height card plus the optional receipt line below it.
-extension ChatViewController: ChatLayoutDelegate {
-    public func sizeForItem(_ chatLayout: CollectionViewChatLayout, at indexPath: IndexPath) -> ItemSize {
-        .auto
-    }
-}
+/// The controller is the layout delegate so cells inherit ChatLayout's defaults — auto self-sizing
+/// and full-width alignment. No row needs a custom size, so nothing is overridden.
+extension ChatViewController: ChatLayoutDelegate {}
 
 #Preview("Transcript") {
     let controller = ChatViewController()
