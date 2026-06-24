@@ -9,11 +9,11 @@
 			<key>UNNotificationExtensionCategory</key>
 			<string>CHAT_MESSAGE</string>
 			<key>UNNotificationExtensionInitialContentSizeRatio</key>
-			<real>0.6</real>
+			<real>0.82</real>
 			<key>UNNotificationExtensionUserInteractionEnabled</key>
 			<true/>
 			<key>UNNotificationExtensionDefaultContentHidden</key>
-			<false/>
+			<true/>
 		</dict>
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.usernotifications.content-extension</string>
