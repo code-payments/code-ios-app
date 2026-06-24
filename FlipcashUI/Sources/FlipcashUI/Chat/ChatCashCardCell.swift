@@ -8,12 +8,11 @@
 #if canImport(UIKit)
 import UIKit
 
-/// A recycled cell for a cash payment row: a fixed-size card (shared `BubbleBackgroundView`
-/// chrome) with the token name + optional coin icon in the top-left and a centered
-/// "You sent / You received" caption above the currency flag + amount. Aligns to the leading or
-/// trailing edge by sender. Dumb — `configure(with:)` is the only input; the strings, flag name,
-/// and icon URL all arrive on the `ChatMessage`.
-public final class ChatCashCardCell: UICollectionViewCell {
+/// A recycled cell for a cash payment row: a fixed-size card (shared `BubbleBackgroundView` chrome)
+/// with the token name + optional coin icon in the top-left and a centered "You sent / You received"
+/// caption above the currency flag + amount, hosted in a `ChatColumnCell`. Dumb — `configure(with:)`
+/// is the only input; the strings, flag name, and icon URL all arrive on the `ChatMessage`.
+public final class ChatCashCardCell: ChatColumnCell {
 
     public static let reuseIdentifier = "ChatCashCardCell"
 
@@ -26,10 +25,6 @@ public final class ChatCashCardCell: UICollectionViewCell {
     private let flag = UIImageView()
     private let captionLabel = UILabel()
     private let amountLabel = UILabel()
-    private let receipt = ChatReceiptLabel()
-    private let column = UIStackView()
-    private var leadingConstraint: NSLayoutConstraint!
-    private var trailingConstraint: NSLayoutConstraint!
     private var iconTask: Task<Void, Never>?
 
     public override init(frame: CGRect) {
@@ -69,21 +64,9 @@ public final class ChatCashCardCell: UICollectionViewCell {
         centerStack.translatesAutoresizingMaskIntoConstraints = false
         card.addSubview(centerStack)
 
-        column.axis = .vertical
-        column.spacing = 4
-        column.addArrangedSubview(card)
-        column.addArrangedSubview(receipt)
-        column.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(column)
+        installColumn(content: card)
 
-        leadingConstraint = column.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12)
-        trailingConstraint = column.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12)
-
-        // The column pins top and bottom to the contentView so the cell self-sizes to the fixed-height
-        // card plus the receipt line below it.
         NSLayoutConstraint.activate([
-            column.topAnchor.constraint(equalTo: contentView.topAnchor),
-            column.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
             card.widthAnchor.constraint(equalToConstant: Self.cardSize.width),
             card.heightAnchor.constraint(equalToConstant: Self.cardSize.height),
 
@@ -146,19 +129,7 @@ public final class ChatCashCardCell: UICollectionViewCell {
                 groupedBelow: message.isContinuedByNext
             )
         )
-        receipt.text = message.receipt
-        receipt.isHidden = message.receipt == nil
-        column.alignment = message.sender == .me ? .trailing : .leading
-        applyAlignment(isFromSelf: message.sender == .me)
-    }
-
-    /// Exactly one horizontal edge is pinned, so the column hugs its sender's side. Both edges are
-    /// deactivated before the wanted one is activated: momentarily pinning both edges over-constrains
-    /// the fixed-width card and trips Auto Layout's unsatisfiable-constraints check when the cell is
-    /// recycled with a flipped sender.
-    private func applyAlignment(isFromSelf: Bool) {
-        NSLayoutConstraint.deactivate([leadingConstraint, trailingConstraint])
-        (isFromSelf ? trailingConstraint : leadingConstraint).isActive = true
+        updateColumn(for: message)
     }
 }
 

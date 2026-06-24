@@ -8,42 +8,23 @@
 #if canImport(UIKit)
 import UIKit
 
-/// A recycled collection-view cell that hosts a `ChatBubbleView` — and, under the user's latest
-/// sent message, a `ChatReceiptLabel` below it — in a vertical column aligned to the leading or
-/// trailing edge by sender. Self-sizing: the bubble is capped at a *constant* max width supplied
-/// by the owner, so the label wraps at a known width during self-sizing (a width relative to
-/// `contentView` doesn't bound the label — its width floats while the cell is measured, and the
-/// text collapses to one line). The receipt label collapses out of the column when there is no
-/// receipt. Dumb — `configure(with:maxWidth:)` is the only input; no data fetching, no shared state.
-public final class ChatMessageCell: UICollectionViewCell {
+/// A recycled collection-view cell that hosts a `ChatBubbleView` in a `ChatColumnCell`. The bubble is
+/// capped at a *constant* max width supplied by the owner, so the label wraps at a known width during
+/// self-sizing (a width relative to `contentView` doesn't bound the label — its width floats while the
+/// cell is measured, and the text collapses to one line). Dumb — `configure(with:maxWidth:)` is the
+/// only input; no data fetching, no shared state.
+public final class ChatMessageCell: ChatColumnCell {
 
     public static let reuseIdentifier = "ChatMessageCell"
 
     private let bubble = ChatBubbleView()
-    private let receipt = ChatReceiptLabel()
-    private let column = UIStackView()
-    private var leadingConstraint: NSLayoutConstraint!
-    private var trailingConstraint: NSLayoutConstraint!
     private var maxWidthConstraint: NSLayoutConstraint!
 
     public override init(frame: CGRect) {
         super.init(frame: frame)
-        column.axis = .vertical
-        column.spacing = 4
-        column.addArrangedSubview(bubble)
-        column.addArrangedSubview(receipt)
-        column.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(column)
-
-        leadingConstraint = column.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12)
-        trailingConstraint = column.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12)
+        installColumn(content: bubble)
         maxWidthConstraint = bubble.widthAnchor.constraint(lessThanOrEqualToConstant: 280)
-
-        NSLayoutConstraint.activate([
-            column.topAnchor.constraint(equalTo: contentView.topAnchor),
-            column.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
-            maxWidthConstraint,
-        ])
+        maxWidthConstraint.isActive = true
     }
 
     @available(*, unavailable)
@@ -54,19 +35,7 @@ public final class ChatMessageCell: UICollectionViewCell {
     public func configure(with message: ChatMessage, maxWidth: CGFloat) {
         bubble.configure(with: message)
         maxWidthConstraint.constant = maxWidth
-        receipt.text = message.receipt
-        receipt.isHidden = message.receipt == nil
-        column.alignment = message.sender == .me ? .trailing : .leading
-        applyAlignment(isFromSelf: message.sender == .me)
-    }
-
-    /// Exactly one horizontal edge is pinned, so the column hugs its content and the opposite
-    /// edge floats. Both edges are deactivated before the wanted one is activated: a recycled cell
-    /// still carries its prior encapsulated layout width, so momentarily pinning both edges
-    /// over-constrains its width and trips Auto Layout's unsatisfiable-constraints check.
-    private func applyAlignment(isFromSelf: Bool) {
-        NSLayoutConstraint.deactivate([leadingConstraint, trailingConstraint])
-        (isFromSelf ? trailingConstraint : leadingConstraint).isActive = true
+        updateColumn(for: message)
     }
 }
 
