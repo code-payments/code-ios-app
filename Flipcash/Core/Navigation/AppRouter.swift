@@ -348,9 +348,7 @@ final class AppRouter {
             paths[stack] = NavigationPath()
         }
 
-        let presenter = UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .first { $0.activationState == .foregroundActive }?
+        let presenter = UIApplication.shared.foregroundWindowScene?
             .keyWindow?
             .rootViewController
 

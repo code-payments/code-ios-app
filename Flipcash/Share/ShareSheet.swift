@@ -29,13 +29,6 @@ private extension UIApplication {
     var rootViewController: UIViewController? {
         currentKeyWindow?.rootViewController?.topMostController
     }
-    
-    var currentKeyWindow: UIWindow? {
-        connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .flatMap { $0.windows }
-            .first { $0.isKeyWindow }
-    }
 }
 
 private extension UIViewController {
