@@ -174,10 +174,10 @@ private struct RecipientSearchEmptyState: View {
 
 // MARK: - List items -
 
-/// One row of the merged "On Flipcash" section: a synced contact, a DM
-/// conversation, or both joined by the contact's `dmChatID`. Rows with a
-/// conversation sort by activity (newest first) ahead of chat-less contacts,
-/// which keep the directory's order.
+/// One row of the picker: a synced contact, a DM conversation, or both joined
+/// by the contact's `dmChatID`. `partition(...)` sorts these into the "Recents"
+/// section (rows backed by a conversation, newest activity first) and the
+/// "On Flipcash" section (chat-less contacts, in the directory's order).
 nonisolated enum RecipientListItem: Identifiable, Equatable {
 
     case contact(ResolvedContact)
@@ -211,28 +211,42 @@ nonisolated enum RecipientListItem: Identifiable, Equatable {
         }
     }
 
-    static func items(contacts: [ResolvedContact], conversations: [Conversation]) -> [RecipientListItem] {
+    /// Splits picker rows into the two sections the list renders. `contacts` is
+    /// the already-filtered on-Flipcash set; `conversationNames` carries each
+    /// chat's resolved display name and is consulted only while searching, to
+    /// keep contact-less chats whose name matches the query.
+    nonisolated static func partition(
+        contacts: [ResolvedContact],
+        conversations: [Conversation],
+        searchText: String,
+        conversationNames: [ConversationID: String]
+    ) -> (recents: [RecipientListItem], onFlipcash: [RecipientListItem]) {
         var unmatched: [ConversationID: Conversation] = [:]
         for conversation in conversations {
             unmatched[conversation.id] = conversation
         }
 
-        var active: [RecipientListItem] = []
-        var chatless: [RecipientListItem] = []
+        var recents: [RecipientListItem] = []
+        var onFlipcash: [RecipientListItem] = []
         for contact in contacts {
             if let chatID = contact.dmChatID.map(ConversationID.init(data:)),
                let conversation = unmatched.removeValue(forKey: chatID) {
-                active.append(.matched(contact, conversation))
+                recents.append(.matched(contact, conversation))
             } else {
-                chatless.append(.contact(contact))
+                onFlipcash.append(.contact(contact))
             }
         }
+
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         for conversation in conversations where unmatched[conversation.id] != nil {
-            active.append(.conversation(conversation))
+            let matchesSearch = query.isEmpty || (conversationNames[conversation.id]?.lowercased().contains(query) ?? false)
+            if matchesSearch {
+                recents.append(.conversation(conversation))
+            }
         }
 
-        active.sort { ($0.conversation?.lastActivity ?? .distantPast) > ($1.conversation?.lastActivity ?? .distantPast) }
-        return active + chatless
+        recents.sort { ($0.conversation?.lastActivity ?? .distantPast) > ($1.conversation?.lastActivity ?? .distantPast) }
+        return (recents, onFlipcash)
     }
 }
 
@@ -248,35 +262,43 @@ private struct RecipientPickerList: View {
     let onFlipcashTap: (ResolvedContact) -> Void
     let onInviteTap: (ResolvedContact) -> Void
 
-    /// Searching filters by contact, so conversations whose counterpart isn't
-    /// a synced contact only appear with an empty query — matched rows keep
-    /// their conversation join either way.
-    private var items: [RecipientListItem] {
-        var items = RecipientListItem.items(contacts: filtered.onFlipcash, conversations: conversations)
-        if !searchText.isEmpty {
-            items.removeAll { item in
-                if case .conversation = item { true } else { false }
-            }
-        }
-        return items
+    @Environment(ConversationController.self) private var conversationController
+
+    /// Chat display names keyed by conversation, resolved through the controller
+    /// so the search matches what each row shows. Built only while searching.
+    private var conversationNames: [ConversationID: String] {
+        guard !searchText.isEmpty else { return [:] }
+        return Dictionary(
+            uniqueKeysWithValues: conversations.map { ($0.id, conversationController.displayName(for: $0)) }
+        )
+    }
+
+    private var partitioned: (recents: [RecipientListItem], onFlipcash: [RecipientListItem]) {
+        RecipientListItem.partition(
+            contacts: filtered.onFlipcash,
+            conversations: conversations,
+            searchText: searchText,
+            conversationNames: conversationNames
+        )
     }
 
     var body: some View {
+        let sections = partitioned
         List {
-            if !items.isEmpty {
+            if !sections.recents.isEmpty {
                 Section {
-                    ForEach(items) { item in
-                        RecipientListItemRow(
-                            item: item,
-                            onTap: {
-                                switch item {
-                                case .contact(let contact), .matched(let contact, _):
-                                    onFlipcashTap(contact)
-                                case .conversation(let conversation):
-                                    onConversationTap(conversation)
-                                }
-                            }
-                        )
+                    ForEach(sections.recents) { item in
+                        RecipientListItemRow(item: item, onTap: { tap(item) })
+                    }
+                } header: {
+                    RecipientSectionHeader(title: "Recents")
+                }
+                .listSectionSeparator(.hidden, edges: .top)
+            }
+            if !sections.onFlipcash.isEmpty {
+                Section {
+                    ForEach(sections.onFlipcash) { item in
+                        RecipientListItemRow(item: item, onTap: { tap(item) })
                     }
                 } header: {
                     RecipientSectionHeader(title: "On Flipcash")
@@ -321,12 +343,21 @@ private struct RecipientPickerList: View {
         // to the feed so search-driven filtering stays instant.
         .animation(.snappy, value: conversations)
         .overlay {
-            // Search isn't meaningful under denied access (no contacts to match,
-            // conversations are intentionally hidden while searching), so skip
-            // the "No Results" overlay there and keep the CTA card visible.
-            if !searchText.isEmpty && filtered.isEmpty && contactAccess != .denied {
+            // "No Results" only when neither a contact nor a chat matched — a
+            // chat can match on its name while no contact does. Skipped under
+            // denied access so the CTA card stays visible.
+            if !searchText.isEmpty && filtered.isEmpty && sections.recents.isEmpty && contactAccess != .denied {
                 RecipientSearchEmptyState(searchText: searchText)
             }
+        }
+    }
+
+    private func tap(_ item: RecipientListItem) {
+        switch item {
+        case .contact(let contact), .matched(let contact, _):
+            onFlipcashTap(contact)
+        case .conversation(let conversation):
+            onConversationTap(conversation)
         }
     }
 }

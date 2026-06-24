@@ -47,12 +47,12 @@ struct ChatCashCardSizingTests {
         #expect(size.height == ChatCashCardCell.cardSize.height)
     }
 
-    @Test("Text, date separator, and receipt rows keep self-sizing (.auto)")
+    @Test("Text, date separator, and receipt-bearing rows keep self-sizing (.auto)")
     func nonCashRows_areAuto() {
         let items: [ChatItem] = [
             .dateSeparator(id: "sep", text: "Today 1:00 PM"),
             .message(ChatMessage(id: "1", text: "hello", sender: .other)),
-            .receipt(id: "r", text: "Delivered"),
+            .message(ChatMessage(id: "r", text: "ok", sender: .me, receipt: "Delivered")),
         ]
         for index in items.indices {
             #expect(sized(items, at: index) == .auto, "row \(index) should self-size")
