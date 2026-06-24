@@ -54,9 +54,7 @@ private struct DialogWindowModifier: ViewModifier {
         content
             .onAppear {
                 guard dialogWindow == nil,
-                      let scene = UIApplication.shared.connectedScenes
-                          .first(where: { $0 is UIWindowScene })
-                          as? UIWindowScene
+                      let scene = UIApplication.shared.firstWindowScene
                 else { return }
 
                 dialogWindow = DialogWindow(
