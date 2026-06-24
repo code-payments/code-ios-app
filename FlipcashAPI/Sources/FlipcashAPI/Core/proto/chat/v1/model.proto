@@ -32,6 +32,17 @@ message Metadata {
 
     // The timestamp of the last activity in this chat
     google.protobuf.Timestamp last_activity = 5 [(validate.rules).timestamp.required = true];
+
+    // The chat's head event sequence — the value of the most recent event in its
+    // event log. A client compares this against its locally stored cursor for
+    // the chat to decide whether catch-up is needed: if its cursor is behind, it
+    // calls Messaging.GetDelta; if equal, it is current and can skip it.
+    //
+    // This is NOT derivable from last_message: an edit or deletion of an older
+    // message advances the head without changing last_message, so this value can
+    // exceed last_message.event_sequence. It is the same head reported by
+    // GetDeltaResponse.latest_sequence.
+    uint64 latest_event_sequence = 6;
 }
 
 message Member {

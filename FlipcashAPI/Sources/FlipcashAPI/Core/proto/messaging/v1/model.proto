@@ -6,6 +6,7 @@ option go_package = "github.com/code-payments/flipcash2-protobuf-api/generated/g
 option java_package = "com.codeinc.flipcash.gen.messaging.v1";
 option objc_class_prefix = "FPBMessagingV1";
 
+import "blob/v1/model.proto";
 import "common/v1/common.proto";
 import "google/protobuf/timestamp.proto";
 import "validate/validate.proto";
@@ -62,6 +63,34 @@ message Message {
     // client as the difference between the latest message's unread_seq and the
     // unread_seq of the message at their READ pointer.
     uint64 unread_seq = 5;
+
+    // If set, the timestamp this message was last edited at. Absent on messages
+    // that have never been edited. The content above always reflects the
+    // current (materialized) state, so clients render it directly; this field
+    // only drives an "edited" affordance. Deletions are represented in content
+    // via DeletedContent, not here.
+    google.protobuf.Timestamp last_edited_ts = 6;
+
+    // The event-log sequence at which this message reached its current state:
+    // the point of the most recent mutation (send, edit, or delete) affecting
+    // it. A per-message VERSION stamp — distinct from message_id (fixed
+    // identity/order) and unread_seq (unread accounting) — that advances on
+    // every edit/delete while message_id stays fixed.
+    //
+    // It makes a Message self-locating regardless of how it was obtained (event
+    // stream, GetMessages, SendMessage echo, last_message, push). Clients apply
+    // last-writer-wins by this value: ignore a copy whose event_sequence is <=
+    // the version already held, otherwise insert/replace. Cross-message gap
+    // detection is separate, via the live event log's Event.sequence/count and
+    // GetDelta catch-up.
+    uint64 event_sequence = 7 [(validate.rules).uint64.gte = 1];
+
+    // Aggregate reaction state for this message, current as of the time it was
+    // read. This is a convergent overlay, NOT part of the content versioned by
+    // event_sequence: reactions change without advancing event_sequence, so
+    // clients refresh it on view and via live reaction updates rather than
+    // through the event log.
+    ReactionSummary reactions = 8;
 }
 
 // Content for a chat message
@@ -69,8 +98,12 @@ message Content {
     oneof type {
         option (validate.required) = true;
 
-        TextContent text = 1;
-        CashContent cash = 2;
+        TextContent    text    = 1;
+        CashContent    cash    = 2;
+        ReplyContent   reply   = 3;
+        MediaContent   media   = 4;
+        SystemContent  system  = 5;
+        DeletedContent deleted = 6;
     }
 }
 
@@ -82,6 +115,7 @@ message TextContent {
     }];
 }
 
+// Cash content
 message CashContent {
     // Intent ID identifying the cash transaction at the OCP layer
     common.v1.IntentId intent_id = 1 [(validate.rules).message.required = true];
@@ -91,6 +125,191 @@ message CashContent {
 
     // Reserved for receiver, which will is required for group chats
     reserved 3;
+}
+
+// Reply content
+message ReplyContent {
+    // ID of the message being replied to
+    MessageId replied_message_id = 1 [(validate.rules).message.required = true];
+
+    // Reply message content. Allowed content types are:
+    //  - TextContent
+    //  - MediaContent
+    repeated Content content = 2 [(validate.rules).repeated = {
+        min_items: 1
+        max_items: 1
+    }];
+}
+
+// Media content (images, video, etc.)
+message MediaContent {
+    // The media items attached to this message
+    repeated MediaItem items = 1 [(validate.rules).repeated = {
+        min_items: 1
+        max_items: 1
+    }];
+
+    // Optional caption rendered alongside the media
+    TextContent caption = 2;
+}
+
+message MediaItem {
+    // Client-provided handle to the blob holding the media bytes, already
+    // uploaded out-of-band via the blob service.
+    blob.v1.BlobId blob_id = 1 [(validate.rules).message.required = true];
+
+    // Server-authoritative blob metadata (mime type, size, download URL, and
+    // the kind-specific descriptors such as image dimensions/preview), resolved
+    // from the blob record. Omitted on SendMessage and populated on
+    // stored/returned messages.
+    blob.v1.BlobMetadata blob = 2;
+}
+
+// System message content
+message SystemContent {
+    // Best-effort, server-rendered text in the user's locale setting. Today this
+    // is the only way to display a system message; once the structured `event`
+    // oneof exists it becomes a fallback, rendered ONLY when the client does not
+    // recognize the variant (old client, new server). It is not localized per
+    // viewer — clients that know a variant render their own localized string.
+    string fallback_text = 1 [(validate.rules).string = {
+        min_len: 1
+        max_len: 256
+    }];
+
+    // todo: Define events once we have them
+}
+
+// Deleted message content
+message DeletedContent {
+    // Timestamp the message was deleted. Set whenever a message is tombstoned;
+    // clients can surface it as a "deleted" affordance. This is the deletion
+    // analog of Message.last_edited_ts, kept here so all deletion state lives in
+    // the content rather than as a separate flag on Message.
+    google.protobuf.Timestamp deleted_ts = 1 [(validate.rules).timestamp.required = true];
+
+    // When present, the user that deleted the message. If not present, a it is
+    // a system-level deletion (eg. moderation check).
+    common.v1.UserId deleted_by = 2;
+}
+
+// Emoji identifies an emoji used in a reaction. The value is a unicode emoji
+// sequence — a single grapheme cluster, which may include modifiers such as a
+// skin-tone selector or ZWJ joins — or a custom emoji identifier where
+// supported.
+message Emoji {
+    // Structural bounds only — these bound size as defense-in-depth (min_len/
+    // max_len count code points, max_bytes counts bytes; a complex ZWJ or
+    // tag-flag sequence is ~8 code points but ~32 bytes, so both earn their
+    // keep). True emoji validity (a real grapheme, normalization, any supported
+    // set) is enforced in server code, not here.
+    string value = 1 [(validate.rules).string = {
+        min_len: 1
+        max_len: 32
+        max_bytes: 128
+    }];
+}
+
+// Reactor identifies a user who reacted to a message and when they did so.
+message Reactor {
+    common.v1.UserId user_id = 1 [(validate.rules).message.required = true];
+
+    // Timestamp the user added this reaction.
+    google.protobuf.Timestamp reacted_ts = 2 [(validate.rules).timestamp.required = true];
+}
+
+// ReactionSummary is the aggregate reaction state attached to a message. It is
+// bounded: the number of distinct reaction types per message is capped, so the
+// summary stays small no matter how many users reacted. The full reactor list
+// for any emoji is fetched on demand (paged), never inlined here.
+message ReactionSummary {
+    // The message these reactions belong to.
+    MessageId message_id = 1 [(validate.rules).message.required = true];
+
+    // One entry per distinct emoji reacted to this message
+    repeated EmojiReaction reactions = 2;
+}
+
+// EmojiReaction aggregates all reactions of a single emoji on a message.
+message EmojiReaction {
+    // The emoji reacted with.
+    Emoji emoji = 1 [(validate.rules).message.required = true];
+
+    // Total number of users who reacted with this emoji. Authoritative and may
+    // be arbitrarily large; the individual reactor identities are not all
+    // returned here.
+    uint64 count = 2;
+
+    // Whether the requesting user reacted with this emoji. Per-viewer: count and
+    // sample_reactors are shareable across users, but this bit is computed for
+    // the caller.
+    bool reacted_by_self = 3;
+
+    // A small sample of reactors, with their reaction timestamps (e.g. for
+    // rendering a few avatars), capped well below count. The complete, paged
+    // reactor list is fetched on demand via GetReactors.
+    repeated Reactor sample_reactors = 4 [(validate.rules).repeated = {
+        max_items: 8 // Sample only; not the full list
+    }];
+
+    // Monotonic version of this emoji's aggregate on the message, assigned by
+    // the server and advanced on every change to it. Ordering only: clients
+    // apply reaction updates last-writer-wins by this value per (message, emoji)
+    // — and per actor for reacted_by_self — and treat a loaded summary as stale
+    // when a higher sequence arrives. It is NOT the chat event sequence
+    // (reactions never advance that), and it is NOT gapless: it carries no
+    // gap-detection meaning.
+    uint64 sequence = 5 [(validate.rules).uint64.gte = 1];
+}
+
+// ReactionUpdate is a best-effort, real-time reaction change for a single
+// (message, emoji) cell. Reactions are a convergent overlay, so these ride the
+// event stream OUTSIDE the gap-detected event log — a missed update is not
+// caught up via GetDelta but reconciled by refreshing the message's
+// ReactionSummary on view.
+message ReactionUpdate {
+    // The message whose reactions changed.
+    MessageId message_id = 1 [(validate.rules).message.required = true];
+
+    // The emoji that was added or removed.
+    Emoji emoji = 2 [(validate.rules).message.required = true];
+
+    // The user who added or removed the reaction. A client renders
+    // reacted_by_self by comparing this to itself, so a reaction made on the
+    // user's other device is reflected.
+    common.v1.UserId actor = 3 [(validate.rules).message.required = true];
+
+    Action action = 4 [(validate.rules).enum = {
+        not_in: [0]
+    }];
+    enum Action {
+        UNKNOWN = 0;
+        ADDED   = 1;
+        REMOVED = 2;
+    }
+
+    // The emoji's total reactor count after this change. 0 means no reactors
+    // remain and the client should drop the entry from the summary.
+    uint64 count = 5;
+
+    // The emoji aggregate's new version after this change. Clients apply
+    // last-writer-wins by this value: ignore the count if sequence <= the
+    // count watermark held, and ignore the actor's reacted_by_self toggle if
+    // sequence <= the per-actor watermark held. Matches EmojiReaction.sequence.
+    uint64 sequence = 6 [(validate.rules).uint64.gte = 1];
+
+    // When the actor reacted. On ADDED, clients record this as the actor's
+    // Reactor.reacted_ts (e.g. when slotting them into sample_reactors); ignored
+    // for REMOVED. This is a display timestamp, distinct from `sequence`, which
+    // is the ordering key.
+    google.protobuf.Timestamp reacted_ts = 7 [(validate.rules).timestamp.required = true];
+}
+
+message ReactionUpdateBatch {
+    repeated ReactionUpdate reaction_updates = 1 [(validate.rules).repeated = {
+        min_items: 1
+        max_items: 100
+    }];
 }
 
 // Pointer in a chat indicating a user's message history state in a chat.
@@ -136,6 +355,72 @@ message MessageBatch {
 
 message PointerBatch {
     repeated Pointer pointers = 1 [(validate.rules).repeated = {
+        min_items: 1
+        max_items: 100
+    }];
+}
+
+// Event is a contiguous run of one or more durable mutations to a chat, delivered
+// atomically — the unit of the chat's event log. Newly sent messages, edits,
+// and deletions are all mutations within an event.
+//
+// Only content-bearing, non-idempotent mutations live in the log, because that is
+// what gap detection protects: missing one means missing data. Convergent state
+// such as pointer advances (last-writer-wins, monotonic) and transient signals
+// such as typing notifications are delivered out-of-band and fetched as current
+// state, NOT replayed through this log.
+//
+// Clients apply events in ascending sequence order and use the sequence/count
+// pair to detect gaps; on a gap they catch up via GetDelta.
+message Event {
+    // Per-chat event sequence valued AFTER this event applies: the END of the
+    // half-open range (sequence - count, sequence] this event occupies. This is
+    // a SEPARATE sequence from MessageId — edits and deletions advance it
+    // without minting a new MessageId.
+    uint64 sequence = 1 [(validate.rules).uint64.gte = 1];
+
+    // The number of points this event consumes, equal to the number of
+    // mutations it carries — each mutation is one point. The mutation at index
+    // i sits at point (sequence - count + 1 + i). Clients gap-detect with
+    // local + count == sequence, so a server that begins emitting count > 1
+    // (e.g. a bulk delete) needs no client change.
+    uint32 count = 2 [(validate.rules).uint32.gte = 1];
+
+    // Timestamp this event occurred at.
+    google.protobuf.Timestamp ts = 3 [(validate.rules).timestamp.required = true];
+
+    // The mutations in this event, ascending by point. Length must equal count.
+    repeated Mutation mutations = 4 [(validate.rules).repeated = {
+        min_items: 1
+        max_items: 100
+    }];
+}
+
+// Mutation is a single point in the event log: one message sent, edited, or
+// deleted. Each carries the full materialized state of the affected message, so
+// clients apply it by inserting or replacing their cached copy without a
+// refetch.
+message Mutation {
+    oneof type {
+        option (validate.required) = true;
+
+        // A newly sent message. Inserts a new message_id at the tail of the
+        // chat. This is the only mutation that advances the MessageId sequence.
+        Message message_sent = 1;
+
+        // An edit to an existing message (same message_id, updated content,
+        // last_edited_ts set).
+        Message message_edited = 2;
+
+        // A deletion of an existing message (same message_id, content replaced
+        // with DeletedContent). The message_id is retained as a tombstone, so
+        // the MessageId sequence stays gapless.
+        Message message_deleted = 3;
+    }
+}
+
+message EventBatch {
+    repeated Event events = 1 [(validate.rules).repeated = {
         min_items: 1
         max_items: 100
     }];

@@ -230,7 +230,12 @@ public struct Flipcash_Event_V1_ChatUpdate: Sendable {
   /// Clears the value of `chat`. Subsequent reads from it will return its default value.
   public mutating func clearChat() {self._chat = nil}
 
-  /// If present, new real-time messages sent on the chat
+  /// If present, new real-time messages sent on the chat.
+  ///
+  /// Deprecated: superseded by `events` (Event.message_sent), which is
+  /// sequenced and gap-detectable. New messages now arrive as events.
+  ///
+  /// NOTE: This field was marked as deprecated in the .proto file.
   public var newMessages: Flipcash_Messaging_V1_MessageBatch {
     get {_newMessages ?? Flipcash_Messaging_V1_MessageBatch()}
     set {_newMessages = newValue}
@@ -240,7 +245,10 @@ public struct Flipcash_Event_V1_ChatUpdate: Sendable {
   /// Clears the value of `newMessages`. Subsequent reads from it will return its default value.
   public mutating func clearNewMessages() {self._newMessages = nil}
 
-  /// If present, message pointer updates for members in the chat
+  /// If present, message pointer updates for members in the chat. Pointers are
+  /// convergent (monotonic, last-writer-wins), so they ride the stream as a
+  /// best-effort overlay and are reconciled from current state on reconnect —
+  /// they are intentionally NOT part of the gap-detected event log.
   public var pointerUpdates: Flipcash_Messaging_V1_PointerBatch {
     get {_pointerUpdates ?? Flipcash_Messaging_V1_PointerBatch()}
     set {_pointerUpdates = newValue}
@@ -250,7 +258,8 @@ public struct Flipcash_Event_V1_ChatUpdate: Sendable {
   /// Clears the value of `pointerUpdates`. Subsequent reads from it will return its default value.
   public mutating func clearPointerUpdates() {self._pointerUpdates = nil}
 
-  /// If present, message typing notification state changes for members in the chat
+  /// If present, message typing notification state changes for members in the
+  /// chat. Transient and best-effort — not part of the event log.
   public var isTypingNotifications: Flipcash_Messaging_V1_IsTypingNotificationBatch {
     get {_isTypingNotifications ?? Flipcash_Messaging_V1_IsTypingNotificationBatch()}
     set {_isTypingNotifications = newValue}
@@ -263,6 +272,33 @@ public struct Flipcash_Event_V1_ChatUpdate: Sendable {
   /// If present, updates to the chat metadata
   public var metadataUpdates: [Flipcash_Chat_V1_MetadataUpdate] = []
 
+  /// If present, durable event-log events for the chat (messages sent, edited,
+  /// and deleted). These are contiguous and ordered: clients apply them by
+  /// ascending Event.sequence and gap-detect via Event.sequence/count, catching
+  /// up with Messaging.GetDelta on a gap. This supersedes new_messages.
+  public var events: Flipcash_Messaging_V1_EventBatch {
+    get {_events ?? Flipcash_Messaging_V1_EventBatch()}
+    set {_events = newValue}
+  }
+  /// Returns true if `events` has been explicitly set.
+  public var hasEvents: Bool {self._events != nil}
+  /// Clears the value of `events`. Subsequent reads from it will return its default value.
+  public mutating func clearEvents() {self._events = nil}
+
+  /// If present, best-effort real-time reaction changes for messages in the
+  /// chat. Like pointer_updates, reactions are a convergent overlay — NOT part
+  /// of the gap-detected event log; clients apply them last-writer-wins by
+  /// ReactionUpdate.sequence and reconcile any misses by refreshing a message's
+  /// ReactionSummary on view.
+  public var reactionUpdates: Flipcash_Messaging_V1_ReactionUpdateBatch {
+    get {_reactionUpdates ?? Flipcash_Messaging_V1_ReactionUpdateBatch()}
+    set {_reactionUpdates = newValue}
+  }
+  /// Returns true if `reactionUpdates` has been explicitly set.
+  public var hasReactionUpdates: Bool {self._reactionUpdates != nil}
+  /// Clears the value of `reactionUpdates`. Subsequent reads from it will return its default value.
+  public mutating func clearReactionUpdates() {self._reactionUpdates = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -271,6 +307,8 @@ public struct Flipcash_Event_V1_ChatUpdate: Sendable {
   fileprivate var _newMessages: Flipcash_Messaging_V1_MessageBatch? = nil
   fileprivate var _pointerUpdates: Flipcash_Messaging_V1_PointerBatch? = nil
   fileprivate var _isTypingNotifications: Flipcash_Messaging_V1_IsTypingNotificationBatch? = nil
+  fileprivate var _events: Flipcash_Messaging_V1_EventBatch? = nil
+  fileprivate var _reactionUpdates: Flipcash_Messaging_V1_ReactionUpdateBatch? = nil
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -593,7 +631,7 @@ extension Flipcash_Event_V1_ClientPong: SwiftProtobuf.Message, SwiftProtobuf._Me
 
 extension Flipcash_Event_V1_ChatUpdate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ChatUpdate"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}chat\0\u{3}new_messages\0\u{3}pointer_updates\0\u{3}is_typing_notifications\0\u{3}metadata_updates\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}chat\0\u{3}new_messages\0\u{3}pointer_updates\0\u{3}is_typing_notifications\0\u{3}metadata_updates\0\u{1}events\0\u{3}reaction_updates\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -606,6 +644,8 @@ extension Flipcash_Event_V1_ChatUpdate: SwiftProtobuf.Message, SwiftProtobuf._Me
       case 3: try { try decoder.decodeSingularMessageField(value: &self._pointerUpdates) }()
       case 4: try { try decoder.decodeSingularMessageField(value: &self._isTypingNotifications) }()
       case 5: try { try decoder.decodeRepeatedMessageField(value: &self.metadataUpdates) }()
+      case 6: try { try decoder.decodeSingularMessageField(value: &self._events) }()
+      case 7: try { try decoder.decodeSingularMessageField(value: &self._reactionUpdates) }()
       default: break
       }
     }
@@ -631,6 +671,12 @@ extension Flipcash_Event_V1_ChatUpdate: SwiftProtobuf.Message, SwiftProtobuf._Me
     if !self.metadataUpdates.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.metadataUpdates, fieldNumber: 5)
     }
+    try { if let v = self._events {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+    } }()
+    try { if let v = self._reactionUpdates {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -640,6 +686,8 @@ extension Flipcash_Event_V1_ChatUpdate: SwiftProtobuf.Message, SwiftProtobuf._Me
     if lhs._pointerUpdates != rhs._pointerUpdates {return false}
     if lhs._isTypingNotifications != rhs._isTypingNotifications {return false}
     if lhs.metadataUpdates != rhs.metadataUpdates {return false}
+    if lhs._events != rhs._events {return false}
+    if lhs._reactionUpdates != rhs._reactionUpdates {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

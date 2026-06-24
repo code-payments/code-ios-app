@@ -20,45 +20,65 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
-public struct Flipcash_Chat_V1_Metadata: Sendable {
+public struct Flipcash_Chat_V1_Metadata: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   public var chatID: Flipcash_Common_V1_ChatId {
-    get {_chatID ?? Flipcash_Common_V1_ChatId()}
-    set {_chatID = newValue}
+    get {_storage._chatID ?? Flipcash_Common_V1_ChatId()}
+    set {_uniqueStorage()._chatID = newValue}
   }
   /// Returns true if `chatID` has been explicitly set.
-  public var hasChatID: Bool {self._chatID != nil}
+  public var hasChatID: Bool {_storage._chatID != nil}
   /// Clears the value of `chatID`. Subsequent reads from it will return its default value.
-  public mutating func clearChatID() {self._chatID = nil}
+  public mutating func clearChatID() {_uniqueStorage()._chatID = nil}
 
   /// The type of chat
-  public var type: Flipcash_Chat_V1_Metadata.ChatType = .unknown
+  public var type: Flipcash_Chat_V1_Metadata.ChatType {
+    get {_storage._type}
+    set {_uniqueStorage()._type = newValue}
+  }
 
   /// Members of this chat
-  public var members: [Flipcash_Chat_V1_Member] = []
+  public var members: [Flipcash_Chat_V1_Member] {
+    get {_storage._members}
+    set {_uniqueStorage()._members = newValue}
+  }
 
   /// The last message in this chat
   public var lastMessage: Flipcash_Messaging_V1_Message {
-    get {_lastMessage ?? Flipcash_Messaging_V1_Message()}
-    set {_lastMessage = newValue}
+    get {_storage._lastMessage ?? Flipcash_Messaging_V1_Message()}
+    set {_uniqueStorage()._lastMessage = newValue}
   }
   /// Returns true if `lastMessage` has been explicitly set.
-  public var hasLastMessage: Bool {self._lastMessage != nil}
+  public var hasLastMessage: Bool {_storage._lastMessage != nil}
   /// Clears the value of `lastMessage`. Subsequent reads from it will return its default value.
-  public mutating func clearLastMessage() {self._lastMessage = nil}
+  public mutating func clearLastMessage() {_uniqueStorage()._lastMessage = nil}
 
   /// The timestamp of the last activity in this chat
   public var lastActivity: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {_lastActivity ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
-    set {_lastActivity = newValue}
+    get {_storage._lastActivity ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_uniqueStorage()._lastActivity = newValue}
   }
   /// Returns true if `lastActivity` has been explicitly set.
-  public var hasLastActivity: Bool {self._lastActivity != nil}
+  public var hasLastActivity: Bool {_storage._lastActivity != nil}
   /// Clears the value of `lastActivity`. Subsequent reads from it will return its default value.
-  public mutating func clearLastActivity() {self._lastActivity = nil}
+  public mutating func clearLastActivity() {_uniqueStorage()._lastActivity = nil}
+
+  /// The chat's head event sequence — the value of the most recent event in its
+  /// event log. A client compares this against its locally stored cursor for
+  /// the chat to decide whether catch-up is needed: if its cursor is behind, it
+  /// calls Messaging.GetDelta; if equal, it is current and can skip it.
+  ///
+  /// This is NOT derivable from last_message: an edit or deletion of an older
+  /// message advances the head without changing last_message, so this value can
+  /// exceed last_message.event_sequence. It is the same head reported by
+  /// GetDeltaResponse.latest_sequence.
+  public var latestEventSequence: UInt64 {
+    get {_storage._latestEventSequence}
+    set {_uniqueStorage()._latestEventSequence = newValue}
+  }
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -98,9 +118,7 @@ public struct Flipcash_Chat_V1_Metadata: Sendable {
 
   public init() {}
 
-  fileprivate var _chatID: Flipcash_Common_V1_ChatId? = nil
-  fileprivate var _lastMessage: Flipcash_Messaging_V1_Message? = nil
-  fileprivate var _lastActivity: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+  fileprivate var _storage = _StorageClass.defaultInstance
 }
 
 public struct Flipcash_Chat_V1_Member: Sendable {
@@ -226,53 +244,104 @@ fileprivate let _protobuf_package = "flipcash.chat.v1"
 
 extension Flipcash_Chat_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Metadata"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}chat_id\0\u{1}type\0\u{1}members\0\u{3}last_message\0\u{3}last_activity\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}chat_id\0\u{1}type\0\u{1}members\0\u{3}last_message\0\u{3}last_activity\0\u{3}latest_event_sequence\0")
+
+  fileprivate class _StorageClass {
+    var _chatID: Flipcash_Common_V1_ChatId? = nil
+    var _type: Flipcash_Chat_V1_Metadata.ChatType = .unknown
+    var _members: [Flipcash_Chat_V1_Member] = []
+    var _lastMessage: Flipcash_Messaging_V1_Message? = nil
+    var _lastActivity: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+    var _latestEventSequence: UInt64 = 0
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _chatID = source._chatID
+      _type = source._type
+      _members = source._members
+      _lastMessage = source._lastMessage
+      _lastActivity = source._lastActivity
+      _latestEventSequence = source._latestEventSequence
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._chatID) }()
-      case 2: try { try decoder.decodeSingularEnumField(value: &self.type) }()
-      case 3: try { try decoder.decodeRepeatedMessageField(value: &self.members) }()
-      case 4: try { try decoder.decodeSingularMessageField(value: &self._lastMessage) }()
-      case 5: try { try decoder.decodeSingularMessageField(value: &self._lastActivity) }()
-      default: break
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularMessageField(value: &_storage._chatID) }()
+        case 2: try { try decoder.decodeSingularEnumField(value: &_storage._type) }()
+        case 3: try { try decoder.decodeRepeatedMessageField(value: &_storage._members) }()
+        case 4: try { try decoder.decodeSingularMessageField(value: &_storage._lastMessage) }()
+        case 5: try { try decoder.decodeSingularMessageField(value: &_storage._lastActivity) }()
+        case 6: try { try decoder.decodeSingularUInt64Field(value: &_storage._latestEventSequence) }()
+        default: break
+        }
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._chatID {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    if self.type != .unknown {
-      try visitor.visitSingularEnumField(value: self.type, fieldNumber: 2)
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      try { if let v = _storage._chatID {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+      } }()
+      if _storage._type != .unknown {
+        try visitor.visitSingularEnumField(value: _storage._type, fieldNumber: 2)
+      }
+      if !_storage._members.isEmpty {
+        try visitor.visitRepeatedMessageField(value: _storage._members, fieldNumber: 3)
+      }
+      try { if let v = _storage._lastMessage {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+      } }()
+      try { if let v = _storage._lastActivity {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+      } }()
+      if _storage._latestEventSequence != 0 {
+        try visitor.visitSingularUInt64Field(value: _storage._latestEventSequence, fieldNumber: 6)
+      }
     }
-    if !self.members.isEmpty {
-      try visitor.visitRepeatedMessageField(value: self.members, fieldNumber: 3)
-    }
-    try { if let v = self._lastMessage {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
-    } }()
-    try { if let v = self._lastActivity {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
-    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipcash_Chat_V1_Metadata, rhs: Flipcash_Chat_V1_Metadata) -> Bool {
-    if lhs._chatID != rhs._chatID {return false}
-    if lhs.type != rhs.type {return false}
-    if lhs.members != rhs.members {return false}
-    if lhs._lastMessage != rhs._lastMessage {return false}
-    if lhs._lastActivity != rhs._lastActivity {return false}
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._chatID != rhs_storage._chatID {return false}
+        if _storage._type != rhs_storage._type {return false}
+        if _storage._members != rhs_storage._members {return false}
+        if _storage._lastMessage != rhs_storage._lastMessage {return false}
+        if _storage._lastActivity != rhs_storage._lastActivity {return false}
+        if _storage._latestEventSequence != rhs_storage._latestEventSequence {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

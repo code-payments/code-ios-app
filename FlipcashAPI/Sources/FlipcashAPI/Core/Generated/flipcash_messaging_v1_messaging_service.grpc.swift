@@ -26,10 +26,51 @@ public protocol Flipcash_Messaging_V1_MessagingClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> UnaryCall<Flipcash_Messaging_V1_GetMessagesRequest, Flipcash_Messaging_V1_GetMessagesResponse>
 
+  func getDelta(
+    _ request: Flipcash_Messaging_V1_GetDeltaRequest,
+    callOptions: CallOptions?,
+    handler: @escaping (Flipcash_Messaging_V1_GetDeltaResponse) -> Void
+  ) -> ServerStreamingCall<Flipcash_Messaging_V1_GetDeltaRequest, Flipcash_Messaging_V1_GetDeltaResponse>
+
   func sendMessage(
     _ request: Flipcash_Messaging_V1_SendMessageRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Flipcash_Messaging_V1_SendMessageRequest, Flipcash_Messaging_V1_SendMessageResponse>
+
+  func editMessage(
+    _ request: Flipcash_Messaging_V1_EditMessageRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Flipcash_Messaging_V1_EditMessageRequest, Flipcash_Messaging_V1_EditMessageResponse>
+
+  func deleteMessage(
+    _ request: Flipcash_Messaging_V1_DeleteMessageRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Flipcash_Messaging_V1_DeleteMessageRequest, Flipcash_Messaging_V1_DeleteMessageResponse>
+
+  func addReaction(
+    _ request: Flipcash_Messaging_V1_AddReactionRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Flipcash_Messaging_V1_AddReactionRequest, Flipcash_Messaging_V1_AddReactionResponse>
+
+  func removeReaction(
+    _ request: Flipcash_Messaging_V1_RemoveReactionRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Flipcash_Messaging_V1_RemoveReactionRequest, Flipcash_Messaging_V1_RemoveReactionResponse>
+
+  func getReactors(
+    _ request: Flipcash_Messaging_V1_GetReactorsRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Flipcash_Messaging_V1_GetReactorsRequest, Flipcash_Messaging_V1_GetReactorsResponse>
+
+  func getReactionSummary(
+    _ request: Flipcash_Messaging_V1_GetReactionSummaryRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Flipcash_Messaging_V1_GetReactionSummaryRequest, Flipcash_Messaging_V1_GetReactionSummaryResponse>
+
+  func getReactionSummaries(
+    _ request: Flipcash_Messaging_V1_GetReactionSummariesRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Flipcash_Messaging_V1_GetReactionSummariesRequest, Flipcash_Messaging_V1_GetReactionSummariesResponse>
 
   func advancePointer(
     _ request: Flipcash_Messaging_V1_AdvancePointerRequest,
@@ -65,7 +106,7 @@ extension Flipcash_Messaging_V1_MessagingClientProtocol {
     )
   }
 
-  /// GetMessages gets the set of messages for a chat using a paged and batched APIs
+  /// GetMessages gets the set of messages for a chat using paged and batched APIs
   ///
   /// - Parameters:
   ///   - request: Request to send to GetMessages.
@@ -80,6 +121,57 @@ extension Flipcash_Messaging_V1_MessagingClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetMessagesInterceptors() ?? []
+    )
+  }
+
+  /// GetDelta returns, for cold-boot and reconnect catch-up, the current state
+  /// of every message changed since the client's cursor, up to the chat's
+  /// current head. It is a state delta, not a contiguous replay: each changed
+  /// message appears once in its latest state and the client applies it
+  /// last-writer-wins. Transient signals (typing) and convergent state
+  /// (pointers, reactions) are fetched separately, not returned here.
+  ///
+  /// GetDelta always catches up to the head; there is no caller-specified
+  /// upper bound. An online client that detects a gap while already receiving
+  /// live updates does NOT bound the fetch: it calls GetDelta to the head and
+  /// lets last-writer-wins (Message.event_sequence) absorb the overlap with
+  /// live events buffered during the call — a message delivered by both paths
+  /// is applied once, newest wins. A client may also wait briefly for an
+  /// out-of-order live update to close a small gap before calling at all.
+  ///
+  /// On stream completion the client advances its cursor to the highest
+  /// checkpoint_sequence it received, which equals latest_sequence — the client
+  /// is now at the head. When the client is already current the server sends a
+  /// single response with messages omitted (and checkpoint_sequence unset),
+  /// leaving the cursor unchanged; latest_sequence still reports the head.
+  ///
+  /// This is a BOUNDED server stream: the server emits one or more batches and
+  /// then completes once the delta up to the head (as of stream open) is
+  /// exhausted. Unlike StreamEvents it does NOT stay open for live updates.
+  /// Streaming the delta in batches avoids a per-page round trip; the server may
+  /// currently send the whole delta as a single response, so clients must handle
+  /// any number of batches and treat stream completion as "caught up."
+  ///
+  /// The Result field is meaningful on the first response and is OK for
+  /// subsequent data batches; a terminal DENIED or RESET_REQUIRED is delivered
+  /// as a single response that ends the stream.
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to GetDelta.
+  ///   - callOptions: Call options.
+  ///   - handler: A closure called when each response is received from the server.
+  /// - Returns: A `ServerStreamingCall` with futures for the metadata and status.
+  public func getDelta(
+    _ request: Flipcash_Messaging_V1_GetDeltaRequest,
+    callOptions: CallOptions? = nil,
+    handler: @escaping (Flipcash_Messaging_V1_GetDeltaResponse) -> Void
+  ) -> ServerStreamingCall<Flipcash_Messaging_V1_GetDeltaRequest, Flipcash_Messaging_V1_GetDeltaResponse> {
+    return self.makeServerStreamingCall(
+      path: Flipcash_Messaging_V1_MessagingClientMetadata.Methods.getDelta.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetDeltaInterceptors() ?? [],
+      handler: handler
     )
   }
 
@@ -98,6 +190,142 @@ extension Flipcash_Messaging_V1_MessagingClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeSendMessageInterceptors() ?? []
+    )
+  }
+
+  /// EditMessage edits the content of a message the caller previously sent.
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to EditMessage.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func editMessage(
+    _ request: Flipcash_Messaging_V1_EditMessageRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Flipcash_Messaging_V1_EditMessageRequest, Flipcash_Messaging_V1_EditMessageResponse> {
+    return self.makeUnaryCall(
+      path: Flipcash_Messaging_V1_MessagingClientMetadata.Methods.editMessage.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeEditMessageInterceptors() ?? []
+    )
+  }
+
+  /// DeleteMessage deletes a message the caller previously sent. The message is
+  /// tombstoned (content replaced with DeletedContent), not removed, so the
+  /// per-chat MessageId sequence stays gapless.
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to DeleteMessage.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func deleteMessage(
+    _ request: Flipcash_Messaging_V1_DeleteMessageRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Flipcash_Messaging_V1_DeleteMessageRequest, Flipcash_Messaging_V1_DeleteMessageResponse> {
+    return self.makeUnaryCall(
+      path: Flipcash_Messaging_V1_MessagingClientMetadata.Methods.deleteMessage.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeDeleteMessageInterceptors() ?? []
+    )
+  }
+
+  /// AddReaction adds the caller's reaction with a given emoji to a message.
+  /// Idempotent: re-adding the same emoji the caller already reacted with is a
+  /// no-op success.
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to AddReaction.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func addReaction(
+    _ request: Flipcash_Messaging_V1_AddReactionRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Flipcash_Messaging_V1_AddReactionRequest, Flipcash_Messaging_V1_AddReactionResponse> {
+    return self.makeUnaryCall(
+      path: Flipcash_Messaging_V1_MessagingClientMetadata.Methods.addReaction.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeAddReactionInterceptors() ?? []
+    )
+  }
+
+  /// RemoveReaction removes the caller's reaction with a given emoji from a
+  /// message. Idempotent: removing a reaction the caller does not have is a
+  /// no-op success.
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to RemoveReaction.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func removeReaction(
+    _ request: Flipcash_Messaging_V1_RemoveReactionRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Flipcash_Messaging_V1_RemoveReactionRequest, Flipcash_Messaging_V1_RemoveReactionResponse> {
+    return self.makeUnaryCall(
+      path: Flipcash_Messaging_V1_MessagingClientMetadata.Methods.removeReaction.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeRemoveReactionInterceptors() ?? []
+    )
+  }
+
+  /// GetReactors returns the paged list of users who reacted to a message with
+  /// a given emoji — the on-demand drill-down behind EmojiReaction.count, which
+  /// never inlines the full reactor list.
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to GetReactors.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func getReactors(
+    _ request: Flipcash_Messaging_V1_GetReactorsRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Flipcash_Messaging_V1_GetReactorsRequest, Flipcash_Messaging_V1_GetReactorsResponse> {
+    return self.makeUnaryCall(
+      path: Flipcash_Messaging_V1_MessagingClientMetadata.Methods.getReactors.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetReactorsInterceptors() ?? []
+    )
+  }
+
+  /// GetReactionSummary fetches the current aggregate reaction state for a
+  /// single message.
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to GetReactionSummary.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func getReactionSummary(
+    _ request: Flipcash_Messaging_V1_GetReactionSummaryRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Flipcash_Messaging_V1_GetReactionSummaryRequest, Flipcash_Messaging_V1_GetReactionSummaryResponse> {
+    return self.makeUnaryCall(
+      path: Flipcash_Messaging_V1_MessagingClientMetadata.Methods.getReactionSummary.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetReactionSummaryInterceptors() ?? []
+    )
+  }
+
+  /// GetReactionSummaries fetches the current aggregate reaction state using
+  /// paged and batched APIs
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to GetReactionSummaries.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func getReactionSummaries(
+    _ request: Flipcash_Messaging_V1_GetReactionSummariesRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Flipcash_Messaging_V1_GetReactionSummariesRequest, Flipcash_Messaging_V1_GetReactionSummariesResponse> {
+    return self.makeUnaryCall(
+      path: Flipcash_Messaging_V1_MessagingClientMetadata.Methods.getReactionSummaries.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetReactionSummariesInterceptors() ?? []
     )
   }
 
@@ -212,10 +440,50 @@ public protocol Flipcash_Messaging_V1_MessagingAsyncClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Flipcash_Messaging_V1_GetMessagesRequest, Flipcash_Messaging_V1_GetMessagesResponse>
 
+  func makeGetDeltaCall(
+    _ request: Flipcash_Messaging_V1_GetDeltaRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncServerStreamingCall<Flipcash_Messaging_V1_GetDeltaRequest, Flipcash_Messaging_V1_GetDeltaResponse>
+
   func makeSendMessageCall(
     _ request: Flipcash_Messaging_V1_SendMessageRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Flipcash_Messaging_V1_SendMessageRequest, Flipcash_Messaging_V1_SendMessageResponse>
+
+  func makeEditMessageCall(
+    _ request: Flipcash_Messaging_V1_EditMessageRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Flipcash_Messaging_V1_EditMessageRequest, Flipcash_Messaging_V1_EditMessageResponse>
+
+  func makeDeleteMessageCall(
+    _ request: Flipcash_Messaging_V1_DeleteMessageRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Flipcash_Messaging_V1_DeleteMessageRequest, Flipcash_Messaging_V1_DeleteMessageResponse>
+
+  func makeAddReactionCall(
+    _ request: Flipcash_Messaging_V1_AddReactionRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Flipcash_Messaging_V1_AddReactionRequest, Flipcash_Messaging_V1_AddReactionResponse>
+
+  func makeRemoveReactionCall(
+    _ request: Flipcash_Messaging_V1_RemoveReactionRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Flipcash_Messaging_V1_RemoveReactionRequest, Flipcash_Messaging_V1_RemoveReactionResponse>
+
+  func makeGetReactorsCall(
+    _ request: Flipcash_Messaging_V1_GetReactorsRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Flipcash_Messaging_V1_GetReactorsRequest, Flipcash_Messaging_V1_GetReactorsResponse>
+
+  func makeGetReactionSummaryCall(
+    _ request: Flipcash_Messaging_V1_GetReactionSummaryRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Flipcash_Messaging_V1_GetReactionSummaryRequest, Flipcash_Messaging_V1_GetReactionSummaryResponse>
+
+  func makeGetReactionSummariesCall(
+    _ request: Flipcash_Messaging_V1_GetReactionSummariesRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Flipcash_Messaging_V1_GetReactionSummariesRequest, Flipcash_Messaging_V1_GetReactionSummariesResponse>
 
   func makeAdvancePointerCall(
     _ request: Flipcash_Messaging_V1_AdvancePointerRequest,
@@ -262,6 +530,18 @@ extension Flipcash_Messaging_V1_MessagingAsyncClientProtocol {
     )
   }
 
+  public func makeGetDeltaCall(
+    _ request: Flipcash_Messaging_V1_GetDeltaRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncServerStreamingCall<Flipcash_Messaging_V1_GetDeltaRequest, Flipcash_Messaging_V1_GetDeltaResponse> {
+    return self.makeAsyncServerStreamingCall(
+      path: Flipcash_Messaging_V1_MessagingClientMetadata.Methods.getDelta.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetDeltaInterceptors() ?? []
+    )
+  }
+
   public func makeSendMessageCall(
     _ request: Flipcash_Messaging_V1_SendMessageRequest,
     callOptions: CallOptions? = nil
@@ -271,6 +551,90 @@ extension Flipcash_Messaging_V1_MessagingAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeSendMessageInterceptors() ?? []
+    )
+  }
+
+  public func makeEditMessageCall(
+    _ request: Flipcash_Messaging_V1_EditMessageRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Flipcash_Messaging_V1_EditMessageRequest, Flipcash_Messaging_V1_EditMessageResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Flipcash_Messaging_V1_MessagingClientMetadata.Methods.editMessage.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeEditMessageInterceptors() ?? []
+    )
+  }
+
+  public func makeDeleteMessageCall(
+    _ request: Flipcash_Messaging_V1_DeleteMessageRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Flipcash_Messaging_V1_DeleteMessageRequest, Flipcash_Messaging_V1_DeleteMessageResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Flipcash_Messaging_V1_MessagingClientMetadata.Methods.deleteMessage.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeDeleteMessageInterceptors() ?? []
+    )
+  }
+
+  public func makeAddReactionCall(
+    _ request: Flipcash_Messaging_V1_AddReactionRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Flipcash_Messaging_V1_AddReactionRequest, Flipcash_Messaging_V1_AddReactionResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Flipcash_Messaging_V1_MessagingClientMetadata.Methods.addReaction.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeAddReactionInterceptors() ?? []
+    )
+  }
+
+  public func makeRemoveReactionCall(
+    _ request: Flipcash_Messaging_V1_RemoveReactionRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Flipcash_Messaging_V1_RemoveReactionRequest, Flipcash_Messaging_V1_RemoveReactionResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Flipcash_Messaging_V1_MessagingClientMetadata.Methods.removeReaction.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeRemoveReactionInterceptors() ?? []
+    )
+  }
+
+  public func makeGetReactorsCall(
+    _ request: Flipcash_Messaging_V1_GetReactorsRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Flipcash_Messaging_V1_GetReactorsRequest, Flipcash_Messaging_V1_GetReactorsResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Flipcash_Messaging_V1_MessagingClientMetadata.Methods.getReactors.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetReactorsInterceptors() ?? []
+    )
+  }
+
+  public func makeGetReactionSummaryCall(
+    _ request: Flipcash_Messaging_V1_GetReactionSummaryRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Flipcash_Messaging_V1_GetReactionSummaryRequest, Flipcash_Messaging_V1_GetReactionSummaryResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Flipcash_Messaging_V1_MessagingClientMetadata.Methods.getReactionSummary.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetReactionSummaryInterceptors() ?? []
+    )
+  }
+
+  public func makeGetReactionSummariesCall(
+    _ request: Flipcash_Messaging_V1_GetReactionSummariesRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Flipcash_Messaging_V1_GetReactionSummariesRequest, Flipcash_Messaging_V1_GetReactionSummariesResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Flipcash_Messaging_V1_MessagingClientMetadata.Methods.getReactionSummaries.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetReactionSummariesInterceptors() ?? []
     )
   }
 
@@ -325,6 +689,18 @@ extension Flipcash_Messaging_V1_MessagingAsyncClientProtocol {
     )
   }
 
+  public func getDelta(
+    _ request: Flipcash_Messaging_V1_GetDeltaRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncResponseStream<Flipcash_Messaging_V1_GetDeltaResponse> {
+    return self.performAsyncServerStreamingCall(
+      path: Flipcash_Messaging_V1_MessagingClientMetadata.Methods.getDelta.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetDeltaInterceptors() ?? []
+    )
+  }
+
   public func sendMessage(
     _ request: Flipcash_Messaging_V1_SendMessageRequest,
     callOptions: CallOptions? = nil
@@ -334,6 +710,90 @@ extension Flipcash_Messaging_V1_MessagingAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeSendMessageInterceptors() ?? []
+    )
+  }
+
+  public func editMessage(
+    _ request: Flipcash_Messaging_V1_EditMessageRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Flipcash_Messaging_V1_EditMessageResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Flipcash_Messaging_V1_MessagingClientMetadata.Methods.editMessage.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeEditMessageInterceptors() ?? []
+    )
+  }
+
+  public func deleteMessage(
+    _ request: Flipcash_Messaging_V1_DeleteMessageRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Flipcash_Messaging_V1_DeleteMessageResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Flipcash_Messaging_V1_MessagingClientMetadata.Methods.deleteMessage.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeDeleteMessageInterceptors() ?? []
+    )
+  }
+
+  public func addReaction(
+    _ request: Flipcash_Messaging_V1_AddReactionRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Flipcash_Messaging_V1_AddReactionResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Flipcash_Messaging_V1_MessagingClientMetadata.Methods.addReaction.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeAddReactionInterceptors() ?? []
+    )
+  }
+
+  public func removeReaction(
+    _ request: Flipcash_Messaging_V1_RemoveReactionRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Flipcash_Messaging_V1_RemoveReactionResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Flipcash_Messaging_V1_MessagingClientMetadata.Methods.removeReaction.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeRemoveReactionInterceptors() ?? []
+    )
+  }
+
+  public func getReactors(
+    _ request: Flipcash_Messaging_V1_GetReactorsRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Flipcash_Messaging_V1_GetReactorsResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Flipcash_Messaging_V1_MessagingClientMetadata.Methods.getReactors.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetReactorsInterceptors() ?? []
+    )
+  }
+
+  public func getReactionSummary(
+    _ request: Flipcash_Messaging_V1_GetReactionSummaryRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Flipcash_Messaging_V1_GetReactionSummaryResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Flipcash_Messaging_V1_MessagingClientMetadata.Methods.getReactionSummary.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetReactionSummaryInterceptors() ?? []
+    )
+  }
+
+  public func getReactionSummaries(
+    _ request: Flipcash_Messaging_V1_GetReactionSummariesRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Flipcash_Messaging_V1_GetReactionSummariesResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Flipcash_Messaging_V1_MessagingClientMetadata.Methods.getReactionSummaries.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetReactionSummariesInterceptors() ?? []
     )
   }
 
@@ -387,8 +847,32 @@ public protocol Flipcash_Messaging_V1_MessagingClientInterceptorFactoryProtocol:
   /// - Returns: Interceptors to use when invoking 'getMessages'.
   func makeGetMessagesInterceptors() -> [ClientInterceptor<Flipcash_Messaging_V1_GetMessagesRequest, Flipcash_Messaging_V1_GetMessagesResponse>]
 
+  /// - Returns: Interceptors to use when invoking 'getDelta'.
+  func makeGetDeltaInterceptors() -> [ClientInterceptor<Flipcash_Messaging_V1_GetDeltaRequest, Flipcash_Messaging_V1_GetDeltaResponse>]
+
   /// - Returns: Interceptors to use when invoking 'sendMessage'.
   func makeSendMessageInterceptors() -> [ClientInterceptor<Flipcash_Messaging_V1_SendMessageRequest, Flipcash_Messaging_V1_SendMessageResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'editMessage'.
+  func makeEditMessageInterceptors() -> [ClientInterceptor<Flipcash_Messaging_V1_EditMessageRequest, Flipcash_Messaging_V1_EditMessageResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'deleteMessage'.
+  func makeDeleteMessageInterceptors() -> [ClientInterceptor<Flipcash_Messaging_V1_DeleteMessageRequest, Flipcash_Messaging_V1_DeleteMessageResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'addReaction'.
+  func makeAddReactionInterceptors() -> [ClientInterceptor<Flipcash_Messaging_V1_AddReactionRequest, Flipcash_Messaging_V1_AddReactionResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'removeReaction'.
+  func makeRemoveReactionInterceptors() -> [ClientInterceptor<Flipcash_Messaging_V1_RemoveReactionRequest, Flipcash_Messaging_V1_RemoveReactionResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'getReactors'.
+  func makeGetReactorsInterceptors() -> [ClientInterceptor<Flipcash_Messaging_V1_GetReactorsRequest, Flipcash_Messaging_V1_GetReactorsResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'getReactionSummary'.
+  func makeGetReactionSummaryInterceptors() -> [ClientInterceptor<Flipcash_Messaging_V1_GetReactionSummaryRequest, Flipcash_Messaging_V1_GetReactionSummaryResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'getReactionSummaries'.
+  func makeGetReactionSummariesInterceptors() -> [ClientInterceptor<Flipcash_Messaging_V1_GetReactionSummariesRequest, Flipcash_Messaging_V1_GetReactionSummariesResponse>]
 
   /// - Returns: Interceptors to use when invoking 'advancePointer'.
   func makeAdvancePointerInterceptors() -> [ClientInterceptor<Flipcash_Messaging_V1_AdvancePointerRequest, Flipcash_Messaging_V1_AdvancePointerResponse>]
@@ -404,7 +888,15 @@ public enum Flipcash_Messaging_V1_MessagingClientMetadata {
     methods: [
       Flipcash_Messaging_V1_MessagingClientMetadata.Methods.getMessage,
       Flipcash_Messaging_V1_MessagingClientMetadata.Methods.getMessages,
+      Flipcash_Messaging_V1_MessagingClientMetadata.Methods.getDelta,
       Flipcash_Messaging_V1_MessagingClientMetadata.Methods.sendMessage,
+      Flipcash_Messaging_V1_MessagingClientMetadata.Methods.editMessage,
+      Flipcash_Messaging_V1_MessagingClientMetadata.Methods.deleteMessage,
+      Flipcash_Messaging_V1_MessagingClientMetadata.Methods.addReaction,
+      Flipcash_Messaging_V1_MessagingClientMetadata.Methods.removeReaction,
+      Flipcash_Messaging_V1_MessagingClientMetadata.Methods.getReactors,
+      Flipcash_Messaging_V1_MessagingClientMetadata.Methods.getReactionSummary,
+      Flipcash_Messaging_V1_MessagingClientMetadata.Methods.getReactionSummaries,
       Flipcash_Messaging_V1_MessagingClientMetadata.Methods.advancePointer,
       Flipcash_Messaging_V1_MessagingClientMetadata.Methods.notifyIsTyping,
     ]
@@ -423,9 +915,57 @@ public enum Flipcash_Messaging_V1_MessagingClientMetadata {
       type: GRPCCallType.unary
     )
 
+    public static let getDelta = GRPCMethodDescriptor(
+      name: "GetDelta",
+      path: "/flipcash.messaging.v1.Messaging/GetDelta",
+      type: GRPCCallType.serverStreaming
+    )
+
     public static let sendMessage = GRPCMethodDescriptor(
       name: "SendMessage",
       path: "/flipcash.messaging.v1.Messaging/SendMessage",
+      type: GRPCCallType.unary
+    )
+
+    public static let editMessage = GRPCMethodDescriptor(
+      name: "EditMessage",
+      path: "/flipcash.messaging.v1.Messaging/EditMessage",
+      type: GRPCCallType.unary
+    )
+
+    public static let deleteMessage = GRPCMethodDescriptor(
+      name: "DeleteMessage",
+      path: "/flipcash.messaging.v1.Messaging/DeleteMessage",
+      type: GRPCCallType.unary
+    )
+
+    public static let addReaction = GRPCMethodDescriptor(
+      name: "AddReaction",
+      path: "/flipcash.messaging.v1.Messaging/AddReaction",
+      type: GRPCCallType.unary
+    )
+
+    public static let removeReaction = GRPCMethodDescriptor(
+      name: "RemoveReaction",
+      path: "/flipcash.messaging.v1.Messaging/RemoveReaction",
+      type: GRPCCallType.unary
+    )
+
+    public static let getReactors = GRPCMethodDescriptor(
+      name: "GetReactors",
+      path: "/flipcash.messaging.v1.Messaging/GetReactors",
+      type: GRPCCallType.unary
+    )
+
+    public static let getReactionSummary = GRPCMethodDescriptor(
+      name: "GetReactionSummary",
+      path: "/flipcash.messaging.v1.Messaging/GetReactionSummary",
+      type: GRPCCallType.unary
+    )
+
+    public static let getReactionSummaries = GRPCMethodDescriptor(
+      name: "GetReactionSummaries",
+      path: "/flipcash.messaging.v1.Messaging/GetReactionSummaries",
       type: GRPCCallType.unary
     )
 
@@ -450,11 +990,75 @@ public protocol Flipcash_Messaging_V1_MessagingProvider: CallHandlerProvider {
   /// GetMessage gets a single message in a chat
   func getMessage(request: Flipcash_Messaging_V1_GetMessageRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipcash_Messaging_V1_GetMessageResponse>
 
-  /// GetMessages gets the set of messages for a chat using a paged and batched APIs
+  /// GetMessages gets the set of messages for a chat using paged and batched APIs
   func getMessages(request: Flipcash_Messaging_V1_GetMessagesRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipcash_Messaging_V1_GetMessagesResponse>
+
+  /// GetDelta returns, for cold-boot and reconnect catch-up, the current state
+  /// of every message changed since the client's cursor, up to the chat's
+  /// current head. It is a state delta, not a contiguous replay: each changed
+  /// message appears once in its latest state and the client applies it
+  /// last-writer-wins. Transient signals (typing) and convergent state
+  /// (pointers, reactions) are fetched separately, not returned here.
+  ///
+  /// GetDelta always catches up to the head; there is no caller-specified
+  /// upper bound. An online client that detects a gap while already receiving
+  /// live updates does NOT bound the fetch: it calls GetDelta to the head and
+  /// lets last-writer-wins (Message.event_sequence) absorb the overlap with
+  /// live events buffered during the call — a message delivered by both paths
+  /// is applied once, newest wins. A client may also wait briefly for an
+  /// out-of-order live update to close a small gap before calling at all.
+  ///
+  /// On stream completion the client advances its cursor to the highest
+  /// checkpoint_sequence it received, which equals latest_sequence — the client
+  /// is now at the head. When the client is already current the server sends a
+  /// single response with messages omitted (and checkpoint_sequence unset),
+  /// leaving the cursor unchanged; latest_sequence still reports the head.
+  ///
+  /// This is a BOUNDED server stream: the server emits one or more batches and
+  /// then completes once the delta up to the head (as of stream open) is
+  /// exhausted. Unlike StreamEvents it does NOT stay open for live updates.
+  /// Streaming the delta in batches avoids a per-page round trip; the server may
+  /// currently send the whole delta as a single response, so clients must handle
+  /// any number of batches and treat stream completion as "caught up."
+  ///
+  /// The Result field is meaningful on the first response and is OK for
+  /// subsequent data batches; a terminal DENIED or RESET_REQUIRED is delivered
+  /// as a single response that ends the stream.
+  func getDelta(request: Flipcash_Messaging_V1_GetDeltaRequest, context: StreamingResponseCallContext<Flipcash_Messaging_V1_GetDeltaResponse>) -> EventLoopFuture<GRPCStatus>
 
   /// SendMessage sends a message to a chat.
   func sendMessage(request: Flipcash_Messaging_V1_SendMessageRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipcash_Messaging_V1_SendMessageResponse>
+
+  /// EditMessage edits the content of a message the caller previously sent.
+  func editMessage(request: Flipcash_Messaging_V1_EditMessageRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipcash_Messaging_V1_EditMessageResponse>
+
+  /// DeleteMessage deletes a message the caller previously sent. The message is
+  /// tombstoned (content replaced with DeletedContent), not removed, so the
+  /// per-chat MessageId sequence stays gapless.
+  func deleteMessage(request: Flipcash_Messaging_V1_DeleteMessageRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipcash_Messaging_V1_DeleteMessageResponse>
+
+  /// AddReaction adds the caller's reaction with a given emoji to a message.
+  /// Idempotent: re-adding the same emoji the caller already reacted with is a
+  /// no-op success.
+  func addReaction(request: Flipcash_Messaging_V1_AddReactionRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipcash_Messaging_V1_AddReactionResponse>
+
+  /// RemoveReaction removes the caller's reaction with a given emoji from a
+  /// message. Idempotent: removing a reaction the caller does not have is a
+  /// no-op success.
+  func removeReaction(request: Flipcash_Messaging_V1_RemoveReactionRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipcash_Messaging_V1_RemoveReactionResponse>
+
+  /// GetReactors returns the paged list of users who reacted to a message with
+  /// a given emoji — the on-demand drill-down behind EmojiReaction.count, which
+  /// never inlines the full reactor list.
+  func getReactors(request: Flipcash_Messaging_V1_GetReactorsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipcash_Messaging_V1_GetReactorsResponse>
+
+  /// GetReactionSummary fetches the current aggregate reaction state for a
+  /// single message.
+  func getReactionSummary(request: Flipcash_Messaging_V1_GetReactionSummaryRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipcash_Messaging_V1_GetReactionSummaryResponse>
+
+  /// GetReactionSummaries fetches the current aggregate reaction state using
+  /// paged and batched APIs
+  func getReactionSummaries(request: Flipcash_Messaging_V1_GetReactionSummariesRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipcash_Messaging_V1_GetReactionSummariesResponse>
 
   /// AdvancePointer advances a pointer in message history for a chat member.
   func advancePointer(request: Flipcash_Messaging_V1_AdvancePointerRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipcash_Messaging_V1_AdvancePointerResponse>
@@ -495,6 +1099,15 @@ extension Flipcash_Messaging_V1_MessagingProvider {
         userFunction: self.getMessages(request:context:)
       )
 
+    case "GetDelta":
+      return ServerStreamingServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipcash_Messaging_V1_GetDeltaRequest>(),
+        responseSerializer: ProtobufSerializer<Flipcash_Messaging_V1_GetDeltaResponse>(),
+        interceptors: self.interceptors?.makeGetDeltaInterceptors() ?? [],
+        userFunction: self.getDelta(request:context:)
+      )
+
     case "SendMessage":
       return UnaryServerHandler(
         context: context,
@@ -502,6 +1115,69 @@ extension Flipcash_Messaging_V1_MessagingProvider {
         responseSerializer: ProtobufSerializer<Flipcash_Messaging_V1_SendMessageResponse>(),
         interceptors: self.interceptors?.makeSendMessageInterceptors() ?? [],
         userFunction: self.sendMessage(request:context:)
+      )
+
+    case "EditMessage":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipcash_Messaging_V1_EditMessageRequest>(),
+        responseSerializer: ProtobufSerializer<Flipcash_Messaging_V1_EditMessageResponse>(),
+        interceptors: self.interceptors?.makeEditMessageInterceptors() ?? [],
+        userFunction: self.editMessage(request:context:)
+      )
+
+    case "DeleteMessage":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipcash_Messaging_V1_DeleteMessageRequest>(),
+        responseSerializer: ProtobufSerializer<Flipcash_Messaging_V1_DeleteMessageResponse>(),
+        interceptors: self.interceptors?.makeDeleteMessageInterceptors() ?? [],
+        userFunction: self.deleteMessage(request:context:)
+      )
+
+    case "AddReaction":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipcash_Messaging_V1_AddReactionRequest>(),
+        responseSerializer: ProtobufSerializer<Flipcash_Messaging_V1_AddReactionResponse>(),
+        interceptors: self.interceptors?.makeAddReactionInterceptors() ?? [],
+        userFunction: self.addReaction(request:context:)
+      )
+
+    case "RemoveReaction":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipcash_Messaging_V1_RemoveReactionRequest>(),
+        responseSerializer: ProtobufSerializer<Flipcash_Messaging_V1_RemoveReactionResponse>(),
+        interceptors: self.interceptors?.makeRemoveReactionInterceptors() ?? [],
+        userFunction: self.removeReaction(request:context:)
+      )
+
+    case "GetReactors":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipcash_Messaging_V1_GetReactorsRequest>(),
+        responseSerializer: ProtobufSerializer<Flipcash_Messaging_V1_GetReactorsResponse>(),
+        interceptors: self.interceptors?.makeGetReactorsInterceptors() ?? [],
+        userFunction: self.getReactors(request:context:)
+      )
+
+    case "GetReactionSummary":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipcash_Messaging_V1_GetReactionSummaryRequest>(),
+        responseSerializer: ProtobufSerializer<Flipcash_Messaging_V1_GetReactionSummaryResponse>(),
+        interceptors: self.interceptors?.makeGetReactionSummaryInterceptors() ?? [],
+        userFunction: self.getReactionSummary(request:context:)
+      )
+
+    case "GetReactionSummaries":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipcash_Messaging_V1_GetReactionSummariesRequest>(),
+        responseSerializer: ProtobufSerializer<Flipcash_Messaging_V1_GetReactionSummariesResponse>(),
+        interceptors: self.interceptors?.makeGetReactionSummariesInterceptors() ?? [],
+        userFunction: self.getReactionSummaries(request:context:)
       )
 
     case "AdvancePointer":
@@ -540,17 +1216,106 @@ public protocol Flipcash_Messaging_V1_MessagingAsyncProvider: CallHandlerProvide
     context: GRPCAsyncServerCallContext
   ) async throws -> Flipcash_Messaging_V1_GetMessageResponse
 
-  /// GetMessages gets the set of messages for a chat using a paged and batched APIs
+  /// GetMessages gets the set of messages for a chat using paged and batched APIs
   func getMessages(
     request: Flipcash_Messaging_V1_GetMessagesRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Flipcash_Messaging_V1_GetMessagesResponse
+
+  /// GetDelta returns, for cold-boot and reconnect catch-up, the current state
+  /// of every message changed since the client's cursor, up to the chat's
+  /// current head. It is a state delta, not a contiguous replay: each changed
+  /// message appears once in its latest state and the client applies it
+  /// last-writer-wins. Transient signals (typing) and convergent state
+  /// (pointers, reactions) are fetched separately, not returned here.
+  ///
+  /// GetDelta always catches up to the head; there is no caller-specified
+  /// upper bound. An online client that detects a gap while already receiving
+  /// live updates does NOT bound the fetch: it calls GetDelta to the head and
+  /// lets last-writer-wins (Message.event_sequence) absorb the overlap with
+  /// live events buffered during the call — a message delivered by both paths
+  /// is applied once, newest wins. A client may also wait briefly for an
+  /// out-of-order live update to close a small gap before calling at all.
+  ///
+  /// On stream completion the client advances its cursor to the highest
+  /// checkpoint_sequence it received, which equals latest_sequence — the client
+  /// is now at the head. When the client is already current the server sends a
+  /// single response with messages omitted (and checkpoint_sequence unset),
+  /// leaving the cursor unchanged; latest_sequence still reports the head.
+  ///
+  /// This is a BOUNDED server stream: the server emits one or more batches and
+  /// then completes once the delta up to the head (as of stream open) is
+  /// exhausted. Unlike StreamEvents it does NOT stay open for live updates.
+  /// Streaming the delta in batches avoids a per-page round trip; the server may
+  /// currently send the whole delta as a single response, so clients must handle
+  /// any number of batches and treat stream completion as "caught up."
+  ///
+  /// The Result field is meaningful on the first response and is OK for
+  /// subsequent data batches; a terminal DENIED or RESET_REQUIRED is delivered
+  /// as a single response that ends the stream.
+  func getDelta(
+    request: Flipcash_Messaging_V1_GetDeltaRequest,
+    responseStream: GRPCAsyncResponseStreamWriter<Flipcash_Messaging_V1_GetDeltaResponse>,
+    context: GRPCAsyncServerCallContext
+  ) async throws
 
   /// SendMessage sends a message to a chat.
   func sendMessage(
     request: Flipcash_Messaging_V1_SendMessageRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Flipcash_Messaging_V1_SendMessageResponse
+
+  /// EditMessage edits the content of a message the caller previously sent.
+  func editMessage(
+    request: Flipcash_Messaging_V1_EditMessageRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Flipcash_Messaging_V1_EditMessageResponse
+
+  /// DeleteMessage deletes a message the caller previously sent. The message is
+  /// tombstoned (content replaced with DeletedContent), not removed, so the
+  /// per-chat MessageId sequence stays gapless.
+  func deleteMessage(
+    request: Flipcash_Messaging_V1_DeleteMessageRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Flipcash_Messaging_V1_DeleteMessageResponse
+
+  /// AddReaction adds the caller's reaction with a given emoji to a message.
+  /// Idempotent: re-adding the same emoji the caller already reacted with is a
+  /// no-op success.
+  func addReaction(
+    request: Flipcash_Messaging_V1_AddReactionRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Flipcash_Messaging_V1_AddReactionResponse
+
+  /// RemoveReaction removes the caller's reaction with a given emoji from a
+  /// message. Idempotent: removing a reaction the caller does not have is a
+  /// no-op success.
+  func removeReaction(
+    request: Flipcash_Messaging_V1_RemoveReactionRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Flipcash_Messaging_V1_RemoveReactionResponse
+
+  /// GetReactors returns the paged list of users who reacted to a message with
+  /// a given emoji — the on-demand drill-down behind EmojiReaction.count, which
+  /// never inlines the full reactor list.
+  func getReactors(
+    request: Flipcash_Messaging_V1_GetReactorsRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Flipcash_Messaging_V1_GetReactorsResponse
+
+  /// GetReactionSummary fetches the current aggregate reaction state for a
+  /// single message.
+  func getReactionSummary(
+    request: Flipcash_Messaging_V1_GetReactionSummaryRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Flipcash_Messaging_V1_GetReactionSummaryResponse
+
+  /// GetReactionSummaries fetches the current aggregate reaction state using
+  /// paged and batched APIs
+  func getReactionSummaries(
+    request: Flipcash_Messaging_V1_GetReactionSummariesRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Flipcash_Messaging_V1_GetReactionSummariesResponse
 
   /// AdvancePointer advances a pointer in message history for a chat member.
   func advancePointer(
@@ -604,6 +1369,15 @@ extension Flipcash_Messaging_V1_MessagingAsyncProvider {
         wrapping: { try await self.getMessages(request: $0, context: $1) }
       )
 
+    case "GetDelta":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipcash_Messaging_V1_GetDeltaRequest>(),
+        responseSerializer: ProtobufSerializer<Flipcash_Messaging_V1_GetDeltaResponse>(),
+        interceptors: self.interceptors?.makeGetDeltaInterceptors() ?? [],
+        wrapping: { try await self.getDelta(request: $0, responseStream: $1, context: $2) }
+      )
+
     case "SendMessage":
       return GRPCAsyncServerHandler(
         context: context,
@@ -611,6 +1385,69 @@ extension Flipcash_Messaging_V1_MessagingAsyncProvider {
         responseSerializer: ProtobufSerializer<Flipcash_Messaging_V1_SendMessageResponse>(),
         interceptors: self.interceptors?.makeSendMessageInterceptors() ?? [],
         wrapping: { try await self.sendMessage(request: $0, context: $1) }
+      )
+
+    case "EditMessage":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipcash_Messaging_V1_EditMessageRequest>(),
+        responseSerializer: ProtobufSerializer<Flipcash_Messaging_V1_EditMessageResponse>(),
+        interceptors: self.interceptors?.makeEditMessageInterceptors() ?? [],
+        wrapping: { try await self.editMessage(request: $0, context: $1) }
+      )
+
+    case "DeleteMessage":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipcash_Messaging_V1_DeleteMessageRequest>(),
+        responseSerializer: ProtobufSerializer<Flipcash_Messaging_V1_DeleteMessageResponse>(),
+        interceptors: self.interceptors?.makeDeleteMessageInterceptors() ?? [],
+        wrapping: { try await self.deleteMessage(request: $0, context: $1) }
+      )
+
+    case "AddReaction":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipcash_Messaging_V1_AddReactionRequest>(),
+        responseSerializer: ProtobufSerializer<Flipcash_Messaging_V1_AddReactionResponse>(),
+        interceptors: self.interceptors?.makeAddReactionInterceptors() ?? [],
+        wrapping: { try await self.addReaction(request: $0, context: $1) }
+      )
+
+    case "RemoveReaction":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipcash_Messaging_V1_RemoveReactionRequest>(),
+        responseSerializer: ProtobufSerializer<Flipcash_Messaging_V1_RemoveReactionResponse>(),
+        interceptors: self.interceptors?.makeRemoveReactionInterceptors() ?? [],
+        wrapping: { try await self.removeReaction(request: $0, context: $1) }
+      )
+
+    case "GetReactors":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipcash_Messaging_V1_GetReactorsRequest>(),
+        responseSerializer: ProtobufSerializer<Flipcash_Messaging_V1_GetReactorsResponse>(),
+        interceptors: self.interceptors?.makeGetReactorsInterceptors() ?? [],
+        wrapping: { try await self.getReactors(request: $0, context: $1) }
+      )
+
+    case "GetReactionSummary":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipcash_Messaging_V1_GetReactionSummaryRequest>(),
+        responseSerializer: ProtobufSerializer<Flipcash_Messaging_V1_GetReactionSummaryResponse>(),
+        interceptors: self.interceptors?.makeGetReactionSummaryInterceptors() ?? [],
+        wrapping: { try await self.getReactionSummary(request: $0, context: $1) }
+      )
+
+    case "GetReactionSummaries":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipcash_Messaging_V1_GetReactionSummariesRequest>(),
+        responseSerializer: ProtobufSerializer<Flipcash_Messaging_V1_GetReactionSummariesResponse>(),
+        interceptors: self.interceptors?.makeGetReactionSummariesInterceptors() ?? [],
+        wrapping: { try await self.getReactionSummaries(request: $0, context: $1) }
       )
 
     case "AdvancePointer":
@@ -647,9 +1484,41 @@ public protocol Flipcash_Messaging_V1_MessagingServerInterceptorFactoryProtocol:
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeGetMessagesInterceptors() -> [ServerInterceptor<Flipcash_Messaging_V1_GetMessagesRequest, Flipcash_Messaging_V1_GetMessagesResponse>]
 
+  /// - Returns: Interceptors to use when handling 'getDelta'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeGetDeltaInterceptors() -> [ServerInterceptor<Flipcash_Messaging_V1_GetDeltaRequest, Flipcash_Messaging_V1_GetDeltaResponse>]
+
   /// - Returns: Interceptors to use when handling 'sendMessage'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeSendMessageInterceptors() -> [ServerInterceptor<Flipcash_Messaging_V1_SendMessageRequest, Flipcash_Messaging_V1_SendMessageResponse>]
+
+  /// - Returns: Interceptors to use when handling 'editMessage'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeEditMessageInterceptors() -> [ServerInterceptor<Flipcash_Messaging_V1_EditMessageRequest, Flipcash_Messaging_V1_EditMessageResponse>]
+
+  /// - Returns: Interceptors to use when handling 'deleteMessage'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeDeleteMessageInterceptors() -> [ServerInterceptor<Flipcash_Messaging_V1_DeleteMessageRequest, Flipcash_Messaging_V1_DeleteMessageResponse>]
+
+  /// - Returns: Interceptors to use when handling 'addReaction'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeAddReactionInterceptors() -> [ServerInterceptor<Flipcash_Messaging_V1_AddReactionRequest, Flipcash_Messaging_V1_AddReactionResponse>]
+
+  /// - Returns: Interceptors to use when handling 'removeReaction'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeRemoveReactionInterceptors() -> [ServerInterceptor<Flipcash_Messaging_V1_RemoveReactionRequest, Flipcash_Messaging_V1_RemoveReactionResponse>]
+
+  /// - Returns: Interceptors to use when handling 'getReactors'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeGetReactorsInterceptors() -> [ServerInterceptor<Flipcash_Messaging_V1_GetReactorsRequest, Flipcash_Messaging_V1_GetReactorsResponse>]
+
+  /// - Returns: Interceptors to use when handling 'getReactionSummary'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeGetReactionSummaryInterceptors() -> [ServerInterceptor<Flipcash_Messaging_V1_GetReactionSummaryRequest, Flipcash_Messaging_V1_GetReactionSummaryResponse>]
+
+  /// - Returns: Interceptors to use when handling 'getReactionSummaries'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeGetReactionSummariesInterceptors() -> [ServerInterceptor<Flipcash_Messaging_V1_GetReactionSummariesRequest, Flipcash_Messaging_V1_GetReactionSummariesResponse>]
 
   /// - Returns: Interceptors to use when handling 'advancePointer'.
   ///   Defaults to calling `self.makeInterceptors()`.
@@ -667,7 +1536,15 @@ public enum Flipcash_Messaging_V1_MessagingServerMetadata {
     methods: [
       Flipcash_Messaging_V1_MessagingServerMetadata.Methods.getMessage,
       Flipcash_Messaging_V1_MessagingServerMetadata.Methods.getMessages,
+      Flipcash_Messaging_V1_MessagingServerMetadata.Methods.getDelta,
       Flipcash_Messaging_V1_MessagingServerMetadata.Methods.sendMessage,
+      Flipcash_Messaging_V1_MessagingServerMetadata.Methods.editMessage,
+      Flipcash_Messaging_V1_MessagingServerMetadata.Methods.deleteMessage,
+      Flipcash_Messaging_V1_MessagingServerMetadata.Methods.addReaction,
+      Flipcash_Messaging_V1_MessagingServerMetadata.Methods.removeReaction,
+      Flipcash_Messaging_V1_MessagingServerMetadata.Methods.getReactors,
+      Flipcash_Messaging_V1_MessagingServerMetadata.Methods.getReactionSummary,
+      Flipcash_Messaging_V1_MessagingServerMetadata.Methods.getReactionSummaries,
       Flipcash_Messaging_V1_MessagingServerMetadata.Methods.advancePointer,
       Flipcash_Messaging_V1_MessagingServerMetadata.Methods.notifyIsTyping,
     ]
@@ -686,9 +1563,57 @@ public enum Flipcash_Messaging_V1_MessagingServerMetadata {
       type: GRPCCallType.unary
     )
 
+    public static let getDelta = GRPCMethodDescriptor(
+      name: "GetDelta",
+      path: "/flipcash.messaging.v1.Messaging/GetDelta",
+      type: GRPCCallType.serverStreaming
+    )
+
     public static let sendMessage = GRPCMethodDescriptor(
       name: "SendMessage",
       path: "/flipcash.messaging.v1.Messaging/SendMessage",
+      type: GRPCCallType.unary
+    )
+
+    public static let editMessage = GRPCMethodDescriptor(
+      name: "EditMessage",
+      path: "/flipcash.messaging.v1.Messaging/EditMessage",
+      type: GRPCCallType.unary
+    )
+
+    public static let deleteMessage = GRPCMethodDescriptor(
+      name: "DeleteMessage",
+      path: "/flipcash.messaging.v1.Messaging/DeleteMessage",
+      type: GRPCCallType.unary
+    )
+
+    public static let addReaction = GRPCMethodDescriptor(
+      name: "AddReaction",
+      path: "/flipcash.messaging.v1.Messaging/AddReaction",
+      type: GRPCCallType.unary
+    )
+
+    public static let removeReaction = GRPCMethodDescriptor(
+      name: "RemoveReaction",
+      path: "/flipcash.messaging.v1.Messaging/RemoveReaction",
+      type: GRPCCallType.unary
+    )
+
+    public static let getReactors = GRPCMethodDescriptor(
+      name: "GetReactors",
+      path: "/flipcash.messaging.v1.Messaging/GetReactors",
+      type: GRPCCallType.unary
+    )
+
+    public static let getReactionSummary = GRPCMethodDescriptor(
+      name: "GetReactionSummary",
+      path: "/flipcash.messaging.v1.Messaging/GetReactionSummary",
+      type: GRPCCallType.unary
+    )
+
+    public static let getReactionSummaries = GRPCMethodDescriptor(
+      name: "GetReactionSummaries",
+      path: "/flipcash.messaging.v1.Messaging/GetReactionSummaries",
       type: GRPCCallType.unary
     )
 
