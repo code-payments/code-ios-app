@@ -79,16 +79,11 @@ public final class ChatCashCardCell: UICollectionViewCell {
         leadingConstraint = column.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12)
         trailingConstraint = column.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12)
 
-        // The card has a fixed height, so pinning the column to both the top and bottom of the
-        // contentView would conflict with ChatLayout's estimated cell height during the first
-        // (pre-self-sizing) layout pass. The bottom pin yields (priority 999) to that estimate,
-        // avoiding an unsatisfiable-constraints break while still driving the cell to self-size.
-        let columnBottom = column.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
-        columnBottom.priority = UILayoutPriority(999)
-
+        // The column pins top and bottom to the contentView so the cell self-sizes to the fixed-height
+        // card plus the receipt line below it.
         NSLayoutConstraint.activate([
             column.topAnchor.constraint(equalTo: contentView.topAnchor),
-            columnBottom,
+            column.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
             card.widthAnchor.constraint(equalToConstant: Self.cardSize.width),
             card.heightAnchor.constraint(equalToConstant: Self.cardSize.height),
 
@@ -120,17 +115,6 @@ public final class ChatCashCardCell: UICollectionViewCell {
         super.prepareForReuse()
         iconTask?.cancel()
         coinIcon.image = nil
-    }
-
-    /// The card is a fixed height, so supply it directly rather than letting the cell self-size.
-    /// An inserted cell is placed at ChatLayout's small estimate and is supposed to self-size up on
-    /// the next pass — but iOS 26 skips that pass during an animated batch update, leaving the card
-    /// clipped to the estimate (the bottom pin is only priority 999, so nothing forces the height).
-    /// Returning the height here makes it deterministic. Per ChatLayout's contract, do NOT call
-    /// `super` — it re-measures via Auto Layout and re-trips the estimate-vs-999 conflict.
-    public override func preferredLayoutAttributesFitting(_ layoutAttributes: UICollectionViewLayoutAttributes) -> UICollectionViewLayoutAttributes {
-        layoutAttributes.frame.size.height = Self.cardSize.height
-        return layoutAttributes
     }
 
     public func configure(with message: ChatMessage) {
