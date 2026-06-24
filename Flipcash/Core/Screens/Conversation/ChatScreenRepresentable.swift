@@ -64,10 +64,23 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         let newLastMessage = lastMessage(of: items)
         let newLastMessageID = newLastMessage?.id
         let lastIsOwnMessage = if case .message(let message) = newLastMessage { message.sender == .me } else { false }
-        let appendedOwn = newLastMessageID != context.coordinator.lastMessageID && lastIsOwnMessage
+        let trailingMessageChanged = newLastMessageID != context.coordinator.lastMessageID
+        let appendedOwn = trailingMessageChanged && lastIsOwnMessage
+        // A message arrived from the other side while this conversation is the one on screen — buzz.
+        // Guarded against the initial population (no prior id), receipt-only updates (the trailing id
+        // is unchanged), and the chat not being the visible conversation, so it only fires for a
+        // genuine live arrival the user is looking at.
+        let receivedNew = trailingMessageChanged
+            && context.coordinator.lastMessageID != nil
+            && newLastMessageID != nil
+            && !lastIsOwnMessage
+            && conversationController.visibleConversationID == conversationID
         screen.update(items: items)
         if appendedOwn {
             screen.scrollToBottom(animated: true)
+        }
+        if receivedNew {
+            Haptics.soft()
         }
         context.coordinator.lastMessageID = newLastMessageID
     }

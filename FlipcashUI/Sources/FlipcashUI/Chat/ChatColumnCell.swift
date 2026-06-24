@@ -41,10 +41,30 @@ public class ChatColumnCell: UICollectionViewCell {
 
     /// Sets the receipt line and hugs the column to the sender's edge. Call from `configure`.
     func updateColumn(for message: ChatMessage) {
-        receipt.text = message.receipt
-        receipt.isHidden = message.receipt == nil
+        // A cell already in the window is being reconfigured in place (Delivered→Read, or the line
+        // clearing as a newer sent message takes it over), so cross-fade the change. A freshly
+        // dequeued cell isn't in the window yet, so it's set without animation — a scroll-in or a
+        // send shouldn't flash the line.
+        setReceipt(message.receipt, animated: window != nil)
         column.alignment = message.sender == .me ? .trailing : .leading
         applyAlignment(isFromSelf: message.sender == .me)
+    }
+
+    private func setReceipt(_ text: String?, animated: Bool) {
+        guard receipt.text != text else { return }
+        // Cross-fade the line in (nil→text) and across the Delivered→Read swap; let it snap away when
+        // it clears so the row collapses in step with the batch update rather than after the fade. The
+        // visibility change is applied synchronously, outside the transition, so the cell's self-sized
+        // height never lags the cross-fade.
+        if animated, text != nil {
+            receipt.isHidden = false
+            UIView.transition(with: receipt, duration: 0.25, options: .transitionCrossDissolve) {
+                self.receipt.text = text
+            }
+        } else {
+            receipt.text = text
+            receipt.isHidden = text == nil
+        }
     }
 
     /// Exactly one horizontal edge is pinned, so the column hugs its sender's side and the opposite
