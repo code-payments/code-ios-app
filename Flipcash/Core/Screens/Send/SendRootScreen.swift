@@ -13,6 +13,7 @@ struct SendRootScreen: View {
 
     @Environment(Session.self) private var session
     @Environment(ContactSyncController.self) private var contactSyncController
+    @Environment(ConversationController.self) private var conversationController
     @Environment(AppRouter.self) private var router
 
     @State private var phoneVerificationViewModel: PhoneVerificationViewModel?
@@ -83,6 +84,8 @@ struct SendRootScreen: View {
                                 onAllowed: { contactSyncController.activate() },
                                 onSkipped: nil
                             )
+                        case .deniedNoRecents:
+                            DeniedAccessEmptyState()
                         case .ready:
                             EmptyView()
                         }
@@ -128,6 +131,7 @@ struct SendRootScreen: View {
         case needsPhone
         case loading
         case needsContacts
+        case deniedNoRecents
         case ready(RecipientContactAccess)
     }
 
@@ -144,9 +148,15 @@ struct SendRootScreen: View {
         }
         switch access {
         case .denied:
-            // Contacts are unavailable, but existing conversations aren't — drop
-            // into the picker so it can show them alongside the CTA card.
-            return .ready(access)
+            // Contacts are unavailable. With recent chats, drop into the picker
+            // so it shows them alongside the CTA card; with none, show the
+            // full-screen pitch instead — but wait out the first-login feed load
+            // so an in-flight fetch doesn't flash the empty state before its
+            // conversations arrive.
+            guard conversationController.conversations.isEmpty else {
+                return .ready(access)
+            }
+            return conversationController.isLoadingFeed ? .loading : .deniedNoRecents
         case .full, .limited:
             return contactSyncController.isDirectoryReady ? .ready(access) : .loading
         }
