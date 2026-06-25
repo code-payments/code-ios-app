@@ -21,8 +21,8 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
     private let chat = ChatViewController()
     private var statusLabel: UILabel?
 
-    /// Mirrors the app's "background" color asset (display-P3 25,25,26). Hardcoded because
-    /// that asset lives in the app bundle, so `Color("background")` can't resolve it here.
+    /// The dark "background" color (display-P3 25,25,26), hardcoded because the matching asset
+    /// lives in the app bundle and can't resolve from this extension.
     private static let chatBackground = UIColor(
         displayP3Red: 25 / 255, green: 25 / 255, blue: 26 / 255, alpha: 1
     )
@@ -42,6 +42,13 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
     /// True once messages have been rendered, so polling/reply failures don't clobber them
     /// and the panel sizing kicks in.
     private var hasContent = false
+    /// Resolved token branding (name + coin icon) keyed by mint, so cash bubbles read "Jeffy"
+    /// with its icon. Cached across polls so each mint is fetched at most once.
+    private var mintBranding: [PublicKey: (name: String, iconURL: URL?)] = [:]
+    /// Serializes `loadMessages`: the initial load and the 2.5s poll otherwise interleave their
+    /// `chat.update` calls when a fetch is slow, and overlapping transcript reloads corrupt the
+    /// diff and blank the panel.
+    private var isLoading = false
 
     // MARK: - Lifecycle -
 
@@ -147,6 +154,9 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
     /// (the poll does); a transient failure keeps whatever is already shown.
     @MainActor
     private func loadMessages() async {
+        guard !isLoading else { return }
+        isLoading = true
+        defer { isLoading = false }
         guard let conversationID, let ownerKeyPair, let selfUserID else { return }
         do {
             let messages = try await client.getMessages(
@@ -159,15 +169,49 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
             } else {
                 clearStatusLabel()
                 hasContent = true
-                chat.update(items: ChatItem.preview(from: messages, selfUserID: selfUserID, limit: Self.previewLimit))
-                // The transcript lays out asynchronously and the parent won't re-lay out on
-                // its own, so force the layout now and size the panel to the real content.
-                chat.collectionView.layoutIfNeeded()
-                updatePanelSize()
+                // Render immediately with whatever names are cached (currency-code fallback for
+                // any new mint), then resolve missing token names over the network and re-render
+                // so they swap in — the bubble is never gated on that round-trip.
+                render(messages, selfUserID: selfUserID)
+                if await resolveMintBranding(in: messages) {
+                    render(messages, selfUserID: selfUserID)
+                }
             }
         } catch {
             if !hasContent { showStatusLabel("Couldn't load messages") }
         }
+    }
+
+    private func render(_ messages: [ConversationMessage], selfUserID: UserID) {
+        chat.update(items: ChatItem.preview(
+            from: messages,
+            selfUserID: selfUserID,
+            limit: Self.previewLimit,
+            mintBranding: mintBranding
+        ), animated: false)
+        // The transcript lays out asynchronously and the parent won't re-lay out on its
+        // own, so force the layout now and size the panel to the real content.
+        chat.collectionView.layoutIfNeeded()
+        updatePanelSize()
+    }
+
+    /// Resolves token branding (name + icon) for cash mints not already cached, over the network —
+    /// the extension has no SQLite mint cache, so it asks the server directly. Returns true if the
+    /// cache changed (caller re-renders). Best-effort: a failed lookup leaves the row unbranded.
+    @MainActor
+    private func resolveMintBranding(in messages: [ConversationMessage]) async -> Bool {
+        let unresolved = Set(messages.compactMap { message -> PublicKey? in
+            guard case .cash(let fiat) = message.content, mintBranding[fiat.mint] == nil else { return nil }
+            return fiat.mint
+        })
+        guard !unresolved.isEmpty else { return false }
+        guard let resolved = try? await client.fetchMintMetadata(for: Array(unresolved)), !resolved.isEmpty else {
+            return false
+        }
+        for (mint, metadata) in resolved {
+            mintBranding[mint] = (name: metadata.name, iconURL: metadata.imageURL)
+        }
+        return true
     }
 
     private func startPolling() {

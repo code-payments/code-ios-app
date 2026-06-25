@@ -236,9 +236,9 @@ struct DeepLinkAction {
         case .chatSendCash(let conversationID):
             if case .loggedIn(let container) = sessionAuthenticator.state {
                 let conversation = container.conversationController.conversation(withID: conversationID)
-                if let target = ChatNotificationRouter.sendTarget(
-                    forChatID: conversationID,
-                    conversation: conversation,
+                if let target = ResolvedContact.sendTarget(
+                    in: conversation,
+                    dmChatID: conversationID.data,
                     selfUserID: container.session.userID
                 ), container.session.canSend {
                     Analytics.deeplinkRouted(kind: kind)

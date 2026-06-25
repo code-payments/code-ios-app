@@ -28,9 +28,9 @@ struct ChatPreviewMappingTests {
         )
     }
 
-    private func cashMessage(id: UInt64, senderID: UUID?, amount: Decimal) -> ConversationMessage {
+    private func cashMessage(id: UInt64, senderID: UUID?, amount: Decimal, mint: PublicKey = .usdf) -> ConversationMessage {
         let fiat = ExchangedFiat(
-            onChainAmount: TokenAmount(quarks: 0, mint: .usdf),
+            onChainAmount: TokenAmount(quarks: 0, mint: mint),
             nativeAmount: FiatAmount(value: amount, currency: .usd),
             currencyRate: Rate(fx: 1, currency: .usd)
         )
@@ -83,7 +83,7 @@ struct ChatPreviewMappingTests {
         #expect(msg.content == .text("see you soon"))
     }
 
-    @Test("Cash message maps to .cash content with formatted amount, currency token, and flag")
+    @Test("Cash message maps to .cash content with formatted amount and flag; unbranded by default")
     func cashContentMaps() {
         let messages = [cashMessage(id: 1, senderID: otherID, amount: 5.00)]
         let items = ChatItem.preview(from: messages, selfUserID: meID)
@@ -96,10 +96,40 @@ struct ChatPreviewMappingTests {
             Issue.record("Expected .cash content")
             return
         }
-        #expect(cash.token == "USD")
+        // Without resolved branding the token label and icon are empty — no misleading fallback.
+        #expect(cash.token == "")
+        #expect(cash.iconURL == nil)
         #expect(cash.flagImageName != nil)
         // Amount is a non-empty formatted string (locale-sensitive; just check non-empty)
         #expect(!cash.amount.isEmpty)
+    }
+
+    @Test("Cash row uses the resolved mint name and icon when provided")
+    func cashUsesResolvedBranding() {
+        let icon = URL(string: "https://example.com/jeffy.png")!
+        let messages = [cashMessage(id: 1, senderID: otherID, amount: 0.1, mint: .usdc)]
+        let items = ChatItem.preview(from: messages, selfUserID: meID, mintBranding: [.usdc: (name: "Jeffy", iconURL: icon)])
+
+        guard case .message(let msg) = items.first, case .cash(let cash) = msg.content else {
+            Issue.record("Expected .cash content")
+            return
+        }
+        #expect(cash.token == "Jeffy")
+        #expect(cash.iconURL == icon)
+    }
+
+    @Test("Cash row shows no token label or icon when the mint isn't resolved")
+    func cashUnresolvedMintShowsNoBranding() {
+        let messages = [cashMessage(id: 1, senderID: otherID, amount: 0.1, mint: .usdc)]
+        // Branding keyed by a different mint must not apply.
+        let items = ChatItem.preview(from: messages, selfUserID: meID, mintBranding: [.usdf: (name: "Jeffy", iconURL: nil)])
+
+        guard case .message(let msg) = items.first, case .cash(let cash) = msg.content else {
+            Issue.record("Expected .cash content")
+            return
+        }
+        #expect(cash.token == "")
+        #expect(cash.iconURL == nil)
     }
 
     @Test("Message id is the string form of MessageID.value")

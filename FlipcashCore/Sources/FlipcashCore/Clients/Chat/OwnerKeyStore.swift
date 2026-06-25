@@ -14,8 +14,6 @@ import Foundation
 public enum OwnerKeyStore {
 
     /// The keychain account key under which the owner `UserAccount` is stored.
-    /// Must stay in sync with `SecureKey.currentUserAccount.rawValue` in the
-    /// main app target.
     public static let ownerAccountKey = "com.flipcash.account.userAccount"
 
     /// Loads the signed-in `UserAccount` from the shared keychain access group,

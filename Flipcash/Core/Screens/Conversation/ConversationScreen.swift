@@ -78,12 +78,12 @@ struct ConversationScreen: View {
         if let contact {
             return contact
         }
-        guard let conversationID,
-              let counterpart = conversationController.conversation(withID: conversationID)?
-                .counterpart(excluding: conversationController.selfUserID) else {
-            return nil
-        }
-        return ResolvedContact(counterpart: counterpart, dmChatID: conversationID.data)
+        guard let conversationID else { return nil }
+        return ResolvedContact.sendTarget(
+            in: conversationController.conversation(withID: conversationID),
+            dmChatID: conversationID.data,
+            selfUserID: conversationController.selfUserID
+        )
     }
 
     /// Whether the DM chat actually exists server-side. Matched contacts carry
