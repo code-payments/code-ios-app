@@ -11,6 +11,10 @@ import Combine
 import FlipcashCore
 import FlipcashUI
 
+// Traces when the on-screen conversation is set or cleared — the signal both the receive haptic and
+// foreground-banner suppression gate on — so a missed buzz or an unsuppressed banner is traceable.
+private let logger = Logger(label: "flipcash.conversation")
+
 /// How a conversation is reached: an existing DM chat from the Chats section,
 /// or a synced contact whose chat may not exist yet — the first cash payment
 /// creates it server-side.
@@ -192,9 +196,19 @@ struct ConversationScreen: View {
             guard didInitialRead, let conversationID else { return }
             conversationController.scheduleMarkRead(conversationID: conversationID)
         }
+        // Buzz on a live message from the other side while this conversation is on screen. `old != nil`
+        // and `didInitialRead` skip the opening history load; the sender and visibility checks skip the
+        // user's own sends and arrivals in a chat they've navigated away from.
+        .sensoryFeedback(.impact(weight: .light), trigger: messages.last?.id) { old, _ in
+            guard old != nil, didInitialRead,
+                  let last = messages.last,
+                  !last.isFromSelf(conversationController.selfUserID),
+                  conversationController.visibleConversationID == conversationID
+            else { return false }
+            return true
+        }
         .onAppear {
-            // Suppress foreground chat banners while this transcript is on screen.
-            conversationController.visibleConversationID = conversationID
+            setVisibleConversation(conversationID, source: "onAppear")
         }
         // Send Cash stacks the amount entry as a cover, so the chat stays
         // mounted and `onAppear` won't re-fire when it's dismissed. Poll for the
@@ -205,14 +219,29 @@ struct ConversationScreen: View {
         // A matched contact's chat is created mid-screen on the first payment,
         // flipping the ID from nil to the new conversation; track it live.
         .onChange(of: conversationID) { _, id in
-            conversationController.visibleConversationID = id
+            setVisibleConversation(id, source: "onChange")
         }
         .onDisappear {
             // Guarded so a forward push that already set another ID isn't cleared.
-            if conversationController.visibleConversationID == conversationID {
+            let matched = conversationController.visibleConversationID == conversationID
+            logger.info("Clearing visible conversation on disappear", metadata: [
+                "conversationID": conversationID.map { "\($0)" } ?? "nil",
+                "matched": "\(matched)",
+            ])
+            if matched {
                 conversationController.visibleConversationID = nil
             }
         }
+    }
+
+    /// Marks this conversation as the one on screen — the gate for foreground-banner suppression and
+    /// the receive haptic — and traces the change so a first-open visibility gap is diagnosable.
+    private func setVisibleConversation(_ id: ConversationID?, source: String) {
+        logger.info("Set visible conversation", metadata: [
+            "source": "\(source)",
+            "conversationID": id.map { "\($0)" } ?? "nil",
+        ])
+        conversationController.visibleConversationID = id
     }
 
     private func sendCash() {
