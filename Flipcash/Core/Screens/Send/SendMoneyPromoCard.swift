@@ -41,7 +41,7 @@ struct SendMoneyPromoCard: View {
 private struct FakeCashCardsHero: View {
     var body: some View {
         ZStack {
-            FakeCashCard(caption: "You give", amount: "$60.00", isFromSelf: true, width: 130)
+            FakeCashCard(caption: "You gave", amount: "$60.00", isFromSelf: true, width: 130)
                 .rotationEffect(.degrees(6))
                 .offset(x: 46, y: -22)
             FakeCashCard(caption: "You received", amount: "$25.00", isFromSelf: false, width: 130)

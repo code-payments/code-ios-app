@@ -174,10 +174,11 @@ private struct RecipientSearchEmptyState: View {
 
 // MARK: - List items -
 
-/// One row of the merged "On Flipcash" section: a synced contact, a DM
-/// conversation, or both joined by the contact's `dmChatID`. Rows with a
-/// conversation sort by activity (newest first) ahead of chat-less contacts,
-/// which keep the directory's order.
+/// One row of the merged on-Flipcash recipient feed: a synced contact, a DM
+/// conversation, or both joined by the contact's `dmChatID`. Rows sort by
+/// recency — the more recent of conversation activity and the contact's
+/// Flipcash join date — so a just-joined chat-less contact interleaves with
+/// active chats instead of trailing them.
 nonisolated enum RecipientListItem: Identifiable, Equatable {
 
     case contact(ResolvedContact)
@@ -211,28 +212,46 @@ nonisolated enum RecipientListItem: Identifiable, Equatable {
         }
     }
 
+    /// Recency for the merged feed sort: the more recent of the row's
+    /// conversation activity and its contact's Flipcash join date. A chat-less
+    /// contact sorts by join date; an active chat by its (always later) activity.
+    private var sortDate: Date {
+        max(conversation?.lastActivity ?? .distantPast, contact?.joinDate ?? .distantPast)
+    }
+
+    /// Stable tiebreak for rows that share a `sortDate` — e.g. contacts from one
+    /// join batch: the contact's name, falling back to the row id.
+    private var tiebreak: String {
+        contact?.displayName ?? id
+    }
+
     static func items(contacts: [ResolvedContact], conversations: [Conversation]) -> [RecipientListItem] {
         var unmatched: [ConversationID: Conversation] = [:]
         for conversation in conversations {
             unmatched[conversation.id] = conversation
         }
 
-        var active: [RecipientListItem] = []
-        var chatless: [RecipientListItem] = []
+        var items: [RecipientListItem] = []
         for contact in contacts {
             if let chatID = contact.dmChatID.map(ConversationID.init(data:)),
                let conversation = unmatched.removeValue(forKey: chatID) {
-                active.append(.matched(contact, conversation))
+                items.append(.matched(contact, conversation))
             } else {
-                chatless.append(.contact(contact))
+                items.append(.contact(contact))
             }
         }
         for conversation in conversations where unmatched[conversation.id] != nil {
-            active.append(.conversation(conversation))
+            items.append(.conversation(conversation))
         }
 
-        active.sort { ($0.conversation?.lastActivity ?? .distantPast) > ($1.conversation?.lastActivity ?? .distantPast) }
-        return active + chatless
+        return items.sorted { lhs, rhs in
+            if lhs.sortDate != rhs.sortDate { return lhs.sortDate > rhs.sortDate }
+            let byName = lhs.tiebreak.localizedCaseInsensitiveCompare(rhs.tiebreak)
+            if byName != .orderedSame { return byName == .orderedAscending }
+            // Final discriminator on the unique row id keeps the order a total
+            // order, so equal date + name rows don't flicker across re-sorts.
+            return lhs.id < rhs.id
+        }
     }
 }
 
@@ -278,8 +297,6 @@ private struct RecipientPickerList: View {
                             }
                         )
                     }
-                } header: {
-                    RecipientSectionHeader(title: "On Flipcash")
                 }
                 .listSectionSeparator(.hidden, edges: .top)
             }
@@ -414,9 +431,10 @@ private extension View {
     }
 }
 
-/// A merged "On Flipcash" row. Rows with a conversation show the last-message
-/// preview; chatless contacts and chats with no messages show no subtitle. An
-/// unread chat marks the row with a leading dot.
+/// A merged recipient row: a synced contact, a DM conversation, or both. Rows
+/// with a conversation show the last-message preview; chat-less contacts and
+/// chats with no messages show no subtitle. An unread chat marks the row with
+/// a leading dot.
 private struct RecipientListItemRow: View {
 
     let item: RecipientListItem

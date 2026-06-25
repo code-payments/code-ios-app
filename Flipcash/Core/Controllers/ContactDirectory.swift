@@ -26,14 +26,19 @@ nonisolated struct ResolvedContact: Identifiable, Hashable, Sendable {
     /// has stored one. A chat that doesn't exist yet is initiated by sending
     /// the contact cash.
     let dmChatID: Data?
+    /// When this contact joined Flipcash, from the matched-contact set. Sorts a
+    /// chat-less contact into the recipient list by recency. `nil` for a
+    /// not-on-Flipcash contact and when the server omits it.
+    let joinDate: Date?
 
-    init(contactId: String, displayName: String, phoneE164: String, nationalPhone: String, imageData: Data?, dmChatID: Data? = nil) {
+    init(contactId: String, displayName: String, phoneE164: String, nationalPhone: String, imageData: Data?, dmChatID: Data? = nil, joinDate: Date? = nil) {
         self.contactId = contactId
         self.displayName = displayName
         self.phoneE164 = phoneE164
         self.nationalPhone = nationalPhone
         self.imageData = imageData
         self.dmChatID = dmChatID
+        self.joinDate = joinDate
     }
 
     /// Composite identity for `ForEach`. A picker row corresponds to one
@@ -167,6 +172,10 @@ enum RecipientLoader {
                 matched.compactMap { contact in contact.dmChatID.map { (contact.e164, $0) } },
                 uniquingKeysWith: { first, _ in first }
             )
+            let joinDateByPhone = Dictionary(
+                matched.compactMap { contact in contact.joinDate.map { (contact.e164, $0) } },
+                uniquingKeysWith: { first, _ in first }
+            )
 
             let store = CNContactStore()
             // `CNContactFormatter.descriptorForRequiredKeys(for:)` returns the
@@ -220,6 +229,7 @@ enum RecipientLoader {
                     nationalPhone: nationalPhone,
                     imageData: cnContact.thumbnailImageData,
                     dmChatID: dmChatIDByPhone[entry.e164],
+                    joinDate: joinDateByPhone[entry.e164],
                 ))
             }
 

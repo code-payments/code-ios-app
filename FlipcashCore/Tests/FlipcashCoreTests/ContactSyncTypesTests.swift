@@ -34,6 +34,37 @@ struct ContactSyncTypesTests {
         #expect(FlipcashContactsBatch.Result(.UNRECOGNIZED(99)) == .unknown)
     }
 
+    // MARK: - MatchedContact proto mapping -
+
+    @Test("MatchedContact maps phone, dm chat id, and join date from the proto")
+    func matchedContact_mapsAllFields() {
+        let chatID = Data(repeating: 0xab, count: 32)
+        let joined = Date(timeIntervalSince1970: 1_700_000_000)
+        let proto = Flipcash_Contact_V1_FlipcashContact.with {
+            $0.phone = .with { $0.value = "+15551234567" }
+            $0.dmChatID = .with { $0.value = chatID }
+            $0.joinTs = .init(date: joined)
+        }
+
+        let contact = MatchedContact(proto)
+
+        #expect(contact.e164 == "+15551234567")
+        #expect(contact.dmChatID == chatID)
+        #expect(contact.joinDate == joined)
+    }
+
+    @Test("MatchedContact decodes an empty dm chat id and unset join ts to nil")
+    func matchedContact_optionalFieldsNil() {
+        let proto = Flipcash_Contact_V1_FlipcashContact.with {
+            $0.phone = .with { $0.value = "+15551234567" }
+        }
+
+        let contact = MatchedContact(proto)
+
+        #expect(contact.dmChatID == nil)
+        #expect(contact.joinDate == nil)
+    }
+
     // MARK: - ErrorContactSync reportability -
 
     @Test(

@@ -180,16 +180,7 @@ final class ContactListService: CodeService<Flipcash_Contact_V1_ContactListNIOCl
 
         let queue = self.queue
         let stream = service.getFlipcashContacts(request, callOptions: .streaming) { @Sendable response in
-            // Emit raw E.164 strings — server-validated against the proto regex —
-            // rather than routing through `Phone(_:)`. Going through
-            // `PhoneNumberKit` would silently drop any string it can't parse,
-            // decoupling the local matched-set from the server's truth.
-            let contacts = response.contacts.map {
-                MatchedContact(
-                    e164: $0.phone.value,
-                    dmChatID: $0.hasDmChatID && !$0.dmChatID.value.isEmpty ? $0.dmChatID.value : nil
-                )
-            }
+            let contacts = response.contacts.map(MatchedContact.init)
             let batch = FlipcashContactsBatch(
                 result: FlipcashContactsBatch.Result(response.result),
                 contacts: contacts
@@ -246,10 +237,29 @@ public struct MatchedContact: Equatable, Hashable, Sendable {
     /// The server's 32-byte DM ChatId; nil when absent. A chat that doesn't
     /// exist yet is initiated by sending the contact cash.
     public let dmChatID: Data?
+    /// When the contact joined Flipcash. Sorts a chat-less contact into the
+    /// recipient list by recency. `nil` only when the server omits it.
+    public let joinDate: Date?
 
-    public init(e164: String, dmChatID: Data? = nil) {
+    public init(e164: String, dmChatID: Data? = nil, joinDate: Date? = nil) {
         self.e164 = e164
         self.dmChatID = dmChatID
+        self.joinDate = joinDate
+    }
+}
+
+extension MatchedContact {
+    /// Maps a server-matched contact. The e164 is emitted verbatim — it's
+    /// server-validated against the proto regex, and routing it through
+    /// `Phone(_:)`/`PhoneNumberKit` would silently drop anything it can't parse,
+    /// decoupling the local matched-set from the server's truth. An empty
+    /// `dmChatID` and an unset `joinTs` both decode to `nil`.
+    init(_ proto: Flipcash_Contact_V1_FlipcashContact) {
+        self.init(
+            e164: proto.phone.value,
+            dmChatID: proto.hasDmChatID && !proto.dmChatID.value.isEmpty ? proto.dmChatID.value : nil,
+            joinDate: proto.hasJoinTs ? proto.joinTs.date : nil
+        )
     }
 }
 
