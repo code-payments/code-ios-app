@@ -20,6 +20,10 @@ public final class ChatMessageCell: ChatColumnCell {
     private let bubble = ChatBubbleView()
     private var maxWidthConstraint: NSLayoutConstraint!
 
+    /// The bubble view, exposed so the controller can build a context-menu lift preview that clips
+    /// to the bubble shape.
+    var bubbleView: ChatBubbleView { bubble }
+
     public override init(frame: CGRect) {
         super.init(frame: frame)
         installColumn(content: bubble)
