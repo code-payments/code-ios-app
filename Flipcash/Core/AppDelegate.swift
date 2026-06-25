@@ -7,6 +7,7 @@
 
 import UIKit
 import SwiftUI
+import CoreSpotlight
 import FlipcashUI
 import FlipcashCore
 
@@ -40,6 +41,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         ])
         self.container = Container()
         super.init()
+
+        // Point App Intents (which run outside the SwiftUI environment) at the
+        // live session so the Send shortcut can reach contacts and the router.
+        AppIntentContext.sessionAuthenticator = container.sessionAuthenticator
     }
 
     // MARK: - Launch -
@@ -164,6 +169,27 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     @objc private func handleDeepLinkNotification(_ notification: Notification) {
         guard let url = notification.userInfo?["url"] as? URL else {
+            return
+        }
+
+        handleOpenURL(url: url)
+    }
+
+    /// Routes a continued `NSUserActivity` — a Spotlight chat tap or a Handoff /
+    /// Siri-suggestion of an opened chat — into the deep-link pipeline by
+    /// rebuilding the `flipcash://chat/{id}` URL the activity carries.
+    func handleContinue(_ activity: NSUserActivity) {
+        let chatID: String? = switch activity.activityType {
+        case CSSearchableItemActionType:
+            activity.userInfo?[CSSearchableItemActivityIdentifier] as? String
+        case AppUserActivity.openChat:
+            activity.userInfo?[AppUserActivity.chatIDKey] as? String
+        default:
+            nil
+        }
+
+        guard let chatID, let url = URL(string: "flipcash://chat/\(chatID)") else {
+            logger.warning("User activity continuation missing chat id", metadata: ["type": "\(activity.activityType)"])
             return
         }
 

@@ -86,6 +86,7 @@ nonisolated extension Route {
         case verifyEmail
         case token(PublicKey)
         case chat(ConversationID)
+        case chatSendCash(ConversationID)
         case give
         case balance
         case discover
@@ -119,6 +120,9 @@ nonisolated extension Route {
             case "chat":
                 guard components.count > 1, let id = ConversationID(base64URLEncoded: components[1]) else {
                     return nil
+                }
+                if components.count > 2, components[2] == "send" {
+                    return .chatSendCash(id)
                 }
                 return .chat(id)
             case "give":

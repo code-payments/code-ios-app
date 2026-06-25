@@ -78,12 +78,12 @@ struct ConversationScreen: View {
         if let contact {
             return contact
         }
-        guard let conversationID,
-              let counterpart = conversationController.conversation(withID: conversationID)?
-                .counterpart(excluding: conversationController.selfUserID) else {
-            return nil
-        }
-        return ResolvedContact(counterpart: counterpart, dmChatID: conversationID.data)
+        guard let conversationID else { return nil }
+        return ResolvedContact.sendTarget(
+            in: conversationController.conversation(withID: conversationID),
+            dmChatID: conversationID.data,
+            selfUserID: conversationController.selfUserID
+        )
     }
 
     /// Whether the DM chat actually exists server-side. Matched contacts carry
@@ -231,6 +231,19 @@ struct ConversationScreen: View {
             if matched {
                 conversationController.visibleConversationID = nil
             }
+        }
+        // Donate the open chat for Siri prediction, Handoff, and Spotlight.
+        // Only an existing chat carries an id worth resuming; a contact without
+        // a chat yet has nothing to hand off to.
+        .userActivity(AppUserActivity.openChat, isActive: chatExists && conversationID != nil) { activity in
+            guard let conversationID else { return }
+            activity.title = title
+            activity.userInfo = [AppUserActivity.chatIDKey: conversationID.base64URLEncoded]
+            activity.requiredUserInfoKeys = [AppUserActivity.chatIDKey]
+            activity.persistentIdentifier = conversationID.base64URLEncoded
+            activity.isEligibleForSearch = true
+            activity.isEligibleForHandoff = true
+            activity.isEligibleForPrediction = true
         }
     }
 
