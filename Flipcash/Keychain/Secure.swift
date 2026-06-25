@@ -64,10 +64,10 @@ struct SecureCodable<T> where T: Codable {
                 Keychain.set(newValue, for: key.rawValue, useSynchronization: sync, accessGroup: group)
             } else {
                 Keychain.delete(key.rawValue, accessGroup: group)
-                if sharedGroup {
-                    // Also clear any legacy copy. A groupless delete spans every
-                    // accessible access group, so a stale pre-migration item
-                    // can't survive logout and resurrect via the fallback read.
+                // When the delete above was group-scoped, also clear any legacy groupless copy so a
+                // stale pre-migration item can't survive logout and resurrect via the fallback read.
+                // (With no group the delete above is already groupless.)
+                if group != nil {
                     Keychain.delete(key.rawValue)
                 }
             }

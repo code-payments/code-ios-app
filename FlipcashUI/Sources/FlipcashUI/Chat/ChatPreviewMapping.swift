@@ -20,10 +20,14 @@ extension ChatItem {
     ///     the `.me` side.
     ///   - limit: Maximum number of rows to return. Defaults to 3. The *most recent* messages
     ///     (by `MessageID`) are kept, presented oldest-first.
+    ///   - mintBranding: Resolved token branding (name + coin icon) keyed by mint, used to label
+    ///     and illustrate cash rows (e.g. "Jeffy" with its icon). The caller resolves these over
+    ///     the network; a cash row whose mint is absent shows no token label or icon.
     public static func preview(
         from messages: [ConversationMessage],
         selfUserID: UserID,
-        limit: Int = 3
+        limit: Int = 3,
+        mintBranding: [PublicKey: (name: String, iconURL: URL?)] = [:]
     ) -> [ChatItem] {
         let sorted = messages.sorted { $0.id < $1.id }
         let slice = sorted.suffix(limit)
@@ -36,15 +40,16 @@ extension ChatItem {
             case .text(let text):
                 content = .text(text)
             case .cash(let fiat):
-                // Mirror the app's cash mapping: the flag comes from the currency's region and
-                // loads from the FlipcashUI bundle, so it resolves inside an extension. The token
-                // name normally comes from the app's mint-branding service, which the extension
-                // can't reach — fall back to the currency code.
+                // The flag loads from the FlipcashUI bundle, so it resolves inside an extension. The
+                // token name + coin icon come from `mintBranding`; an unresolved mint shows no token
+                // label or icon rather than a misleading fallback.
                 let currency = fiat.nativeAmount.currency
+                let branding = mintBranding[fiat.mint]
                 content = .cash(ChatCashContent(
                     amount: fiat.nativeAmount.formatted(),
-                    token: currency.rawValue.uppercased(),
-                    flagImageName: currency.region?.rawValue ?? currency.rawValue.uppercased()
+                    token: branding?.name ?? "",
+                    flagImageName: currency.region?.rawValue ?? currency.rawValue.uppercased(),
+                    iconURL: branding?.iconURL
                 ))
             }
 

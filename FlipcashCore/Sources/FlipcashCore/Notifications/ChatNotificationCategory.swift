@@ -1,3 +1,10 @@
+//
+//  ChatNotificationCategory.swift
+//  FlipcashCore
+//
+//  Copyright © 2026 Code Inc. All rights reserved.
+//
+
 import Foundation
 
 /// Identifiers for the chat-message notification category. Shared by the app

@@ -136,7 +136,7 @@ public final class ChatViewController: UICollectionViewController {
     /// diff is computed by DifferenceKit and applied via `reload(using:)`, so
     /// `keepContentOffsetAtBottomOnBatchUpdates` keeps a new arrival pinned to the bottom (and a
     /// prepended older page anchored in place) with no hand-rolled scrolling.
-    public func update(items newItems: [ChatItem]) {
+    public func update(items newItems: [ChatItem], animated: Bool = true) {
         // While a context menu is lifted, hold pushed updates: reloading the transcript now (e.g. an
         // arriving message) would reflow the content out from under the lifted preview. The latest
         // push is applied when the menu closes. Mirrors ChatLayout deferring updates during a preview.
@@ -156,9 +156,11 @@ public final class ChatViewController: UICollectionViewController {
             return
         }
 
-        // First load (or a clear): a plain reload, then open at the newest message rather than
-        // animating every row in.
-        if wasEmpty || newItems.isEmpty {
+        // First load, a clear, or a non-animated update: reload in place and open at the newest
+        // message rather than animating rows. A non-animated update (e.g. a late-resolving cash-card
+        // detail) re-arms the open so the detail appears without the diff sliding it in.
+        if wasEmpty || newItems.isEmpty || !animated {
+            if !animated { needsInitialScroll = true }
             items = newItems
             collectionView.reloadData()
             performInitialScrollIfNeeded()

@@ -2,7 +2,7 @@
 //  RouteTests.swift
 //  FlipcashTests
 //
-//  Created by Claude on 2025-02-03.
+//  Copyright © 2026 Code Inc. All rights reserved.
 //
 
 import Foundation

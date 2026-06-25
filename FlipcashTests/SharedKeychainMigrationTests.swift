@@ -28,21 +28,12 @@ struct SharedKeychainMigrationTests {
         "com.flipcash.tests.sharedKeychain.\(UUID().uuidString)"
     }
 
-    /// The shared access group, resolved at runtime. Skips the test cleanly if
-    /// the simulator keychain can't resolve it.
-    private func sharedGroup() throws -> String {
-        try #require(
-            Keychain.sharedAccessGroup,
-            "Shared access group must resolve at runtime"
-        )
-    }
-
     /// The legacy application-identifier access group an existing user's owner
     /// key lives in (`<teamPrefix>.<bundleId>`), derived at runtime — never
     /// hardcoded. This is the group groupless writes used *before* the
     /// `keychain-access-groups` entitlement existed.
     private func legacyGroup() throws -> String {
-        let shared = try sharedGroup()
+        let shared = try Keychain.requireSharedAccessGroup()
         let prefix = try #require(shared.split(separator: ".").first.map(String.init))
         let bundleId = try #require(Bundle.main.bundleIdentifier)
         return "\(prefix).\(bundleId)"
@@ -59,7 +50,7 @@ struct SharedKeychainMigrationTests {
 
     @Test("A legacy item is recovered by the groupless fallback read")
     func legacyItemRecoveredByGrouplessFallback() throws {
-        let shared = try sharedGroup()
+        let shared = try Keychain.requireSharedAccessGroup()
         let legacy = try legacyGroup()
         let key = Self.uniqueKey()
         defer { cleanup(key, groups: [shared, legacy]) }
@@ -80,7 +71,7 @@ struct SharedKeychainMigrationTests {
 
     @Test("Data written to the shared group reads back from the shared group")
     func sharedGroupRoundTrip() throws {
-        let shared = try sharedGroup()
+        let shared = try Keychain.requireSharedAccessGroup()
         let key = Self.uniqueKey()
         defer { cleanup(key, groups: [shared]) }
 
@@ -93,7 +84,7 @@ struct SharedKeychainMigrationTests {
 
     @Test("Migration copies a legacy value into the shared group")
     func migrationCopiesLegacyIntoSharedGroup() throws {
-        let shared = try sharedGroup()
+        let shared = try Keychain.requireSharedAccessGroup()
         let legacy = try legacyGroup()
         let key = Self.uniqueKey()
         defer { cleanup(key, groups: [shared, legacy]) }
@@ -113,7 +104,7 @@ struct SharedKeychainMigrationTests {
 
     @Test("Running the migration again is a no-op")
     func migrationIsIdempotent() throws {
-        let shared = try sharedGroup()
+        let shared = try Keychain.requireSharedAccessGroup()
         let legacy = try legacyGroup()
         let key = Self.uniqueKey()
         defer { cleanup(key, groups: [shared, legacy]) }
@@ -131,7 +122,7 @@ struct SharedKeychainMigrationTests {
 
     @Test("Migration is a no-op when the legacy value is absent")
     func migrationNoOpWhenAbsent() throws {
-        let shared = try sharedGroup()
+        let shared = try Keychain.requireSharedAccessGroup()
         let key = Self.uniqueKey()
         defer { cleanup(key, groups: [shared]) }
 
@@ -144,7 +135,7 @@ struct SharedKeychainMigrationTests {
 
     @Test("Logout teardown clears both the shared and legacy copies")
     func logoutClearsAllGroups() throws {
-        let shared = try sharedGroup()
+        let shared = try Keychain.requireSharedAccessGroup()
         let legacy = try legacyGroup()
         let key = Self.uniqueKey()
         defer { cleanup(key, groups: [shared, legacy]) }

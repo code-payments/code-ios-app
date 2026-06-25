@@ -10,12 +10,9 @@ import FlipcashCore
 
 private nonisolated let logger = Logger(label: "flipcash.shared-keychain-migration")
 
-/// One-time migration that copies the owner key into the shared keychain
-/// access group so a notification extension in the same group can read it.
-///
-/// The copy preserves the legacy groupless item, so an existing user is never
-/// logged out: reads fall back to the legacy item until the migration lands,
-/// and the migration only ever adds the shared-group copy.
+/// One-time migration that copies the owner key into the shared keychain access group so a
+/// notification extension in the same group can read it. Non-destructive — it only adds the
+/// shared-group copy and leaves the legacy item, so existing users aren't logged out.
 enum SharedKeychainMigration {
 
     /// Copies the owner key from the legacy groupless location into the shared

@@ -89,31 +89,25 @@ public class Keychain {
 
     /// The team-prefixed shared keychain access group
     /// (`"<teamPrefix>.com.flipcash.shared"`), or `nil` if the team prefix
-    /// can't be resolved at runtime. Used to store the owner key where a
-    /// notification extension in the same access group can read it.
-    ///
-    /// The team prefix is derived at runtime — never hardcoded — by probing
-    /// the keychain for the app's default access group and taking its first
-    /// dot-separated component.
+    /// can't be resolved at runtime. Stores the owner key where a notification
+    /// extension in the same access group can read it.
     public static var sharedAccessGroup: String? {
         sharedAccessGroupLock.lock()
         defer { sharedAccessGroupLock.unlock() }
 
         if let cached = cachedSharedAccessGroup {
-            return cached.value
+            return cached
         }
 
         let resolved = resolveTeamPrefix().map { "\($0).com.flipcash.shared" }
-        cachedSharedAccessGroup = Cached(value: resolved)
+        cachedSharedAccessGroup = .some(resolved)
         return resolved
     }
 
-    private struct Cached {
-        let value: String?
-    }
-
     private static let sharedAccessGroupLock = NSLock()
-    nonisolated(unsafe) private static var cachedSharedAccessGroup: Cached?
+    /// `nil` until first resolved; then `.some(value)`, where the inner value is the group or `nil`
+    /// when the team prefix couldn't be resolved.
+    nonisolated(unsafe) private static var cachedSharedAccessGroup: String??
 
     /// Resolves the app's keychain access-group prefix (the team identifier
     /// prefix) by adding a throwaway generic-password item with no explicit

@@ -20,18 +20,11 @@ struct OwnerKeyStoreTests {
         keyAccount: .mock
     )
 
-    private func sharedGroup() throws -> String {
-        try #require(
-            Keychain.sharedAccessGroup,
-            "Shared access group must resolve at runtime"
-        )
-    }
-
     // MARK: - Round-trip -
 
     @Test("loadOwnerAccount returns the correct UserAccount after a shared-group write")
     func loadOwnerAccount_sharedGroupWrite_returnsCorrectAccount() throws {
-        let group = try sharedGroup()
+        let group = try Keychain.requireSharedAccessGroup()
         defer { Keychain.delete(OwnerKeyStore.ownerAccountKey, accessGroup: group) }
 
         let data = try JSONEncoder().encode(Self.mockAccount)
@@ -44,7 +37,7 @@ struct OwnerKeyStoreTests {
 
     @Test("loadOwnerKeyPair returns the correct public key after a shared-group write")
     func loadOwnerKeyPair_sharedGroupWrite_returnsCorrectPublicKey() throws {
-        let group = try sharedGroup()
+        let group = try Keychain.requireSharedAccessGroup()
         defer { Keychain.delete(OwnerKeyStore.ownerAccountKey, accessGroup: group) }
 
         let data = try JSONEncoder().encode(Self.mockAccount)
@@ -56,7 +49,7 @@ struct OwnerKeyStoreTests {
 
     @Test("loadOwnerKeyPair returns nil when no account is stored")
     func loadOwnerKeyPair_noAccount_returnsNil() throws {
-        let group = try sharedGroup()
+        let group = try Keychain.requireSharedAccessGroup()
         // Ensure the key is absent before the call.
         Keychain.delete(OwnerKeyStore.ownerAccountKey, accessGroup: group)
         defer { Keychain.delete(OwnerKeyStore.ownerAccountKey, accessGroup: group) }

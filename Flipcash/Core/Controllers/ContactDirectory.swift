@@ -65,6 +65,13 @@ extension ResolvedContact {
             dmChatID: dmChatID
         )
     }
+
+    /// The Send Cash target for a DM `conversation`: its counterpart resolved by phone number,
+    /// carrying `dmChatID`. `nil` when there's no counterpart or no number on file.
+    nonisolated static func sendTarget(in conversation: Conversation?, dmChatID: Data?, selfUserID: UserID) -> ResolvedContact? {
+        guard let counterpart = conversation?.counterpart(excluding: selfUserID) else { return nil }
+        return ResolvedContact(counterpart: counterpart, dmChatID: dmChatID)
+    }
 }
 
 nonisolated struct ResolvedContacts: Equatable, Sendable {
