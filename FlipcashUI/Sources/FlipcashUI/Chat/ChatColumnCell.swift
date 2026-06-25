@@ -18,6 +18,8 @@ public class ChatColumnCell: UICollectionViewCell {
     private let column = UIStackView()
     private var leadingConstraint: NSLayoutConstraint!
     private var trailingConstraint: NSLayoutConstraint!
+    /// Duration of the receipt fade-in and the in-place Delivered→Read cross-fade.
+    private static let receiptFadeDuration: TimeInterval = 0.25
 
     /// Stacks `content` above the receipt and pins the column into the contentView, pinning top and
     /// bottom so the cell self-sizes to the content plus the receipt line. Call once, from the
@@ -40,31 +42,64 @@ public class ChatColumnCell: UICollectionViewCell {
     }
 
     /// Sets the receipt line and hugs the column to the sender's edge. Call from `configure`.
-    func updateColumn(for message: ChatMessage) {
-        // A cell already in the window is being reconfigured in place (Delivered→Read, or the line
-        // clearing as a newer sent message takes it over), so cross-fade the change. A freshly
-        // dequeued cell isn't in the window yet, so it's set without animation — a scroll-in or a
-        // send shouldn't flash the line.
-        setReceipt(message.receipt, animated: window != nil)
+    /// `revealsReceiptAfterSettling` is set only for a just-sent message's inserting cell: the line is
+    /// held hidden and faded in by `revealHeldReceipt()` once the controller reports the insert has
+    /// settled, instead of popping in with the bubble.
+    func updateColumn(for message: ChatMessage, revealsReceiptAfterSettling: Bool = false) {
+        setReceipt(message.receipt, animated: window != nil, held: revealsReceiptAfterSettling)
         column.alignment = message.sender == .me ? .trailing : .leading
         applyAlignment(isFromSelf: message.sender == .me)
     }
 
-    private func setReceipt(_ text: String?, animated: Bool) {
+    private func setReceipt(_ text: String?, animated: Bool, held: Bool) {
         guard receipt.text != text else { return }
-        // Cross-fade the line in (nil→text) and across the Delivered→Read swap; let it snap away when
-        // it clears so the row collapses in step with the batch update rather than after the fade. The
-        // visibility change is applied synchronously, outside the transition, so the cell's self-sized
-        // height never lags the cross-fade.
-        if animated, text != nil {
+        if let text, held {
+            // A just-sent message's inserting cell: reserve the line's space so the bubble lands in its
+            // final spot, but hold it hidden. `revealHeldReceipt()` fades it in once the controller
+            // reports the insert has settled — the delivery state shouldn't pop in with the bubble.
             receipt.isHidden = false
-            UIView.transition(with: receipt, duration: 0.25, options: .transitionCrossDissolve) {
+            receipt.text = text
+            receipt.alpha = 0
+        } else if let text, receipt.alpha < 1 {
+            // A swap arrived while the line was still held (the read pointer advanced before the insert
+            // settled): update the text but stay held, so the pending `revealHeldReceipt()` fades the
+            // new text in once the insert settles — rather than colliding a cross-dissolve with the reveal.
+            receipt.text = text
+        } else if animated, text != nil {
+            // A cell already in the window is being reconfigured in place (Delivered→Read), so
+            // cross-fade the swap. alpha is restored first in case the cell was mid-hold. The
+            // visibility change is applied synchronously, outside the transition, so the cell's
+            // self-sized height never lags the cross-fade.
+            receipt.alpha = 1
+            receipt.isHidden = false
+            UIView.transition(with: receipt, duration: Self.receiptFadeDuration, options: .transitionCrossDissolve) {
                 self.receipt.text = text
             }
         } else {
+            // Set without animation: a first open or a scroll-in shows the line already in place; a
+            // newer sent message clearing the line lets it snap away so the row collapses in step with
+            // the batch update rather than after a fade.
+            receipt.alpha = 1
             receipt.text = text
             receipt.isHidden = text == nil
         }
+    }
+
+    /// Fade in a receipt that was held hidden for its inserting cell, now that the insert has settled.
+    /// A no-op for any cell not currently holding one, so the controller can call it on every visible
+    /// cell after a batch update without tracking which cell inserted.
+    func revealHeldReceipt() {
+        guard receipt.alpha < 1 else { return }
+        UIView.animate(withDuration: Self.receiptFadeDuration) { self.receipt.alpha = 1 }
+    }
+
+    public override func prepareForReuse() {
+        super.prepareForReuse()
+        // Clear the receipt fully: a stale text would let `setReceipt`'s `text != text` guard skip the
+        // hold for a recycled cell whose previous occupant ended on the same string ("Delivered").
+        receipt.text = nil
+        receipt.isHidden = true
+        receipt.alpha = 1
     }
 
     /// Exactly one horizontal edge is pinned, so the column hugs its sender's side and the opposite

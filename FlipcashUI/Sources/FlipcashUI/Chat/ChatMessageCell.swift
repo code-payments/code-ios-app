@@ -34,12 +34,15 @@ public final class ChatMessageCell: ChatColumnCell {
     @available(*, unavailable)
     public required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    /// - Parameter maxWidth: the widest the bubble may grow before its text wraps, in points.
-    ///   The owner derives it from the collection view's width.
-    public func configure(with message: ChatMessage, maxWidth: CGFloat) {
+    /// - Parameters:
+    ///   - maxWidth: the widest the bubble may grow before its text wraps, in points. The owner
+    ///     derives it from the collection view's width.
+    ///   - revealsReceiptAfterSettling: set only for a just-sent message's inserting cell, so the
+    ///     delivery line fades in after the bubble settles instead of popping in with it.
+    public func configure(with message: ChatMessage, maxWidth: CGFloat, revealsReceiptAfterSettling: Bool = false) {
         bubble.configure(with: message)
         maxWidthConstraint.constant = maxWidth
-        updateColumn(for: message)
+        updateColumn(for: message, revealsReceiptAfterSettling: revealsReceiptAfterSettling)
     }
 }
 
