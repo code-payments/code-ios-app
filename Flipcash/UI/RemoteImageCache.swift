@@ -8,8 +8,6 @@ import Kingfisher
 
 enum RemoteImageCache {
 
-    private static let didClearLegacyDiskCacheKey = "RemoteImageCache.didClearLegacyKingfisherDiskCache"
-
     /// Configures remote-image caching so an image's lifetime follows the server's HTTP
     /// headers — `Cache-Control`/`Expires` for freshness, `ETag` for revalidation —
     /// instead of being cached indefinitely. Call once at launch.
@@ -23,7 +21,6 @@ enum RemoteImageCache {
             memoryCapacity: 20 * 1024 * 1024,
             diskCapacity: 300 * 1024 * 1024
         )
-        configuration.requestCachePolicy = .useProtocolCachePolicy
         ImageDownloader.default.sessionConfiguration = configuration
 
         KingfisherManager.shared.defaultOptions += [
@@ -48,10 +45,17 @@ enum RemoteImageCache {
     /// prior build still serves from Kingfisher's disk and masks the URLCache. Purge it
     /// once so existing installs pick up the current server image.
     private static func clearLegacyDiskCacheIfNeeded() {
-        let key = didClearLegacyDiskCacheKey
-        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        guard UserDefaults.didClearLegacyImageDiskCache != true else { return }
         ImageCache.default.clearDiskCache {
-            UserDefaults.standard.set(true, forKey: key)
+            Task { @MainActor in UserDefaults.didClearLegacyImageDiskCache = true }
         }
     }
+}
+
+// MARK: - UserDefaults -
+
+extension UserDefaults {
+
+    @Defaults(.didClearLegacyImageDiskCache)
+    fileprivate static var didClearLegacyImageDiskCache: Bool?
 }
