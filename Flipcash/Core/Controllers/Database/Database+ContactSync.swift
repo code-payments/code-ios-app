@@ -45,8 +45,8 @@ nonisolated extension Database {
     /// Contacts the server has confirmed are on Flipcash, with their DM chat IDs.
     func flipcashContacts() throws -> [MatchedContact] {
         let table = FlipcashContactTable()
-        let rows = try reader.prepareRowIterator(table.table.select(table.e164, table.dmChatId))
-        return try rows.map { MatchedContact(e164: $0[table.e164], dmChatID: $0[table.dmChatId]) }
+        let rows = try reader.prepareRowIterator(table.table.select(table.e164, table.dmChatId, table.joinTs))
+        return try rows.map { MatchedContact(e164: $0[table.e164], dmChatID: $0[table.dmChatId], joinDate: $0[table.joinTs]) }
     }
 
     /// Replace the matched-contacts set with the server's latest response and
@@ -65,6 +65,7 @@ nonisolated extension Database {
                     table.table.insert(
                         table.e164 <- contact.e164,
                         table.dmChatId <- contact.dmChatID,
+                        table.joinTs <- contact.joinDate,
                         table.matchedAt <- matchedAt
                     )
                 )

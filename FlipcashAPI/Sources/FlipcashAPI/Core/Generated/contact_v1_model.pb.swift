@@ -45,12 +45,23 @@ public struct Flipcash_Contact_V1_FlipcashContact: Sendable {
   /// Clears the value of `dmChatID`. Subsequent reads from it will return its default value.
   public mutating func clearDmChatID() {self._dmChatID = nil}
 
+  /// Timestamp the contact joined Flipcash
+  public var joinTs: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {_joinTs ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_joinTs = newValue}
+  }
+  /// Returns true if `joinTs` has been explicitly set.
+  public var hasJoinTs: Bool {self._joinTs != nil}
+  /// Clears the value of `joinTs`. Subsequent reads from it will return its default value.
+  public mutating func clearJoinTs() {self._joinTs = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _phone: Flipcash_Phone_V1_PhoneNumber? = nil
   fileprivate var _dmChatID: Flipcash_Common_V1_ChatId? = nil
+  fileprivate var _joinTs: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -59,7 +70,7 @@ fileprivate let _protobuf_package = "flipcash.contact.v1"
 
 extension Flipcash_Contact_V1_FlipcashContact: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".FlipcashContact"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}phone\0\u{3}dm_chat_id\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}phone\0\u{3}dm_chat_id\0\u{3}join_ts\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -69,6 +80,7 @@ extension Flipcash_Contact_V1_FlipcashContact: SwiftProtobuf.Message, SwiftProto
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._phone) }()
       case 2: try { try decoder.decodeSingularMessageField(value: &self._dmChatID) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._joinTs) }()
       default: break
       }
     }
@@ -85,12 +97,16 @@ extension Flipcash_Contact_V1_FlipcashContact: SwiftProtobuf.Message, SwiftProto
     try { if let v = self._dmChatID {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
     } }()
+    try { if let v = self._joinTs {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipcash_Contact_V1_FlipcashContact, rhs: Flipcash_Contact_V1_FlipcashContact) -> Bool {
     if lhs._phone != rhs._phone {return false}
     if lhs._dmChatID != rhs._dmChatID {return false}
+    if lhs._joinTs != rhs._joinTs {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

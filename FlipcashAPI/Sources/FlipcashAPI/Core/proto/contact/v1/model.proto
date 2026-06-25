@@ -4,6 +4,7 @@ package flipcash.contact.v1;
 
 import "common/v1/common.proto";
 import "phone/v1/model.proto";
+import "google/protobuf/timestamp.proto";
 import "validate/validate.proto";
 
 option go_package = "github.com/code-payments/flipcash2-protobuf-api/generated/go/contact/v1;contactpb";
@@ -16,4 +17,7 @@ message FlipcashContact {
     // The DM chat ID for the Flipcash contact. If the chat doesn't exist, it needs
     // to be initiated with a cash send to initialize it
     common.v1.ChatId dm_chat_id = 2 [(validate.rules).message.required = true];
+
+    // Timestamp the contact joined Flipcash
+    google.protobuf.Timestamp join_ts = 3 [(validate.rules).timestamp.required = true];
 }

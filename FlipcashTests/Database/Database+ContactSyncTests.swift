@@ -105,6 +105,20 @@ struct DatabaseContactSyncTests {
         #expect(try db.flipcashContacts() == [MatchedContact(e164: "+15551234567", dmChatID: Data(repeating: 0x01, count: 32))])
     }
 
+    @Test("replaceFlipcashContacts round-trips each contact's join date")
+    func contacts_joinDateRoundTrips() throws {
+        let db = Database.mock
+        let joined = Date(timeIntervalSince1970: 1_700_000_000)
+        let contacts = [
+            MatchedContact(e164: "+15551234567", dmChatID: Data(repeating: 0x01, count: 32), joinDate: joined),
+            MatchedContact(e164: "+447700900000", dmChatID: nil, joinDate: nil),
+        ]
+
+        try db.replaceFlipcashContacts(contacts, matchedAt: .now)
+
+        #expect(Set(try db.flipcashContacts()) == Set(contacts))
+    }
+
     // MARK: - Local Snapshot -
 
     @Test("localContactsSnapshot is empty on a fresh database")

@@ -13,14 +13,15 @@ import FlipcashCore
 @Suite("Recipient list items")
 struct RecipientListItemTests {
 
-    private func contact(_ name: String, dmChatID: Data? = nil) -> ResolvedContact {
+    private func contact(_ name: String, dmChatID: Data? = nil, joinDate: Date? = nil) -> ResolvedContact {
         ResolvedContact(
             contactId: "contact-\(name)",
             displayName: name,
             phoneE164: "+1555\(name.count)",
             nationalPhone: "(555) \(name.count)",
             imageData: nil,
-            dmChatID: dmChatID
+            dmChatID: dmChatID,
+            joinDate: joinDate
         )
     }
 
@@ -87,5 +88,38 @@ struct RecipientListItemTests {
         let items = RecipientListItem.items(contacts: [preassigned], conversations: [])
 
         #expect(items == [.contact(preassigned)])
+    }
+
+    @Test("A just-joined chat-less contact sorts above an older conversation")
+    func chatlessContactSortsByJoinDate() {
+        let oldChat = conversation(byte: 0x01, lastActivity: Date(timeIntervalSince1970: 100))
+        let chatContact = contact("Anna", dmChatID: oldChat.id.data)
+        let newcomer = contact("Ben", joinDate: Date(timeIntervalSince1970: 200))
+
+        let items = RecipientListItem.items(contacts: [chatContact, newcomer], conversations: [oldChat])
+
+        #expect(items == [.contact(newcomer), .matched(chatContact, oldChat)])
+    }
+
+    @Test("A matched row sorts by activity even when the contact joined earlier")
+    func matchedRowSortsByActivityOverJoinDate() {
+        let chat = conversation(byte: 0x01, lastActivity: Date(timeIntervalSince1970: 300))
+        let longtime = contact("Anna", dmChatID: chat.id.data, joinDate: Date(timeIntervalSince1970: 100))
+        let newcomer = contact("Ben", joinDate: Date(timeIntervalSince1970: 200))
+
+        let items = RecipientListItem.items(contacts: [longtime, newcomer], conversations: [chat])
+
+        #expect(items == [.matched(longtime, chat), .contact(newcomer)])
+    }
+
+    @Test("Chat-less contacts sharing a join date tie-break by name")
+    func chatlessContactsTieBreakByName() {
+        let joined = Date(timeIntervalSince1970: 200)
+        let zoe = contact("Zoe", joinDate: joined)
+        let anna = contact("Anna", joinDate: joined)
+
+        let items = RecipientListItem.items(contacts: [zoe, anna], conversations: [])
+
+        #expect(items == [.contact(anna), .contact(zoe)])
     }
 }
