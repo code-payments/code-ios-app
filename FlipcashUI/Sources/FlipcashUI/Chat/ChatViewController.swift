@@ -48,6 +48,19 @@ public final class ChatViewController: UICollectionViewController {
     private static let bottomContentPadding: CGFloat = 12
     /// True while a batch update animates, so the top trigger doesn't re-fire mid-update.
     private var isUpdating = false
+    /// True while a context menu is lifted from a bubble. Presenting the menu dismisses the keyboard;
+    /// without intervention the adjusted inset shrinks and the transcript reflows out from under the
+    /// lifted preview. So for the menu's lifetime the inset is taken over and frozen at its keyboard-up
+    /// value (see `freezeInset`): the keyboard's space stays reserved, so nothing moves — and the
+    /// keyboard sliding back on dismiss restores everything to exactly where it was, matching iMessage.
+    private var isShowingContextMenu = false
+    /// The inset state captured when the menu opened, restored when it closes.
+    private var savedInsetBehavior: UIScrollView.ContentInsetAdjustmentBehavior?
+    private var savedContentInset: UIEdgeInsets?
+    private var savedScrollIndicatorInsets: UIEdgeInsets?
+    /// A transcript pushed while the menu was up, applied once it closes (so an arriving message can't
+    /// reflow the content mid-preview). Mirrors ChatLayout deferring updates while `.showingPreview`.
+    private var deferredItems: [ChatItem]?
 
     public init() {
         super.init(collectionViewLayout: chatLayout)
@@ -97,7 +110,11 @@ public final class ChatViewController: UICollectionViewController {
         // The system changed the adjusted inset — on-device this is the keyboard showing or hiding.
         // If the user was at the bottom, follow it so the newest message stays just above the
         // keyboard; a reader who scrolled up is left where they are.
-        guard wasAtBottom, !needsInitialScroll, !isUpdating, !items.isEmpty else { return }
+        //
+        // While a context menu is up the inset is frozen (`freezeInset`), so this shouldn't fire for the
+        // keyboard — but guard anyway, since taking the inset over and handing it back each toggles the
+        // adjusted inset, and following those would move the content the freeze is holding in place.
+        guard !isShowingContextMenu, wasAtBottom, !needsInitialScroll, !isUpdating, !items.isEmpty else { return }
         scrollToBottom(animated: false)
     }
 
@@ -108,6 +125,13 @@ public final class ChatViewController: UICollectionViewController {
     /// `keepContentOffsetAtBottomOnBatchUpdates` keeps a new arrival pinned to the bottom (and a
     /// prepended older page anchored in place) with no hand-rolled scrolling.
     public func update(items newItems: [ChatItem]) {
+        // While a context menu is lifted, hold pushed updates: reloading the transcript now (e.g. an
+        // arriving message) would reflow the content out from under the lifted preview. The latest
+        // push is applied when the menu closes. Mirrors ChatLayout deferring updates during a preview.
+        guard !isShowingContextMenu else {
+            deferredItems = newItems
+            return
+        }
         // The owner re-pushes on every observable change (read receipts, the live stream, paging
         // flags), most of which don't change the list. Bail on an identical push so we don't reload.
         guard newItems != items else { return }
@@ -257,6 +281,8 @@ public final class ChatViewController: UICollectionViewController {
     /// ChatLayout's own snapshot, so at-bottom stays at-bottom (content lifts above the bar) and
     /// scrolled-up stays put — no hand-computed offset.
     public func setBottomInset(_ inset: CGFloat) {
+        // The inset is frozen while a context menu is up; don't touch it (it's restored on close).
+        guard !isShowingContextMenu else { return }
         // Never change the inset mid-batch-update: ChatLayout can't account for an inset change
         // during `performBatchUpdates`, which is what made an append (a send) overshoot. The next
         // layout pass after the update re-applies it.
@@ -269,11 +295,136 @@ public final class ChatViewController: UICollectionViewController {
             chatLayout.restoreContentOffset(with: snapshot)
         }
     }
+
+    /// Take over the inset at its current (keyboard-up) value so the keyboard leaving under the menu
+    /// can't shrink the adjusted inset — the keyboard's space stays reserved and the content holds its
+    /// exact position. Switching `contentInsetAdjustmentBehavior` flashes a transient inset that
+    /// ChatLayout would re-anchor to, so the bottom-edge snapshot is restored across the switch (the
+    /// same primitive `setBottomInset` uses) to pin the content where it was.
+    private func freezeInset() {
+        guard savedInsetBehavior == nil else { return }
+        let frozen = collectionView.adjustedContentInset
+        let snapshot = chatLayout.getContentOffsetSnapshot(from: .bottom)
+        savedInsetBehavior = collectionView.contentInsetAdjustmentBehavior
+        savedContentInset = collectionView.contentInset
+        savedScrollIndicatorInsets = collectionView.verticalScrollIndicatorInsets
+        collectionView.contentInsetAdjustmentBehavior = .never
+        collectionView.contentInset = frozen
+        collectionView.verticalScrollIndicatorInsets = frozen
+        if let snapshot {
+            chatLayout.restoreContentOffset(with: snapshot)
+        }
+    }
+
+    /// Hand the inset back to the system; with the keyboard sliding back in, it re-grows the adjusted
+    /// inset to its pre-menu value. The bottom-edge snapshot is restored across the switch so the
+    /// content lands exactly where it was, rather than wherever the transient inset re-anchored it.
+    private func restoreInset() {
+        guard let behavior = savedInsetBehavior else { return }
+        let snapshot = chatLayout.getContentOffsetSnapshot(from: .bottom)
+        collectionView.contentInsetAdjustmentBehavior = behavior
+        if let inset = savedContentInset { collectionView.contentInset = inset }
+        if let indicator = savedScrollIndicatorInsets { collectionView.verticalScrollIndicatorInsets = indicator }
+        if let snapshot {
+            chatLayout.restoreContentOffset(with: snapshot)
+        }
+        savedInsetBehavior = nil
+        savedContentInset = nil
+        savedScrollIndicatorInsets = nil
+    }
 }
 
 /// The controller is the layout delegate so cells inherit ChatLayout's defaults — auto self-sizing
 /// and full-width alignment. No row needs a custom size, so nothing is overridden.
 extension ChatViewController: ChatLayoutDelegate {}
+
+// MARK: - Context menu
+
+extension ChatViewController {
+
+    /// Long-pressing a text bubble offers a single "Copy" action that puts the message text on the
+    /// pasteboard — ChatLayout's canonical copy interaction, scoped to text messages. Cash cards and
+    /// date separators carry no copyable text and opt out.
+    public override func collectionView(_ collectionView: UICollectionView, contextMenuConfigurationForItemAt indexPath: IndexPath, point: CGPoint) -> UIContextMenuConfiguration? {
+        // Don't offer a menu mid-batch-update: the index path may not line up with the rendered cell.
+        guard !isUpdating else { return nil }
+
+        let body: String
+        switch items[indexPath.item] {
+        case .message(let message):
+            switch message.content {
+            case .text(let text):
+                body = text
+            case .cash:
+                return nil
+            }
+        case .dateSeparator:
+            return nil
+        }
+
+        // Freeze the inset for the menu's lifetime so presenting it (which dismisses the keyboard)
+        // doesn't shrink the adjusted inset and reflow the content out from under the lifted preview.
+        isShowingContextMenu = true
+        freezeInset()
+
+        // The section/item pair, encoded as an NSString, resolves the cell back in `preview(for:)`.
+        // ChatLayout's note: a custom NSCopying identifier crashes, so a plain string is used.
+        let identifier = "\(indexPath.section)|\(indexPath.item)" as NSString
+        return UIContextMenuConfiguration(identifier: identifier, previewProvider: nil) { _ in
+            let copy = UIAction(title: "Copy", image: UIImage(systemName: SystemSymbol.doc.rawValue)) { _ in
+                UIPasteboard.general.string = body
+            }
+            return UIMenu(title: "", children: [copy])
+        }
+    }
+
+    public override func collectionView(_ collectionView: UICollectionView, previewForHighlightingContextMenuWithConfiguration configuration: UIContextMenuConfiguration) -> UITargetedPreview? {
+        preview(for: configuration)
+    }
+
+    public override func collectionView(_ collectionView: UICollectionView, previewForDismissingContextMenuWithConfiguration configuration: UIContextMenuConfiguration) -> UITargetedPreview? {
+        preview(for: configuration)
+    }
+
+    /// The menu is closing — hand the inset back to the system (the keyboard slides back, restoring the
+    /// content to exactly where it was), then apply any update that was pushed while it was up. A `nil`
+    /// animator (no transition) runs immediately so the freeze can never get stuck on.
+    public override func collectionView(_ collectionView: UICollectionView, willEndContextMenuInteraction configuration: UIContextMenuConfiguration, animator: UIContextMenuInteractionAnimating?) {
+        let resume: () -> Void = { [weak self] in
+            guard let self else { return }
+            // Restore the inset while the flag is still set, so the behavior switch's inset change is
+            // suppressed (no stray scroll); then drop the flag and apply any held update.
+            restoreInset()
+            isShowingContextMenu = false
+            if let pending = deferredItems {
+                deferredItems = nil
+                update(items: pending)
+            }
+        }
+        if let animator {
+            animator.addCompletion(resume)
+        } else {
+            resume()
+        }
+    }
+
+    /// Builds the lift preview from the bubble alone, clipped to its shape. Without it UIKit lifts the
+    /// whole side-hugging cell as a plain rectangle. Mirrors ChatLayout's `preview(for:)`.
+    private func preview(for configuration: UIContextMenuConfiguration) -> UITargetedPreview? {
+        guard let identifier = configuration.identifier as? String else { return nil }
+        let components = identifier.split(separator: "|")
+        guard components.count == 2,
+              let section = Int(components[0]),
+              let item = Int(components[1]),
+              let cell = collectionView.cellForItem(at: IndexPath(item: item, section: section)) as? ChatMessageCell else {
+            return nil
+        }
+        let parameters = UIPreviewParameters()
+        parameters.visiblePath = cell.bubbleView.maskingPath
+        parameters.backgroundColor = .clear
+        return UITargetedPreview(view: cell.bubbleView, parameters: parameters)
+    }
+}
 
 #Preview("Transcript") {
     let controller = ChatViewController()

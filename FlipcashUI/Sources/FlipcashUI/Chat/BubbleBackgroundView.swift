@@ -42,6 +42,12 @@ final class BubbleBackgroundView: UIView {
         setNeedsLayout()
     }
 
+    /// The bubble's continuous, per-corner rounded shape in its own coordinate space — the same
+    /// geometry used for the layer mask. Clips the context-menu lift preview to the bubble.
+    var maskingPath: UIBezierPath {
+        UIBezierPath(cgPath: UnevenRoundedRectangle(cornerRadii: radii, style: .continuous).path(in: bounds).cgPath)
+    }
+
     override func layoutSubviews() {
         super.layoutSubviews()
         let path = UnevenRoundedRectangle(cornerRadii: radii, style: .continuous).path(in: bounds).cgPath

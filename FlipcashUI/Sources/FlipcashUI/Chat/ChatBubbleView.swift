@@ -48,6 +48,10 @@ public final class ChatBubbleView: UIView {
         ])
     }
 
+    /// The bubble's shape in its own coordinate space, for clipping the context-menu lift preview.
+    /// The background is pinned to every edge, so its bounds match the bubble's.
+    var maskingPath: UIBezierPath { background.maskingPath }
+
     public func configure(with message: ChatMessage) {
         switch message.content {
         case .text(let text): label.text = text
