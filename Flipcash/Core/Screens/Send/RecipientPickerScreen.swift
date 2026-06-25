@@ -215,13 +215,13 @@ nonisolated enum RecipientListItem: Identifiable, Equatable {
     /// Recency for the merged feed sort: the more recent of the row's
     /// conversation activity and its contact's Flipcash join date. A chat-less
     /// contact sorts by join date; an active chat by its (always later) activity.
-    private var sortDate: Date {
+    fileprivate var sortDate: Date {
         max(conversation?.lastActivity ?? .distantPast, contact?.joinDate ?? .distantPast)
     }
 
     /// Stable tiebreak for rows that share a `sortDate` — e.g. contacts from one
     /// join batch: the contact's name, falling back to the row id.
-    private var tiebreak: String {
+    fileprivate var tiebreak: String {
         contact?.displayName ?? id
     }
 
@@ -244,14 +244,40 @@ nonisolated enum RecipientListItem: Identifiable, Equatable {
             items.append(.conversation(conversation))
         }
 
-        return items.sorted { lhs, rhs in
-            if lhs.sortDate != rhs.sortDate { return lhs.sortDate > rhs.sortDate }
-            let byName = lhs.tiebreak.localizedCaseInsensitiveCompare(rhs.tiebreak)
-            if byName != .orderedSame { return byName == .orderedAscending }
-            // Final discriminator on the unique row id keeps the order a total
-            // order, so equal date + name rows don't flicker across re-sorts.
-            return lhs.id < rhs.id
+        return items.sorted(using: RecipientFeedOrder())
+    }
+}
+
+/// The Send feed's row order as a reusable `SortComparator`: most-recent first
+/// by each row's recency (the later of its conversation activity and the
+/// contact's Flipcash join date), then by name, then by the unique row id. The
+/// id discriminator makes the order total, so rows sharing a date and name keep
+/// a stable position across re-sorts instead of flickering.
+nonisolated struct RecipientFeedOrder: SortComparator {
+
+    var order: SortOrder = .forward
+
+    func compare(_ lhs: RecipientListItem, _ rhs: RecipientListItem) -> ComparisonResult {
+        let forward = forwardComparison(lhs, rhs)
+        guard order == .reverse else { return forward }
+        switch forward {
+        case .orderedAscending:  return .orderedDescending
+        case .orderedDescending: return .orderedAscending
+        case .orderedSame:       return .orderedSame
         }
+    }
+
+    /// The ranking in `.forward` (most-recent-first) order.
+    private func forwardComparison(_ lhs: RecipientListItem, _ rhs: RecipientListItem) -> ComparisonResult {
+        if lhs.sortDate != rhs.sortDate {
+            return lhs.sortDate > rhs.sortDate ? .orderedAscending : .orderedDescending
+        }
+        let byName = lhs.tiebreak.localizedCaseInsensitiveCompare(rhs.tiebreak)
+        if byName != .orderedSame { return byName }
+        if lhs.id != rhs.id {
+            return lhs.id < rhs.id ? .orderedAscending : .orderedDescending
+        }
+        return .orderedSame
     }
 }
 
@@ -282,6 +308,10 @@ private struct RecipientPickerList: View {
 
     var body: some View {
         List {
+            // The on-Flipcash group keeps its `Section` even without a header:
+            // `.listSectionSeparator(.hidden, edges: .top)` is the only clean way
+            // to suppress the separator the grouped list draws above the first
+            // row. `.contentMargins` (below) handles the top gap instead.
             if !items.isEmpty {
                 Section {
                     ForEach(items) { item in
@@ -332,6 +362,10 @@ private struct RecipientPickerList: View {
         }
         .listStyle(.grouped)
         .listSectionSpacing(.compact)
+        // The grouped list's default top inset leaves a wide gap under the
+        // search bar now that the first group has no header; tighten it so the
+        // list sits just below the search field.
+        .contentMargins(.top, 8, for: .scrollContent)
         .scrollContentBackground(.hidden)
         .scrollDismissesKeyboard(.interactively)
         // New messages re-sort and re-style rows — animate those moves. Keyed
