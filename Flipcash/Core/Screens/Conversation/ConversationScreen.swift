@@ -8,6 +8,8 @@
 import SwiftUI
 import UIKit
 import Combine
+import Contacts
+import ContactsUI
 import FlipcashCore
 import FlipcashUI
 
@@ -42,6 +44,7 @@ struct ConversationScreen: View {
     @State private var didInitialRead = false
     @State private var barModel = ConversationBarModel()
     @State private var navBarWidth: CGFloat = 0
+    @State private var presentedCard: ContactCard?
 
     /// Horizontal space the back button (leading) reserves on each side of the
     /// centered title item, so the avatar + name can left-align inside a
@@ -99,6 +102,22 @@ struct ConversationScreen: View {
             return conversationController.conversation(withID: conversationID) != nil
                 || !conversationController.messages(for: conversationID).isEmpty
         }
+    }
+
+    /// Tapping the title opens the counterpart's contact card: their address-book
+    /// card when they're a contact, otherwise the native "Add to Contacts" sheet
+    /// seeded with their number. Inert only when neither a contact nor a phone
+    /// number is known.
+    private var titleTapAction: (() -> Void)? {
+        guard contact != nil || addableContactPhone != nil else { return nil }
+        return { openContactCard() }
+    }
+
+    /// The counterpart's phone number when they're NOT yet an address-book
+    /// contact — the seed for the native "Add to Contacts" sheet.
+    private var addableContactPhone: String? {
+        guard contact == nil else { return nil }
+        return sendTarget?.phoneE164
     }
 
     private var title: String {
@@ -163,9 +182,14 @@ struct ConversationScreen: View {
                     title: title,
                     contact: contact,
                     conversationID: conversationID,
-                    width: max(navBarWidth - Self.titleSideInset * 2, 0)
+                    width: max(navBarWidth - Self.titleSideInset * 2, 0),
+                    onTap: titleTapAction
                 )
             }
+        }
+        .sheet(item: $presentedCard) { card in
+            ContactCardView(card: card)
+                .ignoresSafeArea()
         }
         .background {
             // Measure the bar width so the centered title item can be sized to
@@ -244,6 +268,28 @@ struct ConversationScreen: View {
         conversationController.visibleConversationID = id
     }
 
+    /// Opens the native iOS contact card for the counterpart. An address-book
+    /// contact shows their card (fetched with the descriptor
+    /// `CNContactViewController` requires; nothing is shown if it can't be read,
+    /// e.g. deleted since sync). A non-contact with a known number opens the
+    /// "Add to Contacts" sheet seeded with that number.
+    private func openContactCard() {
+        if let contactId = contact?.contactId {
+            let keys = [CNContactViewController.descriptorForRequiredKeys()]
+            guard let fetched = try? CNContactStore().unifiedContact(
+                withIdentifier: contactId,
+                keysToFetch: keys
+            ) else { return }
+            presentedCard = .existing(fetched)
+        } else if let phone = addableContactPhone {
+            let unknown = CNMutableContact()
+            unknown.phoneNumbers = [
+                CNLabeledValue(label: CNLabelPhoneNumberMobile, value: CNPhoneNumber(stringValue: phone))
+            ]
+            presentedCard = .unknown(unknown)
+        }
+    }
+
     private func sendCash() {
         guard let sendTarget else { return }
         guard session.hasGiveableBalance(for: ratesController.rateForBalanceCurrency()) else {
@@ -298,8 +344,35 @@ struct ConversationScreen: View {
 
 /// Avatar + name, left-aligned inside the centered principal slot (sized to
 /// the measured bar width; the system toolbar won't honor maxWidth on a
-/// principal item).
+/// principal item). When `onTap` is non-nil the whole item becomes a button
+/// that opens the counterpart's contact card.
 private struct ConversationTitleItem: View {
+
+    let title: String
+    let contact: ResolvedContact?
+    let conversationID: ConversationID?
+    let width: CGFloat
+    let onTap: (() -> Void)?
+
+    var body: some View {
+        let label = ConversationTitleLabel(
+            title: title,
+            contact: contact,
+            conversationID: conversationID,
+            width: width
+        )
+        if let onTap {
+            Button(action: onTap) { label }
+                .buttonStyle(.plain)
+                .accessibilityLabel(title)
+                .accessibilityHint(contact != nil ? "Opens contact card" : "Adds to Contacts")
+        } else {
+            label
+        }
+    }
+}
+
+private struct ConversationTitleLabel: View {
 
     let title: String
     let contact: ResolvedContact?
@@ -314,6 +387,7 @@ private struct ConversationTitleItem: View {
                 imageData: contact?.imageData,
                 size: 44
             )
+            .accessibilityHidden(true)
             Text(title)
                 .font(.appBarButton)
                 .foregroundStyle(Color.textMain)
