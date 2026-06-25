@@ -10,10 +10,10 @@ import SwiftUI
 
 struct RemoteImage: View {
     
-    let url: URL
-    
+    let url: URL?
+
     init(url: URL?) {
-        self.url = url ?? URL(string: "https://example.com")!
+        self.url = url
     }
     
     var body: some View {

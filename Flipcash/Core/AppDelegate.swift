@@ -57,6 +57,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
         FontBook.registerApplicationFonts()
         setupAppearance()
+        RemoteImageCache.install()
 
         if Container.isRunningUITests {
             UIView.setAnimationsEnabled(false)
