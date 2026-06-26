@@ -48,10 +48,6 @@ public final class ChatViewController: UICollectionViewController {
     private static let bottomContentPadding: CGFloat = 12
     /// True while a batch update animates, so the top trigger doesn't re-fire mid-update.
     private var isUpdating = false
-    /// The id of a just-sent message whose receipt should fade in only after its inserting cell
-    /// settles, set across the batch that inserts it. Lets `cellForItemAt` tell that one cell apart
-    /// from a first open or a scroll-in (which show the line immediately).
-    private var pendingReceiptRevealID: String?
     /// True while a context menu is lifted from a bubble. Presenting the menu dismisses the keyboard;
     /// without intervention the adjusted inset shrinks and the transcript reflows out from under the
     /// lifted preview. So for the menu's lifetime the inset is taken over and frozen at its keyboard-up
@@ -162,8 +158,6 @@ public final class ChatViewController: UICollectionViewController {
             items = newItems
             return
         }
-        let revealID = freshlyInsertedReceiptID(from: items, to: newItems)
-        pendingReceiptRevealID = revealID
         isUpdating = true
         collectionView.reload(
             using: changeset,
@@ -179,32 +173,12 @@ public final class ChatViewController: UICollectionViewController {
                 }
             },
             completion: { [weak self] _ in
-                guard let self else { return }
-                isUpdating = false
-                // Clear only if a later update hasn't already claimed it for its own insert.
-                if pendingReceiptRevealID == revealID { pendingReceiptRevealID = nil }
-                // The batch has settled — fade in any receipt held back for an insert. revealHeldReceipt
-                // is a no-op on every cell that isn't currently holding one.
-                for case let cell as ChatColumnCell in collectionView.visibleCells {
-                    cell.revealHeldReceipt()
-                }
+                self?.isUpdating = false
             },
             setData: { [weak self] data in
                 self?.items = data
             }
         )
-    }
-
-    /// The id of a just-sent message — the trailing message, new to the transcript and carrying a
-    /// receipt. Its cell delays the delivery line so it fades in once the bubble has settled. nil for
-    /// every other update: a receipt swap on an existing message, a received message, or paged-in
-    /// history, all of which show their line immediately.
-    private func freshlyInsertedReceiptID(from old: [ChatItem], to new: [ChatItem]) -> String? {
-        guard let last = new.last(where: { $0.message != nil })?.message,
-              last.receipt != nil,
-              !old.contains(where: { $0.id == last.id })
-        else { return nil }
-        return last.id
     }
 
     // MARK: - Data source
@@ -223,7 +197,6 @@ public final class ChatViewController: UICollectionViewController {
             cell.configure(text: text)
             return cell
         case .message(let message):
-            let revealsReceipt = message.id == pendingReceiptRevealID
             switch message.content {
             case .text:
                 let cell = collectionView.dequeueReusableCell(
@@ -231,14 +204,14 @@ public final class ChatViewController: UICollectionViewController {
                     for: indexPath
                 ) as! ChatMessageCell
                 let width = collectionView.bounds.width > 0 ? collectionView.bounds.width : UIScreen.main.bounds.width
-                cell.configure(with: message, maxWidth: width * Self.maxBubbleWidthFraction, revealsReceiptAfterSettling: revealsReceipt)
+                cell.configure(with: message, maxWidth: width * Self.maxBubbleWidthFraction)
                 return cell
             case .cash:
                 let cell = collectionView.dequeueReusableCell(
                     withReuseIdentifier: ChatCashCardCell.reuseIdentifier,
                     for: indexPath
                 ) as! ChatCashCardCell
-                cell.configure(with: message, revealsReceiptAfterSettling: revealsReceipt)
+                cell.configure(with: message)
                 return cell
             }
         }
