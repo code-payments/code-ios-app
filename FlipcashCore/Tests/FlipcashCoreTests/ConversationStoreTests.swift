@@ -387,4 +387,27 @@ struct ConversationStoreTests {
         // A (sent first, still pending) stays above the just-confirmed B.
         #expect(displayedTexts(store, conversationID(1)) == ["x", "A", "B"])
     }
+
+    @Test("Out-of-order reconcile: the earlier send confirming first keeps send order")
+    func earlierSendReconcilingFirstKeepsSendOrder() {
+        let me = UUID()
+        var store = ConversationStore()
+        store.mergeMessages([message(3, "x")], into: conversationID(1))
+        let clientA = UUID(), clientB = UUID()
+        store.insertPending(
+            ConversationMessage(id: MessageID(value: .max), senderID: me, content: .text("A"),
+                                date: Date(timeIntervalSince1970: 0), unreadSeq: 0,
+                                status: .sending, clientMessageID: clientA),
+            into: conversationID(1)
+        )
+        store.insertPending(
+            ConversationMessage(id: MessageID(value: .max), senderID: me, content: .text("B"),
+                                date: Date(timeIntervalSince1970: 0), unreadSeq: 0,
+                                status: .sending, clientMessageID: clientB),
+            into: conversationID(1)
+        )
+        // A (sent first) reconciles first — B must NOT jump above it.
+        store.reconcile(clientMessageID: clientA, with: message(4, "A"), in: conversationID(1))
+        #expect(displayedTexts(store, conversationID(1)) == ["x", "A", "B"])
+    }
 }

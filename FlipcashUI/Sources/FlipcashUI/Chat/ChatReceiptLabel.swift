@@ -18,10 +18,9 @@ public final class ChatReceiptLabel: UILabel {
     /// against the column's right side.
     private static let textInsets = UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 10)
 
-    /// Resting color of the receipt line (Delivered/Read/Sending).
+    /// Resting color of the receipt line (Delivered/Read).
     public static let defaultColor = UIColor.white.withAlphaComponent(0.5)
-    /// Color of the failed status line — the theme's error-text token, so it matches error text
-    /// elsewhere and tracks theme changes (rather than the system red).
+    /// Color of the failed status line: the theme's error-text token, which tracks appearance changes.
     public static let failedColor = UIColor(Color.textError)
 
     public override init(frame: CGRect) {

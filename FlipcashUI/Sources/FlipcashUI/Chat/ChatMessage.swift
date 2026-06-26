@@ -41,10 +41,9 @@ public struct ChatMessage: Hashable, Sendable, Identifiable {
     public let isContinuationFromPrevious: Bool
     /// The row below is the same sender — flatten the inner bottom corner.
     public let isContinuedByNext: Bool
-    /// The status line shown under this bubble ("Delivered" / "Read 3:42 PM" / "Sending…" / "Not
-    /// Delivered. Tap to retry"), or nil when the row carries none. Carried on the message — not a
-    /// separate transcript row — so a send stays a clean insert instead of tearing the line down and
-    /// rebuilding it.
+    /// The status line shown under this bubble ("Delivered" / "Read 3:42 PM" / "Not Delivered. Tap to
+    /// retry"), or nil when the row carries none. Carried on the message — not a separate transcript
+    /// row — so a send stays a clean insert instead of tearing the line down and rebuilding it.
     public let receipt: String?
     /// How the status line is styled: `.normal`/`.sending` use the resting color, `.failed` turns it
     /// red and makes the row tappable to retry. The text itself comes from `receipt`.

@@ -201,13 +201,11 @@ struct ConversationScreen: View {
             didInitialRead = true
         }
         .onChange(of: latestConfirmedMessage?.stableID) {
-            // Mark read only when the counterpart's message is the latest — our own send reconciling
-            // shouldn't fire a markRead round-trip for a message we sent. didInitialRead skips the
-            // opening load (the .task already marked read).
-            guard didInitialRead, let conversationID,
-                  let last = latestConfirmedMessage,
-                  !last.isFromSelf(conversationController.selfUserID)
-            else { return }
+            // Fires on a live arrival or our own send. Marking read on our own send is intentional: it
+            // advances the self-read watermark past the message we just sent, so the conversation
+            // doesn't show as unread in the feed. didInitialRead skips the opening load (the .task
+            // already marked read), and markRead short-circuits when the watermark already covers it.
+            guard didInitialRead, let conversationID else { return }
             conversationController.scheduleMarkRead(conversationID: conversationID)
         }
         // Buzz on a live message from the other side while this conversation is on screen. `old != nil`

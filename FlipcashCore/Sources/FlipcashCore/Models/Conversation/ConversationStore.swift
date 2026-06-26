@@ -28,7 +28,9 @@ public struct ConversationStore: Sendable {
     /// confirmed server id at send time (the row this send sits after), `sequence` is its send order.
     private struct PendingEntry: Sendable {
         var message: ConversationMessage
-        let anchor: UInt64
+        /// Re-anchored upward when an earlier-but-later-confirming sibling reconciles, so send order
+        /// holds regardless of which concurrent send the server confirms first.
+        var anchor: UInt64
         let sequence: UInt64
     }
 
@@ -93,9 +95,21 @@ public struct ConversationStore: Sendable {
               }) else {
             return nil
         }
-        let clientMessageID = pending.remove(at: index).message.clientMessageID
+        let matched = pending.remove(at: index)
         pendingByConversation[conversationID] = pending
-        return clientMessageID
+        reanchorLaterSends(after: matched.sequence, toAtLeast: serverCopy.id.value, in: conversationID)
+        return matched.message.clientMessageID
+    }
+
+    /// After an optimistic send (`sequence`) confirms at `confirmedID`, any still-pending send made
+    /// after it (higher sequence) was sent after that now-confirmed row, so re-anchor it to at least
+    /// `confirmedID`. This keeps send order even when an earlier send reconciles before a later one.
+    private mutating func reanchorLaterSends(after sequence: UInt64, toAtLeast confirmedID: UInt64, in conversationID: ConversationID) {
+        guard var pending = pendingByConversation[conversationID] else { return }
+        for i in pending.indices where pending[i].sequence > sequence && pending[i].anchor < confirmedID {
+            pending[i].anchor = confirmedID
+        }
+        pendingByConversation[conversationID] = pending
     }
 
     // MARK: - Optimistic (pending) sends
@@ -167,11 +181,15 @@ public struct ConversationStore: Sendable {
     /// the server message, carrying the client id onto it so the row keeps its identity across
     /// sending → sent (no delete+insert).
     public mutating func reconcile(clientMessageID: UUID, with serverMessage: ConversationMessage, in conversationID: ConversationID) {
+        let reconciledSequence = pendingByConversation[conversationID]?.first { $0.message.clientMessageID == clientMessageID }?.sequence
         pendingByConversation[conversationID]?.removeAll { $0.message.clientMessageID == clientMessageID }
         var confirmed = serverMessage
         confirmed.status = .sent
         confirmed.clientMessageID = clientMessageID
         mergeMessages([confirmed], into: conversationID)
+        if let reconciledSequence {
+            reanchorLaterSends(after: reconciledSequence, toAtLeast: serverMessage.id.value, in: conversationID)
+        }
     }
 
     /// The signed-in user's READ watermark for a conversation, as last reported by
