@@ -19,6 +19,7 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
     private var _messages: [ConversationMessage] = []
     private var _olderMessages: [ConversationMessage] = []
     private var _olderQueries: [MessageID] = []
+    private var _latestPageQueries: [ConversationID] = []
     private var _sendResult: ConversationMessage?
     private var _sendError: Error?
     private var _sentClientIDs: [UUID] = []
@@ -27,6 +28,7 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
     private var _didEnsure = false
     private var _didClose = false
     private var _streamContinuation: AsyncStream<ConversationStreamEvent>.Continuation?
+    private var _connectionStateContinuation: AsyncStream<EventStreamConnectionState>.Continuation?
 
     var feed: [Conversation] {
         get { lock.withLock { _feed } }
@@ -43,6 +45,8 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
     }
     /// The `before` cursors `getMessages` was paged with.
     var olderQueries: [MessageID] { lock.withLock { _olderQueries } }
+    /// The conversations `getMessages` was asked for the newest page of (`before == nil`).
+    var latestPageQueries: [ConversationID] { lock.withLock { _latestPageQueries } }
     var sendResult: ConversationMessage? {
         get { lock.withLock { _sendResult } }
         set { lock.withLock { _sendResult = newValue } }
@@ -61,10 +65,19 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
     /// Whether `openConversationStream` has been called — events emitted
     /// before that are dropped, so tests wait on this before `emit(_:)`.
     var streamOpened: Bool { lock.withLock { _streamContinuation != nil } }
+    /// Whether `conversationConnectionState` has been subscribed — states emitted
+    /// before that are dropped, so tests wait on this before `emitConnectionState(_:)`.
+    var connectionStateStreamOpened: Bool { lock.withLock { _connectionStateContinuation != nil } }
 
     /// Push a live event onto the stream returned by `openConversationStream`.
     func emit(_ event: ConversationStreamEvent) {
         lock.withLock { _streamContinuation }?.yield(event)
+    }
+
+    /// Push a connection-state transition onto the stream returned by
+    /// `conversationConnectionState`, as the streamer does on a ping or teardown.
+    func emitConnectionState(_ state: EventStreamConnectionState) {
+        lock.withLock { _connectionStateContinuation }?.yield(state)
     }
 
     // MARK: - ConversationFetching
@@ -81,7 +94,10 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
     // MARK: - ConversationMessaging
 
     func getMessages(owner: KeyPair, conversationID: ConversationID, before: MessageID?) async throws -> [ConversationMessage] {
-        guard let before else { return messages }
+        guard let before else {
+            lock.withLock { _latestPageQueries.append(conversationID) }
+            return messages
+        }
         lock.withLock { _olderQueries.append(before) }
         return olderMessages
     }
@@ -107,6 +123,12 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
     func openConversationStream(owner: KeyPair) -> AsyncStream<ConversationStreamEvent> {
         let (stream, continuation) = AsyncStream<ConversationStreamEvent>.makeStream()
         lock.withLock { _streamContinuation = continuation }
+        return stream
+    }
+
+    func conversationConnectionState() -> AsyncStream<EventStreamConnectionState> {
+        let (stream, continuation) = AsyncStream<EventStreamConnectionState>.makeStream()
+        lock.withLock { _connectionStateContinuation = continuation }
         return stream
     }
 

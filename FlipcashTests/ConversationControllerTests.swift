@@ -347,6 +347,85 @@ struct ConversationControllerTests {
         controller.stop()
     }
 
+    // MARK: - Reconnect catch-up -
+
+    @Test("a reconnect refetches the visible conversation, catching up messages missed while the stream was down")
+    func reconnectCatchesUpVisibleTranscript() async throws {
+        let mock = MockConversations()
+        mock.feed = [Conversation(id: ConversationID.test(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 100))]
+        mock.messages = [ConversationMessage(id: MessageID(value: 1), senderID: nil, content: .text("one"), date: Date(timeIntervalSince1970: 10), unreadSeq: 1)]
+        let controller = makeController(mock)
+
+        controller.start()
+        try await waitUntil { mock.connectionStateStreamOpened }
+        // The initial connection's first `.live` is the baseline — no gap to fill.
+        mock.emitConnectionState(.live)
+
+        // Open the chat: load its first page and mark it visible (as the screen does).
+        await controller.loadMessages(for: ConversationID.test(1))
+        controller.visibleConversationID = ConversationID.test(1)
+        // Prerequisite for the catch-up assertion below: the transcript must start at [1].
+        try #require(controller.messages(for: ConversationID.test(1)).map(\.id.value) == [1])
+
+        // A newer message lands server-side during the window the stream was down —
+        // the live event for it was never delivered.
+        mock.messages = [
+            ConversationMessage(id: MessageID(value: 1), senderID: nil, content: .text("one"), date: Date(timeIntervalSince1970: 10), unreadSeq: 1),
+            ConversationMessage(id: MessageID(value: 2), senderID: nil, content: .text("two"), date: Date(timeIntervalSince1970: 20), unreadSeq: 2),
+        ]
+
+        // The stream drops and comes back: the reconnect's `.live` triggers catch-up.
+        mock.emitConnectionState(.disconnected)
+        mock.emitConnectionState(.live)
+
+        // The reconnect refetch pulls the newest page and the missed message appears.
+        try await waitUntil { controller.messages(for: ConversationID.test(1)).map(\.id.value) == [1, 2] }
+        // Reaching catch-up proves the FIFO consumer processed both `.live`s. The
+        // transcript was paged exactly twice — the explicit open + the one reconnect
+        // — so the baseline `.live` correctly fetched nothing.
+        #expect(mock.latestPageQueries == [ConversationID.test(1), ConversationID.test(1)])
+        controller.stop()
+    }
+
+    @Test("a reconnect refreshes the feed even with no conversation open")
+    func reconnectRefreshesFeed() async throws {
+        let mock = MockConversations()
+        let controller = makeController(mock)
+
+        controller.start()
+        try await waitUntil { mock.connectionStateStreamOpened }
+        try await waitUntil { controller.conversations.isEmpty }
+        mock.emitConnectionState(.live)   // initial connection — baseline
+
+        // The feed gains a conversation while the stream was down.
+        mock.feed = [Conversation(id: ConversationID.test(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 100))]
+        mock.emitConnectionState(.disconnected)
+        mock.emitConnectionState(.live)   // reconnect → refetch
+
+        try await waitUntil { controller.conversations.map(\.id) == [ConversationID.test(1)] }
+        controller.stop()
+    }
+
+    @Test("a reconnect with no conversation open refreshes the feed but fetches no transcript")
+    func reconnectWithoutVisibleConversationSkipsMessages() async throws {
+        let mock = MockConversations()
+        let controller = makeController(mock)
+
+        controller.start()
+        try await waitUntil { mock.connectionStateStreamOpened }
+        mock.emitConnectionState(.live)   // initial connection — baseline
+
+        // No conversation is visible. The feed refresh proves the refetch ran;
+        // the transcript page must not be fetched.
+        mock.feed = [Conversation(id: ConversationID.test(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 100))]
+        mock.emitConnectionState(.disconnected)
+        mock.emitConnectionState(.live)   // reconnect → loadFeed only
+
+        try await waitUntil { controller.conversations.map(\.id) == [ConversationID.test(1)] }
+        #expect(mock.latestPageQueries.isEmpty)
+        controller.stop()
+    }
+
     // MARK: - Pagination -
 
     @Test("loadOlderMessages pages before the oldest loaded id and prepends the page")

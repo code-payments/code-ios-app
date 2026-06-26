@@ -61,6 +61,12 @@ extension FlipClient {
         return eventStreamer.events
     }
 
+    /// The event stream's connection state over time, so the caller can refetch
+    /// the window a dropped-and-reconnected stream missed.
+    public nonisolated func conversationConnectionState() -> AsyncStream<EventStreamConnectionState> {
+        eventStreamer.connectionState
+    }
+
     public nonisolated func ensureConversationStreamConnected() {
         Task { await eventStreamer.ensureConnected() }
     }

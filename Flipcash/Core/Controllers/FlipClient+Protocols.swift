@@ -79,6 +79,10 @@ protocol ConversationMessaging: AnyObject, Sendable {
 /// `event.v1 StreamEvents` lifecycle behind `ConversationStreamEvent`.
 protocol ConversationEventStreaming: AnyObject, Sendable {
     func openConversationStream(owner: KeyPair) -> AsyncStream<ConversationStreamEvent>
+    /// The event stream's connection state. The stream carries no cursor and the
+    /// server never replays, so the controller treats the first `.live` as the
+    /// initial connection and refetches the missed window on each `.live` after.
+    func conversationConnectionState() -> AsyncStream<EventStreamConnectionState>
     func ensureConversationStreamConnected()
     func closeConversationStream()
 }
