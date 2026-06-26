@@ -289,6 +289,12 @@ final class ConversationController {
         store.displayedMessages(for: conversationID)
     }
 
+    /// The newest server-confirmed message — what the screen's receive buzz and mark-read track, so an
+    /// unresolved optimistic send (which renders after the confirmed run) never masks an incoming one.
+    func lastConfirmedMessage(for conversationID: ConversationID) -> ConversationMessage? {
+        store.lastConfirmedMessage(for: conversationID)
+    }
+
     func loadMessages(for conversationID: ConversationID) async {
         do {
             let messages = try await messaging.getMessages(owner: owner, conversationID: conversationID, before: nil)
@@ -382,7 +388,6 @@ final class ConversationController {
         _ = await deliver(clientMessageID: clientMessageID, text: text, to: conversationID)
     }
 
-    @discardableResult
     private func deliver(clientMessageID: UUID, text: String, to conversationID: ConversationID) async -> Bool {
         do {
             let message = try await messaging.sendMessage(owner: owner, conversationID: conversationID, text: text, clientMessageID: clientMessageID)

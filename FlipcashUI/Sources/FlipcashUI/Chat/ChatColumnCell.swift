@@ -64,7 +64,7 @@ public class ChatColumnCell: UICollectionViewCell {
             receipt.textColor = ChatReceiptLabel.defaultColor
         case .failed:
             retryID = message.id
-            receipt.textColor = .systemRed
+            receipt.textColor = ChatReceiptLabel.failedColor
         }
         // A cell already in the window is being reconfigured in place (Delivered→Read, sending→
         // delivered, the line clearing as a newer sent message takes it over), so cross-fade the

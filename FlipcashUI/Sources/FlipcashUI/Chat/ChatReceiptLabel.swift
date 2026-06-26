@@ -7,6 +7,7 @@
 
 #if canImport(UIKit)
 import UIKit
+import SwiftUI
 
 /// The "Delivered" / "Read 3:42 PM" line under the user's latest sent bubble. A styled label the
 /// message cell embeds below its content — not a standalone transcript row — so it sizes and
@@ -17,8 +18,11 @@ public final class ChatReceiptLabel: UILabel {
     /// against the column's right side.
     private static let textInsets = UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 10)
 
-    /// Resting color of the receipt line (Delivered/Read/Sending); the failed state overrides it red.
+    /// Resting color of the receipt line (Delivered/Read/Sending).
     public static let defaultColor = UIColor.white.withAlphaComponent(0.5)
+    /// Color of the failed status line — the theme's error-text token, so it matches error text
+    /// elsewhere and tracks theme changes (rather than the system red).
+    public static let failedColor = UIColor(Color.textError)
 
     public override init(frame: CGRect) {
         super.init(frame: frame)

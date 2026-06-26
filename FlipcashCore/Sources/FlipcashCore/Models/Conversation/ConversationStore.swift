@@ -70,14 +70,17 @@ public struct ConversationStore: Sendable {
     /// and content within the reconcile window — the optimistic row this server copy confirms. Returns
     /// nil when nothing matches (a counterpart message, or an unrelated history message).
     private mutating func reconcilePendingMatch(for serverCopy: ConversationMessage, in conversationID: ConversationID) -> UUID? {
-        guard let index = pendingByConversation[conversationID]?.firstIndex(where: {
-            $0.senderID == serverCopy.senderID
-                && $0.content == serverCopy.content
-                && abs($0.date.timeIntervalSince(serverCopy.date)) < Self.pendingReconcileWindow
-        }) else {
+        guard var pending = pendingByConversation[conversationID],
+              let index = pending.firstIndex(where: {
+                  $0.senderID == serverCopy.senderID
+                      && $0.content == serverCopy.content
+                      && abs($0.date.timeIntervalSince(serverCopy.date)) < Self.pendingReconcileWindow
+              }) else {
             return nil
         }
-        return pendingByConversation[conversationID]?.remove(at: index).clientMessageID
+        let clientMessageID = pending.remove(at: index).clientMessageID
+        pendingByConversation[conversationID] = pending
+        return clientMessageID
     }
 
     // MARK: - Optimistic (pending) sends
@@ -90,6 +93,13 @@ public struct ConversationStore: Sendable {
         let confirmed = messagesByConversation[conversationID] ?? []
         let pending = pendingByConversation[conversationID] ?? []
         return confirmed + pending
+    }
+
+    /// The newest server-confirmed message, or nil. Confirmed rows are kept sorted oldest-first and are
+    /// always `.sent` (pending sends live separately), so this is what the receive buzz and mark-read
+    /// track — never a pending row.
+    public func lastConfirmedMessage(for conversationID: ConversationID) -> ConversationMessage? {
+        messagesByConversation[conversationID]?.last
     }
 
     /// Add an optimistic message that the server hasn't confirmed yet.

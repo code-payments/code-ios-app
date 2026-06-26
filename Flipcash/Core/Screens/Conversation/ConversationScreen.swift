@@ -115,9 +115,10 @@ struct ConversationScreen: View {
 
     /// The newest server-confirmed message — what the receive buzz and mark-read track. Optimistic
     /// pending sends render after the confirmed run, so they must not drive these signals (an unresolved
-    /// send would otherwise sit at `.last` forever and mask incoming messages).
+    /// send would otherwise sit at the transcript's tail and mask incoming messages).
     private var latestConfirmedMessage: ConversationMessage? {
-        messages.last { $0.status == .sent }
+        guard let conversationID else { return nil }
+        return conversationController.lastConfirmedMessage(for: conversationID)
     }
 
     /// The transcript's messages mapped to the UIKit chat's display items (messages + date
