@@ -23,6 +23,14 @@ public enum ChatItem: Hashable, Sendable, Identifiable {
         case .dateSeparator(let id, _): id
         }
     }
+
+    /// The message this row carries, or nil for a date separator.
+    public var message: ChatMessage? {
+        switch self {
+        case .message(let message): message
+        case .dateSeparator: nil
+        }
+    }
 }
 
 /// Drives ChatLayout's canonical `reload(using:)` diffing: identity by `id` (stable across a

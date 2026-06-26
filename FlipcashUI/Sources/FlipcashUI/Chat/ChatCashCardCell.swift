@@ -100,7 +100,9 @@ public final class ChatCashCardCell: ChatColumnCell {
         coinIcon.image = nil
     }
 
-    public func configure(with message: ChatMessage) {
+    /// - Parameter revealsReceiptAfterSettling: set only for a just-sent message's inserting cell, so
+    ///   the delivery line fades in after the card settles instead of popping in with it.
+    public func configure(with message: ChatMessage, revealsReceiptAfterSettling: Bool = false) {
         guard case .cash(let cash) = message.content else { return }
         tokenLabel.text = cash.token
         captionLabel.text = message.sender == .me ? "You sent" : "You received"
@@ -129,7 +131,7 @@ public final class ChatCashCardCell: ChatColumnCell {
                 groupedBelow: message.isContinuedByNext
             )
         )
-        updateColumn(for: message)
+        updateColumn(for: message, revealsReceiptAfterSettling: revealsReceiptAfterSettling)
     }
 }
 
