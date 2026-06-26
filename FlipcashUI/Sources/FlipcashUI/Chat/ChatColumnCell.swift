@@ -19,6 +19,11 @@ public class ChatColumnCell: UICollectionViewCell {
     private var leadingConstraint: NSLayoutConstraint!
     private var trailingConstraint: NSLayoutConstraint!
 
+    /// Fired when the user taps a failed row to retry; the argument is the message's stable id.
+    var onRetry: ((String) -> Void)?
+    /// The message's stable id while this row is failed and tappable; nil otherwise.
+    private var retryID: String?
+
     /// Stacks `content` above the receipt and pins the column into the contentView, pinning top and
     /// bottom so the cell self-sizes to the content plus the receipt line. Call once, from the
     /// subclass's `init`, after the content view exists.
@@ -30,6 +35,11 @@ public class ChatColumnCell: UICollectionViewCell {
         column.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(column)
 
+        // The failed-state receipt ("Not Delivered. Tap to retry") is the only interactive part of the
+        // column; a tap fires onRetry when retryID is set.
+        receipt.isUserInteractionEnabled = true
+        receipt.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(receiptTapped)))
+
         leadingConstraint = column.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12)
         trailingConstraint = column.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12)
 
@@ -39,15 +49,38 @@ public class ChatColumnCell: UICollectionViewCell {
         ])
     }
 
-    /// Sets the receipt line and hugs the column to the sender's edge. Call from `configure`.
+    public override func prepareForReuse() {
+        super.prepareForReuse()
+        retryID = nil
+    }
+
+    /// Sets the receipt/status line and hugs the column to the sender's edge. Call from `configure`.
     func updateColumn(for message: ChatMessage) {
-        // A cell already in the window is being reconfigured in place (Delivered→Read, or the line
-        // clearing as a newer sent message takes it over), so cross-fade the change. A freshly
-        // dequeued cell isn't in the window yet, so it's set without animation — a scroll-in or a
-        // send shouldn't flash the line.
-        setReceipt(message.receipt, animated: window != nil)
+        // A cell already in the window is being reconfigured in place (Delivered→Read, sending→
+        // delivered, or the line clearing as a newer sent message takes it over), so cross-fade the
+        // change. A freshly dequeued cell isn't in the window yet, so it's set without animation — a
+        // scroll-in or a send shouldn't flash the line.
+        switch message.deliveryState {
+        case .normal:
+            retryID = nil
+            receipt.textColor = ChatReceiptLabel.defaultColor
+            setReceipt(message.receipt, animated: window != nil)
+        case .sending:
+            retryID = nil
+            receipt.textColor = ChatReceiptLabel.defaultColor
+            setReceipt("Sending\u{2026}", animated: window != nil)
+        case .failed:
+            retryID = message.id
+            receipt.textColor = .systemRed
+            setReceipt("Not Delivered. Tap to retry", animated: window != nil)
+        }
         column.alignment = message.sender == .me ? .trailing : .leading
         applyAlignment(isFromSelf: message.sender == .me)
+    }
+
+    @objc private func receiptTapped() {
+        guard let retryID else { return }
+        onRetry?(retryID)
     }
 
     private func setReceipt(_ text: String?, animated: Bool) {

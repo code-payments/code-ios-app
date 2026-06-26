@@ -113,6 +113,13 @@ struct ConversationScreen: View {
         return conversationController.messages(for: conversationID)
     }
 
+    /// The newest server-confirmed message — what the receive buzz and mark-read track. Optimistic
+    /// pending sends render after the confirmed run, so they must not drive these signals (an unresolved
+    /// send would otherwise sit at `.last` forever and mask incoming messages).
+    private var latestConfirmedMessage: ConversationMessage? {
+        messages.last { $0.status == .sent }
+    }
+
     /// The transcript's messages mapped to the UIKit chat's display items (messages + date
     /// separators). Cash branding mirrors the SwiftUI bubble: USDF reads as "Cash"; a launchpad
     /// currency uses its cached name + icon.
@@ -142,6 +149,7 @@ struct ConversationScreen: View {
         ChatScreenRepresentable(
             items: mappedItems,
             onReachTop: loadOlderMessages,
+            onRetry: retry,
             showsSendCash: sendTarget != nil,
             showsSendMessage: chatExists,
             conversationID: conversationID,
@@ -190,7 +198,7 @@ struct ConversationScreen: View {
             await conversationController.markRead(conversationID: conversationID)
             didInitialRead = true
         }
-        .onChange(of: messages.last?.id) {
+        .onChange(of: latestConfirmedMessage?.stableID) {
             // The initial load flips this from nil, which would double-fire
             // markRead alongside the .task above; only mark live arrivals.
             guard didInitialRead, let conversationID else { return }
@@ -199,9 +207,9 @@ struct ConversationScreen: View {
         // Buzz on a live message from the other side while this conversation is on screen. `old != nil`
         // and `didInitialRead` skip the opening history load; the sender and visibility checks skip the
         // user's own sends and arrivals in a chat they've navigated away from.
-        .sensoryFeedback(.impact(weight: .light), trigger: messages.last?.id) { old, _ in
+        .sensoryFeedback(.impact(weight: .light), trigger: latestConfirmedMessage?.stableID) { old, _ in
             guard old != nil, didInitialRead,
-                  let last = messages.last,
+                  let last = latestConfirmedMessage,
                   !last.isFromSelf(conversationController.selfUserID),
                   conversationController.visibleConversationID == conversationID
             else { return false }
@@ -253,6 +261,13 @@ struct ConversationScreen: View {
             return
         }
         router.presentNested(.sendAmount(sendTarget))
+    }
+
+    /// Re-send a failed message tapped in the transcript. The id is the row's stable id, which for a
+    /// failed message is its client message id.
+    private func retry(messageID: String) {
+        guard let conversationID, let clientMessageID = UUID(uuidString: messageID) else { return }
+        Task { await conversationController.retry(clientMessageID: clientMessageID, in: conversationID) }
     }
 
     /// Fetches the next older page when the UIKit transcript nears the top. Guarded so the

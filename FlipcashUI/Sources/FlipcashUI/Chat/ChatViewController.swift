@@ -28,6 +28,9 @@ public final class ChatViewController: UICollectionViewController {
     /// what keeps paging from ever getting stuck on a page.
     public var onReachTop: (() -> Void)?
 
+    /// Called when the user taps a failed outgoing row to retry; the argument is the message's stable id.
+    public var onRetry: ((String) -> Void)?
+
     /// The widest a bubble may grow, as a share of the collection view's width.
     private static let maxBubbleWidthFraction: CGFloat = 0.78
 
@@ -205,6 +208,7 @@ public final class ChatViewController: UICollectionViewController {
                 ) as! ChatMessageCell
                 let width = collectionView.bounds.width > 0 ? collectionView.bounds.width : UIScreen.main.bounds.width
                 cell.configure(with: message, maxWidth: width * Self.maxBubbleWidthFraction)
+                cell.onRetry = { [weak self] id in self?.onRetry?(id) }
                 return cell
             case .cash:
                 let cell = collectionView.dequeueReusableCell(
@@ -212,6 +216,7 @@ public final class ChatViewController: UICollectionViewController {
                     for: indexPath
                 ) as! ChatCashCardCell
                 cell.configure(with: message)
+                cell.onRetry = { [weak self] id in self?.onRetry?(id) }
                 return cell
             }
         }

@@ -17,10 +17,13 @@ public final class ChatReceiptLabel: UILabel {
     /// against the column's right side.
     private static let textInsets = UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 10)
 
+    /// Resting color of the receipt line (Delivered/Read/Sending); the failed state overrides it red.
+    public static let defaultColor = UIColor.white.withAlphaComponent(0.5)
+
     public override init(frame: CGRect) {
         super.init(frame: frame)
         font = .default(size: 12, weight: .medium)
-        textColor = UIColor.white.withAlphaComponent(0.5)
+        textColor = Self.defaultColor
         textAlignment = .right
         numberOfLines = 1
     }

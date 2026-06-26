@@ -42,6 +42,18 @@ struct ChatMessageMappingTests {
         items.compactMap { if case .message(let message) = $0 { message.receipt } else { nil } }.last
     }
 
+    private func sending(_ clientID: UUID, _ body: String, after offset: TimeInterval) -> ConversationMessage {
+        ConversationMessage(
+            id: MessageID(value: .max), senderID: me, content: .text(body),
+            date: base.addingTimeInterval(offset), unreadSeq: 0,
+            status: .sending, clientMessageID: clientID
+        )
+    }
+
+    private func deliveryStates(_ items: [ChatItem]) -> [ChatMessage.DeliveryState] {
+        messageRows(items).map(\.deliveryState)
+    }
+
     @Test("Same-sender run within the gap groups; a sender change breaks it; gaps add separators")
     func grouping() {
         let messages = [
@@ -166,5 +178,30 @@ struct ChatMessageMappingTests {
             counterpartRead: (pointer: MessageID(value: 1), date: threeDaysAgo)
         )
         #expect(receiptText(items) == "Read \(weekday)")
+    }
+
+    @Test("A sending message maps to .sending; the status line follows it, so no Delivered shows")
+    func sendingMapsToState() {
+        let clientID = UUID()
+        let items = ChatItem.from(
+            [text(1, me, "a", after: 0), sending(clientID, "b", after: 60)],
+            selfUserID: me,
+            counterpartRead: (pointer: MessageID(value: 0), date: nil)
+        )
+        #expect(deliveryStates(items) == [.normal, .sending])
+        // The status line rides the LAST self message (iMessage-style); while "b" is sending it shows
+        // its own state and the older delivered "a" shows nothing — so there's no "Delivered" anywhere.
+        #expect(receiptText(items) == nil)
+        // The sending row's stable identity is its client id.
+        #expect(messageRows(items).last?.id == clientID.uuidString)
+    }
+
+    @Test("A failed message maps to .failed")
+    func failedMapsToState() {
+        let clientID = UUID()
+        var msg = sending(clientID, "b", after: 60)
+        msg.status = .failed
+        let items = ChatItem.from([text(1, me, "a", after: 0), msg], selfUserID: me)
+        #expect(deliveryStates(items) == [.normal, .failed])
     }
 }

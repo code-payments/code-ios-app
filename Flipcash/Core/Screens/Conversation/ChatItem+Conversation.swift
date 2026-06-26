@@ -24,8 +24,11 @@ extension ChatItem {
         counterpartRead: (pointer: MessageID, date: Date?)? = nil,
         cashBranding: (ExchangedFiat) -> (token: String, iconURL: URL?) = { _ in ("Cash", nil) }
     ) -> [ChatItem] {
-        // Only the user's latest sent message carries a receipt.
-        let latestFromSelfID = messages.last { $0.isFromSelf(selfUserID) }?.id
+        // The status line rides only the LAST message from self (iMessage-style): "Delivered"/"Read"
+        // when it's confirmed, else that message shows its own sending/failed state. A newer in-flight
+        // send moves the line off the prior delivered bubble. Per-message sending/failed still renders
+        // below (so every failed message stays independently retryable) — only the receipt is last-only.
+        let latestFromSelfID = messages.last { $0.isFromSelf(selfUserID) }?.stableID
         var items: [ChatItem] = []
         for (index, message) in messages.enumerated() {
             let isFromSelf = message.isFromSelf(selfUserID)
@@ -35,7 +38,7 @@ extension ChatItem {
             // A separator opens the transcript and breaks any run longer than the gap.
             let showsSeparator = previous.map { message.date.timeIntervalSince($0.date) > gap } ?? true
             if showsSeparator {
-                items.append(.dateSeparator(id: "sep-\(message.id.value)", text: Self.separatorText(for: message.date)))
+                items.append(.dateSeparator(id: "sep-\(message.stableID)", text: Self.separatorText(for: message.date)))
             }
 
             let groupedAbove = previous.map {
@@ -63,17 +66,24 @@ extension ChatItem {
 
             // The delivery line rides on the latest sent message itself, not a separate row, so a
             // send diffs to a clean insert instead of tearing a receipt row down and rebuilding it.
-            let receipt: String? = isFromSelf && message.id == latestFromSelfID
+            let receipt: String? = isFromSelf && message.stableID == latestFromSelfID && message.status == .sent
                 ? Self.receiptText(for: message.id, counterpartRead: counterpartRead)
                 : nil
 
+            let deliveryState: ChatMessage.DeliveryState = switch message.status {
+            case .sent: .normal
+            case .sending: .sending
+            case .failed: .failed
+            }
+
             items.append(.message(ChatMessage(
-                id: "\(message.id.value)",
+                id: message.stableID,
                 content: content,
                 sender: isFromSelf ? .me : .other,
                 isContinuationFromPrevious: groupedAbove,
                 isContinuedByNext: groupedBelow,
-                receipt: receipt
+                receipt: receipt,
+                deliveryState: deliveryState
             )))
         }
         return items

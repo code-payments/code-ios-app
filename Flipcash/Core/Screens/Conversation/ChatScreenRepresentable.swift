@@ -22,6 +22,9 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// transcript preserves scroll offset across the prepend). This is the incremental
     /// reverse-infinite paging that the UIKit rebuild exists to enable.
     let onReachTop: () -> Void
+    /// Fired when the user taps a failed outgoing row; the argument is the message's stable id (its
+    /// client message id). The owner re-sends it.
+    let onRetry: (String) -> Void
     let showsSendCash: Bool
     let showsSendMessage: Bool
     let conversationID: ConversationID?
@@ -41,6 +44,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
             keyboardBarController: keyboardHost
         )
         screen.onReachTop = onReachTop
+        screen.onRetry = onRetry
         screen.update(items: items)
         screen.setComposing(barModel.isComposing)
         context.coordinator.restingHost = restingHost
@@ -56,6 +60,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         context.coordinator.restingHost?.rootView = restingBar(coordinator: context.coordinator)
         context.coordinator.keyboardHost?.rootView = keyboardBar(coordinator: context.coordinator)
         screen.onReachTop = onReachTop
+        screen.onRetry = onRetry
         screen.setComposing(barModel.isComposing)
 
         // Scroll only when the user's *own* message was just appended — a new trailing message id
