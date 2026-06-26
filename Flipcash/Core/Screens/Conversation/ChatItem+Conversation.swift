@@ -22,6 +22,7 @@ extension ChatItem {
         selfUserID: UserID,
         gap: TimeInterval = 15 * 60,
         counterpartRead: (pointer: MessageID, date: Date?)? = nil,
+        suppressReceiptFor: String? = nil,
         cashBranding: (ExchangedFiat) -> (token: String, iconURL: URL?) = { _ in ("Cash", nil) }
     ) -> [ChatItem] {
         // "Delivered"/"Read" rides the latest *confirmed* self message, so an in-flight or failed send
@@ -71,8 +72,8 @@ extension ChatItem {
             switch message.status {
             case .sent:
                 // "Delivered"/"Read" rides only the latest confirmed self message — preserved even when
-                // a later send is in flight or failed.
-                receipt = isFromSelf && message.stableID == latestSentFromSelfID
+                // a later send is in flight or failed, and held back while the row is still settling in.
+                receipt = isFromSelf && message.stableID == latestSentFromSelfID && message.stableID != suppressReceiptFor
                     ? Self.receiptText(for: message.id, counterpartRead: counterpartRead)
                     : nil
                 deliveryState = .normal

@@ -211,4 +211,15 @@ struct ChatMessageMappingTests {
         #expect(rows.first?.receipt == "Delivered")                     // prior delivered receipt preserved
         #expect(rows.last?.receipt == "Not Delivered. Tap to retry")    // failed row shows its own line
     }
+
+    @Test("A settling send's Delivered receipt is held back, then shows once the gate clears")
+    func suppressedReceiptWhileSettling() {
+        let read = (pointer: MessageID(value: 0), date: Date?.none)
+        // While the row is still settling (its id is suppressed), no receipt shows.
+        let settling = ChatItem.from([text(1, me, "hi", after: 0)], selfUserID: me, counterpartRead: read, suppressReceiptFor: "1")
+        #expect(receiptText(settling) == nil)
+        // Once the gate clears, "Delivered" appears.
+        let settled = ChatItem.from([text(1, me, "hi", after: 0)], selfUserID: me, counterpartRead: read)
+        #expect(receiptText(settled) == "Delivered")
+    }
 }
