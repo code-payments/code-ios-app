@@ -73,7 +73,7 @@ final class ConversationController {
 
     /// How long a freshly-sent bubble's receipt is held back, ~matching the insert animation so
     /// "Delivered" lands after the row settles instead of mid-animation.
-    private static let receiptSettleDelay: Duration = .milliseconds(350)
+    private static let receiptSettleDelay: Duration = .milliseconds(500)
 
     init(
         fetching: any ConversationFetching,
