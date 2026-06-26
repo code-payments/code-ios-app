@@ -99,6 +99,59 @@ struct ConversationControllerTests {
         #expect(controller.messages(for: ConversationID.test(1)).map(\.id.value) == [7])
     }
 
+    @Test("send shows the message immediately as sending, then sent on success")
+    func sendOptimisticSuccess() async {
+        let me = UUID()
+        let mock = MockConversations()
+        mock.sendResult = ConversationMessage(id: MessageID(value: 7), senderID: me, content: .text("hello"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0)
+        let controller = makeController(mock, selfUserID: me)
+
+        let ok = await controller.send("hello", to: ConversationID.test(1))
+        #expect(ok)
+        let messages = controller.messages(for: ConversationID.test(1))
+        #expect(messages.count == 1)
+        #expect(messages.first?.id.value == 7)
+        #expect(messages.first?.status == .sent)
+    }
+
+    @Test("a failed send leaves the message in the transcript as failed")
+    func sendOptimisticFailureKeepsMessage() async {
+        let me = UUID()
+        let mock = MockConversations()
+        mock.sendError = ErrorSendMessage.transportFailure
+        let controller = makeController(mock, selfUserID: me)
+
+        let ok = await controller.send("hello", to: ConversationID.test(1))
+        #expect(!ok)
+        let messages = controller.messages(for: ConversationID.test(1))
+        #expect(messages.count == 1)
+        #expect(messages.first?.status == .failed)
+        #expect(messages.first?.content == .text("hello"))
+    }
+
+    @Test("retry re-sends the failed message reusing its client id")
+    func retryReusesClientID() async throws {
+        let me = UUID()
+        let mock = MockConversations()
+        mock.sendError = ErrorSendMessage.transportFailure
+        let controller = makeController(mock, selfUserID: me)
+        _ = await controller.send("hello", to: ConversationID.test(1))
+
+        let failed = try #require(controller.messages(for: ConversationID.test(1)).first)
+        let clientID = try #require(failed.clientMessageID)
+
+        // Second attempt succeeds.
+        mock.sendError = nil
+        mock.sendResult = ConversationMessage(id: MessageID(value: 9), senderID: me, content: .text("hello"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0)
+        await controller.retry(clientMessageID: clientID, in: ConversationID.test(1))
+
+        #expect(mock.sentClientIDs == [clientID, clientID])   // same id both attempts → server-idempotent
+        let messages = controller.messages(for: ConversationID.test(1))
+        #expect(messages.count == 1)
+        #expect(messages.first?.status == .sent)
+        #expect(messages.first?.id.value == 9)
+    }
+
     @Test("markRead advances to the latest loaded message")
     func markRead() async {
         let mock = MockConversations()

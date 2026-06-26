@@ -15,6 +15,9 @@ public struct ConversationStore: Sendable {
 
     public private(set) var conversations: [Conversation] = []
     private var messagesByConversation: [ConversationID: [ConversationMessage]] = [:]
+    /// Optimistic messages not yet confirmed by the server, kept separate from the server-mirrored
+    /// `messagesByConversation` so paging, mark-read, and the feed never see them.
+    private var pendingByConversation: [ConversationID: [ConversationMessage]] = [:]
 
     public init() {}
 
@@ -39,9 +42,56 @@ public struct ConversationStore: Sendable {
             uniquingKeysWith: { _, new in new }
         )
         for message in incoming {
-            byID[message.id] = message
+            // A re-delivered server copy (the stream echo of a message this device sent) carries no
+            // client id; keep the one the optimistic send reconciled onto this row so the transcript
+            // identity stays stable and the row never re-inserts.
+            if message.clientMessageID == nil, let existing = byID[message.id]?.clientMessageID {
+                byID[message.id] = ConversationMessage(
+                    id: message.id, senderID: message.senderID, content: message.content,
+                    date: message.date, unreadSeq: message.unreadSeq, status: .sent, clientMessageID: existing
+                )
+            } else {
+                byID[message.id] = message
+            }
         }
         messagesByConversation[conversationID] = byID.values.sorted { $0.id < $1.id }
+    }
+
+    // MARK: - Optimistic (pending) sends
+
+    /// Confirmed messages (oldest first) followed by in-flight optimistic ones (by send time). This is
+    /// the transcript's source of truth; `messages(for:)` stays confirmed-only for mark-read and paging.
+    public func displayedMessages(for conversationID: ConversationID) -> [ConversationMessage] {
+        let confirmed = messagesByConversation[conversationID] ?? []
+        let pending = (pendingByConversation[conversationID] ?? []).sorted { $0.date < $1.date }
+        return confirmed + pending
+    }
+
+    /// Add an optimistic message that the server hasn't confirmed yet.
+    public mutating func insertPending(_ message: ConversationMessage, into conversationID: ConversationID) {
+        pendingByConversation[conversationID, default: []].append(message)
+    }
+
+    /// The in-flight optimistic message for a client id, if still pending.
+    public func pendingMessage(clientMessageID: UUID, in conversationID: ConversationID) -> ConversationMessage? {
+        pendingByConversation[conversationID]?.first { $0.clientMessageID == clientMessageID }
+    }
+
+    /// Move a pending message between sending and failed.
+    public mutating func markPending(clientMessageID: UUID, status: SendStatus, in conversationID: ConversationID) {
+        guard let index = pendingByConversation[conversationID]?.firstIndex(where: { $0.clientMessageID == clientMessageID }) else { return }
+        pendingByConversation[conversationID]?[index].status = status
+    }
+
+    /// Replace a server-confirmed send: drop the optimistic copy and merge the server message, carrying
+    /// the client id onto it so the row keeps its identity across sending → sent (no delete+insert).
+    public mutating func reconcile(clientMessageID: UUID, with serverMessage: ConversationMessage, in conversationID: ConversationID) {
+        pendingByConversation[conversationID]?.removeAll { $0.clientMessageID == clientMessageID }
+        let confirmed = ConversationMessage(
+            id: serverMessage.id, senderID: serverMessage.senderID, content: serverMessage.content,
+            date: serverMessage.date, unreadSeq: serverMessage.unreadSeq, status: .sent, clientMessageID: clientMessageID
+        )
+        mergeMessages([confirmed], into: conversationID)
     }
 
     /// The signed-in user's READ watermark for a conversation, as last reported by

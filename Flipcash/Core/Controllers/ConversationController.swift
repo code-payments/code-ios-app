@@ -286,7 +286,7 @@ final class ConversationController {
     // MARK: - Conversation
 
     func messages(for conversationID: ConversationID) -> [ConversationMessage] {
-        store.messages(for: conversationID)
+        store.displayedMessages(for: conversationID)
     }
 
     func loadMessages(for conversationID: ConversationID) async {
@@ -354,16 +354,45 @@ final class ConversationController {
         }
     }
 
+    /// Optimistically inserts the message so it appears instantly as `.sending`, then awaits the
+    /// server: on success it reconciles to the confirmed message, on failure it stays in the
+    /// transcript as `.failed` (never silently dropped).
     @discardableResult
     func send(_ text: String, to conversationID: ConversationID) async -> Bool {
+        let clientMessageID = UUID()
+        let pending = ConversationMessage(
+            id: MessageID(value: .max),
+            senderID: selfUserID,
+            content: .text(text),
+            date: .now,
+            unreadSeq: 0,
+            status: .sending,
+            clientMessageID: clientMessageID
+        )
+        store.insertPending(pending, into: conversationID)
+        return await deliver(clientMessageID: clientMessageID, text: text, to: conversationID)
+    }
+
+    /// Re-send a failed optimistic message, reusing its client id so the server (idempotent on it)
+    /// returns the original message rather than creating a duplicate.
+    func retry(clientMessageID: UUID, in conversationID: ConversationID) async {
+        guard let pending = store.pendingMessage(clientMessageID: clientMessageID, in: conversationID),
+              case .text(let text) = pending.content else { return }
+        store.markPending(clientMessageID: clientMessageID, status: .sending, in: conversationID)
+        _ = await deliver(clientMessageID: clientMessageID, text: text, to: conversationID)
+    }
+
+    @discardableResult
+    private func deliver(clientMessageID: UUID, text: String, to conversationID: ConversationID) async -> Bool {
         do {
-            let message = try await messaging.sendMessage(owner: owner, conversationID: conversationID, text: text)
-            store.mergeMessages([message], into: conversationID)
+            let message = try await messaging.sendMessage(owner: owner, conversationID: conversationID, text: text, clientMessageID: clientMessageID)
+            store.reconcile(clientMessageID: clientMessageID, with: message, in: conversationID)
             store.setLastMessage(message, in: conversationID)
             persist(operation: "send-message") { try database.upsertConversationMessages([message], conversationID: conversationID) }
             persistConversation(conversationID)
             return true
         } catch {
+            store.markPending(clientMessageID: clientMessageID, status: .failed, in: conversationID)
             logger.error("Failed to send conversation message", metadata: [
                 "conversationID": "\(conversationID)",
                 "error": "\(error)",

@@ -47,11 +47,11 @@ class ChatMessagingService: CodeService<Flipcash_Messaging_V1_MessagingNIOClient
         }
     }
 
-    func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String, completion: @Sendable @escaping (Result<ConversationMessage, ErrorSendMessage>) -> Void) {
+    func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String, clientMessageID: UUID, completion: @Sendable @escaping (Result<ConversationMessage, ErrorSendMessage>) -> Void) {
         let request = Flipcash_Messaging_V1_SendMessageRequest.with {
             $0.chatID = conversationID.proto
             $0.content = [.with { $0.text = .with { $0.text = text } }]
-            $0.clientMessageID = .with { $0.value = UUID().data }
+            $0.clientMessageID = .with { $0.value = clientMessageID.data }
             $0.auth = owner.authFor(message: $0)
         }
 

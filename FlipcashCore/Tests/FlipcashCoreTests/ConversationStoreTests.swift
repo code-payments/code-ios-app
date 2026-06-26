@@ -128,4 +128,94 @@ struct ConversationStoreTests {
         store.apply(.readPointersChanged(conversationID: conversationID(1), pointers: [MemberReadPointer(userID: me, value: MessageID(value: 3), date: Date(timeIntervalSince1970: 0))]))
         #expect(store.conversations.first?.members.first?.readPointerTimestamp == readAt)
     }
+
+    // MARK: - Optimistic send
+
+    @Test("A server-built message defaults to .sent with no client id; stableID is the server id")
+    func messageDefaultsAreSent() {
+        let m = message(7)
+        #expect(m.status == .sent)
+        #expect(m.clientMessageID == nil)
+        #expect(m.stableID == "7")
+    }
+
+    @Test("A pending message carries its client id as the stable identity")
+    func pendingMessageStableID() {
+        let id = UUID()
+        let m = ConversationMessage(
+            id: MessageID(value: .max), senderID: nil, content: .text("hi"),
+            date: Date(timeIntervalSince1970: 0), unreadSeq: 0,
+            status: .sending, clientMessageID: id
+        )
+        #expect(m.status == .sending)
+        #expect(m.stableID == id.uuidString)
+    }
+
+    @Test("insertPending shows the optimistic message after the confirmed ones; messages() ignores it")
+    func insertPendingDisplaysAfterConfirmed() {
+        var store = ConversationStore()
+        store.mergeMessages([message(1), message(2)], into: conversationID(1))
+        let clientID = UUID()
+        store.insertPending(
+            ConversationMessage(id: MessageID(value: .max), senderID: nil, content: .text("c"),
+                                date: Date(timeIntervalSince1970: 99), unreadSeq: 0,
+                                status: .sending, clientMessageID: clientID),
+            into: conversationID(1)
+        )
+        #expect(store.displayedMessages(for: conversationID(1)).map(\.stableID) == ["1", "2", clientID.uuidString])
+        #expect(store.messages(for: conversationID(1)).map(\.id.value) == [1, 2]) // confirmed-only, unchanged
+    }
+
+    @Test("markPending flips a pending message to failed")
+    func markPendingFailed() {
+        var store = ConversationStore()
+        let clientID = UUID()
+        store.insertPending(
+            ConversationMessage(id: MessageID(value: .max), senderID: nil, content: .text("c"),
+                                date: Date(timeIntervalSince1970: 0), unreadSeq: 0,
+                                status: .sending, clientMessageID: clientID),
+            into: conversationID(1)
+        )
+        store.markPending(clientMessageID: clientID, status: .failed, in: conversationID(1))
+        #expect(store.pendingMessage(clientMessageID: clientID, in: conversationID(1))?.status == .failed)
+    }
+
+    @Test("reconcile drops the pending copy and keeps the client id on the confirmed message")
+    func reconcileKeepsIdentity() {
+        var store = ConversationStore()
+        let clientID = UUID()
+        store.insertPending(
+            ConversationMessage(id: MessageID(value: .max), senderID: nil, content: .text("c"),
+                                date: Date(timeIntervalSince1970: 0), unreadSeq: 0,
+                                status: .sending, clientMessageID: clientID),
+            into: conversationID(1)
+        )
+        store.reconcile(clientMessageID: clientID, with: message(5, "c"), in: conversationID(1))
+
+        let displayed = store.displayedMessages(for: conversationID(1))
+        #expect(displayed.count == 1)
+        #expect(displayed.first?.id.value == 5)
+        #expect(displayed.first?.status == .sent)
+        #expect(displayed.first?.stableID == clientID.uuidString)   // identity preserved → no re-insert
+        #expect(store.pendingMessage(clientMessageID: clientID, in: conversationID(1)) == nil)
+    }
+
+    @Test("a stream echo of a reconciled message does not strip its client id")
+    func mergePreservesClientID() {
+        var store = ConversationStore()
+        let clientID = UUID()
+        store.insertPending(
+            ConversationMessage(id: MessageID(value: .max), senderID: nil, content: .text("c"),
+                                date: Date(timeIntervalSince1970: 0), unreadSeq: 0,
+                                status: .sending, clientMessageID: clientID),
+            into: conversationID(1)
+        )
+        store.reconcile(clientMessageID: clientID, with: message(5, "c"), in: conversationID(1))
+        // The event stream re-delivers the same server message with no client id.
+        store.mergeMessages([message(5, "c")], into: conversationID(1))
+
+        let displayed = store.displayedMessages(for: conversationID(1))
+        #expect(displayed.count == 1)
+        #expect(displayed.first?.stableID == clientID.uuidString)
+    }
 }
