@@ -78,7 +78,9 @@ extension ChatItem {
                     : nil
                 deliveryState = .normal
             case .sending:
-                receipt = "Sending…"
+                // No status line while in flight — the bubble just sits there until it resolves to
+                // "Delivered" or the failed state (matches iMessage).
+                receipt = nil
                 deliveryState = .sending
             case .failed:
                 receipt = "Not Delivered. Tap to retry"

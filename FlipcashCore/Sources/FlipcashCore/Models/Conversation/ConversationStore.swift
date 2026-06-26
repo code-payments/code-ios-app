@@ -87,23 +87,19 @@ public struct ConversationStore: Sendable {
 
     // MARK: - Optimistic (pending) sends
 
-    /// The transcript's source of truth: confirmed rows in server order, with each in-flight optimistic
-    /// row positioned by its send time. Positioning by date (rather than always appending) keeps a row
-    /// in place when sends reconcile out of order — e.g. a retried older message that resolves after a
-    /// newer one, or two rapid sends whose responses race. `messages(for:)` stays confirmed-only for
-    /// mark-read and paging.
+    /// The transcript's source of truth: confirmed rows in server order, then in-flight optimistic rows
+    /// in send order. They're appended (not date-merged) so a fresh send always lands at the tail —
+    /// immune to client/server clock skew, and the scroll-to-bottom on send stays reliable.
+    /// `messages(for:)` stays confirmed-only for mark-read and paging.
+    ///
+    /// A caveat we accept: if several sends are in flight at once and their responses reconcile out of
+    /// order, the just-confirmed one briefly sits among the confirmed run while earlier still-pending
+    /// ones trail it — a sub-second shuffle that settles into the server's order. Offline sends (which
+    /// never reconcile) stay in send order throughout.
     public func displayedMessages(for conversationID: ConversationID) -> [ConversationMessage] {
         let confirmed = messagesByConversation[conversationID] ?? []
         let pending = pendingByConversation[conversationID] ?? []
-        guard !pending.isEmpty else { return confirmed }
-        var result = confirmed
-        for message in pending {
-            // Sit before the first row newer than this send; same-date rows (and the common
-            // newest-send case) keep it after them, i.e. at the tail.
-            let index = result.firstIndex { $0.date > message.date } ?? result.endIndex
-            result.insert(message, at: index)
-        }
-        return result
+        return confirmed + pending
     }
 
     /// The newest server-confirmed message, or nil. Confirmed rows are kept sorted oldest-first and are

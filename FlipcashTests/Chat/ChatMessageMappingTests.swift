@@ -180,7 +180,7 @@ struct ChatMessageMappingTests {
         #expect(receiptText(items) == "Read \(weekday)")
     }
 
-    @Test("A sending message maps to .sending; the status line follows it, so no Delivered shows")
+    @Test("A sending message shows no status line until it resolves")
     func sendingMapsToState() {
         let clientID = UUID()
         let items = ChatItem.from(
@@ -189,9 +189,9 @@ struct ChatMessageMappingTests {
             counterpartRead: (pointer: MessageID(value: 0), date: nil)
         )
         #expect(deliveryStates(items) == [.normal, .sending])
-        // The status line rides the LAST self message (iMessage-style); while "b" is sending it shows
-        // "Sending…" and the older delivered "a" shows nothing — so no "Delivered" anywhere.
-        #expect(receiptText(items) == "Sending…")
+        // Nothing renders while "b" is in flight, and the older "a" isn't the latest self row, so the
+        // transcript shows no status line at all until "b" resolves to Delivered or failed.
+        #expect(receiptText(items) == nil)
         // The sending row's stable identity is its client id.
         #expect(messageRows(items).last?.id == clientID.uuidString)
     }

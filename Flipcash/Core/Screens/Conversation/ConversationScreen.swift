@@ -200,9 +200,13 @@ struct ConversationScreen: View {
             didInitialRead = true
         }
         .onChange(of: latestConfirmedMessage?.stableID) {
-            // The initial load flips this from nil, which would double-fire
-            // markRead alongside the .task above; only mark live arrivals.
-            guard didInitialRead, let conversationID else { return }
+            // Mark read only when the counterpart's message is the latest — our own send reconciling
+            // shouldn't fire a markRead round-trip for a message we sent. didInitialRead skips the
+            // opening load (the .task already marked read).
+            guard didInitialRead, let conversationID,
+                  let last = latestConfirmedMessage,
+                  !last.isFromSelf(conversationController.selfUserID)
+            else { return }
             conversationController.scheduleMarkRead(conversationID: conversationID)
         }
         // Buzz on a live message from the other side while this conversation is on screen. `old != nil`

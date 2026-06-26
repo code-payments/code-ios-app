@@ -15,10 +15,9 @@ import FlipcashUI
 @MainActor @Observable final class ConversationBarModel {
     var isComposing = false
     var draft = ""
-    var isSending = false
 
     var canSend: Bool {
-        !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSending
+        !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 }
 
@@ -135,14 +134,13 @@ struct ConversationComposer: View {
     private func send() {
         guard let conversationID else { return }
         let text = model.draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, !model.isSending else { return }
-        model.isSending = true
+        guard !text.isEmpty else { return }
         model.draft = ""
         isFocused = true
-        Task {
-            await conversationController.send(text, to: conversationID)
-            model.isSending = false
-        }
+        // Fire-and-forget: the message inserts optimistically and resolves on its own, so the composer
+        // stays ready immediately — the user can keep sending (especially offline) without waiting for
+        // each round-trip. Clearing the draft up front makes a double-tap a no-op (empty text).
+        Task { await conversationController.send(text, to: conversationID) }
     }
 }
 

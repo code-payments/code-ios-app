@@ -23,6 +23,9 @@ public class ChatColumnCell: UICollectionViewCell {
     var onRetry: ((String) -> Void)?
     /// The message's stable id while this row is failed and tappable; nil otherwise.
     private var retryID: String?
+    /// Tap-to-retry recognizer, enabled only while this row is failed so non-failed bubbles don't
+    /// consume taps (and a future single-tap affordance isn't pre-empted).
+    private var retryTap: UITapGestureRecognizer?
 
     /// Stacks `content` above the receipt and pins the column into the contentView, pinning top and
     /// bottom so the cell self-sizes to the content plus the receipt line. Call once, from the
@@ -35,10 +38,13 @@ public class ChatColumnCell: UICollectionViewCell {
         column.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(column)
 
-        // The whole bubble + status line is the retry target (a generous hit area vs. the thin
-        // receipt line), but a tap only fires onRetry when this row is failed — `retryTapped` checks
-        // retryID, so non-failed rows ignore taps and keep their long-press copy menu.
-        column.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(retryTapped)))
+        // The whole bubble + status line is the retry target (a generous hit area vs. the thin receipt
+        // line). The recognizer is enabled only for a failed row (see updateColumn), so non-failed
+        // bubbles don't consume taps and keep their long-press copy menu.
+        let tap = UITapGestureRecognizer(target: self, action: #selector(retryTapped))
+        tap.isEnabled = false
+        column.addGestureRecognizer(tap)
+        retryTap = tap
 
         leadingConstraint = column.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12)
         trailingConstraint = column.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12)
@@ -52,6 +58,7 @@ public class ChatColumnCell: UICollectionViewCell {
     public override func prepareForReuse() {
         super.prepareForReuse()
         retryID = nil
+        retryTap?.isEnabled = false
     }
 
     /// Sets the status line and hugs the column to the sender's edge. Call from `configure`. The text
@@ -66,6 +73,7 @@ public class ChatColumnCell: UICollectionViewCell {
             retryID = message.id
             receipt.textColor = ChatReceiptLabel.failedColor
         }
+        retryTap?.isEnabled = retryID != nil
         // A cell already in the window is being reconfigured in place (Delivered→Read, sending→
         // delivered, the line clearing as a newer sent message takes it over), so cross-fade the
         // change. A freshly dequeued cell isn't in the window yet, so it's set without animation — a
