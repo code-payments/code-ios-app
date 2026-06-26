@@ -87,14 +87,17 @@ public struct ConversationStore: Sendable {
     /// and content within the reconcile window — the optimistic row this server copy confirms. Returns
     /// nil when nothing matches (a counterpart message, or an unrelated history message).
     private mutating func reconcilePendingMatch(for serverCopy: ConversationMessage, in conversationID: ConversationID) -> UUID? {
-        guard var pending = pendingByConversation[conversationID],
-              let index = pending.firstIndex(where: {
-                  $0.message.senderID == serverCopy.senderID
-                      && $0.message.content == serverCopy.content
-                      && abs($0.message.date.timeIntervalSince(serverCopy.date)) < Self.pendingReconcileWindow
-              }) else {
-            return nil
+        guard var pending = pendingByConversation[conversationID] else { return nil }
+        let matches = pending.indices.filter {
+            pending[$0].message.senderID == serverCopy.senderID
+                && pending[$0].message.content == serverCopy.content
+                && abs(pending[$0].message.date.timeIntervalSince(serverCopy.date)) < Self.pendingReconcileWindow
         }
+        // Reconcile only an unambiguous match. Two in-flight sends with identical text can't be told
+        // apart (the server echoes no client id), so leave them for their own send-RPC responses —
+        // which key on the exact client id — rather than cross-wiring one send's id onto the other's
+        // row (which would briefly give two rows the same stableID).
+        guard matches.count == 1, let index = matches.first else { return nil }
         let matched = pending.remove(at: index)
         pendingByConversation[conversationID] = pending
         reanchorLaterSends(after: matched.sequence, toAtLeast: serverCopy.id.value, in: conversationID)

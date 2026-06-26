@@ -410,4 +410,34 @@ struct ConversationStoreTests {
         store.reconcile(clientMessageID: clientA, with: message(4, "A"), in: conversationID(1))
         #expect(displayedTexts(store, conversationID(1)) == ["x", "A", "B"])
     }
+
+    @Test("An ambiguous echo of two identical-text in-flight sends is not cross-wired")
+    func ambiguousIdenticalSendsAreNotCrossWired() {
+        let me = UUID()
+        var store = ConversationStore()
+        let clientA = UUID(), clientB = UUID()
+        store.insertPending(
+            ConversationMessage(id: MessageID(value: .max), senderID: me, content: .text("hi"),
+                                date: Date(timeIntervalSince1970: 0), unreadSeq: 0,
+                                status: .sending, clientMessageID: clientA),
+            into: conversationID(1)
+        )
+        store.insertPending(
+            ConversationMessage(id: MessageID(value: .max), senderID: me, content: .text("hi"),
+                                date: Date(timeIntervalSince1970: 0), unreadSeq: 0,
+                                status: .sending, clientMessageID: clientB),
+            into: conversationID(1)
+        )
+        // An echo of "hi" can't be told apart from either pending send — it must NOT reconcile.
+        store.mergeMessages(
+            [ConversationMessage(id: MessageID(value: 5), senderID: me, content: .text("hi"),
+                                 date: Date(timeIntervalSince1970: 0), unreadSeq: 0)],
+            into: conversationID(1)
+        )
+        #expect(store.pendingMessage(clientMessageID: clientA, in: conversationID(1)) != nil)
+        #expect(store.pendingMessage(clientMessageID: clientB, in: conversationID(1)) != nil)
+        // No two displayed rows share a stableID — no diff-corrupting duplicate identity.
+        let ids = store.displayedMessages(for: conversationID(1)).map(\.stableID)
+        #expect(Set(ids).count == ids.count)
+    }
 }
