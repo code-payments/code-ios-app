@@ -37,8 +37,9 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
     public var status: SendStatus
     /// The id the client minted for this send, reused across retries (the server is idempotent on
     /// it). Set only for messages that originated optimistically on this device; nil for everything
-    /// loaded from the server, the stream, or the cache.
-    public let clientMessageID: UUID?
+    /// loaded from the server, the stream, or the cache. Mutable so the store can carry it onto the
+    /// confirmed server copy during reconciliation without rebuilding the whole value.
+    public var clientMessageID: UUID?
 
     public init(
         id: MessageID,

@@ -190,8 +190,8 @@ struct ChatMessageMappingTests {
         )
         #expect(deliveryStates(items) == [.normal, .sending])
         // The status line rides the LAST self message (iMessage-style); while "b" is sending it shows
-        // its own state and the older delivered "a" shows nothing — so there's no "Delivered" anywhere.
-        #expect(receiptText(items) == nil)
+        // "Sending…" and the older delivered "a" shows nothing — so no "Delivered" anywhere.
+        #expect(receiptText(items) == "Sending…")
         // The sending row's stable identity is its client id.
         #expect(messageRows(items).last?.id == clientID.uuidString)
     }

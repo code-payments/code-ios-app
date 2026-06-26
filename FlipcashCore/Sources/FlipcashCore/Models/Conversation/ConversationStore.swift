@@ -30,9 +30,16 @@ public struct ConversationStore: Sendable {
         self.conversations = conversations.sorted { $0.lastActivity > $1.lastActivity }
     }
 
-    /// Insert/replace messages keyed by their gapless id, keeping oldest first.
-    /// Dedupes the send-response echo against the same message arriving on the
-    /// stream (both carry the server-assigned id).
+    /// How far apart an incoming server copy and a pending optimistic send may be (in either
+    /// direction, to absorb client/server clock skew) and still be treated as the same message. Wide
+    /// enough for skew, tight enough that an unrelated old history message with identical text never
+    /// reconciles a fresh pending send.
+    private static let pendingReconcileWindow: TimeInterval = 5 * 60
+
+    /// Insert/replace messages keyed by their gapless id, keeping oldest first. Reconciles a server
+    /// copy of one of our own optimistic sends — which carries no client id, because the server never
+    /// echoes it — against the matching pending row, so the echo collapses onto that row instead of
+    /// duplicating it, no matter which path (stream, history load, or the send RPC) delivers it first.
     public mutating func mergeMessages(_ incoming: [ConversationMessage], into conversationID: ConversationID) {
         guard !incoming.isEmpty else { return }
         let current = messagesByConversation[conversationID] ?? []
@@ -42,28 +49,46 @@ public struct ConversationStore: Sendable {
             uniquingKeysWith: { _, new in new }
         )
         for message in incoming {
-            // A re-delivered server copy (the stream echo of a message this device sent) carries no
-            // client id; keep the one the optimistic send reconciled onto this row so the transcript
-            // identity stays stable and the row never re-inserts.
-            if message.clientMessageID == nil, let existing = byID[message.id]?.clientMessageID {
-                byID[message.id] = ConversationMessage(
-                    id: message.id, senderID: message.senderID, content: message.content,
-                    date: message.date, unreadSeq: message.unreadSeq, status: .sent, clientMessageID: existing
-                )
-            } else {
-                byID[message.id] = message
+            var message = message
+            // A server copy with no client id is either the echo of one of our optimistic sends or a
+            // re-delivery of an already-reconciled row. Adopt the matching pending row's client id (and
+            // drop that pending copy) so the row keeps one stable identity across sending → sent and is
+            // never shown twice; otherwise keep the client id already on the confirmed row.
+            if message.clientMessageID == nil {
+                if let clientMessageID = reconcilePendingMatch(for: message, in: conversationID) {
+                    message.clientMessageID = clientMessageID
+                } else if let existing = byID[message.id]?.clientMessageID {
+                    message.clientMessageID = existing
+                }
             }
+            byID[message.id] = message
         }
         messagesByConversation[conversationID] = byID.values.sorted { $0.id < $1.id }
     }
 
+    /// Removes and returns the client id of the oldest pending send that matches `serverCopy` by sender
+    /// and content within the reconcile window — the optimistic row this server copy confirms. Returns
+    /// nil when nothing matches (a counterpart message, or an unrelated history message).
+    private mutating func reconcilePendingMatch(for serverCopy: ConversationMessage, in conversationID: ConversationID) -> UUID? {
+        guard let index = pendingByConversation[conversationID]?.firstIndex(where: {
+            $0.senderID == serverCopy.senderID
+                && $0.content == serverCopy.content
+                && abs($0.date.timeIntervalSince(serverCopy.date)) < Self.pendingReconcileWindow
+        }) else {
+            return nil
+        }
+        return pendingByConversation[conversationID]?.remove(at: index).clientMessageID
+    }
+
     // MARK: - Optimistic (pending) sends
 
-    /// Confirmed messages (oldest first) followed by in-flight optimistic ones (by send time). This is
+    /// Confirmed messages (oldest first) followed by in-flight optimistic ones in send order. This is
     /// the transcript's source of truth; `messages(for:)` stays confirmed-only for mark-read and paging.
+    /// Pending rows are appended in send order (and stay there), so no re-sort is needed — which also
+    /// keeps two same-millisecond sends in the order they were tapped.
     public func displayedMessages(for conversationID: ConversationID) -> [ConversationMessage] {
         let confirmed = messagesByConversation[conversationID] ?? []
-        let pending = (pendingByConversation[conversationID] ?? []).sorted { $0.date < $1.date }
+        let pending = pendingByConversation[conversationID] ?? []
         return confirmed + pending
     }
 
@@ -83,14 +108,14 @@ public struct ConversationStore: Sendable {
         pendingByConversation[conversationID]?[index].status = status
     }
 
-    /// Replace a server-confirmed send: drop the optimistic copy and merge the server message, carrying
-    /// the client id onto it so the row keeps its identity across sending → sent (no delete+insert).
+    /// Replace a server-confirmed send (the send RPC's own response): drop the optimistic copy and merge
+    /// the server message, carrying the client id onto it so the row keeps its identity across
+    /// sending → sent (no delete+insert).
     public mutating func reconcile(clientMessageID: UUID, with serverMessage: ConversationMessage, in conversationID: ConversationID) {
         pendingByConversation[conversationID]?.removeAll { $0.clientMessageID == clientMessageID }
-        let confirmed = ConversationMessage(
-            id: serverMessage.id, senderID: serverMessage.senderID, content: serverMessage.content,
-            date: serverMessage.date, unreadSeq: serverMessage.unreadSeq, status: .sent, clientMessageID: clientMessageID
-        )
+        var confirmed = serverMessage
+        confirmed.status = .sent
+        confirmed.clientMessageID = clientMessageID
         mergeMessages([confirmed], into: conversationID)
     }
 

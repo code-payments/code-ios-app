@@ -218,4 +218,96 @@ struct ConversationStoreTests {
         #expect(displayed.count == 1)
         #expect(displayed.first?.stableID == clientID.uuidString)
     }
+
+    @Test("An echo arriving before reconcile collapses onto the pending row (no duplicate, stable id)")
+    func echoBeforeReconcileCollapses() {
+        let me = UUID()
+        var store = ConversationStore()
+        let clientID = UUID()
+        store.insertPending(
+            ConversationMessage(id: MessageID(value: .max), senderID: me, content: .text("c"),
+                                date: Date(timeIntervalSince1970: 0), unreadSeq: 0,
+                                status: .sending, clientMessageID: clientID),
+            into: conversationID(1)
+        )
+        // The stream echo (server id, no client id, same sender+content+time) lands before the RPC.
+        store.mergeMessages(
+            [ConversationMessage(id: MessageID(value: 5), senderID: me, content: .text("c"),
+                                 date: Date(timeIntervalSince1970: 1), unreadSeq: 0)],
+            into: conversationID(1)
+        )
+        let displayed = store.displayedMessages(for: conversationID(1))
+        #expect(displayed.count == 1)                               // collapsed, not duplicated
+        #expect(displayed.first?.id.value == 5)
+        #expect(displayed.first?.status == .sent)
+        #expect(displayed.first?.stableID == clientID.uuidString)   // identity preserved across the echo
+        #expect(store.pendingMessage(clientMessageID: clientID, in: conversationID(1)) == nil)
+    }
+
+    @Test("An echo reconciles a failed pending send, clearing the phantom (timed-out-but-persisted)")
+    func echoReconcilesFailedPending() {
+        let me = UUID()
+        var store = ConversationStore()
+        let clientID = UUID()
+        store.insertPending(
+            ConversationMessage(id: MessageID(value: .max), senderID: me, content: .text("c"),
+                                date: Date(timeIntervalSince1970: 0), unreadSeq: 0,
+                                status: .sending, clientMessageID: clientID),
+            into: conversationID(1)
+        )
+        store.markPending(clientMessageID: clientID, status: .failed, in: conversationID(1))
+        // The send RPC timed out, but the server persisted + echoed the message.
+        store.mergeMessages(
+            [ConversationMessage(id: MessageID(value: 5), senderID: me, content: .text("c"),
+                                 date: Date(timeIntervalSince1970: 1), unreadSeq: 0)],
+            into: conversationID(1)
+        )
+        let displayed = store.displayedMessages(for: conversationID(1))
+        #expect(displayed.count == 1)                               // no permanent duplicate
+        #expect(displayed.first?.status == .sent)                   // no false "Not Delivered" phantom
+        #expect(store.pendingMessage(clientMessageID: clientID, in: conversationID(1)) == nil)
+    }
+
+    @Test("An unrelated old message with identical text does not reconcile a fresh pending send")
+    func oldHistoryDoesNotReconcile() {
+        let me = UUID()
+        var store = ConversationStore()
+        let clientID = UUID()
+        store.insertPending(
+            ConversationMessage(id: MessageID(value: .max), senderID: me, content: .text("hi"),
+                                date: Date(timeIntervalSince1970: 100_000), unreadSeq: 0,
+                                status: .sending, clientMessageID: clientID),
+            into: conversationID(1)
+        )
+        // A history page carries an old "hi" from the same sender, far outside the reconcile window.
+        store.mergeMessages(
+            [ConversationMessage(id: MessageID(value: 5), senderID: me, content: .text("hi"),
+                                 date: Date(timeIntervalSince1970: 0), unreadSeq: 0)],
+            into: conversationID(1)
+        )
+        let displayed = store.displayedMessages(for: conversationID(1))
+        #expect(displayed.count == 2)                               // distinct messages, not collapsed
+        #expect(store.pendingMessage(clientMessageID: clientID, in: conversationID(1)) != nil)
+    }
+
+    @Test("A counterpart message with identical text does not reconcile a pending self-send")
+    func counterpartMessageDoesNotReconcile() {
+        let me = UUID(), them = UUID()
+        var store = ConversationStore()
+        let clientID = UUID()
+        store.insertPending(
+            ConversationMessage(id: MessageID(value: .max), senderID: me, content: .text("hi"),
+                                date: Date(timeIntervalSince1970: 0), unreadSeq: 0,
+                                status: .sending, clientMessageID: clientID),
+            into: conversationID(1)
+        )
+        store.mergeMessages(
+            [ConversationMessage(id: MessageID(value: 5), senderID: them, content: .text("hi"),
+                                 date: Date(timeIntervalSince1970: 0), unreadSeq: 0)],
+            into: conversationID(1)
+        )
+        let displayed = store.displayedMessages(for: conversationID(1))
+        #expect(displayed.count == 2)                               // counterpart's "hi" + my pending "hi"
+        #expect(store.pendingMessage(clientMessageID: clientID, in: conversationID(1)) != nil)
+    }
 }

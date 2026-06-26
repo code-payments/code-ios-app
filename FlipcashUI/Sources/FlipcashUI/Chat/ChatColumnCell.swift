@@ -54,26 +54,23 @@ public class ChatColumnCell: UICollectionViewCell {
         retryID = nil
     }
 
-    /// Sets the receipt/status line and hugs the column to the sender's edge. Call from `configure`.
+    /// Sets the status line and hugs the column to the sender's edge. Call from `configure`. The text
+    /// is supplied by the mapping (`message.receipt`); this only styles it — a failed row turns red and
+    /// becomes tappable to retry.
     func updateColumn(for message: ChatMessage) {
-        // A cell already in the window is being reconfigured in place (Delivered→Read, sending→
-        // delivered, or the line clearing as a newer sent message takes it over), so cross-fade the
-        // change. A freshly dequeued cell isn't in the window yet, so it's set without animation — a
-        // scroll-in or a send shouldn't flash the line.
         switch message.deliveryState {
-        case .normal:
+        case .normal, .sending:
             retryID = nil
             receipt.textColor = ChatReceiptLabel.defaultColor
-            setReceipt(message.receipt, animated: window != nil)
-        case .sending:
-            retryID = nil
-            receipt.textColor = ChatReceiptLabel.defaultColor
-            setReceipt("Sending\u{2026}", animated: window != nil)
         case .failed:
             retryID = message.id
             receipt.textColor = .systemRed
-            setReceipt("Not Delivered. Tap to retry", animated: window != nil)
         }
+        // A cell already in the window is being reconfigured in place (Delivered→Read, sending→
+        // delivered, the line clearing as a newer sent message takes it over), so cross-fade the
+        // change. A freshly dequeued cell isn't in the window yet, so it's set without animation — a
+        // scroll-in or a send shouldn't flash the line.
+        setReceipt(message.receipt, animated: window != nil)
         column.alignment = message.sender == .me ? .trailing : .leading
         applyAlignment(isFromSelf: message.sender == .me)
     }

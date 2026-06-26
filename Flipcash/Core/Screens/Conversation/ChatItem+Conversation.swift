@@ -64,16 +64,25 @@ extension ChatItem {
                 ))
             }
 
-            // The delivery line rides on the latest sent message itself, not a separate row, so a
-            // send diffs to a clean insert instead of tearing a receipt row down and rebuilding it.
-            let receipt: String? = isFromSelf && message.stableID == latestFromSelfID && message.status == .sent
-                ? Self.receiptText(for: message.id, counterpartRead: counterpartRead)
-                : nil
-
-            let deliveryState: ChatMessage.DeliveryState = switch message.status {
-            case .sent: .normal
-            case .sending: .sending
-            case .failed: .failed
+            // The status line rides on the bubble itself (not a separate row, so a send is a clean
+            // insert). All of its copy is produced here, in one layer; the cell only styles it
+            // (resting vs. red + tappable) off `deliveryState`.
+            let receipt: String?
+            let deliveryState: ChatMessage.DeliveryState
+            switch message.status {
+            case .sent:
+                // "Delivered"/"Read" rides only the latest message from self; a newer in-flight send
+                // moves it off the prior delivered bubble.
+                receipt = isFromSelf && message.stableID == latestFromSelfID
+                    ? Self.receiptText(for: message.id, counterpartRead: counterpartRead)
+                    : nil
+                deliveryState = .normal
+            case .sending:
+                receipt = "Sending…"
+                deliveryState = .sending
+            case .failed:
+                receipt = "Not Delivered. Tap to retry"
+                deliveryState = .failed
             }
 
             items.append(.message(ChatMessage(

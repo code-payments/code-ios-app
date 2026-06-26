@@ -208,6 +208,8 @@ public final class ChatViewController: UICollectionViewController {
                 ) as! ChatMessageCell
                 let width = collectionView.bounds.width > 0 ? collectionView.bounds.width : UIScreen.main.bounds.width
                 cell.configure(with: message, maxWidth: width * Self.maxBubbleWidthFraction)
+                // Only text messages are sent optimistically, so only they can reach the failed
+                // state that arms retry. Cash messages are always server-confirmed.
                 cell.onRetry = { [weak self] id in self?.onRetry?(id) }
                 return cell
             case .cash:
@@ -216,7 +218,6 @@ public final class ChatViewController: UICollectionViewController {
                     for: indexPath
                 ) as! ChatCashCardCell
                 cell.configure(with: message)
-                cell.onRetry = { [weak self] id in self?.onRetry?(id) }
                 return cell
             }
         }
