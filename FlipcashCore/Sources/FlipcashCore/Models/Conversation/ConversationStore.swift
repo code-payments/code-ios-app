@@ -51,11 +51,13 @@ public struct ConversationStore: Sendable {
         for message in incoming {
             var message = message
             // A server copy with no client id is either the echo of one of our optimistic sends or a
-            // re-delivery of an already-reconciled row. Adopt the matching pending row's client id (and
-            // drop that pending copy) so the row keeps one stable identity across sending → sent and is
-            // never shown twice; otherwise keep the client id already on the confirmed row.
+            // re-delivery of an already-known row. Only a brand-new id (not already confirmed) can be a
+            // fresh send's echo, so only then do we content-match a pending row — this keeps a
+            // re-delivery of an OLD identical message from stealing a fresh pending send. Adopting the
+            // pending row's client id (and dropping that pending copy) keeps one stable identity across
+            // sending → sent; for an already-known id we just keep the client id already on the row.
             if message.clientMessageID == nil {
-                if let clientMessageID = reconcilePendingMatch(for: message, in: conversationID) {
+                if byID[message.id] == nil, let clientMessageID = reconcilePendingMatch(for: message, in: conversationID) {
                     message.clientMessageID = clientMessageID
                 } else if let existing = byID[message.id]?.clientMessageID {
                     message.clientMessageID = existing
@@ -85,14 +87,23 @@ public struct ConversationStore: Sendable {
 
     // MARK: - Optimistic (pending) sends
 
-    /// Confirmed messages (oldest first) followed by in-flight optimistic ones in send order. This is
-    /// the transcript's source of truth; `messages(for:)` stays confirmed-only for mark-read and paging.
-    /// Pending rows are appended in send order (and stay there), so no re-sort is needed — which also
-    /// keeps two same-millisecond sends in the order they were tapped.
+    /// The transcript's source of truth: confirmed rows in server order, with each in-flight optimistic
+    /// row positioned by its send time. Positioning by date (rather than always appending) keeps a row
+    /// in place when sends reconcile out of order — e.g. a retried older message that resolves after a
+    /// newer one, or two rapid sends whose responses race. `messages(for:)` stays confirmed-only for
+    /// mark-read and paging.
     public func displayedMessages(for conversationID: ConversationID) -> [ConversationMessage] {
         let confirmed = messagesByConversation[conversationID] ?? []
         let pending = pendingByConversation[conversationID] ?? []
-        return confirmed + pending
+        guard !pending.isEmpty else { return confirmed }
+        var result = confirmed
+        for message in pending {
+            // Sit before the first row newer than this send; same-date rows (and the common
+            // newest-send case) keep it after them, i.e. at the tail.
+            let index = result.firstIndex { $0.date > message.date } ?? result.endIndex
+            result.insert(message, at: index)
+        }
+        return result
     }
 
     /// The newest server-confirmed message, or nil. Confirmed rows are kept sorted oldest-first and are
@@ -100,6 +111,12 @@ public struct ConversationStore: Sendable {
     /// track — never a pending row.
     public func lastConfirmedMessage(for conversationID: ConversationID) -> ConversationMessage? {
         messagesByConversation[conversationID]?.last
+    }
+
+    /// Whether the conversation has any message (confirmed or in-flight) — checked without building the
+    /// merged transcript, so an emptiness test doesn't allocate the whole array.
+    public func hasMessages(for conversationID: ConversationID) -> Bool {
+        !(messagesByConversation[conversationID]?.isEmpty ?? true) || !(pendingByConversation[conversationID]?.isEmpty ?? true)
     }
 
     /// Add an optimistic message that the server hasn't confirmed yet.

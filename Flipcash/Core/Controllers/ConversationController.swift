@@ -295,6 +295,11 @@ final class ConversationController {
         store.lastConfirmedMessage(for: conversationID)
     }
 
+    /// Whether the conversation holds any message, without building the merged transcript.
+    func hasMessages(for conversationID: ConversationID) -> Bool {
+        store.hasMessages(for: conversationID)
+    }
+
     func loadMessages(for conversationID: ConversationID) async {
         do {
             let messages = try await messaging.getMessages(owner: owner, conversationID: conversationID, before: nil)
@@ -380,9 +385,11 @@ final class ConversationController {
     }
 
     /// Re-send a failed optimistic message, reusing its client id so the server (idempotent on it)
-    /// returns the original message rather than creating a duplicate.
+    /// returns the original message rather than creating a duplicate. Only a `.failed` row is retried,
+    /// so a double-tap (or a tap during a slow in-flight retry) can't fire concurrent sends.
     func retry(clientMessageID: UUID, in conversationID: ConversationID) async {
         guard let pending = store.pendingMessage(clientMessageID: clientMessageID, in: conversationID),
+              pending.status == .failed,
               case .text(let text) = pending.content else { return }
         store.markPending(clientMessageID: clientMessageID, status: .sending, in: conversationID)
         _ = await deliver(clientMessageID: clientMessageID, text: text, to: conversationID)

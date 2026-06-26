@@ -97,7 +97,7 @@ struct ConversationScreen: View {
             return true
         case .contact:
             return conversationController.conversation(withID: conversationID) != nil
-                || !conversationController.messages(for: conversationID).isEmpty
+                || conversationController.hasMessages(for: conversationID)
         }
     }
 

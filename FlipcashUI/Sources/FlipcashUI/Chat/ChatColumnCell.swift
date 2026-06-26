@@ -35,10 +35,10 @@ public class ChatColumnCell: UICollectionViewCell {
         column.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(column)
 
-        // The failed-state receipt ("Not Delivered. Tap to retry") is the only interactive part of the
-        // column; a tap fires onRetry when retryID is set.
-        receipt.isUserInteractionEnabled = true
-        receipt.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(receiptTapped)))
+        // The whole bubble + status line is the retry target (a generous hit area vs. the thin
+        // receipt line), but a tap only fires onRetry when this row is failed — `retryTapped` checks
+        // retryID, so non-failed rows ignore taps and keep their long-press copy menu.
+        column.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(retryTapped)))
 
         leadingConstraint = column.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12)
         trailingConstraint = column.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12)
@@ -75,7 +75,7 @@ public class ChatColumnCell: UICollectionViewCell {
         applyAlignment(isFromSelf: message.sender == .me)
     }
 
-    @objc private func receiptTapped() {
+    @objc private func retryTapped() {
         guard let retryID else { return }
         onRetry?(retryID)
     }

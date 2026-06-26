@@ -310,4 +310,65 @@ struct ConversationStoreTests {
         #expect(displayed.count == 2)                               // counterpart's "hi" + my pending "hi"
         #expect(store.pendingMessage(clientMessageID: clientID, in: conversationID(1)) != nil)
     }
+
+    @Test("Out-of-order reconcile keeps messages in send-time order")
+    func outOfOrderReconcileKeepsOrder() {
+        let me = UUID()
+        var store = ConversationStore()
+        let clientA = UUID(), clientB = UUID()
+        // A sent first (t=10), B sent second (t=20).
+        store.insertPending(
+            ConversationMessage(id: MessageID(value: .max), senderID: me, content: .text("A"),
+                                date: Date(timeIntervalSince1970: 10), unreadSeq: 0,
+                                status: .sending, clientMessageID: clientA),
+            into: conversationID(1)
+        )
+        store.insertPending(
+            ConversationMessage(id: MessageID(value: .max), senderID: me, content: .text("B"),
+                                date: Date(timeIntervalSince1970: 20), unreadSeq: 0,
+                                status: .sending, clientMessageID: clientB),
+            into: conversationID(1)
+        )
+        // B confirms first (its RPC/echo wins the race).
+        store.reconcile(
+            clientMessageID: clientB,
+            with: ConversationMessage(id: MessageID(value: 5), senderID: me, content: .text("B"),
+                                      date: Date(timeIntervalSince1970: 20), unreadSeq: 0),
+            in: conversationID(1)
+        )
+        // A is still pending but was sent first, so it stays ABOVE the just-confirmed B.
+        let texts = store.displayedMessages(for: conversationID(1)).map {
+            if case .text(let t) = $0.content { t } else { "" }
+        }
+        #expect(texts == ["A", "B"])
+    }
+
+    @Test("A re-delivered already-confirmed identical message does not absorb a fresh pending send")
+    func redeliveredConfirmedDoesNotAbsorbPending() {
+        let me = UUID()
+        var store = ConversationStore()
+        // An identical "hi" was sent earlier and confirmed at id 5.
+        store.mergeMessages(
+            [ConversationMessage(id: MessageID(value: 5), senderID: me, content: .text("hi"),
+                                 date: Date(timeIntervalSince1970: 100), unreadSeq: 0)],
+            into: conversationID(1)
+        )
+        // A fresh "hi" is now in flight, within the reconcile window of the old one.
+        let clientID = UUID()
+        store.insertPending(
+            ConversationMessage(id: MessageID(value: .max), senderID: me, content: .text("hi"),
+                                date: Date(timeIntervalSince1970: 120), unreadSeq: 0,
+                                status: .sending, clientMessageID: clientID),
+            into: conversationID(1)
+        )
+        // The stream re-delivers the OLD confirmed "hi" (id 5, already known) — it must not steal the
+        // fresh pending row.
+        store.mergeMessages(
+            [ConversationMessage(id: MessageID(value: 5), senderID: me, content: .text("hi"),
+                                 date: Date(timeIntervalSince1970: 100), unreadSeq: 0)],
+            into: conversationID(1)
+        )
+        #expect(store.pendingMessage(clientMessageID: clientID, in: conversationID(1)) != nil)
+        #expect(store.displayedMessages(for: conversationID(1)).count == 2)   // old confirmed + fresh pending
+    }
 }
