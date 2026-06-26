@@ -180,7 +180,7 @@ struct ChatMessageMappingTests {
         #expect(receiptText(items) == "Read \(weekday)")
     }
 
-    @Test("A sending message shows no status line until it resolves")
+    @Test("A sending row shows no status line and keeps the prior delivered receipt")
     func sendingMapsToState() {
         let clientID = UUID()
         let items = ChatItem.from(
@@ -189,19 +189,26 @@ struct ChatMessageMappingTests {
             counterpartRead: (pointer: MessageID(value: 0), date: nil)
         )
         #expect(deliveryStates(items) == [.normal, .sending])
-        // Nothing renders while "b" is in flight, and the older "a" isn't the latest self row, so the
-        // transcript shows no status line at all until "b" resolves to Delivered or failed.
-        #expect(receiptText(items) == nil)
-        // The sending row's stable identity is its client id.
-        #expect(messageRows(items).last?.id == clientID.uuidString)
+        // "b" (sending) shows nothing; the prior delivered "a" keeps its "Delivered" line.
+        let rows = messageRows(items)
+        #expect(rows.first?.receipt == "Delivered")
+        #expect(rows.last?.id == clientID.uuidString)
+        #expect(rows.last?.receipt == nil)
     }
 
-    @Test("A failed message maps to .failed")
+    @Test("A failed row shows its own line without stripping the prior delivered receipt")
     func failedMapsToState() {
         let clientID = UUID()
         var msg = sending(clientID, "b", after: 60)
         msg.status = .failed
-        let items = ChatItem.from([text(1, me, "a", after: 0), msg], selfUserID: me)
+        let items = ChatItem.from(
+            [text(1, me, "a", after: 0), msg],
+            selfUserID: me,
+            counterpartRead: (pointer: MessageID(value: 0), date: nil)
+        )
         #expect(deliveryStates(items) == [.normal, .failed])
+        let rows = messageRows(items)
+        #expect(rows.first?.receipt == "Delivered")                     // prior delivered receipt preserved
+        #expect(rows.last?.receipt == "Not Delivered. Tap to retry")    // failed row shows its own line
     }
 }

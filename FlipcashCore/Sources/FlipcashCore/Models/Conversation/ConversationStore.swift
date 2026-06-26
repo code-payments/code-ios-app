@@ -16,8 +16,21 @@ public struct ConversationStore: Sendable {
     public private(set) var conversations: [Conversation] = []
     private var messagesByConversation: [ConversationID: [ConversationMessage]] = [:]
     /// Optimistic messages not yet confirmed by the server, kept separate from the server-mirrored
-    /// `messagesByConversation` so paging, mark-read, and the feed never see them.
-    private var pendingByConversation: [ConversationID: [ConversationMessage]] = [:]
+    /// `messagesByConversation` so paging, mark-read, and the feed never see them. Each carries the
+    /// server id it was sent after (its `anchor`) and a monotonic send `sequence`, so the transcript
+    /// orders it relative to confirmed rows without comparing client and server wall-clock times.
+    private var pendingByConversation: [ConversationID: [PendingEntry]] = [:]
+    /// Monotonic counter stamped on each optimistic send, breaking ties among rows that share an anchor
+    /// and keeping send order stable across out-of-order reconciles.
+    private var pendingSequence: UInt64 = 0
+
+    /// An optimistic send plus the keys that place it in the transcript: `anchor` is the newest
+    /// confirmed server id at send time (the row this send sits after), `sequence` is its send order.
+    private struct PendingEntry: Sendable {
+        var message: ConversationMessage
+        let anchor: UInt64
+        let sequence: UInt64
+    }
 
     public init() {}
 
@@ -74,32 +87,48 @@ public struct ConversationStore: Sendable {
     private mutating func reconcilePendingMatch(for serverCopy: ConversationMessage, in conversationID: ConversationID) -> UUID? {
         guard var pending = pendingByConversation[conversationID],
               let index = pending.firstIndex(where: {
-                  $0.senderID == serverCopy.senderID
-                      && $0.content == serverCopy.content
-                      && abs($0.date.timeIntervalSince(serverCopy.date)) < Self.pendingReconcileWindow
+                  $0.message.senderID == serverCopy.senderID
+                      && $0.message.content == serverCopy.content
+                      && abs($0.message.date.timeIntervalSince(serverCopy.date)) < Self.pendingReconcileWindow
               }) else {
             return nil
         }
-        let clientMessageID = pending.remove(at: index).clientMessageID
+        let clientMessageID = pending.remove(at: index).message.clientMessageID
         pendingByConversation[conversationID] = pending
         return clientMessageID
     }
 
     // MARK: - Optimistic (pending) sends
 
-    /// The transcript's source of truth: confirmed rows in server order, then in-flight optimistic rows
-    /// in send order. They're appended (not date-merged) so a fresh send always lands at the tail —
-    /// immune to client/server clock skew, and the scroll-to-bottom on send stays reliable.
+    /// The transcript's source of truth: confirmed rows in server order, with each in-flight optimistic
+    /// row placed right after the confirmed row it was sent after (its anchor), ties broken by send
+    /// sequence. Ordering by the server `MessageId` anchor — not wall-clock dates — means a fresh send
+    /// lands at the tail (immune to clock skew, scroll-to-bottom stays reliable), a failed send keeps
+    /// its place even as newer messages arrive, and out-of-order reconciles never reshuffle (a
+    /// reconciled row's real id is greater than its anchor, so it lands where the pending row was).
     /// `messages(for:)` stays confirmed-only for mark-read and paging.
-    ///
-    /// A caveat we accept: if several sends are in flight at once and their responses reconcile out of
-    /// order, the just-confirmed one briefly sits among the confirmed run while earlier still-pending
-    /// ones trail it — a sub-second shuffle that settles into the server's order. Offline sends (which
-    /// never reconcile) stay in send order throughout.
     public func displayedMessages(for conversationID: ConversationID) -> [ConversationMessage] {
         let confirmed = messagesByConversation[conversationID] ?? []
-        let pending = pendingByConversation[conversationID] ?? []
-        return confirmed + pending
+        guard let pending = pendingByConversation[conversationID], !pending.isEmpty else { return confirmed }
+
+        let ordered = pending.sorted { ($0.anchor, $0.sequence) < ($1.anchor, $1.sequence) }
+        var result: [ConversationMessage] = []
+        result.reserveCapacity(confirmed.count + ordered.count)
+        var p = 0
+        for message in confirmed {
+            result.append(message)
+            while p < ordered.count, ordered[p].anchor == message.id.value {
+                result.append(ordered[p].message)
+                p += 1
+            }
+        }
+        // Anything anchored beyond the last confirmed row (the common fresh-send case, or a send made
+        // when no messages were loaded) trails at the end, in send order.
+        while p < ordered.count {
+            result.append(ordered[p].message)
+            p += 1
+        }
+        return result
     }
 
     /// The newest server-confirmed message, or nil. Confirmed rows are kept sorted oldest-first and are
@@ -115,27 +144,30 @@ public struct ConversationStore: Sendable {
         !(messagesByConversation[conversationID]?.isEmpty ?? true) || !(pendingByConversation[conversationID]?.isEmpty ?? true)
     }
 
-    /// Add an optimistic message that the server hasn't confirmed yet.
+    /// Add an optimistic message that the server hasn't confirmed yet, anchored to the newest confirmed
+    /// id at send time so the transcript can position it without a wall-clock comparison.
     public mutating func insertPending(_ message: ConversationMessage, into conversationID: ConversationID) {
-        pendingByConversation[conversationID, default: []].append(message)
+        let anchor = messagesByConversation[conversationID]?.last?.id.value ?? 0
+        pendingByConversation[conversationID, default: []].append(PendingEntry(message: message, anchor: anchor, sequence: pendingSequence))
+        pendingSequence += 1
     }
 
     /// The in-flight optimistic message for a client id, if still pending.
     public func pendingMessage(clientMessageID: UUID, in conversationID: ConversationID) -> ConversationMessage? {
-        pendingByConversation[conversationID]?.first { $0.clientMessageID == clientMessageID }
+        pendingByConversation[conversationID]?.first { $0.message.clientMessageID == clientMessageID }?.message
     }
 
     /// Move a pending message between sending and failed.
     public mutating func markPending(clientMessageID: UUID, status: SendStatus, in conversationID: ConversationID) {
-        guard let index = pendingByConversation[conversationID]?.firstIndex(where: { $0.clientMessageID == clientMessageID }) else { return }
-        pendingByConversation[conversationID]?[index].status = status
+        guard let index = pendingByConversation[conversationID]?.firstIndex(where: { $0.message.clientMessageID == clientMessageID }) else { return }
+        pendingByConversation[conversationID]?[index].message.status = status
     }
 
     /// Replace a server-confirmed send (the send RPC's own response): drop the optimistic copy and merge
     /// the server message, carrying the client id onto it so the row keeps its identity across
     /// sending → sent (no delete+insert).
     public mutating func reconcile(clientMessageID: UUID, with serverMessage: ConversationMessage, in conversationID: ConversationID) {
-        pendingByConversation[conversationID]?.removeAll { $0.clientMessageID == clientMessageID }
+        pendingByConversation[conversationID]?.removeAll { $0.message.clientMessageID == clientMessageID }
         var confirmed = serverMessage
         confirmed.status = .sent
         confirmed.clientMessageID = clientMessageID

@@ -339,4 +339,52 @@ struct ConversationStoreTests {
         #expect(store.pendingMessage(clientMessageID: clientID, in: conversationID(1)) != nil)
         #expect(store.displayedMessages(for: conversationID(1)).count == 2)   // old confirmed + fresh pending
     }
+
+    private func displayedTexts(_ store: ConversationStore, _ id: ConversationID) -> [String] {
+        store.displayedMessages(for: id).map { if case .text(let t) = $0.content { t } else { "" } }
+    }
+
+    @Test("A failed send keeps its chronological place when newer messages arrive")
+    func failedMessageHoldsChronologicalPosition() {
+        let me = UUID()
+        var store = ConversationStore()
+        store.mergeMessages([message(1, "a"), message(2, "b"), message(3, "c")], into: conversationID(1))
+        // Sent after seeing id 3, then it fails.
+        let clientID = UUID()
+        store.insertPending(
+            ConversationMessage(id: MessageID(value: .max), senderID: me, content: .text("mine"),
+                                date: Date(timeIntervalSince1970: 0), unreadSeq: 0,
+                                status: .sending, clientMessageID: clientID),
+            into: conversationID(1)
+        )
+        store.markPending(clientMessageID: clientID, status: .failed, in: conversationID(1))
+        // A newer message arrives.
+        store.mergeMessages([message(4, "later")], into: conversationID(1))
+        // "mine" stays after id 3 (where it was sent), before the newer "later" — not dumped at the tail.
+        #expect(displayedTexts(store, conversationID(1)) == ["a", "b", "c", "mine", "later"])
+    }
+
+    @Test("Out-of-order reconcile keeps optimistic sends in send order")
+    func outOfOrderReconcileKeepsSendOrder() {
+        let me = UUID()
+        var store = ConversationStore()
+        store.mergeMessages([message(3, "x")], into: conversationID(1))
+        let clientA = UUID(), clientB = UUID()
+        store.insertPending(
+            ConversationMessage(id: MessageID(value: .max), senderID: me, content: .text("A"),
+                                date: Date(timeIntervalSince1970: 0), unreadSeq: 0,
+                                status: .sending, clientMessageID: clientA),
+            into: conversationID(1)
+        )
+        store.insertPending(
+            ConversationMessage(id: MessageID(value: .max), senderID: me, content: .text("B"),
+                                date: Date(timeIntervalSince1970: 0), unreadSeq: 0,
+                                status: .sending, clientMessageID: clientB),
+            into: conversationID(1)
+        )
+        // B (sent second) reconciles first.
+        store.reconcile(clientMessageID: clientB, with: message(4, "B"), in: conversationID(1))
+        // A (sent first, still pending) stays above the just-confirmed B.
+        #expect(displayedTexts(store, conversationID(1)) == ["x", "A", "B"])
+    }
 }

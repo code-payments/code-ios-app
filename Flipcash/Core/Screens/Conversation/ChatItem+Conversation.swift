@@ -24,11 +24,10 @@ extension ChatItem {
         counterpartRead: (pointer: MessageID, date: Date?)? = nil,
         cashBranding: (ExchangedFiat) -> (token: String, iconURL: URL?) = { _ in ("Cash", nil) }
     ) -> [ChatItem] {
-        // The status line rides only the LAST message from self (iMessage-style): "Delivered"/"Read"
-        // when it's confirmed, else that message shows its own sending/failed state. A newer in-flight
-        // send moves the line off the prior delivered bubble. Per-message sending/failed still renders
-        // below (so every failed message stays independently retryable) — only the receipt is last-only.
-        let latestFromSelfID = messages.last { $0.isFromSelf(selfUserID) }?.stableID
+        // "Delivered"/"Read" rides the latest *confirmed* self message, so an in-flight or failed send
+        // trailing it doesn't strip the receipt off the last delivered bubble. A sending row shows
+        // nothing; a failed row shows its own "Not Delivered" line (each independently retryable).
+        let latestSentFromSelfID = messages.last { $0.isFromSelf(selfUserID) && $0.status == .sent }?.stableID
         var items: [ChatItem] = []
         for (index, message) in messages.enumerated() {
             let isFromSelf = message.isFromSelf(selfUserID)
@@ -71,9 +70,9 @@ extension ChatItem {
             let deliveryState: ChatMessage.DeliveryState
             switch message.status {
             case .sent:
-                // "Delivered"/"Read" rides only the latest message from self; a newer in-flight send
-                // moves it off the prior delivered bubble.
-                receipt = isFromSelf && message.stableID == latestFromSelfID
+                // "Delivered"/"Read" rides only the latest confirmed self message — preserved even when
+                // a later send is in flight or failed.
+                receipt = isFromSelf && message.stableID == latestSentFromSelfID
                     ? Self.receiptText(for: message.id, counterpartRead: counterpartRead)
                     : nil
                 deliveryState = .normal
