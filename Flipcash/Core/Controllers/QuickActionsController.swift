@@ -9,7 +9,7 @@ import FlipcashCore
 /// Owns the Home Screen quick actions (long-press the app icon).
 ///
 /// Actions are installed on login and cleared on logout. The Send action is
-/// included only for users with `enablePhoneNumberSend`. Taps reuse the existing
+/// included only when ``Session/canSend`` is true. Taps reuse the existing
 /// deep-link pipeline via each action's `url` userInfo (see ``SceneDelegate``).
 @MainActor
 final class QuickActionsController {
@@ -22,7 +22,7 @@ final class QuickActionsController {
 
     func configure() {
         UIApplication.shared.shortcutItems = Self.shortcutItems(
-            includeSend: session.userFlags?.enablePhoneNumberSend == true
+            includeSend: session.canSend
         )
     }
 
