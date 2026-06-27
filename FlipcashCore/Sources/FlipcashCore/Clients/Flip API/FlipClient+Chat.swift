@@ -41,9 +41,9 @@ extension FlipClient {
     }
 
     @discardableResult
-    public func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String) async throws -> ConversationMessage {
+    public func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String, clientMessageID: UUID) async throws -> ConversationMessage {
         try await withCheckedThrowingContinuation { c in
-            chatMessagingService.sendMessage(owner: owner, conversationID: conversationID, text: text) { c.resume(with: $0) }
+            chatMessagingService.sendMessage(owner: owner, conversationID: conversationID, text: text, clientMessageID: clientMessageID) { c.resume(with: $0) }
         }
     }
 

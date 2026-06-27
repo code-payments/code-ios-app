@@ -61,6 +61,11 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.onReachTop = newValue }
     }
 
+    public var onRetry: ((String) -> Void)? {
+        get { transcript.onRetry }
+        set { transcript.onRetry = newValue }
+    }
+
     public override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = UIColor(Color.backgroundMain)

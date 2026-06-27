@@ -58,6 +58,11 @@ public struct MessageID: Hashable, Sendable, Comparable, CustomStringConvertible
         self.value = value
     }
 
+    /// Placeholder id for an optimistic message the server hasn't assigned a real id to yet. Never used
+    /// for ordering or lookup — pending rows are keyed by their client id, anchor, and send sequence —
+    /// so it only fills the non-optional `id` field until reconciliation replaces it with the real id.
+    public static let unassigned = MessageID(value: .max)
+
     public init(_ proto: Flipcash_Messaging_V1_MessageId) {
         self.value = proto.value
     }

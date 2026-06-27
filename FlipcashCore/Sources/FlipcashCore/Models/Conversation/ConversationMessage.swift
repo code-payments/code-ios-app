@@ -8,6 +8,15 @@
 import Foundation
 import FlipcashAPI
 
+/// Delivery state of an outgoing message. `.sent` is the only state a message loaded from the
+/// server, the stream, or the local cache can have; `.sending`/`.failed` exist only for an
+/// optimistic message in flight on this device this session.
+public enum SendStatus: Sendable, Hashable {
+    case sent
+    case sending
+    case failed
+}
+
 /// A single message within a conversation.
 public struct ConversationMessage: Identifiable, Hashable, Sendable {
 
@@ -23,13 +32,40 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
     public let content: Content
     public let date: Date
     public let unreadSeq: UInt64
+    /// Delivery state. `.sent` for every server/cache message; `.sending`/`.failed` only for an
+    /// in-flight optimistic message.
+    public var status: SendStatus
+    /// The id the client minted for this send, reused across retries (the server is idempotent on
+    /// it). Set only for messages that originated optimistically on this device; nil for everything
+    /// loaded from the server, the stream, or the cache. Mutable so the store can carry it onto the
+    /// confirmed server copy during reconciliation without rebuilding the whole value.
+    public var clientMessageID: UUID?
 
-    public init(id: MessageID, senderID: UserID?, content: Content, date: Date, unreadSeq: UInt64) {
+    public init(
+        id: MessageID,
+        senderID: UserID?,
+        content: Content,
+        date: Date,
+        unreadSeq: UInt64,
+        status: SendStatus = .sent,
+        clientMessageID: UUID? = nil
+    ) {
         self.id = id
         self.senderID = senderID
         self.content = content
         self.date = date
         self.unreadSeq = unreadSeq
+        self.status = status
+        self.clientMessageID = clientMessageID
+    }
+}
+
+extension ConversationMessage {
+    /// Identity used by the transcript diff: the client id while the server id is unknown (and
+    /// preserved after reconciliation), so a row keeps its identity across sending → sent and never
+    /// re-inserts. Falls back to the server id.
+    public var stableID: String {
+        clientMessageID?.uuidString ?? "\(id.value)"
     }
 }
 
@@ -60,5 +96,7 @@ extension ConversationMessage {
         self.senderID = try? UUID(data: proto.senderID.value)
         self.date = proto.hasTs ? proto.ts.date : .now
         self.unreadSeq = proto.unreadSeq
+        self.status = .sent
+        self.clientMessageID = nil
     }
 }

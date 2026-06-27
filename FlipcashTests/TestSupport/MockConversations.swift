@@ -20,6 +20,8 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
     private var _olderMessages: [ConversationMessage] = []
     private var _olderQueries: [MessageID] = []
     private var _sendResult: ConversationMessage?
+    private var _sendError: Error?
+    private var _sentClientIDs: [UUID] = []
     private var _sent: [Sent] = []
     private var _markedRead: [MessageID] = []
     private var _didEnsure = false
@@ -45,6 +47,13 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
         get { lock.withLock { _sendResult } }
         set { lock.withLock { _sendResult = newValue } }
     }
+    /// When set, `sendMessage` throws this instead of returning a message.
+    var sendError: Error? {
+        get { lock.withLock { _sendError } }
+        set { lock.withLock { _sendError = newValue } }
+    }
+    /// The client message ids `sendMessage` was called with, in order.
+    var sentClientIDs: [UUID] { lock.withLock { _sentClientIDs } }
     var sent: [Sent] { lock.withLock { _sent } }
     var markedRead: [MessageID] { lock.withLock { _markedRead } }
     var didEnsure: Bool { lock.withLock { _didEnsure } }
@@ -77,8 +86,12 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
         return olderMessages
     }
 
-    func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String) async throws -> ConversationMessage {
-        lock.withLock { _sent.append(Sent(conversationID: conversationID, text: text)) }
+    func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String, clientMessageID: UUID) async throws -> ConversationMessage {
+        lock.withLock {
+            _sent.append(Sent(conversationID: conversationID, text: text))
+            _sentClientIDs.append(clientMessageID)
+        }
+        if let error = sendError { throw error }
         return sendResult ?? ConversationMessage(
             id: MessageID(value: 1), senderID: nil, content: .text(text),
             date: Date(timeIntervalSince1970: 0), unreadSeq: 0

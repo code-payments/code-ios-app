@@ -32,6 +32,10 @@ final class ConversationController {
     var conversations: [Conversation] { store.conversations }
     private(set) var isLoadingFeed = false
 
+    /// The `stableID` of a just-sent optimistic message whose receipt is currently held back so it can
+    /// cross-fade onto a settled bubble; the transcript mapping suppresses that row's receipt while set.
+    var settlingSendID: String? { receiptSettle.settlingID }
+
     /// The conversation with this ID, if the feed currently holds it.
     func conversation(withID id: ConversationID) -> Conversation? {
         conversations.first { $0.id == id }
@@ -63,6 +67,7 @@ final class ConversationController {
     @ObservationIgnored private var streamTask: Task<Void, Never>?
     @ObservationIgnored private var hydratingConversationIDs: Set<ConversationID> = []
     @ObservationIgnored private var markReadTasks: [ConversationID: Task<Void, Never>] = [:]
+    @ObservationIgnored private let receiptSettle = ReceiptSettleGate()
 
     init(
         fetching: any ConversationFetching,
@@ -151,6 +156,7 @@ final class ConversationController {
         streamTask = nil
         markReadTasks.values.forEach { $0.cancel() }
         markReadTasks.removeAll()
+        receiptSettle.cancel()
         streaming.closeConversationStream()
     }
 
@@ -286,7 +292,18 @@ final class ConversationController {
     // MARK: - Conversation
 
     func messages(for conversationID: ConversationID) -> [ConversationMessage] {
-        store.messages(for: conversationID)
+        store.displayedMessages(for: conversationID)
+    }
+
+    /// The newest server-confirmed message — what the screen's receive buzz and mark-read track, so an
+    /// unresolved optimistic send (which renders after the confirmed run) never masks an incoming one.
+    func lastConfirmedMessage(for conversationID: ConversationID) -> ConversationMessage? {
+        store.lastConfirmedMessage(for: conversationID)
+    }
+
+    /// Whether the conversation holds any message, without building the merged transcript.
+    func hasMessages(for conversationID: ConversationID) -> Bool {
+        store.hasMessages(for: conversationID)
     }
 
     func loadMessages(for conversationID: ConversationID) async {
@@ -354,16 +371,47 @@ final class ConversationController {
         }
     }
 
+    /// Optimistically inserts the message so it appears instantly as `.sending`, then awaits the
+    /// server: on success it reconciles to the confirmed message, on failure it stays in the
+    /// transcript as `.failed` (never silently dropped).
     @discardableResult
     func send(_ text: String, to conversationID: ConversationID) async -> Bool {
+        let clientMessageID = UUID()
+        let pending = ConversationMessage(
+            id: .unassigned,
+            senderID: selfUserID,
+            content: .text(text),
+            date: .now,
+            unreadSeq: 0,
+            status: .sending,
+            clientMessageID: clientMessageID
+        )
+        store.insertPending(pending, into: conversationID)
+        receiptSettle.hold(clientMessageID.uuidString)
+        return await deliver(clientMessageID: clientMessageID, text: text, to: conversationID)
+    }
+
+    /// Re-send a failed optimistic message, reusing its client id so the server (idempotent on it)
+    /// returns the original message rather than creating a duplicate. Only a `.failed` row is retried,
+    /// so a double-tap (or a tap during a slow in-flight retry) can't fire concurrent sends.
+    func retry(clientMessageID: UUID, in conversationID: ConversationID) async {
+        guard let pending = store.pendingMessage(clientMessageID: clientMessageID, in: conversationID),
+              pending.status == .failed,
+              case .text(let text) = pending.content else { return }
+        store.markPending(clientMessageID: clientMessageID, status: .sending, in: conversationID)
+        _ = await deliver(clientMessageID: clientMessageID, text: text, to: conversationID)
+    }
+
+    private func deliver(clientMessageID: UUID, text: String, to conversationID: ConversationID) async -> Bool {
         do {
-            let message = try await messaging.sendMessage(owner: owner, conversationID: conversationID, text: text)
-            store.mergeMessages([message], into: conversationID)
+            let message = try await messaging.sendMessage(owner: owner, conversationID: conversationID, text: text, clientMessageID: clientMessageID)
+            store.reconcile(clientMessageID: clientMessageID, with: message, in: conversationID)
             store.setLastMessage(message, in: conversationID)
             persist(operation: "send-message") { try database.upsertConversationMessages([message], conversationID: conversationID) }
             persistConversation(conversationID)
             return true
         } catch {
+            store.markPending(clientMessageID: clientMessageID, status: .failed, in: conversationID)
             logger.error("Failed to send conversation message", metadata: [
                 "conversationID": "\(conversationID)",
                 "error": "\(error)",

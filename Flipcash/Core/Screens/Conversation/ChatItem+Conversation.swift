@@ -22,10 +22,13 @@ extension ChatItem {
         selfUserID: UserID,
         gap: TimeInterval = 15 * 60,
         counterpartRead: (pointer: MessageID, date: Date?)? = nil,
+        suppressReceiptFor: String? = nil,
         cashBranding: (ExchangedFiat) -> (token: String, iconURL: URL?) = { _ in ("Cash", nil) }
     ) -> [ChatItem] {
-        // Only the user's latest sent message carries a receipt.
-        let latestFromSelfID = messages.last { $0.isFromSelf(selfUserID) }?.id
+        // "Delivered"/"Read" rides the latest *confirmed* self message, so an in-flight or failed send
+        // trailing it doesn't strip the receipt off the last delivered bubble. A sending row shows
+        // nothing; a failed row shows its own "Not Delivered" line (each independently retryable).
+        let latestSentFromSelfID = messages.last { $0.isFromSelf(selfUserID) && $0.status == .sent }?.stableID
         var items: [ChatItem] = []
         for (index, message) in messages.enumerated() {
             let isFromSelf = message.isFromSelf(selfUserID)
@@ -35,7 +38,7 @@ extension ChatItem {
             // A separator opens the transcript and breaks any run longer than the gap.
             let showsSeparator = previous.map { message.date.timeIntervalSince($0.date) > gap } ?? true
             if showsSeparator {
-                items.append(.dateSeparator(id: "sep-\(message.id.value)", text: Self.separatorText(for: message.date)))
+                items.append(.dateSeparator(id: "sep-\(message.stableID)", text: Self.separatorText(for: message.date)))
             }
 
             let groupedAbove = previous.map {
@@ -61,19 +64,34 @@ extension ChatItem {
                 ))
             }
 
-            // The delivery line rides on the latest sent message itself, not a separate row, so a
-            // send diffs to a clean insert instead of tearing a receipt row down and rebuilding it.
-            let receipt: String? = isFromSelf && message.id == latestFromSelfID
-                ? Self.receiptText(for: message.id, counterpartRead: counterpartRead)
-                : nil
+            // The status line rides on the bubble itself (not a separate row, so a send is a clean
+            // insert). All of its copy is produced here, in one layer; the cell only styles it
+            // (resting vs. red + tappable) off `isFailed`.
+            let receipt: String?
+            switch message.status {
+            case .sent:
+                // "Delivered"/"Read" rides only the latest confirmed self message — preserved even when
+                // a later send is in flight or failed, and held back while the row is still settling in.
+                // `latestSentFromSelfID` is already a self+sent row, so matching it implies both.
+                receipt = message.stableID == latestSentFromSelfID && message.stableID != suppressReceiptFor
+                    ? Self.receiptText(for: message.id, counterpartRead: counterpartRead)
+                    : nil
+            case .sending:
+                // No status line while in flight — the bubble sits there until it resolves to
+                // "Delivered" or the failed state.
+                receipt = nil
+            case .failed:
+                receipt = "Not Delivered. Tap to retry"
+            }
 
             items.append(.message(ChatMessage(
-                id: "\(message.id.value)",
+                id: message.stableID,
                 content: content,
                 sender: isFromSelf ? .me : .other,
                 isContinuationFromPrevious: groupedAbove,
                 isContinuedByNext: groupedBelow,
-                receipt: receipt
+                receipt: receipt,
+                isFailed: message.status == .failed
             )))
         }
         return items

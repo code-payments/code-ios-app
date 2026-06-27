@@ -42,6 +42,18 @@ struct ChatMessageMappingTests {
         items.compactMap { if case .message(let message) = $0 { message.receipt } else { nil } }.last
     }
 
+    private func sending(_ clientID: UUID, _ body: String, after offset: TimeInterval) -> ConversationMessage {
+        ConversationMessage(
+            id: MessageID(value: .max), senderID: me, content: .text(body),
+            date: base.addingTimeInterval(offset), unreadSeq: 0,
+            status: .sending, clientMessageID: clientID
+        )
+    }
+
+    private func failedFlags(_ items: [ChatItem]) -> [Bool] {
+        messageRows(items).map(\.isFailed)
+    }
+
     @Test("Same-sender run within the gap groups; a sender change breaks it; gaps add separators")
     func grouping() {
         let messages = [
@@ -166,5 +178,48 @@ struct ChatMessageMappingTests {
             counterpartRead: (pointer: MessageID(value: 1), date: threeDaysAgo)
         )
         #expect(receiptText(items) == "Read \(weekday)")
+    }
+
+    @Test("A sending row shows no status line and keeps the prior delivered receipt")
+    func sendingMapsToState() {
+        let clientID = UUID()
+        let items = ChatItem.from(
+            [text(1, me, "a", after: 0), sending(clientID, "b", after: 60)],
+            selfUserID: me,
+            counterpartRead: (pointer: MessageID(value: 0), date: nil)
+        )
+        #expect(failedFlags(items) == [false, false])
+        // "b" (sending) shows nothing; the prior delivered "a" keeps its "Delivered" line.
+        let rows = messageRows(items)
+        #expect(rows.first?.receipt == "Delivered")
+        #expect(rows.last?.id == clientID.uuidString)
+        #expect(rows.last?.receipt == nil)
+    }
+
+    @Test("A failed row shows its own line without stripping the prior delivered receipt")
+    func failedMapsToState() {
+        let clientID = UUID()
+        var msg = sending(clientID, "b", after: 60)
+        msg.status = .failed
+        let items = ChatItem.from(
+            [text(1, me, "a", after: 0), msg],
+            selfUserID: me,
+            counterpartRead: (pointer: MessageID(value: 0), date: nil)
+        )
+        #expect(failedFlags(items) == [false, true])
+        let rows = messageRows(items)
+        #expect(rows.first?.receipt == "Delivered")                     // prior delivered receipt preserved
+        #expect(rows.last?.receipt == "Not Delivered. Tap to retry")    // failed row shows its own line
+    }
+
+    @Test("A settling send's Delivered receipt is held back, then shows once the gate clears")
+    func suppressedReceiptWhileSettling() {
+        let read = (pointer: MessageID(value: 0), date: Date?.none)
+        // While the row is still settling (its id is suppressed), no receipt shows.
+        let settling = ChatItem.from([text(1, me, "hi", after: 0)], selfUserID: me, counterpartRead: read, suppressReceiptFor: "1")
+        #expect(receiptText(settling) == nil)
+        // Once the gate clears, "Delivered" appears.
+        let settled = ChatItem.from([text(1, me, "hi", after: 0)], selfUserID: me, counterpartRead: read)
+        #expect(receiptText(settled) == "Delivered")
     }
 }
