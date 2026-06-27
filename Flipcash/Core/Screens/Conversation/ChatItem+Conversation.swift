@@ -66,9 +66,8 @@ extension ChatItem {
 
             // The status line rides on the bubble itself (not a separate row, so a send is a clean
             // insert). All of its copy is produced here, in one layer; the cell only styles it
-            // (resting vs. red + tappable) off `deliveryState`.
+            // (resting vs. red + tappable) off `isFailed`.
             let receipt: String?
-            let deliveryState: ChatMessage.DeliveryState
             switch message.status {
             case .sent:
                 // "Delivered"/"Read" rides only the latest confirmed self message — preserved even when
@@ -76,15 +75,12 @@ extension ChatItem {
                 receipt = isFromSelf && message.stableID == latestSentFromSelfID && message.stableID != suppressReceiptFor
                     ? Self.receiptText(for: message.id, counterpartRead: counterpartRead)
                     : nil
-                deliveryState = .normal
             case .sending:
                 // No status line while in flight — the bubble sits there until it resolves to
                 // "Delivered" or the failed state.
                 receipt = nil
-                deliveryState = .sending
             case .failed:
                 receipt = "Not Delivered. Tap to retry"
-                deliveryState = .failed
             }
 
             items.append(.message(ChatMessage(
@@ -94,7 +90,7 @@ extension ChatItem {
                 isContinuationFromPrevious: groupedAbove,
                 isContinuedByNext: groupedBelow,
                 receipt: receipt,
-                deliveryState: deliveryState
+                isFailed: message.status == .failed
             )))
         }
         return items

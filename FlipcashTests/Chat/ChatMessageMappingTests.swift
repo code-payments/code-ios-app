@@ -50,8 +50,8 @@ struct ChatMessageMappingTests {
         )
     }
 
-    private func deliveryStates(_ items: [ChatItem]) -> [ChatMessage.DeliveryState] {
-        messageRows(items).map(\.deliveryState)
+    private func failedFlags(_ items: [ChatItem]) -> [Bool] {
+        messageRows(items).map(\.isFailed)
     }
 
     @Test("Same-sender run within the gap groups; a sender change breaks it; gaps add separators")
@@ -188,7 +188,7 @@ struct ChatMessageMappingTests {
             selfUserID: me,
             counterpartRead: (pointer: MessageID(value: 0), date: nil)
         )
-        #expect(deliveryStates(items) == [.normal, .sending])
+        #expect(failedFlags(items) == [false, false])
         // "b" (sending) shows nothing; the prior delivered "a" keeps its "Delivered" line.
         let rows = messageRows(items)
         #expect(rows.first?.receipt == "Delivered")
@@ -206,7 +206,7 @@ struct ChatMessageMappingTests {
             selfUserID: me,
             counterpartRead: (pointer: MessageID(value: 0), date: nil)
         )
-        #expect(deliveryStates(items) == [.normal, .failed])
+        #expect(failedFlags(items) == [false, true])
         let rows = messageRows(items)
         #expect(rows.first?.receipt == "Delivered")                     // prior delivered receipt preserved
         #expect(rows.last?.receipt == "Not Delivered. Tap to retry")    // failed row shows its own line

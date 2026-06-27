@@ -25,14 +25,6 @@ public struct ChatMessage: Hashable, Sendable, Identifiable {
         case cash(ChatCashContent)
     }
 
-    /// Outgoing delivery state shown beneath the bubble. `.normal` renders the receipt line (or
-    /// nothing); `.sending`/`.failed` render their own status in the receipt slot.
-    public enum DeliveryState: Hashable, Sendable {
-        case normal
-        case sending
-        case failed
-    }
-
     public let id: String
     public let content: Content
     public let sender: Sender
@@ -45,9 +37,9 @@ public struct ChatMessage: Hashable, Sendable, Identifiable {
     /// retry"), or nil when the row carries none. Carried on the message — not a separate transcript
     /// row — so a send stays a clean insert instead of tearing the line down and rebuilding it.
     public let receipt: String?
-    /// How the status line is styled: `.normal`/`.sending` use the resting color, `.failed` turns it
-    /// red and makes the row tappable to retry. The text itself comes from `receipt`.
-    public let deliveryState: DeliveryState
+    /// Whether this row failed to send: turns the status line red and makes the row tappable to retry.
+    /// Other states (sending, delivered, received) render the same — the text comes from `receipt`.
+    public let isFailed: Bool
 
     public init(
         id: String,
@@ -56,7 +48,7 @@ public struct ChatMessage: Hashable, Sendable, Identifiable {
         isContinuationFromPrevious: Bool = false,
         isContinuedByNext: Bool = false,
         receipt: String? = nil,
-        deliveryState: DeliveryState = .normal
+        isFailed: Bool = false
     ) {
         self.id = id
         self.content = content
@@ -64,7 +56,7 @@ public struct ChatMessage: Hashable, Sendable, Identifiable {
         self.isContinuationFromPrevious = isContinuationFromPrevious
         self.isContinuedByNext = isContinuedByNext
         self.receipt = receipt
-        self.deliveryState = deliveryState
+        self.isFailed = isFailed
     }
 
     /// Convenience for text rows.
@@ -75,7 +67,7 @@ public struct ChatMessage: Hashable, Sendable, Identifiable {
         isContinuationFromPrevious: Bool = false,
         isContinuedByNext: Bool = false,
         receipt: String? = nil,
-        deliveryState: DeliveryState = .normal
+        isFailed: Bool = false
     ) {
         self.init(
             id: id,
@@ -84,7 +76,7 @@ public struct ChatMessage: Hashable, Sendable, Identifiable {
             isContinuationFromPrevious: isContinuationFromPrevious,
             isContinuedByNext: isContinuedByNext,
             receipt: receipt,
-            deliveryState: deliveryState
+            isFailed: isFailed
         )
     }
 }

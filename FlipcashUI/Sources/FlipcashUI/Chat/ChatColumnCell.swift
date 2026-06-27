@@ -65,13 +65,12 @@ public class ChatColumnCell: UICollectionViewCell {
     /// is supplied by the mapping (`message.receipt`); this only styles it — a failed row turns red and
     /// becomes tappable to retry.
     func updateColumn(for message: ChatMessage) {
-        switch message.deliveryState {
-        case .normal, .sending:
-            retryID = nil
-            receipt.textColor = ChatReceiptLabel.defaultColor
-        case .failed:
+        if message.isFailed {
             retryID = message.id
             receipt.textColor = ChatReceiptLabel.failedColor
+        } else {
+            retryID = nil
+            receipt.textColor = ChatReceiptLabel.defaultColor
         }
         retryTap?.isEnabled = retryID != nil
         // A cell already in the window is being reconfigured in place (Delivered→Read, sending→

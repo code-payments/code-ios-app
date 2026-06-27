@@ -71,8 +71,9 @@ final class ConversationController {
     @ObservationIgnored private var markReadTasks: [ConversationID: Task<Void, Never>] = [:]
     @ObservationIgnored private var settleTask: Task<Void, Never>?
 
-    /// How long a freshly-sent bubble's receipt is held back, ~matching the insert animation so
-    /// "Delivered" lands after the row settles instead of mid-animation.
+    /// How long a freshly-sent bubble's receipt is held back so "Delivered" lands after the row has
+    /// settled rather than mid-insert. A deliberate, generous beat tuned by feel that sits past the
+    /// insert animation — not pinned to its exact duration, so the two need not stay in lockstep.
     private static let receiptSettleDelay: Duration = .milliseconds(500)
 
     init(
@@ -386,7 +387,7 @@ final class ConversationController {
     func send(_ text: String, to conversationID: ConversationID) async -> Bool {
         let clientMessageID = UUID()
         let pending = ConversationMessage(
-            id: MessageID(value: .max),
+            id: .unassigned,
             senderID: selfUserID,
             content: .text(text),
             date: .now,
