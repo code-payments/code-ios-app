@@ -22,9 +22,9 @@ extension FlipClient {
         }
     }
     
-    public func fetchUserFlags(userID: UserID, owner: KeyPair) async throws -> UserFlags {
+    public func fetchUserFlags(userID: UserID, owner: KeyPair, timeout: TimeInterval? = nil) async throws -> UserFlags {
         try await withCheckedThrowingContinuation { c in
-            accountService.fetchUserFlags(userID: userID, owner: owner) { c.resume(with: $0) }
+            accountService.fetchUserFlags(userID: userID, owner: owner, timeout: timeout) { c.resume(with: $0) }
         }
     }
 

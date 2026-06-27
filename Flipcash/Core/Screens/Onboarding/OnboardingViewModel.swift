@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import UserNotifications
 import FlipcashUI
 import FlipcashCore
 
@@ -123,15 +122,38 @@ class OnboardingViewModel {
         accessKeyButtonState = .success
         try await Task.delay(milliseconds: 500)
 
-        // Phone verification only exists to power Send; show it when the Send
-        // beta flag is on, otherwise advance straight to the next step.
-        if BetaFlags.shared.hasEnabled(.enableSend) {
+        // Phone verification only exists to power Send; show it when Send is
+        // available for this account, otherwise advance straight to the next step.
+        if await shouldOfferPhoneVerification() {
             navigateToPhoneVerification()
         } else {
             await advanceFromPhoneVerificationStep()
         }
 
         try await Task.delay(milliseconds: 500) // Delay deferred state change
+    }
+
+    /// Whether to collect a phone number during onboarding. The local beta flag
+    /// forces it on; otherwise the server's `enablePhoneNumberSend` decides.
+    /// The flags fetch is time-boxed so a slow connection can't stall onboarding;
+    /// the step is skipped if the account isn't known yet, the fetch times out, or
+    /// it fails — a phone can still be connected later from the Send sheet.
+    private func shouldOfferPhoneVerification() async -> Bool {
+        if BetaFlags.shared.hasEnabled(.enableSend) {
+            return true
+        }
+
+        guard let userID = initializedAccount?.userID else {
+            return false
+        }
+
+        let flags = try? await container.flipClient.fetchUserFlags(
+            userID: userID,
+            owner: inflightMnemonic.solanaKeyPair(),
+            timeout: 5
+        )
+
+        return flags?.enablePhoneNumberSend == true
     }
 
     /// Advances past the phone step: requests push permission when undetermined,
