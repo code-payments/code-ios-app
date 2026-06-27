@@ -7,29 +7,38 @@
 
 import Foundation
 import FlipcashAPI
-import GRPC
+import GRPCCore
 
-/// Thin wrapper exposing the generated `event.v1 EventStreaming` NIO client.
-/// The stream lifecycle lives in `EventStreamer`.
-class EventStreamingService: CodeService<Flipcash_Event_V1_EventStreamingNIOClient> {
-}
+/// Wraps the generated `event.v1 EventStreaming` v2 client and exposes the single
+/// bidirectional `StreamEvents` RPC as a retained `BidirectionalGRPCStream`. The
+/// stream lifecycle (ping/pong, reconnect, backoff) lives in `EventStreamer`.
+final class EventStreamingService: Sendable {
 
-// MARK: - Interceptors -
+    private let service: Flipcash_Event_V1_EventStreaming.Client<AppTransport>
 
-extension InterceptorFactory: Flipcash_Event_V1_EventStreamingClientInterceptorFactoryProtocol {
-    func makeStreamEventsInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Event_V1_StreamEventsRequest, Flipcash_Event_V1_StreamEventsResponse>] {
-        makeInterceptors()
+    init(client: GRPCClient<AppTransport>) {
+        self.service = Flipcash_Event_V1_EventStreaming.Client(wrapping: client)
     }
 
-    func makeForwardEventsInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Event_V1_ForwardEventsRequest, Flipcash_Event_V1_ForwardEventsResponse>] {
-        makeInterceptors()
-    }
-}
-
-// MARK: - GRPCClientType -
-
-extension Flipcash_Event_V1_EventStreamingNIOClient: GRPCClientType {
-    init(channel: GRPCChannel) {
-        self.init(channel: channel, defaultCallOptions: .default, interceptors: InterceptorFactory())
+    func openEventStream(
+        onResponse: @escaping @Sendable (Flipcash_Event_V1_StreamEventsResponse) -> Void,
+        onComplete: @escaping @Sendable (Result<Void, any Error>) -> Void
+    ) -> BidirectionalGRPCStream<Flipcash_Event_V1_StreamEventsRequest, Flipcash_Event_V1_StreamEventsResponse> {
+        let stream = BidirectionalGRPCStream<Flipcash_Event_V1_StreamEventsRequest, Flipcash_Event_V1_StreamEventsResponse>()
+        stream.open(onResponse: onResponse, onComplete: onComplete) { requests, onResponse in
+            try await self.service.streamEvents(
+                requestProducer: { writer in
+                    for await request in requests {
+                        try await writer.write(request)
+                    }
+                },
+                onResponse: { streamResponse in
+                    for try await message in streamResponse.messages {
+                        onResponse(message)
+                    }
+                }
+            )
+        }
+        return stream
     }
 }
