@@ -26,6 +26,10 @@ public class ChatColumnCell: UICollectionViewCell {
     /// Tap-to-retry recognizer, enabled only while this row is failed so non-failed bubbles don't
     /// consume taps (and a future single-tap affordance isn't pre-empted).
     private var retryTap: UITapGestureRecognizer?
+    /// The id of the message this cell currently renders. The receipt is cross-faded only when the
+    /// *same* row changes in place; a recycled cell reconfigured for a different id sets its line
+    /// directly, so it never replays this cell's prior line (a reused failed cell flashing red).
+    private var currentMessageID: String?
 
     /// Stacks `content` above the receipt and pins the column into the contentView, pinning top and
     /// bottom so the cell self-sizes to the content plus the receipt line. Call once, from the
@@ -57,23 +61,30 @@ public class ChatColumnCell: UICollectionViewCell {
 
     public override func prepareForReuse() {
         super.prepareForReuse()
+        currentMessageID = nil
         retryID = nil
         retryTap?.isEnabled = false
+        // Clear the line so a recycled cell never carries its prior row's text/color into the next use.
+        receipt.text = nil
+        receipt.isHidden = true
+        receipt.textColor = ChatReceiptLabel.defaultColor
     }
 
     /// Sets the status line and hugs the column to the sender's edge. Call from `configure`. The text
     /// is supplied by the mapping (`message.receipt`); this only styles it — a failed row turns red and
     /// becomes tappable to retry.
     func updateColumn(for message: ChatMessage) {
+        // Cross-fade the receipt only when the *same* row changes in place (Delivered→Read, the settling
+        // line revealing). A recycled or freshly dequeued cell renders a different row, so its line is set
+        // directly — otherwise the cross-fade would replay this cell's prior line (a reused failed cell
+        // flashing red "Not Delivered" before resolving to the real line).
+        let isInPlaceUpdate = currentMessageID == message.id
+        currentMessageID = message.id
         // A failed row is the only interactive/red one — every signal keys off that single condition.
         retryID = message.isFailed ? message.id : nil
         receipt.textColor = message.isFailed ? ChatReceiptLabel.failedColor : ChatReceiptLabel.defaultColor
         retryTap?.isEnabled = message.isFailed
-        // A cell already in the window is being reconfigured in place (Delivered→Read, sending→
-        // delivered, the line clearing as a newer sent message takes it over), so cross-fade the
-        // change. A freshly dequeued cell isn't in the window yet, so it's set without animation — a
-        // scroll-in or a send shouldn't flash the line.
-        setReceipt(message.receipt, animated: window != nil)
+        setReceipt(message.receipt, animated: isInPlaceUpdate && window != nil)
         column.alignment = message.sender == .me ? .trailing : .leading
         applyAlignment(isFromSelf: message.sender == .me)
     }
