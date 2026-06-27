@@ -45,7 +45,7 @@ public actor EventStreamer {
     public nonisolated let connectionState: AsyncStream<EventStreamConnectionState>
     private let connectionStateContinuation: AsyncStream<EventStreamConnectionState>.Continuation
 
-    private let service: EventStreamingService
+    private var service: EventStreamingService
     private var owner: KeyPair?
 
     private var streamReference: StreamReference?
@@ -62,6 +62,18 @@ public actor EventStreamer {
     /// per-ping liveness proof into a single `.live` per connection, and gates
     /// the matching `.disconnected` on teardown.
     private var isConnectionLive = false
+
+    /// Called when the stream can't recover after `transportRebuildThreshold`
+    /// consecutive reopens despite the transport reporting itself connected —
+    /// the wedged-ready failure mode that no stream-level retry can fix. The
+    /// owner (`FlipClient`) rebuilds the whole transport in response.
+    private var onWedged: (@Sendable () -> Void)?
+    /// Set once per wedge so exactly one rebuild is requested per dead
+    /// connection; cleared on a healthy ping or after adopting a rebuilt service.
+    private var hasRequestedRebuild = false
+    /// Consecutive failed reopens (no ping since) after which a stream-level
+    /// retry is treated as a wedged transport rather than a transient drop.
+    private static let transportRebuildThreshold: UInt = 3
 
     init(service: EventStreamingService) {
         self.service = service
@@ -106,9 +118,27 @@ public actor EventStreamer {
         streamReference != nil && pingTracker.hasRecentPing
     }
 
+    /// Wire the wedge handler. Called once by the owner after construction.
+    func setOnWedged(_ handler: @escaping @Sendable () -> Void) {
+        onWedged = handler
+    }
+
+    /// Adopt a fresh streaming service after the owner rebuilt the transport,
+    /// then reconnect on it. Clears wedge state so detection can re-arm.
+    func adoptRebuiltService(_ service: EventStreamingService) {
+        self.service = service
+        hasRequestedRebuild = false
+        backoff.reset()
+        guard isStreaming else { return }
+        logger.info("Adopting rebuilt transport, reopening event stream")
+        resetAndTeardown()
+        openStream()
+    }
+
     public func stop() {
         isStreaming = false
         isReconnecting = false
+        hasRequestedRebuild = false
         reportConnection(live: false)
         backoff.reset()
         owner = nil
@@ -196,6 +226,8 @@ public actor EventStreamer {
         // clear the reconnect backoff, so a stream that dies before its first ping
         // keeps escalating the delay instead of hammering reconnect.
         backoff.reset()
+        // Proof of life also re-arms wedge detection for any future dead connection.
+        hasRequestedRebuild = false
 
         // The same proof of life marks the connection delivering — once per
         // connection — so the consumer can refetch the window a drop left.
@@ -297,6 +329,18 @@ public actor EventStreamer {
             "delaySeconds": "\(delay)",
             "attempt": "\(backoff.attempts)",
         ])
+
+        // Repeated reopens with no ping in between mean the connection is wedged
+        // (ready but not delivering), not a transient drop — ask the owner to
+        // rebuild the transport. The scheduled reopen below still runs; the
+        // rebuild's `adoptRebuiltService` supersedes it on the fresh connection.
+        if backoff.attempts >= Self.transportRebuildThreshold, !hasRequestedRebuild {
+            hasRequestedRebuild = true
+            logger.warning("Event stream wedged — requesting transport rebuild", metadata: [
+                "attempts": "\(backoff.attempts)",
+            ])
+            onWedged?()
+        }
 
         reconnectTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(delay))
