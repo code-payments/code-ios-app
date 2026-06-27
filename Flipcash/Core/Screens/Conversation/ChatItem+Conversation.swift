@@ -72,7 +72,8 @@ extension ChatItem {
             case .sent:
                 // "Delivered"/"Read" rides only the latest confirmed self message — preserved even when
                 // a later send is in flight or failed, and held back while the row is still settling in.
-                receipt = isFromSelf && message.stableID == latestSentFromSelfID && message.stableID != suppressReceiptFor
+                // `latestSentFromSelfID` is already a self+sent row, so matching it implies both.
+                receipt = message.stableID == latestSentFromSelfID && message.stableID != suppressReceiptFor
                     ? Self.receiptText(for: message.id, counterpartRead: counterpartRead)
                     : nil
             case .sending:
