@@ -16,8 +16,6 @@ struct ConnectPhoneEmptyState: View {
         VStack(spacing: 0) {
             Spacer()
             VStack(spacing: 12) {
-                Image(.Icons.send)
-                    .foregroundStyle(Color.textSecondary)
                 Text("Connect Phone To Send")
                     .font(.appTextLarge)
                     .foregroundStyle(Color.textMain)
