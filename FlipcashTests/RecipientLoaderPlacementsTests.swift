@@ -138,3 +138,49 @@ struct RecipientLoaderDeduplicatedForDisplayTests {
         #expect(Set(unique.map(\.displayName)) == ["Alice|Smith", "Alice"])
     }
 }
+
+@Suite("RecipientLoader.excludingSelf(_:selfPhone:)")
+struct RecipientLoaderExcludingSelfTests {
+
+    private func makeContact(e164: String) -> ResolvedContact {
+        ResolvedContact(
+            contactId: e164,
+            displayName: "Name \(e164)",
+            phoneE164: e164,
+            nationalPhone: e164,
+            imageData: nil,
+        )
+    }
+
+    @Test("Drops the contact matching the user's own number")
+    func dropsSelf() {
+        let contacts = [makeContact(e164: "+14085551111"), makeContact(e164: "+14085552222")]
+        let result = RecipientLoader.excludingSelf(contacts, selfPhone: "+14085551111")
+        #expect(result.map(\.phoneE164) == ["+14085552222"])
+    }
+
+    @Test("Drops every row sharing the user's number")
+    func dropsAllSelfRows() {
+        let contacts = [
+            makeContact(e164: "+14085551111"),
+            makeContact(e164: "+14085551111"),
+            makeContact(e164: "+14085552222"),
+        ]
+        let result = RecipientLoader.excludingSelf(contacts, selfPhone: "+14085551111")
+        #expect(result.map(\.phoneE164) == ["+14085552222"])
+    }
+
+    @Test("Leaves the list untouched when self phone is nil")
+    func nilSelfPhoneKeepsAll() {
+        let contacts = [makeContact(e164: "+14085551111"), makeContact(e164: "+14085552222")]
+        let result = RecipientLoader.excludingSelf(contacts, selfPhone: nil)
+        #expect(result.count == 2)
+    }
+
+    @Test("Leaves the list untouched when self phone is empty")
+    func emptySelfPhoneKeepsAll() {
+        let contacts = [makeContact(e164: "+14085551111")]
+        let result = RecipientLoader.excludingSelf(contacts, selfPhone: "")
+        #expect(result.count == 1)
+    }
+}

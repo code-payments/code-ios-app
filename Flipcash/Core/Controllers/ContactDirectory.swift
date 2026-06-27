@@ -154,6 +154,17 @@ enum RecipientLoader {
         return candidateNamed && candidate.contactId != existing.contactId
     }
 
+    /// Drops the user's own contact: you can't send to yourself, so your own
+    /// number never belongs in the recipient list even when it's saved in your
+    /// address book. A `nil`/empty self phone leaves the list untouched.
+    nonisolated static func excludingSelf(
+        _ contacts: [ResolvedContact],
+        selfPhone: String?,
+    ) -> [ResolvedContact] {
+        guard let selfPhone, !selfPhone.isEmpty else { return contacts }
+        return contacts.filter { $0.phoneE164 != selfPhone }
+    }
+
     static func load(database: Database) async -> ResolvedContacts {
         await Task.detached(priority: .userInitiated) {
             let snapshot: [Database.LocalContact]
@@ -167,6 +178,8 @@ enum RecipientLoader {
                 ])
                 return ResolvedContacts.empty
             }
+            // Best-effort: a missing profile just leaves the list unfiltered.
+            let selfPhone = try? database.getProfile()?.phone?.e164
             let flipcashSet = Set(matched.map(\.e164))
             let dmChatIDByPhone = Dictionary(
                 matched.compactMap { contact in contact.dmChatID.map { (contact.e164, $0) } },
@@ -235,7 +248,10 @@ enum RecipientLoader {
 
             // Collapse `(displayName, nationalPhone)` collisions so the same
             // display name + national number is never shown twice.
-            let unique = deduplicatedForDisplay(resolvedByPlacement, flipcashSet: flipcashSet)
+            let unique = deduplicatedForDisplay(
+                excludingSelf(resolvedByPlacement, selfPhone: selfPhone),
+                flipcashSet: flipcashSet,
+            )
 
             var onFlipcash: [ResolvedContact] = []
             var invite: [ResolvedContact] = []
