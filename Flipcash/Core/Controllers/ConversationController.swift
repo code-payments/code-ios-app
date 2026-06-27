@@ -32,11 +32,9 @@ final class ConversationController {
     var conversations: [Conversation] { store.conversations }
     private(set) var isLoadingFeed = false
 
-    /// The `stableID` of a just-sent optimistic message whose Delivered/Read receipt is held back until
-    /// its bubble has settled in place — so the receipt cross-fades onto a stationary row rather than
-    /// popping in during the insert animation. Cleared shortly after insert; the mapping suppresses the
-    /// receipt for this id while set.
-    private(set) var settlingSendID: String?
+    /// The `stableID` of a just-sent optimistic message whose receipt is currently held back so it can
+    /// cross-fade onto a settled bubble; the transcript mapping suppresses that row's receipt while set.
+    var settlingSendID: String? { receiptSettle.settlingID }
 
     /// The conversation with this ID, if the feed currently holds it.
     func conversation(withID id: ConversationID) -> Conversation? {
@@ -69,12 +67,7 @@ final class ConversationController {
     @ObservationIgnored private var streamTask: Task<Void, Never>?
     @ObservationIgnored private var hydratingConversationIDs: Set<ConversationID> = []
     @ObservationIgnored private var markReadTasks: [ConversationID: Task<Void, Never>] = [:]
-    @ObservationIgnored private var settleTask: Task<Void, Never>?
-
-    /// How long a freshly-sent bubble's receipt is held back so "Delivered" lands after the row has
-    /// settled rather than mid-insert. A deliberate, generous beat tuned by feel that sits past the
-    /// insert animation — not pinned to its exact duration, so the two need not stay in lockstep.
-    private static let receiptSettleDelay: Duration = .milliseconds(500)
+    @ObservationIgnored private let receiptSettle = ReceiptSettleGate()
 
     init(
         fetching: any ConversationFetching,
@@ -163,9 +156,7 @@ final class ConversationController {
         streamTask = nil
         markReadTasks.values.forEach { $0.cancel() }
         markReadTasks.removeAll()
-        settleTask?.cancel()
-        settleTask = nil
-        settlingSendID = nil
+        receiptSettle.cancel()
         streaming.closeConversationStream()
     }
 
@@ -396,21 +387,8 @@ final class ConversationController {
             clientMessageID: clientMessageID
         )
         store.insertPending(pending, into: conversationID)
-        holdReceiptUntilSettled(for: clientMessageID.uuidString)
+        receiptSettle.hold(clientMessageID.uuidString)
         return await deliver(clientMessageID: clientMessageID, text: text, to: conversationID)
-    }
-
-    /// Suppress the new row's receipt until its insert animation settles, then clear it so the receipt
-    /// (Delivered/Read, once the message confirms) cross-fades onto a stationary bubble. Only the
-    /// latest send shows a receipt, so a newer send simply replaces the held id.
-    private func holdReceiptUntilSettled(for stableID: String) {
-        settlingSendID = stableID
-        settleTask?.cancel()
-        settleTask = Task { [weak self] in
-            try? await Task.sleep(for: Self.receiptSettleDelay)
-            guard !Task.isCancelled, let self, self.settlingSendID == stableID else { return }
-            self.settlingSendID = nil
-        }
     }
 
     /// Re-send a failed optimistic message, reusing its client id so the server (idempotent on it)
