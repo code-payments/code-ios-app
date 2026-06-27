@@ -63,6 +63,7 @@ final class ConversationController {
     @ObservationIgnored private let contactNaming: any DMContactNaming
     @ObservationIgnored private let database: Database
     @ObservationIgnored private let owner: KeyPair
+    @ObservationIgnored private let openingLoadRetryDelay: Duration
     @ObservationIgnored private var startTask: Task<Void, Never>?
     @ObservationIgnored private var streamTask: Task<Void, Never>?
     @ObservationIgnored private var connectionStateTask: Task<Void, Never>?
@@ -82,7 +83,8 @@ final class ConversationController {
         contactNaming: any DMContactNaming,
         database: Database,
         owner: KeyPair,
-        selfUserID: UserID
+        selfUserID: UserID,
+        openingLoadRetryDelay: Duration = .seconds(1.5)
     ) {
         self.fetching = fetching
         self.messaging = messaging
@@ -91,6 +93,7 @@ final class ConversationController {
         self.database = database
         self.owner = owner
         self.selfUserID = selfUserID
+        self.openingLoadRetryDelay = openingLoadRetryDelay
     }
 
     /// Seeds the store from the local cache so the feed, unread state, and
@@ -345,17 +348,33 @@ final class ConversationController {
         store.hasMessages(for: conversationID)
     }
 
-    func loadMessages(for conversationID: ConversationID) async {
+    @discardableResult
+    func loadMessages(for conversationID: ConversationID) async -> Bool {
         do {
             let messages = try await messaging.getMessages(owner: owner, conversationID: conversationID, before: nil)
+            guard !messages.isEmpty else { return true }
             store.mergeMessages(messages, into: conversationID)
             persist(operation: "load-messages") { try database.upsertConversationMessages(messages, conversationID: conversationID) }
+            return true
         } catch {
             logger.error("Failed to load conversation messages", metadata: [
                 "conversationID": "\(conversationID)",
                 "error": "\(error)",
             ])
             ErrorReporting.captureError(error, reason: "Failed to load conversation messages")
+            return false
+        }
+    }
+
+    /// The opening load for a chat reached by deeplink/push or the Chats list,
+    /// retried until a message lands or the attempt budget is spent. Such a chat
+    /// always holds at least one message, so an empty first fetch is a cold-start
+    /// read-after-write race, not a genuinely empty chat.
+    func loadOpeningMessages(for conversationID: ConversationID) async {
+        await Task.retryUntil(maxAttempts: 4, delay: openingLoadRetryDelay) {
+            let loaded = await self.loadMessages(for: conversationID)
+            let landed = await self.hasMessages(for: conversationID)
+            return !loaded || landed
         }
     }
 

@@ -17,6 +17,9 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
 
     private var _feed: [Conversation] = []
     private var _messages: [ConversationMessage] = []
+    private var _messagesScript: [[ConversationMessage]]?
+    private var _messagesError: Error?
+    private var _openingQueryCount = 0
     private var _olderMessages: [ConversationMessage] = []
     private var _olderQueries: [MessageID] = []
     private var _latestPageQueries: [ConversationID] = []
@@ -38,6 +41,19 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
         get { lock.withLock { _messages } }
         set { lock.withLock { _messages = newValue } }
     }
+    /// Successive responses for the opening `getMessages` (`before == nil`),
+    /// consumed front-to-back; falls back to `messages` once exhausted.
+    var messagesScript: [[ConversationMessage]]? {
+        get { lock.withLock { _messagesScript } }
+        set { lock.withLock { _messagesScript = newValue } }
+    }
+    /// When set, the opening `getMessages` throws this.
+    var messagesError: Error? {
+        get { lock.withLock { _messagesError } }
+        set { lock.withLock { _messagesError = newValue } }
+    }
+    /// Number of opening `getMessages` calls (`before == nil`).
+    var openingQueryCount: Int { lock.withLock { _openingQueryCount } }
     /// Scripted older page returned when `getMessages` is called with `before != nil`.
     var olderMessages: [ConversationMessage] {
         get { lock.withLock { _olderMessages } }
@@ -95,8 +111,15 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
 
     func getMessages(owner: KeyPair, conversationID: ConversationID, before: MessageID?) async throws -> [ConversationMessage] {
         guard let before else {
-            lock.withLock { _latestPageQueries.append(conversationID) }
-            return messages
+            return try lock.withLock {
+                _latestPageQueries.append(conversationID)
+                _openingQueryCount += 1
+                if let error = _messagesError { throw error }
+                guard var script = _messagesScript, !script.isEmpty else { return _messages }
+                let next = script.removeFirst()
+                _messagesScript = script
+                return next
+            }
         }
         lock.withLock { _olderQueries.append(before) }
         return olderMessages

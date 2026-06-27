@@ -25,13 +25,15 @@ struct ConversationControllerTests {
         _ mock: MockConversations,
         selfUserID: UserID = UUID(),
         naming: MockDMContactNaming = MockDMContactNaming(),
-        database: Database? = nil
+        database: Database? = nil,
+        openingLoadRetryDelay: Duration = .zero
     ) -> ConversationController {
         ConversationController(
             fetching: mock, messaging: mock, streaming: mock,
             contactNaming: naming,
             database: database ?? (try! Database.makeTemp().database),
-            owner: .generate()!, selfUserID: selfUserID
+            owner: .generate()!, selfUserID: selfUserID,
+            openingLoadRetryDelay: openingLoadRetryDelay
         )
     }
 
@@ -535,5 +537,48 @@ struct ConversationControllerTests {
         #expect(rehydrated.messages(for: ConversationID.test(1)).map(\.id.value) == [1, 2])
         let pointer = rehydrated.conversations.first?.selfReadPointer(for: selfUserID)
         #expect(pointer == MessageID(value: 2))
+    }
+
+    // MARK: - Opening load (deeplink/push cold-start retry)
+
+    private func message(_ id: UInt64) -> ConversationMessage {
+        ConversationMessage(id: MessageID(value: id), senderID: nil, content: .text("hi"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0)
+    }
+
+    @Test("loadOpeningMessages retries an empty first fetch until the message lands")
+    func loadOpeningMessages_retriesWhileEmpty() async {
+        let mock = MockConversations()
+        // The cold-start race: the first fetch is empty, the second sees the message.
+        mock.messagesScript = [[], [message(1)]]
+        let controller = makeController(mock)
+
+        await controller.loadOpeningMessages(for: ConversationID.test(1))
+
+        #expect(mock.openingQueryCount == 2)
+        #expect(controller.messages(for: ConversationID.test(1)).map(\.id) == [MessageID(value: 1)])
+    }
+
+    @Test("loadOpeningMessages fetches once when the first page already has messages")
+    func loadOpeningMessages_noRetryWhenPopulated() async {
+        let mock = MockConversations()
+        mock.messages = [message(1)]
+        let controller = makeController(mock)
+
+        await controller.loadOpeningMessages(for: ConversationID.test(1))
+
+        #expect(mock.openingQueryCount == 1)
+        #expect(controller.hasMessages(for: ConversationID.test(1)))
+    }
+
+    @Test("loadOpeningMessages stops on a fetch error rather than hammering it")
+    func loadOpeningMessages_stopsOnError() async {
+        let mock = MockConversations()
+        mock.messagesError = CancellationError()
+        let controller = makeController(mock)
+
+        await controller.loadOpeningMessages(for: ConversationID.test(1))
+
+        #expect(mock.openingQueryCount == 1)
+        #expect(!controller.hasMessages(for: ConversationID.test(1)))
     }
 }

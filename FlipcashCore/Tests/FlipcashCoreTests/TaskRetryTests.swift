@@ -113,3 +113,71 @@ struct TaskRetryTests {
         #expect(shouldRetryCalled == false)
     }
 }
+
+@Suite("Task.retryUntil")
+struct TaskRetryUntilTests {
+
+    private actor Counter {
+        private(set) var count = 0
+        func increment() { count += 1 }
+    }
+
+    @Test("Returns true and runs once when the first attempt is satisfied")
+    func satisfiedFirstTry() async {
+        var attempts = 0
+        let satisfied = await Task.retryUntil(maxAttempts: 3, delay: .nanoseconds(1)) {
+            attempts += 1
+            return true
+        }
+        #expect(satisfied)
+        #expect(attempts == 1)
+    }
+
+    @Test("Repeats until the operation is satisfied")
+    func repeatsUntilSatisfied() async {
+        var attempts = 0
+        let satisfied = await Task.retryUntil(maxAttempts: 5, delay: .nanoseconds(1)) {
+            attempts += 1
+            return attempts == 3
+        }
+        #expect(satisfied)
+        #expect(attempts == 3)
+    }
+
+    @Test("Returns false after maxAttempts when never satisfied")
+    func exhaustsMaxAttempts() async {
+        var attempts = 0
+        let satisfied = await Task.retryUntil(maxAttempts: 4, delay: .nanoseconds(1)) {
+            attempts += 1
+            return false
+        }
+        #expect(!satisfied)
+        #expect(attempts == 4)
+    }
+
+    @Test("maxAttempts of 1 runs the operation exactly once")
+    func maxAttemptsOneRunsOnce() async {
+        var attempts = 0
+        let satisfied = await Task.retryUntil(maxAttempts: 1, delay: .nanoseconds(1)) {
+            attempts += 1
+            return false
+        }
+        #expect(!satisfied)
+        #expect(attempts == 1)
+    }
+
+    @Test("Stops at the next attempt boundary once cancelled, returning false")
+    func stopsOnCancellation() async {
+        let counter = Counter()
+        let task = Task {
+            await Task.retryUntil(maxAttempts: 5, delay: .seconds(60)) {
+                await counter.increment()
+                return false
+            }
+        }
+        task.cancel()
+        let satisfied = await task.value
+        #expect(!satisfied)
+        #expect(await counter.count == 1)
+    }
+}
