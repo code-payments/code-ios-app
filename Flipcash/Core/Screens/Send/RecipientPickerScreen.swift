@@ -475,6 +475,7 @@ private struct RecipientListItemRow: View {
     let onTap: () -> Void
 
     @Environment(ConversationController.self) private var conversationController
+    @Environment(Session.self) private var session
 
     private var title: String {
         switch item {
@@ -496,7 +497,11 @@ private struct RecipientListItemRow: View {
                 return text
             case .cash(let amount):
                 let verb = message.isFromSelf(conversationController.selfUserID) ? "You sent" : "You received"
-                return "\(verb) \(amount.nativeAmount.formatted())"
+                let formatted = amount.nativeAmount.formatted()
+                guard let name = session.balance(for: amount.mint)?.name else {
+                    return "\(verb) \(formatted)"
+                }
+                return "\(verb) \(formatted) of \(name)"
             }
         }
     }

@@ -131,7 +131,7 @@ struct ConversationScreen: View {
             counterpartRead: counterpartRead.map { (pointer: $0.pointer, date: $0.date) },
             suppressReceiptFor: conversationController.settlingSendID,
             cashBranding: { fiat in
-                guard fiat.mint != .usdf, let balance = session.balance(for: fiat.mint) else { return ("Cash", nil) }
+                guard let balance = session.balance(for: fiat.mint) else { return ("Cash", nil) }
                 return (balance.name, balance.imageURL)
             }
         )
