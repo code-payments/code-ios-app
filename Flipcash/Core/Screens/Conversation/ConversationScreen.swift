@@ -220,7 +220,7 @@ struct ConversationScreen: View {
         // created yet error-reports. Fires when the chat materializes.
         .task(id: chatExists ? conversationID : nil) {
             guard chatExists, let conversationID else { return }
-            await conversationController.loadMessages(for: conversationID)
+            await conversationController.loadOpeningMessages(for: conversationID)
             await conversationController.markRead(conversationID: conversationID)
             didInitialRead = true
         }

@@ -44,4 +44,34 @@ extension Task where Success == Never, Failure == Never {
             }
         }
     }
+
+    /// Runs `operation` up to `maxAttempts` times, stopping the moment it returns
+    /// `true`, sleeping `delay` between attempts. Returns `true` once it did, or
+    /// `false` if every attempt returned `false`. Stops promptly on cancellation,
+    /// returning `false`.
+    ///
+    /// Where `retry(maxAttempts:delay:…)` repeats on a thrown *error*, this repeats
+    /// on an unsatisfied *result* — for polling a value that becomes available after
+    /// a short delay (e.g. a record not yet queryable the instant it is created).
+    ///
+    /// - Parameters:
+    ///   - maxAttempts: Total number of tries, including the first. Must be at least 1.
+    ///   - delay: Time to sleep between attempts.
+    ///   - operation: The async work to run each attempt; return `true` to stop.
+    @discardableResult
+    public static func retryUntil(
+        maxAttempts: Int,
+        delay: Duration,
+        operation: sending () async -> Bool
+    ) async -> Bool {
+        precondition(maxAttempts >= 1, "maxAttempts must be at least 1")
+        for attempt in 0..<maxAttempts {
+            if attempt > 0 {
+                try? await Task.sleep(for: delay)
+                if Task.isCancelled { return false }
+            }
+            if await operation() { return true }
+        }
+        return false
+    }
 }
