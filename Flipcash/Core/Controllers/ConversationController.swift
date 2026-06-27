@@ -65,6 +65,12 @@ final class ConversationController {
     @ObservationIgnored private let owner: KeyPair
     @ObservationIgnored private var startTask: Task<Void, Never>?
     @ObservationIgnored private var streamTask: Task<Void, Never>?
+    @ObservationIgnored private var connectionStateTask: Task<Void, Never>?
+    /// Whether the event stream has been seen `.live` at least once. The first
+    /// `.live` is the initial connection (the feed/transcript are already loaded
+    /// by `start()` and the screen), so it's skipped; every `.live` after it is a
+    /// reconnect whose missed window needs refetching.
+    @ObservationIgnored private var hasSeenStreamLive = false
     @ObservationIgnored private var hydratingConversationIDs: Set<ConversationID> = []
     @ObservationIgnored private var markReadTasks: [ConversationID: Task<Void, Never>] = [:]
     @ObservationIgnored private let receiptSettle = ReceiptSettleGate()
@@ -118,6 +124,7 @@ final class ConversationController {
         startTask = Task {
             await hydrateFromDatabase()
             openStream()
+            observeConnectionState()
             await loadFeed()
         }
     }
@@ -133,6 +140,36 @@ final class ConversationController {
                 self.hydrateIfUnknown(event)
                 self.logCounterpartRead(event)
             }
+        }
+    }
+
+    /// The event stream is a live, cursorless push and the server never replays,
+    /// so messages delivered while it was down are lost. Watch the connection
+    /// state: the first `.live` is the initial connection, and every `.live`
+    /// after it is a reconnect whose missed window we refetch.
+    private func observeConnectionState() {
+        guard connectionStateTask == nil else { return }
+        let states = streaming.conversationConnectionState()
+        connectionStateTask = Task { [weak self] in
+            for await state in states {
+                guard let self else { return }
+                guard state == .live else { continue }
+                if self.hasSeenStreamLive {
+                    await self.refetchAfterReconnect()
+                } else {
+                    self.hasSeenStreamLive = true
+                }
+            }
+        }
+    }
+
+    private func refetchAfterReconnect() async {
+        logger.info("Stream reconnected, refetching the missed window", metadata: [
+            "visibleConversation": visibleConversationID.map { "\($0)" } ?? "none",
+        ])
+        await loadFeed()
+        if let visibleConversationID {
+            await loadMessages(for: visibleConversationID)
         }
     }
 
@@ -154,6 +191,8 @@ final class ConversationController {
         startTask = nil
         streamTask?.cancel()
         streamTask = nil
+        connectionStateTask?.cancel()
+        connectionStateTask = nil
         markReadTasks.values.forEach { $0.cancel() }
         markReadTasks.removeAll()
         receiptSettle.cancel()

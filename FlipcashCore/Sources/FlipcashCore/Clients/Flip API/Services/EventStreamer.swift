@@ -11,6 +11,17 @@ import GRPC
 
 private let logger = Logger(label: "flipcash.event-streamer")
 
+/// The connection state of the event stream. The streamer reports these facts;
+/// it's the consumer's job to decide what they mean — e.g. refetch the window a
+/// drop left, or drive a "reconnecting" indicator.
+public enum EventStreamConnectionState: Sendable {
+    /// A connection proved it's delivering (its first ping arrived). Emitted once
+    /// per connection, so a reconnect produces a fresh `.live`.
+    case live
+    /// The stream was torn down — a drop being reconnected, or a stop.
+    case disconnected
+}
+
 /// Owns the single per-user bidirectional event stream (`event.v1 StreamEvents`)
 /// and decodes conversation updates into `ConversationStreamEvent`s consumed via `events`. The
 /// server enforces one stream per user, so exactly one instance must exist per
@@ -27,6 +38,13 @@ public actor EventStreamer {
     public nonisolated let events: AsyncStream<ConversationStreamEvent>
     private let continuation: AsyncStream<ConversationStreamEvent>.Continuation
 
+    /// The stream's connection state over time. The stream carries no cursor and
+    /// the server never replays, so a consumer treats the first `.live` as the
+    /// initial connection and refetches the missed window on each `.live` after
+    /// that. Consume with `for await state in streamer.connectionState`.
+    public nonisolated let connectionState: AsyncStream<EventStreamConnectionState>
+    private let connectionStateContinuation: AsyncStream<EventStreamConnectionState>.Continuation
+
     private let service: EventStreamingService
     private var owner: KeyPair?
 
@@ -40,12 +58,19 @@ public actor EventStreamer {
     /// Bumped on every `openStream()`; gRPC callbacks capture the value at open
     /// time so a torn-down stream's late status can't tear down its replacement.
     private var streamGeneration: UInt = 0
+    /// Whether the current connection has been reported `.live`. Dedupes the
+    /// per-ping liveness proof into a single `.live` per connection, and gates
+    /// the matching `.disconnected` on teardown.
+    private var isConnectionLive = false
 
     init(service: EventStreamingService) {
         self.service = service
         let (stream, continuation) = AsyncStream<ConversationStreamEvent>.makeStream()
         self.events = stream
         self.continuation = continuation
+        let (connectionState, connectionStateContinuation) = AsyncStream<EventStreamConnectionState>.makeStream()
+        self.connectionState = connectionState
+        self.connectionStateContinuation = connectionStateContinuation
     }
 
     deinit {
@@ -53,6 +78,7 @@ public actor EventStreamer {
         reconnectTask?.cancel()
         streamReference?.destroy()
         continuation.finish()
+        connectionStateContinuation.finish()
     }
 
     // MARK: - Public API
@@ -83,6 +109,7 @@ public actor EventStreamer {
     public func stop() {
         isStreaming = false
         isReconnecting = false
+        reportConnection(live: false)
         backoff.reset()
         owner = nil
         pingTimeoutTask?.cancel()
@@ -176,6 +203,10 @@ public actor EventStreamer {
         // keeps escalating the delay instead of hammering reconnect.
         backoff.reset()
 
+        // The same proof of life marks the connection delivering — once per
+        // connection — so the consumer can refetch the window a drop left.
+        reportConnection(live: true)
+
         let timeout = pingTracker.receivedPing(updatedTimeout: Int(ping.pingDelay.seconds))
         schedulePingTimeout(seconds: timeout)
 
@@ -238,8 +269,17 @@ public actor EventStreamer {
         reconnectTask = nil
         isReconnecting = false
         backoff.reset()
+        reportConnection(live: false)
         streamReference?.destroy()
         streamReference = nil
+    }
+
+    /// Emits a connection-state transition, ignoring repeats — every ping would
+    /// otherwise re-report `.live`, and several teardown paths can each fire.
+    private func reportConnection(live: Bool) {
+        guard isConnectionLive != live else { return }
+        isConnectionLive = live
+        connectionStateContinuation.yield(live ? .live : .disconnected)
     }
 
     private func schedulePingTimeout(seconds: Int) {
@@ -258,6 +298,7 @@ public actor EventStreamer {
         pingTimeoutTask?.cancel()
         pingTimeoutTask = nil
         pingTracker = PingTracker()
+        reportConnection(live: false)
         streamReference?.destroy()
         streamReference = nil
 
