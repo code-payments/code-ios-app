@@ -5,11 +5,17 @@
 
 import Foundation
 import FlipcashAPI
-import GRPC
+import GRPCCore
 
 private let logger = Logger(label: "flipcash.resolver-service")
 
-final class ResolverService: CodeService<Flipcash_Resolver_V1_ResolverNIOClient> {
+final class ResolverService: Sendable {
+
+    private let service: Flipcash_Resolver_V1_Resolver.Client<AppTransport>
+
+    init(client: GRPCClient<AppTransport>) {
+        self.service = Flipcash_Resolver_V1_Resolver.Client(wrapping: client)
+    }
 
     /// Resolve an E.164 phone to the on-chain payment destination.
     /// Throws `.notFound` when the recipient is not on Flipcash; throws for
@@ -28,26 +34,33 @@ final class ResolverService: CodeService<Flipcash_Resolver_V1_ResolverNIOClient>
             $0.auth = owner.authFor(message: $0)
         }
 
-        let call = service.resolve(request)
-        call.handle(on: queue, completion: completion) { response in
-            switch response.result {
-            case .ok:
-                guard
-                    case .address(let addressProto) = response.resolution.kind,
-                    let publicKey = try? PublicKey(addressProto.value)
-                else {
-                    logger.error("Resolve OK but resolution missing address")
-                    return .failure(.unknown)
+        Task {
+            do {
+                let response = try await service.resolve(request, options: .unaryDefault)
+                switch response.result {
+                case .ok:
+                    guard
+                        case .address(let addressProto) = response.resolution.kind,
+                        let publicKey = try? PublicKey(addressProto.value)
+                    else {
+                        logger.error("Resolve OK but resolution missing address")
+                        await MainActor.run { completion(.failure(.unknown)) }
+                        return
+                    }
+                    await MainActor.run { completion(.success(publicKey)) }
+                case .notFound:
+                    await MainActor.run { completion(.failure(.notFound)) }
+                case .denied:
+                    logger.warning("Resolve denied")
+                    await MainActor.run { completion(.failure(.denied)) }
+                case .UNRECOGNIZED(let raw):
+                    logger.warning("Resolve unknown result", metadata: ["raw": "\(raw)"])
+                    await MainActor.run { completion(.failure(.unknown)) }
                 }
-                return .success(publicKey)
-            case .notFound:
-                return .failure(.notFound)
-            case .denied:
-                logger.warning("Resolve denied")
-                return .failure(.denied)
-            case .UNRECOGNIZED(let raw):
-                logger.warning("Resolve unknown result", metadata: ["raw": "\(raw)"])
-                return .failure(.unknown)
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
             }
         }
     }
@@ -69,21 +82,5 @@ extension ErrorResolve: ServerError, TransportClassifiableError {
         case .ok, .denied, .notFound, .transportFailure: false
         case .unknown: true
         }
-    }
-}
-
-// MARK: - Interceptors -
-
-extension InterceptorFactory: Flipcash_Resolver_V1_ResolverClientInterceptorFactoryProtocol {
-    func makeResolveInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Resolver_V1_ResolveRequest, Flipcash_Resolver_V1_ResolveResponse>] {
-        makeInterceptors()
-    }
-}
-
-// MARK: - GRPCClientType -
-
-extension Flipcash_Resolver_V1_ResolverNIOClient: GRPCClientType {
-    init(channel: GRPCChannel) {
-        self.init(channel: channel, defaultCallOptions: .default, interceptors: InterceptorFactory())
     }
 }

@@ -8,12 +8,18 @@
 
 import Foundation
 import FlipcashAPI
-import GRPC
-import NIO
+import GRPCCore
 
 private let logger = Logger(label: "flipcash.currency-service")
 
-class CurrencyService: CodeService<Ocp_Currency_V1_CurrencyNIOClient>, @unchecked Sendable {
+final class CurrencyService: Sendable {
+
+    private let service: Ocp_Currency_V1_Currency.Client<AppTransport>
+
+    init(client: GRPCClient<AppTransport>) {
+        self.service = Ocp_Currency_V1_Currency.Client(wrapping: client)
+    }
+
     func fetchMint(mint: PublicKey, completion: @Sendable @escaping (Result<MintMetadata, Error>) -> Void) {
         fetchMints(mints: [mint]) {
             switch $0 {
@@ -28,27 +34,27 @@ class CurrencyService: CodeService<Ocp_Currency_V1_CurrencyNIOClient>, @unchecke
             }
         }
     }
-    
+
     func fetchMints(mints: [PublicKey], completion: @Sendable @escaping (Result<[PublicKey: MintMetadata], Error>) -> Void) {
         var request = Ocp_Currency_V1_GetMintsRequest()
         request.addresses = mints.map(\.solanaAccountID)
-        
-        let call = service.getMints(request)
-        call.handle(on: queue) { response in
-            var mints: [PublicKey: MintMetadata] = [:]
-            response.metadataByAddress.forEach { addressString, mint in
-                if
-                    let address = try? PublicKey(base58: addressString),
-                    let metadata = try? MintMetadata(mint)
-                {
-                    mints[address] = metadata
-                }
-            }
-            
-            completion(.success(mints))
 
-        } failure: { error in
-            completion(.failure(error))
+        Task {
+            do {
+                let response = try await service.getMints(request, options: .unaryDefault)
+                var result: [PublicKey: MintMetadata] = [:]
+                response.metadataByAddress.forEach { addressString, mint in
+                    if
+                        let address = try? PublicKey(base58: addressString),
+                        let metadata = try? MintMetadata(mint)
+                    {
+                        result[address] = metadata
+                    }
+                }
+                await MainActor.run { completion(.success(result)) }
+            } catch {
+                await MainActor.run { completion(.failure(error)) }
+            }
         }
     }
 
@@ -65,53 +71,60 @@ class CurrencyService: CodeService<Ocp_Currency_V1_CurrencyNIOClient>, @unchecke
         request.currencyCode = currencyCode
         request.predefinedRange = range
 
-        let call = service.getHistoricalMintData(request)
-        call.handle(on: queue) { response in
-            switch response.result {
-            case .ok:
-                let dataPoints = response.data.map { data in
-                    HistoricalMintDataPoint(
-                        date: data.timestamp.date,
-                        marketCap: data.marketCap
-                    )
+        Task {
+            do {
+                let response = try await service.getHistoricalMintData(request, options: .unaryDefault)
+                switch response.result {
+                case .ok:
+                    let dataPoints = response.data.map { data in
+                        HistoricalMintDataPoint(
+                            date: data.timestamp.date,
+                            marketCap: data.marketCap
+                        )
+                    }
+                    logger.info("Fetched historical mint data", metadata: ["count": "\(dataPoints.count)"])
+                    await MainActor.run { completion(.success(dataPoints)) }
+
+                case .notFound:
+                    await MainActor.run { completion(.failure(ErrorRateHistory.notFound)) }
+
+                case .missingData, .UNRECOGNIZED:
+                    await MainActor.run { completion(.failure(ErrorRateHistory.unknown)) }
                 }
-                logger.info("Fetched historical mint data", metadata: ["count": "\(dataPoints.count)"])
-                completion(.success(dataPoints))
-
-            case .notFound:
-                completion(.failure(ErrorRateHistory.notFound))
-
-            case .missingData, .UNRECOGNIZED:
-                completion(.failure(ErrorRateHistory.unknown))
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(ErrorRateHistory.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(ErrorRateHistory.unknown)) }
             }
-        } failure: { error in
-            completion(.failure(ErrorRateHistory.from(transportError: error)))
         }
     }
 
     /// Opens a server-streaming `Discover` RPC that pushes ranked currency batches.
     ///
     /// Each streamed response delivers a complete list of ``MintMetadata`` for the
-    /// requested category. Uses `callOptions: .streaming` to avoid the 15-second
-    /// default timeout. Cancel the returned ``StreamReference`` to tear down the stream.
+    /// requested category. Streaming gets no deadline. Cancel the returned
+    /// ``ServerGRPCStream`` to tear down the stream.
     @discardableResult
     func discover(
         category: DiscoverCategory,
-        handler: @Sendable @escaping ([MintMetadata]) -> Void
-    ) -> StreamReference<Ocp_Currency_V1_DiscoverRequest, Ocp_Currency_V1_DiscoverResponse> {
-        var request = Ocp_Currency_V1_DiscoverRequest()
-        request.category = category.protoCategory
-
-        let streamReference = StreamReference<Ocp_Currency_V1_DiscoverRequest, Ocp_Currency_V1_DiscoverResponse>()
-
-        let stream = service.discover(request, callOptions: .streaming) { response in
-            guard response.result == .ok else { return }
-            let mints = response.mints.compactMap { try? MintMetadata($0) }
-            handler(mints)
+        handler: @Sendable @escaping ([MintMetadata]) -> Void,
+        onComplete: @Sendable @escaping (Result<Void, any Error>) -> Void = { _ in }
+    ) -> ServerGRPCStream {
+        let request = Ocp_Currency_V1_DiscoverRequest.with {
+            $0.category = category.protoCategory
         }
 
-        streamReference.stream = stream
-        return streamReference
+        let stream = ServerGRPCStream()
+        stream.open(onComplete: onComplete) {
+            try await self.service.discover(request) { response in
+                for try await message in response.messages {
+                    guard message.result == .ok else { continue }
+                    let mints = message.mints.compactMap { try? MintMetadata($0) }
+                    handler(mints)
+                }
+            }
+        }
+        return stream
     }
 
     func checkAvailability(
@@ -123,20 +136,48 @@ class CurrencyService: CodeService<Ocp_Currency_V1_CurrencyNIOClient>, @unchecke
         var request = Ocp_Currency_V1_CheckAvailabilityRequest()
         request.name = name
 
-        let call = service.checkAvailability(request)
-        call.handle(on: queue) { response in
-            switch response.result {
-            case .ok:
-                logger.info("Currency availability check", metadata: ["is_available": "\(response.isAvailable)"])
-                completion(.success(response.isAvailable))
-            case .UNRECOGNIZED:
-                logger.error("Availability check returned unrecognized result")
-                completion(.failure(ErrorGeneric.unknown))
+        Task {
+            do {
+                let response = try await service.checkAvailability(request, options: .unaryDefault)
+                switch response.result {
+                case .ok:
+                    logger.info("Currency availability check", metadata: ["is_available": "\(response.isAvailable)"])
+                    await MainActor.run { completion(.success(response.isAvailable)) }
+                case .UNRECOGNIZED:
+                    logger.error("Availability check returned unrecognized result")
+                    await MainActor.run { completion(.failure(ErrorGeneric.unknown)) }
+                }
+            } catch {
+                logger.error("Availability check gRPC error", metadata: ["error": "\(error)"])
+                await MainActor.run { completion(.failure(error)) }
             }
-        } failure: { error in
-            logger.error("Availability check gRPC error", metadata: ["error": "\(error)"])
-            completion(.failure(error))
         }
+    }
+
+    /// Opens the bidirectional `StreamLiveMintData` RPC, returning a retained,
+    /// cancellable handle the caller drives with `sendMessage`. Streaming gets no
+    /// deadline. `onResponse` fires for every inbound message; `onComplete` fires
+    /// once with the terminal result (clean close or transport error).
+    func openLiveMintDataStream(
+        onResponse: @escaping @Sendable (Ocp_Currency_V1_StreamLiveMintDataResponse) -> Void,
+        onComplete: @escaping @Sendable (Result<Void, any Error>) -> Void
+    ) -> BidirectionalGRPCStream<Ocp_Currency_V1_StreamLiveMintDataRequest, Ocp_Currency_V1_StreamLiveMintDataResponse> {
+        let stream = BidirectionalGRPCStream<Ocp_Currency_V1_StreamLiveMintDataRequest, Ocp_Currency_V1_StreamLiveMintDataResponse>()
+        stream.open(onResponse: onResponse, onComplete: onComplete) { requests, onResponse in
+            try await self.service.streamLiveMintData(
+                requestProducer: { writer in
+                    for await request in requests {
+                        try await writer.write(request)
+                    }
+                },
+                onResponse: { streamResponse in
+                    for try await message in streamResponse.messages {
+                        onResponse(message)
+                    }
+                }
+            )
+        }
+        return stream
     }
 
     func launch(
@@ -163,37 +204,39 @@ class CurrencyService: CodeService<Ocp_Currency_V1_CurrencyNIOClient>, @unchecke
         if let iconAttestation { request.iconModerationAttestation = iconAttestation.currencyProto }
         request.signature = request.sign(with: owner)
 
-        let call = service.launch(request)
-        call.handle(on: queue) { response in
-            switch response.result {
-            case .ok:
-                guard let mint = try? PublicKey(response.mint.value) else {
-                    logger.error("Launch succeeded but mint key invalid")
-                    completion(.failure(.unknown))
-                    return
+        Task {
+            do {
+                let response = try await service.launch(request, options: .unaryDefault)
+                switch response.result {
+                case .ok:
+                    guard let mint = try? PublicKey(response.mint.value) else {
+                        logger.error("Launch succeeded but mint key invalid")
+                        await MainActor.run { completion(.failure(.unknown)) }
+                        return
+                    }
+                    logger.info("Currency launched", metadata: ["mint": "\(mint.base58)"])
+                    await MainActor.run { completion(.success(mint)) }
+
+                case .denied:
+                    logger.error("Currency launch denied")
+                    await MainActor.run { completion(.failure(.denied)) }
+
+                case .nameExists:
+                    logger.info("Currency launch: name exists")
+                    await MainActor.run { completion(.failure(.nameExists)) }
+
+                case .invalidIcon:
+                    logger.error("Currency launch: invalid icon")
+                    await MainActor.run { completion(.failure(.invalidIcon)) }
+
+                case .UNRECOGNIZED:
+                    logger.error("Launch returned unrecognized result")
+                    await MainActor.run { completion(.failure(.unknown)) }
                 }
-                logger.info("Currency launched", metadata: ["mint": "\(mint.base58)"])
-                completion(.success(mint))
-
-            case .denied:
-                logger.error("Currency launch denied")
-                completion(.failure(.denied))
-
-            case .nameExists:
-                logger.info("Currency launch: name exists")
-                completion(.failure(.nameExists))
-
-            case .invalidIcon:
-                logger.error("Currency launch: invalid icon")
-                completion(.failure(.invalidIcon))
-
-            case .UNRECOGNIZED:
-                logger.error("Launch returned unrecognized result")
-                completion(.failure(.unknown))
+            } catch {
+                logger.error("Launch gRPC error", metadata: ["error": "\(error)"])
+                await MainActor.run { completion(.failure(.network(error))) }
             }
-        } failure: { error in
-            logger.error("Launch gRPC error", metadata: ["error": "\(error)"])
-            completion(.failure(.network(error)))
         }
     }
 }
@@ -238,51 +281,7 @@ extension ErrorLaunchCurrency: ServerError {
         switch self {
         case .denied, .nameExists, .invalidIcon: false
         case .unknown: true
-        case .network(let error): (error as? GRPCStatus)?.isReportable ?? true
+        case .network(let error): (error as? ServerError)?.isReportable ?? true
         }
-    }
-}
-
-// MARK: - Interceptors -
-
-extension InterceptorFactory: Ocp_Currency_V1_CurrencyClientInterceptorFactoryProtocol {
-    func makeUpdateIconInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Currency_V1_UpdateIconRequest, FlipcashAPI.Ocp_Currency_V1_UpdateIconResponse>] {
-        makeInterceptors()
-    }
-    
-    func makeUpdateMetadataInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Currency_V1_UpdateMetadataRequest, FlipcashAPI.Ocp_Currency_V1_UpdateMetadataResponse>] {
-        makeInterceptors()
-    }
-    
-    func makeStreamLiveMintDataInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Currency_V1_StreamLiveMintDataRequest, FlipcashAPI.Ocp_Currency_V1_StreamLiveMintDataResponse>] {
-        makeInterceptors()
-    }
-
-    func makeGetMintsInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Currency_V1_GetMintsRequest, FlipcashAPI.Ocp_Currency_V1_GetMintsResponse>] {
-        makeInterceptors()
-    }
-
-    func makeGetHistoricalMintDataInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Currency_V1_GetHistoricalMintDataRequest, FlipcashAPI.Ocp_Currency_V1_GetHistoricalMintDataResponse>] {
-        makeInterceptors()
-    }
-
-    func makeLaunchInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Currency_V1_LaunchRequest, FlipcashAPI.Ocp_Currency_V1_LaunchResponse>] {
-        makeInterceptors()
-    }
-
-    func makeDiscoverInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Currency_V1_DiscoverRequest, FlipcashAPI.Ocp_Currency_V1_DiscoverResponse>] {
-        makeInterceptors()
-    }
-
-    func makeCheckAvailabilityInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Currency_V1_CheckAvailabilityRequest, FlipcashAPI.Ocp_Currency_V1_CheckAvailabilityResponse>] {
-        makeInterceptors()
-    }
-}
-
-// MARK: - GRPCClientType -
-
-extension Ocp_Currency_V1_CurrencyNIOClient: GRPCClientType {
-    init(channel: GRPCChannel) {
-        self.init(channel: channel, defaultCallOptions: .default, interceptors: InterceptorFactory())
     }
 }

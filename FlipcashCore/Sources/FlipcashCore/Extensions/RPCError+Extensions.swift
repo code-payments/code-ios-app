@@ -1,30 +1,28 @@
 //
-//  GRPCStatus+Extensions.swift
+//  RPCError+Extensions.swift
 //  FlipcashCore
 //
 
-import GRPC
+import GRPCCore
 
-extension GRPCStatus.Code {
+extension RPCError.Code {
 
     /// Whether the code represents a transient network condition (deadline
     /// expired or channel unavailable). Excludes `.cancelled`, `.aborted`,
     /// and `.unknown` by design — those stay reportable so app cancellations
-    /// and server aborts remain visible in error tracking.
+    /// and server aborts remain visible in error tracking. Mirrors the v1
+    /// `GRPCStatus.Code.isTransientNetworkError` semantics exactly.
     public var isTransientNetworkError: Bool {
-        switch self {
-        case .deadlineExceeded, .unavailable: true
-        default: false
-        }
+        self == .deadlineExceeded || self == .unavailable
     }
 }
 
-extension GRPCStatus: ServerError {
+extension RPCError: ServerError {
 
-    /// A raw transport status is non-reportable only for transient network
-    /// conditions (`GRPCStatus.Code.isTransientNetworkError`); every other code
+    /// A raw transport error is non-reportable only for transient network
+    /// conditions (`RPCError.Code.isTransientNetworkError`); every other code
     /// stays reportable. This lets unary RPCs whose failure type is the
-    /// existential `Error` ship the status directly and still classify
+    /// existential `Error` ship the error directly and still classify
     /// correctly, without a dedicated `TransportClassifiableError` enum.
     public var isReportable: Bool {
         !code.isTransientNetworkError

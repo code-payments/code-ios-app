@@ -7,11 +7,17 @@
 
 import Foundation
 import FlipcashAPI
-import GRPC
+import GRPCCore
 
 private let logger = Logger(label: "flipcash.chat-service")
 
-class ChatService: CodeService<Flipcash_Chat_V1_ChatNIOClient> {
+final class ChatService: Sendable {
+
+    private let service: Flipcash_Chat_V1_Chat.Client<AppTransport>
+
+    init(client: GRPCClient<AppTransport>) {
+        self.service = Flipcash_Chat_V1_Chat.Client(wrapping: client)
+    }
 
     struct DmFeedPage: Sendable {
         let conversations: [Conversation]
@@ -30,19 +36,25 @@ class ChatService: CodeService<Flipcash_Chat_V1_ChatNIOClient> {
             $0.auth = owner.authFor(message: $0)
         }
 
-        let call = service.getDmChatFeed(request)
-        call.handle(on: queue, completion: completion) { response in
-            let error = ErrorGetDmChatFeed(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok {
+        Task {
+            do {
+                let response = try await service.getDmChatFeed(request, options: .unaryDefault)
+                let error = ErrorGetDmChatFeed(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to fetch DM chat feed")
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
                 let page = DmFeedPage(
                     conversations: response.chats.map(Conversation.init),
                     pagingToken: response.pagingToken.value,
                     hasMore: response.hasMore_p
                 )
-                return .success(page)
-            } else {
-                logger.error("Failed to fetch DM chat feed")
-                return .failure(error)
+                await MainActor.run { completion(.success(page)) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
             }
         }
     }
@@ -53,14 +65,20 @@ class ChatService: CodeService<Flipcash_Chat_V1_ChatNIOClient> {
             $0.auth = owner.authFor(message: $0)
         }
 
-        let call = service.getChat(request)
-        call.handle(on: queue, completion: completion) { response in
-            let error = ErrorGetChat(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok, response.hasMetadata {
-                return .success(Conversation(response.metadata))
-            } else {
-                logger.error("Failed to fetch chat")
-                return .failure(error == .ok ? .notFound : error)
+        Task {
+            do {
+                let response = try await service.getChat(request, options: .unaryDefault)
+                let error = ErrorGetChat(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok, response.hasMetadata else {
+                    logger.error("Failed to fetch chat")
+                    await MainActor.run { completion(.failure(error == .ok ? .notFound : error)) }
+                    return
+                }
+                await MainActor.run { completion(.success(Conversation(response.metadata))) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
             }
         }
     }
@@ -99,25 +117,5 @@ extension ErrorGetChat: ServerError, TransportClassifiableError {
         case .ok, .denied, .notFound, .transportFailure: false
         case .unknown: true
         }
-    }
-}
-
-// MARK: - Interceptors -
-
-extension InterceptorFactory: Flipcash_Chat_V1_ChatClientInterceptorFactoryProtocol {
-    func makeGetChatInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Chat_V1_GetChatRequest, Flipcash_Chat_V1_GetChatResponse>] {
-        makeInterceptors()
-    }
-
-    func makeGetDmChatFeedInterceptors() -> [GRPC.ClientInterceptor<Flipcash_Chat_V1_GetDmChatFeedRequest, Flipcash_Chat_V1_GetDmChatFeedResponse>] {
-        makeInterceptors()
-    }
-}
-
-// MARK: - GRPCClientType -
-
-extension Flipcash_Chat_V1_ChatNIOClient: GRPCClientType {
-    init(channel: GRPCChannel) {
-        self.init(channel: channel, defaultCallOptions: .default, interceptors: InterceptorFactory())
     }
 }

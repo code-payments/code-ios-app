@@ -8,7 +8,7 @@
 
 import Foundation
 import FlipcashAPI
-import GRPC
+import GRPCCore
 
 private let logger = Logger(label: "flipcash.live-mint-data-streamer")
 
@@ -16,7 +16,7 @@ private let logger = Logger(label: "flipcash.live-mint-data-streamer")
 /// Handles connection lifecycle, ping/pong keepalive, and auto-reconnection.
 public actor LiveMintDataStreamer {
 
-    public typealias StreamReference = BidirectionalStreamReference<
+    public typealias StreamReference = BidirectionalGRPCStream<
         Ocp_Currency_V1_StreamLiveMintDataRequest,
         Ocp_Currency_V1_StreamLiveMintDataResponse
     >
@@ -52,7 +52,7 @@ public actor LiveMintDataStreamer {
     deinit {
         pingTimeoutTask?.cancel()
         reconnectTask?.cancel()
-        streamReference?.destroy()
+        streamReference?.cancel()
     }
 
     // MARK: - Public API
@@ -89,7 +89,7 @@ public actor LiveMintDataStreamer {
     }
 
     private var isLikelyHealthy: Bool {
-        streamReference?.stream != nil && pingTracker.hasRecentPing
+        streamReference != nil && pingTracker.hasRecentPing
     }
 
     /// Stop the stream
@@ -103,7 +103,7 @@ public actor LiveMintDataStreamer {
         pingTracker = PingTracker()
         reconnectTask?.cancel()
         reconnectTask = nil
-        streamReference?.destroy()
+        streamReference?.cancel()
         streamReference = nil
         logger.debug("Stopped live mint data stream")
     }
@@ -115,7 +115,7 @@ public actor LiveMintDataStreamer {
 
         subscribedMints = mints
 
-        if isStreaming, let stream = streamReference?.stream {
+        if isStreaming, let stream = streamReference {
             // Send updated mint list on existing stream — no teardown needed.
             // The server may abort the stream in response; sentSubscriptionUpdate
             // tells handleStreamStatus to reconnect immediately.
@@ -124,7 +124,7 @@ public actor LiveMintDataStreamer {
                     $0.mints = mints.map(\.solanaAccountID)
                 }
             }
-            _ = stream.sendMessage(request)
+            stream.sendMessage(request)
             sentSubscriptionUpdate = true
             logger.debug("Updated mint subscription", metadata: ["count": "\(mints.count)"])
         } else if isStreaming {
@@ -144,7 +144,7 @@ public actor LiveMintDataStreamer {
         // Clean up any existing stream before creating a new one
         if let existing = streamReference {
             logger.debug("Cleaning up existing stream before opening new one")
-            existing.destroy()
+            existing.cancel()
             streamReference = nil
         }
         pingTimeoutTask?.cancel()
@@ -158,12 +158,12 @@ public actor LiveMintDataStreamer {
         streamGeneration += 1
         let generation = streamGeneration
 
-        let reference = StreamReference()
-        reference.retain()
-
-        let stream = service.service.streamLiveMintData(callOptions: .streaming) { [weak self] response in
+        let reference = service.openLiveMintDataStream { [weak self] response in
             guard let self else { return }
             Task { await self.handleResponse(response, generation: generation) }
+        } onComplete: { [weak self] result in
+            guard let self else { return }
+            Task { await self.handleStreamStatus(result, generation: generation) }
         }
 
         // Send initial request with mints
@@ -173,16 +173,9 @@ public actor LiveMintDataStreamer {
             }
         }
 
-        _ = stream.sendMessage(request)
-
-        // Handle stream status changes
-        stream.status.whenComplete { [weak self] result in
-            guard let self else { return }
-            Task { await self.handleStreamStatus(result, generation: generation) }
-        }
+        reference.sendMessage(request)
 
         self.streamReference = reference
-        reference.stream = stream
 
         schedulePingTimeout(seconds: pingTracker.timeoutSeconds)
         // Treat stream open as a liveness signal so `ensureConnected` doesn't
@@ -236,7 +229,7 @@ public actor LiveMintDataStreamer {
             }
         }
 
-        _ = streamReference?.stream?.sendMessage(pongRequest)
+        streamReference?.sendMessage(pongRequest)
     }
 
     private func handleTimeout() {
@@ -244,7 +237,7 @@ public actor LiveMintDataStreamer {
         reconnect()
     }
 
-    private func handleStreamStatus(_ result: Result<GRPCStatus, Error>, generation: UInt) {
+    private func handleStreamStatus(_ result: Result<Void, any Error>, generation: UInt) {
         guard generation == streamGeneration else {
             logger.debug("Ignoring status from previous stream generation", metadata: [
                 "generation": "\(generation)",
@@ -257,33 +250,39 @@ public actor LiveMintDataStreamer {
         sentSubscriptionUpdate = false
 
         switch result {
-        case .success(let status):
-            switch status.code {
-            case .ok:
-                logger.debug("Stream closed normally")
-                reconnect()
-
-            case .aborted where wasSubscriptionUpdate:
-                // Server aborts the stream after a subscription change.
-                // Reconnect immediately — this is expected, not a failure.
-                logger.debug("Stream aborted after subscription update, reopening")
-                immediateReconnect()
-
-            case .unavailable, .deadlineExceeded, .cancelled:
-                logger.warning("Stream closed with \(status.code)")
-                reconnect()
-
-            default:
-                logger.warning("Stream closed with status", metadata: [
-                    "code": "\(status.code)",
-                    "message": "\(status.message ?? "nil")"
-                ])
-                reconnect()
-            }
+        case .success:
+            logger.debug("Stream closed normally")
+            reconnect()
 
         case .failure(let error):
-            logger.error("Stream error", metadata: ["error": "\(error)"])
-            reconnect()
+            // A non-OK terminal status surfaces here as a thrown `RPCError`
+            // (clean closes land in `.success`). Branch on the status code to
+            // mirror the v1 `handleStreamStatus(_: Result<GRPCStatus, Error>)`
+            // switch; non-`RPCError` failures fall through to the generic
+            // reconnect path the v1 `.failure(error)` case used.
+            if let error = error as? RPCError {
+                switch error.code {
+                case .aborted where wasSubscriptionUpdate:
+                    // Server aborts the stream after a subscription change.
+                    // Reconnect immediately — this is expected, not a failure.
+                    logger.debug("Stream aborted after subscription update, reopening")
+                    immediateReconnect()
+
+                case .unavailable, .deadlineExceeded, .cancelled:
+                    logger.warning("Stream closed with \(error.code)")
+                    reconnect()
+
+                default:
+                    logger.warning("Stream closed with status", metadata: [
+                        "code": "\(error.code)",
+                        "message": "\(error.message)"
+                    ])
+                    reconnect()
+                }
+            } else {
+                logger.error("Stream error", metadata: ["error": "\(error)"])
+                reconnect()
+            }
         }
     }
 
@@ -297,7 +296,7 @@ public actor LiveMintDataStreamer {
         reconnectTask = nil
         isReconnecting = false
         backoff.reset()
-        streamReference?.destroy()
+        streamReference?.cancel()
         streamReference = nil
     }
 
@@ -333,7 +332,7 @@ public actor LiveMintDataStreamer {
         pingTimeoutTask?.cancel()
         pingTimeoutTask = nil
         pingTracker = PingTracker()
-        streamReference?.destroy()
+        streamReference?.cancel()
         streamReference = nil
 
         let delay = backoff.next()

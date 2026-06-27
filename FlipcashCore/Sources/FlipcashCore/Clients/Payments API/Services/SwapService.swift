@@ -8,17 +8,22 @@
 
 import Foundation
 import FlipcashAPI
-import Combine
-import GRPC
+import GRPCCore
 import SwiftProtobuf
-import NIO
+import Synchronization
 
 private let logger = Logger(label: "flipcash.swap-service")
 
 /// Service for managing token swap operations
-final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @unchecked Sendable {
-    typealias BidirectionalSwapStream = BidirectionalStreamReference<Ocp_Transaction_V1_StatefulSwapRequest, Ocp_Transaction_V1_StatefulSwapResponse>
-    
+final class SwapService: Sendable {
+    typealias BidirectionalSwapStream = BidirectionalGRPCStream<Ocp_Transaction_V1_StatefulSwapRequest, Ocp_Transaction_V1_StatefulSwapResponse>
+
+    let service: Ocp_Transaction_V1_Transaction.Client<AppTransport>
+
+    init(client: GRPCClient<AppTransport>) {
+        self.service = Ocp_Transaction_V1_Transaction.Client(wrapping: client)
+    }
+
     // MARK: - Swap -
 
     /// Swap initiates the swap process by coordinating verified metadata with the server.
@@ -41,7 +46,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
         owner: KeyPair,
         isNewCurrencyLaunch: Bool = false,
         kind: VerifiedSwapMetadata.ClientParameters.Kind = .reserve,
-        completion: @escaping (Result<SwapMetadata, ErrorSwap>) -> Void
+        completion: @escaping @Sendable (Result<SwapMetadata, ErrorSwap>) -> Void
     ) {
         let fromMint = direction.sourceMint.address
         let toMint = direction.destinationMint.address
@@ -109,7 +114,6 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
         }
 
         let reference = BidirectionalSwapStream()
-        let queue = self.queue // Capture queue, not self
 
         // Store client parameters for verification metadata construction
         let clientParameters = VerifiedSwapMetadata.ClientParameters(
@@ -122,22 +126,18 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
             kind: kind
         )
 
-        // Intentionally creates a retain-cycle using closures to ensure that we have
-        // a strong reference to the stream at all times. Doing so ensures that the
-        // callers don't have to manage the pointer to this stream and keep it alive
-        reference.retain()
-
         // Swap authority signs the transaction. For standard swaps the server
         // requires a distinct authority from owner; for new-currency launches
         // the server requires owner == swap_authority.
         let swapAuthority: KeyPair = isNewCurrencyLaunch ? owner : (KeyPair.generate() ?? owner)
 
-        // Store server parameters when received
-        var receivedServerParameters: VerifiedSwapMetadata.ServerParameters?
-        var verifiedMetadataSignature: Signature?
+        // Cross-message state: written when server parameters arrive, read on
+        // .success. Responses arrive serially on the stream's single task, and
+        // the Mutex makes the cross-closure mutation provably data-race-free.
+        let pendingSwap = Mutex<(serverParameters: VerifiedSwapMetadata.ServerParameters?, signature: Signature?)>((nil, nil))
 
-        reference.stream = service.statefulSwap(callOptions: .streaming) { result in
-            switch result.response {
+        reference.open(onResponse: { response in
+            switch response.response {
 
                 // 2. Upon successful submission of the Start message, server will
                 // respond with parameters (nonce + blockhash) that we need to sign
@@ -146,20 +146,20 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                 case .reserveExistingCurrency(let serverParams):
                     guard let serverParameters = VerifiedSwapMetadata.ServerParameters(serverParams) else {
                         logger.error("Failed to parse swap server parameters")
-                        _ = reference.stream?.sendEnd()
+                        reference.cancel()
                         completion(.failure(.unknown))
                         return
                     }
 
                     guard let responseParams = SwapResponseServerParameters(parameters) else {
                         logger.error("Failed to parse swap response parameters")
-                        _ = reference.stream?.sendEnd()
+                        reference.cancel()
                         completion(.failure(.unknown))
                         return
                     }
 
                     // Store for later use in success response
-                    receivedServerParameters = serverParameters
+                    pendingSwap.withLock { $0.serverParameters = serverParameters }
 
                     // Construct verified metadata for signing
                     let verifiedMetadata = VerifiedSwapMetadata(
@@ -180,12 +180,12 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                         )
                     } catch {
                         logger.error("Failed to build swap transaction", metadata: ["error": "\(error)"])
-                        _ = reference.stream?.sendEnd()
+                        reference.cancel()
                         completion(.failure(.unknown))
                         return
                     }
                     let signatures = transaction.signatures(using: owner, swapAuthority)
-                    verifiedMetadataSignature = signatures.first
+                    pendingSwap.withLock { $0.signature = signatures.first }
 
                     // Send both signatures back to server
                     let submitSignature = Ocp_Transaction_V1_StatefulSwapRequest.with {
@@ -194,7 +194,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                         }
                     }
 
-                    _ = reference.stream?.sendMessage(submitSignature)
+                    reference.sendMessage(submitSignature)
 
                     logger.info("Received swap server parameters, submitting signatures", metadata: [
                         "signatureCount": "\(signatures.count)",
@@ -205,7 +205,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                 case .reserveNewCurrency(let serverParams):
                     guard let params = SwapResponseServerParameters.ReserveNewCurrency(serverParams) else {
                         logger.error("Failed to parse new-currency server parameters")
-                        _ = reference.stream?.sendEnd()
+                        reference.cancel()
                         completion(.failure(.unknown))
                         return
                     }
@@ -218,7 +218,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                         seed: params.seed
                     ) else {
                         logger.error("Failed to derive mint from new-currency server params")
-                        _ = reference.stream?.sendEnd()
+                        reference.cancel()
                         completion(.failure(.invalidSwap(reasons: [])))
                         return
                     }
@@ -228,7 +228,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                             "expected": "\(clientParameters.toMint.base58)",
                             "derived": "\(derivedMint.base58)"
                         ])
-                        _ = reference.stream?.sendEnd()
+                        reference.cancel()
                         completion(.failure(.invalidSwap(reasons: [])))
                         return
                     }
@@ -237,7 +237,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                         nonce: params.nonce,
                         blockhash: params.blockhash
                     )
-                    receivedServerParameters = serverParameters
+                    pendingSwap.withLock { $0.serverParameters = serverParameters }
 
                     // Build the atomic launch-and-first-buy transaction. The owner
                     // is also the swap_authority for new-currency flows, so only
@@ -252,7 +252,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                         )
                     } catch {
                         logger.error("Failed to build swap transaction", metadata: ["error": "\(error)"])
-                        _ = reference.stream?.sendEnd()
+                        reference.cancel()
                         completion(.failure(.unknown))
                         return
                     }
@@ -266,7 +266,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                     ])
 
                     let signatures = transaction.signatures(using: owner)
-                    verifiedMetadataSignature = signatures.first
+                    pendingSwap.withLock { $0.signature = signatures.first }
 
                     let submitSignature = Ocp_Transaction_V1_StatefulSwapRequest.with {
                         $0.submitSignatures = .with {
@@ -274,7 +274,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                         }
                     }
 
-                    _ = reference.stream?.sendMessage(submitSignature)
+                    reference.sendMessage(submitSignature)
 
                     logger.info("New-currency swap submitting signatures", metadata: [
                         "signatureCount": "\(signatures.count)",
@@ -288,7 +288,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                         logger.error("Failed to parse stablecoin swap server parameters", metadata: [
                             "swapId": "\(swapId.publicKey.base58)"
                         ])
-                        _ = reference.stream?.sendEnd()
+                        reference.cancel()
                         completion(.failure(.unknown))
                         return
                     }
@@ -297,7 +297,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                         logger.error("Stablecoin swap missing destinationOwner in client parameters", metadata: [
                             "swapId": "\(swapId.publicKey.base58)"
                         ])
-                        _ = reference.stream?.sendEnd()
+                        reference.cancel()
                         completion(.failure(.unknown))
                         return
                     }
@@ -306,7 +306,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                         nonce: serverParameters.nonce,
                         blockhash: serverParameters.blockhash
                     )
-                    receivedServerParameters = stablecoinServerParams
+                    pendingSwap.withLock { $0.serverParameters = stablecoinServerParams }
 
                     let transaction = TransactionBuilder.swapUsdfToUsdc(
                         serverParameters: serverParameters,
@@ -317,7 +317,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                         feeAmount: resolvedFeeAmount.quarks
                     )
                     let signatures = transaction.signatures(using: owner, swapAuthority)
-                    verifiedMetadataSignature = signatures.first
+                    pendingSwap.withLock { $0.signature = signatures.first }
 
                     let submitSignature = Ocp_Transaction_V1_StatefulSwapRequest.with {
                         $0.submitSignatures = .with {
@@ -325,7 +325,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                         }
                     }
 
-                    _ = reference.stream?.sendMessage(submitSignature)
+                    reference.sendMessage(submitSignature)
 
                     logger.info("Stablecoin swap submitting signatures", metadata: [
                         "signatureCount": "\(signatures.count)",
@@ -336,21 +336,22 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
 
                 case .none:
                     logger.error("Unexpected empty server parameter kind in swap")
-                    _ = reference.stream?.sendEnd()
+                    reference.cancel()
                     completion(.failure(.unknown))
                 }
 
                 // 3. If submitted signature is valid, we'll receive a success
                 // and the swap state will be created on the server
             case .success:
-                guard let serverParams = receivedServerParameters,
-                      let signature = verifiedMetadataSignature else {
+                let pending = pendingSwap.withLock { $0 }
+                guard let serverParams = pending.serverParameters,
+                      let signature = pending.signature else {
                     logger.error("Swap success received but missing server parameters or signature")
-                    _ = reference.stream?.sendEnd()
+                    reference.cancel()
                     completion(.failure(.unknown))
                     return
                 }
-                
+
                 let metadata = SwapMetadata(
                     verifiedMetadata: VerifiedSwapMetadata(
                         clientParameters: clientParameters,
@@ -359,16 +360,16 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                     state: .created,
                     signature: signature
                 )
-                
+
                 logger.info("Swap started successfully", metadata: ["swapId": "\(swapId.publicKey.base58)"])
-                _ = reference.stream?.sendEnd()
+                reference.cancel()
                 completion(.success(metadata))
-                
+
                 // 3. If the submitted signature is invalid or other error occurs
             case .error(let error):
                 var container: [String] = []
                 container.append("Code: \(error.code)")
-                
+
                 let errors = error.errorDetails.flatMap { details -> [String] in
                     switch details.type {
                     case .reasonString(let reason):
@@ -400,41 +401,47 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                     "details": "\(container.joined(separator: " | "))"
                 ])
 
-                _ = reference.stream?.sendEnd()
+                reference.cancel()
                 let intentError = ErrorSwap(error: error)
                 completion(.failure(intentError))
 
             case .none:
                 logger.error("Swap received empty response from server")
-                _ = reference.stream?.sendEnd()
+                reference.cancel()
                 completion(.failure(.unknown))
             }
-        }
-
-        reference.stream?.status.whenCompleteBlocking(onto: queue) { result in
+        }, onComplete: { result in
             switch result {
-            case .success(let status):
-                if status.code == .ok {
-                    logger.info("Swap stream closed")
-                    // Completion called in the success block
-                } else {
-                    logger.warning("Swap stream closed with non-OK status", metadata: [
-                        "code": "\(status.code)",
-                        "message": "\(status.message ?? "nil")"
-                    ])
-                    completion(.failure(.grpcStatus(status)))
-                }
+            case .success:
+                logger.info("Swap stream closed")
+                // Completion called in the success block
+
+            case .failure(let error as RPCError):
+                logger.warning("Swap stream closed with non-OK status", metadata: [
+                    "code": "\(error.code)",
+                    "message": "\(error.message)"
+                ])
+                completion(.failure(.grpcStatus(error)))
 
             case .failure(let error):
                 logger.error("Swap stream closed with gRPC error", metadata: ["error": "\(error)"])
                 completion(.failure(.grpcError(error)))
             }
-            
-            // We release the stream reference after the stream has been
-            // closed and there's no further actions required
-            reference.release()
+        }) { requests, onResponse in
+            try await self.service.statefulSwap(
+                requestProducer: { writer in
+                    for await request in requests {
+                        try await writer.write(request)
+                    }
+                },
+                onResponse: { streamResponse in
+                    for try await message in streamResponse.messages {
+                        onResponse(message)
+                    }
+                }
+            )
         }
-        
+
         // 1. Send `Start` request with client parameters
         // (swapAuthority is generated above for use in both the Initiate and ServerParameters handling)
 
@@ -471,10 +478,10 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
                 }
             }
 
-            _ = reference.stream?.sendMessage(startRequest)
+            reference.sendMessage(startRequest)
         } catch {
             logger.error("Failed to serialize client parameters for proof signature", metadata: ["error": "\(error)"])
-            _ = reference.stream?.sendEnd()
+            reference.cancel()
             completion(.failure(.unknown))
             return
         }
@@ -500,31 +507,37 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
         request.owner = owner.publicKey.solanaAccountID
         request.signature = request.sign(with: owner)
 
-        let call = service.getSwap(request)
+        Task {
+            do {
+                let response = try await service.getSwap(request, options: .unaryDefault)
+                switch response.result {
+                case .ok:
+                    guard let metadata = SwapMetadata(response.swap) else {
+                        logger.error("Failed to parse swap metadata")
+                        await MainActor.run { completion(.failure(.failedToParse)) }
+                        return
+                    }
+                    logger.info("Swap state fetched", metadata: ["state": "\(metadata.state)"])
+                    await MainActor.run { completion(.success(metadata)) }
 
-        call.handle(on: queue, completion: completion) { response in
-            switch response.result {
-            case .ok:
-                guard let metadata = SwapMetadata(response.swap) else {
-                    logger.error("Failed to parse swap metadata")
-                    return .failure(.failedToParse)
+                case .notFound:
+                    // Expected during the early phase of polling a freshly
+                    // submitted swap; the caller retries on this condition.
+                    logger.debug("Swap not found")
+                    await MainActor.run { completion(.failure(.notFound)) }
+
+                case .denied:
+                    logger.error("Swap access denied")
+                    await MainActor.run { completion(.failure(.denied)) }
+
+                case .UNRECOGNIZED:
+                    logger.error("Swap fetch returned unknown result")
+                    await MainActor.run { completion(.failure(.unknown)) }
                 }
-                logger.info("Swap state fetched", metadata: ["state": "\(metadata.state)"])
-                return .success(metadata)
-
-            case .notFound:
-                // Expected during the early phase of polling a freshly
-                // submitted swap; the caller retries on this condition.
-                logger.debug("Swap not found")
-                return .failure(.notFound)
-
-            case .denied:
-                logger.error("Swap access denied")
-                return .failure(.denied)
-
-            case .UNRECOGNIZED:
-                logger.error("Swap fetch returned unknown result")
-                return .failure(.unknown)
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(ErrorGetSwap.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
             }
         }
     }
@@ -567,7 +580,7 @@ public enum ErrorSwap: Error, CustomStringConvertible, CustomDebugStringConverti
     /// server's `ReasonStringErrorDetails` values when present.
     case invalidSwap(reasons: [String])
     case unknown
-    case grpcStatus(GRPCStatus)
+    case grpcStatus(RPCError)
     /// gRPC error
     case grpcError(Error)
     /// Phase 2 (IntentFundSwap) submission failed; preserves the underlying cause.

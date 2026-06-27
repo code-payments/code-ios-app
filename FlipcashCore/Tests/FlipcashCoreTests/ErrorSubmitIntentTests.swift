@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-import GRPC
+import GRPCCore
 import FlipcashAPI
 @testable import FlipcashCore
 
@@ -139,10 +139,10 @@ struct ErrorSubmitIntentTests {
 
     @Test(
         "grpcStatus(.deadlineExceeded) and grpcStatus(.unavailable) are transient network errors",
-        arguments: [GRPCStatus.Code.deadlineExceeded, .unavailable]
+        arguments: [RPCError.Code.deadlineExceeded, .unavailable]
     )
-    func transientNetworkErrors(code: GRPCStatus.Code) {
-        let error = ErrorSubmitIntent.grpcStatus(GRPCStatus(code: code, message: nil))
+    func transientNetworkErrors(code: RPCError.Code) {
+        let error = ErrorSubmitIntent.grpcStatus(RPCError(code: code, message: ""))
 
         #expect(error.isTransientNetworkError)
         #expect(!error.isReportable)
@@ -153,7 +153,7 @@ struct ErrorSubmitIntentTests {
     @Test(
         "non-network grpcStatus codes remain reportable and are not transient",
         arguments: [
-            GRPCStatus.Code.internalError,
+            RPCError.Code.internalError,
             .invalidArgument,
             .permissionDenied,
             .resourceExhausted,
@@ -162,8 +162,8 @@ struct ErrorSubmitIntentTests {
             .unknown,
         ]
     )
-    func reportableGrpcStatusCodes(code: GRPCStatus.Code) {
-        let error = ErrorSubmitIntent.grpcStatus(GRPCStatus(code: code, message: nil))
+    func reportableGrpcStatusCodes(code: RPCError.Code) {
+        let error = ErrorSubmitIntent.grpcStatus(RPCError(code: code, message: ""))
 
         #expect(!error.isTransientNetworkError)
         #expect(error.isReportable)
@@ -178,7 +178,7 @@ struct ErrorSubmitIntentTests {
             .staleState([], kinds: []),
             .unknown,
             .deviceTokenUnavailable,
-            .grpcError(GRPCStatus(code: .unavailable, message: nil)),
+            .grpcError(RPCError(code: .unavailable, message: "")),
         ]
     )
     func nonGrpcStatusCasesAreNotTransient(error: ErrorSubmitIntent) {

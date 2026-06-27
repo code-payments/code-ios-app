@@ -7,7 +7,7 @@
 
 import Foundation
 import FlipcashAPI
-import GRPC
+import GRPCCore
 
 private let logger = Logger(label: "flipcash.event-streamer")
 
@@ -29,7 +29,7 @@ public enum EventStreamConnectionState: Sendable {
 /// `stop()` on logout so a stale stream doesn't evict the next session's.
 public actor EventStreamer {
 
-    public typealias StreamReference = BidirectionalStreamReference<
+    public typealias StreamReference = BidirectionalGRPCStream<
         Flipcash_Event_V1_StreamEventsRequest,
         Flipcash_Event_V1_StreamEventsResponse
     >
@@ -76,7 +76,7 @@ public actor EventStreamer {
     deinit {
         pingTimeoutTask?.cancel()
         reconnectTask?.cancel()
-        streamReference?.destroy()
+        streamReference?.cancel()
         continuation.finish()
         connectionStateContinuation.finish()
     }
@@ -103,7 +103,7 @@ public actor EventStreamer {
     /// A live stream that has received a ping recently. Wall-clock based via
     /// `PingTracker`, so it stays accurate across app suspension.
     private var isLikelyHealthy: Bool {
-        streamReference?.stream != nil && pingTracker.hasRecentPing
+        streamReference != nil && pingTracker.hasRecentPing
     }
 
     public func stop() {
@@ -117,7 +117,7 @@ public actor EventStreamer {
         pingTracker = PingTracker()
         reconnectTask?.cancel()
         reconnectTask = nil
-        streamReference?.destroy()
+        streamReference?.cancel()
         streamReference = nil
         logger.debug("Stopped event stream")
     }
@@ -131,7 +131,7 @@ public actor EventStreamer {
         }
 
         if let existing = streamReference {
-            existing.destroy()
+            existing.cancel()
             streamReference = nil
         }
         pingTimeoutTask?.cancel()
@@ -142,12 +142,12 @@ public actor EventStreamer {
         streamGeneration += 1
         let generation = streamGeneration
 
-        let reference = StreamReference()
-        reference.retain()
-
-        let stream = service.service.streamEvents(callOptions: .streaming) { [weak self] response in
+        let reference = service.openEventStream { [weak self] response in
             guard let self else { return }
             Task { await self.handleResponse(response, generation: generation) }
+        } onComplete: { [weak self] result in
+            guard let self else { return }
+            Task { await self.handleStreamStatus(result, generation: generation) }
         }
 
         // The open handshake: the first message carries auth + a freshness nonce.
@@ -157,15 +157,9 @@ public actor EventStreamer {
                 $0.auth = owner.authFor(message: $0)
             }
         }
-        _ = stream.sendMessage(request)
-
-        stream.status.whenComplete { [weak self] result in
-            guard let self else { return }
-            Task { await self.handleStreamStatus(result, generation: generation) }
-        }
+        reference.sendMessage(request)
 
         self.streamReference = reference
-        reference.stream = stream
 
         schedulePingTimeout(seconds: pingTracker.timeoutSeconds)
         // Treat open as a liveness signal so `ensureConnected` doesn't tear down
@@ -213,7 +207,7 @@ public actor EventStreamer {
         let pong = Flipcash_Event_V1_StreamEventsRequest.with {
             $0.pong = .with { $0.timestamp = .init(date: .now) }
         }
-        _ = streamReference?.stream?.sendMessage(pong)
+        streamReference?.sendMessage(pong)
     }
 
     private func handleStreamError(_ error: Flipcash_Event_V1_StreamEventsResponse.StreamError) {
@@ -235,27 +229,22 @@ public actor EventStreamer {
         reconnect()
     }
 
-    private func handleStreamStatus(_ result: Result<GRPCStatus, Error>, generation: UInt) {
+    private func handleStreamStatus(_ result: Result<Void, any Error>, generation: UInt) {
         guard generation == streamGeneration else { return }
 
         switch result {
-        case .success(let status):
-            switch status.code {
-            case .ok:
-                logger.debug("Event stream closed normally")
-            case .unavailable, .deadlineExceeded, .cancelled:
-                logger.warning("Event stream closed", metadata: [
-                    "code": "\(status.code)",
-                    "message": "\(status.message ?? "")",
-                ])
-            default:
-                logger.error("Event stream closed unexpectedly", metadata: [
-                    "code": "\(status.code)",
-                    "message": "\(status.message ?? "")",
-                ])
-            }
+        case .success:
+            logger.debug("Event stream closed normally")
         case .failure(let error):
-            logger.error("Event stream error", metadata: ["error": "\(error)"])
+            if let rpcError = error as? RPCError,
+               [.unavailable, .deadlineExceeded, .cancelled].contains(rpcError.code) {
+                logger.warning("Event stream closed", metadata: [
+                    "code": "\(rpcError.code)",
+                    "message": "\(error)",
+                ])
+            } else {
+                logger.error("Event stream closed unexpectedly", metadata: ["error": "\(error)"])
+            }
         }
 
         reconnect()
@@ -270,7 +259,7 @@ public actor EventStreamer {
         isReconnecting = false
         backoff.reset()
         reportConnection(live: false)
-        streamReference?.destroy()
+        streamReference?.cancel()
         streamReference = nil
     }
 
@@ -299,7 +288,7 @@ public actor EventStreamer {
         pingTimeoutTask = nil
         pingTracker = PingTracker()
         reportConnection(live: false)
-        streamReference?.destroy()
+        streamReference?.cancel()
         streamReference = nil
 
         let delay = backoff.next()

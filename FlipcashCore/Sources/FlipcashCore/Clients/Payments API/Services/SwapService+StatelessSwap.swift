@@ -5,14 +5,13 @@
 
 import Foundation
 import FlipcashAPI
-import GRPC
-import NIO
+import GRPCCore
 import SwiftProtobuf
 
 private let logger = Logger(label: "flipcash.swap-service.stateless")
 
 extension SwapService {
-    typealias BidirectionalStatelessSwapStream = BidirectionalStreamReference<
+    typealias BidirectionalStatelessSwapStream = BidirectionalGRPCStream<
         Ocp_Transaction_V1_StatelessSwapRequest,
         Ocp_Transaction_V1_StatelessSwapResponse
     >
@@ -64,20 +63,15 @@ extension SwapService {
         }
 
         let reference = BidirectionalStatelessSwapStream()
-        let queue = self.queue
 
-        // Retain ourselves until the stream closes — matches the established
-        // pattern in `SwapService.swap`.
-        reference.retain()
-
-        reference.stream = service.statelessSwap(callOptions: .streaming) { result in
-            switch result.response {
+        reference.open(onResponse: { response in
+            switch response.response {
             case .serverParameters(let parameters):
                 switch parameters.kind {
                 case .stablecoin(let stableServer):
                     guard let serverParameters = StatelessSwapServerParameters(stableServer) else {
                         logger.error("Failed to parse stateless swap server parameters")
-                        _ = reference.stream?.sendEnd()
+                        reference.cancel()
                         resolve(.failure(.unknown))
                         return
                     }
@@ -97,7 +91,7 @@ extension SwapService {
                         }
                     }
 
-                    _ = reference.stream?.sendMessage(submitSignatures)
+                    reference.sendMessage(submitSignatures)
 
                     logger.info("Received stateless swap server parameters, submitting signatures", metadata: [
                         "signatureCount": "\(signatures.count)",
@@ -106,14 +100,14 @@ extension SwapService {
 
                 case .none:
                     logger.error("Stateless swap server parameters missing kind")
-                    _ = reference.stream?.sendEnd()
+                    reference.cancel()
                     resolve(.failure(.unknown))
                 }
 
             case .success(let success):
                 guard let signature = try? Signature(success.transactionSignature.value) else {
                     logger.error("Stateless swap success missing valid signature")
-                    _ = reference.stream?.sendEnd()
+                    reference.cancel()
                     resolve(.failure(.unknown))
                     return
                 }
@@ -126,7 +120,7 @@ extension SwapService {
                     outcome = .finalized(signature: signature)
                 case .UNRECOGNIZED:
                     logger.error("Stateless swap success returned unrecognized code")
-                    _ = reference.stream?.sendEnd()
+                    reference.cancel()
                     resolve(.failure(.unknown))
                     return
                 }
@@ -136,7 +130,7 @@ extension SwapService {
                     "signature": "\(signature.base58)",
                 ])
 
-                _ = reference.stream?.sendEnd()
+                reference.cancel()
                 resolve(.success(outcome))
 
             case .error(let error):
@@ -146,36 +140,49 @@ extension SwapService {
                     "reasons": "\(error.errorDetails.reasonStrings)",
                 ])
 
-                _ = reference.stream?.sendEnd()
+                reference.cancel()
                 resolve(.failure(ErrorStatelessSwap(error: error)))
 
             case .none:
                 logger.error("Stateless swap received empty response from server")
-                _ = reference.stream?.sendEnd()
+                reference.cancel()
                 resolve(.failure(.unknown))
             }
-        }
-
-        reference.stream?.status.whenCompleteBlocking(onto: queue) { result in
+        }, onComplete: { result in
             switch result {
-            case .success(let status):
-                if status.code == .ok {
-                    logger.info("Stateless swap stream closed")
-                } else {
-                    logger.warning("Stateless swap stream closed with non-OK status", metadata: [
-                        "code": "\(status.code)",
-                        "message": "\(status.message ?? "nil")",
-                    ])
-                    resolve(.failure(.grpcStatus(status)))
-                }
+            case .success:
+                logger.info("Stateless swap stream closed")
+
+            case .failure(let error as RPCError):
+                logger.warning("Stateless swap stream closed with non-OK status", metadata: [
+                    "code": "\(error.code)",
+                    "message": "\(error.message)",
+                ])
+                // TODO(v2-review): ErrorStatelessSwap.grpcStatus lives in
+                // StatelessSwapModels.swift (out of this file's scope) and still
+                // stores GRPCStatus; its associated value must be changed to
+                // RPCError for this to compile.
+                resolve(.failure(.grpcStatus(error)))
+
             case .failure(let error):
                 logger.error("Stateless swap stream closed with gRPC error", metadata: [
                     "error": "\(error)",
                 ])
                 resolve(.failure(.grpcError(error)))
             }
-
-            reference.release()
+        }) { requests, onResponse in
+            try await self.service.statelessSwap(
+                requestProducer: { writer in
+                    for await request in requests {
+                        try await writer.write(request)
+                    }
+                },
+                onResponse: { streamResponse in
+                    for try await message in streamResponse.messages {
+                        onResponse(message)
+                    }
+                }
+            )
         }
 
         // Send Initiate. The signature signs the serialized form of the
@@ -194,7 +201,7 @@ extension SwapService {
             }
         }
 
-        _ = reference.stream?.sendMessage(initiate)
+        reference.sendMessage(initiate)
     }
 }
 

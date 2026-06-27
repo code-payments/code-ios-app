@@ -8,12 +8,18 @@
 
 import Foundation
 import FlipcashAPI
-import Combine
-import GRPC
+import GRPCCore
 
 private let logger = Logger(label: "flipcash.account-info-service")
 
-final class AccountInfoService: CodeService<Ocp_Account_V1_AccountNIOClient> {
+final class AccountInfoService: Sendable {
+
+    private let service: Ocp_Account_V1_Account.Client<AppTransport>
+
+    init(client: GRPCClient<AppTransport>) {
+        self.service = Ocp_Account_V1_Account.Client(wrapping: client)
+    }
+
     func fetchAccountInfo(type: AccountInfoType, owner: KeyPair, requestingOwner: KeyPair?, completion: @Sendable @escaping (Result<AccountInfo, ErrorFetchBalance>) -> Void) {
         var request = Ocp_Account_V1_GetTokenAccountInfosRequest()
         request.owner = owner.publicKey.solanaAccountID
@@ -33,46 +39,49 @@ final class AccountInfoService: CodeService<Ocp_Account_V1_AccountNIOClient> {
             request.requestingOwnerSignature = requestingSignature
         }
 
-        let call = service.getTokenAccountInfos(request)
-        call.handle(on: queue) { response in
-            
-            let error = ErrorFetchBalance(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok {
-                switch Self.accountInfo(in: response, type: type) {
-                case .success(let account):
-                    completion(.success(account))
-                case .failure(let failure):
-                    logger.error("Account not in list of accounts returned", metadata: [
-                        "expectedType": "\(type)",
-                        "returnedCount": "\(response.tokenAccountInfos.count)",
-                    ])
-                    completion(.failure(failure))
+        Task {
+            do {
+                let response = try await service.getTokenAccountInfos(request, options: .unaryDefault)
+
+                let error = ErrorFetchBalance(rawValue: response.result.rawValue) ?? .unknown
+                if error == .ok {
+                    switch Self.accountInfo(in: response, type: type) {
+                    case .success(let account):
+                        await MainActor.run { completion(.success(account)) }
+                    case .failure(let failure):
+                        logger.error("Account not in list of accounts returned", metadata: [
+                            "expectedType": "\(type)",
+                            "returnedCount": "\(response.tokenAccountInfos.count)",
+                        ])
+                        await MainActor.run { completion(.failure(failure)) }
+                    }
+
+                } else {
+                    logger.error("Failed to fetch account info", metadata: ["owner": "\(owner.publicKey.base58)"])
+                    await MainActor.run { completion(.failure(error)) }
                 }
-
-            } else {
-                logger.error("Failed to fetch account info", metadata: ["owner": "\(owner.publicKey.base58)"])
-                completion(.failure(error))
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
             }
-
-        } failure: { error in
-            completion(.failure(.from(transportError: error)))
         }
     }
 
     static func accountInfo(in response: Ocp_Account_V1_GetTokenAccountInfosResponse, type: AccountInfoType) -> Result<AccountInfo, ErrorFetchBalance> {
-        let account = response.tokenAccountInfos.compactMap {
-            if $0.value.accountType == type.proto, let account = try? AccountInfo($0.value) {
-                return account
-            } else {
-                return nil
-            }
-        }.first
+        let matching = response.tokenAccountInfos.values.filter {
+            $0.accountType == type.proto
+        }
 
-        if let account {
-            return .success(account)
-        } else {
+        guard !matching.isEmpty else {
             return .failure(.accountNotInList)
         }
+
+        guard let account = matching.compactMap({ try? AccountInfo($0) }).first else {
+            return .failure(.parseFailed)
+        }
+
+        return .success(account)
     }
 
     /// Fetches the user's plain SPL associated token account for a specific
@@ -90,27 +99,31 @@ final class AccountInfoService: CodeService<Ocp_Account_V1_AccountNIOClient> {
             $0.signature = $0.sign(with: owner)
         }
 
-        let call = service.getTokenAccountInfos(request)
-        call.handle(on: queue) { response in
-            let error = ErrorFetchBalance(rawValue: response.result.rawValue) ?? .unknown
-            switch error {
-            case .ok:
-                let account = response.tokenAccountInfos.compactMap {
-                    $0.value.accountType == .associatedTokenAccount ? (try? AccountInfo($0.value)) : nil
-                }.first
-                completion(.success(account))
-            case .notFound:
-                // No ATA for this mint yet — caller treats as zero balance.
-                completion(.success(nil))
-            case .unknown, .accountNotInList, .parseFailed, .transportFailure:
-                logger.error("Failed to fetch associated token account", metadata: [
-                    "owner": "\(owner.publicKey.base58)",
-                    "mint": "\(mint.base58)",
-                ])
-                completion(.failure(error))
+        Task {
+            do {
+                let response = try await service.getTokenAccountInfos(request, options: .unaryDefault)
+                let error = ErrorFetchBalance(rawValue: response.result.rawValue) ?? .unknown
+                switch error {
+                case .ok:
+                    let account = response.tokenAccountInfos.compactMap {
+                        $0.value.accountType == .associatedTokenAccount ? (try? AccountInfo($0.value)) : nil
+                    }.first
+                    await MainActor.run { completion(.success(account)) }
+                case .notFound:
+                    // No ATA for this mint yet — caller treats as zero balance.
+                    await MainActor.run { completion(.success(nil)) }
+                case .unknown, .accountNotInList, .parseFailed, .transportFailure:
+                    logger.error("Failed to fetch associated token account", metadata: [
+                        "owner": "\(owner.publicKey.base58)",
+                        "mint": "\(mint.base58)",
+                    ])
+                    await MainActor.run { completion(.failure(error)) }
+                }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
             }
-        } failure: { error in
-            completion(.failure(.from(transportError: error)))
         }
     }
 
@@ -119,26 +132,29 @@ final class AccountInfoService: CodeService<Ocp_Account_V1_AccountNIOClient> {
             $0.owner = owner.publicKey.solanaAccountID
             $0.signature = $0.sign(with: owner)
         }
-        
-        let call = service.getTokenAccountInfos(request)
-        call.handle(on: queue) { response in
-            let error = ErrorFetchBalance(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok {
-                let accounts: [AccountInfo] = response.tokenAccountInfos.filter {
-                    $0.value.accountType == .primary
-                }.compactMap {
-                    (try? AccountInfo($0.value))
-                }
-                
-                completion(.success(accounts))
-                
-            } else {
-                logger.error("Failed to fetch primary accounts", metadata: ["owner": "\(owner.publicKey.base58)"])
-                completion(.failure(error))
-            }
 
-        } failure: { error in
-            completion(.failure(.from(transportError: error)))
+        Task {
+            do {
+                let response = try await service.getTokenAccountInfos(request, options: .unaryDefault)
+                let error = ErrorFetchBalance(rawValue: response.result.rawValue) ?? .unknown
+                if error == .ok {
+                    let accounts: [AccountInfo] = response.tokenAccountInfos.filter {
+                        $0.value.accountType == .primary
+                    }.compactMap {
+                        (try? AccountInfo($0.value))
+                    }
+
+                    await MainActor.run { completion(.success(accounts)) }
+
+                } else {
+                    logger.error("Failed to fetch primary accounts", metadata: ["owner": "\(owner.publicKey.base58)"])
+                    await MainActor.run { completion(.failure(error)) }
+                }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
         }
     }
 
@@ -150,7 +166,7 @@ public enum AccountInfoType: Sendable {
     case primary
     case giftCard
     case pool
-    
+
     fileprivate var proto: Ocp_Common_V1_AccountType {
         switch self {
         case .primary:  return .primary
@@ -177,25 +193,5 @@ extension ErrorFetchBalance: ServerError, TransportClassifiableError {
         case .ok, .notFound, .accountNotInList, .transportFailure: false
         case .unknown, .parseFailed: true
         }
-    }
-}
-
-// MARK: - Interceptors -
-
-extension InterceptorFactory: Ocp_Account_V1_AccountClientInterceptorFactoryProtocol {
-    func makeGetTokenAccountInfosInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Account_V1_GetTokenAccountInfosRequest, FlipcashAPI.Ocp_Account_V1_GetTokenAccountInfosResponse>] {
-        makeInterceptors()
-    }
-    
-    func makeIsOcpAccountInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Account_V1_IsOcpAccountRequest, FlipcashAPI.Ocp_Account_V1_IsOcpAccountResponse>] {
-        makeInterceptors()
-    }
-}
-
-// MARK: - GRPCClientType -
-
-extension Ocp_Account_V1_AccountNIOClient: GRPCClientType {
-    init(channel: GRPCChannel) {
-        self.init(channel: channel, defaultCallOptions: .default, interceptors: InterceptorFactory())
     }
 }

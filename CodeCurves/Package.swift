@@ -7,7 +7,6 @@ let package = Package(
     name: "CodeCurves",
     platforms: [
         .iOS(.v16),
-        .macOS(.v11),
     ],
     products: [
         .library(

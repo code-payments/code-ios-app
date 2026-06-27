@@ -8,24 +8,28 @@
 
 import Foundation
 import FlipcashAPI
-import Combine
-import GRPC
-import SwiftProtobuf
-import NIO
+import GRPCCore
 import DeviceCheck
 
 private let logger = Logger(label: "flipcash.transaction-service")
 
-class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
-    typealias BidirectionalStream = BidirectionalStreamReference<Ocp_Transaction_V1_SubmitIntentRequest, Ocp_Transaction_V1_SubmitIntentResponse>
-    
+final class TransactionService: Sendable {
+    typealias BidirectionalStream = BidirectionalGRPCStream<Ocp_Transaction_V1_SubmitIntentRequest, Ocp_Transaction_V1_SubmitIntentResponse>
+
+    private let client: GRPCClient<AppTransport>
+    private let service: Ocp_Transaction_V1_Transaction.Client<AppTransport>
+
     // Swap service for managing token swaps
-    private(set) lazy var swapService: SwapService = {
-        SwapService(channel: channel, queue: queue)
-    }()
-    
+    let swapService: SwapService
+
+    init(client: GRPCClient<AppTransport>) {
+        self.client = client
+        self.service = Ocp_Transaction_V1_Transaction.Client(wrapping: client)
+        self.swapService = SwapService(client: client)
+    }
+
     // MARK: - Account Creation -
-    
+
     func createAccounts(owner: KeyPair, mint: PublicKey, cluster: AccountCluster, kind: AccountKind, derivationIndex: Int, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
         logger.info("Creating accounts")
 
@@ -49,7 +53,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
             }
         }
     }
-    
+
     // MARK: - Transfer -
 
     func transfer(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, sourceCluster: AccountCluster, destination: PublicKey, destinationOwner: PublicKey? = nil, appMetadata: Data? = nil, owner: KeyPair, rendezvous: PublicKey, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
@@ -107,7 +111,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
             completion(.failure(error))
         }
     }
-    
+
     func sendCashLink(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, ownerCluster: AccountCluster, giftCard: GiftCardCluster, rendezvous: PublicKey, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
         logger.info("Sending cash link", metadata: [
             "giftCardVault": "\(giftCard.cluster.vaultPublicKey.base58)",
@@ -134,7 +138,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
             }
         }
     }
-    
+
     func receiveCashLink(usdf: TokenAmount, ownerCluster: AccountCluster, giftCard: GiftCardCluster, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
         logger.info("Receiving cash link", metadata: [
             "giftCardVault": "\(giftCard.cluster.vaultPublicKey.base58)",
@@ -159,7 +163,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
             }
         }
     }
-    
+
     func voidCashLink(giftCardVault: PublicKey, owner: KeyPair, completion: @Sendable @escaping (Result<(), ErrorVoidGiftCard>) -> Void) {
         logger.info("Voiding cash link", metadata: ["giftCard": "\(giftCardVault.base58)"])
 
@@ -169,18 +173,25 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
             $0.signature = $0.sign(with: owner)
         }
 
-        let call = service.voidGiftCard(request)
-        call.handle(on: queue, completion: completion) { response in
-            let error = ErrorVoidGiftCard(rawValue: response.result.rawValue) ?? .unknown
-            guard error == .ok else {
-                logger.error("Failed to void cash link", metadata: ["error": "\(error)"])
-                return .failure(error)
+        Task {
+            do {
+                let response = try await service.voidGiftCard(request, options: .unaryDefault)
+                let error = ErrorVoidGiftCard(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to void cash link", metadata: ["error": "\(error)"])
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
+                logger.info("Cash link voided", metadata: ["giftCard": "\(giftCardVault.base58)"])
+                await MainActor.run { completion(.success(())) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(ErrorVoidGiftCard.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
             }
-            logger.info("Cash link voided", metadata: ["giftCard": "\(giftCardVault.base58)"])
-            return .success(())
         }
     }
-    
+
     // MARK: - Swaps -
 
     /// A buy is a swap from USDF to desired token (Phase 1 + Phase 2 via IntentFundSwap)
@@ -547,22 +558,22 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
             }
         }
     }
-    
+
     // MARK: - Submit -
-    
+
     private func submit<T>(intent: T, owner: KeyPair, deviceToken: Data? = nil, completion: @Sendable @escaping (Result<T, ErrorSubmitIntent>) -> Void) where T: IntentType {
         logger.info("Submitting intent", metadata: ["type": "\(T.self)", "intentId": "\(intent.id.base58)"])
-        
+
+        // `IntentType` is a reference type that is not `Sendable`; the response
+        // handler mutates it (`apply(parameters:)`) within the single-threaded
+        // server ping-pong, so the captured reference is safe to share.
+        nonisolated(unsafe) let intent = intent
+
         let reference = BidirectionalStream()
-        
-        // Intentionally creates a retain-cycle using closures to ensure that we have
-        // a strong reference to the stream at all times. Doing so ensures that the
-        // callers don't have to manage the pointer to this stream and keep it alive
-        reference.retain()
-        
-        reference.stream = service.submitIntent(callOptions: .streaming) { result in
-            switch result.response {
-                
+
+        reference.open(onResponse: { response in
+            switch response.response {
+
             // Upon successful submission of intent action the server will
             // respond with parameters that we'll need to apply to the intent
             // before crafting and signing the transactions.
@@ -571,11 +582,11 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
                     let serverParameters = try parameters.serverParameters.map {
                         try ServerParameter($0)
                     }
-                    
+
                     try intent.apply(parameters: serverParameters)
 
                     let submitSignatures = try intent.requestToSubmitSignatures()
-                    _ = reference.stream?.sendMessage(submitSignatures)
+                    reference.sendMessage(submitSignatures)
 
                     logger.info("Received server parameters, submitting signatures", metadata: [
                         "type": "\(T.self)",
@@ -590,9 +601,10 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
                         "intentId": "\(intent.id.base58)",
                         "error": "\(error)"
                     ])
+                    reference.cancel()
                     completion(.failure(.unknown))
                 }
-                
+
             // If submitted transaction signatures are valid and match
             // the server, we'll receive a success for the submitted intent.
             case .success(let success):
@@ -601,25 +613,25 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
                     "code": "\(success.code.rawValue)",
                     "intentId": "\(intent.id.base58)"
                 ])
-                _ = reference.stream?.sendEnd()
+                reference.cancel()
                 completion(.success(intent))
-                
+
             // If the submitted transaction signatures don't match, the
             // intent is considered failed. Something must have gone wrong
             // on the transaction creation or signing on our side.
             case .error(let error):
                 var container: [String] = []
-                
+
                 container.append("Type: \(T.self)")
                 container.append("Code: \(error.code)")
-                
+
                 let errors = error.errorDetails.flatMap { details in
                     switch details.type {
                     case .reasonString(let reason):
                         return [
                             "Reason: \(reason.reason)"
                         ]
-                        
+
                     case .invalidSignature(let signatureDetails):
                         return [
                             "Action index: \(signatureDetails.actionID)",
@@ -630,7 +642,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
                         return []
                     }
                 }
-                
+
                 container.append(contentsOf: errors)
 
                 logger.error("Intent submission error", metadata: [
@@ -640,44 +652,49 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
                     "intentId": "\(intent.id.base58)"
                 ])
 
-                _ = reference.stream?.sendEnd()
+                reference.cancel()
                 let intentError = ErrorSubmitIntent(error: error)
                 completion(.failure(intentError))
-                
+
             default:
-                _ = reference.stream?.sendEnd()
+                reference.cancel()
                 completion(.failure(.unknown))
             }
-        }
-        
-        // TODO: Fix gRPC validation failures
-        // If client's response fails gRPC validation, the request
-        // will fail in the block below and the completion won't get
-        // called. We should handle that case more gracefully and ensure
-        // it's robust.
-        
-        reference.stream?.status.whenCompleteBlocking(onto: queue) { result in
+        }, onComplete: { result in
+            // TODO: Fix gRPC validation failures
+            // If client's response fails gRPC validation, the request
+            // will fail in the block below and the completion won't get
+            // called. We should handle that case more gracefully and ensure
+            // it's robust.
             switch result {
-            case .success(let status):
-                if status.code == .ok {
-                    logger.info("Intent stream closed")
-                    // Completion called in the success block
-                } else {
-                    logger.warning("Intent stream closed with non-OK status", metadata: [
-                        "code": "\(status.code)",
-                        "message": "\(status.message ?? "nil")"
-                    ])
-                    completion(.failure(.grpcStatus(status)))
-                }
+            case .success:
+                logger.info("Intent stream closed")
+                // Completion called in the success block
+
+            case .failure(let error as RPCError):
+                logger.warning("Intent stream closed with non-OK status", metadata: [
+                    "code": "\(error.code)",
+                    "message": "\(error.message)"
+                ])
+                completion(.failure(.grpcStatus(error)))
 
             case .failure(let error):
                 logger.error("Intent stream closed with gRPC error", metadata: ["error": "\(error)"])
                 completion(.failure(.grpcError(error)))
             }
-
-            // We release the stream reference after the stream has been
-            // closed and there's no further actions required
-            reference.release()
+        }) { requests, onResponse in
+            try await self.service.submitIntent(
+                requestProducer: { writer in
+                    for await request in requests {
+                        try await writer.write(request)
+                    }
+                },
+                onResponse: { streamResponse in
+                    for try await message in streamResponse.messages {
+                        onResponse(message)
+                    }
+                }
+            )
         }
 
         // Send `submitActions` request with actions generated by the intent
@@ -707,125 +724,138 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
         }
 
         let submitActions = intent.requestToSubmitActions(owner: owner)
-        _ = reference.stream?.sendMessage(submitActions)
+        reference.sendMessage(submitActions)
     }
-    
+
     // MARK: - Status -
-    
+
     func fetchIntentMetadata(owner: KeyPair, intentID: PublicKey, completion: @Sendable @escaping (Result<IntentMetadata, ErrorFetchIntentMetadata>) -> Void) {
         let request = Ocp_Transaction_V1_GetIntentMetadataRequest.with {
             $0.intentID  = intentID.codeIntentID
             $0.owner     = owner.publicKey.solanaAccountID
             $0.signature = $0.sign(with: owner)
         }
-        
-        let call = service.getIntentMetadata(request)
-        call.handle(on: queue, completion: completion) { response in
-            let result = ErrorFetchIntentMetadata(rawValue: response.result.rawValue) ?? .unknown
-            guard result == .ok else {
-                return .failure(result)
-            }
 
+        Task {
             do {
-                let metadata = try IntentMetadata(response.metadata)
-                logger.info("Intent metadata fetched successfully", metadata: ["intentId": "\(intentID.base58)"])
-                return .success(metadata)
+                let response = try await service.getIntentMetadata(request, options: .unaryDefault)
+                let result = ErrorFetchIntentMetadata(rawValue: response.result.rawValue) ?? .unknown
+                guard result == .ok else {
+                    await MainActor.run { completion(.failure(result)) }
+                    return
+                }
+
+                do {
+                    let metadata = try IntentMetadata(response.metadata)
+                    logger.info("Intent metadata fetched successfully", metadata: ["intentId": "\(intentID.base58)"])
+                    await MainActor.run { completion(.success(metadata)) }
+                } catch {
+                    logger.error("Failed to parse intent metadata", metadata: [
+                        "intentId": "\(intentID.base58)",
+                        "error": "\(error)"
+                    ])
+                    await MainActor.run { completion(.failure(.failedToParse)) }
+                }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(ErrorFetchIntentMetadata.from(transportError: error))) }
             } catch {
-                logger.error("Failed to parse intent metadata", metadata: [
-                    "intentId": "\(intentID.base58)",
-                    "error": "\(error)"
-                ])
-                return .failure(.failedToParse)
+                await MainActor.run { completion(.failure(.unknown)) }
             }
         }
     }
-    
+
     // MARK: - Limits -
-    
+
     func fetchTransactionLimits(owner: KeyPair, since date: Date, completion: @Sendable @escaping (Result<Limits, ErrorFetchLimits>) -> Void) {
         logger.info("Fetching transaction limits", metadata: [
             "owner": "\(owner.publicKey.base58)",
             "since": "\(date.description(with: .current))"
         ])
-        
+
         let fetchDate: Date = .now
-        
+
         let request = Ocp_Transaction_V1_GetLimitsRequest.with {
             $0.owner         = owner.publicKey.solanaAccountID
             $0.consumedSince = .init(date: date)
             $0.signature     = $0.sign(with: owner)
         }
-        
-        let call = service.getLimits(request)
-        call.handle(on: queue, completion: completion) { response in
-            let error = ErrorFetchLimits(rawValue: response.result.rawValue) ?? .unknown
-            guard error == .ok else {
-                logger.error("Failed to fetch transaction limits", metadata: [
-                    "owner": "\(owner.publicKey.base58)",
-                    "since": "\(date.description(with: .current))",
-                    "error": "\(error)"
+
+        Task {
+            do {
+                let response = try await service.getLimits(request, options: .unaryDefault)
+                let error = ErrorFetchLimits(rawValue: response.result.rawValue) ?? .unknown
+                guard error == .ok else {
+                    logger.error("Failed to fetch transaction limits", metadata: [
+                        "owner": "\(owner.publicKey.base58)",
+                        "since": "\(date.description(with: .current))",
+                        "error": "\(error)"
+                    ])
+                    await MainActor.run { completion(.failure(error)) }
+                    return
+                }
+
+                let limits = Limits(
+                    proto: response,
+                    sinceDate: date,
+                    fetchDate: fetchDate
+                )
+
+                logger.info("Transaction limits fetched successfully", metadata: [
+                    "owner": "\(owner.publicKey.base58)"
                 ])
-                return .failure(error)
+                await MainActor.run { completion(.success(limits)) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(ErrorFetchLimits.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
             }
-
-            let limits = Limits(
-                proto: response,
-                sinceDate: date,
-                fetchDate: fetchDate
-            )
-
-            logger.info("Transaction limits fetched successfully", metadata: [
-                "owner": "\(owner.publicKey.base58)"
-            ])
-            return .success(limits)
         }
     }
-    
+
     // MARK: - Withdrawals -
-    
+
     func fetchDestinationMetadata(destination: PublicKey, mint: PublicKey, completion: @Sendable @escaping (Result<DestinationMetadata, Never>) -> Void) {
         logger.info("Fetching destination metadata", metadata: ["destination": "\(destination.base58)"])
-        
+
         let request = Ocp_Transaction_V1_CanWithdrawToAccountRequest.with {
             $0.account = destination.solanaAccountID
             $0.mint    = mint.solanaAccountID
         }
-        
-        let call = service.canWithdrawToAccount(request)
-        call.handle(on: queue) { response in
-            
-            let metadata = DestinationMetadata(
-                kind: .init(rawValue: response.accountType.rawValue) ?? .unknown,
-                destination: destination,
-                mint: mint,
-                isValid: response.isValidPaymentDestination,
-                requiresInitialization: response.requiresInitialization,
-                fee: response.requiresInitialization ? TokenAmount(
-                    wholeTokens: Decimal(response.feeAmount.nativeAmount),
+
+        Task {
+            do {
+                let response = try await service.canWithdrawToAccount(request, options: .unaryDefault)
+
+                let metadata = DestinationMetadata(
+                    kind: .init(rawValue: response.accountType.rawValue) ?? .unknown,
+                    destination: destination,
                     mint: mint,
-                ) : .zero(mint: mint)
-            )
+                    isValid: response.isValidPaymentDestination,
+                    requiresInitialization: response.requiresInitialization,
+                    fee: response.requiresInitialization ? TokenAmount(
+                        wholeTokens: Decimal(response.feeAmount.nativeAmount),
+                        mint: mint,
+                    ) : .zero(mint: mint)
+                )
 
-            completion(.success(metadata))
+                await MainActor.run { completion(.success(metadata)) }
 
-        } failure: { _ in
+            } catch {
 
-            let metadata = DestinationMetadata(
-                kind: .unknown,
-                destination: destination,
-                mint: mint,
-                isValid: false,
-                requiresInitialization: false,
-                fee: .zero(mint: mint)
-            )
-            
-            completion(.success(metadata))
+                let metadata = DestinationMetadata(
+                    kind: .unknown,
+                    destination: destination,
+                    mint: mint,
+                    isValid: false,
+                    requiresInitialization: false,
+                    fee: .zero(mint: mint)
+                )
+
+                await MainActor.run { completion(.success(metadata)) }
+            }
         }
     }
 }
-
-// Mark TransactionService as unchecked Sendable to allow using it from @Sendable closures
-extension TransactionService: @unchecked Sendable {}
 
 // MARK: - Types -
 
@@ -842,36 +872,36 @@ public struct DestinationMetadata: Sendable {
         switch kind {
         case .unknown, .token:
             self.destination = .init(token: destination)
-            
+
         case .owner:
             self.destination = .init(owner: destination, mint: mint)
         }
-        
+
         self.kind = kind
         self.isValid = isValid
         self.requiresInitialization = requiresInitialization
         self.fee = fee
     }
 }
-            
+
 extension DestinationMetadata {
     public enum Kind: Int, Sendable {
         case unknown
         case token
         case owner
     }
-    
+
     public struct Destination: Sendable {
         public let owner: PublicKey?
         public let token: PublicKey
         public let requiredResolution: Bool
-        
+
         init(token: PublicKey) {
             self.owner = nil
             self.token = token
             self.requiredResolution = false
         }
-        
+
         init(owner: PublicKey, mint: PublicKey) {
             self.owner = owner
             self.token = AssociatedTokenAccount(owner: owner, mint: mint).ata.publicKey
@@ -919,7 +949,7 @@ public enum ErrorSubmitIntent: Error, CustomStringConvertible, CustomDebugString
     /// Device token unavailable
     case deviceTokenUnavailable //= -2
     /// gRPC status
-    case grpcStatus(GRPCStatus)
+    case grpcStatus(RPCError)
     /// gRPC error
     case grpcError(Error)
 
@@ -992,7 +1022,7 @@ public enum ErrorSubmitIntent: Error, CustomStringConvertible, CustomDebugString
             return "grpcError(\(error.localizedDescription))"
         }
     }
-    
+
     public var debugDescription: String {
         description
     }
@@ -1065,53 +1095,5 @@ extension ErrorFetchLimits: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: false
         case .unknown: true
         }
-    }
-}
-
-// MARK: - Interceptors -
-
-extension InterceptorFactory: Ocp_Transaction_V1_TransactionClientInterceptorFactoryProtocol {
-    func makeVoidGiftCardInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Transaction_V1_VoidGiftCardRequest, FlipcashAPI.Ocp_Transaction_V1_VoidGiftCardResponse>] {
-        makeInterceptors()
-    }
-        
-    func makeCanWithdrawToAccountInterceptors() -> [GRPC.ClientInterceptor<Ocp_Transaction_V1_CanWithdrawToAccountRequest, Ocp_Transaction_V1_CanWithdrawToAccountResponse>] {
-        makeInterceptors()
-    }
-    
-    func makeGetIntentMetadataInterceptors() -> [GRPC.ClientInterceptor<Ocp_Transaction_V1_GetIntentMetadataRequest, Ocp_Transaction_V1_GetIntentMetadataResponse>] {
-        makeInterceptors()
-    }
-    
-    func makeGetLimitsInterceptors() -> [GRPC.ClientInterceptor<Ocp_Transaction_V1_GetLimitsRequest, Ocp_Transaction_V1_GetLimitsResponse>] {
-        makeInterceptors()
-    }
-    
-    func makeSubmitIntentInterceptors() -> [GRPC.ClientInterceptor<Ocp_Transaction_V1_SubmitIntentRequest, Ocp_Transaction_V1_SubmitIntentResponse>] {
-        makeInterceptors()
-    }
-        
-    func makeStatefulSwapInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Transaction_V1_StatefulSwapRequest, FlipcashAPI.Ocp_Transaction_V1_StatefulSwapResponse>] {
-        makeInterceptors()
-    }
-
-    func makeStatelessSwapInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Transaction_V1_StatelessSwapRequest, FlipcashAPI.Ocp_Transaction_V1_StatelessSwapResponse>] {
-        makeInterceptors()
-    }
-
-    func makeGetSwapInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Transaction_V1_GetSwapRequest, FlipcashAPI.Ocp_Transaction_V1_GetSwapResponse>] {
-        makeInterceptors()
-    }
-    
-    func makeGetPendingSwapsInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Transaction_V1_GetPendingSwapsRequest, FlipcashAPI.Ocp_Transaction_V1_GetPendingSwapsResponse>] {
-        makeInterceptors()
-    }
-}
-
-// MARK: - GRPCClientType -
-
-extension Ocp_Transaction_V1_TransactionNIOClient: GRPCClientType {
-    init(channel: GRPCChannel) {
-        self.init(channel: channel, defaultCallOptions: .default, interceptors: InterceptorFactory())
     }
 }
