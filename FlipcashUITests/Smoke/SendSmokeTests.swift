@@ -84,4 +84,38 @@ final class SendSmokeTests: BaseUITestCase {
             "Expected `RecipientPickerScreen` to remain visible after dismissing the share sheet"
         )
     }
+
+    /// Sends cash to an on-Flipcash recipient (Raul Riera), then a message in the
+    /// same chat, asserting each is marked "Delivered" in turn (the receipt rides
+    /// only the latest message, so never both at once).
+    ///
+    /// **Prerequisites:** the `FLIPCASH_UI_TEST_ACCESS_KEY` account needs a
+    /// verified phone, a giveable balance, and "Raul Riera" reachable in the
+    /// recipient picker.
+    func testSendFlow_onFlipcashContact_sendsCashThenMessage() {
+        let picker = RecipientPickerUIScreen(app: app)
+        let amountEntry = AmountEntryScreen(app: app)
+        let sendAmount = SendAmountUIScreen(app: app)
+        let conversation = ConversationUIScreen(app: app)
+
+        assertMainScreenReached()
+
+        // Main → Send → recipient picker → Raul Riera's conversation.
+        picker.open(from: self)
+        picker.passEntryGates(from: self)
+        picker.selectRecipient(named: "Raul Riera")
+
+        // Send cash (the default currency is fine).
+        conversation.tapSendCash(from: self)
+        amountEntry.enterMinimumAmount()
+        sendAmount.commit()
+        conversation.assertCashDelivered()
+
+        // Send a message; the receipt moves off the cash and onto the message.
+        // Unique per run — prior runs' messages persist in the chat, so a fixed
+        // string would make the bubble query match multiple elements.
+        let message = "UI test \(UUID().uuidString.prefix(8))"
+        conversation.sendMessage(message, from: self)
+        conversation.assertMessageDelivered(message)
+    }
 }
