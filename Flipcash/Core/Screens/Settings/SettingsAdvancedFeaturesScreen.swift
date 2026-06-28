@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import FlipcashCore
 import FlipcashUI
 
 struct SettingsAdvancedFeaturesScreen: View {

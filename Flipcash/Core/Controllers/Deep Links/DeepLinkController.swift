@@ -236,7 +236,7 @@ struct DeepLinkAction {
                     }
                 }
                 if sheet == .send {
-                    guard container.session.userFlags?.enablePhoneNumberSend == true else { return }
+                    guard container.session.canSend else { return }
                 }
                 container.appRouter.present(sheet)
             }

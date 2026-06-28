@@ -84,7 +84,7 @@ final class AccountService: Sendable {
         }
     }
 
-    func fetchUserFlags(userID: UserID, owner: KeyPair, completion: @Sendable @escaping (Result<UserFlags, ErrorFetchUserFlags>) -> Void) {
+    func fetchUserFlags(userID: UserID, owner: KeyPair, timeout: TimeInterval? = nil, completion: @Sendable @escaping (Result<UserFlags, ErrorFetchUserFlags>) -> Void) {
         logger.info("Fetching user flags", metadata: ["userId": "\(userID)"])
 
         let request = Flipcash_Account_V1_GetUserFlagsRequest.with {
@@ -98,9 +98,14 @@ final class AccountService: Sendable {
             $0.auth = owner.authFor(message: $0)
         }
 
+        var options = CallOptions.unaryDefault
+        if let timeout {
+            options.timeout = .seconds(timeout)
+        }
+
         Task {
             do {
-                let response = try await service.getUserFlags(request, options: .unaryDefault)
+                let response = try await service.getUserFlags(request, options: options)
                 let error = ErrorFetchUserFlags(rawValue: response.result.rawValue) ?? .unknown
                 guard error == .ok else {
                     logger.error("Failed to fetch user flags", metadata: ["owner": "\(owner.publicKey.base58)"])
