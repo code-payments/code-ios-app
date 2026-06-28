@@ -66,9 +66,13 @@ public final class ChatCashCardCell: ChatColumnCell {
 
         installColumn(content: card)
 
+        // Below required so the card height yields to the cell's self-sizing height instead of fighting it.
+        let cardHeight = card.heightAnchor.constraint(equalToConstant: Self.cardSize.height)
+        cardHeight.priority = UILayoutPriority(999)
+
         NSLayoutConstraint.activate([
             card.widthAnchor.constraint(equalToConstant: Self.cardSize.width),
-            card.heightAnchor.constraint(equalToConstant: Self.cardSize.height),
+            cardHeight,
 
             tokenRow.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 11),
             tokenRow.topAnchor.constraint(equalTo: card.topAnchor, constant: 8),

@@ -51,6 +51,10 @@ public final class ChatViewController: UICollectionViewController {
     private static let bottomContentPadding: CGFloat = 12
     /// True while a batch update animates, so the top trigger doesn't re-fire mid-update.
     private var isUpdating = false
+    /// Set while `setBottomInset` writes the content inset — that write synchronously fires
+    /// `scrollViewDidChangeAdjustedContentInset`, and this stops the delegate re-entering `scrollToBottom`
+    /// → `restoreContentOffset` mid-write, a nested layout pass that crashes ChatLayout.
+    private var isAdjustingBottomInset = false
     /// True while a context menu is lifted from a bubble. Presenting the menu dismisses the keyboard;
     /// without intervention the adjusted inset shrinks and the transcript reflows out from under the
     /// lifted preview. So for the menu's lifetime the inset is taken over and frozen at its keyboard-up
@@ -117,7 +121,7 @@ public final class ChatViewController: UICollectionViewController {
         // While a context menu is up the inset is frozen (`freezeInset`), so this shouldn't fire for the
         // keyboard — but guard anyway, since taking the inset over and handing it back each toggles the
         // adjusted inset, and following those would move the content the freeze is holding in place.
-        guard !isShowingContextMenu, wasAtBottom, !needsInitialScroll, !isUpdating, !items.isEmpty else { return }
+        guard !isAdjustingBottomInset, !isShowingContextMenu, wasAtBottom, !needsInitialScroll, !isUpdating, !items.isEmpty else { return }
         scrollToBottom(animated: false)
     }
 
@@ -295,8 +299,10 @@ public final class ChatViewController: UICollectionViewController {
         let target = inset + Self.bottomContentPadding
         guard isViewLoaded, !isUpdating, abs(collectionView.contentInset.bottom - target) > 0.5 else { return }
         let snapshot = chatLayout.getContentOffsetSnapshot(from: .bottom)
+        isAdjustingBottomInset = true // suppress the delegate re-entry from the inset write below
         collectionView.contentInset.bottom = target
         collectionView.verticalScrollIndicatorInsets.bottom = target
+        isAdjustingBottomInset = false
         if let snapshot {
             chatLayout.restoreContentOffset(with: snapshot)
         }
