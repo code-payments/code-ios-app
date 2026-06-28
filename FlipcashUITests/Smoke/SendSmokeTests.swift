@@ -17,11 +17,12 @@ final class SendSmokeTests: BaseUITestCase {
         // Send is the 4th LargeButton on ScanBottomBar.
         waitAndTap(app.buttons["Send"])
 
-        // Send gates phone entry behind a "Connect Your Phone Number" CTA;
-        // onboarding drops you on the entry screen directly, so `allowPhone…`
-        // alone can't reach the flow here. Tap through the CTA when the gate
-        // is shown (skipped when the test account already has a verified phone).
-        let connectPhone = app.buttons["Connect Your Phone Number"]
+        // Send gates phone entry behind a "Next" CTA on the connect-phone
+        // pitch; onboarding drops you on the entry screen directly, so
+        // `allowPhone…` alone can't reach the flow here. Tap through the CTA
+        // when the gate is shown (skipped when the test account already has a
+        // verified phone).
+        let connectPhone = app.buttons["Next"]
         if connectPhone.waitForExistence(timeout: 5) {
             connectPhone.tap()
         }

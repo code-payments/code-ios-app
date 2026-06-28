@@ -7,26 +7,34 @@ import SwiftUI
 import FlipcashUI
 
 /// Empty state shown when the user opens the Send sheet without a verified
-/// phone number. Primary CTA launches the standalone phone verification flow.
+/// phone number. A ghosted cash-card-and-chat illustration sells the feature and
+/// the primary CTA launches the standalone phone verification flow. Rendered in
+/// the non-searchable stack; the "Send" title and close button come from the
+/// hosting `NavigationStack`.
 struct ConnectPhoneEmptyState: View {
 
     let onConnect: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
-            Spacer()
-            VStack(spacing: 12) {
-                Text("Connect Phone To Send")
+            Spacer(minLength: 0)
+
+            SendConversationHero()
+
+            VStack(spacing: 8) {
+                Text("Send Money To Your Friends")
                     .font(.appTextLarge)
                     .foregroundStyle(Color.textMain)
-                    .multilineTextAlignment(.center)
-                Text("Connect your phone number to send cash")
-                    .font(.appTextMedium)
+                Text("Send money to friends as easily as a text. Connect your phone number to get started.")
+                    .font(.appTextSmall)
                     .foregroundStyle(Color.textSecondary)
-                    .multilineTextAlignment(.center)
             }
-            Spacer()
-            Button("Connect Your Phone Number", action: onConnect)
+            .multilineTextAlignment(.center)
+            .padding(.top, 28)
+
+            Spacer(minLength: 0)
+
+            Button("Next", action: onConnect)
                 .buttonStyle(.filled)
         }
         .padding(20)
@@ -36,5 +44,12 @@ struct ConnectPhoneEmptyState: View {
 // MARK: - Previews -
 
 #Preview {
-    ConnectPhoneEmptyState(onConnect: {})
+    NavigationStack {
+        ConnectPhoneEmptyState(onConnect: {})
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color.backgroundMain)
+            .navigationTitle("Send")
+            .toolbarTitleDisplayMode(.inline)
+    }
+    .preferredColorScheme(.dark)
 }
