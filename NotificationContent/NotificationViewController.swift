@@ -34,7 +34,7 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
     /// at the bottom) instead of clipping, like the chat screen.
     private static let maxContentHeight: CGFloat = 440
 
-    private lazy var client = ChatNotificationClient()
+    private let client = try? ChatNotificationClient()
     private var conversationID: ConversationID?
     private var ownerKeyPair: KeyPair?
     private var selfUserID: UserID?
@@ -118,7 +118,8 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
             guard
                 let textResponse = response as? UNTextInputNotificationResponse,
                 let conversationID,
-                let ownerKeyPair
+                let ownerKeyPair,
+                let client
             else {
                 completion(.dismiss)
                 return
@@ -157,7 +158,7 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
         guard !isLoading else { return }
         isLoading = true
         defer { isLoading = false }
-        guard let conversationID, let ownerKeyPair, let selfUserID else { return }
+        guard let conversationID, let ownerKeyPair, let selfUserID, let client else { return }
         do {
             let messages = try await client.getMessages(
                 owner: ownerKeyPair,
@@ -204,7 +205,7 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
             guard case .cash(let fiat) = message.content, mintBranding[fiat.mint] == nil else { return nil }
             return fiat.mint
         })
-        guard !unresolved.isEmpty else { return false }
+        guard !unresolved.isEmpty, let client else { return false }
         guard let resolved = try? await client.fetchMintMetadata(for: Array(unresolved)), !resolved.isEmpty else {
             return false
         }

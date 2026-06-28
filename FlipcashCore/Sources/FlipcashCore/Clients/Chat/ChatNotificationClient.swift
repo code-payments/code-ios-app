@@ -6,26 +6,41 @@
 //
 
 import Foundation
-import GRPC
+import GRPCCore
 
 /// A lean gRPC façade for a notification extension: fetches and sends chat messages
-/// and resolves mint metadata over its own channel — no `FlipClient`, `Client`, or
+/// and resolves mint metadata over its own clients — no `FlipClient`, `Client`, or
 /// SQLite `Database` graph is required.
 public final class ChatNotificationClient: @unchecked Sendable {
 
     private let messagingService: ChatMessagingService
     private let currencyService: CurrencyService
+    /// The clients' connection loops; retained for the clients' lifetime — dropping them
+    /// makes the clients inert and every RPC hangs.
+    private let connectionTasks: [Task<Void, Never>]
 
     // MARK: - Init -
 
-    public init(network: Network = .mainNet) {
-        let queue = DispatchQueue(label: "flipcash.chat-notification-client", qos: .userInitiated)
+    public init(network: Network = .mainNet) throws {
         // Messaging is served by the core host, currency (mint metadata) by the payments host.
-        // Two channels share the one queue.
-        let coreChannel = ClientConnection.appConnection(host: network.hostForCore, port: network.port)
-        let paymentsChannel = ClientConnection.appConnection(host: network.hostForPayments, port: network.port)
-        self.messagingService = ChatMessagingService(channel: coreChannel, queue: queue)
-        self.currencyService = CurrencyService(channel: paymentsChannel, queue: queue)
+        let coreClient = GRPCClient(
+            transport: try GRPCTransport.makeTransportServices(host: network.hostForCore, port: network.port),
+            interceptors: [UserAgentClientInterceptor()]
+        )
+        let paymentsClient = GRPCClient(
+            transport: try GRPCTransport.makeTransportServices(host: network.hostForPayments, port: network.port),
+            interceptors: [UserAgentClientInterceptor()]
+        )
+        connectionTasks = [
+            Task { try? await coreClient.runConnections() },
+            Task { try? await paymentsClient.runConnections() },
+        ]
+        messagingService = ChatMessagingService(client: coreClient)
+        currencyService = CurrencyService(client: paymentsClient)
+    }
+
+    deinit {
+        connectionTasks.forEach { $0.cancel() }
     }
 
     // MARK: - Messages -
@@ -57,7 +72,8 @@ public final class ChatNotificationClient: @unchecked Sendable {
             messagingService.sendMessage(
                 owner: owner,
                 conversationID: conversationID,
-                text: text
+                text: text,
+                clientMessageID: UUID()
             ) { continuation.resume(with: $0) }
         }
     }
