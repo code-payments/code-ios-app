@@ -348,6 +348,10 @@ final class ConversationController {
     func loadMessages(for conversationID: ConversationID) async {
         do {
             let messages = try await messaging.getMessages(owner: owner, conversationID: conversationID, before: nil)
+            logger.info("Loaded conversation messages", metadata: [
+                "conversationID": "\(conversationID)",
+                "count": "\(messages.count)",
+            ])
             store.mergeMessages(messages, into: conversationID)
             persist(operation: "load-messages") { try database.upsertConversationMessages(messages, conversationID: conversationID) }
         } catch {

@@ -268,6 +268,11 @@ public actor EventStreamer {
     private func reportConnection(live: Bool) {
         guard isConnectionLive != live else { return }
         isConnectionLive = live
+        if live {
+            // Mark when the stream starts delivering (first ping) — the edge that gates the
+            // missed-window refetch, and the one transition no other log captures.
+            logger.info("Event stream went live", metadata: ["generation": "\(streamGeneration)"])
+        }
         connectionStateContinuation.yield(live ? .live : .disconnected)
     }
 
