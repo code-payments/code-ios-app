@@ -16,9 +16,9 @@ struct TransportClassificationTests {
     /// a generic over the concrete type (not a list of erased closures) keeps
     /// arguments `Sendable`-free and the call type-safe.
     private func assertClassifies<E: TransportClassifiableError>(_ type: E.Type) {
-        #expect(E.from(transportError: RPCError(code: .deadlineExceeded, message: "")).isReportable == false)
-        #expect(E.from(transportError: RPCError(code: .unavailable, message: "")).isReportable == false)
-        #expect(E.from(transportError: RPCError(code: .internalError, message: "")).isReportable == true)
+        #expect(E.from(transportError: RPCError(code: .deadlineExceeded, message: "")).reportingLevel == .suppressed)
+        #expect(E.from(transportError: RPCError(code: .unavailable, message: "")).reportingLevel == .suppressed)
+        #expect(E.from(transportError: RPCError(code: .internalError, message: "")).reportingLevel == .error)
     }
 
     // MARK: - Registry (one line per TransportClassifiableError conformer) -
@@ -59,39 +59,39 @@ struct TransportClassificationTests {
 
     // MARK: - Tier 2: associated-value errors that capture the transport error -
     // These don't conform to TransportClassifiableError (they carry the error in a
-    // case rather than mapping to a dedicated one), so their `isReportable` is
+    // case rather than mapping to a dedicated one), so their `reportingLevel` is
     // asserted directly.
 
     @Test("ErrorModeration.network is reportable only for non-transient errors")
     func errorModerationNetwork() {
-        #expect(ErrorModeration.network(RPCError(code: .deadlineExceeded, message: "")).isReportable == false)
-        #expect(ErrorModeration.network(RPCError(code: .internalError, message: "")).isReportable == true)
-        #expect(ErrorModeration.unknown.isReportable == true)
+        #expect(ErrorModeration.network(RPCError(code: .deadlineExceeded, message: "")).reportingLevel == .suppressed)
+        #expect(ErrorModeration.network(RPCError(code: .internalError, message: "")).reportingLevel == .error)
+        #expect(ErrorModeration.unknown.reportingLevel == .error)
     }
 
     @Test("ErrorLaunchCurrency.network is reportable only for non-transient errors")
     func errorLaunchCurrencyNetwork() {
-        #expect(ErrorLaunchCurrency.network(RPCError(code: .deadlineExceeded, message: "")).isReportable == false)
-        #expect(ErrorLaunchCurrency.network(RPCError(code: .internalError, message: "")).isReportable == true)
-        #expect(ErrorLaunchCurrency.unknown.isReportable == true)
+        #expect(ErrorLaunchCurrency.network(RPCError(code: .deadlineExceeded, message: "")).reportingLevel == .suppressed)
+        #expect(ErrorLaunchCurrency.network(RPCError(code: .internalError, message: "")).reportingLevel == .error)
+        #expect(ErrorLaunchCurrency.unknown.reportingLevel == .error)
     }
 
     @Test("ErrorSwap classifies grpcStatus by transience; grpcError always reports")
     func errorSwapClassification() {
-        #expect(ErrorSwap.grpcStatus(RPCError(code: .deadlineExceeded, message: "")).isReportable == false)
-        #expect(ErrorSwap.grpcStatus(RPCError(code: .internalError, message: "")).isReportable == true)
-        // .grpcError is the un-typed failure — deliberately reportable even for a
+        #expect(ErrorSwap.grpcStatus(RPCError(code: .deadlineExceeded, message: "")).reportingLevel == .suppressed)
+        #expect(ErrorSwap.grpcStatus(RPCError(code: .internalError, message: "")).reportingLevel == .error)
+        // .grpcError is the un-typed failure — deliberately reported even for a
         // transient-looking code, unlike the typed .grpcStatus case.
-        #expect(ErrorSwap.grpcError(RPCError(code: .unavailable, message: "")).isReportable == true)
-        #expect(ErrorSwap.unknown.isReportable == true)
+        #expect(ErrorSwap.grpcError(RPCError(code: .unavailable, message: "")).reportingLevel == .error)
+        #expect(ErrorSwap.unknown.reportingLevel == .error)
     }
 
     @Test("ErrorStatelessSwap classifies grpcStatus by transience; grpcError always reports")
     func errorStatelessSwapClassification() {
-        #expect(ErrorStatelessSwap.grpcStatus(RPCError(code: .deadlineExceeded, message: "")).isReportable == false)
-        #expect(ErrorStatelessSwap.grpcStatus(RPCError(code: .internalError, message: "")).isReportable == true)
-        #expect(ErrorStatelessSwap.grpcError(RPCError(code: .unavailable, message: "")).isReportable == true)
-        #expect(ErrorStatelessSwap.unknown.isReportable == true)
+        #expect(ErrorStatelessSwap.grpcStatus(RPCError(code: .deadlineExceeded, message: "")).reportingLevel == .suppressed)
+        #expect(ErrorStatelessSwap.grpcStatus(RPCError(code: .internalError, message: "")).reportingLevel == .error)
+        #expect(ErrorStatelessSwap.grpcError(RPCError(code: .unavailable, message: "")).reportingLevel == .error)
+        #expect(ErrorStatelessSwap.unknown.reportingLevel == .error)
     }
 
     // MARK: - Raw RPCError self-classification -
@@ -99,12 +99,13 @@ struct TransportClassificationTests {
     // directly; its `ServerError` conformance classifies transient transport
     // failures as non-reportable without a dedicated error enum.
 
-    @Test("RPCError is reportable only for non-transient codes")
+    @Test("RPCError suppresses transient codes, softens cancellation, errors the rest")
     func rpcErrorReportability() {
-        #expect(RPCError(code: .deadlineExceeded, message: "").isReportable == false)
-        #expect(RPCError(code: .unavailable, message: "").isReportable == false)
-        #expect(RPCError(code: .internalError, message: "").isReportable == true)
-        #expect(RPCError(code: .cancelled, message: "").isReportable == true)
+        #expect(RPCError(code: .deadlineExceeded, message: "").reportingLevel == .suppressed)
+        #expect(RPCError(code: .unavailable, message: "").reportingLevel == .suppressed)
+        #expect(RPCError(code: .internalError, message: "").reportingLevel == .error)
+        // App/user-initiated teardown — visible, but not a defect.
+        #expect(RPCError(code: .cancelled, message: "").reportingLevel == .info)
     }
 
     // MARK: - Real transport errors -
@@ -147,7 +148,7 @@ struct TransportClassificationTests {
 
             let rpcError = try #require(caught)
             #expect(rpcError.code == .deadlineExceeded)
-            #expect(rpcError.isReportable == false)
+            #expect(rpcError.reportingLevel == .suppressed)
 
             client.beginGracefulShutdown()
             server.beginGracefulShutdown()

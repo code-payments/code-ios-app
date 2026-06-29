@@ -182,37 +182,40 @@ public enum ErrorFetchUnauthenticatedUserFlags: Int, Error {
 }
 
 extension ErrorRegisterAccount: ServerError, TransportClassifiableError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .ok, .invalidSignature, .denied, .transportFailure: false
-        case .unknown: true
+        case .ok, .transportFailure: .suppressed
+        case .invalidSignature, .denied: .info
+        case .unknown: .error
         }
     }
 }
 
 extension ErrorLoginAccount: ServerError, TransportClassifiableError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .ok, .invalidTimestamp, .denied, .transportFailure: false
-        case .unknown: true
+        case .ok, .transportFailure: .suppressed
+        case .invalidTimestamp, .denied: .info
+        case .unknown: .error
         }
     }
 }
 
 extension ErrorFetchUserFlags: ServerError, TransportClassifiableError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .ok, .denied, .transportFailure: false
-        case .unknown: true
+        case .ok, .transportFailure: .suppressed
+        case .denied: .info
+        case .unknown: .error
         }
     }
 }
 
 extension ErrorFetchUnauthenticatedUserFlags: ServerError, TransportClassifiableError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .ok, .transportFailure: false
-        case .unknown: true
+        case .ok, .transportFailure: .suppressed
+        case .unknown: .error
         }
     }
 }

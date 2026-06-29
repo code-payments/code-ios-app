@@ -322,10 +322,11 @@ public enum ErrorContactSync: Int, Error, Equatable, Sendable {
 }
 
 extension ErrorContactSync: ServerError, TransportClassifiableError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .ok, .denied, .tooManyContacts, .checksumDrift, .transportFailure, .notFound: false
-        case .checksumMismatch, .unknown: true
+        case .ok, .transportFailure: .suppressed
+        case .denied, .tooManyContacts, .checksumDrift, .notFound: .info
+        case .checksumMismatch, .unknown: .error
         }
     }
 }

@@ -9,11 +9,11 @@
 //            which is reportable. Result: a Bugsnag report per cold resume
 //            that misrepresents a transport timeout as a server "unknown".
 //
-//  Fix:      Add ErrorFetchBalance.transportFailure (isReportable: false) and
-//            a static `from(transportError:)` helper that classifies gRPC
+//  Fix:      Add ErrorFetchBalance.transportFailure (reportingLevel: .suppressed)
+//            and a static `from(transportError:)` helper that classifies gRPC
 //            timeout / unavailable into it. AccountInfoService's failure paths
 //            route through the helper. ErrorReporting already honors
-//            ServerError.isReportable, so the sweep catch suppresses these
+//            ServerError.reportingLevel, so the sweep catch suppresses these
 //            reports automatically.
 //
 
@@ -25,16 +25,16 @@ import FlipcashCore
 @Suite("Regression: 6a10ebf – USDC sweep no longer reports cold-resume RPC timeouts", .bug("6a10ebfc8c3285d1a545d656"))
 struct Regression_6a10ebf {
 
-    @Test("ErrorFetchBalance reportability is correct for every case", arguments: [
-        (ErrorFetchBalance.ok,               false),
-        (ErrorFetchBalance.notFound,         false),
-        (ErrorFetchBalance.accountNotInList, false),
-        (ErrorFetchBalance.unknown,          true),
-        (ErrorFetchBalance.parseFailed,      true),
-        (ErrorFetchBalance.transportFailure, false),
+    @Test("ErrorFetchBalance reporting level is correct for every case", arguments: [
+        (ErrorFetchBalance.ok,               ErrorReportingLevel.suppressed),
+        (ErrorFetchBalance.notFound,         .info),
+        (ErrorFetchBalance.accountNotInList, .info),
+        (ErrorFetchBalance.unknown,          .error),
+        (ErrorFetchBalance.parseFailed,      .error),
+        (ErrorFetchBalance.transportFailure, .suppressed),
     ])
-    func reportability(error: ErrorFetchBalance, expected: Bool) {
-        #expect(error.isReportable == expected)
+    func reportingLevel(error: ErrorFetchBalance, expected: ErrorReportingLevel) {
+        #expect(error.reportingLevel == expected)
     }
 
     @Test("gRPC transport errors map to the right ErrorFetchBalance case", arguments: [
@@ -56,6 +56,6 @@ struct Regression_6a10ebf {
         let mapped = ErrorFetchBalance.from(transportError: error)
 
         #expect(mapped == .transportFailure)
-        #expect(mapped.isReportable == false)
+        #expect(mapped.reportingLevel == .suppressed)
     }
 }

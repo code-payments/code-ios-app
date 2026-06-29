@@ -69,10 +69,11 @@ public enum ErrorFetchProfile: Int, Error {
 }
 
 extension ErrorFetchProfile: ServerError, TransportClassifiableError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .ok, .notFound, .transportFailure: false
-        case .unknown: true
+        case .ok, .transportFailure: .suppressed
+        case .notFound: .info
+        case .unknown: .error
         }
     }
 }

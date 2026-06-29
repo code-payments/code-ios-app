@@ -68,8 +68,16 @@ enum ErrorReporting {
     private static func capture(_ error: Swift.Error, reason: String? = nil, id: String? = nil, file: String = #file, function: String = #function, line: Int = #line, buildUserInfo: (inout [String: Any]) -> Void) {
         guard isEnabled else { return }
 
-        if let serverError = error as? ServerError, !serverError.isReportable {
+        // A non-ServerError reaching the reporter is unclassified — treat as a real bug.
+        let level = (error as? ServerError)?.reportingLevel ?? .error
+        let severity: BSGSeverity
+        switch level {
+        case .suppressed:
             return
+        case .info:
+            severity = .info
+        case .error:
+            severity = .error
         }
 
         let swiftError = error as NSError
@@ -99,6 +107,8 @@ enum ErrorReporting {
         )
 
         Bugsnag.notifyError(customError) { event in
+            event.severity = severity
+
             if !event.errors.isEmpty {
                 event.errors[0].errorClass = reason ?? "\(error)"
                 event.errors[0].errorMessage = "\(error)"

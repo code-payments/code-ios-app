@@ -65,10 +65,11 @@ public enum ErrorUpdateSettings: Int, Error {
 }
 
 extension ErrorUpdateSettings: ServerError, TransportClassifiableError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .ok, .denied, .invalidLocale, .invalidRegion, .transportFailure: false
-        case .unknown: true
+        case .ok, .transportFailure: .suppressed
+        case .denied, .invalidLocale, .invalidRegion: .info
+        case .unknown: .error
         }
     }
 }

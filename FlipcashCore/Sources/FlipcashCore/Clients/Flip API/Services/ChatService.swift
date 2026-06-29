@@ -103,19 +103,21 @@ public enum ErrorGetChat: Int, Error {
 }
 
 extension ErrorGetDmChatFeed: ServerError, TransportClassifiableError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .ok, .denied, .notFound, .transportFailure: false
-        case .unknown: true
+        case .ok, .transportFailure: .suppressed
+        case .denied, .notFound: .info
+        case .unknown: .error
         }
     }
 }
 
 extension ErrorGetChat: ServerError, TransportClassifiableError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .ok, .denied, .notFound, .transportFailure: false
-        case .unknown: true
+        case .ok, .transportFailure: .suppressed
+        case .denied, .notFound: .info
+        case .unknown: .error
         }
     }
 }

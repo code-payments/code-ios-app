@@ -268,20 +268,21 @@ public enum ErrorLaunchCurrency: Error, Sendable {
 }
 
 extension ErrorRateHistory: ServerError, TransportClassifiableError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .ok, .notFound, .transportFailure: false
-        case .unknown: true
+        case .ok, .transportFailure: .suppressed
+        case .notFound: .info
+        case .unknown: .error
         }
     }
 }
 
 extension ErrorLaunchCurrency: ServerError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .denied, .nameExists, .invalidIcon: false
-        case .unknown: true
-        case .network(let error): (error as? ServerError)?.isReportable ?? true
+        case .denied, .nameExists, .invalidIcon: .info
+        case .unknown: .error
+        case .network(let error): (error as? ServerError)?.reportingLevel ?? .error
         }
     }
 }
