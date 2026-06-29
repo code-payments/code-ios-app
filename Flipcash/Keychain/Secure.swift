@@ -63,13 +63,14 @@ struct SecureCodable<T> where T: Codable {
             if let newValue = encode(newValue) {
                 Keychain.set(newValue, for: key.rawValue, useSynchronization: sync, accessGroup: group)
             } else {
-                Keychain.delete(key.rawValue, accessGroup: group)
-                // When the delete above was group-scoped, also clear any legacy groupless copy so a
-                // stale pre-migration item can't survive logout and resurrect via the fallback read.
-                // (With no group the delete above is already groupless.)
+                // Delete the legacy groupless copy first, then the shared one. If logout is
+                // interrupted between them, the surviving shared item is the canonical one (the
+                // getter reads shared before falling back to legacy), so the account can't resurrect
+                // from a stale legacy item. With no group, the delete below is already groupless.
                 if group != nil {
                     Keychain.delete(key.rawValue)
                 }
+                Keychain.delete(key.rawValue, accessGroup: group)
             }
         }
     }

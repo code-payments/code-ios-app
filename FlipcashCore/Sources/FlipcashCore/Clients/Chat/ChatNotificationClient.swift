@@ -8,13 +8,17 @@
 import Foundation
 import GRPCCore
 
+private nonisolated let logger = Logger(label: "flipcash.chat-notification-client")
+
 /// A lean gRPC façade for a notification extension: fetches and sends chat messages
 /// and resolves mint metadata over its own clients — no `FlipClient`, `Client`, or
 /// SQLite `Database` graph is required.
-public final class ChatNotificationClient: @unchecked Sendable {
+public final class ChatNotificationClient: Sendable {
 
     private let messagingService: ChatMessagingService
     private let currencyService: CurrencyService
+    private let coreClient: GRPCClient<AppTransport>
+    private let paymentsClient: GRPCClient<AppTransport>
     /// The clients' connection loops; retained for the clients' lifetime — dropping them
     /// makes the clients inert and every RPC hangs.
     private let connectionTasks: [Task<Void, Never>]
@@ -31,15 +35,27 @@ public final class ChatNotificationClient: @unchecked Sendable {
             transport: try GRPCTransport.makeTransportServices(host: network.hostForPayments, port: network.port),
             interceptors: [UserAgentClientInterceptor()]
         )
-        connectionTasks = [
-            Task { try? await coreClient.runConnections() },
-            Task { try? await paymentsClient.runConnections() },
+        self.coreClient = coreClient
+        self.paymentsClient = paymentsClient
+        self.connectionTasks = [
+            Task {
+                do { try await coreClient.runConnections() }
+                catch { logger.error("Core connection loop terminated", metadata: ["error": "\(error)"]) }
+            },
+            Task {
+                do { try await paymentsClient.runConnections() }
+                catch { logger.error("Payments connection loop terminated", metadata: ["error": "\(error)"]) }
+            },
         ]
-        messagingService = ChatMessagingService(client: coreClient)
-        currencyService = CurrencyService(client: paymentsClient)
+        self.messagingService = ChatMessagingService(client: coreClient)
+        self.currencyService = CurrencyService(client: paymentsClient)
     }
 
     deinit {
+        // Graceful shutdown drains in-flight streams before the connections close; cancelling
+        // the tasks ends the connection loops.
+        coreClient.beginGracefulShutdown()
+        paymentsClient.beginGracefulShutdown()
         connectionTasks.forEach { $0.cancel() }
     }
 
