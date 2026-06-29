@@ -101,6 +101,7 @@ struct ConversationComposer: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Send")
+                .accessibilityIdentifier("send-message-button")
                 // Pop from 60% + fade, so the opacity ramp actually reads
                 // (scaling from 0 hides the fade behind a tiny speck).
                 .transition(.scale(scale: 0.6).combined(with: .opacity))
