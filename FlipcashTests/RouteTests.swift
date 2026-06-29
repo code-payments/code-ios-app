@@ -177,8 +177,10 @@ struct RouteTests {
         let universalLink = URL(string: "https://app.flipcash.com/chat/\(e164)")!
         // The exact form the server sends, with the "+" percent-encoded.
         let encodedUniversalLink = URL(string: "https://app.flipcash.com/chat/%2B14155550100")!
+        // The same percent-encoding over the custom scheme, for symmetry.
+        let encodedDeepLink = URL(string: "flipcash://chat/%2B14155550100")!
 
-        for url in [deepLink, universalLink, encodedUniversalLink] {
+        for url in [deepLink, universalLink, encodedUniversalLink, encodedDeepLink] {
             if case .chatContact(let phone) = Route(url: url)?.path {
                 #expect(phone.e164 == e164)
             } else {
