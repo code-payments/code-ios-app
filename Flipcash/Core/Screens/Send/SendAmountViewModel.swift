@@ -136,10 +136,10 @@ final class SendAmountViewModel {
                     to: recipient,
                     chat: chatPaymentMetadata()
                 )
-                Analytics.track(event: Analytics.SendEvent.sendSuccess)
+                Analytics.transfer(event: .sentCash, exchangedFiat: amountToSend, grabTime: nil, successful: true, error: nil)
                 return .success
             } catch {
-                Analytics.track(event: Analytics.SendEvent.sendFailure)
+                Analytics.transfer(event: .sentCash, exchangedFiat: amountToSend, grabTime: nil, successful: false, error: error)
                 showSendError()
                 return .failed
             }
@@ -169,9 +169,8 @@ final class SendAmountViewModel {
         case failed
     }
 
-    /// Resolves the recipient, retrying once on a transient network error, and
-    /// records resolve telemetry. A successful resolution is cached so a
-    /// retried send skips the round-trip (and isn't re-counted).
+    /// Resolves the recipient, retrying once on a transient network error. A
+    /// successful resolution is cached so a retried send skips the round-trip.
     private func resolveRecipient() async -> RecipientResolution {
         if let resolvedRecipient {
             return .resolved(resolvedRecipient)
@@ -179,17 +178,14 @@ final class SendAmountViewModel {
         for attempt in 0..<2 {
             do {
                 let owner = try await resolver.resolveContact(e164: contact.phoneE164)
-                Analytics.track(event: Analytics.SendEvent.resolveSuccess)
                 resolvedRecipient = owner
                 return .resolved(owner)
             } catch ErrorResolve.notFound {
-                Analytics.track(event: Analytics.SendEvent.resolveNotFound)
                 logger.info("Recipient not on Flipcash", metadata: ["contactId": "\(contact.contactId)"])
                 return .notFound
             } catch ErrorResolve.transportFailure where attempt == 0 {
                 continue
             } catch {
-                Analytics.track(event: Analytics.SendEvent.resolveError)
                 logger.error("Recipient resolve failed", metadata: ["contactId": "\(contact.contactId)", "error": "\(error)"])
                 ErrorReporting.captureError(error, reason: "Contact resolve failed")
                 return .failed

@@ -448,6 +448,7 @@ final class ConversationController {
             store.setLastMessage(message, in: conversationID)
             persist(operation: "send-message") { try database.upsertConversationMessages([message], conversationID: conversationID) }
             persistConversation(conversationID)
+            Analytics.track(event: Analytics.ConversationEvent.sentMessage)
             return true
         } catch {
             store.markPending(clientMessageID: clientMessageID, status: .failed, in: conversationID)
@@ -456,6 +457,7 @@ final class ConversationController {
                 "error": "\(error)",
             ])
             ErrorReporting.captureError(error, reason: "Failed to send conversation message")
+            Analytics.track(event: Analytics.ConversationEvent.sentMessage, error: error)
             return false
         }
     }
