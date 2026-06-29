@@ -43,6 +43,16 @@ struct ChatPreviewMappingTests {
         )
     }
 
+    /// The message rows from a preview result, ignoring any date separators.
+    private func messageRows(_ items: [ChatItem]) -> [ChatMessage] {
+        items.compactMap { if case .message(let message) = $0 { message } else { nil } }
+    }
+
+    /// The date-separator labels from a preview result, in order.
+    private func separators(_ items: [ChatItem]) -> [String] {
+        items.compactMap { if case .dateSeparator(_, let text) = $0 { text } else { nil } }
+    }
+
     // MARK: - Sender resolution
 
     @Test("My messages map to .me sender")
@@ -50,7 +60,7 @@ struct ChatPreviewMappingTests {
         let messages = [textMessage(id: 1, senderID: meID, text: "hello")]
         let items = ChatItem.preview(from: messages, selfUserID: meID)
 
-        guard case .message(let msg) = items.first else {
+        guard let msg = messageRows(items).first else {
             Issue.record("Expected a .message item")
             return
         }
@@ -62,7 +72,7 @@ struct ChatPreviewMappingTests {
         let messages = [textMessage(id: 1, senderID: otherID, text: "hi")]
         let items = ChatItem.preview(from: messages, selfUserID: meID)
 
-        guard case .message(let msg) = items.first else {
+        guard let msg = messageRows(items).first else {
             Issue.record("Expected a .message item")
             return
         }
@@ -76,7 +86,7 @@ struct ChatPreviewMappingTests {
         let messages = [textMessage(id: 1, senderID: meID, text: "see you soon")]
         let items = ChatItem.preview(from: messages, selfUserID: meID)
 
-        guard case .message(let msg) = items.first else {
+        guard let msg = messageRows(items).first else {
             Issue.record("Expected a .message item")
             return
         }
@@ -88,7 +98,7 @@ struct ChatPreviewMappingTests {
         let messages = [cashMessage(id: 1, senderID: otherID, amount: 5.00)]
         let items = ChatItem.preview(from: messages, selfUserID: meID)
 
-        guard case .message(let msg) = items.first else {
+        guard let msg = messageRows(items).first else {
             Issue.record("Expected a .message item")
             return
         }
@@ -110,7 +120,7 @@ struct ChatPreviewMappingTests {
         let messages = [cashMessage(id: 1, senderID: otherID, amount: 0.1, mint: .usdc)]
         let items = ChatItem.preview(from: messages, selfUserID: meID, mintBranding: [.usdc: MintBrandingInfo(name: "Jeffy", iconURL: icon)])
 
-        guard case .message(let msg) = items.first, case .cash(let cash) = msg.content else {
+        guard let msg = messageRows(items).first, case .cash(let cash) = msg.content else {
             Issue.record("Expected .cash content")
             return
         }
@@ -124,7 +134,7 @@ struct ChatPreviewMappingTests {
         // Branding keyed by a different mint must not apply.
         let items = ChatItem.preview(from: messages, selfUserID: meID, mintBranding: [.usdf: MintBrandingInfo(name: "Jeffy", iconURL: nil)])
 
-        guard case .message(let msg) = items.first, case .cash(let cash) = msg.content else {
+        guard let msg = messageRows(items).first, case .cash(let cash) = msg.content else {
             Issue.record("Expected .cash content")
             return
         }
@@ -137,7 +147,7 @@ struct ChatPreviewMappingTests {
         let messages = [textMessage(id: 42, senderID: meID, text: "test")]
         let items = ChatItem.preview(from: messages, selfUserID: meID)
 
-        guard case .message(let msg) = items.first else {
+        guard let msg = messageRows(items).first else {
             Issue.record("Expected a .message item")
             return
         }
@@ -184,7 +194,7 @@ struct ChatPreviewMappingTests {
             textMessage(id: 2, senderID: otherID, text: "two"),
         ]
         let items = ChatItem.preview(from: messages, selfUserID: meID)
-        #expect(items.count == 2)
+        #expect(messageRows(items).count == 2)
     }
 
     @Test("Custom limit parameter is respected")
@@ -204,5 +214,41 @@ struct ChatPreviewMappingTests {
     func emptyInputReturnsEmpty() {
         let items = ChatItem.preview(from: [], selfUserID: meID)
         #expect(items.isEmpty)
+    }
+
+    // MARK: - Date separators
+
+    @Test("A date separator opens the transcript")
+    func separatorOpensTranscript() {
+        let messages = [textMessage(id: 1, senderID: meID, text: "hi")]
+        let items = ChatItem.preview(from: messages, selfUserID: meID)
+
+        guard case .dateSeparator = items.first else {
+            Issue.record("Expected the first item to be a date separator")
+            return
+        }
+        #expect(separators(items).count == 1)
+    }
+
+    @Test("Messages within the gap share a single opening separator")
+    func messagesWithinGapShareSeparator() {
+        // ids 1 and 2 → dates 1s apart, well under the 15-minute gap.
+        let messages = [
+            textMessage(id: 1, senderID: meID, text: "a"),
+            textMessage(id: 2, senderID: meID, text: "b"),
+        ]
+        let items = ChatItem.preview(from: messages, selfUserID: meID)
+        #expect(separators(items).count == 1)
+    }
+
+    @Test("A gap longer than 15 minutes inserts another separator")
+    func gapInsertsSeparator() {
+        // ids 1 and 1000 → dates 999s (~16.6 min) apart, beyond the 15-minute gap.
+        let messages = [
+            textMessage(id: 1, senderID: meID, text: "a"),
+            textMessage(id: 1000, senderID: meID, text: "b"),
+        ]
+        let items = ChatItem.preview(from: messages, selfUserID: meID)
+        #expect(separators(items).count == 2)
     }
 }

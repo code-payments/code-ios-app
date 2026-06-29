@@ -22,14 +22,16 @@ struct NotificationTranscriptView: View {
         GeometryReader { geometry in
             ScrollViewReader { proxy in
                 ScrollView {
-                    VStack(spacing: 4) {
+                    // The in-app chat uses 4pt rows, but it also renders receipts and groups
+                    // same-sender bubbles for separation; the preview does neither, so it needs a
+                    // larger gap to read comfortably.
+                    VStack(spacing: 10) {
                         ForEach(items) { item in
                             switch item {
                             case .message(let message):
                                 NotificationMessageRow(message: message)
-                            case .dateSeparator:
-                                // The preview pipeline never emits separators.
-                                EmptyView()
+                            case .dateSeparator(_, let text):
+                                NotificationDateSeparator(text: text)
                             }
                         }
                     }
@@ -69,6 +71,19 @@ private struct NotificationMessageRow: View {
             }
             if message.sender == .other { Spacer(minLength: 44) }
         }
+    }
+}
+
+/// A centered "Today 12:13 PM"-style date header, matching the in-app chat's separator.
+private struct NotificationDateSeparator: View {
+
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.default(size: 12, weight: .bold))
+            .foregroundStyle(Color.white.opacity(0.5))
+            .frame(maxWidth: .infinity)
     }
 }
 
