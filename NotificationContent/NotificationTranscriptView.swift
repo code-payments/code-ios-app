@@ -30,8 +30,10 @@ struct NotificationTranscriptView: View {
                             switch item {
                             case .message(let message):
                                 NotificationMessageRow(message: message)
+                                    .transition(.opacity)
                             case .dateSeparator(_, let text):
                                 NotificationDateSeparator(text: text)
+                                    .transition(.opacity)
                             }
                         }
                     }
@@ -40,6 +42,9 @@ struct NotificationTranscriptView: View {
                     // bottom edge, with empty space filling above when it's shorter than the panel.
                     .frame(minHeight: geometry.size.height, alignment: .bottom)
                     .padding(.horizontal, 12)
+                    // Fade new messages in / old ones out as the transcript refreshes — opacity
+                    // only, so it doesn't fight the scroll-to-newest snap or the bottom anchoring.
+                    .animation(.easeInOut(duration: 0.2), value: items)
                 }
                 .defaultScrollAnchor(.bottom)
                 // `.defaultScrollAnchor` sets the anchor on the empty first render and doesn't
