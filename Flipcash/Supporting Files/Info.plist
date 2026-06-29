@@ -20,6 +20,7 @@
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>INSendMessageIntent</string>
+		<string>com.flipcash.app.openChat</string>
 	</array>
 	<key>SQLiteVersion</key>
 	<integer>21</integer>
