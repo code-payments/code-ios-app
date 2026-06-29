@@ -286,6 +286,12 @@ class Session {
             try await flipClient.fetchProfile(userID: userID, owner: ownerKeyPair)
         }
 
+        // A changed or removed phone number must be re-linked for payment, so drop
+        // the per-session claim whenever the number differs from the one we linked.
+        if profile?.phone?.e164 != fetched.phone?.e164 {
+            hasLinkedPhoneForPayment = false
+        }
+
         profile = fetched
         try? database.insertProfile(fetched)
         Task { await linkPhoneForPaymentIfNeeded() }
@@ -327,8 +333,7 @@ class Session {
 
     /// Links an already-verified phone for payment once per session. Best-effort; server-idempotent.
     private func linkPhoneForPaymentIfNeeded() async {
-        guard canSend,
-              let phone = profile?.phone,
+        guard let phone = profile?.phone,
               !hasLinkedPhoneForPayment else { return }
         // Claim before the await so two concurrent callers can't double-fire; released on failure below.
         hasLinkedPhoneForPayment = true
