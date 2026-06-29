@@ -8,6 +8,18 @@
 import FlipcashCore
 import Foundation
 
+/// Display branding for a cash card's token: its name and optional coin icon, resolved by the
+/// caller (e.g. the notification extension fetches it over the network).
+public struct MintBrandingInfo: Sendable {
+    public let name: String
+    public let iconURL: URL?
+
+    public init(name: String, iconURL: URL?) {
+        self.name = name
+        self.iconURL = iconURL
+    }
+}
+
 extension ChatItem {
 
     /// Maps a flat list of `ConversationMessage` values to the last `limit` chat rows, sorted
@@ -27,7 +39,7 @@ extension ChatItem {
         from messages: [ConversationMessage],
         selfUserID: UserID,
         limit: Int = 3,
-        mintBranding: [PublicKey: (name: String, iconURL: URL?)] = [:]
+        mintBranding: [PublicKey: MintBrandingInfo] = [:]
     ) -> [ChatItem] {
         let sorted = messages.sorted { $0.id < $1.id }
         let slice = sorted.suffix(limit)

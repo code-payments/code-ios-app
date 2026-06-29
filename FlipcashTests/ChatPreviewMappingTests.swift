@@ -108,7 +108,7 @@ struct ChatPreviewMappingTests {
     func cashUsesResolvedBranding() {
         let icon = URL(string: "https://example.com/jeffy.png")!
         let messages = [cashMessage(id: 1, senderID: otherID, amount: 0.1, mint: .usdc)]
-        let items = ChatItem.preview(from: messages, selfUserID: meID, mintBranding: [.usdc: (name: "Jeffy", iconURL: icon)])
+        let items = ChatItem.preview(from: messages, selfUserID: meID, mintBranding: [.usdc: MintBrandingInfo(name: "Jeffy", iconURL: icon)])
 
         guard case .message(let msg) = items.first, case .cash(let cash) = msg.content else {
             Issue.record("Expected .cash content")
@@ -122,7 +122,7 @@ struct ChatPreviewMappingTests {
     func cashUnresolvedMintShowsNoBranding() {
         let messages = [cashMessage(id: 1, senderID: otherID, amount: 0.1, mint: .usdc)]
         // Branding keyed by a different mint must not apply.
-        let items = ChatItem.preview(from: messages, selfUserID: meID, mintBranding: [.usdf: (name: "Jeffy", iconURL: nil)])
+        let items = ChatItem.preview(from: messages, selfUserID: meID, mintBranding: [.usdf: MintBrandingInfo(name: "Jeffy", iconURL: nil)])
 
         guard case .message(let msg) = items.first, case .cash(let cash) = msg.content else {
             Issue.record("Expected .cash content")

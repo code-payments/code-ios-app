@@ -16,6 +16,7 @@
 		56BF88A54E7F0C5DAB42710A /* FlipcashCore in Frameworks */ = {isa = PBXBuildFile; productRef = 8DFC9D975C89EBB9B4E50C4D /* FlipcashCore */; };
 		7531D04D33DB0C02B873BF36 /* NotificationContent.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C402C27F9E020E000EBA2936 /* NotificationContent.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		81E1A94ED8796D1522C2E2B7 /* NotificationViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E679C9CB11F511DF4EE5B34 /* NotificationViewController.swift */; };
+		FACE000000000000000000A2 /* NotificationTranscriptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE000000000000000000A1 /* NotificationTranscriptView.swift */; };
 		8778E6B10D2DD83ABE8E2969 /* UserNotificationsUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B4C2CDF828ABA73672DA87AB /* UserNotificationsUI.framework */; };
 		88FB56E02EE0AB2F0014EC5F /* CLAUDE.md in Resources */ = {isa = PBXBuildFile; fileRef = 88FB56DF2EE0AB2F0014EC5F /* CLAUDE.md */; };
 		88FB56E52EE0AB810014EC5F /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 88FB56E32EE0AB810014EC5F /* README.md */; };
@@ -83,6 +84,7 @@
 /* Begin PBXFileReference section */
 		4C7D6FFA2FC8892D0091C7A4 /* NotificationService.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		4E679C9CB11F511DF4EE5B34 /* NotificationViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NotificationViewController.swift; sourceTree = "<group>"; };
+		FACE000000000000000000A1 /* NotificationTranscriptView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NotificationTranscriptView.swift; sourceTree = "<group>"; };
 		88FB56DF2EE0AB2F0014EC5F /* CLAUDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CLAUDE.md; sourceTree = "<group>"; };
 		88FB56E12EE0AB810014EC5F /* 2025-11-27-swap-rpc-analysis.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2025-11-27-swap-rpc-analysis.md"; sourceTree = "<group>"; };
 		88FB56E32EE0AB810014EC5F /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
@@ -240,6 +242,7 @@
 			isa = PBXGroup;
 			children = (
 				4E679C9CB11F511DF4EE5B34 /* NotificationViewController.swift */,
+				FACE000000000000000000A1 /* NotificationTranscriptView.swift */,
 				B2ECA4ED4ED388070B77FCD7 /* Info.plist */,
 				A361ABDE10578BE8E8859E31 /* NotificationContent.entitlements */,
 			);
@@ -634,6 +637,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				81E1A94ED8796D1522C2E2B7 /* NotificationViewController.swift in Sources */,
+				FACE000000000000000000A2 /* NotificationTranscriptView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

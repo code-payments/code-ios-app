@@ -16,9 +16,11 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
 
     // MARK: - Properties -
 
-    /// The app's real chat transcript, embedded so the preview renders, sizes, scrolls,
-    /// and opens at the newest message exactly like the in-app chat.
-    private let chat = ChatViewController()
+    /// A lightweight SwiftUI transcript hosting the recent messages as a bottom-anchored bubble
+    /// list. Deliberately NOT the in-app `ChatViewController` (UICollectionView + custom
+    /// `ChatLayout`), whose footprint exceeds a content extension's memory budget and gets it
+    /// jetsam-killed. The panel keeps one fixed height; the transcript scrolls within it.
+    private let transcript = UIHostingController(rootView: NotificationTranscriptView(items: []))
     private var statusLabel: UILabel?
 
     /// The dark "background" color (display-P3 25,25,26), hardcoded because the matching asset
@@ -28,23 +30,26 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
     )
 
     /// Recent messages to show, and how often to re-check the server while expanded.
-    private static let previewLimit = 3
+    private static let previewLimit = 5
     private static let pollInterval: TimeInterval = 2.5
-    /// The panel sizes to its content up to this; taller transcripts scroll (newest pinned
-    /// at the bottom) instead of clipping, like the chat screen.
-    private static let maxContentHeight: CGFloat = 440
+    /// The panel's fixed height. It never resizes to fit the transcript (which scrolls within
+    /// it), so the height stays put instead of jumping as messages load.
+    private static let fixedPanelHeight: CGFloat = 300
+    /// Breathing room below the newest bubble so it isn't flush against the panel's bottom edge.
+    private static let bottomInset: CGFloat = 16
 
-    private let client = try? ChatNotificationClient()
+    private static let logger = Logger(label: "flipcash.notification-content")
+    /// Created in `viewDidLoad`; nil only when the gRPC clients can't be built (logged).
+    private var client: ChatNotificationClient?
     private var conversationID: ConversationID?
     private var ownerKeyPair: KeyPair?
     private var selfUserID: UserID?
     private var pollTask: Task<Void, Never>?
-    /// True once messages have been rendered, so polling/reply failures don't clobber them
-    /// and the panel sizing kicks in.
+    /// True once messages have been rendered, so polling/reply failures don't clobber them.
     private var hasContent = false
     /// Resolved token branding (name + coin icon) keyed by mint, so cash bubbles read "Jeffy"
     /// with its icon. Cached across polls so each mint is fetched at most once.
-    private var mintBranding: [PublicKey: (name: String, iconURL: URL?)] = [:]
+    private var mintBranding: [PublicKey: MintBrandingInfo] = [:]
     /// Serializes `loadMessages`: the initial load and the 2.5s poll otherwise interleave their
     /// `chat.update` calls when a fetch is slow, and overlapping transcript reloads corrupt the
     /// diff and blank the panel.
@@ -56,31 +61,37 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
         super.viewDidLoad()
         overrideUserInterfaceStyle = .dark
         view.backgroundColor = Self.chatBackground
+        // Fix the panel height up front. A content extension with the default content hidden
+        // takes its height from preferredContentSize — leave it unset and the panel collapses
+        // and dismisses, so pin it here and never resize it to the transcript.
+        preferredContentSize = CGSize(width: view.bounds.width, height: Self.fixedPanelHeight)
         FontBook.registerApplicationFonts()
+        do {
+            client = try ChatNotificationClient()
+        } catch {
+            Self.logger.error("Failed to create the notification gRPC client", metadata: ["error": "\(error)"])
+        }
 
-        addChild(chat)
-        chat.view.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(chat.view)
+        addChild(transcript)
+        transcript.view.translatesAutoresizingMaskIntoConstraints = false
+        transcript.view.backgroundColor = .clear
+        view.addSubview(transcript.view)
         NSLayoutConstraint.activate([
-            chat.view.topAnchor.constraint(equalTo: view.topAnchor),
-            chat.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            chat.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            chat.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            transcript.view.topAnchor.constraint(equalTo: view.topAnchor),
+            transcript.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            transcript.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            transcript.view.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -Self.bottomInset),
         ])
-        chat.didMove(toParent: self)
+        transcript.didMove(toParent: self)
     }
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        guard hasContent else { return }
-        updatePanelSize()
-    }
-
-    /// Sizes the panel to the transcript's content height (capped) — short conversations
-    /// fit exactly, taller ones cap and scroll. Reads ChatLayout's `contentSize`, which is
-    /// the true content height (bottom-anchoring only offsets cells, it doesn't pad it).
-    private func updatePanelSize() {
-        let target = max(min(chat.collectionView.contentSize.height, Self.maxContentHeight), 44)
+        // A status hint (e.g. "Open Flipcash…") sizes itself compactly; don't fight it.
+        guard statusLabel == nil else { return }
+        // Re-assert the fixed height in case the system reset it (which would collapse the
+        // panel); the guard keeps this a no-op once it's set, so the panel never resizes.
+        let target = Self.fixedPanelHeight
         if abs(preferredContentSize.height - target) > 0.5 {
             preferredContentSize = CGSize(width: view.bounds.width, height: target)
         }
@@ -184,16 +195,12 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
     }
 
     private func render(_ messages: [ConversationMessage], selfUserID: UserID) {
-        chat.update(items: ChatItem.preview(
+        transcript.rootView = NotificationTranscriptView(items: ChatItem.preview(
             from: messages,
             selfUserID: selfUserID,
             limit: Self.previewLimit,
             mintBranding: mintBranding
-        ), animated: false)
-        // The transcript lays out asynchronously and the parent won't re-lay out on its
-        // own, so force the layout now and size the panel to the real content.
-        chat.collectionView.layoutIfNeeded()
-        updatePanelSize()
+        ))
     }
 
     /// Resolves token branding (name + icon) for cash mints not already cached, over the network —
@@ -206,11 +213,16 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
             return fiat.mint
         })
         guard !unresolved.isEmpty, let client else { return false }
-        guard let resolved = try? await client.fetchMintMetadata(for: Array(unresolved)), !resolved.isEmpty else {
+        let resolved: [PublicKey: MintMetadata]
+        do {
+            resolved = try await client.fetchMintMetadata(for: Array(unresolved))
+        } catch {
+            Self.logger.error("Failed to resolve mint metadata", metadata: ["error": "\(error)"])
             return false
         }
+        guard !resolved.isEmpty else { return false }
         for (mint, metadata) in resolved {
-            mintBranding[mint] = (name: metadata.name, iconURL: metadata.imageURL)
+            mintBranding[mint] = MintBrandingInfo(name: metadata.name, iconURL: metadata.imageURL)
         }
         return true
     }
