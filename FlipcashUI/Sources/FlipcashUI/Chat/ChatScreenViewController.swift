@@ -66,6 +66,11 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.onRetry = newValue }
     }
 
+    public var onCashCardTap: ((String) -> Void)? {
+        get { transcript.onCashCardTap }
+        set { transcript.onCashCardTap = newValue }
+    }
+
     public override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = UIColor(Color.backgroundMain)

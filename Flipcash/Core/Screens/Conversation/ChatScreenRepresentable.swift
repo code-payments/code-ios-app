@@ -25,6 +25,9 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// Fired when the user taps a failed outgoing row; the argument is the message's stable id (its
     /// client message id). The owner re-sends it.
     let onRetry: (String) -> Void
+    /// Fired when the user taps a cash card; the argument is the message's stable id. The owner opens
+    /// that token's currency info.
+    let onCashCardTap: (String) -> Void
     let showsSendCash: Bool
     let showsSendMessage: Bool
     let conversationID: ConversationID?
@@ -45,6 +48,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         )
         screen.onReachTop = onReachTop
         screen.onRetry = onRetry
+        screen.onCashCardTap = onCashCardTap
         screen.update(items: items)
         screen.setComposing(barModel.isComposing)
         context.coordinator.restingHost = restingHost
@@ -61,6 +65,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         context.coordinator.keyboardHost?.rootView = keyboardBar(coordinator: context.coordinator)
         screen.onReachTop = onReachTop
         screen.onRetry = onRetry
+        screen.onCashCardTap = onCashCardTap
         screen.setComposing(barModel.isComposing)
 
         // Scroll only when the user's *own* message was just appended — a new trailing message id

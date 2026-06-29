@@ -31,6 +31,10 @@ public final class ChatViewController: UICollectionViewController {
     /// Called when the user taps a failed outgoing row to retry; the argument is the message's stable id.
     public var onRetry: ((String) -> Void)?
 
+    /// Called when the user taps a cash card; the argument is the message's stable id. The owner opens
+    /// that token's currency info. Only cash rows are selectable (see `shouldHighlightItemAt`).
+    public var onCashCardTap: ((String) -> Void)?
+
     /// The widest a bubble may grow, as a share of the collection view's width.
     private static let maxBubbleWidthFraction: CGFloat = 0.78
 
@@ -225,6 +229,31 @@ public final class ChatViewController: UICollectionViewController {
                 return cell
             }
         }
+    }
+
+    // MARK: - Selection
+
+    /// Only cash cards are tappable — they open the token's currency info. Text bubbles and date
+    /// separators opt out (a text row's only tap is retry, handled by its own recognizer). Gating
+    /// highlight is enough to gate selection too: UIKit won't select a row it didn't highlight, and
+    /// `didSelectItemAt` re-checks for cash as a backstop.
+    public override func collectionView(_ collectionView: UICollectionView, shouldHighlightItemAt indexPath: IndexPath) -> Bool {
+        cashMessageID(at: indexPath) != nil
+    }
+
+    public override func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        // Selection here is a momentary tap action, not a persisted state — clear it immediately.
+        collectionView.deselectItem(at: indexPath, animated: false)
+        guard let id = cashMessageID(at: indexPath) else { return }
+        onCashCardTap?(id)
+    }
+
+    /// The stable id of the cash message at `indexPath`, or nil if that row isn't a cash card. The
+    /// index is bounds-checked: a tap can race a batch update, where the index may outrun `items`.
+    private func cashMessageID(at indexPath: IndexPath) -> String? {
+        guard items.indices.contains(indexPath.item),
+              case .message(let message) = items[indexPath.item], case .cash = message.content else { return nil }
+        return message.id
     }
 
     // MARK: - Scrolling
