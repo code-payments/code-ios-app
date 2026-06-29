@@ -65,7 +65,7 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
         // takes its height from preferredContentSize — leave it unset and the panel collapses
         // and dismisses, so pin it here and never resize it to the transcript.
         preferredContentSize = CGSize(width: view.bounds.width, height: Self.fixedPanelHeight)
-        FontBook.registerApplicationFonts()
+        FontBook.registerNotificationFonts()
         do {
             client = try ChatNotificationClient()
         } catch {
@@ -73,6 +73,10 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
         }
 
         addChild(transcript)
+        // The panel sits above the reply keyboard, so don't let the keyboard's safe area inset the
+        // transcript (which pushes the messages up and leaves a gap). Dropping the keyboard region
+        // from the hosting controller is a UIKit-level toggle that leaves the SwiftUI layout untouched.
+        transcript.safeAreaRegions = .container
         transcript.view.translatesAutoresizingMaskIntoConstraints = false
         transcript.view.backgroundColor = .clear
         view.addSubview(transcript.view)

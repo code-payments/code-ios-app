@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import ImageIO
 import FlipcashCore
 import FlipcashUI
 
@@ -218,8 +219,23 @@ private struct NotificationCoinIcon: View {
         .clipShape(Circle())
         .task(id: url) {
             guard let data = try? await URLSession.shared.data(from: url).0,
-                  let uiImage = UIImage(data: data) else { return }
-            image = Image(uiImage: uiImage)
+                  let downsampled = Self.downsample(data, maxPixelSize: 40) else { return }
+            image = Image(uiImage: downsampled)
         }
+    }
+
+    /// Decodes `data` straight to a thumbnail no larger than `maxPixelSize`, so a large remote PNG
+    /// never inflates to a full-resolution bitmap in the extension's tight memory budget (a 13pt
+    /// icon needs ~40px at @3x).
+    private static func downsample(_ data: Data, maxPixelSize: CGFloat) -> UIImage? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+        ]
+        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
+        return UIImage(cgImage: cgImage)
     }
 }
