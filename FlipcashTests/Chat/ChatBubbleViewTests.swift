@@ -8,6 +8,7 @@
 import Testing
 import UIKit
 import SwiftUI
+import FlipcashCore
 @testable import FlipcashUI
 
 @MainActor

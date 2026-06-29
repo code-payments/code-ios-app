@@ -7,6 +7,7 @@
 
 #if canImport(UIKit)
 import UIKit
+import FlipcashCore
 
 /// Base for a chat row that stacks a content view above an optional `ChatReceiptLabel` in a vertical
 /// column, hugging the leading or trailing edge by sender. A subclass builds its content view (a

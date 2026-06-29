@@ -8,6 +8,7 @@
 import Testing
 import UIKit
 import ChatLayout
+import FlipcashCore
 @testable import FlipcashUI
 
 /// Every chat row self-sizes to its own content: text and date rows to their text, and the cash

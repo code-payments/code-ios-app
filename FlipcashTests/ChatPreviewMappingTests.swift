@@ -251,4 +251,25 @@ struct ChatPreviewMappingTests {
         let items = ChatItem.preview(from: messages, selfUserID: meID)
         #expect(separators(items).count == 2)
     }
+
+    // MARK: - Cache serialization
+
+    @Test("Preview round-trips through Codable unchanged — the notification cache's mechanism")
+    func previewRoundTripsThroughCodable() throws {
+        let icon = URL(string: "https://example.com/jeffy.png")!
+        let messages = [
+            textMessage(id: 1, senderID: meID, text: "hey"),
+            cashMessage(id: 2, senderID: otherID, amount: 5.00, mint: .usdc),
+        ]
+        let items = ChatItem.preview(
+            from: messages,
+            selfUserID: meID,
+            mintBranding: [.usdc: MintBrandingInfo(name: "Jeffy", iconURL: icon)]
+        )
+
+        let data = try JSONEncoder().encode(items)
+        let decoded = try JSONDecoder().decode([ChatItem].self, from: data)
+
+        #expect(decoded == items)
+    }
 }

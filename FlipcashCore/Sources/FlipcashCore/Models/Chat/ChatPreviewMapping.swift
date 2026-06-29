@@ -1,11 +1,10 @@
 //
 //  ChatPreviewMapping.swift
-//  FlipcashUI
+//  FlipcashCore
 //
 //  Copyright © 2026 Code Inc. All rights reserved.
 //
 
-import FlipcashCore
 import Foundation
 
 /// Display branding for a cash card's token: its name and optional coin icon, resolved by the

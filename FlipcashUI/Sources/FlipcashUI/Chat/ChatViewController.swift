@@ -10,6 +10,7 @@ import UIKit
 import SwiftUI
 import ChatLayout
 import DifferenceKit
+import FlipcashCore
 
 /// A standalone chat transcript: a `ChatLayout`-backed collection view that opens at the
 /// newest message and renders whatever `[ChatMessage]` it is handed. Dumb and push-driven —

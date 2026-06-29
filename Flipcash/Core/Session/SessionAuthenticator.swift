@@ -435,6 +435,9 @@ final class SessionAuthenticator {
 
         accountManager.resetForLogout()
 
+        // Drop cached notification previews — they hold chat text in cleartext in the App Group.
+        NotificationPreviewCache.clear()
+
         state = .loggedOut
         requiresForceLogout = false
         UserDefaults.wasLoggedIn = false

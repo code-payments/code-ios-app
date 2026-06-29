@@ -54,11 +54,36 @@ public final class ChatNotificationClient: Sendable {
 
     // MARK: - Messages -
 
-    /// Returns the newest `limit` messages in a conversation, oldest-first.
+    /// Thrown internally when a retry-on-empty read comes back empty, so `Task.retry` re-fetches.
+    private struct EmptyMessages: Error {}
+
+    /// Returns the newest `limit` messages in a conversation, oldest-first. When `retryingEmpty` is
+    /// set, an empty read is retried a few times (250ms apart) to dodge the read-after-write race
+    /// against a message that *just* arrived; a persistent empty result returns `[]`, not an error.
     public func getMessages(
         owner: KeyPair,
         conversationID: ConversationID,
-        limit: Int = 3
+        limit: Int = 3,
+        retryingEmpty: Bool = false
+    ) async throws -> [ConversationMessage] {
+        guard retryingEmpty else {
+            return try await fetchMessages(owner: owner, conversationID: conversationID, limit: limit)
+        }
+        do {
+            return try await Task.retry(maxAttempts: 4, delay: .milliseconds(250)) {
+                let messages = try await fetchMessages(owner: owner, conversationID: conversationID, limit: limit)
+                if messages.isEmpty { throw EmptyMessages() }
+                return messages
+            }
+        } catch is EmptyMessages {
+            return []
+        }
+    }
+
+    private func fetchMessages(
+        owner: KeyPair,
+        conversationID: ConversationID,
+        limit: Int
     ) async throws -> [ConversationMessage] {
         try await withCheckedThrowingContinuation { continuation in
             messagingService.getMessages(
@@ -70,19 +95,21 @@ public final class ChatNotificationClient: Sendable {
         }
     }
 
-    /// Sends a text message and returns the server-confirmed `ConversationMessage`.
+    /// Sends a text message and returns the server-confirmed `ConversationMessage`. `clientMessageID`
+    /// must stay stable across retries so the server dedups the send — generate it once at the call site.
     @discardableResult
     public func sendMessage(
         owner: KeyPair,
         conversationID: ConversationID,
-        text: String
+        text: String,
+        clientMessageID: UUID
     ) async throws -> ConversationMessage {
         try await withCheckedThrowingContinuation { continuation in
             messagingService.sendMessage(
                 owner: owner,
                 conversationID: conversationID,
                 text: text,
-                clientMessageID: UUID()
+                clientMessageID: clientMessageID
             ) { continuation.resume(with: $0) }
         }
     }
@@ -112,5 +139,20 @@ public final class ChatNotificationClient: Sendable {
         return try await withCheckedThrowingContinuation { continuation in
             currencyService.fetchMints(mints: mints) { continuation.resume(with: $0) }
         }
+    }
+
+    /// Resolves token branding (name + icon) for any cash mints in `messages`, so cash rows can show
+    /// their token label + icon. An unresolved or absent mint is simply omitted. Throws on a transport
+    /// failure so each call site applies its own error policy.
+    public func resolveMintBranding(
+        in messages: [ConversationMessage]
+    ) async throws -> [PublicKey: MintBrandingInfo] {
+        let mints = Set(messages.compactMap { message -> PublicKey? in
+            guard case .cash(let fiat) = message.content else { return nil }
+            return fiat.mint
+        })
+        guard !mints.isEmpty else { return [:] }
+        let resolved = try await fetchMintMetadata(for: Array(mints))
+        return resolved.mapValues { MintBrandingInfo(name: $0.name, iconURL: $0.imageURL) }
     }
 }

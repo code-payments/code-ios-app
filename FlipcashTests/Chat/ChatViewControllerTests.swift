@@ -7,6 +7,7 @@
 
 import Testing
 import UIKit
+import FlipcashCore
 @testable import FlipcashUI
 
 @MainActor

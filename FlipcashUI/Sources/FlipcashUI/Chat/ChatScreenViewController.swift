@@ -8,6 +8,7 @@
 #if canImport(UIKit)
 import UIKit
 import SwiftUI
+import FlipcashCore
 
 /// The full chat screen, entirely in UIKit: the transcript fills the view and two injected bars
 /// float over its bottom (so content flows under them). The owner supplies both — a resting Send Cash

@@ -7,6 +7,7 @@
 
 #if canImport(UIKit)
 import UIKit
+import FlipcashCore
 
 /// A recycled cell for a cash payment row: a fixed-size card (shared `BubbleBackgroundView` chrome)
 /// with the token name + optional coin icon in the top-left and a centered "You sent / You received"

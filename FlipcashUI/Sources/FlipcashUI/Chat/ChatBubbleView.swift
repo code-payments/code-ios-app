@@ -8,6 +8,7 @@
 #if canImport(UIKit)
 import UIKit
 import SwiftUI
+import FlipcashCore
 
 /// A single chat bubble: a multiline label over the shared `BubbleBackgroundView`, styled to
 /// match the app's conversation design (white-opacity fill, hairline border, app font, flattened
