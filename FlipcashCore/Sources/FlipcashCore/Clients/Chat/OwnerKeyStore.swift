@@ -7,6 +7,8 @@
 
 import Foundation
 
+private nonisolated let logger = Logger(label: "flipcash.owner-key-store")
+
 /// Reads the signed-in user's owner `KeyPair` from the shared keychain
 /// access group so that out-of-process extensions (e.g. the notification
 /// content extension) can authenticate without access to the main app's
@@ -25,7 +27,12 @@ public enum OwnerKeyStore {
             let group = Keychain.sharedAccessGroup,
             let data = Keychain.data(for: ownerAccountKey, accessGroup: group)
         else { return nil }
-        return try? JSONDecoder().decode(UserAccount.self, from: data)
+        do {
+            return try JSONDecoder().decode(UserAccount.self, from: data)
+        } catch {
+            logger.error("Failed to decode the owner account from the shared keychain", metadata: ["error": "\(error)"])
+            return nil
+        }
     }
 
     /// Loads the owner `KeyPair` from the shared keychain access group.

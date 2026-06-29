@@ -7,10 +7,15 @@
 
 import UIKit
 import SwiftUI
+import os
 import UserNotifications
 import UserNotificationsUI
 import FlipcashCore
 import FlipcashUI
+
+/// Thrown when the first preview read comes back empty, so `Task.retry` re-fetches — a message that
+/// just triggered this push may lose the read-after-write race against the first request.
+private struct EmptyPreview: Error {}
 
 final class NotificationViewController: UIViewController, UNNotificationContentExtension {
 
@@ -45,6 +50,9 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
     private var ownerKeyPair: KeyPair?
     private var selfUserID: UserID?
     private var pollTask: Task<Void, Never>?
+    /// The in-flight reply send, tracked so a rapid re-open cancels the previous one instead of
+    /// stacking tasks that retain the client + completion closure.
+    private var replyTask: Task<Void, Never>?
     /// True once messages have been rendered, so polling/reply failures don't clobber them.
     private var hasContent = false
     /// Resolved token branding (name + coin icon) keyed by mint, so cash bubbles read "Jeffy"
@@ -141,17 +149,16 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
             }
 
             let text = textResponse.userText
-            Task { @MainActor in
+            replyTask?.cancel()
+            replyTask = Task { @MainActor in
                 do {
-                    _ = try await client.sendMessage(
-                        owner: ownerKeyPair,
-                        conversationID: conversationID,
-                        text: text
-                    )
+                    _ = try await Task.retry(maxAttempts: 3, delay: .milliseconds(400)) {
+                        try await client.sendMessage(owner: ownerKeyPair, conversationID: conversationID, text: text)
+                    }
                     // Re-fetch so the sent message appears in the transcript.
                     await loadMessages()
                 } catch {
-                    // Leave the transcript as-is; the message simply wasn't sent.
+                    Self.logger.error("Failed to send the notification reply", metadata: ["error": "\(error)"])
                 }
                 completion(.doNotDismiss)
             }
@@ -175,26 +182,58 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
         defer { isLoading = false }
         guard let conversationID, let ownerKeyPair, let selfUserID, let client else { return }
         do {
-            let messages = try await client.getMessages(
+            // On the first load, retry an empty/failed read to dodge the read-after-write race;
+            // later polls take a single shot (an empty poll just means no new messages).
+            let messages = try await fetchPreview(
+                client: client,
                 owner: ownerKeyPair,
                 conversationID: conversationID,
-                limit: Self.previewLimit
+                retryOnEmpty: !hasContent
             )
             if messages.isEmpty {
                 if !hasContent { showStatusLabel("No messages") }
             } else {
                 clearStatusLabel()
+                let isFirstRender = !hasContent
                 hasContent = true
                 // Render immediately with whatever names are cached (currency-code fallback for
                 // any new mint), then resolve missing token names over the network and re-render
                 // so they swap in — the bubble is never gated on that round-trip.
                 render(messages, selfUserID: selfUserID)
+                if isFirstRender {
+                    Self.logger.info("Notification transcript rendered", metadata: [
+                        "availableMemoryMB": "\(os_proc_available_memory() / (1024 * 1024))",
+                    ])
+                }
                 if await resolveMintBranding(in: messages) {
                     render(messages, selfUserID: selfUserID)
                 }
             }
         } catch {
             if !hasContent { showStatusLabel("Couldn't load messages") }
+        }
+    }
+
+    /// Fetches the recent messages, retrying an empty or failed read a few times when `retryOnEmpty`
+    /// (the first load) so a just-arrived message isn't missed to the read-after-write race. An empty
+    /// result after the retries is returned as `[]` (genuinely no messages), not an error.
+    private func fetchPreview(
+        client: ChatNotificationClient,
+        owner: KeyPair,
+        conversationID: ConversationID,
+        retryOnEmpty: Bool
+    ) async throws -> [ConversationMessage] {
+        guard retryOnEmpty else {
+            return try await client.getMessages(owner: owner, conversationID: conversationID, limit: Self.previewLimit)
+        }
+        do {
+            return try await Task.retry(maxAttempts: 4, delay: .milliseconds(250)) {
+                let messages = try await client.getMessages(owner: owner, conversationID: conversationID, limit: Self.previewLimit)
+                if messages.isEmpty { throw EmptyPreview() }
+                return messages
+            }
+        } catch is EmptyPreview {
+            return []
         }
     }
 
@@ -246,6 +285,8 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
         super.viewDidDisappear(animated)
         pollTask?.cancel()
         pollTask = nil
+        replyTask?.cancel()
+        replyTask = nil
     }
 
     // MARK: - Status UI -
@@ -272,5 +313,7 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
     private func clearStatusLabel() {
         statusLabel?.removeFromSuperview()
         statusLabel = nil
+        // Restore the fixed transcript height — a status hint had shrunk the panel to 120.
+        preferredContentSize = CGSize(width: view.bounds.width, height: Self.fixedPanelHeight)
     }
 }
