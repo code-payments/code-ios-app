@@ -96,7 +96,6 @@ struct RecipientPickerScreen: View {
     // MARK: - Tap -
 
     private func selectRecipient(_ contact: ResolvedContact) {
-        Analytics.track(event: Analytics.SendEvent.tapRecipient)
         router.push(.dmConversation(.contact(contact)))
     }
 

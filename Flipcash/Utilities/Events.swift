@@ -38,6 +38,7 @@ extension Analytics {
 
     enum TransferEvent: String, AnalyticsEvent {
         case withdrawal      = "Withdrawal"
+        case sentCash        = "Sent Cash"
         case sendCashLink    = "Send Cash Link"
         case receiveCashLink = "Receive Cash Link"
         case grabBill        = "Grab Bill"
@@ -59,12 +60,10 @@ extension Analytics {
     enum SendEvent: String, AnalyticsEvent {
         case showEnterPhone   = "Send: Show Enter Phone"
         case showConfirmPhone = "Send: Show Confirm Phone"
-        case tapRecipient     = "Send: Tap Recipient"
-        case resolveSuccess   = "Send: Resolve Success"
-        case resolveNotFound  = "Send: Resolve NotFound"
-        case resolveError     = "Send: Resolve Error"
-        case sendSuccess      = "Send: Send Success"
-        case sendFailure      = "Send: Send Failure"
+    }
+
+    enum ConversationEvent: String, AnalyticsEvent {
+        case sentMessage = "Sent Message"
     }
 
     enum OnboardingEvent: String, AnalyticsEvent {
