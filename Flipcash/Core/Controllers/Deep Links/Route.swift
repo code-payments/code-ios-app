@@ -86,6 +86,7 @@ nonisolated extension Route {
         case verifyEmail
         case token(PublicKey)
         case chat(ConversationID)
+        case chatContact(Phone)
         case give
         case balance
         case discover
@@ -117,10 +118,22 @@ nonisolated extension Route {
                 }
                 return .token(mint)
             case "chat":
-                guard components.count > 1, let id = ConversationID(base64URLEncoded: components[1]) else {
+                guard components.count > 1 else {
                     return nil
                 }
-                return .chat(id)
+                // Existing chat-by-ID deeplink wins; the server's contact-chat
+                // variant is `/chat/{E.164}` (it percent-encodes the leading "+"
+                // as "%2B", already decoded back to "+" by here). The two are
+                // disjoint — a 32-byte base64url ChatId never starts with "+".
+                // Require the "+" so a bare national number can't misparse against
+                // PhoneNumberKit's implicit US region.
+                if let id = ConversationID(base64URLEncoded: components[1]) {
+                    return .chat(id)
+                }
+                if components[1].hasPrefix("+"), let phone = Phone(components[1]) {
+                    return .chatContact(phone)
+                }
+                return nil
             case "give":
                 return .give
             case "balance":

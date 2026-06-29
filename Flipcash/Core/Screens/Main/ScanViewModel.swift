@@ -106,7 +106,8 @@ class ScanViewModel {
     // MARK: - QR Scanning -
 
     /// Returns whether a URL is eligible for QR code scanning.
-    /// Only `.cash` and `.token` routes are allowed; `.login` and `.verifyEmail` are blocked for security.
+    /// Allowlist: only `.cash` and `.token` may be scanned. Every other route —
+    /// including security-sensitive ones like `.login` and `.verifyEmail` — is blocked.
     nonisolated static func canScanQR(url: URL) -> Bool {
         guard let route = Route(url: url) else {
             return false
@@ -115,7 +116,7 @@ class ScanViewModel {
         switch route.path {
         case .cash, .token:
             return true
-        case .login, .verifyEmail, .chat, .give, .balance, .discover, .send, .unknown:
+        case .login, .verifyEmail, .chat, .chatContact, .give, .balance, .discover, .send, .unknown:
             return false
         }
     }

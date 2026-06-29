@@ -97,6 +97,9 @@ final class DeepLinkController {
         case .chat(let conversationID):
             return actionForChat(conversationID: conversationID)
 
+        case .chatContact(let phone):
+            return actionForChatContact(phone: phone)
+
         case .give:
             return actionForOpenSheet(.give)
 
@@ -153,6 +156,13 @@ final class DeepLinkController {
     private func actionForChat(conversationID: ConversationID) -> DeepLinkAction {
         DeepLinkAction(
             kind: .chat(conversationID),
+            sessionAuthenticator: sessionAuthenticator
+        )
+    }
+
+    private func actionForChatContact(phone: Phone) -> DeepLinkAction {
+        DeepLinkAction(
+            kind: .chatContact(phone),
             sessionAuthenticator: sessionAuthenticator
         )
     }
@@ -223,6 +233,22 @@ struct DeepLinkAction {
                 container.appRouter.present(.conversation(.existing(conversationID)))
             }
 
+        case .chatContact(let phone):
+            if case .loggedIn(let container) = sessionAuthenticator.state {
+                Analytics.deeplinkRouted(kind: kind)
+                // Resolve the phone against the synced directory. No match (not a
+                // contact, or contact sync hasn't settled yet) is a silent no-op,
+                // like any other unresolvable deeplink. The `.contact` context
+                // resolves the `dmChatID` live and opens whether or not the chat
+                // exists yet.
+                guard let contact = container.contactSyncController.resolvedContacts.onFlipcash
+                    .first(where: { $0.phoneE164 == phone.e164 }) else {
+                    logger.info("No synced contact for chat deeplink phone — ignoring")
+                    return
+                }
+                container.appRouter.present(.conversation(.contact(contact)))
+            }
+
         case .openSheet(let sheet):
             if case .loggedIn(let container) = sessionAuthenticator.state {
                 Analytics.deeplinkRouted(kind: kind)
@@ -253,6 +279,7 @@ extension DeepLinkAction {
         case verifyEmail(VerificationDescription)
         case currencyInfo(PublicKey)
         case chat(ConversationID)
+        case chatContact(Phone)
         case openSheet(AppRouter.SheetPresentation)
     }
 }
@@ -265,6 +292,7 @@ extension DeepLinkAction.Kind {
         case .verifyEmail:      "EmailVerification"
         case .currencyInfo:     "TokenInfo"
         case .chat:             "Chat"
+        case .chatContact:      "ChatContact"
         case .openSheet(let sheet): "Sheet:\(sheet)"
         }
     }
