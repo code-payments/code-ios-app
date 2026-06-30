@@ -49,10 +49,6 @@ private let logger = Logger(label: "flipcash.send-cash")
 /// a share sheet to suppress grab-request processing underneath it.
 class SendCashOperation {
 
-    /// Submitting a proof older than this is rejected as stale, so we pre-flight the check
-    /// to fail fast and surface a specific error in logs and Bugsnag.
-    static let maxReserveAge: TimeInterval = 15 * 60
-
     enum FailurePath: String {
         case advertisement
         case stream
@@ -193,13 +189,15 @@ class SendCashOperation {
             throw error
         }
 
-        if let reserveTimestamp = transferState.reserveTimestamp {
-            let reserveAge = Date().timeIntervalSince(reserveTimestamp)
-            if reserveAge >= Self.maxReserveAge {
-                let error = Error.reserveProofStale(ageSeconds: reserveAge)
-                handleFailure(error, path: .transfer, resolution: resolution)
-                throw error
-            }
+        // Reject a proof bundle past the client freshness ceiling. `isStale`
+        // folds in both the rate and reserve protos (the older drives it), so a
+        // proof pinned at bill creation that went stale while the bill sat open
+        // — or while the app was backgrounded — is caught here instead of
+        // failing server-side as `invalidIntent`.
+        if transferState.isStale {
+            let error = Error.verifiedStateStale(ageSeconds: transferState.age)
+            handleFailure(error, path: .transfer, resolution: resolution)
+            throw error
         }
 
         do {
@@ -303,9 +301,10 @@ extension SendCashOperation {
         /// brand-new currencies that haven't been rate-cached yet.
         case missingVerifiedState
 
-        /// The resolved `VerifiedState` has a reserve-state proof older than
-        /// the server tolerates. Submitting it would be rejected — we reject
-        /// client-side to surface a specific error.
-        case reserveProofStale(ageSeconds: TimeInterval)
+        /// The resolved `VerifiedState` is past the client freshness ceiling
+        /// (`VerifiedState.clientMaxAge`) — its rate and/or reserve proof would
+        /// be rejected server-side. We reject client-side to fail fast with a
+        /// specific error instead of a generic `invalidIntent`.
+        case verifiedStateStale(ageSeconds: TimeInterval)
     }
 }
