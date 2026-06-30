@@ -66,7 +66,6 @@ struct CurrencySelectionScreen: View {
             }
             .searchable(
                 text: $viewModel.searchText,
-                placement: .navigationBarDrawer(displayMode: .always),
                 prompt: "Search Regions"
             )
             .foregroundStyle(Color.textMain)
