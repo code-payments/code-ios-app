@@ -330,39 +330,6 @@ final class AppRouter {
         ])
     }
 
-    /// Dismisses every presented sheet and clears every inactive stack's
-    /// path, landing the user on the Scanner. Used by the
-    /// auto-return-on-background trigger to discard in-flight navigation.
-    ///
-    /// Driven through UIKit's `dismiss(animated:)` on the root presenter so
-    /// the full nested-sheet chain tears down in one coordinated animation.
-    /// The dismissing root's path is retained through the animation and
-    /// cleared on next present via ``dismissedStacks``.
-    func dismissAll() {
-        let rootStack = presentedSheets.first?.stack
-
-        for sheet in presentedSheets {
-            dismissedStacks.insert(sheet.stack)
-        }
-        for stack in Stack.allCases where stack != rootStack {
-            paths[stack] = NavigationPath()
-        }
-
-        let presenter = UIApplication.shared.foregroundWindowScene?
-            .keyWindow?
-            .rootViewController
-
-        if let presenter, presenter.presentedViewController != nil {
-            presenter.dismiss(animated: true) { [weak self] in
-                self?.presentedSheets = []
-            }
-        } else {
-            presentedSheets = []
-        }
-
-        logger.info("Dismiss all")
-    }
-
     // MARK: - Logging helpers
 
     /// Builds the standard navigation log metadata: `stack`, `destination`,

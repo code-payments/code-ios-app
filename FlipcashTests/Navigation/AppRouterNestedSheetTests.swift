@@ -241,36 +241,6 @@ struct AppRouterNestedSheetTests {
         #expect(router[.buy].isEmpty)
     }
 
-    // MARK: - dismissAll
-
-    @Test("dismissAll clears every level")
-    func dismissAll_clearsEveryLevel() {
-        let router = AppRouter()
-        router.present(.balance)
-        router.presentNested(.buy(Self.mintA))
-
-        router.dismissAll()
-
-        #expect(router.presentedSheets.isEmpty)
-        #expect(router.presentedSheet == nil)
-    }
-
-    @Test("dismissAll marks every dismissed sheet for path clear on reopen")
-    func dismissAll_clearsPathsOnReopen() {
-        let router = AppRouter()
-        router.present(.balance)
-        router.push(.currencyInfo(Self.mintA))
-        router.presentNested(.buy(Self.mintA))
-        router.push(.usdcDepositEducation)
-
-        router.dismissAll()
-        router.present(.balance)
-        router.presentNested(.buy(Self.mintA))
-
-        #expect(router[.balance].isEmpty)
-        #expect(router[.buy].isEmpty)
-    }
-
     // MARK: - navigate with nested up
 
     @Test("navigate(to:) when nested is up dismisses nested and sets target root")
