@@ -35,6 +35,85 @@ struct ConversationControllerTests {
         )
     }
 
+    @Test("a received typing notification marks the counterpart typing; self is ignored")
+    func receivesTyping() async throws {
+        let me = UUID(), them = UUID()
+        let mock = MockConversations()
+        let controller = makeController(mock, selfUserID: me)
+        controller.start()
+        try await waitUntil { mock.streamOpened }
+
+        mock.emit(.typingChanged(conversationID: .test(1), notifications: [
+            TypingNotification(userID: them, isActive: true),
+            TypingNotification(userID: me, isActive: true),
+        ]))
+        try await waitUntil { controller.isCounterpartTyping(in: .test(1)) }
+        #expect(controller.isCounterpartTyping(in: .test(1)))
+    }
+
+    @Test("a stopped notification clears the typing state")
+    func stopsTyping() async throws {
+        let them = UUID()
+        let mock = MockConversations()
+        let controller = makeController(mock)
+        controller.start()
+        try await waitUntil { mock.streamOpened }
+
+        mock.emit(.typingChanged(conversationID: .test(1), notifications: [TypingNotification(userID: them, isActive: true)]))
+        try await waitUntil { controller.isCounterpartTyping(in: .test(1)) }
+        mock.emit(.typingChanged(conversationID: .test(1), notifications: [TypingNotification(userID: them, isActive: false)]))
+        try await waitUntil { !controller.isCounterpartTyping(in: .test(1)) }
+        #expect(!controller.isCounterpartTyping(in: .test(1)))
+    }
+
+    @Test("a non-empty draft sends STARTED once; clearing it sends STOPPED")
+    func sendsTypingOnDraft() async throws {
+        let mock = MockConversations()
+        let controller = makeController(mock)
+
+        controller.draftDidChange("h", in: .test(1))
+        try await waitUntil { mock.typingCalls.contains { $0.state == .started } }
+        controller.draftDidChange("", in: .test(1))
+        try await waitUntil { mock.typingCalls.contains { $0.state == .stopped } }
+
+        let states = mock.typingCalls.map(\.state)
+        #expect(states.filter { $0 == .started }.count == 1)
+        #expect(states.last == .stopped)
+    }
+
+    @Test("stopSelfTyping sends STOPPED only when currently typing")
+    func stopSelfTypingGuarded() async throws {
+        let mock = MockConversations()
+        let controller = makeController(mock)
+
+        controller.stopSelfTyping(in: .test(1))
+        #expect(mock.typingCalls.isEmpty)
+
+        controller.draftDidChange("hey", in: .test(1))
+        try await waitUntil { mock.typingCalls.contains { $0.state == .started } }
+        controller.stopSelfTyping(in: .test(1))
+        try await waitUntil { mock.typingCalls.contains { $0.state == .stopped } }
+        #expect(mock.typingCalls.last?.state == .stopped)
+    }
+
+    @Test("clearing the draft before the typing task starts sends nothing and doesn't wedge typing")
+    func draftClearedBeforeTaskStarts() async throws {
+        let mock = MockConversations()
+        let controller = makeController(mock)
+
+        // Both calls run synchronously before the scheduled task body can take the MainActor, so the
+        // clear cancels the typing task before it ever runs — the exact fast type-then-clear race.
+        controller.draftDidChange("h", in: .test(1))
+        controller.draftDidChange("", in: .test(1))
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(mock.typingCalls.isEmpty) // no orphaned STARTED
+
+        // Typing must still work afterward (state not wedged true).
+        controller.draftDidChange("hi", in: .test(1))
+        try await waitUntil { mock.typingCalls.contains { $0.state == .started } }
+        #expect(mock.typingCalls.contains { $0.state == .started })
+    }
+
 
     @Test("loadFeed populates conversations sorted by activity")
     func loadFeed() async {

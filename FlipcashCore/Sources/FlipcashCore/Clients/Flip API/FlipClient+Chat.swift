@@ -53,6 +53,12 @@ extension FlipClient {
         }
     }
 
+    public func notifyIsTyping(owner: KeyPair, conversationID: ConversationID, state: TypingState) async throws {
+        try await withCheckedThrowingContinuation { c in
+            chatMessagingService.notifyIsTyping(owner: owner, conversationID: conversationID, state: state) { c.resume(with: $0) }
+        }
+    }
+
     // MARK: - Event stream
 
     /// Start the single per-user event stream and return its decoded events.

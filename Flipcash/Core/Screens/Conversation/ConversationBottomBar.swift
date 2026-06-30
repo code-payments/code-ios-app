@@ -129,7 +129,16 @@ struct ConversationComposer: View {
         // `.onAppear` would raise the keyboard on screen entry. Losing focus (keyboard
         // swiped down) ends composing.
         .onChange(of: model.isComposing) { _, composing in isFocused = composing }
-        .onChange(of: isFocused) { _, focused in if !focused { withAnimation(barSwapSpring) { model.isComposing = false } } }
+        .onChange(of: isFocused) { _, focused in
+            if !focused {
+                withAnimation(barSwapSpring) { model.isComposing = false }
+                if let conversationID { conversationController.stopSelfTyping(in: conversationID) }
+            }
+        }
+        .onChange(of: model.draft) { _, text in
+            guard let conversationID else { return }
+            conversationController.draftDidChange(text, in: conversationID)
+        }
     }
 
     private func send() {

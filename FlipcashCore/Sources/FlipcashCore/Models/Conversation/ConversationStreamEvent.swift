@@ -10,7 +10,7 @@ import FlipcashAPI
 
 /// A decoded update delivered over the single per-user event stream. The
 /// streamer demultiplexes raw `ChatUpdate`s into these so the controller can
-/// apply them without touching proto types. Typing notifications are not consumed.
+/// apply them without touching proto types.
 public enum ConversationStreamEvent: Sendable {
 
     /// New messages arrived in a conversation.
@@ -24,6 +24,11 @@ public enum ConversationStreamEvent: Sendable {
 
     /// One or more members' READ watermarks advanced.
     case readPointersChanged(conversationID: ConversationID, pointers: [MemberReadPointer])
+
+    /// One or more members started or stopped typing. Ephemeral — never persisted or part of the
+    /// event log; the controller holds it as transient UI state and the server clears it with a
+    /// stopped/timed-out notification.
+    case typingChanged(conversationID: ConversationID, notifications: [TypingNotification])
 }
 
 /// A member's READ watermark from a live pointer update: everything at or before
@@ -79,6 +84,11 @@ extension ConversationStreamEvent {
         }
         if !readPointers.isEmpty {
             events.append(.readPointersChanged(conversationID: conversationID, pointers: readPointers))
+        }
+
+        let typing = update.isTypingNotifications.isTypingNotifications.compactMap(TypingNotification.init)
+        if !typing.isEmpty {
+            events.append(.typingChanged(conversationID: conversationID, notifications: typing))
         }
 
         return events

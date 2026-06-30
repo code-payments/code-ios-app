@@ -144,7 +144,7 @@ struct ConversationScreen: View {
     /// separators). Cash branding mirrors the SwiftUI bubble: USDF reads as "Cash"; a launchpad
     /// currency uses its cached name + icon.
     private var mappedItems: [ChatItem] {
-        ChatItem.from(
+        var items = ChatItem.from(
             messages,
             selfUserID: conversationController.selfUserID,
             counterpartRead: counterpartRead.map { (pointer: $0.pointer, date: $0.date) },
@@ -154,6 +154,10 @@ struct ConversationScreen: View {
                 return (balance.name, balance.imageURL)
             }
         )
+        if let conversationID, conversationController.isCounterpartTyping(in: conversationID) {
+            items.append(.typingIndicator)
+        }
+        return items
     }
 
     /// The counterpart's read watermark + time, read live from the observable

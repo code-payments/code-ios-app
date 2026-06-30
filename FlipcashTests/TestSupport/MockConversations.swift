@@ -12,6 +12,7 @@ import FlipcashCore
 final class MockConversations: ConversationFetching, ConversationMessaging, ConversationEventStreaming, @unchecked Sendable {
 
     struct Sent: Sendable { let conversationID: ConversationID; let text: String }
+    struct TypingCall: Sendable { let conversationID: ConversationID; let state: TypingState }
 
     private let lock = NSLock()
 
@@ -25,6 +26,7 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
     private var _sentClientIDs: [UUID] = []
     private var _sent: [Sent] = []
     private var _markedRead: [MessageID] = []
+    private var _typingCalls: [TypingCall] = []
     private var _didEnsure = false
     private var _didClose = false
     private var _streamContinuation: AsyncStream<ConversationStreamEvent>.Continuation?
@@ -60,6 +62,7 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
     var sentClientIDs: [UUID] { lock.withLock { _sentClientIDs } }
     var sent: [Sent] { lock.withLock { _sent } }
     var markedRead: [MessageID] { lock.withLock { _markedRead } }
+    var typingCalls: [TypingCall] { lock.withLock { _typingCalls } }
     var didEnsure: Bool { lock.withLock { _didEnsure } }
     var didClose: Bool { lock.withLock { _didClose } }
     /// Whether `openConversationStream` has been called — events emitted
@@ -116,6 +119,10 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
 
     func markRead(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws {
         lock.withLock { _markedRead.append(messageID) }
+    }
+
+    func notifyIsTyping(owner: KeyPair, conversationID: ConversationID, state: TypingState) async throws {
+        lock.withLock { _typingCalls.append(TypingCall(conversationID: conversationID, state: state)) }
     }
 
     // MARK: - ConversationEventStreaming

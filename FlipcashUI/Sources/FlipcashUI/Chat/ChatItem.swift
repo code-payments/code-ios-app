@@ -16,11 +16,14 @@ public enum ChatItem: Hashable, Sendable, Identifiable {
     case message(ChatMessage)
     /// A centered day + time header, e.g. "Today 12:13 PM". `text` is already formatted.
     case dateSeparator(id: String, text: String)
+    /// A leading-aligned typing bubble pinned at the transcript tail while the counterpart types.
+    case typingIndicator
 
     public var id: String {
         switch self {
         case .message(let message): message.id
         case .dateSeparator(let id, _): id
+        case .typingIndicator: "typing-indicator"
         }
     }
 }
