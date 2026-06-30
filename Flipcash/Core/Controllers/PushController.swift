@@ -122,6 +122,18 @@ class PushController {
         center.setBadgeCount(0)
     }
 
+    /// Removes delivered notifications for a single conversation from Notification
+    /// Center. Called when the user opens that conversation, so reading a thread
+    /// clears its own pushes without disturbing other chats or non-chat alerts.
+    func clearDeliveredNotifications(for conversationID: ConversationID) async {
+        let identifiers = await center.deliveredNotifications()
+            .filter { NotificationPayload.chatID($0.request.content.userInfo) == conversationID }
+            .map { $0.request.identifier }
+
+        guard !identifiers.isEmpty else { return }
+        center.removeDeliveredNotifications(withIdentifiers: identifiers)
+    }
+
     // MARK: - Authorization Status -
 
     /// Re-fetches the notification authorization status from the system.
