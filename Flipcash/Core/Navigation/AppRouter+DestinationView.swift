@@ -135,7 +135,10 @@ struct DestinationView: View {
         case .withdrawCurrency(let mint):
             PreselectedWithdrawRoot(
                 mint: mint,
-                onComplete: { sessionContainer.appRouter.popToRoot(on: .balance) }
+                // Reachable from the Wallet (.balance) and — since cash cards open currency info — from
+                // a chat (.conversation / .send). Reset the host stack, not a hardcoded one, so the
+                // user isn't stranded on the finished withdraw screen when it ran over a chat.
+                onComplete: { sessionContainer.appRouter.popToRoot() }
             )
 
         case .usdcDepositEducation:

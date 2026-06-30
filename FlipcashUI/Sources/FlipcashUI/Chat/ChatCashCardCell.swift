@@ -27,6 +27,17 @@ public final class ChatCashCardCell: ChatColumnCell {
     private let amountLabel = UILabel()
     private var iconTask: Task<Void, Never>?
 
+    /// Dim the card while pressed so the tap-to-open-currency-info affordance reads as a button.
+    /// Driven by the collection view's selection machinery (`shouldHighlightItemAt`), not a gesture.
+    public override var isHighlighted: Bool {
+        didSet {
+            guard isHighlighted != oldValue else { return }
+            UIView.animate(withDuration: 0.15) {
+                self.card.alpha = self.isHighlighted ? 0.6 : 1
+            }
+        }
+    }
+
     public override init(frame: CGRect) {
         super.init(frame: frame)
 
@@ -134,6 +145,11 @@ public final class ChatCashCardCell: ChatColumnCell {
             )
         )
         updateColumn(for: message)
+
+        // Resting alpha lives here, not just in prepareForReuse: an in-place reconfigure (a new
+        // message flipping this row's grouping) re-runs configure without prepareForReuse, so this is
+        // the single place that restores the press dim to match the current highlight state.
+        card.alpha = isHighlighted ? 0.6 : 1
     }
 }
 

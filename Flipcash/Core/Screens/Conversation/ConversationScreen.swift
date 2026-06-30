@@ -171,6 +171,7 @@ struct ConversationScreen: View {
             items: mappedItems,
             onReachTop: loadOlderMessages,
             onRetry: retry,
+            onCashCardTap: openCurrencyInfo,
             showsSendCash: sendTarget != nil,
             showsSendMessage: chatExists,
             conversationID: conversationID,
@@ -331,6 +332,18 @@ struct ConversationScreen: View {
     private func retry(messageID: String) {
         guard let conversationID, let clientMessageID = UUID(uuidString: messageID) else { return }
         Task { await conversationController.retry(clientMessageID: clientMessageID, in: conversationID) }
+    }
+
+    /// Push the tapped cash card's token currency info onto the current chat stack (so back returns
+    /// here). The id is the row's stable id; resolve it to the cash message's mint.
+    private func openCurrencyInfo(messageID: String) {
+        guard let message = messages.first(where: { $0.stableID == messageID }) else { return }
+        switch message.content {
+        case .cash(let fiat):
+            router.push(.currencyInfo(fiat.mint))
+        case .text:
+            break
+        }
     }
 
     /// Fetches the next older page when the UIKit transcript nears the top. Guarded so the

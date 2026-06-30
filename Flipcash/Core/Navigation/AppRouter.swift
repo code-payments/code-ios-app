@@ -168,6 +168,15 @@ final class AppRouter {
         logger.info("Reset stack", metadata: ["stack": "\(stack)"])
     }
 
+    /// Resets whichever stack the currently-presented sheet hosts to its root — the stack-agnostic
+    /// counterpart to `popToRoot(on:)`, mirroring `popTopmost()`. Used by completion handlers that
+    /// must unwind to the host stack's root without hand-stamping which stack they're on (e.g. the
+    /// withdraw flow, reachable from the Wallet, a deeplinked chat, or the recipient picker).
+    func popToRoot() {
+        guard let stack = presentedSheet?.stack else { return }
+        popToRoot(on: stack)
+    }
+
     /// Pops up to `count` items from the top of `stack`. Used by sub-flows
     /// (e.g., `WithdrawViewModel.popToEnterAmount`) that need to unwind a
     /// known number of substeps.
@@ -225,6 +234,13 @@ final class AppRouter {
     /// different sheet without going through `dismissSheet` first) leaves
     /// both paths intact, preserving the original "swap-and-return" behaviour.
     func present(_ sheet: SheetPresentation) {
+        // Roots that are re-entered fresh (the conversation root — see `resetsStackOnPresent`) clear
+        // their stack up front, before any branch below. One rule covers every re-entry: idempotent
+        // re-present, chat→chat swap, swap-away-then-return, and a re-present with a nested sheet above.
+        if sheet.resetsStackOnPresent {
+            popToRoot(on: sheet.stack)
+        }
+
         if presentedSheets == [sheet] { return }
 
         let previousTop = presentedSheet

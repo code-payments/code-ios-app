@@ -142,4 +142,105 @@ struct AppRouterConversationSendTests {
         #expect(router.presentedSheets == [.balance])
         #expect(router[.balance] == AppRouter.navigationPath(.currencyInfoForDeposit(.usdc)))
     }
+
+    // MARK: - In-chat currency info pushed on the conversation stack (cash card tap)
+
+    @Test("Swapping to a different chat clears the previous chat's pushed currency info")
+    func conversationSwap_clearsPushedLeaf() {
+        // A cash card tapped in chat A pushes currency info onto the shared .conversation stack; a
+        // deeplink/push for chat B must not inherit chat A's leaf.
+        let router = AppRouter()
+        let chatA = ConversationContext.existing(.test(0x01))
+        let chatB = ConversationContext.existing(.test(0x02))
+        router.present(.conversation(chatA))
+        router.push(.currencyInfo(.usdc))
+        #expect(router[.conversation] == AppRouter.navigationPath(.currencyInfo(.usdc)))
+
+        router.present(.conversation(chatB))
+
+        #expect(router.presentedSheets == [.conversation(chatB)])
+        #expect(router[.conversation].isEmpty)
+    }
+
+    @Test("Re-presenting the same chat with currency info pushed lands back on the chat")
+    func conversationRePresent_popsPushedLeaf() {
+        let router = AppRouter()
+        router.present(.conversation(Self.existingContext))
+        router.push(.currencyInfo(.usdc))
+
+        router.present(.conversation(Self.existingContext))  // same-chat deeplink/push re-arrival
+
+        #expect(router.presentedSheets == [.conversation(Self.existingContext)])
+        #expect(router[.conversation].isEmpty)
+    }
+
+    @Test("A cross-stack swap still preserves the swapped-out stack's path (swap-back)")
+    func crossStackSwap_preservesPath() {
+        // The conversation-leaf clearing must be scoped to same-stack swaps — a .balance → .settings
+        // swap must still keep .balance's path so swapping back restores it.
+        let router = AppRouter()
+        router.present(.balance)
+        router.push(.currencyInfo(.usdc))
+
+        router.present(.settings)
+
+        #expect(router.presentedSheets == [.settings])
+        #expect(router[.balance] == AppRouter.navigationPath(.currencyInfo(.usdc)))
+    }
+
+    @Test("popToRoot() resets the host stack so a chat-launched withdraw doesn't strand the user")
+    func popToRoot_resetsHostStack() {
+        // The withdraw flow's completion uses the stack-agnostic popToRoot(); reached from a chat it
+        // must reset the conversation stack (not a hardcoded .balance) and leave the chat presented.
+        let router = AppRouter()
+        router.present(.conversation(Self.existingContext))
+        router.push(.currencyInfo(.usdc))
+        router.push(.withdrawCurrency(.usdc))
+
+        router.popToRoot()
+
+        #expect(router.presentedSheets == [.conversation(Self.existingContext)])
+        #expect(router[.conversation].isEmpty)
+    }
+
+    @Test("popToRoot() from the Wallet stack still resets .balance, unchanged from the hardcoded path")
+    func popToRoot_walletStackUnchanged() {
+        let router = AppRouter()
+        router.present(.balance)
+        router.push(.currencyInfo(.usdc))
+        router.push(.withdrawCurrency(.usdc))
+
+        router.popToRoot()
+
+        #expect(router.presentedSheets == [.balance])
+        #expect(router[.balance].isEmpty)
+    }
+
+    @Test("Swapping away to another root then back to the chat lands on the chat, not the stale leaf")
+    func conversationSwapAwayAndBack_clearsLeaf() {
+        // Re-present after a cross-stack detour: the leaf left dangling on the swapped-away
+        // .conversation stack must clear when the chat is re-entered.
+        let router = AppRouter()
+        router.present(.conversation(Self.existingContext))
+        router.push(.currencyInfo(.usdc))
+        router.present(.balance)                              // swap away to a different root
+
+        router.present(.conversation(Self.existingContext))   // deeplink/push back to the chat
+
+        #expect(router.presentedSheets == [.conversation(Self.existingContext)])
+        #expect(router[.conversation].isEmpty)
+    }
+
+    @Test("Re-presenting the chat with a nested sheet above still clears the pushed leaf")
+    func conversationRePresent_withNestedAbove_clearsLeaf() {
+        let router = AppRouter()
+        router.present(.conversation(Self.existingContext))
+        router.push(.currencyInfo(.usdc))
+        router.presentNested(.sendAmount(Self.contact))       // nested sheet stacks above the chat
+
+        router.present(.conversation(Self.existingContext))   // same-chat deeplink/push re-arrival
+
+        #expect(router.presentedSheets == [.conversation(Self.existingContext)])
+        #expect(router[.conversation].isEmpty)
+    }
 }

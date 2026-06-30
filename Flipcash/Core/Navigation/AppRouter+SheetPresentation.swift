@@ -49,6 +49,17 @@ extension AppRouter {
             }
         }
 
+        /// Whether presenting this sheet should reset its stack to root first. A conversation is
+        /// always re-entered fresh — a deeplink/push should land on the chat, never on a leaf pushed
+        /// onto its stack (a cash card's currency info). Every other root preserves its path so a
+        /// swap-back or tab re-tap restores where the user was.
+        var resetsStackOnPresent: Bool {
+            switch self {
+            case .conversation: true
+            case .balance, .settings, .give, .discover, .buy, .downloadApp, .send, .sendAmount: false
+            }
+        }
+
         /// Payload-free case discriminator. Used by `presentNested` to detect
         /// "same case, different payload" (e.g. `.buy(A)` → `.buy(B)`) without
         /// comparing the stringly-typed `description`.
