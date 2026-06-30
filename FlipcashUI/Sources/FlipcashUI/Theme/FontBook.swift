@@ -19,7 +19,14 @@ public enum FontBook {
 
         registerFont(named: "RobotoMono-Regular", extension: "ttf")
     }
-    
+
+    /// Registers only the faces a notification extension renders (Avenir Medium + Demi). The full
+    /// set adds unused fonts the extension's tight memory budget can't spare.
+    public static func registerNotificationFonts() {
+        registerFont(named: "AvenirNextLTPro-Medium", extension: "otf")
+        registerFont(named: "AvenirNextLTPro-Demi", extension: "otf")
+    }
+
     @discardableResult
     private static func registerFont(named name: String, extension ext: String) -> Bool {
         guard let url = bundle.url(forResource: name, withExtension: ext) else {

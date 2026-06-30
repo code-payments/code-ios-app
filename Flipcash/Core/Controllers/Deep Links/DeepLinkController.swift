@@ -100,6 +100,9 @@ final class DeepLinkController {
         case .chatContact(let phone):
             return actionForChatContact(phone: phone)
 
+        case .chatSendCash(let conversationID):
+            return actionForChatSendCash(conversationID: conversationID)
+
         case .give:
             return actionForOpenSheet(.give)
 
@@ -163,6 +166,13 @@ final class DeepLinkController {
     private func actionForChatContact(phone: Phone) -> DeepLinkAction {
         DeepLinkAction(
             kind: .chatContact(phone),
+            sessionAuthenticator: sessionAuthenticator
+        )
+    }
+
+    private func actionForChatSendCash(conversationID: ConversationID) -> DeepLinkAction {
+        DeepLinkAction(
+            kind: .chatSendCash(conversationID),
             sessionAuthenticator: sessionAuthenticator
         )
     }
@@ -249,6 +259,22 @@ struct DeepLinkAction {
                 container.appRouter.present(.conversation(.contact(contact)))
             }
 
+        case .chatSendCash(let conversationID):
+            if case .loggedIn(let container) = sessionAuthenticator.state {
+                let conversation = container.conversationController.conversation(withID: conversationID)
+                if let target = ResolvedContact.sendTarget(
+                    in: conversation,
+                    dmChatID: conversationID.data,
+                    selfUserID: container.session.userID
+                ), container.session.canSend {
+                    Analytics.deeplinkRouted(kind: kind)
+                    // Open the Send Cash amount entry directly as the sheet — one
+                    // animation, no chat behind it. Dismissing returns to where the
+                    // user was (the chat itself is reachable via the chat deeplink).
+                    container.appRouter.present(.sendAmount(target))
+                }
+            }
+
         case .openSheet(let sheet):
             if case .loggedIn(let container) = sessionAuthenticator.state {
                 Analytics.deeplinkRouted(kind: kind)
@@ -280,6 +306,7 @@ extension DeepLinkAction {
         case currencyInfo(PublicKey)
         case chat(ConversationID)
         case chatContact(Phone)
+        case chatSendCash(ConversationID)
         case openSheet(AppRouter.SheetPresentation)
     }
 }
@@ -287,12 +314,13 @@ extension DeepLinkAction {
 extension DeepLinkAction.Kind {
     var analyticsName: String {
         switch self {
-        case .accessKey:        "Login"
-        case .receiveCashLink:  "CashLink"
-        case .verifyEmail:      "EmailVerification"
-        case .currencyInfo:     "TokenInfo"
-        case .chat:             "Chat"
-        case .chatContact:      "ChatContact"
+        case .accessKey:            "Login"
+        case .receiveCashLink:      "CashLink"
+        case .verifyEmail:          "EmailVerification"
+        case .currencyInfo:         "TokenInfo"
+        case .chat:                 "Chat"
+        case .chatContact:          "ChatContact"
+        case .chatSendCash:         "ChatSendCash"
         case .openSheet(let sheet): "Sheet:\(sheet)"
         }
     }

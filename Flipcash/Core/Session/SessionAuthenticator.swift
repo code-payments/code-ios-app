@@ -98,6 +98,8 @@ final class SessionAuthenticator {
             return
         }
 
+        SharedKeychainMigration.migrateOwnerKeyIfNeeded()
+
         initializeState { userAccount in
             let initializedAccount = InitializedAccount(
                 keyAccount: userAccount.keyAccount,
@@ -432,6 +434,9 @@ final class SessionAuthenticator {
         }
 
         accountManager.resetForLogout()
+
+        // Drop cached notification previews — they hold chat text in cleartext in the App Group.
+        NotificationPreviewCache.clear()
 
         state = .loggedOut
         requiresForceLogout = false

@@ -43,12 +43,9 @@ enum AppIntentContext {
         await sendableContacts().first { $0.id == id }
     }
 
-    /// Foregrounds the app on `contact`'s conversation with the Send Cash amount
-    /// entry stacked on top, so dismissing it lands back in the chat — the same
-    /// router path the in-chat Send Cash button drives.
+    /// Foregrounds the app on the Send Cash amount entry for `contact`, presented
+    /// directly as a sheet (one animation, no chat behind).
     static func openSendFlow(to contact: ResolvedContact) {
-        guard let router = loggedInContainer?.appRouter else { return }
-        router.present(.conversation(.contact(contact)))
-        router.presentNested(.sendAmount(contact))
+        loggedInContainer?.appRouter.present(.sendAmount(contact))
     }
 }

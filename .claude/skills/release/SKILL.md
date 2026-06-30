@@ -166,8 +166,7 @@ Please verify on the TestFlight build:
 □ Claim a Cash Link on an empty account
 □ Buy a currency with Phantom
 □ Scan & Send between 2 devices
-□ Send cash to a contact
-□ Send a message to a contact
+□ Expand a chat notification — the rich transcript renders + Reply works
 
 Tell me when you're ready to draft the public release.
 ```

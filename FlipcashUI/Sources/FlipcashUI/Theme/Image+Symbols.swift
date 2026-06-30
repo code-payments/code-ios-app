@@ -25,6 +25,14 @@ extension Image {
     public static func cryptoFlag(_ currency: CurrencyCode) -> Image  {
         Image(currency.rawValue.uppercased(), bundle: Bundle.module)
     }
+
+    /// Loads a cash card's flag image by the raw asset name carried on
+    /// `ChatCashContent.flagImageName`, or nil when the asset is absent — mirrors
+    /// `ChatCashCardCell`'s `UIImage(named:in: .module)` lookup so a client that can't reach this
+    /// bundle's `.module` (e.g. the notification extension) can still render the same flag.
+    public static func cashFlag(named name: String) -> Image? {
+        UIImage(named: name, in: Bundle.module, compatibleWith: nil).map(Image.init(uiImage:))
+    }
 }
 
 extension UIImage {

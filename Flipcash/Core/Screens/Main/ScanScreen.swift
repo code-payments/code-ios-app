@@ -399,11 +399,11 @@ private struct RoutedSheet: View {
             // notification. The picker → chat flow pushes `.dmConversation`
             // onto the `.send` stack instead.
             ConversationSheetRoot(context: context)
-        case .sendAmount:
-            // Nested-only sheet — Send Cash enters it via
-            // `presentNested(.sendAmount)`. Rendering EmptyView at root is a
-            // defensive no-op, mirroring `.buy`.
-            EmptyView()
+        case .sendAmount(let contact):
+            // Send Cash entered directly as a root sheet — e.g. the notification
+            // Send Cash deeplink / App Intent opens the amount entry with no chat
+            // behind it. (In-chat Send Cash still enters it via presentNested.)
+            SendAmountSheetRoot(contact: contact)
         }
     }
 }

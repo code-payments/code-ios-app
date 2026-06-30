@@ -1,6 +1,6 @@
 //
 //  ChatMessage.swift
-//  FlipcashUI
+//  FlipcashCore
 //
 //  Copyright © 2026 Code Inc. All rights reserved.
 //
@@ -10,17 +10,17 @@ import Foundation
 /// A single rendered chat row — pure data, no behavior. The whole chat UI is driven by
 /// values like this; the views know nothing about the network, the database, or how the
 /// message was produced. Everything they need to draw is here, already display-ready.
-public struct ChatMessage: Hashable, Sendable, Identifiable {
+public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
 
     /// Which side of the transcript the message sits on.
-    public enum Sender: Hashable, Sendable {
+    public enum Sender: Hashable, Sendable, Codable {
         case me
         case other
     }
 
     /// What the row renders. Display-ready — the cash case carries pre-formatted strings, not a
     /// money type, so the cell stays dumb.
-    public enum Content: Hashable, Sendable {
+    public enum Content: Hashable, Sendable, Codable {
         case text(String)
         case cash(ChatCashContent)
     }
@@ -82,7 +82,7 @@ public struct ChatMessage: Hashable, Sendable, Identifiable {
 }
 
 /// A cash payment row's display data — already formatted, so the cell renders strings + images.
-public struct ChatCashContent: Hashable, Sendable {
+public struct ChatCashContent: Hashable, Sendable, Codable {
     /// The amount in the user's currency, formatted for display (e.g. "$5.00").
     public let amount: String
     /// The token's display name (e.g. "Cash").

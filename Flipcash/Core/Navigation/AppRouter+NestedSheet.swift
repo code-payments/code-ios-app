@@ -115,10 +115,10 @@ private struct BuySheetRoot: View {
     }
 }
 
-/// Root view for the `.sendAmount(contact)` nested sheet — Send Cash stacks it on
-/// top of the chat. The `NavigationStack` is unbound: nothing pushes onto this
-/// stack, so it exists only to render the screen's toolbar.
-private struct SendAmountSheetRoot: View {
+/// Root view for the `.sendAmount(contact)` sheet — Send Cash, presented either stacked on the
+/// chat (in-chat send) or directly as a root sheet (notification deeplink / App Intent). The
+/// `NavigationStack` is unbound: nothing pushes onto it, so it exists only to render the toolbar.
+struct SendAmountSheetRoot: View {
 
     let contact: ResolvedContact
 

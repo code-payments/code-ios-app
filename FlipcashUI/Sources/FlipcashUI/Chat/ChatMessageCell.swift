@@ -7,6 +7,7 @@
 
 #if canImport(UIKit)
 import UIKit
+import FlipcashCore
 
 /// A recycled collection-view cell that hosts a `ChatBubbleView` in a `ChatColumnCell`. The bubble is
 /// capped at a *constant* max width supplied by the owner, so the label wraps at a known width during

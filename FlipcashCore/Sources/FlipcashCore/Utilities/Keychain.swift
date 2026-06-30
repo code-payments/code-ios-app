@@ -24,59 +24,138 @@ public class Keychain {
     }
     
     @discardableResult
-    public static func set(_ data: Data, for key: String, useSynchronization: Bool = false) -> Bool {
-        let query = Query(
+    public static func set(_ data: Data, for key: String, useSynchronization: Bool = false, accessGroup: String? = nil) -> Bool {
+        var query = Query(
             .service("Flipcash (\(key))"),
             .account(key),
             .class(.genericPassword),
             .value(data),
             .isSynchronizable(useSynchronization ? .true : .false)
         )
-        
+        if let accessGroup {
+            query.insert(.accessGroup(accessGroup))
+            query.insert(.accessible(.afterFirstUnlock))
+        }
+
         // Keychain will reject any insert queries for
         // duplicate items. We have to delete before
         // inserting any potential duplicates.
-        delete(key)
-        
+        delete(key, accessGroup: accessGroup)
+
         return addItem(query: query)
     }
-    
+
     // MARK: - Getters -
-    
+
     public static func string(for key: String) -> String? {
         if let data = data(for: key) {
             return String(data: data, encoding: .utf8)
         }
         return nil
     }
-    
-    public static func data(for key: String) -> Data? {
-        let query = Query(
+
+    public static func data(for key: String, accessGroup: String? = nil) -> Data? {
+        var query = Query(
             .account(key),
             .matchLimit(.one),
             .class(.genericPassword),
             .isSynchronizable(.any),
             .shouldReturnData(true)
         )
-        
+        if let accessGroup {
+            query.insert(.accessGroup(accessGroup))
+        }
+
         return copyMatching(query: query)
     }
-    
+
     // MARK: - Delete -
-    
+
     @discardableResult
-    public static func delete(_ key: String) -> Bool {
-        let query = Query(
+    public static func delete(_ key: String, accessGroup: String? = nil) -> Bool {
+        var query = Query(
             .account(key),
             .class(.genericPassword),
             .isSynchronizable(.any)
         )
-        
+        if let accessGroup {
+            query.insert(.accessGroup(accessGroup))
+        }
+
         return SecItemDelete(query.dictionary) == noErr
     }
     
+    // MARK: - Shared Access Group -
+
+    /// The team-prefixed shared keychain access group
+    /// (`"<teamPrefix>.com.flipcash.shared"`), or `nil` if the team prefix
+    /// can't be resolved at runtime. Stores the owner key where a notification
+    /// extension in the same access group can read it.
+    public static var sharedAccessGroup: String? {
+        sharedAccessGroupLock.lock()
+        defer { sharedAccessGroupLock.unlock() }
+
+        if let cached = cachedSharedAccessGroup {
+            return cached
+        }
+
+        let resolved = resolveTeamPrefix().map { "\($0).com.flipcash.shared" }
+        cachedSharedAccessGroup = .some(resolved)
+        return resolved
+    }
+
+    private static let sharedAccessGroupLock = NSLock()
+    /// `nil` until first resolved; then `.some(value)`, where the inner value is the group or `nil`
+    /// when the team prefix couldn't be resolved.
+    nonisolated(unsafe) private static var cachedSharedAccessGroup: String??
+
+    /// Resolves the app's keychain access-group prefix (the team identifier
+    /// prefix) by adding a throwaway generic-password item with no explicit
+    /// access group, reading back its `kSecAttrAccessGroup` attribute, and
+    /// taking the first dot-separated component. The probe item is deleted.
+    private static func resolveTeamPrefix() -> String? {
+        let probeKey = "com.flipcash.keychain.teamPrefixProbe"
+        let probeQuery = Query(
+            .service("Flipcash (\(probeKey))"),
+            .account(probeKey),
+            .class(.genericPassword),
+            .accessible(.afterFirstUnlock),
+            .value(Data([0x00]))
+        )
+
+        SecItemDelete(probeQuery.dictionary)
+        guard SecItemAdd(probeQuery.dictionary, nil) == errSecSuccess else {
+            logger.warning("Failed to add keychain probe item for team prefix")
+            return nil
+        }
+
+        defer {
+            SecItemDelete(probeQuery.dictionary)
+        }
+
+        let readQuery = Query(
+            .account(probeKey),
+            .class(.genericPassword),
+            .matchLimit(.one),
+            .shouldReturnAttributes(true)
+        )
+
+        var result: AnyObject?
+        guard
+            SecItemCopyMatching(readQuery.dictionary, &result) == errSecSuccess,
+            let attributes = result as? [String: Any],
+            let accessGroup = attributes[kSecAttrAccessGroup as String] as? String,
+            let prefix = accessGroup.split(separator: ".").first
+        else {
+            logger.warning("Failed to read keychain access group for team prefix")
+            return nil
+        }
+
+        return String(prefix)
+    }
+
     // MARK: - Security -
-    
+
     private static func copyMatching(query: Query) -> Data? {
         var result: AnyObject?
         let status = SecItemCopyMatching(query.dictionary, &result)

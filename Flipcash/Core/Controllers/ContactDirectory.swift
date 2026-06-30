@@ -53,7 +53,7 @@ extension ResolvedContact {
     /// works before the person is a synced contact. `nil` when no number is on
     /// file. The phone resolves the recipient and `dmChatID` carries the chat
     /// payment metadata; the display fields aren't read by the send flow.
-    init?(counterpart member: ConversationMember, dmChatID: Data?) {
+    nonisolated init?(counterpart member: ConversationMember, dmChatID: Data?) {
         guard let phoneE164 = member.phoneE164, !phoneE164.isEmpty else { return nil }
         let national = member.formattedPhoneNumber ?? phoneE164
         self.init(
@@ -64,6 +64,13 @@ extension ResolvedContact {
             imageData: nil,
             dmChatID: dmChatID
         )
+    }
+
+    /// The Send Cash target for a DM `conversation`: its counterpart resolved by phone number,
+    /// carrying `dmChatID`. `nil` when there's no counterpart or no number on file.
+    nonisolated static func sendTarget(in conversation: Conversation?, dmChatID: Data?, selfUserID: UserID) -> ResolvedContact? {
+        guard let counterpart = conversation?.counterpart(excluding: selfUserID) else { return nil }
+        return ResolvedContact(counterpart: counterpart, dmChatID: dmChatID)
     }
 }
 

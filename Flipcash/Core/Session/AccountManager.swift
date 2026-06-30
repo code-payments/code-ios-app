@@ -149,7 +149,7 @@ class AccountManager {
 // MARK: - Keychain -
 
 private extension Keychain {
-    @SecureCodable(.currentUserAccount)
+    @SecureCodable(.currentUserAccount, sharedGroup: true)
     static var userAccount: UserAccount?
 
     @SecureCodable(.historicalAccounts, sync: true)

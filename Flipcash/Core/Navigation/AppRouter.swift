@@ -240,7 +240,6 @@ final class AppRouter {
         if sheet.resetsStackOnPresent {
             popToRoot(on: sheet.stack)
         }
-
         if presentedSheets == [sheet] { return }
 
         let previousTop = presentedSheet
