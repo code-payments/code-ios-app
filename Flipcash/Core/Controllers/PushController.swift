@@ -122,6 +122,13 @@ class PushController {
         center.setBadgeCount(0)
     }
 
+    /// Removes every notification already delivered to Notification Center. Called
+    /// when the app becomes active so the user isn't left with a stack of pushes
+    /// for content they're about to see in-app.
+    func clearDeliveredNotifications() {
+        center.removeAllDeliveredNotifications()
+    }
+
     // MARK: - Authorization Status -
 
     /// Re-fetches the notification authorization status from the system.
