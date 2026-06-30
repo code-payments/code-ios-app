@@ -439,8 +439,13 @@ private struct RecipientRowBody<Trailing: View>: View {
                         .font(.appTextSmall)
                         .foregroundStyle(Color.textSecondary)
                         .lineLimit(1)
+                        .contentTransition(.opacity)
+                        .transition(.opacity)
                 }
             }
+            // Cross-fade the subtitle when it changes — notably the "Typing…" ⇄ last-message swap, but
+            // also a fresh message preview replacing the previous one.
+            .animation(.easeInOut(duration: 0.2), value: subtitle)
             Spacer(minLength: 12)
             trailing
         }
@@ -490,6 +495,9 @@ private struct RecipientListItemRow: View {
         case .contact:
             return nil
         case .conversation(let conversation), .matched(_, let conversation):
+            if conversationController.isCounterpartTyping(in: conversation.id) {
+                return "Typing…"
+            }
             guard let message = conversation.lastMessage else { return nil }
             switch message.content {
             case .text(let text):

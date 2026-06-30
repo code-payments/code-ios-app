@@ -250,6 +250,9 @@ public struct ConversationStore: Sendable {
             for pointer in pointers {
                 advanceReadPointer(to: pointer.value, for: pointer.userID, at: pointer.date, in: conversationID)
             }
+        case .typingChanged:
+            // Typing is ephemeral UI state held by the controller, never the persisted message store.
+            break
         }
     }
 

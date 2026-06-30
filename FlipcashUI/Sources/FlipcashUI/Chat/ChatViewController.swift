@@ -109,6 +109,7 @@ public final class ChatViewController: UICollectionViewController {
         collectionView.register(ChatMessageCell.self, forCellWithReuseIdentifier: ChatMessageCell.reuseIdentifier)
         collectionView.register(ChatCashCardCell.self, forCellWithReuseIdentifier: ChatCashCardCell.reuseIdentifier)
         collectionView.register(ChatDateSeparatorCell.self, forCellWithReuseIdentifier: ChatDateSeparatorCell.reuseIdentifier)
+        collectionView.register(ChatTypingIndicatorCell.self, forCellWithReuseIdentifier: ChatTypingIndicatorCell.reuseIdentifier)
         collectionView.reloadData()
     }
 
@@ -200,6 +201,11 @@ public final class ChatViewController: UICollectionViewController {
 
     public override func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         switch items[indexPath.item] {
+        case .typingIndicator:
+            return collectionView.dequeueReusableCell(
+                withReuseIdentifier: ChatTypingIndicatorCell.reuseIdentifier,
+                for: indexPath
+            ) as! ChatTypingIndicatorCell
         case .dateSeparator(_, let text):
             let cell = collectionView.dequeueReusableCell(
                 withReuseIdentifier: ChatDateSeparatorCell.reuseIdentifier,
@@ -254,6 +260,17 @@ public final class ChatViewController: UICollectionViewController {
         guard items.indices.contains(indexPath.item),
               case .message(let message) = items[indexPath.item], case .cash = message.content else { return nil }
         return message.id
+    }
+
+    /// The typing indicator's dot wave is driven here, not from the cell's `didMoveToWindow`: a recycled
+    /// cell loses its `CAAnimation`s, and `willDisplay`/`didEndDisplaying` are the reliable per-appearance
+    /// hooks, so the wave restarts every time the row is (re)inserted.
+    public override func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
+        (cell as? ChatTypingIndicatorCell)?.startAnimating()
+    }
+
+    public override func collectionView(_ collectionView: UICollectionView, didEndDisplaying cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
+        (cell as? ChatTypingIndicatorCell)?.stopAnimating()
     }
 
     // MARK: - Scrolling
@@ -400,6 +417,8 @@ extension ChatViewController {
                 return nil
             }
         case .dateSeparator:
+            return nil
+        case .typingIndicator:
             return nil
         }
 

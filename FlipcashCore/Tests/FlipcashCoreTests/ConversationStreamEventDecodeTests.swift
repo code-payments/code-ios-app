@@ -139,4 +139,59 @@ struct ConversationStreamEventDecodeTests {
         #expect(ConversationStreamEvent.decode(Flipcash_Event_V1_Event.with { $0.test = .init() }).isEmpty)
         #expect(ConversationStreamEvent.decode(Flipcash_Event_V1_Event()).isEmpty)
     }
+
+    private func typing(_ user: Data, _ state: Flipcash_Messaging_V1_IsTypingNotification.State) -> Flipcash_Messaging_V1_IsTypingNotification {
+        .with { $0.userID = .with { $0.value = user }; $0.state = state }
+    }
+
+    @Test("started/still typing decodes to active notifications; stopped/timed-out to inactive; unknown is dropped")
+    func typingNotifications() throws {
+        let u1 = Data((0..<16).map { UInt8($0) })
+        let u2 = Data((16..<32).map { UInt8($0) })
+        let event = Flipcash_Event_V1_Event.with {
+            $0.chatUpdate = .with {
+                $0.chat = .with { $0.value = conversationBytes }
+                $0.isTypingNotifications = .with {
+                    $0.isTypingNotifications = [
+                        typing(u1, .startedTyping),
+                        typing(u2, .stoppedTyping),
+                        typing(u1, .unknownTypingState),
+                    ]
+                }
+            }
+        }
+
+        let decoded = ConversationStreamEvent.decode(event)
+        guard case .typingChanged(let conversationID, let notifications) = decoded.first else {
+            Issue.record("expected .typingChanged"); return
+        }
+        #expect(conversationID == ConversationID(data: conversationBytes))
+        #expect(notifications.count == 2) // unknown dropped
+        #expect(notifications.contains(TypingNotification(userID: try UUID(data: u1), isActive: true)))
+        #expect(notifications.contains(TypingNotification(userID: try UUID(data: u2), isActive: false)))
+    }
+
+    @Test("an empty typing batch produces no typing event")
+    func typingEmpty() {
+        let event = Flipcash_Event_V1_Event.with {
+            $0.chatUpdate = .with { $0.chat = .with { $0.value = conversationBytes } }
+        }
+        #expect(!ConversationStreamEvent.decode(event).contains { if case .typingChanged = $0 { true } else { false } })
+    }
+
+    @Test("messages and typing in one update decode to both events")
+    func messagesAndTyping() {
+        let u1 = Data((0..<16).map { UInt8($0) })
+        let event = Flipcash_Event_V1_Event.with {
+            $0.chatUpdate = .with {
+                $0.chat = .with { $0.value = conversationBytes }
+                $0.newMessages = .with { $0.messages = [textMessage(1, "hi")] }
+                $0.isTypingNotifications = .with { $0.isTypingNotifications = [typing(u1, .startedTyping)] }
+            }
+        }
+        let decoded = ConversationStreamEvent.decode(event)
+        #expect(decoded.count == 2)
+        #expect(decoded.contains { if case .newMessages = $0 { true } else { false } })
+        #expect(decoded.contains { if case .typingChanged = $0 { true } else { false } })
+    }
 }

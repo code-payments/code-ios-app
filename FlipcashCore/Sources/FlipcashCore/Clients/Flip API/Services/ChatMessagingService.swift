@@ -105,6 +105,26 @@ final class ChatMessagingService: Sendable {
             }
         }
     }
+
+    func notifyIsTyping(owner: KeyPair, conversationID: ConversationID, state: TypingState, completion: @Sendable @escaping (Result<Void, ErrorNotifyIsTyping>) -> Void) {
+        let request = Flipcash_Messaging_V1_NotifyIsTypingRequest.with {
+            $0.chatID = conversationID.proto
+            $0.state = state.proto
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                let response = try await service.notifyIsTyping(request, options: .unaryDefault)
+                let error = ErrorNotifyIsTyping(rawValue: response.result.rawValue) ?? .unknown
+                await MainActor.run { completion(error == .ok ? .success(()) : .failure(error)) }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
 }
 
 // MARK: - Errors -
@@ -132,6 +152,13 @@ public enum ErrorAdvancePointer: Int, Error {
     case transportFailure = -2
 }
 
+public enum ErrorNotifyIsTyping: Int, Error {
+    case ok
+    case denied
+    case unknown          = -1
+    case transportFailure = -2
+}
+
 extension ErrorGetMessages: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
@@ -154,6 +181,15 @@ extension ErrorAdvancePointer: ServerError, TransportClassifiableError {
     public var isReportable: Bool {
         switch self {
         case .ok, .denied, .messageNotFound, .transportFailure: false
+        case .unknown: true
+        }
+    }
+}
+
+extension ErrorNotifyIsTyping: ServerError, TransportClassifiableError {
+    public var isReportable: Bool {
+        switch self {
+        case .ok, .denied, .transportFailure: false
         case .unknown: true
         }
     }

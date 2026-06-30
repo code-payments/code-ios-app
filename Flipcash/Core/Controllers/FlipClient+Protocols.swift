@@ -73,6 +73,7 @@ protocol ConversationMessaging: AnyObject, Sendable {
     func getMessages(owner: KeyPair, conversationID: ConversationID, before: MessageID?) async throws -> [ConversationMessage]
     func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String, clientMessageID: UUID) async throws -> ConversationMessage
     func markRead(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws
+    func notifyIsTyping(owner: KeyPair, conversationID: ConversationID, state: TypingState) async throws
 }
 
 /// The single per-user event stream surface used by `ConversationController`. Wraps the
