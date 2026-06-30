@@ -120,7 +120,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             sessionContainer?.contactSyncController.didBecomeActive()
             sessionContainer?.conversationController.ensureConnected()
             sessionContainer?.pushController.clearBadgeCount()
-            sessionContainer?.pushController.clearDeliveredNotifications()
         case .inactive:
             break
         @unknown default:

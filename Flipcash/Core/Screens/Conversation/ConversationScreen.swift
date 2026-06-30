@@ -40,6 +40,7 @@ struct ConversationScreen: View {
     @Environment(AppRouter.self) private var router
     @Environment(Session.self) private var session
     @Environment(RatesController.self) private var ratesController
+    @Environment(PushController.self) private var pushController
 
     @State private var didInitialRead = false
     @State private var barModel = ConversationBarModel()
@@ -227,6 +228,8 @@ struct ConversationScreen: View {
             guard chatExists, let conversationID else { return }
             await conversationController.loadMessages(for: conversationID)
             await conversationController.markRead(conversationID: conversationID)
+            // Reading the thread clears its own delivered pushes; other chats keep theirs.
+            await pushController.clearDeliveredNotifications(for: conversationID)
             didInitialRead = true
         }
         .onChange(of: latestConfirmedMessage?.stableID) {
