@@ -17,8 +17,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     let container: Container
 
-    private var lastBackgroundedAt: Date?
-
     private var inFlightDeepLinks: Set<URL> = []
 
     private var sessionContainer: SessionContainer? {
@@ -110,7 +108,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         switch phase {
         case .background:
             logger.info("scenePhase → background")
-            lastBackgroundedAt = .now
             sessionContainer?.session.didEnterBackground()
             container.preferences.appDidEnterBackground()
             sessionContainer?.pushController.clearBadgeCount()
@@ -118,8 +115,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             logger.info("scenePhase → active")
             container.client.warmUpChannel()
             container.flipClient.warmUpChannel()
-            applyAutoReturnIfNeeded()
-            lastBackgroundedAt = nil
             sessionContainer?.session.didBecomeActive()
             sessionContainer?.usdcSweepOperation.start()
             sessionContainer?.contactSyncController.didBecomeActive()
@@ -132,18 +127,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
     }
 
-    /// Globally dismisses all sheets and stacks if the app was backgrounded
-    /// long enough. Idempotent — see ``consumeAutoReturn(now:lastBackgroundedAt:)``.
-    private func applyAutoReturnIfNeeded() {
-        guard let sessionContainer,
-              AppDelegate.consumeAutoReturn(
-                  now: .now,
-                  lastBackgroundedAt: &lastBackgroundedAt
-              )
-        else { return }
-        sessionContainer.appRouter.dismissAll()
-    }
-
     // MARK: - Deep Links -
 
     func handleOpenURL(url: URL) {
@@ -154,9 +137,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             logger.info("Ignoring duplicate deep link", metadata: ["url": "\(url.sanitizedForAnalytics)"])
             return
         }
-
-        // Run auto-return before navigate so dismissAll can't clobber the deep link.
-        applyAutoReturnIfNeeded()
 
         Analytics.deeplinkOpened(url: url)
         let action = container.deepLinkController.handle(open: url)
@@ -211,52 +191,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         logger.error("Push notification registration failed", metadata: ["error": "\(error)"])
     }
 
-}
-
-// MARK: - Auto Return -
-
-extension AppDelegate {
-
-    /// How long the app must be in the background before the next foreground
-    /// triggers a return to the Scanner.
-    static let autoReturnAfter: TimeInterval = 5 * 60
-
-    /// Pure-function predicate for the auto-return trigger. Returns `true`
-    /// when the app has been in the background at least ``autoReturnAfter``.
-    /// `timeout` is a parameter so tests can pin a specific value; production
-    /// callers omit it. Extracted so tests can exercise the boundary
-    /// conditions without standing up a full `AppDelegate` + `Container` +
-    /// `Session` graph.
-    static func shouldAutoReturn(
-        now: Date,
-        lastBackgroundedAt: Date?,
-        timeout: TimeInterval = autoReturnAfter
-    ) -> Bool {
-        guard let lastBackgroundedAt else { return false }
-        return now.timeIntervalSince(lastBackgroundedAt) >= timeout
-    }
-
-    /// Atomic gate for the auto-return trigger. Returns `true` exactly once
-    /// per background cycle: when the elapsed background time is at least
-    /// ``autoReturnAfter``, it clears `lastBackgroundedAt` inline and
-    /// returns `true`. Otherwise leaves the timestamp intact and returns
-    /// `false`.
-    ///
-    /// Both `applyAutoReturnIfNeeded` (the `.active` scene-phase path) and
-    /// `handleOpenURL` (the deep-link path) call this. Whichever runs first
-    /// owns the dismiss; the other sees `nil` and no-ops. This is the
-    /// mechanism that prevents the auto-return from clobbering a deep-link
-    /// `navigate(to:)` that ran in the same foreground transition.
-    static func consumeAutoReturn(
-        now: Date,
-        lastBackgroundedAt: inout Date?
-    ) -> Bool {
-        guard shouldAutoReturn(now: now, lastBackgroundedAt: lastBackgroundedAt) else {
-            return false
-        }
-        lastBackgroundedAt = nil
-        return true
-    }
 }
 
 // MARK: - Appearance -
