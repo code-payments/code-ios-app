@@ -7,7 +7,8 @@ import SwiftUI
 import FlipcashCore
 
 struct CurrencyDiscoveryList: View {
-    let container: Container
+    @Environment(Container.self) private var container
+
     let onSelectMint: (PublicKey) -> Void
 
     @State private var mints: [MintMetadata]?

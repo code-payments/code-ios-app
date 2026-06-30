@@ -9,7 +9,30 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
+/// Thin environment-reading wrapper that hands the DI containers to
+/// ``CurrencyInfoScreenContent``, whose two-init delegation builds the `@State`
+/// view model and the market-cap controller synchronously from the mint.
+/// `.id(mint)` on this wrapper at the call site rebuilds both when the mint
+/// changes.
 struct CurrencyInfoScreen: View {
+
+    @Environment(Container.self) private var container
+    @Environment(SessionContainer.self) private var sessionContainer
+
+    let mint: PublicKey
+    var showBuyOnAppear: Bool = false
+
+    var body: some View {
+        CurrencyInfoScreenContent(
+            mint: mint,
+            container: container,
+            sessionContainer: sessionContainer,
+            showBuyOnAppear: showBuyOnAppear
+        )
+    }
+}
+
+private struct CurrencyInfoScreenContent: View {
     @State private var viewModel: CurrencyInfoViewModel
 
     @Environment(\.dismiss) private var dismiss
@@ -31,7 +54,6 @@ struct CurrencyInfoScreen: View {
     @Environment(WalletConnection.self) private var walletConnection
 
     private let mint: PublicKey
-    private let container: Container
     private let ratesController: RatesController
     private let marketCapController: MarketCapController
     private let showBuyOnAppear: Bool
@@ -46,7 +68,6 @@ struct CurrencyInfoScreen: View {
         showBuyOnAppear: Bool
     ) {
         self.mint                = mint
-        self.container           = container
         self.ratesController     = sessionContainer.ratesController
         self.session             = sessionContainer.session
         self.showBuyOnAppear = showBuyOnAppear

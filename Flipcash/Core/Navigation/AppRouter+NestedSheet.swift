@@ -21,15 +21,12 @@ extension View {
     /// aware conditional mount. A previous recursive version mounted a dormant
     /// inner `.sheet(item:)` that swallowed `interactiveDismissDisabled` from
     /// descendants, re-enabling swipe-dismiss on screens that opted out.
-    func appRouterNestedSheet(container: Container, sessionContainer: SessionContainer) -> some View {
-        modifier(AppRouterNestedSheetModifier(container: container, sessionContainer: sessionContainer))
+    func appRouterNestedSheet() -> some View {
+        modifier(AppRouterNestedSheetModifier())
     }
 }
 
 private struct AppRouterNestedSheetModifier: ViewModifier {
-
-    let container: Container
-    let sessionContainer: SessionContainer
 
     @Environment(AppRouter.self) private var router
     @Environment(\.nestedSheetDepth) private var depth
@@ -53,12 +50,8 @@ private struct AppRouterNestedSheetModifier: ViewModifier {
             }
         )
         return content.sheet(item: binding) { nested in
-            NestedSheetRootView(
-                sheet: nested,
-                container: container,
-                sessionContainer: sessionContainer
-            )
-            .environment(\.nestedSheetDepth, depth + 1)
+            NestedSheetRootView(sheet: nested)
+                .environment(\.nestedSheetDepth, depth + 1)
         }
     }
 }
@@ -69,23 +62,14 @@ private struct AppRouterNestedSheetModifier: ViewModifier {
 private struct NestedSheetRootView: View {
 
     let sheet: AppRouter.SheetPresentation
-    let container: Container
-    let sessionContainer: SessionContainer
 
     var body: some View {
         switch sheet {
         case .buy(let mint):
-            BuySheetRoot(
-                mint: mint,
-                container: container,
-                sessionContainer: sessionContainer
-            )
+            BuySheetRoot(mint: mint)
 
         case .sendAmount(let contact):
-            SendAmountSheetRoot(
-                contact: contact,
-                sessionContainer: sessionContainer
-            )
+            SendAmountSheetRoot(contact: contact)
 
         case .balance, .settings, .give, .discover, .downloadApp, .send, .conversation:
             // Root-only sheets — they shouldn't be presented as nested. If
@@ -103,9 +87,8 @@ private struct NestedSheetRootView: View {
 private struct BuySheetRoot: View {
 
     let mint: PublicKey
-    let container: Container
-    let sessionContainer: SessionContainer
 
+    @Environment(SessionContainer.self) private var sessionContainer
     @Environment(AppRouter.self) private var router
 
     var body: some View {
@@ -127,7 +110,7 @@ private struct BuySheetRoot: View {
             // `.usdcDepositAddress`) are pushed from the Other Wallet path. They
             // share the same screens reached from the Wallet sheet, so register
             // the app-wide destination map here too.
-            .appRouterDestinations(container: container, sessionContainer: sessionContainer)
+            .appRouterDestinations()
         }
     }
 }
@@ -138,13 +121,12 @@ private struct BuySheetRoot: View {
 private struct SendAmountSheetRoot: View {
 
     let contact: ResolvedContact
-    let sessionContainer: SessionContainer
 
     @Environment(AppRouter.self) private var router
 
     var body: some View {
         NavigationStack {
-            SendAmountScreen(sessionContainer: sessionContainer, contact: contact)
+            SendAmountScreen(contact: contact)
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
                         CloseButton(action: router.dismissSheet)

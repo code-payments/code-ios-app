@@ -11,7 +11,21 @@ import FlipcashCore
 /// send doesn't complete (errors stay put; not-found has already popped).
 private struct SendDismissed: Error {}
 
+/// Thin environment-reading wrapper that hands the session container to
+/// ``SendAmountScreenContent``, whose `init` seeds the `@State` view model
+/// synchronously from the contact being paid.
 struct SendAmountScreen: View {
+
+    @Environment(SessionContainer.self) private var sessionContainer
+
+    let contact: ResolvedContact
+
+    var body: some View {
+        SendAmountScreenContent(sessionContainer: sessionContainer, contact: contact)
+    }
+}
+
+private struct SendAmountScreenContent: View {
 
     @Environment(Session.self) private var session
     @Environment(RatesController.self) private var ratesController

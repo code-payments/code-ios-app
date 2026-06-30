@@ -20,7 +20,7 @@ struct FlipcashApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContainerScreen(container: appDelegate.container)
+            ContainerScreen()
                 .injectingEnvironment(from: appDelegate.container)
                 .preferredColorScheme(.dark)
                 .tint(Color.textMain)

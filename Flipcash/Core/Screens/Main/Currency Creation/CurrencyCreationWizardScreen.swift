@@ -14,7 +14,6 @@ private let logger = Logger(label: "flipcash.currency-creation")
 
 struct CurrencyCreationWizardScreen: View {
     @Bindable var state: CurrencyCreationState
-    let sessionContainer: SessionContainer
 
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var client: Client

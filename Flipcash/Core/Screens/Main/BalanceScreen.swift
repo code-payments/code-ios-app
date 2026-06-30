@@ -9,7 +9,20 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
+/// Thin environment-reading wrapper that hands the session container to
+/// ``BalanceScreenContent``, whose `init` seeds the balance `@State` arrays
+/// synchronously — that synchronous seed is what prevents the empty-state flash
+/// on first render.
 struct BalanceScreen: View {
+
+    @Environment(SessionContainer.self) private var sessionContainer
+
+    var body: some View {
+        BalanceScreenContent(sessionContainer: sessionContainer)
+    }
+}
+
+private struct BalanceScreenContent: View {
 
     @Environment(AppRouter.self) private var router
     @Environment(RatesController.self) private var ratesController
@@ -47,9 +60,6 @@ struct BalanceScreen: View {
         sortedBalances.map(\.exchangedFiat).total(rate: balanceRate)
     }
 
-    private let container: Container
-    private let sessionContainer: SessionContainer
-
     private var balanceRate: Rate {
         ratesController.rateForBalanceCurrency()
     }
@@ -72,10 +82,8 @@ struct BalanceScreen: View {
 
     // MARK: - Init -
 
-    init(container: Container, sessionContainer: SessionContainer) {
-        self.container        = container
-        self.sessionContainer = sessionContainer
-        self.session          = sessionContainer.session
+    init(sessionContainer: SessionContainer) {
+        self.session = sessionContainer.session
 
         // Seed the @State arrays synchronously so the first body evaluation
         // renders the correct branch — otherwise `visibleBalances == []` flips
@@ -116,7 +124,7 @@ struct BalanceScreen: View {
             .onChange(of: balanceRate) { _, _ in refreshSortedBalances() }
             .navigationTitle("Wallet")
             .toolbarTitleDisplayMode(.inline)
-            .appRouterDestinations(container: container, sessionContainer: sessionContainer)
+            .appRouterDestinations()
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     CloseButton(action: router.dismissSheet)

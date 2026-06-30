@@ -11,7 +11,28 @@ import FlipcashCore
 
 /// Amount entry screen for giving cash to another user. Caller provides the
 /// surrounding `NavigationStack` (sheet wraps it, push uses the active one).
+///
+/// Thin environment-reading wrapper that hands the DI containers to
+/// ``GiveScreenContent``, whose `init` seeds the `@State` view model
+/// synchronously. `.id(mint)` on this wrapper at the call site rebuilds the
+/// content (and its view model) when the mint changes.
 struct GiveScreen: View {
+
+    @Environment(Container.self) private var container
+    @Environment(SessionContainer.self) private var sessionContainer
+
+    let mint: PublicKey?
+
+    var body: some View {
+        GiveScreenContent(
+            container: container,
+            sessionContainer: sessionContainer,
+            mint: mint
+        )
+    }
+}
+
+private struct GiveScreenContent: View {
 
     @Environment(Session.self) private var session
     @Environment(RatesController.self) private var ratesController

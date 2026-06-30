@@ -13,24 +13,15 @@ private let logger = Logger(label: "flipcash.betaflags")
 
 struct BetaFlagsScreen: View {
 
-    @Bindable private var betaFlags: BetaFlags
-
+    @Environment(BetaFlags.self) private var betaFlags
     @Environment(Session.self) private var session
+    @Environment(Container.self) private var container
 
     @State private var isConfirmingUnlinkEmail: Bool = false
     @State private var isConfirmingUnlinkPhone: Bool = false
     @State private var unlinkAlertTitle: String?
     @State private var unlinkAlertMessage: String?
     @State private var isShowingUnlinkAlert: Bool = false
-
-    private let container: Container
-
-    // MARK: - Init -
-
-    init(container: Container) {
-        self.betaFlags = container.betaFlags
-        self.container = container
-    }
 
     // MARK: - Body -
 

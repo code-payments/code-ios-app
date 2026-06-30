@@ -11,6 +11,7 @@ import FlipcashUI
 /// accessible contacts; the satisfied state renders the recipient picker.
 struct SendRootScreen: View {
 
+    @Environment(Container.self) private var container
     @Environment(Session.self) private var session
     @Environment(ContactSyncController.self) private var contactSyncController
     @Environment(ConversationController.self) private var conversationController
@@ -20,16 +21,6 @@ struct SendRootScreen: View {
     @State private var contactsAuthorizer = ContactsAuthorizer()
     @State private var didResolveContactsStatus = false
     @State private var searchText = ""
-
-    private let container: Container
-    private let sessionContainer: SessionContainer
-
-    // MARK: - Init -
-
-    init(container: Container, sessionContainer: SessionContainer) {
-        self.container = container
-        self.sessionContainer = sessionContainer
-    }
 
     // MARK: - Body -
 
@@ -50,7 +41,7 @@ struct SendRootScreen: View {
                             searchText: searchText
                         )
                     }
-                    .appRouterDestinations(container: container, sessionContainer: sessionContainer)
+                    .appRouterDestinations()
                     .navigationTitle("Send")
                     .toolbarTitleDisplayMode(.inline)
                     .toolbar {
