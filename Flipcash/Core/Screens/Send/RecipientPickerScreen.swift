@@ -39,10 +39,7 @@ struct RecipientPickerScreen: View {
     /// the list footer (limited → "Add More Contacts", denied → CTA card).
     let contactAccess: RecipientContactAccess
 
-    /// Injected from `SendRootScreen`, which owns the `.searchable`. The search
-    /// field has to be present from the moment the Send sheet mounts — a
-    /// `.searchable` added later (when the recipient list appears) gets placed by
-    /// iOS 26 as a floating bottom field instead of the nav-bar drawer.
+    /// Injected from `SendRootScreen`, which owns the `.searchable`.
     let searchText: String
 
     @Environment(ContactSyncController.self) private var contactSyncController

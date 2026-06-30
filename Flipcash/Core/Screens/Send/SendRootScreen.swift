@@ -29,11 +29,9 @@ struct SendRootScreen: View {
         return Group {
             switch step {
             case .ready(let access):
-                // The ready state gets its own stack so `.searchable` is present
-                // from the stack's mount — that's what makes iOS 26 render the
-                // nav-bar drawer. A `.searchable` added later (gated to a step, or
-                // toggled within a shared stack) is placed as a floating bottom
-                // field instead.
+                // The ready state gets its own stack so the search field is
+                // scoped to it — the phone/contacts gating states below use a
+                // separate stack with no `.searchable`.
                 NavigationStack(path: $router[.send]) {
                     Background(color: .backgroundMain) {
                         RecipientPickerScreen(
@@ -51,7 +49,6 @@ struct SendRootScreen: View {
                     }
                     .searchable(
                         text: $searchText,
-                        placement: .navigationBarDrawer(displayMode: .always),
                         prompt: "Search Contacts"
                     )
                 }
