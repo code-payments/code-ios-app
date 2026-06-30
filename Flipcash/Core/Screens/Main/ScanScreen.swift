@@ -403,7 +403,7 @@ private struct RoutedSheet: View {
             // Send Cash entered directly as a root sheet — e.g. the notification
             // Send Cash deeplink / App Intent opens the amount entry with no chat
             // behind it. (In-chat Send Cash still enters it via presentNested.)
-            SendAmountSheetRoot(contact: contact, sessionContainer: sessionContainer)
+            SendAmountSheetRoot(contact: contact)
         }
     }
 }

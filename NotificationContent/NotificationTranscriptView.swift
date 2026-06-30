@@ -35,6 +35,11 @@ struct NotificationTranscriptView: View {
                             case .dateSeparator(_, let text):
                                 NotificationDateSeparator(text: text)
                                     .transition(.opacity)
+                            case .typingIndicator:
+                                // Typing is live, ephemeral state — it has no place in a
+                                // static notification snapshot and the preview mapping never
+                                // emits it. Handled only for exhaustiveness.
+                                EmptyView()
                             }
                         }
                     }
