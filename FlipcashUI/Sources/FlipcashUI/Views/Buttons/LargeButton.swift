@@ -48,9 +48,8 @@ private struct LargeButtonIcon: View {
     let image: Image
     let badgeCount: Int
 
-    /// Resting size of the pill (a touch smaller than its natural size) and the
-    /// transparent gap punched around it.
-    private let badgeScale: CGFloat = 0.85
+    /// Resting scale of the pill and the transparent gap punched around it.
+    private let badgeScale: CGFloat = 1.275
     private let ring: CGFloat = 3
     private let offset = CGSize(width: 14, height: -10)
 
