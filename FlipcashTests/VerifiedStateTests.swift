@@ -78,4 +78,17 @@ struct VerifiedStateTests {
     func clientMaxAge_value() {
         #expect(VerifiedState.clientMaxAge == 13 * 60)
     }
+
+    @Test("a fresh reserve proof does not rescue a stale rate proof")
+    func isStale_staleRate_freshReserve() {
+        // The bug `SendCashOperation` had: it checked only the reserve age, so a
+        // bundle with a fresh reserve but a stale rate slipped through and was
+        // rejected server-side as `invalidIntent`. `isStale` must flag it,
+        // because `serverTimestamp` takes the older (rate) proof.
+        let state = VerifiedState.makeForTest(
+            rateTimestamp: Date().addingTimeInterval(-(VerifiedState.clientMaxAge + 1)),
+            reserveTimestamp: Date()
+        )
+        #expect(state.isStale)
+    }
 }

@@ -404,6 +404,12 @@ class Session {
         if let sendOperation, !sendOperation.ignoresStream {
             dismissCashBill(style: .slide)
         }
+
+        // Drop the live rate/reserve stream — nothing consumes it in the
+        // background and iOS suspends the socket anyway. `didBecomeActive`
+        // re-establishes it on return, keeping the lifecycle symmetric and
+        // avoiding reconnect churn during the grace window.
+        ratesController.stopStreaming()
     }
     
     // MARK: - Balance -
@@ -1312,6 +1318,13 @@ class Session {
     // MARK: - Cash Links -
     
     private func createCashLink(payload: CashCode.Payload, exchangedFiat: ExchangedFiat, verifiedState: VerifiedState) async throws -> GiftCardCluster {
+        try assertFresh(
+            verifiedState,
+            operation: "createCashLink",
+            currency: exchangedFiat.nativeAmount.currency,
+            mint: exchangedFiat.mint
+        )
+
         do {
             var vmAuthority = PublicKey.usdcAuthority
             var owner = owner

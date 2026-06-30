@@ -73,12 +73,21 @@ public actor LiveMintDataStreamer {
         openStream()
     }
 
-    /// Ensure the stream is alive. If it died (e.g. after backgrounding),
-    /// tear it down and reopen immediately — bypassing exponential backoff.
+    /// Ensure the stream is alive on returning to the foreground. Reopens
+    /// whether it was explicitly stopped (`stop()` on background) or merely
+    /// died while the process was suspended — bypassing exponential backoff.
+    /// `subscribedMints` survives `stop()`, so the re-subscription is intact.
     public func ensureConnected() {
-        guard isStreaming, !subscribedMints.isEmpty else { return }
+        guard !subscribedMints.isEmpty else { return }
 
-        // If the stream is alive and has received a recent ping, nothing to do
+        // Stopped on background — bring streaming back up.
+        if !isStreaming {
+            isStreaming = true
+            openStream()
+            return
+        }
+
+        // Alive and recently pinged — nothing to do.
         if isLikelyHealthy, !isReconnecting {
             return
         }
