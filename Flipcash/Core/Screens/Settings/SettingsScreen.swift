@@ -18,16 +18,6 @@ struct SettingsScreen: View {
 
     private let insets = EdgeInsets(top: 25, leading: 0, bottom: 25, trailing: 0)
 
-    private let container: Container
-    private let sessionContainer: SessionContainer
-
-    // MARK: - Init -
-
-    init(container: Container, sessionContainer: SessionContainer) {
-        self.container = container
-        self.sessionContainer = sessionContainer
-    }
-
     // MARK: - Body -
 
     var body: some View {
@@ -100,7 +90,7 @@ struct SettingsScreen: View {
                 }
             }
             .navigationTitle("Settings")
-            .appRouterDestinations(container: container, sessionContainer: sessionContainer)
+            .appRouterDestinations()
         }
     }
 

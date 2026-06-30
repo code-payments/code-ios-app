@@ -14,7 +14,32 @@ import FlipcashCore
 /// "Withdraw" button (USDF default, with a "Withdraw Other Flipcash
 /// Currencies" escape hatch) and the Wallet → USDF Currency Info entry
 /// (USDF only, no escape hatch).
+///
+/// Thin environment-reading wrapper that hands the DI containers to
+/// ``PreselectedWithdrawRootContent``, whose `init` builds and synchronously
+/// configures (`setKind`) the `@State` withdraw view model from the preselected
+/// mint.
 struct PreselectedWithdrawRoot: View {
+
+    @Environment(Container.self) private var container
+    @Environment(SessionContainer.self) private var sessionContainer
+
+    let mint: PublicKey
+    let onComplete: () -> Void
+    var onWithdrawOtherCurrencies: (() -> Void)? = nil
+
+    var body: some View {
+        PreselectedWithdrawRootContent(
+            mint: mint,
+            container: container,
+            sessionContainer: sessionContainer,
+            onComplete: onComplete,
+            onWithdrawOtherCurrencies: onWithdrawOtherCurrencies
+        )
+    }
+}
+
+private struct PreselectedWithdrawRootContent: View {
 
     @Environment(AppRouter.self) private var router
     @State private var viewModel: WithdrawViewModel

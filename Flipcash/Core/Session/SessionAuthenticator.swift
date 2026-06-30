@@ -443,7 +443,8 @@ final class SessionAuthenticator {
 
 // MARK: - SessionContainer -
 
-struct SessionContainer {
+@Observable
+final class SessionContainer {
 
     let session: Session
     let database: Database
@@ -551,6 +552,7 @@ struct SessionContainer {
 
     fileprivate func injectingEnvironment<SomeView>(into view: SomeView) -> some View where SomeView: View {
         view
+            .environment(self)
             .environment(appRouter)
             .environment(session)
             .environment(ratesController)

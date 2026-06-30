@@ -11,9 +11,6 @@ struct CurrencyDiscoveryScreen: View {
 
     @Environment(AppRouter.self) private var router
 
-    let container: Container
-    let sessionContainer: SessionContainer
-
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
@@ -24,7 +21,6 @@ struct CurrencyDiscoveryScreen: View {
                 LeaderboardSectionTitle()
 
                 CurrencyDiscoveryList(
-                    container: container,
                     onSelectMint: { mint in
                         router.push(.currencyInfo(mint))
                     }

@@ -13,9 +13,10 @@ import FlipcashCore
 /// requires a new arm here; the exhaustive switch enforces this at compile time.
 struct DestinationView: View {
 
+    @Environment(Container.self) private var container
+    @Environment(SessionContainer.self) private var sessionContainer
+
     let destination: AppRouter.Destination
-    let container: Container
-    let sessionContainer: SessionContainer
 
     var body: some View {
         switch destination {
@@ -29,36 +30,21 @@ struct DestinationView: View {
             // navigation depth — same struct type, same position — and the
             // viewModel keeps the old token's data, so deeplinks that replace
             // `[.currencyInfo(A)]` with `[.currencyInfo(B)]` show stale UI.
-            CurrencyInfoScreen(
-                mint: mint,
-                container: container,
-                sessionContainer: sessionContainer
-            )
-            .id(mint)
+            CurrencyInfoScreen(mint: mint)
+                .id(mint)
 
         case .currencyInfoForDeposit(let mint):
-            CurrencyInfoScreen(
-                mint: mint,
-                container: container,
-                sessionContainer: sessionContainer,
-                showBuyOnAppear: true
-            )
-            .id(mint)
+            CurrencyInfoScreen(mint: mint, showBuyOnAppear: true)
+                .id(mint)
 
         case .discoverCurrencies:
-            CurrencyDiscoveryScreen(
-                container: container,
-                sessionContainer: sessionContainer
-            )
+            CurrencyDiscoveryScreen()
 
         case .currencyCreationSummary:
             CurrencyCreationSummaryScreen()
 
         case .currencyCreationWizard:
-            CurrencyCreationWizardScreen(
-                state: CurrencyCreationState(),
-                sessionContainer: sessionContainer
-            )
+            CurrencyCreationWizardScreen(state: CurrencyCreationState())
 
         case .transactionHistory(let mint):
             TransactionHistoryScreen(mint: mint)
@@ -67,20 +53,13 @@ struct DestinationView: View {
             // `.id(mint)` for the same reason as `.currencyInfo` above —
             // a deeplink replacing `.give(A)` with `.give(B)` must build a
             // fresh `GiveViewModel`, not reuse the one wired to `A`.
-            GiveScreen(
-                container: container,
-                sessionContainer: sessionContainer,
-                mint: mint
-            )
-            .id(mint)
+            GiveScreen(mint: mint)
+                .id(mint)
 
         // MARK: - Settings flow
 
         case .settingsMyAccount:
-            SettingsMyAccountScreen(
-                container: container,
-                sessionContainer: sessionContainer
-            )
+            SettingsMyAccountScreen()
 
         case .settingsAdvancedFeatures:
             SettingsAdvancedFeaturesScreen()
@@ -92,7 +71,7 @@ struct DestinationView: View {
             SettingsAppSettingsScreen()
 
         case .settingsBetaFlags:
-            BetaFlagsScreen(container: container)
+            BetaFlagsScreen()
 
         case .settingsAccountSelection:
             // The action closure dismisses the settings sheet and switches accounts.
@@ -147,8 +126,6 @@ struct DestinationView: View {
         case .withdraw:
             PreselectedWithdrawRoot(
                 mint: .usdf,
-                container: container,
-                sessionContainer: sessionContainer,
                 onComplete: { sessionContainer.appRouter.popToRoot(on: .settings) },
                 onWithdrawOtherCurrencies: {
                     sessionContainer.appRouter.pushAny(WithdrawNavigationPath.picker)
@@ -158,8 +135,6 @@ struct DestinationView: View {
         case .withdrawCurrency(let mint):
             PreselectedWithdrawRoot(
                 mint: mint,
-                container: container,
-                sessionContainer: sessionContainer,
                 onComplete: { sessionContainer.appRouter.popToRoot(on: .balance) }
             )
 
@@ -196,13 +171,9 @@ extension View {
     /// Attaches the app-wide destination → view map to a NavigationStack.
     /// Apply on the root content view of every NavigationStack(path:) bound to
     /// `$router[.<stack>]`.
-    func appRouterDestinations(container: Container, sessionContainer: SessionContainer) -> some View {
+    func appRouterDestinations() -> some View {
         navigationDestination(for: AppRouter.Destination.self) { destination in
-            DestinationView(
-                destination: destination,
-                container: container,
-                sessionContainer: sessionContainer
-            )
+            DestinationView(destination: destination)
         }
     }
 }

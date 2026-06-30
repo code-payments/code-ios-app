@@ -9,8 +9,22 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
+/// Thin environment-reading wrapper that hands the DI containers to
+/// ``ScanScreenContent``, whose `init` builds the `@State` scan view model and
+/// `@Bindable` session synchronously. `ScanScreen` is the post-login root —
+/// ``ContainerScreen`` injects the `SessionContainer` into the environment here.
 struct ScanScreen: View {
-    
+
+    @Environment(Container.self) private var container
+    @Environment(SessionContainer.self) private var sessionContainer
+
+    var body: some View {
+        ScanScreenContent(container: container, sessionContainer: sessionContainer)
+    }
+}
+
+private struct ScanScreenContent: View {
+
     @Environment(Preferences.self) private var preferences
     @Environment(AppRouter.self) private var router
 
@@ -51,16 +65,14 @@ struct ScanScreen: View {
         }
     }
     
-    private let container: Container
     private let sessionContainer: SessionContainer
-    
+
     // MARK: - Init -
-    
+
     init(container: Container, sessionContainer: SessionContainer) {
-        self.container        = container
         self.sessionContainer = sessionContainer
         self.session          = sessionContainer.session
-        
+
         self.viewModel = ScanViewModel(
             container: container,
             sessionContainer: sessionContainer
@@ -147,12 +159,8 @@ struct ScanScreen: View {
                 }
             }
         )) { sheet in
-            RoutedSheet(
-                sheet: sheet,
-                container: container,
-                sessionContainer: sessionContainer
-            )
-            .appRouterNestedSheet(container: container, sessionContainer: sessionContainer)
+            RoutedSheet(sheet: sheet)
+                .appRouterNestedSheet()
         }
         // Dismiss all presented sheets when a bill is about to appear.
         // Bills render in ScanScreen's ZStack, so any sheet on top
@@ -339,8 +347,6 @@ extension String: @retroactive Identifiable {
 private struct RoutedSheet: View {
 
     let sheet: AppRouter.SheetPresentation
-    let container: Container
-    let sessionContainer: SessionContainer
 
     @Environment(AppRouter.self) private var router
 
@@ -348,23 +354,13 @@ private struct RoutedSheet: View {
         @Bindable var router = router
         switch sheet {
         case .balance:
-            BalanceScreen(
-                container: container,
-                sessionContainer: sessionContainer
-            )
+            BalanceScreen()
         case .settings:
-            SettingsScreen(
-                container: container,
-                sessionContainer: sessionContainer
-            )
+            SettingsScreen()
         case .give:
             NavigationStack(path: $router[.give]) {
-                GiveScreen(
-                    container: container,
-                    sessionContainer: sessionContainer,
-                    mint: nil
-                )
-                .appRouterDestinations(container: container, sessionContainer: sessionContainer)
+                GiveScreen(mint: nil)
+                .appRouterDestinations()
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
                         CloseButton(action: router.dismissSheet)
@@ -373,11 +369,8 @@ private struct RoutedSheet: View {
             }
         case .discover:
             NavigationStack(path: $router[.discover]) {
-                CurrencyDiscoveryScreen(
-                    container: container,
-                    sessionContainer: sessionContainer
-                )
-                .appRouterDestinations(container: container, sessionContainer: sessionContainer)
+                CurrencyDiscoveryScreen()
+                .appRouterDestinations()
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
                         CloseButton(action: router.dismissSheet)
@@ -400,7 +393,7 @@ private struct RoutedSheet: View {
                     }
             }
         case .send:
-            SendRootScreen(container: container, sessionContainer: sessionContainer)
+            SendRootScreen()
         case .conversation(let context):
             // A chat entered as the root (bottom) view — deeplink / push
             // notification. The picker → chat flow pushes `.dmConversation`

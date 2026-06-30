@@ -9,13 +9,26 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
+/// Thin environment-reading wrapper that hands the container to
+/// ``IntroScreenContent``, whose `init` builds the `@State` onboarding view
+/// model synchronously. The `Container` is injected app-wide, so it is
+/// available here on the logged-out path.
 struct IntroScreen: View {
-    
+
+    @Environment(Container.self) private var container
+
+    var body: some View {
+        IntroScreenContent(container: container)
+    }
+}
+
+private struct IntroScreenContent: View {
+
     @Environment(SessionAuthenticator.self) private var sessionAuthenticator
-    
+
     @State private var isShowingPrivacyPolicy  = false
     @State private var isShowingTermsOfService = false
-    
+
     @State private var viewModel: OnboardingViewModel
 
     // MARK: - Init -
@@ -151,5 +164,6 @@ private struct OnboardingPhoneVerificationStep: View {
 // MARK: - Previews -
 
 #Preview {
-    IntroScreen(container: .mock)
+    IntroScreen()
+        .injectingEnvironment(from: .mock)
 }

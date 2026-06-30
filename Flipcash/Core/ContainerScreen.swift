@@ -9,15 +9,9 @@ import SwiftUI
 import FlipcashUI
 
 struct ContainerScreen: View {
-    
+
     @Environment(SessionAuthenticator.self) var sessionAuthenticator
-    
-    private let container: Container
-    
-    init(container: Container) {
-        self.container = container
-    }
-    
+
     var body: some View {
         VStack {
             if sessionAuthenticator.requiresUpgrade {
@@ -29,7 +23,7 @@ struct ContainerScreen: View {
             } else {
                 switch sessionAuthenticator.state {
                 case .loggedOut:
-                    IntroScreen(container: container)
+                    IntroScreen()
                         .transition(.opacity)
 
                 case .migrating, .pending:
@@ -39,13 +33,10 @@ struct ContainerScreen: View {
                     .transition(.opacity)
 
                 case .loggedIn(let sessionContainer):
-                    ScanScreen(
-                        container: container,
-                        sessionContainer: sessionContainer
-                    )
-                    .modifier(OnrampHostModifier())
-                    .injectingEnvironment(from: sessionContainer)
-                    .transition(.opacity)
+                    ScanScreen()
+                        .modifier(OnrampHostModifier())
+                        .injectingEnvironment(from: sessionContainer)
+                        .transition(.opacity)
                 }
             }
         }

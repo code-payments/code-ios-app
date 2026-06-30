@@ -10,17 +10,18 @@ import FlipcashUI
 import FlipcashCore
 import Firebase
 
+@Observable
 class Container {
-    
+
     let client: Client
     let flipClient: FlipClient
     let accountManager: AccountManager
     let betaFlags: BetaFlags
     let preferences: Preferences
     let notificationController: NotificationController
-    
-    lazy var sessionAuthenticator = SessionAuthenticator(container: self)
-    lazy var deepLinkController   = DeepLinkController(sessionAuthenticator: sessionAuthenticator)
+
+    @ObservationIgnored lazy var sessionAuthenticator = SessionAuthenticator(container: self)
+    @ObservationIgnored lazy var deepLinkController   = DeepLinkController(sessionAuthenticator: sessionAuthenticator)
     
     let cameraSession = CameraSession<CodeExtractor>()
     
@@ -43,6 +44,7 @@ class Container {
     
     fileprivate func injectingEnvironment<SomeView>(into view: SomeView) -> some View where SomeView: View {
         view
+            .environment(self)
             .environmentObject(client)
             .environmentObject(flipClient)
             .environment(sessionAuthenticator)

@@ -12,12 +12,9 @@ import FlipcashCore
 struct SettingsMyAccountScreen: View {
 
     @Environment(AppRouter.self) private var router
+    @Environment(SessionAuthenticator.self) private var sessionAuthenticator
+    @Environment(ContactSyncController.self) private var contactSyncController
     @State private var dialogItem: DialogItem?
-
-    let container: Container
-    let sessionContainer: SessionContainer
-
-    private var sessionAuthenticator: SessionAuthenticator { container.sessionAuthenticator }
 
     private let insets = EdgeInsets(top: 25, leading: 0, bottom: 25, trailing: 0)
 
@@ -85,7 +82,7 @@ struct SettingsMyAccountScreen: View {
             // locally. Wipe the server's stored contact set first so it isn't
             // retained after the account is "deleted". Best-effort — must run
             // before logout while the session can still authenticate the call.
-            await sessionContainer.contactSyncController.clearServerContactSetForAccountDeletion()
+            await contactSyncController.clearServerContactSetForAccountDeletion()
             sessionAuthenticator.logout()
         }
     }
