@@ -119,19 +119,21 @@ public enum ErrorFetchTransactionHistoryItemsByID: Int, Error {
 }
 
 extension ErrorFetchTransactionHistory: ServerError, TransportClassifiableError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .ok, .denied, .transportFailure: false
-        case .unknown: true
+        case .ok, .transportFailure: .suppressed
+        case .denied: .info
+        case .unknown: .error
         }
     }
 }
 
 extension ErrorFetchTransactionHistoryItemsByID: ServerError, TransportClassifiableError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .ok, .denied, .notFound, .transportFailure: false
-        case .unknown: true
+        case .ok, .transportFailure: .suppressed
+        case .denied, .notFound: .info
+        case .unknown: .error
         }
     }
 }

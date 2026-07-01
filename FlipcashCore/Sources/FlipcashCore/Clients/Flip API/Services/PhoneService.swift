@@ -183,37 +183,41 @@ public enum ErrorLinkForPayment: Int, Error, Equatable, Sendable {
 }
 
 extension ErrorSendVerificationCode: ServerError, TransportClassifiableError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .ok, .denied, .rateLimited, .invalidPhoneNumber, .unsupportedPhoneType, .transportFailure: false
-        case .unknown: true
+        case .ok, .transportFailure: .suppressed
+        case .denied, .rateLimited, .invalidPhoneNumber, .unsupportedPhoneType: .info
+        case .unknown: .error
         }
     }
 }
 
 extension ErrorCheckVerificationCode: ServerError, TransportClassifiableError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .ok, .denied, .rateLimited, .invalidCode, .noVerification, .transportFailure: false
-        case .unknown: true
+        case .ok, .transportFailure: .suppressed
+        case .denied, .rateLimited, .invalidCode, .noVerification: .info
+        case .unknown: .error
         }
     }
 }
 
 extension ErrorUnlinkPhone: ServerError, TransportClassifiableError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .ok, .denied, .transportFailure: false
-        case .unknown: true
+        case .ok, .transportFailure: .suppressed
+        case .denied: .info
+        case .unknown: .error
         }
     }
 }
 
 extension ErrorLinkForPayment: ServerError, TransportClassifiableError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .ok, .denied, .notAssociated, .transportFailure: false
-        case .unknown: true
+        case .ok, .transportFailure: .suppressed
+        case .denied, .notAssociated: .info
+        case .unknown: .error
         }
     }
 }

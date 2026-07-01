@@ -156,12 +156,15 @@ logger.info("Requested swap", metadata: [
 
 ### Error Reporting: Always Call `captureError` Unconditionally
 
-**Call `ErrorReporting.captureError(error, reason: ...)` directly — never gate it on `isReportable` at the call site.** The reporter handles that internally in `ErrorReporting.capture(_:)`:
+**Call `ErrorReporting.captureError(error, reason: ...)` directly — never gate it on `reportingLevel` at the call site.** The reporter handles that internally in `ErrorReporting.capture(_:)`, mapping the level onto Bugsnag severity (or dropping the event):
 
 ```swift
 // Inside ErrorReporting (Flipcash/Utilities/ErrorReporting.swift)
-if let serverError = error as? ServerError, !serverError.isReportable {
-    return
+let level = (error as? ServerError)?.reportingLevel ?? .error  // non-ServerError → real bug
+switch level {
+case .suppressed: return            // dropped — never sent
+case .info:       severity = .info  // visible, low-priority
+case .error:      severity = .error
 }
 ```
 
@@ -169,8 +172,7 @@ Duplicating the check at the call site is dead code and drifts from every other 
 
 ```swift
 // ❌ BAD: rechecks what ErrorReporting already filters
-let shouldReport = (error as? ServerError)?.isReportable ?? true
-if shouldReport {
+if (error as? ServerError)?.reportingLevel != .suppressed {
     ErrorReporting.captureError(error, reason: "...")
 }
 
@@ -178,7 +180,7 @@ if shouldReport {
 ErrorReporting.captureError(error, reason: "...")
 ```
 
-To suppress reporting for a specific error type, conform it to `ServerError` (in `FlipcashCore/Sources/FlipcashCore/Models/ServerError.swift`) and return `false` from `isReportable` for the non-actionable cases. That's the single source of truth — call sites stay uniform.
+To change how a specific error type surfaces, conform it to `ServerError` (in `FlipcashCore/Sources/FlipcashCore/Models/ServerError.swift`) and return the right `ErrorReportingLevel` per case — `.suppressed` for network weather / success sentinels, `.info` for expected business outcomes (denied, not-found, rate-limited), `.error` for client/proto defects (`.unknown`, parse failures). There is deliberately no protocol default — the compiler forces every new conformer to classify its cases explicitly. That's the single source of truth — call sites stay uniform.
 
 ### Form Input Validation: Use the `Validator` Family
 
@@ -277,9 +279,9 @@ Streaming RPCs run through the `BidirectionalGRPCStream` / `ServerGRPCStream` ad
 
 A gRPC transport failure (request timeout / unavailable channel) is a network condition, not a code defect — it must never reach Bugsnag. The `TransportClassifiableError` protocol carries this guarantee.
 
-- **Typed error enums:** conform the enum to `TransportClassifiableError` (give it a `.transportFailure` case — `isReportable == false` — alongside `.unknown`), then in the call's `catch` map via `ErrorX.from(transportError: rpcError)`. The single shared `from(transportError: RPCError)` default does the mapping — you don't write one per enum. Never map a timeout to a reportable `.unknown`.
-- **Associated-value error enums** (cases like `.grpcStatus(RPCError)` / `.network(Error)`): make `isReportable` return `false` when the captured error is transient (`rpcError.code.isTransientNetworkError`, or `(error as? ServerError)?.isReportable ?? true`), mirroring `ErrorSubmitIntent` / `ErrorSwap` / `ErrorStatelessSwap` / `ErrorModeration`.
-- **Unary RPCs whose failure type is the existential `Error`:** `RPCError` itself conforms to `ServerError` with `isReportable == !code.isTransientNetworkError`, so shipping the raw error via `completion(.failure(error))` classifies transient transport failures automatically — no per-call-site mapping needed.
+- **Typed error enums:** conform the enum to `TransportClassifiableError` (give it a `.transportFailure` case — which `reportingLevel` maps to `.suppressed` — alongside `.unknown`), then in the call's `catch` map via `ErrorX.from(transportError: rpcError)`. The single shared `from(transportError: RPCError)` default does the mapping — you don't write one per enum. Never map a timeout to an `.error`-level `.unknown`.
+- **Associated-value error enums** (cases like `.grpcStatus(RPCError)` / `.network(Error)`): return `.suppressed` from `reportingLevel` when the captured error is transient (`rpcError.code.isTransientNetworkError`), and forward `.grpcStatus(s)` / `.network(e)` to the inner value's `reportingLevel` (`(error as? ServerError)?.reportingLevel ?? .error`), mirroring `ErrorSubmitIntent` / `ErrorSwap` / `ErrorStatelessSwap` / `ErrorModeration`.
+- **Unary RPCs whose failure type is the existential `Error`:** `RPCError` itself conforms to `ServerError`, mapping transient codes (`isTransientNetworkError`) to `.suppressed`, `.cancelled` to `.info` (app-initiated teardown, not a defect), and all other codes to `.error`, so shipping the raw error via `completion(.failure(error))` classifies transient transport failures automatically — no per-call-site mapping needed.
 - `FlipcashCoreTests/TransportClassificationTests` asserts every conformer is wired — add a line when you add a classifiable error.
 
 ### Navigation: AppRouter

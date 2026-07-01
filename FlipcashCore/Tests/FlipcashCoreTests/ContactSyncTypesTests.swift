@@ -68,36 +68,36 @@ struct ContactSyncTypesTests {
     // MARK: - ErrorContactSync reportability -
 
     @Test(
-        "transient/recoverable cases non-reportable; only .checksumMismatch / .unknown bugsnag",
+        "ok/transport suppressed; business outcomes info; .checksumMismatch / .unknown error",
         arguments: [
-            (ErrorContactSync.ok,              false),
-            (.denied,            false),
-            (.tooManyContacts,   false),
-            (.checksumDrift,     false),
-            (.transportFailure,  false),
-            (.notFound,          false),
-            (.checksumMismatch,  true),
-            (.unknown,           true),
+            (ErrorContactSync.ok,              ErrorReportingLevel.suppressed),
+            (.denied,            .info),
+            (.tooManyContacts,   .info),
+            (.checksumDrift,     .info),
+            (.transportFailure,  .suppressed),
+            (.notFound,          .info),
+            (.checksumMismatch,  .error),
+            (.unknown,           .error),
         ]
     )
-    func contactSync_isReportable(error: ErrorContactSync, expected: Bool) {
-        #expect(error.isReportable == expected)
+    func contactSync_reportingLevel(error: ErrorContactSync, expected: ErrorReportingLevel) {
+        #expect(error.reportingLevel == expected)
     }
 
     // MARK: - ErrorResolve reportability -
 
     @Test(
-        "Resolve transient/denied/not-found cases are non-reportable; only .unknown bugsnags",
+        "Resolve ok/transport suppressed; denied/not-found info; .unknown error",
         arguments: [
-            (ErrorResolve.ok,           false),
-            (.denied,       false),
-            (.notFound,     false),
-            (.transportFailure, false),
-            (.unknown,      true),
+            (ErrorResolve.ok,           ErrorReportingLevel.suppressed),
+            (.denied,       .info),
+            (.notFound,     .info),
+            (.transportFailure, .suppressed),
+            (.unknown,      .error),
         ]
     )
-    func resolve_isReportable(error: ErrorResolve, expected: Bool) {
-        #expect(error.isReportable == expected)
+    func resolve_reportingLevel(error: ErrorResolve, expected: ErrorReportingLevel) {
+        #expect(error.reportingLevel == expected)
     }
 
     // MARK: - CheckSyncResult equality -

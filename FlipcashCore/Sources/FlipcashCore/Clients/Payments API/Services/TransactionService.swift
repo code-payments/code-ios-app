@@ -1053,11 +1053,11 @@ public enum ErrorFetchLimits: Int, Error {
 }
 
 extension ErrorSubmitIntent: ServerError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .denied, .invalidIntent, .staleState: false
-        case .signatureError, .unknown, .deviceTokenUnavailable, .grpcError: true
-        case .grpcStatus: !isTransientNetworkError
+        case .denied, .invalidIntent, .staleState: .info
+        case .signatureError, .unknown, .deviceTokenUnavailable, .grpcError: .error
+        case .grpcStatus: isTransientNetworkError ? .suppressed : .error
         }
     }
 
@@ -1072,28 +1072,30 @@ extension ErrorSubmitIntent: ServerError {
 }
 
 extension ErrorVoidGiftCard: ServerError, TransportClassifiableError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .ok, .denied, .claimed, .notFound, .transportFailure: false
-        case .unknown: true
+        case .ok, .transportFailure: .suppressed
+        case .denied, .claimed, .notFound: .info
+        case .unknown: .error
         }
     }
 }
 
 extension ErrorFetchIntentMetadata: ServerError, TransportClassifiableError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .ok, .notFound, .denied, .transportFailure: false
-        case .unknown, .failedToParse: true
+        case .ok, .transportFailure: .suppressed
+        case .notFound, .denied: .info
+        case .unknown, .failedToParse: .error
         }
     }
 }
 
 extension ErrorFetchLimits: ServerError, TransportClassifiableError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .ok, .transportFailure: false
-        case .unknown: true
+        case .ok, .transportFailure: .suppressed
+        case .unknown: .error
         }
     }
 }

@@ -18,13 +18,13 @@ struct ErrorLinkForPaymentTests {
         #expect(ErrorLinkForPayment(rawValue: result.rawValue) == expected)
     }
 
-    @Test("Only the unknown case is reportable")
-    func reportability() {
-        #expect(ErrorLinkForPayment.ok.isReportable == false)
-        #expect(ErrorLinkForPayment.denied.isReportable == false)
-        #expect(ErrorLinkForPayment.notAssociated.isReportable == false)
-        #expect(ErrorLinkForPayment.transportFailure.isReportable == false)
-        #expect(ErrorLinkForPayment.unknown.isReportable == true)
+    @Test("ok/transport suppressed; denied/not-associated info; only unknown errors")
+    func reportingLevel() {
+        #expect(ErrorLinkForPayment.ok.reportingLevel == .suppressed)
+        #expect(ErrorLinkForPayment.denied.reportingLevel == .info)
+        #expect(ErrorLinkForPayment.notAssociated.reportingLevel == .info)
+        #expect(ErrorLinkForPayment.transportFailure.reportingLevel == .suppressed)
+        #expect(ErrorLinkForPayment.unknown.reportingLevel == .error)
     }
 
     @Test("A result code the client doesn't model maps to nil, which the caller coalesces to .unknown")

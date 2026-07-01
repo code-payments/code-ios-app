@@ -308,3 +308,12 @@ extension SendCashOperation {
         case verifiedStateStale(ageSeconds: TimeInterval)
     }
 }
+
+extension SendCashOperation.Error: ServerError {
+    var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .verifiedStateStale: .info
+        case .invalidPaymentDestinationSignature, .missingMintMetadata, .missingVerifiedState: .error
+        }
+    }
+}

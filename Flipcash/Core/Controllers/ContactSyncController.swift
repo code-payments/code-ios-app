@@ -500,7 +500,6 @@ final class ContactSyncController {
             logger.info("Sync deferred — checksum drift (will retry on next trigger)")
         case .checksumMismatch:
             logger.error("Sync failed — checksumMismatch (algorithm divergence)")
-            await reportError(error, reason: "Contact sync checksum mismatch")
         case .denied:
             logger.warning("Sync stopped — user not registered as Flipcash")
         case .tooManyContacts:
@@ -509,8 +508,10 @@ final class ContactSyncController {
             logger.info("Sync completed with no matched contacts")
         case .unknown:
             logger.error("Sync failed — unknown error")
-            await reportError(error, reason: "Contact sync unknown error")
         }
+        // Unconditional — ErrorContactSync.reportingLevel classifies:
+        // transportFailure suppressed, business outcomes info, defects error.
+        await reportError(error, reason: "Contact sync failed")
     }
 
     nonisolated private func reportError(_ error: Error, reason: String) async {

@@ -588,7 +588,8 @@ final class ConversationController {
 
     /// Fire-and-forget. Deliberately not logged per-failure — typing fires every few seconds, so an
     /// offline burst would flood the log — but errors still route through `captureError`: transient ones
-    /// classify as non-reportable and are filtered, while a genuine server error surfaces.
+    /// classify as `.suppressed` and are dropped, denied surfaces at `.info`, and a genuine server
+    /// error reports at `.error`.
     private func sendTyping(_ state: TypingState, in conversationID: ConversationID) {
         Task { [messaging, owner] in
             do {

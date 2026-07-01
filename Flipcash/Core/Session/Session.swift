@@ -1646,6 +1646,17 @@ extension Session {
     }
 }
 
+extension Session.Error: ServerError {
+    var reportingLevel: ErrorReportingLevel {
+        switch self {
+        // Expected outcome: a bill/share left open past VerifiedState.clientMaxAge
+        // is rejected client-side by assertFresh. Visible for triage, not a defect.
+        case .verifiedStateStale: .info
+        case .cashLinkCreationFailed, .vmMetadataMissing, .mintNotFound, .insufficientBalance, .missingSupply: .error
+        }
+    }
+}
+
 // MARK: - SufficientFundsResult -
 
 extension Session {

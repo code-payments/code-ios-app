@@ -109,14 +109,14 @@ public enum ErrorStatelessSwap: Error, Sendable {
 }
 
 extension ErrorStatelessSwap: ServerError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
         case .signatureError, .invalidSwap, .unknown, .grpcError:
-            return true
+            return .error
         case .denied, .transactionFailed:
-            return false
+            return .info
         case .grpcStatus(let status):
-            return status.isReportable
+            return status.reportingLevel
         }
     }
 }

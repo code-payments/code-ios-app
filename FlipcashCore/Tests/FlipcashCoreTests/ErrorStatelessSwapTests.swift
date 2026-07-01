@@ -69,10 +69,10 @@ struct ErrorStatelessSwapTests {
         #expect(error.isUnknown)
     }
 
-    @Test("isReportable returns true for .invalidSwap regardless of reasons")
-    func isReportable_invalidSwap() {
-        #expect(ErrorStatelessSwap.invalidSwap(reasons: []).isReportable)
-        #expect(ErrorStatelessSwap.invalidSwap(reasons: ["anything"]).isReportable)
+    @Test("reportingLevel is .error for .invalidSwap regardless of reasons")
+    func reportingLevel_invalidSwap() {
+        #expect(ErrorStatelessSwap.invalidSwap(reasons: []).reportingLevel == .error)
+        #expect(ErrorStatelessSwap.invalidSwap(reasons: ["anything"]).reportingLevel == .error)
     }
 
     // MARK: - Fixture helpers

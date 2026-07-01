@@ -188,10 +188,11 @@ public enum ErrorFetchBalance: Int, Error, Equatable, Sendable {
 }
 
 extension ErrorFetchBalance: ServerError, TransportClassifiableError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .ok, .notFound, .accountNotInList, .transportFailure: false
-        case .unknown, .parseFailed: true
+        case .ok, .transportFailure: .suppressed
+        case .notFound, .accountNotInList: .info
+        case .unknown, .parseFailed: .error
         }
     }
 }
