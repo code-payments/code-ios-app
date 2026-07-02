@@ -204,6 +204,8 @@ var canSendEmail: Bool { validatedEmail != nil }
 
 **Why:** client validation must mirror the server contract (typically a PGV regex from a `.proto`). A single `Validator` per input type is the canonical source; inline rules in screens or viewmodels drift the moment the proto changes.
 
+**Entered amounts are not an exception.** Any string bound to `KeyPadView`/`EnterAmountView` is parsed exclusively by `AmountValidator`. This exact bug shipped twice — the older amount flows were fixed to parse locale-aware, then a newer flow reached for `Decimal(string:)` again and silently dropped the fraction on comma-decimal locales on a real-money path (PR #448). When adding or touching an amount-entry flow, run `rg "Decimal\(string:" Flipcash/` — the only legitimate hits parse machine-formatted strings (round-trips of `Decimal.description`, server payloads), never anything a user typed.
+
 ### Package.resolved Policy
 
 **Always commit the workspace Package.resolved:**
