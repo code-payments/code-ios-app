@@ -19,4 +19,4 @@ The best way to share general feedback is on [Discord](https://discord.gg/T8Tpj8
 
 ## Getting Help
 
-If you have any additional questions or need help, please reach out to us on [Discord](https://discord.gg/T8Tpj8DBFp).
+If you have any additional questions or need help, please reach out to us on [Discord](https://discord.gg/T8Tpj8DBFp) or [X](https://x.com/flipcash).
