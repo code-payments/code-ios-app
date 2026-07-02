@@ -63,6 +63,7 @@ final class BuyAmountViewModel: Identifiable {
 
     @ObservationIgnored private let session: Session
     @ObservationIgnored private let ratesController: RatesController
+    @ObservationIgnored private let amountValidator = AmountValidator()
 
     init(mint: PublicKey, currencyName: String, session: Session, ratesController: RatesController) {
         self.mint = mint
@@ -309,7 +310,7 @@ final class BuyAmountViewModel: Identifiable {
     }
 
     private func computeAmount(using rate: Rate) -> ExchangedFiat? {
-        guard let amount = KeyPadView.amount(from: enteredAmount) else { return nil }
+        guard let amount = amountValidator.validate(enteredAmount) else { return nil }
         return ExchangedFiat(
             nativeAmount: FiatAmount(value: amount, currency: rate.currency),
             rate: rate

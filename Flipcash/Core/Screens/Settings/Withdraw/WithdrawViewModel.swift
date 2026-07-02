@@ -72,7 +72,7 @@ class WithdrawViewModel {
     /// Compares the raw entered Decimal against `minimumWithdrawAmount`.
     var isBelowMinimumWithdraw: Bool {
         guard let minimum = minimumWithdrawAmount else { return false }
-        guard let entered = KeyPadView.amount(from: enteredAmount) else { return false }
+        guard let entered = amountValidator.validate(enteredAmount) else { return false }
         return entered < minimum.value
     }
 
@@ -221,6 +221,7 @@ class WithdrawViewModel {
     @ObservationIgnored var onComplete: () -> Void = {}
     @ObservationIgnored private let client: Client
     @ObservationIgnored private let session: Session
+    @ObservationIgnored private let amountValidator = AmountValidator()
     @ObservationIgnored private let ratesController: RatesController
 
     // MARK: - Init -
@@ -278,7 +279,7 @@ class WithdrawViewModel {
             return nil
         }
 
-        guard let amount = KeyPadView.amount(from: enteredAmount) else {
+        guard let amount = amountValidator.validate(enteredAmount) else {
             return nil
         }
 

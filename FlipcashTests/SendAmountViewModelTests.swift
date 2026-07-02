@@ -5,7 +5,6 @@
 
 import Foundation
 import Testing
-import FlipcashUI
 @testable import FlipcashCore
 @testable import Flipcash
 
@@ -164,7 +163,7 @@ struct SendAmountViewModelTests {
 
     // MARK: - Locale amount parsing
 
-    // Inputs are built with `Metrics.localizedDecimalSeparator`, exactly what the
+    // Inputs are built with `AmountValidator.localizedDecimalSeparator`, exactly what the
     // keypad's decimal key inserts. On dot-decimal runners these pass trivially;
     // only on a comma-decimal runner (simulator/device region) can they catch a
     // parse that stops at the comma and drops the fraction.
@@ -173,7 +172,7 @@ struct SendAmountViewModelTests {
     func canSend_localeSeparatorFraction_isTrue() {
         let viewModel = Self.createViewModel()
         viewModel.selectCurrencyAction(exchangedBalance: ExchangedBalance.makeTest())
-        viewModel.enteredAmount = "0\(Metrics.localizedDecimalSeparator)50"
+        viewModel.enteredAmount = "0\(AmountValidator.localizedDecimalSeparator)50"
         #expect(viewModel.canSend == true)
     }
 
@@ -185,7 +184,7 @@ struct SendAmountViewModelTests {
             contact: Self.makeContact(),
             mint: .usdf
         )
-        viewModel.enteredAmount = "1\(Metrics.localizedDecimalSeparator)50"
+        viewModel.enteredAmount = "1\(AmountValidator.localizedDecimalSeparator)50"
 
         let submission = try #require(await viewModel.prepareSubmission())
 

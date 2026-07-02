@@ -79,7 +79,7 @@ public struct EnterAmountView: View {
     // MARK: - Computed -
 
     private var isExceedingLimit: Bool {
-        guard let value = KeyPadView.amount(from: enteredAmount), value > 0 else {
+        guard let value = AmountValidator().validate(enteredAmount), value > 0 else {
             return false
         }
         return !actionEnabled(enteredAmount)

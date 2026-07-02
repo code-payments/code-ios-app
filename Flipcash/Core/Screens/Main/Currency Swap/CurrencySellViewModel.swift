@@ -52,6 +52,7 @@ class CurrencySellViewModel: Identifiable {
 
     @ObservationIgnored private let session: Session
     @ObservationIgnored private let ratesController: RatesController
+    @ObservationIgnored private let amountValidator = AmountValidator()
 
     // MARK: - Init -
 
@@ -92,7 +93,7 @@ class CurrencySellViewModel: Identifiable {
     /// submit passes the pinned supply so rate and supply come from one proof.
     private func computeAmount(using rate: Rate, pinnedSupplyQuarks: UInt64? = nil) -> ExchangedFiat? {
         guard !enteredAmount.isEmpty else { return nil }
-        guard let amount = KeyPadView.amount(from: enteredAmount) else { return nil }
+        guard let amount = amountValidator.validate(enteredAmount) else { return nil }
         guard let supplyQuarks = pinnedSupplyQuarks ?? currencyMetadata.supplyFromBonding else { return nil }
 
         let balance = session.balance(for: currencyMetadata.mint)
