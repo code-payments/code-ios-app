@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import Contacts
 import FlipcashCore
 import FlipcashUI
 
@@ -245,14 +244,14 @@ final class SessionAuthenticator {
             owner: owner
         )
 
-        // Activate at bootstrap only when contacts are accessible (full or
-        // limited) AND a phone is already verified. A new user who granted
-        // contacts during onboarding but hasn't verified a phone yet must not
-        // sync — or fire the "already on Flipcash" dialog — before completing
-        // the Send phone step. In-screen activation handles the post-verify case.
+        // Activate at bootstrap only once a phone is already verified. A new
+        // user who granted contacts during onboarding but hasn't verified a
+        // phone yet must not sync — or fire the "already on Flipcash" dialog —
+        // before completing the Send phone step. In-screen activation handles
+        // the post-verify case. Contacts access is deliberately not checked
+        // here: `runSync()` gates on live status every pass, so changes made
+        // in Settings are honored without a second, drift-prone check.
         Task.detached { [contactSyncController, database] in
-            let status = CNContactStore.authorizationStatus(for: .contacts)
-            guard status.allowsContactAccess else { return }
             let storedProfile = (try? database.getProfile()) ?? nil
             guard storedProfile?.isPhoneVerified == true else { return }
             await MainActor.run {

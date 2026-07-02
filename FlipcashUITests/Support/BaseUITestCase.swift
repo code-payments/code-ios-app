@@ -164,48 +164,47 @@ class BaseUITestCase: XCTestCase {
         waitUntilHittableAndTap(springboard.buttons["Allow"])
     }
 
-    /// Handles the contacts permission screen if it appears. Resilient to:
-    ///   - the determined-status case where the screen is skipped entirely
-    ///   - iOS 18 jumping straight to the share picker (no Continue prompt)
-    ///   - iOS 26+ showing a Continue prompt before the share picker
-    /// iOS 18+ hosts the share picker in a dedicated XPC process,
-    /// `com.apple.ContactsUI.LimitedAccessPromptView`. The process must be
-    /// activated explicitly — queries against the non-frontmost process
-    /// return empty hierarchies even when the picker is on screen. Older
-    /// iOS variants present the same picker from springboard, so springboard
-    /// is the fallback.
+    /// Handles the contacts permission flow if it appears. Resilient to:
+    ///   - the determined-status case where the gate screen is skipped entirely
+    ///   - the springboard "Continue" alert, which any iOS version may show
+    ///     and which renders slowly on a loaded host
+    ///   - the share picker, hosted in a dedicated XPC process on iOS 18+
+    ///     (`com.apple.ContactsUI.LimitedAccessPromptView`) or by springboard
+    /// One loop drives whichever system step is on screen and fails the test
+    /// if the flow never completes — a swallowed miss leaves the alert
+    /// covering the app and wedges every test that follows in the bundle.
     func allowContactsIfNeeded() {
         let giveAccessButton = app.buttons["Give Access To Contacts"]
-        guard giveAccessButton.waitForExistence(timeout: 2) else { return }
+        guard giveAccessButton.waitForExistence(timeout: 5) else { return }
         giveAccessButton.tap()
 
         let springboard   = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         let limitedAccess = XCUIApplication(bundleIdentifier: "com.apple.ContactsUI.LimitedAccessPromptView")
 
-        // iOS 26+ Continue prompt — absent on earlier iOS.
-        let continueButton = springboard.buttons["Continue"]
-        if continueButton.waitForExistence(timeout: 2) {
-            waitUntilHittableAndTap(continueButton)
-        }
-
-        // Share picker. iOS 18+ hosts this in a dedicated XPC process
-        // (com.apple.ContactsUI.LimitedAccessPromptView); some iOS variants
-        // host it from springboard. Poll both — naming the bundle scopes
-        // the query without taking focus from the picker (`.activate()`
-        // would launch the process fresh and steal foreground).
-        let predicate    = NSPredicate(format: "label BEGINSWITH[c] 'Share All'")
-        let candidates: [XCUIApplication] = [limitedAccess, springboard]
-        let deadline     = Date().addingTimeInterval(10)
+        // Naming the bundle scopes each query without taking focus from the
+        // picker (`.activate()` would launch the process fresh and steal
+        // foreground). Queries against a non-running process return empty
+        // hierarchies, so polling both hosts is safe.
+        let sharePredicate = NSPredicate(format: "label BEGINSWITH[c] 'Share All'")
+        let deadline = Date().addingTimeInterval(60)
         while Date() < deadline {
-            for candidate in candidates {
-                let button = candidate.buttons.matching(predicate).firstMatch
-                if button.exists {
-                    waitUntilHittableAndTap(button)
+            for host in [limitedAccess, springboard] {
+                let shareAll = host.buttons.matching(sharePredicate).firstMatch
+                if shareAll.exists, shareAll.isHittable {
+                    shareAll.tap()
                     return
                 }
             }
+
+            let continueButton = springboard.buttons["Continue"]
+            if continueButton.exists, continueButton.isHittable {
+                continueButton.tap()
+            }
+
             Thread.sleep(forTimeInterval: 0.25)
         }
+
+        XCTFail("Contacts permission flow did not complete within 60s — the system alert or share picker never became tappable")
     }
 
 }
