@@ -135,7 +135,7 @@ struct ErrorSubmitIntentTests {
         }
     }
 
-    // MARK: - isTransientNetworkError / isReportable
+    // MARK: - isTransientNetworkError / reportingLevel
 
     @Test(
         "grpcStatus(.deadlineExceeded) and grpcStatus(.unavailable) are transient network errors",
@@ -145,7 +145,7 @@ struct ErrorSubmitIntentTests {
         let error = ErrorSubmitIntent.grpcStatus(RPCError(code: code, message: ""))
 
         #expect(error.isTransientNetworkError)
-        #expect(!error.isReportable)
+        #expect(error.reportingLevel == .suppressed)
     }
 
     // `.cancelled`/`.aborted`/`.unknown` are retryable per gRPC semantics
@@ -166,7 +166,7 @@ struct ErrorSubmitIntentTests {
         let error = ErrorSubmitIntent.grpcStatus(RPCError(code: code, message: ""))
 
         #expect(!error.isTransientNetworkError)
-        #expect(error.isReportable)
+        #expect(error.reportingLevel == .error)
     }
 
     @Test(

@@ -160,37 +160,41 @@ public enum ErrorNotifyIsTyping: Int, Error {
 }
 
 extension ErrorGetMessages: ServerError, TransportClassifiableError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .ok, .denied, .notFound, .transportFailure: false
-        case .unknown: true
+        case .ok, .transportFailure: .suppressed
+        case .denied, .notFound: .info
+        case .unknown: .error
         }
     }
 }
 
 extension ErrorSendMessage: ServerError, TransportClassifiableError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .ok, .denied, .transportFailure: false
-        case .unknown: true
+        case .ok, .transportFailure: .suppressed
+        case .denied: .info
+        case .unknown: .error
         }
     }
 }
 
 extension ErrorAdvancePointer: ServerError, TransportClassifiableError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .ok, .denied, .messageNotFound, .transportFailure: false
-        case .unknown: true
+        case .ok, .transportFailure: .suppressed
+        case .denied, .messageNotFound: .info
+        case .unknown: .error
         }
     }
 }
 
 extension ErrorNotifyIsTyping: ServerError, TransportClassifiableError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .ok, .denied, .transportFailure: false
-        case .unknown: true
+        case .ok, .transportFailure: .suppressed
+        case .denied: .info
+        case .unknown: .error
         }
     }
 }

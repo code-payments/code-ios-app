@@ -117,11 +117,11 @@ public enum ErrorModeration: Error, Sendable {
 }
 
 extension ErrorModeration: ServerError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .denied, .unsupportedFormat, .unsupportedLanguage: false
-        case .unknown: true
-        case .network(let error): (error as? ServerError)?.isReportable ?? true
+        case .denied, .unsupportedFormat, .unsupportedLanguage: .info
+        case .unknown: .error
+        case .network(let error): (error as? ServerError)?.reportingLevel ?? .error
         }
     }
 }

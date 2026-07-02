@@ -658,21 +658,22 @@ public enum ErrorGetSwap: Int, Error {
 }
 
 extension ErrorSwap: ServerError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .denied, .invalidSwap: false
-        case .signatureError, .unknown, .grpcError: true
-        case .grpcStatus(let status): status.isReportable
-        case .fundingIntent(let inner): inner.isReportable
+        case .denied, .invalidSwap: .info
+        case .signatureError, .unknown, .grpcError: .error
+        case .grpcStatus(let status): status.reportingLevel
+        case .fundingIntent(let inner): inner.reportingLevel
         }
     }
 }
 
 extension ErrorGetSwap: ServerError, TransportClassifiableError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .ok, .notFound, .denied, .transportFailure: false
-        case .unknown, .failedToParse: true
+        case .ok, .transportFailure: .suppressed
+        case .notFound, .denied: .info
+        case .unknown, .failedToParse: .error
         }
     }
 }

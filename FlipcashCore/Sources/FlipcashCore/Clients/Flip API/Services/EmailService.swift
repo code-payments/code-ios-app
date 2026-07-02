@@ -148,28 +148,31 @@ public enum ErrorUnlinkEmail: Int, Error {
 }
 
 extension ErrorSendEmailCode: ServerError, TransportClassifiableError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .ok, .denied, .rateLimited, .invalidEmailAddress, .transportFailure: false
-        case .unknown: true
+        case .ok, .transportFailure: .suppressed
+        case .denied, .rateLimited, .invalidEmailAddress: .info
+        case .unknown: .error
         }
     }
 }
 
 extension ErrorCheckEmailCode: ServerError, TransportClassifiableError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .ok, .denied, .rateLimited, .invalidCode, .noVerification, .transportFailure: false
-        case .unknown: true
+        case .ok, .transportFailure: .suppressed
+        case .denied, .rateLimited, .invalidCode, .noVerification: .info
+        case .unknown: .error
         }
     }
 }
 
 extension ErrorUnlinkEmail: ServerError, TransportClassifiableError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .ok, .denied, .transportFailure: false
-        case .unknown: true
+        case .ok, .transportFailure: .suppressed
+        case .denied: .info
+        case .unknown: .error
         }
     }
 }

@@ -5,17 +5,26 @@
 
 import Foundation
 
-/// Marker for errors carrying a server-returned result code (denied, not-found,
-/// invalid-input, etc.). Filtered out of error reporting by default — they
-/// represent user-driven outcomes, not iOS bugs.
-///
-/// Override `isReportable` per enum to surface specific cases that *should*
-/// reach the reporter — typically `.unknown` (raw value the client doesn't
-/// recognize → proto/client drift) and wrapped non-business causes.
-public protocol ServerError: Error {
-    var isReportable: Bool { get }
+/// How an error should surface in error reporting.
+public enum ErrorReportingLevel: Sendable, Equatable {
+    /// Never sent. Network weather (transport failures) and success sentinels.
+    case suppressed
+    /// Sent at info severity. Expected, user-driven server outcomes (denied,
+    /// not-found, rate-limited) — visible for triage but not a defect.
+    case info
+    /// Sent at error severity. Client/proto defects: unrecognized codes,
+    /// parse failures, signature errors.
+    case error
 }
 
-public extension ServerError {
-    var isReportable: Bool { false }
+/// Marker for errors carrying a server-returned result code (denied, not-found,
+/// invalid-input, etc.) or an otherwise classifiable failure.
+///
+/// There is deliberately no default implementation: every conformer must place
+/// each case explicitly — `.suppressed` for network weather / success sentinels,
+/// `.info` for expected business outcomes, `.error` for client/proto defects
+/// (typically `.unknown`). A defaulted level would let a forgotten or drifted
+/// conformance compile while silently muting its errors.
+public protocol ServerError: Error {
+    var reportingLevel: ErrorReportingLevel { get }
 }

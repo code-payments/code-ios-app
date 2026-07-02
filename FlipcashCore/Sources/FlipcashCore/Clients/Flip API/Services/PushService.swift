@@ -94,19 +94,20 @@ public enum ErrorDeleteToken: Int, Error {
 }
 
 extension ErrorAddToken: ServerError, TransportClassifiableError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .ok, .invalidPushToken, .transportFailure: false
-        case .unknown: true
+        case .ok, .transportFailure: .suppressed
+        case .invalidPushToken: .info
+        case .unknown: .error
         }
     }
 }
 
 extension ErrorDeleteToken: ServerError, TransportClassifiableError {
-    public var isReportable: Bool {
+    public var reportingLevel: ErrorReportingLevel {
         switch self {
-        case .ok, .transportFailure: false
-        case .unknown: true
+        case .ok, .transportFailure: .suppressed
+        case .unknown: .error
         }
     }
 }

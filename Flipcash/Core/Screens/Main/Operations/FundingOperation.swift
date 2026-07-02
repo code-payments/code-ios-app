@@ -87,6 +87,10 @@ nonisolated enum FundingOperationError: Error, Equatable, Sendable {
     /// via the catch-all and falls through to Bugsnag — if this fires it's
     /// a bug or an API contract change worth investigating.
     case unexpectedFailure(reason: String)
+    /// The on-chain submit of a funding transaction failed. Deliberately
+    /// reported to Bugsnag at error severity even when the underlying cause
+    /// is a network blip — at this point money is in flight and the user's
+    /// funds may be in limbo, so every occurrence is worth investigating.
     case chainSubmitFailed(String)
 }
 
