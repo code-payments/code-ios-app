@@ -10,7 +10,7 @@ import Testing
 import FlipcashCore
 @testable import Flipcash
 
-@Suite("Mint upsert preserves supplyFromBonding")
+@Suite("Mint upsert round-trips")
 struct DatabaseMintUpsertTests {
 
     // MARK: - Helpers
@@ -100,6 +100,36 @@ struct DatabaseMintUpsertTests {
         // Live supply must survive the upsert
         let stored = try #require(try db.getMintMetadata(mint: mint))
         #expect(stored.supplyFromBonding == liveSupply)
+    }
+
+    @Test("coreMintFees survives store → read → rebuilt metadata")
+    func coreMintFees_storeAndRead_preservedInRebuiltMetadata() throws {
+        let (db, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let fees = try PublicKey([UInt8](repeating: 7, count: 32))
+
+        let original = MintMetadata.makeLaunchpad(coreMintFees: fees)
+        try db.insert(mints: [original], date: .now)
+
+        let stored = try #require(try db.getMintMetadata(mint: original.address))
+        #expect(stored.coreMintFees == fees)
+
+        let rebuilt = try #require(stored.metadata.launchpadMetadata)
+        #expect(rebuilt.coreMintFees == fees)
+    }
+
+    @Test("createdAt survives store → read → rebuilt metadata")
+    func createdAt_storeAndRead_preservedInRebuiltMetadata() throws {
+        let (db, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let created = Date(timeIntervalSince1970: 1_700_000_000)
+
+        let original = MintMetadata.makeLaunchpad(createdAt: created)
+        try db.insert(mints: [original], date: .now)
+
+        let stored = try #require(try db.getMintMetadata(mint: original.address))
+        #expect(stored.createdAt == created)
+        #expect(stored.metadata.createdAt == created)
     }
 
     @Test("Balance is visible after mint upsert without launchpadMetadata")

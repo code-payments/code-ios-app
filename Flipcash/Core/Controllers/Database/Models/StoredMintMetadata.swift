@@ -100,7 +100,7 @@ extension StoredMintMetadata {
                 authority: authority,
                 mintVault: mintVault,
                 coreMintVault: coreMintVault,
-                coreMintFees: nil,
+                coreMintFees: coreMintFees,
                 supplyFromBonding: supplyFromBonding,
                 sellFeeBps: sellFeeBps
             )
@@ -126,7 +126,8 @@ extension StoredMintMetadata {
             vmMetadata: vmMetadata,
             launchpadMetadata: launchpadMetadata,
             socialLinks: decodedSocialLinks,
-            billColors: decodedBillColors
+            billColors: decodedBillColors,
+            createdAt: createdAt
         )
     }
 }
