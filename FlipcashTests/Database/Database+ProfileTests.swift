@@ -1,5 +1,5 @@
 //
-//  DatabaseProfileTests.swift
+//  Database+ProfileTests.swift
 //  FlipcashTests
 //
 

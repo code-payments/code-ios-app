@@ -1,5 +1,5 @@
 //
-//  DatabaseLiveSupplyTests.swift
+//  Database+LiveSupplyTests.swift
 //  FlipcashTests
 //
 //  Created on 2026-03-24.

@@ -1,5 +1,5 @@
 //
-//  DatabaseMintUpsertTests.swift
+//  Database+MintUpsertTests.swift
 //  FlipcashTests
 //
 //  Created on 2026-04-01.
