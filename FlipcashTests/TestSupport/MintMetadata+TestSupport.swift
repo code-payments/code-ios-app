@@ -3,12 +3,15 @@
 //  FlipcashTests
 //
 
+import Foundation
 import FlipcashCore
 
 extension MintMetadata {
     static func makeLaunchpad(
         address: PublicKey = .jeffy,
-        supplyFromBonding: UInt64 = 50_000 * 10_000_000_000
+        supplyFromBonding: UInt64 = 50_000 * 10_000_000_000,
+        coreMintFees: PublicKey? = nil,
+        createdAt: Date? = nil
     ) -> MintMetadata {
         MintMetadata(
             address: address,
@@ -29,10 +32,11 @@ extension MintMetadata {
                 authority: .usdcAuthority,
                 mintVault: .usdc,
                 coreMintVault: .usdc,
-                coreMintFees: nil,
+                coreMintFees: coreMintFees,
                 supplyFromBonding: supplyFromBonding,
                 sellFeeBps: 100
-            )
+            ),
+            createdAt: createdAt
         )
     }
 
