@@ -5,6 +5,7 @@
 
 import Foundation
 import Testing
+import FlipcashUI
 @testable import FlipcashCore
 @testable import Flipcash
 
@@ -159,6 +160,36 @@ struct SendAmountViewModelTests {
         // No resolve has happened — canSend reflects amount validity only, so a
         // red subtitle in EnterAmountView would mean over-limit, not unresolved.
         #expect(viewModel.canSend == true)
+    }
+
+    // MARK: - Locale amount parsing
+
+    // Inputs are built with `Metrics.localizedDecimalSeparator`, exactly what the
+    // keypad's decimal key inserts. On dot-decimal runners these pass trivially;
+    // only on a comma-decimal runner (simulator/device region) can they catch a
+    // parse that stops at the comma and drops the fraction.
+
+    @Test("canSend accepts a sub-unit amount typed with the locale decimal separator")
+    func canSend_localeSeparatorFraction_isTrue() {
+        let viewModel = Self.createViewModel()
+        viewModel.selectCurrencyAction(exchangedBalance: ExchangedBalance.makeTest())
+        viewModel.enteredAmount = "0\(Metrics.localizedDecimalSeparator)50"
+        #expect(viewModel.canSend == true)
+    }
+
+    @Test("prepareSubmission keeps the fraction of an amount typed with the locale decimal separator")
+    func prepareSubmission_localeSeparatorFraction_keepsFraction() async throws {
+        let container = try await Self.makeReadyToSendContainer()
+        let viewModel = SendAmountViewModel(
+            sessionContainer: container,
+            contact: Self.makeContact(),
+            mint: .usdf
+        )
+        viewModel.enteredAmount = "1\(Metrics.localizedDecimalSeparator)50"
+
+        let submission = try #require(await viewModel.prepareSubmission())
+
+        #expect(submission.amount.nativeAmount.value == Decimal(string: "1.5"))
     }
 
     // MARK: - selectCurrencyAction

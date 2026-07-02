@@ -46,7 +46,7 @@ final class SendAmountViewModel {
     }
 
     private var enteredFiat: ExchangedFiat? {
-        guard let amount = Decimal(string: enteredAmount),
+        guard let amount = KeyPadView.amount(from: enteredAmount),
               let selectedBalance else { return nil }
         return selectedBalance.enteredFiat(
             for: amount,
@@ -206,7 +206,7 @@ final class SendAmountViewModel {
         ) else { return nil }
 
         guard !enteredAmount.isEmpty,
-              let entered = Decimal(string: enteredAmount),
+              let entered = KeyPadView.amount(from: enteredAmount),
               entered > 0 else { return nil }
 
         let nativeEntered = FiatAmount(value: entered, currency: pin.rate.currency)
