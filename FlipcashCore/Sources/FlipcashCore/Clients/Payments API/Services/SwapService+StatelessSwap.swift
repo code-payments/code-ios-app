@@ -158,10 +158,6 @@ extension SwapService {
                     "code": "\(error.code)",
                     "message": "\(error.message)",
                 ])
-                // TODO(v2-review): ErrorStatelessSwap.grpcStatus lives in
-                // StatelessSwapModels.swift (out of this file's scope) and still
-                // stores GRPCStatus; its associated value must be changed to
-                // RPCError for this to compile.
                 resolve(.failure(.grpcStatus(error)))
 
             case .failure(let error):

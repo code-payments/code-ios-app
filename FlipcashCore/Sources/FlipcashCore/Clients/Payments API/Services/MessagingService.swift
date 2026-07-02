@@ -230,24 +230,10 @@ final class MessagingService: Sendable {
     }
 }
 
-// MARK: - Error -
-
-extension MessagingService {
-    enum MessagingError: Error {
-        case failedToParsePaymentRequests
-    }
-}
-
 // MARK: - Message IDs -
 
 extension Ocp_Messaging_V1_MessageId {
     var hexEncoded: String {
         value.hexEncodedString()
-    }
-}
-
-extension Array where Element == Ocp_Messaging_V1_Message {
-    var hexEncodedIDs: [String] {
-        map { $0.id.hexEncoded }
     }
 }

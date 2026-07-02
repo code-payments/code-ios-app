@@ -1,5 +1,5 @@
 //
-//  CurrencyCreationScreen.swift
+//  CurrencyCreationState.swift
 //  Flipcash
 //
 
@@ -19,13 +19,6 @@ struct CreationProgressBar: View {
             .tint(Color.textMain)
             .frame(width: 140)
     }
-}
-
-// MARK: - CurrencyCreationStep
-
-enum CurrencyCreationStep: Hashable {
-    case summary
-    case wizard
 }
 
 // MARK: - CurrencyCreationState

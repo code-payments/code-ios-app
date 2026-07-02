@@ -9,12 +9,6 @@
 import SwiftUI
 
 extension Animation {
-    public static var easeOutSlower: Animation {
-        Animation
-            .easeOut
-            .speed(0.5)
-    }
-    
     public static var easeOutFastest: Animation {
         Animation
             .easeOut
@@ -45,13 +39,5 @@ extension AnyTransition {
         AnyTransition
             .opacity
             .animation(.easeOut)
-    }
-}
-
-public func withoutAnimation(block: VoidAction) {
-    var transaction = Transaction(animation: .linear.speed(.greatestFiniteMagnitude))
-    transaction.disablesAnimations = true
-    withTransaction(transaction) {
-        block()
     }
 }

@@ -620,36 +620,22 @@ final class TransactionService: Sendable {
             // intent is considered failed. Something must have gone wrong
             // on the transaction creation or signing on our side.
             case .error(let error):
-                var container: [String] = []
-
-                container.append("Type: \(T.self)")
-                container.append("Code: \(error.code)")
-
-                let errors = error.errorDetails.flatMap { details in
+                let invalidSignatures = error.errorDetails.compactMap { details -> String? in
                     switch details.type {
-                    case .reasonString(let reason):
-                        return [
-                            "Reason: \(reason.reason)"
-                        ]
-
                     case .invalidSignature(let signatureDetails):
-                        return [
-                            "Action index: \(signatureDetails.actionID)",
-                            "Invalid signature: \((try? Signature(signatureDetails.providedSignature.value).base58) ?? "nil")",
-                            "Transaction bytes: \(signatureDetails.expectedTransaction.value.hexEncodedString())",
-                        ]
+                        let signature = (try? Signature(signatureDetails.providedSignature.value).base58) ?? "nil"
+                        return "action=\(signatureDetails.actionID) signature=\(signature) transaction=\(signatureDetails.expectedTransaction.value.hexEncodedString())"
                     default:
-                        return []
+                        return nil
                     }
                 }
-
-                container.append(contentsOf: errors)
 
                 logger.error("Intent submission error", metadata: [
                     "type": "\(T.self)",
                     "code": "\(error.code)",
                     "detailCount": "\(error.errorDetails.count)",
-                    "intentId": "\(intent.id.base58)"
+                    "intentId": "\(intent.id.base58)",
+                    "invalidSignatures": "\(invalidSignatures)"
                 ])
 
                 reference.cancel()
