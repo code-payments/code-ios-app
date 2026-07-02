@@ -21,10 +21,6 @@ extension Metrics {
     public static let buttonPadding: CGFloat = 20.0
     public static let buttonLineWidth: CGFloat = 1.0
 
-    public nonisolated static var localizedDecimalSeparator: String {
-        Locale.current.decimalSeparator ?? "."
-    }
-    
     public static func inputFieldStrokeColor(highlighted: Bool) -> Color {
         if highlighted {
             return .textSecondary.opacity(0.7)

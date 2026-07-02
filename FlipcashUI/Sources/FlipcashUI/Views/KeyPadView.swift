@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import FlipcashCore
 
 public struct KeyPadView: View {
     
@@ -81,20 +82,6 @@ public struct KeyPadView: View {
     private func onButton(action: ButtonAction) {
         let actuator = Actuator(content: $content, rules: rules)
         actuator.execute(action: action)
-    }
-}
-
-extension KeyPadView {
-    /// Parses a keypad-emitted amount string into a `Decimal`. The keypad's
-    /// decimal key inserts `Metrics.localizedDecimalSeparator`, which
-    /// `Decimal(string:)` only understands as "." — so the separator is
-    /// normalized before parsing.
-    public nonisolated static func amount(
-        from string: String,
-        separator: String = Metrics.localizedDecimalSeparator
-    ) -> Decimal? {
-        guard !string.isEmpty else { return nil }
-        return Decimal(string: string.replacingOccurrences(of: separator, with: "."))
     }
 }
 
@@ -302,7 +289,7 @@ public enum ButtonContent: RawRepresentable {
         case .zero:
             return "0"
         case .decimal:
-            return Metrics.localizedDecimalSeparator
+            return AmountValidator.localizedDecimalSeparator
         case .symbol(let symbol):
             return symbol.rawValue
         }

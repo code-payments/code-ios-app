@@ -30,6 +30,7 @@ final class SendAmountViewModel {
     @ObservationIgnored let sender: any DirectSending
     @ObservationIgnored let resolver: any RecipientResolving
     @ObservationIgnored let contact: ResolvedContact
+    @ObservationIgnored private let amountValidator = AmountValidator()
 
     private(set) var selectedBalance: ExchangedBalance?
 
@@ -46,7 +47,7 @@ final class SendAmountViewModel {
     }
 
     private var enteredFiat: ExchangedFiat? {
-        guard let amount = KeyPadView.amount(from: enteredAmount),
+        guard let amount = amountValidator.validate(enteredAmount),
               let selectedBalance else { return nil }
         return selectedBalance.enteredFiat(
             for: amount,
@@ -206,7 +207,7 @@ final class SendAmountViewModel {
         ) else { return nil }
 
         guard !enteredAmount.isEmpty,
-              let entered = KeyPadView.amount(from: enteredAmount),
+              let entered = amountValidator.validate(enteredAmount),
               entered > 0 else { return nil }
 
         let nativeEntered = FiatAmount(value: entered, currency: pin.rate.currency)

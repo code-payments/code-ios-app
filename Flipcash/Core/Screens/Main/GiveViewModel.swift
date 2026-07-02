@@ -28,11 +28,12 @@ final class GiveViewModel {
     @ObservationIgnored let sessionContainer: SessionContainer
     @ObservationIgnored let session: Session
     @ObservationIgnored let ratesController: RatesController
+    @ObservationIgnored private let amountValidator = AmountValidator()
 
     private(set) var selectedBalance: ExchangedBalance?
 
     private var enteredFiat: ExchangedFiat? {
-        guard let amount = KeyPadView.amount(from: enteredAmount),
+        guard let amount = amountValidator.validate(enteredAmount),
               let selectedBalance else { return nil }
         return selectedBalance.enteredFiat(
             for: amount,
@@ -122,7 +123,7 @@ final class GiveViewModel {
         ) else { return nil }
 
         guard !enteredAmount.isEmpty,
-              let entered = KeyPadView.amount(from: enteredAmount),
+              let entered = amountValidator.validate(enteredAmount),
               entered > 0 else { return nil }
 
         guard let pinnedSupply = pin.supplyFromBonding else { return nil }
