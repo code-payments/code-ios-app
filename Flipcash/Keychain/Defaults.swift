@@ -19,8 +19,6 @@ enum DefaultsKey: String {
 
     case storedTokenMint = "com.flipcash.token.storedTokenMint"
 
-    case didClearLegacyImageDiskCache = "com.flipcash.image.didClearLegacyDiskCache"
-
     case betaFlags = "com.flipcash.betaFlags"
 }
 
