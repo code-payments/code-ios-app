@@ -57,15 +57,12 @@ public final class ChatViewController: UICollectionViewController {
     /// Breathing room kept below the last item, above the bar, so a trailing receipt doesn't sit
     /// flush against the bar.
     private static let bottomContentPadding: CGFloat = 12
-    /// True while a batch update animates, so the top trigger doesn't re-fire mid-update.
-    private var isUpdating = false
-    /// The transcript as it was when the in-flight batch update began. Deleted rows are addressed
-    /// in this space (see `finalLayoutAttributesForDeletedItem`); `items` already holds the new
-    /// data by the time the layout asks.
-    private var itemsBeforeUpdate: [ChatItem]?
-    /// Set while `setBottomInset` writes the content inset — that write synchronously fires
-    /// `scrollViewDidChangeAdjustedContentInset`, and this stops the delegate re-entering `scrollToBottom`
-    /// → `restoreContentOffset` mid-write, a nested layout pass that crashes ChatLayout.
+    /// Serializes animated layout work and holds the push/inset that must wait for it; anything
+    /// that must not overlap a transaction defers through `whenIdle`.
+    private let fence = ChatAnimationFence()
+    /// Ids of the rows the in-flight update appended, each owed a cell entrance when it surfaces.
+    private var pendingEntranceIDs: Set<String> = []
+    /// Suppresses the adjusted-inset delegate re-entry while `setBottomInset` writes.
     private var isAdjustingBottomInset = false
     /// True while a context menu is lifted from a bubble. Presenting the menu dismisses the keyboard;
     /// without intervention the adjusted inset shrinks and the transcript reflows out from under the
@@ -77,9 +74,6 @@ public final class ChatViewController: UICollectionViewController {
     private var savedInsetBehavior: UIScrollView.ContentInsetAdjustmentBehavior?
     private var savedContentInset: UIEdgeInsets?
     private var savedScrollIndicatorInsets: UIEdgeInsets?
-    /// A transcript pushed while the menu was up, applied once it closes (so an arriving message can't
-    /// reflow the content mid-preview). Mirrors ChatLayout deferring updates while `.showingPreview`.
-    private var deferredItems: [ChatItem]?
 
     public init() {
         super.init(collectionViewLayout: chatLayout)
@@ -135,8 +129,12 @@ public final class ChatViewController: UICollectionViewController {
         // While a context menu is up the inset is frozen (`freezeInset`), so this shouldn't fire for the
         // keyboard — but guard anyway, since taking the inset over and handing it back each toggles the
         // adjusted inset, and following those would move the content the freeze is holding in place.
-        guard !isAdjustingBottomInset, !isShowingContextMenu, wasAtBottom, !needsInitialScroll, !isUpdating, !items.isEmpty else { return }
-        scrollToBottom(animated: false)
+        guard !isAdjustingBottomInset, !isShowingContextMenu, wasAtBottom, !needsInitialScroll, !items.isEmpty else { return }
+        // Deferred rather than dropped mid-transaction, with the conditions re-checked at replay.
+        fence.whenIdle { [weak self] in
+            guard let self, wasAtBottom, !isShowingContextMenu, !needsInitialScroll, !items.isEmpty else { return }
+            scrollToBottom(animated: false)
+        }
     }
 
     // MARK: - Updates
@@ -146,11 +144,15 @@ public final class ChatViewController: UICollectionViewController {
     /// `keepContentOffsetAtBottomOnBatchUpdates` keeps a new arrival pinned to the bottom (and a
     /// prepended older page anchored in place) with no hand-rolled scrolling.
     public func update(items newItems: [ChatItem], animated: Bool = true) {
-        // While a context menu is lifted, hold pushed updates: reloading the transcript now (e.g. an
-        // arriving message) would reflow the content out from under the lifted preview. The latest
-        // push is applied when the menu closes. Mirrors ChatLayout deferring updates during a preview.
+        // Held while a context menu is lifted — reloading would reflow under the preview.
         guard !isShowingContextMenu else {
-            deferredItems = newItems
+            fence.heldItems = (newItems, animated)
+            return
+        }
+        // Serialized behind in-flight animations; the latest push replays at drain.
+        guard !fence.isActive else {
+            fence.heldItems = (newItems, animated)
+            fence.whenIdle { [weak self] in self?.flushHeldItems() }
             return
         }
         // The owner re-pushes on every observable change (read receipts, the live stream, paging
@@ -181,13 +183,16 @@ public final class ChatViewController: UICollectionViewController {
             items = newItems
             return
         }
-        isUpdating = true
-        itemsBeforeUpdate = items
+        // Only trailing new rows enter with motion — prepended history and catch-up merges
+        // must not replay insertion transitions.
+        pendingEntranceIDs = Self.trailingNewIDs(from: items, to: newItems)
+        fence.begin()
         collectionView.reload(
             using: changeset,
-            // A change too large to animate falls back to a reload that keeps the bottom-anchored
-            // position rather than animating hundreds of rows.
-            interrupt: { $0.changeCount > 100 },
+            animatingWith: ChatMotion.insertion,
+            // Interrupt counts only structural changes — reconfigures restyle in place and must
+            // not demote an animatable page-plus-updates push to a hard reload.
+            interrupt: { $0.elementDeleted.count + $0.elementInserted.count + $0.elementMoved.count > 100 },
             onInterruptedReload: { [weak self] in
                 guard let self else { return }
                 let snapshot = chatLayout.getContentOffsetSnapshot(from: .bottom)
@@ -197,13 +202,33 @@ public final class ChatViewController: UICollectionViewController {
                 }
             },
             completion: { [weak self] _ in
-                self?.isUpdating = false
-                self?.itemsBeforeUpdate = nil
+                guard let self else { return }
+                pendingEntranceIDs = []
+                fence.end()
             },
             setData: { [weak self] data in
                 self?.items = data
             }
         )
+    }
+
+    /// Applies the newest held transcript push, re-checking every gate in `update(items:)`.
+    private func flushHeldItems() {
+        guard !isShowingContextMenu, let held = fence.heldItems else { return }
+        fence.heldItems = nil
+        update(items: held.items, animated: held.animated)
+    }
+
+    /// Returns the ids of `newItems`' trailing run of rows absent from `oldItems` — the
+    /// just-arrived messages owed an entrance, never prepended history.
+    static func trailingNewIDs(from oldItems: [ChatItem], to newItems: [ChatItem]) -> Set<String> {
+        let oldIDs = Set(oldItems.map(\.id))
+        var ids: Set<String> = []
+        for item in newItems.reversed() {
+            guard !oldIDs.contains(item.id) else { break }
+            ids.insert(item.id)
+        }
+        return ids
     }
 
     // MARK: - Data source
@@ -274,7 +299,23 @@ public final class ChatViewController: UICollectionViewController {
     /// cell loses its `CAAnimation`s, and `willDisplay`/`didEndDisplaying` are the reliable per-appearance
     /// hooks, so the wave restarts every time the row is (re)inserted.
     public override func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
+        // A recycled cell may carry a half-finished entrance; every display starts clean.
+        cell.transform = .identity
         (cell as? ChatTypingIndicatorCell)?.startAnimating()
+        playEntranceIfNeeded(on: cell, at: indexPath)
+    }
+
+    /// Plays the entrance animation on `cell` when its row was appended by the in-flight update.
+    private func playEntranceIfNeeded(on cell: UICollectionViewCell, at indexPath: IndexPath) {
+        guard !pendingEntranceIDs.isEmpty, items.indices.contains(indexPath.item) else { return }
+        let item = items[indexPath.item]
+        guard pendingEntranceIDs.remove(item.id) != nil else { return }
+        let transform = Self.entranceTransform(for: item, width: cell.bounds.width)
+        guard transform != .identity else { return }
+        cell.transform = transform
+        UIView.animate(springDuration: ChatMotion.insertion.duration, bounce: ChatMotion.insertion.bounce, options: [.allowUserInteraction]) {
+            cell.transform = .identity
+        }
     }
 
     public override func collectionView(_ collectionView: UICollectionView, didEndDisplaying cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
@@ -291,21 +332,25 @@ public final class ChatViewController: UICollectionViewController {
         scrollToBottom(animated: false)
     }
 
-    /// Scroll to the newest message by re-anchoring the layout to the last item's bottom edge.
-    /// This is ChatLayout's own primitive and is correct even before the bottom cells have
-    /// self-sized — it positions the last item, not a globally-computed offset.
+    /// Scrolls to the newest message by re-anchoring the layout to the last item's bottom edge.
     public func scrollToBottom(animated: Bool = true) {
-        guard !items.isEmpty else { return }
-        let snapshot = ChatLayoutPositionSnapshot(
-            indexPath: IndexPath(item: items.count - 1, section: 0),
-            edge: .bottom
-        )
+        // The transcript is frozen under a lifted context menu; the keep-at-bottom anchoring
+        // covers the held push once the menu closes.
+        guard !items.isEmpty, !isShowingContextMenu else { return }
+        // A held push means `items` is stale — scroll once it has replayed.
+        guard fence.heldItems == nil else {
+            fence.whenIdle { [weak self] in self?.scrollToBottom(animated: animated) }
+            return
+        }
         guard animated else {
-            chatLayout.restoreContentOffset(with: snapshot)
-            // The first restore positions by the estimate; once the bottom cells self-size, re-anchor
-            // so a tall last cell (cash card, long message) sits fully above the bar, not short.
-            DispatchQueue.main.async { [weak self] in
-                self?.chatLayout.restoreContentOffset(with: snapshot)
+            fence.whenIdle { [weak self] in
+                guard let self else { return }
+                restoreToBottom()
+                // Re-anchor once the bottom cells self-size, so a tall last cell doesn't sit short.
+                DispatchQueue.main.async { [weak self] in
+                    guard let self else { return }
+                    fence.whenIdle { [weak self] in self?.restoreToBottom() }
+                }
             }
             return
         }
@@ -313,12 +358,23 @@ public final class ChatViewController: UICollectionViewController {
             - collectionView.bounds.height
             + collectionView.adjustedContentInset.bottom
         guard target > collectionView.contentOffset.y else { return }
+        fence.begin()
         UIView.animate(springDuration: ChatMotion.scroll.duration, bounce: ChatMotion.scroll.bounce, animations: {
             self.collectionView.setContentOffset(CGPoint(x: 0, y: target), animated: false)
         }, completion: { _ in
-            // Lock to the exact bottom edge once the animation lands (the estimate may have moved).
-            self.chatLayout.restoreContentOffset(with: snapshot)
+            // End first — draining may replay held work — then anchor to whatever is last by then.
+            self.fence.end()
+            self.fence.whenIdle { [weak self] in self?.restoreToBottom() }
         })
+    }
+
+    /// Re-anchors the layout to the current last item's bottom edge.
+    private func restoreToBottom() {
+        guard !items.isEmpty else { return }
+        chatLayout.restoreContentOffset(with: ChatLayoutPositionSnapshot(
+            indexPath: IndexPath(item: items.count - 1, section: 0),
+            edge: .bottom
+        ))
     }
 
     public override func scrollViewDidScroll(_ scrollView: UIScrollView) {
@@ -331,7 +387,7 @@ public final class ChatViewController: UICollectionViewController {
         // Don't paginate while a batch update animates, or before the opening scroll-to-bottom has
         // run — on open the content sits at the top for a beat, which would otherwise fire a stray
         // older-page load.
-        guard !isUpdating, !needsInitialScroll else { return }
+        guard !fence.isActive, !needsInitialScroll else { return }
         // ChatLayout's canonical reverse-pagination trigger: while within one screen of the top.
         // The owner's loader is guarded, so firing repeatedly is fine, and it inherently only
         // fires when scrolled up — which is exactly "paginate only while scrolled up".
@@ -346,20 +402,38 @@ public final class ChatViewController: UICollectionViewController {
     /// scrolled-up stays put — no hand-computed offset.
     public func setBottomInset(_ inset: CGFloat) {
         // The inset is frozen while a context menu is up; don't touch it (it's restored on close).
-        guard !isShowingContextMenu else { return }
-        // Never change the inset mid-batch-update: ChatLayout can't account for an inset change
-        // during `performBatchUpdates`, which is what made an append (a send) overshoot. The next
-        // layout pass after the update re-applies it.
-        let target = inset + Self.bottomContentPadding
-        guard isViewLoaded, !isUpdating, abs(collectionView.contentInset.bottom - target) > 0.5 else { return }
-        let snapshot = chatLayout.getContentOffsetSnapshot(from: .bottom)
-        isAdjustingBottomInset = true // suppress the delegate re-entry from the inset write below
-        collectionView.contentInset.bottom = target
-        collectionView.verticalScrollIndicatorInsets.bottom = target
-        isAdjustingBottomInset = false
-        if let snapshot {
-            chatLayout.restoreContentOffset(with: snapshot)
+        guard isViewLoaded, !isShowingContextMenu else { return }
+        // Never change the inset mid-transaction — hold the latest value and replay it at drain.
+        guard !fence.isActive else {
+            if fence.heldBottomInset == nil {
+                fence.whenIdle { [weak self] in
+                    guard let self, let held = fence.heldBottomInset else { return }
+                    fence.heldBottomInset = nil
+                    setBottomInset(held)
+                }
+            }
+            fence.heldBottomInset = inset
+            return
         }
+        let target = inset + Self.bottomContentPadding
+        guard abs(collectionView.contentInset.bottom - target) > 0.5 else { return }
+
+        // Upstream's keyboard recipe: complete leftover batch state, write the inset inside a
+        // non-animated `performBatchUpdates` — the one bounds-change route ChatLayout
+        // coordinates — and re-anchor in the same transaction.
+        let snapshot = chatLayout.getContentOffsetSnapshot(from: .bottom)
+        isAdjustingBottomInset = true
+        UIView.performWithoutAnimation {
+            collectionView.performBatchUpdates({})
+            collectionView.performBatchUpdates({
+                collectionView.contentInset.bottom = target
+                collectionView.verticalScrollIndicatorInsets.bottom = target
+            })
+            if let snapshot {
+                chatLayout.restoreContentOffset(with: snapshot)
+            }
+        }
+        isAdjustingBottomInset = false
     }
 
     /// Take over the inset at its current (keyboard-up) value so the keyboard leaving under the menu
@@ -374,11 +448,15 @@ public final class ChatViewController: UICollectionViewController {
         savedInsetBehavior = collectionView.contentInsetAdjustmentBehavior
         savedContentInset = collectionView.contentInset
         savedScrollIndicatorInsets = collectionView.verticalScrollIndicatorInsets
-        collectionView.contentInsetAdjustmentBehavior = .never
-        collectionView.contentInset = frozen
-        collectionView.verticalScrollIndicatorInsets = frozen
-        if let snapshot {
-            chatLayout.restoreContentOffset(with: snapshot)
+        // Non-animated so the menu transition's context can't classify these writes as an
+        // animated bounds change.
+        UIView.performWithoutAnimation {
+            collectionView.contentInsetAdjustmentBehavior = .never
+            collectionView.contentInset = frozen
+            collectionView.verticalScrollIndicatorInsets = frozen
+            if let snapshot {
+                chatLayout.restoreContentOffset(with: snapshot)
+            }
         }
     }
 
@@ -388,11 +466,14 @@ public final class ChatViewController: UICollectionViewController {
     private func restoreInset() {
         guard let behavior = savedInsetBehavior else { return }
         let snapshot = chatLayout.getContentOffsetSnapshot(from: .bottom)
-        collectionView.contentInsetAdjustmentBehavior = behavior
-        if let inset = savedContentInset { collectionView.contentInset = inset }
-        if let indicator = savedScrollIndicatorInsets { collectionView.verticalScrollIndicatorInsets = indicator }
-        if let snapshot {
-            chatLayout.restoreContentOffset(with: snapshot)
+        // Same animation constraint as `freezeInset`.
+        UIView.performWithoutAnimation {
+            collectionView.contentInsetAdjustmentBehavior = behavior
+            if let inset = savedContentInset { collectionView.contentInset = inset }
+            if let indicator = savedScrollIndicatorInsets { collectionView.verticalScrollIndicatorInsets = indicator }
+            if let snapshot {
+                chatLayout.restoreContentOffset(with: snapshot)
+            }
         }
         savedInsetBehavior = nil
         savedContentInset = nil
@@ -400,59 +481,31 @@ public final class ChatViewController: UICollectionViewController {
     }
 }
 
-/// The controller is the layout delegate. Sizing keeps ChatLayout's defaults — auto self-sizing
-/// and full-width alignment — while the insert/delete hooks replace the default plain fade with
-/// the prototype's motion: a bubble scales in from 0.95 anchored at its sender's edge while
-/// fading, so rows materialize in place instead of sliding in from an edge.
-extension ChatViewController: ChatLayoutDelegate {
+/// Keeps ChatLayout's default attributes — transforms set here round-trip through the layout's
+/// frame bookkeeping and corrupt it, so entrance motion lives on the cell (`playEntranceIfNeeded`).
+extension ChatViewController: ChatLayoutDelegate {}
 
-    public func initialLayoutAttributesForInsertedItem(
-        _ chatLayout: CollectionViewChatLayout,
-        at indexPath: IndexPath,
-        modifying originalAttributes: ChatLayoutAttributes,
-        on state: InitialAttributesRequestType
-    ) {
-        originalAttributes.alpha = 0
-        // Inserted index paths are in the after-update space, which `items` already reflects.
-        guard items.indices.contains(indexPath.item) else { return }
-        originalAttributes.transform = Self.entranceTransform(for: items[indexPath.item], width: originalAttributes.frame.width)
-    }
+extension ChatViewController {
 
-    public func finalLayoutAttributesForDeletedItem(
-        _ chatLayout: CollectionViewChatLayout,
-        at indexPath: IndexPath,
-        modifying originalAttributes: ChatLayoutAttributes
-    ) {
-        originalAttributes.alpha = 0
-        // Deleted index paths are in the before-update space, but `items` holds the new data by
-        // the time the layout asks — the same index may now be a different row (the arriving
-        // message typically lands exactly where the typing indicator was). Look the row up in the
-        // snapshot taken as the update began.
-        let source = itemsBeforeUpdate ?? items
-        guard source.indices.contains(indexPath.item) else { return }
-        originalAttributes.transform = Self.entranceTransform(for: source[indexPath.item], width: originalAttributes.frame.width)
-    }
-
-    /// Scale + fade anchored at the row's aligned edge — trailing for own messages, leading for
-    /// the counterpart's and the typing indicator. The cell spans the full width with the bubble
-    /// hugging that edge, so pinning the cell's edge (scale about center, then shift by half the
-    /// shrink) pins the bubble's. Date separators are centered and only fade.
-    private static func entranceTransform(for item: ChatItem, width: CGFloat) -> CGAffineTransform {
-        let scale = ChatMotion.insertionScale
-        let edgeShift = width * (1 - scale) / 2
+    /// Returns `item`'s entrance transform, anchored at its sender's edge — identity for date
+    /// separators and under Reduce Motion.
+    static func entranceTransform(for item: ChatItem, width: CGFloat) -> CGAffineTransform {
+        // -1 shifts toward the leading edge, +1 toward the trailing.
+        let edge: CGFloat
         switch item {
         case .dateSeparator:
             return .identity
         case .typingIndicator:
-            return CGAffineTransform(translationX: -edgeShift, y: 0).scaledBy(x: scale, y: scale)
+            edge = -1
         case .message(let message):
             switch message.sender {
-            case .me:
-                return CGAffineTransform(translationX: edgeShift, y: 0).scaledBy(x: scale, y: scale)
-            case .other:
-                return CGAffineTransform(translationX: -edgeShift, y: 0).scaledBy(x: scale, y: scale)
+            case .me: edge = 1
+            case .other: edge = -1
             }
         }
+        let scale = ChatMotion.insertionScale
+        return CGAffineTransform(translationX: edge * width * (1 - scale) / 2, y: 0)
+            .scaledBy(x: scale, y: scale)
     }
 }
 
@@ -464,8 +517,9 @@ extension ChatViewController {
     /// pasteboard — ChatLayout's canonical copy interaction, scoped to text messages. Cash cards and
     /// date separators carry no copyable text and opt out.
     public override func collectionView(_ collectionView: UICollectionView, contextMenuConfigurationForItemAt indexPath: IndexPath, point: CGPoint) -> UIContextMenuConfiguration? {
-        // Don't offer a menu mid-batch-update: the index path may not line up with the rendered cell.
-        guard !isUpdating else { return nil }
+        // Don't offer a menu mid-transaction: the index path may not line up with the rendered
+        // cell, and `freezeInset`'s write + re-anchor must never overlap a settling animation.
+        guard !fence.isActive else { return nil }
 
         let body: String
         switch items[indexPath.item] {
@@ -516,10 +570,7 @@ extension ChatViewController {
             // suppressed (no stray scroll); then drop the flag and apply any held update.
             restoreInset()
             isShowingContextMenu = false
-            if let pending = deferredItems {
-                deferredItems = nil
-                update(items: pending)
-            }
+            flushHeldItems()
         }
         if let animator {
             animator.addCompletion(resume)

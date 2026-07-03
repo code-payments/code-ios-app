@@ -15,7 +15,7 @@ import FlipcashCore
 struct ChatViewControllerTests {
 
     private func item(_ i: Int, _ sender: ChatMessage.Sender = .me) -> ChatItem {
-        .message(ChatMessage(id: "msg-\(i)", text: "message \(i)", sender: sender))
+        .text("msg-\(i)", sender: sender)
     }
 
     @Test("Update renders one item per message")
@@ -70,23 +70,18 @@ struct ChatViewControllerTests {
         // A new own message updates the previous row (receipt migrates off it, isContinuedByNext
         // flips) in the same push that inserts the new row. On a live window this must apply as a
         // single batch update — reconfigure + insert together — without throwing or dropping rows.
-        let controller = ChatViewController()
-        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
-        window.rootViewController = controller
-        window.makeKeyAndVisible()
+        let (controller, window) = ChatViewController.windowed()
+        defer { _ = window }
 
         let before = (0..<8).map { item($0, $0.isMultiple(of: 2) ? .me : .other) } + [
-            .message(ChatMessage(id: "sent-1", text: "first send", sender: .me, receipt: "Delivered")),
+            .text("sent-1", receipt: "Delivered"),
         ]
         controller.update(items: before)
-        for _ in 0..<3 {
-            controller.view.layoutIfNeeded()
-            try? await Task.sleep(for: .milliseconds(40))
-        }
+        await controller.settle()
 
         let after = (0..<8).map { item($0, $0.isMultiple(of: 2) ? .me : .other) } + [
-            .message(ChatMessage(id: "sent-1", text: "first send", sender: .me, isContinuedByNext: true)),
-            .message(ChatMessage(id: "sent-2", text: "second send", sender: .me, isContinuationFromPrevious: true, receipt: "Delivered")),
+            .text("sent-1", continuedByNext: true),
+            .text("sent-2", continuationFromPrevious: true, receipt: "Delivered"),
         ]
         controller.update(items: after)
         #expect(controller.collectionView.numberOfItems(inSection: 0) == after.count)
@@ -96,45 +91,76 @@ struct ChatViewControllerTests {
     func update_arrivalWhileTyping_appliesInOneBatch() async {
         // The riskiest merged shape: the typing indicator deletes, the reply inserts at the same
         // position, and the previous row reconfigures — all in one batch on a live window.
-        let controller = ChatViewController()
-        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
-        window.rootViewController = controller
-        window.makeKeyAndVisible()
+        let (controller, window) = ChatViewController.windowed()
+        defer { _ = window }
 
         let before: [ChatItem] = (0..<8).map { item($0, $0.isMultiple(of: 2) ? .me : .other) } + [
-            .message(ChatMessage(id: "them-1", text: "typing next", sender: .other)),
+            .text("them-1", sender: .other),
             .typingIndicator,
         ]
         controller.update(items: before)
-        for _ in 0..<3 {
-            controller.view.layoutIfNeeded()
-            try? await Task.sleep(for: .milliseconds(40))
-        }
+        await controller.settle()
 
         let after: [ChatItem] = (0..<8).map { item($0, $0.isMultiple(of: 2) ? .me : .other) } + [
-            .message(ChatMessage(id: "them-1", text: "typing next", sender: .other, isContinuedByNext: true)),
-            .message(ChatMessage(id: "them-2", text: "the reply", sender: .other, isContinuationFromPrevious: true)),
+            .text("them-1", sender: .other, continuedByNext: true),
+            .text("them-2", sender: .other, continuationFromPrevious: true),
         ]
         controller.update(items: after)
         #expect(controller.collectionView.numberOfItems(inSection: 0) == after.count)
     }
 
+    // MARK: - Animation fence (regression: the missing-final-attributes crash)
+
+    // ChatLayout's `restoreContentOffset` deliberately answers attribute queries with nil while
+    // it re-anchors. An inset write or transcript push overlapping a settling batch spring is
+    // how that nil met UIKit's animated-bounds-change cross-fade and threw
+    // "missing final attributes for cell" (the repro: Send with a hardware keyboard — the
+    // composer collapse's inset change replayed mid-animation). These pin the fence behavior:
+    // work arriving mid-transaction defers, then replays once the springs settle.
+
+    @Test("An inset arriving mid-animated-update is deferred, then applied once it settles")
+    func setBottomInset_duringAnimatedUpdate_deferredThenApplied() async {
+        let (controller, window) = ChatViewController.windowed()
+        defer { _ = window }
+        let base = (0..<12).map { item($0, $0.isMultiple(of: 2) ? .me : .other) }
+        controller.update(items: base)
+        await controller.settle(turns: 6)
+
+        controller.update(items: base + [item(99)]) // animated batch — the fence is up
+        controller.setBottomInset(100)
+        // 112 = 100 + the transcript's 12pt bottom content padding.
+        #expect(controller.collectionView.contentInset.bottom != 112,
+                "the write must not land while the batch's spring settles")
+        await controller.settle(until: { controller.collectionView.contentInset.bottom == 112 })
+        #expect(controller.collectionView.contentInset.bottom == 112)
+    }
+
+    @Test("A push arriving mid-animated-update is deferred and the latest wins")
+    func update_duringAnimatedUpdate_deferredLatestWins() async {
+        let (controller, window) = ChatViewController.windowed()
+        defer { _ = window }
+        let base = (0..<10).map { item($0) }
+        controller.update(items: base)
+        await controller.settle(turns: 6)
+
+        controller.update(items: base + [item(50)])                     // batch A — fence up
+        controller.update(items: base + [item(50), item(51)])           // held
+        controller.update(items: base + [item(50), item(51), item(52)]) // held — latest wins
+        #expect(controller.collectionView.numberOfItems(inSection: 0) == 11,
+                "only batch A applies while its spring settles")
+        await controller.settle(until: { controller.collectionView.numberOfItems(inSection: 0) == 13 })
+        #expect(controller.collectionView.numberOfItems(inSection: 0) == 13)
+    }
+
     @Test("Opens at the bottom (newest message) on first layout")
     func opensAtBottom() async {
-        let controller = ChatViewController()
-        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
-        window.rootViewController = controller
-        window.makeKeyAndVisible()
+        let (controller, window) = ChatViewController.windowed()
+        defer { _ = window }
 
         controller.update(items: (0..<40).map {
             item($0, $0.isMultiple(of: 2) ? .me : .other)
         })
-
-        // Let layout and self-sizing settle across a few main-runloop turns.
-        for _ in 0..<6 {
-            controller.view.layoutIfNeeded()
-            try? await Task.sleep(for: .milliseconds(40))
-        }
+        await controller.settle(turns: 6)
 
         let collectionView = controller.collectionView!
         let maxOffset = max(0, collectionView.contentSize.height

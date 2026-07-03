@@ -117,7 +117,14 @@ public final class ChatCashCardCell: ChatColumnCell {
     }
 
     public func configure(with message: ChatMessage) {
-        guard case .cash(let cash) = message.content else { return }
+        let cash: ChatCashContent
+        switch message.content {
+        case .cash(let content):
+            cash = content
+        case .text:
+            return // text rows use ChatMessageCell, not this card
+        }
+        let inPlace = updateColumn(for: message)
         tokenLabel.text = cash.token
         captionLabel.text = message.sender == .me ? "You sent" : "You received"
         amountLabel.text = cash.amount
@@ -129,16 +136,7 @@ public final class ChatCashCardCell: ChatColumnCell {
         coinIcon.isHidden = cash.iconURL == nil
         coinIcon.kf.setImage(with: cash.iconURL)
 
-        card.apply(
-            fill: BubbleBackgroundView.fill(isFromSelf: message.sender == .me),
-            radii: BubbleBackgroundView.radii(
-                isFromSelf: message.sender == .me,
-                groupedAbove: message.isContinuationFromPrevious,
-                groupedBelow: message.isContinuedByNext
-            ),
-            animated: isInPlaceUpdate(for: message)
-        )
-        updateColumn(for: message)
+        card.apply(for: message, animated: inPlace)
 
         // Resting alpha lives here, not just in prepareForReuse: an in-place reconfigure (a new
         // message flipping this row's grouping) re-runs configure without prepareForReuse, so this is

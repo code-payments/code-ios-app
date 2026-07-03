@@ -8,6 +8,7 @@
 #if canImport(UIKit)
 import UIKit
 import SwiftUI
+import FlipcashCore
 
 /// The shared chrome behind every chat bubble and cash card: a white-opacity fill with a hairline
 /// border and a continuous, per-corner rounded shape. A same-sender run flattens the inner corners
@@ -36,19 +37,36 @@ final class BubbleBackgroundView: UIView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    /// Applies the chrome. Pass `animated: true` on an in-place reconfigure whose grouping changed
-    /// (a new same-sender message flattening this bubble's corner) so the shape morphs on the
-    /// prototype's corner spring instead of snapping. Both paths come from the same
-    /// `UnevenRoundedRectangle` topology, so the spring interpolates them cleanly.
+    /// Applies the sender fill and grouping radii for `message`.
+    func apply(for message: ChatMessage, animated: Bool = false) {
+        apply(
+            fill: Self.fill(isFromSelf: message.sender == .me),
+            radii: Self.radii(
+                isFromSelf: message.sender == .me,
+                groupedAbove: message.isContinuationFromPrevious,
+                groupedBelow: message.isContinuedByNext
+            ),
+            animated: animated
+        )
+    }
+
+    /// Applies the fill and radii, morphing the shape on the corner spring when `animated` is true.
     func apply(fill: UIColor, radii: RectangleCornerRadii, animated: Bool = false) {
         backgroundColor = fill
         let previous = self.radii
         self.radii = radii
-        guard animated, radii != previous, !bounds.isEmpty else {
+        // A recycled cell applies directly (not animated) and can land mid-morph; drop the
+        // in-flight animation so the new row renders its own shape instead of the old row's morph
+        // playing over it. An in-place reconfigure keeps the same row's running morph.
+        if !animated {
+            shapeMask.removeAnimation(forKey: "cornerMorph")
+            borderLayer.removeAnimation(forKey: "cornerMorph")
+        }
+        guard animated, !ChatMotion.isReduced, radii != previous, !bounds.isEmpty else {
             setNeedsLayout()
             return
         }
-        let path = UnevenRoundedRectangle(cornerRadii: radii, style: .continuous).path(in: bounds).cgPath
+        let path = shapePath
         for layer in [shapeMask, borderLayer] {
             let morph = CASpringAnimation(perceptualDuration: ChatMotion.cornerMorph.duration, bounce: ChatMotion.cornerMorph.bounce)
             morph.keyPath = "path"
@@ -63,12 +81,18 @@ final class BubbleBackgroundView: UIView {
     /// The bubble's continuous, per-corner rounded shape in its own coordinate space — the same
     /// geometry used for the layer mask. Clips the context-menu lift preview to the bubble.
     var maskingPath: UIBezierPath {
-        UIBezierPath(cgPath: UnevenRoundedRectangle(cornerRadii: radii, style: .continuous).path(in: bounds).cgPath)
+        UIBezierPath(cgPath: shapePath)
+    }
+
+    /// The current radii rendered into this view's bounds — the one geometry every consumer
+    /// (mask, border, morph target, lift-preview clip) draws.
+    private var shapePath: CGPath {
+        UnevenRoundedRectangle(cornerRadii: radii, style: .continuous).path(in: bounds).cgPath
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        let path = UnevenRoundedRectangle(cornerRadii: radii, style: .continuous).path(in: bounds).cgPath
+        let path = shapePath
         shapeMask.path = path
         borderLayer.path = path
         borderLayer.frame = bounds

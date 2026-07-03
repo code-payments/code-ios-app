@@ -27,9 +27,7 @@ public class ChatColumnCell: UICollectionViewCell {
     /// Tap-to-retry recognizer, enabled only while this row is failed so non-failed bubbles don't
     /// consume taps (and a future single-tap affordance isn't pre-empted).
     private var retryTap: UITapGestureRecognizer?
-    /// The id of the message this cell currently renders. The receipt is cross-faded only when the
-    /// *same* row changes in place; a recycled cell reconfigured for a different id sets its line
-    /// directly, so it never replays this cell's prior line (a reused failed cell flashing red).
+    /// The id of the message this cell currently renders — the input to `isInPlaceUpdate`.
     private var currentMessageID: String?
 
     /// Stacks `content` above the receipt and pins the column into the contentView, pinning top and
@@ -65,23 +63,16 @@ public class ChatColumnCell: UICollectionViewCell {
         currentMessageID = nil
         retryID = nil
         retryTap?.isEnabled = false
-        // Clear the line so a recycled cell never carries its prior row's text/color — or a
-        // mid-flight reveal's alpha/transform — into the next use.
+        // Drop a mid-flight reveal so it can't play over the next row's line.
+        receipt.layer.removeAllAnimations()
         receipt.text = nil
         receipt.isHidden = true
         receipt.textColor = ChatReceiptLabel.defaultColor
-        receipt.alpha = 1
-        receipt.transform = .identity
     }
 
-    /// Sets the status line and hugs the column to the sender's edge. Call from `configure`. The text
-    /// is supplied by the mapping (`message.receipt`); this only styles it — a failed row turns red and
-    /// becomes tappable to retry.
-    func updateColumn(for message: ChatMessage) {
-        // Animate the receipt only when the *same* row changes in place (Delivered→Read, the settling
-        // line revealing). A recycled or freshly dequeued cell renders a different row, so its line is set
-        // directly — otherwise the animation would replay this cell's prior line (a reused failed cell
-        // flashing red "Not Delivered" before resolving to the real line).
+    /// Styles the status line and alignment for `message`, returning whether this re-rendered
+    /// the row already on screen. Call first from `configure`, before the cell adopts the new id.
+    func updateColumn(for message: ChatMessage) -> Bool {
         let inPlace = isInPlaceUpdate(for: message)
         currentMessageID = message.id
         // A failed row is the only interactive/red one — every signal keys off that single condition.
@@ -91,13 +82,12 @@ public class ChatColumnCell: UICollectionViewCell {
         setReceipt(message.receipt, animated: inPlace)
         column.alignment = message.sender == .me ? .trailing : .leading
         applyAlignment(isFromSelf: message.sender == .me)
+        return inPlace
     }
 
-    /// Whether `message` re-renders the row this cell already shows, on screen — the gate for
-    /// view-level change animations (receipt reveal, corner morph). A recycled or freshly dequeued
-    /// cell renders a *different* row, so its changes apply directly instead of replaying an
-    /// animation that belongs to another message.
-    func isInPlaceUpdate(for message: ChatMessage) -> Bool {
+    /// Whether `message` re-renders the row this cell already shows on screen — the gate keeping
+    /// recycled cells from replaying change animations that belong to another message.
+    private func isInPlaceUpdate(for message: ChatMessage) -> Bool {
         currentMessageID == message.id && window != nil
     }
 
@@ -108,18 +98,18 @@ public class ChatColumnCell: UICollectionViewCell {
 
     private func setReceipt(_ text: String?, animated: Bool) {
         guard receipt.text != text else { return }
-        // A revealing line scale/fades in (the prototype's "Delivered" pop) and a text swap
-        // cross-fades in place (Delivered→Read); the line snaps away when it clears so the row
-        // collapses in step with the batch update rather than after the fade. Text and visibility
-        // are applied synchronously, outside the animation, so the cell's self-sized height never
-        // lags the motion.
+        // Text and visibility apply synchronously so the cell's self-sized height never lags.
         if animated, text != nil {
             if receipt.isHidden {
-                receipt.text = text
-                receipt.isHidden = false
-                receipt.alpha = 0
-                receipt.transform = CGAffineTransform(scaleX: ChatMotion.receiptRevealScale, y: ChatMotion.receiptRevealScale)
-                UIView.animate(springDuration: ChatMotion.receiptReveal.duration, bounce: ChatMotion.receiptReveal.bounce) {
+                // The starting state is fenced off the ambient batch spring, or the pop is
+                // captured mid-value and lost.
+                UIView.performWithoutAnimation {
+                    receipt.text = text
+                    receipt.isHidden = false
+                    receipt.alpha = 0
+                    receipt.transform = CGAffineTransform(scaleX: ChatMotion.receiptRevealScale, y: ChatMotion.receiptRevealScale)
+                }
+                UIView.animate(springDuration: ChatMotion.receiptReveal.duration, bounce: ChatMotion.receiptReveal.bounce, options: [.overrideInheritedDuration]) {
                     self.receipt.alpha = 1
                     self.receipt.transform = .identity
                 }
@@ -131,8 +121,6 @@ public class ChatColumnCell: UICollectionViewCell {
         } else {
             receipt.text = text
             receipt.isHidden = text == nil
-            receipt.alpha = 1
-            receipt.transform = .identity
         }
     }
 

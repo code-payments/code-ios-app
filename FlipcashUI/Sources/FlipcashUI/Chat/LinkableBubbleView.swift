@@ -68,19 +68,13 @@ public final class LinkableBubbleView: UIView {
         textView.resignFirstResponder()
     }
 
-    public func configure(with message: ChatMessage) {
+    /// Renders `message`, morphing the corners when `animatingCorners` is true.
+    public func configure(with message: ChatMessage, animatingCorners: Bool = false) {
         switch message.content {
         case .text(let text): textView.text = text
         case .cash: textView.text = nil
         }
-        background.apply(
-            fill: BubbleBackgroundView.fill(isFromSelf: message.sender == .me),
-            radii: BubbleBackgroundView.radii(
-                isFromSelf: message.sender == .me,
-                groupedAbove: message.isContinuationFromPrevious,
-                groupedBelow: message.isContinuedByNext
-            )
-        )
+        background.apply(for: message, animated: animatingCorners)
     }
 }
 

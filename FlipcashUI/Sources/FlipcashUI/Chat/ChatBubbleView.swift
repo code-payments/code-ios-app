@@ -60,15 +60,7 @@ public final class ChatBubbleView: UIView {
         case .text(let text): label.text = text
         case .cash: label.text = nil // cash rows use a dedicated cell, not this bubble
         }
-        background.apply(
-            fill: BubbleBackgroundView.fill(isFromSelf: message.sender == .me),
-            radii: BubbleBackgroundView.radii(
-                isFromSelf: message.sender == .me,
-                groupedAbove: message.isContinuationFromPrevious,
-                groupedBelow: message.isContinuedByNext
-            ),
-            animated: animatingCorners
-        )
+        background.apply(for: message, animated: animatingCorners)
     }
 }
 

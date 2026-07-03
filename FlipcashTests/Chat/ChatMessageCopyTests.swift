@@ -15,10 +15,7 @@ import FlipcashCore
 struct ChatMessageCopyTests {
 
     private func loadedController(_ items: [ChatItem]) -> ChatViewController {
-        let controller = ChatViewController()
-        controller.loadViewIfNeeded()
-        controller.update(items: items)
-        return controller
+        .loaded(items: items)
     }
 
     private func configuration(_ controller: ChatViewController, at index: Int) -> UIContextMenuConfiguration? {

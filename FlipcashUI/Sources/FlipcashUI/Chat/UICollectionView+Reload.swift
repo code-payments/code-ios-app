@@ -12,6 +12,7 @@
 #if canImport(UIKit)
 import ChatLayout
 import DifferenceKit
+import SwiftUI
 import UIKit
 
 extension UICollectionView {
@@ -19,21 +20,36 @@ extension UICollectionView {
     /// Apply a `StagedChangeset` as batch updates. Falls back to a full reload (via
     /// `onInterruptedReload`) when off-screen or when `interrupt` trips on a change too large to
     /// animate. This is what lets `keepContentOffsetAtBottomOnBatchUpdates` keep new content pinned.
+    ///
+    /// `animatingWith` times each batch transaction on the caller's spring; nil rides UIKit's
+    /// stock curve.
     func reload<C>(
         using stagedChangeset: StagedChangeset<C>,
+        animatingWith spring: Spring? = nil,
         interrupt: ((Changeset<C>) -> Bool)? = nil,
         onInterruptedReload: (() -> Void)? = nil,
         completion: ((Bool) -> Void)? = nil,
         setData: @escaping (C) -> Void
     ) {
-        if case .none = window, let data = stagedChangeset.last?.data {
+        let fallbackReload = { (data: C) in
             setData(data)
             if let onInterruptedReload {
                 onInterruptedReload()
             } else {
-                reloadData()
+                self.reloadData()
             }
             completion?(false)
+        }
+
+        if window == nil, let data = stagedChangeset.last?.data {
+            fallbackReload(data)
+            return
+        }
+
+        // Interrupt is decided up front, before any stage starts animating — the fallback's
+        // reload + re-anchor must never run while an earlier stage's animation is in flight.
+        if let interrupt, stagedChangeset.contains(where: interrupt), let data = stagedChangeset.last?.data {
+            fallbackReload(data)
             return
         }
 
@@ -41,40 +57,37 @@ extension UICollectionView {
         let completionHandler: ((Bool) -> Void)? = completion != nil ? { _ in dispatchGroup!.leave() } : nil
 
         for changeset in stagedChangeset {
-            if let interrupt, interrupt(changeset), let data = stagedChangeset.last?.data {
-                setData(data)
-                if let onInterruptedReload {
-                    onInterruptedReload()
-                } else {
-                    reloadData()
+            let updates = {
+                setData(changeset.data)
+                dispatchGroup?.enter()
+
+                if !changeset.elementDeleted.isEmpty {
+                    self.deleteItems(at: changeset.elementDeleted.map { IndexPath(item: $0.element, section: $0.section) })
                 }
-                completion?(false)
-                return
+                if !changeset.elementInserted.isEmpty {
+                    self.insertItems(at: changeset.elementInserted.map { IndexPath(item: $0.element, section: $0.section) })
+                }
+                if !changeset.elementUpdated.isEmpty {
+                    let indexPaths = changeset.elementUpdated.map { IndexPath(item: $0.element, section: $0.section) }
+                    self.reconfigureItems(at: indexPaths)
+                    (self.collectionViewLayout as? CollectionViewChatLayout)?.reconfigureItems(at: indexPaths)
+                }
+                for (source, target) in changeset.elementMoved {
+                    self.moveItem(at: IndexPath(item: source.element, section: source.section), to: IndexPath(item: target.element, section: target.section))
+                }
             }
 
-            // The spring context times everything the batch animates — cell shifts, the
-            // keep-at-bottom offset compensation, and the delegate's entrance transforms — so the
-            // whole transaction moves like the prototype's insertion spring.
-            UIView.animate(springDuration: ChatMotion.insertion.duration, bounce: ChatMotion.insertion.bounce, options: [.allowUserInteraction]) {
-                self.performBatchUpdates({
-                    setData(changeset.data)
-                    dispatchGroup?.enter()
-
-                    if !changeset.elementDeleted.isEmpty {
-                        self.deleteItems(at: changeset.elementDeleted.map { IndexPath(item: $0.element, section: $0.section) })
-                    }
-                    if !changeset.elementInserted.isEmpty {
-                        self.insertItems(at: changeset.elementInserted.map { IndexPath(item: $0.element, section: $0.section) })
-                    }
-                    if !changeset.elementUpdated.isEmpty {
-                        let indexPaths = changeset.elementUpdated.map { IndexPath(item: $0.element, section: $0.section) }
-                        self.reconfigureItems(at: indexPaths)
-                        (self.collectionViewLayout as? CollectionViewChatLayout)?.reconfigureItems(at: indexPaths)
-                    }
-                    for (source, target) in changeset.elementMoved {
-                        self.moveItem(at: IndexPath(item: source.element, section: source.section), to: IndexPath(item: target.element, section: target.section))
-                    }
-                }, completion: completionHandler)
+            if let spring {
+                // The group waits for the spring to settle, not just the batch to commit —
+                // `completion` means no animated layout work remains.
+                dispatchGroup?.enter()
+                UIView.animate(springDuration: spring.duration, bounce: spring.bounce, options: [.allowUserInteraction], animations: {
+                    self.performBatchUpdates(updates, completion: completionHandler)
+                }, completion: { _ in
+                    dispatchGroup?.leave()
+                })
+            } else {
+                performBatchUpdates(updates, completion: completionHandler)
             }
         }
         dispatchGroup?.notify(queue: .main) { completion!(true) }
@@ -98,12 +111,12 @@ extension StagedChangeset {
         guard count > 1,
               let target = last?.data,
               allSatisfy({ $0.sectionChangeCount == 0 && $0.elementMoved.isEmpty }) else { return self }
-        return StagedChangeset(arrayLiteral: Changeset(
+        return [Changeset(
             data: target,
             elementDeleted: flatMap(\.elementDeleted),
             elementInserted: flatMap(\.elementInserted),
             elementUpdated: flatMap(\.elementUpdated)
-        ))
+        )]
     }
 }
 #endif
