@@ -622,7 +622,7 @@ private struct RecipientSectionHeader: View {
             .font(.appTextSmall)
             .foregroundStyle(Color.textSecondary)
             .padding(.horizontal, 20)
-            .padding(.vertical, 8)
+            .padding(.vertical, 12)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color.backgroundMain)
             .listRowInsets(EdgeInsets())
