@@ -5,8 +5,8 @@ The principles that hold the architecture together. The other docs describe *wha
 ```mermaid
 graph LR
     Nav["Navigation"] --> O1["AppRouter"]
-    Err["Error reportability"] --> O2["ServerError.isReportable"]
-    Val["Input rules"] --> O3["Validator"]
+    Err["Error reportability"] --> O2["ServerError.reportingLevel"]
+    Val["Input rules"] --> O3["Validator family"]
     Rate["Exchange-rate proof"] --> O4["pinned VerifiedState"]
     Dlg["Cross-sheet dialogs"] --> O5["session.dialogItem + DialogWindow"]
     LogR["Log redaction"] --> O6["metadata + redactor middleware"]
@@ -19,7 +19,7 @@ The dependency graph only ever points down (see [01](01-modules-and-boundaries.m
 
 ## 2. MVVM, but only where it earns its keep
 
-- **ViewModels** exist for multi-screen flows, async-operation coordination, or complex state (onboarding, verification, buy/sell/swap, withdraw, send-amount *(contact-sync)*, currency creation).
+- **ViewModels** exist for multi-screen flows, async-operation coordination, or complex state (onboarding, verification, buy/sell/swap, withdraw, send-amount, currency creation).
 - **Standalone, self-contained screens** use `@State` + `@Observable` directly and make router calls inline in their action closures (balance, settings, deposit, discovery, most modals).
 
 The test is *complexity and reach*, not *every screen gets a VM*. See the [feature catalog](features/README.md) for which features fall on which side.
@@ -31,8 +31,8 @@ The codebase repeatedly chooses a single canonical place for a decision, then fo
 | Concern | Single source | Call sites must NOT… |
 |---------|---------------|----------------------|
 | Navigation | `AppRouter` | …keep `@State` sheet flags or `selectedXxx` bindings |
-| Error reportability | `ServerError.isReportable` | …re-check `isReportable` before `captureError` |
-| Input rules | the `Validator` for that type | …inline regex/trim/length checks |
+| Error reportability | `ServerError.reportingLevel` | …re-check `reportingLevel` before `captureError` |
+| Input rules | the `Validator` family — one concrete validator per input type (`AmountValidator` for entered amounts) | …inline regex/trim/length checks |
 | Exchange-rate proof | the pinned `VerifiedState` | …re-fetch or pin a second proof mid-flow |
 | Cross-sheet dialogs | `session.dialogItem` + `DialogWindow` | …bind the same `DialogItem` to two live views |
 | Log redaction | metadata + redactor middleware | …interpolate variables into the message string |
@@ -44,7 +44,7 @@ When you find yourself re-implementing one of these at a call site, that's the s
 State is owned at the narrowest scope that still satisfies its readers:
 
 - **Process scope** → `Container` (clients, account manager, preferences).
-- **Login scope** → `SessionContainer` (Session + controllers + database + router), torn down on logout.
+- **Login scope** → `SessionContainer` (Session + controllers + database + router), torn down on logout — e.g. chat's `ConversationController` (DM feed + live event stream) and its sibling `ChatSpotlightIndexer` live here, not as methods on `Session`.
 - **Transactional concerns** → `Session` (the network/transaction API surface) — but kept from sprawling: new concerns become **sibling controllers** (non-transactional) or **namespaced services** (transactional), never flat methods on `Session`.
 - **Screen scope** → `@State` view models / local state.
 

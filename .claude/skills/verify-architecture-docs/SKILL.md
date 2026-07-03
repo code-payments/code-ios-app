@@ -20,7 +20,7 @@ allowed-tools:
 
 ultrathink
 
-You are fact-checking the architecture docs in `docs/architecture/` against the real codebase. The deliverable is **one drift report** at `.claude/plans/<YYYY-MM-DD>-doc-drift.md`. This catches **correctness drift** — a doc that is present but *wrong* — which the path-based upkeep checks (the CLAUDE.md rule + the `Stop` hook) cannot.
+You are fact-checking the architecture docs in `docs/architecture/` against the real codebase. The deliverable is **one drift report** at `.claude/plans/<YYYY-MM-DD>-doc-drift.md`. This catches **correctness drift** — a doc that is present but *wrong* — which the path-based upkeep check (the CLAUDE.md rule) cannot.
 
 ## Hard rules
 
@@ -56,4 +56,4 @@ List the fixes and ask whether to apply them. Don't edit the docs until the user
 ## Notes
 - This is the **correctness** half of doc upkeep; the CLAUDE.md "Architecture Docs" rule is the **omission** half ("you forgot to touch the doc"). Both are needed.
 - The methodology mirrors how these docs were originally verified: parallel per-doc checkers → reconcile contested claims against source → report → fix → re-verify. Two passes converge fast.
-- Expect to surface stale facts in **CLAUDE.md** too (its Key Constants / Common Pitfalls cite `file.swift:NN`). Note them in the report; don't edit CLAUDE.md without approval.
+- Expect to surface stale facts in **CLAUDE.md** too (its Key Constants / Common Pitfalls cite concrete files and symbols). Note them in the report; don't edit CLAUDE.md without approval.

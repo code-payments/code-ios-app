@@ -53,13 +53,22 @@ The pricing and cumulative-cost tables are pre-computed and shipped as binary `.
 **`ServerError`** (`ServerError.swift`):
 
 ```swift
-public protocol ServerError: Error { var isReportable: Bool { get } }
-public extension ServerError { var isReportable: Bool { false } }  // default: suppress
+public enum ErrorReportingLevel: Sendable, Equatable {
+    case suppressed   // never sent — network weather, success sentinels
+    case info         // Bugsnag info severity — expected business outcomes (denied, not-found, rate-limited)
+    case error        // Bugsnag error severity — client/proto defects (unrecognized codes, parse failures)
+}
+
+public protocol ServerError: Error {
+    var reportingLevel: ErrorReportingLevel { get }
+}
 ```
 
-~30 service error enums conform; each has cases per gRPC result code plus a `.unknown` for unrecognized values (client/server drift) — `.unknown` is the canonical reportable case. `ErrorReporting.capture(_:)` is the **single gating point**; call sites always call `captureError` unconditionally and never re-check `isReportable`.
+There is **deliberately no protocol default** — every conformer classifies each case explicitly; a defaulted level would let a forgotten or drifted conformance compile while silently muting its errors. ~35 service error enums conform; each has cases per gRPC result code plus a `.unknown` for unrecognized values (client/server drift) — `.unknown` is the canonical `.error`-level case.
 
-> To suppress reporting for an error, conform it to `ServerError` and return `false` from `isReportable`. That's the one source of truth.
+**`TransportClassifiableError`** (`TransportClassifiableError.swift`) refines `ServerError` for enums whose failure can be a transport condition rather than a server result code: it requires static `.transportFailure` (which the conformer maps to `.suppressed`) and `.unknown`, and the single shared `from(transportError: RPCError)` default maps transient codes (`RPCError.Code.isTransientNetworkError` — deadline expired / unavailable) to `.transportFailure` and everything else to `.unknown` — no per-enum mapping. `RPCError` itself conforms to `ServerError` (`RPCError+Extensions.swift`): transient → `.suppressed`, `.cancelled` → `.info` (app-initiated teardown), all other codes → `.error` — so unary RPCs that ship the existential `Error` classify correctly with no per-call-site mapping. `FlipcashCoreTests/TransportClassificationTests` asserts every conformer is wired.
+
+The level is **enforced in one place**: `ErrorReporting.capture(_:)` (`Flipcash/Utilities/ErrorReporting.swift`) reads `(error as? ServerError)?.reportingLevel ?? .error` (an unclassified error is treated as a real bug), returns without sending on `.suppressed`, and maps `.info`/`.error` onto Bugsnag severities. Call sites always call `captureError` unconditionally and never re-check the level.
 
 ## Validation
 
@@ -72,10 +81,20 @@ public protocol Validator<Output>: Sendable {
 }
 ```
 
-One concrete validator per input type owns the rule, returns the canonical `Output`, and is unit-testable in isolation. `EmailValidator` exists (PGV regex from `email/v1/model.proto`, max 254 bytes, returns trimmed). **Submit the validator's `Output`, not the raw input** — that makes trim/regex divergence structurally impossible. Client rules must mirror the server PGV regex; inline regex/trim/length checks in viewmodels are forbidden because they drift the moment the proto changes.
+One concrete validator per input type owns the rule, returns the canonical `Output`, and is unit-testable in isolation. Five validators today:
+
+| Validator | Output | Rule |
+|-----------|--------|------|
+| `EmailValidator` | `String` (trimmed) | PGV regex from `email/v1/model.proto`, max 254 bytes |
+| `PhoneValidator` | `Phone` | PhoneNumberKit parse, then E.164 checked against the PGV rule from `phone/v1/model.proto` |
+| `CurrencyNameValidator` | `String` (unchanged) | printable ASCII, no leading/trailing space, 1–32 chars; rejects rather than trims — the moderation attestation is bound to the exact string |
+| `LengthValidator` | `String` (unchanged) | non-blank, `maxLength` cap |
+| `AmountValidator` | `Decimal` | canonicalises the locale decimal separator to `.` before parsing — `Decimal(string:)` alone stops at "," and silently drops the fraction |
+
+**Submit the validator's `Output`, not the raw input** — that makes trim/regex divergence structurally impossible. Client rules must mirror the server PGV regex; inline regex/trim/length checks in viewmodels are forbidden because they drift the moment the proto changes. **Any string bound to `KeyPadView`/`EnterAmountView` is parsed exclusively by `AmountValidator`** — never raw `Decimal(string:)` or `NumberFormatter.decimal(from:)`.
 
 ## Formatters
 
 `Formatters/`: `NumberFormatter.fiat(...)` (locale-aware, cached behind a lock, manual single-char currency prefix, half-up rounding / `.down` when truncated) backs `FiatAmount.formatted`. `CompactCurrencyFormatStyle` renders `$1M`/`$690K` for market-cap/supply. `DateFormatter` extensions provide tiered relative dates (time today → Today/Yesterday → full weekday name within 6 days → `EEE, MMM dd` for older).
 
-> **Keypad amount strings use the locale's decimal separator** (`Metrics.localizedDecimalSeparator`, `.` as fallback) — not a hardcoded `.`. Any parser consuming `KeyPadView` output must account for the locale separator.
+> **Keypad amount strings use the locale's decimal separator** (`AmountValidator.localizedDecimalSeparator`, `.` as fallback) — not a hardcoded `.`. Any parser consuming `KeyPadView` output must go through `AmountValidator`, which normalizes the separator before parsing.

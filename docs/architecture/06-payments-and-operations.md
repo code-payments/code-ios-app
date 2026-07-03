@@ -16,7 +16,7 @@ graph TD
 
 ## Payment intents & `VerifiedState`
 
-A payment is submitted via the **`submitIntent` bidirectional stream** (`TransactionService.submit`, `callOptions: .streaming`): client sends `submitActions` → server replies `serverParameters` (nonce + blockhash) → client applies, signs, sends `submitSignatures` → server replies `success`/`error`.
+A payment is submitted via the **`submitIntent` bidirectional stream** (`TransactionService.submit`, through the `BidirectionalGRPCStream` adapter — no deadline): client sends `submitActions` → server replies `serverParameters` (nonce + blockhash) → client applies, signs, sends `submitSignatures` → server replies `success`/`error`.
 
 `VerifiedState` (`FlipcashCore/.../Models/VerifiedState.swift`) bundles the proofs the server requires:
 
@@ -24,10 +24,12 @@ A payment is submitted via the **`submitIntent` bidirectional stream** (`Transac
 - `reserveProto?` — reserve-state proof; `nil` for USDF, **mandatory for launchpad currencies** (server rejects without it)
 - `serverTimestamp` — the older of the two proof timestamps (staleness anchor)
 
-Freshness: client ceiling `clientMaxAge = 13 min` (2-min buffer under the server's 15-min limit); `SendCashOperation` also pre-flights a 15-min ceiling on the reserve proof before transfer.
+Freshness: one unified check — `isStale` measures age from `serverTimestamp` against `clientMaxAge = 13 min` (2-min buffer under the server's 15-min limit), so rate and reserve proofs fold into a single ceiling. `SendCashOperation` pre-flights `isStale` just before transfer, throwing `verifiedStateStale` instead of failing server-side as `invalidIntent` when a pin went stale while the bill sat open.
+
+Direct contact payments attach **`ChatPaymentMetadata`** (`FlipcashCore/.../Models/Conversation/ChatPaymentMetadata.swift`) — the contact's server-issued DM chat ID (`MatchedContact.dmChatID`, from contact sync) plus source/destination E.164 — serialized as `flipcash.intent.v1.AppMetadata` into the transfer intent's `app_metadata`. The server posts the payment as a cash message in that DM, creating the chat if it doesn't exist yet; both sides must be payment-linked or the server rejects the intent. When the contact has no `dmChatID` or the sender has no linked phone, `SendAmountViewModel` submits the payment without chat metadata.
 
 ### The pin-at-compute invariant
-Amount-entry viewmodels (`BuyAmountViewModel`, `CurrencySellViewModel`, `WithdrawViewModel`, `GiveViewModel`, and `SendAmountViewModel` *(contact-sync)*) call `prepareSubmission()` **at commit time** to pin the `VerifiedState`, and compute `ExchangedFiat.quarks` against *that same proof's rate*. The pinned state is carried unchanged through `Session.showCashBill → BillDescription.verifiedState → SendCashOperation` / `createCashLink`.
+Amount-entry viewmodels (`BuyAmountViewModel`, `CurrencySellViewModel`, `WithdrawViewModel`, `GiveViewModel`, and `SendAmountViewModel`) call `prepareSubmission()` **at commit time** to pin the `VerifiedState`, and compute `ExchangedFiat.quarks` against *that same proof's rate*. The pinned state is carried unchanged through `Session.showCashBill → BillDescription.verifiedState → SendCashOperation` / `createCashLink`; `SendAmountViewModel` (contact send) hands its pin directly to `Session.send(amount:verifiedState:to:chat:)`.
 
 > Using a different (or re-fetched) proof at the transfer step makes `quarks × rate` disagree with what the server validates → "native amount does not match expected value" rejection. Pin once, at compute.
 
@@ -36,7 +38,7 @@ Amount-entry viewmodels (`BuyAmountViewModel`, `CurrencySellViewModel`, `Withdra
 `Flipcash/Core/Screens/Main/Operations/SendCashOperation.swift`. The sender's side. `start()` spawns a `Task` (`runTask`); `cancel()` and `isolated deinit` cancel it. `run()` executes two sequential phases sharing one resolved `VerifiedState`:
 
 - **Path 1 — advertise the bill**: resolve the `VerifiedState` (prefer the pinned one from `BillDescription`, else `RatesController` cache), then `client.sendRequestToGiveBill(mint:exchangedFiat:verifiedState:rendezvous:)` publishes the bill on the rendezvous channel.
-- **Path 2 — listen → transfer**: `client.awaitGrabRequest(...)` waits for the receiver's grab → verify the destination signature against the rendezvous key (MITM protection) → pre-flight reserve-proof age → `client.transfer(...)` using the **same** `VerifiedState` → `client.pollIntentMetadata(...)` until settlement.
+- **Path 2 — listen → transfer**: `client.awaitGrabRequest(...)` waits for the receiver's grab → verify the destination signature against the rendezvous key (MITM protection) → pre-flight `isStale` on the resolved state → `client.transfer(...)` using the **same** `VerifiedState` → `client.pollIntentMetadata(...)` until settlement.
 
 > **Never explicitly `cancel()` or `invalidateMessageStream()` a `SendCashOperation` from `dismissCashBill`.** After a grab, the received bill is a *live* `SendCashOperation` (the "quick give-and-grab" chain — someone can scan it next). Setting `sendOperation = nil` is fine (deinit cleans up); explicit teardown kills a live bill. Teardown is implicit: `run()` returning (success) or throwing (failure) ends the `runTask`, and `deinit`/`cancel()` handle external teardown. `ignoresStream` (set by Session while a share sheet is up) suppresses processing a grab that arrives mid-share.
 

@@ -14,7 +14,7 @@ graph LR
 
 | Layer | What lives here | Implementation |
 |-------|-----------------|----------------|
-| **SQLite** | All cached server data: balances, mint metadata, activity history, rates, verified proofs, limits, profile, user flags, plus contact-sync state + local contacts snapshot *(contact-sync)* | `Database.swift` over the `dbart01/SQLite.swift` fork |
+| **SQLite** | All cached server data: balances, mint metadata, activity history, rates, verified proofs, limits, profile, user flags, contact-sync state + local contacts snapshot, DM conversation feed + messages | `Database.swift` over the `dbart01/SQLite.swift` fork |
 | **Keychain** | Secrets: current `UserAccount` (keypair), `historicalAccounts` (iCloud-synced) | `AccountManager` via a `@SecureCodable` wrapper |
 | **UserDefaults** | Preferences/flags only: `wasLoggedIn`, `launchCount`, camera prefs, `balanceCurrency`, `recentCurrencies`, `localCurrencyAdded`, `storedTokenMint`, `betaFlags` | a custom `@Defaults` wrapper (the project does **not** use `@AppStorage`) |
 
@@ -30,7 +30,7 @@ graph LR
 
 ## Schema
 
-`Schema.swift` — all tables are `WITHOUT ROWID` (explicit primary key as the B-tree key):
+`Schema.swift` — all tables are `WITHOUT ROWID` (explicit primary key as the B-tree key), except `conversation_member`, a rowid table because its nullable `userId` can't be part of a `WITHOUT ROWID` key:
 
 | Table | Key | Stores |
 |-------|-----|--------|
@@ -43,17 +43,20 @@ graph LR
 | `verified_rate` | currency | Raw signed `rateProto` per fiat |
 | `verified_reserve` | mint | Raw signed `reserveProto` per launchpad mint |
 | `profile` / `userFlags` | 1 (singleton) | Serialized blobs |
-| `contact_sync_state` | 1 (singleton) | Sync cursor (checksum) *(contact-sync)* |
-| `flipcash_contact` | e164 | Numbers server-confirmed on Flipcash *(contact-sync)* |
-| `local_contacts_snapshot` | (e164, contactId) | Last uploaded contact set; `contactId` resolves name/avatar at render *(contact-sync)* |
+| `contact_sync_state` | 1 (singleton) | Sync cursor (checksum) |
+| `flipcash_contact` | e164 | Numbers server-confirmed on Flipcash (+ `dmChatId`, join timestamp) |
+| `local_contacts_snapshot` | (e164, contactId) | Last uploaded contact set; `contactId` resolves name/avatar at render |
+| `conversation` | id (32-byte ChatId blob) | DM feed row: `lastActivity`; the feed preview is the newest `conversation_message` row |
+| `conversation_member` | rowid (no explicit PK — nullable `userId`) | Member display name, phone, read pointer; replaced wholesale per conversation |
+| `conversation_message` | (conversationId, id) | Text or decomposed cash content (kind, quarks, native amount, currency, mint), date, `unreadSeq`; pruned to the newest 100 per conversation (20-row slack) |
 
-Custom `Value` conformances store `UInt64` as `Int64`, `PublicKey`/`Key32` as `Blob`, `CurrencyCode` as `String`.
+Custom `Value` conformances store `UInt64` as `Int64`, `PublicKey`/`Key32` as `Blob`, `CurrencyCode` as `String`. The conversation tables store dates as raw `timeIntervalSinceReferenceDate` doubles so decoding is a struct init, not a per-row `DateFormatter` parse.
 
 ## Query organization
 
-Extension-per-concern, all `nonisolated extension Database`: `Database+Balance`, `+Activities`, `+Rates`, `+VerifiedProtos` (conforms `Database` to `VerifiedProtoStore`), `+Limits`, `+Profile`, `+ContactSync` *(contact-sync)*. Each owns the reads/upserts for its domain.
+Extension-per-concern, all `nonisolated extension Database`: `Database+Balance`, `+Activities`, `+Rates`, `+VerifiedProtos` (conforms `Database` to `VerifiedProtoStore`), `+Limits`, `+Profile`, `+ContactSync`, `+Conversations`. Each owns the reads/upserts for its domain.
 
-Row models live in `Database/Models/`. Only two dedicated structs exist — `StoredBalance` (from the `balance JOIN mint` query, computes the USDF equivalent inline via the bonding curve) and `StoredMintMetadata` (converts to/from the domain `MintMetadata`). Singleton-row tables decode directly to their domain type inline; no separate model struct.
+Row models live in `Database/Models/`. Only two dedicated structs exist — `StoredBalance` (from the `balance JOIN mint` query, computes the USDF equivalent inline via the bonding curve) and `StoredMintMetadata` (converts to/from the domain `MintMetadata`). Everything else decodes directly to its domain type inline (singleton-row blobs, `Conversation`/`ConversationMessage` rows); no separate model struct.
 
 ## Versioning & migrations — there are none
 

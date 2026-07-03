@@ -30,13 +30,13 @@ A **middleware pipeline** runs before the sinks (each gets `inout LogEntry`, ret
 
 ## Error reporting
 
-`Flipcash/Utilities/ErrorReporting.swift`, backed by **Bugsnag**. `ErrorReporting.captureError(_:reason:id:metadata:)` takes any error **unconditionally**; the private `capture(_:)` centralizes the `isReportable` filter (a `ServerError` with `isReportable == false` returns early). Survivors are wrapped, enriched with `file:function:line`, caller metadata, and the last 100 ring-buffer lines; the **grouping hash is `fileName:function`** (no line numbers, so it survives refactors). `capturePayment(...)` helpers attach rendezvous/exchange context. Identity (hex `UserID`) is shared with Mixpanel.
+`Flipcash/Utilities/ErrorReporting.swift`, backed by **Bugsnag**. `ErrorReporting.captureError(_:reason:id:metadata:)` takes any error **unconditionally**; the private `capture(_:)` centralizes the level switch — `(error as? ServerError)?.reportingLevel ?? .error` (an unclassified non-`ServerError` is a real bug), then `.suppressed` returns early and `.info`/`.error` map onto Bugsnag severity. Survivors are wrapped, enriched with `file:function:line`, caller metadata, and the last 100 ring-buffer lines; the **grouping hash is `fileName:function`** (no line numbers, so it survives refactors). `capturePayment(...)` helpers attach rendezvous/exchange context. Identity (hex `UserID`) is shared with Mixpanel.
 
-> Call `captureError` directly — never gate on `isReportable` at the call site (that's dead code that drifts). Every crash fixed from Bugsnag gets a regression test in `FlipcashTests/Regressions/Regression_{id}.swift`. CI uploads dSYMs in `ci_scripts/ci_post_xcodebuild.sh`.
+> Call `captureError` directly — never gate on `reportingLevel` at the call site (that's dead code that drifts). Every crash fixed from Bugsnag gets a regression test in `FlipcashTests/Regressions/Regression_{id}.swift`. CI uploads dSYMs in `ci_scripts/ci_post_xcodebuild.sh`.
 
 ## Analytics
 
-`Flipcash/Utilities/Analytics.swift` + `Events.swift` + `Analytics+ErrorModal.swift`, backed by **Mixpanel** (identity shared with Bugsnag). Single entry point `Analytics.track(event:properties:error:)`. Event domains: `General`, `Account`, `Button`, `Transfer` (grab/give/withdraw/cash-link), `Onramp`, `Send`, `Wallet`, `TokenInfo`, `TokenTransaction`, `CurrencyLaunch`, `Deeplink`, `Error`. Standard properties: `state`, `quarks`, `mint`, `fiat`, `currency`, `fx`, `screen`, `callSite`. Every error dialog shown to a user is tracked via `errorModalDisplayed(...)`.
+`Flipcash/Utilities/Analytics.swift` + `Events.swift` + `Analytics+ErrorModal.swift`, backed by **Mixpanel** (identity shared with Bugsnag). Single entry point `Analytics.track(event:properties:error:)`. Event domains: `General`, `Account`, `Button`, `Transfer` (grab/give/withdraw/cash-link), `Onramp`, `Send`, `Conversation`, `Onboarding`, `Wallet`, `TokenInfo`, `TokenTransaction`, `CurrencyLaunch`, `Deeplink`, `Error`. Standard properties: `state`, `quarks`, `mint`, `fiat`, `currency`, `fx`, `screen`, `callSite`. Every error dialog shown to a user is tracked via `errorModalDisplayed(...)`.
 
 ## Cryptography
 
@@ -49,7 +49,7 @@ A **middleware pipeline** runs before the sinks (each gets `inout LogEntry`, ret
 
 A separate C++/OpenCV framework that encodes/decodes/scans circular 2D codes; bundles OpenCV 4.10 + a ZXing Reed-Solomon subset. ObjC API `KikCodes` (`+encode`, `+decode`, `+scan:width:height:quality:`). Consumers:
 
-- **`CodeExtractor.swift`** — live camera: extracts the YUV plane (vImage/Accelerate), `KikCodes.scan(quality: .best)` → `KikCodes.decode` → `CashCode.Payload`; uses a `RedundancyContainer` (1-scan confirmation). Still image: all quality levels, then a 5×5 sliding-window fallback.
+- **`CodeExtractor.swift`** — live camera: copies the luma plane out of the `CVPixelBuffer` (CoreVideo), `KikCodes.scan(quality: .best)` → `KikCodes.decode` → `CashCode.Payload`; uses a `RedundancyContainer` (1-scan confirmation).
 - **`CashCode.Payload+Encoding.swift`** — `payload.codeData()` → `KikCodes.encode` for the rendered scan target. The 20-byte payload is `[type:1][currency_index:1][fiat_scaled:8][nonce:10]` (the fiat field is an 8-byte slot; encode writes 7 significant bytes, leaving the high byte zero).
 
 Updating OpenCV: `cd CodeScanner && ./Scripts/build_opencv.sh --version <v>`.
@@ -61,10 +61,10 @@ Updating OpenCV: `cd CodeScanner && ./Scripts/build_opencv.sh --version <v>`.
 | `Configurations/base.xcconfig` | Includes `secrets.xcconfig` then `secrets.local.xcconfig` (local override wins) — all API keys in secrets files, never in source |
 | `Scripts/build.sh` | `xcodebuild` wrapper for the `Flipcash` scheme; `--device [name]` resolves a paired iPhone UDID via `devicectl` |
 | `Scripts/test.sh` | Targeted simulator test runner (iPhone 17); disables clone-spawning parallelism; no `AllTargets` |
-| `Scripts/run` | Proto regeneration: pulls `.proto`, runs `protoc` + plugins (grpc-swift **v1**), writes `Generated/` |
-| `ci_scripts/ci_post_xcodebuild.sh` | Xcode Cloud: uploads dSYMs to Bugsnag on successful archives |
+| `Scripts/run` | Proto regeneration: pulls `.proto`, runs `protoc` + plugins (`protoc-gen-swift`, `protoc-gen-grpc-swift-2` — installed via `install-grpc-swift-2-plugin.sh`), writes `Generated/` |
+| `ci_scripts/ci_post_xcodebuild.sh` | Xcode Cloud: uploads dSYMs to Bugsnag on successful archives (deliberately gitignored — lives on the CI host, not in the tree) |
 | `fastlane/Fastfile` | `release` lane: submits a tagged build to App Store Review |
 
 ## Shared utilities
 
-`FlipcashCore/Utilities/`: `Poller` (cancellable repeating async task, awaits each tick), `Keychain` (Security.framework wrapper), `InfoPlist` (typed plist access), `Queue` (blocked/unblocked action queue), `DataPointResampler` (chart resampling). `Extensions/`: `Task.retry`/`Task.delay`, `Data+Hex`/`+Slice`, `Decimal`/`BigDecimal` operations, `FixedWidthInteger+Bytes` (Solana wire serialization), `KeyPair+Rendezvous`, `GRPCStatus+Extensions` (status → `ServerError`).
+`FlipcashCore/Utilities/`: `Poller` (cancellable repeating async task, awaits each tick), `Keychain` (Security.framework wrapper), `InfoPlist` (typed plist access), `DataPointResampler` (chart resampling). `Extensions/`: `Task.retry`/`Task.delay`, `Data+Hex`/`+Slice`, `Decimal`/`BigDecimal` operations, `FixedWidthInteger+Bytes` (Solana wire serialization), `KeyPair+Rendezvous`, `RPCError+Extensions` (`RPCError` → `ServerError`: transient codes `.suppressed`, `.cancelled` `.info`, rest `.error`).

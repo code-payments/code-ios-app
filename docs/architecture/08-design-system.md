@@ -1,10 +1,10 @@
 # Design System (FlipcashUI)
 
-`FlipcashUI` is the reusable component library and design-token layer. It imports `FlipcashCore` for model types and formatters (e.g. `FiatAmount`, `CurrencyCode`) but contains **no networking, persistence, or session state**. All files default to `@MainActor` isolation; minimum iOS 17.
+`FlipcashUI` is the reusable component library and design-token layer. It imports `FlipcashCore` for model types and formatters (e.g. `FiatAmount`, `CurrencyCode`) but contains **no networking, persistence, or session state**. Its only third-party dependencies are `ChatLayout` and `DifferenceKit`, for the chat transcript. All files default to `@MainActor` isolation; minimum iOS 18.
 
 ```mermaid
 graph TD
-    Tokens["Theme tokens — Colors · Fonts · Metrics"] --> Comp["Reusable components — buttons · containers · BillView · chart"]
+    Tokens["Theme tokens — Colors · Fonts · Metrics"] --> Comp["Reusable components — buttons · containers · BillView · chart · chat transcript"]
     Comp --> Screen["App screens"]
     Dlg["session.dialogItem"] --> DW["DialogWindow — UIWindow at .alert level"]
     DW -.->|renders above| Sheets["all sheets / screens"]
@@ -18,17 +18,18 @@ graph TD
 
 ## Component catalog
 
-- **Button styles** (`.buttonStyle`): `.filled` / `.filled20`, `.subtle`, `.icon(asset)`, `.card(icon:)`, and version-gated `.liquidGlassButtonStyle(shape:)` (glass on iOS 26, `.ultraThinMaterial` below).
+- **Button styles** (`.buttonStyle`): `.filled` / `.filledCompact` / `.filled20`, `.subtle`, `.icon(asset)`, `.card(icon:)`, and version-gated `.liquidGlassButtonStyle(shape:)` (glass on iOS 26, `.ultraThinMaterial` below).
 - **Buttons**: `CapsuleButton`, `LargeButton`, `BubbleButton`, `DialogButton` (`.primary`/`.secondary`/`.destructive`/`.outline`/`.subtle`, with `.loading`/`.success` states). `CodeButton` is deprecated.
 - **Toolbar**: `CloseButton` — `xmark` in `.topBarTrailing`. **This is the project's standard sheet-dismiss affordance** (not Apple's `Button("Cancel")`); don't flag it as Apple-divergent.
 - **Containers**: `Background`, `BorderedContainer`, `InputContainer`, `PartialSheet` (content-sized detents), `GlassContainer`, `LazyTable` (parallax header), `VerticalContainer` (rotated children), `ToastContainer`, `Loadable`.
-- **Controls**: `SwipeControl` (slide-to-confirm, idle-nudge), `KeyPadView` (numeric; the decimal key uses `Metrics.localizedDecimalSeparator` — the device locale's separator, `.` as fallback).
+- **Controls**: `SwipeControl` (slide-to-confirm, idle-nudge), `KeyPadView` (numeric; the decimal key inserts `AmountValidator.localizedDecimalSeparator` from `FlipcashCore` — the device locale's separator, `.` as fallback — so keypad strings are parsed with `AmountValidator`).
 - **Bill**: `BillView` (full cash-bill renderer — gradient, security strip, textures, rotated labels, centered code; `drawingGroup`), `CodeView`, `KikCode` (pure-Swift circular code generator — independent of the `CodeScanner` package).
 - **Chart**: `StockChart` (+ `ChartViewModel`), `ChartLineView`, `ChartRangePicker` (1D/1W/1M/1Y/all).
-- **Contacts**: `ContactAvatarView` (image or monogram, `NSCache`-backed) *(contact-sync)*.
-- **Misc**: `AmountText`/`AmountField`, `Flag`, `Badge`/`Bubble`/`BadgedIcon`, `QRCode`, `TwoFactorCodeView`, `CheckView`, `LoadingView`/`CircularLoadingView`, `ExpandableText`, `TextBubble`, `AccessKey`, `ValueAppreciation`.
+- **Contacts**: `ContactAvatarView` (image or monogram, `NSCache`-backed), `ContactsAuthorizer` (`@Observable` permission-state wrapper, mirrors `CameraAuthorizer`).
+- **Chat** (`Chat/`): `ChatViewController` — a `ChatLayout`-backed `UICollectionViewController` transcript; dumb and push-driven (`update(items:)` with DifferenceKit diffing, older pages requested via `onReachTop`). `ChatScreenViewController` composes it with two injected SwiftUI bars — a resting bar pinned to the safe area and a composer pinned to the keyboard layout guide. Cells: `ChatMessageCell`, `ChatCashCardCell`, `ChatDateSeparatorCell`, `ChatTypingIndicatorCell`, plus `ChatBubbleView`/`ChatReceiptLabel`.
+- **Misc**: `AmountText`/`AmountField`, `ImmutableField`, `Flag`, `Badge`/`Bubble`/`BadgedIcon`, `QRCode`, `TwoFactorCodeView`, `CheckView`, `LoadingView`/`CircularLoadingView` (both `ProgressView`-backed — circular-styled and a custom determinate ring style respectively), `ExpandableText`, `TextBubble`, `AccessKey`, `ValueAppreciation`.
 - **List**: `ListHeader`, `Row` (insets, `.chevron`/`.loader` accessory, auto separator).
-- **Modifiers**: `.badged(count:)`, `.vSeparator`/`.hSeparator` (pixel-precise hairlines), `.if(condition:)`, `.liquidGlassButtonStyle`.
+- **Modifiers**: `.pill(_:)` (compact pill label inside a tappable row), `.vSeparator` (pixel-precise hairline), `.if(condition:)`, `.liquidGlassButtonStyle`.
 
 ## Dialog system
 
@@ -42,7 +43,7 @@ graph TD
 
 ## UIKit bridges
 
-`View Controllers/SafariView.swift` (`SFSafariViewController`), `CameraPreviewView` (`AVFoundation`), plus direct UIKit use in `ContactAvatarCache` (`NSCache`/`UIImage`), `QRCode` (CoreImage), `KikCode` (`UIBezierPath`), `Haptics`, and `FontBook`. App-level UIKit (AppDelegate, navigation) lives in the app target.
+The chat transcript (`Chat/` — `UICollectionViewController` + `ChatLayout`, the package's largest UIKit surface), `View Controllers/SafariView.swift` (`SFSafariViewController`), `CameraPreviewView` (`AVFoundation`), plus direct UIKit use in `ContactAvatarCache` (`NSCache`/`UIImage`), `QRCode` (CoreImage), `KikCode` (`UIBezierPath`), `Haptics`, and `FontBook`. App-level UIKit (AppDelegate, navigation) lives in the app target.
 
 ## Conventions
 
@@ -51,4 +52,4 @@ graph TD
 - **Loading uses explicit placeholder data**, not `.redacted(.placeholder)` (under which only geometry — font/frame/length — renders; color and `lineLimit` are suppressed). `Loadable`/`ButtonState.loading`/explicit placeholder `Data` cover the cases.
 - **`matchedGeometryEffect` must come *before* `.frame`** in the chain, or hero animations silently fail. `.transition(.identity)` on a parent kills matched-geometry interpolation entirely.
 - **Liquid Glass / iOS 26** features are `if #available(iOS 26, *)`-gated with `.ultraThinMaterial` fallbacks.
-- **Assets** go through typed enums (`Asset`, `Symbol`, `SystemSymbol`) via `Image.asset/.system/.symbol/.regionFlag`. **Haptics** use named presets (`.tap()`, `.buttonTap()`, `.softest()`…), not raw floats.
+- **Assets** go through typed enums (`Asset`, `SystemSymbol`) via `Image.asset/.system/.regionFlag`. **Haptics** use named presets (`.tap()`, `.buttonTap()`, `.softest()`…), not raw floats.

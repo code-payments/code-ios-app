@@ -3,12 +3,10 @@
 A map of how the app is put together. Each document classifies one architectural concern; read this index first, then jump to whatever you need.
 
 > These docs describe **structure and intent**, not every line. When a doc and the code disagree, the code wins — fix the doc. When you change a subsystem, update its doc in the *same* change (see the **Architecture Docs** rule in [CLAUDE.md](../../CLAUDE.md)), and run `/verify-architecture-docs` to fact-check a doc against the code.
->
-> Items tagged ***(contact-sync)*** describe the in-flight `feat/contact-sync` epic and are **not yet on `main`** — remove the tags when the epic merges.
 
 ## The 30-second picture
 
-Flipcash is a multi-currency crypto wallet. Users hold balances in **USDF** (a USD stablecoin) and in **launchpad currencies** (custom tokens priced by an on-chain bonding curve). The core interaction is **face-to-face cash transfer**: one device shows an animated circular "cash bill" (a Kik Code) on its camera screen; another device scans it; a peer-to-peer rendezvous handshake moves the money. Money can also be sent to phone contacts *(contact-sync)*, bought via Apple Pay / Coinbase / an external Solana wallet, and withdrawn on-chain.
+Flipcash is a multi-currency crypto wallet. Users hold balances in **USDF** (a USD stablecoin) and in **launchpad currencies** (custom tokens priced by an on-chain bonding curve). The core interaction is **face-to-face cash transfer**: one device shows an animated circular "cash bill" (a Kik Code) on its camera screen; another device scans it; a peer-to-peer rendezvous handshake moves the money. Money can also be sent to phone contacts, bought via Apple Pay / Coinbase / an external Solana wallet, and withdrawn on-chain. Contact payments live inside **DM conversations** — threaded chats (`Screens/Conversation`, `ChatService`) where sent cash renders inline alongside text messages.
 
 The app talks to **two gRPC backends** (a payments/OCP server and the Flipcash core server) plus the **Solana** network. Every payment carries a **server-signed proof** of the exchange rate. All state is **cached locally in SQLite**, secrets live in the **Keychain**, and the UI is **SwiftUI** built on `@Observable`.
 

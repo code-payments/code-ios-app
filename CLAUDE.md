@@ -59,6 +59,7 @@ When adding new information, place it in the appropriate existing section. Remov
 - Add/rename a FlipcashUI component or design token → `08-design-system.md`
 - Change logging, error reporting, analytics, or crypto/scanning plumbing → `09-cross-cutting-concerns.md`
 - Add, remove, or materially change a user-facing feature → `features/README.md`
+- Change chat/conversation behavior → the doc for the layer you touched: conversation sheets/deeplinks `03-navigation.md`, chat services `04-networking.md`, conversation tables `05-persistence.md`, the user-facing flow `features/README.md`
 
 The full concern→doc index and per-doc watch paths live in [`docs/architecture/README.md`](docs/architecture/README.md). `README.md` and `10-separation-of-concerns.md` are cross-cutting syntheses — revisit them when the structure they summarize shifts, not on routine edits.
 
