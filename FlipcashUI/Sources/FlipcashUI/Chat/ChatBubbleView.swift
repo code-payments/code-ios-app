@@ -53,7 +53,9 @@ public final class ChatBubbleView: UIView {
     /// The background is pinned to every edge, so its bounds match the bubble's.
     var maskingPath: UIBezierPath { background.maskingPath }
 
-    public func configure(with message: ChatMessage) {
+    /// - Parameter animatingCorners: morph a grouping-driven corner change instead of snapping it.
+    ///   Pass true only for an on-screen, in-place reconfigure of the same row.
+    public func configure(with message: ChatMessage, animatingCorners: Bool = false) {
         switch message.content {
         case .text(let text): label.text = text
         case .cash: label.text = nil // cash rows use a dedicated cell, not this bubble
@@ -64,7 +66,8 @@ public final class ChatBubbleView: UIView {
                 isFromSelf: message.sender == .me,
                 groupedAbove: message.isContinuationFromPrevious,
                 groupedBelow: message.isContinuedByNext
-            )
+            ),
+            animated: animatingCorners
         )
     }
 }

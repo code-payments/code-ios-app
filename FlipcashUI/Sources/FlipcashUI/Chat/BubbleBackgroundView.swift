@@ -36,10 +36,28 @@ final class BubbleBackgroundView: UIView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    func apply(fill: UIColor, radii: RectangleCornerRadii) {
+    /// Applies the chrome. Pass `animated: true` on an in-place reconfigure whose grouping changed
+    /// (a new same-sender message flattening this bubble's corner) so the shape morphs on the
+    /// prototype's corner spring instead of snapping. Both paths come from the same
+    /// `UnevenRoundedRectangle` topology, so the spring interpolates them cleanly.
+    func apply(fill: UIColor, radii: RectangleCornerRadii, animated: Bool = false) {
         backgroundColor = fill
+        let previous = self.radii
         self.radii = radii
-        setNeedsLayout()
+        guard animated, radii != previous, !bounds.isEmpty else {
+            setNeedsLayout()
+            return
+        }
+        let path = UnevenRoundedRectangle(cornerRadii: radii, style: .continuous).path(in: bounds).cgPath
+        for layer in [shapeMask, borderLayer] {
+            let morph = CASpringAnimation(perceptualDuration: ChatMotion.cornerMorph.duration, bounce: ChatMotion.cornerMorph.bounce)
+            morph.keyPath = "path"
+            // Retarget from wherever a still-running morph currently is, not its final value.
+            morph.fromValue = layer.presentation()?.path ?? layer.path
+            morph.toValue = path
+            layer.add(morph, forKey: "cornerMorph")
+            layer.path = path
+        }
     }
 
     /// The bubble's continuous, per-corner rounded shape in its own coordinate space — the same

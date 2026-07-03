@@ -24,7 +24,7 @@ extension UICollectionView {
         interrupt: ((Changeset<C>) -> Bool)? = nil,
         onInterruptedReload: (() -> Void)? = nil,
         completion: ((Bool) -> Void)? = nil,
-        setData: (C) -> Void
+        setData: @escaping (C) -> Void
     ) {
         if case .none = window, let data = stagedChangeset.last?.data {
             setData(data)
@@ -52,25 +52,30 @@ extension UICollectionView {
                 return
             }
 
-            performBatchUpdates({
-                setData(changeset.data)
-                dispatchGroup?.enter()
+            // The spring context times everything the batch animates — cell shifts, the
+            // keep-at-bottom offset compensation, and the delegate's entrance transforms — so the
+            // whole transaction moves like the prototype's insertion spring.
+            UIView.animate(springDuration: ChatMotion.insertion.duration, bounce: ChatMotion.insertion.bounce, options: [.allowUserInteraction]) {
+                self.performBatchUpdates({
+                    setData(changeset.data)
+                    dispatchGroup?.enter()
 
-                if !changeset.elementDeleted.isEmpty {
-                    deleteItems(at: changeset.elementDeleted.map { IndexPath(item: $0.element, section: $0.section) })
-                }
-                if !changeset.elementInserted.isEmpty {
-                    insertItems(at: changeset.elementInserted.map { IndexPath(item: $0.element, section: $0.section) })
-                }
-                if !changeset.elementUpdated.isEmpty {
-                    let indexPaths = changeset.elementUpdated.map { IndexPath(item: $0.element, section: $0.section) }
-                    reconfigureItems(at: indexPaths)
-                    (collectionViewLayout as? CollectionViewChatLayout)?.reconfigureItems(at: indexPaths)
-                }
-                for (source, target) in changeset.elementMoved {
-                    moveItem(at: IndexPath(item: source.element, section: source.section), to: IndexPath(item: target.element, section: target.section))
-                }
-            }, completion: completionHandler)
+                    if !changeset.elementDeleted.isEmpty {
+                        self.deleteItems(at: changeset.elementDeleted.map { IndexPath(item: $0.element, section: $0.section) })
+                    }
+                    if !changeset.elementInserted.isEmpty {
+                        self.insertItems(at: changeset.elementInserted.map { IndexPath(item: $0.element, section: $0.section) })
+                    }
+                    if !changeset.elementUpdated.isEmpty {
+                        let indexPaths = changeset.elementUpdated.map { IndexPath(item: $0.element, section: $0.section) }
+                        self.reconfigureItems(at: indexPaths)
+                        (self.collectionViewLayout as? CollectionViewChatLayout)?.reconfigureItems(at: indexPaths)
+                    }
+                    for (source, target) in changeset.elementMoved {
+                        self.moveItem(at: IndexPath(item: source.element, section: source.section), to: IndexPath(item: target.element, section: target.section))
+                    }
+                }, completion: completionHandler)
+            }
         }
         dispatchGroup?.notify(queue: .main) { completion!(true) }
     }

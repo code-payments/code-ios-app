@@ -65,29 +65,40 @@ public class ChatColumnCell: UICollectionViewCell {
         currentMessageID = nil
         retryID = nil
         retryTap?.isEnabled = false
-        // Clear the line so a recycled cell never carries its prior row's text/color into the next use.
+        // Clear the line so a recycled cell never carries its prior row's text/color — or a
+        // mid-flight reveal's alpha/transform — into the next use.
         receipt.text = nil
         receipt.isHidden = true
         receipt.textColor = ChatReceiptLabel.defaultColor
+        receipt.alpha = 1
+        receipt.transform = .identity
     }
 
     /// Sets the status line and hugs the column to the sender's edge. Call from `configure`. The text
     /// is supplied by the mapping (`message.receipt`); this only styles it — a failed row turns red and
     /// becomes tappable to retry.
     func updateColumn(for message: ChatMessage) {
-        // Cross-fade the receipt only when the *same* row changes in place (Delivered→Read, the settling
+        // Animate the receipt only when the *same* row changes in place (Delivered→Read, the settling
         // line revealing). A recycled or freshly dequeued cell renders a different row, so its line is set
-        // directly — otherwise the cross-fade would replay this cell's prior line (a reused failed cell
+        // directly — otherwise the animation would replay this cell's prior line (a reused failed cell
         // flashing red "Not Delivered" before resolving to the real line).
-        let isInPlaceUpdate = currentMessageID == message.id
+        let inPlace = isInPlaceUpdate(for: message)
         currentMessageID = message.id
         // A failed row is the only interactive/red one — every signal keys off that single condition.
         retryID = message.isFailed ? message.id : nil
         receipt.textColor = message.isFailed ? ChatReceiptLabel.failedColor : ChatReceiptLabel.defaultColor
         retryTap?.isEnabled = message.isFailed
-        setReceipt(message.receipt, animated: isInPlaceUpdate && window != nil)
+        setReceipt(message.receipt, animated: inPlace)
         column.alignment = message.sender == .me ? .trailing : .leading
         applyAlignment(isFromSelf: message.sender == .me)
+    }
+
+    /// Whether `message` re-renders the row this cell already shows, on screen — the gate for
+    /// view-level change animations (receipt reveal, corner morph). A recycled or freshly dequeued
+    /// cell renders a *different* row, so its changes apply directly instead of replaying an
+    /// animation that belongs to another message.
+    func isInPlaceUpdate(for message: ChatMessage) -> Bool {
+        currentMessageID == message.id && window != nil
     }
 
     @objc private func retryTapped() {
@@ -97,18 +108,31 @@ public class ChatColumnCell: UICollectionViewCell {
 
     private func setReceipt(_ text: String?, animated: Bool) {
         guard receipt.text != text else { return }
-        // Cross-fade the line in (nil→text) and across the Delivered→Read swap; let it snap away when
-        // it clears so the row collapses in step with the batch update rather than after the fade. The
-        // visibility change is applied synchronously, outside the transition, so the cell's self-sized
-        // height never lags the cross-fade.
+        // A revealing line scale/fades in (the prototype's "Delivered" pop) and a text swap
+        // cross-fades in place (Delivered→Read); the line snaps away when it clears so the row
+        // collapses in step with the batch update rather than after the fade. Text and visibility
+        // are applied synchronously, outside the animation, so the cell's self-sized height never
+        // lags the motion.
         if animated, text != nil {
-            receipt.isHidden = false
-            UIView.transition(with: receipt, duration: 0.25, options: .transitionCrossDissolve) {
-                self.receipt.text = text
+            if receipt.isHidden {
+                receipt.text = text
+                receipt.isHidden = false
+                receipt.alpha = 0
+                receipt.transform = CGAffineTransform(scaleX: ChatMotion.receiptRevealScale, y: ChatMotion.receiptRevealScale)
+                UIView.animate(springDuration: ChatMotion.receiptReveal.duration, bounce: ChatMotion.receiptReveal.bounce) {
+                    self.receipt.alpha = 1
+                    self.receipt.transform = .identity
+                }
+            } else {
+                UIView.transition(with: receipt, duration: ChatMotion.receiptSwapDuration, options: .transitionCrossDissolve) {
+                    self.receipt.text = text
+                }
             }
         } else {
             receipt.text = text
             receipt.isHidden = text == nil
+            receipt.alpha = 1
+            receipt.transform = .identity
         }
     }
 

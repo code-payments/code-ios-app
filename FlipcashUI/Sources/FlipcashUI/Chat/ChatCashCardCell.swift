@@ -135,7 +135,8 @@ public final class ChatCashCardCell: ChatColumnCell {
                 isFromSelf: message.sender == .me,
                 groupedAbove: message.isContinuationFromPrevious,
                 groupedBelow: message.isContinuedByNext
-            )
+            ),
+            animated: isInPlaceUpdate(for: message)
         )
         updateColumn(for: message)
 

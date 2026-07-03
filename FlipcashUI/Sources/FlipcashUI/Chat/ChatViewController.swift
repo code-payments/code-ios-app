@@ -59,6 +59,10 @@ public final class ChatViewController: UICollectionViewController {
     private static let bottomContentPadding: CGFloat = 12
     /// True while a batch update animates, so the top trigger doesn't re-fire mid-update.
     private var isUpdating = false
+    /// The transcript as it was when the in-flight batch update began. Deleted rows are addressed
+    /// in this space (see `finalLayoutAttributesForDeletedItem`); `items` already holds the new
+    /// data by the time the layout asks.
+    private var itemsBeforeUpdate: [ChatItem]?
     /// Set while `setBottomInset` writes the content inset — that write synchronously fires
     /// `scrollViewDidChangeAdjustedContentInset`, and this stops the delegate re-entering `scrollToBottom`
     /// → `restoreContentOffset` mid-write, a nested layout pass that crashes ChatLayout.
@@ -178,6 +182,7 @@ public final class ChatViewController: UICollectionViewController {
             return
         }
         isUpdating = true
+        itemsBeforeUpdate = items
         collectionView.reload(
             using: changeset,
             // A change too large to animate falls back to a reload that keeps the bottom-anchored
@@ -193,6 +198,7 @@ public final class ChatViewController: UICollectionViewController {
             },
             completion: { [weak self] _ in
                 self?.isUpdating = false
+                self?.itemsBeforeUpdate = nil
             },
             setData: { [weak self] data in
                 self?.items = data
@@ -307,7 +313,7 @@ public final class ChatViewController: UICollectionViewController {
             - collectionView.bounds.height
             + collectionView.adjustedContentInset.bottom
         guard target > collectionView.contentOffset.y else { return }
-        UIView.animate(withDuration: 0.25, animations: {
+        UIView.animate(springDuration: ChatMotion.scroll.duration, bounce: ChatMotion.scroll.bounce, animations: {
             self.collectionView.setContentOffset(CGPoint(x: 0, y: target), animated: false)
         }, completion: { _ in
             // Lock to the exact bottom edge once the animation lands (the estimate may have moved).
@@ -394,9 +400,61 @@ public final class ChatViewController: UICollectionViewController {
     }
 }
 
-/// The controller is the layout delegate so cells inherit ChatLayout's defaults — auto self-sizing
-/// and full-width alignment. No row needs a custom size, so nothing is overridden.
-extension ChatViewController: ChatLayoutDelegate {}
+/// The controller is the layout delegate. Sizing keeps ChatLayout's defaults — auto self-sizing
+/// and full-width alignment — while the insert/delete hooks replace the default plain fade with
+/// the prototype's motion: a bubble scales in from 0.95 anchored at its sender's edge while
+/// fading, so rows materialize in place instead of sliding in from an edge.
+extension ChatViewController: ChatLayoutDelegate {
+
+    public func initialLayoutAttributesForInsertedItem(
+        _ chatLayout: CollectionViewChatLayout,
+        at indexPath: IndexPath,
+        modifying originalAttributes: ChatLayoutAttributes,
+        on state: InitialAttributesRequestType
+    ) {
+        originalAttributes.alpha = 0
+        // Inserted index paths are in the after-update space, which `items` already reflects.
+        guard items.indices.contains(indexPath.item) else { return }
+        originalAttributes.transform = Self.entranceTransform(for: items[indexPath.item], width: originalAttributes.frame.width)
+    }
+
+    public func finalLayoutAttributesForDeletedItem(
+        _ chatLayout: CollectionViewChatLayout,
+        at indexPath: IndexPath,
+        modifying originalAttributes: ChatLayoutAttributes
+    ) {
+        originalAttributes.alpha = 0
+        // Deleted index paths are in the before-update space, but `items` holds the new data by
+        // the time the layout asks — the same index may now be a different row (the arriving
+        // message typically lands exactly where the typing indicator was). Look the row up in the
+        // snapshot taken as the update began.
+        let source = itemsBeforeUpdate ?? items
+        guard source.indices.contains(indexPath.item) else { return }
+        originalAttributes.transform = Self.entranceTransform(for: source[indexPath.item], width: originalAttributes.frame.width)
+    }
+
+    /// Scale + fade anchored at the row's aligned edge — trailing for own messages, leading for
+    /// the counterpart's and the typing indicator. The cell spans the full width with the bubble
+    /// hugging that edge, so pinning the cell's edge (scale about center, then shift by half the
+    /// shrink) pins the bubble's. Date separators are centered and only fade.
+    private static func entranceTransform(for item: ChatItem, width: CGFloat) -> CGAffineTransform {
+        let scale = ChatMotion.insertionScale
+        let edgeShift = width * (1 - scale) / 2
+        switch item {
+        case .dateSeparator:
+            return .identity
+        case .typingIndicator:
+            return CGAffineTransform(translationX: -edgeShift, y: 0).scaledBy(x: scale, y: scale)
+        case .message(let message):
+            switch message.sender {
+            case .me:
+                return CGAffineTransform(translationX: edgeShift, y: 0).scaledBy(x: scale, y: scale)
+            case .other:
+                return CGAffineTransform(translationX: -edgeShift, y: 0).scaledBy(x: scale, y: scale)
+            }
+        }
+    }
+}
 
 // MARK: - Context menu
 
