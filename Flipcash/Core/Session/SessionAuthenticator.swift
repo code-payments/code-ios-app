@@ -546,6 +546,13 @@ final class SessionContainer {
             conversationController?.visibleConversationID == conversationID
         }
 
+        // A suppressed chat push is positive evidence of a message the store may have
+        // missed — refetch the on-screen conversation immediately instead of waiting out
+        // the stream's reconnect backoff (or a silently wedged stream).
+        pushController.didSuppressChatPush = { [weak conversationController] conversationID in
+            conversationController?.refetchForSuppressedPush(conversationID)
+        }
+
         let chatSpotlightIndexer = ChatSpotlightIndexer(
             controller: conversationController,
             contactSyncController: contactSyncController

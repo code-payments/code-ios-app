@@ -187,6 +187,22 @@ final class ConversationController {
         }
     }
 
+    /// A foreground chat push arrived for the on-screen conversation and its banner was
+    /// suppressed. The push is positive evidence the message exists server-side, but the
+    /// event stream may not have delivered it: a dropped stream can sit in reconnect backoff
+    /// for tens of seconds (the server rejects re-opens with "stream already exists" while it
+    /// still holds the zombie), or the stream can wedge silently open. The payload carries no
+    /// message id to check against the store, so refetch the newest window unconditionally —
+    /// when the stream already delivered the message, the merge is a no-op.
+    func refetchForSuppressedPush(_ conversationID: ConversationID) {
+        logger.info("Refetching after a suppressed chat push", metadata: [
+            "conversationID": "\(conversationID)",
+        ])
+        Task {
+            await loadMessages(for: conversationID)
+        }
+    }
+
     /// Surfaces a counterpart's READ pointer advance — the signal behind the
     /// "Read 3:42 PM" receipt — so it can be traced in the log stream.
     private func logCounterpartRead(_ event: ConversationStreamEvent) {

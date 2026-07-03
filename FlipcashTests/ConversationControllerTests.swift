@@ -466,6 +466,37 @@ struct ConversationControllerTests {
         controller.stop()
     }
 
+    @Test("a suppressed chat push refetches the on-screen conversation, catching up a message the stream never delivered")
+    func suppressedPushCatchesUpVisibleTranscript() async throws {
+        let mock = MockConversations()
+        mock.feed = [Conversation(id: ConversationID.test(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 100))]
+        mock.messages = [ConversationMessage(id: MessageID(value: 1), senderID: nil, content: .text("one"), date: Date(timeIntervalSince1970: 10), unreadSeq: 1)]
+        let controller = makeController(mock)
+
+        controller.start()
+        try await waitUntil { mock.streamOpened }
+
+        // Open the chat: load its first page and mark it visible (as the screen does).
+        await controller.loadMessages(for: ConversationID.test(1))
+        controller.visibleConversationID = ConversationID.test(1)
+        try #require(controller.messages(for: ConversationID.test(1)).map(\.id.value) == [1])
+
+        // A newer message lands server-side but its live event is never delivered — the
+        // stream is down mid-backoff or wedged silently open. Its push still arrives, gets
+        // suppressed for the open conversation, and triggers the refetch.
+        mock.messages = [
+            ConversationMessage(id: MessageID(value: 1), senderID: nil, content: .text("one"), date: Date(timeIntervalSince1970: 10), unreadSeq: 1),
+            ConversationMessage(id: MessageID(value: 2), senderID: nil, content: .text("two"), date: Date(timeIntervalSince1970: 20), unreadSeq: 2),
+        ]
+        controller.refetchForSuppressedPush(ConversationID.test(1))
+
+        // The refetch pulls the newest page and the missed message appears without
+        // waiting for any stream reconnect.
+        try await waitUntil { controller.messages(for: ConversationID.test(1)).map(\.id.value) == [1, 2] }
+        #expect(mock.latestPageQueries == [ConversationID.test(1), ConversationID.test(1)])
+        controller.stop()
+    }
+
     @Test("a reconnect refreshes the feed even with no conversation open")
     func reconnectRefreshesFeed() async throws {
         let mock = MockConversations()

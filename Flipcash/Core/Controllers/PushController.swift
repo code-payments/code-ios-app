@@ -35,6 +35,14 @@ class PushController {
         set { delegate.isViewingConversation = newValue }
     }
 
+    /// Fired after a chat push for the on-screen conversation is suppressed — the cue to
+    /// refetch that conversation: the push proves a message exists server-side that the
+    /// event stream may not have delivered.
+    var didSuppressChatPush: (@MainActor (ConversationID) -> Void)? {
+        get { delegate.didSuppressChatPush }
+        set { delegate.didSuppressChatPush = newValue }
+    }
+
     @ObservationIgnored private let owner: KeyPair
     @ObservationIgnored private let client: FlipClient
     @ObservationIgnored private let center: UNUserNotificationCenter
@@ -230,6 +238,7 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
     
     var didReceiveFCMToken: (@MainActor (String?) async throws -> Void)?
     var isViewingConversation: (@MainActor (ConversationID) -> Bool)?
+    var didSuppressChatPush: (@MainActor (ConversationID) -> Void)?
 
     override init() {
         super.init()
@@ -266,6 +275,10 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
             logger.info("Suppressing chat push for the open conversation", metadata: [
                 "conversationID": "\(conversationID)",
             ])
+            // The suppressed push is positive evidence of a message the event stream may not
+            // have delivered (down mid-backoff, or wedged silently open) — cue the owner to
+            // refetch the on-screen conversation right away.
+            didSuppressChatPush?(conversationID)
             return []
         }
 
