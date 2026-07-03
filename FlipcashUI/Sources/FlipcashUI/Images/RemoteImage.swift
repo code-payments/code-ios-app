@@ -1,6 +1,6 @@
 //
 //  RemoteImage.swift
-//  Code
+//  FlipcashUI
 //
 //  Created by Dima Bart on 2025-10-24.
 //
@@ -8,15 +8,15 @@
 import Kingfisher
 import SwiftUI
 
-struct RemoteImage: View {
-    
+public struct RemoteImage: View {
+
     let url: URL?
 
-    init(url: URL?) {
+    public init(url: URL?) {
         self.url = url
     }
-    
-    var body: some View {
+
+    public var body: some View {
         KFImage(url)
             .placeholder { Circle().fill(Color.black.opacity(0.5)) }
             .resizable()
