@@ -204,8 +204,9 @@ private struct NotificationCashCenter: View {
     }
 }
 
-/// Asynchronously loads a circular 13pt coin icon for a launchpad token, mirroring
-/// `ChatCashCardCell`'s lightweight `URLSession` fetch.
+/// Asynchronously loads a circular 13pt coin icon for a launchpad token via a bare
+/// `URLSession` fetch — the extension deliberately skips Kingfisher's cache stack
+/// (which `ChatCashCardCell` uses) to keep its memory footprint minimal.
 private struct NotificationCoinIcon: View {
 
     let url: URL

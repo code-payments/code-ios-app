@@ -8,6 +8,7 @@
 #if canImport(UIKit)
 import UIKit
 import FlipcashCore
+import Kingfisher
 
 /// A recycled cell for a cash payment row: a fixed-size card (shared `BubbleBackgroundView` chrome)
 /// with the token name + optional coin icon in the top-left and a centered "You sent / You received"
@@ -26,7 +27,6 @@ public final class ChatCashCardCell: ChatColumnCell {
     private let flag = UIImageView()
     private let captionLabel = UILabel()
     private let amountLabel = UILabel()
-    private var iconTask: Task<Void, Never>?
 
     /// Dim the card while pressed so the tap-to-open-currency-info affordance reads as a button.
     /// Driven by the collection view's selection machinery (`shouldHighlightItemAt`), not a gesture.
@@ -112,7 +112,7 @@ public final class ChatCashCardCell: ChatColumnCell {
 
     public override func prepareForReuse() {
         super.prepareForReuse()
-        iconTask?.cancel()
+        coinIcon.kf.cancelDownloadTask()
         coinIcon.image = nil
     }
 
@@ -126,16 +126,8 @@ public final class ChatCashCardCell: ChatColumnCell {
         flag.image = flagImage
         flag.isHidden = flagImage == nil
 
-        iconTask?.cancel()
-        coinIcon.image = nil
         coinIcon.isHidden = cash.iconURL == nil
-        if let url = cash.iconURL {
-            iconTask = Task { [weak self] in
-                guard let data = try? await URLSession.shared.data(from: url).0,
-                      let image = UIImage(data: data) else { return }
-                self?.coinIcon.image = image
-            }
-        }
+        coinIcon.kf.setImage(with: cash.iconURL)
 
         card.apply(
             fill: BubbleBackgroundView.fill(isFromSelf: message.sender == .me),
