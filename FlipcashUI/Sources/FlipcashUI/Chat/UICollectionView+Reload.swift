@@ -78,18 +78,27 @@ extension UICollectionView {
 
 extension StagedChangeset {
 
-    /// DifferenceKit splits actions into separate changesets to work around `UICollectionView`
-    /// limitations, which can leave the layout unable to see that an insert and delete happen
-    /// together. Deletions and insertions can be processed together, so flatten that case.
+    /// DifferenceKit packages one diff into up to three stages — `[updates]`, `[deletes]`,
+    /// `[inserts+moves]` — applied as separate batch updates. Applied that way, a receipt or
+    /// grouping change landing with an insert runs 2–3 overlapping animated batch updates, and
+    /// `CollectionViewChatLayout` computes its keep-at-bottom compensation per batch — the overlap
+    /// is what slid transcript cells in from random directions.
+    ///
+    /// Merging is index-safe whenever no stage carries moves or section changes: updated and
+    /// deleted indices come out of the single underlying diff in *source* coordinates and inserted
+    /// indices in *target* coordinates — exactly the before/after semantics of one
+    /// `performBatchUpdates`. A move's source index is relative to the post-delete stage instead,
+    /// so any stage with moves keeps the staged application.
     func flattenIfPossible() -> StagedChangeset {
-        if count == 2,
-           self[0].sectionChangeCount == 0,
-           self[1].sectionChangeCount == 0,
-           self[0].elementDeleted.count == self[0].elementChangeCount,
-           self[1].elementInserted.count == self[1].elementChangeCount {
-            return StagedChangeset(arrayLiteral: Changeset(data: self[1].data, elementDeleted: self[0].elementDeleted, elementInserted: self[1].elementInserted))
-        }
-        return self
+        guard count > 1,
+              let target = last?.data,
+              allSatisfy({ $0.sectionChangeCount == 0 && $0.elementMoved.isEmpty }) else { return self }
+        return StagedChangeset(arrayLiteral: Changeset(
+            data: target,
+            elementDeleted: flatMap(\.elementDeleted),
+            elementInserted: flatMap(\.elementInserted),
+            elementUpdated: flatMap(\.elementUpdated)
+        ))
     }
 }
 #endif
