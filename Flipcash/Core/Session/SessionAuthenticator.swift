@@ -537,7 +537,12 @@ final class SessionContainer {
             owner: session.ownerKeyPair,
             selfUserID: session.userID
         )
-        conversationController.start()
+        // start() opens the per-user event stream and fetches the feed. Skipped
+        // under unit tests: test-built containers carry unregistered owners, so
+        // those calls are doomed denials fired at the production backend.
+        if !Container.isRunningUnitTests {
+            conversationController.start()
+        }
         self.conversationController = conversationController
 
         // Suppress foreground chat pushes for the conversation that's currently

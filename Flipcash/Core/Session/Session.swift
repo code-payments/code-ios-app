@@ -204,27 +204,33 @@ class Session {
 
         ensureValidTokenSelection()
 
-        registerPoller()
         startStreaming()
 
         profile   = try? database.getProfile()
         userFlags = try? database.getUserFlags()
 
-        // Independent so a profile failure doesn't starve the user-flags fetch.
-        // userFlags carries server-pinned withdrawal/launch fees; without it,
-        // those flows submit fee=0 and the server denies the intent.
-        Task {
-            do { try await updateProfile() }
-            catch { logger.error("Failed to fetch profile", metadata: ["error": "\(error)"]) }
-        }
+        // Server-backed bootstrap. Skipped under unit tests: test-built sessions
+        // carry unregistered owners, so every one of these RPCs is a doomed
+        // denial fired at the production backend.
+        if !Container.isRunningUnitTests {
+            registerPoller()
 
-        Task {
-            do { try await updateUserFlags() }
-            catch { logger.error("Failed to fetch user flags", metadata: ["error": "\(error)"]) }
-        }
+            // Independent so a profile failure doesn't starve the user-flags fetch.
+            // userFlags carries server-pinned withdrawal/launch fees; without it,
+            // those flows submit fee=0 and the server denies the intent.
+            Task {
+                do { try await updateProfile() }
+                catch { logger.error("Failed to fetch profile", metadata: ["error": "\(error)"]) }
+            }
 
-        Task {
-            await syncUserPreferences()
+            Task {
+                do { try await updateUserFlags() }
+                catch { logger.error("Failed to fetch user flags", metadata: ["error": "\(error)"]) }
+            }
+
+            Task {
+                await syncUserPreferences()
+            }
         }
 
         observeBalanceCurrencyChanges()
