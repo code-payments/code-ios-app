@@ -2,8 +2,6 @@
 //  ContainerTests.swift
 //  FlipcashTests
 //
-//  Created by Claude on 2026-07-03.
-//
 
 import Testing
 @testable import Flipcash
