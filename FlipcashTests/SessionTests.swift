@@ -639,11 +639,7 @@ struct SessionOfflineCacheTests {
         )
     }
 
-    // Tests stay synchronous: the restore runs in `init`, while `updateProfile()`
-    // runs in a main-actor Task that can't execute until the test yields. An
-    // `async` test would race the network fetch against the cache.
-
-    @Test("A cached verified profile is restored before any network fetch")
+    @Test("A cached verified profile is restored from the database during init")
     func restoresProfileOnInit() throws {
         let database = Database.mock
         try database.insertProfile(.verifiedFixture)

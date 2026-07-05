@@ -555,7 +555,12 @@ final class SessionContainer {
             controller: conversationController,
             contactSyncController: contactSyncController
         )
-        chatSpotlightIndexer.start()
+        // Skipped under unit tests: even an empty feed sends a debounced
+        // indexSearchableItems XPC call to the simulator's live Spotlight index
+        // per test-built container.
+        if !Container.isRunningUnitTests {
+            chatSpotlightIndexer.start()
+        }
         self.chatSpotlightIndexer = chatSpotlightIndexer
     }
 

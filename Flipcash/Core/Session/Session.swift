@@ -165,7 +165,7 @@ class Session {
     @ObservationIgnored private let historyController: HistoryController
     @ObservationIgnored private let database: Database
 
-    @ObservationIgnored private var poller: Poller!
+    @ObservationIgnored private var poller: Poller?
 
     @ObservationIgnored private var scanOperation: ScanCashOperation?
     @ObservationIgnored private var sendOperation: SendCashOperation?

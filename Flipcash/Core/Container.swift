@@ -27,13 +27,13 @@ class Container {
     
     // MARK: - Init -
     
-    init() {
+    init(network: Network = .mainNet) {
         Self.configureFirebase()
-        
+
         // v2 transport construction is throwing, but it cannot fail for our fixed
         // DNS + TLS config (mirrors the v1 ClientConnection which never threw).
-        self.client                 = try! Client(network: .mainNet)
-        self.flipClient             = try! FlipClient(network: .mainNet)
+        self.client                 = try! Client(network: network)
+        self.flipClient             = try! FlipClient(network: network)
         self.accountManager         = AccountManager()
         self.betaFlags              = BetaFlags.shared
         self.preferences            = Preferences()
@@ -88,5 +88,7 @@ extension View {
 }
 
 extension Container {
-    static let mock = Container()
+    /// Offline so the object graphs tests and previews build from it can never
+    /// reach a real backend, no matter which member fires a request.
+    static let mock = Container(network: .offline)
 }
