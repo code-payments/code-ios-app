@@ -126,11 +126,10 @@ class BaseUITestCase: XCTestCase {
         let phoneField = app.textFields["Phone Number"]
         guard phoneField.waitForExistence(timeout: 2) else { return }
         phoneField.tap()
-        // US-default region, so only the 10 digits get typed; the formatter
-        // prepends "+1".
-        phoneField.typeText("5005550000")
-
-        waitAndTap(app.buttons["Next"])
+        // Enter the mock number in full international form, including the "+1"
+        // country code. A valid number auto-advances to the code screen, so no
+        // "Next" tap is needed.
+        phoneField.typeText("+15005550000")
 
         // ConfirmPhoneScreen signature: the Confirm CodeButton. The hidden
         // code field auto-focuses ~100ms after appear; six typed digits
