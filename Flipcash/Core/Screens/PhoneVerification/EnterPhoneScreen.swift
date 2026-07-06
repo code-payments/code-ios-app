@@ -90,6 +90,16 @@ struct EnterPhoneScreen<VM: PhoneVerifying>: View {
             try? await Task.sleep(for: .milliseconds(100))
             isFocused = true
         }
+        .onChange(of: viewModel.enteredPhone) { _, _ in
+            // Advance as soon as the number is valid — a completed or pasted
+            // number submits without a manual "Next" tap, mirroring the code
+            // screen's auto-submit. The button-state guard stops a re-fire while
+            // a request is already in flight.
+            if viewModel.canSendVerificationCode, viewModel.sendCodeButtonState == .normal {
+                isFocused = false
+                viewModel.sendPhoneNumberCodeAction()
+            }
+        }
     }
 
     // MARK: - Actions -

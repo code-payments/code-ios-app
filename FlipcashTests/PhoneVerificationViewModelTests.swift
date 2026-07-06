@@ -21,6 +21,29 @@ struct PhoneVerificationViewModelTests {
         #expect(viewModel.phone?.e164 == "+14155550100")
     }
 
+    @Test("A pasted full +1 number is valid, so auto-advance fires")
+    func pastedInternationalNumber_isValid() {
+        let viewModel = PhoneVerificationViewModel(owner: .mock, flipClient: .mock)
+        viewModel.setRegion(.us)
+
+        // A whole-string binding set is exactly what SwiftUI delivers on paste.
+        viewModel.adjustingPhoneNumberBinding.wrappedValue = "+1 6138096923"
+
+        #expect(viewModel.canSendVerificationCode)
+        #expect(viewModel.phone?.e164 == "+16138096923")
+    }
+
+    @Test("A partial number is not valid, so auto-advance stays gated")
+    func partialNumber_isNotValid() {
+        let viewModel = PhoneVerificationViewModel(owner: .mock, flipClient: .mock)
+        viewModel.setRegion(.us)
+
+        viewModel.adjustingPhoneNumberBinding.wrappedValue = "613809"
+
+        #expect(viewModel.canSendVerificationCode == false)
+        #expect(viewModel.phone == nil)
+    }
+
     @Test("Default isAlreadyVerified is false — onboarding never short-circuits the phone step")
     func isAlreadyVerified_defaultsFalse() {
         let viewModel = PhoneVerificationViewModel(owner: .mock, flipClient: .mock)
