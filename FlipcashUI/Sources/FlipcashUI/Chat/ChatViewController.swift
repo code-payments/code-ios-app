@@ -36,7 +36,7 @@ public final class ChatViewController: UICollectionViewController {
     /// that token's currency info. Only cash rows are selectable (see `shouldHighlightItemAt`).
     public var onCashCardTap: ((String) -> Void)?
 
-    /// Called when the user taps a URL in a text bubble; the owner opens it.
+    /// Called when the user taps a URL in a text bubble, or its preview card; the owner opens it.
     public var onOpenURL: ((URL) -> Void)?
 
     /// The widest a bubble may grow, as a share of the collection view's width.
@@ -152,6 +152,18 @@ public final class ChatViewController: UICollectionViewController {
         // The owner re-pushes on every observable change (read receipts, the live stream, paging
         // flags), most of which don't change the list. Bail on an identical push so we don't reload.
         guard newItems != items else { return }
+        // Warm the metadata cache for every link in the pushed transcript so a card's title and hero
+        // image are ready (or already in flight) by the time its cell displays, instead of each card
+        // starting its fetch on first configure. The cards are fixed-height, so this is cosmetic
+        // (earlier fill-in), never layout-affecting.
+        for item in newItems {
+            switch item {
+            case .message(let message):
+                if let url = message.linkPreview?.url { LinkMetadataCache.shared.prefetch(url) }
+            case .dateSeparator, .typingIndicator:
+                continue
+            }
+        }
         let wasEmpty = items.isEmpty
         if wasEmpty, !newItems.isEmpty {
             needsInitialScroll = true
@@ -534,7 +546,7 @@ extension ChatMessage {
 }
 
 /// A message cell that can supply the view + shape for the context-menu lift preview, so the lift is
-/// clipped to the bubble rather than the full side-hugging cell.
+/// clipped to the bubble (or the card, for a URL-only message) rather than the full side-hugging cell.
 protocol BubbleCarrying {
     var liftPreviewView: UIView { get }
     var liftPreviewMaskingPath: UIBezierPath? { get }

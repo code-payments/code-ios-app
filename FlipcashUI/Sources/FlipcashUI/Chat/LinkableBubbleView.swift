@@ -70,7 +70,7 @@ public final class LinkableBubbleView: UIView {
 
     public func configure(with message: ChatMessage) {
         switch message.content {
-        case .text(let text): textView.text = text
+        case .text(let text): textView.text = message.linkPreview?.bubbleText ?? text
         case .cash: textView.text = nil
         }
         background.apply(

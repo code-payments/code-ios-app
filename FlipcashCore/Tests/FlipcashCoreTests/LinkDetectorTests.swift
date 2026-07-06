@@ -7,40 +7,57 @@ struct LinkDetectorTests {
 
     private let detector = LinkDetector()
 
-    @Test("A bare https URL is detected")
+    @Test("A bare https URL leaves an empty bubble text")
     func soleHTTPSURL() {
         let preview = detector.webLink(in: "https://apple.com")
         #expect(preview?.url.absoluteString == "https://apple.com")
+        #expect(preview?.bubbleText == "")
     }
 
-    @Test("A scheme-less domain is detected")
+    @Test("A scheme-less domain is detected and leaves an empty bubble text")
     func schemelessDomain_isSole() {
         let preview = detector.webLink(in: "apple.com")
         #expect(preview?.url.scheme == "http")
+        #expect(preview?.bubbleText == "")
     }
 
-    @Test("A URL is detected alongside surrounding text")
+    @Test("Text around a URL keeps the text, minus the link, as bubble text")
     func textPlusURL_notSole() {
         let preview = detector.webLink(in: "look at this https://apple.com")
         #expect(preview?.url.absoluteString == "https://apple.com")
+        #expect(preview?.bubbleText == "look at this")
     }
 
-    @Test("The trailing URL is chosen when there are several")
+    @Test("The trailing URL is chosen when there are several; the leading one stays in the bubble text")
     func multipleURLs_picksTrailing() {
         let preview = detector.webLink(in: "https://a.com then https://b.com")
         #expect(preview?.url.absoluteString == "https://b.com")
+        #expect(preview?.bubbleText == "https://a.com then")
     }
 
-    @Test("Trailing punctuation is not part of the URL")
+    @Test("Trailing punctuation is not part of the URL, but the punctuation after it keeps the bubble text intact")
     func trailingPunctuation_excluded() {
-        let preview = detector.webLink(in: "see https://apple.com.")
+        let text = "see https://apple.com."
+        let preview = detector.webLink(in: text)
         #expect(preview?.url.absoluteString == "https://apple.com")
+        // NSDataDetector's match excludes the ".", so the character after the match isn't whitespace —
+        // the match isn't trailing, so the bubble keeps the full original text.
+        #expect(preview?.bubbleText == text)
     }
 
-    @Test("A mid-sentence URL is still detected")
+    @Test("A mid-sentence URL keeps the full text as bubble text; the URL stays visible inline")
     func midSentenceURL_keepsFullText() {
-        let preview = detector.webLink(in: "prices went up 20% https://apple.com, check it")
+        let text = "prices went up 20% https://apple.com, check it"
+        let preview = detector.webLink(in: text)
         #expect(preview?.url.absoluteString == "https://apple.com")
+        #expect(preview?.bubbleText == text)
+    }
+
+    @Test("A leading URL followed by more text keeps the full text as bubble text")
+    func leadingURLWithTrailingText_keepsFullText() {
+        let text = "https://apple.com, thanks"
+        let preview = detector.webLink(in: text)
+        #expect(preview?.bubbleText == text)
     }
 
     @Test("Email addresses do not produce a web link")
@@ -63,10 +80,12 @@ struct LinkDetectorTests {
         #expect(detector.webLink(in: "https://apple.com😀 nice right") == nil)
     }
 
-    @Test("A mangled trailing URL is rejected, letting an earlier clean URL win")
+    @Test("A mangled trailing URL is rejected, letting an earlier clean URL win — which then reads as not-trailing")
     func nonASCIIMangledTrailingURL_fallsBackToEarlierCleanMatch() {
-        let preview = detector.webLink(in: "https://a.com then https://b.com😀")
+        let text = "https://a.com then https://b.com😀"
+        let preview = detector.webLink(in: text)
         #expect(preview?.url.absoluteString == "https://a.com")
+        #expect(preview?.bubbleText == text)
     }
 
     @Test("A non-ASCII path keeps the URL — only a mangled host is rejected")

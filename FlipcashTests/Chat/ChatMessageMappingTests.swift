@@ -246,12 +246,13 @@ struct ChatMessageMappingTests {
     func textWithURL_hasLinkPreview() {
         let rows = messageRows(ChatItem.from([text(1, me, "check https://apple.com", after: 0)], selfUserID: me))
         #expect(rows.first?.linkPreview?.url.absoluteString == "https://apple.com")
+        #expect(rows.first?.linkPreview?.bubbleText == "check")
     }
 
-    @Test("A URL-only message has a link preview")
-    func urlOnlyMessage_hasLinkPreview() {
+    @Test("A URL-only message has empty bubble text")
+    func urlOnlyMessage_hasEmptyBubbleText() {
         let rows = messageRows(ChatItem.from([text(1, me, "https://apple.com", after: 0)], selfUserID: me))
-        #expect(rows.first?.linkPreview?.url != nil)
+        #expect(rows.first?.linkPreview?.bubbleText == "")
     }
 
     @Test("A plain text message has no link preview")

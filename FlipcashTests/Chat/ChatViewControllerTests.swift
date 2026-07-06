@@ -150,7 +150,7 @@ struct ChatViewControllerTests {
         let controller = ChatViewController()
         controller.loadViewIfNeeded()
         let link = ChatMessage(id: "link", text: "see https://apple.com", sender: .me,
-                               linkPreview: LinkPreview(url: URL(string: "https://apple.com")!))
+                               linkPreview: LinkPreview(url: URL(string: "https://apple.com")!, bubbleText: "see"))
         let plain = ChatMessage(id: "plain", text: "hello there", sender: .me)
         controller.update(items: [.message(link), .message(plain)])
 

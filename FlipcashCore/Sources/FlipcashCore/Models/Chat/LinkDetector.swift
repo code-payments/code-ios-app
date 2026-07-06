@@ -7,9 +7,9 @@
 
 import Foundation
 
-/// Finds the web link (if any) that marks a chat message as link-bearing. Pure and synchronous — wraps
+/// Finds the web link (if any) to preview in a chat message's text. Pure and synchronous — wraps
 /// `NSDataDetector` and keeps only `http`/`https` matches, so custom schemes (incl. `flipcash://`),
-/// `mailto:`, and `tel:` stay plain text.
+/// `mailto:`, and `tel:` never produce a card.
 public struct LinkDetector {
 
     private let detector: NSDataDetector?
@@ -18,7 +18,11 @@ public struct LinkDetector {
         detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
     }
 
-    /// The trailing web link in `text`. Nil when there's no web link.
+    /// The trailing web link in `text`, plus the bubble text to render alongside it. Nil when there's no
+    /// web link. When the chosen match is trailing — nothing but whitespace follows it — `bubbleText` is
+    /// the text with that link removed and trimmed (an empty result means the message was nothing but
+    /// the link). Otherwise the link sits mid-sentence or is followed by more text, so `bubbleText` is
+    /// the full original text: the URL stays visible inline and the card still renders below it.
     public func webLink(in text: String) -> LinkPreview? {
         guard let detector else { return nil }
         let nsText = text as NSString
@@ -35,7 +39,15 @@ public struct LinkDetector {
             }
         }
         guard let last = webMatches.last, let url = last.url else { return nil }
-        return LinkPreview(url: url)
+        let trailingRemainder = nsText.substring(from: last.range.location + last.range.length)
+        let isTrailing = trailingRemainder.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let bubbleText = if isTrailing {
+            nsText.replacingCharacters(in: last.range, with: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        } else {
+            text.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return LinkPreview(url: url, bubbleText: bubbleText)
     }
 
     /// Whether the authority (everything before the first path/query/fragment delimiter) of a matched

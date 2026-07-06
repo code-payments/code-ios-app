@@ -40,8 +40,9 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
     /// Whether this row failed to send: turns the status line red and makes the row tappable to retry.
     /// Other states (sending, delivered, received) render the same — the text comes from `receipt`.
     public let isFailed: Bool
-    /// The web link this text row contains, or nil when it carries none — marks the row to render as
-    /// tappable text. Derived from the text at map time (not stored/sent) — cash rows never carry one.
+    /// The web link this text row contains, or nil when it carries none — renders the row as tappable
+    /// text with a link-preview card beneath, and carries the bubble text to show alongside it. Derived
+    /// from the text at map time (not stored/sent) — cash rows never carry one.
     public let linkPreview: LinkPreview?
 
     public init(
