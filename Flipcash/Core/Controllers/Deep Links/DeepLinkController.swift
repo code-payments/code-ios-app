@@ -11,17 +11,45 @@ import FlipcashCore
 private let logger = Logger(label: "flipcash.deeplink")
 
 final class DeepLinkController {
-    
+
     private let sessionAuthenticator: SessionAuthenticator
-    
+
+    private var inFlightDeepLinks: Set<URL> = []
+
     // MARK: - Init -
-    
+
     init(sessionAuthenticator: SessionAuthenticator) {
         self.sessionAuthenticator = sessionAuthenticator
     }
-    
+
+    // MARK: - Open -
+
+    /// The canonical deep-link entry: dedups concurrent opens of the same URL, records analytics, and
+    /// executes the parsed action. Returns false when the URL parses to no action.
+    @discardableResult
+    func open(_ url: URL) -> Bool {
+        // Drop duplicate in-flight deliveries: a concurrent second claim is
+        // rejected server-side as stale state and surfaces as a false error
+        // after the first claim has already succeeded.
+        guard inFlightDeepLinks.insert(url).inserted else {
+            logger.info("Ignoring duplicate deep link", metadata: ["url": "\(url.sanitizedForAnalytics)"])
+            return true
+        }
+
+        Analytics.deeplinkOpened(url: url)
+        let action = handle(open: url)
+        Analytics.deeplinkParsed(action: action, url: url)
+
+        Task {
+            defer { self.inFlightDeepLinks.remove(url) }
+            try await action?.executeAction()
+        }
+
+        return action != nil
+    }
+
     // MARK: - Handle -
-    
+
     func handle(open url: URL) -> DeepLinkAction? {
         
         if case .loggedIn(let container) = sessionAuthenticator.state {

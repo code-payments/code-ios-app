@@ -40,6 +40,9 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
     /// Whether this row failed to send: turns the status line red and makes the row tappable to retry.
     /// Other states (sending, delivered, received) render the same — the text comes from `receipt`.
     public let isFailed: Bool
+    /// The web link to preview beneath this text row, or nil when the text carries none. Derived
+    /// from the text at map time (not stored/sent) — cash rows never carry one.
+    public let linkPreview: LinkPreview?
 
     public init(
         id: String,
@@ -48,7 +51,8 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         isContinuationFromPrevious: Bool = false,
         isContinuedByNext: Bool = false,
         receipt: String? = nil,
-        isFailed: Bool = false
+        isFailed: Bool = false,
+        linkPreview: LinkPreview? = nil
     ) {
         self.id = id
         self.content = content
@@ -57,6 +61,7 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         self.isContinuedByNext = isContinuedByNext
         self.receipt = receipt
         self.isFailed = isFailed
+        self.linkPreview = linkPreview
     }
 
     /// Convenience for text rows.
@@ -67,7 +72,8 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
         isContinuationFromPrevious: Bool = false,
         isContinuedByNext: Bool = false,
         receipt: String? = nil,
-        isFailed: Bool = false
+        isFailed: Bool = false,
+        linkPreview: LinkPreview? = nil
     ) {
         self.init(
             id: id,
@@ -76,7 +82,8 @@ public struct ChatMessage: Hashable, Sendable, Codable, Identifiable {
             isContinuationFromPrevious: isContinuationFromPrevious,
             isContinuedByNext: isContinuedByNext,
             receipt: receipt,
-            isFailed: isFailed
+            isFailed: isFailed,
+            linkPreview: linkPreview
         )
     }
 }

@@ -72,6 +72,11 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.onCashCardTap = newValue }
     }
 
+    public var onOpenURL: ((URL) -> Void)? {
+        get { transcript.onOpenURL }
+        set { transcript.onOpenURL = newValue }
+    }
+
     public override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = UIColor(Color.backgroundMain)

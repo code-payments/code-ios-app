@@ -9,6 +9,10 @@ import Foundation
 import FlipcashCore
 import FlipcashUI
 
+/// One detector for every remap — `NSDataDetector` compiles its matchers once, and `from(_:)`
+/// re-runs on every observable transcript change.
+private let linkDetector = LinkDetector()
+
 extension ChatItem {
 
     /// Maps a conversation's messages to display-ready transcript items: resolves sender side,
@@ -54,9 +58,11 @@ extension ChatItem {
             } ?? false
 
             let content: ChatMessage.Content
+            let linkPreview: LinkPreview?
             switch message.content {
             case .text(let text):
                 content = .text(text)
+                linkPreview = linkDetector.webLink(in: text)
             case .cash(let fiat):
                 let currency = fiat.nativeAmount.currency
                 let flagName = currency.region?.rawValue ?? currency.rawValue.uppercased()
@@ -67,6 +73,7 @@ extension ChatItem {
                     flagImageName: flagName,
                     iconURL: branding.iconURL
                 ))
+                linkPreview = nil
             case .deleted:
                 continue // filtered out above; unreachable, kept for switch exhaustiveness
             }
@@ -98,7 +105,8 @@ extension ChatItem {
                 isContinuationFromPrevious: groupedAbove,
                 isContinuedByNext: groupedBelow,
                 receipt: receipt,
-                isFailed: message.status == .failed
+                isFailed: message.status == .failed,
+                linkPreview: linkPreview
             )))
         }
         return items
