@@ -135,29 +135,32 @@ struct ErrorSubmitIntentTests {
         }
     }
 
-    // MARK: - isTransientNetworkError / reportingLevel
+    // MARK: - reportingLevel (forwards to the wrapped RPCError)
 
     @Test(
-        "grpcStatus(.deadlineExceeded) and grpcStatus(.unavailable) are transient network errors",
+        "transient grpcStatus codes are suppressed",
         arguments: [RPCError.Code.deadlineExceeded, .unavailable]
     )
-    func transientNetworkErrors(code: RPCError.Code) {
+    func transientGrpcStatusIsSuppressed(code: RPCError.Code) {
         let error = ErrorSubmitIntent.grpcStatus(RPCError(code: code, message: ""))
 
-        #expect(error.isTransientNetworkError)
         #expect(error.reportingLevel == .suppressed)
     }
 
-    // `.cancelled`/`.aborted`/`.unknown` are retryable per gRPC semantics
-    // but kept reportable here so app cancellations and server aborts stay visible.
+    @Test("grpcStatus(.cancelled) is app-initiated teardown, reported at .info not .error")
+    func cancelledGrpcStatusIsInfo() {
+        let error = ErrorSubmitIntent.grpcStatus(RPCError(code: .cancelled, message: ""))
+
+        #expect(error.reportingLevel == .info)
+    }
+
     @Test(
-        "non-network grpcStatus codes remain reportable and are not transient",
+        "non-network, non-cancelled grpcStatus codes report at .error",
         arguments: [
             RPCError.Code.internalError,
             .invalidArgument,
             .permissionDenied,
             .resourceExhausted,
-            .cancelled,
             .aborted,
             .unknown,
         ]
@@ -165,24 +168,7 @@ struct ErrorSubmitIntentTests {
     func reportableGrpcStatusCodes(code: RPCError.Code) {
         let error = ErrorSubmitIntent.grpcStatus(RPCError(code: code, message: ""))
 
-        #expect(!error.isTransientNetworkError)
         #expect(error.reportingLevel == .error)
-    }
-
-    @Test(
-        "non-grpcStatus cases are never transient network errors",
-        arguments: [
-            ErrorSubmitIntent.denied([], messages: []),
-            .invalidIntent([]),
-            .signatureError,
-            .staleState([], kinds: []),
-            .unknown,
-            .deviceTokenUnavailable,
-            .grpcError(RPCError(code: .unavailable, message: "")),
-        ]
-    )
-    func nonGrpcStatusCasesAreNotTransient(error: ErrorSubmitIntent) {
-        #expect(!error.isTransientNetworkError)
     }
 
     // MARK: - StaleStateKind

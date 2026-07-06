@@ -62,12 +62,14 @@ public enum ErrorUpdateSettings: Int, Error {
     case invalidRegion
     case unknown          = -1
     case transportFailure = -2
+    case cancelled = -3
 }
 
 extension ErrorUpdateSettings: ServerError, TransportClassifiableError {
     public var reportingLevel: ErrorReportingLevel {
         switch self {
         case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
         case .denied, .invalidLocale, .invalidRegion: .info
         case .unknown: .error
         }

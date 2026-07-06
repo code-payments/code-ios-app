@@ -496,6 +496,8 @@ final class ContactSyncController {
             return
         case .transportFailure:
             logger.info("Sync deferred — transport failure (will retry on next trigger)")
+        case .cancelled:
+            logger.info("Sync deferred — cancelled (will retry on next trigger)")
         case .checksumDrift:
             logger.info("Sync deferred — checksum drift (will retry on next trigger)")
         case .checksumMismatch:

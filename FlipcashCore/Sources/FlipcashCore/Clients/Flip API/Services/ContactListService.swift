@@ -318,6 +318,7 @@ public enum ErrorContactSync: Int, Error, Equatable, Sendable {
     case notFound = 4
     case checksumDrift = 5
     case transportFailure = -2
+    case cancelled = -3
     case unknown = -1
 }
 
@@ -325,6 +326,7 @@ extension ErrorContactSync: ServerError, TransportClassifiableError {
     public var reportingLevel: ErrorReportingLevel {
         switch self {
         case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
         case .denied, .tooManyContacts, .checksumDrift, .notFound: .info
         case .checksumMismatch, .unknown: .error
         }

@@ -68,12 +68,14 @@ public enum ErrorFetchJWT: Int, Error {
     case emailVerificationRequired
     case unknown          = -1
     case transportFailure = -2
+    case cancelled = -3
 }
 
 extension ErrorFetchJWT: ServerError, TransportClassifiableError {
     public var reportingLevel: ErrorReportingLevel {
         switch self {
         case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
         case .denied, .unsupportedProvider, .invalidApiKey, .phoneVerificationRequired, .emailVerificationRequired: .info
         case .unknown: .error
         }

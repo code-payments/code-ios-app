@@ -145,6 +145,7 @@ public enum ErrorSendVerificationCode: Int, Error, Equatable, Sendable {
     case unsupportedPhoneType
     case unknown = -1
     case transportFailure = -2
+    case cancelled = -3
 }
 
 public enum ErrorCheckVerificationCode: Int, Error, Equatable, Sendable {
@@ -164,6 +165,7 @@ public enum ErrorCheckVerificationCode: Int, Error, Equatable, Sendable {
     case noVerification
     case unknown = -1
     case transportFailure = -2
+    case cancelled = -3
 }
 
 public enum ErrorUnlinkPhone: Int, Error, Equatable, Sendable {
@@ -171,6 +173,7 @@ public enum ErrorUnlinkPhone: Int, Error, Equatable, Sendable {
     case denied
     case unknown = -1
     case transportFailure = -2
+    case cancelled = -3
 }
 
 public enum ErrorLinkForPayment: Int, Error, Equatable, Sendable {
@@ -180,12 +183,14 @@ public enum ErrorLinkForPayment: Int, Error, Equatable, Sendable {
     case notAssociated
     case unknown = -1
     case transportFailure = -2
+    case cancelled = -3
 }
 
 extension ErrorSendVerificationCode: ServerError, TransportClassifiableError {
     public var reportingLevel: ErrorReportingLevel {
         switch self {
         case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
         case .denied, .rateLimited, .invalidPhoneNumber, .unsupportedPhoneType: .info
         case .unknown: .error
         }
@@ -196,6 +201,7 @@ extension ErrorCheckVerificationCode: ServerError, TransportClassifiableError {
     public var reportingLevel: ErrorReportingLevel {
         switch self {
         case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
         case .denied, .rateLimited, .invalidCode, .noVerification: .info
         case .unknown: .error
         }
@@ -206,6 +212,7 @@ extension ErrorUnlinkPhone: ServerError, TransportClassifiableError {
     public var reportingLevel: ErrorReportingLevel {
         switch self {
         case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
         case .denied: .info
         case .unknown: .error
         }
@@ -216,6 +223,7 @@ extension ErrorLinkForPayment: ServerError, TransportClassifiableError {
     public var reportingLevel: ErrorReportingLevel {
         switch self {
         case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
         case .denied, .notAssociated: .info
         case .unknown: .error
         }

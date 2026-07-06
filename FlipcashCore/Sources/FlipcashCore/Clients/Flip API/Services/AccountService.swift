@@ -158,6 +158,7 @@ public enum ErrorRegisterAccount: Int, Error {
     case denied
     case unknown          = -1
     case transportFailure = -2
+    case cancelled = -3
 }
 
 public enum ErrorLoginAccount: Int, Error {
@@ -166,6 +167,7 @@ public enum ErrorLoginAccount: Int, Error {
     case denied
     case unknown          = -1
     case transportFailure = -2
+    case cancelled = -3
 }
 
 public enum ErrorFetchUserFlags: Int, Error {
@@ -173,18 +175,21 @@ public enum ErrorFetchUserFlags: Int, Error {
     case denied
     case unknown          = -1
     case transportFailure = -2
+    case cancelled = -3
 }
 
 public enum ErrorFetchUnauthenticatedUserFlags: Int, Error {
     case ok
     case unknown          = -1
     case transportFailure = -2
+    case cancelled = -3
 }
 
 extension ErrorRegisterAccount: ServerError, TransportClassifiableError {
     public var reportingLevel: ErrorReportingLevel {
         switch self {
         case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
         case .invalidSignature, .denied: .info
         case .unknown: .error
         }
@@ -195,6 +200,7 @@ extension ErrorLoginAccount: ServerError, TransportClassifiableError {
     public var reportingLevel: ErrorReportingLevel {
         switch self {
         case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
         case .invalidTimestamp, .denied: .info
         case .unknown: .error
         }
@@ -205,6 +211,7 @@ extension ErrorFetchUserFlags: ServerError, TransportClassifiableError {
     public var reportingLevel: ErrorReportingLevel {
         switch self {
         case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
         case .denied: .info
         case .unknown: .error
         }
@@ -215,6 +222,7 @@ extension ErrorFetchUnauthenticatedUserFlags: ServerError, TransportClassifiable
     public var reportingLevel: ErrorReportingLevel {
         switch self {
         case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
         case .unknown: .error
         }
     }

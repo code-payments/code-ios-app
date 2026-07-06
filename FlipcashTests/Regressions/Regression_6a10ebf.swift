@@ -32,6 +32,7 @@ struct Regression_6a10ebf {
         (ErrorFetchBalance.unknown,          .error),
         (ErrorFetchBalance.parseFailed,      .error),
         (ErrorFetchBalance.transportFailure, .suppressed),
+        (ErrorFetchBalance.cancelled,        .info),
     ])
     func reportingLevel(error: ErrorFetchBalance, expected: ErrorReportingLevel) {
         #expect(error.reportingLevel == expected)
@@ -40,7 +41,7 @@ struct Regression_6a10ebf {
     @Test("gRPC transport errors map to the right ErrorFetchBalance case", arguments: [
         (RPCError.Code.deadlineExceeded, ErrorFetchBalance.transportFailure),
         (RPCError.Code.unavailable,      ErrorFetchBalance.transportFailure),
-        (RPCError.Code.cancelled,        ErrorFetchBalance.unknown),
+        (RPCError.Code.cancelled,        ErrorFetchBalance.cancelled),
         (RPCError.Code.invalidArgument,  ErrorFetchBalance.unknown),
         (RPCError.Code.permissionDenied, ErrorFetchBalance.unknown),
         (RPCError.Code.internalError,    ErrorFetchBalance.unknown),

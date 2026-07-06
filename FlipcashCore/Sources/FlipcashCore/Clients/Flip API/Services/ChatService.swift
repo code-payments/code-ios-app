@@ -92,6 +92,7 @@ public enum ErrorGetDmChatFeed: Int, Error {
     case notFound
     case unknown          = -1
     case transportFailure = -2
+    case cancelled = -3
 }
 
 public enum ErrorGetChat: Int, Error {
@@ -100,12 +101,14 @@ public enum ErrorGetChat: Int, Error {
     case notFound
     case unknown          = -1
     case transportFailure = -2
+    case cancelled = -3
 }
 
 extension ErrorGetDmChatFeed: ServerError, TransportClassifiableError {
     public var reportingLevel: ErrorReportingLevel {
         switch self {
         case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
         case .denied, .notFound: .info
         case .unknown: .error
         }
@@ -116,6 +119,7 @@ extension ErrorGetChat: ServerError, TransportClassifiableError {
     public var reportingLevel: ErrorReportingLevel {
         switch self {
         case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
         case .denied, .notFound: .info
         case .unknown: .error
         }

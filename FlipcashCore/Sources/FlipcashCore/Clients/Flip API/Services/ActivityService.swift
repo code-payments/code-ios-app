@@ -108,6 +108,7 @@ public enum ErrorFetchTransactionHistory: Int, Error {
     case denied
     case unknown          = -1
     case transportFailure = -2
+    case cancelled = -3
 }
 
 public enum ErrorFetchTransactionHistoryItemsByID: Int, Error {
@@ -116,12 +117,14 @@ public enum ErrorFetchTransactionHistoryItemsByID: Int, Error {
     case notFound
     case unknown          = -1
     case transportFailure = -2
+    case cancelled = -3
 }
 
 extension ErrorFetchTransactionHistory: ServerError, TransportClassifiableError {
     public var reportingLevel: ErrorReportingLevel {
         switch self {
         case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
         case .denied: .info
         case .unknown: .error
         }
@@ -132,6 +135,7 @@ extension ErrorFetchTransactionHistoryItemsByID: ServerError, TransportClassifia
     public var reportingLevel: ErrorReportingLevel {
         switch self {
         case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
         case .denied, .notFound: .info
         case .unknown: .error
         }
