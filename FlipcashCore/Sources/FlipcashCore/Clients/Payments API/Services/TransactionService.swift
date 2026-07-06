@@ -1021,6 +1021,7 @@ public enum ErrorVoidGiftCard: Int, Error {
     case notFound
     case unknown = -1
     case transportFailure = -2
+    case cancelled = -3
 }
 
 public enum ErrorFetchIntentMetadata: Int, Error {
@@ -1030,12 +1031,14 @@ public enum ErrorFetchIntentMetadata: Int, Error {
     case unknown = -1
     case failedToParse = -2
     case transportFailure = -3
+    case cancelled = -4
 }
 
 public enum ErrorFetchLimits: Int, Error {
     case ok
     case unknown = -1
     case transportFailure = -2
+    case cancelled = -3
 }
 
 extension ErrorSubmitIntent: ServerError {
@@ -1043,16 +1046,7 @@ extension ErrorSubmitIntent: ServerError {
         switch self {
         case .denied, .invalidIntent, .staleState: .info
         case .signatureError, .unknown, .deviceTokenUnavailable, .grpcError: .error
-        case .grpcStatus: isTransientNetworkError ? .suppressed : .error
-        }
-    }
-
-    public var isTransientNetworkError: Bool {
-        switch self {
-        case .grpcStatus(let status):
-            status.code.isTransientNetworkError
-        case .denied, .invalidIntent, .signatureError, .staleState, .unknown, .deviceTokenUnavailable, .grpcError:
-            false
+        case .grpcStatus(let status): status.reportingLevel
         }
     }
 }
@@ -1061,6 +1055,7 @@ extension ErrorVoidGiftCard: ServerError, TransportClassifiableError {
     public var reportingLevel: ErrorReportingLevel {
         switch self {
         case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
         case .denied, .claimed, .notFound: .info
         case .unknown: .error
         }
@@ -1071,6 +1066,7 @@ extension ErrorFetchIntentMetadata: ServerError, TransportClassifiableError {
     public var reportingLevel: ErrorReportingLevel {
         switch self {
         case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
         case .notFound, .denied: .info
         case .unknown, .failedToParse: .error
         }
@@ -1081,6 +1077,7 @@ extension ErrorFetchLimits: ServerError, TransportClassifiableError {
     public var reportingLevel: ErrorReportingLevel {
         switch self {
         case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
         case .unknown: .error
         }
     }

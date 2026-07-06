@@ -6,19 +6,23 @@
 import GRPCCore
 
 /// A `ServerError` whose failure can originate from a gRPC transport condition
-/// (request timeout, unavailable channel) rather than a server result code.
-/// The classification lives here once: a transient `RPCError` (per
-/// `RPCError.Code.isTransientNetworkError`) becomes `.transportFailure` — which
-/// the conformer must mark non-reportable — and anything else stays `.unknown`.
-/// Conformers just declare conformance; their `.transportFailure` and `.unknown`
-/// cases satisfy these requirements.
+/// (request timeout, cancellation, unavailable channel) rather than a server
+/// result code. Severity is decided in exactly one place — `RPCError.reportingLevel`
+/// — and `from(transportError:)` projects that verdict onto the conformer's three
+/// transport cases: `.transportFailure` (suppressed), `.cancelled` (info), and
+/// `.unknown` (error). Conformers declare the three cases; they never re-classify.
 public protocol TransportClassifiableError: ServerError {
     static var transportFailure: Self { get }
+    static var cancelled: Self { get }
     static var unknown: Self { get }
 }
 
 public extension TransportClassifiableError {
     static func from(transportError error: RPCError) -> Self {
-        error.code.isTransientNetworkError ? .transportFailure : .unknown
+        switch error.reportingLevel {
+        case .suppressed: .transportFailure
+        case .info:       .cancelled
+        case .error:      .unknown
+        }
     }
 }

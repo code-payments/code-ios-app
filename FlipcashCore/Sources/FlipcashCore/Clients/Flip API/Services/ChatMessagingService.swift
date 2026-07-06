@@ -47,7 +47,7 @@ final class ChatMessagingService: Sendable {
                 case .notFound:
                     // An empty page is reported as NOT_FOUND, not empty OK.
                     await MainActor.run { completion(.success([])) }
-                case .denied, .unknown, .transportFailure:
+                case .denied, .unknown, .transportFailure, .cancelled:
                     logger.error("Failed to fetch messages")
                     await MainActor.run { completion(.failure(error)) }
                 }
@@ -135,6 +135,7 @@ public enum ErrorGetMessages: Int, Error {
     case notFound
     case unknown          = -1
     case transportFailure = -2
+    case cancelled = -3
 }
 
 public enum ErrorSendMessage: Int, Error {
@@ -142,6 +143,7 @@ public enum ErrorSendMessage: Int, Error {
     case denied
     case unknown          = -1
     case transportFailure = -2
+    case cancelled = -3
 }
 
 public enum ErrorAdvancePointer: Int, Error {
@@ -150,6 +152,7 @@ public enum ErrorAdvancePointer: Int, Error {
     case messageNotFound
     case unknown          = -1
     case transportFailure = -2
+    case cancelled = -3
 }
 
 public enum ErrorNotifyIsTyping: Int, Error {
@@ -157,12 +160,14 @@ public enum ErrorNotifyIsTyping: Int, Error {
     case denied
     case unknown          = -1
     case transportFailure = -2
+    case cancelled = -3
 }
 
 extension ErrorGetMessages: ServerError, TransportClassifiableError {
     public var reportingLevel: ErrorReportingLevel {
         switch self {
         case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
         case .denied, .notFound: .info
         case .unknown: .error
         }
@@ -173,6 +178,7 @@ extension ErrorSendMessage: ServerError, TransportClassifiableError {
     public var reportingLevel: ErrorReportingLevel {
         switch self {
         case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
         case .denied: .info
         case .unknown: .error
         }
@@ -183,6 +189,7 @@ extension ErrorAdvancePointer: ServerError, TransportClassifiableError {
     public var reportingLevel: ErrorReportingLevel {
         switch self {
         case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
         case .denied, .messageNotFound: .info
         case .unknown: .error
         }
@@ -193,6 +200,7 @@ extension ErrorNotifyIsTyping: ServerError, TransportClassifiableError {
     public var reportingLevel: ErrorReportingLevel {
         switch self {
         case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
         case .denied: .info
         case .unknown: .error
         }

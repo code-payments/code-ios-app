@@ -257,6 +257,7 @@ public enum ErrorRateHistory: Int, Error {
     case notFound
     case unknown          = -1
     case transportFailure = -2
+    case cancelled = -3
 }
 
 public enum ErrorLaunchCurrency: Error, Sendable {
@@ -271,6 +272,7 @@ extension ErrorRateHistory: ServerError, TransportClassifiableError {
     public var reportingLevel: ErrorReportingLevel {
         switch self {
         case .ok, .transportFailure: .suppressed
+        case .cancelled: .info
         case .notFound: .info
         case .unknown: .error
         }

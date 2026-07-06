@@ -18,6 +18,9 @@ struct TransportClassificationTests {
     private func assertClassifies<E: TransportClassifiableError>(_ type: E.Type) {
         #expect(E.from(transportError: RPCError(code: .deadlineExceeded, message: "")).reportingLevel == .suppressed)
         #expect(E.from(transportError: RPCError(code: .unavailable, message: "")).reportingLevel == .suppressed)
+        // Regression 6a1b80a: app/user-initiated teardown lands on `.cancelled` at
+        // `.info`, never collapsed into `.unknown`/`.error`.
+        #expect(E.from(transportError: RPCError(code: .cancelled, message: "")).reportingLevel == .info)
         #expect(E.from(transportError: RPCError(code: .internalError, message: "")).reportingLevel == .error)
     }
 
