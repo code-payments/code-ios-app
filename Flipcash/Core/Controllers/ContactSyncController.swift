@@ -50,8 +50,9 @@ final class ContactSyncController {
     /// Set once, during the user's first contact scan, to the number of the
     /// user's contacts the server matched. `SendRootScreen` forwards it to
     /// `session.dialogItem` — surfaced above the Send sheet by `DialogWindow` —
-    /// then clears it. Gated on the first sync (no prior checksum) so it never
-    /// re-fires on later syncs or screen opens.
+    /// then clears it. Gated on the durable `contactsConnected` flag (UserDefaults,
+    /// not the DB) so it fires once per device and never re-fires after a
+    /// `SQLiteVersion` rebuild, later syncs, or screen opens.
     var onFlipcashMatchCount: Int?
 
     nonisolated private var ownerKeyPair: KeyPair {
@@ -196,9 +197,6 @@ final class ContactSyncController {
     /// preserved when called through the production `runSync` path.
     internal nonisolated func performSync(contacts: [Database.LocalContact]) async throws {
         let storedState = try database.contactSyncState()
-        // No prior checksum means this is the user's first scan — the only time
-        // the "already on Flipcash" dialog is allowed to fire.
-        let isFirstScan = storedState.checksum == nil
         // The snapshot stores every `(e164, contactId)` pair so the picker
         // can show each contact with each of their phone numbers. Upload
         // + checksum operate on the unique e164 set — the server doesn't
@@ -278,8 +276,15 @@ final class ContactSyncController {
 
         await resolveDirectory()
 
-        if isFirstScan, matchedCount > 0 {
-            await MainActor.run { self.onFlipcashMatchCount = matchedCount }
+        // Fire the one-time "already on Flipcash" dialog on the first connect.
+        // The flag lives in UserDefaults, not the DB, so a `SQLiteVersion`
+        // rebuild never re-fires it for an existing user.
+        await MainActor.run {
+            guard UserDefaults.contactsConnected != true else { return }
+            UserDefaults.contactsConnected = true
+            if matchedCount > 0 {
+                self.onFlipcashMatchCount = matchedCount
+            }
         }
     }
 
@@ -529,4 +534,14 @@ extension ContactSyncController: DMContactNaming {
     func contactDisplayName(forDMChat conversationID: ConversationID) -> String? {
         resolvedContacts.onFlipcash.first { $0.dmChatID == conversationID.data }?.displayName
     }
+}
+
+// MARK: - Defaults -
+
+extension UserDefaults {
+    /// `true` once this device has completed its first contact connect. Gates the
+    /// one-time "already on Flipcash" dialog; persisted here rather than in the
+    /// per-account SQLite store so a `SQLiteVersion` rebuild doesn't re-fire it.
+    @Defaults(.contactsConnected)
+    static var contactsConnected: Bool?
 }

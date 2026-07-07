@@ -9,7 +9,10 @@ import Testing
 import FlipcashCore
 @testable import Flipcash
 
-@Suite("ContactSyncController")
+// `.serialized` because the first-connect dialog tests mutate the shared
+// `UserDefaults.contactsConnected` flag (see RatesControllerTests for the same
+// constraint on `@Defaults`-backed state).
+@Suite("ContactSyncController", .serialized)
 struct ContactSyncControllerTests {
 
     // MARK: - Checksum
@@ -696,6 +699,7 @@ struct ContactSyncControllerTests {
 
         @Test("First scan signals how many contacts the server matched")
         func firstScan_withMatches_signalsCount() async throws {
+            UserDefaults.contactsConnected = nil
             let mock = MockContactSync()
             mock.streamYields = [MatchedContact(e164: Self.bobContact.e164), MatchedContact(e164: Self.carolContact.e164)]
             let database = Database.mock
@@ -708,6 +712,7 @@ struct ContactSyncControllerTests {
 
         @Test("First scan with no matches signals nothing")
         func firstScan_noMatches_signalsNothing() async throws {
+            UserDefaults.contactsConnected = nil
             let mock = MockContactSync()
             mock.streamYields = []
             let database = Database.mock
@@ -720,6 +725,7 @@ struct ContactSyncControllerTests {
 
         @Test("A later sync never re-signals")
         func laterSync_doesNotReSignal() async throws {
+            UserDefaults.contactsConnected = nil
             let mock = MockContactSync()
             mock.streamYields = [MatchedContact(e164: Self.bobContact.e164)]
             let database = Database.mock
@@ -738,6 +744,28 @@ struct ContactSyncControllerTests {
             try await controller.performSync(contacts: contacts)
 
             #expect(controller.onFlipcashMatchCount == nil)
+        }
+
+        @Test("A SQLiteVersion rebuild does not re-fire the first-connect dialog")
+        func schemaRebuild_doesNotReSignal() async throws {
+            UserDefaults.contactsConnected = nil
+            let contacts = [Self.aliceContact, Self.bobContact]
+
+            // First connect on a fresh database.
+            let firstMock = MockContactSync()
+            firstMock.streamYields = [MatchedContact(e164: Self.bobContact.e164)]
+            let firstController = Self.makeController(mock: firstMock, database: Database.mock)
+            try await firstController.performSync(contacts: contacts)
+            #expect(firstController.onFlipcashMatchCount == 1)
+
+            // A SQLiteVersion bump deletes and rebuilds the DB, so the stored
+            // checksum is gone and this sync takes the first-scan (full upload)
+            // path again — but the durable flag survives, so it must stay silent.
+            let rebuiltMock = MockContactSync()
+            rebuiltMock.streamYields = [MatchedContact(e164: Self.bobContact.e164)]
+            let rebuiltController = Self.makeController(mock: rebuiltMock, database: Database.mock)
+            try await rebuiltController.performSync(contacts: contacts)
+            #expect(rebuiltController.onFlipcashMatchCount == nil)
         }
     }
 
