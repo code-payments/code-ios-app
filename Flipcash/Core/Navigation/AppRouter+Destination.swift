@@ -62,11 +62,12 @@ extension AppRouter {
         case withdraw
 
         // Conversation flow
-        /// A DM conversation, pushed from the Chats section of the recipient
-        /// picker (`.existing`) or by tapping a synced contact (`.contact`) —
-        /// in that case the chat may not exist yet; the first payment creates it.
-        /// Send Cash presents the amount entry as `SheetPresentation.sendAmount`
-        /// over this; deeplinks enter the chat as `SheetPresentation.conversation`.
+        /// A DM conversation, pushed onto the `.send` stack — from the Chats
+        /// section of the recipient picker (`.existing`) or by tapping a synced
+        /// contact (`.contact`, in which case the chat may not exist yet; the
+        /// first payment creates it). Deeplinks and push notifications land here
+        /// via `navigate(to: .dmConversation)`. Send Cash presents the amount
+        /// entry as `SheetPresentation.sendAmount` over this.
         case dmConversation(ConversationContext)
 
         /// The stack this destination naturally belongs in. Cross-stack

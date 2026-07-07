@@ -238,9 +238,10 @@ struct DeepLinkAction {
         case .chat(let conversationID):
             if case .loggedIn(let container) = sessionAuthenticator.state {
                 Analytics.deeplinkRouted(kind: kind)
-                // Present the chat as the root (bottom) sheet so anything stacked
-                // on top — Send Cash — reveals the chat when dismissed.
-                container.appRouter.present(.conversation(.existing(conversationID)))
+                // Push the chat onto the Send stack so it lands over the recipient
+                // picker (back reveals it); a second chat deeplink swaps the leaf
+                // in place rather than stacking a new sheet.
+                container.appRouter.navigate(to: .dmConversation(.existing(conversationID)))
             }
 
         case .chatContact(let phone):
@@ -256,7 +257,7 @@ struct DeepLinkAction {
                     logger.info("No synced contact for chat deeplink phone — ignoring")
                     return
                 }
-                container.appRouter.present(.conversation(.contact(contact)))
+                container.appRouter.navigate(to: .dmConversation(.contact(contact)))
             }
 
         case .chatSendCash(let conversationID):
