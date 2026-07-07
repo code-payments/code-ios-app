@@ -20,6 +20,8 @@ enum DefaultsKey: String {
     case storedTokenMint = "com.flipcash.token.storedTokenMint"
 
     case betaFlags = "com.flipcash.betaFlags"
+
+    case contactsConnected = "com.flipcash.contacts.connected"
 }
 
 private let defaultsEncoder = JSONEncoder()
