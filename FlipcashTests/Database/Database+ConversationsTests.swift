@@ -102,7 +102,7 @@ struct DatabaseConversationsTests {
         switch loadedMessage.content {
         case .cash(let loadedExchanged):
             #expect(loadedExchanged.nativeAmount.value == amount)
-        case .text:
+        case .text, .deleted:
             Issue.record("Expected cash message content")
         }
     }
@@ -233,6 +233,73 @@ struct DatabaseConversationsTests {
 
         #expect(try database.getConversationMessages(conversationID: ConversationID.test(1)).map(\.id.value) == [1])
         #expect(try database.getConversationMessages(conversationID: ConversationID.test(2)).map(\.id.value) == [2])
+    }
+
+    // MARK: - Event log persistence -
+
+    @Test("event_sequence and a deleted tombstone round-trip")
+    func eventSequenceAndTombstoneRoundTrip() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        let text = ConversationMessage(id: MessageID(value: 1), senderID: otherID, content: .text("hi"), date: Date(timeIntervalSince1970: 10), unreadSeq: 1, eventSequence: 7)
+        let tombstone = ConversationMessage(id: MessageID(value: 2), senderID: otherID, content: .deleted, date: Date(timeIntervalSince1970: 20), unreadSeq: 2, eventSequence: 9)
+
+        try database.upsertConversationMessages([text, tombstone], conversationID: id)
+
+        let loaded = try database.getConversationMessages(conversationID: id)
+        #expect(loaded == [text, tombstone])
+        #expect(loaded.map(\.eventSequence) == [7, 9])
+        #expect(loaded.last?.content == .deleted)
+    }
+
+    @Test("the catch-up cursor round-trips and survives a feed replace")
+    func catchupCursorRoundTrip() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        try database.upsertConversation(conversation(byte: 1))
+        try database.updateCatchupCursor(42, for: id)
+        #expect(try database.getCatchupCursors()[id] == 42)
+
+        // A feed replace deletes+reinserts every conversation row but must preserve the cursor.
+        try database.replaceConversationFeed([conversation(byte: 1)])
+        #expect(try database.getCatchupCursors()[id] == 42)
+    }
+
+    @Test("a stale re-delivery does not clobber a newer persisted version (DB last-writer-wins)")
+    func writeMessageIsLastWriterWins() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        let tombstone = ConversationMessage(id: MessageID(value: 1), senderID: otherID, content: .deleted, date: Date(timeIntervalSince1970: 20), unreadSeq: 1, eventSequence: 10)
+        let staleOriginal = ConversationMessage(id: MessageID(value: 1), senderID: otherID, content: .text("original"), date: Date(timeIntervalSince1970: 10), unreadSeq: 1, eventSequence: 5)
+
+        try database.upsertConversationMessages([tombstone], conversationID: id)
+        try database.upsertConversationMessages([staleOriginal], conversationID: id) // older version → ignored
+
+        let loaded = try database.getConversationMessages(conversationID: id)
+        #expect(loaded.count == 1)
+        #expect(loaded.first?.content == .deleted)   // tombstone survives the stale re-delivery
+        #expect(loaded.first?.eventSequence == 10)
+
+        // A genuinely newer version still wins.
+        let newer = ConversationMessage(id: MessageID(value: 1), senderID: otherID, content: .text("edited"), date: Date(timeIntervalSince1970: 30), unreadSeq: 1, eventSequence: 12)
+        try database.upsertConversationMessages([newer], conversationID: id)
+        #expect(try database.getConversationMessages(conversationID: id).first?.content == .text("edited"))
+    }
+
+    @Test("the feed preview skips a deleted newest message and shows the newest visible one")
+    func latestMessageSkipsTombstone() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        try database.upsertConversation(conversation(byte: 1))
+        let visible = ConversationMessage(id: MessageID(value: 1), senderID: otherID, content: .text("hello"), date: Date(timeIntervalSince1970: 10), unreadSeq: 1, eventSequence: 1)
+        let deletedNewest = ConversationMessage(id: MessageID(value: 2), senderID: otherID, content: .deleted, date: Date(timeIntervalSince1970: 20), unreadSeq: 2, eventSequence: 5)
+        try database.upsertConversationMessages([visible, deletedNewest], conversationID: ConversationID.test(1))
+
+        let loaded = try #require(try database.getConversations().first)
+        #expect(loaded.lastMessage?.content == .text("hello")) // preview shows the visible message, not the tombstone
     }
 
     // MARK: - Conversations -

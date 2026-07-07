@@ -23,6 +23,11 @@ public struct ConversationStore: Sendable {
     /// Monotonic counter stamped on each optimistic send, breaking ties among rows that share an anchor
     /// and keeping send order stable across out-of-order reconciles.
     private var pendingSequence: UInt64 = 0
+    /// The highest contiguous event-log `sequence` applied per conversation — the frontier passed to
+    /// `GetDelta` as `after_sequence`. Zero means "not yet established"; a catch-up seeds it, after
+    /// which live events advance it and gap-detect against it. Distinct from a message's `MessageId`
+    /// and from any per-message `eventSequence`.
+    private var appliedCursorByConversation: [ConversationID: UInt64] = [:]
 
     /// An optimistic send plus the keys that place it in the transcript: `anchor` is the newest
     /// confirmed server id at send time (the row this send sits after), `sequence` is its send order.
@@ -51,10 +56,14 @@ public struct ConversationStore: Sendable {
     /// reconciles a fresh pending send.
     private static let pendingReconcileWindow: TimeInterval = 5 * 60
 
-    /// Insert/replace messages keyed by their gapless id, keeping oldest first. Reconciles a server
-    /// copy of one of our own optimistic sends — which carries no client id, because the server never
-    /// echoes it — against the matching pending row, so the echo collapses onto that row instead of
-    /// duplicating it, no matter which path (stream, history load, or the send RPC) delivers it first.
+    /// Insert/replace messages keyed by their gapless id, keeping oldest first, applying
+    /// last-writer-wins by `eventSequence`. A strictly-newer version (edit, delete, re-fetch) replaces
+    /// the held copy; an older one is ignored; an equal one keeps the held copy. This makes a message
+    /// self-locating regardless of delivery path (stream, history load, `GetDelta`, or the send RPC)
+    /// and makes an out-of-order delete converge — a tombstone that lands before the original send
+    /// out-versions it and is never overwritten. Reconciles a server copy of one of our own optimistic
+    /// sends — which carries no client id, because the server never echoes it — against the matching
+    /// pending row so the echo collapses onto that row instead of duplicating it.
     public mutating func mergeMessages(_ incoming: [ConversationMessage], into conversationID: ConversationID) {
         guard !incoming.isEmpty else { return }
         let current = messagesByConversation[conversationID] ?? []
@@ -65,20 +74,38 @@ public struct ConversationStore: Sendable {
         )
         for message in incoming {
             var message = message
-            // A server copy with no client id is either the echo of one of our optimistic sends or a
-            // re-delivery of an already-known row. Only a brand-new id (not already confirmed) can be a
-            // fresh send's echo, so only then do we content-match a pending row — this keeps a
-            // re-delivery of an OLD identical message from stealing a fresh pending send. Adopting the
-            // pending row's client id (and dropping that pending copy) keeps one stable identity across
-            // sending → sent; for an already-known id we just keep the client id already on the row.
-            if message.clientMessageID == nil {
-                if byID[message.id] == nil, let clientMessageID = reconcilePendingMatch(for: message, in: conversationID) {
-                    message.clientMessageID = clientMessageID
-                } else if let existing = byID[message.id]?.clientMessageID {
-                    message.clientMessageID = existing
-                }
+            let existing = byID[message.id]
+
+            // A brand-new server id with no client id may be the echo of one of our pending sends —
+            // adopt that pending row's client id (dropping the pending copy) so identity survives
+            // sending → sent. Only a genuinely new id can be a fresh echo, so an old identical
+            // re-delivery never steals a pending send.
+            if message.clientMessageID == nil, existing == nil,
+               let clientMessageID = reconcilePendingMatch(for: message, in: conversationID) {
+                message.clientMessageID = clientMessageID
             }
-            byID[message.id] = message
+
+            guard let existing else {
+                byID[message.id] = message
+                continue
+            }
+
+            if message.eventSequence > existing.eventSequence {
+                // Newer version wins. Preserve the row's stable identity if the newer copy lacks one.
+                if message.clientMessageID == nil {
+                    message.clientMessageID = existing.clientMessageID
+                }
+                byID[message.id] = message
+            } else if message.eventSequence == existing.eventSequence, existing.clientMessageID == nil,
+                      let clientMessageID = message.clientMessageID {
+                // Same version, but this copy carries the client id the held one lacks (a reconcile copy
+                // landing after a stream echo, or vice versa). Adopt the id so the transcript diff keeps
+                // one stable identity instead of re-inserting the row.
+                var kept = existing
+                kept.clientMessageID = clientMessageID
+                byID[message.id] = kept
+            }
+            // Otherwise the held copy is newer-or-equal-and-already-identified: keep it.
         }
         messagesByConversation[conversationID] = byID.values.sorted { $0.id < $1.id }
     }
@@ -232,27 +259,120 @@ public struct ConversationStore: Sendable {
         sort()
     }
 
-    /// Apply a live event from the per-user event stream.
-    public mutating func apply(_ event: ConversationStreamEvent) {
+    /// Signals whether applying a live event exposed a hole in the sequenced log that must be filled
+    /// from `GetDelta`. Only `.chatEvents` can raise `.needsCatchUp`; every other event returns `.none`.
+    public enum GapSignal: Sendable, Equatable {
+        case none
+        case needsCatchUp(ConversationID, after: UInt64)
+    }
+
+    /// Apply a live event from the per-user event stream. Returns a gap signal so the controller can
+    /// trigger a `GetDelta` catch-up when the sequenced log skipped ahead.
+    @discardableResult
+    public mutating func apply(_ event: ConversationStreamEvent) -> GapSignal {
         switch event {
         case .newMessages(let conversationID, let messages):
             mergeMessages(messages, into: conversationID)
             if let latest = messages.max(by: { $0.id < $1.id }) {
                 setLastMessage(latest, in: conversationID)
             }
+            return .none
+        case .chatEvents(let conversationID, let events):
+            return applyChatEvents(events, into: conversationID)
         case .metadataRefresh(let conversation):
             upsert(conversation)
+            return .none
         case .lastActivityChanged(let conversationID, let date):
-            guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
+            guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return .none }
             conversations[index].lastActivity = date
             sort()
+            return .none
         case .readPointersChanged(let conversationID, let pointers):
             for pointer in pointers {
                 advanceReadPointer(to: pointer.value, for: pointer.userID, at: pointer.date, in: conversationID)
             }
+            return .none
         case .typingChanged:
             // Typing is ephemeral UI state held by the controller, never the persisted message store.
-            break
+            return .none
+        }
+    }
+
+    /// Apply sequenced event-log mutations in ascending order: merge each (last-writer-wins), advance
+    /// the contiguous frontier while events arrive gapless, and flag a gap the moment one is skipped so
+    /// the caller catches up via `GetDelta`. Only `.sent` mutations advance the feed's last message —
+    /// an edit/delete carries the message's original (low) id and must not re-sort the feed.
+    private mutating func applyChatEvents(_ events: [DecodedChatEvent], into conversationID: ConversationID) -> GapSignal {
+        var cursor = appliedCursorByConversation[conversationID] ?? 0
+        var newestSent: ConversationMessage?
+        var gapAfter: UInt64?
+        var incoming: [ConversationMessage] = []
+
+        for event in events.sorted(by: { $0.sequence < $1.sequence }) {
+            incoming.append(contentsOf: event.mutations.map(\.message))
+            for case .sent(let message) in event.mutations {
+                if newestSent.map({ message.id > $0.id }) ?? true { newestSent = message }
+            }
+
+            // Gap-detect only once the frontier is established (a catch-up seeds it); before that, live
+            // events are applied by LWW and the initial GetDelta owns the cursor.
+            guard gapAfter == nil, cursor > 0 else { continue }
+            if event.sequence <= cursor {
+                continue // already applied — a duplicate/stale re-delivery, merged harmlessly
+            }
+            if event.sequence == cursor + event.count {
+                cursor = event.sequence // contiguous — advance the frontier
+            } else {
+                gapAfter = cursor // hole below this event; stop advancing and catch up from here
+            }
+        }
+
+        // One merge for the whole batch (LWW is order-independent, so a per-event merge only re-sorted
+        // the full transcript K times); `mergeMessages` no-ops on an empty batch.
+        mergeMessages(incoming, into: conversationID)
+        appliedCursorByConversation[conversationID] = cursor
+        if let newestSent {
+            setLastMessage(newestSent, in: conversationID)
+        }
+        return gapAfter.map { .needsCatchUp(conversationID, after: $0) } ?? .none
+    }
+
+    // MARK: - Event-log catch-up cursor
+
+    /// The frontier to pass as `GetDelta.after_sequence` for a conversation (zero = fetch from the
+    /// beginning of the retained log).
+    public func appliedCursor(for conversationID: ConversationID) -> UInt64 {
+        appliedCursorByConversation[conversationID] ?? 0
+    }
+
+    /// Apply a `GetDelta` batch: merge its messages (last-writer-wins), then advance the frontier to
+    /// the batch's checkpoint. The feed preview is left to `loadFeed`/live events — a delta batch can
+    /// carry an old edit/delete whose id must not re-sort the feed.
+    public mutating func applyDeltaBatch(_ messages: [ConversationMessage], checkpoint: UInt64?, into conversationID: ConversationID) {
+        mergeMessages(messages, into: conversationID) // no-ops on an empty batch
+        if let checkpoint {
+            setAppliedCursor(checkpoint, for: conversationID)
+        }
+    }
+
+    /// Seat the frontier to the head reported by a cleanly-completed `GetDelta` — authoritative even
+    /// though the client never observed the intervening contiguous events. Never regresses it.
+    public mutating func setAppliedCursor(_ value: UInt64, for conversationID: ConversationID) {
+        if value > appliedCursor(for: conversationID) {
+            appliedCursorByConversation[conversationID] = value
+        }
+    }
+
+    /// Discard the frontier (a `RESET_REQUIRED`): the next catch-up re-syncs history and re-establishes
+    /// the cursor from a fresh floor.
+    public mutating func resetCursor(for conversationID: ConversationID) {
+        appliedCursorByConversation[conversationID] = 0
+    }
+
+    /// Seed frontiers from the persisted cache at hydrate time. Ignores zero (unestablished) cursors.
+    public mutating func seedAppliedCursors(_ cursors: [ConversationID: UInt64]) {
+        for (conversationID, cursor) in cursors where cursor > 0 {
+            appliedCursorByConversation[conversationID] = cursor
         }
     }
 

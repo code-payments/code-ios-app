@@ -25,6 +25,11 @@ extension ChatItem {
         suppressReceiptFor: String? = nil,
         cashBranding: (ExchangedFiat) -> (token: String, iconURL: URL?) = { _ in ("Cash", nil) }
     ) -> [ChatItem] {
+        // Tombstoned (deleted) messages are retained in the store for gapless ordering but rendered
+        // nowhere. Drop them up front so they never skew a date separator, group an adjacent bubble to
+        // an invisible row, or steal the "Delivered"/"Read" receipt anchor below.
+        let messages = messages.filter { if case .deleted = $0.content { false } else { true } }
+
         // "Delivered"/"Read" rides the latest *confirmed* self message, so an in-flight or failed send
         // trailing it doesn't strip the receipt off the last delivered bubble. A sending row shows
         // nothing; a failed row shows its own "Not Delivered" line (each independently retryable).
@@ -62,6 +67,8 @@ extension ChatItem {
                     flagImageName: flagName,
                     iconURL: branding.iconURL
                 ))
+            case .deleted:
+                continue // filtered out above; unreachable, kept for switch exhaustiveness
             }
 
             // The status line rides on the bubble itself (not a separate row, so a send is a clean

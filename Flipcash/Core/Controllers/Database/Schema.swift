@@ -168,8 +168,11 @@ nonisolated struct ConversationTable: Sendable {
     static let name = "conversation"
 
     let table        = Table(Self.name)
-    let id           = Expression <Data>   ("id")          // 32-byte ChatId
-    let lastActivity = Expression <Double> ("lastActivity")
+    let id           = Expression <Data>    ("id")          // 32-byte ChatId
+    let lastActivity = Expression <Double>  ("lastActivity")
+    // Highest contiguous event-log sequence applied for this chat — the resume
+    // point passed to GetDelta. Nil until the first catch-up establishes one.
+    let catchupCursor = Expression <UInt64?> ("catchupCursor")
 }
 
 nonisolated struct ConversationMemberTable: Sendable {
@@ -201,6 +204,9 @@ nonisolated struct ConversationMessageTable: Sendable {
     let mint           = Expression <PublicKey?>    ("mint")
     let date           = Expression <Double>        ("date")
     let unreadSeq      = Expression <UInt64>        ("unreadSeq")
+    // Event-log version of this message's current state; the store applies
+    // last-writer-wins by it. Zero for legacy/optimistic rows.
+    let eventSequence  = Expression <UInt64>        ("eventSequence")
 }
 
 nonisolated extension Expression {
@@ -383,6 +389,7 @@ nonisolated extension Database {
             try writer.run(conversationTable.table.create(ifNotExists: true, withoutRowid: true) { t in
                 t.column(conversationTable.id, primaryKey: true)
                 t.column(conversationTable.lastActivity)
+                t.column(conversationTable.catchupCursor)
             })
         }
 
@@ -417,6 +424,7 @@ nonisolated extension Database {
                 t.column(conversationMessageTable.mint)
                 t.column(conversationMessageTable.date)
                 t.column(conversationMessageTable.unreadSeq)
+                t.column(conversationMessageTable.eventSequence)
                 t.primaryKey(conversationMessageTable.conversationId, conversationMessageTable.id)
             })
         }

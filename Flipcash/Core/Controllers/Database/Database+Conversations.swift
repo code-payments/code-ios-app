@@ -15,7 +15,7 @@ nonisolated extension Database {
 
     /// Async wrapper that runs the synchronous cache reads off the caller's
     /// actor so session start never blocks the main thread on row decoding.
-    func loadConversationCache() async throws -> (conversations: [Conversation], messages: [ConversationID: [ConversationMessage]]) {
+    func loadConversationCache() async throws -> (conversations: [Conversation], messages: [ConversationID: [ConversationMessage]], cursors: [ConversationID: UInt64]) {
         try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 do {
@@ -24,11 +24,24 @@ nonisolated extension Database {
                     for conversation in conversations {
                         messages[conversation.id] = try self.getConversationMessages(conversationID: conversation.id)
                     }
-                    continuation.resume(returning: (conversations, messages))
+                    let cursors = try self.getCatchupCursors()
+                    continuation.resume(returning: (conversations, messages, cursors))
                 } catch {
                     continuation.resume(throwing: error)
                 }
             }
+        }
+    }
+
+    /// The persisted per-conversation event-log catch-up frontier (`GetDelta.after_sequence`), omitting
+    /// conversations with no cursor yet.
+    func getCatchupCursors() throws -> [ConversationID: UInt64] {
+        let c = ConversationTable()
+        let rows = try reader.prepareRowIterator(c.table).map { row in
+            (id: ConversationID(data: row[c.id]), cursor: row[c.catchupCursor])
+        }
+        return rows.reduce(into: [:]) { result, row in
+            if let cursor = row.cursor { result[row.id] = cursor }
         }
     }
 
@@ -67,11 +80,13 @@ nonisolated extension Database {
         }
     }
 
-    /// The newest stored message for a conversation, or nil when none is cached.
+    /// The newest stored non-deleted message for a conversation, or nil when none is cached. Tombstones
+    /// (`kind == 2`) are skipped so the feed preview shows the newest *visible* message rather than a
+    /// blank row for a deleted last message.
     private func latestMessage(conversationId: Data) throws -> ConversationMessage? {
         let m = ConversationMessageTable()
         guard let row = try reader.pluck(
-            m.table.filter(m.conversationId == conversationId).order(m.id.desc)
+            m.table.filter(m.conversationId == conversationId && m.kind != 2).order(m.id.desc)
         ) else {
             return nil
         }
@@ -98,17 +113,30 @@ nonisolated extension Database {
         let msg = ConversationMessageTable()
         let ids = conversations.map(\.id.data)
         try writer.transaction {
-            try writer.run(c.table.delete())
-            try writer.run(m.table.delete())
+            // Delete only the conversations that dropped out of the feed, then upsert the rest.
+            // `writeConversation` upserts the row (leaving `catchupCursor` untouched on conflict) and
+            // replaces that conversation's members, so a surviving conversation keeps its event-log
+            // cursor without a read-and-restore dance.
             if ids.isEmpty {
+                try writer.run(c.table.delete())
+                try writer.run(m.table.delete())
                 try writer.run(msg.table.delete())
             } else {
+                try writer.run(c.table.filter(!ids.contains(c.id)).delete())
+                try writer.run(m.table.filter(!ids.contains(m.conversationId)).delete())
                 try writer.run(msg.table.filter(!ids.contains(msg.conversationId)).delete())
             }
             for conversation in conversations {
                 try writeConversation(conversation)
             }
         }
+    }
+
+    /// Advance the persisted catch-up cursor for a conversation without rewriting its members or
+    /// last-message preview. No-ops for a conversation not yet in the feed.
+    func updateCatchupCursor(_ value: UInt64, for conversationID: ConversationID) throws {
+        let c = ConversationTable()
+        try writer.run(c.table.filter(c.id == conversationID.data).update(c.catchupCursor <- value))
     }
 
     /// Upsert one conversation: its row, its members (replaced wholesale), and
@@ -185,6 +213,15 @@ nonisolated extension Database {
     private func writeMessage(_ message: ConversationMessage, conversationId: Data) throws {
         let m = ConversationMessageTable()
 
+        // Last-writer-wins parity with the in-memory `ConversationStore`: never let a stale re-delivery
+        // (e.g. the deprecated `new_messages` overlay landing after the `events` tombstone, or a
+        // duplicate delta batch) overwrite a newer persisted version — that would resurrect a
+        // deleted/pre-edit message across a relaunch, since the cache is what hydrates on cold boot.
+        if let existing = try writer.pluck(m.table.filter(m.conversationId == conversationId && m.id == message.id.value)),
+           existing[m.eventSequence] > message.eventSequence {
+            return
+        }
+
         let kind: Int
         var text: String?
         var quarks: UInt64?
@@ -202,6 +239,8 @@ nonisolated extension Database {
             nativeAmount = amount.nativeAmount.value.description
             currency = amount.nativeAmount.currency
             mint = amount.mint
+        case .deleted:
+            kind = 2
         }
 
         try writer.run(
@@ -217,7 +256,8 @@ nonisolated extension Database {
                 m.currency       <- currency,
                 m.mint           <- mint,
                 m.date           <- message.date.timeIntervalSinceReferenceDate,
-                m.unreadSeq      <- message.unreadSeq
+                m.unreadSeq      <- message.unreadSeq,
+                m.eventSequence  <- message.eventSequence
             )
         )
     }
@@ -253,6 +293,8 @@ nonisolated extension Database {
                 nativeAmount: native,
                 currencyRate: Rate(fx: fx, currency: currency)
             ))
+        case 2:
+            content = .deleted
         default:
             return nil
         }
@@ -262,7 +304,8 @@ nonisolated extension Database {
             senderID: row[m.senderId],
             content: content,
             date: Date(timeIntervalSinceReferenceDate: row[m.date]),
-            unreadSeq: row[m.unreadSeq]
+            unreadSeq: row[m.unreadSeq],
+            eventSequence: row[m.eventSequence]
         )
     }
 }

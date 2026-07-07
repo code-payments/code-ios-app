@@ -428,11 +428,11 @@ struct ConversationControllerTests {
 
     // MARK: - Reconnect catch-up -
 
-    @Test("a reconnect refetches the visible conversation, catching up messages missed while the stream was down")
+    @Test("a reconnect catches up the visible conversation via GetDelta, filling messages missed while the stream was down")
     func reconnectCatchesUpVisibleTranscript() async throws {
         let mock = MockConversations()
         mock.feed = [Conversation(id: ConversationID.test(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 100))]
-        mock.messages = [ConversationMessage(id: MessageID(value: 1), senderID: nil, content: .text("one"), date: Date(timeIntervalSince1970: 10), unreadSeq: 1)]
+        mock.messages = [ConversationMessage(id: MessageID(value: 1), senderID: nil, content: .text("one"), date: Date(timeIntervalSince1970: 10), unreadSeq: 1, eventSequence: 1)]
         let controller = makeController(mock)
 
         controller.start()
@@ -443,26 +443,92 @@ struct ConversationControllerTests {
         // Open the chat: load its first page and mark it visible (as the screen does).
         await controller.loadMessages(for: ConversationID.test(1))
         controller.visibleConversationID = ConversationID.test(1)
-        // Prerequisite for the catch-up assertion below: the transcript must start at [1].
         try #require(controller.messages(for: ConversationID.test(1)).map(\.id.value) == [1])
 
-        // A newer message lands server-side during the window the stream was down —
-        // the live event for it was never delivered.
-        mock.messages = [
-            ConversationMessage(id: MessageID(value: 1), senderID: nil, content: .text("one"), date: Date(timeIntervalSince1970: 10), unreadSeq: 1),
-            ConversationMessage(id: MessageID(value: 2), senderID: nil, content: .text("two"), date: Date(timeIntervalSince1970: 20), unreadSeq: 2),
-        ]
+        // The missed message is delivered by the reconnect catch-up (GetDelta), not a blind page reload.
+        mock.deltaBatches = [MockConversations.DeltaBatch(
+            messages: [ConversationMessage(id: MessageID(value: 2), senderID: nil, content: .text("two"), date: Date(timeIntervalSince1970: 20), unreadSeq: 2, eventSequence: 2)],
+            checkpoint: 2
+        )]
+        mock.deltaHead = 2
 
         // The stream drops and comes back: the reconnect's `.live` triggers catch-up.
         mock.emitConnectionState(.disconnected)
         mock.emitConnectionState(.live)
 
-        // The reconnect refetch pulls the newest page and the missed message appears.
         try await waitUntil { controller.messages(for: ConversationID.test(1)).map(\.id.value) == [1, 2] }
-        // Reaching catch-up proves the FIFO consumer processed both `.live`s. The
-        // transcript was paged exactly twice — the explicit open + the one reconnect
-        // — so the baseline `.live` correctly fetched nothing.
-        #expect(mock.latestPageQueries == [ConversationID.test(1), ConversationID.test(1)])
+        // loadMessages seated the frontier to the newest loaded message's eventSequence (1), so the
+        // reconnect catch-up resumes from there — not a from-zero full refetch.
+        #expect(mock.deltaAfterSequences == [1])
+        controller.stop()
+    }
+
+    @Test("foreground catches up the open chat via GetDelta with no ping (missed-message-on-unlock regression)")
+    func foregroundCatchUpFillsOpenTranscript() async throws {
+        let mock = MockConversations()
+        mock.feed = [Conversation(id: ConversationID.test(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 100))]
+        mock.messages = [ConversationMessage(id: MessageID(value: 1), senderID: nil, content: .text("one"), date: Date(timeIntervalSince1970: 10), unreadSeq: 1, eventSequence: 1)]
+        let controller = makeController(mock)
+
+        controller.start()
+        try await waitUntil { mock.connectionStateStreamOpened }
+        await controller.loadMessages(for: ConversationID.test(1))
+        controller.visibleConversationID = ConversationID.test(1)
+        try #require(controller.messages(for: ConversationID.test(1)).map(\.id.value) == [1])
+
+        // A message arrived while the phone was locked (stream suspended); no ping, no live event.
+        mock.deltaBatches = [MockConversations.DeltaBatch(
+            messages: [ConversationMessage(id: MessageID(value: 2), senderID: nil, content: .text("locked while away"), date: Date(timeIntervalSince1970: 20), unreadSeq: 2, eventSequence: 2)],
+            checkpoint: 2
+        )]
+        mock.deltaHead = 2
+
+        // Unlock → foreground. No stream reconnect, no ping — the open transcript still fills.
+        controller.catchUpOpenChat()
+
+        try await waitUntil { controller.messages(for: ConversationID.test(1)).map(\.id.value) == [1, 2] }
+        controller.stop()
+    }
+
+    @Test("RESET_REQUIRED discards the cursor and re-syncs history via GetMessages")
+    func catchUpResetResyncsHistory() async throws {
+        let mock = MockConversations()
+        mock.feed = [Conversation(id: ConversationID.test(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 100))]
+        let controller = makeController(mock)
+
+        controller.start()
+        try await waitUntil { mock.connectionStateStreamOpened }
+        controller.visibleConversationID = ConversationID.test(1)
+
+        // The cursor is too far behind: GetDelta returns RESET_REQUIRED, so catch-up falls back to the
+        // newest page and re-establishes the cursor from that page's floor.
+        mock.deltaError = ErrorGetDelta.resetRequired
+        mock.messages = [
+            ConversationMessage(id: MessageID(value: 8), senderID: nil, content: .text("h8"), date: Date(timeIntervalSince1970: 80), unreadSeq: 8, eventSequence: 8),
+            ConversationMessage(id: MessageID(value: 9), senderID: nil, content: .text("h9"), date: Date(timeIntervalSince1970: 90), unreadSeq: 9, eventSequence: 9),
+        ]
+
+        await controller.catchUp(conversationID: ConversationID.test(1))
+
+        #expect(controller.messages(for: ConversationID.test(1)).map(\.id.value) == [8, 9])
+        #expect(mock.latestPageQueries == [ConversationID.test(1)]) // re-synced the newest page
+        controller.stop()
+    }
+
+    @Test("loadMessages seats the cursor to the newest page's head, so catch-up resumes from there (no from-zero full refetch that would prepend history)")
+    func loadMessagesSeatsCursorToHead() async throws {
+        let mock = MockConversations()
+        mock.feed = [Conversation(id: ConversationID.test(1), members: [], lastMessage: nil, lastActivity: Date(timeIntervalSince1970: 100))]
+        mock.messages = [ConversationMessage(id: MessageID(value: 9), senderID: nil, content: .text("newest"), date: Date(timeIntervalSince1970: 90), unreadSeq: 9, eventSequence: 42)]
+        let controller = makeController(mock)
+        controller.start()
+        try await waitUntil { mock.streamOpened }
+
+        await controller.loadMessages(for: ConversationID.test(1))
+        await controller.catchUp(conversationID: ConversationID.test(1))
+        // Resumes from the seated head (42), NOT 0 — the from-zero refetch is what re-pulled the full
+        // history and knocked the transcript off the bottom on first open.
+        #expect(mock.deltaAfterSequences == [42])
         controller.stop()
     }
 
@@ -502,6 +568,7 @@ struct ConversationControllerTests {
 
         try await waitUntil { controller.conversations.map(\.id) == [ConversationID.test(1)] }
         #expect(mock.latestPageQueries.isEmpty)
+        #expect(mock.deltaAfterSequences.isEmpty) // no visible chat → no catch-up
         controller.stop()
     }
 

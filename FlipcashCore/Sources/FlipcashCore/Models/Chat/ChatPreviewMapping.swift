@@ -41,7 +41,12 @@ extension ChatItem {
         limit: Int = 3,
         mintBranding: [PublicKey: MintBrandingInfo] = [:]
     ) -> [ChatItem] {
-        let sorted = messages.sorted { $0.id < $1.id }
+        // Drop tombstones before slicing so the preview keeps the newest `limit` *visible* messages —
+        // filtering after `.suffix` would let a recent delete crowd out a real message (or blank the
+        // preview) and leave an orphaned leading separator.
+        let sorted = messages
+            .filter { if case .deleted = $0.content { false } else { true } }
+            .sorted { $0.id < $1.id }
         let slice = sorted.suffix(limit)
 
         var items: [ChatItem] = []
@@ -71,6 +76,8 @@ extension ChatItem {
                     flagImageName: currency.region?.rawValue ?? currency.rawValue.uppercased(),
                     iconURL: branding?.iconURL
                 ))
+            case .deleted:
+                continue // filtered out above; unreachable, kept for switch exhaustiveness
             }
 
             items.append(.message(ChatMessage(

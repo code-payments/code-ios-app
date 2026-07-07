@@ -13,6 +13,8 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
 
     struct Sent: Sendable { let conversationID: ConversationID; let text: String }
     struct TypingCall: Sendable { let conversationID: ConversationID; let state: TypingState }
+    /// A scripted `GetDelta` batch: one `onBatch` call with these messages + checkpoint.
+    struct DeltaBatch: Sendable { let messages: [ConversationMessage]; let checkpoint: UInt64? }
 
     private let lock = NSLock()
 
@@ -27,6 +29,10 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
     private var _sent: [Sent] = []
     private var _markedRead: [MessageID] = []
     private var _typingCalls: [TypingCall] = []
+    private var _deltaBatches: [DeltaBatch] = []
+    private var _deltaHead: UInt64 = 0
+    private var _deltaError: Error?
+    private var _deltaAfterSequences: [UInt64] = []
     private var _didEnsure = false
     private var _didClose = false
     private var _streamContinuation: AsyncStream<ConversationStreamEvent>.Continuation?
@@ -63,6 +69,23 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
     var sent: [Sent] { lock.withLock { _sent } }
     var markedRead: [MessageID] { lock.withLock { _markedRead } }
     var typingCalls: [TypingCall] { lock.withLock { _typingCalls } }
+    /// Batches `getDelta` delivers to `onBatch`, in order.
+    var deltaBatches: [DeltaBatch] {
+        get { lock.withLock { _deltaBatches } }
+        set { lock.withLock { _deltaBatches = newValue } }
+    }
+    /// The head sequence `getDelta` returns on clean completion.
+    var deltaHead: UInt64 {
+        get { lock.withLock { _deltaHead } }
+        set { lock.withLock { _deltaHead = newValue } }
+    }
+    /// When set, `getDelta` throws this after delivering any scripted batches (e.g. `.resetRequired`).
+    var deltaError: Error? {
+        get { lock.withLock { _deltaError } }
+        set { lock.withLock { _deltaError = newValue } }
+    }
+    /// The `afterSequence` cursors `getDelta` was called with, in order.
+    var deltaAfterSequences: [UInt64] { lock.withLock { _deltaAfterSequences } }
     var didEnsure: Bool { lock.withLock { _didEnsure } }
     var didClose: Bool { lock.withLock { _didClose } }
     /// Whether `openConversationStream` has been called — events emitted
@@ -115,6 +138,21 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
             id: MessageID(value: 1), senderID: nil, content: .text(text),
             date: Date(timeIntervalSince1970: 0), unreadSeq: 0
         )
+    }
+
+    func getDelta(
+        owner: KeyPair,
+        conversationID: ConversationID,
+        afterSequence: UInt64,
+        onBatch: @MainActor @Sendable @escaping (_ messages: [ConversationMessage], _ checkpoint: UInt64?) -> Void
+    ) async throws -> UInt64 {
+        lock.withLock { _deltaAfterSequences.append(afterSequence) }
+        let (batches, head, error) = lock.withLock { (_deltaBatches, _deltaHead, _deltaError) }
+        for batch in batches {
+            await MainActor.run { onBatch(batch.messages, batch.checkpoint) }
+        }
+        if let error { throw error }
+        return head
     }
 
     func markRead(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws {

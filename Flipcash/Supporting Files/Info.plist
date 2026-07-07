@@ -23,7 +23,7 @@
 		<string>com.flipcash.app.openChat</string>
 	</array>
 	<key>SQLiteVersion</key>
-	<integer>21</integer>
+	<integer>22</integer>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

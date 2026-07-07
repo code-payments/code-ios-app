@@ -22,9 +22,13 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
 
     /// The message payload. Cash messages are created server-side when a
     /// payment intent carries chat metadata — clients never send them directly.
+    /// `deleted` is a tombstone: the server (a moderation removal, or another
+    /// client's delete) replaced the content, so the row is retained for gapless
+    /// ordering but rendered nowhere.
     public enum Content: Hashable, Sendable {
         case text(String)
         case cash(ExchangedFiat)
+        case deleted
     }
 
     public let id: MessageID
@@ -32,6 +36,12 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
     public let content: Content
     public let date: Date
     public let unreadSeq: UInt64
+    /// The event-log version at which this message reached its current state,
+    /// advancing on every send/edit/delete. The store applies last-writer-wins
+    /// by this value, so a stale copy (from any delivery path) never overwrites a
+    /// newer one. Zero for optimistic sends and legacy cache rows that predate
+    /// the event log — a real server copy (always `>= 1`) out-versions them.
+    public let eventSequence: UInt64
     /// Delivery state. `.sent` for every server/cache message; `.sending`/`.failed` only for an
     /// in-flight optimistic message.
     public var status: SendStatus
@@ -47,6 +57,7 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
         content: Content,
         date: Date,
         unreadSeq: UInt64,
+        eventSequence: UInt64 = 0,
         status: SendStatus = .sent,
         clientMessageID: UUID? = nil
     ) {
@@ -55,6 +66,7 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
         self.content = content
         self.date = date
         self.unreadSeq = unreadSeq
+        self.eventSequence = eventSequence
         self.status = status
         self.clientMessageID = clientMessageID
     }
@@ -78,7 +90,10 @@ extension ConversationMessage {
 
 extension ConversationMessage {
     /// Builds a message from its proto, returning nil for content the client
-    /// can't represent (unknown type, or a cash amount that fails to parse).
+    /// can't represent (unknown type, or a cash amount that fails to parse). A
+    /// deleted message materializes as a `.deleted` tombstone — never nil — so
+    /// it converges the same way across the stream, `GetMessages`, and `GetDelta`
+    /// and can't leave the pre-delete content on screen.
     public init?(_ proto: Flipcash_Messaging_V1_Message) {
         switch proto.content.first?.type {
         case .text(let textContent):
@@ -88,7 +103,9 @@ extension ConversationMessage {
                 return nil
             }
             self.content = .cash(amount)
-        case .reply, .media, .system, .deleted, .none:
+        case .deleted:
+            self.content = .deleted
+        case .reply, .media, .system, .none:
             return nil
         }
 
@@ -96,6 +113,7 @@ extension ConversationMessage {
         self.senderID = try? UUID(data: proto.senderID.value)
         self.date = proto.hasTs ? proto.ts.date : .now
         self.unreadSeq = proto.unreadSeq
+        self.eventSequence = proto.eventSequence
         self.status = .sent
         self.clientMessageID = nil
     }

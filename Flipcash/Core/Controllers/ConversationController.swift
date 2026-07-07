@@ -79,6 +79,13 @@ final class ConversationController {
     @ObservationIgnored private var hasSeenStreamLive = false
     @ObservationIgnored private var hydratingConversationIDs: Set<ConversationID> = []
     @ObservationIgnored private var markReadTasks: [ConversationID: Task<Void, Never>] = [:]
+    /// Conversations with a `GetDelta` catch-up in flight. Dedups overlapping triggers (foreground +
+    /// a near-simultaneous reconnect, or a gap-fill racing a reconnect) so two streams don't apply
+    /// checkpoints out of order and regress the frontier.
+    @ObservationIgnored private var catchUpInFlight: Set<ConversationID> = []
+    /// Debounced live-gap catch-ups, one per conversation: a detected gap waits briefly (a late
+    /// out-of-order event may close it) before spending a `GetDelta`.
+    @ObservationIgnored private var gapCatchUpTasks: [ConversationID: Task<Void, Never>] = [:]
     @ObservationIgnored private let receiptSettle = ReceiptSettleGate()
 
     /// Re-send STILL no more often than this while the user keeps typing, and send STOPPED after this
@@ -121,6 +128,7 @@ final class ConversationController {
                 for (conversationID, messages) in cache.messages {
                     store.mergeMessages(messages, into: conversationID)
                 }
+                store.seedAppliedCursors(cache.cursors)
             }
         } catch {
             logger.error("Failed to load conversation cache", metadata: ["error": "\(error)"])
@@ -148,19 +156,23 @@ final class ConversationController {
         streamTask = Task { [weak self] in
             for await event in events {
                 guard let self else { return }
-                self.store.apply(event)
+                let gap = self.store.apply(event)
                 self.persist(event: event)
                 self.hydrateIfUnknown(event)
                 self.logCounterpartRead(event)
                 self.applyTyping(event)
+                if case .needsCatchUp(let conversationID, _) = gap {
+                    self.scheduleGapCatchUp(conversationID)
+                }
             }
         }
     }
 
-    /// The event stream is a live, cursorless push and the server never replays,
-    /// so messages delivered while it was down are lost. Watch the connection
-    /// state: the first `.live` is the initial connection, and every `.live`
-    /// after it is a reconnect whose missed window we refetch.
+    /// A reconnect can miss live events while the stream was down; the event log carries a per-chat
+    /// cursor, so on reconnect we reconcile the missed window from that cursor via `GetDelta`. The first
+    /// `.live` is the initial connection (already loaded by `start()`/the screen); every `.live` after
+    /// it is a reconnect. This edge is a belt-and-suspenders trigger — foreground, chat-open, and a
+    /// detected live gap already drive catch-up without waiting for a ping.
     private func observeConnectionState() {
         guard connectionStateTask == nil else { return }
         let states = streaming.conversationConnectionState()
@@ -178,13 +190,112 @@ final class ConversationController {
     }
 
     private func refetchAfterReconnect() async {
-        logger.info("Stream reconnected, refetching the missed window", metadata: [
+        logger.info("Stream reconnected, catching up the missed window", metadata: [
             "visibleConversation": visibleConversationID.map { "\($0)" } ?? "none",
         ])
-        await loadFeed()
+        // Refresh the feed (unread + head truth) and reconcile the open transcript from the event-log
+        // cursor via GetDelta — not a blind newest-page reload. Both are @MainActor (store mutations
+        // stay serial) but their network calls run off-main, so overlap them rather than awaiting in
+        // series.
+        async let feed: Void = loadFeed()
         if let visibleConversationID {
-            await loadMessages(for: visibleConversationID)
+            await catchUp(conversationID: visibleConversationID)
         }
+        await feed
+    }
+
+    // MARK: - Event-log catch-up
+
+    /// Reconcile a conversation's transcript from its persisted event-log cursor via `GetDelta`,
+    /// applying and persisting each batch's checkpoint as it arrives. Deduped per conversation — a
+    /// second caller while one is in flight no-ops. Fired on chat-open, foreground, reconnect, and a
+    /// detected live gap; none of these wait for a server ping.
+    func catchUp(conversationID: ConversationID) async {
+        guard !catchUpInFlight.contains(conversationID) else { return }
+        catchUpInFlight.insert(conversationID)
+        defer { catchUpInFlight.remove(conversationID) }
+
+        let after = store.appliedCursor(for: conversationID)
+        do {
+            let head = try await messaging.getDelta(owner: owner, conversationID: conversationID, afterSequence: after) { [weak self] messages, checkpoint in
+                guard let self else { return }
+                self.store.applyDeltaBatch(messages, checkpoint: checkpoint, into: conversationID)
+                if !messages.isEmpty {
+                    self.persist(operation: "delta-batch") { try self.database.upsertConversationMessages(messages, conversationID: conversationID) }
+                }
+                self.persistCursor(for: conversationID)
+            }
+            // Clean completion: the head is authoritative even if the intervening events weren't observed.
+            store.setAppliedCursor(head, for: conversationID)
+            persistCursor(for: conversationID)
+            // `after` vs `head`: equal means already current; a jump means the delta window that was
+            // caught up. Observable so the production catch-up cadence can be traced.
+            logger.info("Chat catch-up complete", metadata: [
+                "conversationID": "\(conversationID)",
+                "after": "\(after)",
+                "head": "\(head)",
+            ])
+        } catch let error as ErrorGetDelta where error == .resetRequired {
+            await resyncAfterReset(conversationID: conversationID)
+        } catch {
+            // Transport / denied / unknown: leave the cursor at the last persisted checkpoint so the
+            // next trigger resumes from there. captureError classifies transient failures as suppressed.
+            logger.error("Chat catch-up failed", metadata: [
+                "conversationID": "\(conversationID)",
+                "error": "\(error)",
+            ])
+            ErrorReporting.captureError(error, reason: "Chat delta catch-up failed")
+        }
+    }
+
+    /// Foreground hook (`AppDelegate` `.active`): reconcile the on-screen chat regardless of any ping.
+    func catchUpOpenChat() {
+        guard let visibleConversationID else { return }
+        Task { await catchUp(conversationID: visibleConversationID) }
+    }
+
+    /// A live event exposed a gap. Debounce briefly — a late out-of-order event may close it before we
+    /// spend a round trip — then reconcile from the (possibly already-advanced) cursor.
+    private func scheduleGapCatchUp(_ conversationID: ConversationID) {
+        gapCatchUpTasks[conversationID]?.cancel()
+        gapCatchUpTasks[conversationID] = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled else { return }
+            await self?.catchUp(conversationID: conversationID)
+        }
+    }
+
+    /// `RESET_REQUIRED`: the cursor is too far behind to stream a delta. Discard it, re-sync the newest
+    /// page via `GetMessages`, and seat the cursor to that page's lowest event sequence — a safe floor
+    /// the next catch-up backfills from, never the head (which would skip the un-loaded window).
+    private func resyncAfterReset(conversationID: ConversationID) async {
+        logger.info("Chat catch-up reset required, re-syncing history", metadata: ["conversationID": "\(conversationID)"])
+        store.resetCursor(for: conversationID)
+        // Persist the reset now (persistCursor won't write 0): if the re-sync below throws, the stale
+        // too-far-behind cursor must not survive to the next launch and immediately re-hit RESET_REQUIRED.
+        persist(operation: "reset-cursor") { try database.updateCatchupCursor(0, for: conversationID) }
+        do {
+            let messages = try await messaging.getMessages(owner: owner, conversationID: conversationID, before: nil)
+            store.mergeMessages(messages, into: conversationID)
+            persist(operation: "reset-resync") { try database.upsertConversationMessages(messages, conversationID: conversationID) }
+            if let floor = messages.map(\.eventSequence).filter({ $0 > 0 }).min() {
+                store.setAppliedCursor(floor, for: conversationID)
+                persistCursor(for: conversationID)
+            }
+        } catch {
+            logger.error("Failed to re-sync after catch-up reset", metadata: [
+                "conversationID": "\(conversationID)",
+                "error": "\(error)",
+            ])
+            ErrorReporting.captureError(error, reason: "Failed to re-sync after chat catch-up reset")
+        }
+    }
+
+    /// Persist the store's current catch-up frontier (no-op until one is established).
+    private func persistCursor(for conversationID: ConversationID) {
+        let cursor = store.appliedCursor(for: conversationID)
+        guard cursor > 0 else { return }
+        persist(operation: "update-cursor") { try database.updateCatchupCursor(cursor, for: conversationID) }
     }
 
     /// Surfaces a counterpart's READ pointer advance — the signal behind the
@@ -231,6 +342,9 @@ final class ConversationController {
         connectionStateTask = nil
         markReadTasks.values.forEach { $0.cancel() }
         markReadTasks.removeAll()
+        gapCatchUpTasks.values.forEach { $0.cancel() }
+        gapCatchUpTasks.removeAll()
+        catchUpInFlight.removeAll()
         typingUserIDs.removeAll()
         selfTypingTask?.cancel()
         selfTypingTask = nil
@@ -250,7 +364,7 @@ final class ConversationController {
     private func hydrateIfUnknown(_ event: ConversationStreamEvent) {
         let conversationID: ConversationID
         switch event {
-        case .newMessages(let id, _), .lastActivityChanged(let id, _), .readPointersChanged(let id, _):
+        case .newMessages(let id, _), .chatEvents(let id, _), .lastActivityChanged(let id, _), .readPointersChanged(let id, _):
             conversationID = id
         case .metadataRefresh:
             return
@@ -302,6 +416,13 @@ final class ConversationController {
         switch event {
         case .newMessages(let conversationID, let messages):
             persist(operation: "upsert-messages") { try database.upsertConversationMessages(messages, conversationID: conversationID) }
+            persistConversation(conversationID)
+        case .chatEvents(let conversationID, let events):
+            let messages = events.flatMap { $0.mutations.map(\.message) }
+            if !messages.isEmpty {
+                persist(operation: "upsert-events") { try database.upsertConversationMessages(messages, conversationID: conversationID) }
+            }
+            persistCursor(for: conversationID)
             persistConversation(conversationID)
         case .metadataRefresh(let conversation):
             persistConversation(conversation)
@@ -398,6 +519,14 @@ final class ConversationController {
                 "count": "\(messages.count)",
             ])
             store.mergeMessages(messages, into: conversationID)
+            // Establish the event-log frontier from the newest page so a following catch-up resumes from
+            // head — fetching only genuinely newer messages, appended at the tail — instead of a
+            // `GetDelta(after: 0)` that re-pulls the whole history and prepends it, knocking the
+            // transcript off the bottom on first open.
+            if let head = messages.map(\.eventSequence).max(), head > 0 {
+                store.setAppliedCursor(head, for: conversationID)
+                persistCursor(for: conversationID)
+            }
             persist(operation: "load-messages") { try database.upsertConversationMessages(messages, conversationID: conversationID) }
         } catch {
             logger.error("Failed to load conversation messages", metadata: [

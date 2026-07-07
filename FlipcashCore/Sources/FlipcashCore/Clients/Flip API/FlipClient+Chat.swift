@@ -40,6 +40,20 @@ extension FlipClient {
         }
     }
 
+    /// Streams the delta since `afterSequence` to `onBatch` (each with its resume checkpoint) and
+    /// returns the chat's head on clean completion. Throws `ErrorGetDelta` on `.resetRequired`/denied/
+    /// transport failure.
+    public func getDelta(
+        owner: KeyPair,
+        conversationID: ConversationID,
+        afterSequence: UInt64,
+        onBatch: @MainActor @Sendable @escaping (_ messages: [ConversationMessage], _ checkpoint: UInt64?) -> Void
+    ) async throws -> UInt64 {
+        try await withCheckedThrowingContinuation { c in
+            chatMessagingService.getDelta(owner: owner, conversationID: conversationID, afterSequence: afterSequence, onBatch: onBatch) { c.resume(with: $0) }
+        }
+    }
+
     @discardableResult
     public func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String, clientMessageID: UUID) async throws -> ConversationMessage {
         try await withCheckedThrowingContinuation { c in

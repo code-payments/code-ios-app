@@ -38,10 +38,10 @@ public actor EventStreamer {
     public nonisolated let events: AsyncStream<ConversationStreamEvent>
     private let continuation: AsyncStream<ConversationStreamEvent>.Continuation
 
-    /// The stream's connection state over time. The stream carries no cursor and
-    /// the server never replays, so a consumer treats the first `.live` as the
-    /// initial connection and refetches the missed window on each `.live` after
-    /// that. Consume with `for await state in streamer.connectionState`.
+    /// The stream's connection state over time. The event stream itself carries no cursor, so a
+    /// consumer treats the first `.live` as the initial connection and, on each `.live` after that
+    /// (a reconnect), reconciles the missed window from its own durable cursor (chat catch-up runs
+    /// `GetDelta`). Consume with `for await state in streamer.connectionState`.
     public nonisolated let connectionState: AsyncStream<EventStreamConnectionState>
     private let connectionStateContinuation: AsyncStream<EventStreamConnectionState>.Continuation
 

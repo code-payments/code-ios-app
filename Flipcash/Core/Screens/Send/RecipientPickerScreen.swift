@@ -506,6 +506,8 @@ private struct RecipientListItemRow: View {
                     return "\(verb) \(formatted)"
                 }
                 return "\(verb) \(formatted) of \(name)"
+            case .deleted:
+                return nil
             }
         }
     }
