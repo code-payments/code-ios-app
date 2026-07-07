@@ -38,7 +38,12 @@ final class DeepLinkController {
 
         Analytics.deeplinkOpened(url: url)
         let action = handle(open: url)
-        Analytics.deeplinkParsed(action: action, url: url)
+        // Only record a parse result for URLs that resolve to an action. Chat links now route through
+        // here too, and most are ordinary web URLs — logging every non-match as a "failed to parse"
+        // error would bury genuine deep-link parse failures in expected noise.
+        if let action {
+            Analytics.deeplinkParsed(action: action, url: url)
+        }
 
         Task {
             defer { self.inFlightDeepLinks.remove(url) }

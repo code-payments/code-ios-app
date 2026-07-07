@@ -68,4 +68,10 @@ struct LinkDetectorTests {
         let preview = detector.webLink(in: "https://a.com then https://b.com😀")
         #expect(preview?.url.absoluteString == "https://a.com")
     }
+
+    @Test("A non-ASCII path keeps the URL — only a mangled host is rejected")
+    func nonASCIIPath_isDetected() {
+        let preview = detector.webLink(in: "https://en.wikipedia.org/wiki/Café")
+        #expect(preview?.url.host() == "en.wikipedia.org")
+    }
 }

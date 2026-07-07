@@ -28,8 +28,8 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// Fired when the user taps a cash card; the argument is the message's stable id. The owner opens
     /// that token's currency info.
     let onCashCardTap: (String) -> Void
-    /// Fired when the user taps a URL in a message or its preview card. The owner presents an in-app
-    /// browser.
+    /// Fired when the user taps a URL in a message. The owner routes it through the deep-link handler,
+    /// falling back to the system browser.
     let onOpenURL: (URL) -> Void
     let showsSendCash: Bool
     let showsSendMessage: Bool

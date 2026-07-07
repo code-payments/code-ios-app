@@ -26,14 +26,26 @@ public struct LinkDetector {
         let webMatches = detector.matches(in: text, range: range).filter { match in
             switch match.url?.scheme?.lowercased() {
             case "http", "https":
-                // NSDataDetector folds a glued-on non-ASCII character (e.g. an emoji) into a Punycode
-                // host, mangling the URL — reject the match rather than preview a URL nobody typed.
-                nsText.substring(with: match.range).allSatisfy(\.isASCII)
+                // NSDataDetector folds a non-ASCII character glued to the host (e.g. a trailing emoji)
+                // into a mangled Punycode host, silently retargeting the link — reject those. A
+                // non-ASCII *path* (e.g. /wiki/Café) is fine: it percent-encodes without moving the host.
+                Self.authorityIsASCII(nsText.substring(with: match.range))
             default:
                 false
             }
         }
         guard let last = webMatches.last, let url = last.url else { return nil }
         return LinkPreview(url: url)
+    }
+
+    /// Whether the authority (everything before the first path/query/fragment delimiter) of a matched
+    /// URL string is ASCII — the region a glued-on symbol would corrupt into a different host.
+    private static func authorityIsASCII(_ matchText: String) -> Bool {
+        var authority = Substring(matchText)
+        if let schemeSeparator = authority.range(of: "://") {
+            authority = authority[schemeSeparator.upperBound...]
+        }
+        authority = authority.prefix { $0 != "/" && $0 != "?" && $0 != "#" }
+        return authority.allSatisfy(\.isASCII)
     }
 }

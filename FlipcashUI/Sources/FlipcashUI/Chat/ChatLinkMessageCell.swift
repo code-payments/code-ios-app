@@ -16,9 +16,6 @@ public final class ChatLinkMessageCell: ChatColumnCell {
 
     public static let reuseIdentifier = "ChatLinkMessageCell"
 
-    /// The widest the bubble may grow before its text wraps.
-    static let maxWidth: CGFloat = 280
-
     private let bubble = LinkableBubbleView()
     private var bubbleMaxWidthConstraint: NSLayoutConstraint!
 
@@ -34,7 +31,7 @@ public final class ChatLinkMessageCell: ChatColumnCell {
     public override init(frame: CGRect) {
         super.init(frame: frame)
         installColumn(content: bubble)
-        bubbleMaxWidthConstraint = bubble.widthAnchor.constraint(lessThanOrEqualToConstant: Self.maxWidth)
+        bubbleMaxWidthConstraint = bubble.widthAnchor.constraint(lessThanOrEqualToConstant: 280)
         bubbleMaxWidthConstraint.isActive = true
     }
 
