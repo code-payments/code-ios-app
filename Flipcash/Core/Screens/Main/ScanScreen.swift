@@ -394,11 +394,6 @@ private struct RoutedSheet: View {
             }
         case .send:
             SendRootScreen()
-        case .conversation(let context):
-            // A chat entered as the root (bottom) view — deeplink / push
-            // notification. The picker → chat flow pushes `.dmConversation`
-            // onto the `.send` stack instead.
-            ConversationSheetRoot(context: context)
         case .sendAmount(let contact):
             // Send Cash entered directly as a root sheet — e.g. the notification
             // Send Cash deeplink / App Intent opens the amount entry with no chat

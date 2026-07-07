@@ -234,12 +234,6 @@ final class AppRouter {
     /// different sheet without going through `dismissSheet` first) leaves
     /// both paths intact, preserving the original "swap-and-return" behaviour.
     func present(_ sheet: SheetPresentation) {
-        // Roots that are re-entered fresh (the conversation root — see `resetsStackOnPresent`) clear
-        // their stack up front, before any branch below. One rule covers every re-entry: idempotent
-        // re-present, chat→chat swap, swap-away-then-return, and a re-present with a nested sheet above.
-        if sheet.resetsStackOnPresent {
-            popToRoot(on: sheet.stack)
-        }
         if presentedSheets == [sheet] { return }
 
         let previousTop = presentedSheet

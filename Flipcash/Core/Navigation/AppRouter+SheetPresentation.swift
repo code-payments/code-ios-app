@@ -21,11 +21,6 @@ extension AppRouter {
         case buy(PublicKey)
         case downloadApp
         case send
-        /// A DM conversation as a root sheet — the chat is the bottom view.
-        /// Entered via deeplink / push notification (`present(.conversation)`)
-        /// so no recipient picker sits beneath it. The picker → chat flow keeps
-        /// pushing `Destination.dmConversation` onto the `.send` stack instead.
-        case conversation(ConversationContext)
         /// Send Cash amount entry, stacked on top of the chat via
         /// `presentNested(.sendAmount)`. Dismissing it reveals the chat.
         case sendAmount(ResolvedContact)
@@ -44,19 +39,7 @@ extension AppRouter {
             case .buy:          .buy
             case .downloadApp:  .downloadApp
             case .send:         .send
-            case .conversation: .conversation
             case .sendAmount:   .sendAmount
-            }
-        }
-
-        /// Whether presenting this sheet should reset its stack to root first. A conversation is
-        /// always re-entered fresh — a deeplink/push should land on the chat, never on a leaf pushed
-        /// onto its stack (a cash card's currency info). Every other root preserves its path so a
-        /// swap-back or tab re-tap restores where the user was.
-        var resetsStackOnPresent: Bool {
-            switch self {
-            case .conversation: true
-            case .balance, .settings, .give, .discover, .buy, .downloadApp, .send, .sendAmount: false
             }
         }
 
@@ -72,7 +55,6 @@ extension AppRouter {
             case .buy:          .buy
             case .downloadApp:  .downloadApp
             case .send:         .send
-            case .conversation: .conversation
             case .sendAmount:   .sendAmount
             }
         }
@@ -85,7 +67,6 @@ extension AppRouter {
             case buy
             case downloadApp
             case send
-            case conversation
             case sendAmount
         }
 
@@ -98,7 +79,6 @@ extension AppRouter {
             case .buy:          "buy"
             case .downloadApp:  "downloadApp"
             case .send:         "send"
-            case .conversation: "conversation"
             case .sendAmount:   "sendAmount"
             }
         }

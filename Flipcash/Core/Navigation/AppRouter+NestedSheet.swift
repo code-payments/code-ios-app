@@ -71,7 +71,7 @@ private struct NestedSheetRootView: View {
         case .sendAmount(let contact):
             SendAmountSheetRoot(contact: contact)
 
-        case .balance, .settings, .give, .discover, .downloadApp, .send, .conversation:
+        case .balance, .settings, .give, .discover, .downloadApp, .send:
             // Root-only sheets — they shouldn't be presented as nested. If
             // they ever are, we fall through to an empty view; the warning
             // in `presentNested` logs the mistake.
