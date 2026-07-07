@@ -6,7 +6,7 @@
 import Foundation
 import FlipcashCore
 
-/// External-wallet transaction signing surface used by `PhantomFundingOperation`.
+/// External-wallet transaction signing surface used by `PhantomDepositOperation`.
 /// Conformers handshake with the wallet, deliver USDC→USDF sign requests, and
 /// publish the callback events the operation consumes.
 protocol TransactionSigning: AnyObject {
@@ -25,6 +25,18 @@ protocol TransactionSigning: AnyObject {
     /// signed transaction is delivered later via `deeplinkEvents`.
     func sendUsdcToUsdfSignRequest(
         usdc: FlipcashCore.TokenAmount,
+        fundingSwapId: SwapId,
+        displayName: String
+    ) async throws
+
+    /// Builds and forwards a USDC→USDF sign request whose swap output lands in
+    /// `destination` (the user's USDF VM deposit token account). Used by
+    /// `PhantomDepositOperation`; the signed transaction is delivered later via
+    /// `deeplinkEvents`. Distinct from `sendUsdcToUsdfSignRequest`, which
+    /// targets the swap PDA for buy funding.
+    func sendUsdcToUsdfDepositSignRequest(
+        usdc: FlipcashCore.TokenAmount,
+        destination: FlipcashCore.PublicKey,
         fundingSwapId: SwapId,
         displayName: String
     ) async throws

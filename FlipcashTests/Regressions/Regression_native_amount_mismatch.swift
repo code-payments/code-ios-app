@@ -28,8 +28,7 @@ struct Regression_native_amount_mismatch {
     @Test("Scenario D (buy): amountEnteredAction computes quarks from the PINNED rate, not the live cache")
     func scenarioD_buyAmountEnteredActionUsesPinnedRate() async throws {
         // Pinned rate: 1 USD = 1.35 CAD. Live cache drifted to 1.37 after the pin was captured.
-        // Zero USDF balance so the picker path is taken and the pinned amount surfaces in
-        // `pendingMethodSelection` for inspection.
+        // prepareSubmission pins the rate and computes quarks against it, independent of balance.
         let sessionContainer = try SessionContainer.makeTest(
             holdings: [],
             limits: Limits(
@@ -58,22 +57,14 @@ struct Regression_native_amount_mismatch {
         )
         vm.enteredAmount = "1"
 
-        let router = AppRouter()
-        router.present(.balance)
-        await vm.amountEnteredAction(router: router)
-
-        let operation = try #require(vm.pendingOperation)
-        guard case .buy(let payload) = operation else {
-            Issue.record("Expected .buy operation, got \(operation)")
-            return
-        }
+        let submission = try #require(await vm.prepareSubmission())
 
         // $1 CAD / 1.35 × 10^6, HALF_UP rounded via scaleUpInt → 740_741 USDF quarks.
         // The buggy live path (1.37) would round to 729_927 quarks — the value
         // the server rejected in production.
-        #expect(payload.amount.onChainAmount.quarks == 740_741)
-        #expect(payload.amount.currencyRate.fx == Decimal(1.35))
-        #expect(payload.verifiedState.exchangeRate == 1.35)
+        #expect(submission.amount.onChainAmount.quarks == 740_741)
+        #expect(submission.amount.currencyRate.fx == Decimal(1.35))
+        #expect(submission.pinnedState.exchangeRate == 1.35)
     }
 
     // MARK: - Scenario D (sell)
@@ -153,10 +144,13 @@ struct Regression_native_amount_mismatch {
     // MARK: - Scenario E (buy)
 
     @Test("Scenario E (buy): amountEnteredAction surfaces .staleRate when no fresh pin is cached")
-    func scenarioE_buyAmountEnteredActionSurfacesStaleRateWhenNoPin() async {
-        // Live rate is configured, but nothing is seeded in the verified proto
-        // service — the submit path has no pin to use and must bail.
-        let sessionContainer = SessionContainer.mock
+    func scenarioE_buyAmountEnteredActionSurfacesStaleRateWhenNoPin() async throws {
+        // The account holds ample USDF so the balance gate passes; a live rate
+        // is configured, but nothing is seeded in the verified proto service —
+        // the submit path has no pin to use and must bail.
+        let sessionContainer = try SessionContainer.makeTest(
+            holdings: [.init(mint: MintMetadata.usdf, quarks: 50_000_000)]
+        )
         sessionContainer.ratesController.configureTestRates(
             balanceCurrency: .cad,
             rates: [Rate(fx: 1.35, currency: .cad)]
@@ -174,8 +168,8 @@ struct Regression_native_amount_mismatch {
         router.present(.balance)
         await vm.amountEnteredAction(router: router)
 
-        #expect(vm.pendingOperation == nil)
         #expect(vm.dialogItem?.title == "Rate Unavailable")
+        #expect(!router.presentedSheets.contains(.addMoney(.buyCurrency)))
     }
 
     // MARK: - Scenario E (sell)

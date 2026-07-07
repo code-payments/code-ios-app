@@ -18,6 +18,7 @@ extension AppRouter {
         case give
         case discover
         case buy
+        case addMoney
         case downloadApp
         case send
         case sendAmount
@@ -25,10 +26,10 @@ extension AppRouter {
         /// The sheet a stack is presented in. Cross-stack navigation uses
         /// this to know which top-level modal to surface.
         ///
-        /// `.buy` and `.sendAmount` return `nil` — their sheets carry a payload
-        /// (mint / contact) that can't be synthesized from the stack alone, so
-        /// they're entered via `presentNested`/`present` directly, never via
-        /// `navigate(to:)`.
+        /// `.buy`, `.addMoney`, and `.sendAmount` return `nil` — their sheets
+        /// carry a payload (mint / context / contact) that can't be synthesized
+        /// from the stack alone, so they're entered via `presentNested`/`present`
+        /// directly, never via `navigate(to:)`.
         var sheet: SheetPresentation? {
             switch self {
             case .balance:      .balance
@@ -36,6 +37,7 @@ extension AppRouter {
             case .give:         .give
             case .discover:     .discover
             case .buy:          nil
+            case .addMoney:     nil
             case .downloadApp:  .downloadApp
             case .send:         .send
             case .sendAmount:   nil
@@ -49,6 +51,7 @@ extension AppRouter {
             case .give:         "give"
             case .discover:     "discover"
             case .buy:          "buy"
+            case .addMoney:     "addMoney"
             case .downloadApp:  "downloadApp"
             case .send:         "send"
             case .sendAmount:   "sendAmount"

@@ -156,9 +156,6 @@ struct DestinationView: View {
                 name: "USDC"
             )
 
-        case .phantomFlow(let fundingOperation):
-            PhantomFlowScreen(fundingOperation: fundingOperation)
-
         // MARK: - Conversation flow
 
         case .dmConversation(let context):

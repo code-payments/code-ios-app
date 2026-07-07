@@ -27,12 +27,12 @@ struct SettingsScreen: View {
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 6) {
                         HStack(spacing: 12) {
-                            Button("Deposit") {
-                                router.push(.deposit)
+                            Button("Add Money") {
+                                router.presentAddMoney(.general)
                             }
                             .buttonStyle(.card(icon: .deposit))
 
-                            Button("Withdraw") {
+                            Button("Withdraw Money") {
                                 router.push(.withdraw)
                             }
                             .buttonStyle(.card(icon: .withdraw))

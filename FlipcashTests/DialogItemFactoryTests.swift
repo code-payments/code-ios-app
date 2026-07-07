@@ -68,17 +68,15 @@ struct DialogItemFactoryTests {
         #expect(dismissableSuccess.dismissable == true)
     }
 
-    @Test(".noGiveableBalance uses the deposit-funds design")
-    func noGiveableBalance_depositDesign() {
-        let item = DialogItem.noGiveableBalance(onDeposit: {})
-        #expect(item.title == "No Balance Yet")
-        #expect(item.subtitle == "Deposit funds to give cash")
+    @Test(".noCommunityCurrencies routes to Discover with a Cancel escape")
+    func noCommunityCurrencies_discoverCTA() {
+        let item = DialogItem.noCommunityCurrencies(onDiscover: {})
+        #expect(item.title == "No Community Currencies Yet")
+        #expect(item.subtitle == "Discover and buy a currency, or create your own")
         #expect(item.style == .standard)
         #expect(item.actions.count == 2)
-        #expect(item.actions[0].title == "Deposit Funds")
-        #expect(item.actions[0].kind == .standard)
+        #expect(item.actions[0].title == "Discover Currencies")
         #expect(item.actions[1].title == "Cancel")
-        #expect(item.actions[1].kind == .subtle)
     }
 
     @Test(

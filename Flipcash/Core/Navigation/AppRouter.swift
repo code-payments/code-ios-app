@@ -321,6 +321,33 @@ final class AppRouter {
         ])
     }
 
+    /// Presents the Add Money flow: as the root sheet when nothing is
+    /// presented (give-cash from Scan), stacked on top of whatever is visible
+    /// otherwise — including the buy amount sheet, which stays mounted
+    /// beneath so nothing visibly dismisses when the options appear.
+    /// Dismissing the options pops one level, back to wherever they were
+    /// raised. Method selection over the buy sheet continues INSIDE it — see
+    /// `isAddMoneyOverBuy`.
+    func presentAddMoney(_ context: AddMoneyContext) {
+        if presentedSheets.isEmpty {
+            present(.addMoney(context))
+        } else {
+            presentNested(.addMoney(context))
+        }
+    }
+
+    /// True when the Add Money options are stacked directly over the buy
+    /// amount sheet (the insufficient-funds entry). Method selection then
+    /// pops the options and pushes the deposit flow onto the buy sheet's own
+    /// stack — one continuous sheet whose close lands on the currency screen
+    /// — instead of presenting the flow as a sheet of its own.
+    var isAddMoneyOverBuy: Bool {
+        guard presentedSheets.count >= 2 else { return false }
+        guard case .addMoney = presentedSheets[presentedSheets.count - 1],
+              case .buy = presentedSheets[presentedSheets.count - 2] else { return false }
+        return true
+    }
+
     /// Dismisses the topmost sheet. If only the root remains, this dismisses
     /// the root (same as the pre-nested behaviour). With nested sheets, only
     /// the topmost is popped — the root stays presented.

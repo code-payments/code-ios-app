@@ -5,11 +5,13 @@
 
 import XCTest
 
-/// Page object for the `VerifyInfoScreen` sheet — the entry point of the
-/// phone + email verification flow. Mounted by `BuyAmountScreen` /
-/// `CurrencyCreationWizardScreen` when the user is unverified and taps
-/// Apple Pay, and by `OnrampHostModifier` as a fallback when an email
-/// verification deeplink arrives outside an active flow.
+/// Page object for the `VerifyInfoScreen` sheet — the phone + email
+/// verification flow. There is no intro page: the sheet opens directly on
+/// the first needed step (Enter Phone when the phone is unverified, Enter
+/// Email otherwise). Mounted by the Add Money amount screen when the user
+/// is unverified and taps Apple Pay, and by `OnrampHostModifier` as a
+/// fallback when an email verification deeplink arrives outside an active
+/// flow.
 @MainActor
 struct VerifyInfoUIScreen {
 
@@ -21,19 +23,26 @@ struct VerifyInfoUIScreen {
 
     // MARK: - Elements
 
-    /// Heading text on the sheet's root. Unique enough to distinguish this
-    /// screen from any other "Next"-button-bearing surface (the keypad's
-    /// own Next button collides on label otherwise).
-    var heading: XCUIElement {
-        app.staticTexts["Verify Your Phone Number and Email to Continue"]
+    var phoneStepTitle: XCUIElement {
+        app.navigationBars["Verify Phone Number"]
+    }
+
+    var phoneField: XCUIElement {
+        app.textFields["Phone Number"]
     }
 
     // MARK: - Assertions
 
-    func assertReached(timeout: TimeInterval = 10) {
+    /// The fully-unverified account (no phone, no email) must land directly
+    /// on the phone step — no intro page in between.
+    func assertPhoneStepReached(timeout: TimeInterval = 10) {
         XCTAssertTrue(
-            heading.waitForExistence(timeout: timeout),
-            "Expected VerifyInfoScreen to appear"
+            phoneStepTitle.waitForExistence(timeout: timeout),
+            "Expected the verification sheet to open directly on Enter Phone"
+        )
+        XCTAssertTrue(
+            phoneField.exists,
+            "Expected the phone number field on the verification root"
         )
     }
 }

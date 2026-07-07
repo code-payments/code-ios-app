@@ -113,7 +113,7 @@ private struct CurrencyInfoScreenContent: View {
                     marketCapController: marketCapController,
                     onShowTransactionHistory: { router.push(.transactionHistory(metadata.mint)) },
                     onShowCurrencySelection: { isShowingCurrencySelection = true },
-                    onBuy: { router.presentNested(.buy(mint)) },
+                    onBuy: { presentBuyOrAddMoney() },
                     onGive: {
                         Analytics.buttonTapped(name: .give)
                         router.push(.give(mint))
@@ -156,7 +156,7 @@ private struct CurrencyInfoScreenContent: View {
             await viewModel.loadMintMetadata()
 
             if showBuyOnAppear {
-                router.presentNested(.buy(mint))
+                presentBuyOrAddMoney()
             }
         }
         .sheet(item: $presentedSellViewModel) { sellViewModel in
@@ -170,6 +170,19 @@ private struct CurrencyInfoScreenContent: View {
         // surfaces in `DialogWindow` rather than fighting the sheet stack
         // here. Binding `.dialog(item:)` on this screen would mount a sheet
         // that competes with the `.buy` sheet's presentation queue.
+    }
+
+    /// Routes the Buy button (and the buy-on-appear deeplink) to the Add Money
+    /// flow when the user has no USDF reserves, or straight into the buy amount
+    /// sheet when they do.
+    private func presentBuyOrAddMoney() {
+        if shouldAddMoneyBeforeBuy(session: session) {
+            session.dialogItem = .noBalance(subtitle: AddMoneyContext.buyCurrency.noBalanceSubtitle) {
+                router.presentAddMoney(.buyCurrency)
+            }
+        } else {
+            router.presentNested(.buy(mint))
+        }
     }
 
     @ViewBuilder private func toolbarContent() -> some View {

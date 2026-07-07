@@ -19,9 +19,11 @@ final class MockTransactionSigning: TransactionSigning {
 
     private(set) var handshakeCallCount = 0
     private(set) var sendSignRequestCalls: [(usdc: FlipcashCore.TokenAmount, fundingSwapId: SwapId, displayName: String)] = []
+    private(set) var depositSignRequestCalls: [(usdc: FlipcashCore.TokenAmount, destination: FlipcashCore.PublicKey, fundingSwapId: SwapId, displayName: String)] = []
 
     var handshakeHandler: (() async throws -> Void)?
     var sendSignRequestHandler: ((FlipcashCore.TokenAmount, SwapId, String) async throws -> Void)?
+    var depositSignRequestHandler: ((FlipcashCore.TokenAmount, FlipcashCore.PublicKey, SwapId, String) async throws -> Void)?
 
     init() {
         let (stream, continuation) = AsyncStream<WalletConnection.DeeplinkEvent>.makeStream()
@@ -41,6 +43,16 @@ final class MockTransactionSigning: TransactionSigning {
     ) async throws {
         sendSignRequestCalls.append((usdc, fundingSwapId, displayName))
         try await sendSignRequestHandler?(usdc, fundingSwapId, displayName)
+    }
+
+    func sendUsdcToUsdfDepositSignRequest(
+        usdc: FlipcashCore.TokenAmount,
+        destination: FlipcashCore.PublicKey,
+        fundingSwapId: SwapId,
+        displayName: String
+    ) async throws {
+        depositSignRequestCalls.append((usdc, destination, fundingSwapId, displayName))
+        try await depositSignRequestHandler?(usdc, destination, fundingSwapId, displayName)
     }
 
     /// Simulates Phantom returning a deeplink callback. Yielding `.signed`

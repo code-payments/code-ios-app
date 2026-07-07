@@ -216,6 +216,43 @@ var canSendEmail: Bool { validatedEmail != nil }
 
 **Entered amounts are not an exception.** Any string bound to `KeyPadView`/`EnterAmountView` is parsed exclusively by `AmountValidator`. This exact bug shipped twice — the older amount flows were fixed to parse locale-aware, then a newer flow reached for `Decimal(string:)` again and silently dropped the fraction on comma-decimal locales on a real-money path (PR #448). When adding or touching an amount-entry flow, run `rg "Decimal\(string:" Flipcash/` — the only legitimate hits parse machine-formatted strings (round-trips of `Decimal.description`, server payloads), never anything a user typed.
 
+### Money & Numbers: The Nine Rules
+
+Two real-money bugs shipped on 2026-07-08 from the same disease — a number displayed one way and compared another (a 1.00 CAD balance that couldn't buy 1.00 CAD; a "$7.08 minimum" dialog that rejected $7.08). The narrow rule written after the first bug named the *scenario* (balances) and missed the second (a threshold). These rules name the *class*. Full audit with per-finding evidence: `.claude/plans/2026-07-08-number-handling-audit.md` (local). Known pre-existing violations are catalogued there (§8) — fix them when touched; never add new ones.
+
+1. **Money lives in exactly three types:** `TokenAmount` (on-chain), `FiatAmount` (fiat), `ExchangedFiat` (the bridge). Read `.value`/`.quarks` only at edges (formatting, DB write, wire encode) — never for arithmetic or comparison at a call site. Arithmetic goes through the types' checked operators.
+
+2. **One parse in, one serialization out.** User input parses only via `AmountValidator`. Money round-tripped as a string is `Decimal.description` ↔ `Decimal(string:)`, nothing else.
+
+3. **One format out.** Every user-visible money string comes from `FiatAmount.formatted(...)`. Numbers leaving the app (Coinbase, any external API) are explicitly formatted to the target's precision — raw `Decimal` interpolation onto a wire is forbidden.
+
+4. **Comparisons happen in exactly two domains.** *Truth:* quarks vs quarks (`TokenAmount` is `Comparable`). *Promise:* display-rounded native vs display-rounded native — anything a user was shown. Never compare across an FX conversion; never compare an unrounded converted `Decimal` to anything.
+
+5. **What we display is what we accept.** Any bound shown to a user (balance, limit, minimum, fee floor) is rounded to display precision *first*; that same rounded value is displayed and compared. See `CoinbaseDepositOperation.checkMinimum` for the canonical shape.
+
+6. **Rounding modes are fixed per boundary:** fiat→quarks = HALF-UP (`scaleUpInt`, Kotlin parity); bonding-curve math = HALF-EVEN internal, exits only via `ExchangedFiat.compute`; display = the formatter; displayed bounds = rule 5; persisted/wire strings = no rounding (`Decimal.description`). A new rounding call site must name its boundary.
+
+7. **Quarantine `Double` at the edges.** Proto Double/Float values convert to the wrapper types once, at decode; `.doubleValue` appears only inside intent encoders and analytics. New DB columns for money are `Decimal.description` strings, never `Double`.
+
+8. **One copy of each concept.** FX synthesis lives in `ExchangedFiat`; fee scaling in `subtractingFee`; "smallest displayable unit" in `FiatAmount`. Hand-rolling any of these at a call site is a bug even when the math is right.
+
+9. **Every affordability gate goes through `Session.hasSufficientFunds(for:)`** (quarks compare + half-denomination tolerance), and every user-entered spend amount is computed with the balance cap — `ExchangedFiat.compute(fromEntered:..., balance:, tokenBalanceQuarks:)`. No flow invents its own domain or its own tolerance.
+
+```swift
+// ❌ BAD: raw fiat compare — display rounding rejects a visible max-spend
+return balance.usdf.value >= amount.usdfValue.value
+
+// ✅ GOOD: the canonical gate, then the balance-capped compute (see GiveViewModel)
+switch session.hasSufficientFunds(for: enteredFiat) {
+case .sufficient: ...
+case .insufficient(let shortfall): ...
+}
+ExchangedFiat.compute(
+    fromEntered: native, rate: pin.rate, mint: .usdf,
+    supplyQuarks: 0, balance: session.balance(for: .usdf)?.usdf
+)
+```
+
 ### Package.resolved Policy
 
 **Always commit the workspace Package.resolved:**
@@ -590,10 +627,12 @@ Payments & Operations:
 - FlipcashCore/Sources/FlipcashCore/Models/VerifiedState.swift
 - FlipcashCore/Sources/FlipcashCore/Clients/Payments API/Services/VerifiedProtoService.swift
 
-Onramp & Coinbase:
-- Flipcash/Core/Controllers/Onramp/OnrampCoordinator.swift
-- Flipcash/Core/Controllers/Onramp/OnrampHostModifier.swift
-- Flipcash/Core/Screens/Onramp/OnrampAmountScreen.swift (buy-existing amount entry only)
+Add Money (funding decoupled — Add Money only deposits USDF; buy & launch always spend USDF reserves):
+- Flipcash/Core/Screens/Main/AddMoney/ (Select Method → Amount to Add → Adding Money screens)
+- Flipcash/Core/Screens/Main/AddMoney/CoinbaseDepositOperation.swift (Coinbase + Apple Pay → USDC to the owner's ATA; sweep converts to USDF)
+- Flipcash/Core/Screens/Main/AddMoney/PhantomDepositOperation.swift (Phantom-signed USDC→USDF swap to the USDF VM Deposit address)
+- Flipcash/Core/Operations/UsdcSweepOperation.swift (sweepUntilConverted — converts deposited USDC → USDF)
+- Flipcash/Core/Controllers/Onramp/OnrampHostModifier.swift (Apple Pay overlay plumbing, retained)
 
 Multi-Currency:
 - FlipcashCore/Sources/FlipcashCore/Models/Fiat.swift (Quarks)

@@ -29,8 +29,6 @@ extension Analytics {
         case allowPush        = "Button: Allow Push"
         case skipPush         = "Button: Skip Push"
         case buyWithReserves  = "Button: Buy With Reserves"
-        case buyWithPhantom   = "Button: Buy With Phantom"
-        case buyWithCoinbase  = "Button: Buy With Coinbase"
         case give             = "Button: Give"
         case sell             = "Button: Sell"
         case shareTokenInfo   = "Button: Share Token Info"
@@ -48,7 +46,6 @@ extension Analytics {
     }
 
     enum OnrampEvent: String, AnalyticsEvent {
-        case showVerificationInfo = "Onramp: Show Verification Info"
         case showEnterPhone       = "Onramp: Show Enter Phone"
         case showConfirmPhone     = "Onramp: Show Confirm Phone"
         case showEnterEmail       = "Onramp: Show Enter Email"
@@ -88,8 +85,6 @@ extension Analytics {
 
     enum TokenTransactionEvent: String, AnalyticsEvent {
         case purchaseWithReserves = "Token Purchase With Reserves"
-        case purchaseWithPhantom  = "Token Purchase With Phantom"
-        case purchaseWithCoinbase = "Token Purchase With Coinbase"
         case sell                 = "Token Sell"
         case withdraw             = "Token Withdrawal"
     }

@@ -148,8 +148,8 @@ private struct BalanceScreenContent: View {
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity, alignment: .center)
 
-            BubbleButton(text: "Discover Currencies") {
-                router.push(.discoverCurrencies)
+            BubbleButton(text: "Add Money") {
+                router.presentAddMoney(.general)
             }
             .padding(.top, 8)
         }
@@ -194,8 +194,8 @@ private struct BalanceScreenContent: View {
                         }
                     } footer: {
                         if hasBalances {
-                            CodeButton(style: .filledSecondary, title: "Discover Currencies") {
-                                router.push(.discoverCurrencies)
+                            CodeButton(style: .filledSecondary, title: "Add Money") {
+                                router.presentAddMoney(.general)
                             }
                             .padding(.horizontal, 20)
                             .padding(.top, 20)

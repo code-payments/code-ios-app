@@ -17,6 +17,12 @@ struct DepositCurrencyListScreen: View {
 
     @State private var selectedMint: PublicKey?
 
+    /// When set, selecting a currency calls this instead of pushing
+    /// `.depositAddress` on the top-level router stack — lets a caller that owns
+    /// a local `NavigationStack` (the Add Money flow) drive the address step on
+    /// its own path.
+    private let onSelect: ((PublicKey) -> Void)?
+
     // Skip session.balances(for:) to avoid filtering out zero-balance currencies.
     // For deposits, we want to show every currency the user has an account for.
     private var balances: [ExchangedBalance] {
@@ -29,8 +35,9 @@ struct DepositCurrencyListScreen: View {
         }
     }
 
-    init(selectedMint: PublicKey? = nil) {
+    init(selectedMint: PublicKey? = nil, onSelect: ((PublicKey) -> Void)? = nil) {
         _selectedMint = State(initialValue: selectedMint)
+        self.onSelect = onSelect
     }
 
     // MARK: - Body -
@@ -66,13 +73,21 @@ struct DepositCurrencyListScreen: View {
     // MARK: - Actions -
 
     private func selectCurrency(_ balance: ExchangedBalance) {
-        router.push(.depositAddress(balance.stored.mint))
+        navigate(to: balance.stored.mint)
     }
 
     private func handleAutoSelect() {
         guard let mint = selectedMint,
               balances.contains(where: { $0.stored.mint == mint }) else { return }
         selectedMint = nil
-        router.push(.depositAddress(mint))
+        navigate(to: mint)
+    }
+
+    private func navigate(to mint: PublicKey) {
+        if let onSelect {
+            onSelect(mint)
+        } else {
+            router.push(.depositAddress(mint))
+        }
     }
 }

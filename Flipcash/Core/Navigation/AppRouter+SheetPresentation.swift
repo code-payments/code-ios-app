@@ -19,6 +19,9 @@ extension AppRouter {
         case give
         case discover
         case buy(PublicKey)
+        /// Standalone Add Money flow (deposit USDF). Payload selects the
+        /// "No Balance Yet" subtitle; the flow itself is currency-agnostic.
+        case addMoney(AddMoneyContext)
         case downloadApp
         case send
         /// Send Cash amount entry, stacked on top of the chat via
@@ -37,6 +40,7 @@ extension AppRouter {
             case .give:         .give
             case .discover:     .discover
             case .buy:          .buy
+            case .addMoney:     .addMoney
             case .downloadApp:  .downloadApp
             case .send:         .send
             case .sendAmount:   .sendAmount
@@ -53,6 +57,7 @@ extension AppRouter {
             case .give:         .give
             case .discover:     .discover
             case .buy:          .buy
+            case .addMoney:     .addMoney
             case .downloadApp:  .downloadApp
             case .send:         .send
             case .sendAmount:   .sendAmount
@@ -65,6 +70,7 @@ extension AppRouter {
             case give
             case discover
             case buy
+            case addMoney
             case downloadApp
             case send
             case sendAmount
@@ -77,6 +83,7 @@ extension AppRouter {
             case .give:         "give"
             case .discover:     "discover"
             case .buy:          "buy"
+            case .addMoney:     "addMoney"
             case .downloadApp:  "downloadApp"
             case .send:         "send"
             case .sendAmount:   "sendAmount"

@@ -80,19 +80,23 @@ extension ApplePayWebView {
         }
         
         public func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-            logger.debug("Received message", metadata: [
-                "name": "\(message.name)",
-                "body": "\(message.body)"
-            ])
-
             guard let string = message.body as? String else {
                 return
             }
 
             let content = Data(string.utf8)
             guard let applePayEvent = try? JSONDecoder().decode(ApplePayEvent.self, from: content) else {
+                // Non-onramp bridge chatter (risk/biometrics frames) is
+                // deliberately not logged — the bodies carry session and
+                // device tokens.
                 return
             }
+
+            var metadata: Logger.Metadata = ["event": "\(applePayEvent.name)"]
+            if let errorCode = applePayEvent.data?.errorCode {
+                metadata["code"] = "\(errorCode)"
+            }
+            logger.debug("Received onramp event", metadata: metadata)
 
             if let webView = message.webView {
                 if applePayEvent.event == .loadSuccess {

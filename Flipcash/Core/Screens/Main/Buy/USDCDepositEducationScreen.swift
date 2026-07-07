@@ -14,10 +14,16 @@ import FlipcashUI
 /// to expose a subtle escape hatch below Next.
 struct USDCDepositEducationScreen: View {
 
+    let title: String
     let onNext: () -> Void
     let onDepositOtherCurrencies: (() -> Void)?
 
-    init(onNext: @escaping () -> Void, onDepositOtherCurrencies: (() -> Void)? = nil) {
+    init(
+        title: String = "Deposit",
+        onNext: @escaping () -> Void,
+        onDepositOtherCurrencies: (() -> Void)? = nil
+    ) {
+        self.title = title
         self.onNext = onNext
         self.onDepositOtherCurrencies = onDepositOtherCurrencies
     }
@@ -58,7 +64,7 @@ struct USDCDepositEducationScreen: View {
             }
             .padding(20)
         }
-        .navigationTitle("Deposit")
+        .navigationTitle(title)
         .toolbarTitleDisplayMode(.inline)
     }
 }

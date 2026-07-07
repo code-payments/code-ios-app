@@ -17,7 +17,7 @@ private let logger = Logger(label: "flipcash.wallet-connection")
 public final class WalletConnection {
 
     /// General wallet-related dialogs (connect failures, key restoration).
-    /// Swap-flow dialogs are owned by `PhantomFundingOperation`.
+    /// Swap-flow dialogs are owned by `PhantomDepositOperation`.
     var dialogItem: DialogItem?
 
     private(set) var session: ConnectedWalletSession?
@@ -27,7 +27,7 @@ public final class WalletConnection {
     }
 
     /// Stream of deeplink events from Phantom — signed transactions and
-    /// errors. Consumed by the in-flight `PhantomFundingOperation`; the
+    /// errors. Consumed by the in-flight `PhantomDepositOperation`; the
     /// stream finishes in `deinit` so the consumer Task exits cleanly.
     let deeplinkEvents: AsyncStream<DeeplinkEvent>
     private let deeplinkContinuation: AsyncStream<DeeplinkEvent>.Continuation
@@ -206,7 +206,7 @@ public final class WalletConnection {
     }
     
     /// Yields the signed transaction to the deeplink stream. The in-flight
-    /// `PhantomFundingOperation` consumes the stream and runs simulation +
+    /// `PhantomDepositOperation` consumes the stream and runs simulation +
     /// server-notify + chain submission for the operation.
     private func didSignTransaction(_ signedTx: String) {
         deeplinkContinuation.yield(.signed(signedTx))
@@ -234,7 +234,7 @@ public final class WalletConnection {
     }
 
     /// Always deeplinks Phantom for connect, even when a Keychain session
-    /// already exists. Used by `PhantomFundingOperation` to verify the
+    /// already exists. Used by `PhantomDepositOperation` to verify the
     /// session is live before requesting a signature — Phantom auto-approves
     /// when it still trusts our `dapp_encryption_public_key` (~sub-second
     /// round-trip), and shows the connect prompt when it doesn't.
@@ -288,7 +288,7 @@ public final class WalletConnection {
 
     /// Builds + sends a USDC→USDF transaction to Phantom for signing. The
     /// signed transaction comes back via `didReceiveURL` → `deeplinkEvents`,
-    /// where the in-flight `PhantomFundingOperation` consumes it. This method
+    /// where the in-flight `PhantomDepositOperation` consumes it. This method
     /// has no pending-state side effects of its own — it's a pure "send sign
     /// request" service.
     func sendUsdcToUsdfSignRequest(
@@ -356,6 +356,83 @@ public final class WalletConnection {
         logger.info("Requested USDC→USDF swap", metadata: [
             "amount": "\(amount.nativeAmount.formatted())",
             "swapId": "\(fundingSwapId.publicKey.base58)",
+            "name": "\(displayName)",
+        ])
+    }
+
+    /// Deposit-flavoured sibling of `sendUsdcToUsdfSignRequest`. The signed
+    /// swap's USDF output is transferred to the user's USDF VM deposit ATA
+    /// instead of the swap PDA, so Geyser credits the balance with no
+    /// server-side buy intent. `destination` is the operation-derived deposit
+    /// ATA — the builder re-derives the same account from `.vmDeposit`.
+    func sendUsdcToUsdfDepositSignRequest(
+        usdc: FlipcashCore.TokenAmount,
+        destination: FlipcashCore.PublicKey,
+        fundingSwapId: SwapId,
+        displayName: String
+    ) async throws {
+        guard let connectedSession = Keychain.connectedWalletSession else {
+            throw Error.noSession
+        }
+
+        let amount = ExchangedFiat.compute(
+            onChainAmount: usdc,
+            rate: .oneToOne,
+            supplyQuarks: nil
+        )
+
+        let externalWallet = try FlipcashCore.PublicKey(base58: connectedSession.walletPublicKey.base58)
+        let flipcashOwner = owner.authorityPublicKey
+
+        let instructions = SwapInstructionBuilder.buildUsdcToUsdfSwapInstructions(
+            sender: externalWallet,
+            owner: flipcashOwner,
+            amount: usdc.quarks,
+            pool: .usdf,
+            swapId: fundingSwapId.publicKey,
+            destination: .vmDeposit
+        )
+
+        let recentBlockhash = try await rpc.getLatestBlockhash(commitment: .finalized)
+
+        let transaction = SolanaTransaction(
+            payer: externalWallet,
+            recentBlockhash: recentBlockhash,
+            instructions: instructions
+        )
+
+        let txEncoded = Base58.fromBytes(Array(transaction.encode()))
+
+        let payload: [String: Any] = [
+            "transaction": txEncoded,
+            "session": connectedSession.sessionToken
+        ]
+        let payloadData = try JSONSerialization.data(withJSONObject: payload, options: [])
+
+        let (nonce, payloadEncrypted) = try box.encryptForPhantom(
+            payload: payloadData,
+            encryptionPublicKey: connectedSession.phantomEncryptionPublicKey
+        )
+
+        var c = URLComponents(string: "https://phantom.app/ul/v1/signTransaction")!
+        c.queryItems = [
+            URLQueryItem(name: "dapp_encryption_public_key", value: publicKey.base58),
+            URLQueryItem(name: "nonce",                      value: nonce),
+            URLQueryItem(name: "redirect_link",              value: "https://app.flipcash.com/wallet/transactionSigned"),
+            URLQueryItem(name: "payload",                    value: payloadEncrypted)
+        ]
+
+        guard let url = c.url else {
+            logger.error("Failed to construct deposit signTransaction URL")
+            throw Error.invalidURL
+        }
+
+        Analytics.walletRequestAmount(amount: amount.nativeAmount)
+        openExternalWallet(url)
+        logger.info("Requested USDC→USDF deposit swap", metadata: [
+            "amount": "\(amount.nativeAmount.formatted())",
+            "swapId": "\(fundingSwapId.publicKey.base58)",
+            "destination": "\(destination.base58)",
             "name": "\(displayName)",
         ])
     }

@@ -322,10 +322,8 @@ private struct ScanScreenContent: View {
 
     private func presentGive() {
         let rate = sessionContainer.ratesController.rateForBalanceCurrency()
-        guard session.hasGiveableBalance(for: rate) else {
-            session.dialogItem = .noGiveableBalance {
-                router.navigate(to: .deposit)
-            }
+        if let dialog = giveCashGate(session: session, rate: rate).blockingDialog(router: router) {
+            session.dialogItem = dialog
             return
         }
         router.present(.give)
@@ -385,6 +383,11 @@ private struct RoutedSheet: View {
             // Rendering EmptyView is a defensive no-op; the misuse is already
             // logged by the router when the stack is empty.
             EmptyView()
+        case .addMoney(let context):
+            // Add Money entered as a root sheet — the give-cash no-balance case
+            // (Scan / deeplink). Buy & launch shortfalls present it *nested* over
+            // their gating sheet via `presentNested(.addMoney(context))`.
+            AddMoneySheetRoot(context: context)
         case .downloadApp:
             NavigationStack(path: $router[.downloadApp]) {
                 DownloadAppScreen()

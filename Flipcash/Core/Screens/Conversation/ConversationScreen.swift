@@ -334,10 +334,9 @@ struct ConversationScreen: View {
 
     private func sendCash() {
         guard let sendTarget else { return }
-        guard session.hasGiveableBalance(for: ratesController.rateForBalanceCurrency()) else {
-            session.dialogItem = .noGiveableBalance {
-                router.navigate(to: .deposit)
-            }
+        let rate = ratesController.rateForBalanceCurrency()
+        if let dialog = giveCashGate(session: session, rate: rate).blockingDialog(router: router) {
+            session.dialogItem = dialog
             return
         }
         router.presentNested(.sendAmount(sendTarget))

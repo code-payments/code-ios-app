@@ -20,9 +20,6 @@ struct CurrencyCreationWizardScreen: View {
     @EnvironmentObject private var flipClient: FlipClient
     @Environment(Session.self) private var session
     @Environment(RatesController.self) private var ratesController
-    @Environment(WalletConnection.self) private var walletConnection
-    @Environment(VerificationCoordinator.self) private var verificationCoordinator
-    @Environment(CoinbaseService.self) private var coinbaseService
     @Environment(AppRouter.self) private var router
 
     @State private var step: WizardStep = .name
@@ -35,37 +32,14 @@ struct CurrencyCreationWizardScreen: View {
 
     @State private var isShowingPhotoPicker = false
     @State private var isShowingFilePicker = false
-    /// Drives the `PurchaseMethodSheet` when the user picks "Pay to Create"
-    /// and USDF doesn't cover the launch cost.
-    @State private var pendingOperation: PaymentOperation?
 
     /// Non-nil while the Reserves-funded launch is in flight. Drives a
     /// `fullScreenCover` that presents `CurrencyLaunchProcessingScreen`.
     @State private var reservesLaunchContext: ReservesLaunchContext?
-    /// Non-nil while an external-wallet (Phantom) launch has completed
-    /// chain submission and we're showing the launch processing screen.
-    @State private var phantomLaunchContext: ExternalLaunchProcessing?
-    /// Non-nil while a Coinbase launch has completed and we're showing the
-    /// launch processing screen.
-    @State private var coinbaseLaunchContext: ExternalLaunchProcessing?
-    /// In-flight funding operation (Phantom or Coinbase). For Phantom, the
-    /// wizard's state observer pushes `.phantomFlow` once the operation
-    /// reaches its first `awaitingUserAction` — never synchronously on
-    /// assignment, so a preflight throw (NAME_EXISTS, DENIED, etc.) lets
-    /// the wizard's `errorDialog` render on the wizard itself instead of
-    /// being trapped under a freshly-pushed flow screen.
-    @State private var fundingOperation: (any FundingOperation)?
-    /// Identity of the Phantom operation we've already pushed `.phantomFlow`
-    /// for. Resets when `fundingOperation` becomes `nil` (operation done) so
-    /// a retry can push fresh.
-    @State private var phantomFlowPushedFor: ObjectIdentifier?
     /// Mint from an earlier attempt whose buy failed inline. On a
     /// `nameExists` retry, reuse it so only the buy reruns. Bound to
     /// `name` — renaming invalidates.
     @State private var createdMint: CreatedMintRecord?
-    /// Active verification flow, if any. Set when the Coinbase launch path
-    /// runs the verification gate.
-    @State private var verificationViewModel: OnrampVerification?
 
     private struct CreatedMintRecord {
         let mint: PublicKey
@@ -130,19 +104,11 @@ struct CurrencyCreationWizardScreen: View {
         )
     }
 
-    /// True while *anything* pay-related is in flight from the confirmation
-    /// step — preflight validation, a queued purchase method picker, an
-    /// in-flight funding operation, or an active processing cover. The CTA
-    /// disables on this so the user can't double-tap into a stuck state.
+    /// True while the reserves-funded launch is preflighting or its processing
+    /// cover is up. The confirmation CTA disables on this so the user can't
+    /// double-tap into a stuck state.
     private var isPayInFlight: Bool {
-        if isValidating { return true }
-        if pendingOperation != nil { return true }
-        if fundingOperation != nil { return true }
-        if coinbaseService.coinbaseOrder != nil { return true }
-        if reservesLaunchContext != nil { return true }
-        if phantomLaunchContext != nil { return true }
-        if coinbaseLaunchContext != nil { return true }
-        return false
+        isValidating || reservesLaunchContext != nil
     }
 
     enum Field: Hashable {
@@ -214,11 +180,9 @@ struct CurrencyCreationWizardScreen: View {
                     .transition(direction.slide)
 
                 case .confirmation:
-                    // The CTA disables on *any* in-flight pay state, not just
-                    // validation. Without this, the button stays tappable
-                    // after the user picks a method and they can re-fire the
-                    // funding op while the first one is still building the
-                    // Coinbase order / handshake.
+                    // The CTA disables on `isPayInFlight` (not just
+                    // `isValidating`) so it stays disabled while the reserves
+                    // launch cover is up and the user can't re-fire the launch.
                     ConfirmationStep(
                         state: state,
                         previewFiat: previewFiat,
@@ -231,32 +195,6 @@ struct CurrencyCreationWizardScreen: View {
             }
         }
         .dialog(item: $errorDialog)
-        .dialog(item: Bindable(walletConnection).dialogItem)
-        .onChange(of: fundingOperation?.state) { _, newState in
-            // Single observer covers both push + reset:
-            // - `nil` state → operation slot emptied → reset push tracking
-            //   so a fresh op can push again on retry.
-            // - First `.awaitingUserAction` transition for this op → push
-            //   `.phantomFlow`. Preflight throws (NAME_EXISTS, DENIED,
-            //   INVALID_ICON) then surface on the wizard's `errorDialog`
-            //   instead of a stranded flow screen.
-            // Assumes `PhantomFundingOperation` is single-shot per the
-            // `FundingOperation` contract; identity-keyed tracking would
-            // need to widen if instances ever get reused.
-            guard let newState else {
-                phantomFlowPushedFor = nil
-                return
-            }
-            guard let operation = fundingOperation as? PhantomFundingOperation,
-                  case .awaitingUserAction = newState else { return }
-            let id = ObjectIdentifier(operation)
-            guard phantomFlowPushedFor != id else { return }
-            phantomFlowPushedFor = id
-            router.push(.phantomFlow(operation))
-        }
-        .sheet(item: $verificationViewModel.cancellingOnDismiss()) { vm in
-            VerifyInfoScreen(viewModel: vm)
-        }
         .toolbarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .interactiveDismissDisabled()
@@ -293,15 +231,6 @@ struct CurrencyCreationWizardScreen: View {
         ) { result in
             handleFileImport(result)
         }
-        .sheet(item: $pendingOperation) { operation in
-            PurchaseMethodSheet(
-                operation: operation,
-                sources: [.applePay, .phantom],
-                applePayAction: { payment in startCoinbaseLaunchFunding(payment: payment) },
-                phantomAction: { payment in startPhantomLaunchFunding(payment: payment) },
-                onDismiss: { pendingOperation = nil }
-            )
-        }
         .fullScreenCover(item: $reservesLaunchContext) { context in
             NavigationStack {
                 CurrencyLaunchProcessingScreen(
@@ -317,38 +246,6 @@ struct CurrencyCreationWizardScreen: View {
                     // Nilling the cover binding here would stage a separate
                     // cover-dismiss before the sheet animation; the @State
                     // is freed automatically when the wizard unmounts.
-                    router.dismissSheet()
-                })
-            }
-        }
-        .fullScreenCover(item: $coinbaseLaunchContext) { processing in
-            NavigationStack {
-                CurrencyLaunchProcessingScreen(
-                    swapId: processing.swapId,
-                    launchedMint: processing.launchedMint,
-                    currencyName: processing.currencyName,
-                    launchAmount: launchAmount,
-                    fundingMethod: .coinbase
-                )
-                .environment(\.dismissParentContainer, {
-                    router.dismissSheet()
-                })
-            }
-        }
-        // The wizard only hosts launch covers — buy-existing Phantom flows
-        // present their own cover from `BuyAmountScreen`. State sourced from
-        // `phantomLaunchContext`, populated when the Phantom funding
-        // operation returns successfully.
-        .fullScreenCover(item: $phantomLaunchContext) { processing in
-            NavigationStack {
-                CurrencyLaunchProcessingScreen(
-                    swapId: processing.swapId,
-                    launchedMint: processing.launchedMint,
-                    currencyName: processing.currencyName,
-                    launchAmount: launchAmount,
-                    fundingMethod: .phantom
-                )
-                .environment(\.dismissParentContainer, {
                     router.dismissSheet()
                 })
             }
@@ -620,19 +517,25 @@ struct CurrencyCreationWizardScreen: View {
                 iconAttestation: iconAttestation
             )
 
-            let payload = PaymentOperation.LaunchPayload(
-                currencyName: displayName,
-                total: totalLaunchCost,
-                launchAmount: launchAmount,
-                launchFee: launchFee,
-                attestations: attestations,
-                verifiedState: verifiedState
-            )
-
-            let operation = ReservesFundingOperation(session: session)
-            let swap: StartedSwap
+            var launchedMint: PublicKey?
+            let swapId: SwapId
             do {
-                swap = try await operation.start(.launch(payload))
+                let mint = try await session.launchCurrency(
+                    name: displayName,
+                    description: attestations.description,
+                    billColors: attestations.billColors,
+                    icon: attestations.icon,
+                    nameAttestation: attestations.nameAttestation,
+                    descriptionAttestation: attestations.descriptionAttestation,
+                    iconAttestation: attestations.iconAttestation
+                )
+                launchedMint = mint
+                swapId = try await session.buyNewCurrency(
+                    amount: launchAmount,
+                    feeAmount: launchFee,
+                    verifiedState: verifiedState,
+                    mint: mint
+                )
             } catch ErrorLaunchCurrency.denied {
                 logger.error("Launch denied after preflight attestations passed")
                 ErrorReporting.captureError(ErrorLaunchCurrency.denied)
@@ -692,24 +595,15 @@ struct CurrencyCreationWizardScreen: View {
                 )
                 return
             } catch Session.Error.insufficientBalance {
-                captureCreatedMint(operation.launchedMint, name: displayName)
+                captureCreatedMint(launchedMint, name: displayName)
                 presentInsufficientFundsDialog(totalLaunchCost: totalLaunchCost)
-                return
-            } catch let FundingOperationError.externalRejected(title, subtitle) {
-                if Task.isCancelled { return }
-                captureCreatedMint(operation.launchedMint, name: displayName)
-                logger.error("Reserves-funded launch rejected", metadata: [
-                    "title": "\(title)",
-                    "mint": "\(operation.launchedMint?.base58 ?? "nil")",
-                ])
-                errorDialog = DialogItem.error(title: title, subtitle: subtitle)
                 return
             } catch {
                 if Task.isCancelled { return }
-                captureCreatedMint(operation.launchedMint, name: displayName)
-                logger.error("Reserves-funded buy failed", metadata: [
+                captureCreatedMint(launchedMint, name: displayName)
+                logger.error("Reserves-funded launch failed", metadata: [
                     "error": "\(error)",
-                    "mint": "\(operation.launchedMint?.base58 ?? "nil")",
+                    "mint": "\(launchedMint?.base58 ?? "nil")",
                 ])
                 ErrorReporting.captureError(error)
                 presentCouldNotCreateCurrencyDialog()
@@ -717,12 +611,12 @@ struct CurrencyCreationWizardScreen: View {
             }
 
             // Submission accepted — record the mint and present the processing screen.
-            captureCreatedMint(swap.launchedMint, name: displayName)
+            captureCreatedMint(launchedMint, name: displayName)
             reservesLaunchContext = ReservesLaunchContext(
-                swapId: swap.swapId,
-                launchedMint: swap.launchedMint ?? operation.launchedMint!,
-                currencyName: swap.currencyName,
-                amount: swap.amount
+                swapId: swapId,
+                launchedMint: launchedMint!,
+                currencyName: displayName,
+                amount: launchAmount
             )
         }
     }
@@ -744,231 +638,20 @@ struct CurrencyCreationWizardScreen: View {
 
     // MARK: - Pay-to-Create dispatch
 
-    /// "Pay X to Create" tap handler. USDF gate first — if reserves cover the
-    /// total launch cost, run the reserves flow immediately. Otherwise pack
-    /// the launch attestations into the payload and open the picker; the
-    /// chosen funding operation runs the preflight launch + chain dance.
+    /// "Pay X to Create" tap handler. Reserves-only: if USDF covers the total
+    /// launch cost, run the launch + buy from reserves; otherwise route the user
+    /// to Add Money to top up first. The "Get Started" pre-check gates entry
+    /// into the wizard, so the else branch only fires if the balance dropped
+    /// mid-flow.
     private func onPayToCreateTap() {
         if reserveBalance != nil {
             launchAndBuyWithReserves()
-            return
-        }
-
-        guard let attestations = makeLaunchAttestations() else {
-            presentGenericErrorDialog()
-            return
-        }
-
-        // If a prior funding attempt for this same name already minted the
-        // currency (Phantom sign cancelled mid-flow, Apple Pay rejected
-        // post-launch), reuse that mint so the next attempt skips the launch
-        // RPC and doesn't hit `nameExists` on the server.
-        let priorMint = (createdMint?.name == state.currencyName) ? createdMint?.mint : nil
-
-        pendingOperation = .launch(.init(
-            currencyName: state.currencyName,
-            total: totalLaunchCost,
-            launchAmount: launchAmount,
-            launchFee: launchFee,
-            attestations: attestations,
-            preLaunchedMint: priorMint
-        ))
-    }
-
-    private func makeLaunchAttestations() -> PaymentOperation.LaunchAttestations? {
-        guard let nameAttestation = state.nameAttestation,
-              let iconAttestation = state.iconAttestation,
-              let descriptionAttestation = state.descriptionAttestation,
-              let iconData = state.encodedIconData else {
-            logger.error("onPayToCreateTap reached without required attestations or icon")
-            return nil
-        }
-        return PaymentOperation.LaunchAttestations(
-            description: state.currencyDescription,
-            billColors: state.backgroundColors.map { $0.hexString },
-            icon: iconData,
-            nameAttestation: nameAttestation,
-            descriptionAttestation: descriptionAttestation,
-            iconAttestation: iconAttestation
-        )
-    }
-
-    /// `PurchaseMethodSheet.phantomAction` dispatch. Spawns a Phantom
-    /// funding operation; the wizard's `.onChange(of: fundingOperation?.state)`
-    /// observer pushes `.phantomFlow` only when the operation reaches its
-    /// first `awaitingUserAction`. Pushing synchronously would expose the
-    /// flow screen during launch preflight — a NAME_EXISTS / DENIED throw
-    /// would then surface its `errorDialog` underneath the flow screen.
-    /// Wallet-side cancels are handled inside the operation's retry loop —
-    /// they never throw out here.
-    private func startPhantomLaunchFunding(payment: PaymentOperation) {
-        let operation = PhantomFundingOperation(
-            walletConnection: walletConnection,
-            session: session
-        )
-        fundingOperation = operation
-
-        Task { [operation] in
-            do {
-                let swap = try await operation.start(payment)
-                guard let mint = swap.launchedMint else {
-                    logger.error("Phantom launch returned no mint")
-                    presentGenericErrorDialog()
-                    return
-                }
-                captureCreatedMint(mint, name: swap.currencyName)
-                // Don't pop the flow screen — the fullScreenCover below
-                // overlays it directly. Popping first would animate the
-                // flow screen sliding back to the bill view before the
-                // cover slides up, which reads as the wizard "going
-                // backwards" mid-success. The cover's dismissParent path
-                // tears the whole wizard sheet down anyway.
-                phantomLaunchContext = ExternalLaunchProcessing(
-                    swapId: swap.swapId,
-                    launchedMint: mint,
-                    currencyName: swap.currencyName,
-                    amount: swap.amount
-                )
-            } catch is CancellationError {
-                // Local dismiss (user backed out of the flow screen) — silent.
-                // Recording the mint here lets a retry skip the launch step
-                // when it had already succeeded server-side mid-cancel.
-                captureCreatedMint(operation.launchedMint, name: state.currencyName)
-            } catch ErrorLaunchCurrency.denied {
-                logger.error("Phantom launch denied after preflight attestations passed")
-                ErrorReporting.captureError(ErrorLaunchCurrency.denied)
-                errorDialog = DialogItem.error(
-                    title: "Couldn't Launch Currency",
-                    subtitle: "Please try again. Contact support if this persists."
-                )
-            } catch ErrorLaunchCurrency.nameExists {
-                logger.error("Phantom launch name-exists after preflight CheckAvailability passed")
-                ErrorReporting.captureError(ErrorLaunchCurrency.nameExists)
-                errorDialog = DialogItem.error(
-                    title: "Name No Longer Available",
-                    subtitle: "Please pick a different name."
-                )
-            } catch ErrorLaunchCurrency.invalidIcon {
-                logger.error("Phantom launch rejected icon after preflight moderation passed")
-                ErrorReporting.captureError(ErrorLaunchCurrency.invalidIcon)
-                errorDialog = DialogItem.error(
-                    title: "Image Is Invalid",
-                    subtitle: "Please pick a different image."
-                )
-            } catch let FundingOperationError.externalRejected(title, subtitle) {
-                captureCreatedMint(operation.launchedMint, name: state.currencyName)
-                logger.error("Phantom-funded launch rejected", metadata: [
-                    "title": "\(title)",
-                    "mint": "\(operation.launchedMint?.base58 ?? "nil")",
-                ])
-                errorDialog = DialogItem.error(title: title, subtitle: subtitle)
-            } catch {
-                captureCreatedMint(operation.launchedMint, name: state.currencyName)
-                logger.error("Phantom-funded launch failed", metadata: [
-                    "error": "\(error)",
-                    "mint": "\(operation.launchedMint?.base58 ?? "nil")",
-                ])
-                ErrorReporting.captureError(error)
-                errorDialog = DialogItem.error(
-                    title: "Couldn't Create Currency",
-                    subtitle: "Please try again."
-                )
-            }
-            if (fundingOperation as AnyObject?) === operation {
-                fundingOperation = nil
+        } else {
+            session.dialogItem = .noBalance(subtitle: AddMoneyContext.createCurrency.noBalanceSubtitle) {
+                router.presentAddMoney(.createCurrency)
             }
         }
     }
-
-    /// `PurchaseMethodSheet.applePayAction` dispatch for launch. Runs the
-    /// verification gate via `VerificationCoordinator`, then spawns a
-    /// `CoinbaseFundingOperation` that performs the preflight launch
-    /// internally followed by the Coinbase order + Apple Pay flow.
-    private func startCoinbaseLaunchFunding(payment: PaymentOperation) {
-        verificationCoordinator.runGated(
-            for: session,
-            bind: { verificationViewModel = $0 }
-        ) {
-            runCoinbaseLaunchOperation(payment: payment)
-        }
-    }
-
-    private func runCoinbaseLaunchOperation(payment: PaymentOperation) {
-        let operation = CoinbaseFundingOperation(
-            coinbaseService: coinbaseService,
-            session: session
-        )
-        fundingOperation = operation
-
-        Task { [operation] in
-            do {
-                let swap = try await operation.start(payment)
-                guard let mint = swap.launchedMint else {
-                    logger.error("Coinbase launch returned no mint")
-                    presentGenericErrorDialog()
-                    return
-                }
-                captureCreatedMint(mint, name: swap.currencyName)
-                coinbaseLaunchContext = ExternalLaunchProcessing(
-                    swapId: swap.swapId,
-                    launchedMint: mint,
-                    currencyName: swap.currencyName,
-                    amount: swap.amount
-                )
-            } catch is CancellationError {
-                // Local dismiss — silent. Recording the mint here lets a
-                // retry skip the launch step when it had already succeeded
-                // server-side mid-cancel.
-                captureCreatedMint(operation.launchedMint, name: state.currencyName)
-                // Distinguish the 60s idle-timeout cancel (surface the
-                // dialog above the wizard sheet) from a plain user-dismiss
-                // (silent — they explicitly walked away).
-                if operation.didTimeOut {
-                    session.dialogItem = .info(title: "Purchase Timed Out", subtitle: "Purchases must be authorized within 60 seconds")
-                }
-            } catch ErrorLaunchCurrency.denied {
-                ErrorReporting.captureError(ErrorLaunchCurrency.denied)
-                errorDialog = DialogItem.error(
-                    title: "Couldn't Launch Currency",
-                    subtitle: "Please try again. Contact support if this persists."
-                )
-            } catch ErrorLaunchCurrency.nameExists {
-                ErrorReporting.captureError(ErrorLaunchCurrency.nameExists)
-                errorDialog = DialogItem.error(
-                    title: "Name No Longer Available",
-                    subtitle: "Please pick a different name."
-                )
-            } catch ErrorLaunchCurrency.invalidIcon {
-                ErrorReporting.captureError(ErrorLaunchCurrency.invalidIcon)
-                errorDialog = DialogItem.error(
-                    title: "Image Is Invalid",
-                    subtitle: "Please pick a different image."
-                )
-            } catch let FundingOperationError.externalRejected(title, subtitle) {
-                captureCreatedMint(operation.launchedMint, name: state.currencyName)
-                logger.error("Coinbase-funded launch rejected", metadata: [
-                    "title": "\(title)",
-                    "mint": "\(operation.launchedMint?.base58 ?? "nil")",
-                ])
-                errorDialog = DialogItem.error(title: title, subtitle: subtitle)
-            } catch {
-                captureCreatedMint(operation.launchedMint, name: state.currencyName)
-                logger.error("Coinbase-funded launch failed", metadata: [
-                    "error": "\(error)",
-                    "mint": "\(operation.launchedMint?.base58 ?? "nil")",
-                ])
-                ErrorReporting.captureError(error)
-                errorDialog = DialogItem.error(
-                    title: "Couldn't Create Currency",
-                    subtitle: "Please try again."
-                )
-            }
-            if (fundingOperation as AnyObject?) === operation {
-                fundingOperation = nil
-            }
-        }
-    }
-
 
     // MARK: - Dialogs
 

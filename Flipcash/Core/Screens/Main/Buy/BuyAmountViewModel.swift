@@ -17,18 +17,6 @@ final class BuyAmountViewModel: Identifiable {
     var actionButtonState: ButtonState = .normal
     var enteredAmount: String = ""
     var dialogItem: DialogItem?
-    var pendingOperation: PaymentOperation?
-
-    /// In-flight funding operation (Phantom or Coinbase). For Phantom, the
-    /// `.phantomFlow` destination is pushed onto the buy stack at the same
-    /// moment this property is assigned; the destination renders against
-    /// `operation.state` until the flow terminates.
-    var fundingOperation: (any FundingOperation)?
-
-    /// Active verification flow, if any. Set when the Coinbase path runs the
-    /// verification gate; `BuyAmountScreen` binds `.sheet(item:)` to this
-    /// optional so the verification sheet mounts on top of the buy sheet.
-    var verificationViewModel: OnrampVerification?
 
     @ObservationIgnored let mint: PublicKey
     @ObservationIgnored let currencyName: String
@@ -74,12 +62,25 @@ final class BuyAmountViewModel: Identifiable {
 
     // MARK: - Submission
 
-    /// Single source of truth for amount submission. Pin verified state, compute
-    /// quarks against the pin, run limit + balance gates, then either submit
-    /// the buy directly (when USDF covers the amount) or hand off to the
-    /// funding picker via ``pendingMethodSelection``.
+    /// Single source of truth for amount submission. Run the balance gate the
+    /// same way every other spend flow does (`Session.hasSufficientFunds` —
+    /// quarks comparison with the half-denomination max-send tolerance), then
+    /// pin verified state, compute quarks against the pin capped to the USDF
+    /// balance, run the limit gate, and submit the buy from reserves. A
+    /// genuine shortfall routes to the Add Money flow instead.
     func amountEnteredAction(router: AppRouter) async {
-        guard enteredFiat != nil else { return }
+        guard let enteredFiat else { return }
+
+        switch session.hasSufficientFunds(for: enteredFiat) {
+        case .sufficient:
+            break
+        case .insufficient:
+            session.dialogItem = .noBalance(subtitle: AddMoneyContext.buyCurrency.noBalanceSubtitle) {
+                router.presentAddMoney(.buyCurrency)
+            }
+            return
+        }
+
         actionButtonState = .loading
 
         guard let (amount, pin) = await prepareSubmission() else {
@@ -100,188 +101,33 @@ final class BuyAmountViewModel: Identifiable {
             return
         }
 
-        if usdfBalanceCovers(amount) {
-            await performBuy(amount: amount, pin: pin, router: router)
-        } else {
-            actionButtonState = .normal
-            routeToPicker(amount: amount, pin: pin)
-        }
-    }
-
-    private func routeToPicker(amount: ExchangedFiat, pin: VerifiedState) {
-        pendingOperation = .buy(.init(
-            mint: mint,
-            currencyName: currencyName,
-            amount: amount,
-            verifiedState: pin
-        ))
-    }
-
-    /// Creates a `CoinbaseFundingOperation`, stores it as `fundingOperation`,
-    /// and awaits the result. Runs the verification gate first via
-    /// `VerificationCoordinator` — if the user isn't already verified, the
-    /// verification sheet opens and the operation only runs after both
-    /// phone+email steps succeed.
-    func startCoinbaseFunding(
-        payment: PaymentOperation,
-        verificationCoordinator: VerificationCoordinator,
-        coinbaseService: CoinbaseService,
-        router: AppRouter
-    ) {
-        verificationCoordinator.runGated(
-            for: session,
-            bind: { [weak self] vm in self?.verificationViewModel = vm }
-        ) { [weak self] in
-            self?.runCoinbaseFundingOperation(
-                payment: payment,
-                coinbaseService: coinbaseService,
-                router: router
-            )
-        }
-    }
-
-    private func runCoinbaseFundingOperation(
-        payment: PaymentOperation,
-        coinbaseService: CoinbaseService,
-        router: AppRouter
-    ) {
-        let operation = CoinbaseFundingOperation(
-            coinbaseService: coinbaseService,
-            session: session
-        )
-        fundingOperation = operation
-
-        Task { [weak self, operation] in
-            do {
-                let swap = try await operation.start(payment)
-                router.pushAny(BuyFlowPath.processing(
-                    swapId: swap.swapId,
-                    currencyName: swap.currencyName,
-                    amount: swap.amount,
-                    swapType: swap.swapType
-                ))
-            } catch is CancellationError {
-                // Distinguish the 60s idle-timeout cancel (surface the
-                // dialog above the buy sheet) from a plain user-dismiss
-                // (silent — they explicitly walked away).
-                if operation.didTimeOut {
-                    self?.session.dialogItem = .info(title: "Purchase Timed Out", subtitle: "Purchases must be authorized within 60 seconds")
-                }
-            } catch let FundingOperationError.externalRejected(title, subtitle) {
-                logger.error("Coinbase funding rejected", metadata: [
-                    "mint": "\(self?.mint.base58 ?? "nil")",
-                    "title": "\(title)",
-                ])
-                self?.dialogItem = .error(title: title, subtitle: subtitle)
-            } catch {
-                logger.error("Coinbase funding failed", metadata: [
-                    "mint": "\(self?.mint.base58 ?? "nil")",
-                    "error": "\(error)",
-                ])
-                ErrorReporting.captureError(error)
-                self?.dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
-            }
-            if let self, (self.fundingOperation as AnyObject?) === operation {
-                self.fundingOperation = nil
-            }
-        }
-    }
-
-    /// Creates a `PhantomFundingOperation`. `BuyAmountScreen`'s state
-    /// observer pushes `.phantomFlow` once the operation reaches its first
-    /// `awaitingUserAction` — assigning the operation never pushes
-    /// synchronously, so a preflight throw can still surface its dialog on
-    /// the buy screen itself. On success, atomically swaps the flow screen
-    /// for the processing screen so back-swipe can't land the user on a
-    /// terminal-state flow screen. Wallet-side cancels loop inside the
-    /// operation — they never throw out here.
-    func startPhantomFunding(
-        payment: PaymentOperation,
-        walletConnection: any TransactionSigning,
-        router: AppRouter
-    ) {
-        let operation = PhantomFundingOperation(
-            walletConnection: walletConnection,
-            session: session
-        )
-        fundingOperation = operation
-
-        Task { [weak self, operation] in
-            do {
-                let swap = try await operation.start(payment)
-                // Push (not replace) so SwiftUI runs a proper slide-in
-                // animation for the processing screen. The phantom flow
-                // screen renders its Confirm-busy panel for terminal
-                // `.idle`, so the visual underneath the push reads as a
-                // continuation of "Waiting for Phantom…" rather than a
-                // blank screen.
-                router.pushAny(BuyFlowPath.processing(
-                    swapId: swap.swapId,
-                    currencyName: swap.currencyName,
-                    amount: swap.amount,
-                    swapType: swap.swapType
-                ))
-            } catch is CancellationError {
-                // User dismissed the flow locally (back swipe / sheet
-                // dismiss) — silent.
-            } catch let FundingOperationError.externalRejected(title, subtitle) {
-                logger.error("Phantom funding rejected", metadata: [
-                    "mint": "\(self?.mint.base58 ?? "nil")",
-                    "title": "\(title)",
-                ])
-                self?.dialogItem = .error(title: title, subtitle: subtitle)
-            } catch {
-                logger.error("Phantom funding failed", metadata: [
-                    "mint": "\(self?.mint.base58 ?? "nil")",
-                    "error": "\(error)",
-                ])
-                ErrorReporting.captureError(error)
-                self?.dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
-            }
-            // Clear only if this op is still the current one — a rapid
-            // method-switch may have replaced it.
-            if let self, (self.fundingOperation as AnyObject?) === operation {
-                self.fundingOperation = nil
-            }
-        }
-    }
-
-    private func usdfBalanceCovers(_ amount: ExchangedFiat) -> Bool {
-        guard let balance = session.balance(for: .usdf) else { return false }
-        return balance.usdf.value >= amount.usdfValue.value
+        await performBuy(amount: amount, pin: pin, router: router)
     }
 
     private func performBuy(amount: ExchangedFiat, pin: VerifiedState, router: AppRouter) async {
         do {
             Analytics.buttonTapped(name: .buyWithReserves)
-            let payload = PaymentOperation.BuyPayload(
-                mint: mint,
-                currencyName: currencyName,
+            let swapId = try await session.buy(
                 amount: amount,
-                verifiedState: pin
+                verifiedState: pin,
+                of: mint
             )
-            let operation = ReservesFundingOperation(session: session)
-            let swap = try await operation.start(.buy(payload))
             actionButtonState = .normal
             router.pushAny(BuyFlowPath.processing(
-                swapId: swap.swapId,
-                currencyName: swap.currencyName,
-                amount: swap.amount,
-                swapType: swap.swapType
+                swapId: swapId,
+                currencyName: currencyName,
+                amount: amount,
+                swapType: .buyWithReserves
             ))
         } catch Session.Error.insufficientBalance {
-            // Race: balance gate said OK but session.buy disagreed. Route to picker.
+            // Race: balance gate said OK but the reserves buy disagreed. Route
+            // the user to Add Money instead of completing.
             actionButtonState = .normal
-            routeToPicker(amount: amount, pin: pin)
+            session.dialogItem = .noBalance(subtitle: AddMoneyContext.buyCurrency.noBalanceSubtitle) {
+                router.presentAddMoney(.buyCurrency)
+            }
         } catch Session.Error.verifiedStateStale {
             actionButtonState = .normal
-        } catch let FundingOperationError.externalRejected(title, subtitle) {
-            logger.error("Reserves-funded buy rejected", metadata: [
-                "mint": "\(mint.base58)",
-                "title": "\(title)",
-            ])
-            actionButtonState = .normal
-            dialogItem = .error(title: title, subtitle: subtitle)
         } catch {
             logger.error("Failed to buy currency from BuyAmountScreen", metadata: [
                 "mint": "\(mint.base58)",
@@ -299,13 +145,24 @@ final class BuyAmountViewModel: Identifiable {
     }
 
     /// Pin verified state once, compute amount against the pin so quarks
-    /// stay tied to the rate the server is about to verify.
-    private func prepareSubmission() async -> (amount: ExchangedFiat, pinnedState: VerifiedState)? {
+    /// stay tied to the rate the server is about to verify. The entered
+    /// amount is capped to the USDF balance (`compute(fromEntered:balance:)`)
+    /// so FX display rounding can't push the quarks a hair past the spendable
+    /// reserves — the balance renders as 1.00 CAD, the user types 1.00 CAD,
+    /// and the buy must spend exactly the balance, not reject.
+    func prepareSubmission() async -> (amount: ExchangedFiat, pinnedState: VerifiedState)? {
         let currency = ratesController.balanceCurrency
         guard let pin = await ratesController.currentPinnedState(for: currency, mint: .usdf) else {
             return nil
         }
-        guard let amount = computeAmount(using: pin.rate) else { return nil }
+        guard let entered = amountValidator.validate(enteredAmount) else { return nil }
+        guard let amount = ExchangedFiat.compute(
+            fromEntered: FiatAmount(value: entered, currency: pin.rate.currency),
+            rate: pin.rate,
+            mint: .usdf,
+            supplyQuarks: 0, // unused on the USDF path
+            balance: session.balance(for: .usdf)?.usdf
+        ) else { return nil }
         return (amount, pin)
     }
 

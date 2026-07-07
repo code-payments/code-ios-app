@@ -158,4 +158,75 @@ struct SwapInstructionBuilderUsdcToUsdfTests {
         #expect(UInt64(bytes: Array(ix.data[1..<9])) == 20_000_000)
         #expect(ix.data.last == 0) // usdfToOther = false (USDC → USDF direction)
     }
+
+    // MARK: - VM Deposit destination (Add Money via Phantom)
+
+    private static func makeDepositInstructions(
+        amount: UInt64 = SwapInstructionBuilderUsdcToUsdfTests.amount
+    ) -> [Instruction] {
+        SwapInstructionBuilder.buildUsdcToUsdfSwapInstructions(
+            sender: sender,
+            owner: owner,
+            amount: amount,
+            pool: .usdf,
+            swapId: swapId,
+            destination: .vmDeposit
+        )
+    }
+
+    /// The owner's USDF VM Deposit ATA — derived exactly as the builder does:
+    /// deposit PDA (`deriveDepositAccount`) then that PDA's canonical USDF ATA.
+    private static func usdfDepositAta() -> PublicKey {
+        let vm = MintMetadata.usdf.vmMetadata!
+        let depositPda = PublicKey.deriveDepositAccount(
+            owner: owner,
+            mint: .usdf,
+            timeAuthority: vm.authority,
+            lockout: Byte(vm.lockDurationInDays)
+        )!
+        return PublicKey.deriveAssociatedAccount(from: depositPda.publicKey, mint: .usdf)!.publicKey
+    }
+
+    @Test("VM-deposit variant still produces exactly 8 instructions")
+    func deposit_produces8Instructions() {
+        #expect(Self.makeDepositInstructions().count == 8)
+    }
+
+    @Test("VM-deposit CreateIdempotent (instruction 3) opens the USDF VM Deposit ATA")
+    func deposit_createIdempotentTargetsDepositAta() {
+        let ix = Self.makeDepositInstructions()[3]
+        let vm = MintMetadata.usdf.vmMetadata!
+        let depositPda = PublicKey.deriveDepositAccount(
+            owner: Self.owner,
+            mint: .usdf,
+            timeAuthority: vm.authority,
+            lockout: Byte(vm.lockDurationInDays)
+        )!
+        // account layout: [payer (w,s), ata (w), owner, mint, system, token, rent]
+        #expect(ix.program == AssociatedTokenProgram.address)
+        #expect(ix.accounts[1].publicKey == Self.usdfDepositAta())
+        #expect(ix.accounts[2].publicKey == depositPda.publicKey)
+        #expect(ix.accounts[3].publicKey == PublicKey.usdf)
+    }
+
+    @Test("VM-deposit Transfer (instruction 7) sends USDF to the VM Deposit ATA, not the swap PDA")
+    func deposit_transferTargetsDepositAta() throws {
+        let ix = Self.makeDepositInstructions()[7]
+        let depositAta = Self.usdfDepositAta()
+        let swapPdaAta = try #require(MintMetadata.usdf.timelockSwapAccounts(owner: Self.owner)).ata.publicKey
+        let senderUsdfAta = try #require(PublicKey.deriveAssociatedAccount(from: Self.sender, mint: .usdf)).publicKey
+        #expect(ix.program == TokenProgram.address)
+        // account layout: [source (w), destination (w), owner (s)]
+        #expect(ix.accounts[0].publicKey == senderUsdfAta)
+        #expect(ix.accounts[1].publicKey == depositAta)
+        #expect(ix.accounts[1].publicKey != swapPdaAta)
+        #expect(ix.accounts[2].publicKey == Self.sender)
+        #expect(ix.accounts[2].isSigner)
+    }
+
+    @Test("The USDF VM Deposit ATA differs from the swap PDA ATA")
+    func deposit_addressDiffersFromSwapPda() throws {
+        let swapPdaAta = try #require(MintMetadata.usdf.timelockSwapAccounts(owner: Self.owner)).ata.publicKey
+        #expect(Self.usdfDepositAta() != swapPdaAta)
+    }
 }

@@ -11,13 +11,12 @@ import FlipcashCore
 /// Unset handlers throw `MockSessionError.unimplemented`.
 @MainActor
 final class MockSession:
+    GiveBalanceReading,
     AccountProviding,
     ProfileProviding,
     ProfileManaging,
     MintMetadataFetching,
     ReservesBuying,
-    ExternalFundingBuying,
-    OnrampBuying,
     CurrencyLaunching,
     RecipientResolving,
     DirectSending {
@@ -86,57 +85,6 @@ final class MockSession:
             throw MockSessionError.unimplemented(method: "buyNewCurrency")
         }
         return try await handler(amount, feeAmount, verifiedState, mint, swapId)
-    }
-
-    // MARK: - External funding
-
-    var buyWithExternalFundingHandler: (@MainActor (SwapId, ExchangedFiat, PublicKey, Signature) async throws -> SwapId)?
-    var buyNewCurrencyWithExternalFundingHandler: (@MainActor (ExchangedFiat, ExchangedFiat, PublicKey, Signature) async throws -> SwapId)?
-
-    private(set) var buyWithExternalFundingCalls: [(swapId: SwapId, amount: ExchangedFiat, mint: PublicKey, transactionSignature: Signature)] = []
-
-    func buyWithExternalFunding(swapId: SwapId, amount: ExchangedFiat, of mint: PublicKey, transactionSignature: Signature) async throws -> SwapId {
-        buyWithExternalFundingCalls.append((swapId, amount, mint, transactionSignature))
-        guard let handler = buyWithExternalFundingHandler else {
-            throw MockSessionError.unimplemented(method: "buyWithExternalFunding")
-        }
-        return try await handler(swapId, amount, mint, transactionSignature)
-    }
-
-    func buyNewCurrencyWithExternalFunding(
-        amount: ExchangedFiat,
-        feeAmount: ExchangedFiat,
-        mint: PublicKey,
-        transactionSignature: Signature
-    ) async throws -> SwapId {
-        guard let handler = buyNewCurrencyWithExternalFundingHandler else {
-            throw MockSessionError.unimplemented(method: "buyNewCurrencyWithExternalFunding")
-        }
-        return try await handler(amount, feeAmount, mint, transactionSignature)
-    }
-
-    // MARK: - Onramp
-
-    var buyWithCoinbaseOnrampHandler: (@MainActor (ExchangedFiat, PublicKey, String) async throws -> SwapId)?
-    var buyNewCurrencyWithCoinbaseOnrampHandler: (@MainActor (ExchangedFiat, ExchangedFiat, PublicKey, String) async throws -> SwapId)?
-
-    func buyWithCoinbaseOnramp(amount: ExchangedFiat, of mint: PublicKey, orderId: String) async throws -> SwapId {
-        guard let handler = buyWithCoinbaseOnrampHandler else {
-            throw MockSessionError.unimplemented(method: "buyWithCoinbaseOnramp")
-        }
-        return try await handler(amount, mint, orderId)
-    }
-
-    func buyNewCurrencyWithCoinbaseOnramp(
-        amount: ExchangedFiat,
-        feeAmount: ExchangedFiat,
-        mint: PublicKey,
-        orderId: String
-    ) async throws -> SwapId {
-        guard let handler = buyNewCurrencyWithCoinbaseOnrampHandler else {
-            throw MockSessionError.unimplemented(method: "buyNewCurrencyWithCoinbaseOnramp")
-        }
-        return try await handler(amount, feeAmount, mint, orderId)
     }
 
     // MARK: - Launch
@@ -217,6 +165,20 @@ final class MockSession:
             throw MockSessionError.unimplemented(method: "send")
         }
         try await handler(amount, verifiedState, destination)
+    }
+
+    // MARK: - USDF reserves
+
+    var usdfReserveBalance: StoredBalance?
+
+    var giveableBalanceExists = false
+
+    func hasGiveableBalance(for rate: Rate) -> Bool {
+        giveableBalanceExists
+    }
+
+    func balance(for mint: PublicKey) -> StoredBalance? {
+        mint == .usdf ? usdfReserveBalance : nil
     }
 }
 

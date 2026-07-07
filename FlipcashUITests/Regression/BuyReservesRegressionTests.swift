@@ -10,7 +10,7 @@ import XCTest
 ///
 /// - The buy nested sheet opens on top of CurrencyInfoScreen.
 /// - A sub-cent entry the USDF balance can cover routes straight to the
-///   swap-processing screen (no PurchaseMethodSheet appears).
+///   swap-processing screen (the Add Money "Select Method" sheet never appears).
 /// - After OK on the processing screen, the user lands back on
 ///   CurrencyInfoScreen — not the Wallet root, not the Scanner.
 ///
@@ -41,6 +41,13 @@ final class BuyReservesRegressionTests: BaseUITestCase {
         waitAndTap(currencyInfo.buyButton)
         amountEntry.enterMinimumAmount()
         waitUntilHittableAndTap(amountEntry.buyActionButton)
+
+        // A covered amount must not detour through the Add Money flow — the
+        // "Select Method" sheet must never appear.
+        XCTAssertFalse(
+            app.staticTexts["Select Method"].waitForExistence(timeout: 2),
+            "A covered amount must route straight to the swap, not the Add Money sheet"
+        )
 
         processing.assertReached()
 

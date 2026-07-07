@@ -9,17 +9,6 @@ import FlipcashUI
 
 extension DialogItem {
 
-    /// Coinbase Onramp rejects orders below `CoinbaseFundingOperation.minimumPurchaseUSD`
-    /// with a generic error; surface the constraint up-front instead of letting
-    /// the user round-trip to Apple Pay. `minimum` is the USD floor already
-    /// formatted in the user's selected display currency.
-    static func applePayMinimumPurchase(minimum: String) -> DialogItem {
-        .error(
-            title: "\(minimum) Minimum Purchase",
-            subtitle: "Please enter an amount of \(minimum) or higher"
-        )
-    }
-
     /// First-scan nudge surfaced once when a user's initial contact sync finds
     /// people they already know on Flipcash. `count` is the number of their
     /// contacts the server matched.
@@ -30,15 +19,48 @@ extension DialogItem {
         )
     }
 
-    /// Nudges the user to deposit funds when they attempt to give or send
-    /// with no giveable balance.
-    static func noGiveableBalance(onDeposit: @escaping () -> Void) -> DialogItem {
+    /// "No Balance Yet" prompt shown before the Add Money flow — the standard
+    /// dialog every insufficient-balance path (buy, create currency, give cash)
+    /// uses. `subtitle` is context-specific; `onAddMoney` presents the deposit
+    /// method picker.
+    static func noBalance(subtitle: String, onAddMoney: @escaping () -> Void) -> DialogItem {
         .info(
             title: "No Balance Yet",
-            subtitle: "Deposit funds to give cash"
+            subtitle: subtitle
         ) {
-            .standard("Deposit Funds", action: onDeposit);
+            .standard("Add Money", action: onAddMoney);
             .cancel()
+        }
+    }
+
+    /// Shown when the user holds USDF but no community currency — cash is
+    /// given in community currencies, so the next step is Discover, not
+    /// Add Money. `onDiscover` presents the Discover sheet.
+    static func noCommunityCurrencies(onDiscover: @escaping () -> Void) -> DialogItem {
+        .info(
+            title: "No Community Currencies Yet",
+            subtitle: "Discover and buy a currency, or create your own"
+        ) {
+            .standard("Discover Currencies", action: onDiscover);
+            .cancel()
+        }
+    }
+}
+
+extension GiveCashGate {
+    /// The blocking dialog for this gate outcome, or nil to proceed into the
+    /// flow. One mapping shared by every give/send cash entry point.
+    @MainActor
+    func blockingDialog(router: AppRouter) -> DialogItem? {
+        switch self {
+        case .proceed:
+            nil
+        case .discoverCurrencies:
+            .noCommunityCurrencies { router.present(.discover) }
+        case .addMoney:
+            .noBalance(subtitle: AddMoneyContext.giveCash.noBalanceSubtitle) {
+                router.presentAddMoney(.giveCash)
+            }
         }
     }
 }

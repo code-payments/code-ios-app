@@ -8,7 +8,7 @@ import Observation
 import FlipcashCore
 
 /// Session-scoped holder for the Coinbase Apple Pay flow's shared UI state.
-/// `CoinbaseFundingOperation` publishes the order here so the root-level
+/// `CoinbaseDepositOperation` publishes the order here so the root-level
 /// `OnrampHostModifier` can mount its WebView overlay; the WebView yields
 /// `ApplePayEvent`s back through `receiveApplePayEvent`, which feed the
 /// operation's `applePayEvents` consumer.
@@ -24,13 +24,13 @@ final class CoinbaseService {
     /// failure).
     private(set) var coinbaseOrder: OnrampOrderResponse?
 
-    /// Coinbase CDP API client. `CoinbaseFundingOperation` calls
+    /// Coinbase CDP API client. `CoinbaseDepositOperation` calls
     /// `createOrder` here; the bearer-token provider was wired at init
     /// from the session's FlipClient.
     @ObservationIgnored let coinbase: any OnrampOrdering
 
     /// Stream of Apple Pay events forwarded from the WebView host. The
-    /// active `CoinbaseFundingOperation` iterates this stream during the
+    /// active `CoinbaseDepositOperation` iterates this stream during the
     /// `.awaitingExternal(.applePay)` step.
     @ObservationIgnored let applePayEvents: AsyncStream<ApplePayEvent>
     @ObservationIgnored private let eventContinuation: AsyncStream<ApplePayEvent>.Continuation

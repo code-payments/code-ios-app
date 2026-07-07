@@ -122,15 +122,16 @@ final class OnrampVerificationViewModel<P: PhoneVerifying, E: EmailVerifying>: V
 
     // MARK: - Navigation -
 
-    /// Entry point invoked by `VerifyInfoScreen`'s Next button.
-    func navigateToInitialVerification() {
+    /// The first screen the verification sheet shows — phone if unverified
+    /// (unlikely), email otherwise. The sheet's root IS the first step;
+    /// there is no intro page.
+    func initialStep() -> OnrampVerificationPath {
         if !phoneVerifier.isAlreadyVerified {
             Analytics.track(event: Analytics.OnrampEvent.showEnterPhone)
-            verificationPath.append(.enterPhoneNumber)
-            return
+            return .enterPhoneNumber
         }
-
-        navigateToEmailOrFinish()
+        Analytics.track(event: Analytics.OnrampEvent.showEnterEmail)
+        return .enterEmail
     }
 
     private func navigateToEmailOrFinish() {

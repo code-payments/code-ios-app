@@ -40,6 +40,9 @@ struct CurrencyDiscoveryList: View {
                         CurrencyDiscoveryRow(rank: item.index + 1, mint: item.element)
                     }
                     .buttonStyle(.plain)
+                    // Stable handle for UI tests — the visible label is
+                    // rank + name + market data, too volatile to match on.
+                    .accessibilityIdentifier("discover-leaderboard-row")
                 }
             case .loading:
                 ForEach(1...10, id: \.self) { rank in
