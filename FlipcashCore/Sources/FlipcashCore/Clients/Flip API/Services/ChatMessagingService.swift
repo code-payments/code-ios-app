@@ -59,6 +59,59 @@ final class ChatMessagingService: Sendable {
         }
     }
 
+    /// Reconnect/cold-boot catch-up: a BOUNDED server stream of the messages changed since
+    /// `afterSequence`, up to the chat's head. Each data batch is delivered to `onBatch` with its
+    /// `checkpointSequence` (the resume point through that batch) so the caller applies-and-persists
+    /// incrementally — a mid-stream drop resumes from the last checkpoint. `completion` fires once with
+    /// the chat's head (`latestSequence`) on clean completion, `.resetRequired` when the cursor is too
+    /// far behind (caller re-syncs via `getMessages`), or a transport/denied failure. No deadline: a
+    /// bounded stream must not be truncated by one.
+    func getDelta(
+        owner: KeyPair,
+        conversationID: ConversationID,
+        afterSequence: UInt64,
+        onBatch: @MainActor @Sendable @escaping (_ messages: [ConversationMessage], _ checkpoint: UInt64?) -> Void,
+        completion: @Sendable @escaping (Result<UInt64, ErrorGetDelta>) -> Void
+    ) {
+        let request = Flipcash_Messaging_V1_GetDeltaRequest.with {
+            $0.chatID = conversationID.proto
+            $0.afterSequence = afterSequence
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        Task {
+            do {
+                try await service.getDelta(request: .init(message: request), options: .defaults) { response in
+                    var head: UInt64 = 0
+                    var terminal: ErrorGetDelta?
+                    for try await message in response.messages {
+                        head = max(head, message.latestSequence)
+                        let result = ErrorGetDelta(rawValue: message.result.rawValue) ?? .unknown
+                        switch result {
+                        case .ok:
+                            guard message.hasMessages else { continue }
+                            let messages = message.messages.messages.compactMap(ConversationMessage.init)
+                            let checkpoint = message.checkpointSequence == 0 ? nil : message.checkpointSequence
+                            await MainActor.run { onBatch(messages, checkpoint) }
+                        case .denied, .resetRequired:
+                            terminal = result
+                        case .unknown, .transportFailure, .cancelled:
+                            // Server results are only ok/denied/resetRequired; a transport case here is
+                            // defensive — treat as an unknown terminal.
+                            terminal = .unknown
+                        }
+                    }
+                    let outcome: Result<UInt64, ErrorGetDelta> = terminal.map { .failure($0) } ?? .success(head)
+                    await MainActor.run { completion(outcome) }
+                }
+            } catch let error as RPCError {
+                await MainActor.run { completion(.failure(.from(transportError: error))) }
+            } catch {
+                await MainActor.run { completion(.failure(.unknown)) }
+            }
+        }
+    }
+
     func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String, clientMessageID: UUID, completion: @Sendable @escaping (Result<ConversationMessage, ErrorSendMessage>) -> Void) {
         let request = Flipcash_Messaging_V1_SendMessageRequest.with {
             $0.chatID = conversationID.proto
@@ -138,6 +191,15 @@ public enum ErrorGetMessages: Int, Error {
     case cancelled = -3
 }
 
+public enum ErrorGetDelta: Int, Error {
+    case ok
+    case denied
+    case resetRequired
+    case unknown          = -1
+    case transportFailure = -2
+    case cancelled        = -3
+}
+
 public enum ErrorSendMessage: Int, Error {
     case ok
     case denied
@@ -169,6 +231,18 @@ extension ErrorGetMessages: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .denied, .notFound: .info
+        case .unknown: .error
+        }
+    }
+}
+
+extension ErrorGetDelta: ServerError, TransportClassifiableError {
+    public var reportingLevel: ErrorReportingLevel {
+        switch self {
+        case .ok, .transportFailure: .suppressed
+        // `resetRequired` is a routine "cursor too old, re-sync" outcome, `denied` an expected
+        // membership/business result, and `.cancelled` app-initiated teardown — none is a client defect.
+        case .denied, .resetRequired, .cancelled: .info
         case .unknown: .error
         }
     }

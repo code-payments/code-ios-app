@@ -55,6 +55,19 @@ struct ChatPreviewMappingTests {
 
     // MARK: - Sender resolution
 
+    @Test("a deleted message is dropped before the limit slice, so the preview keeps the newest visible messages")
+    func deletedMessageFilteredFromPreview() {
+        let deleted = ConversationMessage(id: MessageID(value: 3), senderID: otherID, content: .deleted, date: Date(timeIntervalSince1970: 3), unreadSeq: 0)
+        let items = ChatItem.preview(from: [
+            textMessage(id: 1, senderID: otherID, text: "one"),
+            textMessage(id: 2, senderID: otherID, text: "two"),
+            deleted,
+        ], selfUserID: meID, limit: 2)
+        let rows = messageRows(items)
+        #expect(rows.count == 2) // newest two VISIBLE messages, not [two, <deleted hole>]
+        #expect(rows.map { if case .text(let t) = $0.content { t } else { "" } } == ["one", "two"])
+    }
+
     @Test("My messages map to .me sender")
     func mySenderMapsToMe() {
         let messages = [textMessage(id: 1, senderID: meID, text: "hello")]

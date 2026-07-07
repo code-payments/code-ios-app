@@ -25,8 +25,12 @@ struct ConversationStoreTests {
         )
     }
 
-    private func message(_ id: UInt64, _ text: String = "hi", at: TimeInterval = 0) -> ConversationMessage {
-        ConversationMessage(id: MessageID(value: id), senderID: nil, content: .text(text), date: Date(timeIntervalSince1970: at), unreadSeq: 0)
+    private func message(_ id: UInt64, _ text: String = "hi", at: TimeInterval = 0, eventSequence: UInt64 = 0) -> ConversationMessage {
+        ConversationMessage(id: MessageID(value: id), senderID: nil, content: .text(text), date: Date(timeIntervalSince1970: at), unreadSeq: 0, eventSequence: eventSequence)
+    }
+
+    private func deleted(_ id: UInt64, at: TimeInterval = 0, eventSequence: UInt64) -> ConversationMessage {
+        ConversationMessage(id: MessageID(value: id), senderID: nil, content: .deleted, date: Date(timeIntervalSince1970: at), unreadSeq: 0, eventSequence: eventSequence)
     }
 
     @Test("setFeed sorts by last activity, most recent first")
@@ -40,25 +44,124 @@ struct ConversationStoreTests {
         #expect(store.conversations.map(\.id) == [conversationID(2), conversationID(3), conversationID(1)])
     }
 
-    @Test("mergeMessages dedupes by id and keeps oldest first")
+    @Test("mergeMessages dedupes by id and keeps oldest first; a higher event_sequence wins")
     func messagesMergeGapless() {
         var store = ConversationStore()
-        store.mergeMessages([message(3), message(1)], into: conversationID(1))
-        store.mergeMessages([message(1, "updated"), message(2)], into: conversationID(1))
+        store.mergeMessages([message(3, eventSequence: 3), message(1, eventSequence: 1)], into: conversationID(1))
+        store.mergeMessages([message(1, "updated", eventSequence: 2), message(2, eventSequence: 2)], into: conversationID(1))
 
         let messages = store.messages(for: conversationID(1))
         #expect(messages.map(\.id.value) == [1, 2, 3])
-        #expect(messages.first?.content == .text("updated")) // last write wins per id
+        #expect(messages.first?.content == .text("updated")) // higher event_sequence wins
     }
 
-    @Test("mergeMessages dedupes a re-delivered newest message (send echo)")
+    @Test("mergeMessages dedupes a re-delivered message without duplicating the row")
     func messagesDedupeEcho() {
         var store = ConversationStore()
-        store.mergeMessages([message(1), message(2)], into: conversationID(1))
-        store.mergeMessages([message(2, "echo")], into: conversationID(1))    // equal id → fallback dedups
+        store.mergeMessages([message(1, eventSequence: 1), message(2, "hi", eventSequence: 2)], into: conversationID(1))
+        store.mergeMessages([message(2, "echo", eventSequence: 2)], into: conversationID(1))    // equal version → no dup
         let messages = store.messages(for: conversationID(1))
         #expect(messages.map(\.id.value) == [1, 2])
-        #expect(messages.last?.content == .text("echo"))
+        #expect(messages.last?.content == .text("hi")) // equal event_sequence keeps the held copy
+    }
+
+    @Test("last-writer-wins: a lower event_sequence is ignored; a higher one replaces")
+    func mergeLastWriterWins() {
+        var store = ConversationStore()
+        store.mergeMessages([message(1, "v2", eventSequence: 2)], into: conversationID(1))
+        store.mergeMessages([message(1, "v1-stale", eventSequence: 1)], into: conversationID(1)) // older → ignored
+        #expect(store.messages(for: conversationID(1)).first?.content == .text("v2"))
+        store.mergeMessages([message(1, "v3", eventSequence: 3)], into: conversationID(1))        // newer → wins
+        #expect(store.messages(for: conversationID(1)).first?.content == .text("v3"))
+    }
+
+    @Test("a delete tombstone replaces a prior message, and an out-of-order older send can't resurrect it")
+    func deleteTombstoneConverges() {
+        var store = ConversationStore()
+        // Tombstone (event 10) lands before the original send (event 5) is re-delivered.
+        store.mergeMessages([deleted(1, eventSequence: 10)], into: conversationID(1))
+        store.mergeMessages([message(1, "original", eventSequence: 5)], into: conversationID(1))
+        let first = store.messages(for: conversationID(1)).first
+        #expect(first?.content == .deleted)   // stale older send never overwrites the newer tombstone
+    }
+
+    // MARK: - Event-log cursor & gap detection
+
+    private func sentEvent(sequence: UInt64, count: UInt64 = 1, _ messages: ConversationMessage...) -> DecodedChatEvent {
+        DecodedChatEvent(sequence: sequence, count: count, mutations: messages.map { .sent($0) })
+    }
+
+    /// One `.chatEvents` apply over the frontier arithmetic: an event is contiguous when
+    /// `sequence == cursor + count` (advance the frontier), a hole otherwise (flag catch-up, hold the
+    /// frontier), and stale when `sequence <= cursor` (ignore). `count` drives the math independently of
+    /// how many mutations the event carries.
+    @Test("gap detection advances the frontier only on a contiguous event", arguments: [
+        (start: UInt64(5), sequence: UInt64(6), count: UInt64(1), expected: UInt64(6), gapped: false), // contiguous
+        (start: 6, sequence: 9, count: 1, expected: 6, gapped: true),                                   // hole below the event
+        (start: 10, sequence: 13, count: 3, expected: 13, gapped: false),                               // multi-mutation, contiguous
+        (start: 10, sequence: 8, count: 1, expected: 10, gapped: false),                                // stale, ignored
+    ])
+    func gapDetection(start: UInt64, sequence: UInt64, count: UInt64, expected: UInt64, gapped: Bool) {
+        var store = ConversationStore()
+        store.setAppliedCursor(start, for: conversationID(1))
+        let signal = store.apply(.chatEvents(conversationID: conversationID(1), events: [sentEvent(sequence: sequence, count: count, message(sequence, eventSequence: sequence))]))
+        #expect(store.appliedCursor(for: conversationID(1)) == expected)
+        let expectedSignal: ConversationStore.GapSignal = gapped ? .needsCatchUp(conversationID(1), after: expected) : .none
+        #expect(signal == expectedSignal)
+    }
+
+    @Test("a gapped event's messages are still merged — LWW is independent of gap detection")
+    func gappedEventStillMergesMessages() {
+        var store = ConversationStore()
+        store.setAppliedCursor(5, for: conversationID(1))
+        store.apply(.chatEvents(conversationID: conversationID(1), events: [sentEvent(sequence: 6, message(6, eventSequence: 6))]))
+        store.apply(.chatEvents(conversationID: conversationID(1), events: [sentEvent(sequence: 9, message(9, eventSequence: 9))])) // gap
+        #expect(store.messages(for: conversationID(1)).map(\.id.value) == [6, 9])
+    }
+
+    @Test("an unestablished frontier applies messages by LWW without advancing or flagging a gap")
+    func chatEventsUnestablishedFrontier() {
+        var store = ConversationStore()
+        let signal = store.apply(.chatEvents(conversationID: conversationID(1), events: [sentEvent(sequence: 42, message(42, eventSequence: 42))]))
+        #expect(signal == .none)
+        #expect(store.appliedCursor(for: conversationID(1)) == 0) // catch-up owns the cursor until seeded
+        #expect(store.messages(for: conversationID(1)).map(\.id.value) == [42])
+    }
+
+    @Test("applyDeltaBatch merges and advances the frontier to the checkpoint; setAppliedCursor never regresses")
+    func applyDeltaBatchAdvancesCursor() {
+        var store = ConversationStore()
+        store.applyDeltaBatch([message(1, eventSequence: 1), message(2, eventSequence: 2)], checkpoint: 2, into: conversationID(1))
+        #expect(store.appliedCursor(for: conversationID(1)) == 2)
+        #expect(store.messages(for: conversationID(1)).map(\.id.value) == [1, 2])
+        store.setAppliedCursor(1, for: conversationID(1)) // lower → ignored
+        #expect(store.appliedCursor(for: conversationID(1)) == 2)
+        store.setAppliedCursor(9, for: conversationID(1)) // head → advances
+        #expect(store.appliedCursor(for: conversationID(1)) == 9)
+    }
+
+    @Test("resetCursor discards the frontier; seedAppliedCursors restores non-zero cursors")
+    func cursorResetAndSeed() {
+        var store = ConversationStore()
+        store.setAppliedCursor(7, for: conversationID(1))
+        store.resetCursor(for: conversationID(1))
+        #expect(store.appliedCursor(for: conversationID(1)) == 0)
+        store.seedAppliedCursors([conversationID(1): 12, conversationID(2): 0])
+        #expect(store.appliedCursor(for: conversationID(1)) == 12)
+        #expect(store.appliedCursor(for: conversationID(2)) == 0) // zero ignored
+    }
+
+    @Test("an edit of an old message does not advance the feed's last message")
+    func chatEventsEditDoesNotBumpLastMessage() {
+        var store = ConversationStore()
+        store.setFeed([conversation(1, lastActivity: 0)])
+        store.mergeMessages([message(5, "old", eventSequence: 5)], into: conversationID(1))
+        store.setLastMessage(message(5, "old", eventSequence: 5), in: conversationID(1))
+        store.apply(.chatEvents(conversationID: conversationID(1), events: [
+            DecodedChatEvent(sequence: 6, count: 1, mutations: [.edited(message(5, "edited", eventSequence: 6))])
+        ]))
+        #expect(store.conversations.first?.lastMessage?.id.value == 5)
+        #expect(store.messages(for: conversationID(1)).first?.content == .text("edited")) // transcript updates by LWW
     }
 
     @Test("newMessages event appends and bumps the conversation's last activity")

@@ -71,6 +71,16 @@ protocol ConversationMessaging: AnyObject, Sendable {
     /// Fetches a page of messages. `before == nil` returns the newest page;
     /// pass the oldest currently-loaded id to page strictly older (history).
     func getMessages(owner: KeyPair, conversationID: ConversationID, before: MessageID?) async throws -> [ConversationMessage]
+    /// Reconnect/cold-boot catch-up. Streams the messages changed since `afterSequence` to `onBatch`
+    /// (each with its resume checkpoint), returning the chat's head sequence on clean completion.
+    /// Throws `ErrorGetDelta.resetRequired` when the cursor is too far behind (caller re-syncs via
+    /// `getMessages`).
+    func getDelta(
+        owner: KeyPair,
+        conversationID: ConversationID,
+        afterSequence: UInt64,
+        onBatch: @MainActor @Sendable @escaping (_ messages: [ConversationMessage], _ checkpoint: UInt64?) -> Void
+    ) async throws -> UInt64
     func sendMessage(owner: KeyPair, conversationID: ConversationID, text: String, clientMessageID: UUID) async throws -> ConversationMessage
     func markRead(owner: KeyPair, conversationID: ConversationID, messageID: MessageID) async throws
     func notifyIsTyping(owner: KeyPair, conversationID: ConversationID, state: TypingState) async throws
@@ -80,9 +90,9 @@ protocol ConversationMessaging: AnyObject, Sendable {
 /// `event.v1 StreamEvents` lifecycle behind `ConversationStreamEvent`.
 protocol ConversationEventStreaming: AnyObject, Sendable {
     func openConversationStream(owner: KeyPair) -> AsyncStream<ConversationStreamEvent>
-    /// The event stream's connection state. The stream carries no cursor and the
-    /// server never replays, so the controller treats the first `.live` as the
-    /// initial connection and refetches the missed window on each `.live` after.
+    /// The event stream's connection state. The event stream carries no cursor, so the controller
+    /// treats the first `.live` as the initial connection and, on each `.live` after (a reconnect),
+    /// reconciles the missed window from the event-log cursor via `GetDelta`.
     func conversationConnectionState() -> AsyncStream<EventStreamConnectionState>
     func ensureConversationStreamConnected()
     func closeConversationStream()

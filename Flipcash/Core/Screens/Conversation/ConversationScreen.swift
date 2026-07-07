@@ -226,6 +226,9 @@ struct ConversationScreen: View {
         // created yet error-reports. Fires when the chat materializes.
         .task(id: chatExists ? conversationID : nil) {
             guard chatExists, let conversationID else { return }
+            // The newest page IS the fresh state and seats the event-log cursor to head, so opening a
+            // chat needs no separate catch-up. Missed-while-open windows are reconciled by the
+            // foreground / reconnect / live-gap triggers instead.
             await conversationController.loadMessages(for: conversationID)
             await conversationController.markRead(conversationID: conversationID)
             // Reading the thread clears its own delivered pushes; other chats keep theirs.
@@ -348,7 +351,7 @@ struct ConversationScreen: View {
         switch message.content {
         case .cash(let fiat):
             router.push(.currencyInfo(fiat.mint))
-        case .text:
+        case .text, .deleted:
             break
         }
     }

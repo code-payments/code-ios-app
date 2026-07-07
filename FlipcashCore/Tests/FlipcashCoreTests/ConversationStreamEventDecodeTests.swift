@@ -194,4 +194,85 @@ struct ConversationStreamEventDecodeTests {
         #expect(decoded.contains { if case .newMessages = $0 { true } else { false } })
         #expect(decoded.contains { if case .typingChanged = $0 { true } else { false } })
     }
+
+    // MARK: - Event log (ChatUpdate.events)
+
+    private func sentMutation(_ id: UInt64, _ text: String) -> Flipcash_Messaging_V1_Mutation {
+        .with { $0.messageSent = textMessage(id, text) }
+    }
+
+    @Test("chatEvents decode: sent + deleted carry sequence/count; a delete materializes a tombstone, not nil")
+    func chatEventsDecode() {
+        let event = Flipcash_Event_V1_Event.with {
+            $0.chatUpdate = .with {
+                $0.chat = .with { $0.value = conversationBytes }
+                $0.events = .with {
+                    $0.events = [
+                        .with { $0.sequence = 6; $0.count = 1; $0.mutations = [sentMutation(6, "hi")] },
+                        .with {
+                            $0.sequence = 7; $0.count = 1
+                            $0.mutations = [.with { $0.messageDeleted = .with { $0.messageID = .with { $0.value = 3 }; $0.content = [.with { $0.deleted = .init() }] } }]
+                        },
+                    ]
+                }
+            }
+        }
+        let decoded = ConversationStreamEvent.decode(event)
+        guard case .chatEvents(let cid, let events) = decoded.first else { Issue.record("expected .chatEvents"); return }
+        #expect(cid == ConversationID(data: conversationBytes))
+        #expect(events.map(\.sequence) == [6, 7])
+        #expect(events.map(\.count) == [1, 1])
+        guard case .sent(let sent) = events[0].mutations.first else { Issue.record("expected .sent"); return }
+        #expect(sent.content == .text("hi"))
+        guard case .deleted(let tombstone) = events[1].mutations.first else { Issue.record("expected .deleted"); return }
+        #expect(tombstone.content == .deleted)
+        #expect(tombstone.id.value == 3)
+    }
+
+    @Test("both events and new_messages present decode to both (additive migration gate)")
+    func chatEventsAndNewMessagesAdditive() {
+        let event = Flipcash_Event_V1_Event.with {
+            $0.chatUpdate = .with {
+                $0.chat = .with { $0.value = conversationBytes }
+                $0.newMessages = .with { $0.messages = [textMessage(9, "dup")] }
+                $0.events = .with { $0.events = [.with { $0.sequence = 9; $0.count = 1; $0.mutations = [sentMutation(9, "dup")] }] }
+            }
+        }
+        let decoded = ConversationStreamEvent.decode(event)
+        #expect(decoded.contains { if case .chatEvents = $0 { true } else { false } })
+        #expect(decoded.contains { if case .newMessages = $0 { true } else { false } })
+    }
+
+    @Test("an absent events batch does not suppress new_messages (deprecated path still works)")
+    func emptyEventsKeepsNewMessages() {
+        let event = Flipcash_Event_V1_Event.with {
+            $0.chatUpdate = .with {
+                $0.chat = .with { $0.value = conversationBytes }
+                $0.newMessages = .with { $0.messages = [textMessage(1, "keep")] }
+            }
+        }
+        let decoded = ConversationStreamEvent.decode(event)
+        #expect(decoded.contains { if case .newMessages = $0 { true } else { false } })
+        #expect(!decoded.contains { if case .chatEvents = $0 { true } else { false } })
+    }
+
+    @Test("an event whose only mutation is unrepresentable still carries sequence/count so the cursor advances")
+    func unrepresentableMutationStillAdvances() {
+        let event = Flipcash_Event_V1_Event.with {
+            $0.chatUpdate = .with {
+                $0.chat = .with { $0.value = conversationBytes }
+                $0.events = .with {
+                    $0.events = [.with {
+                        $0.sequence = 12; $0.count = 1
+                        $0.mutations = [.with { $0.messageSent = .with { $0.messageID = .with { $0.value = 12 }; $0.content = [.with { $0.reply = .init() }] } }]
+                    }]
+                }
+            }
+        }
+        let decoded = ConversationStreamEvent.decode(event)
+        guard case .chatEvents(_, let events) = decoded.first else { Issue.record("expected .chatEvents"); return }
+        #expect(events.count == 1)
+        #expect(events[0].sequence == 12)
+        #expect(events[0].mutations.isEmpty) // reply content unrepresentable → dropped, event survives
+    }
 }

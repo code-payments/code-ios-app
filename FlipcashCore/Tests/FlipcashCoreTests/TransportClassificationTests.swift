@@ -55,6 +55,7 @@ struct TransportClassificationTests {
     @Test func errorResolve() { assertClassifies(ErrorResolve.self) }
     @Test func errorGetMessages() { assertClassifies(ErrorGetMessages.self) }
     @Test func errorSendMessage() { assertClassifies(ErrorSendMessage.self) }
+    @Test func errorGetDelta() { assertClassifies(ErrorGetDelta.self) }
     @Test func errorAdvancePointer() { assertClassifies(ErrorAdvancePointer.self) }
     @Test func errorNotifyIsTyping() { assertClassifies(ErrorNotifyIsTyping.self) }
     @Test func errorGetDmChatFeed() { assertClassifies(ErrorGetDmChatFeed.self) }

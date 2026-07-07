@@ -54,6 +54,25 @@ struct ChatMessageMappingTests {
         messageRows(items).map(\.isFailed)
     }
 
+    private func deleted(_ id: UInt64, _ sender: UUID, after offset: TimeInterval) -> ConversationMessage {
+        ConversationMessage(id: MessageID(value: id), senderID: sender, content: .deleted, date: base.addingTimeInterval(offset), unreadSeq: id, eventSequence: id)
+    }
+
+    @Test("a deleted tombstone is dropped: no stray separator, no grouping to an invisible row, receipt intact")
+    func deletedTombstoneIsDroppedCleanly() {
+        // A tombstone opens the transcript, then a real same-sender message shortly after.
+        let items = ChatItem.from([deleted(1, them, after: 0), text(2, them, "hi", after: 30)], selfUserID: me)
+        let rows = messageRows(items)
+        #expect(rows.count == 1)                     // tombstone not rendered
+        #expect(rows[0].content == .text("hi"))
+        #expect(!rows[0].isContinuationFromPrevious) // not grouped to the invisible tombstone
+        #expect(separatorCount(items) == 1)          // one separator for the real message, no orphan
+
+        // A tombstone as the newest self message must not steal the "Delivered" receipt from the last visible one.
+        let withReceipt = ChatItem.from([text(1, me, "hello", after: 0), deleted(2, me, after: 60)], selfUserID: me)
+        #expect(receiptText(withReceipt) == "Delivered")
+    }
+
     @Test("Same-sender run within the gap groups; a sender change breaks it; gaps add separators")
     func grouping() {
         let messages = [
