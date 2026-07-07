@@ -44,6 +44,11 @@ public final class ChatMessageCell: ChatColumnCell {
     }
 }
 
+extension ChatMessageCell: BubbleCarrying {
+    var liftPreviewView: UIView { bubbleView }
+    var liftPreviewMaskingPath: UIBezierPath? { bubbleView.maskingPath }
+}
+
 #Preview("Cells") {
     let layout = UICollectionViewFlowLayout()
     layout.estimatedItemSize = UICollectionViewFlowLayout.automaticSize

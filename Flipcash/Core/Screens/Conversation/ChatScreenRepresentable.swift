@@ -28,6 +28,9 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// Fired when the user taps a cash card; the argument is the message's stable id. The owner opens
     /// that token's currency info.
     let onCashCardTap: (String) -> Void
+    /// Fired when the user taps a URL in a message. The owner routes it through the deep-link handler,
+    /// falling back to the system browser.
+    let onOpenURL: (URL) -> Void
     let showsSendCash: Bool
     let showsSendMessage: Bool
     let conversationID: ConversationID?
@@ -49,6 +52,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onReachTop = onReachTop
         screen.onRetry = onRetry
         screen.onCashCardTap = onCashCardTap
+        screen.onOpenURL = onOpenURL
         screen.update(items: items)
         screen.setComposing(barModel.isComposing)
         context.coordinator.restingHost = restingHost
@@ -66,6 +70,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onReachTop = onReachTop
         screen.onRetry = onRetry
         screen.onCashCardTap = onCashCardTap
+        screen.onOpenURL = onOpenURL
         screen.setComposing(barModel.isComposing)
 
         // Scroll only when the user's *own* message was just appended — a new trailing message id

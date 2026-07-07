@@ -144,4 +144,19 @@ struct ChatViewControllerTests {
         #expect(abs(collectionView.contentOffset.y - maxOffset) < 2,
                 "should open at the bottom — offset \(collectionView.contentOffset.y) vs max \(maxOffset)")
     }
+
+    @Test("A link-bearing message dequeues the tappable link cell; plain text uses the label cell")
+    func linkMessage_usesLinkCell() {
+        let controller = ChatViewController()
+        controller.loadViewIfNeeded()
+        let link = ChatMessage(id: "link", text: "see https://apple.com", sender: .me,
+                               linkPreview: LinkPreview(url: URL(string: "https://apple.com")!))
+        let plain = ChatMessage(id: "plain", text: "hello there", sender: .me)
+        controller.update(items: [.message(link), .message(plain)])
+
+        let linkCell = controller.collectionView(controller.collectionView, cellForItemAt: IndexPath(item: 0, section: 0))
+        let plainCell = controller.collectionView(controller.collectionView, cellForItemAt: IndexPath(item: 1, section: 0))
+        #expect(linkCell is ChatLinkMessageCell)
+        #expect(plainCell is ChatMessageCell)
+    }
 }

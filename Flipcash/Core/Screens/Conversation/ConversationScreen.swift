@@ -41,6 +41,7 @@ struct ConversationScreen: View {
     @Environment(Session.self) private var session
     @Environment(RatesController.self) private var ratesController
     @Environment(PushController.self) private var pushController
+    @Environment(Container.self) private var container
 
     @State private var didInitialRead = false
     @State private var barModel = ConversationBarModel()
@@ -177,6 +178,7 @@ struct ConversationScreen: View {
             onReachTop: loadOlderMessages,
             onRetry: retry,
             onCashCardTap: openCurrencyInfo,
+            onOpenURL: openLink,
             showsSendCash: sendTarget != nil,
             showsSendMessage: chatExists,
             conversationID: conversationID,
@@ -354,6 +356,13 @@ struct ConversationScreen: View {
         case .text, .deleted:
             break
         }
+    }
+
+    private func openLink(_ url: URL) {
+        // iOS won't re-enter the app for our own universal link from an in-app tap, so route every
+        // tapped link through the deep-link handler; anything it doesn't recognize opens externally.
+        if container.deepLinkController.open(url) { return }
+        UIApplication.shared.open(url)
     }
 
     /// Fetches the next older page when the UIKit transcript nears the top. Guarded so the

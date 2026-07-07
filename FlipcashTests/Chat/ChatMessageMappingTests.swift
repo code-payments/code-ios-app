@@ -241,4 +241,32 @@ struct ChatMessageMappingTests {
         let settled = ChatItem.from([text(1, me, "hi", after: 0)], selfUserID: me, counterpartRead: read)
         #expect(receiptText(settled) == "Delivered")
     }
+
+    @Test("A text message containing a URL carries the trailing link as its preview")
+    func textWithURL_hasLinkPreview() {
+        let rows = messageRows(ChatItem.from([text(1, me, "check https://apple.com", after: 0)], selfUserID: me))
+        #expect(rows.first?.linkPreview?.url.absoluteString == "https://apple.com")
+    }
+
+    @Test("A URL-only message has a link preview")
+    func urlOnlyMessage_hasLinkPreview() {
+        let rows = messageRows(ChatItem.from([text(1, me, "https://apple.com", after: 0)], selfUserID: me))
+        #expect(rows.first?.linkPreview?.url != nil)
+    }
+
+    @Test("A plain text message has no link preview")
+    func plainText_noLinkPreview() {
+        let rows = messageRows(ChatItem.from([text(1, me, "hello there", after: 0)], selfUserID: me))
+        #expect(rows.first?.linkPreview == nil)
+    }
+
+    @Test("A cash message never carries a link preview")
+    func cashMessage_noLinkPreview() {
+        let fiat = ExchangedFiat(nativeAmount: FiatAmount(value: 5, currency: .usd), rate: Rate(fx: 1, currency: .usd))
+        let rows = messageRows(ChatItem.from(
+            [ConversationMessage(id: MessageID(value: 1), senderID: them, content: .cash(fiat), date: base, unreadSeq: 1)],
+            selfUserID: me
+        ))
+        #expect(rows.first?.linkPreview == nil)
+    }
 }

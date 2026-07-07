@@ -9,6 +9,34 @@ import Foundation
 import FlipcashCore
 import FlipcashUI
 
+/// One detector for every remap — `NSDataDetector` compiles its matchers once, and `from(_:)`
+/// re-runs on every observable transcript change.
+private let linkDetector = LinkDetector()
+
+/// Memoizes link detection across remaps: `from(_:)` re-runs on every observable transcript change
+/// (typing, receipts, grouping), but a message's link depends only on its immutable text — so a typing
+/// tick must not re-scan the whole transcript with `NSDataDetector`. `NSCache` bounds the retained
+/// entries, purges under memory pressure, and synchronizes its own access, so the mapper stays
+/// non-isolated. Keyed by text, so identical messages share the result.
+private final class DetectedLinkBox {
+    let preview: LinkPreview?
+    init(_ preview: LinkPreview?) { self.preview = preview }
+}
+
+nonisolated(unsafe) private let linkPreviewCache: NSCache<NSString, DetectedLinkBox> = {
+    let cache = NSCache<NSString, DetectedLinkBox>()
+    cache.countLimit = 512
+    return cache
+}()
+
+private func detectedLink(in text: String) -> LinkPreview? {
+    let key = text as NSString
+    if let cached = linkPreviewCache.object(forKey: key) { return cached.preview }
+    let preview = linkDetector.webLink(in: text)
+    linkPreviewCache.setObject(DetectedLinkBox(preview), forKey: key)
+    return preview
+}
+
 extension ChatItem {
 
     /// Maps a conversation's messages to display-ready transcript items: resolves sender side,
@@ -54,9 +82,11 @@ extension ChatItem {
             } ?? false
 
             let content: ChatMessage.Content
+            let linkPreview: LinkPreview?
             switch message.content {
             case .text(let text):
                 content = .text(text)
+                linkPreview = detectedLink(in: text)
             case .cash(let fiat):
                 let currency = fiat.nativeAmount.currency
                 let flagName = currency.region?.rawValue ?? currency.rawValue.uppercased()
@@ -67,6 +97,7 @@ extension ChatItem {
                     flagImageName: flagName,
                     iconURL: branding.iconURL
                 ))
+                linkPreview = nil
             case .deleted:
                 continue // filtered out above; unreachable, kept for switch exhaustiveness
             }
@@ -98,7 +129,8 @@ extension ChatItem {
                 isContinuationFromPrevious: groupedAbove,
                 isContinuedByNext: groupedBelow,
                 receipt: receipt,
-                isFailed: message.status == .failed
+                isFailed: message.status == .failed,
+                linkPreview: linkPreview
             )))
         }
         return items

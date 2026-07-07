@@ -36,6 +36,9 @@ public final class ChatViewController: UICollectionViewController {
     /// that token's currency info. Only cash rows are selectable (see `shouldHighlightItemAt`).
     public var onCashCardTap: ((String) -> Void)?
 
+    /// Called when the user taps a URL in a text bubble; the owner opens it.
+    public var onOpenURL: ((URL) -> Void)?
+
     /// The widest a bubble may grow, as a share of the collection view's width.
     private static let maxBubbleWidthFraction: CGFloat = 0.78
 
@@ -108,6 +111,7 @@ public final class ChatViewController: UICollectionViewController {
         collectionView.selfSizingInvalidation = .enabled
         chatLayout.supportSelfSizingInvalidation = true
         collectionView.register(ChatMessageCell.self, forCellWithReuseIdentifier: ChatMessageCell.reuseIdentifier)
+        collectionView.register(ChatLinkMessageCell.self, forCellWithReuseIdentifier: ChatLinkMessageCell.reuseIdentifier)
         collectionView.register(ChatCashCardCell.self, forCellWithReuseIdentifier: ChatCashCardCell.reuseIdentifier)
         collectionView.register(ChatDateSeparatorCell.self, forCellWithReuseIdentifier: ChatDateSeparatorCell.reuseIdentifier)
         collectionView.register(ChatTypingIndicatorCell.self, forCellWithReuseIdentifier: ChatTypingIndicatorCell.reuseIdentifier)
@@ -219,14 +223,25 @@ public final class ChatViewController: UICollectionViewController {
         case .message(let message):
             switch message.content {
             case .text:
+                // Only text messages are sent optimistically, so only they can reach the failed state
+                // that arms retry (wired on both text cells). Cash messages are always server-confirmed.
+                let width = collectionView.bounds.width > 0 ? collectionView.bounds.width : UIScreen.main.bounds.width
+                let maxWidth = width * Self.maxBubbleWidthFraction
+                if message.linkPreview != nil {
+                    let cell = collectionView.dequeueReusableCell(
+                        withReuseIdentifier: ChatLinkMessageCell.reuseIdentifier,
+                        for: indexPath
+                    ) as! ChatLinkMessageCell
+                    cell.configure(with: message, maxWidth: maxWidth)
+                    cell.onRetry = { [weak self] id in self?.onRetry?(id) }
+                    cell.onOpenURL = { [weak self] url in self?.onOpenURL?(url) }
+                    return cell
+                }
                 let cell = collectionView.dequeueReusableCell(
                     withReuseIdentifier: ChatMessageCell.reuseIdentifier,
                     for: indexPath
                 ) as! ChatMessageCell
-                let width = collectionView.bounds.width > 0 ? collectionView.bounds.width : UIScreen.main.bounds.width
-                cell.configure(with: message, maxWidth: width * Self.maxBubbleWidthFraction)
-                // Only text messages are sent optimistically, so only they can reach the failed
-                // state that arms retry. Cash messages are always server-confirmed.
+                cell.configure(with: message, maxWidth: maxWidth)
                 cell.onRetry = { [weak self] id in self?.onRetry?(id) }
                 return cell
             case .cash:
@@ -479,13 +494,13 @@ extension ChatViewController {
         guard components.count == 2,
               let section = Int(components[0]),
               let item = Int(components[1]),
-              let cell = collectionView.cellForItem(at: IndexPath(item: item, section: section)) as? ChatMessageCell else {
+              let cell = collectionView.cellForItem(at: IndexPath(item: item, section: section)) as? BubbleCarrying else {
             return nil
         }
         let parameters = UIPreviewParameters()
-        parameters.visiblePath = cell.bubbleView.maskingPath
+        parameters.visiblePath = cell.liftPreviewMaskingPath
         parameters.backgroundColor = .clear
-        return UITargetedPreview(view: cell.bubbleView, parameters: parameters)
+        return UITargetedPreview(view: cell.liftPreviewView, parameters: parameters)
     }
 }
 
@@ -516,5 +531,12 @@ extension ChatMessage {
             )
         }
     }
+}
+
+/// A message cell that can supply the view + shape for the context-menu lift preview, so the lift is
+/// clipped to the bubble rather than the full side-hugging cell.
+protocol BubbleCarrying {
+    var liftPreviewView: UIView { get }
+    var liftPreviewMaskingPath: UIBezierPath? { get }
 }
 #endif
