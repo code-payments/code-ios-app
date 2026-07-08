@@ -141,9 +141,12 @@ message ReplyContent {
     }];
 }
 
-// Media content (images, video, etc.)
+// Media content from blobs the user has already uploaded. The following media
+// types are supported:
+//  - Images
 message MediaContent {
-    // The media items attached to this message
+    // The media items attached to this message. A single item today; raising
+    // this cap later enables albums (each item self-describes its kind).
     repeated MediaItem items = 1 [(validate.rules).repeated = {
         min_items: 1
         max_items: 1
@@ -153,16 +156,41 @@ message MediaContent {
     TextContent caption = 2;
 }
 
+// One logical media item, carried as its set of renditions (quality/size variants).
 message MediaItem {
-    // Client-provided handle to the blob holding the media bytes, already
-    // uploaded out-of-band via the blob service.
-    blob.v1.BlobId blob_id = 1 [(validate.rules).message.required = true];
+    // The renditions of this media, each an independently-stored blob. On
+    // SendMessage the client supplies exactly one ORIGINAL rendition (its
+    // blob_id); the server fills metadata and appends any derived renditions
+    // (e.g. a downscaled DISPLAY and a THUMBNAIL).
+    repeated MediaItemRendition renditions = 1 [(validate.rules).repeated = {
+        min_items: 1
+    }];
+}
+
+// A single stored variant of a MediaItem
+message MediaItemRendition {
+    // The intended use of this rendition within the item.
+    Role role = 1 [(validate.rules).enum = {
+        not_in: [0]
+    }];
+    enum Role {
+        UNKNOWN   = 0;
+        ORIGINAL  = 1; // full-quality source the client uploaded
+        DISPLAY   = 2; // downscaled/compressed for inline display
+        THUMBNAIL = 3; // tiny grid preview
+    }
+
+    // Handle to the blob holding this rendition's bytes. Client-set on the
+    // ORIGINAL at send time; server-set for derived renditions.
+    blob.v1.BlobId blob_id = 2 [(validate.rules).message.required = true];
 
     // Server-authoritative blob metadata (mime type, size, download URL, and
-    // the kind-specific descriptors such as image dimensions/preview), resolved
-    // from the blob record. Omitted on SendMessage and populated on
-    // stored/returned messages.
-    blob.v1.BlobMetadata blob = 2;
+    // the image dimensions/preview), resolved from the blob record. Omitted on
+    // SendMessage and populated on stored/returned messages.
+    //
+    // If unavailable at time of message retrieval, client can use the blob
+    // service to query for the blob metadata.
+    blob.v1.BlobMetadata blob = 3;
 }
 
 // System message content

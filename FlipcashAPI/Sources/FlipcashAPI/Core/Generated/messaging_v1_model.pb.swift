@@ -308,13 +308,16 @@ public struct Flipcash_Messaging_V1_ReplyContent: Sendable {
   fileprivate var _repliedMessageID: Flipcash_Messaging_V1_MessageId? = nil
 }
 
-/// Media content (images, video, etc.)
+/// Media content from blobs the user has already uploaded. The following media
+/// types are supported:
+///  - Images
 public struct Flipcash_Messaging_V1_MediaContent: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// The media items attached to this message
+  /// The media items attached to this message. A single item today; raising
+  /// this cap later enables albums (each item self-describes its kind).
   public var items: [Flipcash_Messaging_V1_MediaItem] = []
 
   /// Optional caption rendered alongside the media
@@ -334,13 +337,34 @@ public struct Flipcash_Messaging_V1_MediaContent: Sendable {
   fileprivate var _caption: Flipcash_Messaging_V1_TextContent? = nil
 }
 
+/// One logical media item, carried as its set of renditions (quality/size variants).
 public struct Flipcash_Messaging_V1_MediaItem: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// Client-provided handle to the blob holding the media bytes, already
-  /// uploaded out-of-band via the blob service.
+  /// The renditions of this media, each an independently-stored blob. On
+  /// SendMessage the client supplies exactly one ORIGINAL rendition (its
+  /// blob_id); the server fills metadata and appends any derived renditions
+  /// (e.g. a downscaled DISPLAY and a THUMBNAIL).
+  public var renditions: [Flipcash_Messaging_V1_MediaItemRendition] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// A single stored variant of a MediaItem
+public struct Flipcash_Messaging_V1_MediaItemRendition: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The intended use of this rendition within the item.
+  public var role: Flipcash_Messaging_V1_MediaItemRendition.Role = .unknown
+
+  /// Handle to the blob holding this rendition's bytes. Client-set on the
+  /// ORIGINAL at send time; server-set for derived renditions.
   public var blobID: Flipcash_Blob_V1_BlobId {
     get {_blobID ?? Flipcash_Blob_V1_BlobId()}
     set {_blobID = newValue}
@@ -351,9 +375,11 @@ public struct Flipcash_Messaging_V1_MediaItem: Sendable {
   public mutating func clearBlobID() {self._blobID = nil}
 
   /// Server-authoritative blob metadata (mime type, size, download URL, and
-  /// the kind-specific descriptors such as image dimensions/preview), resolved
-  /// from the blob record. Omitted on SendMessage and populated on
-  /// stored/returned messages.
+  /// the image dimensions/preview), resolved from the blob record. Omitted on
+  /// SendMessage and populated on stored/returned messages.
+  ///
+  /// If unavailable at time of message retrieval, client can use the blob
+  /// service to query for the blob metadata.
   public var blob: Flipcash_Blob_V1_BlobMetadata {
     get {_blob ?? Flipcash_Blob_V1_BlobMetadata()}
     set {_blob = newValue}
@@ -364,6 +390,54 @@ public struct Flipcash_Messaging_V1_MediaItem: Sendable {
   public mutating func clearBlob() {self._blob = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Role: SwiftProtobuf.Enum, Swift.CaseIterable {
+    public typealias RawValue = Int
+    case unknown // = 0
+
+    /// full-quality source the client uploaded
+    case original // = 1
+
+    /// downscaled/compressed for inline display
+    case display // = 2
+
+    /// tiny grid preview
+    case thumbnail // = 3
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .unknown
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .unknown
+      case 1: self = .original
+      case 2: self = .display
+      case 3: self = .thumbnail
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .unknown: return 0
+      case .original: return 1
+      case .display: return 2
+      case .thumbnail: return 3
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+    // The compiler won't synthesize support with the UNRECOGNIZED case.
+    public static let allCases: [Flipcash_Messaging_V1_MediaItemRendition.Role] = [
+      .unknown,
+      .original,
+      .display,
+      .thumbnail,
+    ]
+
+  }
 
   public init() {}
 
@@ -1437,7 +1511,7 @@ extension Flipcash_Messaging_V1_MediaContent: SwiftProtobuf.Message, SwiftProtob
 
 extension Flipcash_Messaging_V1_MediaItem: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".MediaItem"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}blob_id\0\u{1}blob\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}renditions\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1445,8 +1519,39 @@ extension Flipcash_Messaging_V1_MediaItem: SwiftProtobuf.Message, SwiftProtobuf.
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._blobID) }()
-      case 2: try { try decoder.decodeSingularMessageField(value: &self._blob) }()
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.renditions) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.renditions.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.renditions, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Messaging_V1_MediaItem, rhs: Flipcash_Messaging_V1_MediaItem) -> Bool {
+    if lhs.renditions != rhs.renditions {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Messaging_V1_MediaItemRendition: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".MediaItemRendition"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}role\0\u{3}blob_id\0\u{1}blob\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.role) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._blobID) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._blob) }()
       default: break
       }
     }
@@ -1457,21 +1562,29 @@ extension Flipcash_Messaging_V1_MediaItem: SwiftProtobuf.Message, SwiftProtobuf.
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
     // https://github.com/apple/swift-protobuf/issues/1182
+    if self.role != .unknown {
+      try visitor.visitSingularEnumField(value: self.role, fieldNumber: 1)
+    }
     try { if let v = self._blobID {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
     } }()
     try { if let v = self._blob {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
     } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Flipcash_Messaging_V1_MediaItem, rhs: Flipcash_Messaging_V1_MediaItem) -> Bool {
+  public static func ==(lhs: Flipcash_Messaging_V1_MediaItemRendition, rhs: Flipcash_Messaging_V1_MediaItemRendition) -> Bool {
+    if lhs.role != rhs.role {return false}
     if lhs._blobID != rhs._blobID {return false}
     if lhs._blob != rhs._blob {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
+}
+
+extension Flipcash_Messaging_V1_MediaItemRendition.Role: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0UNKNOWN\0\u{1}ORIGINAL\0\u{1}DISPLAY\0\u{1}THUMBNAIL\0")
 }
 
 extension Flipcash_Messaging_V1_SystemContent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {

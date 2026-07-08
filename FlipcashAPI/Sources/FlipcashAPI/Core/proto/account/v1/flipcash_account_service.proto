@@ -163,4 +163,7 @@ message UserFlags {
 
 	// USDF amount, in quarks, that a user must hold to be counted as a holder on the leaderboard
 	uint64 minimum_holder_value = 13;
+
+	// Whether email verification is required for Coinbase purchase flows
+	bool require_coinbase_email_verification = 14;
 }

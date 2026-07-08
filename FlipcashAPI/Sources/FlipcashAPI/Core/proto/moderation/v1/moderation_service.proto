@@ -7,7 +7,7 @@ option java_package = "com.codeinc.flipcash.gen.moderation.v1";
 option objc_class_prefix = "FPBModerationV1";
 
 import "common/v1/common.proto";
-import "google/protobuf/timestamp.proto";
+import "moderation/v1/model.proto";
 import "validate/validate.proto";
 
 service Moderation {
@@ -72,32 +72,4 @@ message ModerateImageResponse {
 
     // The best fit flagged category when content is not allowed
     FlaggedCategory flagged_category = 4;
-}
-
-// ModerationAttestation is a signed proof of the moderation result.
-// The signature is computed over this message without the signature field set.
-message ModerationAttestation {
-    // SHA-256 hash of the moderated content to be allowed
-    bytes content_hash = 1;
-
-    // Timestamp of the moderation
-    google.protobuf.Timestamp timestamp = 2;
-
-    // The user who submitted the content
-    common.v1.UserId user_id = 3;
-
-    // Public key of the attestor that signed this message
-    common.v1.PublicKey attestor = 4;
-
-    // Attestor signature over this message
-    common.v1.Signature signature = 5;
-}
-
-enum FlaggedCategory {
-    NONE          = 0;
-    OTHER         = 1; // Fallback category when flagged content does not fit into a well-defined FlaggedCategory
-    NSFW          = 2;
-    IMPERSONATION = 3;
-    MISLEADING    = 4;
-    SPAM          = 5;
 }

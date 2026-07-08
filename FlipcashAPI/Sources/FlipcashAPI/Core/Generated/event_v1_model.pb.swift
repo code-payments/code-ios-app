@@ -75,11 +75,20 @@ public struct Flipcash_Event_V1_Event: Sendable {
     set {type = .chatUpdate(newValue)}
   }
 
+  public var blobUpdate: Flipcash_Event_V1_BlobUpdate {
+    get {
+      if case .blobUpdate(let v)? = type {return v}
+      return Flipcash_Event_V1_BlobUpdate()
+    }
+    set {type = .blobUpdate(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Type: Equatable, Sendable {
     case test(Flipcash_Event_V1_TestEvent)
     case chatUpdate(Flipcash_Event_V1_ChatUpdate)
+    case blobUpdate(Flipcash_Event_V1_BlobUpdate)
 
   }
 
@@ -311,6 +320,38 @@ public struct Flipcash_Event_V1_ChatUpdate: Sendable {
   fileprivate var _reactionUpdates: Flipcash_Messaging_V1_ReactionUpdateBatch? = nil
 }
 
+/// BlobUpdate notifies the recipient in real time that blobs they uploaded have
+/// transitioned to a new lifecycle state — e.g. PROCESSING → READY once the
+/// server finishes validating, transcoding, and moderating, or → REJECTED on
+/// failure. It lets clients react to upload completion via the event stream
+/// instead of polling BlobStorage.GetBlobs.
+///
+/// Best-effort: a client that misses an update reconciles by calling
+/// BlobStorage.GetBlobs. The BlobId is the durable handle; any download_url
+/// carried here is ephemeral and may be re-minted via GetBlobs.
+public struct Flipcash_Event_V1_BlobUpdate: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The blobs that transitioned, each carrying its new status and, when READY,
+  /// its resolved metadata (including a freshly minted download_url).
+  public var blobs: Flipcash_Blob_V1_BlobBatch {
+    get {_blobs ?? Flipcash_Blob_V1_BlobBatch()}
+    set {_blobs = newValue}
+  }
+  /// Returns true if `blobs` has been explicitly set.
+  public var hasBlobs: Bool {self._blobs != nil}
+  /// Clears the value of `blobs`. Subsequent reads from it will return its default value.
+  public mutating func clearBlobs() {self._blobs = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _blobs: Flipcash_Blob_V1_BlobBatch? = nil
+}
+
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate let _protobuf_package = "flipcash.event.v1"
@@ -347,7 +388,7 @@ extension Flipcash_Event_V1_EventId: SwiftProtobuf.Message, SwiftProtobuf._Messa
 
 extension Flipcash_Event_V1_Event: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Event"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}ts\0\u{1}test\0\u{3}chat_update\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}ts\0\u{1}test\0\u{3}chat_update\0\u{3}blob_update\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -383,6 +424,19 @@ extension Flipcash_Event_V1_Event: SwiftProtobuf.Message, SwiftProtobuf._Message
           self.type = .chatUpdate(v)
         }
       }()
+      case 5: try {
+        var v: Flipcash_Event_V1_BlobUpdate?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .blobUpdate(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .blobUpdate(v)
+        }
+      }()
       default: break
       }
     }
@@ -407,6 +461,10 @@ extension Flipcash_Event_V1_Event: SwiftProtobuf.Message, SwiftProtobuf._Message
     case .chatUpdate?: try {
       guard case .chatUpdate(let v)? = self.type else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    }()
+    case .blobUpdate?: try {
+      guard case .blobUpdate(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
     }()
     case nil: break
     }
@@ -688,6 +746,40 @@ extension Flipcash_Event_V1_ChatUpdate: SwiftProtobuf.Message, SwiftProtobuf._Me
     if lhs.metadataUpdates != rhs.metadataUpdates {return false}
     if lhs._events != rhs._events {return false}
     if lhs._reactionUpdates != rhs._reactionUpdates {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Event_V1_BlobUpdate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".BlobUpdate"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}blobs\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._blobs) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._blobs {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Event_V1_BlobUpdate, rhs: Flipcash_Event_V1_BlobUpdate) -> Bool {
+    if lhs._blobs != rhs._blobs {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

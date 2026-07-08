@@ -57,6 +57,9 @@ message Navigation {
 
         // Chat for the provided ID
         common.v1.ChatId chat_id = 2;
+
+        // Chat for a contact with the provided phone number
+        phone.v1.PhoneNumber chat_contact_phone_number = 3;
     }
 }
 

@@ -174,6 +174,15 @@ public struct Flipcash_Push_V1_Navigation: Sendable {
     set {type = .chatID(newValue)}
   }
 
+  /// Chat for a contact with the provided phone number
+  public var chatContactPhoneNumber: Flipcash_Phone_V1_PhoneNumber {
+    get {
+      if case .chatContactPhoneNumber(let v)? = type {return v}
+      return Flipcash_Phone_V1_PhoneNumber()
+    }
+    set {type = .chatContactPhoneNumber(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Type: Equatable, Sendable {
@@ -181,6 +190,8 @@ public struct Flipcash_Push_V1_Navigation: Sendable {
     case currencyInfo(Flipcash_Common_V1_PublicKey)
     /// Chat for the provided ID
     case chatID(Flipcash_Common_V1_ChatId)
+    /// Chat for a contact with the provided phone number
+    case chatContactPhoneNumber(Flipcash_Phone_V1_PhoneNumber)
 
   }
 
@@ -285,7 +296,7 @@ extension Flipcash_Push_V1_Payload.Category: SwiftProtobuf._ProtoNameProviding {
 
 extension Flipcash_Push_V1_Navigation: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Navigation"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}currency_info\0\u{3}chat_id\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}currency_info\0\u{3}chat_id\0\u{3}chat_contact_phone_number\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -319,6 +330,19 @@ extension Flipcash_Push_V1_Navigation: SwiftProtobuf.Message, SwiftProtobuf._Mes
           self.type = .chatID(v)
         }
       }()
+      case 3: try {
+        var v: Flipcash_Phone_V1_PhoneNumber?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .chatContactPhoneNumber(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .chatContactPhoneNumber(v)
+        }
+      }()
       default: break
       }
     }
@@ -337,6 +361,10 @@ extension Flipcash_Push_V1_Navigation: SwiftProtobuf.Message, SwiftProtobuf._Mes
     case .chatID?: try {
       guard case .chatID(let v)? = self.type else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    }()
+    case .chatContactPhoneNumber?: try {
+      guard case .chatContactPhoneNumber(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
     }()
     case nil: break
     }
