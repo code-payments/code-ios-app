@@ -370,56 +370,23 @@ extension Client {
     ///   - owner: Owner keypair for authentication
     ///   - maxAttempts: Maximum number of poll attempts
     ///   - onStateChange: Optional callback for state changes (called on each poll)
-    /// - Returns: Final SwapMetadata when terminal state is reached
-    /// - Throws: ClientError.pollLimitReached if max attempts exceeded
+    /// - Returns: Final SwapMetadata when a terminal state is reached, or the
+    ///   last-fetched metadata when the poll budget is exhausted — callers
+    ///   treat a returned non-terminal state as a timeout.
+    /// - Throws: ClientError.pollLimitReached if max attempts are exceeded
+    ///   without ever fetching swap state
     public func pollSwapState(
         swapId: SwapId,
         owner: KeyPair,
         maxAttempts: Int,
         onStateChange: (@Sendable (SwapState) -> Void)? = nil
     ) async throws -> SwapMetadata {
-        var lastState: SwapState?
-
-        for i in 0..<maxAttempts {
-            if i > 0 {
-                try await Task.delay(milliseconds: 1_000)
-            }
-
-            logger.debug("Polling swap state", metadata: [
-                "attempt": "\(i + 1)/\(maxAttempts)",
-                "swapId": "\(swapId.publicKey.base58)"
-            ])
-
-            do {
-                let metadata = try await fetchSwapMetadata(swapId: swapId, owner: owner)
-
-                // Notify of state change
-                if metadata.state != lastState {
-                    lastState = metadata.state
-                    onStateChange?(metadata.state)
-                }
-
-                // Check for terminal states
-                switch metadata.state {
-                case .finalized, .failed, .cancelled:
-                    logger.info("Swap reached terminal state", metadata: ["state": "\(metadata.state)"])
-                    return metadata
-                case .unknown, .created, .funding, .funded, .submitting, .cancelling:
-                    // Continue polling
-                    continue
-                }
-            } catch ErrorGetSwap.notFound {
-                // Swap not yet visible — service layer already logs this at
-                // debug level. Continue polling.
-                continue
-            } catch {
-                // Log but continue polling for transient errors
-                logger.warning("Swap poll error, continuing", metadata: ["error": "\(error)"])
-                continue
-            }
-        }
-
-        throw ClientError.pollLimitReached
+        try await pollSwapTerminalState(
+            swapId: swapId,
+            maxAttempts: maxAttempts,
+            onStateChange: onStateChange,
+            fetch: { try await self.fetchSwapMetadata(swapId: swapId, owner: owner) }
+        )
     }
 
     // MARK: - Limits -
@@ -437,6 +404,72 @@ extension Client {
             transactionService.fetchDestinationMetadata(destination: destination, mint: mint) { c.resume(with: $0) }
         }
     }
+}
+
+// MARK: - Poll helpers (testable) -
+
+/// Polls `fetch` until the swap reaches a terminal state or `maxAttempts` is
+/// exhausted. On exhaustion, returns the last-fetched metadata so callers can
+/// see the state the swap was stuck in; throws
+/// ``ClientError/pollLimitReached`` only when no swap state was ever fetched.
+func pollSwapTerminalState(
+    swapId: SwapId,
+    maxAttempts: Int,
+    pollInterval: Duration = .seconds(1),
+    onStateChange: (@Sendable (SwapState) -> Void)? = nil,
+    fetch: @Sendable () async throws -> SwapMetadata
+) async throws -> SwapMetadata {
+    var lastMetadata: SwapMetadata?
+
+    for i in 0..<maxAttempts {
+        if i > 0 {
+            try await Task.sleep(for: pollInterval)
+        }
+
+        logger.debug("Polling swap state", metadata: [
+            "attempt": "\(i + 1)/\(maxAttempts)",
+            "swapId": "\(swapId.publicKey.base58)"
+        ])
+
+        do {
+            let metadata = try await fetch()
+
+            // Notify of state change
+            if metadata.state != lastMetadata?.state {
+                onStateChange?(metadata.state)
+            }
+            lastMetadata = metadata
+
+            // Check for terminal states
+            switch metadata.state {
+            case .finalized, .failed, .cancelled:
+                logger.info("Swap reached terminal state", metadata: ["state": "\(metadata.state)"])
+                return metadata
+            case .unknown, .created, .funding, .funded, .submitting, .cancelling:
+                // Continue polling
+                continue
+            }
+        } catch ErrorGetSwap.notFound {
+            // Swap not yet visible — service layer already logs this at
+            // debug level. Continue polling.
+            continue
+        } catch {
+            // Log but continue polling for transient errors
+            logger.warning("Swap poll error, continuing", metadata: ["error": "\(error)"])
+            continue
+        }
+    }
+
+    logger.error("Poll limit reached for swap", metadata: [
+        "swapId": "\(swapId.publicKey.base58)",
+        "maxAttempts": "\(maxAttempts)",
+        "lastState": "\(lastMetadata.map { "\($0.state)" } ?? "<never fetched>")"
+    ])
+
+    guard let lastMetadata else {
+        throw ClientError.pollLimitReached
+    }
+    return lastMetadata
 }
 
 // MARK: - Error -

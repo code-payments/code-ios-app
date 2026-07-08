@@ -9,6 +9,8 @@
 import Foundation
 import Combine
 
+private let logger = Logger(label: "flipcash.payment-client")
+
 extension Client {
 
     public func openMessageStream(rendezvous: KeyPair, completion: @MainActor @Sendable @escaping (Result<[StreamMessage], Error>) -> Void) -> AnyCancellable {
@@ -112,6 +114,7 @@ func firstPaymentRequest(
             return request
         }
     }
+    logger.warning("Message stream closed before a payment request arrived")
     throw MessagingWaitError.streamClosedBeforeRequest
 }
 
@@ -135,6 +138,7 @@ func pollForGiveRequest(
             return request
         }
     }
+    logger.warning("Poll limit reached for give request", metadata: ["maxAttempts": "\(maxAttempts)"])
     throw MessagingWaitError.timedOut
 }
 

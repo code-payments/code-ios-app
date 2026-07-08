@@ -9,6 +9,8 @@
 import SwiftUI
 import FlipcashCore
 
+private let logger = Logger(label: "flipcash.swap-processing")
+
 @Observable
 class SwapProcessingViewModel {
 
@@ -149,7 +151,9 @@ class SwapProcessingViewModel {
             // transitions on iOS 18). Don't treat as failure — the view
             // will restart the task if still visible.
         } catch {
-            // Poll limit reached or other error
+            // No swap state was ever fetched within the poll budget
+            logger.error("Swap polling failed", metadata: ["error": "\(error)"])
+            trackTransaction(successful: false)
             displayState = .failed
         }
 
@@ -161,6 +165,12 @@ class SwapProcessingViewModel {
     }
 
     private func reportSwapFailure(state: SwapState, reason: String) {
+        logger.error("Swap failed", metadata: [
+            "swapId": "\(swapId.publicKey.base58)",
+            "swapType": "\(swapType)",
+            "state": "\(state)",
+            "reason": "\(reason)",
+        ])
         ErrorReporting.captureError(
             SwapError.failed(state: state),
             reason: reason,
