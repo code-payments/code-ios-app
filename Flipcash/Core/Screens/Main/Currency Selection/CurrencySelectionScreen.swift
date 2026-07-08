@@ -28,9 +28,11 @@ struct CurrencySelectionScreen: View {
                 List {
                     Group {
                         if viewModel.isSearching {
-                            Section(header: ListHeader("Results")) {
-                                ForEach(viewModel.searchingCurrencies) { description in
-                                    CurrencyRow(description: description, viewModel: viewModel, allowDelete: false)
+                            if !viewModel.searchingCurrencies.isEmpty {
+                                Section(header: ListHeader("Results")) {
+                                    ForEach(viewModel.searchingCurrencies) { description in
+                                        CurrencyRow(description: description, viewModel: viewModel, allowDelete: false)
+                                    }
                                 }
                             }
                         } else {
@@ -56,6 +58,11 @@ struct CurrencySelectionScreen: View {
                 }
                 .listStyle(.grouped)
                 .scrollContentBackground(.hidden)
+                .overlay {
+                    if viewModel.isSearching && viewModel.searchingCurrencies.isEmpty {
+                        SearchResultsUnavailableView(searchText: viewModel.searchText)
+                    }
+                }
             }
             .navigationTitle("Select Region")
             .toolbarTitleDisplayMode(.inline)

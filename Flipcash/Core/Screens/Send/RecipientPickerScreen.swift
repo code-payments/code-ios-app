@@ -146,28 +146,6 @@ private struct LimitedAccessEmptyState: View {
     }
 }
 
-/// Shown over the list when a search matches no contacts.
-private struct RecipientSearchEmptyState: View {
-
-    let searchText: String
-
-    var body: some View {
-        ContentUnavailableView {
-            Label {
-                Text("No Results for “\(searchText)”")
-                    .font(.appTextLarge)
-                    .foregroundStyle(Color.textMain)
-            } icon: {
-                Image(systemName: "magnifyingglass")
-            }
-        } description: {
-            Text("Check the spelling or try a new search.")
-                .font(.appTextMedium)
-                .foregroundStyle(Color.textSecondary)
-        }
-    }
-}
-
 // MARK: - List items -
 
 /// One row of the merged on-Flipcash recipient feed: a synced contact, a DM
@@ -372,7 +350,7 @@ private struct RecipientPickerList: View {
             // conversations are intentionally hidden while searching), so skip
             // the "No Results" overlay there and keep the CTA card visible.
             if !searchText.isEmpty && filtered.isEmpty && contactAccess != .denied {
-                RecipientSearchEmptyState(searchText: searchText)
+                SearchResultsUnavailableView(searchText: searchText)
             }
         }
     }
