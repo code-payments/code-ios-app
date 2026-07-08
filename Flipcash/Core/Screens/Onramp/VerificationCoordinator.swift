@@ -60,9 +60,7 @@ final class VerificationCoordinator {
         bind: @MainActor @escaping (OnrampVerification?) -> Void,
         perform: @MainActor @escaping () -> Void
     ) {
-        if let profile = session.profile,
-           profile.isPhoneVerified,
-           profile.isEmailVerified {
+        if CoinbaseOrderEmail.resolveContact(profile: session.profile) != nil {
             perform()
             return
         }

@@ -43,7 +43,8 @@ struct PurchaseMethodSheetTests {
             newCurrencyFeeAmount: .zero(mint: .usdf),
             withdrawalFeeAmount: TokenAmount(quarks: 0, mint: .usdf),
             minimumHolderValue: .zero(mint: .usdf),
-            enablePhoneNumberSend: false
+            enablePhoneNumberSend: false,
+            requireCoinbaseEmailVerification: false
         )
         return container
     }

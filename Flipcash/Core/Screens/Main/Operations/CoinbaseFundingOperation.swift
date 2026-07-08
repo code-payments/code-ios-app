@@ -30,7 +30,8 @@ private let logger = Logger(label: "flipcash.coinbase-funding")
 /// `requirements: [.verifiedContact]` — callers must have completed the
 /// `OnrampVerificationViewModel` flow first; the operation throws
 /// `FundingOperationError.requirementUnsatisfied(.verifiedContact)` if the
-/// profile lacks a verified phone + email at `start()` time.
+/// profile lacks a verified phone + a usable email (see `CoinbaseOrderEmail`)
+/// at `start()` time.
 @Observable
 final class CoinbaseFundingOperation: FundingOperation {
 
@@ -158,17 +159,13 @@ final class CoinbaseFundingOperation: FundingOperation {
     }
 
     private func checkRequirements() throws {
-        guard let profile = session.profile,
-              profile.isPhoneVerified,
-              profile.isEmailVerified else {
+        guard CoinbaseOrderEmail.resolveContact(profile: session.profile) != nil else {
             throw FundingOperationError.requirementUnsatisfied(.verifiedContact)
         }
     }
 
     private func createOrder(for operation: PaymentOperation) async throws -> OnrampOrderResponse {
-        guard let profile = session.profile,
-              let email = profile.email,
-              let phone = profile.phone?.e164 else {
+        guard let (email, phone) = CoinbaseOrderEmail.resolveContact(profile: session.profile) else {
             throw FundingOperationError.requirementUnsatisfied(.verifiedContact)
         }
         guard let usdfSwapAccounts = MintMetadata.usdf.timelockSwapAccounts(

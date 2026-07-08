@@ -9,10 +9,10 @@ import FlipcashCore
 
 extension Session {
 
-    /// A session whose profile is `nil`, so both `isPhoneVerified` and
-    /// `isEmailVerified` read as `false`. Use when a test needs to drive
-    /// a flow that branches on unverified state. Identical to `Session.mock`
-    /// today — kept as a named alias so test intent stays self-documenting.
+    /// A session whose profile is `nil`, so no contact reads as verified.
+    /// Use when a test needs to drive a flow that branches on unverified
+    /// state. Identical to `Session.mock` today — kept as a named alias so
+    /// test intent stays self-documenting.
     @MainActor
     static var unverifiedMock: Session { .mock }
 

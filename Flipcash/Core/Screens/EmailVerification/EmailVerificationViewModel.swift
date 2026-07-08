@@ -104,14 +104,23 @@ final class EmailVerificationViewModel: EmailVerifying {
         validatedEmail != nil
     }
 
+    /// True when the email requirement is already satisfied — either a
+    /// server-verified email, or a locally stored unverified one from
+    /// skip-verification mode.
     var isAlreadyVerified: Bool {
-        session.profile?.isEmailVerified ?? false
+        CoinbaseOrderEmail.resolve(profile: session.profile) != nil
     }
 
     // MARK: - Verification actions -
 
     func sendEmailCodeAction() {
         guard let validatedEmail else {
+            return
+        }
+
+        let requiresVerification = session.userFlags?.requireCoinbaseEmailVerification ?? true
+        guard requiresVerification else {
+            saveUnverifiedEmailAndFinish(validatedEmail)
             return
         }
 
@@ -148,6 +157,36 @@ final class EmailVerificationViewModel: EmailVerifying {
             } catch {
                 ErrorReporting.captureError(error)
                 showGenericError()
+            }
+        }
+    }
+
+    /// Skip-verification mode (`requireCoinbaseEmailVerification` off): no
+    /// code is sent — the entered email is stored locally as unverified and
+    /// the flow completes without the confirm screen. The loading→success
+    /// beat keeps the button feedback consistent with the verifying path.
+    private func saveUnverifiedEmailAndFinish(_ email: String) {
+        Task {
+            sendEmailCodeState = .loading
+            defer {
+                sendEmailCodeState = .normal
+            }
+
+            CoinbaseOrderEmail.unverifiedEmail = email
+
+            do {
+                try await Task.delay(milliseconds: 500)
+                sendEmailCodeState = .success
+                try await Task.delay(milliseconds: 500)
+            } catch {
+                // Cancelled mid-flight (sheet dismissed) — nothing to finish.
+                return
+            }
+
+            if let onVerified {
+                onVerified()
+            } else {
+                finish()
             }
         }
     }

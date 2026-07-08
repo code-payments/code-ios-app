@@ -22,7 +22,8 @@ struct DatabaseProfileTests {
         newCurrencyFeeAmount: TokenAmount(quarks: 1_000_000, mint: .usdf),
         withdrawalFeeAmount: TokenAmount(quarks: 50_000, mint: .usdf),
         minimumHolderValue: TokenAmount(quarks: 100_000, mint: .usdf),
-        enablePhoneNumberSend: true
+        enablePhoneNumberSend: true,
+        requireCoinbaseEmailVerification: true
     )
 
     /// Restricted account: no onramp providers, unset timeout, zero fees.
@@ -37,7 +38,8 @@ struct DatabaseProfileTests {
         newCurrencyFeeAmount: .zero(mint: .usdf),
         withdrawalFeeAmount: .zero(mint: .usdf),
         minimumHolderValue: .zero(mint: .usdf),
-        enablePhoneNumberSend: false
+        enablePhoneNumberSend: false,
+        requireCoinbaseEmailVerification: false
     )
 
     // MARK: - Empty (fresh install) -
@@ -63,7 +65,7 @@ struct DatabaseProfileTests {
 
         #expect(restored == original)
         #expect(restored.isPhoneVerified)
-        #expect(restored.isEmailVerified)
+        #expect(restored.email != nil)
     }
 
     @Test("Re-inserting a profile replaces the single cached row")
@@ -77,7 +79,7 @@ struct DatabaseProfileTests {
         let restored = try #require(try db.getProfile())
         #expect(restored.displayName == "Updated")
         #expect(!restored.isPhoneVerified)
-        #expect(!restored.isEmailVerified)
+        #expect(restored.email == nil)
     }
 
     // MARK: - UserFlags -

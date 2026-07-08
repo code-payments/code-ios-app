@@ -32,8 +32,9 @@ protocol Verifying: AnyObject, Identifiable, Observable {
     /// implementations. Internal hook — not for outside callers.
     var continuation: CheckedContinuation<Void, Error>? { get set }
 
-    /// `true` when the underlying profile is already verified for this
-    /// channel, so `run()` short-circuits without suspending.
+    /// `true` when this channel's requirement is already satisfied — a
+    /// verified profile contact, or a locally stored email in
+    /// skip-verification mode — so `run()` short-circuits without suspending.
     var isAlreadyVerified: Bool { get }
 
     /// Clears transient input state (entered values, sending flags).
