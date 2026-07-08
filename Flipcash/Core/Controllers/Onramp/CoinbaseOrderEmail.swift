@@ -10,10 +10,8 @@ import FlipcashCore
 /// server-verified profile email, falling back to a locally collected,
 /// unverified one.
 ///
-/// The fallback only exists while the `requireCoinbaseEmailVerification`
-/// user flag is off — the email flow writes it in skip mode, and
-/// `Session.userFlags` drops it whenever fetched flags require verification
-/// (logout drops it too). It lives in UserDefaults rather than SQLite
+/// The email flow writes the fallback when `requireCoinbaseEmailVerification`
+/// is off; logout clears it. It lives in UserDefaults rather than SQLite
 /// because the server never sees it — a `SQLiteVersion` rebuild (which
 /// restores only server data) would lose it.
 enum CoinbaseOrderEmail {

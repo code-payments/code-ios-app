@@ -57,17 +57,4 @@ struct EmailVerificationViewModelTests {
 
         #expect(viewModel.isAlreadyVerified)
     }
-
-    @Test("Flags requiring verification clear the stored email, so the flow runs again")
-    func flagsRequiringVerification_clearStoredEmail() {
-        let prior = CoinbaseOrderEmail.unverifiedEmail
-        defer { CoinbaseOrderEmail.unverifiedEmail = prior }
-        CoinbaseOrderEmail.unverifiedEmail = "user@example.com"
-
-        let session = Session.unverifiedMock
-        session.userFlags = .fixture(requireCoinbaseEmailVerification: true)
-
-        #expect(CoinbaseOrderEmail.unverifiedEmail == nil)
-        #expect(EmailVerificationViewModel(session: session, flipClient: .mock).isAlreadyVerified == false)
-    }
 }
