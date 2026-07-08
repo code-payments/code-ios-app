@@ -6,32 +6,27 @@
 import Foundation
 import FlipcashCore
 
-/// The email that satisfies the Coinbase onramp's email requirement.
+/// The email that satisfies the Coinbase onramp's email requirement: the
+/// server-verified profile email, falling back to a locally collected,
+/// unverified one.
 ///
-/// A server-verified profile email always satisfies it. When the
-/// `requireCoinbaseEmailVerification` user flag is off, a locally collected,
-/// unverified email is accepted as a fallback. That fallback lives in
-/// UserDefaults rather than SQLite because the server never sees it — a
-/// `SQLiteVersion` rebuild (which restores only server data) would lose it.
-/// It's cleared on logout so it can't leak into another account's orders.
+/// The fallback only exists while the `requireCoinbaseEmailVerification`
+/// user flag is off — the email flow writes it in skip mode, and
+/// `Session.userFlags` drops it whenever fetched flags require verification
+/// (logout drops it too). It lives in UserDefaults rather than SQLite
+/// because the server never sees it — a `SQLiteVersion` rebuild (which
+/// restores only server data) would lose it.
 enum CoinbaseOrderEmail {
 
     @Defaults(.onrampUnverifiedEmail)
     static var unverifiedEmail: String?
 
     /// The email a Coinbase order may use, or nil when the requirement is
-    /// unsatisfied and the verification flow must run. Missing `userFlags`
-    /// (not yet fetched) is treated as verification-required.
+    /// unsatisfied and the verification flow must run.
     static func resolve(
         profile: Profile?,
-        userFlags: UserFlags?,
         unverifiedEmail: String? = CoinbaseOrderEmail.unverifiedEmail
     ) -> String? {
-        if let verified = profile?.email {
-            return verified
-        }
-
-        let requiresVerification = userFlags?.requireCoinbaseEmailVerification ?? true
-        return requiresVerification ? nil : unverifiedEmail
+        profile?.email ?? unverifiedEmail
     }
 }

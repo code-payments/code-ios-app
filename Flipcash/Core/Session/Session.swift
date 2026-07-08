@@ -62,8 +62,17 @@ class Session {
     /// Server-fetched user profile.
     var profile: Profile?
 
-    /// Feature flags for the current user.
-    var userFlags: UserFlags?
+    /// Feature flags for the current user. When fetched flags require
+    /// Coinbase email verification, any locally stored unverified email is
+    /// dropped — so a stored value always implies the flag was off, and
+    /// readers of `CoinbaseOrderEmail` never need to consult the flag.
+    var userFlags: UserFlags? {
+        didSet {
+            if userFlags?.requireCoinbaseEmailVerification == true {
+                CoinbaseOrderEmail.unverifiedEmail = nil
+            }
+        }
+    }
 
     @ObservationIgnored private var grabStarts: [PublicKey: Date] = [:]
 

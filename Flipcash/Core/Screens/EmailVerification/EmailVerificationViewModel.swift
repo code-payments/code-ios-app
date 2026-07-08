@@ -105,10 +105,10 @@ final class EmailVerificationViewModel: EmailVerifying {
     }
 
     /// True when the email requirement is already satisfied — either a
-    /// server-verified email, or (when `requireCoinbaseEmailVerification`
-    /// is off) a locally stored unverified one.
+    /// server-verified email, or a locally stored unverified one from
+    /// skip-verification mode.
     var isAlreadyVerified: Bool {
-        CoinbaseOrderEmail.resolve(profile: session.profile, userFlags: session.userFlags) != nil
+        CoinbaseOrderEmail.resolve(profile: session.profile) != nil
     }
 
     // MARK: - Verification actions -

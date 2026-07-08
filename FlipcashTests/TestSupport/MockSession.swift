@@ -13,7 +13,6 @@ import FlipcashCore
 final class MockSession:
     AccountProviding,
     ProfileProviding,
-    UserFlagsProviding,
     ProfileManaging,
     MintMetadataFetching,
     ReservesBuying,
@@ -26,7 +25,6 @@ final class MockSession:
     // MARK: - Identity
 
     var profile: Profile?
-    var userFlags: UserFlags?
     let owner: AccountCluster
     let ownerKeyPair: KeyPair
 

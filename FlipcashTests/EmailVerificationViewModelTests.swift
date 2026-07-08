@@ -45,8 +45,8 @@ struct EmailVerificationViewModelTests {
         #expect(viewModel.verificationPath.isEmpty, "skip mode must not push the confirm screen")
     }
 
-    @Test("isAlreadyVerified: flag off + stored local email satisfies the requirement")
-    func isAlreadyVerified_skipMode_localEmailSatisfies() {
+    @Test("isAlreadyVerified: a stored local email satisfies the requirement")
+    func isAlreadyVerified_localEmailSatisfies() {
         let prior = CoinbaseOrderEmail.unverifiedEmail
         defer { CoinbaseOrderEmail.unverifiedEmail = prior }
         CoinbaseOrderEmail.unverifiedEmail = "user@example.com"
@@ -58,18 +58,16 @@ struct EmailVerificationViewModelTests {
         #expect(viewModel.isAlreadyVerified)
     }
 
-    @Test("isAlreadyVerified: a local email does not satisfy when verification is required or flags are missing")
-    func isAlreadyVerified_requiredMode_localEmailIgnored() {
+    @Test("Flags requiring verification clear the stored email, so the flow runs again")
+    func flagsRequiringVerification_clearStoredEmail() {
         let prior = CoinbaseOrderEmail.unverifiedEmail
         defer { CoinbaseOrderEmail.unverifiedEmail = prior }
         CoinbaseOrderEmail.unverifiedEmail = "user@example.com"
 
-        let required = Session.unverifiedMock
-        required.userFlags = .fixture(requireCoinbaseEmailVerification: true)
-        #expect(EmailVerificationViewModel(session: required, flipClient: .mock).isAlreadyVerified == false)
+        let session = Session.unverifiedMock
+        session.userFlags = .fixture(requireCoinbaseEmailVerification: true)
 
-        let noFlags = Session.unverifiedMock
-        noFlags.userFlags = nil
-        #expect(EmailVerificationViewModel(session: noFlags, flipClient: .mock).isAlreadyVerified == false)
+        #expect(CoinbaseOrderEmail.unverifiedEmail == nil)
+        #expect(EmailVerificationViewModel(session: session, flipClient: .mock).isAlreadyVerified == false)
     }
 }

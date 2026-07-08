@@ -62,7 +62,7 @@ final class VerificationCoordinator {
     ) {
         if let profile = session.profile,
            profile.isPhoneVerified,
-           CoinbaseOrderEmail.resolve(profile: profile, userFlags: session.userFlags) != nil {
+           CoinbaseOrderEmail.resolve(profile: profile) != nil {
             perform()
             return
         }

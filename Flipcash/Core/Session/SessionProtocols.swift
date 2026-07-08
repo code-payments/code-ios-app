@@ -21,11 +21,6 @@ protocol ProfileProviding: AnyObject {
     var profile: Profile? { get }
 }
 
-/// Read-only access to the signed-in user's server-issued flags.
-protocol UserFlagsProviding: AnyObject {
-    var userFlags: UserFlags? { get }
-}
-
 /// Mutating profile operations — refresh from the server, unlink on logout
 /// / region-mismatch.
 protocol ProfileManaging: AnyObject {
@@ -147,7 +142,6 @@ protocol DirectSending: AnyObject {
 
 extension Session: AccountProviding,
                     ProfileProviding,
-                    UserFlagsProviding,
                     ProfileManaging,
                     MintMetadataFetching,
                     ReservesBuying,

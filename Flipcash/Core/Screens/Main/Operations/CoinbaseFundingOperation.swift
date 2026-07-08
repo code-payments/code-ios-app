@@ -54,14 +54,14 @@ final class CoinbaseFundingOperation: FundingOperation {
     private(set) var didTimeOut: Bool = false
 
     @ObservationIgnored private let coinbaseService: CoinbaseService
-    @ObservationIgnored private let session: any (AccountProviding & ProfileProviding & UserFlagsProviding & OnrampBuying & CurrencyLaunching)
+    @ObservationIgnored private let session: any (AccountProviding & ProfileProviding & OnrampBuying & CurrencyLaunching)
     @ObservationIgnored private let idleTimer: ApplePayIdleTimer
 
     @ObservationIgnored private var runTask: Task<StartedSwap, Error>?
 
     init(
         coinbaseService: CoinbaseService,
-        session: any (AccountProviding & ProfileProviding & UserFlagsProviding & OnrampBuying & CurrencyLaunching),
+        session: any (AccountProviding & ProfileProviding & OnrampBuying & CurrencyLaunching),
         applePayIdleTimeout: Duration = .seconds(60)
     ) {
         self.coinbaseService = coinbaseService
@@ -161,14 +161,14 @@ final class CoinbaseFundingOperation: FundingOperation {
     private func checkRequirements() throws {
         guard let profile = session.profile,
               profile.isPhoneVerified,
-              CoinbaseOrderEmail.resolve(profile: profile, userFlags: session.userFlags) != nil else {
+              CoinbaseOrderEmail.resolve(profile: profile) != nil else {
             throw FundingOperationError.requirementUnsatisfied(.verifiedContact)
         }
     }
 
     private func createOrder(for operation: PaymentOperation) async throws -> OnrampOrderResponse {
         guard let profile = session.profile,
-              let email = CoinbaseOrderEmail.resolve(profile: profile, userFlags: session.userFlags),
+              let email = CoinbaseOrderEmail.resolve(profile: profile),
               let phone = profile.phone?.e164 else {
             throw FundingOperationError.requirementUnsatisfied(.verifiedContact)
         }

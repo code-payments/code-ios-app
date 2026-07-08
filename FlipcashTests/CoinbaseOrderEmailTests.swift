@@ -17,54 +17,29 @@ struct CoinbaseOrderEmailTests {
         email: nil
     )
 
-    @Test("A server-verified email wins regardless of the flag or local fallback")
-    func verifiedEmail_alwaysWins() {
-        for requireVerification in [true, false] {
-            let email = CoinbaseOrderEmail.resolve(
-                profile: .verifiedFixture,
-                userFlags: .fixture(requireCoinbaseEmailVerification: requireVerification),
-                unverifiedEmail: "local@example.com"
-            )
-            #expect(email == Profile.verifiedFixture.email)
-        }
-    }
-
-    @Test("Verification required: a local unverified email does not satisfy")
-    func verificationRequired_localEmailIgnored() {
+    @Test("A server-verified email wins over the local fallback")
+    func verifiedEmail_wins() {
         let email = CoinbaseOrderEmail.resolve(
-            profile: Self.unverifiedProfile,
-            userFlags: .fixture(requireCoinbaseEmailVerification: true),
+            profile: .verifiedFixture,
             unverifiedEmail: "local@example.com"
         )
-        #expect(email == nil)
+        #expect(email == Profile.verifiedFixture.email)
     }
 
-    @Test("Verification skipped: the local unverified email is used")
-    func verificationSkipped_localEmailUsed() {
+    @Test("Without a verified email, the local unverified email is used")
+    func noVerifiedEmail_localEmailUsed() {
         let email = CoinbaseOrderEmail.resolve(
             profile: Self.unverifiedProfile,
-            userFlags: .fixture(requireCoinbaseEmailVerification: false),
             unverifiedEmail: "local@example.com"
         )
         #expect(email == "local@example.com")
     }
 
-    @Test("Verification skipped with no local email leaves the requirement unsatisfied")
-    func verificationSkipped_noLocalEmail_unsatisfied() {
+    @Test("No verified and no local email leaves the requirement unsatisfied")
+    func noEmailAnywhere_unsatisfied() {
         let email = CoinbaseOrderEmail.resolve(
             profile: Self.unverifiedProfile,
-            userFlags: .fixture(requireCoinbaseEmailVerification: false),
             unverifiedEmail: nil
-        )
-        #expect(email == nil)
-    }
-
-    @Test("Missing userFlags is treated as verification-required")
-    func missingUserFlags_treatedAsRequired() {
-        let email = CoinbaseOrderEmail.resolve(
-            profile: Self.unverifiedProfile,
-            userFlags: nil,
-            unverifiedEmail: "local@example.com"
         )
         #expect(email == nil)
     }
