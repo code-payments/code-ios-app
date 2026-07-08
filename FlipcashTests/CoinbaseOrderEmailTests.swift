@@ -11,12 +11,6 @@ import FlipcashCore
 @Suite("CoinbaseOrderEmail")
 struct CoinbaseOrderEmailTests {
 
-    private static let unverifiedProfile = Profile(
-        displayName: nil,
-        phone: Phone?.none,
-        email: nil
-    )
-
     @Test("A server-verified email wins over the local fallback")
     func verifiedEmail_wins() {
         let email = CoinbaseOrderEmail.resolve(
@@ -29,7 +23,7 @@ struct CoinbaseOrderEmailTests {
     @Test("Without a verified email, the local unverified email is used")
     func noVerifiedEmail_localEmailUsed() {
         let email = CoinbaseOrderEmail.resolve(
-            profile: Self.unverifiedProfile,
+            profile: .empty,
             unverifiedEmail: "local@example.com"
         )
         #expect(email == "local@example.com")
@@ -38,7 +32,7 @@ struct CoinbaseOrderEmailTests {
     @Test("No verified and no local email leaves the requirement unsatisfied")
     func noEmailAnywhere_unsatisfied() {
         let email = CoinbaseOrderEmail.resolve(
-            profile: Self.unverifiedProfile,
+            profile: .empty,
             unverifiedEmail: nil
         )
         #expect(email == nil)

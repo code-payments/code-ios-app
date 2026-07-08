@@ -29,4 +29,14 @@ enum CoinbaseOrderEmail {
     ) -> String? {
         profile?.email ?? unverifiedEmail
     }
+
+    /// The contact pair a Coinbase order requires, or nil when either half
+    /// is missing and the verification flow must run.
+    static func resolveContact(profile: Profile?) -> (email: String, phone: String)? {
+        guard let email = resolve(profile: profile),
+              let phone = profile?.phone?.e164 else {
+            return nil
+        }
+        return (email, phone)
+    }
 }

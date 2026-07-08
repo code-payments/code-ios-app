@@ -23,11 +23,7 @@ public struct Profile: Codable, Equatable, Sendable {
     public var isPhoneVerified: Bool {
         phone != nil
     }
-    
-    public var isEmailVerified: Bool {
-        (email?.count ?? 0) > 0
-    }
-    
+
     public init(displayName: String?, phone: String?, email: String?) throws {
 
         // Only parse phone if it's not empty

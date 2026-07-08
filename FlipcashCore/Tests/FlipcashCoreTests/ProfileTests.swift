@@ -20,7 +20,6 @@ struct ProfileTests {
     func testEmailNormalization(input: String?, expected: String?) throws {
         let profile = try makeProfile(email: input)
         #expect(profile.email == expected)
-        #expect(profile.isEmailVerified == (expected != nil))
     }
 
     @Test("Empty phone is normalized to nil")

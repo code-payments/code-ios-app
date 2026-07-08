@@ -65,7 +65,7 @@ struct DatabaseProfileTests {
 
         #expect(restored == original)
         #expect(restored.isPhoneVerified)
-        #expect(restored.isEmailVerified)
+        #expect(restored.email != nil)
     }
 
     @Test("Re-inserting a profile replaces the single cached row")
@@ -79,7 +79,7 @@ struct DatabaseProfileTests {
         let restored = try #require(try db.getProfile())
         #expect(restored.displayName == "Updated")
         #expect(!restored.isPhoneVerified)
-        #expect(!restored.isEmailVerified)
+        #expect(restored.email == nil)
     }
 
     // MARK: - UserFlags -

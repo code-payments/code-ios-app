@@ -159,17 +159,13 @@ final class CoinbaseFundingOperation: FundingOperation {
     }
 
     private func checkRequirements() throws {
-        guard let profile = session.profile,
-              profile.isPhoneVerified,
-              CoinbaseOrderEmail.resolve(profile: profile) != nil else {
+        guard CoinbaseOrderEmail.resolveContact(profile: session.profile) != nil else {
             throw FundingOperationError.requirementUnsatisfied(.verifiedContact)
         }
     }
 
     private func createOrder(for operation: PaymentOperation) async throws -> OnrampOrderResponse {
-        guard let profile = session.profile,
-              let email = CoinbaseOrderEmail.resolve(profile: profile),
-              let phone = profile.phone?.e164 else {
+        guard let (email, phone) = CoinbaseOrderEmail.resolveContact(profile: session.profile) else {
             throw FundingOperationError.requirementUnsatisfied(.verifiedContact)
         }
         guard let usdfSwapAccounts = MintMetadata.usdf.timelockSwapAccounts(
