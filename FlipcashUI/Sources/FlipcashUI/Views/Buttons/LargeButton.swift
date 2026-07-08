@@ -68,6 +68,10 @@ private struct LargeButtonIcon: View {
             .frame(width: 40, height: 40)
             .overlay(alignment: .topTrailing) {
                 Bubble(size: .regular, count: displayCount, hasMore: showsMore, color: .unreadIndicator)
+                    // The count already reads through the button's
+                    // `accessibilityValue` ("N unread"); letting the pill's text
+                    // merge into the label turns "Send" into "1, Send".
+                    .accessibilityHidden(true)
                     .fixedSize()
                     .padding(ring)
                     .background(Capsule().fill(Color.black).blendMode(.destinationOut))

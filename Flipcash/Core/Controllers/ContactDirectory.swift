@@ -178,6 +178,15 @@ enum RecipientLoader {
             // iOS 26 the access itself presents the system share picker over
             // the test host app and wedges the run.
             guard !Container.isRunningUnitTests else { return ResolvedContacts.empty }
+            // Resolution reads the store once per snapshot row, and the
+            // snapshot outlives the TCC state (it persists in SQLite across
+            // logins and permission resets). On iOS 26 a store access while
+            // authorization is undetermined makes the OS present the contacts
+            // authorization prompt — uninvited, since this path runs at
+            // bootstrap. Never touch the store without a grant.
+            guard CNContactStore.authorizationStatus(for: .contacts).allowsContactAccess else {
+                return ResolvedContacts.empty
+            }
             let snapshot: [Database.LocalContact]
             let matched: [MatchedContact]
             do {
