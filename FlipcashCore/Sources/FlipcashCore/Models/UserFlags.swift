@@ -28,6 +28,10 @@ public struct UserFlags: Codable, Sendable {
     /// Whether the send-to-phone-number feature is enabled for this user.
     public let enablePhoneNumberSend: Bool
 
+    /// Whether Coinbase purchase flows require a server-verified email.
+    /// When `false`, a locally collected, unverified email is acceptable.
+    public let requireCoinbaseEmailVerification: Bool
+
     public var hasPreferredOnrampProvider: Bool {
         preferredOnrampProvider != .unknown
     }
@@ -84,7 +88,8 @@ extension UserFlags {
                 quarks: proto.minimumHolderValue,
                 mint: .usdf
             ),
-            enablePhoneNumberSend: proto.enablePhoneNumberSend
+            enablePhoneNumberSend: proto.enablePhoneNumberSend,
+            requireCoinbaseEmailVerification: proto.requireCoinbaseEmailVerification
         )
     }
 }

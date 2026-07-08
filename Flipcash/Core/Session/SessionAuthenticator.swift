@@ -437,6 +437,10 @@ final class SessionAuthenticator {
         // Drop cached notification previews — they hold chat text in cleartext in the App Group.
         NotificationPreviewCache.clear()
 
+        // Drop the locally collected onramp email — it must not leak into
+        // another account's Coinbase orders.
+        CoinbaseOrderEmail.unverifiedEmail = nil
+
         state = .loggedOut
         requiresForceLogout = false
         UserDefaults.wasLoggedIn = false

@@ -40,7 +40,8 @@ enum WithdrawViewModelTestHelpers {
             newCurrencyFeeAmount: .zero(mint: .usdf),
             withdrawalFeeAmount: TokenAmount(quarks: withdrawalFeeQuarks, mint: .usdf),
             minimumHolderValue: .zero(mint: .usdf),
-            enablePhoneNumberSend: false
+            enablePhoneNumberSend: false,
+            requireCoinbaseEmailVerification: false
         )
 
         return WithdrawViewModel(
@@ -131,7 +132,8 @@ enum WithdrawViewModelTestHelpers {
                 newCurrencyFeeAmount: .zero(mint: .usdf),
                 withdrawalFeeAmount: TokenAmount(quarks: withdrawalFeeQuarks, mint: .usdf),
                 minimumHolderValue: .zero(mint: .usdf),
-                enablePhoneNumberSend: false
+                enablePhoneNumberSend: false,
+                requireCoinbaseEmailVerification: false
             )
         }
         let stored = try #require(container.session.balance(for: .usdf))

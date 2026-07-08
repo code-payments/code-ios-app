@@ -19,6 +19,8 @@ enum DefaultsKey: String {
 
     case storedTokenMint = "com.flipcash.token.storedTokenMint"
 
+    case onrampUnverifiedEmail = "com.flipcash.onramp.unverifiedEmail"
+
     case betaFlags = "com.flipcash.betaFlags"
 
     case contactsConnected = "com.flipcash.contacts.connected"

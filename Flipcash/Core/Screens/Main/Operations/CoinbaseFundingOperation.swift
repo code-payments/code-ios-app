@@ -30,7 +30,8 @@ private let logger = Logger(label: "flipcash.coinbase-funding")
 /// `requirements: [.verifiedContact]` — callers must have completed the
 /// `OnrampVerificationViewModel` flow first; the operation throws
 /// `FundingOperationError.requirementUnsatisfied(.verifiedContact)` if the
-/// profile lacks a verified phone + email at `start()` time.
+/// profile lacks a verified phone + a usable email (see `CoinbaseOrderEmail`)
+/// at `start()` time.
 @Observable
 final class CoinbaseFundingOperation: FundingOperation {
 
@@ -53,14 +54,14 @@ final class CoinbaseFundingOperation: FundingOperation {
     private(set) var didTimeOut: Bool = false
 
     @ObservationIgnored private let coinbaseService: CoinbaseService
-    @ObservationIgnored private let session: any (AccountProviding & ProfileProviding & OnrampBuying & CurrencyLaunching)
+    @ObservationIgnored private let session: any (AccountProviding & ProfileProviding & UserFlagsProviding & OnrampBuying & CurrencyLaunching)
     @ObservationIgnored private let idleTimer: ApplePayIdleTimer
 
     @ObservationIgnored private var runTask: Task<StartedSwap, Error>?
 
     init(
         coinbaseService: CoinbaseService,
-        session: any (AccountProviding & ProfileProviding & OnrampBuying & CurrencyLaunching),
+        session: any (AccountProviding & ProfileProviding & UserFlagsProviding & OnrampBuying & CurrencyLaunching),
         applePayIdleTimeout: Duration = .seconds(60)
     ) {
         self.coinbaseService = coinbaseService
@@ -160,14 +161,14 @@ final class CoinbaseFundingOperation: FundingOperation {
     private func checkRequirements() throws {
         guard let profile = session.profile,
               profile.isPhoneVerified,
-              profile.isEmailVerified else {
+              CoinbaseOrderEmail.resolve(profile: profile, userFlags: session.userFlags) != nil else {
             throw FundingOperationError.requirementUnsatisfied(.verifiedContact)
         }
     }
 
     private func createOrder(for operation: PaymentOperation) async throws -> OnrampOrderResponse {
         guard let profile = session.profile,
-              let email = profile.email,
+              let email = CoinbaseOrderEmail.resolve(profile: profile, userFlags: session.userFlags),
               let phone = profile.phone?.e164 else {
             throw FundingOperationError.requirementUnsatisfied(.verifiedContact)
         }

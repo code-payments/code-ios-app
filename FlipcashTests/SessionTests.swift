@@ -635,7 +635,8 @@ struct SessionOfflineCacheTests {
             newCurrencyFeeAmount: .zero(mint: .usdf),
             withdrawalFeeAmount: TokenAmount(quarks: 50_000, mint: .usdf),
             minimumHolderValue: .zero(mint: .usdf),
-            enablePhoneNumberSend: false
+            enablePhoneNumberSend: false,
+            requireCoinbaseEmailVerification: false
         )
     }
 
@@ -696,7 +697,8 @@ struct SessionCanSendTests {
             newCurrencyFeeAmount: .zero(mint: .usdf),
             withdrawalFeeAmount: .zero(mint: .usdf),
             minimumHolderValue: .zero(mint: .usdf),
-            enablePhoneNumberSend: enablePhoneNumberSend
+            enablePhoneNumberSend: enablePhoneNumberSend,
+            requireCoinbaseEmailVerification: false
         )
     }
 
