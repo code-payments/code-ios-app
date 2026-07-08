@@ -21,6 +21,130 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
+/// Lifecycle state of a blob.
+public enum Flipcash_Blob_V1_BlobStatus: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+  case unknown // = 0
+
+  /// reserved; awaiting the client's upload
+  case pending // = 1
+
+  /// bytes present; deriving metadata / transcoding / moderating
+  case processing // = 2
+
+  /// available; metadata populated and moderation passed
+  case ready // = 3
+
+  /// failed validation or moderation; not servable
+  case rejected // = 4
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unknown
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unknown
+    case 1: self = .pending
+    case 2: self = .processing
+    case 3: self = .ready
+    case 4: self = .rejected
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unknown: return 0
+    case .pending: return 1
+    case .processing: return 2
+    case .ready: return 3
+    case .rejected: return 4
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Flipcash_Blob_V1_BlobStatus] = [
+    .unknown,
+    .pending,
+    .processing,
+    .ready,
+    .rejected,
+  ]
+
+}
+
+/// Why a blob failed finalization, after its bytes were uploaded. Distinct from
+/// the pre-upload denials in InitiateExternalUploadResponse.Result, which reject
+/// before any bytes are stored.
+public enum Flipcash_Blob_V1_RejectionReason: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+  case unknown // = 0
+
+  /// tripped content moderation; see flagged_category
+  case moderation // = 1
+
+  /// MIME type derived from the bytes is not accepted
+  case unsupportedType // = 2
+
+  /// derived type didn't match the declared mime_type
+  case mismatchedType // = 3
+
+  /// stored bytes exceeded the per-type ceiling
+  case tooLarge // = 4
+
+  /// bytes unreadable; failed to decode or transcode
+  case corrupt // = 5
+
+  /// server-side processing error
+  case `internal` // = 6
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unknown
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unknown
+    case 1: self = .moderation
+    case 2: self = .unsupportedType
+    case 3: self = .mismatchedType
+    case 4: self = .tooLarge
+    case 5: self = .corrupt
+    case 6: self = .internal
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unknown: return 0
+    case .moderation: return 1
+    case .unsupportedType: return 2
+    case .mismatchedType: return 3
+    case .tooLarge: return 4
+    case .corrupt: return 5
+    case .internal: return 6
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Flipcash_Blob_V1_RejectionReason] = [
+    .unknown,
+    .moderation,
+    .unsupportedType,
+    .mismatchedType,
+    .tooLarge,
+    .corrupt,
+    .internal,
+  ]
+
+}
+
 /// Opaque, client-held handle to a stored blob. This is the durable identity for
 /// the bytes; the bytes it points at are immutable once the upload is finalized.
 public struct Flipcash_Blob_V1_BlobId: Sendable {
@@ -29,6 +153,80 @@ public struct Flipcash_Blob_V1_BlobId: Sendable {
   // methods supported on all messages.
 
   public var value: Data = Data()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// A batch of BlobIds
+public struct Flipcash_Blob_V1_BlobIdBatch: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var blobIds: [Flipcash_Blob_V1_BlobId] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// A blob's current status, plus its metadata once READY — or, once REJECTED,
+/// the reason it was rejected.
+public struct Flipcash_Blob_V1_Blob: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var id: Flipcash_Blob_V1_BlobId {
+    get {_id ?? Flipcash_Blob_V1_BlobId()}
+    set {_id = newValue}
+  }
+  /// Returns true if `id` has been explicitly set.
+  public var hasID: Bool {self._id != nil}
+  /// Clears the value of `id`. Subsequent reads from it will return its default value.
+  public mutating func clearID() {self._id = nil}
+
+  public var status: Flipcash_Blob_V1_BlobStatus = .unknown
+
+  /// Server-authoritative metadata, including a freshly minted download_url.
+  /// Set only when status == READY.
+  public var metadata: Flipcash_Blob_V1_BlobMetadata {
+    get {_metadata ?? Flipcash_Blob_V1_BlobMetadata()}
+    set {_metadata = newValue}
+  }
+  /// Returns true if `metadata` has been explicitly set.
+  public var hasMetadata: Bool {self._metadata != nil}
+  /// Clears the value of `metadata`. Subsequent reads from it will return its default value.
+  public mutating func clearMetadata() {self._metadata = nil}
+
+  /// Why the blob was rejected. Set only when status == REJECTED.
+  public var rejection: Flipcash_Blob_V1_RejectionMetadata {
+    get {_rejection ?? Flipcash_Blob_V1_RejectionMetadata()}
+    set {_rejection = newValue}
+  }
+  /// Returns true if `rejection` has been explicitly set.
+  public var hasRejection: Bool {self._rejection != nil}
+  /// Clears the value of `rejection`. Subsequent reads from it will return its default value.
+  public mutating func clearRejection() {self._rejection = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _id: Flipcash_Blob_V1_BlobId? = nil
+  fileprivate var _metadata: Flipcash_Blob_V1_BlobMetadata? = nil
+  fileprivate var _rejection: Flipcash_Blob_V1_RejectionMetadata? = nil
+}
+
+/// A batch of Blobs.
+public struct Flipcash_Blob_V1_BlobBatch: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var blobs: [Flipcash_Blob_V1_Blob] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -49,12 +247,16 @@ public struct Flipcash_Blob_V1_BlobMetadata: Sendable {
   /// Total size of the blob in bytes.
   public var sizeBytes: UInt64 = 0
 
-  /// Ephemeral, server-minted URL for fetching the blob bytes. Unlike the
-  /// other fields it is NOT intrinsic to the blob: it is re-issued on every
-  /// fetch, may expire (signed URL with a short TTL), and is authorized at
-  /// mint time, not at fetch time. Clients MUST NOT persist or cache it across
-  /// fetches; treat the BlobId as the durable handle and this as disposable.
-  public var downloadURL: String = String()
+  /// Ephemeral, server-minted URL for fetching the blob bytes, together with
+  /// the instant it expires. Re-issued on every fetch — see DownloadUrl.
+  public var downloadURL: Flipcash_Blob_V1_DownloadUrl {
+    get {_downloadURL ?? Flipcash_Blob_V1_DownloadUrl()}
+    set {_downloadURL = newValue}
+  }
+  /// Returns true if `downloadURL` has been explicitly set.
+  public var hasDownloadURL: Bool {self._downloadURL != nil}
+  /// Clears the value of `downloadURL`. Subsequent reads from it will return its default value.
+  public mutating func clearDownloadURL() {self._downloadURL = nil}
 
   /// Kind-specific metadata the server derived from the bytes. Exactly one
   /// variant is set for a recognized media kind; left unset for opaque blobs.
@@ -82,6 +284,8 @@ public struct Flipcash_Blob_V1_BlobMetadata: Sendable {
   }
 
   public init() {}
+
+  fileprivate var _downloadURL: Flipcash_Blob_V1_DownloadUrl? = nil
 }
 
 /// Intrinsic descriptors for a still image.
@@ -103,9 +307,320 @@ public struct Flipcash_Blob_V1_ImageMetadata: Sendable {
   public init() {}
 }
 
+/// The constraints the server enforces on uploads, surfaced so clients can
+/// validate and resize/transcode before reserving an upload. Advisory and
+/// cacheable; InitiateExternalUpload remains authoritative. Constraints can
+/// depend on the caller (quota, tier), so this is fetched per-user, not static.
+public struct Flipcash_Blob_V1_UploadPolicy: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Opaque generation token for this policy. Clients cache the policy under it
+  /// and re-fetch when they observe a different version — including one echoed
+  /// on a denied upload.
+  public var version: Flipcash_Blob_V1_PolicyVersion {
+    get {_version ?? Flipcash_Blob_V1_PolicyVersion()}
+    set {_version = newValue}
+  }
+  /// Returns true if `version` has been explicitly set.
+  public var hasVersion: Bool {self._version != nil}
+  /// Clears the value of `version`. Subsequent reads from it will return its default value.
+  public mutating func clearVersion() {self._version = nil}
+
+  /// How long the client may rely on this policy before re-fetching. The client
+  /// should also refresh on any version mismatch, whichever comes first.
+  public var ttl: SwiftProtobuf.Google_Protobuf_Duration {
+    get {_ttl ?? SwiftProtobuf.Google_Protobuf_Duration()}
+    set {_ttl = newValue}
+  }
+  /// Returns true if `ttl` has been explicitly set.
+  public var hasTtl: Bool {self._ttl != nil}
+  /// Clears the value of `ttl`. Subsequent reads from it will return its default value.
+  public mutating func clearTtl() {self._ttl = nil}
+
+  /// Per-MIME-type constraints, ordered MOST SPECIFIC FIRST. The client picks
+  /// the FIRST entry whose mime_type_pattern matches the bytes' declared MIME
+  /// type; later entries (e.g. "image/*", then "*/*") act as fallbacks. An
+  /// upload whose type matches no entry is not accepted.
+  public var mimeTypeConstraints: [Flipcash_Blob_V1_MimeTypeConstraints] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _version: Flipcash_Blob_V1_PolicyVersion? = nil
+  fileprivate var _ttl: SwiftProtobuf.Google_Protobuf_Duration? = nil
+}
+
+/// Opaque generation token identifying a snapshot of an UploadPolicy. Compared
+/// by equality, never parsed; clients cache the policy under it and re-fetch when
+/// they observe a different value (including one echoed on a denied upload).
+public struct Flipcash_Blob_V1_PolicyVersion: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var value: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Upload constraints for one MIME-type matcher.
+public struct Flipcash_Blob_V1_MimeTypeConstraints: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The MIME type(s) this entry governs: an exact type ("image/jpeg"), a
+  /// subtype wildcard ("image/*"), or the catch-all "*/*".
+  public var mimeTypePattern: String = String()
+
+  /// Hard ceiling on a matching blob's byte size.
+  public var maxSizeBytes: UInt64 = 0
+
+  /// Kind-specific bounds, mirroring BlobMetadata.kind. Set the variant for the
+  /// pattern's media kind; left unset for opaque blobs.
+  public var kind: Flipcash_Blob_V1_MimeTypeConstraints.OneOf_Kind? = nil
+
+  public var image: Flipcash_Blob_V1_ImageConstraints {
+    get {
+      if case .image(let v)? = kind {return v}
+      return Flipcash_Blob_V1_ImageConstraints()
+    }
+    set {kind = .image(newValue)}
+  }
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  /// Kind-specific bounds, mirroring BlobMetadata.kind. Set the variant for the
+  /// pattern's media kind; left unset for opaque blobs.
+  public enum OneOf_Kind: Equatable, Sendable {
+    case image(Flipcash_Blob_V1_ImageConstraints)
+
+  }
+
+  public init() {}
+}
+
+/// Bounds on a still image, mirroring ImageMetadata.
+public struct Flipcash_Blob_V1_ImageConstraints: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Max pixel dimensions the server will accept (or downscale to).
+  public var maxWidth: UInt32 = 0
+
+  public var maxHeight: UInt32 = 0
+
+  /// Max total pixel count (width * height), guarding against decompression
+  /// bombs that slip under the per-axis caps.
+  public var maxPixels: UInt64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// A short-lived, presigned target for a direct-to-storage upload. Bearer
+/// credential: anyone holding it can upload to the reserved key until it expires
+/// — the client must not share or persist it.
+///
+/// Provider-agnostic by design: it describes the HTTP request the client must
+/// make, with all signed material opaque to the client. Today the server mints
+/// S3 POST policies (method POST with form_fields); the same shape also
+/// expresses presigned PUT (S3/GCS) and Azure SAS without a contract change.
+public struct Flipcash_Blob_V1_UploadTarget: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// How the client issues the upload request.
+  public var method: Flipcash_Blob_V1_UploadTarget.Method = .unknown
+
+  /// Signed URL to send the request to. For PUT-style uploads this often
+  /// already carries the signature in its query string (presigned PUT, SAS).
+  public var url: String = String()
+
+  /// Headers the client MUST send verbatim (e.g. Content-Type, x-ms-blob-type,
+  /// and any signed headers the presign requires).
+  public var headers: Dictionary<String,String> = [:]
+
+  /// For method == POST: multipart/form-data fields sent before the file part,
+  /// carrying the server-chosen key and the SIGNED policy that storage enforces
+  /// (Content-Type, content-length-range, key prefix, ...). The client cannot
+  /// alter them without invalidating the signature. Empty for PUT uploads.
+  public var formFields: Dictionary<String,String> = [:]
+
+  /// When the target expires; after this the client must call InitiateUpload
+  /// again for a fresh one.
+  public var expiresAt: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {_expiresAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_expiresAt = newValue}
+  }
+  /// Returns true if `expiresAt` has been explicitly set.
+  public var hasExpiresAt: Bool {self._expiresAt != nil}
+  /// Clears the value of `expiresAt`. Subsequent reads from it will return its default value.
+  public mutating func clearExpiresAt() {self._expiresAt = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Method: SwiftProtobuf.Enum, Swift.CaseIterable {
+    public typealias RawValue = Int
+    case unknown // = 0
+
+    /// raw-body upload
+    case put // = 1
+
+    /// multipart/form-data carrying form_fields
+    case post // = 2
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .unknown
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .unknown
+      case 1: self = .put
+      case 2: self = .post
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .unknown: return 0
+      case .put: return 1
+      case .post: return 2
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+    // The compiler won't synthesize support with the UNRECOGNIZED case.
+    public static let allCases: [Flipcash_Blob_V1_UploadTarget.Method] = [
+      .unknown,
+      .put,
+      .post,
+    ]
+
+  }
+
+  public init() {}
+
+  fileprivate var _expiresAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+}
+
+/// An ephemeral, server-minted URL for fetching the blob bytes, paired with the
+/// instant it expires. Unlike the intrinsic blob metadata, the URL is NOT a
+/// property of the bytes: it is re-issued on every fetch, expires (signed URL
+/// with a short TTL), and is authorized at mint time, not at fetch time. Clients
+/// MUST NOT persist or cache it across fetches; treat the BlobId as the durable
+/// handle and this as disposable.
+public struct Flipcash_Blob_V1_DownloadUrl: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Signed URL for fetching the blob bytes.
+  public var url: String = String()
+
+  /// When the URL expires; after this the client must call GetBlobs again to
+  /// mint a fresh one.
+  public var expiresAt: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {_expiresAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_expiresAt = newValue}
+  }
+  /// Returns true if `expiresAt` has been explicitly set.
+  public var hasExpiresAt: Bool {self._expiresAt != nil}
+  /// Clears the value of `expiresAt`. Subsequent reads from it will return its default value.
+  public mutating func clearExpiresAt() {self._expiresAt = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _expiresAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+}
+
+/// Explains why a blob was rejected during finalization. Set on a Blob only when
+/// status == REJECTED. Rejection is TERMINAL: the bytes behind a BlobId are
+/// immutable, so this id will never become READY — to try again the client must
+/// reserve a fresh upload via InitiateExternalUpload.
+public struct Flipcash_Blob_V1_RejectionMetadata: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The top-level reason finalization failed.
+  public var reason: Flipcash_Blob_V1_RejectionReason = .unknown
+
+  /// The best-fit category that tripped moderation, mirroring the Moderation
+  /// service's vocabulary. Set only when reason == REJECTION_REASON_MODERATION;
+  /// NONE otherwise.
+  public var flaggedCategory: Flipcash_Moderation_V1_FlaggedCategory = .none
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// AccessContext names the surface a caller is accessing blobs THROUGH on a
+/// request — the "place" the read is happening from. It is the extension point
+/// for blob authorization contexts: each scope maps to a server-side membership
+/// check (e.g. a chat scope authorizes the caller iff they belong to that chat
+/// AND the blob was shared into it).
+///
+/// It is a hint that can only ever NARROW a read, never widen it: the server
+/// still independently verifies both that the blob is granted to the named scope
+/// and that the caller belongs to it. A caller never needs a context to read
+/// blobs it OWNS, but does need one for any blob it does not own. New surfaces (a
+/// feed, a profile, a public link) are added as new arms of `scope` without
+/// changing any request plumbing.
+public struct Flipcash_Blob_V1_AccessContext: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var scope: Flipcash_Blob_V1_AccessContext.OneOf_Scope? = nil
+
+  /// The caller is accessing these blobs from within this chat. Authorized
+  /// iff the caller is a member of the chat and the blob was shared into it.
+  public var chat: Flipcash_Common_V1_ChatId {
+    get {
+      if case .chat(let v)? = scope {return v}
+      return Flipcash_Common_V1_ChatId()
+    }
+    set {scope = .chat(newValue)}
+  }
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum OneOf_Scope: Equatable, Sendable {
+    /// The caller is accessing these blobs from within this chat. Authorized
+    /// iff the caller is a member of the chat and the blob was shared into it.
+    case chat(Flipcash_Common_V1_ChatId)
+
+  }
+
+  public init() {}
+}
+
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate let _protobuf_package = "flipcash.blob.v1"
+
+extension Flipcash_Blob_V1_BlobStatus: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0BLOB_STATUS_UNKNOWN\0\u{1}BLOB_STATUS_PENDING\0\u{1}BLOB_STATUS_PROCESSING\0\u{1}BLOB_STATUS_READY\0\u{1}BLOB_STATUS_REJECTED\0")
+}
+
+extension Flipcash_Blob_V1_RejectionReason: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0REJECTION_REASON_UNKNOWN\0\u{1}REJECTION_REASON_MODERATION\0\u{1}REJECTION_REASON_UNSUPPORTED_TYPE\0\u{1}REJECTION_REASON_MISMATCHED_TYPE\0\u{1}REJECTION_REASON_TOO_LARGE\0\u{1}REJECTION_REASON_CORRUPT\0\u{1}REJECTION_REASON_INTERNAL\0")
+}
 
 extension Flipcash_Blob_V1_BlobId: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".BlobId"
@@ -137,6 +652,115 @@ extension Flipcash_Blob_V1_BlobId: SwiftProtobuf.Message, SwiftProtobuf._Message
   }
 }
 
+extension Flipcash_Blob_V1_BlobIdBatch: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".BlobIdBatch"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}blob_ids\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.blobIds) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.blobIds.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.blobIds, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Blob_V1_BlobIdBatch, rhs: Flipcash_Blob_V1_BlobIdBatch) -> Bool {
+    if lhs.blobIds != rhs.blobIds {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Blob_V1_Blob: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Blob"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}status\0\u{1}metadata\0\u{1}rejection\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._id) }()
+      case 2: try { try decoder.decodeSingularEnumField(value: &self.status) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._metadata) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._rejection) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._id {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if self.status != .unknown {
+      try visitor.visitSingularEnumField(value: self.status, fieldNumber: 2)
+    }
+    try { if let v = self._metadata {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    try { if let v = self._rejection {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Blob_V1_Blob, rhs: Flipcash_Blob_V1_Blob) -> Bool {
+    if lhs._id != rhs._id {return false}
+    if lhs.status != rhs.status {return false}
+    if lhs._metadata != rhs._metadata {return false}
+    if lhs._rejection != rhs._rejection {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Blob_V1_BlobBatch: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".BlobBatch"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}blobs\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.blobs) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.blobs.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.blobs, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Blob_V1_BlobBatch, rhs: Flipcash_Blob_V1_BlobBatch) -> Bool {
+    if lhs.blobs != rhs.blobs {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 extension Flipcash_Blob_V1_BlobMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".BlobMetadata"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}mime_type\0\u{3}size_bytes\0\u{3}download_url\0\u{1}image\0")
@@ -149,7 +773,7 @@ extension Flipcash_Blob_V1_BlobMetadata: SwiftProtobuf.Message, SwiftProtobuf._M
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.mimeType) }()
       case 2: try { try decoder.decodeSingularUInt64Field(value: &self.sizeBytes) }()
-      case 3: try { try decoder.decodeSingularStringField(value: &self.downloadURL) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._downloadURL) }()
       case 4: try {
         var v: Flipcash_Blob_V1_ImageMetadata?
         var hadOneofValue = false
@@ -179,9 +803,9 @@ extension Flipcash_Blob_V1_BlobMetadata: SwiftProtobuf.Message, SwiftProtobuf._M
     if self.sizeBytes != 0 {
       try visitor.visitSingularUInt64Field(value: self.sizeBytes, fieldNumber: 2)
     }
-    if !self.downloadURL.isEmpty {
-      try visitor.visitSingularStringField(value: self.downloadURL, fieldNumber: 3)
-    }
+    try { if let v = self._downloadURL {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
     try { if case .image(let v)? = self.kind {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
     } }()
@@ -191,7 +815,7 @@ extension Flipcash_Blob_V1_BlobMetadata: SwiftProtobuf.Message, SwiftProtobuf._M
   public static func ==(lhs: Flipcash_Blob_V1_BlobMetadata, rhs: Flipcash_Blob_V1_BlobMetadata) -> Bool {
     if lhs.mimeType != rhs.mimeType {return false}
     if lhs.sizeBytes != rhs.sizeBytes {return false}
-    if lhs.downloadURL != rhs.downloadURL {return false}
+    if lhs._downloadURL != rhs._downloadURL {return false}
     if lhs.kind != rhs.kind {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -233,6 +857,354 @@ extension Flipcash_Blob_V1_ImageMetadata: SwiftProtobuf.Message, SwiftProtobuf._
     if lhs.width != rhs.width {return false}
     if lhs.height != rhs.height {return false}
     if lhs.blurhash != rhs.blurhash {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Blob_V1_UploadPolicy: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UploadPolicy"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}version\0\u{1}ttl\0\u{3}mime_type_constraints\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._version) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._ttl) }()
+      case 3: try { try decoder.decodeRepeatedMessageField(value: &self.mimeTypeConstraints) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._version {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._ttl {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    if !self.mimeTypeConstraints.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.mimeTypeConstraints, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Blob_V1_UploadPolicy, rhs: Flipcash_Blob_V1_UploadPolicy) -> Bool {
+    if lhs._version != rhs._version {return false}
+    if lhs._ttl != rhs._ttl {return false}
+    if lhs.mimeTypeConstraints != rhs.mimeTypeConstraints {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Blob_V1_PolicyVersion: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".PolicyVersion"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}value\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.value) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.value.isEmpty {
+      try visitor.visitSingularStringField(value: self.value, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Blob_V1_PolicyVersion, rhs: Flipcash_Blob_V1_PolicyVersion) -> Bool {
+    if lhs.value != rhs.value {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Blob_V1_MimeTypeConstraints: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".MimeTypeConstraints"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}mime_type_pattern\0\u{3}max_size_bytes\0\u{1}image\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.mimeTypePattern) }()
+      case 2: try { try decoder.decodeSingularUInt64Field(value: &self.maxSizeBytes) }()
+      case 3: try {
+        var v: Flipcash_Blob_V1_ImageConstraints?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .image(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .image(v)
+        }
+      }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.mimeTypePattern.isEmpty {
+      try visitor.visitSingularStringField(value: self.mimeTypePattern, fieldNumber: 1)
+    }
+    if self.maxSizeBytes != 0 {
+      try visitor.visitSingularUInt64Field(value: self.maxSizeBytes, fieldNumber: 2)
+    }
+    try { if case .image(let v)? = self.kind {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Blob_V1_MimeTypeConstraints, rhs: Flipcash_Blob_V1_MimeTypeConstraints) -> Bool {
+    if lhs.mimeTypePattern != rhs.mimeTypePattern {return false}
+    if lhs.maxSizeBytes != rhs.maxSizeBytes {return false}
+    if lhs.kind != rhs.kind {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Blob_V1_ImageConstraints: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ImageConstraints"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}max_width\0\u{3}max_height\0\u{3}max_pixels\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularUInt32Field(value: &self.maxWidth) }()
+      case 2: try { try decoder.decodeSingularUInt32Field(value: &self.maxHeight) }()
+      case 3: try { try decoder.decodeSingularUInt64Field(value: &self.maxPixels) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.maxWidth != 0 {
+      try visitor.visitSingularUInt32Field(value: self.maxWidth, fieldNumber: 1)
+    }
+    if self.maxHeight != 0 {
+      try visitor.visitSingularUInt32Field(value: self.maxHeight, fieldNumber: 2)
+    }
+    if self.maxPixels != 0 {
+      try visitor.visitSingularUInt64Field(value: self.maxPixels, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Blob_V1_ImageConstraints, rhs: Flipcash_Blob_V1_ImageConstraints) -> Bool {
+    if lhs.maxWidth != rhs.maxWidth {return false}
+    if lhs.maxHeight != rhs.maxHeight {return false}
+    if lhs.maxPixels != rhs.maxPixels {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Blob_V1_UploadTarget: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UploadTarget"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}method\0\u{1}url\0\u{1}headers\0\u{3}form_fields\0\u{3}expires_at\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.method) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.url) }()
+      case 3: try { try decoder.decodeMapField(fieldType: SwiftProtobuf._ProtobufMap<SwiftProtobuf.ProtobufString,SwiftProtobuf.ProtobufString>.self, value: &self.headers) }()
+      case 4: try { try decoder.decodeMapField(fieldType: SwiftProtobuf._ProtobufMap<SwiftProtobuf.ProtobufString,SwiftProtobuf.ProtobufString>.self, value: &self.formFields) }()
+      case 5: try { try decoder.decodeSingularMessageField(value: &self._expiresAt) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.method != .unknown {
+      try visitor.visitSingularEnumField(value: self.method, fieldNumber: 1)
+    }
+    if !self.url.isEmpty {
+      try visitor.visitSingularStringField(value: self.url, fieldNumber: 2)
+    }
+    if !self.headers.isEmpty {
+      try visitor.visitMapField(fieldType: SwiftProtobuf._ProtobufMap<SwiftProtobuf.ProtobufString,SwiftProtobuf.ProtobufString>.self, value: self.headers, fieldNumber: 3)
+    }
+    if !self.formFields.isEmpty {
+      try visitor.visitMapField(fieldType: SwiftProtobuf._ProtobufMap<SwiftProtobuf.ProtobufString,SwiftProtobuf.ProtobufString>.self, value: self.formFields, fieldNumber: 4)
+    }
+    try { if let v = self._expiresAt {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Blob_V1_UploadTarget, rhs: Flipcash_Blob_V1_UploadTarget) -> Bool {
+    if lhs.method != rhs.method {return false}
+    if lhs.url != rhs.url {return false}
+    if lhs.headers != rhs.headers {return false}
+    if lhs.formFields != rhs.formFields {return false}
+    if lhs._expiresAt != rhs._expiresAt {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Blob_V1_UploadTarget.Method: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0UNKNOWN\0\u{1}PUT\0\u{1}POST\0")
+}
+
+extension Flipcash_Blob_V1_DownloadUrl: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".DownloadUrl"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}url\0\u{3}expires_at\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.url) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._expiresAt) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.url.isEmpty {
+      try visitor.visitSingularStringField(value: self.url, fieldNumber: 1)
+    }
+    try { if let v = self._expiresAt {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Blob_V1_DownloadUrl, rhs: Flipcash_Blob_V1_DownloadUrl) -> Bool {
+    if lhs.url != rhs.url {return false}
+    if lhs._expiresAt != rhs._expiresAt {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Blob_V1_RejectionMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".RejectionMetadata"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}reason\0\u{3}flagged_category\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.reason) }()
+      case 2: try { try decoder.decodeSingularEnumField(value: &self.flaggedCategory) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.reason != .unknown {
+      try visitor.visitSingularEnumField(value: self.reason, fieldNumber: 1)
+    }
+    if self.flaggedCategory != .none {
+      try visitor.visitSingularEnumField(value: self.flaggedCategory, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Blob_V1_RejectionMetadata, rhs: Flipcash_Blob_V1_RejectionMetadata) -> Bool {
+    if lhs.reason != rhs.reason {return false}
+    if lhs.flaggedCategory != rhs.flaggedCategory {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Blob_V1_AccessContext: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".AccessContext"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}chat\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try {
+        var v: Flipcash_Common_V1_ChatId?
+        var hadOneofValue = false
+        if let current = self.scope {
+          hadOneofValue = true
+          if case .chat(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.scope = .chat(v)
+        }
+      }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if case .chat(let v)? = self.scope {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Blob_V1_AccessContext, rhs: Flipcash_Blob_V1_AccessContext) -> Bool {
+    if lhs.scope != rhs.scope {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

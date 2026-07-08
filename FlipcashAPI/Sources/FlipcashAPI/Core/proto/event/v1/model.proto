@@ -6,6 +6,7 @@ option go_package = "github.com/code-payments/flipcash2-protobuf-api/generated/g
 option java_package = "com.codeinc.flipcash.gen.events.v1";
 option objc_class_prefix = "FPBEventV1";
 
+import "blob/v1/model.proto";
 import "chat/v1/model.proto";
 import "common/v1/common.proto";
 import "messaging/v1/model.proto";
@@ -31,6 +32,7 @@ message Event {
 
         TestEvent  test        = 3;
         ChatUpdate chat_update = 4;
+        BlobUpdate blob_update = 5;
     }
 }
 
@@ -112,4 +114,19 @@ message ChatUpdate {
     // ReactionUpdate.sequence and reconcile any misses by refreshing a message's
     // ReactionSummary on view.
     messaging.v1.ReactionUpdateBatch reaction_updates = 7;
+}
+
+// BlobUpdate notifies the recipient in real time that blobs they uploaded have
+// transitioned to a new lifecycle state — e.g. PROCESSING → READY once the
+// server finishes validating, transcoding, and moderating, or → REJECTED on
+// failure. It lets clients react to upload completion via the event stream
+// instead of polling BlobStorage.GetBlobs.
+//
+// Best-effort: a client that misses an update reconciles by calling
+// BlobStorage.GetBlobs. The BlobId is the durable handle; any download_url
+// carried here is ephemeral and may be re-minted via GetBlobs.
+message BlobUpdate {
+    // The blobs that transitioned, each carrying its new status and, when READY,
+    // its resolved metadata (including a freshly minted download_url).
+    blob.v1.BlobBatch blobs = 1 [(validate.rules).message.required = true];
 }

@@ -6,6 +6,10 @@ option go_package = "github.com/code-payments/flipcash2-protobuf-api/generated/g
 option java_package = "com.codeinc.flipcash.gen.blob.v1";
 option objc_class_prefix = "FPBBlobV1";
 
+import "common/v1/common.proto";
+import "moderation/v1/model.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
 import "validate/validate.proto";
 
 // Opaque, client-held handle to a stored blob. This is the durable identity for
@@ -14,6 +18,46 @@ message BlobId {
     bytes value = 1 [(validate.rules).bytes = {
         min_len: 16
         max_len: 16
+    }];
+}
+
+// A batch of BlobIds
+message BlobIdBatch {
+    repeated BlobId blob_ids = 1 [(validate.rules).repeated = {
+        min_items: 1
+        max_items: 100
+    }];
+}
+
+// Lifecycle state of a blob.
+enum BlobStatus {
+    BLOB_STATUS_UNKNOWN    = 0;
+    BLOB_STATUS_PENDING    = 1; // reserved; awaiting the client's upload
+    BLOB_STATUS_PROCESSING = 2; // bytes present; deriving metadata / transcoding / moderating
+    BLOB_STATUS_READY      = 3; // available; metadata populated and moderation passed
+    BLOB_STATUS_REJECTED   = 4; // failed validation or moderation; not servable
+}
+
+// A blob's current status, plus its metadata once READY — or, once REJECTED,
+// the reason it was rejected.
+message Blob {
+    BlobId id = 1 [(validate.rules).message.required = true];
+
+    BlobStatus status = 2;
+
+    // Server-authoritative metadata, including a freshly minted download_url.
+    // Set only when status == READY.
+    BlobMetadata metadata = 3;
+
+    // Why the blob was rejected. Set only when status == REJECTED.
+    RejectionMetadata rejection = 4;
+}
+
+// A batch of Blobs.
+message BlobBatch {
+    repeated Blob blobs = 1 [(validate.rules).repeated = {
+        min_items: 1
+        max_items: 100
     }];
 }
 
@@ -30,15 +74,9 @@ message BlobMetadata {
     // Total size of the blob in bytes.
     uint64 size_bytes = 2 [(validate.rules).uint64.gte = 1];
 
-    // Ephemeral, server-minted URL for fetching the blob bytes. Unlike the
-    // other fields it is NOT intrinsic to the blob: it is re-issued on every
-    // fetch, may expire (signed URL with a short TTL), and is authorized at
-    // mint time, not at fetch time. Clients MUST NOT persist or cache it across
-    // fetches; treat the BlobId as the durable handle and this as disposable.
-    string download_url = 3 [(validate.rules).string = {
-        uri: true
-        max_len: 2048
-    }];
+    // Ephemeral, server-minted URL for fetching the blob bytes, together with
+    // the instant it expires. Re-issued on every fetch — see DownloadUrl.
+    DownloadUrl download_url = 3 [(validate.rules).message.required = true];
 
     // Kind-specific metadata the server derived from the bytes. Exactly one
     // variant is set for a recognized media kind; left unset for opaque blobs.
@@ -57,4 +95,178 @@ message ImageMetadata {
 
     // Compact preview shown while the full image downloads (BlurHash string).
     string blurhash = 3 [(validate.rules).string.max_len = 64];
+}
+
+// The constraints the server enforces on uploads, surfaced so clients can
+// validate and resize/transcode before reserving an upload. Advisory and
+// cacheable; InitiateExternalUpload remains authoritative. Constraints can
+// depend on the caller (quota, tier), so this is fetched per-user, not static.
+message UploadPolicy {
+    // Opaque generation token for this policy. Clients cache the policy under it
+    // and re-fetch when they observe a different version — including one echoed
+    // on a denied upload.
+    PolicyVersion version = 1 [(validate.rules).message.required = true];
+
+    // How long the client may rely on this policy before re-fetching. The client
+    // should also refresh on any version mismatch, whichever comes first.
+    google.protobuf.Duration ttl = 2 [(validate.rules).duration.required = true];
+
+    // Per-MIME-type constraints, ordered MOST SPECIFIC FIRST. The client picks
+    // the FIRST entry whose mime_type_pattern matches the bytes' declared MIME
+    // type; later entries (e.g. "image/*", then "*/*") act as fallbacks. An
+    // upload whose type matches no entry is not accepted.
+    repeated MimeTypeConstraints mime_type_constraints = 3 [(validate.rules).repeated = {
+        min_items: 1
+        max_items: 1024
+    }];
+}
+
+// Opaque generation token identifying a snapshot of an UploadPolicy. Compared
+// by equality, never parsed; clients cache the policy under it and re-fetch when
+// they observe a different value (including one echoed on a denied upload).
+message PolicyVersion {
+    string value = 1 [(validate.rules).string = {
+        min_len: 1
+        max_len: 256
+    }];
+}
+
+// Upload constraints for one MIME-type matcher.
+message MimeTypeConstraints {
+    // The MIME type(s) this entry governs: an exact type ("image/jpeg"), a
+    // subtype wildcard ("image/*"), or the catch-all "*/*".
+    string mime_type_pattern = 1 [(validate.rules).string = {
+        min_len: 3
+        max_len: 255
+    }];
+
+    // Hard ceiling on a matching blob's byte size.
+    uint64 max_size_bytes = 2 [(validate.rules).uint64.gte = 1];
+
+    // Kind-specific bounds, mirroring BlobMetadata.kind. Set the variant for the
+    // pattern's media kind; left unset for opaque blobs.
+    oneof kind {
+        ImageConstraints image = 3;
+    }
+}
+
+// Bounds on a still image, mirroring ImageMetadata.
+message ImageConstraints {
+    // Max pixel dimensions the server will accept (or downscale to).
+    uint32 max_width  = 1 [(validate.rules).uint32.gte = 1];
+    uint32 max_height = 2 [(validate.rules).uint32.gte = 1];
+
+    // Max total pixel count (width * height), guarding against decompression
+    // bombs that slip under the per-axis caps.
+    uint64 max_pixels = 3 [(validate.rules).uint64.gte = 1];
+}
+
+// A short-lived, presigned target for a direct-to-storage upload. Bearer
+// credential: anyone holding it can upload to the reserved key until it expires
+// — the client must not share or persist it.
+//
+// Provider-agnostic by design: it describes the HTTP request the client must
+// make, with all signed material opaque to the client. Today the server mints
+// S3 POST policies (method POST with form_fields); the same shape also
+// expresses presigned PUT (S3/GCS) and Azure SAS without a contract change.
+message UploadTarget {
+    // How the client issues the upload request.
+    Method method = 1 [(validate.rules).enum = {
+        not_in: [0]
+    }];
+    enum Method {
+        UNKNOWN = 0;
+        PUT     = 1; // raw-body upload
+        POST    = 2; // multipart/form-data carrying form_fields
+    }
+
+    // Signed URL to send the request to. For PUT-style uploads this often
+    // already carries the signature in its query string (presigned PUT, SAS).
+    string url = 2 [(validate.rules).string = {
+        uri: true
+        max_len: 2048
+    }];
+
+    // Headers the client MUST send verbatim (e.g. Content-Type, x-ms-blob-type,
+    // and any signed headers the presign requires).
+    map<string, string> headers = 3;
+
+    // For method == POST: multipart/form-data fields sent before the file part,
+    // carrying the server-chosen key and the SIGNED policy that storage enforces
+    // (Content-Type, content-length-range, key prefix, ...). The client cannot
+    // alter them without invalidating the signature. Empty for PUT uploads.
+    map<string, string> form_fields = 4;
+
+    // When the target expires; after this the client must call InitiateUpload
+    // again for a fresh one.
+    google.protobuf.Timestamp expires_at = 5 [(validate.rules).timestamp.required = true];
+}
+
+// An ephemeral, server-minted URL for fetching the blob bytes, paired with the
+// instant it expires. Unlike the intrinsic blob metadata, the URL is NOT a
+// property of the bytes: it is re-issued on every fetch, expires (signed URL
+// with a short TTL), and is authorized at mint time, not at fetch time. Clients
+// MUST NOT persist or cache it across fetches; treat the BlobId as the durable
+// handle and this as disposable.
+message DownloadUrl {
+    // Signed URL for fetching the blob bytes.
+    string url = 1 [(validate.rules).string = {
+        uri: true
+        max_len: 2048
+    }];
+
+    // When the URL expires; after this the client must call GetBlobs again to
+    // mint a fresh one.
+    google.protobuf.Timestamp expires_at = 2 [(validate.rules).timestamp.required = true];
+}
+
+// Explains why a blob was rejected during finalization. Set on a Blob only when
+// status == REJECTED. Rejection is TERMINAL: the bytes behind a BlobId are
+// immutable, so this id will never become READY — to try again the client must
+// reserve a fresh upload via InitiateExternalUpload.
+message RejectionMetadata {
+    // The top-level reason finalization failed.
+    RejectionReason reason = 1 [(validate.rules).enum = {
+        not_in: [0]
+    }];
+
+    // The best-fit category that tripped moderation, mirroring the Moderation
+    // service's vocabulary. Set only when reason == REJECTION_REASON_MODERATION;
+    // NONE otherwise.
+    moderation.v1.FlaggedCategory flagged_category = 2;
+}
+
+// Why a blob failed finalization, after its bytes were uploaded. Distinct from
+// the pre-upload denials in InitiateExternalUploadResponse.Result, which reject
+// before any bytes are stored.
+enum RejectionReason {
+    REJECTION_REASON_UNKNOWN          = 0;
+    REJECTION_REASON_MODERATION       = 1; // tripped content moderation; see flagged_category
+    REJECTION_REASON_UNSUPPORTED_TYPE = 2; // MIME type derived from the bytes is not accepted
+    REJECTION_REASON_MISMATCHED_TYPE  = 3; // derived type didn't match the declared mime_type
+    REJECTION_REASON_TOO_LARGE        = 4; // stored bytes exceeded the per-type ceiling
+    REJECTION_REASON_CORRUPT          = 5; // bytes unreadable; failed to decode or transcode
+    REJECTION_REASON_INTERNAL         = 6; // server-side processing error
+}
+
+// AccessContext names the surface a caller is accessing blobs THROUGH on a
+// request — the "place" the read is happening from. It is the extension point
+// for blob authorization contexts: each scope maps to a server-side membership
+// check (e.g. a chat scope authorizes the caller iff they belong to that chat
+// AND the blob was shared into it).
+//
+// It is a hint that can only ever NARROW a read, never widen it: the server
+// still independently verifies both that the blob is granted to the named scope
+// and that the caller belongs to it. A caller never needs a context to read
+// blobs it OWNS, but does need one for any blob it does not own. New surfaces (a
+// feed, a profile, a public link) are added as new arms of `scope` without
+// changing any request plumbing.
+message AccessContext {
+    oneof scope {
+        option (validate.required) = true;
+
+        // The caller is accessing these blobs from within this chat. Authorized
+        // iff the caller is a member of the chat and the blob was shared into it.
+        common.v1.ChatId chat = 1 [(validate.rules).message.required = true];
+    }
 }

@@ -1,0 +1,152 @@
+syntax = "proto3";
+
+package flipcash.blob.v1;
+
+option go_package = "github.com/code-payments/flipcash2-protobuf-api/generated/go/blob/v1;blobpb";
+option java_package = "com.codeinc.flipcash.gen.blob.v1";
+option objc_class_prefix = "FPBBlobV1";
+
+import "blob/v1/model.proto";
+import "common/v1/common.proto";
+import "validate/validate.proto";
+
+// BlobStorage manages direct-to-storage uploads and authorized, time-limited reads
+// of the bytes behind MediaItem renditions (and other blobs). Clients upload bytes
+// straight to object storage via a presigned target — the server never proxies
+// them — and all blob metadata is server-derived from the stored bytes.
+service BlobStorage {
+    // GetUploadPolicy returns the current upload constraints — which MIME types
+    // are accepted and the per-type ceilings the server enforces — so the client
+    // can validate (and resize/transcode) BEFORE reserving an upload. The policy
+    // is advisory and cacheable; InitiateExternalUpload remains authoritative and
+    // may still deny. Clients re-fetch when version changes or ttl lapses.
+    rpc GetUploadPolicy(GetUploadPolicyRequest) returns (GetUploadPolicyResponse);
+
+    // InitiateExternalUpload reserves a BlobId and returns a short-lived presigned
+    // target the client uploads the bytes to directly. Clients only ever upload
+    // ORIGINALs; the server derives any additional renditions itself.
+    rpc InitiateExternalUpload(InitiateExternalUploadRequest) returns (InitiateExternalUploadResponse);
+
+    // CompleteExternalUpload is an ADVISORY signal that the client finished uploading,
+    // letting the server finalize (validate, derive metadata, transcode
+    // renditions, moderate) without waiting for the storage-completion event.
+    // It is idempotent; if never called, the storage event finalizes the blob
+    // anyway. Clients must not depend on it for correctness.
+    rpc CompleteExternalUpload(CompleteExternalUploadRequest) returns (CompleteExternalUploadResponse);
+
+    // GetBlobs resolves known BlobIds to their current status and metadata,
+    // minting a FRESH, short-lived download_url for each READY blob. Clients
+    // call it to reissue a URL that has expired — the BlobId is the durable
+    // handle; the URL is disposable. A caller must set GetBlobsRequest.context
+    // to the surface it is reading from (e.g. a chat) to authorize blobs it
+    // does not own.
+    rpc GetBlobs(GetBlobsRequest) returns (GetBlobsResponse);
+}
+
+message GetUploadPolicyRequest {
+    common.v1.Auth auth = 1 [(validate.rules).message.required = true];
+}
+
+message GetUploadPolicyResponse {
+    Result result = 1;
+    enum Result {
+        OK     = 0;
+        DENIED = 1;
+    }
+
+    // The constraints in force for the caller. Set when result == OK.
+    UploadPolicy policy = 2;
+}
+
+message InitiateExternalUploadRequest {
+    common.v1.Auth auth = 1 [(validate.rules).message.required = true];
+
+    // Declared MIME type of the bytes the client intends to upload. The server
+    // pins it into the signed upload policy (storage rejects a mismatched
+    // Content-Type) and re-derives it authoritatively from the bytes after
+    // upload. A hint that constrains the upload, never blindly trusted.
+    string mime_type = 2 [(validate.rules).string = {
+        min_len: 1
+        max_len: 255
+    }];
+
+    // Declared byte size. The server bakes it into the policy's
+    // content-length-range so storage rejects an upload that exceeds it.
+    uint64 size_bytes = 3 [(validate.rules).uint64.gte = 1];
+}
+
+message InitiateExternalUploadResponse {
+    Result result = 1;
+    enum Result {
+        OK               = 0;
+        DENIED           = 1;
+        UNSUPPORTED_TYPE = 2; // MIME type not accepted
+        TOO_LARGE        = 3; // declared size over the per-type ceiling
+        QUOTA_EXCEEDED   = 4; // caller is over their storage/upload quota
+    }
+
+    // Server-assigned handle. On OK the client references this as the ORIGINAL
+    // rendition's blob_id on SendMessage.
+    BlobId blob_id = 2;
+
+    // Where and how to upload the bytes. Set only when result == OK.
+    UploadTarget upload_target = 3;
+
+    // On a policy-driven denial (UNSUPPORTED_TYPE / TOO_LARGE), the UploadPolicy
+    // version in force, so the client can detect a stale cached policy and
+    // re-fetch. Unset otherwise.
+    PolicyVersion policy_version = 4;
+}
+
+message CompleteExternalUploadRequest {
+    common.v1.Auth auth = 1 [(validate.rules).message.required = true];
+
+    // The blob whose upload just finished.
+    BlobId blob_id = 2 [(validate.rules).message.required = true];
+}
+
+message CompleteExternalUploadResponse {
+    Result result = 1;
+    enum Result {
+        OK           = 0;
+        NOT_FOUND    = 1; // no pending blob with this id for the caller
+        NOT_UPLOADED = 2; // bytes not present / upload incomplete
+    }
+
+    // Blob state after this call (often still PROCESSING).
+    BlobStatus status = 2;
+
+    // Why the blob was rejected. Set only when status == REJECTED.
+    RejectionMetadata rejection_metadata = 3;
+}
+
+message GetBlobsRequest {
+    common.v1.Auth auth = 1 [(validate.rules).message.required = true];
+
+    // The blobs to resolve.
+    BlobIdBatch blob_ids = 2 [(validate.rules).message.required = true];
+
+    // The surface the caller is accessing these blobs from. When set, the
+    // server authorizes the entire batch through this single context, turning
+    // the read into a direct membership check instead of a search across the
+    // blob's grants.
+    //
+    // OPTIONAL on the wire, but REQUIRED in practice for any blob the caller
+    // does not OWN: blobs the caller owns resolve without a context, while a
+    // non-owned id is treated as unauthorized (and omitted from the response)
+    // unless a context that authorizes it is supplied. A caller reading only
+    // its own blobs may omit it, so existing owner-only clients are unaffected.
+    AccessContext context = 3;
+}
+
+message GetBlobsResponse {
+    Result result = 1;
+    enum Result {
+        OK     = 0;
+        DENIED = 1;
+    }
+
+    // The resolved blobs. Unknown or unauthorized ids are omitted; the batch
+    // is left unset (not empty) when none resolve.
+    BlobBatch blobs = 2;
+}
