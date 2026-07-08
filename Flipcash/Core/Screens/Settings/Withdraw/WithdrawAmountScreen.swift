@@ -43,6 +43,7 @@ struct WithdrawAmountScreen: View {
                 CurrencySelectionScreen(ratesController: ratesController)
             }
         }
+        .ignoresSafeArea(.keyboard)
         .navigationTitle(title)
         .toolbarTitleDisplayMode(.inline)
     }

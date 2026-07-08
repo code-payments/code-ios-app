@@ -81,6 +81,7 @@ struct BuyAmountScreen: View {
             .foregroundStyle(.textMain)
             .padding(20)
         }
+        .ignoresSafeArea(.keyboard)
         .navigationTitle(viewModel.screenTitle)
         .toolbarTitleDisplayMode(.inline)
         .toolbar {

@@ -41,6 +41,7 @@ struct CurrencySellAmountScreen: View {
                 .foregroundStyle(.textMain)
                 .padding(20)
             }
+            .ignoresSafeArea(.keyboard)
             .navigationTitle(viewModel.screenTitle)
             .toolbarTitleDisplayMode(.inline)
             .navigationDestination(for: CurrencySellPath.self) { step in
