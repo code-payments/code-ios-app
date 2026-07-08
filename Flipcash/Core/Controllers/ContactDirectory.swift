@@ -174,6 +174,10 @@ enum RecipientLoader {
 
     static func load(database: Database) async -> ResolvedContacts {
         await Task.detached(priority: .userInitiated) {
+            // Hosted unit tests must never reach the real contact store — on
+            // iOS 26 the access itself presents the system share picker over
+            // the test host app and wedges the run.
+            guard !Container.isRunningUnitTests else { return ResolvedContacts.empty }
             let snapshot: [Database.LocalContact]
             let matched: [MatchedContact]
             do {

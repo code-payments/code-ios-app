@@ -339,8 +339,8 @@ struct ContactSyncControllerTests {
             await controller.syncTask?.value
             try await Self.awaitResolved(controller)
 
-            // The flag, not the contents: name resolution reads the real
-            // CNContactStore, which a unit test can't seed.
+            // The flag, not the contents: contact resolution is guarded off
+            // in unit-test hosts, so only the flag is assertable.
             #expect(controller.hasResolvedOnce)
         }
 
@@ -447,6 +447,38 @@ struct ContactSyncControllerTests {
             while !controller.hasResolvedOnce, Date.now < deadline {
                 await Task.yield()
             }
+        }
+    }
+
+    // MARK: - Contact store isolation
+
+    @Suite("Contact store isolation", .serialized)
+    @MainActor
+    struct ContactStoreIsolationTests {
+
+        /// Regression (2026-07-08): a hosted unit test must never reach the
+        /// real `CNContactStore`. On iOS 26 the access itself presents the
+        /// system share picker over the test host app and wedges the whole
+        /// xcodebuild run at unit-phase entry. `resolveDirectory` with a
+        /// seeded snapshot is the exact path that fired (tccd logged
+        /// `unifiedContactWithIdentifier: "alice"` → AUTHREQ_PROMPTING).
+        @Test("resolveDirectory in a unit-test host never resolves against the store")
+        func resolveDirectory_unitTestHost_staysEmpty() async throws {
+            let database = Database.mock
+            try database.replaceLocalContactsSnapshot([
+                Database.LocalContact(e164: "+14155550100", contactId: "alice"),
+            ])
+            let controller = ContactSyncController(
+                client:                      MockContactSync(),
+                database:                    database,
+                owner:                       .mock,
+                authorizationStatusProvider: { .authorized }
+            )
+
+            await controller.resolveDirectory()
+
+            #expect(Container.isRunningUnitTests)
+            #expect(controller.resolvedContacts.isEmpty)
         }
     }
 

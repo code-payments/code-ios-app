@@ -63,7 +63,7 @@ class Container {
     /// Unit tests run the app inside the test runner process where
     /// `XCTestConfigurationFilePath` is set. UI tests run a separate app
     /// process that does not inherit that var, so this stays `false` there.
-    static var isRunningUnitTests: Bool {
+    nonisolated static var isRunningUnitTests: Bool {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
 
