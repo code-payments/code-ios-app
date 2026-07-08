@@ -158,6 +158,9 @@ class ScanCashOperation {
         )
 
         guard isStreamOpen else {
+            logger.warning("No open stream for rendezvous, bill expired or dismissed", metadata: [
+                "rendezvous": "\(rendezvous.publicKey.base58)"
+            ])
             throw Error.noOpenStreamForRendezvous
         }
 

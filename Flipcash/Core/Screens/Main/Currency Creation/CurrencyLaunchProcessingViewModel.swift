@@ -147,6 +147,8 @@ class CurrencyLaunchProcessingViewModel {
             // transitions on iOS 18). Don't treat as failure — the view
             // will restart the task if still visible.
         } catch {
+            // No swap state was ever fetched within the poll budget
+            logger.error("Launch swap polling failed", metadata: ["error": "\(error)"])
             displayState = .failed
             Analytics.currencyLaunch(event: analyticsEvent, launchedMint: launchedMint, exchangedFiat: launchAmount, successful: false, error: error)
         }
@@ -263,6 +265,13 @@ class CurrencyLaunchProcessingViewModel {
     // MARK: - Reporting -
 
     private func reportLaunchFailure(state: SwapState, reason: String) {
+        logger.error("Launch swap failed", metadata: [
+            "swapId": "\(swapId.publicKey.base58)",
+            "fundingMethod": "\(fundingMethod)",
+            "state": "\(state)",
+            "mint": "\(launchedMint.base58)",
+            "reason": "\(reason)",
+        ])
         ErrorReporting.captureError(
             SwapError.failed(state: state),
             reason: reason,
