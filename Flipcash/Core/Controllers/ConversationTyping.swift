@@ -10,18 +10,9 @@ import FlipcashCore
 
 nonisolated private let logger = Logger(label: "flipcash.conversation-controller")
 
-/// Owns the typing-indicator concern for DM conversations, both directions.
-///
-/// **Outgoing** — drives the signed-in user's typing state from the composer's draft:
-/// STARTED on the first non-empty change, STILL at least every `heartbeatInterval`
-/// while typing continues, STOPPED at `timeout` idle or when the draft empties.
-/// Sends are serialized and coalesced per conversation so a STOPPED can never be
-/// overtaken by an in-flight STILL.
-///
-/// **Incoming** — tracks which OTHER members are typing per conversation, expiring
-/// each typist `incomingExpiry` after their last STARTED/STILL: the server is a
-/// stateless relay with no timeout of its own, so a dropped STOPPED would otherwise
-/// stick the indicator forever.
+/// Typing indicators for DM conversations: broadcasts the signed-in user's typing state
+/// and tracks which counterparts are typing. The server relays typing best-effort with
+/// no timeout of its own, so stale typists are expired locally.
 @MainActor
 @Observable
 final class ConversationTyping {
@@ -29,32 +20,19 @@ final class ConversationTyping {
     @ObservationIgnored private let messaging: any ConversationMessaging
     @ObservationIgnored private let owner: KeyPair
     @ObservationIgnored private let selfUserID: UserID
-    /// Cadence constants match the Android client so all clients agree; injected so
-    /// tests can shorten them.
+    // 3s/5s cadence matches the Android client; injectable so tests can shorten them.
     private let heartbeatInterval: Duration
     private let timeout: Duration
     private let incomingExpiry: Duration
 
-    // MARK: - Incoming state
-
-    /// Per-conversation set of OTHER members currently typing, maintained from the live
-    /// stream. Ephemeral — never persisted (the proto marks typing transient/best-effort).
-    /// `Set<UserID>` is Equatable, so the @Observable setter skips no-op re-inserts.
-    private var typingUserIDs: [ConversationID: Set<UserID>] = [:]
-    /// Per-typist staleness deadlines backing `typingUserIDs`, swept by `expiryTask`.
-    @ObservationIgnored private var expiries: [ConversationID: [UserID: ContinuousClock.Instant]] = [:]
+    /// OTHER members typing per conversation, each keyed to their staleness deadline.
+    private var typists: [ConversationID: [UserID: ContinuousClock.Instant]] = [:]
     @ObservationIgnored private var expiryTask: Task<Void, Never>?
-
-    // MARK: - Outgoing state
 
     @ObservationIgnored private var isSelfTyping = false
     @ObservationIgnored private var selfTypingTask: Task<Void, Never>?
-    /// When the last outgoing state was queued; lets a keystroke emit the STILL heartbeat
-    /// once `heartbeatInterval` has passed even while the pause loop keeps restarting.
     @ObservationIgnored private var lastSentAt: ContinuousClock.Instant?
-    /// Outgoing states not yet on the wire, drained one at a time by `sendTask` so a
-    /// STOPPED can never overtake an in-flight STILL. States are absolute, so each
-    /// conversation holds at most one pending entry — later states supersede it in place.
+    /// At most one pending state per conversation; later states supersede in place.
     @ObservationIgnored private var pendingSends: [(conversationID: ConversationID, state: TypingState)] = []
     @ObservationIgnored private var sendTask: Task<Void, Never>?
 
@@ -76,20 +54,16 @@ final class ConversationTyping {
 
     // MARK: - Incoming
 
-    /// Whether any OTHER member is currently typing in this conversation.
     func isCounterpartTyping(in conversationID: ConversationID) -> Bool {
-        !(typingUserIDs[conversationID]?.isEmpty ?? true)
+        !(typists[conversationID]?.isEmpty ?? true)
     }
 
-    /// Applies a batch of typing notifications from the live stream. Self is excluded —
-    /// the server may echo our own typing and we never show ourselves typing. Every
-    /// STARTED/STILL refreshes the typist's staleness deadline.
+    /// Self is excluded — the server may echo our own typing.
     func apply(_ notifications: [TypingNotification], in conversationID: ConversationID) {
         for notification in notifications where notification.userID != selfUserID {
             switch notification.isActive {
             case true:
-                typingUserIDs[conversationID, default: []].insert(notification.userID)
-                expiries[conversationID, default: [:]][notification.userID] = ContinuousClock.now + incomingExpiry
+                typists[conversationID, default: [:]][notification.userID] = ContinuousClock.now + incomingExpiry
             case false:
                 removeTypist(notification.userID, in: conversationID)
             }
@@ -98,22 +72,17 @@ final class ConversationTyping {
     }
 
     private func removeTypist(_ userID: UserID, in conversationID: ConversationID) {
-        typingUserIDs[conversationID]?.remove(userID)
-        if typingUserIDs[conversationID]?.isEmpty == true {
-            typingUserIDs[conversationID] = nil
-        }
-        expiries[conversationID]?[userID] = nil
-        if expiries[conversationID]?.isEmpty == true {
-            expiries[conversationID] = nil
+        typists[conversationID]?[userID] = nil
+        if typists[conversationID]?.isEmpty == true {
+            typists[conversationID] = nil
         }
     }
 
-    /// (Re)arms the sweep for the earliest staleness deadline. One task at a time; each
-    /// sweep re-arms for whatever deadline is next, and the task ends when no typists remain.
+    /// One task, re-armed for the next-earliest deadline; ends when no typists remain.
     private func scheduleExpirySweep() {
         expiryTask?.cancel()
         expiryTask = nil
-        guard let earliest = expiries.values.flatMap(\.values).min() else { return }
+        guard let earliest = typists.values.flatMap(\.values).min() else { return }
         expiryTask = Task { [weak self] in
             try? await Task.sleep(until: earliest, clock: .continuous)
             guard let self, !Task.isCancelled else { return }
@@ -123,7 +92,7 @@ final class ConversationTyping {
 
     private func sweepExpiredTypists() {
         let now = ContinuousClock.now
-        for (conversationID, deadlines) in expiries {
+        for (conversationID, deadlines) in typists {
             for (userID, deadline) in deadlines where deadline <= now {
                 logger.debug("Expiring stale typist", metadata: [
                     "conversationID": "\(conversationID)",
@@ -137,8 +106,8 @@ final class ConversationTyping {
 
     // MARK: - Outgoing
 
-    /// Drives outgoing typing from the composer's draft. Each change replaces the previous
-    /// run, mirroring Android's `transformLatest` driver.
+    /// STARTED on first input, STILL at least every `heartbeatInterval` while typing
+    /// continues, STOPPED after `timeout` idle or when the draft empties.
     func draftDidChange(_ text: String, in conversationID: ConversationID) {
         selfTypingTask?.cancel()
         guard !text.isEmpty else {
@@ -146,16 +115,14 @@ final class ConversationTyping {
             return
         }
         selfTypingTask = Task { [weak self] in
-            // A task cancelled before its body runs (a fast type-then-clear) must send nothing — otherwise
-            // it would emit a STARTED with no matching STOPPED and wedge `isSelfTyping`.
+            // Cancelled before running (fast type-then-clear): send nothing, or `isSelfTyping` wedges.
             guard let self, !Task.isCancelled else { return }
             if !self.isSelfTyping {
                 self.isSelfTyping = true
                 self.send(.started, in: conversationID)
             } else if let last = self.lastSentAt,
                       last.duration(to: ContinuousClock.now) >= self.heartbeatInterval {
-                // The pause loop below restarts on every keystroke, so continuous typing would
-                // otherwise go silent after STARTED — and receivers expire stale typists.
+                // The pause loop below restarts on every keystroke; this keeps heartbeats flowing.
                 self.send(.still, in: conversationID)
             }
             var elapsed: Duration = .zero
@@ -182,10 +149,8 @@ final class ConversationTyping {
         send(.stopped, in: conversationID)
     }
 
-    /// Queues a typing state and drains the queue one RPC at a time. Only the first failure
-    /// per drain logs (an offline typing session would otherwise flood the export every few
-    /// seconds); every failure still routes through `captureError`, which classifies
-    /// transient ones as `.suppressed`.
+    /// Serialized so a STOPPED can never be overtaken by an in-flight STILL. Failures are
+    /// best-effort chatter: logged (once per drain) and never reported to Bugsnag.
     private func send(_ state: TypingState, in conversationID: ConversationID) {
         logger.debug("Queued typing notification", metadata: [
             "state": "\(state)",
@@ -212,11 +177,9 @@ final class ConversationTyping {
                             "error": "\(error)",
                         ])
                     }
-                    ErrorReporting.captureError(error, reason: "Failed to notify typing")
                 }
             }
-            // `stop()` is the only other place that clears the slot, and it also cancels — so a
-            // cancelled drainer resuming late must not clear what may be a successor's slot.
+            // A cancelled drainer resuming late must not clear a successor's slot.
             if let self, !Task.isCancelled {
                 self.sendTask = nil
             }
@@ -225,10 +188,8 @@ final class ConversationTyping {
 
     // MARK: - Teardown
 
-    /// Clears all typing state and cancels the driver, drainer, and expiry sweep.
     func stop() {
-        typingUserIDs.removeAll()
-        expiries.removeAll()
+        typists.removeAll()
         expiryTask?.cancel()
         expiryTask = nil
         selfTypingTask?.cancel()

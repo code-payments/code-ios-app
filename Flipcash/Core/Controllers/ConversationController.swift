@@ -313,13 +313,11 @@ final class ConversationController {
         }
     }
 
-    /// Routes a live typing event to the typing unit.
     private func applyTyping(_ event: ConversationStreamEvent) {
         guard case .typingChanged(let conversationID, let notifications) = event else { return }
         typing.apply(notifications, in: conversationID)
     }
 
-    /// Whether any OTHER member is currently typing in this conversation.
     func isCounterpartTyping(in conversationID: ConversationID) -> Bool {
         typing.isCounterpartTyping(in: conversationID)
     }
@@ -662,12 +660,10 @@ final class ConversationController {
 
     // MARK: - Outgoing typing
 
-    /// Drives outgoing typing from the composer's draft; see `ConversationTyping`.
     func draftDidChange(_ text: String, in conversationID: ConversationID) {
         typing.draftDidChange(text, in: conversationID)
     }
 
-    /// Force-stop outgoing typing (draft cleared, message sent, or the composer lost focus).
     func stopSelfTyping(in conversationID: ConversationID) {
         typing.stopSelfTyping(in: conversationID)
     }

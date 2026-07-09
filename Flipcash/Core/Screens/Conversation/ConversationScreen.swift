@@ -271,8 +271,7 @@ struct ConversationScreen: View {
             setVisibleConversation(id, source: "onChange")
         }
         .onDisappear {
-            // Leaving mid-typing must not strand the counterpart's indicator — the composer's
-            // focus `onChange` can't fire once its view is unmounted.
+            // The composer's focus `onChange` can't fire once unmounted, so stop typing here.
             if let conversationID {
                 conversationController.stopSelfTyping(in: conversationID)
             }
