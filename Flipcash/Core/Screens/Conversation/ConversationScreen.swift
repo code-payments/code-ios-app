@@ -271,6 +271,11 @@ struct ConversationScreen: View {
             setVisibleConversation(id, source: "onChange")
         }
         .onDisappear {
+            // Leaving mid-typing must not strand the counterpart's indicator — the composer's
+            // focus `onChange` can't fire once its view is unmounted.
+            if let conversationID {
+                conversationController.stopSelfTyping(in: conversationID)
+            }
             // Guarded so a forward push that already set another ID isn't cleared.
             let matched = conversationController.visibleConversationID == conversationID
             logger.info("Clearing visible conversation on disappear", metadata: [
