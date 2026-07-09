@@ -39,7 +39,7 @@ public struct Bubble: View {
             .padding(.horizontal, 6)
             .frame(minWidth: size.dimension, minHeight: size.dimension)
             .background(color)
-            .cornerRadius(999)
+            .clipShape(.capsule)
     }
 }
 

@@ -107,8 +107,8 @@ private struct IntroScreenContent: View {
                 }
             }
             .ignoresSafeArea(.keyboard)
-            .navigationBarTitle("")
-            .navigationBarHidden(true)
+            .navigationTitle("")
+            .toolbarVisibility(.hidden, for: .navigationBar)
             .navigationDestination(for: OnboardingPath.self) { path in
                 switch path {
                 case .accountSelection:

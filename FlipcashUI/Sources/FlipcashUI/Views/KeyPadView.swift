@@ -423,7 +423,7 @@ private struct KeyPadBorderlessStyle: ButtonStyle {
             .frame(width: size.width, height: size.height) // FIXME: Invalid size here sometimes
             .background(configuration.isPressed ? Color.white.opacity(0.1) : Color.backgroundMain.opacity(0.1))
             .foregroundStyle(configuration.isPressed ? Color.white.opacity(0.9) : .white)
-            .cornerRadius(5.0)
+            .clipShape(.rect(cornerRadius: 5))
     }
 }
 

@@ -55,7 +55,7 @@ extension ChatItem {
             // A separator opens the transcript and breaks any run whose gap from the previous
             // message exceeds `separatorGap`, mirroring the in-app `ChatItem.from`.
             if previous.map({ message.date.timeIntervalSince($0.date) > separatorGap }) ?? true {
-                items.append(.dateSeparator(id: "sep-\(message.id.value)", text: separatorText(for: message.date)))
+                items.append(.dateSeparator(id: "sep-\(message.id.value)", text: message.date.formattedChatSeparator()))
             }
 
             let sender: ChatMessage.Sender = message.senderID == selfUserID ? .me : .other
@@ -95,18 +95,4 @@ extension ChatItem {
     /// Matches the in-app chat: a separator opens the transcript and breaks any run whose gap from
     /// the previous message exceeds this.
     private static let separatorGap: TimeInterval = 15 * 60
-
-    /// The separator label for `date` — "Today 12:13 PM" / "Yesterday 9:05 AM" / "Jun 18 4:30 PM".
-    /// Replicated from the app target's `ChatItem.from`, which this framework can't reach.
-    private static func separatorText(for date: Date) -> String {
-        let day: String
-        if Calendar.current.isDateInToday(date) {
-            day = "Today"
-        } else if Calendar.current.isDateInYesterday(date) {
-            day = "Yesterday"
-        } else {
-            day = date.formatted(.dateTime.month().day())
-        }
-        return "\(day) \(date.formattedTime())"
-    }
 }

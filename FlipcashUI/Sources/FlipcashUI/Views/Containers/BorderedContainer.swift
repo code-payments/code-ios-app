@@ -30,7 +30,7 @@ public struct BorderedContainer<T>: View where T: View {
                 .strokeBorder(Metrics.inputFieldStrokeColor(highlighted: false), lineWidth: Metrics.inputFieldBorderWidth(highlighted: false))
                 .background(
                     Color.backgroundRow
-                        .cornerRadius(Metrics.buttonRadius * 2)
+                        .clipShape(.rect(cornerRadius: Metrics.buttonRadius * 2))
                 )
         )
     }

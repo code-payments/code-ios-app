@@ -49,9 +49,9 @@ extension NumberFormatter {
     
     // Configured formatters are cached and reused across callers. ICU
     // locale-data loading on `NumberFormatter()` init was a confirmed
-    // main-thread hang source on iOS 17/18 in activity lists that format
-    // thousands of rows per render. After first build, instances are never
-    // mutated — NumberFormatter reads are thread-safe since iOS 7.
+    // main-thread hang source in activity lists that format thousands of
+    // rows per render. After first build, instances are never mutated —
+    // NumberFormatter reads are thread-safe since iOS 7.
     private struct FiatCacheKey: Hashable {
         let currency: CurrencyCode
         let minimumFractionDigits: Int

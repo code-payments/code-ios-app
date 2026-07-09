@@ -27,7 +27,7 @@ struct CountryCodeSelectionScreen: View {
     // MARK: - Body -
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Background(color: .backgroundMain) {
                 VStack {
                     LazyTable() {

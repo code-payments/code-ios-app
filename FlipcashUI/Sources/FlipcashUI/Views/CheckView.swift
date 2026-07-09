@@ -41,7 +41,7 @@ struct CheckView_Previews: PreviewProvider {
                 CheckView(active: false)
             }
         }
-        .accentColor(.textMain)
+        .tint(.textMain)
         .previewLayout(.fixed(width: 180, height: 180))
     }
 }

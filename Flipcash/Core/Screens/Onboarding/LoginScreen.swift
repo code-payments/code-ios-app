@@ -35,8 +35,8 @@ struct LoginScreen: View {
                     InputContainer(size: .custom(120)) {
                         TextEditor(text: $inputText)
                             .focused($isFocused)
-                            .autocapitalization(.none)
-                            .disableAutocorrection(true)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
                             .scrollContentBackground(.hidden)
                             .foregroundStyle(.textMain)
                             .font(.appTextMedium)

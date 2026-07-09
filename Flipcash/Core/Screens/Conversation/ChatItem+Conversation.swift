@@ -71,7 +71,7 @@ extension ChatItem {
             // A separator opens the transcript and breaks any run longer than the gap.
             let showsSeparator = previous.map { message.date.timeIntervalSince($0.date) > gap } ?? true
             if showsSeparator {
-                items.append(.dateSeparator(id: "sep-\(message.stableID)", text: Self.separatorText(for: message.date)))
+                items.append(.dateSeparator(id: "sep-\(message.stableID)", text: message.date.formattedChatSeparator()))
             }
 
             let groupedAbove = previous.map {
@@ -142,18 +142,5 @@ extension ChatItem {
         guard let read = counterpartRead, read.pointer >= messageID else { return "Delivered" }
         guard let date = read.date else { return "Read" }
         return "Read \(date.formattedRelatively(useTimeForToday: true))"
-    }
-
-    /// "Today 12:13 PM" / "Yesterday 9:05 AM" / "Jun 18 4:30 PM".
-    private static func separatorText(for date: Date) -> String {
-        let day: String
-        if Calendar.current.isDateInToday(date) {
-            day = "Today"
-        } else if Calendar.current.isDateInYesterday(date) {
-            day = "Yesterday"
-        } else {
-            day = date.formatted(.dateTime.month().day())
-        }
-        return "\(day) \(date.formattedTime())"
     }
 }

@@ -39,7 +39,7 @@ public struct IconButtonStyle: ButtonStyle {
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
             .background(.white.opacity(0.1))
-            .cornerRadius(6)
+            .clipShape(.rect(cornerRadius: 6))
     }
 }
 
