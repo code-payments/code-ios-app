@@ -2,12 +2,19 @@
 # bugsnag-top.sh — fetch the top open production issue from Bugsnag (last 7 days).
 # Emits one JSON object to stdout on success.
 #
+# Modes:
+#   (default)         top open production issue with events in the last 7d
+#   --skip <N>        walk down the ranked list
+#   --id <id|url>     target one issue directly (bypasses the default filters)
+#   --event <id|url>  fetch one full event report, save it to a tempfile,
+#                     emit {event_file, is_full_report}
+#
 # Exit codes:
-#   0  success — issue found, JSON on stdout
+#   0  success — JSON on stdout
 #   2  missing/invalid argument or BUGSNAG_TOKEN unset
 #   3  token rejected by Bugsnag (401)
 #   4  Bugsnag API unreachable after one retry
-#   5  no qualifying issues (or --skip exceeds available results)
+#   5  no qualifying issues (or --skip exceeds available results, or --id/--event not found)
 
 set -euo pipefail
 
@@ -34,11 +41,26 @@ if [ -z "${BUGSNAG_TOKEN:-}" ]; then
   exit 2
 fi
 
-# Parse --skip <N> | --id <bugsnag_error_id_or_url>
+# Parse --skip <N> | --id <bugsnag_error_id_or_url> | --event <bugsnag_event_id_or_url>
 SKIP=0
 FORCED_ID=""
+EVENT_ID=""
 while [ $# -gt 0 ]; do
   case "$1" in
+    --event)
+      EVENT_ID="${2:-}"
+      if [ -z "$EVENT_ID" ]; then
+        echo "--event requires a Bugsnag event id (24-char hex) or a Bugsnag event URL" >&2
+        exit 2
+      fi
+      # If the user pasted a URL, extract the trailing id
+      EVENT_ID="${EVENT_ID##*/}"
+      if ! [[ "$EVENT_ID" =~ ^[0-9a-f]{24}$ ]]; then
+        echo "--event value '$EVENT_ID' is not a 24-char hex Bugsnag event id" >&2
+        exit 2
+      fi
+      shift 2
+      ;;
     --skip)
       SKIP="${2:-}"
       if ! [[ "$SKIP" =~ ^[0-9]+$ ]]; then
@@ -73,7 +95,16 @@ if [ -n "$FORCED_ID" ] && [ "$SKIP" -ne 0 ]; then
   exit 2
 fi
 
-if [ -n "$FORCED_ID" ]; then
+if [ -n "$EVENT_ID" ] && { [ -n "$FORCED_ID" ] || [ "$SKIP" -ne 0 ]; }; then
+  echo "--event cannot be combined with --skip or --id. It fetches one event report directly." >&2
+  exit 2
+fi
+
+if [ -n "$EVENT_ID" ]; then
+  # Event-report lookup — lets the SKILL pull the full latest event without
+  # needing raw curl access.
+  URL="$API_BASE/events/$EVENT_ID"
+elif [ -n "$FORCED_ID" ]; then
   # Targeted lookup — bypass the filtered query so the user can triage anything
   # (closed, fixed, ignored, non-prod, older than 7d) by id.
   URL="$API_BASE/errors/$FORCED_ID"
@@ -120,7 +151,8 @@ report_unreachable_and_exit() {
   exit 4
 }
 
-fetch_errors() {
+# Curls whatever $URL points at (errors list, single error, or event report).
+fetch_url() {
   curl -sS \
     -H "Authorization: token $BUGSNAG_TOKEN" \
     -H "X-Version: 2" \
@@ -128,7 +160,7 @@ fetch_errors() {
     "$URL"
 }
 
-fetch_with_retry fetch_errors
+fetch_with_retry fetch_url
 
 if [ "$HTTP_CODE" = "401" ]; then
   echo "Bugsnag rejected the token (401). Check it hasn't expired or been revoked." >&2
@@ -140,8 +172,25 @@ if [ "$HTTP_CODE" = "404" ] && [ -n "$FORCED_ID" ]; then
   exit 5
 fi
 
+if [ "$HTTP_CODE" = "404" ] && [ -n "$EVENT_ID" ]; then
+  echo "Bugsnag has no event with id $EVENT_ID. Double-check the id (24-char hex) or the URL." >&2
+  exit 5
+fi
+
 if [ "$HTTP_CODE" != "200" ]; then
   report_unreachable_and_exit "Bugsnag API unreachable: HTTP $HTTP_CODE. Try again later."
+fi
+
+# Event mode: persist the full report to a tempfile and emit a small summary.
+# The SKILL runs its jq queries against event_file instead of re-fetching.
+if [ -n "$EVENT_ID" ]; then
+  if ! echo "$BODY" | jq -e 'type == "object"' >/dev/null; then
+    report_unreachable_and_exit "Unexpected Bugsnag event response shape (not a JSON object). API may have changed."
+  fi
+  EVENT_FILE=$(mktemp -t bugsnag-event)
+  printf '%s\n' "$BODY" > "$EVENT_FILE"
+  jq --arg f "$EVENT_FILE" '{event_file: $f, is_full_report: (.is_full_report // false)}' "$EVENT_FILE"
+  exit 0
 fi
 
 # The list endpoint returns an array; the by-id endpoint returns a single object.
@@ -198,7 +247,6 @@ fi
 echo "$ERRORS_BODY" | jq \
   --arg browser_base "$BROWSER_BASE" \
   --arg latest_event_id "$LATEST_EVENT_ID" \
-  --arg api_base "$API_BASE" \
   '.[0] | {
     id,
     short_id: (.id[0:7]),
@@ -212,6 +260,5 @@ echo "$ERRORS_BODY" | jq \
     introduced_in_release: (.introduced_in_releases[0].build_label // null),
     grouping_hint: (.grouping_fields.custom // null),
     html_url: ($browser_base + "/" + .id),
-    latest_event_id: $latest_event_id,
-    latest_event_url: ($api_base + "/events/" + $latest_event_id)
+    latest_event_id: $latest_event_id
   }'
