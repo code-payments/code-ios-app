@@ -207,52 +207,36 @@ public final class ChatViewController: UICollectionViewController {
     }
 
     public override func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        switch items[indexPath.item] {
+        let item = items[indexPath.item]
+        // Dequeue by the item's `cellReuseIdentifier` — the same value folded into the diff
+        // identity — so the class dequeued at a position always matches the one the diff promised
+        // there, and a reconfigure can never land on a cell of a different class (UIKit forbids that).
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: item.cellReuseIdentifier, for: indexPath)
+        switch item {
         case .typingIndicator:
-            return collectionView.dequeueReusableCell(
-                withReuseIdentifier: ChatTypingIndicatorCell.reuseIdentifier,
-                for: indexPath
-            ) as! ChatTypingIndicatorCell
+            break
         case .dateSeparator(_, let text):
-            let cell = collectionView.dequeueReusableCell(
-                withReuseIdentifier: ChatDateSeparatorCell.reuseIdentifier,
-                for: indexPath
-            ) as! ChatDateSeparatorCell
-            cell.configure(text: text)
-            return cell
+            (cell as! ChatDateSeparatorCell).configure(text: text)
         case .message(let message):
-            switch message.content {
-            case .text:
-                // Only text messages are sent optimistically, so only they can reach the failed state
-                // that arms retry (wired on both text cells). Cash messages are always server-confirmed.
-                let width = collectionView.bounds.width > 0 ? collectionView.bounds.width : UIScreen.main.bounds.width
-                let maxWidth = width * Self.maxBubbleWidthFraction
-                if message.linkPreview != nil {
-                    let cell = collectionView.dequeueReusableCell(
-                        withReuseIdentifier: ChatLinkMessageCell.reuseIdentifier,
-                        for: indexPath
-                    ) as! ChatLinkMessageCell
-                    cell.configure(with: message, maxWidth: maxWidth)
-                    cell.onRetry = { [weak self] id in self?.onRetry?(id) }
-                    cell.onOpenURL = { [weak self] url in self?.onOpenURL?(url) }
-                    return cell
-                }
-                let cell = collectionView.dequeueReusableCell(
-                    withReuseIdentifier: ChatMessageCell.reuseIdentifier,
-                    for: indexPath
-                ) as! ChatMessageCell
+            let width = collectionView.bounds.width > 0 ? collectionView.bounds.width : UIScreen.main.bounds.width
+            let maxWidth = width * Self.maxBubbleWidthFraction
+            switch cell {
+            // Only text messages are sent optimistically, so only they can reach the failed state
+            // that arms retry (wired on both text cells). Cash messages are always server-confirmed.
+            case let cell as ChatLinkMessageCell:
                 cell.configure(with: message, maxWidth: maxWidth)
                 cell.onRetry = { [weak self] id in self?.onRetry?(id) }
-                return cell
-            case .cash:
-                let cell = collectionView.dequeueReusableCell(
-                    withReuseIdentifier: ChatCashCardCell.reuseIdentifier,
-                    for: indexPath
-                ) as! ChatCashCardCell
+                cell.onOpenURL = { [weak self] url in self?.onOpenURL?(url) }
+            case let cell as ChatMessageCell:
+                cell.configure(with: message, maxWidth: maxWidth)
+                cell.onRetry = { [weak self] id in self?.onRetry?(id) }
+            case let cell as ChatCashCardCell:
                 cell.configure(with: message)
-                return cell
+            default:
+                assertionFailure("Unhandled chat cell class for reuse identifier \(item.cellReuseIdentifier)")
             }
         }
+        return cell
     }
 
     // MARK: - Selection
