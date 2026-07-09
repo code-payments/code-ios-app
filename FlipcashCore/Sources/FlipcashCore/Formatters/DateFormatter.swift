@@ -51,6 +51,19 @@ extension Date {
         DateFormatter.timeFormatter.string(from: self)
     }
     
+    /// "Today 12:13 PM" / "Yesterday 9:05 AM" / "Jun 18 4:30 PM".
+    public func formattedChatSeparator() -> String {
+        let day: String
+        if Calendar.current.isDateInToday(self) {
+            day = "Today"
+        } else if Calendar.current.isDateInYesterday(self) {
+            day = "Yesterday"
+        } else {
+            day = formatted(.dateTime.month().day())
+        }
+        return "\(day) \(formattedTime())"
+    }
+
     public func formattedRelatively(useTimeForToday: Bool = false) -> String {
         let calendar = Calendar.current
         let weekAgo = Date.weekAgo()

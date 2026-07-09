@@ -9,12 +9,14 @@
 import SwiftUI
 
 public struct VSeparator: ViewModifier {
-    
+
     public var color: Color
     public var position: Position
     public var weight: Weight
     public var alignment: HorizontalAlignment
     public var insets: EdgeInsets
+
+    @Environment(\.displayScale) private var displayScale
     
     public init(color: Color, position: Position, weight: Weight, alignment: HorizontalAlignment, insets: EdgeInsets) {
         self.color     = color
@@ -39,7 +41,7 @@ public struct VSeparator: ViewModifier {
     @ViewBuilder private func separator() -> some View {
         Rectangle()
             .fill(color)
-            .frame(height: weight.pixelSize)
+            .frame(height: weight.pixelSize(for: displayScale))
             .frame(maxWidth: .infinity)
             .padding(.leading, insets.leading)
             .padding(.trailing, insets.trailing)
@@ -63,22 +65,13 @@ extension VSeparator {
         case regular
         case medium
 
-        var pixelSize: CGFloat {
+        func pixelSize(for displayScale: CGFloat) -> CGFloat {
             switch self {
-            case .regular: Screen.pixelSize
-            case .medium:  Screen.pointSize
+            case .regular: 1.0 / displayScale
+            case .medium:  1.0
             }
         }
     }
-}
-
-private enum Screen {
-    static let pointSize: CGFloat = 1.0
-    #if canImport(UIKit)
-    static let pixelSize: CGFloat = 1.0 / UIScreen.main.scale
-    #else
-    static let pixelSize: CGFloat = 1.0
-    #endif
 }
 
 // MARK: - View -

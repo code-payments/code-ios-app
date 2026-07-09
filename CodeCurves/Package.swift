@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
     name: "CodeCurves",
     platforms: [
-        .iOS(.v16),
+        .iOS("18.0"),
     ],
     products: [
         .library(

@@ -185,7 +185,7 @@ private struct ScanScreenContent: View {
             session: viewModel.cameraSession,
             enableGestures: true
         )
-        .navigationBarHidden(true)
+        .toolbarVisibility(.hidden, for: .navigationBar)
         .onAppear {
             viewModel.configureCameraSession()
         }
@@ -201,14 +201,16 @@ private struct ScanScreenContent: View {
             dismissHandler: dismissBill
         )
         .allowsHitTesting(session.presentationState.isPresenting)
-        .edgesIgnoringSafeArea(.all)
+        .ignoresSafeArea()
     }
-    
+
     private func preferredCanvasSize() -> CGSize {
-        var rect = UIScreen.main.bounds
-        
+        guard var rect = UIApplication.shared.firstWindowScene?.screen.bounds else {
+            return .zero
+        }
+
         rect.size.height -= 70.0 // Bottom bar
-        
+
         return rect.insetBy(dx: 20, dy: 20).size
     }
     

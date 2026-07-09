@@ -73,7 +73,7 @@ public struct CameraViewport: View {
             .animation(.spring(dampingFraction: 0.5).speed(1.2), value: focusPoints)
         }
         .background(Color.backgroundMain)
-        .edgesIgnoringSafeArea(.all)
+        .ignoresSafeArea()
     }
 
     private func didFocus(point: CGPoint) {

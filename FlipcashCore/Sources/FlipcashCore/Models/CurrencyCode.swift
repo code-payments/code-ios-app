@@ -262,7 +262,7 @@ extension CurrencyCode: Identifiable {
 extension CurrencyCode {
     // Building the NumberFormatter triggers ICU locale data loading
     // (`_ures_getAllItemsWithFallback`), which was a confirmed source of
-    // main-thread hangs on iOS 17/18 when called per-row in activity lists.
+    // main-thread hangs when called per-row in activity lists.
     // Safe to share: NumberFormatter reads are thread-safe since iOS 7, and
     // the cache only stores the resolved Int.
     private static let fractionDigitsCache = OSAllocatedUnfairLock(initialState: [CurrencyCode: Int]())

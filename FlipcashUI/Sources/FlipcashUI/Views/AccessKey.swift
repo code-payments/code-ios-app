@@ -59,7 +59,7 @@ public struct AccessKey: View {
                             endPoint: UnitPoint(x: 1.04, y: 0.08)
                         )
                     )
-                    .cornerRadius(8)
+                    .clipShape(.rect(cornerRadius: 8))
                     .blur(radius: 31)
             )
             .overlay(
@@ -94,7 +94,7 @@ public struct AccessKey: View {
                     .padding([.top, .bottom], 60)
             )
             .clipped()
-            .cornerRadius(10)
+            .clipShape(.rect(cornerRadius: 10))
             .drawingGroup()
             .frame(maxWidth: 255)
     }

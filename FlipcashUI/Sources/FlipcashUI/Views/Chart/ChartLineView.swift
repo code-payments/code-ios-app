@@ -229,7 +229,7 @@ private struct ScrubIndicator: View {
                 .opacity(isBackgroundHidden ? 0 : 0.2)
 
             Circle()
-                .fill(backgroundColor.mixed(with: .black, by: 0.35))
+                .fill(backgroundColor.mix(with: .black, by: 0.35))
                 .stroke(borderColor, lineWidth: 2)
                 .frame(width: 10, height: 10)
         }

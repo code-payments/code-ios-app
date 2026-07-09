@@ -43,10 +43,10 @@ public struct InputContainer<T>: View where T: View {
                 .overlay(
                     Color.white.opacity(0.05)
                 )
-                .cornerRadius(Metrics.buttonRadius)
+                .clipShape(.rect(cornerRadius: Metrics.buttonRadius))
         } else {
             Color.backgroundRow
-                .cornerRadius(Metrics.buttonRadius)
+                .clipShape(.rect(cornerRadius: Metrics.buttonRadius))
         }
     }
 }
