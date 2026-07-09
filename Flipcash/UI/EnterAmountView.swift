@@ -23,7 +23,8 @@ public struct EnterAmountView: View {
     private let action: () -> Void
     private let currencySelectionAction: (() -> Void)?
     private let actionOverride: AnyView?
-    
+    private let actionTitle: String?
+
     // MARK: - Calculator -
     
     private var calculator: EnterAmountCalculator {
@@ -43,7 +44,8 @@ public struct EnterAmountView: View {
         actionState: Binding<ButtonState>,
         actionEnabled: @escaping (String) -> Bool,
         action: @escaping () -> Void,
-        currencySelectionAction: (() -> Void)? = nil
+        currencySelectionAction: (() -> Void)? = nil,
+        actionTitle: String? = nil
     ) {
         self.mode                    = mode
         self.subtitle                = subtitle
@@ -53,6 +55,7 @@ public struct EnterAmountView: View {
         self.action                  = action
         self.currencySelectionAction = currencySelectionAction
         self.actionOverride          = nil
+        self.actionTitle             = actionTitle
     }
 
     /// Variant where the caller supplies the bottom action control (e.g.
@@ -74,6 +77,7 @@ public struct EnterAmountView: View {
         self.action                  = {}
         self.currencySelectionAction = currencySelectionAction
         self.actionOverride          = AnyView(actionContent())
+        self.actionTitle             = nil
     }
     
     // MARK: - Computed -
@@ -157,7 +161,7 @@ public struct EnterAmountView: View {
                 CodeButton(
                     state: actionState,
                     style: mode.buttonStyle,
-                    title: mode.actionName,
+                    title: actionTitle ?? mode.actionName,
                     disabled: !actionEnabled(enteredAmount),
                     action: action
                 )
@@ -176,17 +180,18 @@ extension EnterAmountView {
         case withdraw
         case buy
         case sell
+        case addMoney
 
         fileprivate func formatter(with currency: CurrencyCode) -> NumberFormatter {
             switch self {
-            case .currency, .withdraw, .buy, .sell:
+            case .currency, .withdraw, .buy, .sell, .addMoney:
                 return .fiat(currency: currency, minimumFractionDigits: 0)
             }
         }
 
         fileprivate var defaultValue: AmountField.DefaultValue {
             switch self {
-            case .currency, .withdraw, .buy, .sell: return .number("0")
+            case .currency, .withdraw, .buy, .sell, .addMoney: return .number("0")
             }
         }
 
@@ -196,12 +201,13 @@ extension EnterAmountView {
             case .withdraw: return "Next"
             case .buy:      return "Buy"
             case .sell:     return "Next"
+            case .addMoney: return "Add Money"
             }
         }
 
         fileprivate var buttonStyle: CodeButton.Style {
             switch self {
-            case .currency, .withdraw, .buy, .sell: return .filled
+            case .currency, .withdraw, .buy, .sell, .addMoney: return .filled
             }
         }
     }

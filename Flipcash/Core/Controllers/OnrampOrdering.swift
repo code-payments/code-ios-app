@@ -5,7 +5,7 @@
 
 import Foundation
 
-/// Coinbase onramp-order surface used by `CoinbaseFundingOperation` and the
+/// Coinbase onramp-order surface used by `CoinbaseDepositOperation` and the
 /// session-scoped Coinbase service. Conformers POST a new guest-checkout
 /// order and return Coinbase's response (order id + payment link).
 protocol OnrampOrdering: Sendable {

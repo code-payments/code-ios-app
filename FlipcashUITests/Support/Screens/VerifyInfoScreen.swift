@@ -5,11 +5,10 @@
 
 import XCTest
 
-/// Page object for the `VerifyInfoScreen` sheet — the entry point of the
-/// phone + email verification flow. Mounted by `BuyAmountScreen` /
-/// `CurrencyCreationWizardScreen` when the user is unverified and taps
-/// Apple Pay, and by `OnrampHostModifier` as a fallback when an email
-/// verification deeplink arrives outside an active flow.
+/// Page object for the `VerifyInfoScreen` sheet — the phone + email
+/// verification flow. There is no intro page: the sheet opens directly on
+/// the first needed step (Enter Phone when the phone is unverified, Enter
+/// Email otherwise).
 @MainActor
 struct VerifyInfoUIScreen {
 
@@ -21,19 +20,24 @@ struct VerifyInfoUIScreen {
 
     // MARK: - Elements
 
-    /// Heading text on the sheet's root. Unique enough to distinguish this
-    /// screen from any other "Next"-button-bearing surface (the keypad's
-    /// own Next button collides on label otherwise).
-    var heading: XCUIElement {
-        app.staticTexts["Verify Your Phone Number and Email to Continue"]
+    var phoneStepTitle: XCUIElement {
+        app.navigationBars["Verify Phone Number"]
+    }
+
+    var emailStepTitle: XCUIElement {
+        app.navigationBars["Verify Email"]
     }
 
     // MARK: - Assertions
 
-    func assertReached(timeout: TimeInterval = 10) {
+    /// The unverified account must land directly on a verification step —
+    /// no intro page. Which step depends on the account's phone state
+    /// (server-side, not controlled by the test), so either root counts.
+    func assertVerificationStepReached(timeout: TimeInterval = 10) {
+        let either = NSPredicate(format: "identifier IN %@", ["Verify Phone Number", "Verify Email"])
         XCTAssertTrue(
-            heading.waitForExistence(timeout: timeout),
-            "Expected VerifyInfoScreen to appear"
+            app.navigationBars.matching(either).firstMatch.waitForExistence(timeout: timeout),
+            "Expected the verification sheet to open directly on Enter Phone or Enter Email"
         )
     }
 }

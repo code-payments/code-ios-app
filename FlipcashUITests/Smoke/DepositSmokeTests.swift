@@ -52,9 +52,14 @@ final class DepositSmokeTests: BaseUITestCase {
 
     // MARK: - Helpers
 
+    /// Settings → Add Money → Other Wallet, landing on the USDC education
+    /// screen the old Deposit row used to open directly.
     private func openDepositFromSettings() {
         let settings = SettingsUIScreen(app: app)
+        let addMoney = AddMoneyStartScreen(app: app)
         settings.open(from: self)
-        waitAndTap(settings.depositButton)
+        waitAndTap(settings.addMoneyButton)
+        addMoney.assertSelectMethodReached()
+        addMoney.selectOtherWallet(from: self)
     }
 }

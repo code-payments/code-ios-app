@@ -28,8 +28,7 @@ class SwapProcessingViewModel {
         case .success:
             if let exchangedFiat {
                 switch swapType {
-                case .buyWithReserves, .buyWithPhantom, .buyWithCoinbase,
-                     .launchWithReserves, .launchWithPhantom, .launchWithCoinbase:
+                case .buyWithReserves, .launchWithReserves:
                     return "\(exchangedFiat.nativeAmount.formatted()) of \(currencyName)"
                 case .sell:
                     return "\(exchangedFiat.nativeAmount.formatted()) of USDF"
@@ -47,9 +46,7 @@ class SwapProcessingViewModel {
             return "This transaction typically takes about a minute. You may leave the app while it completes"
         case .success:
             switch swapType {
-            case .buyWithReserves, .buyWithPhantom, .buyWithCoinbase,
-                 .launchWithReserves, .launchWithPhantom, .launchWithCoinbase,
-                 .sell:
+            case .buyWithReserves, .launchWithReserves, .sell:
                 return "was just added to your Flipcash wallet"
             }
         case .failed:
@@ -72,8 +69,7 @@ class SwapProcessingViewModel {
         switch displayState {
         case .processing:
             switch swapType {
-            case .buyWithReserves, .buyWithPhantom, .buyWithCoinbase,
-                 .launchWithReserves, .launchWithPhantom, .launchWithCoinbase:
+            case .buyWithReserves, .launchWithReserves:
                 "Purchasing \(currencyName)"
             case .sell:
                 "Selling \(currencyName)"
@@ -188,10 +184,6 @@ class SwapProcessingViewModel {
         switch swapType {
         case .buyWithReserves, .launchWithReserves:
             Analytics.tokenPurchase(method: .purchaseWithReserves, exchangedFiat: amount, successful: successful)
-        case .buyWithPhantom, .launchWithPhantom:
-            Analytics.tokenPurchase(method: .purchaseWithPhantom, exchangedFiat: amount, successful: successful)
-        case .buyWithCoinbase, .launchWithCoinbase:
-            Analytics.tokenPurchase(method: .purchaseWithCoinbase, exchangedFiat: amount, successful: successful)
         case .sell:
             Analytics.tokenSell(exchangedFiat: amount, successful: successful)
         }
@@ -218,10 +210,6 @@ enum SwapError: Error {
 
 nonisolated enum SwapType: CaseIterable {
     case buyWithReserves
-    case buyWithPhantom
-    case buyWithCoinbase
     case launchWithReserves
-    case launchWithPhantom
-    case launchWithCoinbase
     case sell
 }

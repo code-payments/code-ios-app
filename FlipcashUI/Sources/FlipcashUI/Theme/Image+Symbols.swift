@@ -120,7 +120,6 @@ public enum Asset: String, Sendable {
     case emailSent
     case addCircle
     case successCircle
-    case verifyIdentity
     case sliders
     case phantom
     case solanaUSDC

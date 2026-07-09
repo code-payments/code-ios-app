@@ -584,7 +584,7 @@ extension View {
 /// Thrown by the bearer-token provider when the Coinbase API key is missing
 /// from the build's Info.plist. Indicates a build-config bug, not user error;
 /// propagates as a transport failure through Coinbase and ultimately surfaces
-/// as `FundingOperationError.externalRejected` to the caller.
+/// as `DepositError.externalRejected` to the caller.
 private struct MissingCoinbaseApiKey: Error {}
 
 // MARK: - UserDefaults -

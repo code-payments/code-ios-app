@@ -2,10 +2,17 @@
 //  SwapInstructionBuilder+UsdcToUsdf.swift
 //  FlipcashCore
 //
-//  Created by Claude on 2025-01-26.
-//
 
 import Foundation
+
+/// Which of the owner's USDF accounts a USDC→USDF swap credits.
+public enum UsdfSwapDestination: Equatable, Sendable {
+    /// The owner's USDF VM **swap** PDA ATA — the in-VM buy/launch funding path.
+    case swapPda
+    /// The owner's USDF VM **Deposit** PDA ATA — the Geyser-watched address
+    /// the server credits into the USDF balance.
+    case vmDeposit
+}
 
 extension SwapInstructionBuilder {
 
@@ -17,16 +24,47 @@ extension SwapInstructionBuilder {
     ///   - amount: Amount of USDC to swap (in quarks)
     ///   - pool: The liquidity pool to use for the swap
     ///   - swapId: Unique identifier for the swap (used in memo)
+    ///   - destination: Which of the owner's USDF accounts receives the swapped
+    ///     USDF. Defaults to `.swapPda`.
     /// - Returns: Array of 8 instructions for the USDC→USDF swap
     public static func buildUsdcToUsdfSwapInstructions(
         sender: PublicKey,
         owner: PublicKey,
         amount: UInt64,
         pool: LiquidityPool,
-        swapId: PublicKey
+        swapId: PublicKey,
+        destination: UsdfSwapDestination = .swapPda
     ) -> [Instruction] {
         guard let usdfSwapAccounts = MintMetadata.usdf.timelockSwapAccounts(owner: owner) else {
             fatalError("Failed to derive USDF swap accounts")
+        }
+
+        let destinationAtaOwner: PublicKey
+        let destinationAta: PublicKey
+        switch destination {
+        case .swapPda:
+            destinationAtaOwner = usdfSwapAccounts.pda.publicKey
+            destinationAta = usdfSwapAccounts.ata.publicKey
+        case .vmDeposit:
+            guard let usdfVm = MintMetadata.usdf.vmMetadata else {
+                fatalError("USDF mint missing VM metadata")
+            }
+            guard let depositPda = PublicKey.deriveDepositAccount(
+                owner: owner,
+                mint: .usdf,
+                timeAuthority: usdfVm.authority,
+                lockout: Byte(usdfVm.lockDurationInDays)
+            ) else {
+                fatalError("Failed to derive USDF VM Deposit PDA")
+            }
+            guard let depositAta = PublicKey.deriveAssociatedAccount(
+                from: depositPda.publicKey,
+                mint: .usdf
+            ) else {
+                fatalError("Failed to derive USDF VM Deposit ATA")
+            }
+            destinationAtaOwner = depositPda.publicKey
+            destinationAta = depositAta.publicKey
         }
 
         let senderUsdfAta = AssociatedTokenProgram.CreateIdempotent(
@@ -59,11 +97,12 @@ extension SwapInstructionBuilder {
         // 3. AssociatedTokenAccount::CreateIdempotent (USDF ATA for sender)
         instructions.append(senderUsdfAta.instruction())
 
-        // 4. AssociatedTokenAccount::CreateIdempotent (USDF ATA for owner's swap PDA)
+        // 4. AssociatedTokenAccount::CreateIdempotent (destination USDF ATA)
         instructions.append(
             AssociatedTokenProgram.CreateIdempotent(
                 subsidizer: sender,
-                owner: usdfSwapAccounts.pda.publicKey,
+                address: destinationAta,
+                owner: destinationAtaOwner,
                 mint: .usdf
             ).instruction()
         )
@@ -90,13 +129,13 @@ extension SwapInstructionBuilder {
             ).instruction()
         )
 
-        // 8. Token::Transfer (sender's USDF ATA → owner's USDF swap PDA ATA)
+        // 8. Token::Transfer (sender's USDF ATA → destination USDF ATA)
         instructions.append(
             TokenProgram.Transfer(
                 amount: amount,
                 owner: sender,
                 source: senderUsdfAta.address,
-                destination: usdfSwapAccounts.ata.publicKey
+                destination: destinationAta
             ).instruction()
         )
 

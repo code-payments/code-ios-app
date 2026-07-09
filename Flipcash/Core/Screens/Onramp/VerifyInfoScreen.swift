@@ -9,9 +9,15 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
+/// Hosts the Coinbase verification flow. The sheet's root IS the first
+/// needed step — email entry normally, phone entry first when the phone is
+/// unverified — with no intro page. Subsequent steps push onto
+/// `verificationPath` via the verifier callbacks.
 struct VerifyInfoScreen<P: PhoneVerifying, E: EmailVerifying>: View {
 
     @Bindable private var viewModel: OnrampVerificationViewModel<P, E>
+
+    @State private var initialStep: OnrampVerificationPath
 
     @Environment(\.dismiss) private var dismiss
 
@@ -19,39 +25,21 @@ struct VerifyInfoScreen<P: PhoneVerifying, E: EmailVerifying>: View {
 
     init(viewModel: OnrampVerificationViewModel<P, E>) {
         self.viewModel = viewModel
+        _initialStep = State(initialValue: viewModel.initialStep())
     }
 
     // MARK: - Body -
 
     var body: some View {
         NavigationStack(path: $viewModel.verificationPath) {
-            Background(color: .backgroundMain) {
-                VStack(alignment: .center, spacing: 20) {
-                    Spacer()
-
-                    VStack(spacing: 20) {
-                        Image.asset(.verifyIdentity)
-
-                        Text("Verify Your Phone Number and Email to Continue")
-                            .font(.appTextLarge)
-                            .foregroundStyle(Color.textMain)
-
-                        Text("This will allow you to add funds from your debit card")
-                            .foregroundStyle(Color.textSecondary)
-                            .font(.appTextMedium)
-                    }
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 20) // Additional 20pts
-
-                    Spacer()
-
-                    Button("Next") {
-                        viewModel.navigateToInitialVerification()
-                    }
-                    .buttonStyle(.filled)
+            Group {
+                switch initialStep {
+                case .enterPhoneNumber, .confirmPhoneNumberCode:
+                    EnterPhoneScreen(viewModel: viewModel.phoneVerifier)
+                        .navigationTitle("Verify Phone Number")
+                case .enterEmail, .confirmEmailCode:
+                    EnterEmailScreen(viewModel: viewModel.emailVerifier)
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 20)
             }
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
@@ -80,6 +68,14 @@ struct VerifyInfoScreen<P: PhoneVerifying, E: EmailVerifying>: View {
                 }
             }
             .ignoresSafeArea(.keyboard)
+        }
+        .task {
+            switch initialStep {
+            case .enterPhoneNumber, .confirmPhoneNumberCode:
+                Analytics.track(event: Analytics.OnrampEvent.showEnterPhone)
+            case .enterEmail, .confirmEmailCode:
+                Analytics.track(event: Analytics.OnrampEvent.showEnterEmail)
+            }
         }
     }
 }

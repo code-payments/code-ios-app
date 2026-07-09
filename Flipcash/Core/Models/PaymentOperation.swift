@@ -8,10 +8,7 @@
 import Foundation
 import FlipcashCore
 
-/// Funding-time payload shared by buy-existing and launch-new-currency flows.
-/// `PurchaseMethodSheet` and the per-funding-path `FundingOperation`
-/// implementations accept this so the picker UI is identical regardless of
-/// what the user is funding.
+/// Payload shared by the buy-existing and launch-new-currency flows.
 ///
 /// Marked `nonisolated` so the type and its computed-property unwraps are
 /// reachable from `AppRouter.Destination` (which is itself `nonisolated` for
@@ -45,10 +42,7 @@ nonisolated enum PaymentOperation: Hashable, Sendable, Identifiable {
         let launchFee: ExchangedFiat
 
         /// Launch-time metadata (icon, description, billColors, moderation
-        /// attestations) the operation needs to call `session.launchCurrency`.
-        /// Required for any operation that performs the launch step
-        /// (`ReservesFundingOperation`, future Phantom / Coinbase launches);
-        /// nil while the payload is still flowing through the funding picker.
+        /// attestations) required to call `session.launchCurrency`.
         let attestations: LaunchAttestations?
 
         /// Pinned exchange-rate proof required by the reserves-funded launch

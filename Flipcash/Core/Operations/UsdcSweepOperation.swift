@@ -75,6 +75,7 @@ actor UsdcSweepOperation {
 
             logger.info("Sweeping USDC balance", metadata: [
                 "quarks": "\(account.quarks)",
+                "owner": "\(ownerKeyPair.publicKey.base58)",
             ])
 
             let amount = TokenAmount(quarks: account.quarks, mint: .usdc)
@@ -101,6 +102,86 @@ actor UsdcSweepOperation {
             ])
             await ErrorReporting.captureError(error, reason: "USDC sweep failed")
         }
+    }
+
+    /// Retrying, caller-driven sweep: polls the USDC ATA until a balance
+    /// lands, converts it, and returns `true`; returns `false` when the
+    /// attempts are exhausted. Does not fire `onSweepCompleted` — the caller
+    /// owns the post-transaction refresh.
+    ///
+    /// - Parameters:
+    ///   - expectedAtLeast: Minimum USDC that must be present before sweeping.
+    ///     Defaults to any positive balance.
+    ///   - maxAttempts: Number of fetch attempts before giving up (clamped to ≥1).
+    ///   - backoff: Delay between attempts.
+    func sweepUntilConverted(
+        expectedAtLeast: TokenAmount? = nil,
+        maxAttempts: Int,
+        backoff: Duration
+    ) async -> Bool {
+        let attempts = max(1, maxAttempts)
+        let required = max(expectedAtLeast?.quarks ?? 1, 1)
+        var lastError: (any Error)?
+
+        for attempt in 1...attempts {
+            if Task.isCancelled || cancellation.isCancelled {
+                logger.info("Retrying USDC sweep cancelled", metadata: [
+                    "attempt": "\(attempt)",
+                ])
+                return false
+            }
+
+            do {
+                let account = try await accountFetcher.fetchAssociatedTokenAccount(
+                    owner: ownerKeyPair,
+                    mint: .usdc
+                )
+                let available = account?.quarks ?? 0
+
+                if available >= required {
+                    logger.info("Retrying USDC sweep found balance, converting", metadata: [
+                        "attempt": "\(attempt)",
+                        "quarks": "\(available)",
+                        "owner": "\(ownerKeyPair.publicKey.base58)",
+                    ])
+
+                    let amount = TokenAmount(quarks: available, mint: .usdc)
+                    let result = try await swapper.statelessSwap(
+                        fromMint: .usdc,
+                        toMint: .usdf,
+                        amount: amount,
+                        owner: ownerKeyPair
+                    )
+
+                    logger.info("Retrying USDC sweep completed", metadata: [
+                        "signature": "\(result.signature.base58)",
+                        "attempt": "\(attempt)",
+                    ])
+                    return true
+                }
+            } catch {
+                lastError = error
+                logger.error("Retrying USDC sweep attempt failed", metadata: [
+                    "attempt": "\(attempt)",
+                    "error": "\(error)",
+                ])
+            }
+
+            if attempt < attempts {
+                try? await Task.sleep(for: backoff)
+            }
+        }
+
+        logger.warning("Retrying USDC sweep exhausted attempts without converting", metadata: [
+            "attempts": "\(attempts)",
+            "requiredQuarks": "\(required)",
+        ])
+        // One capture for the whole retry loop — per-attempt captures flood
+        // Bugsnag when the RPC is down.
+        if let lastError {
+            await ErrorReporting.captureError(lastError, reason: "Retrying USDC sweep attempts failed")
+        }
+        return false
     }
 }
 

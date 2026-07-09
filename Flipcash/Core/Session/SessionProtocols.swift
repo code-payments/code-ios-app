@@ -56,48 +56,6 @@ protocol ReservesBuying: AnyObject {
     ) async throws -> SwapId
 }
 
-/// External-wallet-funded buys (Phantom or any future wallet that signs a
-/// USDC→USDF transaction directly).
-protocol ExternalFundingBuying: AnyObject {
-
-    /// `swapId` matches the USDC→USDF swap id the external wallet embedded
-    /// in its on-chain swap instruction — server-side correlation between
-    /// the funding tx and the recorded buy intent depends on this being
-    /// the same value the wallet signed.
-    func buyWithExternalFunding(
-        swapId: SwapId,
-        amount: ExchangedFiat,
-        of mint: PublicKey,
-        transactionSignature: Signature
-    ) async throws -> SwapId
-
-    func buyNewCurrencyWithExternalFunding(
-        amount: ExchangedFiat,
-        feeAmount: ExchangedFiat,
-        mint: PublicKey,
-        transactionSignature: Signature
-    ) async throws -> SwapId
-}
-
-/// Coinbase / Apple Pay onramp-funded buys. The order is created out-of-band
-/// (see `OnrampOrdering`); these RPCs hand the order id to the server so it
-/// records the swap before Apple Pay commits.
-protocol OnrampBuying: AnyObject {
-
-    func buyWithCoinbaseOnramp(
-        amount: ExchangedFiat,
-        of mint: PublicKey,
-        orderId: String
-    ) async throws -> SwapId
-
-    func buyNewCurrencyWithCoinbaseOnramp(
-        amount: ExchangedFiat,
-        feeAmount: ExchangedFiat,
-        mint: PublicKey,
-        orderId: String
-    ) async throws -> SwapId
-}
-
 // MARK: - Currency launch
 
 /// Launch-preflight: registers a brand-new currency with the backend before
@@ -145,8 +103,6 @@ extension Session: AccountProviding,
                     ProfileManaging,
                     MintMetadataFetching,
                     ReservesBuying,
-                    ExternalFundingBuying,
-                    OnrampBuying,
                     CurrencyLaunching,
                     RecipientResolving,
                     DirectSending {}

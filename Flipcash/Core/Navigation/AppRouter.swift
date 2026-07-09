@@ -321,6 +321,24 @@ final class AppRouter {
         ])
     }
 
+    /// Presents the Add Money sheet — as the root sheet when nothing is
+    /// presented, stacked on top of the current sheet otherwise.
+    func presentAddMoney(_ context: AddMoneyContext) {
+        if presentedSheets.isEmpty {
+            present(.addMoney(context))
+        } else {
+            presentNested(.addMoney(context))
+        }
+    }
+
+    /// Whether the Add Money sheet is stacked directly over the buy sheet.
+    var isAddMoneyOverBuy: Bool {
+        guard presentedSheets.count >= 2 else { return false }
+        guard case .addMoney = presentedSheets[presentedSheets.count - 1],
+              case .buy = presentedSheets[presentedSheets.count - 2] else { return false }
+        return true
+    }
+
     /// Dismisses the topmost sheet. If only the root remains, this dismisses
     /// the root (same as the pre-nested behaviour). With nested sheets, only
     /// the topmost is popped — the root stays presented.

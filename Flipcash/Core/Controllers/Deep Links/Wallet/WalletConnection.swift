@@ -17,7 +17,7 @@ private let logger = Logger(label: "flipcash.wallet-connection")
 public final class WalletConnection {
 
     /// General wallet-related dialogs (connect failures, key restoration).
-    /// Swap-flow dialogs are owned by `PhantomFundingOperation`.
+    /// Swap-flow dialogs are owned by `PhantomDepositOperation`.
     var dialogItem: DialogItem?
 
     private(set) var session: ConnectedWalletSession?
@@ -27,7 +27,7 @@ public final class WalletConnection {
     }
 
     /// Stream of deeplink events from Phantom — signed transactions and
-    /// errors. Consumed by the in-flight `PhantomFundingOperation`; the
+    /// errors. Consumed by the in-flight `PhantomDepositOperation`; the
     /// stream finishes in `deinit` so the consumer Task exits cleanly.
     let deeplinkEvents: AsyncStream<DeeplinkEvent>
     private let deeplinkContinuation: AsyncStream<DeeplinkEvent>.Continuation
@@ -183,30 +183,42 @@ public final class WalletConnection {
     }
     
     private func didConnect(response: WalletResponse.Connected, encryptionPublicKey: Data) {
-        if let walletSession = WalletSession(
+        guard let walletSession = WalletSession(
             walletPublicKey: response.publicKey,
             sessionToken: response.session
-        ) {
-            logger.info("Connected to wallet")
-            let session = ConnectedWalletSession(
-                secretKey: box.secretKey,
-                walletPublicKey: walletSession.walletPublicKey,
-                sessionToken: walletSession.sessionToken,
-                phantomEncryptionPublicKey: encryptionPublicKey
+        ) else {
+            // Without this resume the awaiting connect() suspends forever.
+            logger.error("Wallet connect returned an undecodable session")
+            ErrorReporting.captureError(
+                WalletConnectionError.connectFailed(code: "invalid-session"),
+                reason: "Wallet connect returned an undecodable session"
             )
-
-            Keychain.connectedWalletSession = session
-            self.session = session
-
             if let continuation = pendingConnect {
                 pendingConnect = nil
-                continuation.resume(returning: ())
+                continuation.resume(throwing: WalletConnectionError.connectFailed(code: "invalid-session"))
             }
+            return
+        }
+
+        logger.info("Connected to wallet")
+        let session = ConnectedWalletSession(
+            secretKey: box.secretKey,
+            walletPublicKey: walletSession.walletPublicKey,
+            sessionToken: walletSession.sessionToken,
+            phantomEncryptionPublicKey: encryptionPublicKey
+        )
+
+        Keychain.connectedWalletSession = session
+        self.session = session
+
+        if let continuation = pendingConnect {
+            pendingConnect = nil
+            continuation.resume(returning: ())
         }
     }
     
     /// Yields the signed transaction to the deeplink stream. The in-flight
-    /// `PhantomFundingOperation` consumes the stream and runs simulation +
+    /// `PhantomDepositOperation` consumes the stream and runs simulation +
     /// server-notify + chain submission for the operation.
     private func didSignTransaction(_ signedTx: String) {
         deeplinkContinuation.yield(.signed(signedTx))
@@ -234,7 +246,7 @@ public final class WalletConnection {
     }
 
     /// Always deeplinks Phantom for connect, even when a Keychain session
-    /// already exists. Used by `PhantomFundingOperation` to verify the
+    /// already exists. Used by `PhantomDepositOperation` to verify the
     /// session is live before requesting a signature — Phantom auto-approves
     /// when it still trusts our `dapp_encryption_public_key` (~sub-second
     /// round-trip), and shows the connect prompt when it doesn't.
@@ -286,17 +298,16 @@ public final class WalletConnection {
         openExternalWallet(c.url!)
     }
 
-    /// Builds + sends a USDC→USDF transaction to Phantom for signing. The
-    /// signed transaction comes back via `didReceiveURL` → `deeplinkEvents`,
-    /// where the in-flight `PhantomFundingOperation` consumes it. This method
-    /// has no pending-state side effects of its own — it's a pure "send sign
-    /// request" service.
+    /// Builds + sends a USDC→USDF swap to Phantom for signing, crediting the
+    /// swapped USDF to the owner's USDF VM deposit ATA. The signed transaction
+    /// comes back via `didReceiveURL` → `deeplinkEvents`.
     func sendUsdcToUsdfSignRequest(
         usdc: FlipcashCore.TokenAmount,
-        fundingSwapId: SwapId,
+        swapId: SwapId,
         displayName: String
     ) async throws {
         guard let connectedSession = Keychain.connectedWalletSession else {
+            logger.error("Sign request without a connected wallet session")
             throw Error.noSession
         }
 
@@ -314,7 +325,8 @@ public final class WalletConnection {
             owner: flipcashOwner,
             amount: usdc.quarks,
             pool: .usdf,
-            swapId: fundingSwapId.publicKey
+            swapId: swapId.publicKey,
+            destination: .vmDeposit
         )
 
         let recentBlockhash = try await rpc.getLatestBlockhash(commitment: .finalized)
@@ -347,15 +359,15 @@ public final class WalletConnection {
         ]
 
         guard let url = c.url else {
-            logger.error("Failed to construct signTransaction URL")
+            logger.error("Failed to construct deposit signTransaction URL")
             throw Error.invalidURL
         }
 
         Analytics.walletRequestAmount(amount: amount.nativeAmount)
         openExternalWallet(url)
-        logger.info("Requested USDC→USDF swap", metadata: [
+        logger.info("Requested USDC→USDF deposit swap", metadata: [
             "amount": "\(amount.nativeAmount.formatted())",
-            "swapId": "\(fundingSwapId.publicKey.base58)",
+            "swapId": "\(swapId.publicKey.base58)",
             "name": "\(displayName)",
         ])
     }

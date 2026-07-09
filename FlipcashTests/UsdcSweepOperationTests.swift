@@ -179,6 +179,112 @@ struct UsdcSweepOperationTests {
         #expect(await fetcher.callCount == 2)
         #expect(await swapper.callCount == 2)
     }
+
+    // MARK: - Retrying sweep (Add Money deposit flow)
+
+    @Test("sweepUntilConverted converts on the first attempt when USDC is already present")
+    func sweepUntilConverted_whenPresent_convertsImmediately() async throws {
+        let fetcher = MockAccountFetcher()
+        let swapper = MockSwapper()
+        let completion = Counter()
+
+        let op = UsdcSweepOperation(
+            accountFetcher: fetcher,
+            swapper: swapper,
+            ownerKeyPair: .mock,
+            onSweepCompleted: { await completion.bump() }
+        )
+
+        await fetcher.setImmediateHandler {
+            try AccountInfo(.usdcAtaInfo(quarks: 10_000))
+        }
+
+        let converted = await op.sweepUntilConverted(maxAttempts: 3, backoff: .zero)
+
+        #expect(converted)
+        #expect(await fetcher.callCount == 1)
+        #expect(await swapper.callCount == 1)
+        // The retrying sweep leaves the post-transaction refresh to the caller.
+        #expect(await completion.value == 0)
+    }
+
+    @Test("sweepUntilConverted retries then gives up when USDC never lands")
+    func sweepUntilConverted_whenNeverPresent_exhaustsAndReturnsFalse() async throws {
+        let fetcher = MockAccountFetcher()
+        let swapper = MockSwapper()
+
+        let op = UsdcSweepOperation(
+            accountFetcher: fetcher,
+            swapper: swapper,
+            ownerKeyPair: .mock,
+            onSweepCompleted: {}
+        )
+
+        await fetcher.setImmediateHandler { nil }
+
+        let converted = await op.sweepUntilConverted(maxAttempts: 4, backoff: .zero)
+
+        #expect(!converted)
+        #expect(await fetcher.callCount == 4)
+        #expect(await swapper.callCount == 0)
+    }
+
+    @Test("sweepUntilConverted stops after the first successful swap")
+    func sweepUntilConverted_stopsAfterFirstSwap() async throws {
+        let fetcher = MockAccountFetcher()
+        let swapper = MockSwapper()
+
+        let op = UsdcSweepOperation(
+            accountFetcher: fetcher,
+            swapper: swapper,
+            ownerKeyPair: .mock,
+            onSweepCompleted: {}
+        )
+
+        // Empty on the first poll, funded on the second — the sweep must fire
+        // exactly once and not poll again after converting.
+        await fetcher.setSequence([
+            .success(try AccountInfo(.usdcAtaInfo(quarks: 0))),
+            .success(try AccountInfo(.usdcAtaInfo(quarks: 10_000))),
+            .success(try AccountInfo(.usdcAtaInfo(quarks: 10_000))),
+        ])
+
+        let converted = await op.sweepUntilConverted(maxAttempts: 5, backoff: .zero)
+
+        #expect(converted)
+        #expect(await fetcher.callCount == 2)
+        #expect(await swapper.callCount == 1)
+    }
+
+    @Test("sweepUntilConverted waits until the balance meets expectedAtLeast")
+    func sweepUntilConverted_respectsExpectedAtLeast() async throws {
+        let fetcher = MockAccountFetcher()
+        let swapper = MockSwapper()
+
+        let op = UsdcSweepOperation(
+            accountFetcher: fetcher,
+            swapper: swapper,
+            ownerKeyPair: .mock,
+            onSweepCompleted: {}
+        )
+
+        // 3_000 quarks present but the caller requires at least 5_000 — the first
+        // poll is below threshold, the second meets it.
+        await fetcher.setSequence([
+            .success(try AccountInfo(.usdcAtaInfo(quarks: 3_000))),
+            .success(try AccountInfo(.usdcAtaInfo(quarks: 5_000))),
+        ])
+
+        let converted = await op.sweepUntilConverted(
+            expectedAtLeast: TokenAmount(quarks: 5_000, mint: .usdc),
+            maxAttempts: 5,
+            backoff: .zero
+        )
+
+        #expect(converted)
+        #expect(await fetcher.callCount == 2)
+        #expect(await swapper.callCount == 1)
+    }
 }
 
 // MARK: - Mocks
@@ -193,6 +299,17 @@ private actor MockAccountFetcher: AssociatedTokenAccountFetching {
     }
     private var mode: Mode?
     private var pendingContinuation: CheckedContinuation<Result<AccountInfo?, Error>, Never>?
+
+    /// Per-call results for the retrying sweep tests: each `fetch` pops the next
+    /// element; once exhausted it returns `.success(nil)`. Takes precedence over
+    /// `mode` when set, so existing single-mode tests are unaffected.
+    private var sequence: [Result<AccountInfo?, Error>]?
+    private var sequenceIndex = 0
+
+    func setSequence(_ results: [Result<AccountInfo?, Error>]) {
+        sequence = results
+        sequenceIndex = 0
+    }
 
     func setImmediateHandler(_ handler: @escaping @Sendable () throws -> AccountInfo?) {
         mode = .immediate(handler)
@@ -209,6 +326,11 @@ private actor MockAccountFetcher: AssociatedTokenAccountFetching {
 
     func fetchAssociatedTokenAccount(owner: KeyPair, mint: PublicKey) async throws -> AccountInfo? {
         callCount += 1
+        if let sequence {
+            let result = sequenceIndex < sequence.count ? sequence[sequenceIndex] : .success(nil)
+            sequenceIndex += 1
+            return try result.get()
+        }
         switch mode {
         case .immediate(let handler):
             return try handler()

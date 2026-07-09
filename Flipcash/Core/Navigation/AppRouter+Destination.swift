@@ -35,11 +35,6 @@ extension AppRouter {
         /// USDC → USDF deposit address screen. Shows the user's authority
         /// pubkey — wallets derive the USDC ATA from it on send.
         case usdcDepositAddress
-        /// Phantom flow screen. Carries the in-flight `PhantomFundingOperation`;
-        /// a single state-switching host (`PhantomFlowScreen`) renders the
-        /// education / confirm / waiting / submitting UI off `operation.state`
-        /// without further pushes.
-        case phantomFlow(PhantomFundingOperation)
 
         // Settings flow
         case settingsMyAccount
@@ -77,8 +72,7 @@ extension AppRouter {
             case .currencyInfo, .currencyInfoForDeposit, .discoverCurrencies,
                  .currencyCreationSummary, .currencyCreationWizard,
                  .transactionHistory, .give, .withdrawCurrency,
-                 .usdcDepositEducation, .usdcDepositAddress,
-                 .phantomFlow:
+                 .usdcDepositEducation, .usdcDepositAddress:
                 return .balance
             case .settingsMyAccount, .settingsAdvancedFeatures, .settingsAdvancedBetaFeatures,
                  .settingsAppSettings, .settingsBetaFlags, .settingsAccountSelection,
@@ -107,7 +101,6 @@ extension AppRouter {
             case .withdrawCurrency:             "withdrawCurrency"
             case .usdcDepositEducation:         "usdcDepositEducation"
             case .usdcDepositAddress:           "usdcDepositAddress"
-            case .phantomFlow:                  "phantomFlow"
             case .settingsMyAccount:            "settingsMyAccount"
             case .settingsAdvancedFeatures:     "settingsAdvancedFeatures"
             case .settingsAdvancedBetaFeatures: "settingsAdvancedBetaFeatures"
@@ -140,8 +133,6 @@ extension AppRouter {
                 return conversationID.description
             case .dmConversation(.contact(let contact)):
                 return contact.contactId
-            case .phantomFlow:
-                return nil
             case .discoverCurrencies, .currencyCreationSummary, .currencyCreationWizard,
                  .usdcDepositEducation, .usdcDepositAddress,
                  .settingsMyAccount, .settingsAdvancedFeatures, .settingsAdvancedBetaFeatures,
