@@ -29,6 +29,7 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
     private var _sent: [Sent] = []
     private var _markedRead: [MessageID] = []
     private var _typingCalls: [TypingCall] = []
+    private var _typingCallsBegun = 0
     private var _typingDelays: [TypingState: Duration] = [:]
     private var _deltaBatches: [DeltaBatch] = []
     private var _deltaHead: UInt64 = 0
@@ -70,6 +71,9 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
     var sent: [Sent] { lock.withLock { _sent } }
     var markedRead: [MessageID] { lock.withLock { _markedRead } }
     var typingCalls: [TypingCall] { lock.withLock { _typingCalls } }
+    /// Number of `notifyIsTyping` calls entered, counted before any artificial delay —
+    /// the awaitable signal that a send is in flight.
+    var typingCallsBegun: Int { lock.withLock { _typingCallsBegun } }
     /// Per-state artificial transport latency for `notifyIsTyping`; the call is
     /// recorded after the delay, so `typingCalls` reflects wire-arrival order.
     var typingDelays: [TypingState: Duration] {
@@ -167,6 +171,7 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
     }
 
     func notifyIsTyping(owner: KeyPair, conversationID: ConversationID, state: TypingState) async throws {
+        lock.withLock { _typingCallsBegun += 1 }
         if let delay = typingDelays[state] {
             try? await Task.sleep(for: delay)
         }
