@@ -36,7 +36,11 @@ Hard cap: ~200–300 words total. If a section runs longer, tighten it. Skim-rea
 
 ## Proposed direction
 
-<one paragraph. The shape of the fix, not the steps.>
+<one paragraph. The shape of the smallest change that fixes the root cause — not a patch over the symptom, and not numbered steps.>
+
+## Verification
+
+<success criteria: `FlipcashTests/Regressions/Regression_<bugsnag_id>.swift` (full 24-char id) reproducing the crash path, plus any observable behavior that proves the fix.>
 
 ## Risk
 
@@ -49,7 +53,7 @@ Hard cap: ~200–300 words total. If a section runs longer, tighten it. Skim-rea
 
 ## Next step
 
-If actioned: run `superpowers:writing-plans` against this file to expand into an implementation plan.
+If actioned: run `superpowers:writing-plans` against this file to expand into an implementation plan, and load `karpathy-guidelines` before writing code. The fix must land with the regression test named in Verification (CLAUDE.md: every Bugsnag crash fix gets one).
 ```
 
 ## Notes on each section
@@ -58,5 +62,6 @@ If actioned: run `superpowers:writing-plans` against this file to expand into an
 - **Possible fix already in main** — optional. Only included when commits exist on the touched files since `last_seen`. Tells the reader to verify whether those commits address the issue before taking further action — but the brief is still produced normally.
 - **Root cause** — if the chain breaks, rename to "Leading hypothesis" and the Proposed direction becomes "Verification steps".
 - **Evidence** — schema is illustrative; include only the rows you have. A row with no quote is rot.
-- **Proposed direction** — the *shape* of the fix, not numbered steps. Numbered steps belong in the implementation plan that comes later.
+- **Proposed direction** — the *shape* of the fix, not numbered steps. Numbered steps belong in the implementation plan that comes later. "Smallest change" never means patching the symptom — the root cause is the target; smallest is measured among fixes that reach it.
+- **Verification** — concrete success criteria the implementation session can loop against. The regression test file uses the full Bugsnag id; the suite name includes the short id (see `FlipcashTests/Regressions/` convention).
 - **Expert input** — only triggered experts get a bullet. No empty headings.

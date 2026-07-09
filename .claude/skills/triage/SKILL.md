@@ -12,7 +12,6 @@ allowed-tools:
   - Grep
   - Skill
   - Bash(./.claude/skills/triage/scripts/bugsnag-top.sh:*)
-  - Bash(curl:*)
   - Bash(jq:*)
   - Bash(git log:*)
   - Bash(git show:*)
@@ -32,7 +31,8 @@ You are running the daily Bugsnag triage ritual. The deliverable is **one lean r
 2. **No claim without a citation.** Every assertion in the brief (stack lines, "this is the root cause", "this code path runs first") must be followed by a `file.swift:NN` reference or a quoted log/breadcrumb excerpt. If unable to cite, mark as "hypothesis, unverified" and propose how to verify.
 3. **Root cause must be reachable from evidence.** The Root cause section is a short chain: `evidence → inference → evidence → inference → cause`. No leaps. If the chain breaks, the section is renamed "Leading hypothesis" and the Proposed direction becomes "Verification steps".
 4. **No mid-flow questions.** The brief is the review checkpoint. Don't ask the user anything until it's written.
-5. **Skip experts whose triggers don't apply.** Running an irrelevant expert wastes tokens.
+5. **The brief is the only file you create or modify.** Triage never touches source, tests, or config — the fix happens in a later session, after review.
+6. **Skip experts whose triggers don't apply.** Running an irrelevant expert wastes tokens.
 
 ## Steps
 
@@ -54,7 +54,7 @@ Parse the JSON. You'll use:
 - `events`, `users`, `first_seen`, `last_seen`, `release_stages`
 - `introduced_in_release`, `grouping_hint`
 - `html_url` (browser link to put in the brief header)
-- `latest_event_id`, `latest_event_url` (for fetching the full event report next)
+- `latest_event_id` (for the `--event` fetch in step 4)
 
 ### 2. Existing-plan check
 
@@ -72,23 +72,21 @@ Use the `Skill` tool to invoke `superpowers:systematic-debugging`. That skill ow
 
 ### 4. Fetch the full latest event
 
-The event endpoint returns a full report:
+Fetch the full event report through the script — it saves the JSON to a tempfile and prints the path:
 
 ```bash
-curl -sH "Authorization: token $BUGSNAG_TOKEN" -H "X-Version: 2" "<latest_event_url>"
+./.claude/skills/triage/scripts/bugsnag-top.sh --event <latest_event_id>
 ```
 
-Confirm the response has `is_full_report: true`. If `false`, the event is truncated and you cannot reason about its stack — note this in the brief and propose better instrumentation.
+On success it emits `{"event_file": "<path>", "is_full_report": <bool>}`. If `is_full_report` is `false`, the event is truncated and you cannot reason about its stack — note this in the brief and propose better instrumentation.
+
+Run every subsequent jq query against `event_file`. Never re-fetch the same event — it's the hottest part of the run.
 
 #### 4a. Version sanity check (skip stale versions)
 
 **Skip this step entirely if `$ARGUMENTS` contains `--id`.** The user explicitly chose this issue; honor the override.
 
-Otherwise, don't waste cycles investigating a bug that's only firing on old app builds. Read the current marketing version from the project:
-
-```bash
-grep -m1 'MARKETING_VERSION = ' Code.xcodeproj/project.pbxproj | sed 's/.*= //; s/;//' | xargs
-```
+Otherwise, don't waste cycles investigating a bug that's only firing on old app builds. Read the current marketing version with the Grep tool — pattern `MARKETING_VERSION = ` on `Code.xcodeproj/project.pbxproj`, content mode — and take the value from the first matching line.
 
 The first match is good enough — across configurations the app uses one marketing version, and any one of them is a valid baseline for the staleness comparison.
 
@@ -109,8 +107,6 @@ Read `references/event-shape.md` for the full structure of the event response an
 - `breadcrumbs[]` (timestamped UI/state events)
 
 Plus secondary context in `metaData.app`, `metaData.device`, `feature_flags`, `user`, `session`, `request`.
-
-Save the response to a tempfile (`mktemp`) and run subsequent jq queries against the file. Never re-curl the same event — it's the hottest part of the run.
 
 ### 5. Locate source files for app frames
 
