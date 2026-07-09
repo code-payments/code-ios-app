@@ -63,7 +63,8 @@ public struct ConversationStore: Sendable {
     /// and makes an out-of-order delete converge — a tombstone that lands before the original send
     /// out-versions it and is never overwritten. Reconciles a server copy of one of our own optimistic
     /// sends — which carries no client id, because the server never echoes it — against the matching
-    /// pending row so the echo collapses onto that row instead of duplicating it.
+    /// pending row so the echo collapses onto that row instead of duplicating it. Every merge also
+    /// advances the conversation's feed preview to the newest visible message.
     public mutating func mergeMessages(_ incoming: [ConversationMessage], into conversationID: ConversationID) {
         guard !incoming.isEmpty else { return }
         let current = messagesByConversation[conversationID] ?? []
@@ -108,6 +109,20 @@ public struct ConversationStore: Sendable {
             // Otherwise the held copy is newer-or-equal-and-already-identified: keep it.
         }
         messagesByConversation[conversationID] = byID.values.sorted { $0.id < $1.id }
+        advanceLastMessage(in: conversationID)
+    }
+
+    /// Points the feed row's preview at the newest non-deleted confirmed message, mirroring the
+    /// visibility filter and last-writer-wins guard of the persisted cache (`Database.latestMessage`
+    /// / `writeMessage`) — it advances forward or refreshes an edit in place, never regresses, and
+    /// never touches `lastActivity` or the feed order.
+    private mutating func advanceLastMessage(in conversationID: ConversationID) {
+        guard let index = conversations.firstIndex(where: { $0.id == conversationID }),
+              let newest = messagesByConversation[conversationID]?.last(where: { $0.content != .deleted })
+        else { return }
+        if let current = conversations[index].lastMessage,
+           (current.id, current.eventSequence) >= (newest.id, newest.eventSequence) { return }
+        conversations[index].lastMessage = newest
     }
 
     /// Removes and returns the client id of the oldest pending send that matches `serverCopy` by sender
@@ -251,12 +266,14 @@ public struct ConversationStore: Sendable {
         conversations[convoIndex].members[memberIndex].readPointerTimestamp = date
     }
 
-    /// Bump a conversation's last message + activity and re-sort the feed.
+    /// Bump a conversation's last activity from a live message and re-sort the feed. The preview
+    /// itself follows the merge rule (``advanceLastMessage``), so a stale re-delivery or a deleted
+    /// copy on the live path can't overwrite a newer one.
     public mutating func setLastMessage(_ message: ConversationMessage, in conversationID: ConversationID) {
         guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
-        conversations[index].lastMessage = message
         conversations[index].lastActivity = message.date
         sort()
+        advanceLastMessage(in: conversationID)
     }
 
     /// Signals whether applying a live event exposed a hole in the sequenced log that must be filled
@@ -300,8 +317,8 @@ public struct ConversationStore: Sendable {
 
     /// Apply sequenced event-log mutations in ascending order: merge each (last-writer-wins), advance
     /// the contiguous frontier while events arrive gapless, and flag a gap the moment one is skipped so
-    /// the caller catches up via `GetDelta`. Only `.sent` mutations advance the feed's last message —
-    /// an edit/delete carries the message's original (low) id and must not re-sort the feed.
+    /// the caller catches up via `GetDelta`. Only `.sent` mutations bump the feed's activity and
+    /// re-sort — an edit/delete carries the message's original (low) id and must not move the row.
     private mutating func applyChatEvents(_ events: [DecodedChatEvent], into conversationID: ConversationID) -> GapSignal {
         var cursor = appliedCursorByConversation[conversationID] ?? 0
         var newestSent: ConversationMessage?
@@ -346,8 +363,7 @@ public struct ConversationStore: Sendable {
     }
 
     /// Apply a `GetDelta` batch: merge its messages (last-writer-wins), then advance the frontier to
-    /// the batch's checkpoint. The feed preview is left to `loadFeed`/live events — a delta batch can
-    /// carry an old edit/delete whose id must not re-sort the feed.
+    /// the batch's checkpoint.
     public mutating func applyDeltaBatch(_ messages: [ConversationMessage], checkpoint: UInt64?, into conversationID: ConversationID) {
         mergeMessages(messages, into: conversationID) // no-ops on an empty batch
         if let checkpoint {

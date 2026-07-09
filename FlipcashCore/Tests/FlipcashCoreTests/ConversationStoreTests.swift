@@ -232,6 +232,98 @@ struct ConversationStoreTests {
         #expect(store.conversations.first?.members.first?.readPointerTimestamp == readAt)
     }
 
+    // MARK: - Feed preview from merge paths
+
+    private func cashMessage(_ id: UInt64) -> ConversationMessage {
+        ConversationMessage(
+            id: MessageID(value: id),
+            senderID: nil,
+            content: .cash(ExchangedFiat(nativeAmount: .usd(5.00), rate: .oneToOne)),
+            date: Date(timeIntervalSince1970: 0),
+            unreadSeq: 0,
+            eventSequence: id
+        )
+    }
+
+    @Test("a merged send-cash message newer than the preview becomes the feed's last message")
+    func mergeAdvancesPreviewToNewerCashMessage() {
+        var store = ConversationStore()
+        store.setFeed([conversation(1, lastActivity: 100)])
+        store.mergeMessages([message(3, "old text")], into: conversationID(1))
+        // The user's own cash send reaches the store via GetDelta catch-up — a merge-only path.
+        let cash = cashMessage(7)
+        store.applyDeltaBatch([cash], checkpoint: 7, into: conversationID(1))
+        #expect(store.conversations.first?.lastMessage == cash)
+    }
+
+    @Test("a merge seeds the preview of a conversation that has none")
+    func mergeSeedsMissingPreview() {
+        var store = ConversationStore()
+        store.setFeed([conversation(1, lastActivity: 100)])
+        store.mergeMessages([message(4, "first")], into: conversationID(1))
+        #expect(store.conversations.first?.lastMessage?.id.value == 4)
+    }
+
+    @Test("a paged-in older message does not regress the feed's last message")
+    func mergeDoesNotRegressPreview() {
+        var store = ConversationStore()
+        store.setFeed([conversation(1, lastActivity: 100)])
+        store.mergeMessages([message(9, "newest")], into: conversationID(1))
+        store.mergeMessages([message(2, "older history")], into: conversationID(1))
+        #expect(store.conversations.first?.lastMessage?.id.value == 9)
+    }
+
+    @Test("a merged tombstone is skipped — the newest visible message becomes the preview")
+    func mergeSkipsTombstoneForPreview() {
+        var store = ConversationStore()
+        store.setFeed([conversation(1, lastActivity: 100)])
+        store.mergeMessages([message(3, "old")], into: conversationID(1))
+        store.applyDeltaBatch([message(6, "visible", eventSequence: 6), deleted(7, eventSequence: 7)], checkpoint: 7, into: conversationID(1))
+        #expect(store.conversations.first?.lastMessage?.id.value == 6)
+    }
+
+    @Test("a merge advances the preview without re-sorting the feed — activity stays feed-owned")
+    func mergeDoesNotResortFeed() {
+        var store = ConversationStore()
+        store.setFeed([conversation(1, lastActivity: 100), conversation(2, lastActivity: 200)])
+        store.mergeMessages([message(5, "fresh", at: 500)], into: conversationID(1))
+        #expect(store.conversations.map(\.id) == [conversationID(2), conversationID(1)])
+        #expect(store.conversations.last?.lastMessage?.id.value == 5)
+    }
+
+    @Test("a stale re-delivered newMessages event does not regress the preview")
+    func staleNewMessagesDoesNotRegressPreview() {
+        var store = ConversationStore()
+        store.setFeed([conversation(1, lastActivity: 100)])
+        store.apply(.newMessages(conversationID: conversationID(1), messages: [message(10, "newest")]))
+        store.apply(.newMessages(conversationID: conversationID(1), messages: [message(8, "stale re-delivery")]))
+        #expect(store.conversations.first?.lastMessage?.id.value == 10)
+    }
+
+    @Test("a batch that sends and immediately deletes a message does not preview the deleted copy")
+    func sendPlusDeleteBatchDoesNotResurrectPreview() {
+        var store = ConversationStore()
+        store.setFeed([conversation(1, lastActivity: 100)])
+        store.mergeMessages([message(6, "visible", eventSequence: 6)], into: conversationID(1))
+        store.apply(.chatEvents(conversationID: conversationID(1), events: [
+            DecodedChatEvent(sequence: 7, count: 1, mutations: [.sent(message(7, "sent then deleted", eventSequence: 7))]),
+            DecodedChatEvent(sequence: 8, count: 1, mutations: [.deleted(deleted(7, eventSequence: 8))]),
+        ]))
+        #expect(store.conversations.first?.lastMessage?.id.value == 6)
+    }
+
+    @Test("an edit of the preview message refreshes its content without moving the row")
+    func editOfPreviewRefreshesContent() {
+        var store = ConversationStore()
+        store.setFeed([conversation(1, lastActivity: 100)])
+        store.mergeMessages([message(5, "old", eventSequence: 5)], into: conversationID(1))
+        store.apply(.chatEvents(conversationID: conversationID(1), events: [
+            DecodedChatEvent(sequence: 6, count: 1, mutations: [.edited(message(5, "edited", eventSequence: 6))]),
+        ]))
+        #expect(store.conversations.first?.lastMessage?.id.value == 5)
+        #expect(store.conversations.first?.lastMessage?.content == .text("edited"))
+    }
+
     // MARK: - Optimistic send
 
     @Test("A server-built message defaults to .sent with no client id; stableID is the server id")
