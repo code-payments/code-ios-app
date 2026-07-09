@@ -54,11 +54,12 @@ final class ConversationTyping {
 
     // MARK: - Incoming
 
+    /// Returns whether another member is currently typing in the conversation.
     func isCounterpartTyping(in conversationID: ConversationID) -> Bool {
         !(typists[conversationID]?.isEmpty ?? true)
     }
 
-    /// Self is excluded — the server may echo our own typing.
+    /// Applies typing notifications from the live stream, ignoring the user's own.
     func apply(_ notifications: [TypingNotification], in conversationID: ConversationID) {
         for notification in notifications where notification.userID != selfUserID {
             switch notification.isActive {
@@ -140,7 +141,7 @@ final class ConversationTyping {
         }
     }
 
-    /// Force-stop outgoing typing (draft cleared, message sent, or the composer lost focus).
+    /// Stops broadcasting the user's typing state in the conversation.
     func stopSelfTyping(in conversationID: ConversationID) {
         selfTypingTask?.cancel()
         selfTypingTask = nil
@@ -188,6 +189,7 @@ final class ConversationTyping {
 
     // MARK: - Teardown
 
+    /// Clears all typing state and cancels any in-flight work.
     func stop() {
         typists.removeAll()
         expiryTask?.cancel()

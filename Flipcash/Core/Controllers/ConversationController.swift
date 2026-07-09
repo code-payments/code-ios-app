@@ -84,6 +84,7 @@ final class ConversationController {
 
     /// The typing-indicator concern, both directions (outgoing driver + incoming typist
     /// tracking), owned by its own unit. Reads chain through `@Observable` tracking.
+    /// The typing indicators for the user's conversations.
     private let typing: ConversationTyping
 
     init(
@@ -318,6 +319,7 @@ final class ConversationController {
         typing.apply(notifications, in: conversationID)
     }
 
+    /// Returns whether another member is currently typing in the conversation.
     func isCounterpartTyping(in conversationID: ConversationID) -> Bool {
         typing.isCounterpartTyping(in: conversationID)
     }
@@ -660,10 +662,12 @@ final class ConversationController {
 
     // MARK: - Outgoing typing
 
+    /// Broadcasts the user's typing state as the draft text changes.
     func draftDidChange(_ text: String, in conversationID: ConversationID) {
         typing.draftDidChange(text, in: conversationID)
     }
 
+    /// Stops broadcasting the user's typing state in the conversation.
     func stopSelfTyping(in conversationID: ConversationID) {
         typing.stopSelfTyping(in: conversationID)
     }

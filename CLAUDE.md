@@ -68,9 +68,9 @@ When adding new information, place it in the appropriate existing section. Remov
 
 ## Hard Rules (Non-Negotiable)
 
-### Comments: One Line, Constraints Only
+### Comments: Document the API, Constrain the Implementation
 
-A comment exists to state a non-obvious constraint the code cannot show — in **one sentence**. Never narrate what the code does, never restate a rationale that already appears elsewhere in the file, never document the obvious. If a doc comment needs a paragraph, fix the name or the shape of the code instead.
+Non-private API carries a `///` doc comment in Apple's style: one third-person sentence stating the contract — what it returns or does for the caller — never the mechanism. Inline comments state only non-obvious constraints, one sentence, never repeating a rationale within the file.
 
 ### State Lives in Named Units
 
