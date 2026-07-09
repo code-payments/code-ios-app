@@ -36,12 +36,6 @@ final class ConversationController {
     /// cross-fade onto a settled bubble; the transcript mapping suppresses that row's receipt while set.
     var settlingSendID: String? { receiptSettle.settlingID }
 
-    /// Per-conversation set of OTHER members currently typing, maintained from the live stream.
-    /// Ephemeral — never persisted (the proto marks typing transient/best-effort). Cleared when a
-    /// member sends a stopped/timed-out notification; no client-side expiry (server-driven, mirroring
-    /// Android). `Set<UserID>` is Equatable, so the @Observable setter skips no-op re-inserts.
-    private var typingUserIDs: [ConversationID: Set<UserID>] = [:]
-
     /// The conversation with this ID, if the feed currently holds it.
     func conversation(withID id: ConversationID) -> Conversation? {
         conversations.first { $0.id == id }
@@ -88,12 +82,10 @@ final class ConversationController {
     @ObservationIgnored private var gapCatchUpTasks: [ConversationID: Task<Void, Never>] = [:]
     @ObservationIgnored private let receiptSettle = ReceiptSettleGate()
 
-    /// Re-send STILL no more often than this while the user keeps typing, and send STOPPED after this
-    /// long idle (matches the Android client so all clients agree on the cadence).
-    private static let typingHeartbeatInterval: Duration = .seconds(3)
-    private static let typingTimeout: Duration = .seconds(5)
-    @ObservationIgnored private var isSelfTyping = false
-    @ObservationIgnored private var selfTypingTask: Task<Void, Never>?
+    /// The typing-indicator concern, both directions (outgoing driver + incoming typist
+    /// tracking), owned by its own unit. Reads chain through `@Observable` tracking.
+    /// The typing indicators for the user's conversations.
+    private let typing: ConversationTyping
 
     init(
         fetching: any ConversationFetching,
@@ -102,7 +94,10 @@ final class ConversationController {
         contactNaming: any DMContactNaming,
         database: Database,
         owner: KeyPair,
-        selfUserID: UserID
+        selfUserID: UserID,
+        typingHeartbeatInterval: Duration = .seconds(3),
+        typingTimeout: Duration = .seconds(5),
+        incomingTypingExpiry: Duration = .seconds(10)
     ) {
         self.fetching = fetching
         self.messaging = messaging
@@ -111,6 +106,14 @@ final class ConversationController {
         self.database = database
         self.owner = owner
         self.selfUserID = selfUserID
+        self.typing = ConversationTyping(
+            messaging: messaging,
+            owner: owner,
+            selfUserID: selfUserID,
+            heartbeatInterval: typingHeartbeatInterval,
+            timeout: typingTimeout,
+            incomingExpiry: incomingTypingExpiry
+        )
     }
 
     /// Seeds the store from the local cache so the feed, unread state, and
@@ -311,26 +314,14 @@ final class ConversationController {
         }
     }
 
-    /// Updates the ephemeral typing set from a live event. Self is excluded — the server may echo our
-    /// own typing and we never show ourselves typing.
     private func applyTyping(_ event: ConversationStreamEvent) {
         guard case .typingChanged(let conversationID, let notifications) = event else { return }
-        for notification in notifications where notification.userID != selfUserID {
-            switch notification.isActive {
-            case true:
-                typingUserIDs[conversationID, default: []].insert(notification.userID)
-            case false:
-                typingUserIDs[conversationID]?.remove(notification.userID)
-                if typingUserIDs[conversationID]?.isEmpty == true {
-                    typingUserIDs[conversationID] = nil
-                }
-            }
-        }
+        typing.apply(notifications, in: conversationID)
     }
 
-    /// Whether any OTHER member is currently typing in this conversation.
+    /// Returns whether another member is currently typing in the conversation.
     func isCounterpartTyping(in conversationID: ConversationID) -> Bool {
-        !(typingUserIDs[conversationID]?.isEmpty ?? true)
+        typing.isCounterpartTyping(in: conversationID)
     }
 
     func stop() {
@@ -345,10 +336,7 @@ final class ConversationController {
         gapCatchUpTasks.values.forEach { $0.cancel() }
         gapCatchUpTasks.removeAll()
         catchUpInFlight.removeAll()
-        typingUserIDs.removeAll()
-        selfTypingTask?.cancel()
-        selfTypingTask = nil
-        isSelfTyping = false
+        typing.stop()
         receiptSettle.cancel()
         streaming.closeConversationStream()
     }
@@ -674,58 +662,13 @@ final class ConversationController {
 
     // MARK: - Outgoing typing
 
-    /// Drives outgoing typing from the composer's draft. STARTED on the first non-empty change, STILL
-    /// after a `typingHeartbeatInterval` pause, STOPPED at `typingTimeout` idle or when the draft empties.
-    /// Each change replaces the previous run, mirroring Android's `transformLatest` driver.
+    /// Broadcasts the user's typing state as the draft text changes.
     func draftDidChange(_ text: String, in conversationID: ConversationID) {
-        selfTypingTask?.cancel()
-        guard !text.isEmpty else {
-            stopSelfTyping(in: conversationID)
-            return
-        }
-        selfTypingTask = Task { [weak self] in
-            // A task cancelled before its body runs (a fast type-then-clear) must send nothing — otherwise
-            // it would emit a STARTED with no matching STOPPED and wedge `isSelfTyping`.
-            guard let self, !Task.isCancelled else { return }
-            if !self.isSelfTyping {
-                self.isSelfTyping = true
-                self.sendTyping(.started, in: conversationID)
-            }
-            var elapsed: Duration = .zero
-            while elapsed < Self.typingTimeout {
-                let wait = min(Self.typingHeartbeatInterval, Self.typingTimeout - elapsed)
-                try? await Task.sleep(for: wait)
-                if Task.isCancelled { return }
-                elapsed += wait
-                if elapsed < Self.typingTimeout {
-                    self.sendTyping(.still, in: conversationID)
-                }
-            }
-            self.isSelfTyping = false
-            self.sendTyping(.stopped, in: conversationID)
-        }
+        typing.draftDidChange(text, in: conversationID)
     }
 
-    /// Force-stop outgoing typing (draft cleared, message sent, or the composer lost focus).
+    /// Stops broadcasting the user's typing state in the conversation.
     func stopSelfTyping(in conversationID: ConversationID) {
-        selfTypingTask?.cancel()
-        selfTypingTask = nil
-        guard isSelfTyping else { return }
-        isSelfTyping = false
-        sendTyping(.stopped, in: conversationID)
-    }
-
-    /// Fire-and-forget. Deliberately not logged per-failure — typing fires every few seconds, so an
-    /// offline burst would flood the log — but errors still route through `captureError`: transient ones
-    /// classify as `.suppressed` and are dropped, denied surfaces at `.info`, and a genuine server
-    /// error reports at `.error`.
-    private func sendTyping(_ state: TypingState, in conversationID: ConversationID) {
-        Task { [messaging, owner] in
-            do {
-                try await messaging.notifyIsTyping(owner: owner, conversationID: conversationID, state: state)
-            } catch {
-                ErrorReporting.captureError(error, reason: "Failed to notify typing")
-            }
-        }
+        typing.stopSelfTyping(in: conversationID)
     }
 }

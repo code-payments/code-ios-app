@@ -14,24 +14,28 @@ struct ConversationControllerTests {
 
     /// Polls briefly for work the controller runs on its own task (stream
     /// consumption, feed paging) to land. Fails the test after ~1s.
-    private func waitUntil(_ condition: () -> Bool) async throws {
+    private func waitUntil(_ condition: () -> Bool, sourceLocation: SourceLocation = #_sourceLocation) async throws {
         for _ in 0..<50 where !condition() {
             try? await Task.sleep(for: .milliseconds(20))
         }
-        try #require(condition(), "Timed out waiting for condition after ~1s")
+        try #require(condition(), "Timed out waiting for condition after ~1s", sourceLocation: sourceLocation)
     }
 
     private func makeController(
         _ mock: MockConversations,
         selfUserID: UserID = UUID(),
         naming: MockDMContactNaming = MockDMContactNaming(),
-        database: Database? = nil
+        database: Database? = nil,
+        typingHeartbeatInterval: Duration = .seconds(3),
+        incomingTypingExpiry: Duration = .seconds(10)
     ) -> ConversationController {
         ConversationController(
             fetching: mock, messaging: mock, streaming: mock,
             contactNaming: naming,
             database: database ?? (try! Database.makeTemp().database),
-            owner: .generate()!, selfUserID: selfUserID
+            owner: .generate()!, selfUserID: selfUserID,
+            typingHeartbeatInterval: typingHeartbeatInterval,
+            incomingTypingExpiry: incomingTypingExpiry
         )
     }
 
@@ -114,6 +118,93 @@ struct ConversationControllerTests {
         #expect(mock.typingCalls.contains { $0.state == .started })
     }
 
+    @Test("an active typist expires locally when no further notification arrives")
+    func typistExpiresWithoutStop() async throws {
+        let them = UUID()
+        let mock = MockConversations()
+        let controller = makeController(mock, incomingTypingExpiry: .milliseconds(200))
+        controller.start()
+        try await waitUntil { mock.streamOpened }
+
+        mock.emit(.typingChanged(conversationID: .test(1), notifications: [TypingNotification(userID: them, isActive: true)]))
+        try await waitUntil { controller.isCounterpartTyping(in: .test(1)) }
+        // The STOPPED never arrives (dropped by the best-effort relay); the local
+        // expiry must clear the indicator on its own.
+        try await waitUntil { !controller.isCounterpartTyping(in: .test(1)) }
+    }
+
+    @Test("a refreshed typing notification extends the expiry window")
+    func typingRefreshExtendsExpiry() async throws {
+        let them = UUID()
+        let mock = MockConversations()
+        let controller = makeController(mock, incomingTypingExpiry: .milliseconds(500))
+        controller.start()
+        try await waitUntil { mock.streamOpened }
+
+        mock.emit(.typingChanged(conversationID: .test(1), notifications: [TypingNotification(userID: them, isActive: true)]))
+        try await waitUntil { controller.isCounterpartTyping(in: .test(1)) }
+        let shownAt = ContinuousClock.now
+
+        // A refresh ~300ms in moves the deadline to ~800ms after the typist appeared.
+        try await Task.sleep(for: .milliseconds(300))
+        mock.emit(.typingChanged(conversationID: .test(1), notifications: [TypingNotification(userID: them, isActive: true)]))
+
+        try await waitUntil { !controller.isCounterpartTyping(in: .test(1)) }
+        // Load can only lengthen the observed lifetime, never shorten it; without the
+        // extension the typist clears at ~500ms.
+        #expect(shownAt.duration(to: ContinuousClock.now) >= .milliseconds(700))
+    }
+
+    @Test("a STOPPED never overtakes an in-flight earlier send")
+    func typingSendsStayOrdered() async throws {
+        let mock = MockConversations()
+        mock.typingDelays = [.started: .milliseconds(200)]
+        let controller = makeController(mock)
+
+        controller.draftDidChange("h", in: .test(1))
+        // Wait for the STARTED to enter the (slow) transport before clearing the draft.
+        try await waitUntil { mock.typingCallsBegun == 1 }
+        controller.draftDidChange("", in: .test(1))
+
+        try await waitUntil { mock.typingCalls.count == 2 }
+        #expect(mock.typingCalls.map(\.state) == [.started, .stopped])
+    }
+
+    @Test("a rapid stop-then-restart coalesces to the latest state")
+    func typingBurstCoalesces() async throws {
+        let mock = MockConversations()
+        mock.typingDelays = [.started: .milliseconds(200)]
+        let controller = makeController(mock)
+
+        controller.draftDidChange("h", in: .test(1))
+        try await waitUntil { mock.typingCallsBegun == 1 }
+        // While the STARTED is still in flight: clear (queues STOPPED) then type
+        // again. States are absolute, so the queued STOPPED is superseded — the
+        // wire only ever needs the latest state.
+        controller.draftDidChange("", in: .test(1))
+        controller.draftDidChange("i", in: .test(1))
+
+        try await waitUntil { mock.typingCalls.count == 2 }
+        // Give any extra (non-coalesced) sends time to land before pinning the sequence.
+        try await Task.sleep(for: .milliseconds(250))
+        #expect(mock.typingCalls.map(\.state) == [.started, .started])
+    }
+
+    @Test("STILL heartbeats fire while the user keeps typing without pausing")
+    func heartbeatDuringContinuousTyping() async throws {
+        let mock = MockConversations()
+        let controller = makeController(mock, typingHeartbeatInterval: .milliseconds(300))
+
+        // Keystrokes every ~30ms for ~600ms — never a 300ms pause, so a purely
+        // pause-driven loop would stay silent after the initial STARTED.
+        var draft = ""
+        for _ in 0..<20 {
+            draft += "a"
+            controller.draftDidChange(draft, in: .test(1))
+            try await Task.sleep(for: .milliseconds(30))
+        }
+        #expect(mock.typingCalls.map(\.state).contains(.still))
+    }
 
     @Test("loadFeed populates conversations sorted by activity")
     func loadFeed() async {

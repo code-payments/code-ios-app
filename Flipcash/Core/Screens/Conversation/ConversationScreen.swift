@@ -271,6 +271,10 @@ struct ConversationScreen: View {
             setVisibleConversation(id, source: "onChange")
         }
         .onDisappear {
+            // The composer's focus `onChange` can't fire once unmounted, so stop typing here.
+            if let conversationID {
+                conversationController.stopSelfTyping(in: conversationID)
+            }
             // Guarded so a forward push that already set another ID isn't cleared.
             let matched = conversationController.visibleConversationID == conversationID
             logger.info("Clearing visible conversation on disappear", metadata: [

@@ -68,6 +68,14 @@ When adding new information, place it in the appropriate existing section. Remov
 
 ## Hard Rules (Non-Negotiable)
 
+### Comments: Document the API, Constrain the Implementation
+
+Non-private API carries a `///` doc comment in Apple's style: one third-person sentence stating the contract — what it returns or does for the caller — never the mechanism. Inline comments state only non-obvious constraints, one sentence, never repeating a rationale within the file.
+
+### State Lives in Named Units
+
+A concern that owns **more than two pieces of state** (flags, tasks, queues, deadline maps) gets its own type — `@MainActor @Observable` class for UI-bound state, `actor` for cross-domain state — composed as a single `let` on the owner with thin forwards. Never loose fields accreted onto a shared controller. Judge by the concern's **total** field count at the end of the change, not the per-edit delta; extraction is part of the change itself, not a follow-up. Example: `ConversationTyping` owns all typing state; `ConversationController` holds one `let typing` and forwards.
+
 ### Testing Framework
 
 **Use Swift Testing, NOT XCTest:**
@@ -181,6 +189,8 @@ ErrorReporting.captureError(error, reason: "...")
 ```
 
 To change how a specific error type surfaces, conform it to `ServerError` (in `FlipcashCore/Sources/FlipcashCore/Models/ServerError.swift`) and return the right `ErrorReportingLevel` per case — `.suppressed` for network weather / success sentinels, `.info` for expected business outcomes (denied, not-found, rate-limited), `.error` for client/proto defects (`.unknown`, parse failures). There is deliberately no protocol default — the compiler forces every new conformer to classify its cases explicitly. That's the single source of truth — call sites stay uniform.
+
+**Best-effort chatter never reports at all.** `captureError` is for failures a developer should act on. Fire-and-forget UX signals (typing indicators and similar presence-style traffic, which the proto marks droppable) log at most one warning per burst and do **not** call `captureError` — a failed typing notification is not actionable.
 
 ### Form Input Validation: Use the `Validator` Family
 
