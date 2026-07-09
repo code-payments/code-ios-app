@@ -5,14 +5,12 @@
 
 import Foundation
 
-/// Why the Add Money flow was opened. Selects the "No Balance Yet" subtitle;
-/// the flow itself is currency-agnostic (it only deposits USDF).
+/// Why the Add Money flow was opened; selects the "No Balance Yet" subtitle.
 nonisolated enum AddMoneyContext: Hashable, Sendable {
     case buyCurrency
     case createCurrency
     case giveCash
-    /// Direct entry (Wallet / Settings "Add Money" buttons) — no gating
-    /// dialog precedes the sheet, so the subtitle is never shown.
+    /// Direct entry — no gating dialog precedes the sheet.
     case general
 
     var noBalanceSubtitle: String {

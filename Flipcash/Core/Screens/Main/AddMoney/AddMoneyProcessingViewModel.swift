@@ -8,14 +8,14 @@ import FlipcashCore
 
 private let logger = Logger(label: "flipcash.add-money-processing")
 
-/// Narrow settlement surface the processing view model observes: read the
-/// current USDF balance and trigger a server balance refresh. `Session`
-/// already provides both, so its conformance is a no-op — the protocol exists
-/// purely so the state machine is testable with a fake.
+/// Settlement surface the processing view model observes: the current USDF
+/// balance and a balance-only server refresh. The poll deliberately avoids
+/// the full `updatePostTransaction()` fan-out (limits + history sync) — the
+/// host screen runs that once on success.
 @MainActor
 protocol AddMoneySettling: AnyObject {
     func balance(for mint: PublicKey) -> StoredBalance?
-    func updatePostTransaction()
+    func updateBalance()
 }
 
 extension Session: AddMoneySettling {}
@@ -66,17 +66,16 @@ final class AddMoneyProcessingViewModel {
 
     // MARK: - Private
 
-    /// Onramp fees + the USD→USDF rate deliver slightly less than the requested
-    /// amount (Coinbase records at ~0.9994), so accept a small shortfall rather
-    /// than poll forever waiting for the exact figure.
+    /// Onramp fees deliver slightly less than the requested amount, so accept
+    /// a small shortfall rather than poll forever for the exact figure.
     private static let completionTolerance: Decimal = 0.98
 
     private let input: AddMoneyProcessingInput
     private let pollInterval: Duration
     private let timeout: Duration
 
-    private var requiredDelta: Decimal {
-        input.amount.usdfValue.value * Self.completionTolerance
+    private var requiredDelta: FiatAmount {
+        input.amount.usdfValue * Self.completionTolerance
     }
 
     // MARK: - Init
@@ -93,18 +92,13 @@ final class AddMoneyProcessingViewModel {
 
     // MARK: - Run
 
-    /// Drives settlement to completion:
-    /// - Coinbase / Other Wallet: run the USDC→USDF sweep, then poll for the
-    ///   USDF balance to rise by ~the deposited amount.
-    /// - Phantom: the tx already carried the USDC→USDF swap, so just poll.
-    ///
-    /// `performSweep` wraps `UsdcSweepOperation.sweepUntilConverted`; its result
-    /// is advisory — the balance-rise poll is the authoritative completion
-    /// signal, so a `false` sweep still falls through to the timeout path.
+    /// Drives settlement until the USDF balance rises by roughly the deposited
+    /// amount, then flips `displayState`. `performSweep`'s result is advisory —
+    /// the balance-rise poll is the authoritative completion signal.
     func run(settlement: any AddMoneySettling, performSweep: @MainActor () async -> Bool) async {
         guard displayState == .processing else { return }
 
-        let baseline = settlement.balance(for: .usdf)?.usdf.value ?? 0
+        let baseline = settlement.balance(for: .usdf)?.usdf ?? .zero(in: .usd)
         let target = baseline + requiredDelta
 
         switch input.method {
@@ -117,13 +111,14 @@ final class AddMoneyProcessingViewModel {
         let deadline = ContinuousClock.now.advanced(by: timeout)
         while ContinuousClock.now < deadline {
             if Task.isCancelled { return }
-            settlement.updatePostTransaction()
+            settlement.updateBalance()
 
-            if let current = settlement.balance(for: .usdf)?.usdf.value, current >= target {
+            if let current = settlement.balance(for: .usdf)?.usdf, current >= target {
                 logger.info("Add money settled", metadata: [
                     "method": "\(input.method)",
                     "baseline": "\(baseline)",
                     "current": "\(current)",
+                    "depositRef": "\(input.depositRef ?? "nil")",
                 ])
                 displayState = .success
                 return
@@ -140,6 +135,7 @@ final class AddMoneyProcessingViewModel {
             "method": "\(input.method)",
             "baseline": "\(baseline)",
             "target": "\(target)",
+            "depositRef": "\(input.depositRef ?? "nil")",
         ])
         displayState = .failed
     }

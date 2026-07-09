@@ -62,12 +62,9 @@ final class BuyAmountViewModel: Identifiable {
 
     // MARK: - Submission
 
-    /// Single source of truth for amount submission. Run the balance gate the
-    /// same way every other spend flow does (`Session.hasSufficientFunds` —
-    /// quarks comparison with the half-denomination max-send tolerance), then
-    /// pin verified state, compute quarks against the pin capped to the USDF
-    /// balance, run the limit gate, and submit the buy from reserves. A
-    /// genuine shortfall routes to the Add Money flow instead.
+    /// Single source of truth for amount submission — gates balance and
+    /// limits, then submits the buy from reserves; a shortfall routes to the
+    /// Add Money flow.
     func amountEnteredAction(router: AppRouter) async {
         guard let enteredFiat else { return }
 
@@ -120,8 +117,7 @@ final class BuyAmountViewModel: Identifiable {
                 swapType: .buyWithReserves
             ))
         } catch Session.Error.insufficientBalance {
-            // Race: balance gate said OK but the reserves buy disagreed. Route
-            // the user to Add Money instead of completing.
+            // Race: the balance gate said OK but the reserves buy disagreed.
             actionButtonState = .normal
             session.dialogItem = .noBalance(subtitle: AddMoneyContext.buyCurrency.noBalanceSubtitle) {
                 router.presentAddMoney(.buyCurrency)
@@ -146,10 +142,8 @@ final class BuyAmountViewModel: Identifiable {
 
     /// Pin verified state once, compute amount against the pin so quarks
     /// stay tied to the rate the server is about to verify. The entered
-    /// amount is capped to the USDF balance (`compute(fromEntered:balance:)`)
-    /// so FX display rounding can't push the quarks a hair past the spendable
-    /// reserves — the balance renders as 1.00 CAD, the user types 1.00 CAD,
-    /// and the buy must spend exactly the balance, not reject.
+    /// amount is capped to the USDF balance so FX display rounding can't push
+    /// the quarks past the spendable reserves.
     func prepareSubmission() async -> (amount: ExchangedFiat, pinnedState: VerifiedState)? {
         let currency = ratesController.balanceCurrency
         guard let pin = await ratesController.currentPinnedState(for: currency, mint: .usdf) else {

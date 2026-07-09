@@ -9,41 +9,29 @@ import FlipcashCore
 
 private let logger = Logger(label: "flipcash.phantom-deposit")
 
-/// Deposits USDF into the user's Flipcash wallet through Phantom's connect +
-/// sign flow. Phantom signs a USDC→USDF swap whose output lands directly in
-/// the user's USDF VM deposit account; Geyser credits the balance server-side.
-/// No buy or launch intent is recorded — this is a pure funding deposit.
-///
-/// Split across the two Add Money screens:
-/// - `connect()` — the education screen's CTA. Deeplinks Phantom to establish
-///   the Keychain session (`state = .awaitingExternal(.phantomConnect)`).
-/// - `signAndSubmit(amount:)` — the amount screen's "Confirm in Phantom".
-///   Deeplinks the deposit-targeted USDC→USDF sign request
-///   (`state = .awaitingExternal(.phantomSign)`), suspends on `deeplinkEvents`
-///   until the signed transaction returns, then simulates and submits to chain
-///   (`state = .working`). No re-handshake — the session from `connect()` is
-///   seconds old, so signing is a single Phantom round-trip. No server-notify.
-///
-/// Both throw on wallet-side cancel (`DepositError.userCancelled`), external
-/// rejection, or chain submit failure. Retry is a caller concern.
+/// Deposits USDF through Phantom: `connect()` establishes the wallet session
+/// from the education screen, then `signAndSubmit(amount:)` has Phantom sign a
+/// USDC→USDF swap into the user's USDF VM deposit account and submits it to
+/// chain — Geyser credits the balance server-side, no intent is recorded.
+/// Both throw `DepositError`; retry is a caller concern.
 @Observable
 final class PhantomDepositOperation {
 
     private(set) var state: DepositOperationState = .idle
 
+    /// The signature of the last successfully submitted deposit transaction.
+    private(set) var submittedSignature: String?
+
     @ObservationIgnored private let walletConnection: any TransactionSigning
-    @ObservationIgnored private let session: any AccountProviding
     @ObservationIgnored private let rpc: any SolanaRPC
 
     @ObservationIgnored private var runTask: Task<Void, Error>?
 
     init(
         walletConnection: any TransactionSigning,
-        session: any AccountProviding,
         rpc: any SolanaRPC = SolanaJSONRPCClient()
     ) {
         self.walletConnection = walletConnection
-        self.session = session
         self.rpc = rpc
     }
 
@@ -53,8 +41,8 @@ final class PhantomDepositOperation {
 
     // MARK: - Entry
 
-    /// Connects the Phantom wallet — the education screen's CTA. Establishes the
-    /// Keychain session `signAndSubmit(amount:)` later signs against.
+    /// Establishes the Phantom wallet session that `signAndSubmit(amount:)`
+    /// signs against.
     func connect() async throws {
         let task = Task { try await runConnect() }
         runTask = task
@@ -66,9 +54,8 @@ final class PhantomDepositOperation {
         }
     }
 
-    /// Signs the deposit-targeted USDC→USDF swap and submits it — the amount
-    /// screen's "Confirm in Phantom". Assumes a live session from a prior
-    /// `connect()`; it does not re-handshake.
+    /// Has Phantom sign the USDC→USDF swap and submits it to chain. Requires
+    /// a live session from a prior `connect()`; it does not re-handshake.
     func signAndSubmit(amount: ExchangedFiat) async throws {
         let task = Task { try await runSignAndSubmit(amount) }
         runTask = task
@@ -106,56 +93,27 @@ final class PhantomDepositOperation {
     }
 
     private func runSignAndSubmit(_ amount: ExchangedFiat) async throws {
-        // Reset state on any exit (return or throw). Without this, a throw from
-        // the sign request / submit leaves state at `.awaitingExternal`, so the
-        // host view's spinner never clears.
+        // Reset state on any exit.
         defer { state = .idle }
 
-        let destination = try usdfDepositDestination()
-        let fundingSwapId = SwapId.generate()
+        let swapId = SwapId.generate()
 
         state = .awaitingExternal(.phantomSign)
-        try await walletConnection.sendUsdcToUsdfDepositSignRequest(
+        try await walletConnection.sendUsdcToUsdfSignRequest(
             usdc: amount.onChainAmount,
-            destination: destination,
-            fundingSwapId: fundingSwapId,
+            swapId: swapId,
             displayName: "USDF"
         )
 
-        let signedTx = try await awaitSignedTransaction()
+        let signedTx = try await awaitSignedTransaction(swapId: swapId)
 
         state = .working
-        try await submit(signedTx: signedTx)
+        try await submit(signedTx: signedTx, swapId: swapId)
     }
 
-    /// The user's USDF VM deposit token account — where Phantom's signed swap
-    /// deposits the converted USDF. Geyser watches this account and credits the
-    /// balance server-side.
-    private func usdfDepositDestination() throws -> PublicKey {
-        guard let vm = MintMetadata.usdf.vmMetadata,
-              let lockout = Byte(exactly: vm.lockDurationInDays) else {
-            logger.error("USDF metadata missing VM info")
-            throw DepositError.unexpectedFailure(reason: "USDF VM metadata unavailable")
-        }
-        guard let depositPda = PublicKey.deriveDepositAccount(
-            owner: session.owner.authorityPublicKey,
-            mint: .usdf,
-            timeAuthority: vm.authority,
-            lockout: lockout
-        ), let depositATA = PublicKey.deriveAssociatedAccount(
-            from: depositPda.publicKey,
-            mint: .usdf
-        ) else {
-            logger.error("Failed to derive USDF deposit account")
-            throw DepositError.unexpectedFailure(reason: "Couldn't derive USDF deposit account")
-        }
-        return depositATA.publicKey
-    }
-
-    /// Consumes `deeplinkEvents` until the signed-tx event arrives. Throws
-    /// `.userCancelled` on a wallet 4001 and `.externalRejected` on any other
-    /// wallet error.
-    private func awaitSignedTransaction() async throws -> String {
+    /// Consumes `deeplinkEvents` until the signed transaction arrives, throwing
+    /// on cancel or wallet error.
+    private func awaitSignedTransaction(swapId: SwapId) async throws -> String {
         for await event in walletConnection.deeplinkEvents {
             try Task.checkCancellation()
             switch event {
@@ -164,48 +122,60 @@ final class PhantomDepositOperation {
             case .userCancelled:
                 throw DepositError.userCancelled
             case .failed(let code):
-                logger.error("Phantom returned error", metadata: ["code": "\(code)"])
+                logger.error("Phantom returned error", metadata: [
+                    "code": "\(code)",
+                    "swapId": "\(swapId.publicKey.base58)",
+                ])
                 throw DepositError.externalRejected(
                     title: "Transaction Failed",
                     subtitle: "Your wallet rejected the transaction. Please try again."
                 )
             }
         }
-        // Stream ended without delivering an event — treat as cancellation.
+        logger.warning("Deeplink stream ended without a terminal event", metadata: [
+            "swapId": "\(swapId.publicKey.base58)",
+        ])
         throw CancellationError()
     }
 
     // MARK: - Submit
 
-    private func submit(signedTx: String) async throws {
+    private func submit(signedTx: String, swapId: SwapId) async throws {
         let rawData = Data(Base58.toBytes(signedTx))
         guard SolanaTransaction(data: rawData) != nil else {
-            // Phantom returned a payload we can't decode — wallet contract
-            // violation, worth Bugsnagging.
-            logger.error("Failed to decode signed transaction")
+            // An undecodable payload is a Phantom contract violation.
+            logger.error("Failed to decode signed transaction", metadata: [
+                "swapId": "\(swapId.publicKey.base58)",
+            ])
             throw DepositError.unexpectedFailure(reason: "Couldn't decode signed transaction from Phantom")
         }
 
         let txBase64 = rawData.base64EncodedString()
-        try await simulate(txBase64)
+        try await simulate(txBase64, swapId: swapId)
 
-        // No server-notify: the deposit is credited by Geyser once the swap
-        // lands in the USDF deposit account. Submit straight to chain.
         do {
-            _ = try await rpc.sendTransaction(
+            let signature = try await rpc.sendTransaction(
                 txBase64,
                 configuration: SolanaSendTransactionConfig()
             )
+            submittedSignature = signature.base58
+            logger.info("Submitted deposit transaction", metadata: [
+                "signature": "\(signature.base58)",
+                "swapId": "\(swapId.publicKey.base58)",
+            ])
         } catch {
-            logger.error("Chain submission failed", metadata: ["error": "\(error)"])
+            logger.error("Chain submission failed", metadata: [
+                "error": "\(error)",
+                "swapId": "\(swapId.publicKey.base58)",
+            ])
             throw DepositError.chainSubmitFailed("\(error)")
         }
     }
 
-    /// Pre-flights the signed tx. Treats transport-level failures as proceed —
-    /// a flaky RPC blip must not block a user with valid funds; only explicit
-    /// RPC rejections throw.
-    private func simulate(_ txBase64: String) async throws {
+    /// Pre-flights the signed transaction, throwing only on an explicit RPC
+    /// rejection. Transport-level failures proceed to submit — a flaky RPC
+    /// must not block a valid deposit.
+    private func simulate(_ txBase64: String, swapId: SwapId) async throws {
         do {
             _ = try await rpc.simulateTransaction(
                 txBase64,
@@ -218,6 +188,7 @@ final class PhantomDepositOperation {
         } catch SolanaRPCError.transactionSimulationError(let logs) {
             logger.error("Phantom signed transaction failed simulation", metadata: [
                 "logs": "\(logs.suffix(5).joined(separator: " | "))",
+                "swapId": "\(swapId.publicKey.base58)",
             ])
             throw DepositError.externalRejected(
                 title: "Transaction Rejected",
@@ -227,6 +198,7 @@ final class PhantomDepositOperation {
             logger.error("Phantom signed transaction rejected at preflight", metadata: [
                 "code": "\(response.code ?? -1)",
                 "message": "\(response.message ?? "nil")",
+                "swapId": "\(swapId.publicKey.base58)",
             ])
             throw DepositError.externalRejected(
                 title: "Transaction Rejected",

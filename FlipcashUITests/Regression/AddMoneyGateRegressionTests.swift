@@ -5,19 +5,10 @@
 
 import XCTest
 
-/// Regression tests for the no-assets gates on the Discover surface: buying
-/// and launching are reserves-only, so an account with no USDF must be routed
-/// through "No Balance Yet" → Add Money → "Select Method" instead of entering
-/// the paid flow. Exercises:
-///
-/// - Buy on a $0 account gates *before* the amount sheet — the "No Balance
-///   Yet" dialog appears immediately, with the buy-context subtitle.
-/// - Get Started on Create Your Currency gates the same way, with the
-///   create-context subtitle.
-/// - Each gate's Add Money CTA presents the "Select Method" picker.
-///
-/// Uses fresh-account creation to guarantee a $0 balance — no auth keys
-/// required, runs the same on Xcode Cloud as locally.
+/// Regression tests for the reserves-only gates: an account with no USDF must
+/// route through "No Balance Yet" → Add Money instead of entering the buy or
+/// create flow. Uses fresh-account creation for a guaranteed $0 balance, so
+/// no auth keys are required.
 final class AddMoneyGateRegressionTests: BaseUITestCase {
 
     func testBuyWithNoAssets_gatesOnAddMoneyBeforeAmountEntry() {

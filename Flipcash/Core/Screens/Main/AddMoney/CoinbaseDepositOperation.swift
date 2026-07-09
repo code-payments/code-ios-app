@@ -10,35 +10,22 @@ import FlipcashCore
 private let logger = Logger(label: "flipcash.coinbase-deposit")
 
 /// Deposits USDC into the user's wallet via the Coinbase Apple Pay onramp.
-///
-/// The onramp delivers **USDC** to the user's USDC ATA (the owner-authority
-/// address — the same one `DepositScreen` shows for "Other Wallet"). The
-/// in-flow `UsdcSweepOperation` converts it to USDF afterward; Geyser
-/// auto-credits the balance server-side. No buy or launch intent is recorded.
-///
-/// Flow:
-/// 1. `checkRequirements()` — throws `.requirementUnsatisfied(.verifiedContact)`
-///    if the profile lacks a verified phone + a usable email (see
-///    `CoinbaseOrderEmail`).
-/// 2. `$5` minimum gate — Coinbase rejects sub-$5 orders with a generic error.
-/// 3. `state = .working` — `coinbase.createOrder(...)` (purchaseCurrency USDC).
-/// 4. Order published to `CoinbaseService`, mounting the WebView overlay.
-/// 5. `state = .awaitingExternal(.applePay)` — consume `applePayEvents` until
-///    `pollingSuccess`, `cancelled`, or a terminal error.
+/// The onramp delivers USDC to the owner's ATA; converting it to USDF is the
+/// in-flow `UsdcSweepOperation`'s job.
 @Observable
 final class CoinbaseDepositOperation {
 
-    /// Coinbase Onramp's USD floor — orders below this amount fail with a
-    /// generic error, so the deposit flow gates ahead of the Apple Pay sheet.
+    /// Coinbase Onramp's USD floor — orders below this amount are rejected.
     static let minimumPurchaseUSD: Decimal = 5
 
     private(set) var state: DepositOperationState = .idle
 
-    /// `true` when the idle timer cancelled the run because the user left the
-    /// Apple Pay sheet sitting on screen past the timeout. Callers read this
-    /// in their `catch is CancellationError` arm to distinguish a timeout from
-    /// a silent user-dismiss.
+    /// `true` when the idle timer cancelled the run, distinguishing an Apple
+    /// Pay timeout from a user cancel after a `CancellationError`.
     private(set) var didTimeOut: Bool = false
+
+    /// The Coinbase order id of the current run, for log correlation.
+    private(set) var orderId: String?
 
     @ObservationIgnored private let coinbaseService: CoinbaseService
     @ObservationIgnored private let session: any (AccountProviding & ProfileProviding)
@@ -82,9 +69,8 @@ final class CoinbaseDepositOperation {
     // MARK: - Run
 
     private func run(_ amount: ExchangedFiat) async throws {
-        // Reset state on any exit (return or throw). Without this, a throw from
-        // createOrder / the Apple Pay event loop leaves state at `.working` or
-        // `.awaitingExternal(.applePay)` and the host view never re-enables.
+        // Reset state on any exit — a throw would otherwise strand the host
+        // view in `.working`.
         defer { state = .idle }
 
         try checkRequirements()
@@ -92,6 +78,7 @@ final class CoinbaseDepositOperation {
 
         state = .working
         let order = try await createOrder(for: amount)
+        orderId = order.id
 
         coinbaseService.setOrder(order)
         defer { coinbaseService.clearOrder() }
@@ -107,10 +94,9 @@ final class CoinbaseDepositOperation {
     }
 
     private func checkMinimum(_ amount: ExchangedFiat) throws {
-        // Convert the USD floor into the user's currency ONCE, rounded to the
-        // denomination the dialog renders — the check accepts exactly the
-        // number it displays. Comparing raw USD instead rejects the displayed
-        // minimum itself ($5 → "7.08 CAD" display, but 7.08 CAD → $4.9986).
+        // Round the converted floor to the displayed denomination first — the
+        // check must accept exactly the number the dialog shows; comparing raw
+        // USD rejects the displayed minimum itself.
         let minimum = FiatAmount(
             value: FiatAmount.usd(Self.minimumPurchaseUSD)
                 .converting(to: amount.currencyRate)
@@ -119,6 +105,10 @@ final class CoinbaseDepositOperation {
             currency: amount.currencyRate.currency
         )
         guard amount.nativeAmount.value >= minimum.value else {
+            logger.info("Coinbase deposit below minimum", metadata: [
+                "amount": "\(amount.nativeAmount.formatted())",
+                "minimum": "\(minimum.formatted())",
+            ])
             throw DepositError.externalRejected(
                 title: "\(minimum.formatted()) Minimum Purchase",
                 subtitle: "Please enter an amount of \(minimum.formatted()) or higher"
@@ -139,12 +129,10 @@ final class CoinbaseDepositOperation {
                 request: OnrampOrderRequest(
                     purchaseAmount: "\(amount.usdfValue.value)",
                     paymentCurrency: "USD",
-                    // USDC, not USDF — the onramp deposits USDC to the user's
-                    // ATA; the in-flow sweep converts it afterward.
+                    // USDC, not USDF — the sweep converts after deposit.
                     purchaseCurrency: "USDC",
                     isQuote: false,
-                    // The user's USDC ATA = owner authority address, the same
-                    // address DepositScreen / Other Wallet shows.
+                    // The user's USDC ATA — the owner authority address.
                     destinationAddress: session.owner.authorityPublicKey,
                     email: email,
                     phoneNumber: phone,
@@ -155,8 +143,7 @@ final class CoinbaseDepositOperation {
                 ),
                 idempotencyKey: nil
             )
-            // Everything Coinbase support needs to trace the order — a stuck
-            // deposit must be debuggable from the log alone.
+            // A stuck deposit must be traceable with Coinbase from the log alone.
             logger.info("Coinbase order created", metadata: [
                 "orderId": "\(response.order.orderId)",
                 "partnerOrderRef": "\(orderRef)",
@@ -184,12 +171,8 @@ final class CoinbaseDepositOperation {
         }
     }
 
-    /// Consumes `coinbaseService.applePayEvents` until Apple Pay reports a
-    /// terminal state. `pollingSuccess` resolves the wait; `cancelled` or an
-    /// error event throws. Arms `idleTimer` on `.pendingPaymentAuth`, disarms
-    /// once the user authenticates so a slow commit doesn't trip the timeout.
-    /// Every log line carries `orderId` so a stuck or disputed deposit can be
-    /// traced with Coinbase from the log alone.
+    /// Consumes `coinbaseService.applePayEvents` until Apple Pay reaches a
+    /// terminal state, throwing on cancel or error.
     private func awaitApplePayCompletion(orderId: String) async throws {
         defer { idleTimer.disarm() }
 
@@ -225,7 +208,9 @@ final class CoinbaseDepositOperation {
 
             case .pendingPaymentAuth:
                 idleTimer.arm { [weak self] in
-                    logger.info("Apple Pay sheet idle timeout, cancelling")
+                    logger.info("Apple Pay sheet idle timeout, cancelling", metadata: [
+                        "orderId": "\(orderId)",
+                    ])
                     self?.didTimeOut = true
                     self?.runTask?.cancel()
                 }
@@ -241,7 +226,9 @@ final class CoinbaseDepositOperation {
                 continue
             }
         }
-        // Stream finished without a terminal event — treat as cancel.
+        logger.warning("Apple Pay event stream ended without a terminal event", metadata: [
+            "orderId": "\(orderId)",
+        ])
         throw CancellationError()
     }
 }

@@ -5,20 +5,11 @@
 
 import XCTest
 
-/// Regression test for the Add Money Apple Pay (Coinbase) path's verification
-/// gate. Buying is reserves-only; funding is the standalone Add Money flow,
-/// and the `$5`-minimum + verified-contact gate moved onto
-/// `CoinbaseDepositOperation`. Exercises:
-///
-/// - The buy nested sheet opens on top of `CurrencyInfoScreen`.
-/// - An amount above the USDF balance routes to the Add Money flow.
-/// - Picking Pay pushes "Amount to Add"; tapping Add Money there on an
-///   unverified profile opens the verification sheet directly on the Enter
-///   Phone step (no intro page — not the Apple Pay overlay).
-///
-/// The test stops short of completing verification (SMS / email links are
-/// out of scope for the simulator). Driving the actual Apple Pay sheet is
-/// blocked by the unverified gate.
+/// Regression test for the Add Money Apple Pay (Coinbase) path's
+/// verified-contact gate: an unverified account tapping Add Money must land
+/// on the verification sheet's Enter Phone step, not the Apple Pay overlay.
+/// Stops short of completing verification — SMS / email links are out of
+/// scope for the simulator.
 ///
 /// **Prerequisites:**
 /// - `FLIPCASH_UI_TEST_ACCESS_KEY` set in `secrets.local.xcconfig`
@@ -57,14 +48,12 @@ final class BuyApplePayRegressionTests: BaseUITestCase {
         addMoney.assertSelectMethodReached()
         addMoney.selectPayDebitCard(from: self)
 
-        // Amount to Add → enter $10 → Add Money runs the verified-contact
-        // gate, which opens the verification sheet for the unverified account
-        // directly on the Enter Phone step. The buy keypad is still mounted
-        // beneath the stacked Add Money chain, so the digits must target the
-        // topmost keypad.
+        // Amount to Add → enter $10 → the verified-contact gate opens the
+        // verification sheet. The buy keypad was navigated away, so only one
+        // keypad is in the hierarchy.
         addMoney.assertAmountToAddReached()
-        amountEntry.stackedKeypadButton("1").tap()
-        amountEntry.stackedKeypadButton("0").tap()
+        amountEntry.keypadButton("1").tap()
+        amountEntry.keypadButton("0").tap()
         waitUntilHittableAndTap(addMoney.amountToAddActionButton)
 
         verifyInfo.assertPhoneStepReached()

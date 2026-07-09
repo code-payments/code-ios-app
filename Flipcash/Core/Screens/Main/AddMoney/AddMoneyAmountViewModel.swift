@@ -17,8 +17,8 @@ final class AddMoneyAmountViewModel {
     var dialogItem: DialogItem?
     var actionButtonState: ButtonState = .normal
 
-    /// Coinbase verification sheet, bound by `AddMoneyAmountScreen`. Set when
-    /// the Coinbase path runs the verified-contact gate.
+    /// View model for the Coinbase verification sheet, set when the
+    /// verified-contact gate runs.
     var verificationViewModel: OnrampVerification?
 
     let method: DepositMethod
@@ -27,10 +27,11 @@ final class AddMoneyAmountViewModel {
     @ObservationIgnored private let ratesController: RatesController
     @ObservationIgnored private let amountValidator: AmountValidator
 
+    @ObservationIgnored private var depositTask: Task<Void, Never>?
+
     var screenTitle: String { "Amount to Add" }
 
-    /// Method-specific action label — Phantom signs in-wallet ("Confirm In
-    /// Phantom"); Coinbase runs the Apple Pay onramp.
+    /// The method-specific action button title.
     var actionTitle: String {
         switch method {
         case .coinbase:    "Add Money"
@@ -43,9 +44,8 @@ final class AddMoneyAmountViewModel {
         computeAmount(using: ratesController.rateForBalanceCurrency())
     }
 
-    /// The single-transaction cap the entry field renders and gates against —
-    /// the server's daily send limit, matching what `EnterAmountView`'s
-    /// `.singleTransactionLimit` subtitle shows for `.addMoney` mode.
+    /// The cap the entry field both renders and gates against — the server's
+    /// daily send limit.
     var maxPossibleAmount: ExchangedFiat {
         let rate = ratesController.rateForBalanceCurrency()
         let maxNative = session.sendLimitFor(currency: rate.currency)?.maxPerDay
@@ -75,9 +75,9 @@ final class AddMoneyAmountViewModel {
 
     // MARK: - Action
 
-    /// Starts the selected deposit method's operation, then pushes the blocking
-    /// "Adding Money" screen. There is no verified-state pin here — a deposit
-    /// delivers USDC/USDF to an address rather than spending reserves.
+    /// Starts the selected deposit method's operation, calling `onProceed` on
+    /// success. No verified-state pin is needed — a deposit delivers to an
+    /// address rather than spending reserves.
     func addMoney(
         coinbaseService: CoinbaseService,
         verificationCoordinator: VerificationCoordinator,
@@ -101,8 +101,7 @@ final class AddMoneyAmountViewModel {
                 onProceed: onProceed
             )
         case .otherWallet:
-            // Other Wallet never routes through amount entry — it pushes the
-            // deposit-address screen directly from Select Method.
+            // Other Wallet never routes through amount entry.
             logger.warning("Add money amount screen reached with .otherWallet method")
         }
     }
@@ -119,18 +118,29 @@ final class AddMoneyAmountViewModel {
         ) { [weak self] in
             guard let self else { return }
             let operation = CoinbaseDepositOperation(coinbaseService: coinbaseService, session: session)
-            Task { [weak self, operation] in
+            depositTask = Task { [weak self, operation] in
                 self?.actionButtonState = .loading
                 defer { self?.actionButtonState = .normal }
                 do {
                     try await operation.start(amount: amount)
-                    onProceed(.init(amount: amount, method: .coinbase))
+                    onProceed(.init(amount: amount, method: .coinbase, depositRef: operation.orderId))
                 } catch is CancellationError {
-                    // User walked away — silent.
+                    // Distinguish the 60s idle-timeout cancel from a plain
+                    // user-dismiss, which stays silent.
+                    if operation.didTimeOut {
+                        self?.dialogItem = .info(
+                            title: "Purchase Timed Out",
+                            subtitle: "Purchases must be authorized within 60 seconds"
+                        )
+                    }
                 } catch let DepositError.externalRejected(title, subtitle) {
                     self?.dialogItem = .error(title: title, subtitle: subtitle)
                 } catch {
-                    logger.error("Coinbase deposit failed", metadata: ["error": "\(error)"])
+                    logger.error("Coinbase deposit failed", metadata: [
+                        "error": "\(error)",
+                        "amount": "\(amount.nativeAmount.formatted())",
+                        "orderId": "\(operation.orderId ?? "nil")",
+                    ])
                     ErrorReporting.captureError(error)
                     self?.dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
                 }
@@ -143,24 +153,35 @@ final class AddMoneyAmountViewModel {
         walletConnection: any TransactionSigning,
         onProceed: @escaping (AddMoneyProcessingInput) -> Void
     ) {
-        let operation = PhantomDepositOperation(walletConnection: walletConnection, session: session)
-        Task { [weak self, operation] in
+        let operation = PhantomDepositOperation(walletConnection: walletConnection)
+        depositTask = Task { [weak self, operation] in
             self?.actionButtonState = .loading
             defer { self?.actionButtonState = .normal }
             do {
                 // The wallet was connected on the education screen — sign only.
                 try await operation.signAndSubmit(amount: amount)
-                onProceed(.init(amount: amount, method: .phantom))
+                onProceed(.init(amount: amount, method: .phantom, depositRef: operation.submittedSignature))
             } catch is CancellationError {
                 // User dismissed the Phantom flow — silent.
             } catch let DepositError.externalRejected(title, subtitle) {
                 self?.dialogItem = .error(title: title, subtitle: subtitle)
             } catch {
-                logger.error("Phantom deposit failed", metadata: ["error": "\(error)"])
+                logger.error("Phantom deposit failed", metadata: [
+                    "error": "\(error)",
+                    "amount": "\(amount.nativeAmount.formatted())",
+                ])
                 ErrorReporting.captureError(error)
                 self?.dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
             }
         }
+    }
+
+    /// Cancels any in-flight deposit so its abandoned event loop cannot
+    /// consume a later attempt's events from the shared single-consumer
+    /// streams (`applePayEvents` / `deeplinkEvents`).
+    func cancelInFlightDeposit() {
+        depositTask?.cancel()
+        depositTask = nil
     }
 
     private func computeAmount(using rate: Rate) -> ExchangedFiat? {

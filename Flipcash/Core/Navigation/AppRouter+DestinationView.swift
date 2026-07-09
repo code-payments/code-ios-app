@@ -107,20 +107,9 @@ struct DestinationView: View {
             DepositCurrencyListScreen()
 
         case .depositAddress(let mint):
-            // Resolves the cluster from the live `session.balance(for:)` lookup
-            // — the destination only carries the mint so it stays Hashable +
-            // Sendable. If the balance vanished between push and render
-            // (shouldn't happen from the in-app picker, but possible from a
-            // future deeplink), render an empty placeholder rather than crash.
-            if let balance = sessionContainer.session.balance(for: mint),
-               let vmAuthority = balance.vmAuthority {
-                DepositScreen(
-                    address: sessionContainer.session.owner.use(
-                        mint: mint,
-                        timeAuthority: vmAuthority
-                    ).depositPublicKey.base58,
-                    name: mint == .usdf ? balance.symbol : balance.name
-                )
+            // Renders empty if the balance vanished between push and render.
+            if let screen = DepositScreen.currencyDeposit(mint: mint, session: sessionContainer.session) {
+                screen
             }
 
         case .withdraw:
@@ -147,14 +136,7 @@ struct DestinationView: View {
             )
 
         case .usdcDepositAddress:
-            // Authority pubkey, NOT the derived USDC ATA. Showing the ATA
-            // breaks first-time deposits: it doesn't exist on-chain yet, so
-            // wallets fall back to "treat as owner, derive another ATA" and
-            // funds land one level deeper than the server queries.
-            DepositScreen(
-                address: sessionContainer.session.owner.authorityPublicKey.base58,
-                name: "USDC"
-            )
+            DepositScreen.usdcDeposit(session: sessionContainer.session)
 
         // MARK: - Conversation flow
 

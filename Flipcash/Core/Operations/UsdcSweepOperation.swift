@@ -75,6 +75,7 @@ actor UsdcSweepOperation {
 
             logger.info("Sweeping USDC balance", metadata: [
                 "quarks": "\(account.quarks)",
+                "owner": "\(ownerKeyPair.publicKey.base58)",
             ])
 
             let amount = TokenAmount(quarks: account.quarks, mint: .usdc)
@@ -103,17 +104,10 @@ actor UsdcSweepOperation {
         }
     }
 
-    /// Retrying, caller-driven sweep for the in-app "Add Money" deposit flow.
-    ///
-    /// Unlike the app-active `start()` (fires once per activation, re-entrancy
-    /// gated), this is an explicit trigger the Adding Money screen drives after a
-    /// Coinbase / Other Wallet deposit: each attempt fetches the USDC ATA and,
-    /// once USDC has landed, runs a single `statelessSwap` and returns `true`. If
-    /// USDC isn't present yet it backs off and retries. Returns `false` when the
-    /// attempts are exhausted without a sweep.
-    ///
-    /// Does not fire `onSweepCompleted` — the caller observes the USDF balance
-    /// itself and owns the post-transaction refresh.
+    /// Retrying, caller-driven sweep: polls the USDC ATA until a balance
+    /// lands, converts it, and returns `true`; returns `false` when the
+    /// attempts are exhausted. Does not fire `onSweepCompleted` — the caller
+    /// owns the post-transaction refresh.
     ///
     /// - Parameters:
     ///   - expectedAtLeast: Minimum USDC that must be present before sweeping.
@@ -127,10 +121,13 @@ actor UsdcSweepOperation {
     ) async -> Bool {
         let attempts = max(1, maxAttempts)
         let required = max(expectedAtLeast?.quarks ?? 1, 1)
+        var lastError: (any Error)?
 
         for attempt in 1...attempts {
             if Task.isCancelled || cancellation.isCancelled {
-                logger.info("Retrying USDC sweep cancelled")
+                logger.info("Retrying USDC sweep cancelled", metadata: [
+                    "attempt": "\(attempt)",
+                ])
                 return false
             }
 
@@ -145,6 +142,7 @@ actor UsdcSweepOperation {
                     logger.info("Retrying USDC sweep found balance, converting", metadata: [
                         "attempt": "\(attempt)",
                         "quarks": "\(available)",
+                        "owner": "\(ownerKeyPair.publicKey.base58)",
                     ])
 
                     let amount = TokenAmount(quarks: available, mint: .usdc)
@@ -157,15 +155,16 @@ actor UsdcSweepOperation {
 
                     logger.info("Retrying USDC sweep completed", metadata: [
                         "signature": "\(result.signature.base58)",
+                        "attempt": "\(attempt)",
                     ])
                     return true
                 }
             } catch {
+                lastError = error
                 logger.error("Retrying USDC sweep attempt failed", metadata: [
                     "attempt": "\(attempt)",
                     "error": "\(error)",
                 ])
-                await ErrorReporting.captureError(error, reason: "Retrying USDC sweep attempt failed")
             }
 
             if attempt < attempts {
@@ -173,7 +172,15 @@ actor UsdcSweepOperation {
             }
         }
 
-        logger.info("Retrying USDC sweep exhausted attempts without converting")
+        logger.warning("Retrying USDC sweep exhausted attempts without converting", metadata: [
+            "attempts": "\(attempts)",
+            "requiredQuarks": "\(required)",
+        ])
+        // One capture for the whole retry loop — per-attempt captures flood
+        // Bugsnag when the RPC is down.
+        if let lastError {
+            await ErrorReporting.captureError(lastError, reason: "Retrying USDC sweep attempts failed")
+        }
         return false
     }
 }

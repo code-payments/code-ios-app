@@ -69,5 +69,13 @@ struct VerifyInfoScreen<P: PhoneVerifying, E: EmailVerifying>: View {
             }
             .ignoresSafeArea(.keyboard)
         }
+        .task {
+            switch initialStep {
+            case .enterPhoneNumber, .confirmPhoneNumberCode:
+                Analytics.track(event: Analytics.OnrampEvent.showEnterPhone)
+            case .enterEmail, .confirmEmailCode:
+                Analytics.track(event: Analytics.OnrampEvent.showEnterEmail)
+            }
+        }
     }
 }

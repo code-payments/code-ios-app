@@ -19,10 +19,7 @@ extension DialogItem {
         )
     }
 
-    /// "No Balance Yet" prompt shown before the Add Money flow — the standard
-    /// dialog every insufficient-balance path (buy, create currency, give cash)
-    /// uses. `subtitle` is context-specific; `onAddMoney` presents the deposit
-    /// method picker.
+    /// "No Balance Yet" prompt nudging the user into the Add Money flow.
     static func noBalance(subtitle: String, onAddMoney: @escaping () -> Void) -> DialogItem {
         .info(
             title: "No Balance Yet",
@@ -33,9 +30,8 @@ extension DialogItem {
         }
     }
 
-    /// Shown when the user holds USDF but no community currency — cash is
-    /// given in community currencies, so the next step is Discover, not
-    /// Add Money. `onDiscover` presents the Discover sheet.
+    /// Nudges the user toward Discover when they hold USDF but no community
+    /// currency to give.
     static func noCommunityCurrencies(onDiscover: @escaping () -> Void) -> DialogItem {
         .info(
             title: "No Community Currencies Yet",
@@ -48,8 +44,8 @@ extension DialogItem {
 }
 
 extension GiveCashGate {
-    /// The blocking dialog for this gate outcome, or nil to proceed into the
-    /// flow. One mapping shared by every give/send cash entry point.
+    /// The blocking dialog for this gate outcome, or `nil` to proceed into
+    /// the flow.
     @MainActor
     func blockingDialog(router: AppRouter) -> DialogItem? {
         switch self {

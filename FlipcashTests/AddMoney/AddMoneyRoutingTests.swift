@@ -61,6 +61,27 @@ struct AddMoneyRoutingTests {
         #expect(!router.isAddMoneyOverBuy)
     }
 
+    @Test("The options at root report a non-buy entry")
+    func isAddMoneyOverBuy_rootEntry() {
+        let router = AppRouter()
+        router.presentAddMoney(.giveCash)
+        #expect(!router.isAddMoneyOverBuy)
+    }
+
+    @Test("Re-presenting Add Money with a different context swaps in place")
+    func presentNested_differentContext_swaps() {
+        let router = AppRouter()
+        router.present(.discover)
+        router.presentNested(.addMoney(.buyCurrency))
+        router.presentNested(.addMoney(.general))
+        #expect(router.presentedSheets == [.discover, .addMoney(.general)])
+    }
+
+    @Test("The addMoney stack has no root sheet — it is nested-only")
+    func addMoneyStack_sheet_isNil() {
+        #expect(AppRouter.Stack.addMoney.sheet == nil)
+    }
+
     @Test("Method selection over buy pops the options and pushes the flow inside the buy sheet")
     func selectionOverBuy_popsOptionsAndPushesFlow() {
         let router = AppRouter()

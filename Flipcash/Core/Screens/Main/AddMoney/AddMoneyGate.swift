@@ -6,10 +6,7 @@
 import Foundation
 import FlipcashCore
 
-/// Read-only access to the user's USDF reserve balance — the single input the
-/// buy/launch "Add Money" pre-checks need. Both `Session` and the test
-/// `MockSession` conform, so the gate functions stay unit-testable without
-/// standing up a live session.
+/// Read-only access to the user's USDF reserve balance.
 @MainActor
 protocol USDFReserveReading: AnyObject {
     func balance(for mint: PublicKey) -> StoredBalance?
@@ -17,19 +14,15 @@ protocol USDFReserveReading: AnyObject {
 
 extension Session: USDFReserveReading {}
 
-/// True when the user holds no USDF reserves to spend on a buy — the Buy button
-/// must route through "Add Money" first. False when reserves exist and the buy
-/// amount sheet can open directly.
+/// True when the user holds no USDF reserves to spend on a buy.
 @MainActor
 func shouldAddMoneyBeforeBuy(session: some USDFReserveReading) -> Bool {
     guard let balance = session.balance(for: .usdf) else { return true }
     return balance.usdf.value == 0
 }
 
-/// True when the user's USDF reserves can't cover `launchCost` (the currency
-/// launch's purchase + fee) — "Get Started" must route through "Add Money"
-/// first. Mirrors the wizard's `reserveBalance` affordability check so the gate
-/// and the reserves-only launch path agree on the threshold.
+/// True when the user's USDF reserves can't cover `launchCost` (purchase +
+/// fee). Must agree with the wizard's `reserveBalance` affordability check.
 @MainActor
 func shouldAddMoneyBeforeLaunch(session: some USDFReserveReading, launchCost: TokenAmount) -> Bool {
     guard let balance = session.balance(for: .usdf) else { return true }
@@ -47,17 +40,17 @@ extension Session: GiveBalanceReading {}
 
 /// Where a "give cash" entry (Cash tab, in-chat Send, give deeplink) routes.
 enum GiveCashGate: Equatable {
-    /// Community currency on hand — enter the flow.
+    /// Community currency on hand.
     case proceed
-    /// USDF but no community currency — cash is given in community
-    /// currencies, so the next step is Discover, not Add Money.
+    /// USDF but no community currency.
     case discoverCurrencies
-    /// Nothing at all — Add Money.
+    /// No balance at all.
     case addMoney
 }
 
-/// Cash is given in community currencies. "Non-zero USDF" means a displayable
-/// value, so the prompt always agrees with the balance the wallet renders.
+/// Returns where a give-cash entry routes given the user's balances. USDF
+/// counts only at displayable value, so the prompt agrees with the balance the
+/// wallet renders.
 @MainActor
 func giveCashGate(session: some GiveBalanceReading, rate: Rate) -> GiveCashGate {
     if session.hasGiveableBalance(for: rate) { return .proceed }

@@ -7,10 +7,7 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-/// "Amount to Add" free entry for a Coinbase or Phantom deposit. Mirrors
-/// `BuyAmountScreen`: reads onramp/wallet dependencies from the environment,
-/// builds its own view model, and hands the entered amount to the deposit
-/// operation on tap.
+/// "Amount to Add" free entry for a Coinbase or Phantom deposit.
 struct AddMoneyAmountScreen: View {
 
     @State private var viewModel: AddMoneyAmountViewModel
@@ -19,8 +16,7 @@ struct AddMoneyAmountScreen: View {
     @Environment(VerificationCoordinator.self) private var verificationCoordinator
     @Environment(WalletConnection.self) private var walletConnection
 
-    /// Called once the deposit operation is under way — pushes the blocking
-    /// "Adding Money" screen onto the enclosing flow sheet's stack.
+    /// Called once the deposit operation is under way.
     private let onProceed: (AddMoneyProcessingInput) -> Void
 
     init(
@@ -66,5 +62,8 @@ struct AddMoneyAmountScreen: View {
         .sheet(item: $viewModel.verificationViewModel.cancellingOnDismiss()) { vm in
             VerifyInfoScreen(viewModel: vm)
         }
+        // An abandoned deposit's event loop would steal the next attempt's
+        // events from the shared single-consumer streams.
+        .onDisappear { viewModel.cancelInFlightDeposit() }
     }
 }

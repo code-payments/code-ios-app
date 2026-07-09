@@ -31,14 +31,6 @@ struct AmountEntryScreen {
 
     func keypadButton(_ digit: String) -> XCUIElement { app.buttons[digit] }
 
-    /// Keypad digit on a sheet stacked over another amount screen — e.g. the
-    /// Add Money "Amount to Add" sheet, which presents over the still-mounted
-    /// buy keypad. Two keypads are in the hierarchy; index 1 is the topmost
-    /// sheet's (the same ordering `buyActionButton` relies on).
-    func stackedKeypadButton(_ digit: String) -> XCUIElement {
-        app.buttons.matching(identifier: digit).element(boundBy: 1)
-    }
-
     // MARK: - Actions
 
     /// Enters $0.01 using the on-screen keypad.

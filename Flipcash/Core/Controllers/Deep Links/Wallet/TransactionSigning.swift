@@ -21,23 +21,12 @@ protocol TransactionSigning: AnyObject {
     /// the wallet's connect prompt.
     func handshake() async throws
 
-    /// Builds and forwards a USDC→USDF sign request to the wallet. The
-    /// signed transaction is delivered later via `deeplinkEvents`.
+    /// Builds and forwards a USDC→USDF sign request to the wallet; the swapped
+    /// USDF lands in the owner's USDF VM deposit account. The signed
+    /// transaction is delivered later via `deeplinkEvents`.
     func sendUsdcToUsdfSignRequest(
         usdc: FlipcashCore.TokenAmount,
-        fundingSwapId: SwapId,
-        displayName: String
-    ) async throws
-
-    /// Builds and forwards a USDC→USDF sign request whose swap output lands in
-    /// `destination` (the user's USDF VM deposit token account). Used by
-    /// `PhantomDepositOperation`; the signed transaction is delivered later via
-    /// `deeplinkEvents`. Distinct from `sendUsdcToUsdfSignRequest`, which
-    /// targets the swap PDA for buy funding.
-    func sendUsdcToUsdfDepositSignRequest(
-        usdc: FlipcashCore.TokenAmount,
-        destination: FlipcashCore.PublicKey,
-        fundingSwapId: SwapId,
+        swapId: SwapId,
         displayName: String
     ) async throws
 }

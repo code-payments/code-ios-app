@@ -7,9 +7,7 @@ import XCTest
 
 /// Regression: tapping Cash while holding USDF but no community currency must
 /// surface the "No Community Currencies Yet" dialog routing to Discover — not
-/// the Add Money deposit prompt, and not the give amount entry. Cash is given
-/// in community currencies; USDF alone can't be given, but with USDF on hand
-/// the fix is buying a currency, not depositing more.
+/// the Add Money deposit prompt, and not the give amount entry.
 ///
 /// **Prerequisites:**
 /// - `FLIPCASH_UI_TEST_USDF_ONLY_ACCESS_KEY` set in `secrets.local.xcconfig`

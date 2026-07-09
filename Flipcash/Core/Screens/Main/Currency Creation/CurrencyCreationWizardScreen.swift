@@ -94,19 +94,8 @@ struct CurrencyCreationWizardScreen: View {
         )
     }
 
-    private var reserveBalance: ExchangedFiat? {
-        guard let stored = session.balance(for: .usdf) else { return nil }
-        guard stored.usdf.value >= totalLaunchCost.onChainAmount.decimalValue else { return nil }
-        return ExchangedFiat.compute(
-            onChainAmount: TokenAmount(wholeTokens: stored.usdf.value, mint: .usdf),
-            rate: ratesController.rateForBalanceCurrency(),
-            supplyQuarks: nil
-        )
-    }
-
     /// True while the reserves-funded launch is preflighting or its processing
-    /// cover is up. The confirmation CTA disables on this so the user can't
-    /// double-tap into a stuck state.
+    /// cover is up.
     private var isPayInFlight: Bool {
         isValidating || reservesLaunchContext != nil
     }
@@ -180,9 +169,8 @@ struct CurrencyCreationWizardScreen: View {
                     .transition(direction.slide)
 
                 case .confirmation:
-                    // The CTA disables on `isPayInFlight` (not just
-                    // `isValidating`) so it stays disabled while the reserves
-                    // launch cover is up and the user can't re-fire the launch.
+                    // `isPayInFlight`, not `isValidating` — the CTA must stay
+                    // disabled while the launch cover is up.
                     ConfirmationStep(
                         state: state,
                         previewFiat: previewFiat,
@@ -638,13 +626,11 @@ struct CurrencyCreationWizardScreen: View {
 
     // MARK: - Pay-to-Create dispatch
 
-    /// "Pay X to Create" tap handler. Reserves-only: if USDF covers the total
-    /// launch cost, run the launch + buy from reserves; otherwise route the user
-    /// to Add Money to top up first. The "Get Started" pre-check gates entry
-    /// into the wizard, so the else branch only fires if the balance dropped
-    /// mid-flow.
+    /// "Pay X to Create" tap handler — launches from reserves, or routes to
+    /// Add Money when the balance no longer covers the cost (checked at "Get
+    /// Started", so that only fires if it dropped mid-flow).
     private func onPayToCreateTap() {
-        if reserveBalance != nil {
+        if !shouldAddMoneyBeforeLaunch(session: session, launchCost: totalLaunchCost.onChainAmount) {
             launchAndBuyWithReserves()
         } else {
             session.dialogItem = .noBalance(subtitle: AddMoneyContext.createCurrency.noBalanceSubtitle) {

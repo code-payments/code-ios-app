@@ -10,19 +10,16 @@ import FlipcashUI
 private let logger = Logger(label: "flipcash.phantom-education")
 
 /// "Add Money With Phantom" pre-flight — the root of the Phantom deposit flow.
-/// Tapping the CTA connects the wallet; on success the flow advances to the
-/// amount screen, whose "Confirm in Phantom" signs against the session
-/// established here.
 struct PhantomEducationScreen: View {
 
     @Environment(WalletConnection.self) private var walletConnection
-    @Environment(SessionContainer.self) private var sessionContainer
 
-    /// Called once the wallet is connected — pushes the Phantom amount screen.
+    /// Called once the wallet is connected.
     let onConnected: () -> Void
 
     @State private var isConnecting = false
     @State private var dialogItem: DialogItem?
+    @State private var connectTask: Task<Void, Never>?
 
     var body: some View {
         Background(color: .backgroundMain) {
@@ -66,14 +63,14 @@ struct PhantomEducationScreen: View {
         .navigationTitle("Add Money")
         .toolbarTitleDisplayMode(.inline)
         .dialog(item: $dialogItem)
+        // A late Phantom round-trip must not navigate after the user leaves,
+        // and an abandoned handshake would hold `pendingConnect` hostage.
+        .onDisappear { connectTask?.cancel() }
     }
 
     private func connect() {
-        let operation = PhantomDepositOperation(
-            walletConnection: walletConnection,
-            session: sessionContainer.session
-        )
-        Task {
+        let operation = PhantomDepositOperation(walletConnection: walletConnection)
+        connectTask = Task {
             isConnecting = true
             defer { isConnecting = false }
             do {
@@ -86,7 +83,7 @@ struct PhantomEducationScreen: View {
             } catch let DepositError.externalRejected(title, subtitle) {
                 dialogItem = .error(title: title, subtitle: subtitle)
             } catch {
-                logger.error("Phantom connect failed", metadata: ["error": "\(error)"])
+                logger.error("Phantom connect failed unexpectedly", metadata: ["error": "\(error)"])
                 ErrorReporting.captureError(error)
                 dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
             }

@@ -7,12 +7,7 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-/// The `.addMoney` sheet — the "Select Method" deposit picker, matching the
-/// app's `PurchaseMethodSheet` layout. Reached from the "No Balance Yet"
-/// `Dialog`'s Add Money action (gated flows) or directly from the Wallet and
-/// Settings Add Money buttons. Picking a method opens the deposit flow as a
-/// **sheet on top** (amount entry → the blocking "Adding Money" screen for
-/// Coinbase/Phantom; the deposit-address screen for Other Wallet).
+/// The `.addMoney` sheet — the "Select Method" deposit picker.
 struct AddMoneyStartScreen: View {
 
     let context: AddMoneyContext
@@ -44,17 +39,12 @@ struct AddMoneyStartScreen: View {
         }
         .sheet(item: $flowMethod) { method in
             AddMoneyFlowSheet(method: method)
-                // The deposit flow on top of the picker. The close button /
-                // processing "OK" tears down the whole Add Money sheet back to
-                // the originating screen.
                 .environment(\.dismissParentContainer, { router.dismissSheet() })
         }
     }
 
-    /// Over the buy amount sheet, selection continues INSIDE that sheet: the
-    /// options pop and the deposit flow pushes onto the buy stack, so the
-    /// keypad is navigated away and the sheet's close lands on the currency
-    /// screen. Everywhere else the flow opens as its own sheet on top.
+    /// Over the buy amount sheet the deposit flow pushes onto that sheet's
+    /// stack; everywhere else it opens as its own sheet on top.
     private func select(_ method: DepositMethod) {
         if router.isAddMoneyOverBuy {
             router.dismissSheet()
@@ -64,9 +54,7 @@ struct AddMoneyStartScreen: View {
         }
     }
 
-    /// Pure visibility filter — Pay (Coinbase) drops out unless the
-    /// session can actually use the onramp. Exposed statically so it is
-    /// unit-testable without building the view.
+    /// The deposit methods to list — Pay (Coinbase) requires the onramp.
     static func visibleMethods(hasCoinbaseOnramp: Bool) -> [DepositMethod] {
         DepositMethod.allCases.filter { method in
             switch method {
@@ -106,8 +94,8 @@ private struct AddMoneyMethodButton: View {
         .accessibilityIdentifier(accessibilityIdentifier)
     }
 
-    /// The Apple-glyph "Pay" label is brittle to match by text, so
-    /// each row carries a stable identifier the UI tests key off.
+    /// Stable identifier for UI tests — the Apple-glyph "Pay" label is
+    /// brittle to match by text.
     private var accessibilityIdentifier: String {
         switch method {
         case .coinbase:    "apple-pay-method-button"
@@ -119,13 +107,8 @@ private struct AddMoneyMethodButton: View {
 
 // MARK: - Deposit flow (new full sheet on top of the prompt)
 
-/// A step of the deposit flow. `.method` is the per-method root (Coinbase
-/// enters an amount; Phantom starts at its education/connect screen; Other
-/// Wallet starts at the USDC education screen). Later steps follow: the
-/// deposit-address screens for Other Wallet, and the blocking "Adding Money"
-/// screen for Coinbase/Phantom. Hosted either by `AddMoneyFlowSheet` (its own
-/// sheet over the options) or pushed onto the buy sheet's stack when the
-/// options were raised from the buy amount screen.
+/// A step of the deposit flow, hosted by `AddMoneyFlowSheet` or pushed onto
+/// the buy sheet's stack. `.method` is the per-method root.
 enum AddMoneyFlowStep: Hashable {
     case method(DepositMethod)
     case phantomAmount
@@ -135,9 +118,7 @@ enum AddMoneyFlowStep: Hashable {
     case processing(AddMoneyProcessingInput)
 }
 
-/// Renders one deposit-flow step. Shared by the standalone flow sheet (steps
-/// drive its local path) and the buy sheet's stack (steps push via the
-/// router), so both hosts stay in lockstep.
+/// Renders one deposit-flow step; `onStep` advances the hosting stack.
 struct AddMoneyFlowDestination: View {
 
     let step: AddMoneyFlowStep
@@ -157,32 +138,14 @@ struct AddMoneyFlowDestination: View {
                 onProceed: { onStep(.processing($0)) }
             )
         case .otherWalletAddress:
-            // Authority pubkey, NOT the derived USDC ATA — the same
-            // address the Wallet's Other Wallet path shows. See the
-            // `.usdcDepositAddress` destination for why.
-            DepositScreen(
-                address: sessionContainer.session.owner.authorityPublicKey.base58,
-                name: "USDC"
-            )
+            DepositScreen.usdcDeposit(session: sessionContainer.session)
         case .otherWalletCurrencyList:
-            // The education screen's "Deposit Other Flipcash Currencies"
-            // footer. Selection drives the hosting stack directly rather
-            // than the top-level router.
             DepositCurrencyListScreen(
                 onSelect: { onStep(.otherWalletCurrencyAddress($0)) }
             )
         case .otherWalletCurrencyAddress(let mint):
-            // Mirrors the `.depositAddress(mint)` destination: the
-            // currency's derived deposit ATA, not the USDC authority.
-            if let balance = sessionContainer.session.balance(for: mint),
-               let vmAuthority = balance.vmAuthority {
-                DepositScreen(
-                    address: sessionContainer.session.owner.use(
-                        mint: mint,
-                        timeAuthority: vmAuthority
-                    ).depositPublicKey.base58,
-                    name: mint == .usdf ? balance.symbol : balance.name
-                )
+            if let screen = DepositScreen.currencyDeposit(mint: mint, session: sessionContainer.session) {
+                screen
             }
         case .processing(let input):
             AddMoneyProcessingScreen(input: input)
@@ -190,10 +153,8 @@ struct AddMoneyFlowDestination: View {
     }
 }
 
-/// The full-height deposit flow, presented as its own sheet on top of the
-/// content-sized prompt. Coinbase enters an amount and pushes the blocking
-/// "Adding Money" screen; Phantom connects first, then enters an amount; Other
-/// Wallet shows the USDC deposit address.
+/// The deposit flow presented as its own sheet, driving a local
+/// navigation path.
 private struct AddMoneyFlowSheet: View {
 
     let method: DepositMethod
@@ -231,9 +192,6 @@ private struct AddMoneyFlowRoot: View {
             case .phantom:
                 PhantomEducationScreen(onConnected: { onStep(.phantomAmount) })
             case .otherWallet:
-                // Mirrors the Wallet's Other Wallet flow: the USDC education
-                // screen, then the deposit-address screen on Next (or the
-                // currency list via the footer).
                 USDCDepositEducationScreen(
                     title: "Other Wallet",
                     onNext: { onStep(.otherWalletAddress) },

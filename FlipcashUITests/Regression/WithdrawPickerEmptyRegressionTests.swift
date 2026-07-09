@@ -26,7 +26,7 @@ final class WithdrawPickerEmptyRegressionTests: BaseUITestCase {
         assertMainScreenReached()
 
         settings.open(from: self)
-        waitAndTap(settings.withdrawButton)
+        waitAndTap(settings.withdrawMoneyButton)
         waitAndTap(app.buttons["Withdraw Other Flipcash Currencies"])
 
         let emptyState = app.staticTexts["withdraw-picker-empty"]

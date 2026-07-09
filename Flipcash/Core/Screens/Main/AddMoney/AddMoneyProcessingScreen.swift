@@ -7,11 +7,7 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-/// Blocking settlement screen for the Add Money flow. Reuses `SwapStatusIcon`
-/// and the "Notify Me When Complete" push-permission block verbatim from
-/// `SwapProcessingScreen`; the only difference is what it waits on — a USDF
-/// balance rise, driven through the in-flow USDC sweep for Coinbase/Other
-/// Wallet deposits.
+/// Blocking settlement screen for the Add Money flow.
 struct AddMoneyProcessingScreen: View {
     @State private var viewModel: AddMoneyProcessingViewModel
     @EnvironmentObject private var client: Client
@@ -86,9 +82,8 @@ struct AddMoneyProcessingScreen: View {
         .navigationBarBackButtonHidden(true)
         .interactiveDismissDisabled(true)
         .task {
-            // A fresh retrying sweep for this deposit — separate from the
-            // scene-phase sweep in SessionAuthenticator. `expectedAtLeast` is
-            // left nil so a slightly-short Coinbase delivery still sweeps.
+            // `expectedAtLeast` stays nil so a slightly-short Coinbase
+            // delivery still sweeps.
             let sweeper = UsdcSweepOperation(
                 accountFetcher: client,
                 swapper: client,

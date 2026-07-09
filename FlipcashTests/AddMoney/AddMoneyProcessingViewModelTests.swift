@@ -38,7 +38,7 @@ struct AddMoneyProcessingViewModelTests {
 
     private static func makeViewModel(method: DepositMethod) -> AddMoneyProcessingViewModel {
         AddMoneyProcessingViewModel(
-            input: AddMoneyProcessingInput(amount: tenDollars, method: method),
+            input: AddMoneyProcessingInput(amount: tenDollars, method: method, depositRef: nil),
             pollInterval: .milliseconds(1),
             timeout: .milliseconds(200)
         )
@@ -46,7 +46,7 @@ struct AddMoneyProcessingViewModelTests {
 
     // MARK: - Fakes
 
-    /// Controllable USDF balance. `updatePostTransaction()` swaps in `risenBalance`
+    /// Controllable USDF balance. `updateBalance()` swaps in `risenBalance`
     /// once `updateCount` reaches `risesAfterUpdates`, simulating a Geyser credit
     /// arriving after a server refresh.
     final class FakeAddMoneySettling: AddMoneySettling {
@@ -59,7 +59,7 @@ struct AddMoneyProcessingViewModelTests {
             mint == .usdf ? usdfBalance : nil
         }
 
-        func updatePostTransaction() {
+        func updateBalance() {
             updateCount += 1
             if updateCount >= risesAfterUpdates, let risenBalance {
                 usdfBalance = risenBalance

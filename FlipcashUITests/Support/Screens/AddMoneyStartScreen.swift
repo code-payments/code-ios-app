@@ -5,15 +5,8 @@
 
 import XCTest
 
-/// Page object for the standalone Add Money flow presented when the user has
-/// no USDF reserves and taps Buy (or Get Started). "No Balance Yet" is the
-/// standard `Dialog`; its "Add Money" CTA presents the "Select Method"
-/// half-sheet — stacked on top of wherever the user is — listing Pay Debit
-/// Card (Coinbase, gated on the onramp), Phantom, and Other Wallet. Coinbase
-/// opens "Amount to Add" directly; Phantom opens its education/connect
-/// pre-flight (the amount screen requires a real Phantom connect); Other
-/// Wallet opens the USDC education screen (then the deposit-address screen
-/// on Next).
+/// Page object for the standalone Add Money flow: "No Balance Yet" →
+/// "Select Method" → the per-method screens.
 @MainActor
 struct AddMoneyStartScreen {
 
@@ -29,7 +22,7 @@ struct AddMoneyStartScreen {
         app.staticTexts["No Balance Yet"]
     }
 
-    /// The "No Balance Yet" primary CTA that raises the Select Method sheet.
+    /// The "No Balance Yet" primary CTA.
     var addMoneyButton: XCUIElement {
         app.buttons["Add Money"].firstMatch
     }
@@ -40,9 +33,8 @@ struct AddMoneyStartScreen {
         app.staticTexts["Select Method"]
     }
 
-    /// Coinbase row. Matched by identifier — the visible label is the U+F8FF
-    /// Apple glyph + "Pay" (intentional per HIG), brittle to match
-    /// by label predicate.
+    /// Coinbase row, matched by identifier — the visible label is the U+F8FF
+    /// Apple glyph + "Pay", brittle to match by label predicate.
     var payDebitCardButton: XCUIElement {
         app.buttons["apple-pay-method-button"]
     }
@@ -72,8 +64,7 @@ struct AddMoneyStartScreen {
     }
 
     /// The action button on the "Amount to Add" screen. The "No Balance Yet"
-    /// dialog is dismissed by its own Add Money CTA before this screen exists,
-    /// so "Add Money" is unambiguous here.
+    /// dialog is gone before this screen exists, so "Add Money" is unambiguous.
     var amountToAddActionButton: XCUIElement {
         app.buttons["Add Money"].firstMatch
     }

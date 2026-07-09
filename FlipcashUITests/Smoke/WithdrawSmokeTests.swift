@@ -56,6 +56,6 @@ final class WithdrawSmokeTests: BaseUITestCase {
     private func openWithdrawFromSettings() {
         let settings = SettingsUIScreen(app: app)
         settings.open(from: self)
-        waitAndTap(settings.withdrawButton)
+        waitAndTap(settings.withdrawMoneyButton)
     }
 }

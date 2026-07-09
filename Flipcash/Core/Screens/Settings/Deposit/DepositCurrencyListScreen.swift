@@ -18,9 +18,7 @@ struct DepositCurrencyListScreen: View {
     @State private var selectedMint: PublicKey?
 
     /// When set, selecting a currency calls this instead of pushing
-    /// `.depositAddress` on the top-level router stack — lets a caller that owns
-    /// a local `NavigationStack` (the Add Money flow) drive the address step on
-    /// its own path.
+    /// `.depositAddress` on the router stack.
     private let onSelect: ((PublicKey) -> Void)?
 
     // Skip session.balances(for:) to avoid filtering out zero-balance currencies.

@@ -12,17 +12,10 @@ import FlipcashUI
 extension View {
 
     /// Mounts the next-deeper nested sheet when `AppRouter.presentedSheets`
-    /// has one. Applied by the root sheet's content (`RoutedSheet`) and by
-    /// every nested sheet's content (`NestedSheetRootView`), so the sheet
-    /// stack renders at any depth — SwiftUI requires each nested sheet to be
-    /// presented from within its parent sheet's content, not as siblings at
-    /// the app root.
-    ///
-    /// The host hangs off a `background` sibling rather than wrapping the
-    /// content: presentation preferences from the content
-    /// (`interactiveDismissDisabled`, detents) must reach the content's own
-    /// presentation without passing through a dormant `.sheet(item:)`, which
-    /// swallows them (see `BuyReservesRegressionTests`).
+    /// has one. SwiftUI only stacks sheets presented from within the parent
+    /// sheet's content, and a wrapping `.sheet(item:)` would swallow the
+    /// content's `interactiveDismissDisabled` — hence the `background` host
+    /// (see `BuyReservesRegressionTests`).
     func appRouterNestedSheet() -> some View {
         modifier(AppRouterNestedSheetModifier())
     }
@@ -34,11 +27,9 @@ private struct AppRouterNestedSheetModifier: ViewModifier {
     @Environment(\.nestedSheetDepth) private var depth
 
     func body(content: Content) -> some View {
-        // Each level binds to its own slot in `presentedSheets`. The setter
-        // forwards user-driven dismissal (swipe-down) to `dismissSheet`, but
-        // SwiftUI ALSO calls the setter with nil after a programmatic dismiss
-        // completes. Without the in-bounds guard the setter would re-enter
-        // `dismissSheet` and pop the parent sheet, cascading the dismissal.
+        // SwiftUI also calls the setter with nil after a programmatic dismiss
+        // completes; without the in-bounds guard that re-entry would pop the
+        // parent sheet too.
         let myDepth = depth + 1
         let binding = Binding<AppRouter.SheetPresentation?>(
             get: {
@@ -60,9 +51,7 @@ private struct AppRouterNestedSheetModifier: ViewModifier {
     }
 }
 
-/// Dispatches the active nested `SheetPresentation` to its root view. Lives
-/// as a `View` (not a `@ViewBuilder` function) so SwiftUI tracks identity
-/// per case — per CLAUDE.md "no view functions" rule.
+/// Dispatches the active nested `SheetPresentation` to its root view.
 private struct NestedSheetRootView: View {
 
     let sheet: AppRouter.SheetPresentation
@@ -80,23 +69,19 @@ private struct NestedSheetRootView: View {
                 AddMoneySheetRoot(context: context)
 
             case .balance, .settings, .give, .discover, .downloadApp, .send:
-                // Root-only sheets — they shouldn't be presented as nested. If
-                // they ever are, we fall through to an empty view; the warning
-                // in `presentNested` logs the mistake.
+                // Root-only sheets; `presentNested` logs a warning if one
+                // lands here.
                 EmptyView()
             }
         }
-        // Each nested sheet hosts the level above it, mirroring the root
-        // convention in `ScanScreen` — the recursion ends at the first
-        // unoccupied `presentedSheets` slot.
+        // Hosts the next level; the recursion ends at the first unoccupied
+        // `presentedSheets` slot.
         .appRouterNestedSheet()
     }
 }
 
-/// Root view for the `.buy(mint)` nested sheet. Owns the `NavigationStack`
-/// bound to `router[.buy]`. `BuyAmountScreen` registers the
-/// `.navigationDestination(for: BuyFlowPath.self)` modifier itself, so
-/// sub-screens push naturally on this stack.
+/// Root view for the `.buy(mint)` nested sheet — owns the `NavigationStack`
+/// bound to `router[.buy]`.
 private struct BuySheetRoot: View {
 
     let mint: PublicKey
@@ -114,22 +99,11 @@ private struct BuySheetRoot: View {
                 ratesController: sessionContainer.ratesController
             )
             .id(mint)
-            // Sub-flow screens (Phantom, USDC deposit, processing) call
-            // `dismissParentContainer` to close the whole `.buy` sheet on
-            // success. BuyAmountScreen itself dismisses via the same env value
-            // through its toolbar close button.
             .environment(\.dismissParentContainer, { router.dismissSheet() })
-            // Top-level `AppRouter.Destination` cases (e.g. `.usdcDepositEducation`,
-            // `.usdcDepositAddress`) are pushed from the Other Wallet path. They
-            // share the same screens reached from the Wallet sheet, so register
-            // the app-wide destination map here too.
             .appRouterDestinations()
-            // Deposit-flow steps pushed inside the buy sheet after a method
-            // selection from the Add Money options — the flow continues in
-            // this sheet, and its close lands on the currency screen. See
-            // `AddMoneyStartScreen.select(_:)`. The dismiss env is set here
-            // directly: destination content doesn't inherit environment from
-            // the root view's inner modifiers, only from its own attachment.
+            // The dismiss env must be set at the registration: destination
+            // content doesn't inherit environment from the root view's inner
+            // modifiers.
             .navigationDestination(for: AddMoneyFlowStep.self) { step in
                 AddMoneyFlowDestination(step: step, onStep: { router.pushAny($0) })
                     .environment(\.dismissParentContainer, { router.dismissSheet() })
@@ -138,12 +112,8 @@ private struct BuySheetRoot: View {
     }
 }
 
-/// Root view for the `.addMoney(context)` sheet: a content-sized
-/// `AddMoneyStartScreen` prompt. Presented **nested** over a gating sheet
-/// (buy/launch) and **at root** for the give-cash no-balance case (see
-/// `RoutedSheet`). The deposit flow (amount entry → Adding Money) presents its
-/// own full sheet on top from within that screen. Sub-screens call
-/// `dismissParentContainer` to tear down the whole sheet on "OK".
+/// Root view for the `.addMoney(context)` sheet — the content-sized
+/// `AddMoneyStartScreen` prompt.
 struct AddMoneySheetRoot: View {
 
     let context: AddMoneyContext
@@ -151,10 +121,6 @@ struct AddMoneySheetRoot: View {
     @Environment(AppRouter.self) private var router
 
     var body: some View {
-        // Content-sized prompt (No Balance Yet → Select Method). `PartialSheet`
-        // inside `AddMoneyStartScreen` drives the sheet to the content height;
-        // the deposit flow (amount entry → Adding Money) presents its own full
-        // sheet on top rather than pushing onto a stack.
         AddMoneyStartScreen(context: context)
             .environment(\.dismissParentContainer, { router.dismissSheet() })
     }

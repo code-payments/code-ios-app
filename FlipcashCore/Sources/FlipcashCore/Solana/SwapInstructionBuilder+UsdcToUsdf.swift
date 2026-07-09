@@ -9,10 +9,8 @@ import Foundation
 public enum UsdfSwapDestination: Equatable, Sendable {
     /// The owner's USDF VM **swap** PDA ATA — the in-VM buy/launch funding path.
     case swapPda
-    /// The owner's USDF VM **Deposit** PDA ATA — the Geyser-watched address the
-    /// server credits into the USDF balance. Used by the "Add Money" deposit via
-    /// Phantom, where the signed transaction lands USDF directly in the deposit
-    /// account (no separate sweep).
+    /// The owner's USDF VM **Deposit** PDA ATA — the Geyser-watched address
+    /// the server credits into the USDF balance.
     case vmDeposit
 }
 
@@ -27,8 +25,7 @@ extension SwapInstructionBuilder {
     ///   - pool: The liquidity pool to use for the swap
     ///   - swapId: Unique identifier for the swap (used in memo)
     ///   - destination: Which of the owner's USDF accounts receives the swapped
-    ///     USDF. Defaults to `.swapPda` (in-VM buy/launch). `.vmDeposit` lands the
-    ///     USDF in the Geyser-watched VM Deposit ATA for the Add Money flow.
+    ///     USDF. Defaults to `.swapPda`.
     /// - Returns: Array of 8 instructions for the USDC→USDF swap
     public static func buildUsdcToUsdfSwapInstructions(
         sender: PublicKey,
@@ -42,8 +39,6 @@ extension SwapInstructionBuilder {
             fatalError("Failed to derive USDF swap accounts")
         }
 
-        // Resolve the destination USDF ATA (and the account that owns it) that
-        // the CreateIdempotent + final Token::Transfer credit.
         let destinationAtaOwner: PublicKey
         let destinationAta: PublicKey
         switch destination {
@@ -102,8 +97,7 @@ extension SwapInstructionBuilder {
         // 3. AssociatedTokenAccount::CreateIdempotent (USDF ATA for sender)
         instructions.append(senderUsdfAta.instruction())
 
-        // 4. AssociatedTokenAccount::CreateIdempotent (destination USDF ATA —
-        //    the owner's swap PDA ATA, or the VM Deposit ATA for Add Money)
+        // 4. AssociatedTokenAccount::CreateIdempotent (destination USDF ATA)
         instructions.append(
             AssociatedTokenProgram.CreateIdempotent(
                 subsidizer: sender,

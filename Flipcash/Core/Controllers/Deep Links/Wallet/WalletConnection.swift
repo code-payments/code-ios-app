@@ -183,25 +183,37 @@ public final class WalletConnection {
     }
     
     private func didConnect(response: WalletResponse.Connected, encryptionPublicKey: Data) {
-        if let walletSession = WalletSession(
+        guard let walletSession = WalletSession(
             walletPublicKey: response.publicKey,
             sessionToken: response.session
-        ) {
-            logger.info("Connected to wallet")
-            let session = ConnectedWalletSession(
-                secretKey: box.secretKey,
-                walletPublicKey: walletSession.walletPublicKey,
-                sessionToken: walletSession.sessionToken,
-                phantomEncryptionPublicKey: encryptionPublicKey
+        ) else {
+            // Without this resume the awaiting connect() suspends forever.
+            logger.error("Wallet connect returned an undecodable session")
+            ErrorReporting.captureError(
+                WalletConnectionError.connectFailed(code: "invalid-session"),
+                reason: "Wallet connect returned an undecodable session"
             )
-
-            Keychain.connectedWalletSession = session
-            self.session = session
-
             if let continuation = pendingConnect {
                 pendingConnect = nil
-                continuation.resume(returning: ())
+                continuation.resume(throwing: WalletConnectionError.connectFailed(code: "invalid-session"))
             }
+            return
+        }
+
+        logger.info("Connected to wallet")
+        let session = ConnectedWalletSession(
+            secretKey: box.secretKey,
+            walletPublicKey: walletSession.walletPublicKey,
+            sessionToken: walletSession.sessionToken,
+            phantomEncryptionPublicKey: encryptionPublicKey
+        )
+
+        Keychain.connectedWalletSession = session
+        self.session = session
+
+        if let continuation = pendingConnect {
+            pendingConnect = nil
+            continuation.resume(returning: ())
         }
     }
     
@@ -286,17 +298,16 @@ public final class WalletConnection {
         openExternalWallet(c.url!)
     }
 
-    /// Builds + sends a USDC→USDF transaction to Phantom for signing. The
-    /// signed transaction comes back via `didReceiveURL` → `deeplinkEvents`,
-    /// where the in-flight `PhantomDepositOperation` consumes it. This method
-    /// has no pending-state side effects of its own — it's a pure "send sign
-    /// request" service.
+    /// Builds + sends a USDC→USDF swap to Phantom for signing, crediting the
+    /// swapped USDF to the owner's USDF VM deposit ATA. The signed transaction
+    /// comes back via `didReceiveURL` → `deeplinkEvents`.
     func sendUsdcToUsdfSignRequest(
         usdc: FlipcashCore.TokenAmount,
-        fundingSwapId: SwapId,
+        swapId: SwapId,
         displayName: String
     ) async throws {
         guard let connectedSession = Keychain.connectedWalletSession else {
+            logger.error("Sign request without a connected wallet session")
             throw Error.noSession
         }
 
@@ -314,82 +325,7 @@ public final class WalletConnection {
             owner: flipcashOwner,
             amount: usdc.quarks,
             pool: .usdf,
-            swapId: fundingSwapId.publicKey
-        )
-
-        let recentBlockhash = try await rpc.getLatestBlockhash(commitment: .finalized)
-
-        let transaction = SolanaTransaction(
-            payer: externalWallet,
-            recentBlockhash: recentBlockhash,
-            instructions: instructions
-        )
-
-        let txEncoded = Base58.fromBytes(Array(transaction.encode()))
-
-        let payload: [String: Any] = [
-            "transaction": txEncoded,
-            "session": connectedSession.sessionToken
-        ]
-        let payloadData = try JSONSerialization.data(withJSONObject: payload, options: [])
-
-        let (nonce, payloadEncrypted) = try box.encryptForPhantom(
-            payload: payloadData,
-            encryptionPublicKey: connectedSession.phantomEncryptionPublicKey
-        )
-
-        var c = URLComponents(string: "https://phantom.app/ul/v1/signTransaction")!
-        c.queryItems = [
-            URLQueryItem(name: "dapp_encryption_public_key", value: publicKey.base58),
-            URLQueryItem(name: "nonce",                      value: nonce),
-            URLQueryItem(name: "redirect_link",              value: "https://app.flipcash.com/wallet/transactionSigned"),
-            URLQueryItem(name: "payload",                    value: payloadEncrypted)
-        ]
-
-        guard let url = c.url else {
-            logger.error("Failed to construct signTransaction URL")
-            throw Error.invalidURL
-        }
-
-        Analytics.walletRequestAmount(amount: amount.nativeAmount)
-        openExternalWallet(url)
-        logger.info("Requested USDC→USDF swap", metadata: [
-            "amount": "\(amount.nativeAmount.formatted())",
-            "swapId": "\(fundingSwapId.publicKey.base58)",
-            "name": "\(displayName)",
-        ])
-    }
-
-    /// Deposit-flavoured sibling of `sendUsdcToUsdfSignRequest`. The signed
-    /// swap's USDF output is transferred to the user's USDF VM deposit ATA
-    /// instead of the swap PDA, so Geyser credits the balance with no
-    /// server-side buy intent. `destination` is the operation-derived deposit
-    /// ATA — the builder re-derives the same account from `.vmDeposit`.
-    func sendUsdcToUsdfDepositSignRequest(
-        usdc: FlipcashCore.TokenAmount,
-        destination: FlipcashCore.PublicKey,
-        fundingSwapId: SwapId,
-        displayName: String
-    ) async throws {
-        guard let connectedSession = Keychain.connectedWalletSession else {
-            throw Error.noSession
-        }
-
-        let amount = ExchangedFiat.compute(
-            onChainAmount: usdc,
-            rate: .oneToOne,
-            supplyQuarks: nil
-        )
-
-        let externalWallet = try FlipcashCore.PublicKey(base58: connectedSession.walletPublicKey.base58)
-        let flipcashOwner = owner.authorityPublicKey
-
-        let instructions = SwapInstructionBuilder.buildUsdcToUsdfSwapInstructions(
-            sender: externalWallet,
-            owner: flipcashOwner,
-            amount: usdc.quarks,
-            pool: .usdf,
-            swapId: fundingSwapId.publicKey,
+            swapId: swapId.publicKey,
             destination: .vmDeposit
         )
 
@@ -431,8 +367,7 @@ public final class WalletConnection {
         openExternalWallet(url)
         logger.info("Requested USDC→USDF deposit swap", metadata: [
             "amount": "\(amount.nativeAmount.formatted())",
-            "swapId": "\(fundingSwapId.publicKey.base58)",
-            "destination": "\(destination.base58)",
+            "swapId": "\(swapId.publicKey.base58)",
             "name": "\(displayName)",
         ])
     }
