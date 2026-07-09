@@ -7,15 +7,16 @@ import XCTest
 
 /// Regression test for the Add Money Apple Pay (Coinbase) path's
 /// verified-contact gate: an unverified account tapping Add Money must land
-/// on the verification sheet's Enter Phone step, not the Apple Pay overlay.
-/// Stops short of completing verification — SMS / email links are out of
-/// scope for the simulator.
+/// on the verification sheet's first step, not the Apple Pay overlay. Which
+/// step shows (phone vs email) depends on the account's server-side phone
+/// state, so the test accepts either. Stops short of completing
+/// verification — SMS / email links are out of scope for the simulator.
 ///
 /// **Prerequisites:**
 /// - `FLIPCASH_UI_TEST_ACCESS_KEY` set in `secrets.local.xcconfig`
-/// - The account behind the access key must be **unverified** (no phone +
-///   no email on the profile). A verified profile skips the gate and routes
-///   straight to Apple Pay, which would fail this assertion.
+/// - The account behind the access key must have **no verified email**. A
+///   verified email skips the gate and routes straight to Apple Pay, which
+///   would fail this assertion.
 /// - The account must have the Coinbase onramp enabled, or the Pay
 ///   row is hidden.
 final class BuyApplePayRegressionTests: BaseUITestCase {
@@ -56,6 +57,6 @@ final class BuyApplePayRegressionTests: BaseUITestCase {
         amountEntry.keypadButton("0").tap()
         waitUntilHittableAndTap(addMoney.amountToAddActionButton)
 
-        verifyInfo.assertPhoneStepReached()
+        verifyInfo.assertVerificationStepReached()
     }
 }

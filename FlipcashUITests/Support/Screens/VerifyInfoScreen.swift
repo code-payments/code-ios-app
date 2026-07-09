@@ -8,10 +8,7 @@ import XCTest
 /// Page object for the `VerifyInfoScreen` sheet — the phone + email
 /// verification flow. There is no intro page: the sheet opens directly on
 /// the first needed step (Enter Phone when the phone is unverified, Enter
-/// Email otherwise). Mounted by the Add Money amount screen when the user
-/// is unverified and taps Apple Pay, and by `OnrampHostModifier` as a
-/// fallback when an email verification deeplink arrives outside an active
-/// flow.
+/// Email otherwise).
 @MainActor
 struct VerifyInfoUIScreen {
 
@@ -27,22 +24,20 @@ struct VerifyInfoUIScreen {
         app.navigationBars["Verify Phone Number"]
     }
 
-    var phoneField: XCUIElement {
-        app.textFields["Phone Number"]
+    var emailStepTitle: XCUIElement {
+        app.navigationBars["Verify Email"]
     }
 
     // MARK: - Assertions
 
-    /// The fully-unverified account (no phone, no email) must land directly
-    /// on the phone step — no intro page in between.
-    func assertPhoneStepReached(timeout: TimeInterval = 10) {
+    /// The unverified account must land directly on a verification step —
+    /// no intro page. Which step depends on the account's phone state
+    /// (server-side, not controlled by the test), so either root counts.
+    func assertVerificationStepReached(timeout: TimeInterval = 10) {
+        let either = NSPredicate(format: "identifier IN %@", ["Verify Phone Number", "Verify Email"])
         XCTAssertTrue(
-            phoneStepTitle.waitForExistence(timeout: timeout),
-            "Expected the verification sheet to open directly on Enter Phone"
-        )
-        XCTAssertTrue(
-            phoneField.exists,
-            "Expected the phone number field on the verification root"
+            app.navigationBars.matching(either).firstMatch.waitForExistence(timeout: timeout),
+            "Expected the verification sheet to open directly on Enter Phone or Enter Email"
         )
     }
 }
