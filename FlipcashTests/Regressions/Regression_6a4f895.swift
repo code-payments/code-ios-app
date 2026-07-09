@@ -18,7 +18,7 @@ import FlipcashCore
 /// identifier: ChatMessageCell"). The cell class must be part of the diff identity so a kind change
 /// diffs as delete+insert instead.
 @MainActor
-@Suite("Regression: 6a4f895 – chat transcript reconfigure across cell classes")
+@Suite("Regression: 6a4f895 – chat transcript reconfigure across cell classes", .bug("6a4f895be96556123e956f79"))
 struct Regression_6a4f895 {
 
     nonisolated private static func text(_ id: String, _ body: String = "hello", link: Bool = false, receipt: String? = nil) -> ChatItem {
@@ -40,12 +40,12 @@ struct Regression_6a4f895 {
     }
 
     @Test("A same-id cell-class flip diffs as delete+insert, never an update", arguments: [
-        (text("m"), cash("m")),             // ChatMessageCell → ChatCashCardCell (the crash)
-        (cash("m"), text("m")),             // ChatCashCardCell → ChatMessageCell
-        (text("m"), text("m", link: true)), // ChatMessageCell → ChatLinkMessageCell (edit gains a URL)
-        (text("m", link: true), text("m")), // ChatLinkMessageCell → ChatMessageCell (edit loses it)
+        ("text → cash (the crash)", text("m"), cash("m")),
+        ("cash → text", cash("m"), text("m")),
+        ("plain text → link text (edit gains a URL)", text("m"), text("m", link: true)),
+        ("link text → plain text (edit loses it)", text("m", link: true), text("m")),
     ])
-    func cellKindFlip_diffsAsReplace(before: ChatItem, after: ChatItem) {
+    func cellKindFlip_diffsAsReplace(label: String, before: ChatItem, after: ChatItem) {
         let changeset = StagedChangeset(source: [before], target: [after])
 
         #expect(changeset.flatMap(\.elementUpdated).isEmpty)
