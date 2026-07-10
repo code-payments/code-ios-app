@@ -36,14 +36,16 @@ Confirm with user: "Bumping {type}: flipcash-{current} → flipcash-{next} — c
 ### 3. Verify MARKETING_VERSION on main (major / minor only)
 Skip for patch — patch bumps the version on the release branch in step 4b.
 
-The bump must already be merged into `origin/main` before cutting the release. Check it:
+The bump must already be merged into `origin/main` before cutting the release. A complete bump flips every app-family line from `{current-version}` to `{next-version}`, so check both counts:
 ```bash
 git fetch origin main
 git show origin/main:Code.xcodeproj/project.pbxproj | grep -c "MARKETING_VERSION = {next-version};"
+git show origin/main:Code.xcodeproj/project.pbxproj | grep -c "MARKETING_VERSION = {current-version};"
 ```
 
-- **Result is `4`** (Flipcash target's four configurations): proceed.
-- **Result is `0`**: STOP. Check whether a `chore/bump-version-{next-version}` PR is already open (the previous /release run should have auto-prepped one in step 9a). If yes, tell the user: *"Merge `chore/bump-version-{next-version}` and re-run /release {bump}."* If no PR exists, tell the user to open one — `MARKETING_VERSION = {current-version};` → `MARKETING_VERSION = {next-version};` with `replace_all` — merge it, then re-run. Do not commit the bump locally to main from inside this skill.
+- **`{next-version}` count is non-zero and `{current-version}` count is `0`**: the bump flipped every line — proceed. (The absolute number doesn't matter; it grows whenever app targets are added.)
+- **Both counts are non-zero**: STOP — the bump PR missed some targets. Have the user re-apply the `replace_all` on `chore/bump-version-{next-version}`, merge, then re-run.
+- **`{next-version}` count is `0`**: STOP. Check whether a `chore/bump-version-{next-version}` PR is already open (the previous /release run should have auto-prepped one in step 9a). If yes, tell the user: *"Merge `chore/bump-version-{next-version}` and re-run /release {bump}."* If no PR exists, tell the user to open one — `MARKETING_VERSION = {current-version};` → `MARKETING_VERSION = {next-version};` with `replace_all` — merge it, then re-run. Do not commit the bump locally to main from inside this skill.
 
 ### 4. Determine base
 - **major / minor**: base is `origin/main`. Show the pre-flight latest tag to user. If it picks up a legacy tag, ask for the correct base.
@@ -71,7 +73,7 @@ The release branch's `Code.xcodeproj/project.pbxproj` is still pinned at `{curre
 - **old_string**: `MARKETING_VERSION = {current-version};`
 - **new_string**: `MARKETING_VERSION = {next-version};`
 
-Other targets in the pbxproj use different `MARKETING_VERSION` values (legacy apps, test targets), so `replace_all` is safe — it only hits the Flipcash target.
+The Flipcash app and its extension targets share one `MARKETING_VERSION` (extension versions must match the host app), while unrelated targets are pinned at other values — so `replace_all` hits exactly the app-family lines.
 
 Then commit:
 ```bash
@@ -144,7 +146,7 @@ Otherwise, from `main`:
 git checkout main && git pull --ff-only
 git checkout -b chore/bump-version-{next-minor}
 ```
-Edit `Code.xcodeproj/project.pbxproj` with `replace_all: true`: `MARKETING_VERSION = {version};` → `MARKETING_VERSION = {next-minor};` (only the Flipcash target's four lines should change).
+Edit `Code.xcodeproj/project.pbxproj` with `replace_all: true`: `MARKETING_VERSION = {version};` → `MARKETING_VERSION = {next-minor};` (the app and its extensions share the version and flip together — afterwards no `MARKETING_VERSION = {version};` lines should remain).
 ```bash
 git add Code.xcodeproj/project.pbxproj
 git commit -m "chore: bump version to {next-minor}"
