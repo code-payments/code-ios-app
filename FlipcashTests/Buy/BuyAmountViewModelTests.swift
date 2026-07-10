@@ -30,10 +30,17 @@ struct BuyAmountViewModelTests {
     ///
     /// `currency`/`fx` select the balance currency — pass a non-USD rate to
     /// reproduce FX display rounding (see the CAD regression below).
+    ///
+    /// Pass a `maxPerDay` below the entered amount when the test drives
+    /// `amountEnteredAction` past the gate: the flow then stops at the limit
+    /// check and can never reach the real `session.buy` — which submits a
+    /// live `IntentCreateAccount` to production that the antispam guard
+    /// denies.
     private static func makeContainer(
         usdfQuarks: UInt64,
         currency: CurrencyCode = .usd,
-        fx: Double = 1.0
+        fx: Double = 1.0,
+        maxPerDay: Decimal = 1_000
     ) async throws -> SessionContainer {
         let holdings: [SessionContainer.Holding] = usdfQuarks == 0
             ? []
@@ -43,7 +50,7 @@ struct BuyAmountViewModelTests {
         sendLimits[currency] = SendLimit(
             nextTransaction: FiatAmount(value: 1000, currency: currency),
             maxPerTransaction: FiatAmount(value: 1000, currency: currency),
-            maxPerDay: FiatAmount(value: 1000, currency: currency)
+            maxPerDay: FiatAmount(value: maxPerDay, currency: currency)
         )
 
         let container = try SessionContainer.makeTest(
@@ -144,7 +151,14 @@ struct BuyAmountViewModelTests {
         ]
     )
     func maxBuy_nonUSDCurrency_passesGate(usdfQuarks: UInt64, fx: Double) async throws {
-        let container = try await Self.makeContainer(usdfQuarks: usdfQuarks, currency: .cad, fx: fx)
+        // The daily limit sits below the entered $1.00 so the flow stops at
+        // the limit check right after the gate, never reaching the real buy.
+        let container = try await Self.makeContainer(
+            usdfQuarks: usdfQuarks,
+            currency: .cad,
+            fx: fx,
+            maxPerDay: 0.5
+        )
         let viewModel = Self.makeViewModel(container: container)
         let router = AppRouter()
         router.present(.balance)
@@ -152,8 +166,12 @@ struct BuyAmountViewModelTests {
         viewModel.enteredAmount = "1"
         await viewModel.amountEnteredAction(router: router)
 
-        // The gate must NOT route a covered max-buy to Add Money.
+        // The gate must NOT route a covered max-buy to Add Money...
         #expect(container.session.dialogItem == nil)
+
+        // ...and the flow must have cleared the gate, stopping at the limit
+        // check rather than reaching the network buy.
+        #expect(viewModel.dialogItem?.title == "Transaction Limit Reached")
     }
 
     @Test("Submission quarks are capped to the USDF balance for a max buy")
