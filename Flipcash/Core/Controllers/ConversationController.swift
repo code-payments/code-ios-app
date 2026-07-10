@@ -212,8 +212,17 @@ final class ConversationController {
     /// Reconcile a conversation's transcript from its persisted event-log cursor via `GetDelta`,
     /// applying and persisting each batch's checkpoint as it arrives. Deduped per conversation — a
     /// second caller while one is in flight no-ops. Fired on chat-open, foreground, reconnect, and a
-    /// detected live gap; none of these wait for a server ping.
+    /// detected live gap; none of these wait for a server ping. No-ops for a conversation the client
+    /// holds nothing for — no feed entry, no messages, no applied cursor.
     func catchUp(conversationID: ConversationID) async {
+        guard conversation(withID: conversationID) != nil
+            || store.hasMessages(for: conversationID)
+            || store.appliedCursor(for: conversationID) > 0 else {
+            logger.info("Skipping catch-up for a conversation the client holds nothing for", metadata: [
+                "conversationID": "\(conversationID)",
+            ])
+            return
+        }
         guard !catchUpInFlight.contains(conversationID) else { return }
         catchUpInFlight.insert(conversationID)
         defer { catchUpInFlight.remove(conversationID) }
