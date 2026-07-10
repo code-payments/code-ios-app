@@ -589,6 +589,8 @@ struct ConversationControllerTests {
 
         controller.start()
         try await waitUntil { mock.connectionStateStreamOpened }
+        // Catch-up requires a materialized conversation; wait for start()'s feed load to land.
+        try await waitUntil { !controller.conversations.isEmpty }
         controller.visibleConversationID = ConversationID.test(1)
 
         // The cursor is too far behind: GetDelta returns RESET_REQUIRED, so catch-up falls back to the
