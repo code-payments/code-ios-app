@@ -50,19 +50,8 @@ private struct ScanScreenContent: View {
         return nil
     }
     
-    var cameraAuthorized: Bool {
-        cameraAuthorizer.status == .authorized
-    }
-    
-    var directToSettingsForCamera: Bool? {
-        switch cameraAuthorizer.status {
-        case .authorized:
-            return nil
-        case .notDetermined:
-            return false
-        default:
-            return true
-        }
+    private var cameraPrompt: CameraPrompt? {
+        CameraPrompt(status: cameraAuthorizer.status, cameraEnabled: preferences.cameraEnabled)
     }
     
     private let sessionContainer: SessionContainer
@@ -84,16 +73,14 @@ private struct ScanScreenContent: View {
     var body: some View {
         let showControls = session.billState.bill == nil
         ZStack {
-            if cameraAuthorized {
-                if preferences.cameraEnabled {
-                    cameraViewport()
-                        .transition(
-                            .asymmetric(
-                                insertion: .opacity.animation(.easeInOut(duration: 0.2).delay(0.3)),
-                                removal: .identity
-                            )
+            if cameraPrompt == nil {
+                cameraViewport()
+                    .transition(
+                        .asymmetric(
+                            insertion: .opacity.animation(.easeInOut(duration: 0.2).delay(0.3)),
+                            removal: .identity
                         )
-                }
+                    )
             }
             
             billView()
@@ -102,15 +89,12 @@ private struct ScanScreenContent: View {
                 // Any actionable views need to be positioned
                 // in front of the BillCanvas, otherwise it
                 // will swallow all touch events
-                if !cameraAuthorized {
-                    authorizeView()
-                        .zIndex(1)
-                        .transition(.opacity)
-                    
-                } else if !preferences.cameraEnabled {
-                    manualCameraStart()
-                        .zIndex(1)
-                        .transition(.opacity)
+                if let cameraPrompt {
+                    CameraPromptView(prompt: cameraPrompt) {
+                        performCameraPromptAction(cameraPrompt)
+                    }
+                    .zIndex(1)
+                    .transition(.opacity)
                 }
             
                 interfaceView()
@@ -189,6 +173,9 @@ private struct ScanScreenContent: View {
         .onAppear {
             viewModel.configureCameraSession()
         }
+        .onDisappear {
+            viewModel.stopCamera()
+        }
     }
     
     @ViewBuilder private func billView() -> some View {
@@ -214,46 +201,19 @@ private struct ScanScreenContent: View {
         return rect.insetBy(dx: 20, dy: 20).size
     }
     
-    @ViewBuilder private func authorizeView() -> some View {
-        let goToSettings = directToSettingsForCamera == true
-        VStack(spacing: 40) {
-            Text(goToSettings ? "You need to turn on Camera in Settings to scan Codes" : "Start your camera to grab cash")
-                .frame(maxWidth: 260)
-                .multilineTextAlignment(.center)
-            
-            BubbleButton(text: goToSettings ? "Open Settings" : "Start Camera") {
-                if goToSettings {
-                    URL.openSettings()
-                } else {
-                    Task {
-                        try await cameraAuthorizer.authorize()
-                    }
-                }
+    private func performCameraPromptAction(_ prompt: CameraPrompt) {
+        switch prompt {
+        case .requestPermission:
+            Task {
+                try await cameraAuthorizer.authorize()
             }
-        }
-        .padding(40)
-        .font(.appTextSmall)
-        .foregroundStyle(.textMain)
-    }
-    
-    @ViewBuilder private func manualCameraStart() -> some View {
-        VStack(spacing: 40) {
-            Text("You need to start your camera to grab cash")
-                .frame(maxWidth: 240)
-                .multilineTextAlignment(.center)
-            
-            BubbleButton(text: "Start Camera") {
-                preferences.cameraEnabled.toggle()
-            }
-        }
-        .padding(40)
-        .font(.appTextSmall)
-        .foregroundStyle(.textMain)
-        .onAppear {
-            viewModel.stopCamera()
+        case .openSettings:
+            URL.openSettings()
+        case .startCamera:
+            preferences.cameraEnabled.toggle()
         }
     }
-    
+
     @ViewBuilder private func interfaceView() -> some View {
         VStack {
             ScanTopBar(
