@@ -26,7 +26,7 @@ extension UICollectionView {
         completion: ((Bool) -> Void)? = nil,
         setData: (C) -> Void
     ) {
-        if case .none = window, let data = stagedChangeset.last?.data {
+        func reloadInstead(with data: C) {
             setData(data)
             if let onInterruptedReload {
                 onInterruptedReload()
@@ -34,6 +34,42 @@ extension UICollectionView {
                 reloadData()
             }
             completion?(false)
+        }
+
+        if case .none = window, let data = stagedChangeset.last?.data {
+            reloadInstead(with: data)
+            return
+        }
+
+        if let batch = stagedChangeset.singleBatch() {
+            if let interrupt, interrupt(batch.changeset), let data = stagedChangeset.last?.data {
+                reloadInstead(with: data)
+                return
+            }
+            performBatchUpdates({
+                if let reconfigureData = batch.reconfigureData {
+                    setData(reconfigureData)
+                    let indexPaths = batch.changeset.elementUpdated.map { IndexPath(item: $0.element, section: $0.section) }
+                    reconfigureItems(at: indexPaths)
+                    (collectionViewLayout as? CollectionViewChatLayout)?.reconfigureItems(at: indexPaths)
+                }
+                setData(batch.changeset.data)
+                if !batch.changeset.elementDeleted.isEmpty {
+                    deleteItems(at: batch.changeset.elementDeleted.map { IndexPath(item: $0.element, section: $0.section) })
+                }
+                if !batch.changeset.elementInserted.isEmpty {
+                    insertItems(at: batch.changeset.elementInserted.map { IndexPath(item: $0.element, section: $0.section) })
+                }
+            }, completion: { _ in
+                completion?(true)
+            })
+            return
+        }
+
+        // The interrupt fallback must be decided before any batch applies — a mid-sequence
+        // `reloadData` lands on in-flight batch animations.
+        if let interrupt, stagedChangeset.contains(where: interrupt), let data = stagedChangeset.last?.data {
+            reloadInstead(with: data)
             return
         }
 
@@ -41,17 +77,6 @@ extension UICollectionView {
         let completionHandler: ((Bool) -> Void)? = completion != nil ? { _ in dispatchGroup!.leave() } : nil
 
         for changeset in stagedChangeset {
-            if let interrupt, interrupt(changeset), let data = stagedChangeset.last?.data {
-                setData(data)
-                if let onInterruptedReload {
-                    onInterruptedReload()
-                } else {
-                    reloadData()
-                }
-                completion?(false)
-                return
-            }
-
             performBatchUpdates({
                 setData(changeset.data)
                 dispatchGroup?.enter()
@@ -78,27 +103,31 @@ extension UICollectionView {
 
 extension StagedChangeset {
 
-    /// DifferenceKit packages one diff into up to three stages — `[updates]`, `[deletes]`,
-    /// `[inserts+moves]` — applied as separate batch updates. Applied that way, a receipt or
-    /// grouping change landing with an insert runs 2–3 overlapping animated batch updates, and
-    /// `CollectionViewChatLayout` computes its keep-at-bottom compensation per batch — the overlap
-    /// is what slid transcript cells in from random directions.
-    ///
-    /// Merging is index-safe whenever no stage carries moves or section changes: updated and
-    /// deleted indices come out of the single underlying diff in *source* coordinates and inserted
-    /// indices in *target* coordinates — exactly the before/after semantics of one
-    /// `performBatchUpdates`. A move's source index is relative to the post-delete stage instead,
-    /// so any stage with moves keeps the staged application.
-    func flattenIfPossible() -> StagedChangeset {
-        guard count > 1,
-              let target = last?.data,
-              allSatisfy({ $0.sectionChangeCount == 0 && $0.elementMoved.isEmpty }) else { return self }
-        return StagedChangeset(arrayLiteral: Changeset(
-            data: target,
-            elementDeleted: flatMap(\.elementDeleted),
-            elementInserted: flatMap(\.elementInserted),
-            elementUpdated: flatMap(\.elementUpdated)
-        ))
+    /// One `performBatchUpdates` worth of changes: the merged ops over the final target data,
+    /// plus the collection the reconfigures resolve against.
+    struct SingleBatch {
+        let changeset: Changeset<Collection>
+        /// The source-shaped collection (updated content, source positions) the data source must
+        /// hold while the reconfigures apply, or `nil` when the diff carries no updates — UIKit
+        /// resolves them synchronously at source-coordinate index paths.
+        let reconfigureData: Collection?
+    }
+
+    /// The single-batch form of this diff, or `nil` when a stage carries moves or section
+    /// changes — a move's source index is relative to the post-delete stage.
+    func singleBatch() -> SingleBatch? {
+        guard let target = last?.data,
+              allSatisfy({ $0.sectionChangeCount == 0 && $0.elementMoved.isEmpty }) else { return nil }
+        let updated = flatMap(\.elementUpdated)
+        return SingleBatch(
+            changeset: Changeset(
+                data: target,
+                elementDeleted: flatMap(\.elementDeleted),
+                elementInserted: flatMap(\.elementInserted),
+                elementUpdated: updated
+            ),
+            reconfigureData: updated.isEmpty ? nil : first(where: { !$0.elementUpdated.isEmpty })?.data
+        )
     }
 }
 #endif

@@ -172,7 +172,7 @@ public final class ChatViewController: UICollectionViewController {
             return
         }
 
-        let changeset = StagedChangeset(source: items, target: newItems).flattenIfPossible()
+        let changeset = StagedChangeset(source: items, target: newItems)
         guard !changeset.isEmpty else {
             items = newItems
             return

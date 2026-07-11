@@ -10,13 +10,12 @@ import DifferenceKit
 import FlipcashCore
 @testable import FlipcashUI
 
-/// `StagedChangeset.flattenIfPossible` must merge DifferenceKit's staged changesets into a single
-/// changeset whenever no moves are involved, so the transcript applies one `performBatchUpdates`
-/// with one keep-at-bottom compensation. Split stages run as overlapping animated batch updates,
-/// which is what made cells slide in from random directions when a receipt or grouping change
-/// landed together with an insert.
+/// `StagedChangeset.singleBatch` must express a no-moves diff as one `performBatchUpdates` (split
+/// stages run as overlapping animated batches that slide cells around) while carrying the update
+/// stage's source-shaped data separately, since reconfigures resolve synchronously at
+/// source-coordinate index paths.
 @MainActor
-@Suite("Chat changeset flattening")
+@Suite("Chat changeset single-batch plan")
 struct ChatChangesetFlatteningTests {
 
     private func message(
@@ -36,8 +35,8 @@ struct ChatChangesetFlatteningTests {
         ))
     }
 
-    @Test("A send (previous-row update + insert) flattens to a single changeset")
-    func updateAndInsert_flattensToOne() {
+    @Test("A send (previous-row update + insert) merges into one batch carrying the update stage's data")
+    func updateAndInsert_mergesIntoOneBatch() throws {
         // A new own message migrates the receipt off the previous row and flips its grouping —
         // an update — while the new row is an insert. DifferenceKit stages these separately.
         let before = [message("a", receipt: "Delivered")]
@@ -49,18 +48,18 @@ struct ChatChangesetFlatteningTests {
         let staged = StagedChangeset(source: before, target: after)
         #expect(staged.count == 2, "premise: DifferenceKit stages [updates]+[inserts] separately")
 
-        let flattened = staged.flattenIfPossible()
-        #expect(flattened.count == 1)
-        guard let merged = flattened.first else { return }
-        #expect(merged.elementUpdated == [ElementPath(element: 0, section: 0)])
-        #expect(merged.elementInserted == [ElementPath(element: 1, section: 0)])
-        #expect(merged.elementDeleted.isEmpty)
-        #expect(merged.elementMoved.isEmpty)
-        #expect(merged.data == after)
+        let batch = try #require(staged.singleBatch())
+        #expect(batch.changeset.elementUpdated == [ElementPath(element: 0, section: 0)])
+        #expect(batch.changeset.elementInserted == [ElementPath(element: 1, section: 0)])
+        #expect(batch.changeset.elementDeleted.isEmpty)
+        #expect(batch.changeset.elementMoved.isEmpty)
+        #expect(batch.changeset.data == after)
+        // The reconfigure resolves against the source shape holding the updated row's new content.
+        #expect(batch.reconfigureData == [after[0]])
     }
 
-    @Test("An arrival while typing (update + delete + insert) flattens to a single changeset")
-    func updateDeleteAndInsert_flattensToOne() {
+    @Test("An arrival while typing (update + delete + insert) merges into one batch")
+    func updateDeleteAndInsert_mergesIntoOneBatch() throws {
         // The typing indicator clears (delete), the reply lands (insert), and the previous row's
         // grouping flips (update) — three DifferenceKit stages in one push.
         let before = [message("a", sender: .other), .typingIndicator]
@@ -72,32 +71,30 @@ struct ChatChangesetFlatteningTests {
         let staged = StagedChangeset(source: before, target: after)
         #expect(staged.count == 3, "premise: DifferenceKit stages [updates]+[deletes]+[inserts] separately")
 
-        let flattened = staged.flattenIfPossible()
-        #expect(flattened.count == 1)
-        guard let merged = flattened.first else { return }
-        #expect(merged.elementUpdated == [ElementPath(element: 0, section: 0)])
-        #expect(merged.elementDeleted == [ElementPath(element: 1, section: 0)])
-        #expect(merged.elementInserted == [ElementPath(element: 1, section: 0)])
-        #expect(merged.elementMoved.isEmpty)
-        #expect(merged.data == after)
+        let batch = try #require(staged.singleBatch())
+        #expect(batch.changeset.elementUpdated == [ElementPath(element: 0, section: 0)])
+        #expect(batch.changeset.elementDeleted == [ElementPath(element: 1, section: 0)])
+        #expect(batch.changeset.elementInserted == [ElementPath(element: 1, section: 0)])
+        #expect(batch.changeset.elementMoved.isEmpty)
+        #expect(batch.changeset.data == after)
+        #expect(batch.reconfigureData == [after[0], .typingIndicator])
     }
 
-    @Test("A pure delete + insert pair still flattens to a single changeset")
-    func deleteAndInsert_stillFlattensToOne() {
+    @Test("A pure delete + insert pair merges with no reconfigure data")
+    func deleteAndInsert_mergesWithoutReconfigureData() throws {
         // The pre-existing behavior (typing indicator swaps for a message with no other change).
         let before = [message("a", sender: .other), .typingIndicator]
         let after = [message("a", sender: .other), message("b", sender: .other)]
 
-        let flattened = StagedChangeset(source: before, target: after).flattenIfPossible()
-        #expect(flattened.count == 1)
-        guard let merged = flattened.first else { return }
-        #expect(merged.elementDeleted == [ElementPath(element: 1, section: 0)])
-        #expect(merged.elementInserted == [ElementPath(element: 1, section: 0)])
-        #expect(merged.data == after)
+        let batch = try #require(StagedChangeset(source: before, target: after).singleBatch())
+        #expect(batch.changeset.elementDeleted == [ElementPath(element: 1, section: 0)])
+        #expect(batch.changeset.elementInserted == [ElementPath(element: 1, section: 0)])
+        #expect(batch.changeset.data == after)
+        #expect(batch.reconfigureData == nil)
     }
 
-    @Test("Stages containing moves are left un-flattened")
-    func moves_areNotFlattened() {
+    @Test("Stages containing moves get no single batch")
+    func moves_getNoSingleBatch() {
         // A move's source index is relative to the post-delete stage, not the original source, so
         // merging would corrupt indices. Reorders never happen in a transcript; keep them staged.
         let before = [message("a"), message("b")]
@@ -106,8 +103,6 @@ struct ChatChangesetFlatteningTests {
         let staged = StagedChangeset(source: before, target: after)
         #expect(staged.contains { !$0.elementMoved.isEmpty }, "premise: a reorder diffs to a move")
 
-        let flattened = staged.flattenIfPossible()
-        #expect(flattened.count == staged.count)
-        #expect(flattened.contains { !$0.elementMoved.isEmpty })
+        #expect(staged.singleBatch() == nil)
     }
 }
