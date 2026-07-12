@@ -322,8 +322,10 @@ final class AppRouter {
     }
 
     /// Presents the Add Money sheet — as the root sheet when nothing is
-    /// presented, stacked on top of the current sheet otherwise.
-    func presentAddMoney(_ context: AddMoneyContext) {
+    /// presented, stacked on top of the current sheet otherwise. `source`
+    /// names the entry point on the funnel's opened event.
+    func presentAddMoney(_ context: AddMoneyContext, source: Analytics.AddMoneySource) {
+        Analytics.addMoneyOpened(source: source)
         if presentedSheets.isEmpty {
             present(.addMoney(context))
         } else {

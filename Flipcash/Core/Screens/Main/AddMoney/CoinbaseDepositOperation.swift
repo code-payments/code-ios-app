@@ -79,6 +79,7 @@ final class CoinbaseDepositOperation {
         state = .working
         let order = try await createOrder(for: amount)
         orderId = order.id
+        Analytics.addMoneyPaymentInvoked(method: .coinbase, exchangedFiat: amount)
 
         coinbaseService.setOrder(order)
         defer { coinbaseService.clearOrder() }

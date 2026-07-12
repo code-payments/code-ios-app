@@ -45,9 +45,10 @@ extension DialogItem {
 
 extension GiveCashGate {
     /// The blocking dialog for this gate outcome, or `nil` to proceed into
-    /// the flow.
+    /// the flow. `addMoneySource` names the hosting entry point on the Add
+    /// Money funnel's opened event.
     @MainActor
-    func blockingDialog(router: AppRouter) -> DialogItem? {
+    func blockingDialog(router: AppRouter, addMoneySource: Analytics.AddMoneySource) -> DialogItem? {
         switch self {
         case .proceed:
             nil
@@ -55,7 +56,7 @@ extension GiveCashGate {
             .noCommunityCurrencies { router.present(.discover) }
         case .addMoney:
             .noBalance(subtitle: AddMoneyContext.giveCash.noBalanceSubtitle) {
-                router.presentAddMoney(.giveCash)
+                router.presentAddMoney(.giveCash, source: addMoneySource)
             }
         }
     }

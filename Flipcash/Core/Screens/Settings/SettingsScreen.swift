@@ -28,7 +28,7 @@ struct SettingsScreen: View {
                     VStack(spacing: 6) {
                         HStack(spacing: 12) {
                             Button("Add Money") {
-                                router.presentAddMoney(.general)
+                                router.presentAddMoney(.general, source: .menu)
                             }
                             .buttonStyle(.card(icon: .deposit))
 

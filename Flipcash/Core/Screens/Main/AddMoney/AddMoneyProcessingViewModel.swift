@@ -121,6 +121,7 @@ final class AddMoneyProcessingViewModel {
                     "depositRef": "\(input.depositRef ?? "nil")",
                 ])
                 displayState = .success
+                Analytics.addMoney(method: input.method, exchangedFiat: input.amount, successful: true, error: nil)
                 return
             }
 
@@ -138,5 +139,16 @@ final class AddMoneyProcessingViewModel {
             "depositRef": "\(input.depositRef ?? "nil")",
         ])
         displayState = .failed
+        Analytics.addMoney(
+            method: input.method,
+            exchangedFiat: input.amount,
+            successful: false,
+            error: SettlementError.deliveryTimedOut
+        )
+    }
+
+    /// The USDF credit never arrived within the poll deadline.
+    private enum SettlementError: Error {
+        case deliveryTimedOut
     }
 }

@@ -112,6 +112,7 @@ final class AddMoneyAmountViewModel {
         verificationCoordinator: VerificationCoordinator,
         onProceed: @escaping (AddMoneyProcessingInput) -> Void
     ) {
+        Analytics.addMoneyAmountConfirmed(method: .coinbase, exchangedFiat: amount)
         verificationCoordinator.runGated(
             for: session,
             bind: { [weak self] vm in self?.verificationViewModel = vm }
@@ -134,6 +135,12 @@ final class AddMoneyAmountViewModel {
                         )
                     }
                 } catch let DepositError.externalRejected(title, subtitle) {
+                    Analytics.addMoney(
+                        method: .coinbase,
+                        exchangedFiat: amount,
+                        successful: false,
+                        error: DepositError.externalRejected(title: title, subtitle: subtitle)
+                    )
                     self?.dialogItem = .error(title: title, subtitle: subtitle)
                 } catch {
                     logger.error("Coinbase deposit failed", metadata: [
@@ -142,6 +149,7 @@ final class AddMoneyAmountViewModel {
                         "orderId": "\(operation.orderId ?? "nil")",
                     ])
                     ErrorReporting.captureError(error)
+                    Analytics.addMoney(method: .coinbase, exchangedFiat: amount, successful: false, error: error)
                     self?.dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
                 }
             }
@@ -153,6 +161,7 @@ final class AddMoneyAmountViewModel {
         walletConnection: any TransactionSigning,
         onProceed: @escaping (AddMoneyProcessingInput) -> Void
     ) {
+        Analytics.addMoneyAmountConfirmed(method: .phantom, exchangedFiat: amount)
         let operation = PhantomDepositOperation(walletConnection: walletConnection)
         depositTask = Task { [weak self, operation] in
             self?.actionButtonState = .loading
@@ -163,7 +172,15 @@ final class AddMoneyAmountViewModel {
                 onProceed(.init(amount: amount, method: .phantom, depositRef: operation.submittedSignature))
             } catch is CancellationError {
                 // User dismissed the Phantom flow — silent.
+            } catch DepositError.userCancelled {
+                // User rejected the transaction in Phantom — silent.
             } catch let DepositError.externalRejected(title, subtitle) {
+                Analytics.addMoney(
+                    method: .phantom,
+                    exchangedFiat: amount,
+                    successful: false,
+                    error: DepositError.externalRejected(title: title, subtitle: subtitle)
+                )
                 self?.dialogItem = .error(title: title, subtitle: subtitle)
             } catch {
                 logger.error("Phantom deposit failed", metadata: [
@@ -171,6 +188,7 @@ final class AddMoneyAmountViewModel {
                     "amount": "\(amount.nativeAmount.formatted())",
                 ])
                 ErrorReporting.captureError(error)
+                Analytics.addMoney(method: .phantom, exchangedFiat: amount, successful: false, error: error)
                 self?.dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again later")
             }
         }

@@ -149,7 +149,7 @@ private struct BalanceScreenContent: View {
                 .frame(maxWidth: .infinity, alignment: .center)
 
             BubbleButton(text: "Add Money") {
-                router.presentAddMoney(.general)
+                router.presentAddMoney(.general, source: .balance)
             }
             .padding(.top, 8)
         }
@@ -195,7 +195,7 @@ private struct BalanceScreenContent: View {
                     } footer: {
                         if hasBalances {
                             CodeButton(style: .filledSecondary, title: "Add Money") {
-                                router.presentAddMoney(.general)
+                                router.presentAddMoney(.general, source: .balance)
                             }
                             .padding(.horizontal, 20)
                             .padding(.top, 20)

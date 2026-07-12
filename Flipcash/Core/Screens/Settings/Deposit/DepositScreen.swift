@@ -14,10 +14,12 @@ struct DepositScreen: View {
 
     private let address: String
     private let name: String?
+    private let mint: PublicKey
 
-    init(address: String, name: String?) {
+    init(address: String, name: String?, mint: PublicKey) {
         self.address = address
         self.name = name
+        self.mint = mint
     }
 
     var body: some View {
@@ -52,6 +54,7 @@ struct DepositScreen: View {
 
     private func copyAddress() {
         UIPasteboard.general.string = address
+        Analytics.addMoneyAddressCopied(mint: mint)
         buttonState = .successText("Copied")
         Task {
             try? await Task.sleep(for: .seconds(1.5))
@@ -69,7 +72,7 @@ extension DepositScreen {
     /// exist on-chain yet, so wallets derive another ATA and funds land one
     /// level deeper than the server queries.
     static func usdcDeposit(session: Session) -> DepositScreen {
-        DepositScreen(address: session.owner.authorityPublicKey.base58, name: "USDC")
+        DepositScreen(address: session.owner.authorityPublicKey.base58, name: "USDC", mint: .usdc)
     }
 
     /// The deposit screen for `mint`'s derived deposit ATA, or `nil` when
@@ -79,7 +82,8 @@ extension DepositScreen {
               let vmAuthority = balance.vmAuthority else { return nil }
         return DepositScreen(
             address: session.owner.use(mint: mint, timeAuthority: vmAuthority).depositPublicKey.base58,
-            name: mint == .usdf ? balance.symbol : balance.name
+            name: mint == .usdf ? balance.symbol : balance.name,
+            mint: mint
         )
     }
 }

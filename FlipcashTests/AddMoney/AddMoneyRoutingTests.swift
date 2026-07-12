@@ -20,7 +20,7 @@ struct AddMoneyRoutingTests {
     @Test("With no sheet presented, Add Money presents at root")
     func giveCash_presentsAtRoot() {
         let router = AppRouter()
-        router.presentAddMoney(.giveCash)
+        router.presentAddMoney(.giveCash, source: .scanner)
         #expect(router.presentedSheets == [.addMoney(.giveCash)])
     }
 
@@ -28,7 +28,7 @@ struct AddMoneyRoutingTests {
     func overRootSheet_stacksNested() {
         let router = AppRouter()
         router.present(.send)
-        router.presentAddMoney(.giveCash)
+        router.presentAddMoney(.giveCash, source: .scanner)
         #expect(router.presentedSheets == [.send, .addMoney(.giveCash)])
     }
 
@@ -37,7 +37,7 @@ struct AddMoneyRoutingTests {
         let router = AppRouter()
         router.present(.discover)
         router.presentNested(.buy(.usdc))
-        router.presentAddMoney(.buyCurrency)
+        router.presentAddMoney(.buyCurrency, source: .buyShortfall)
         #expect(router.presentedSheets == [.discover, .buy(.usdc), .addMoney(.buyCurrency)])
     }
 
@@ -46,7 +46,7 @@ struct AddMoneyRoutingTests {
         let router = AppRouter()
         router.present(.discover)
         router.presentNested(.buy(.usdc))
-        router.presentAddMoney(.buyCurrency)
+        router.presentAddMoney(.buyCurrency, source: .buyShortfall)
         #expect(router.isAddMoneyOverBuy)
     }
 
@@ -57,14 +57,14 @@ struct AddMoneyRoutingTests {
     func isAddMoneyOverBuy_nonBuyEntry(root: AppRouter.SheetPresentation) {
         let router = AppRouter()
         router.present(root)
-        router.presentAddMoney(.general)
+        router.presentAddMoney(.general, source: .balance)
         #expect(!router.isAddMoneyOverBuy)
     }
 
     @Test("The options at root report a non-buy entry")
     func isAddMoneyOverBuy_rootEntry() {
         let router = AppRouter()
-        router.presentAddMoney(.giveCash)
+        router.presentAddMoney(.giveCash, source: .scanner)
         #expect(!router.isAddMoneyOverBuy)
     }
 
@@ -87,7 +87,7 @@ struct AddMoneyRoutingTests {
         let router = AppRouter()
         router.present(.discover)
         router.presentNested(.buy(.usdc))
-        router.presentAddMoney(.buyCurrency)
+        router.presentAddMoney(.buyCurrency, source: .buyShortfall)
 
         // Mirrors AddMoneyStartScreen.select(_:) for the buy entry.
         router.dismissSheet()

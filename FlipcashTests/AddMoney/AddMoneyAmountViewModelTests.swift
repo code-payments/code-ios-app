@@ -95,4 +95,31 @@ struct AddMoneyAmountViewModelTests {
         let viewModel = Self.makeViewModel(method: method, container: container)
         #expect(viewModel.actionTitle == title)
     }
+
+    @Test("Rejecting the sign request in Phantom stays silent — no error dialog")
+    func phantomDeposit_userCancelled_staysSilent() async throws {
+        let container = try Self.makeContainer()
+        let viewModel = Self.makeViewModel(method: .phantom, container: container)
+        let wallet = MockTransactionSigning()
+        var proceeded = false
+
+        viewModel.enteredAmount = "10"
+        viewModel.addMoney(
+            coinbaseService: CoinbaseService(coinbase: MockOnrampOrdering()),
+            verificationCoordinator: VerificationCoordinator(
+                session: container.session,
+                flipClient: Container.mock.flipClient,
+                deeplinkInbox: OnrampDeeplinkInbox()
+            ),
+            walletConnection: wallet,
+            onProceed: { _ in proceeded = true }
+        )
+
+        try await waitUntil(wallet) { $0.sendSignRequestCalls.count == 1 }
+        wallet.yieldDeeplinkEvent(.userCancelled)
+        try await waitUntil(viewModel) { $0.actionButtonState == .normal }
+
+        #expect(viewModel.dialogItem == nil)
+        #expect(!proceeded)
+    }
 }

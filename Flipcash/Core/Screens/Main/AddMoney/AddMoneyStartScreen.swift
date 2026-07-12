@@ -46,6 +46,7 @@ struct AddMoneyStartScreen: View {
     /// Over the buy amount sheet the deposit flow pushes onto that sheet's
     /// stack; everywhere else it opens as its own sheet on top.
     private func select(_ method: DepositMethod) {
+        Analytics.addMoneyMethodSelected(method: method)
         if router.isAddMoneyOverBuy {
             router.dismissSheet()
             router.pushAny(AddMoneyFlowStep.method(method))
