@@ -146,6 +146,22 @@ extension Analytics {
     }
 }
 
+// MARK: - Shared property builders -
+
+private extension Analytics {
+    /// The standard money-amount property block — mint, quarks, native fiat,
+    /// exchange rate, and currency. Shared by the transfer and Add Money events.
+    static func amountProperties(_ exchangedFiat: ExchangedFiat) -> [Property: AnalyticsValue] {
+        [
+            .mint:     exchangedFiat.mint.base58,
+            .quarks:   exchangedFiat.onChainAmount.quarks.analyticsValue,
+            .fiat:     exchangedFiat.nativeAmount.doubleValue,
+            .fx:       exchangedFiat.currencyRate.fx.analyticsValue,
+            .currency: exchangedFiat.currencyRate.currency.rawValue,
+        ]
+    }
+}
+
 // MARK: - Cash Transfer -
 
 extension Analytics {
@@ -154,17 +170,8 @@ extension Analytics {
     }
 
     static func withdrawal(exchangedFiat: ExchangedFiat?, successful: Bool, error: Error?) {
-        var properties: [Property: AnalyticsValue] = [
-            .state: successful ? String.success : String.failure,
-        ]
-
-        if let exchangedFiat {
-            properties[.mint]     = exchangedFiat.mint.base58
-            properties[.quarks]   = exchangedFiat.onChainAmount.quarks.analyticsValue
-            properties[.fiat]     = exchangedFiat.nativeAmount.doubleValue
-            properties[.fx]       = exchangedFiat.currencyRate.fx.analyticsValue
-            properties[.currency] = exchangedFiat.currencyRate.currency.rawValue
-        }
+        var properties: [Property: AnalyticsValue] = exchangedFiat.map(amountProperties) ?? [:]
+        properties[.state] = successful ? String.success : String.failure
 
         track(
             event: TransferEvent.withdrawal,
@@ -174,17 +181,8 @@ extension Analytics {
     }
 
     static func transfer(event: TransferEvent, exchangedFiat: ExchangedFiat?, grabTime: Double?, successful: Bool, error: Error?) {
-        var properties: [Property: AnalyticsValue] = [
-            .state: successful ? String.success : String.failure,
-        ]
-
-        if let exchangedFiat {
-            properties[.mint]     = exchangedFiat.mint.base58
-            properties[.quarks]   = exchangedFiat.onChainAmount.quarks.analyticsValue
-            properties[.fiat]     = exchangedFiat.nativeAmount.doubleValue
-            properties[.fx]       = exchangedFiat.currencyRate.fx.analyticsValue
-            properties[.currency] = exchangedFiat.currencyRate.currency.rawValue
-        }
+        var properties: [Property: AnalyticsValue] = exchangedFiat.map(amountProperties) ?? [:]
+        properties[.state] = successful ? String.success : String.failure
 
         if let grabTime {
             properties[.grabTime] = grabTime
@@ -247,16 +245,6 @@ extension Analytics {
         properties[.method] = method.analyticsValue
         properties[.state] = successful ? String.success : String.failure
         track(event: AddMoneyEvent.terminal, properties: properties, error: error)
-    }
-
-    private static func amountProperties(_ exchangedFiat: ExchangedFiat) -> [Property: AnalyticsValue] {
-        [
-            .mint:     exchangedFiat.mint.base58,
-            .quarks:   exchangedFiat.onChainAmount.quarks.analyticsValue,
-            .fiat:     exchangedFiat.nativeAmount.doubleValue,
-            .fx:       exchangedFiat.currencyRate.fx.analyticsValue,
-            .currency: exchangedFiat.currencyRate.currency.rawValue,
-        ]
     }
 }
 
