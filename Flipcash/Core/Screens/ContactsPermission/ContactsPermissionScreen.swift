@@ -7,47 +7,26 @@ import SwiftUI
 import Contacts
 import FlipcashUI
 
-/// Priming view for the system contacts authorization prompt. The parent
+/// Contact-access gating for the Send sheet: a priming pitch while the status is
+/// undetermined, and a warning to open Settings once access is denied. The parent
 /// owns the ``ContactsAuthorizer`` so grants propagate via `@Observable`.
-/// Pass `onSkipped: nil` to hide the secondary "Not Now" button.
 struct ContactsPermissionScreen: View {
 
     let authorizer: ContactsAuthorizer
     let onAllowed: () -> Void
-    let onSkipped: (() -> Void)?
 
     // MARK: - Body -
 
     var body: some View {
         Background(color: .backgroundMain) {
-            VStack(spacing: 0) {
-                VStack(spacing: 12) {
-                    Spacer()
-                    
-                    ContactsPermissionIllustration()
-                        .padding(.bottom, -60)
-
-                    Text(title)
-                        .font(.appDisplaySmall)
-                        .foregroundStyle(Color.textMain)
-                        .multilineTextAlignment(.center)
-                    
-                    Text(subtitle)
-                        .font(.appTextSmall)
-                        .foregroundStyle(Color.textSecondary)
-                        .multilineTextAlignment(.center)
-                    
-                    Spacer()
-                }
-
-                Spacer()
-
-                Button(primaryTitle, action: primaryAction)
-                    .buttonStyle(.filled)
-
-                if let onSkipped {
-                    Button("Not Now", action: onSkipped)
-                        .buttonStyle(.subtle)
+            Group {
+                switch authorizer.status {
+                case .denied, .restricted:
+                    ContactsDeniedContent()
+                case .notDetermined, .authorized, .limited:
+                    ContactsPrimingContent(onContinue: requestAuthorization)
+                @unknown default:
+                    ContactsPrimingContent(onContinue: requestAuthorization)
                 }
             }
             .padding(20)
@@ -61,87 +40,140 @@ struct ContactsPermissionScreen: View {
         }
     }
 
-    // MARK: - State-driven copy -
-
-    private var title: String {
-        switch authorizer.status {
-        case .denied, .restricted:
-            return "Contact Access Required"
-        case .notDetermined, .authorized, .limited:
-            return "Find Your Friends"
-        @unknown default:
-            return "Find Your Friends"
-        }
-    }
-
-    private var subtitle: String {
-        switch authorizer.status {
-        case .denied, .restricted:
-            return "Go to Settings and give Full Access"
-        case .notDetermined, .authorized, .limited:
-            return "Sync your contacts to find, invite,\n and pay friends"
-        @unknown default:
-            return "Sync your contacts to find, invite,\n and pay friends"
-        }
-    }
-
-    private var primaryTitle: String {
-        switch authorizer.status {
-        case .denied, .restricted:
-            return "Go To Settings to Give Contacts Full Access"
-        case .notDetermined, .authorized, .limited:
-            return "Give Access To Contacts"
-        @unknown default:
-            return "Give Access To Contacts"
-        }
-    }
-
-    private func primaryAction() {
-        switch authorizer.status {
-        case .denied, .restricted:
-            URL.openSettings()
-        case .notDetermined:
-            Task { await requestAuthorization() }
-        case .authorized, .limited:
-            onAllowed()
-        @unknown default:
-            Task { await requestAuthorization() }
-        }
-    }
-
-    private func requestAuthorization() async {
-        let resolved = await authorizer.authorize()
-        if resolved.allowsContactAccess {
-            onAllowed()
+    private func requestAuthorization() {
+        Task {
+            let resolved = await authorizer.authorize()
+            if resolved.allowsContactAccess {
+                onAllowed()
+            }
         }
     }
 }
 
-// MARK: - Illustration -
+// MARK: - Priming -
 
-private struct ContactsPermissionIllustration: View {
+/// Undetermined state: sells the feature and prompts for access on Continue.
+private struct ContactsPrimingContent: View {
+
+    let onContinue: () -> Void
+
     var body: some View {
-        Image(.contactsPreview)
-            .resizable()
-            .aspectRatio(contentMode: .fit)
-            .frame(maxWidth: 270)
+        VStack(spacing: 0) {
+            Spacer(minLength: 0)
+
+            Image.asset(.paperPlaneTopRight)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 100, height: 100)
+                .accessibilityHidden(true)
+
+            VStack(spacing: 8) {
+                Text("Send Money to Your Friends")
+                    .font(.appTextLarge)
+                    .foregroundStyle(Color.textMain)
+                Text("Sync your contacts to find, invite, and pay friends")
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textSecondary)
+            }
+            .multilineTextAlignment(.center)
+            .padding(.top, 28)
+
+            // Bullets stay grouped just below the subtitle (rows leading-aligned
+            // to each other, icons in one column). The block is centered as a
+            // whole by the flanking spacers; the button is pinned to the bottom.
+            VStack(alignment: .leading, spacing: 22) {
+                PermissionBulletRow(icon: .checklist, text: "You decide whether to allow access")
+                PermissionBulletRow(icon: .lock, text: "Synced contacts are securely stored")
+                PermissionBulletRow(icon: .peopleGear, text: "Change contact access at any time")
+            }
+            .padding(.top, 40)
+
+            Spacer(minLength: 0)
+
+            Button("Continue", action: onContinue)
+                .buttonStyle(.filled)
+        }
+    }
+}
+
+// MARK: - Denied -
+
+/// Denied / restricted state: a warning and a centered button to open Settings.
+private struct ContactsDeniedContent: View {
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Spacer(minLength: 0)
+
+            Image.asset(.exclamationTriangle)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 100, height: 100)
+                .accessibilityHidden(true)
+
+            VStack(spacing: 8) {
+                Text("Allow Contact Access")
+                    .font(.appTextLarge)
+                    .foregroundStyle(Color.textMain)
+                Text("Turn on contact access so you can find people, send cash, and message them")
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textSecondary)
+            }
+            .multilineTextAlignment(.center)
+            .padding(.top, 28)
+
+            BubbleButton(text: "Settings") {
+                URL.openSettings()
+            }
+            .padding(.top, 28)
+
+            Spacer(minLength: 0)
+        }
+    }
+}
+
+// MARK: - Bullet row -
+
+/// One reassurance bullet: a tinted glyph and a line of copy.
+private struct PermissionBulletRow: View {
+
+    let icon: Asset
+    let text: String
+
+    var body: some View {
+        HStack(spacing: 16) {
+            Image.asset(icon)
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 24, height: 24)
+                .foregroundStyle(Color.textMain)
+            Text(text)
+                .font(.appTextMessage)
+                .foregroundStyle(Color.textMain)
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 
 // MARK: - Previews -
 
 #Preview("Priming") {
-    ContactsPermissionScreen(
-        authorizer: ContactsAuthorizer(),
-        onAllowed: {},
-        onSkipped: {}
-    )
+    NavigationStack {
+        ContactsPermissionScreen(authorizer: ContactsAuthorizer(), onAllowed: {})
+            .navigationTitle("Send")
+            .toolbarTitleDisplayMode(.inline)
+    }
+    .preferredColorScheme(.dark)
 }
 
-#Preview("No skip") {
-    ContactsPermissionScreen(
-        authorizer: ContactsAuthorizer(),
-        onAllowed: {},
-        onSkipped: nil
-    )
+#Preview("No Access") {
+    let authorizer = ContactsAuthorizer()
+    authorizer.status = .denied
+    return NavigationStack {
+        ContactsPermissionScreen(authorizer: authorizer, onAllowed: {})
+            .navigationTitle("Send")
+            .toolbarTitleDisplayMode(.inline)
+    }
+    .preferredColorScheme(.dark)
 }

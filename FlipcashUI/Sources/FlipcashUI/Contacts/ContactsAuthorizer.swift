@@ -21,6 +21,9 @@ public final class ContactsAuthorizer {
     /// Reads the current authorization status into ``status``. Runs the TCC
     /// query off the main actor.
     public func refresh() async {
+        // Previews seed `status` directly; skip the real TCC read so a pinned
+        // state (e.g. `.denied`) renders instead of resolving to the host's.
+        guard ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] != "1" else { return }
         let resolved = await Task.detached {
             CNContactStore.authorizationStatus(for: .contacts)
         }.value
