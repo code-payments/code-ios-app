@@ -173,9 +173,11 @@ class BaseUITestCase: XCTestCase {
     /// if the flow never completes — a swallowed miss leaves the alert
     /// covering the app and wedges every test that follows in the bundle.
     func allowContactsIfNeeded() {
-        let giveAccessButton = app.buttons["Give Access To Contacts"]
-        guard giveAccessButton.waitForExistence(timeout: 5) else { return }
-        giveAccessButton.tap()
+        // The in-app priming button; scoped to `app` so it never matches the
+        // system alert's own "Continue" (`springboard`, tapped below).
+        let appContinueButton = app.buttons["Continue"]
+        guard appContinueButton.waitForExistence(timeout: 5) else { return }
+        appContinueButton.tap()
 
         let springboard   = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         let limitedAccess = XCUIApplication(bundleIdentifier: "com.apple.ContactsUI.LimitedAccessPromptView")

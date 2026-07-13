@@ -66,14 +66,14 @@ struct SendRootScreen: View {
                             // granted access.
                             ProgressView()
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        case .needsContacts:
+                        case .needsContacts, .deniedNoRecents:
+                            // Both the undetermined pitch and the denied warning
+                            // are rendered by `ContactsPermissionScreen`, which
+                            // picks the event from the authorizer's status.
                             ContactsPermissionScreen(
                                 authorizer: contactsAuthorizer,
-                                onAllowed: { contactSyncController.activate() },
-                                onSkipped: nil
+                                onAllowed: { contactSyncController.activate() }
                             )
-                        case .deniedNoRecents:
-                            DeniedAccessEmptyState()
                         case .ready:
                             EmptyView()
                         }

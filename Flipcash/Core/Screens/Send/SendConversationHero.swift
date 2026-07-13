@@ -8,8 +8,7 @@ import FlipcashUI
 
 /// A cash card and two chat bubbles framed inside a faint "chat preview" panel
 /// whose bottom fades into the background via a `mask`. Sells the Send feature
-/// across the sheet's onboarding empty states (`ConnectPhoneEmptyState`,
-/// `DeniedAccessEmptyState`).
+/// on the sheet's phone-gating empty state (`ConnectPhoneEmptyState`).
 ///
 /// The cards and bubbles carry their real sender/recipient fills, so the muted
 /// look comes from those subtle fills plus the fade — not a global opacity.

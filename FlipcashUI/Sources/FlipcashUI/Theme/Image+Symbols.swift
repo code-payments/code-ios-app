@@ -178,6 +178,8 @@ public enum Asset: String, Sendable {
     case checklist = "IconChecklist"
     case lock = "IconLock"
     case peopleGear = "IconPeopleGear"
+    case exclamationTriangle = "IconExclamationTriangle"
+    case paperPlaneTopRight = "IconPaperPlaneTopRight"
     case cancel
     case dollar
     case gift
