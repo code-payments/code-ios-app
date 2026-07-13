@@ -53,7 +53,7 @@ struct CurrencyCreationSummaryScreen: View {
                 Button("Get Started") {
                     if shouldAddMoneyBeforeLaunch(session: session, launchCost: totalLaunchCost.onChainAmount) {
                         session.dialogItem = .noBalance(subtitle: AddMoneyContext.createCurrency.noBalanceSubtitle) {
-                            router.presentAddMoney(.createCurrency)
+                            router.presentAddMoney(.createCurrency, source: .buyShortfall)
                         }
                     } else {
                         router.push(.currencyCreationWizard)

@@ -104,6 +104,7 @@ final class PhantomDepositOperation {
             swapId: swapId,
             displayName: "USDF"
         )
+        Analytics.addMoneyPaymentInvoked(method: .phantom, exchangedFiat: amount)
 
         let signedTx = try await awaitSignedTransaction(swapId: swapId)
 

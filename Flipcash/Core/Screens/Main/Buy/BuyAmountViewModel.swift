@@ -73,7 +73,7 @@ final class BuyAmountViewModel: Identifiable {
             break
         case .insufficient:
             session.dialogItem = .noBalance(subtitle: AddMoneyContext.buyCurrency.noBalanceSubtitle) {
-                router.presentAddMoney(.buyCurrency)
+                router.presentAddMoney(.buyCurrency, source: .buyShortfall)
             }
             return
         }
@@ -120,7 +120,7 @@ final class BuyAmountViewModel: Identifiable {
             // Race: the balance gate said OK but the reserves buy disagreed.
             actionButtonState = .normal
             session.dialogItem = .noBalance(subtitle: AddMoneyContext.buyCurrency.noBalanceSubtitle) {
-                router.presentAddMoney(.buyCurrency)
+                router.presentAddMoney(.buyCurrency, source: .buyShortfall)
             }
         } catch Session.Error.verifiedStateStale {
             actionButtonState = .normal

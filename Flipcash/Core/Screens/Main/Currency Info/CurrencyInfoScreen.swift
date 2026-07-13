@@ -178,7 +178,7 @@ private struct CurrencyInfoScreenContent: View {
     private func presentBuyOrAddMoney() {
         if shouldAddMoneyBeforeBuy(session: session) {
             session.dialogItem = .noBalance(subtitle: AddMoneyContext.buyCurrency.noBalanceSubtitle) {
-                router.presentAddMoney(.buyCurrency)
+                router.presentAddMoney(.buyCurrency, source: .buyShortfall)
             }
         } else {
             router.presentNested(.buy(mint))

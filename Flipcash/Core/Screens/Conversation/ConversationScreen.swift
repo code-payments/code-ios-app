@@ -335,7 +335,7 @@ struct ConversationScreen: View {
     private func sendCash() {
         guard let sendTarget else { return }
         let rate = ratesController.rateForBalanceCurrency()
-        if let dialog = giveCashGate(session: session, rate: rate).blockingDialog(router: router) {
+        if let dialog = giveCashGate(session: session, rate: rate).blockingDialog(router: router, addMoneySource: .chat) {
             session.dialogItem = dialog
             return
         }

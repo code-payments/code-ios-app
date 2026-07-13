@@ -315,7 +315,7 @@ struct DeepLinkAction {
                 if sheet == .give {
                     let rate = container.ratesController.rateForBalanceCurrency()
                     let gate = giveCashGate(session: container.session, rate: rate)
-                    if let dialog = gate.blockingDialog(router: container.appRouter) {
+                    if let dialog = gate.blockingDialog(router: container.appRouter, addMoneySource: .giveShortfall) {
                         container.session.dialogItem = dialog
                         return
                     }

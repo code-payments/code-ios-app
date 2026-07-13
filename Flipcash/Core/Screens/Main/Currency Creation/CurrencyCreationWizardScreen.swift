@@ -634,7 +634,7 @@ struct CurrencyCreationWizardScreen: View {
             launchAndBuyWithReserves()
         } else {
             session.dialogItem = .noBalance(subtitle: AddMoneyContext.createCurrency.noBalanceSubtitle) {
-                router.presentAddMoney(.createCurrency)
+                router.presentAddMoney(.createCurrency, source: .buyShortfall)
             }
         }
     }

@@ -100,6 +100,29 @@ extension Analytics {
         case parse  = "Deeplink: Parse"
         case routed = "Deeplink: Routed"
     }
+
+    /// The Add Money funnel, modeled after the transfer pattern — a single
+    /// terminal event with State/Error properties. Names are shared verbatim
+    /// with Android.
+    enum AddMoneyEvent: String, AnalyticsEvent {
+        case opened          = "Add Money: Opened"
+        case methodSelected  = "Add Money: Method Selected"
+        case amountConfirmed = "Add Money: Amount Confirmed"
+        case paymentInvoked  = "Add Money: Payment Invoked"
+        case addressCopied   = "Add Money: Address Copied"
+        case terminal        = "Add Money"
+    }
+
+    /// The `Source` property of `AddMoneyEvent.opened` — where the user
+    /// entered the flow. Values are shared verbatim with Android.
+    enum AddMoneySource: String {
+        case menu          = "Menu"
+        case giveShortfall = "Give Shortfall"
+        case buyShortfall  = "Buy Shortfall"
+        case chat          = "Chat"
+        case scanner       = "Scanner"
+        case balance       = "Balance"
+    }
 }
 
 // MARK: - General -
@@ -123,6 +146,22 @@ extension Analytics {
     }
 }
 
+// MARK: - Shared property builders -
+
+private extension Analytics {
+    /// The standard money-amount property block — mint, quarks, native fiat,
+    /// exchange rate, and currency. Shared by the transfer and Add Money events.
+    static func amountProperties(_ exchangedFiat: ExchangedFiat) -> [Property: AnalyticsValue] {
+        [
+            .mint:     exchangedFiat.mint.base58,
+            .quarks:   exchangedFiat.onChainAmount.quarks.analyticsValue,
+            .fiat:     exchangedFiat.nativeAmount.doubleValue,
+            .fx:       exchangedFiat.currencyRate.fx.analyticsValue,
+            .currency: exchangedFiat.currencyRate.currency.rawValue,
+        ]
+    }
+}
+
 // MARK: - Cash Transfer -
 
 extension Analytics {
@@ -131,17 +170,8 @@ extension Analytics {
     }
 
     static func withdrawal(exchangedFiat: ExchangedFiat?, successful: Bool, error: Error?) {
-        var properties: [Property: AnalyticsValue] = [
-            .state: successful ? String.success : String.failure,
-        ]
-
-        if let exchangedFiat {
-            properties[.mint]     = exchangedFiat.mint.base58
-            properties[.quarks]   = exchangedFiat.onChainAmount.quarks.analyticsValue
-            properties[.fiat]     = exchangedFiat.nativeAmount.doubleValue
-            properties[.fx]       = exchangedFiat.currencyRate.fx.analyticsValue
-            properties[.currency] = exchangedFiat.currencyRate.currency.rawValue
-        }
+        var properties: [Property: AnalyticsValue] = exchangedFiat.map(amountProperties) ?? [:]
+        properties[.state] = successful ? String.success : String.failure
 
         track(
             event: TransferEvent.withdrawal,
@@ -151,17 +181,8 @@ extension Analytics {
     }
 
     static func transfer(event: TransferEvent, exchangedFiat: ExchangedFiat?, grabTime: Double?, successful: Bool, error: Error?) {
-        var properties: [Property: AnalyticsValue] = [
-            .state: successful ? String.success : String.failure,
-        ]
-
-        if let exchangedFiat {
-            properties[.mint]     = exchangedFiat.mint.base58
-            properties[.quarks]   = exchangedFiat.onChainAmount.quarks.analyticsValue
-            properties[.fiat]     = exchangedFiat.nativeAmount.doubleValue
-            properties[.fx]       = exchangedFiat.currencyRate.fx.analyticsValue
-            properties[.currency] = exchangedFiat.currencyRate.currency.rawValue
-        }
+        var properties: [Property: AnalyticsValue] = exchangedFiat.map(amountProperties) ?? [:]
+        properties[.state] = successful ? String.success : String.failure
 
         if let grabTime {
             properties[.grabTime] = grabTime
@@ -189,6 +210,52 @@ extension Analytics {
             properties: properties,
             error: error
         )
+    }
+}
+
+// MARK: - Add Money -
+
+extension Analytics {
+    static func addMoneyOpened(source: AddMoneySource) {
+        track(event: AddMoneyEvent.opened, properties: [.source: source.rawValue])
+    }
+
+    static func addMoneyMethodSelected(method: DepositMethod) {
+        track(event: AddMoneyEvent.methodSelected, properties: [.method: method.analyticsValue])
+    }
+
+    static func addMoneyAmountConfirmed(method: DepositMethod, exchangedFiat: ExchangedFiat) {
+        var properties = amountProperties(exchangedFiat)
+        properties[.method] = method.analyticsValue
+        track(event: AddMoneyEvent.amountConfirmed, properties: properties)
+    }
+
+    static func addMoneyPaymentInvoked(method: DepositMethod, exchangedFiat: ExchangedFiat) {
+        var properties = amountProperties(exchangedFiat)
+        properties[.method] = method.analyticsValue
+        track(event: AddMoneyEvent.paymentInvoked, properties: properties)
+    }
+
+    static func addMoneyAddressCopied(mint: PublicKey) {
+        track(event: AddMoneyEvent.addressCopied, properties: [.mint: mint.base58])
+    }
+
+    static func addMoney(method: DepositMethod, exchangedFiat: ExchangedFiat?, successful: Bool, error: Error?) {
+        var properties: [Property: AnalyticsValue] = exchangedFiat.map(amountProperties) ?? [:]
+        properties[.method] = method.analyticsValue
+        properties[.state] = successful ? String.success : String.failure
+        track(event: AddMoneyEvent.terminal, properties: properties, error: error)
+    }
+}
+
+extension DepositMethod {
+    /// The `Method` property value, shared verbatim with Android.
+    var analyticsValue: String {
+        switch self {
+        case .coinbase:    "Coinbase"
+        case .phantom:     "Phantom"
+        case .otherWallet: "Other Wallet"
+        }
     }
 }
 
@@ -326,6 +393,8 @@ extension Analytics {
         case time              = "Time"
 
         case state             = "State"
+        case source            = "Source"
+        case method            = "Method"
         case quarks            = "Quarks"
         case mint              = "Mint"
         case fiat              = "Fiat"
