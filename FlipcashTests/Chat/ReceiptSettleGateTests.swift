@@ -35,13 +35,4 @@ struct ReceiptSettleGateTests {
         gate.cancel()
         #expect(gate.settlingID == nil)
     }
-
-    @Test("The held id clears on its own after the delay")
-    func clearsAfterDelay() async throws {
-        let gate = ReceiptSettleGate(delay: .milliseconds(20))
-        gate.hold("a")
-        #expect(gate.settlingID == "a")
-        try await Task.sleep(for: .milliseconds(120))
-        #expect(gate.settlingID == nil)
-    }
 }

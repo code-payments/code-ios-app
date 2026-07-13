@@ -27,9 +27,6 @@ final class CreateAccountSmokeTests: BaseUITestCase {
         // Onboarding phone verification — forced for new registrations.
         allowPhoneVerificationIfNeeded()
 
-        // Contacts permission screen (may be skipped if already prompted)
-        allowContactsIfNeeded()
-
         // Push notification permission screen (may be skipped if already granted)
         allowPushNotificationsIfNeeded()
 
@@ -49,9 +46,6 @@ final class CreateAccountSmokeTests: BaseUITestCase {
 
         // Onboarding phone verification — forced for new registrations.
         allowPhoneVerificationIfNeeded()
-
-        // Contacts permission screen (may be skipped if already prompted)
-        allowContactsIfNeeded()
 
         // Push notification permission screen (may be skipped if already granted)
         allowPushNotificationsIfNeeded()
