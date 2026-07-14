@@ -29,6 +29,7 @@ protocol PhoneVerifying: Verifying {
     // MARK: - Derived state -
 
     var phone: Phone? { get }
+    var showsInvalidPhoneHint: Bool { get }
     var regionFlagStyle: Flag.Style { get }
     var countryCode: String { get }
     var canSendVerificationCode: Bool { get }

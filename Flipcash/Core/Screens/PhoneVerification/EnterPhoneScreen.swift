@@ -64,10 +64,7 @@ struct EnterPhoneScreen<VM: PhoneVerifying>: View {
                     }
                 }
 
-                Text("Please enter your phone number to continue")
-                    .foregroundStyle(.textSecondary)
-                    .font(.appTextSmall)
-                    .multilineTextAlignment(.center)
+                PhoneEntryHint(showsError: viewModel.showsInvalidPhoneHint)
 
                 Spacer()
 
@@ -107,5 +104,19 @@ struct EnterPhoneScreen<VM: PhoneVerifying>: View {
     private func didSelectRegion(region: Region) {
         viewModel.setRegion(region)
         isShowingRegionSelection = false
+    }
+}
+
+private struct PhoneEntryHint: View {
+
+    let showsError: Bool
+
+    var body: some View {
+        Text(showsError ? "Phone number invalid" : "Please enter your phone number to continue")
+            .foregroundStyle(showsError ? .textError : .textSecondary)
+            .font(.appTextSmall)
+            .multilineTextAlignment(.center)
+            .contentTransition(.opacity)
+            .animation(.easeInOut(duration: 0.2), value: showsError)
     }
 }

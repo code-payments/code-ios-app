@@ -87,4 +87,19 @@ struct PhoneTests {
             #expect(second?.e164 == "+14155550100")
         }
     }
+
+    @Suite("Phone.expectedNationalLength")
+    struct ExpectedNationalLengthTests {
+
+        @Test("US mobile numbers are ten national digits")
+        func usIsTen() {
+            #expect(Phone.expectedNationalLength(for: .us) == 10)
+        }
+
+        @Test("A supported region returns a positive length")
+        func gbIsPositive() {
+            let length = Phone.expectedNationalLength(for: .gb)
+            #expect((length ?? 0) > 0)
+        }
+    }
 }
