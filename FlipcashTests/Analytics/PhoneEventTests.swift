@@ -14,5 +14,6 @@ struct PhoneEventTests {
     func phoneEvent_eventNames_matchAndroid() {
         #expect(Analytics.PhoneEvent.entered.eventName == "Entered Phone Number")
         #expect(Analytics.PhoneEvent.verified.eventName == "Verified Phone Number")
+        #expect(Analytics.PhoneEvent.linked.eventName == "Linked Phone Number")
     }
 }

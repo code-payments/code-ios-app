@@ -70,6 +70,7 @@ extension Analytics {
     enum PhoneEvent: String, AnalyticsEvent {
         case entered  = "Entered Phone Number"
         case verified = "Verified Phone Number"
+        case linked   = "Linked Phone Number"
     }
 
     enum WalletEvent: String, AnalyticsEvent {

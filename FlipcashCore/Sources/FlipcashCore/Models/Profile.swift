@@ -24,6 +24,11 @@ public struct Profile: Codable, Equatable, Sendable {
         phone != nil
     }
 
+    /// Returns whether this profile gained a phone number not present in `previous`.
+    public func hasNewlyLinkedPhone(since previous: Profile?) -> Bool {
+        phone != nil && phone?.e164 != previous?.phone?.e164
+    }
+
     public init(displayName: String?, phone: String?, email: String?) throws {
 
         // Only parse phone if it's not empty

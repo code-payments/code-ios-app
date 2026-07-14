@@ -28,6 +28,19 @@ struct ProfileTests {
         #expect(profile.phone == nil)
         #expect(profile.isPhoneVerified == false)
     }
+
+    @Test("Newly linked phone is detected only on a fresh number")
+    func newlyLinkedPhone_detectsTransitions() throws {
+        let none = try makeProfile(phone: nil)
+        let x    = try makeProfile(phone: "+14155550100")
+        let y    = try makeProfile(phone: "+14155550101")
+
+        #expect(x.hasNewlyLinkedPhone(since: nil)  == true)  // first ever
+        #expect(x.hasNewlyLinkedPhone(since: none) == true)  // no prior number
+        #expect(x.hasNewlyLinkedPhone(since: x)    == false) // same number (relaunch)
+        #expect(x.hasNewlyLinkedPhone(since: y)    == true)  // number changed
+        #expect(none.hasNewlyLinkedPhone(since: x) == false) // number removed
+    }
 }
 
 private func makeProfile(email: String? = nil, phone: String? = nil) throws -> Profile {
