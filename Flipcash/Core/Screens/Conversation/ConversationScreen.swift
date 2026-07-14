@@ -130,11 +130,6 @@ struct ConversationScreen: View {
         return contact?.displayName ?? ConversationController.fallbackCounterpartName
     }
 
-    private var messages: [ConversationMessage] {
-        guard let conversationID else { return [] }
-        return conversationController.messages(for: conversationID)
-    }
-
     /// The newest server-confirmed message — what the receive buzz and mark-read track. Optimistic
     /// pending sends render after the confirmed run, so they must not drive these signals (an unresolved
     /// send would otherwise sit at the transcript's tail and mask incoming messages).
@@ -249,9 +244,6 @@ struct ConversationScreen: View {
             // The composer's focus `onChange` can't fire once unmounted, so stop typing here.
             if let conversationID {
                 conversationController.stopSelfTyping(in: conversationID)
-                // Drop the paged-back history so a long thread doesn't retain its whole transcript
-                // in memory for the session; the newest cached window stays and older re-pages.
-                conversationController.trimTranscript(for: conversationID)
             }
             // Guarded so a forward push that already set another ID isn't cleared.
             let matched = conversationController.visibleConversationID == conversationID
@@ -330,7 +322,9 @@ struct ConversationScreen: View {
     /// Push the tapped cash card's token currency info onto the current chat stack (so back returns
     /// here). The id is the row's stable id; resolve it to the cash message's mint.
     private func openCurrencyInfo(messageID: String) {
-        guard let message = messages.first(where: { $0.stableID == messageID }) else { return }
+        // Resolve against the displayed window (the DB-backed transcript), not the store — the window
+        // can hold older/paged messages the trimmed store no longer does.
+        guard let message = (coordinator?.loader.messages ?? []).first(where: { $0.stableID == messageID }) else { return }
         switch message.content {
         case .cash(let fiat):
             router.push(.currencyInfo(fiat.mint))

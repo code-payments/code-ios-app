@@ -6,52 +6,49 @@
 import Foundation
 import FlipcashCore
 
-/// A per-conversation, bounded window over a conversation's messages. It renders only a recent
-/// slice so a fresh open lays out a window rather than the whole thread; `loadOlder()` grows it
-/// and pages from the server once the loaded set is exhausted. The window is anchored by message
-/// id, so an arriving message never drops the oldest shown row out from under a reader who has
-/// scrolled up.
+/// A per-conversation, bounded window over a conversation's messages, read from the local database.
+/// It renders only a recent slice so a fresh open lays out a window rather than the whole thread;
+/// `loadOlder()` grows the window over already-persisted history and pages the next older batch from
+/// the server (which persists it) once the local history is exhausted.
 @MainActor @Observable
 final class MessageLoader {
 
     private let conversationID: ConversationID
     private let controller: ConversationController
 
-    /// The oldest message id currently shown; `nil` renders the most recent `initialWindow`.
-    private var startID: MessageID?
+    /// How many newest confirmed messages the window currently reveals; grows as the reader pages back.
+    private var windowLimit = MessageLoader.initialWindow
 
     init(conversationID: ConversationID, controller: ConversationController) {
         self.conversationID = conversationID
         self.controller = controller
     }
 
-    /// The bounded slice actually rendered.
+    /// The bounded slice actually rendered: the newest `windowLimit` confirmed messages (from the DB)
+    /// with the optimistic overlay applied.
     var messages: [ConversationMessage] {
-        let all = controller.messages(for: conversationID)
-        guard let startID, let start = all.firstIndex(where: { $0.id >= startID }) else {
-            return Array(all.suffix(Self.initialWindow))
-        }
-        return Array(all[start...])
+        controller.windowedMessages(for: conversationID, limit: windowLimit)
     }
 
-    /// Reveals an older step of the loaded history, paging from the server once the window
-    /// reaches the oldest loaded message.
+    /// Reveals an older step: grows the window over already-persisted history, or pages the next older
+    /// batch from the server (which persists it) once the local history is exhausted.
     func loadOlder() {
-        let all = controller.messages(for: conversationID)
-        guard let oldest = messages.first,
-              let index = all.firstIndex(where: { $0.id == oldest.id }) else {
-            fetchOlder()
-            return
-        }
-        if index == 0 {
-            fetchOlder()
+        let available = controller.confirmedMessageCount(for: conversationID)
+        if windowLimit < available {
+            windowLimit = min(windowLimit + Self.step, available)
         } else {
-            startID = all[max(0, index - Self.step)].id
+            fetchOlder()
         }
     }
 
     private func fetchOlder() {
-        Task { await controller.loadOlderMessages(for: conversationID) }
+        Task {
+            await controller.loadOlderMessages(for: conversationID)
+            let available = controller.confirmedMessageCount(for: conversationID)
+            if available > windowLimit {
+                windowLimit = min(windowLimit + Self.step, available)
+            }
+        }
     }
 
     private static let initialWindow = 60

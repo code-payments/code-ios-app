@@ -269,6 +269,22 @@ struct ConversationControllerTests {
         #expect(controller.messages(for: ConversationID.test(1)).map(\.id.value) == [7])
     }
 
+    @Test("a confirmed send persists its client id to the cache (identity survives a DB round-trip)")
+    func sendPersistsClientID() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let me = UUID()
+        let mock = MockConversations()
+        mock.sendResult = ConversationMessage(id: MessageID(value: 7), senderID: me, content: .text("hi"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0)
+        let controller = makeController(mock, selfUserID: me, database: database)
+
+        #expect(await controller.send("hi", to: ConversationID.test(1)))
+
+        let stored = try database.getConversationMessages(conversationID: ConversationID.test(1))
+        #expect(stored.map(\.id.value) == [7])
+        #expect(stored.first?.clientMessageID != nil)   // the send's client id round-tripped through the DB
+    }
+
     @Test("send shows the message immediately as sending, then sent on success")
     func sendOptimisticSuccess() async {
         let me = UUID()
@@ -776,46 +792,28 @@ struct ConversationControllerTests {
         #expect(pointer == MessageID(value: 2))
     }
 
-    // MARK: - Background transcript bound -
+    // MARK: - DB-backed transcript (no in-memory hold) -
 
-    private func backlog(_ ids: ClosedRange<Int>) -> [ConversationMessage] {
-        ids.map {
+    @Test("streamed messages persist to the DB and are read as a bounded window, not held in memory")
+    func streamedMessagesAreDBBackedAndWindowed() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let mock = MockConversations()
+        let controller = makeController(mock, database: database)
+        controller.start()
+        try await waitUntil { mock.streamOpened }
+
+        let backlog = (1...150).map {
             ConversationMessage(id: MessageID(value: UInt64($0)), senderID: nil, content: .text("m\($0)"), date: Date(timeIntervalSince1970: TimeInterval($0)), unreadSeq: UInt64($0))
         }
-    }
+        mock.emit(.newMessages(conversationID: ConversationID.test(1), messages: backlog))
 
-    @Test("a never-opened conversation's streamed backlog is bounded to the cached window")
-    func backgroundConversationTranscriptIsBounded() async throws {
-        let mock = MockConversations()
-        let controller = makeController(mock)
-        controller.start()
-        try await waitUntil { mock.streamOpened }
-
-        // .test(1) is the chat on screen; .test(2) is one the user never opens, so on-leave trim never
-        // fires for it and its whole streamed backlog would otherwise accrete in memory.
-        controller.visibleConversationID = ConversationID.test(1)
-        mock.emit(.newMessages(conversationID: ConversationID.test(2), messages: backlog(1...150)))
-
-        try await waitUntil { controller.messages(for: ConversationID.test(2)).count == 100 }
-        let bounded = controller.messages(for: ConversationID.test(2))
-        #expect(bounded.count == 100)              // capped to the cached window
-        #expect(bounded.first?.id.value == 51)     // newest 100 kept (51...150)
-        #expect(bounded.last?.id.value == 150)
-        controller.stop()
-    }
-
-    @Test("the conversation on screen is not capped, so a deep transcript keeps its loaded history")
-    func visibleConversationTranscriptIsNotBounded() async throws {
-        let mock = MockConversations()
-        let controller = makeController(mock)
-        controller.start()
-        try await waitUntil { mock.streamOpened }
-
-        controller.visibleConversationID = ConversationID.test(1)
-        mock.emit(.newMessages(conversationID: ConversationID.test(1), messages: backlog(1...150)))
-
-        try await waitUntil { controller.messages(for: ConversationID.test(1)).count == 150 }
-        #expect(controller.messages(for: ConversationID.test(1)).count == 150)   // visible chat uncapped
+        // The whole backlog lands in the DB (nothing dropped), but the accessor reads a bounded window.
+        try await waitUntil { ((try? database.messageCount(conversationID: ConversationID.test(1))) ?? 0) == 150 }
+        #expect(try database.messageCount(conversationID: ConversationID.test(1)) == 150)   // full history persisted
+        let window = controller.messages(for: ConversationID.test(1))
+        #expect(window.count == 100)              // read as a bounded window, not the whole 150
+        #expect(window.last?.id.value == 150)     // newest at the tail
         controller.stop()
     }
 }
