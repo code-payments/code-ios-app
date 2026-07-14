@@ -300,7 +300,6 @@ class OnboardingViewModel {
             let vm = PhoneVerificationViewModel(
                 owner: inflightMnemonic.solanaKeyPair(),
                 flipClient: container.flipClient,
-                enterPhoneEvent: Analytics.OnboardingEvent.showEnterPhone,
             )
             vm.onCodeRequested = { [weak self] in
                 self?.navigateToConfirmPhoneCode()
