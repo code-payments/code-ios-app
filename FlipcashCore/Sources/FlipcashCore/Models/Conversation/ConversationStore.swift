@@ -45,6 +45,15 @@ public struct ConversationStore: Sendable {
         messagesByConversation[conversationID] ?? []
     }
 
+    /// Drops all but the newest `count` confirmed messages for a conversation. Called when the
+    /// transcript is left so a paged-back thread doesn't retain its whole history in memory for the
+    /// session. Pending sends and the applied cursor are untouched, and the feed preview is the
+    /// newest message either way — older history re-pages from the server on reopen.
+    public mutating func trimMessages(for conversationID: ConversationID, keepingNewest count: Int) {
+        guard let messages = messagesByConversation[conversationID], messages.count > count else { return }
+        messagesByConversation[conversationID] = Array(messages.suffix(count))
+    }
+
     /// Replace the feed from a paged load, sorted most-recent-activity first.
     public mutating func setFeed(_ conversations: [Conversation]) {
         self.conversations = conversations.sorted { $0.lastActivity > $1.lastActivity }

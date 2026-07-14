@@ -635,4 +635,41 @@ struct ConversationStoreTests {
         let ids = store.displayedMessages(for: conversationID(1)).map(\.stableID)
         #expect(Set(ids).count == ids.count)
     }
+
+    // MARK: - Transcript trimming
+
+    @Test("trimMessages keeps only the newest N confirmed messages")
+    func trimKeepsNewest() {
+        var store = ConversationStore()
+        store.mergeMessages((1...10).map { message(UInt64($0)) }, into: conversationID(1))
+        store.trimMessages(for: conversationID(1), keepingNewest: 4)
+        #expect(store.messages(for: conversationID(1)).map(\.id.value) == [7, 8, 9, 10])
+    }
+
+    @Test("trimMessages is a no-op when the thread is at or under the cap")
+    func trimNoOpUnderCap() {
+        var store = ConversationStore()
+        store.mergeMessages([message(1), message(2), message(3)], into: conversationID(1))
+        store.trimMessages(for: conversationID(1), keepingNewest: 5)
+        #expect(store.messages(for: conversationID(1)).map(\.id.value) == [1, 2, 3])
+    }
+
+    @Test("trimMessages leaves pending sends and the applied cursor intact")
+    func trimPreservesPendingAndCursor() {
+        var store = ConversationStore()
+        store.setAppliedCursor(9, for: conversationID(1))
+        store.mergeMessages((1...6).map { message(UInt64($0)) }, into: conversationID(1))
+        let clientID = UUID()
+        store.insertPending(
+            ConversationMessage(id: MessageID(value: .max), senderID: nil, content: .text("c"),
+                                date: Date(timeIntervalSince1970: 0), unreadSeq: 0,
+                                status: .sending, clientMessageID: clientID),
+            into: conversationID(1)
+        )
+        store.trimMessages(for: conversationID(1), keepingNewest: 2)
+        #expect(store.messages(for: conversationID(1)).map(\.id.value) == [5, 6])              // confirmed trimmed
+        #expect(store.appliedCursor(for: conversationID(1)) == 9)                               // delta cursor intact
+        // The pending send survives and still rides after the trimmed confirmed tail.
+        #expect(store.displayedMessages(for: conversationID(1)).map(\.stableID) == ["5", "6", clientID.uuidString])
+    }
 }

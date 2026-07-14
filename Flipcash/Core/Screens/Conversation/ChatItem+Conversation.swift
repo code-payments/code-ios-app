@@ -10,8 +10,9 @@ import FlipcashCore
 import FlipcashUI
 
 /// One detector for every remap — `NSDataDetector` compiles its matchers once, and `from(_:)`
-/// re-runs on every observable transcript change.
-private let linkDetector = LinkDetector()
+/// re-runs on every observable transcript change. `nonisolated(unsafe)` because the mapper runs off
+/// the main actor and `LinkDetector` is an immutable wrapper over a thread-safe `NSDataDetector`.
+nonisolated(unsafe) private let linkDetector = LinkDetector()
 
 /// Memoizes link detection across remaps: `from(_:)` re-runs on every observable transcript change
 /// (typing, receipts, grouping), but a message's link depends only on its immutable text — so a typing
@@ -19,8 +20,8 @@ private let linkDetector = LinkDetector()
 /// entries, purges under memory pressure, and synchronizes its own access, so the mapper stays
 /// non-isolated. Keyed by text, so identical messages share the result.
 private final class DetectedLinkBox {
-    let preview: LinkPreview?
-    init(_ preview: LinkPreview?) { self.preview = preview }
+    nonisolated let preview: LinkPreview?
+    nonisolated init(_ preview: LinkPreview?) { self.preview = preview }
 }
 
 nonisolated(unsafe) private let linkPreviewCache: NSCache<NSString, DetectedLinkBox> = {
@@ -29,7 +30,7 @@ nonisolated(unsafe) private let linkPreviewCache: NSCache<NSString, DetectedLink
     return cache
 }()
 
-private func detectedLink(in text: String) -> LinkPreview? {
+nonisolated private func detectedLink(in text: String) -> LinkPreview? {
     let key = text as NSString
     if let cached = linkPreviewCache.object(forKey: key) { return cached.preview }
     let preview = linkDetector.webLink(in: text)
@@ -45,7 +46,7 @@ extension ChatItem {
     /// way the transcript does. Pure — `cashBranding` supplies the token name + launchpad icon so
     /// this stays testable; it defaults to plain "Cash" (USDF), and the screen injects bonded-mint
     /// branding from `Session`.
-    static func from(
+    nonisolated static func from(
         _ messages: [ConversationMessage],
         selfUserID: UserID,
         gap: TimeInterval = 15 * 60,
@@ -138,7 +139,7 @@ extension ChatItem {
 
     /// "Read 3:42 PM" / "Read Yesterday" / "Read Monday" / "Read Tue, Jun 17" once the counterpart's
     /// read pointer reaches the message, else "Delivered".
-    private static func receiptText(for messageID: MessageID, counterpartRead: (pointer: MessageID, date: Date?)?) -> String {
+    nonisolated private static func receiptText(for messageID: MessageID, counterpartRead: (pointer: MessageID, date: Date?)?) -> String {
         guard let read = counterpartRead, read.pointer >= messageID else { return "Delivered" }
         guard let date = read.date else { return "Read" }
         return "Read \(date.formattedRelatively(useTimeForToday: true))"

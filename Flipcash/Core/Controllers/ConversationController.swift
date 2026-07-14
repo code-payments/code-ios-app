@@ -160,6 +160,7 @@ final class ConversationController {
             for await event in events {
                 guard let self else { return }
                 let gap = self.store.apply(event)
+                self.boundBackgroundTranscript(for: event)
                 self.persist(event: event)
                 self.hydrateIfUnknown(event)
                 self.logCounterpartRead(event)
@@ -496,6 +497,31 @@ final class ConversationController {
     func messages(for conversationID: ConversationID) -> [ConversationMessage] {
         store.displayedMessages(for: conversationID)
     }
+
+    /// Trims a left conversation's in-memory transcript back to the cached window so a paged-back
+    /// thread doesn't retain its whole history for the session. Older history re-pages on reopen.
+    func trimTranscript(for conversationID: ConversationID) {
+        store.trimMessages(for: conversationID, keepingNewest: Self.retainedMessageWindow)
+    }
+
+    // A conversation the user never opens still accretes its whole stream backlog in memory — the
+    // on-leave trim only fires for a chat that was opened. Cap every conversation that isn't on screen
+    // to the cached window as its message events land; the visible chat stays uncapped so a paged-back
+    // scroll keeps its history.
+    private func boundBackgroundTranscript(for event: ConversationStreamEvent) {
+        let conversationID: ConversationID
+        switch event {
+        case .newMessages(let id, _), .chatEvents(let id, _):
+            conversationID = id
+        case .metadataRefresh, .lastActivityChanged, .readPointersChanged, .typingChanged:
+            return
+        }
+        guard conversationID != visibleConversationID else { return }
+        store.trimMessages(for: conversationID, keepingNewest: Self.retainedMessageWindow)
+    }
+
+    /// How many newest confirmed messages a left conversation keeps in memory — the DB-cache page size.
+    private static let retainedMessageWindow = 100
 
     /// The newest server-confirmed message — what the screen's receive buzz and mark-read track, so an
     /// unresolved optimistic send (which renders after the confirmed run) never masks an incoming one.

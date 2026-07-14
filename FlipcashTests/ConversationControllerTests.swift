@@ -775,4 +775,47 @@ struct ConversationControllerTests {
         let pointer = rehydrated.conversations.first?.selfReadPointer(for: selfUserID)
         #expect(pointer == MessageID(value: 2))
     }
+
+    // MARK: - Background transcript bound -
+
+    private func backlog(_ ids: ClosedRange<Int>) -> [ConversationMessage] {
+        ids.map {
+            ConversationMessage(id: MessageID(value: UInt64($0)), senderID: nil, content: .text("m\($0)"), date: Date(timeIntervalSince1970: TimeInterval($0)), unreadSeq: UInt64($0))
+        }
+    }
+
+    @Test("a never-opened conversation's streamed backlog is bounded to the cached window")
+    func backgroundConversationTranscriptIsBounded() async throws {
+        let mock = MockConversations()
+        let controller = makeController(mock)
+        controller.start()
+        try await waitUntil { mock.streamOpened }
+
+        // .test(1) is the chat on screen; .test(2) is one the user never opens, so on-leave trim never
+        // fires for it and its whole streamed backlog would otherwise accrete in memory.
+        controller.visibleConversationID = ConversationID.test(1)
+        mock.emit(.newMessages(conversationID: ConversationID.test(2), messages: backlog(1...150)))
+
+        try await waitUntil { controller.messages(for: ConversationID.test(2)).count == 100 }
+        let bounded = controller.messages(for: ConversationID.test(2))
+        #expect(bounded.count == 100)              // capped to the cached window
+        #expect(bounded.first?.id.value == 51)     // newest 100 kept (51...150)
+        #expect(bounded.last?.id.value == 150)
+        controller.stop()
+    }
+
+    @Test("the conversation on screen is not capped, so a deep transcript keeps its loaded history")
+    func visibleConversationTranscriptIsNotBounded() async throws {
+        let mock = MockConversations()
+        let controller = makeController(mock)
+        controller.start()
+        try await waitUntil { mock.streamOpened }
+
+        controller.visibleConversationID = ConversationID.test(1)
+        mock.emit(.newMessages(conversationID: ConversationID.test(1), messages: backlog(1...150)))
+
+        try await waitUntil { controller.messages(for: ConversationID.test(1)).count == 150 }
+        #expect(controller.messages(for: ConversationID.test(1)).count == 150)   // visible chat uncapped
+        controller.stop()
+    }
 }

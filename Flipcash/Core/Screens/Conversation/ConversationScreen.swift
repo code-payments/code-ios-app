@@ -47,6 +47,7 @@ struct ConversationScreen: View {
     @State private var barModel = ConversationBarModel()
     @State private var navBarWidth: CGFloat = 0
     @State private var presentedCard: ContactCard?
+    @State private var coordinator: ConversationLoadCoordinator?
 
     /// Horizontal space the back button (leading) reserves on each side of the
     /// centered title item, so the avatar + name can left-align inside a
@@ -142,40 +143,12 @@ struct ConversationScreen: View {
         return conversationController.lastConfirmedMessage(for: conversationID)
     }
 
-    /// The transcript's messages mapped to the UIKit chat's display items (messages + date
-    /// separators). Cash branding mirrors the SwiftUI bubble: USDF reads as "Cash"; a launchpad
-    /// currency uses its cached name + icon.
-    private var mappedItems: [ChatItem] {
-        var items = ChatItem.from(
-            messages,
-            selfUserID: conversationController.selfUserID,
-            counterpartRead: counterpartRead.map { (pointer: $0.pointer, date: $0.date) },
-            suppressReceiptFor: conversationController.settlingSendID,
-            cashBranding: { fiat in
-                guard let balance = session.balance(for: fiat.mint) else { return ("Cash", nil) }
-                return (balance.name, balance.imageURL)
-            }
-        )
-        if let conversationID, conversationController.isCounterpartTyping(in: conversationID) {
-            items.append(.typingIndicator)
-        }
-        return items
-    }
-
-    /// The counterpart's read watermark + time, read live from the observable
-    /// controller so the receipt updates the moment they read.
-    private var counterpartRead: ReadReceiptState? {
-        guard let conversationID else { return nil }
-        return conversationController.conversation(withID: conversationID)?
-            .counterpartReadReceipt(excluding: conversationController.selfUserID)
-    }
-
     var body: some View {
         // The UIKit transcript hosts the bar internally and owns all keyboard handling, so there's
         // no SwiftUI `.safeAreaInset` bar here.
         ChatScreenRepresentable(
-            items: mappedItems,
-            onReachTop: loadOlderMessages,
+            items: coordinator?.items ?? [],
+            onReachTop: { coordinator?.reachedTop() },
             onRetry: retry,
             onCashCardTap: openCurrencyInfo,
             onOpenURL: openLink,
@@ -258,6 +231,7 @@ struct ConversationScreen: View {
         }
         .onAppear {
             setVisibleConversation(conversationID, source: "onAppear")
+            syncCoordinator(conversationID)
         }
         // Send Cash stacks the amount entry as a cover, so the chat stays
         // mounted and `onAppear` won't re-fire when it's dismissed. Poll for the
@@ -269,11 +243,15 @@ struct ConversationScreen: View {
         // flipping the ID from nil to the new conversation; track it live.
         .onChange(of: conversationID) { _, id in
             setVisibleConversation(id, source: "onChange")
+            syncCoordinator(id)
         }
         .onDisappear {
             // The composer's focus `onChange` can't fire once unmounted, so stop typing here.
             if let conversationID {
                 conversationController.stopSelfTyping(in: conversationID)
+                // Drop the paged-back history so a long thread doesn't retain its whole transcript
+                // in memory for the session; the newest cached window stays and older re-pages.
+                conversationController.trimTranscript(for: conversationID)
             }
             // Guarded so a forward push that already set another ID isn't cleared.
             let matched = conversationController.visibleConversationID == conversationID
@@ -368,13 +346,17 @@ struct ConversationScreen: View {
         UIApplication.shared.open(url)
     }
 
-    /// Fetches the next older page when the UIKit transcript nears the top. Guarded so the
-    /// continuously-fired signal never stacks requests or pages past the first message.
-    private func loadOlderMessages() {
-        guard let conversationID,
-              conversationController.hasMoreOlderMessages(for: conversationID),
-              !conversationController.isLoadingOlderMessages(for: conversationID) else { return }
-        Task { await conversationController.loadOlderMessages(for: conversationID) }
+    /// Builds (or clears) the transcript loader/coordinator as the conversation id resolves.
+    /// `.id(context)` remounts per conversation, so this only ever creates one per open.
+    private func syncCoordinator(_ id: ConversationID?) {
+        guard let id else { coordinator = nil; return }
+        if coordinator == nil {
+            coordinator = ConversationLoadCoordinator(
+                conversationID: id,
+                controller: conversationController,
+                session: session
+            )
+        }
     }
 
     /// After returning from the amount screen for a contact's first payment,
