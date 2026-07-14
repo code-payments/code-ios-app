@@ -301,7 +301,6 @@ class OnboardingViewModel {
                 owner: inflightMnemonic.solanaKeyPair(),
                 flipClient: container.flipClient,
                 enterPhoneEvent: Analytics.OnboardingEvent.showEnterPhone,
-                confirmPhoneEvent: Analytics.OnboardingEvent.showConfirmPhone,
             )
             vm.onCodeRequested = { [weak self] in
                 self?.navigateToConfirmPhoneCode()

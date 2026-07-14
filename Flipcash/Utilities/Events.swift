@@ -64,8 +64,12 @@ extension Analytics {
     }
 
     enum OnboardingEvent: String, AnalyticsEvent {
-        case showEnterPhone   = "Onboarding: Show Enter Phone"
-        case showConfirmPhone = "Onboarding: Show Confirm Phone"
+        case showEnterPhone = "Onboarding: Show Enter Phone"
+    }
+
+    enum PhoneEvent: String, AnalyticsEvent {
+        case entered  = "Entered Phone Number"
+        case verified = "Verified Phone Number"
     }
 
     enum WalletEvent: String, AnalyticsEvent {
