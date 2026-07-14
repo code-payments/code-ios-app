@@ -25,9 +25,7 @@ public struct Phone: Codable, Equatable, Hashable, Sendable {
             return nil
         }
 
-        self.phoneNumber = phoneNumber
-        self.e164        = Self.phoneNumberUtility.format(phoneNumber, toType: PhoneNumberFormat.e164)
-        self.national    = Self.phoneNumberUtility.format(phoneNumber, toType: PhoneNumberFormat.national)
+        self.init(phoneNumber: phoneNumber)
     }
 
     /// Parses national-format strings against `defaultRegion`; international-
@@ -41,9 +39,26 @@ public struct Phone: Codable, Equatable, Hashable, Sendable {
             return nil
         }
 
+        self.init(phoneNumber: phoneNumber)
+    }
+
+    private init(phoneNumber: PhoneNumber) {
         self.phoneNumber = phoneNumber
         self.e164        = Self.phoneNumberUtility.format(phoneNumber, toType: PhoneNumberFormat.e164)
         self.national    = Self.phoneNumberUtility.format(phoneNumber, toType: PhoneNumberFormat.national)
+    }
+}
+
+extension Phone {
+
+    /// The longest national-number length a mobile number in `region` can
+    /// have, or nil when the metadata is unavailable.
+    public static func expectedNationalLength(for region: Region) -> Int? {
+        phoneNumberUtility.possiblePhoneNumberLengths(
+            forCountry: region.rawValue.uppercased(),
+            phoneNumberType: .mobile,
+            lengthType: .national
+        ).max()
     }
 }
 
@@ -70,7 +85,7 @@ public struct PhoneFormatter {
     public func countryCode(for region: Region) -> UInt64? {
         Phone.phoneNumberUtility.countryCode(for: region.rawValue)
     }
-    
+
     public func format(_ rawPhoneNumber: String) -> String {
         partialFormatter.formatPartial(rawPhoneNumber)
     }

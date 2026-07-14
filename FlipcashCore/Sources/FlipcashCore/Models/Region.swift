@@ -8,7 +8,7 @@
 
 import Foundation
 
-public enum Region: String, CaseIterable, Codable, Equatable, Hashable {
+public enum Region: String, CaseIterable, Codable, Equatable, Hashable, Sendable {
     
     case ad
     case ae

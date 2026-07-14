@@ -45,7 +45,6 @@ final class PhoneVerificationViewModel: PhoneVerifying {
     @ObservationIgnored private let owner: KeyPair
 
     @ObservationIgnored private let phoneFormatter = PhoneFormatter()
-    @ObservationIgnored private let phoneValidator = PhoneValidator()
 
     // MARK: - Analytics hooks -
 
@@ -118,12 +117,26 @@ final class PhoneVerificationViewModel: PhoneVerifying {
         "+\(phoneFormatter.countryCode(for: region)!)"
     }
 
+    var phoneValidation: PhoneValidation? {
+        PhoneValidator(region: region).validate(enteredPhone)
+    }
+
     var phone: Phone? {
-        phoneValidator.validate(enteredPhone)
+        switch phoneValidation {
+        case .valid(let phone):            phone
+        case .incomplete, .invalid, .none: nil
+        }
     }
 
     var canSendVerificationCode: Bool {
         phone != nil
+    }
+
+    /// True once the entered number has enough digits to be judged yet still
+    /// isn't valid — the point at which the screen surfaces an inline error
+    /// instead of nagging mid-entry.
+    var showsInvalidPhoneHint: Bool {
+        phoneValidation == .invalid
     }
 
     var isCodeComplete: Bool {
