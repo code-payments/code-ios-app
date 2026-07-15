@@ -27,7 +27,7 @@ struct AddMoreContactsFooter: View {
                 // Decorative — the whole row is the tap target, like the
                 // contact rows' "Invite" pill.
                 Text("Settings")
-                    .pill(.prominent)
+                    .chip(.prominent)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())

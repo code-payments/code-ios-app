@@ -373,14 +373,26 @@ private struct RecipientPickerList: View {
 
 // MARK: - Rows -
 
+/// Where a picker row's accessory sits, which in turn sets how wide the subtitle
+/// runs.
+private enum RecipientRowAccessoryPlacement {
+    /// Centered in a full-height trailing column; the subtitle stays in the
+    /// column beside it — the invite rows.
+    case trailingColumn
+    /// On the title's line (Messages/Mail style); the subtitle spans the row's
+    /// full width below — the merged on-Flipcash feed.
+    case titleLine
+}
+
 /// The chrome every picker row shares: a full-row button with avatar,
-/// title/subtitle, and a trailing accessory.
+/// title/subtitle, and an accessory.
 private struct RecipientRowScaffold<Trailing: View>: View {
 
     let avatarID: String
     let title: String
     let subtitle: String?
     let imageData: Data?
+    var accessoryPlacement: RecipientRowAccessoryPlacement = .trailingColumn
     let accessibilityLabel: String
     let onTap: () -> Void
     @ViewBuilder let trailing: Trailing
@@ -391,7 +403,8 @@ private struct RecipientRowScaffold<Trailing: View>: View {
                 avatarID: avatarID,
                 title: title,
                 subtitle: subtitle,
-                imageData: imageData
+                imageData: imageData,
+                accessoryPlacement: accessoryPlacement
             ) {
                 trailing
             }
@@ -400,15 +413,16 @@ private struct RecipientRowScaffold<Trailing: View>: View {
     }
 }
 
-/// The visual content of a picker row: avatar, title/subtitle, and a trailing
-/// accessory. Shared by the tappable `RecipientRowScaffold` and the `ShareLink`
-/// invite-fallback row.
+/// The visual content of a picker row: avatar, title/subtitle, and an accessory
+/// placed per `accessoryPlacement`. Shared by the tappable `RecipientRowScaffold`
+/// and the `ShareLink` invite-fallback row.
 private struct RecipientRowBody<Trailing: View>: View {
 
     let avatarID: String
     let title: String
     let subtitle: String?
     let imageData: Data?
+    var accessoryPlacement: RecipientRowAccessoryPlacement = .trailingColumn
     @ViewBuilder let trailing: Trailing
 
     var body: some View {
@@ -420,10 +434,16 @@ private struct RecipientRowBody<Trailing: View>: View {
                 size: 44
             )
             VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.appTextMedium)
-                    .foregroundStyle(Color.textMain)
-                    .lineLimit(1)
+                HStack(alignment: .top, spacing: 6) {
+                    Text(title)
+                        .font(.appTextMedium)
+                        .foregroundStyle(Color.textMain)
+                        .lineLimit(1)
+                    if accessoryPlacement == .titleLine {
+                        Spacer(minLength: 12)
+                        trailing
+                    }
+                }
                 if let subtitle {
                     Text(subtitle)
                         .font(.appTextSmall)
@@ -436,8 +456,10 @@ private struct RecipientRowBody<Trailing: View>: View {
             // Cross-fade the subtitle when it changes — notably the "Typing…" ⇄ last-message swap, but
             // also a fresh message preview replacing the previous one.
             .animation(.easeInOut(duration: 0.2), value: subtitle)
-            Spacer(minLength: 12)
-            trailing
+            if accessoryPlacement == .trailingColumn {
+                Spacer(minLength: 12)
+                trailing
+            }
         }
         .contentShape(Rectangle())
     }
@@ -509,6 +531,11 @@ private struct RecipientListItemRow: View {
         item.conversation?.hasUnread(for: conversationController.selfUserID) ?? false
     }
 
+    /// A chat whose counterpart isn't a synced address-book contact.
+    private var isUnknown: Bool {
+        item.contact == nil
+    }
+
     private var avatarID: String {
         switch item {
         case .contact(let contact), .matched(let contact, _):
@@ -520,7 +547,8 @@ private struct RecipientListItemRow: View {
 
     private var accessibilityLabel: String {
         let base = subtitle.map { "\(title), \($0)" } ?? title
-        return hasUnread ? "\(base), unread messages" : base
+        let named = isUnknown ? "\(base), Unknown Contact" : base
+        return hasUnread ? "\(named), unread messages" : named
     }
 
     var body: some View {
@@ -529,22 +557,49 @@ private struct RecipientListItemRow: View {
             title: title,
             subtitle: subtitle,
             imageData: item.contact?.imageData,
+            accessoryPlacement: .titleLine,
             accessibilityLabel: accessibilityLabel,
             onTap: onTap
         ) {
-            Image(systemName: "chevron.right")
-                .font(.appTextSmall)
-                .foregroundStyle(Color.textSecondary)
+            RecipientRowAccessory(
+                timestamp: item.sortDate,
+                isUnknown: isUnknown,
+                hasUnread: hasUnread
+            )
         }
-        .overlay(alignment: .leading) {
+    }
+}
+
+/// A merged recipient row's title-line accessory: a relative timestamp — or an
+/// "Unknown Contact" pill for a chat with someone not in the address book —
+/// followed by an unread badge or a disclosure chevron.
+private struct RecipientRowAccessory: View {
+
+    let timestamp: Date
+    let isUnknown: Bool
+    let hasUnread: Bool
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if isUnknown {
+                Text("Unknown Contact")
+                    .fixedSize(horizontal: true, vertical: false)
+                    .pill()
+            } else {
+                Text(timestamp.formattedRelatively(useTimeForToday: true))
+                    .font(.appTextSmall)
+                    .foregroundStyle(hasUnread ? Color.unreadIndicator : Color.textSecondary)
+            }
             if hasUnread {
-                // Offset into the row's leading inset so the dot sits in the
-                // margin left of the avatar.
                 Circle()
                     .fill(Color.unreadIndicator)
-                    .frame(width: 10, height: 10)
-                    .offset(x: -15)
-                    .accessibilityHidden(true)
+                    .frame(width: 9, height: 9)
+            } else {
+                Image(systemName: "chevron.right")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 9, height: 12)
+                    .foregroundStyle(Color.textSecondary)
             }
         }
     }
@@ -593,11 +648,11 @@ private struct RecipientRow: View {
     }
 }
 
-/// The trailing "Invite" pill on a "Not on Flipcash Yet" row.
+/// The trailing "Invite" chip on a "Not on Flipcash Yet" row.
 private struct InvitePill: View {
     var body: some View {
         Text("Invite")
-            .pill(.standard)
+            .chip(.standard)
     }
 }
 
