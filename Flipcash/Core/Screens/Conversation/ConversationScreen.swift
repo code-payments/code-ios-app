@@ -25,12 +25,12 @@ nonisolated enum ConversationContext: Hashable {
     case contact(ResolvedContact)
 }
 
-/// A DM conversation: an iMessage-style transcript over a Send Cash / Send
-/// Message action bar. Reads live messages from `ConversationController`,
-/// which owns the single event stream. For a contact without a chat the
-/// transcript stays empty and only Send Cash shows; once the first payment
-/// creates the chat, the chat ID resolves live from the synced directory and
-/// Send Message appears.
+/// A DM conversation: an iMessage-style transcript over a unified bottom bar
+/// (Send Cash beside the composer). Reads live messages from
+/// `ConversationController`, which owns the single event stream. For a
+/// contact without a chat the transcript stays empty and only Send Cash
+/// shows; once the first payment creates the chat, the chat ID resolves live
+/// from the synced directory and the composer appears.
 struct ConversationScreen: View {
 
     let context: ConversationContext
@@ -148,8 +148,9 @@ struct ConversationScreen: View {
             onCashCardTap: openCurrencyInfo,
             onOpenURL: openLink,
             showsSendCash: sendTarget != nil,
-            showsSendMessage: chatExists,
+            chatExists: chatExists,
             conversationID: conversationID,
+            symbol: ratesController.balanceCurrency.compactSymbol,
             onSendCash: sendCash,
             conversationController: conversationController,
             barModel: barModel

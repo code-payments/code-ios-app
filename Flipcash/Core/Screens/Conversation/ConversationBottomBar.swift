@@ -9,9 +9,9 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-/// Shared state for the action bar and the composer. They live in separately-anchored
-/// hosted views (safe area vs keyboard), so they share state through this model rather
-/// than a parent; each reads `isComposing` to animate its own fade.
+/// Shared state for the unified bottom bar: the message draft plus the
+/// focus-driven `isComposing` flag that drives the Send Cash morph and the
+/// screen's interactive-dismiss gate.
 @MainActor @Observable final class ConversationBarModel {
     var isComposing = false
     var draft = ""
@@ -21,49 +21,51 @@ import FlipcashUI
     }
 }
 
-/// Action bar ⇄ composer swap — the button group springs in/out (scaling
-/// from 95%) while the composer fades.
-private let barSwapSpring = Animation.spring(duration: 0.27, bounce: 0.31)
+/// Single spring driving the whole bar: the button morph, the composer's
+/// appearance when the chat materializes, and the send-arrow pop.
+let barMorphSpring = Animation.spring(duration: 0.35, bounce: 0.2)
 
-/// Send Cash alone until the chat exists, then Send Cash + Send Message.
-struct ConversationActionBar: View {
+/// The unified bottom bar: Send Cash (morphing) beside the message field.
+/// Full-width Send Cash alone until the chat exists server-side.
+struct ConversationBottomBar: View {
 
     let showsSendCash: Bool
-    let showsSendMessage: Bool
+    let chatExists: Bool
+    let conversationID: ConversationID?
+    let symbol: String
     let onSendCash: () -> Void
-    let model: ConversationBarModel
+    @Bindable var model: ConversationBarModel
 
     var body: some View {
-        HStack(spacing: 10) {
+        let content = HStack(alignment: .bottom, spacing: 10) {
             if showsSendCash {
-                Button("Send Cash", action: onSendCash)
-                    .buttonStyle(.filled)
+                SendCashMorphButton(
+                    symbol: symbol,
+                    composing: model.isComposing,
+                    fullWidth: !chatExists,
+                    action: onSendCash
+                )
             }
-            if showsSendMessage {
-                // Material-only frosted button (no fill) — matches the .filled
-                // metrics (full width, 60pt tall, 6pt radius, appTextMedium).
-                Button(action: { withAnimation(barSwapSpring) { model.isComposing = true } }) {
-                    Text("Send Message")
-                        .font(.appTextMedium)
-                        .foregroundStyle(Color.textMain)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: Metrics.buttonHeight)
-                }
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Metrics.buttonRadius))
-                .buttonStyle(.plain)
-                .transition(.scale(scale: 0.95).combined(with: .opacity))
+            if chatExists {
+                ConversationComposer(conversationID: conversationID, model: model)
+                    .transition(.opacity)
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 12)
         .padding(.top, 8)
         .padding(.bottom, 8)
-        .animation(barSwapSpring, value: showsSendMessage)
-        // Scales + fades out in place while composing. The bar is pinned to the safe
-        // area (in the UIKit screen), so it never rides the keyboard.
-        .scaleEffect(model.isComposing ? 0.95 : 1)
+        .animation(barMorphSpring, value: chatExists)
+
+        // Adjacent glass elements must share a sampling container on iOS 26 —
+        // glass cannot sample other glass; spacing matches the HStack's.
+        return Group {
+            if #available(iOS 26, *) {
+                GlassEffectContainer(spacing: 10) { content }
+            } else {
+                content
+            }
+        }
         .modifier(BarGradientBackground())
-        .opacity(model.isComposing ? 0 : 1)
-        .animation(barSwapSpring, value: model.isComposing)
     }
 }
 
@@ -120,19 +122,13 @@ struct ConversationComposer: View {
                 field.background(.ultraThinMaterial, in: .rect(cornerRadius: 14))
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.bottom, 8)
-        .modifier(BarGradientBackground())
-        .opacity(model.isComposing ? 1 : 0)
-        .animation(barSwapSpring, value: model.isComposing)
-        // Focus follows composing. The field is already mounted, so this is reliable —
-        // `.onAppear` would raise the keyboard on screen entry. Losing focus (keyboard
-        // swiped down) ends composing.
-        .onChange(of: model.isComposing) { _, composing in isFocused = composing }
+        // Focus is the single source of `isComposing` — the button morph and the
+        // screen's interactive-dismiss gate both key off it. Losing focus
+        // (keyboard swiped down) ends composing.
         .onChange(of: isFocused) { _, focused in
-            if !focused {
-                withAnimation(barSwapSpring) { model.isComposing = false }
-                if let conversationID { conversationController.stopSelfTyping(in: conversationID) }
+            withAnimation(barMorphSpring) { model.isComposing = focused }
+            if !focused, let conversationID {
+                conversationController.stopSelfTyping(in: conversationID)
             }
         }
         .onChange(of: model.draft) { _, text in
@@ -174,9 +170,11 @@ private struct BarGradientBackground: ViewModifier {
     }
 }
 
-/// The Send Cash button in its two shapes: a white "Send €" pill at rest, a
-/// compact glass "€" square while composing. One persistent view — the morph
-/// animates its properties (prefix text, fill, width, color) in lockstep.
+/// The Send Cash button, rendered as a white "Send €" pill at rest and a
+/// compact glass "€" square while composing.
+// One persistent view: the morph animates its properties (prefix text, fill,
+// width, color) in lockstep — splitting the two states into separate views
+// would crossfade instead of morphing.
 struct SendCashMorphButton: View {
 
     let symbol: String
