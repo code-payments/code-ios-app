@@ -515,7 +515,9 @@ struct SessionBuyVerifiedStateTests {
         }
     }
 
-    @Test("buyNewCurrency rejects a zero amount before it reaches the server")
+    // The time limit bounds the red direction: without the guard this call
+    // reaches a real, deadline-less swap stream and would hang instead of fail.
+    @Test("buyNewCurrency rejects a zero amount before it reaches the server", .timeLimit(.minutes(1)))
     func buyNewCurrency_rejectsZeroAmount() async {
         // Regression: missing user flags defaulted the launch amount to $0, so the
         // wizard minted a currency then submitted a $0 buy the server rejected

@@ -26,3 +26,11 @@ public extension TransportClassifiableError {
         }
     }
 }
+
+public extension TransportClassifiableError where Self: Equatable {
+    /// Whether a failed call is worth another attempt: transient transport
+    /// failures and unclassified errors retry; explicit server outcomes and
+    /// cancellation do not. Call sites compose their own additions
+    /// (e.g. `e == .notFound || e.isRetryable`).
+    var isRetryable: Bool { self == .unknown || self == .transportFailure }
+}

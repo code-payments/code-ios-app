@@ -72,6 +72,7 @@ class Session {
     @ObservationIgnored let userID: UserID
 
     @ObservationIgnored private var hasLinkedPhoneForPayment = false
+    @ObservationIgnored private var hasFetchedUserFlags = false
 
     var ownerKeyPair: KeyPair {
         owner.authority.keyPair
@@ -210,17 +211,10 @@ class Session {
         profile   = try? database.getProfile()
         userFlags = try? database.getUserFlags()
 
-        // Independent so a profile failure doesn't starve the user-flags fetch.
-        // userFlags carries server-pinned withdrawal/launch fees; without it,
-        // those flows submit fee=0 and the server denies the intent.
+        // User flags are fetched by the poller (`fetchUserFlagsIfNeeded`).
         Task {
             do { try await updateProfile() }
             catch { logger.error("Failed to fetch profile", metadata: ["error": "\(error)"]) }
-        }
-
-        Task {
-            do { try await updateUserFlags() }
-            catch { logger.error("Failed to fetch user flags", metadata: ["error": "\(error)"]) }
         }
 
         Task {
@@ -281,7 +275,7 @@ class Session {
         let fetched = try await Task.retry(
             maxAttempts: 3,
             delay: .milliseconds(500),
-            shouldRetry: { (error: any Swift.Error) in (error as? ErrorFetchProfile) == .unknown }
+            shouldRetry: { (error: any Swift.Error) in (error as? ErrorFetchProfile)?.isRetryable == true }
         ) {
             try await flipClient.fetchProfile(userID: userID, owner: ownerKeyPair)
         }
@@ -329,17 +323,12 @@ class Session {
         let fetched = try await Task.retry(
             maxAttempts: 3,
             delay: .milliseconds(500),
-            shouldRetry: { (error: any Swift.Error) in
-                // Transport blips retry here; a longer outage self-heals via didBecomeActive.
-                switch error as? ErrorFetchUserFlags {
-                case .unknown, .transportFailure: true
-                case .ok, .denied, .cancelled, .none: false
-                }
-            }
+            shouldRetry: { (error: any Swift.Error) in (error as? ErrorFetchUserFlags)?.isRetryable == true }
         ) {
             try await flipClient.fetchUserFlags(userID: userID, owner: ownerKeyPair)
         }
 
+        hasFetchedUserFlags = true
         userFlags = fetched
         try? database.insertUserFlags(fetched)
         Task { await linkPhoneForPaymentIfNeeded() }
@@ -409,15 +398,6 @@ class Session {
     
     func didBecomeActive() {
         ratesController.ensureStreamConnected()
-
-        // Self-heal flags that never loaded (e.g. a launch-time outage): without
-        // them, launch/withdrawal fees fall back to $0 and the server rejects the intent.
-        if userFlags == nil {
-            Task {
-                do { try await updateUserFlags() }
-                catch { logger.error("Failed to refetch user flags on foreground", metadata: ["error": "\(error)"]) }
-            }
-        }
     }
 
     func didEnterBackground() {
@@ -481,10 +461,20 @@ class Session {
 
     private func registerPoller() {
         poller = Poller(seconds: 10, fireImmediately: true) { [weak self] in
-            // Limits failure must not block balance fetch
+            // Each fetch is independent — a failure must not block the ones after it.
+            try? await self?.fetchUserFlagsIfNeeded()
             try? await self?.fetchLimitsIfNeeded()
             try? await self?.fetchBalance()
         }
+    }
+
+    /// Fetches user flags until the first success of the session, so flags that
+    /// failed to load at launch — or hydrated stale from the database — self-heal
+    /// on the poller cadence. Flags carry server-pinned launch/withdrawal fees;
+    /// stale or missing values submit amounts the server rejects.
+    private func fetchUserFlagsIfNeeded() async throws {
+        guard !hasFetchedUserFlags else { return }
+        try await updateUserFlags()
     }
     
     // MARK: - Limits -
@@ -1347,7 +1337,8 @@ class Session {
                     delay: .milliseconds(500),
                     shouldRetry: { error in
                         guard let e = error as? ErrorFetchBalance else { return false }
-                        return e == .notFound || e == .unknown || e == .transportFailure
+                        // A just-funded gift card may not have propagated yet.
+                        return e == .notFound || e.isRetryable
                     }
                 ) {
                     try await client.fetchAccountInfo(

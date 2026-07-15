@@ -170,3 +170,30 @@ private struct UTF8Codec: MessageSerializer, MessageDeserializer {
         serializedMessageBytes.withUnsafeBytes { String(decoding: $0, as: UTF8.self) }
     }
 }
+
+// MARK: -
+
+@Suite("TransportClassifiableError.isRetryable — the shared retry policy for fetch loops")
+struct TransportRetryabilityTests {
+
+    /// Generic contract check: transient transport failures and unclassified
+    /// errors retry; cancellation never does. One `@Test` per adopting call site.
+    private func assertRetryability<E: TransportClassifiableError & Equatable>(_ type: E.Type) {
+        #expect(E.unknown.isRetryable)
+        #expect(E.transportFailure.isRetryable)
+        #expect(!E.cancelled.isRetryable)
+    }
+
+    @Test func errorFetchProfile() { assertRetryability(ErrorFetchProfile.self) }
+    @Test func errorFetchUserFlags() { assertRetryability(ErrorFetchUserFlags.self) }
+    @Test func errorFetchBalance() { assertRetryability(ErrorFetchBalance.self) }
+
+    @Test("Explicit server outcomes never retry")
+    func serverOutcomesDoNotRetry() {
+        #expect(!ErrorFetchUserFlags.denied.isRetryable)
+        #expect(!ErrorFetchProfile.notFound.isRetryable)
+        #expect(!ErrorFetchBalance.notFound.isRetryable)
+        #expect(!ErrorFetchBalance.accountNotInList.isRetryable)
+        #expect(!ErrorFetchBalance.parseFailed.isRetryable)
+    }
+}
