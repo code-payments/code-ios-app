@@ -480,6 +480,12 @@ struct SessionBuyVerifiedStateTests {
         currencyRate: .oneToOne
     )
 
+    private static let zeroAmount = ExchangedFiat(
+        onChainAmount: TokenAmount(quarks: 0, mint: .usdf),
+        nativeAmount: .usd(0),
+        currencyRate: .oneToOne
+    )
+
     @Test("buy throws verifiedStateStale when the provided state is past clientMaxAge")
     func buy_throwsStale() async {
         let session = Session.unverifiedMock
@@ -504,6 +510,24 @@ struct SessionBuyVerifiedStateTests {
                 amount: Self.staleAmount,
                 feeAmount: Self.staleAmount,
                 verifiedState: stale,
+                mint: .usdf
+            )
+        }
+    }
+
+    @Test("buyNewCurrency rejects a zero amount before it reaches the server")
+    func buyNewCurrency_rejectsZeroAmount() async {
+        // Regression: missing user flags defaulted the launch amount to $0, so the
+        // wizard minted a currency then submitted a $0 buy the server rejected
+        // (SwapAmount must be > 0). The guard now refuses it client-side, even with
+        // a valid proof.
+        let session = Session.unverifiedMock
+
+        await #expect(throws: Session.Error.invalidAmount) {
+            _ = try await session.buyNewCurrency(
+                amount: Self.zeroAmount,
+                feeAmount: Self.zeroAmount,
+                verifiedState: .fresh(bonded: false),
                 mint: .usdf
             )
         }

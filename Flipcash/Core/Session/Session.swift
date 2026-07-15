@@ -329,7 +329,13 @@ class Session {
         let fetched = try await Task.retry(
             maxAttempts: 3,
             delay: .milliseconds(500),
-            shouldRetry: { (error: any Swift.Error) in (error as? ErrorFetchUserFlags) == .unknown }
+            shouldRetry: { (error: any Swift.Error) in
+                // Transport blips retry here; a longer outage self-heals via didBecomeActive.
+                switch error as? ErrorFetchUserFlags {
+                case .unknown, .transportFailure: true
+                case .ok, .denied, .cancelled, .none: false
+                }
+            }
         ) {
             try await flipClient.fetchUserFlags(userID: userID, owner: ownerKeyPair)
         }
@@ -403,6 +409,15 @@ class Session {
     
     func didBecomeActive() {
         ratesController.ensureStreamConnected()
+
+        // Self-heal flags that never loaded (e.g. a launch-time outage): without
+        // them, launch/withdrawal fees fall back to $0 and the server rejects the intent.
+        if userFlags == nil {
+            Task {
+                do { try await updateUserFlags() }
+                catch { logger.error("Failed to refetch user flags on foreground", metadata: ["error": "\(error)"]) }
+            }
+        }
     }
 
     func didEnterBackground() {
@@ -677,6 +692,12 @@ class Session {
         mint: PublicKey,
         swapId: SwapId = .generate()
     ) async throws -> SwapId {
+        // The server rejects a zero SwapAmount; reject it here so a missing-flags
+        // $0 launch never reaches the wire.
+        guard amount.onChainAmount.quarks > 0 else {
+            throw Error.invalidAmount
+        }
+
         try assertFresh(verifiedState, operation: "buyNewCurrency", currency: amount.nativeAmount.currency, mint: amount.mint)
 
         logger.info("Buying new currency", metadata: [
@@ -1550,6 +1571,7 @@ extension Session {
         case insufficientBalance
         case missingSupply
         case verifiedStateStale
+        case invalidAmount
     }
 }
 
@@ -1559,7 +1581,7 @@ extension Session.Error: ServerError {
         // Expected outcome: a bill/share left open past VerifiedState.clientMaxAge
         // is rejected client-side by assertFresh. Visible for triage, not a defect.
         case .verifiedStateStale: .info
-        case .cashLinkCreationFailed, .vmMetadataMissing, .mintNotFound, .insufficientBalance, .missingSupply: .error
+        case .cashLinkCreationFailed, .vmMetadataMissing, .mintNotFound, .insufficientBalance, .missingSupply, .invalidAmount: .error
         }
     }
 }
