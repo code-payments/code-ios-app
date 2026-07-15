@@ -23,7 +23,7 @@ import FlipcashUI
 
 /// Single spring driving the whole bar: the button morph, the composer's
 /// appearance when the chat materializes, and the send-arrow pop.
-let barMorphSpring = Animation.spring(duration: 0.35, bounce: 0.2)
+private let barMorphSpring = Animation.spring(duration: 0.35, bounce: 0.2)
 
 /// The unified bottom bar: Send Cash (morphing) beside the message field.
 /// Full-width Send Cash alone until the chat exists server-side.
@@ -160,11 +160,11 @@ private struct BarGradientBackground: ViewModifier {
                 startPoint: .bottom,
                 endPoint: .top
             )
-            // Scope the bleed to the bottom edge only. The bar is the measured
-            // content of the transcript's bottom `.safeAreaInset`; an all-edges
-            // ignore makes the bar read as extending to the screen bottom, which
-            // collapses the scroll-content inset by the home-indicator height and
-            // drops the newest message under the bar.
+            // Scope the bleed to the bottom edge only. The bar is a measured,
+            // keyboard-guide-pinned hosted view; an all-edges ignore makes the
+            // bar read as extending to the screen bottom, which collapses the
+            // scroll-content inset by the home-indicator height and drops the
+            // newest message under the bar.
             .ignoresSafeArea(edges: .bottom)
         }
     }
