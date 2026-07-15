@@ -18,8 +18,7 @@ struct ConversationUIScreen {
 
     // MARK: - Elements
 
-    var sendCashButton: XCUIElement { app.buttons["Send Cash"] }
-    var sendMessageButton: XCUIElement { app.buttons["Send Message"] }
+    var sendCashButton: XCUIElement { app.buttons["send-cash-button"] }
     var messageField: XCUIElement { app.textFields["Message"] }
 
     /// The composer's send arrow. A dedicated identifier avoids the same-labelled
@@ -37,9 +36,8 @@ struct ConversationUIScreen {
         testCase.waitAndTap(sendCashButton)
     }
 
-    /// Opens the composer, types `text`, and sends it.
+    /// Focuses the always-visible composer, types `text`, and sends it.
     func sendMessage(_ text: String, from testCase: BaseUITestCase) {
-        testCase.waitAndTap(sendMessageButton)
         testCase.waitUntilHittableAndTap(messageField)
         messageField.typeText(text)
         testCase.waitAndTap(composerSendButton)

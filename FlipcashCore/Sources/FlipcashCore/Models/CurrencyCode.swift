@@ -215,11 +215,11 @@ extension CurrencyCode {
 
 extension CurrencyCode {
     
-    private static let lookupTable: [CurrencyCode: Set<String>] = {
+    private static let lookupTable: [CurrencyCode: [String]] = {
         var container: [CurrencyCode: Set<String>] = [:]
         Locale.availableIdentifiers.forEach {
             let locale = Locale(identifier: $0)
-            
+
             guard
                 let currencyCode = locale.currency?.identifier,
                 let currency = try? CurrencyCode(currencyCode: currencyCode),
@@ -227,7 +227,7 @@ extension CurrencyCode {
             else {
                 return
             }
-            
+
             if var set = container[currency] {
                 set.insert(symbol)
                 container[currency] = set
@@ -235,17 +235,23 @@ extension CurrencyCode {
                 container[currency] = [symbol]
             }
         }
-        return container
+        // Sorted once here so every per-case read is a plain array lookup and
+        // equal-length symbols resolve deterministically.
+        return container.mapValues { $0.sorted { ($0.count, $0) < ($1.count, $1) } }
     }()
-    
+
     public var currencySymbols: [String] {
-        (CurrencyCode.lookupTable[self] ?? []).sorted { lhs, rhs in
-            lhs.count < rhs.count
-        }
+        CurrencyCode.lookupTable[self] ?? []
     }
-    
+
     public var singleCharacterCurrencySymbols: String? {
-        (CurrencyCode.lookupTable[self] ?? []).first { $0.count == 1 }
+        currencySymbols.first { $0.count == 1 }
+    }
+
+    /// Returns the single-character display symbol for this currency, falling
+    /// back to `"$"` when no locale defines one.
+    public var compactSymbol: String {
+        singleCharacterCurrencySymbols ?? "$"
     }
 }
 

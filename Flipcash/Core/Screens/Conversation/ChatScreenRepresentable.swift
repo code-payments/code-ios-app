@@ -10,11 +10,9 @@ import UIKit
 import FlipcashCore
 import FlipcashUI
 
-/// Hosts the fully-UIKit chat (transcript + bars) inside SwiftUI. SwiftUI supplies the already-mapped
-/// messages and hosts two bars — the Send Cash / Send Message action bar (pinned to the safe area)
-/// and the composer (pinned to the keyboard). All scroll, keyboard, and flow-under behavior lives in
-/// the UIKit screen. Both bars share `barModel`, so the swap animates through observation rather than
-/// `UIHostingController.rootView` reassignment (which can't carry it).
+/// Hosts the fully-UIKit chat (transcript + bar) inside SwiftUI. SwiftUI supplies the already-mapped
+/// messages and hosts the single bottom bar — Send Cash beside the composer — pinned to the keyboard
+/// layout guide. All scroll, keyboard, and flow-under behavior lives in the UIKit screen.
 struct ChatScreenRepresentable: UIViewControllerRepresentable {
 
     let items: [ChatItem]
@@ -32,46 +30,36 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// falling back to the system browser.
     let onOpenURL: (URL) -> Void
     let showsSendCash: Bool
-    let showsSendMessage: Bool
+    let chatExists: Bool
     let conversationID: ConversationID?
+    let symbol: String
     let onSendCash: () -> Void
     let conversationController: ConversationController
     let barModel: ConversationBarModel
 
     func makeUIViewController(context: Context) -> ChatScreenViewController {
-        let restingHost = UIHostingController(rootView: restingBar(coordinator: context.coordinator))
-        let keyboardHost = UIHostingController(rootView: keyboardBar(coordinator: context.coordinator))
-        restingHost.view.backgroundColor = .clear
-        keyboardHost.view.backgroundColor = .clear
-        let screen = ChatScreenViewController(
-            restingBar: restingHost.view,
-            keyboardBar: keyboardHost.view,
-            restingBarController: restingHost,
-            keyboardBarController: keyboardHost
-        )
+        let barHost = UIHostingController(rootView: bar(coordinator: context.coordinator))
+        barHost.view.backgroundColor = .clear
+        let screen = ChatScreenViewController(bar: barHost.view, barController: barHost)
         screen.onReachTop = onReachTop
         screen.onRetry = onRetry
         screen.onCashCardTap = onCashCardTap
         screen.onOpenURL = onOpenURL
         screen.update(items: items)
-        screen.setComposing(barModel.isComposing)
-        context.coordinator.restingHost = restingHost
-        context.coordinator.keyboardHost = keyboardHost
+        context.coordinator.barHost = barHost
         context.coordinator.screen = screen
         context.coordinator.lastMessageID = lastMessageID(of: items)
         return screen
     }
 
     func updateUIViewController(_ screen: ChatScreenViewController, context: Context) {
-        // Re-supply both bars with current inputs; SwiftUI diffs them, so the composer's draft and
+        // Re-supply the bar with current inputs; SwiftUI diffs it, so the composer's draft and
         // focus survive across updates.
-        context.coordinator.restingHost?.rootView = restingBar(coordinator: context.coordinator)
-        context.coordinator.keyboardHost?.rootView = keyboardBar(coordinator: context.coordinator)
+        context.coordinator.barHost?.rootView = bar(coordinator: context.coordinator)
         screen.onReachTop = onReachTop
         screen.onRetry = onRetry
         screen.onCashCardTap = onCashCardTap
         screen.onOpenURL = onOpenURL
-        screen.setComposing(barModel.isComposing)
 
         // Scroll only when the user's *own* message was just appended — a new trailing message id
         // (skipping any trailing receipt) that is from me. Received messages and prepended history
@@ -95,31 +83,25 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         lastMessage(of: items)?.id
     }
 
-    private func restingBar(coordinator: Coordinator) -> AnyView {
+    private func bar(coordinator: Coordinator) -> AnyView {
         AnyView(
-            ConversationActionBar(
+            ConversationBottomBar(
                 showsSendCash: showsSendCash,
-                showsSendMessage: showsSendMessage,
+                chatExists: chatExists,
+                conversationID: conversationID,
+                symbol: symbol,
                 onSendCash: onSendCash,
                 model: barModel
             )
-            .modifier(MeasuredBarHeight { coordinator.screen?.setRestingBarHeight($0) })
-        )
-    }
-
-    private func keyboardBar(coordinator: Coordinator) -> AnyView {
-        AnyView(
-            ConversationComposer(conversationID: conversationID, model: barModel)
-                .environment(conversationController)
-                .modifier(MeasuredBarHeight { coordinator.screen?.setKeyboardBarHeight($0) })
+            .environment(conversationController)
+            .modifier(MeasuredBarHeight { coordinator.screen?.setBarHeight($0) })
         )
     }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     @MainActor final class Coordinator {
-        var restingHost: UIHostingController<AnyView>?
-        var keyboardHost: UIHostingController<AnyView>?
+        var barHost: UIHostingController<AnyView>?
         weak var screen: ChatScreenViewController?
         var lastMessageID: String?
     }

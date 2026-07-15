@@ -9,9 +9,9 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-/// Shared state for the action bar and the composer. They live in separately-anchored
-/// hosted views (safe area vs keyboard), so they share state through this model rather
-/// than a parent; each reads `isComposing` to animate its own fade.
+/// Shared state for the unified bottom bar: the message draft plus the
+/// focus-driven `isComposing` flag that drives the Send Cash morph and the
+/// screen's interactive-dismiss gate.
 @MainActor @Observable final class ConversationBarModel {
     var isComposing = false
     var draft = ""
@@ -21,49 +21,56 @@ import FlipcashUI
     }
 }
 
-/// Action bar ⇄ composer swap — the button group springs in/out (scaling
-/// from 95%) while the composer fades.
-private let barSwapSpring = Animation.spring(duration: 0.27, bounce: 0.31)
+/// Single spring driving the whole bar: the button morph, the composer's
+/// appearance when the chat materializes, and the send-arrow pop.
+private let barMorphSpring = Animation.spring(duration: 0.35, bounce: 0.2)
 
-/// Send Cash alone until the chat exists, then Send Cash + Send Message.
-struct ConversationActionBar: View {
+/// Metrics shared by the field and the button so their heights can't desync.
+/// Deliberately not `Metrics.buttonHeight`/`buttonRadius` — this bar's controls
+/// are field-sized, not standard-button-sized.
+private enum BarMetrics {
+    static let fieldMinHeight: CGFloat = 34
+    static let fieldVerticalPadding: CGFloat = 8
+    static let cornerRadius: CGFloat = 14
+    /// The height of every bar control: a single-line field plus its padding.
+    static let contentHeight: CGFloat = fieldMinHeight + fieldVerticalPadding * 2
+}
+
+/// The unified bottom bar: Send Cash (morphing) beside the message field.
+/// Full-width Send Cash alone until the chat exists server-side.
+struct ConversationBottomBar: View {
 
     let showsSendCash: Bool
-    let showsSendMessage: Bool
+    let chatExists: Bool
+    let conversationID: ConversationID?
+    let symbol: String
     let onSendCash: () -> Void
     let model: ConversationBarModel
 
     var body: some View {
-        HStack(spacing: 10) {
+        let content = HStack(alignment: .bottom, spacing: 10) {
             if showsSendCash {
-                Button("Send Cash", action: onSendCash)
-                    .buttonStyle(.filled)
+                SendCashMorphButton(
+                    symbol: symbol,
+                    composing: model.isComposing,
+                    fullWidth: !chatExists,
+                    action: onSendCash
+                )
             }
-            if showsSendMessage {
-                // Material-only frosted button (no fill) — matches the .filled
-                // metrics (full width, 60pt tall, 6pt radius, appTextMedium).
-                Button(action: { withAnimation(barSwapSpring) { model.isComposing = true } }) {
-                    Text("Send Message")
-                        .font(.appTextMedium)
-                        .foregroundStyle(Color.textMain)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: Metrics.buttonHeight)
-                }
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Metrics.buttonRadius))
-                .buttonStyle(.plain)
-                .transition(.scale(scale: 0.95).combined(with: .opacity))
+            if chatExists {
+                ConversationComposer(conversationID: conversationID, model: model)
+                    .transition(.opacity)
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 12)
         .padding(.top, 8)
         .padding(.bottom, 8)
-        .animation(barSwapSpring, value: showsSendMessage)
-        // Scales + fades out in place while composing. The bar is pinned to the safe
-        // area (in the UIKit screen), so it never rides the keyboard.
-        .scaleEffect(model.isComposing ? 0.95 : 1)
-        .modifier(BarGradientBackground())
-        .opacity(model.isComposing ? 0 : 1)
-        .animation(barSwapSpring, value: model.isComposing)
+        .animation(barMorphSpring, value: chatExists)
+
+        // Adjacent glass elements must share a sampling container on iOS 26 —
+        // glass cannot sample other glass; spacing matches the HStack's.
+        return GlassContainer(spacing: 10) { content }
+            .modifier(BarGradientBackground())
     }
 }
 
@@ -89,7 +96,7 @@ struct ConversationComposer: View {
                 .lineLimit(1...5)
                 .focused($isFocused)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .frame(minHeight: 34)
+                .frame(minHeight: BarMetrics.fieldMinHeight)
 
             if model.canSend {
                 Button(action: send) {
@@ -110,29 +117,17 @@ struct ConversationComposer: View {
         .animation(Self.sendButtonSpring, value: model.canSend)
         .padding(.leading, 14)
         .padding(.trailing, 8)
-        .padding(.vertical, 8)
+        .padding(.vertical, BarMetrics.fieldVerticalPadding)
 
-        // Liquid-glass background on iOS 26; ultra-thin material below.
-        return Group {
-            if #available(iOS 26, *) {
-                field.glassEffect(.regular.interactive(), in: .rect(cornerRadius: 14))
-            } else {
-                field.background(.ultraThinMaterial, in: .rect(cornerRadius: 14))
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.bottom, 8)
-        .modifier(BarGradientBackground())
-        .opacity(model.isComposing ? 1 : 0)
-        .animation(barSwapSpring, value: model.isComposing)
-        // Focus follows composing. The field is already mounted, so this is reliable —
-        // `.onAppear` would raise the keyboard on screen entry. Losing focus (keyboard
-        // swiped down) ends composing.
-        .onChange(of: model.isComposing) { _, composing in isFocused = composing }
+        return field
+            .glassBackground(cornerRadius: BarMetrics.cornerRadius)
+        // Focus is the single source of `isComposing` — the button morph and the
+        // screen's interactive-dismiss gate both key off it. Losing focus
+        // (keyboard swiped down) ends composing.
         .onChange(of: isFocused) { _, focused in
-            if !focused {
-                withAnimation(barSwapSpring) { model.isComposing = false }
-                if let conversationID { conversationController.stopSelfTyping(in: conversationID) }
+            withAnimation(barMorphSpring) { model.isComposing = focused }
+            if !focused, let conversationID {
+                conversationController.stopSelfTyping(in: conversationID)
             }
         }
         .onChange(of: model.draft) { _, text in
@@ -164,12 +159,82 @@ private struct BarGradientBackground: ViewModifier {
                 startPoint: .bottom,
                 endPoint: .top
             )
-            // Scope the bleed to the bottom edge only. The bar is the measured
-            // content of the transcript's bottom `.safeAreaInset`; an all-edges
-            // ignore makes the bar read as extending to the screen bottom, which
-            // collapses the scroll-content inset by the home-indicator height and
-            // drops the newest message under the bar.
+            // Scope the bleed to the bottom edge only. The bar is a measured,
+            // keyboard-guide-pinned hosted view; an all-edges ignore makes the
+            // bar read as extending to the screen bottom, which collapses the
+            // scroll-content inset by the home-indicator height and drops the
+            // newest message under the bar.
             .ignoresSafeArea(edges: .bottom)
+        }
+    }
+}
+
+/// The Send Cash button, rendered as a white "Send €" pill at rest and a
+/// compact glass "€" square while composing.
+// One persistent view: the morph animates its properties (prefix text, fill,
+// width, color) in lockstep — splitting the two states into separate views
+// would crossfade instead of morphing.
+struct SendCashMorphButton: View {
+
+    let symbol: String
+    let composing: Bool
+    /// Spans the bar when the composer isn't available (no chat yet).
+    let fullWidth: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                if !composing {
+                    Text("Send")
+                        .font(.appTextMedium)
+                        .transition(.opacity)
+                }
+                Text(symbol)
+                    // Same persistent Text — .interpolate animates the glyph
+                    // between sizes; swapping views would crossfade.
+                    .font(composing ? .appTextXL : .appTextMedium)
+                    .contentTransition(.interpolate)
+            }
+            .foregroundStyle(composing ? Color.textMain : Color.textAction)
+            // The label must never reflow to "Se…" mid-morph; overflow is
+            // clipped by the shape instead.
+            .fixedSize()
+            .padding(.horizontal, composing ? 0 : 20)
+            .frame(minWidth: BarMetrics.contentHeight)
+            .frame(maxWidth: fullWidth && !composing ? .infinity : nil)
+            .frame(height: BarMetrics.contentHeight)
+        }
+        .buttonStyle(.plain)
+        // White fill above the glass base: fading it out is the white → glass
+        // change, without ever swapping views.
+        .background {
+            RoundedRectangle(cornerRadius: BarMetrics.cornerRadius)
+                .fill(Color.action)
+                .opacity(composing ? 0 : 1)
+        }
+        .glassBackground(cornerRadius: BarMetrics.cornerRadius)
+        .clipShape(RoundedRectangle(cornerRadius: BarMetrics.cornerRadius))
+        .accessibilityLabel("Send Cash")
+        .accessibilityIdentifier("send-cash-button")
+    }
+}
+
+#Preview("Morph") {
+    @Previewable @State var composing = false
+    ZStack {
+        Color.backgroundMain.ignoresSafeArea()
+        VStack {
+            Spacer()
+            HStack(spacing: 10) {
+                SendCashMorphButton(symbol: "€", composing: composing, fullWidth: false) {
+                    withAnimation(barMorphSpring) { composing.toggle() }
+                }
+                RoundedRectangle(cornerRadius: BarMetrics.cornerRadius)
+                    .fill(.white.opacity(0.1))
+                    .frame(height: BarMetrics.contentHeight)
+            }
+            .padding(12)
         }
     }
 }
