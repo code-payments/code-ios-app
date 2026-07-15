@@ -28,6 +28,12 @@ struct TransportClassificationTests {
         #expect(E.from(transportError: RPCError(code: .permissionDenied, message: "")) == E.rejected)
         #expect(E.from(transportError: RPCError(code: .unauthenticated, message: "")) == E.rejected)
         #expect(E.rejected.reportingLevel == E.unknown.reportingLevel)
+        // Retryability rides the same registry line: transient failures and
+        // anomalies retry; deterministic refusals and cancellation never do.
+        #expect(E.unknown.isRetryable)
+        #expect(E.transportFailure.isRetryable)
+        #expect(!E.cancelled.isRetryable)
+        #expect(!E.rejected.isRetryable)
     }
 
     // MARK: - Registry (one line per TransportClassifiableError conformer) -
@@ -66,6 +72,16 @@ struct TransportClassificationTests {
     @Test func errorNotifyIsTyping() { assertClassifies(ErrorNotifyIsTyping.self) }
     @Test func errorGetDmChatFeed() { assertClassifies(ErrorGetDmChatFeed.self) }
     @Test func errorGetChat() { assertClassifies(ErrorGetChat.self) }
+
+    // In-band outcomes fall outside the generic four-case contract.
+    @Test("Explicit server outcomes never retry")
+    func serverOutcomesDoNotRetry() {
+        #expect(!ErrorFetchUserFlags.denied.isRetryable)
+        #expect(!ErrorFetchProfile.notFound.isRetryable)
+        #expect(!ErrorFetchBalance.notFound.isRetryable)
+        #expect(!ErrorFetchBalance.accountNotInList.isRetryable)
+        #expect(!ErrorFetchBalance.parseFailed.isRetryable)
+    }
 
     // MARK: - Tier 2: associated-value errors that capture the transport error -
     // These don't conform to TransportClassifiableError (they carry the error in a
@@ -177,31 +193,3 @@ private struct UTF8Codec: MessageSerializer, MessageDeserializer {
     }
 }
 
-// MARK: -
-
-@Suite("TransportClassifiableError.isRetryable — the shared retry policy for fetch loops")
-struct TransportRetryabilityTests {
-
-    /// Generic contract check: transient transport failures and unclassified
-    /// anomalies retry; deterministic rejections and cancellation never do.
-    /// One `@Test` per adopting call site.
-    private func assertRetryability<E: TransportClassifiableError & Equatable>(_ type: E.Type) {
-        #expect(E.unknown.isRetryable)
-        #expect(E.transportFailure.isRetryable)
-        #expect(!E.cancelled.isRetryable)
-        #expect(!E.rejected.isRetryable)
-    }
-
-    @Test func errorFetchProfile() { assertRetryability(ErrorFetchProfile.self) }
-    @Test func errorFetchUserFlags() { assertRetryability(ErrorFetchUserFlags.self) }
-    @Test func errorFetchBalance() { assertRetryability(ErrorFetchBalance.self) }
-
-    @Test("Explicit server outcomes never retry")
-    func serverOutcomesDoNotRetry() {
-        #expect(!ErrorFetchUserFlags.denied.isRetryable)
-        #expect(!ErrorFetchProfile.notFound.isRetryable)
-        #expect(!ErrorFetchBalance.notFound.isRetryable)
-        #expect(!ErrorFetchBalance.accountNotInList.isRetryable)
-        #expect(!ErrorFetchBalance.parseFailed.isRetryable)
-    }
-}
