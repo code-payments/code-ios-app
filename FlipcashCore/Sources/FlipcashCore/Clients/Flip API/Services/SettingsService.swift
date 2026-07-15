@@ -63,6 +63,7 @@ public enum ErrorUpdateSettings: Int, Error {
     case unknown          = -1
     case transportFailure = -2
     case cancelled = -3
+    case rejected = -4
 }
 
 extension ErrorUpdateSettings: ServerError, TransportClassifiableError {
@@ -71,7 +72,7 @@ extension ErrorUpdateSettings: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .denied, .invalidLocale, .invalidRegion: .info
-        case .unknown: .error
+        case .unknown, .rejected: .error
         }
     }
 }

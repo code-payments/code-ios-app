@@ -69,6 +69,7 @@ public enum ErrorFetchJWT: Int, Error {
     case unknown          = -1
     case transportFailure = -2
     case cancelled = -3
+    case rejected = -4
 }
 
 extension ErrorFetchJWT: ServerError, TransportClassifiableError {
@@ -77,7 +78,7 @@ extension ErrorFetchJWT: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .denied, .unsupportedProvider, .invalidApiKey, .phoneVerificationRequired, .emailVerificationRequired: .info
-        case .unknown: .error
+        case .unknown, .rejected: .error
         }
     }
 }

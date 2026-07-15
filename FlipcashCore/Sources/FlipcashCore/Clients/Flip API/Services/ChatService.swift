@@ -93,6 +93,7 @@ public enum ErrorGetDmChatFeed: Int, Error {
     case unknown          = -1
     case transportFailure = -2
     case cancelled = -3
+    case rejected = -4
 }
 
 public enum ErrorGetChat: Int, Error {
@@ -102,6 +103,7 @@ public enum ErrorGetChat: Int, Error {
     case unknown          = -1
     case transportFailure = -2
     case cancelled = -3
+    case rejected = -4
 }
 
 extension ErrorGetDmChatFeed: ServerError, TransportClassifiableError {
@@ -110,7 +112,7 @@ extension ErrorGetDmChatFeed: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .denied, .notFound: .info
-        case .unknown: .error
+        case .unknown, .rejected: .error
         }
     }
 }
@@ -121,7 +123,7 @@ extension ErrorGetChat: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .denied, .notFound: .info
-        case .unknown: .error
+        case .unknown, .rejected: .error
         }
     }
 }

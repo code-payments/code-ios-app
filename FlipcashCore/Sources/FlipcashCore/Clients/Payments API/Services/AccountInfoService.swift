@@ -112,7 +112,7 @@ final class AccountInfoService: Sendable {
                 case .notFound:
                     // No ATA for this mint yet — caller treats as zero balance.
                     await MainActor.run { completion(.success(nil)) }
-                case .unknown, .accountNotInList, .parseFailed, .transportFailure, .cancelled:
+                case .unknown, .accountNotInList, .parseFailed, .transportFailure, .cancelled, .rejected:
                     logger.error("Failed to fetch associated token account", metadata: [
                         "owner": "\(owner.publicKey.base58)",
                         "mint": "\(mint.base58)",
@@ -186,6 +186,7 @@ public enum ErrorFetchBalance: Int, Error, Equatable, Sendable {
     case parseFailed      = -3
     case transportFailure = -4
     case cancelled        = -5
+    case rejected         = -6
 }
 
 extension ErrorFetchBalance: ServerError, TransportClassifiableError {
@@ -194,7 +195,7 @@ extension ErrorFetchBalance: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .notFound, .accountNotInList: .info
-        case .unknown, .parseFailed: .error
+        case .unknown, .parseFailed, .rejected: .error
         }
     }
 }

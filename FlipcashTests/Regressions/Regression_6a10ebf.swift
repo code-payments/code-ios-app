@@ -33,6 +33,7 @@ struct Regression_6a10ebf {
         (ErrorFetchBalance.parseFailed,      .error),
         (ErrorFetchBalance.transportFailure, .suppressed),
         (ErrorFetchBalance.cancelled,        .info),
+        (ErrorFetchBalance.rejected,         .error),
     ])
     func reportingLevel(error: ErrorFetchBalance, expected: ErrorReportingLevel) {
         #expect(error.reportingLevel == expected)
@@ -42,8 +43,8 @@ struct Regression_6a10ebf {
         (RPCError.Code.deadlineExceeded, ErrorFetchBalance.transportFailure),
         (RPCError.Code.unavailable,      ErrorFetchBalance.transportFailure),
         (RPCError.Code.cancelled,        ErrorFetchBalance.cancelled),
-        (RPCError.Code.invalidArgument,  ErrorFetchBalance.unknown),
-        (RPCError.Code.permissionDenied, ErrorFetchBalance.unknown),
+        (RPCError.Code.invalidArgument,  ErrorFetchBalance.rejected),
+        (RPCError.Code.permissionDenied, ErrorFetchBalance.rejected),
         (RPCError.Code.internalError,    ErrorFetchBalance.unknown),
     ])
     func transportErrorMapping(code: RPCError.Code, expected: ErrorFetchBalance) {

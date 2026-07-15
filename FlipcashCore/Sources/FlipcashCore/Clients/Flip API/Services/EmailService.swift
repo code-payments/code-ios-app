@@ -120,6 +120,7 @@ public enum ErrorSendEmailCode: Int, Error {
     case unknown = -1
     case transportFailure = -2
     case cancelled = -3
+    case rejected = -4
 }
 
 public enum ErrorCheckEmailCode: Int, Error {
@@ -140,6 +141,7 @@ public enum ErrorCheckEmailCode: Int, Error {
     case unknown = -1
     case transportFailure = -2
     case cancelled = -3
+    case rejected = -4
 }
 
 public enum ErrorUnlinkEmail: Int, Error {
@@ -148,6 +150,7 @@ public enum ErrorUnlinkEmail: Int, Error {
     case unknown = -1
     case transportFailure = -2
     case cancelled = -3
+    case rejected = -4
 }
 
 extension ErrorSendEmailCode: ServerError, TransportClassifiableError {
@@ -156,7 +159,7 @@ extension ErrorSendEmailCode: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .denied, .rateLimited, .invalidEmailAddress: .info
-        case .unknown: .error
+        case .unknown, .rejected: .error
         }
     }
 }
@@ -167,7 +170,7 @@ extension ErrorCheckEmailCode: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .denied, .rateLimited, .invalidCode, .noVerification: .info
-        case .unknown: .error
+        case .unknown, .rejected: .error
         }
     }
 }
@@ -178,7 +181,7 @@ extension ErrorUnlinkEmail: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .denied: .info
-        case .unknown: .error
+        case .unknown, .rejected: .error
         }
     }
 }

@@ -16,6 +16,20 @@ extension RPCError.Code {
     public var isTransientNetworkError: Bool {
         self == .deadlineExceeded || self == .unavailable
     }
+
+    /// Whether the server understood the request and definitively refused it,
+    /// so retrying the identical call can never succeed. Excludes anomaly codes
+    /// (`.internalError`, `.unknown`, `.dataLoss`), contention (`.aborted`), and
+    /// rate limiting (`.resourceExhausted`) — those may clear on retry.
+    public var isDeterministicRejection: Bool {
+        switch self {
+        case .invalidArgument, .notFound, .alreadyExists, .permissionDenied,
+             .failedPrecondition, .outOfRange, .unimplemented, .unauthenticated:
+            true
+        default:
+            false
+        }
+    }
 }
 
 extension RPCError: ServerError {
