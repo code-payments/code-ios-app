@@ -47,7 +47,7 @@ final class ChatMessagingService: Sendable {
                 case .notFound:
                     // An empty page is reported as NOT_FOUND, not empty OK.
                     await MainActor.run { completion(.success([])) }
-                case .denied, .unknown, .transportFailure, .cancelled:
+                case .denied, .unknown, .transportFailure, .cancelled, .rejected:
                     logger.error("Failed to fetch messages")
                     await MainActor.run { completion(.failure(error)) }
                 }
@@ -95,7 +95,7 @@ final class ChatMessagingService: Sendable {
                             await MainActor.run { onBatch(messages, checkpoint) }
                         case .denied, .resetRequired:
                             terminal = result
-                        case .unknown, .transportFailure, .cancelled:
+                        case .unknown, .transportFailure, .cancelled, .rejected:
                             // Server results are only ok/denied/resetRequired; a transport case here is
                             // defensive — treat as an unknown terminal.
                             terminal = .unknown
@@ -189,6 +189,7 @@ public enum ErrorGetMessages: Int, Error {
     case unknown          = -1
     case transportFailure = -2
     case cancelled = -3
+    case rejected = -4
 }
 
 public enum ErrorGetDelta: Int, Error {
@@ -198,6 +199,7 @@ public enum ErrorGetDelta: Int, Error {
     case unknown          = -1
     case transportFailure = -2
     case cancelled        = -3
+    case rejected         = -4
 }
 
 public enum ErrorSendMessage: Int, Error {
@@ -206,6 +208,7 @@ public enum ErrorSendMessage: Int, Error {
     case unknown          = -1
     case transportFailure = -2
     case cancelled = -3
+    case rejected = -4
 }
 
 public enum ErrorAdvancePointer: Int, Error {
@@ -215,6 +218,7 @@ public enum ErrorAdvancePointer: Int, Error {
     case unknown          = -1
     case transportFailure = -2
     case cancelled = -3
+    case rejected = -4
 }
 
 public enum ErrorNotifyIsTyping: Int, Error {
@@ -223,6 +227,7 @@ public enum ErrorNotifyIsTyping: Int, Error {
     case unknown          = -1
     case transportFailure = -2
     case cancelled = -3
+    case rejected = -4
 }
 
 extension ErrorGetMessages: ServerError, TransportClassifiableError {
@@ -231,7 +236,7 @@ extension ErrorGetMessages: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .denied, .notFound: .info
-        case .unknown: .error
+        case .unknown, .rejected: .error
         }
     }
 }
@@ -243,7 +248,7 @@ extension ErrorGetDelta: ServerError, TransportClassifiableError {
         // `resetRequired` is a routine "cursor too old, re-sync" outcome, `denied` an expected
         // membership/business result, and `.cancelled` app-initiated teardown — none is a client defect.
         case .denied, .resetRequired, .cancelled: .info
-        case .unknown: .error
+        case .unknown, .rejected: .error
         }
     }
 }
@@ -254,7 +259,7 @@ extension ErrorSendMessage: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .denied: .info
-        case .unknown: .error
+        case .unknown, .rejected: .error
         }
     }
 }
@@ -265,7 +270,7 @@ extension ErrorAdvancePointer: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .denied, .messageNotFound: .info
-        case .unknown: .error
+        case .unknown, .rejected: .error
         }
     }
 }
@@ -276,7 +281,7 @@ extension ErrorNotifyIsTyping: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .denied: .info
-        case .unknown: .error
+        case .unknown, .rejected: .error
         }
     }
 }

@@ -146,6 +146,7 @@ public enum ErrorSendVerificationCode: Int, Error, Equatable, Sendable {
     case unknown = -1
     case transportFailure = -2
     case cancelled = -3
+    case rejected = -4
 }
 
 public enum ErrorCheckVerificationCode: Int, Error, Equatable, Sendable {
@@ -166,6 +167,7 @@ public enum ErrorCheckVerificationCode: Int, Error, Equatable, Sendable {
     case unknown = -1
     case transportFailure = -2
     case cancelled = -3
+    case rejected = -4
 }
 
 public enum ErrorUnlinkPhone: Int, Error, Equatable, Sendable {
@@ -174,6 +176,7 @@ public enum ErrorUnlinkPhone: Int, Error, Equatable, Sendable {
     case unknown = -1
     case transportFailure = -2
     case cancelled = -3
+    case rejected = -4
 }
 
 public enum ErrorLinkForPayment: Int, Error, Equatable, Sendable {
@@ -184,6 +187,7 @@ public enum ErrorLinkForPayment: Int, Error, Equatable, Sendable {
     case unknown = -1
     case transportFailure = -2
     case cancelled = -3
+    case rejected = -4
 }
 
 extension ErrorSendVerificationCode: ServerError, TransportClassifiableError {
@@ -192,7 +196,7 @@ extension ErrorSendVerificationCode: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .denied, .rateLimited, .invalidPhoneNumber, .unsupportedPhoneType: .info
-        case .unknown: .error
+        case .unknown, .rejected: .error
         }
     }
 }
@@ -203,7 +207,7 @@ extension ErrorCheckVerificationCode: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .denied, .rateLimited, .invalidCode, .noVerification: .info
-        case .unknown: .error
+        case .unknown, .rejected: .error
         }
     }
 }
@@ -214,7 +218,7 @@ extension ErrorUnlinkPhone: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .denied: .info
-        case .unknown: .error
+        case .unknown, .rejected: .error
         }
     }
 }
@@ -225,7 +229,7 @@ extension ErrorLinkForPayment: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .denied, .notAssociated: .info
-        case .unknown: .error
+        case .unknown, .rejected: .error
         }
     }
 }

@@ -159,6 +159,7 @@ public enum ErrorRegisterAccount: Int, Error {
     case unknown          = -1
     case transportFailure = -2
     case cancelled = -3
+    case rejected = -4
 }
 
 public enum ErrorLoginAccount: Int, Error {
@@ -168,6 +169,7 @@ public enum ErrorLoginAccount: Int, Error {
     case unknown          = -1
     case transportFailure = -2
     case cancelled = -3
+    case rejected = -4
 }
 
 public enum ErrorFetchUserFlags: Int, Error {
@@ -176,6 +178,7 @@ public enum ErrorFetchUserFlags: Int, Error {
     case unknown          = -1
     case transportFailure = -2
     case cancelled = -3
+    case rejected = -4
 }
 
 public enum ErrorFetchUnauthenticatedUserFlags: Int, Error {
@@ -183,6 +186,7 @@ public enum ErrorFetchUnauthenticatedUserFlags: Int, Error {
     case unknown          = -1
     case transportFailure = -2
     case cancelled = -3
+    case rejected = -4
 }
 
 extension ErrorRegisterAccount: ServerError, TransportClassifiableError {
@@ -191,7 +195,7 @@ extension ErrorRegisterAccount: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .invalidSignature, .denied: .info
-        case .unknown: .error
+        case .unknown, .rejected: .error
         }
     }
 }
@@ -202,7 +206,7 @@ extension ErrorLoginAccount: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .invalidTimestamp, .denied: .info
-        case .unknown: .error
+        case .unknown, .rejected: .error
         }
     }
 }
@@ -213,7 +217,7 @@ extension ErrorFetchUserFlags: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .denied: .info
-        case .unknown: .error
+        case .unknown, .rejected: .error
         }
     }
 }
@@ -223,7 +227,7 @@ extension ErrorFetchUnauthenticatedUserFlags: ServerError, TransportClassifiable
         switch self {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
-        case .unknown: .error
+        case .unknown, .rejected: .error
         }
     }
 }

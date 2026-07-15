@@ -74,6 +74,7 @@ public enum ErrorResolve: Int, Error, Equatable, Sendable {
     case notFound = 2
     case transportFailure = -2
     case cancelled = -3
+    case rejected = -4
     case unknown = -1
 }
 
@@ -83,7 +84,7 @@ extension ErrorResolve: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .denied, .notFound: .info
-        case .unknown: .error
+        case .unknown, .rejected: .error
         }
     }
 }

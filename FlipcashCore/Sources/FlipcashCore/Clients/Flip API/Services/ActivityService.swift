@@ -109,6 +109,7 @@ public enum ErrorFetchTransactionHistory: Int, Error {
     case unknown          = -1
     case transportFailure = -2
     case cancelled = -3
+    case rejected = -4
 }
 
 public enum ErrorFetchTransactionHistoryItemsByID: Int, Error {
@@ -118,6 +119,7 @@ public enum ErrorFetchTransactionHistoryItemsByID: Int, Error {
     case unknown          = -1
     case transportFailure = -2
     case cancelled = -3
+    case rejected = -4
 }
 
 extension ErrorFetchTransactionHistory: ServerError, TransportClassifiableError {
@@ -126,7 +128,7 @@ extension ErrorFetchTransactionHistory: ServerError, TransportClassifiableError 
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .denied: .info
-        case .unknown: .error
+        case .unknown, .rejected: .error
         }
     }
 }
@@ -137,7 +139,7 @@ extension ErrorFetchTransactionHistoryItemsByID: ServerError, TransportClassifia
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .denied, .notFound: .info
-        case .unknown: .error
+        case .unknown, .rejected: .error
         }
     }
 }

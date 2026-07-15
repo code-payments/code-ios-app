@@ -15,13 +15,19 @@ struct TransportClassificationTests {
     /// Generic contract check, reused by one `@Test` per conformer below. Using
     /// a generic over the concrete type (not a list of erased closures) keeps
     /// arguments `Sendable`-free and the call type-safe.
-    private func assertClassifies<E: TransportClassifiableError>(_ type: E.Type) {
+    private func assertClassifies<E: TransportClassifiableError & Equatable>(_ type: E.Type) {
         #expect(E.from(transportError: RPCError(code: .deadlineExceeded, message: "")).reportingLevel == .suppressed)
         #expect(E.from(transportError: RPCError(code: .unavailable, message: "")).reportingLevel == .suppressed)
         // Regression 6a1b80a: app/user-initiated teardown lands on `.cancelled` at
         // `.info`, never collapsed into `.unknown`/`.error`.
         #expect(E.from(transportError: RPCError(code: .cancelled, message: "")).reportingLevel == .info)
         #expect(E.from(transportError: RPCError(code: .internalError, message: "")).reportingLevel == .error)
+        // Anomalies stay on `.unknown`; deterministic refusals land on `.rejected`
+        // at the same severity, so splitting the bucket never changes reporting.
+        #expect(E.from(transportError: RPCError(code: .internalError, message: "")) == E.unknown)
+        #expect(E.from(transportError: RPCError(code: .permissionDenied, message: "")) == E.rejected)
+        #expect(E.from(transportError: RPCError(code: .unauthenticated, message: "")) == E.rejected)
+        #expect(E.rejected.reportingLevel == E.unknown.reportingLevel)
     }
 
     // MARK: - Registry (one line per TransportClassifiableError conformer) -
@@ -177,11 +183,13 @@ private struct UTF8Codec: MessageSerializer, MessageDeserializer {
 struct TransportRetryabilityTests {
 
     /// Generic contract check: transient transport failures and unclassified
-    /// errors retry; cancellation never does. One `@Test` per adopting call site.
+    /// anomalies retry; deterministic rejections and cancellation never do.
+    /// One `@Test` per adopting call site.
     private func assertRetryability<E: TransportClassifiableError & Equatable>(_ type: E.Type) {
         #expect(E.unknown.isRetryable)
         #expect(E.transportFailure.isRetryable)
         #expect(!E.cancelled.isRetryable)
+        #expect(!E.rejected.isRetryable)
     }
 
     @Test func errorFetchProfile() { assertRetryability(ErrorFetchProfile.self) }

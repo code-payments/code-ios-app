@@ -943,6 +943,7 @@ public enum ErrorVoidGiftCard: Int, Error {
     case unknown = -1
     case transportFailure = -2
     case cancelled = -3
+    case rejected = -4
 }
 
 public enum ErrorFetchIntentMetadata: Int, Error {
@@ -953,6 +954,7 @@ public enum ErrorFetchIntentMetadata: Int, Error {
     case failedToParse = -2
     case transportFailure = -3
     case cancelled = -4
+    case rejected = -5
 }
 
 public enum ErrorFetchLimits: Int, Error {
@@ -960,6 +962,7 @@ public enum ErrorFetchLimits: Int, Error {
     case unknown = -1
     case transportFailure = -2
     case cancelled = -3
+    case rejected = -4
 }
 
 extension ErrorSubmitIntent: ServerError {
@@ -978,7 +981,7 @@ extension ErrorVoidGiftCard: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .denied, .claimed, .notFound: .info
-        case .unknown: .error
+        case .unknown, .rejected: .error
         }
     }
 }
@@ -989,7 +992,7 @@ extension ErrorFetchIntentMetadata: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .notFound, .denied: .info
-        case .unknown, .failedToParse: .error
+        case .unknown, .failedToParse, .rejected: .error
         }
     }
 }
@@ -999,7 +1002,7 @@ extension ErrorFetchLimits: ServerError, TransportClassifiableError {
         switch self {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
-        case .unknown: .error
+        case .unknown, .rejected: .error
         }
     }
 }

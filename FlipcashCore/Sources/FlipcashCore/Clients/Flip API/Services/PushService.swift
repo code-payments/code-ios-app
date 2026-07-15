@@ -86,6 +86,7 @@ public enum ErrorAddToken: Int, Error {
     case unknown          = -1
     case transportFailure = -2
     case cancelled = -3
+    case rejected = -4
 }
 
 public enum ErrorDeleteToken: Int, Error {
@@ -93,6 +94,7 @@ public enum ErrorDeleteToken: Int, Error {
     case unknown          = -1
     case transportFailure = -2
     case cancelled = -3
+    case rejected = -4
 }
 
 extension ErrorAddToken: ServerError, TransportClassifiableError {
@@ -101,7 +103,7 @@ extension ErrorAddToken: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .invalidPushToken: .info
-        case .unknown: .error
+        case .unknown, .rejected: .error
         }
     }
 }
@@ -111,7 +113,7 @@ extension ErrorDeleteToken: ServerError, TransportClassifiableError {
         switch self {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
-        case .unknown: .error
+        case .unknown, .rejected: .error
         }
     }
 }

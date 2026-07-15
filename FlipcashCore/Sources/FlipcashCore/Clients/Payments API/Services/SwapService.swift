@@ -656,6 +656,7 @@ public enum ErrorGetSwap: Int, Error {
     case failedToParse = -2
     case transportFailure = -3
     case cancelled = -4
+    case rejected = -5
 }
 
 extension ErrorSwap: ServerError {
@@ -675,7 +676,7 @@ extension ErrorGetSwap: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .notFound, .denied: .info
-        case .unknown, .failedToParse: .error
+        case .unknown, .failedToParse, .rejected: .error
         }
     }
 }

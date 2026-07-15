@@ -517,6 +517,8 @@ final class ContactSyncController {
             logger.warning("Sync stopped — contact count exceeds server cap")
         case .notFound:
             logger.info("Sync completed with no matched contacts")
+        case .rejected:
+            logger.error("Sync failed — request rejected")
         case .unknown:
             logger.error("Sync failed — unknown error")
         }

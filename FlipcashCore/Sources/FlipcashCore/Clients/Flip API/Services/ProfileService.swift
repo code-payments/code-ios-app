@@ -67,6 +67,7 @@ public enum ErrorFetchProfile: Int, Error {
     case unknown          = -1
     case transportFailure = -2
     case cancelled = -3
+    case rejected = -4
 }
 
 extension ErrorFetchProfile: ServerError, TransportClassifiableError {
@@ -75,7 +76,7 @@ extension ErrorFetchProfile: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .notFound: .info
-        case .unknown: .error
+        case .unknown, .rejected: .error
         }
     }
 }

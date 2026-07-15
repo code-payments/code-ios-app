@@ -319,6 +319,7 @@ public enum ErrorContactSync: Int, Error, Equatable, Sendable {
     case checksumDrift = 5
     case transportFailure = -2
     case cancelled = -3
+    case rejected = -4
     case unknown = -1
 }
 
@@ -328,7 +329,7 @@ extension ErrorContactSync: ServerError, TransportClassifiableError {
         case .ok, .transportFailure: .suppressed
         case .cancelled: .info
         case .denied, .tooManyContacts, .checksumDrift, .notFound: .info
-        case .checksumMismatch, .unknown: .error
+        case .checksumMismatch, .unknown, .rejected: .error
         }
     }
 }
