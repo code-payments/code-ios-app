@@ -18,6 +18,7 @@ extension ShapeStyle where Self == Color {
     public static var textError: Color                   { Color(r: 255, g: 131, b: 131) }
     public static var textSuccess: Color                 { Color(r: 73 , g: 213, b: 23) }
     public static var textWarning: Color                 { Color(r: 255, g: 243, b: 131) }
+    public static var iconWarning: Color                 { Color(r: 255, g: 169, b: 57)  }
 
     public static var action: Color                      { Color.white }
     public static var actionDisabled: Color              { Color(r: 30,  g: 30,  b: 30) }

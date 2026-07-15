@@ -94,4 +94,15 @@ extension ButtonStyle where Self == FilledButtonStyle {
             isCompact: false
         )
     }
+
+    /// A full-width filled button at 20% action color opacity (compact variant).
+    public static var filled20Compact: FilledButtonStyle {
+        .init(
+            textColor: .textMain,
+            textDisabledColor: .textMain.opacity(0.2),
+            overlayColor: .action.opacity(0.2),
+            overlayDisabledColor: .action.opacity(0.2),
+            isCompact: true
+        )
+    }
 }
