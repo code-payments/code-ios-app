@@ -173,9 +173,10 @@ class BaseUITestCase: XCTestCase {
     /// if the flow never completes — a swallowed miss leaves the alert
     /// covering the app and wedges every test that follows in the bundle.
     func allowContactsIfNeeded() {
-        // The in-app priming button; scoped to `app` so it never matches the
-        // system alert's own "Continue" (`springboard`, tapped below).
-        let appContinueButton = app.buttons["Continue"]
+        // The in-app priming button, targeted by identifier: a bare "Continue" label is ambiguous
+        // (the scan screen's camera prompt behind the sheet carries the same label), and scoping to
+        // `app` alone never matches the system alert's own "Continue" (`springboard`, tapped below).
+        let appContinueButton = app.buttons["contacts-continue-button"]
         guard appContinueButton.waitForExistence(timeout: 5) else { return }
         appContinueButton.tap()
 

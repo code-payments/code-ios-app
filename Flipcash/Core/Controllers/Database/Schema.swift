@@ -207,6 +207,9 @@ nonisolated struct ConversationMessageTable: Sendable {
     // Event-log version of this message's current state; the store applies
     // last-writer-wins by it. Zero for legacy/optimistic rows.
     let eventSequence  = Expression <UInt64>        ("eventSequence")
+    // Stable client identity of an optimistic send, carried onto the server row it reconciles to so a
+    // row keeps one identity across sending → sent and survives a DB round-trip.
+    let clientMessageID = Expression <UUID?>        ("clientMessageID")
 }
 
 nonisolated extension Expression {
@@ -425,6 +428,7 @@ nonisolated extension Database {
                 t.column(conversationMessageTable.date)
                 t.column(conversationMessageTable.unreadSeq)
                 t.column(conversationMessageTable.eventSequence)
+                t.column(conversationMessageTable.clientMessageID)
                 t.primaryKey(conversationMessageTable.conversationId, conversationMessageTable.id)
             })
         }

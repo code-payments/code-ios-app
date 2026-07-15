@@ -128,9 +128,6 @@ final class ConversationController {
             transaction.disablesAnimations = true
             withTransaction(transaction) {
                 store.setFeed(cache.conversations)
-                for (conversationID, messages) in cache.messages {
-                    store.mergeMessages(messages, into: conversationID)
-                }
                 store.seedAppliedCursors(cache.cursors)
             }
         } catch {
@@ -216,7 +213,7 @@ final class ConversationController {
     /// holds nothing for — no feed entry, no messages, no applied cursor.
     func catchUp(conversationID: ConversationID) async {
         guard conversation(withID: conversationID) != nil
-            || store.hasMessages(for: conversationID)
+            || hasMessages(for: conversationID)
             || store.appliedCursor(for: conversationID) > 0 else {
             logger.info("Skipping catch-up for a conversation the client holds nothing for", metadata: [
                 "conversationID": "\(conversationID)",
@@ -229,17 +226,33 @@ final class ConversationController {
 
         let after = store.appliedCursor(for: conversationID)
         do {
+            var anyBatchFailed = false
             let head = try await messaging.getDelta(owner: owner, conversationID: conversationID, afterSequence: after) { [weak self] messages, checkpoint in
                 guard let self else { return }
-                self.store.applyDeltaBatch(messages, checkpoint: checkpoint, into: conversationID)
-                if !messages.isEmpty {
-                    self.persist(operation: "delta-batch") { try self.database.upsertConversationMessages(messages, conversationID: conversationID) }
+                let (reconciled, pairs) = self.reconciledForPersist(messages, in: conversationID)
+                // Batch + checkpoint cursor persist atomically; advance the in-memory checkpoint only
+                // after the write succeeds, so a rolled-back batch isn't skipped on the next catch-up.
+                let cursor = checkpoint ?? self.store.appliedCursor(for: conversationID)
+                let ok = self.persist(operation: "delta-batch") {
+                    try self.database.persistMessages(reconciled, cursor: cursor, conversationID: conversationID)
                 }
-                self.persistCursor(for: conversationID)
+                if ok {
+                    self.commitReconciled(pairs, in: conversationID)
+                    if let checkpoint { self.store.setAppliedCursor(checkpoint, for: conversationID) }
+                } else {
+                    anyBatchFailed = true
+                }
+                self.refreshFeedPreview(for: conversationID)
             }
-            // Clean completion: the head is authoritative even if the intervening events weren't observed.
-            store.setAppliedCursor(head, for: conversationID)
-            persistCursor(for: conversationID)
+            // Clean completion: the head is authoritative — but only when every batch landed. Seating
+            // head over a rolled-back batch would orphan its messages from every future GetDelta.
+            if anyBatchFailed {
+                store.reseatCursor((try? database.catchupCursor(conversationID: conversationID)) ?? 0, for: conversationID)
+                scheduleGapCatchUp(conversationID)
+            } else {
+                store.setAppliedCursor(head, for: conversationID)
+                persistCursor(for: conversationID)
+            }
             // `after` vs `head`: equal means already current; a jump means the delta window that was
             // caught up. Observable so the production catch-up cadence can be traced.
             logger.info("Chat catch-up complete", metadata: [
@@ -288,12 +301,19 @@ final class ConversationController {
         persist(operation: "reset-cursor") { try database.updateCatchupCursor(0, for: conversationID) }
         do {
             let messages = try await messaging.getMessages(owner: owner, conversationID: conversationID, before: nil)
-            store.mergeMessages(messages, into: conversationID)
-            persist(operation: "reset-resync") { try database.upsertConversationMessages(messages, conversationID: conversationID) }
-            if let floor = messages.map(\.eventSequence).filter({ $0 > 0 }).min() {
-                store.setAppliedCursor(floor, for: conversationID)
-                persistCursor(for: conversationID)
+            let (reconciled, pairs) = reconciledForPersist(messages, in: conversationID)
+            let floor = messages.map(\.eventSequence).filter({ $0 > 0 }).min() ?? 0
+            // Page + floor cursor land atomically (a failed write must not seat the cursor), and a
+            // non-overlapping page drops the stale older epoch first.
+            let ok = persist(operation: "reset-resync") {
+                try dropStaleEpochIfNeeded(before: messages, in: conversationID)
+                try database.persistMessages(reconciled, cursor: floor, conversationID: conversationID)
             }
+            if ok {
+                commitReconciled(pairs, in: conversationID)
+                if floor > 0 { store.setAppliedCursor(floor, for: conversationID) }
+            }
+            refreshFeedPreview(for: conversationID)
         } catch {
             logger.error("Failed to re-sync after catch-up reset", metadata: [
                 "conversationID": "\(conversationID)",
@@ -412,23 +432,102 @@ final class ConversationController {
     private func persist(event: ConversationStreamEvent) {
         switch event {
         case .newMessages(let conversationID, let messages):
-            persist(operation: "upsert-messages") { try database.upsertConversationMessages(messages, conversationID: conversationID) }
+            let (reconciled, pairs) = reconciledForPersist(messages, in: conversationID)
+            let ok = persist(operation: "upsert-messages") { try database.upsertConversationMessages(reconciled, conversationID: conversationID) }
+            if ok {
+                commitReconciled(pairs, in: conversationID)
+            } else {
+                // The delivered batch is in neither the DB nor the store — refetch it from the event log.
+                scheduleGapCatchUp(conversationID)
+            }
+            refreshFeedPreview(for: conversationID)
             persistConversation(conversationID)
         case .chatEvents(let conversationID, let events):
-            let messages = events.flatMap { $0.mutations.map(\.message) }
-            if !messages.isEmpty {
-                persist(operation: "upsert-events") { try database.upsertConversationMessages(messages, conversationID: conversationID) }
+            let (reconciled, pairs) = reconciledForPersist(events.flatMap { $0.mutations.map(\.message) }, in: conversationID)
+            // Messages + the advanced cursor persist atomically. `store.apply` already advanced the
+            // in-memory cursor optimistically, so if this write rolls back, re-seat the cursor to the
+            // persisted value and catch up — otherwise the un-persisted messages are skipped by the next
+            // GetDelta and lost (the store no longer holds a confirmed copy).
+            let ok = persist(operation: "apply-chat-events") {
+                try database.persistMessages(reconciled, cursor: store.appliedCursor(for: conversationID), conversationID: conversationID)
             }
-            persistCursor(for: conversationID)
+            if ok {
+                commitReconciled(pairs, in: conversationID)
+            } else {
+                store.reseatCursor((try? database.catchupCursor(conversationID: conversationID)) ?? 0, for: conversationID)
+                scheduleGapCatchUp(conversationID)
+            }
+            refreshFeedPreview(for: conversationID)
             persistConversation(conversationID)
         case .metadataRefresh(let conversation):
             persistConversation(conversation)
+            // A conversation entering the feed (e.g. re-hydrated after a stale feed snapshot dropped it)
+            // regains its preview from the retained rows.
+            refreshFeedPreview(for: conversation.id)
         case .lastActivityChanged(let conversationID, _),
              .readPointersChanged(let conversationID, _):
             persistConversation(conversationID)
         case .typingChanged:
             break
         }
+    }
+
+    /// Adopt pending sends' client ids onto *fresh* server echoes (ones not already persisted), so the
+    /// persisted confirmed rows keep each send's identity and the echo collapses onto the pending row
+    /// instead of duplicating it. A re-delivery of an already-stored id is left alone (it can't steal a
+    /// send). Returns the enriched messages plus the matched pairs; the caller drops the matched
+    /// pendings — via ``commitReconciled(_:in:)`` — only after the write persisting the batch succeeds,
+    /// so a failed write never loses a send from the transcript.
+    private func reconciledForPersist(_ messages: [ConversationMessage], in conversationID: ConversationID) -> (messages: [ConversationMessage], reconciled: [(clientID: UUID, confirmedID: MessageID)]) {
+        // No pending send to reconcile against → skip the per-message existence probes (the common
+        // receive/catch-up path, where every server message would otherwise cost a DB read).
+        guard store.hasPendingMessages(for: conversationID) else { return (messages, []) }
+        var claimed: Set<UUID> = []
+        var pairs: [(clientID: UUID, confirmedID: MessageID)] = []
+        let enriched = messages.map { message in
+            guard message.clientMessageID == nil,
+                  !((try? database.messageExists(id: message.id, conversationID: conversationID)) ?? true),
+                  let clientID = store.pendingMatch(for: message, in: conversationID, excluding: claimed)
+            else { return message }
+            claimed.insert(clientID)
+            pairs.append((clientID, message.id))
+            var reconciled = message
+            reconciled.clientMessageID = clientID
+            return reconciled
+        }
+        return (enriched, pairs)
+    }
+
+    /// Drop the pending rows whose echoes just persisted, re-anchoring later still-pending sends.
+    private func commitReconciled(_ pairs: [(clientID: UUID, confirmedID: MessageID)], in conversationID: ConversationID) {
+        for pair in pairs {
+            store.dropPending(clientMessageID: pair.clientID, confirmedAt: pair.confirmedID, in: conversationID)
+        }
+    }
+
+    /// A freshly fetched newest page that does not overlap the retained history proves nothing about
+    /// contiguity — the interior gap would render seamlessly stitched and can never be fetched (older
+    /// paging anchors below the *oldest* persisted row). Drop the stale older epoch; it re-pages from
+    /// the server on scroll. Must run before the page itself is persisted.
+    private func dropStaleEpochIfNeeded(before page: [ConversationMessage], in conversationID: ConversationID) throws {
+        guard let oldestOfPage = page.map(\.id.value).min(),
+              let newestPersisted = try database.newestMessageID(conversationID: conversationID),
+              newestPersisted.value < oldestOfPage else { return }
+        try database.deleteMessages(conversationID: conversationID)
+    }
+
+    /// Recompute the feed row's preview from the newest persisted *visible* message (the store no longer
+    /// holds the confirmed transcript to derive it from).
+    private func refreshFeedPreview(for conversationID: ConversationID) {
+        let visible = (try? database.latestMessage(conversationID: conversationID)) ?? nil
+        // A newest row that is itself invisible (a tombstone) is the one case the preview must regress —
+        // the never-regress guard would otherwise keep showing the deleted content.
+        let newestID = (try? database.newestMessageID(conversationID: conversationID)) ?? nil
+        let newestIsTombstone: Bool = {
+            guard let newestID, let visible else { return false }
+            return newestID.value > visible.id.value
+        }()
+        store.setFeedPreview(visible, in: conversationID, force: newestIsTombstone)
     }
 
     /// Persists the store's current version of a conversation. No-ops for
@@ -442,17 +541,31 @@ final class ConversationController {
         persist(operation: "upsert-conversation") { try database.upsertConversation(conversation) }
     }
 
-    private func persist(operation: String, _ write: () throws -> Void) {
+    @discardableResult
+    private func persist(operation: String, _ write: () throws -> Void) -> Bool {
         do {
             try write()
+            // A successful confirmed-message write invalidates the DB-backed transcript window; bump the
+            // revision the coordinator observes so it re-reads.
+            if Self.messageWriteOperations.contains(operation) {
+                messageRevision &+= 1
+            }
+            return true
         } catch {
             logger.error("Failed to persist conversation state", metadata: [
                 "operation": "\(operation)",
                 "error": "\(error)",
             ])
             ErrorReporting.captureError(error, reason: "Failed to persist conversation state [\(operation)]")
+            return false
         }
     }
+
+    /// Persist operations that write confirmed messages — the ones that must bump `messageRevision`.
+    private static let messageWriteOperations: Set<String> = [
+        "upsert-messages", "apply-chat-events", "delta-batch", "load-messages", "load-older",
+        "send-message", "reset-resync",
+    ]
 
     // MARK: - Names
 
@@ -494,18 +607,60 @@ final class ConversationController {
     // MARK: - Conversation
 
     func messages(for conversationID: ConversationID) -> [ConversationMessage] {
-        store.displayedMessages(for: conversationID)
+        windowedMessages(for: conversationID, limit: Self.recentWindow)
     }
 
-    /// The newest server-confirmed message — what the screen's receive buzz and mark-read track, so an
-    /// unresolved optimistic send (which renders after the confirmed run) never masks an incoming one.
+    /// Bumped after every successful confirmed-message DB write, so the coordinator — which reads the
+    /// transcript from the DB, not the store — knows to re-read its window. Pending-overlay changes
+    /// re-fire through the store directly.
+    private(set) var messageRevision = 0
+
+    /// The transcript's bounded window with the in-memory optimistic overlay applied: every confirmed
+    /// message from `startID` to the newest when anchored, else the newest `limit`. The DB is the source
+    /// of the confirmed rows; the store contributes only the pending overlay. Anchoring by id means an
+    /// arriving message grows the window at the tail instead of sliding the oldest revealed row out.
+    func windowedMessages(for conversationID: ConversationID, startingAt startID: UInt64?, limit: Int) -> [ConversationMessage] {
+        _ = messageRevision   // observe: re-read when a confirmed DB write lands
+        let confirmed: [ConversationMessage]
+        if let startID {
+            confirmed = (try? database.messages(conversationID: conversationID, from: startID)) ?? []
+        } else {
+            confirmed = (try? database.messagesWindow(conversationID: conversationID, before: nil, limit: limit)) ?? []
+        }
+        return store.displayedMessages(for: conversationID, over: confirmed)
+    }
+
+    func windowedMessages(for conversationID: ConversationID, limit: Int) -> [ConversationMessage] {
+        windowedMessages(for: conversationID, startingAt: nil, limit: limit)
+    }
+
+    /// The oldest confirmed id inside the newest-`limit` window — the anchor a first page-back grows
+    /// from; nil when nothing is persisted.
+    func oldestWindowedMessageID(for conversationID: ConversationID, limit: Int) -> UInt64? {
+        ((try? database.messagesWindow(conversationID: conversationID, before: nil, limit: limit)) ?? []).first?.id.value
+    }
+
+    /// The persisted id `step` rows older than `before` — the loader's next window anchor — or nil when
+    /// no older history is persisted locally (time to page the server).
+    func olderAnchor(for conversationID: ConversationID, before: UInt64, step: Int) -> UInt64? {
+        (try? database.olderAnchor(conversationID: conversationID, before: before, step: step)) ?? nil
+    }
+
+    /// The general "recent messages" window for the misc accessor.
+    private static let recentWindow = 100
+
+    /// The newest confirmed message, tombstones included — what the receive buzz and mark-read track, so
+    /// an unresolved optimistic send never masks an incoming one, and a delete of the newest message
+    /// doesn't regress the anchor to the previous row (which would buzz as if it just arrived).
     func lastConfirmedMessage(for conversationID: ConversationID) -> ConversationMessage? {
-        store.lastConfirmedMessage(for: conversationID)
+        _ = messageRevision   // observe: identity-keyed triggers must re-evaluate when a write lands
+        return (try? database.newestMessage(conversationID: conversationID)) ?? nil
     }
 
-    /// Whether the conversation holds any message, without building the merged transcript.
+    /// Whether the conversation holds any message — an in-flight optimistic send, or a persisted one.
     func hasMessages(for conversationID: ConversationID) -> Bool {
-        store.hasMessages(for: conversationID)
+        _ = messageRevision
+        return store.hasPendingMessages(for: conversationID) || (try? database.newestMessageID(conversationID: conversationID)).flatMap { $0 } != nil
     }
 
     func loadMessages(for conversationID: ConversationID) async {
@@ -515,16 +670,23 @@ final class ConversationController {
                 "conversationID": "\(conversationID)",
                 "count": "\(messages.count)",
             ])
-            store.mergeMessages(messages, into: conversationID)
             // Establish the event-log frontier from the newest page so a following catch-up resumes from
             // head — fetching only genuinely newer messages, appended at the tail — instead of a
             // `GetDelta(after: 0)` that re-pulls the whole history and prepends it, knocking the
-            // transcript off the bottom on first open.
-            if let head = messages.map(\.eventSequence).max(), head > 0 {
-                store.setAppliedCursor(head, for: conversationID)
-                persistCursor(for: conversationID)
+            // transcript off the bottom on first open. Page + cursor land atomically (a failed write
+            // must not seat the cursor past messages that never persisted), and a non-overlapping page
+            // drops the stale older epoch first.
+            let (reconciled, pairs) = reconciledForPersist(messages, in: conversationID)
+            let head = messages.map(\.eventSequence).max() ?? 0
+            let ok = persist(operation: "load-messages") {
+                try dropStaleEpochIfNeeded(before: messages, in: conversationID)
+                try database.persistMessages(reconciled, cursor: head, conversationID: conversationID)
             }
-            persist(operation: "load-messages") { try database.upsertConversationMessages(messages, conversationID: conversationID) }
+            if ok {
+                commitReconciled(pairs, in: conversationID)
+                if head > 0 { store.setAppliedCursor(head, for: conversationID) }
+            }
+            refreshFeedPreview(for: conversationID)
         } catch {
             logger.error("Failed to load conversation messages", metadata: [
                 "conversationID": "\(conversationID)",
@@ -552,13 +714,13 @@ final class ConversationController {
         olderPageState[conversationID]?.isLoading ?? false
     }
 
-    /// Pages strictly older than the oldest loaded message and prepends the page
-    /// to the in-memory window. The newest-100 are the DB cache; older pages are
-    /// session-only (persisting them would just be pruned), so a reopen re-pages.
-    /// No-ops while a page is in flight or once history is exhausted.
+    /// Pages strictly older than the oldest loaded message, prepends it to the in-memory window, and
+    /// persists it — retention is on, so paged-in history stays in the DB and a reopen reads it locally
+    /// instead of re-fetching. No-ops while a page is in flight or once history is exhausted.
     func loadOlderMessages(for conversationID: ConversationID) async {
         guard hasMoreOlderMessages(for: conversationID), !isLoadingOlderMessages(for: conversationID) else { return }
-        guard let oldest = store.messages(for: conversationID).first?.id else { return }
+        // Page before the oldest PERSISTED id — the DB holds all viewed history; the store may be trimmed.
+        guard let oldest = (try? database.oldestMessageID(conversationID: conversationID)).flatMap({ $0 }) else { return }
 
         olderPageState[conversationID, default: OlderPageState()].isLoading = true
         defer { olderPageState[conversationID]?.isLoading = false }
@@ -568,12 +730,13 @@ final class ConversationController {
             if older.isEmpty {
                 olderPageState[conversationID]?.hasMore = false
             } else {
-                // Prepended history must not play insertion transitions — match the
-                // animation-suppressed merge used for the cache hydrate.
+                // Retention is on, so persist the paged-in history: the next open reads it from the DB
+                // instead of re-fetching. Prepended history must not play insertion transitions — the
+                // revision bump and the resulting re-read ride an animation-suppressed transaction.
                 var transaction = Transaction()
                 transaction.disablesAnimations = true
                 withTransaction(transaction) {
-                    store.mergeMessages(older, into: conversationID)
+                    _ = persist(operation: "load-older") { try database.upsertConversationMessages(older, conversationID: conversationID) }
                 }
             }
         } catch {
@@ -600,7 +763,8 @@ final class ConversationController {
             status: .sending,
             clientMessageID: clientMessageID
         )
-        store.insertPending(pending, into: conversationID)
+        let anchor = (try? database.newestMessageID(conversationID: conversationID)).flatMap { $0 }?.value ?? 0
+        store.insertPending(pending, anchoredTo: anchor, into: conversationID)
         receiptSettle.hold(clientMessageID.uuidString)
         return await deliver(clientMessageID: clientMessageID, text: text, to: conversationID)
     }
@@ -619,9 +783,20 @@ final class ConversationController {
     private func deliver(clientMessageID: UUID, text: String, to conversationID: ConversationID) async -> Bool {
         do {
             let message = try await messaging.sendMessage(owner: owner, conversationID: conversationID, text: text, clientMessageID: clientMessageID)
-            store.reconcile(clientMessageID: clientMessageID, with: message, in: conversationID)
-            store.setLastMessage(message, in: conversationID)
-            persist(operation: "send-message") { try database.upsertConversationMessages([message], conversationID: conversationID) }
+            // Persist the row carrying its client id (the server echoes none) so the DB keeps the send's
+            // identity across a round-trip. The pending row is dropped only once the confirmed copy is
+            // durably readable — a failed write leaves the send visible (the stream echo or a catch-up
+            // reconciles it later) instead of vanishing it.
+            var confirmed = message
+            confirmed.clientMessageID = clientMessageID
+            let ok = persist(operation: "send-message") { try database.upsertConversationMessages([confirmed], conversationID: conversationID) }
+            if ok {
+                store.dropPending(clientMessageID: clientMessageID, confirmedAt: message.id, in: conversationID)
+            } else {
+                scheduleGapCatchUp(conversationID)
+            }
+            store.advanceLastActivity(to: message.date, in: conversationID)
+            refreshFeedPreview(for: conversationID)
             persistConversation(conversationID)
             Analytics.track(event: Analytics.ConversationEvent.sentMessage)
             return true
@@ -650,15 +825,15 @@ final class ConversationController {
     }
 
     func markRead(conversationID: ConversationID) async {
-        guard let latest = store.messages(for: conversationID).last else { return }
+        guard let latestID = (try? database.newestMessageID(conversationID: conversationID)).flatMap({ $0 }) else { return }
         // Skip the round-trip when the server-known READ watermark already covers
         // the latest message. We advance the watermark locally after each success.
-        if let read = store.selfReadPointer(for: conversationID, selfUserID: selfUserID), latest.id <= read {
+        if let read = store.selfReadPointer(for: conversationID, selfUserID: selfUserID), latestID <= read {
             return
         }
         do {
-            try await messaging.markRead(owner: owner, conversationID: conversationID, messageID: latest.id)
-            store.advanceSelfReadPointer(to: latest.id, in: conversationID, selfUserID: selfUserID)
+            try await messaging.markRead(owner: owner, conversationID: conversationID, messageID: latestID)
+            store.advanceSelfReadPointer(to: latestID, in: conversationID, selfUserID: selfUserID)
             persistConversation(conversationID)
         } catch {
             logger.error("Failed to mark conversation read", metadata: [

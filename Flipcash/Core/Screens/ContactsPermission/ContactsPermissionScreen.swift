@@ -92,6 +92,9 @@ private struct ContactsPrimingContent: View {
 
             Button("Continue", action: onContinue)
                 .buttonStyle(.filled)
+                // A bare "Continue" query is ambiguous — the scan screen's camera prompt behind this
+                // sheet carries the same label — so UI tests target this identifier.
+                .accessibilityIdentifier("contacts-continue-button")
         }
     }
 }

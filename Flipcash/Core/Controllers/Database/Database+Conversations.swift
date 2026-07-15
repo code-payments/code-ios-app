@@ -15,17 +15,13 @@ nonisolated extension Database {
 
     /// Async wrapper that runs the synchronous cache reads off the caller's
     /// actor so session start never blocks the main thread on row decoding.
-    func loadConversationCache() async throws -> (conversations: [Conversation], messages: [ConversationID: [ConversationMessage]], cursors: [ConversationID: UInt64]) {
+    func loadConversationCache() async throws -> (conversations: [Conversation], cursors: [ConversationID: UInt64]) {
         try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 do {
                     let conversations = try self.getConversations()
-                    var messages: [ConversationID: [ConversationMessage]] = [:]
-                    for conversation in conversations {
-                        messages[conversation.id] = try self.getConversationMessages(conversationID: conversation.id)
-                    }
                     let cursors = try self.getCatchupCursors()
-                    continuation.resume(returning: (conversations, messages, cursors))
+                    continuation.resume(returning: (conversations, cursors))
                 } catch {
                     continuation.resume(throwing: error)
                 }
@@ -43,6 +39,13 @@ nonisolated extension Database {
         return rows.reduce(into: [:]) { result, row in
             if let cursor = row.cursor { result[row.id] = cursor }
         }
+    }
+
+    /// The persisted catch-up cursor for one conversation (0 when none) — used to re-seat the in-memory
+    /// cursor after a failed message persist so recovery refetches, rather than skips, the window.
+    func catchupCursor(conversationID: ConversationID) throws -> UInt64 {
+        let c = ConversationTable()
+        return (try reader.pluck(c.table.filter(c.id == conversationID.data))).flatMap { $0[c.catchupCursor] } ?? 0
     }
 
     /// The cached DM feed, most-recent activity first, with members and the
@@ -83,6 +86,10 @@ nonisolated extension Database {
     /// The newest stored non-deleted message for a conversation, or nil when none is cached. Tombstones
     /// (`kind == 2`) are skipped so the feed preview shows the newest *visible* message rather than a
     /// blank row for a deleted last message.
+    func latestMessage(conversationID: ConversationID) throws -> ConversationMessage? {
+        try latestMessage(conversationId: conversationID.data)
+    }
+
     private func latestMessage(conversationId: Data) throws -> ConversationMessage? {
         let m = ConversationMessageTable()
         guard let row = try reader.pluck(
@@ -91,6 +98,34 @@ nonisolated extension Database {
             return nil
         }
         return conversationMessage(from: row)
+    }
+
+    /// The newest stored message id (tombstones included) — the mark-read / receive-buzz anchor.
+    func newestMessageID(conversationID: ConversationID) throws -> MessageID? {
+        let m = ConversationMessageTable()
+        return try reader.pluck(
+            m.table.filter(m.conversationId == conversationID.data).order(m.id.desc)
+        ).map { MessageID(value: $0[m.id]) }
+    }
+
+    /// The newest stored message (tombstones included). Unlike ``latestMessage(conversationID:)``, a
+    /// delete of the newest message does not regress this value to the previous row — it returns the
+    /// tombstone itself — so identity-keyed triggers (receive buzz, mark-read) don't misfire on deletes.
+    func newestMessage(conversationID: ConversationID) throws -> ConversationMessage? {
+        let m = ConversationMessageTable()
+        guard let row = try reader.pluck(
+            m.table.filter(m.conversationId == conversationID.data).order(m.id.desc)
+        ) else {
+            return nil
+        }
+        return conversationMessage(from: row)
+    }
+
+    /// Whether a specific message id is already persisted — the "is this a fresh echo?" gate for the
+    /// optimistic-send reconcile, replacing the in-memory existence check.
+    func messageExists(id: MessageID, conversationID: ConversationID) throws -> Bool {
+        let m = ConversationMessageTable()
+        return try reader.scalar(m.table.filter(m.conversationId == conversationID.data && m.id == id.value).count) > 0
     }
 
     /// All cached messages for a conversation, oldest first.
@@ -102,29 +137,80 @@ nonisolated extension Database {
         return try rows.map { conversationMessage(from: $0) }.compactMap { $0 }
     }
 
+    /// A bounded window of a conversation's messages, oldest-first: the newest `limit` when `before` is
+    /// nil, otherwise the `limit` messages immediately older than `before`. Index-backed by the
+    /// composite `(conversationId, id)` primary key — no scan, no sort.
+    func messagesWindow(conversationID: ConversationID, before: MessageID? = nil, limit: Int) throws -> [ConversationMessage] {
+        let m = ConversationMessageTable()
+        var query = m.table.filter(m.conversationId == conversationID.data)
+        if let before {
+            query = query.filter(m.id < before.value)
+        }
+        let rows = try reader.prepareRowIterator(query.order(m.id.desc).limit(limit))
+        return Array(try rows.map { conversationMessage(from: $0) }.compactMap { $0 }.reversed())
+    }
+
+    /// Every message from `startID` (inclusive) to the newest, oldest-first — the id-anchored window.
+    /// Anchoring by id means an arriving message grows the window at the tail instead of sliding the
+    /// oldest revealed row out from under a reader who has scrolled up.
+    func messages(conversationID: ConversationID, from startID: UInt64) throws -> [ConversationMessage] {
+        let m = ConversationMessageTable()
+        let rows = try reader.prepareRowIterator(
+            m.table.filter(m.conversationId == conversationID.data && m.id >= startID).order(m.id.asc)
+        )
+        return try rows.map { conversationMessage(from: $0) }.compactMap { $0 }
+    }
+
+    /// The id `step` rows older than `before` — the next anchor when the reader pages back — falling
+    /// back to the oldest available older row; nil when nothing older is persisted.
+    func olderAnchor(conversationID: ConversationID, before: UInt64, step: Int) throws -> UInt64? {
+        let m = ConversationMessageTable()
+        let older = m.table.filter(m.conversationId == conversationID.data && m.id < before)
+        if let row = try reader.pluck(older.order(m.id.desc).limit(1, offset: step - 1)) {
+            return row[m.id]
+        }
+        return try reader.pluck(older.order(m.id.asc)).map { $0[m.id] }
+    }
+
+    /// The number of confirmed messages persisted for a conversation — the ceiling the transcript
+    /// window can grow to before older history must be paged from the server.
+    func messageCount(conversationID: ConversationID) throws -> Int {
+        let m = ConversationMessageTable()
+        return try reader.scalar(m.table.filter(m.conversationId == conversationID.data).count)
+    }
+
+    /// The oldest persisted message id for a conversation, or nil when none is cached — the anchor for
+    /// paging genuinely older history from the server.
+    func oldestMessageID(conversationID: ConversationID) throws -> MessageID? {
+        let m = ConversationMessageTable()
+        return try reader.pluck(
+            m.table.filter(m.conversationId == conversationID.data).order(m.id.asc)
+        ).map { MessageID(value: $0[m.id]) }
+    }
+
     // MARK: - Write -
 
-    /// Mirror a paged feed load: replaces the conversation + member sets and
-    /// prunes messages of conversations no longer in the feed, then stores
-    /// each conversation's last-message preview.
+    /// Mirror a paged feed load: replaces the conversation + member sets (messages are retained), then
+    /// stores each conversation's last-message preview.
     func replaceConversationFeed(_ conversations: [Conversation]) throws {
         let c = ConversationTable()
         let m = ConversationMemberTable()
-        let msg = ConversationMessageTable()
         let ids = conversations.map(\.id.data)
         try writer.transaction {
             // Delete only the conversations that dropped out of the feed, then upsert the rest.
             // `writeConversation` upserts the row (leaving `catchupCursor` untouched on conflict) and
             // replaces that conversation's members, so a surviving conversation keeps its event-log
             // cursor without a read-and-restore dance.
+            // Messages are deliberately NOT deleted here: they are the transcript's source of truth,
+            // and a feed snapshot fetched before a brand-new chat's first message landed would
+            // otherwise wipe that just-persisted message. Rows for conversations that genuinely left
+            // the feed are orphaned but unread — nothing windows a conversation that isn't opened.
             if ids.isEmpty {
                 try writer.run(c.table.delete())
                 try writer.run(m.table.delete())
-                try writer.run(msg.table.delete())
             } else {
                 try writer.run(c.table.filter(!ids.contains(c.id)).delete())
                 try writer.run(m.table.filter(!ids.contains(m.conversationId)).delete())
-                try writer.run(msg.table.filter(!ids.contains(msg.conversationId)).delete())
             }
             for conversation in conversations {
                 try writeConversation(conversation)
@@ -147,34 +233,44 @@ nonisolated extension Database {
         }
     }
 
-    /// Newest messages kept per conversation. The slack is hysteresis: pruning
-    /// only fires once a conversation exceeds the window by this much, so
-    /// steady-state single-message writes don't pay a prune each time.
-    static let messageWindow = 100
-    static let messageWindowSlack = 20
-
-    /// Upsert messages for a conversation (insert-or-replace on the
-    /// (conversation, id) key), then prune anything older than the window.
+    /// Upsert messages for a conversation (insert-or-replace on the (conversation, id) key). History is
+    /// retained — the transcript reads a bounded window from it, so there is no prune.
     func upsertConversationMessages(_ messages: [ConversationMessage], conversationID: ConversationID) throws {
         try writer.transaction {
             for message in messages {
                 try writeMessage(message, conversationId: conversationID.data)
             }
-            try pruneMessages(conversationId: conversationID.data)
         }
     }
 
-    /// Deletes all but the newest ``messageWindow`` rows once the count exceeds
-    /// the window plus ``messageWindowSlack``. Must be called inside a
-    /// `writer.transaction`.
-    private func pruneMessages(conversationId: Data) throws {
+    /// Atomically persist a batch and advance the catch-up cursor in one transaction, so a failed write
+    /// can never leave the persisted cursor past a message that wasn't stored — which, once the DB is
+    /// the working set, would orphan that message from GetDelta recovery. The cursor advances only when
+    /// established (> 0) and only forward — a catch-up batch's interior checkpoint must not regress a
+    /// cursor a live event already persisted. The conversation row need not exist yet (the update no-ops
+    /// until it does).
+    func persistMessages(_ messages: [ConversationMessage], cursor: UInt64, conversationID: ConversationID) throws {
+        let c = ConversationTable()
+        try writer.transaction {
+            for message in messages {
+                try writeMessage(message, conversationId: conversationID.data)
+            }
+            if cursor > 0 {
+                let scoped = c.table.filter(c.id == conversationID.data)
+                let current = try writer.pluck(scoped).flatMap { $0[c.catchupCursor] } ?? 0
+                if cursor > current {
+                    try writer.run(scoped.update(c.catchupCursor <- cursor))
+                }
+            }
+        }
+    }
+
+    /// Deletes a conversation's persisted messages — used when a freshly fetched newest page does not
+    /// overlap the retained history, so a stale older epoch can't render seamlessly stitched to the new
+    /// page across an unfetchable gap.
+    func deleteMessages(conversationID: ConversationID) throws {
         let m = ConversationMessageTable()
-        let scoped = m.table.filter(m.conversationId == conversationId)
-        guard try writer.scalar(scoped.count) > Self.messageWindow + Self.messageWindowSlack else { return }
-        guard let cutoff = try writer.pluck(
-            scoped.order(m.id.desc).limit(1, offset: Self.messageWindow - 1)
-        ) else { return }
-        try writer.run(scoped.filter(m.id < cutoff[m.id]).delete())
+        try writer.run(m.table.filter(m.conversationId == conversationID.data).delete())
     }
 
     /// Must be called inside a `writer.transaction`.
@@ -213,13 +309,30 @@ nonisolated extension Database {
     private func writeMessage(_ message: ConversationMessage, conversationId: Data) throws {
         let m = ConversationMessageTable()
 
+        let scoped = m.table.filter(m.conversationId == conversationId && m.id == message.id.value)
+        var message = message
+
         // Last-writer-wins parity with the in-memory `ConversationStore`: never let a stale re-delivery
         // (e.g. the deprecated `new_messages` overlay landing after the `events` tombstone, or a
         // duplicate delta batch) overwrite a newer persisted version — that would resurrect a
         // deleted/pre-edit message across a relaunch, since the cache is what hydrates on cold boot.
-        if let existing = try writer.pluck(m.table.filter(m.conversationId == conversationId && m.id == message.id.value)),
-           existing[m.eventSequence] > message.eventSequence {
-            return
+        if let existing = try writer.pluck(scoped) {
+            let existingSequence = existing[m.eventSequence]
+            if existingSequence > message.eventSequence {
+                return // stale re-delivery — keep the newer stored version
+            }
+            if existingSequence == message.eventSequence {
+                // Equal version: keep the stored row, adopting only a client id it lacks (a reconcile
+                // copy landing after a stream echo, or vice versa) so identity stays stable.
+                if existing[m.clientMessageID] == nil, let clientMessageID = message.clientMessageID {
+                    try writer.run(scoped.update(m.clientMessageID <- clientMessageID))
+                }
+                return
+            }
+            // Newer version wins; preserve the row's established identity if the newer copy lacks one.
+            if message.clientMessageID == nil {
+                message.clientMessageID = existing[m.clientMessageID]
+            }
         }
 
         let kind: Int
@@ -257,7 +370,8 @@ nonisolated extension Database {
                 m.mint           <- mint,
                 m.date           <- message.date.timeIntervalSinceReferenceDate,
                 m.unreadSeq      <- message.unreadSeq,
-                m.eventSequence  <- message.eventSequence
+                m.eventSequence  <- message.eventSequence,
+                m.clientMessageID <- message.clientMessageID
             )
         )
     }
@@ -305,7 +419,8 @@ nonisolated extension Database {
             content: content,
             date: Date(timeIntervalSinceReferenceDate: row[m.date]),
             unreadSeq: row[m.unreadSeq],
-            eventSequence: row[m.eventSequence]
+            eventSequence: row[m.eventSequence],
+            clientMessageID: row[m.clientMessageID]
         )
     }
 }

@@ -269,6 +269,22 @@ struct ConversationControllerTests {
         #expect(controller.messages(for: ConversationID.test(1)).map(\.id.value) == [7])
     }
 
+    @Test("a confirmed send persists its client id to the cache (identity survives a DB round-trip)")
+    func sendPersistsClientID() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let me = UUID()
+        let mock = MockConversations()
+        mock.sendResult = ConversationMessage(id: MessageID(value: 7), senderID: me, content: .text("hi"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0)
+        let controller = makeController(mock, selfUserID: me, database: database)
+
+        #expect(await controller.send("hi", to: ConversationID.test(1)))
+
+        let stored = try database.getConversationMessages(conversationID: ConversationID.test(1))
+        #expect(stored.map(\.id.value) == [7])
+        #expect(stored.first?.clientMessageID != nil)   // the send's client id round-tripped through the DB
+    }
+
     @Test("send shows the message immediately as sending, then sent on success")
     func sendOptimisticSuccess() async {
         let me = UUID()
@@ -774,5 +790,30 @@ struct ConversationControllerTests {
         #expect(rehydrated.messages(for: ConversationID.test(1)).map(\.id.value) == [1, 2])
         let pointer = rehydrated.conversations.first?.selfReadPointer(for: selfUserID)
         #expect(pointer == MessageID(value: 2))
+    }
+
+    // MARK: - DB-backed transcript (no in-memory hold) -
+
+    @Test("streamed messages persist to the DB and are read as a bounded window, not held in memory")
+    func streamedMessagesAreDBBackedAndWindowed() async throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let mock = MockConversations()
+        let controller = makeController(mock, database: database)
+        controller.start()
+        try await waitUntil { mock.streamOpened }
+
+        let backlog = (1...150).map {
+            ConversationMessage(id: MessageID(value: UInt64($0)), senderID: nil, content: .text("m\($0)"), date: Date(timeIntervalSince1970: TimeInterval($0)), unreadSeq: UInt64($0))
+        }
+        mock.emit(.newMessages(conversationID: ConversationID.test(1), messages: backlog))
+
+        // The whole backlog lands in the DB (nothing dropped), but the accessor reads a bounded window.
+        try await waitUntil { ((try? database.messageCount(conversationID: ConversationID.test(1))) ?? 0) == 150 }
+        #expect(try database.messageCount(conversationID: ConversationID.test(1)) == 150)   // full history persisted
+        let window = controller.messages(for: ConversationID.test(1))
+        #expect(window.count == 100)              // read as a bounded window, not the whole 150
+        #expect(window.last?.id.value == 150)     // newest at the tail
+        controller.stop()
     }
 }
