@@ -62,15 +62,18 @@ public struct ConversationStore: Sendable {
     public func displayedMessages(for conversationID: ConversationID, over confirmed: [ConversationMessage]) -> [ConversationMessage] {
         guard let pending = pendingByConversation[conversationID], !pending.isEmpty else { return confirmed }
 
-        let ordered = pending.sorted { ($0.anchor, $0.sequence) < ($1.anchor, $1.sequence) }
+        // An anchor of 0 means the send predates any loaded history — it is the newest thing the user
+        // did, so it belongs at the tail with the other unmatched fresh sends, not above history that
+        // lands afterward. Sorting it as +∞ places it after every real anchor.
+        let effectiveAnchor: (PendingEntry) -> UInt64 = { $0.anchor == 0 ? .max : $0.anchor }
+        let ordered = pending.sorted { (effectiveAnchor($0), $0.sequence) < (effectiveAnchor($1), $1.sequence) }
         var result: [ConversationMessage] = []
         result.reserveCapacity(confirmed.count + ordered.count)
         var p = 0
-        // A pending anchored older than this window (its anchor row scrolled out of the newest-N slice,
-        // or it was sent before any message loaded) belongs above the window, not at the tail — surface
-        // it at the head in send order.
+        // A pending anchored older than this window (its anchor row scrolled out of the newest-N slice)
+        // belongs above the window, not at the tail — surface it at the head in send order.
         let windowFloor = confirmed.first?.id.value ?? .max
-        while p < ordered.count, ordered[p].anchor < windowFloor {
+        while p < ordered.count, effectiveAnchor(ordered[p]) < windowFloor {
             result.append(ordered[p].message)
             p += 1
         }
@@ -116,26 +119,27 @@ public struct ConversationStore: Sendable {
         pendingByConversation[conversationID]?[index].message.status = status
     }
 
-    /// Reconcile a server copy against the matching pending optimistic send: remove the pending row and
-    /// return its client id so the caller can carry that identity onto the persisted confirmed row (the
-    /// echo collapses onto the send instead of duplicating it). Returns nil when nothing matches (a
-    /// counterpart message, or an unrelated history message). The caller gates this on the id being a
-    /// *fresh* server id (not already persisted) so an old identical re-delivery never steals a send.
-    public mutating func reconcilePending(for serverCopy: ConversationMessage, in conversationID: ConversationID) -> UUID? {
-        guard var pending = pendingByConversation[conversationID] else { return nil }
-        let matches = pending.indices.filter {
-            pending[$0].message.senderID == serverCopy.senderID
-                && pending[$0].message.content == serverCopy.content
-                && abs(pending[$0].message.date.timeIntervalSince(serverCopy.date)) < Self.pendingReconcileWindow
+    /// Match a server copy against the pending optimistic sends WITHOUT removing anything, returning
+    /// the matched send's client id so the caller can carry that identity onto the persisted confirmed
+    /// row (the echo collapses onto the send instead of duplicating it). The pending row is removed
+    /// separately — via ``dropPending(clientMessageID:confirmedAt:in:)`` — only after the write that
+    /// persists the copy succeeds, so a failed write never loses the send from the transcript. Returns
+    /// nil when nothing matches (a counterpart message, or an unrelated history message); `claimed`
+    /// excludes sends already matched earlier in the same batch. The caller gates this on the id being
+    /// a *fresh* server id (not already persisted) so an old identical re-delivery never steals a send.
+    public func pendingMatch(for serverCopy: ConversationMessage, in conversationID: ConversationID, excluding claimed: Set<UUID>) -> UUID? {
+        guard let pending = pendingByConversation[conversationID] else { return nil }
+        let matches = pending.filter {
+            $0.message.senderID == serverCopy.senderID
+                && $0.message.content == serverCopy.content
+                && abs($0.message.date.timeIntervalSince(serverCopy.date)) < Self.pendingReconcileWindow
+                && $0.message.clientMessageID.map { !claimed.contains($0) } ?? false
         }
         // Reconcile only an unambiguous match. Two in-flight sends with identical text can't be told
         // apart (the server echoes no client id), so leave them for their own send-RPC responses —
         // which key on the exact client id — rather than cross-wiring one send's id onto the other's row.
-        guard matches.count == 1, let index = matches.first else { return nil }
-        let matched = pending.remove(at: index)
-        pendingByConversation[conversationID] = pending
-        reanchorLaterSends(after: matched.sequence, toAtLeast: serverCopy.id.value, in: conversationID)
-        return matched.message.clientMessageID
+        guard matches.count == 1 else { return nil }
+        return matches[0].message.clientMessageID
     }
 
     /// Drop a pending send confirmed by the send RPC's own response (keyed on the exact client id) and
@@ -200,11 +204,13 @@ public struct ConversationStore: Sendable {
 
     /// Set the feed row's preview to the caller-supplied newest visible message (computed from the
     /// database), never regressing: an older or equal-versioned candidate is ignored, so a stale
-    /// re-delivery or a deleted-copy path can't overwrite a newer preview. Never touches `lastActivity`
-    /// or the feed order.
-    public mutating func setFeedPreview(_ newest: ConversationMessage?, in conversationID: ConversationID) {
+    /// re-delivery can't overwrite a newer preview. `force` bypasses the guard for the one legitimate
+    /// regression — the newest message was tombstoned, so the preview must fall back to the previous
+    /// visible one instead of showing deleted content. Never touches `lastActivity` or the feed order.
+    public mutating func setFeedPreview(_ newest: ConversationMessage?, in conversationID: ConversationID, force: Bool = false) {
         guard let newest, let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
-        if let current = conversations[index].lastMessage,
+        if !force,
+           let current = conversations[index].lastMessage,
            (current.id, current.eventSequence) >= (newest.id, newest.eventSequence) { return }
         conversations[index].lastMessage = newest
     }

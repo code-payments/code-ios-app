@@ -128,36 +128,49 @@ struct ConversationStoreTests {
 
     // MARK: - Reconcile
 
-    @Test("reconcilePending matches a send by sender+content+window, returns its client id, drops it")
-    func reconcilePendingMatches() {
+    @Test("pendingMatch matches a send by sender+content+window without dropping it; dropPending commits")
+    func pendingMatchThenDrop() {
         let me = UUID()
         var store = ConversationStore()
         let clientID = UUID()
         store.insertPending(pending(clientID, "c", sender: me, at: 0), anchoredTo: 0, into: conversationID(1))
         let echo = ConversationMessage(id: MessageID(value: 5), senderID: me, content: .text("c"), date: Date(timeIntervalSince1970: 1), unreadSeq: 0)
-        #expect(store.reconcilePending(for: echo, in: conversationID(1)) == clientID)
-        #expect(store.pendingMessage(clientMessageID: clientID, in: conversationID(1)) == nil)   // dropped
+        #expect(store.pendingMatch(for: echo, in: conversationID(1), excluding: []) == clientID)
+        // Matching is non-destructive: the pending row survives a failed persist.
+        #expect(store.pendingMessage(clientMessageID: clientID, in: conversationID(1)) != nil)
+        store.dropPending(clientMessageID: clientID, confirmedAt: echo.id, in: conversationID(1))
+        #expect(store.pendingMessage(clientMessageID: clientID, in: conversationID(1)) == nil)   // committed
     }
 
-    @Test("a counterpart message with identical text does not reconcile a pending self-send")
+    @Test("a claimed send is excluded so one echo can't match twice in a batch")
+    func claimedSendExcluded() {
+        let me = UUID()
+        var store = ConversationStore()
+        let clientID = UUID()
+        store.insertPending(pending(clientID, "c", sender: me, at: 0), anchoredTo: 0, into: conversationID(1))
+        let echo = ConversationMessage(id: MessageID(value: 5), senderID: me, content: .text("c"), date: Date(timeIntervalSince1970: 1), unreadSeq: 0)
+        #expect(store.pendingMatch(for: echo, in: conversationID(1), excluding: [clientID]) == nil)
+    }
+
+    @Test("a counterpart message with identical text does not match a pending self-send")
     func counterpartDoesNotReconcile() {
         let me = UUID(), them = UUID()
         var store = ConversationStore()
         let clientID = UUID()
         store.insertPending(pending(clientID, "hi", sender: me, at: 0), anchoredTo: 0, into: conversationID(1))
         let counterpart = ConversationMessage(id: MessageID(value: 5), senderID: them, content: .text("hi"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0)
-        #expect(store.reconcilePending(for: counterpart, in: conversationID(1)) == nil)
+        #expect(store.pendingMatch(for: counterpart, in: conversationID(1), excluding: []) == nil)
         #expect(store.pendingMessage(clientMessageID: clientID, in: conversationID(1)) != nil)   // untouched
     }
 
-    @Test("an old message outside the reconcile window does not reconcile a fresh pending send")
+    @Test("an old message outside the reconcile window does not match a fresh pending send")
     func oldMessageOutsideWindowDoesNotReconcile() {
         let me = UUID()
         var store = ConversationStore()
         let clientID = UUID()
         store.insertPending(pending(clientID, "hi", sender: me, at: 100_000), anchoredTo: 0, into: conversationID(1))
         let old = ConversationMessage(id: MessageID(value: 5), senderID: me, content: .text("hi"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0)
-        #expect(store.reconcilePending(for: old, in: conversationID(1)) == nil)     // far outside the 5-min window
+        #expect(store.pendingMatch(for: old, in: conversationID(1), excluding: []) == nil)     // far outside the 5-min window
     }
 
     @Test("two identical-text in-flight sends are not cross-wired by an ambiguous echo")
@@ -168,9 +181,34 @@ struct ConversationStoreTests {
         store.insertPending(pending(clientA, "hi", sender: me, at: 0), anchoredTo: 0, into: conversationID(1))
         store.insertPending(pending(clientB, "hi", sender: me, at: 0), anchoredTo: 0, into: conversationID(1))
         let echo = ConversationMessage(id: MessageID(value: 5), senderID: me, content: .text("hi"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0)
-        #expect(store.reconcilePending(for: echo, in: conversationID(1)) == nil)    // ambiguous → leave both
+        #expect(store.pendingMatch(for: echo, in: conversationID(1), excluding: []) == nil)    // ambiguous → leave both
         #expect(store.pendingMessage(clientMessageID: clientA, in: conversationID(1)) != nil)
         #expect(store.pendingMessage(clientMessageID: clientB, in: conversationID(1)) != nil)
+    }
+
+    @Test("a send anchored at 0 (no history at send time) stays at the tail once history lands")
+    func unanchoredSendStaysAtTail() {
+        let me = UUID()
+        var store = ConversationStore()
+        let clientID = UUID()
+        // Sent while the conversation had no persisted rows (a fresh DB after the schema wipe).
+        store.insertPending(pending(clientID, "hi", sender: me), anchoredTo: 0, into: conversationID(1))
+        // The history page then lands and the window renders it.
+        let window = (100...110).map { message(UInt64($0)) }
+        let displayed = store.displayedMessages(for: conversationID(1), over: window)
+        #expect(displayed.last?.stableID == clientID.uuidString)    // the send trails — newest thing the user did
+        #expect(displayed.first?.id.value == 100)                    // history is not pushed below it
+    }
+
+    @Test("setFeedPreview(force:) allows the tombstoned-newest regression the guard otherwise blocks")
+    func forcedPreviewRegression() {
+        var store = ConversationStore()
+        store.setFeed([Conversation(id: conversationID(1), members: [], lastMessage: message(10), lastActivity: Date(timeIntervalSince1970: 0))])
+        let previous = message(9)
+        store.setFeedPreview(previous, in: conversationID(1))                 // guard blocks the regression
+        #expect(store.conversations.first?.lastMessage?.id.value == 10)
+        store.setFeedPreview(previous, in: conversationID(1), force: true)    // newest was tombstoned → forced
+        #expect(store.conversations.first?.lastMessage?.id.value == 9)
     }
 
     @Test("dropPending removes a send and keeps a later still-pending send in send order")

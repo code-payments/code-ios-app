@@ -340,11 +340,12 @@ struct ConversationScreen: View {
         UIApplication.shared.open(url)
     }
 
-    /// Builds (or clears) the transcript loader/coordinator as the conversation id resolves.
-    /// `.id(context)` remounts per conversation, so this only ever creates one per open.
+    /// Builds (or clears) the transcript loader/coordinator as the conversation id resolves — including
+    /// a re-resolution to a *different* id (a contact's pre-assigned chat id replaced by the
+    /// server-assigned one), which must re-window the new conversation, not keep rendering the old.
     private func syncCoordinator(_ id: ConversationID?) {
         guard let id else { coordinator = nil; return }
-        if coordinator == nil {
+        if coordinator?.conversationID != id {
             coordinator = ConversationLoadCoordinator(
                 conversationID: id,
                 controller: conversationController,

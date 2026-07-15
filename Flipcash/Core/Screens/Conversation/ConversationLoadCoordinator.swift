@@ -20,7 +20,7 @@ final class ConversationLoadCoordinator {
     /// The rendered transcript, produced off the main thread and landed here as immutable state.
     private(set) var items: [ChatItem] = []
 
-    private let conversationID: ConversationID
+    let conversationID: ConversationID
     private let controller: ConversationController
     private let session: Session
 

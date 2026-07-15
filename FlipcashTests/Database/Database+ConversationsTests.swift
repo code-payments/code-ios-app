@@ -182,7 +182,7 @@ struct DatabaseConversationsTests {
         let (database, url) = try Database.makeTemp()
         defer { Database.removeTemp(at: url) }
         let id = ConversationID.test(1)
-        let count = Database.messageWindow * 3
+        let count = 300
 
         try database.upsertConversationMessages(
             (1...UInt64(count)).map { textMessage(id: $0) },
@@ -207,10 +207,45 @@ struct DatabaseConversationsTests {
             conversationID: id
         )
 
-        let window = try database.getConversationMessages(conversationID: id, newest: Database.messageWindow)
-        #expect(window.count == Database.messageWindow)
-        #expect(window.first?.id.value == UInt64(count - Database.messageWindow + 1))   // oldest-first
-        #expect(window.last?.id.value == UInt64(count))                                  // newest at the tail
+        let window = try database.messagesWindow(conversationID: id, limit: 100)
+        #expect(window.count == 100)
+        #expect(window.first?.id.value == UInt64(count - 100 + 1))   // oldest-first
+        #expect(window.last?.id.value == UInt64(count))              // newest at the tail
+    }
+
+    @Test("An id-anchored read returns everything from the anchor to the newest")
+    func anchoredReadGrowsAtTheTail() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        try database.upsertConversationMessages(
+            (1...100).map { textMessage(id: $0) },
+            conversationID: id
+        )
+
+        let window = try database.messages(conversationID: id, from: 40)
+        #expect(window.first?.id.value == 40)     // anchor included
+        #expect(window.last?.id.value == 100)
+        // An arrival grows the window at the tail; the anchor row never slides out.
+        try database.upsertConversationMessages([textMessage(id: 101)], conversationID: id)
+        let grown = try database.messages(conversationID: id, from: 40)
+        #expect(grown.first?.id.value == 40)
+        #expect(grown.last?.id.value == 101)
+    }
+
+    @Test("olderAnchor steps back by N rows and clamps to the oldest available")
+    func olderAnchorSteps() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        try database.upsertConversationMessages(
+            (1...100).map { textMessage(id: $0) },
+            conversationID: id
+        )
+
+        #expect(try database.olderAnchor(conversationID: id, before: 60, step: 40) == 20)   // a full step
+        #expect(try database.olderAnchor(conversationID: id, before: 20, step: 40) == 1)    // clamps to oldest
+        #expect(try database.olderAnchor(conversationID: id, before: 1, step: 40) == nil)   // exhausted
     }
 
     @Test("History is retained per conversation and the feed preview is the newest message")
@@ -219,7 +254,7 @@ struct DatabaseConversationsTests {
         defer { Database.removeTemp(at: url) }
         let heavy = ConversationID.test(1)
         let light = ConversationID.test(2)
-        let count = Database.messageWindow * 2
+        let count = 200
 
         try database.upsertConversation(conversation(byte: 1))
         try database.upsertConversation(conversation(byte: 2))
@@ -479,10 +514,12 @@ struct DatabaseConversationsTests {
 
         #expect(try database.getConversations().map(\.id) == [ConversationID.test(1)])
         #expect(try database.getConversationMessages(conversationID: ConversationID.test(1)).map(\.id.value) == [1])
-        #expect(try database.getConversationMessages(conversationID: ConversationID.test(2)).isEmpty)
+        // Messages survive a feed replace: a stale feed snapshot (fetched before a brand-new chat's
+        // first message landed) must not wipe the transcript's source of truth.
+        #expect(try database.getConversationMessages(conversationID: ConversationID.test(2)).map(\.id.value) == [2])
     }
 
-    @Test("Replacing with an empty feed clears the cache")
+    @Test("Replacing with an empty feed clears the feed but retains messages")
     func emptyFeedReplaceClears() throws {
         let (database, url) = try Database.makeTemp()
         defer { Database.removeTemp(at: url) }
@@ -492,6 +529,49 @@ struct DatabaseConversationsTests {
         try database.replaceConversationFeed([])
 
         #expect(try database.getConversations().isEmpty)
+        #expect(try database.getConversationMessages(conversationID: ConversationID.test(1)).map(\.id.value) == [1])
+    }
+
+    @Test("persistMessages never regresses the persisted cursor")
+    func persistMessagesCursorIsMonotonic() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        try database.upsertConversation(conversation(byte: 1))
+        // A live event persisted cursor=50; an interleaved catch-up batch then lands checkpoint=30.
+        try database.persistMessages([textMessage(id: 5)], cursor: 50, conversationID: id)
+        try database.persistMessages([textMessage(id: 6)], cursor: 30, conversationID: id)
+        #expect(try database.catchupCursor(conversationID: id) == 50)   // regression ignored
+        try database.persistMessages([textMessage(id: 7)], cursor: 60, conversationID: id)
+        #expect(try database.catchupCursor(conversationID: id) == 60)   // forward still advances
+    }
+
+    @Test("newestMessage includes tombstones so a delete doesn't regress the buzz anchor")
+    func newestMessageIncludesTombstones() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+        try database.upsertConversationMessages([textMessage(id: 1), textMessage(id: 2)], conversationID: id)
+        // The newest message is deleted in place (same id, higher event sequence).
+        let tombstone = ConversationMessage(id: MessageID(value: 2), senderID: otherID, content: .deleted,
+            date: Date(timeIntervalSince1970: 0), unreadSeq: 2, eventSequence: 5)
+        try database.upsertConversationMessages([tombstone], conversationID: id)
+
+        #expect(try database.newestMessage(conversationID: id)?.id.value == 2)          // the tombstone itself
+        #expect(try database.newestMessage(conversationID: id)?.content == .deleted)
+        #expect(try database.latestMessage(conversationID: id)?.id.value == 1)          // preview falls back
+    }
+
+    @Test("deleteMessages drops a conversation's rows (the stale-epoch reset)")
+    func deleteMessagesDropsRows() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        try database.upsertConversationMessages([textMessage(id: 1)], conversationID: ConversationID.test(1))
+        try database.upsertConversationMessages([textMessage(id: 2)], conversationID: ConversationID.test(2))
+
+        try database.deleteMessages(conversationID: ConversationID.test(1))
+
         #expect(try database.getConversationMessages(conversationID: ConversationID.test(1)).isEmpty)
+        #expect(try database.getConversationMessages(conversationID: ConversationID.test(2)).map(\.id.value) == [2])
     }
 }
