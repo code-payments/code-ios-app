@@ -103,23 +103,10 @@ private struct NotificationBannerPreview: View {
             }
         }
         .padding(12)
-        .modifier(NotificationBannerBackground())
+        .glassBackground(cornerRadius: 20)
     }
 }
 
-// MARK: - Notification Banner Background -
-
-private struct NotificationBannerBackground: ViewModifier {
-    func body(content: Content) -> some View {
-        if #available(iOS 26, *) {
-            content
-                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 20))
-        } else {
-            content
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
-        }
-    }
-}
 
 // MARK: - Previews -
 

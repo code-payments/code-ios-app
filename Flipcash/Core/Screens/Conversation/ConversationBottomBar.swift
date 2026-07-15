@@ -25,6 +25,17 @@ import FlipcashUI
 /// appearance when the chat materializes, and the send-arrow pop.
 private let barMorphSpring = Animation.spring(duration: 0.35, bounce: 0.2)
 
+/// Metrics shared by the field and the button so their heights can't desync.
+/// Deliberately not `Metrics.buttonHeight`/`buttonRadius` — this bar's controls
+/// are field-sized, not standard-button-sized.
+private enum BarMetrics {
+    static let fieldMinHeight: CGFloat = 34
+    static let fieldVerticalPadding: CGFloat = 8
+    static let cornerRadius: CGFloat = 14
+    /// The height of every bar control: a single-line field plus its padding.
+    static let contentHeight: CGFloat = fieldMinHeight + fieldVerticalPadding * 2
+}
+
 /// The unified bottom bar: Send Cash (morphing) beside the message field.
 /// Full-width Send Cash alone until the chat exists server-side.
 struct ConversationBottomBar: View {
@@ -34,7 +45,7 @@ struct ConversationBottomBar: View {
     let conversationID: ConversationID?
     let symbol: String
     let onSendCash: () -> Void
-    @Bindable var model: ConversationBarModel
+    let model: ConversationBarModel
 
     var body: some View {
         let content = HStack(alignment: .bottom, spacing: 10) {
@@ -58,14 +69,8 @@ struct ConversationBottomBar: View {
 
         // Adjacent glass elements must share a sampling container on iOS 26 —
         // glass cannot sample other glass; spacing matches the HStack's.
-        return Group {
-            if #available(iOS 26, *) {
-                GlassEffectContainer(spacing: 10) { content }
-            } else {
-                content
-            }
-        }
-        .modifier(BarGradientBackground())
+        return GlassContainer(spacing: 10) { content }
+            .modifier(BarGradientBackground())
     }
 }
 
@@ -91,7 +96,7 @@ struct ConversationComposer: View {
                 .lineLimit(1...5)
                 .focused($isFocused)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .frame(minHeight: 34)
+                .frame(minHeight: BarMetrics.fieldMinHeight)
 
             if model.canSend {
                 Button(action: send) {
@@ -112,16 +117,10 @@ struct ConversationComposer: View {
         .animation(Self.sendButtonSpring, value: model.canSend)
         .padding(.leading, 14)
         .padding(.trailing, 8)
-        .padding(.vertical, 8)
+        .padding(.vertical, BarMetrics.fieldVerticalPadding)
 
-        // Liquid-glass background on iOS 26; ultra-thin material below.
-        return Group {
-            if #available(iOS 26, *) {
-                field.glassEffect(.regular.interactive(), in: .rect(cornerRadius: 14))
-            } else {
-                field.background(.ultraThinMaterial, in: .rect(cornerRadius: 14))
-            }
-        }
+        return field
+            .glassBackground(cornerRadius: BarMetrics.cornerRadius)
         // Focus is the single source of `isComposing` — the button morph and the
         // screen's interactive-dismiss gate both key off it. Losing focus
         // (keyboard swiped down) ends composing.
@@ -183,54 +182,41 @@ struct SendCashMorphButton: View {
     let fullWidth: Bool
     let action: () -> Void
 
-    /// Matches the composer field: 34pt min field height + 2×8pt padding.
-    private static let height: CGFloat = 50
-    private static let cornerRadius: CGFloat = 14
-
     var body: some View {
         Button(action: action) {
             HStack(spacing: 4) {
                 if !composing {
                     Text("Send")
+                        .font(.appTextMedium)
                         .transition(.opacity)
                 }
                 Text(symbol)
+                    // Same persistent Text — .interpolate animates the glyph
+                    // between sizes; swapping views would crossfade.
+                    .font(composing ? .appTextXL : .appTextMedium)
+                    .contentTransition(.interpolate)
             }
-            .font(.appTextMedium)
             .foregroundStyle(composing ? Color.textMain : Color.textAction)
             // The label must never reflow to "Se…" mid-morph; overflow is
             // clipped by the shape instead.
             .fixedSize()
             .padding(.horizontal, composing ? 0 : 20)
-            .frame(minWidth: Self.height)
+            .frame(minWidth: BarMetrics.contentHeight)
             .frame(maxWidth: fullWidth && !composing ? .infinity : nil)
-            .frame(height: Self.height)
+            .frame(height: BarMetrics.contentHeight)
         }
         .buttonStyle(.plain)
         // White fill above the glass base: fading it out is the white → glass
         // change, without ever swapping views.
         .background {
-            RoundedRectangle(cornerRadius: Self.cornerRadius)
+            RoundedRectangle(cornerRadius: BarMetrics.cornerRadius)
                 .fill(Color.action)
                 .opacity(composing ? 0 : 1)
         }
-        .modifier(GlassBase(cornerRadius: Self.cornerRadius))
-        .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius))
+        .glassBackground(cornerRadius: BarMetrics.cornerRadius)
+        .clipShape(RoundedRectangle(cornerRadius: BarMetrics.cornerRadius))
         .accessibilityLabel("Send Cash")
         .accessibilityIdentifier("send-cash-button")
-    }
-}
-
-/// Liquid-glass base on iOS 26; ultra-thin material below (the composer's split).
-private struct GlassBase: ViewModifier {
-    let cornerRadius: CGFloat
-
-    func body(content: Content) -> some View {
-        if #available(iOS 26, *) {
-            content.glassEffect(.regular.interactive(), in: .rect(cornerRadius: cornerRadius))
-        } else {
-            content.background(.ultraThinMaterial, in: .rect(cornerRadius: cornerRadius))
-        }
     }
 }
 
@@ -242,11 +228,11 @@ private struct GlassBase: ViewModifier {
             Spacer()
             HStack(spacing: 10) {
                 SendCashMorphButton(symbol: "€", composing: composing, fullWidth: false) {
-                    withAnimation(.spring(duration: 0.35, bounce: 0.2)) { composing.toggle() }
+                    withAnimation(barMorphSpring) { composing.toggle() }
                 }
-                RoundedRectangle(cornerRadius: 14)
+                RoundedRectangle(cornerRadius: BarMetrics.cornerRadius)
                     .fill(.white.opacity(0.1))
-                    .frame(height: 50)
+                    .frame(height: BarMetrics.contentHeight)
             }
             .padding(12)
         }

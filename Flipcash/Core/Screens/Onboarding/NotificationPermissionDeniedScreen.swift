@@ -90,23 +90,10 @@ private struct NotificationToggleRow: View {
             .font(.system(size: 14, weight: .medium))
             .allowsHitTesting(false)
             .padding(12)
-            .modifier(NotificationToggleBackground())
+            .glassBackground(cornerRadius: 20)
     }
 }
 
-// MARK: - Notification Toggle Background -
-
-private struct NotificationToggleBackground: ViewModifier {
-    func body(content: Content) -> some View {
-        if #available(iOS 26, *) {
-            content
-                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 20))
-        } else {
-            content
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
-        }
-    }
-}
 
 // MARK: - Previews -
 
