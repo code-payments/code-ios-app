@@ -71,6 +71,7 @@ public struct SwipeControl: View {
             .animation(nil, value: state)
         }
         .opacity(isEnabled ? 1 : Layout.disabledOpacity)
+        .sensoryFeedback(.impact(weight: .heavy), trigger: state) { _, newState in newState == .loading }
         .accessibilityRepresentation {
             Button(text) {
                 Task {
