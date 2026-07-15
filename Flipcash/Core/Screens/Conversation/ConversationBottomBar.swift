@@ -173,3 +173,84 @@ private struct BarGradientBackground: ViewModifier {
         }
     }
 }
+
+/// The Send Cash button in its two shapes: a white "Send €" pill at rest, a
+/// compact glass "€" square while composing. One persistent view — the morph
+/// animates its properties (prefix text, fill, width, color) in lockstep.
+struct SendCashMorphButton: View {
+
+    let symbol: String
+    let composing: Bool
+    /// Spans the bar when the composer isn't available (no chat yet).
+    let fullWidth: Bool
+    let action: () -> Void
+
+    /// Matches the composer field: 34pt min field height + 2×8pt padding.
+    private static let height: CGFloat = 50
+    private static let cornerRadius: CGFloat = 14
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                if !composing {
+                    Text("Send")
+                        .transition(.opacity)
+                }
+                Text(symbol)
+            }
+            .font(.appTextMedium)
+            .foregroundStyle(composing ? Color.textMain : Color.textAction)
+            // The label must never reflow to "Se…" mid-morph; overflow is
+            // clipped by the shape instead.
+            .fixedSize()
+            .padding(.horizontal, composing ? 0 : 20)
+            .frame(minWidth: Self.height)
+            .frame(maxWidth: fullWidth && !composing ? .infinity : nil)
+            .frame(height: Self.height)
+        }
+        .buttonStyle(.plain)
+        // White fill above the glass base: fading it out is the white → glass
+        // change, without ever swapping views.
+        .background {
+            RoundedRectangle(cornerRadius: Self.cornerRadius)
+                .fill(Color.action)
+                .opacity(composing ? 0 : 1)
+        }
+        .modifier(GlassBase(cornerRadius: Self.cornerRadius))
+        .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius))
+        .accessibilityLabel("Send Cash")
+        .accessibilityIdentifier("send-cash-button")
+    }
+}
+
+/// Liquid-glass base on iOS 26; ultra-thin material below (the composer's split).
+private struct GlassBase: ViewModifier {
+    let cornerRadius: CGFloat
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26, *) {
+            content.glassEffect(.regular.interactive(), in: .rect(cornerRadius: cornerRadius))
+        } else {
+            content.background(.ultraThinMaterial, in: .rect(cornerRadius: cornerRadius))
+        }
+    }
+}
+
+#Preview("Morph") {
+    @Previewable @State var composing = false
+    ZStack {
+        Color.backgroundMain.ignoresSafeArea()
+        VStack {
+            Spacer()
+            HStack(spacing: 10) {
+                SendCashMorphButton(symbol: "€", composing: composing, fullWidth: false) {
+                    withAnimation(.spring(duration: 0.35, bounce: 0.2)) { composing.toggle() }
+                }
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(.white.opacity(0.1))
+                    .frame(height: 50)
+            }
+            .padding(12)
+        }
+    }
+}
