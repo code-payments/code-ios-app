@@ -292,9 +292,17 @@ class Session {
             hasLinkedPhoneForPayment = false
         }
 
+        // Fires once when a number first appears on the persisted profile; the
+        // DB-hydrated profile means a relaunch with the same number won't re-fire.
+        let didLinkPhone = fetched.hasNewlyLinkedPhone(since: profile)
+
         profile = fetched
         try? database.insertProfile(fetched)
         Task { await linkPhoneForPaymentIfNeeded() }
+
+        if didLinkPhone {
+            Analytics.track(event: Analytics.PhoneEvent.linked)
+        }
     }
 
     func unlinkProfile() async throws {

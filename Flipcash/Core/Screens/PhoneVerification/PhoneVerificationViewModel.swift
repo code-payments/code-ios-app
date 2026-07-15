@@ -219,6 +219,8 @@ final class PhoneVerificationViewModel: PhoneVerifying {
             return
         }
 
+        Analytics.track(event: Analytics.PhoneEvent.entered)
+
         if let enterPhoneEvent {
             Analytics.track(event: enterPhoneEvent)
         }
@@ -310,6 +312,8 @@ final class PhoneVerificationViewModel: PhoneVerifying {
                     code: enteredCode,
                     owner: owner
                 )
+
+                Analytics.track(event: Analytics.PhoneEvent.verified)
 
                 await onShouldRefreshProfile()
 
