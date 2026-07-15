@@ -109,6 +109,7 @@ private struct ContactsDeniedContent: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: 100, height: 100)
+                .opacity(0.4)
                 .accessibilityHidden(true)
 
             VStack(spacing: 8) {

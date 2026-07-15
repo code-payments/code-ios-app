@@ -267,6 +267,11 @@ private struct RecipientPickerList: View {
     let onFlipcashTap: (ResolvedContact) -> Void
     let onInviteTap: (ResolvedContact) -> Void
 
+    /// Set once via the contact-access card's ✕ and never cleared, so the prompt
+    /// stays gone after the first dismissal — shared across limited and denied.
+    @AppStorage("com.flipcash.contacts.fullAccessPromptDismissed")
+    private var fullAccessPromptDismissed = false
+
     /// Searching filters by contact, so conversations whose counterpart isn't
     /// a synced contact only appear with an empty query — matched rows keep
     /// their conversation join either way.
@@ -282,6 +287,15 @@ private struct RecipientPickerList: View {
 
     var body: some View {
         List {
+            // Restricted access (limited or denied): nudge to Settings to grant
+            // full contact access. Sits above the existing chats and is
+            // dismissible; once closed it never returns (`fullAccessPromptDismissed`).
+            if contactAccess != .full && !fullAccessPromptDismissed {
+                FullContactAccessCard(onDismiss: dismissFullAccessPrompt)
+                    .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            }
             // The on-Flipcash group keeps its `Section` even without a header:
             // `.listSectionSeparator(.hidden, edges: .top)` is the only clean way
             // to suppress the separator the grouped list draws above the first
@@ -318,19 +332,16 @@ private struct RecipientPickerList: View {
                 .listSectionSeparator(.hidden, edges: .top)
             }
             switch contactAccess {
-            case .denied:
-                SendMoneyPromoCard()
-                    .listRowInsets(EdgeInsets(top: 16, leading: 20, bottom: 16, trailing: 20))
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
             case .limited:
+                // Limited access has a shared subset — offer to share more.
+                // Denied has none, so it shows only the top card above.
                 if !filtered.isEmpty {
                     AddMoreContactsFooter()
                         .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                 }
-            case .full:
+            case .denied, .full:
                 EmptyView()
             }
         }
@@ -353,6 +364,10 @@ private struct RecipientPickerList: View {
                 SearchResultsUnavailableView(searchText: searchText)
             }
         }
+    }
+
+    private func dismissFullAccessPrompt() {
+        withAnimation(.snappy) { fullAccessPromptDismissed = true }
     }
 }
 
