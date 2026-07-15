@@ -247,6 +247,15 @@ extension CurrencyCode {
     public var singleCharacterCurrencySymbols: String? {
         (CurrencyCode.lookupTable[self] ?? []).first { $0.count == 1 }
     }
+
+    /// Returns the most compact display symbol for this currency, falling back
+    /// to the uppercased currency code when no locale defines a symbol.
+    public var compactSymbol: String {
+        let shortest = (CurrencyCode.lookupTable[self] ?? []).min { lhs, rhs in
+            (lhs.count, lhs) < (rhs.count, rhs)
+        }
+        return shortest ?? rawValue.uppercased()
+    }
 }
 
 // MARK: - Identifiable -
