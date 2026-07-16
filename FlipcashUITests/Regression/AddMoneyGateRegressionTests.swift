@@ -78,7 +78,6 @@ final class AddMoneyGateRegressionTests: BaseUITestCase {
         waitAndTap(app.buttons["Wrote the 12 Words Down Instead?"])
         waitAndTap(app.buttons["Yes, I Wrote Them Down"])
         allowPhoneVerificationIfNeeded()
-        allowContactsIfNeeded()
         allowPushNotificationsIfNeeded()
         assertMainScreenReached()
     }
