@@ -25,9 +25,9 @@ import FlipcashUI
 /// appearance when the chat materializes, and the send-arrow pop.
 private let barMorphSpring = Animation.spring(duration: 0.35, bounce: 0.2)
 
-/// Metrics shared by the field and the button so their heights can't desync.
-/// Deliberately not `Metrics.buttonHeight`/`buttonRadius` — this bar's controls
-/// are field-sized, not standard-button-sized.
+/// Metrics shared by the field and the button beside it so their heights can't
+/// desync. Deliberately not `Metrics.buttonHeight`/`buttonRadius` — beside the
+/// field the controls are field-sized, not standard-button-sized.
 private enum BarMetrics {
     static let fieldMinHeight: CGFloat = 34
     static let fieldVerticalPadding: CGFloat = 8
@@ -37,7 +37,7 @@ private enum BarMetrics {
 }
 
 /// The unified bottom bar: Send Cash (morphing) beside the message field.
-/// Full-width Send Cash alone until the chat exists server-side.
+/// A standard-size filled Send Cash alone until the chat exists server-side.
 struct ConversationBottomBar: View {
 
     let showsSendCash: Bool
@@ -53,7 +53,7 @@ struct ConversationBottomBar: View {
                 SendCashMorphButton(
                     symbol: symbol,
                     composing: model.isComposing,
-                    fullWidth: !chatExists,
+                    standalone: !chatExists,
                     action: onSendCash
                 )
             }
@@ -170,7 +170,8 @@ private struct BarGradientBackground: ViewModifier {
 }
 
 /// The Send Cash button, rendered as a white "Send €" pill at rest and a
-/// compact glass "€" square while composing.
+/// compact glass "€" square while composing. Alone in the bar it takes the
+/// standard filled-button size; beside the composer it's field-sized.
 // One persistent view: the morph animates its properties (prefix text, fill,
 // width, color) in lockstep — splitting the two states into separate views
 // would crossfade instead of morphing.
@@ -178,9 +179,18 @@ struct SendCashMorphButton: View {
 
     let symbol: String
     let composing: Bool
-    /// Spans the bar when the composer isn't available (no chat yet).
-    let fullWidth: Bool
+    /// Whether the button is the bar's only control (no chat yet): it spans
+    /// the bar at the standard filled-button size instead of field-sized.
+    let standalone: Bool
     let action: () -> Void
+
+    private var height: CGFloat {
+        standalone ? Metrics.buttonHeight : BarMetrics.contentHeight
+    }
+
+    private var cornerRadius: CGFloat {
+        standalone ? Metrics.buttonRadius : BarMetrics.cornerRadius
+    }
 
     var body: some View {
         Button(action: action) {
@@ -202,19 +212,19 @@ struct SendCashMorphButton: View {
             .fixedSize()
             .padding(.horizontal, composing ? 0 : 20)
             .frame(minWidth: BarMetrics.contentHeight)
-            .frame(maxWidth: fullWidth && !composing ? .infinity : nil)
-            .frame(height: BarMetrics.contentHeight)
+            .frame(maxWidth: standalone && !composing ? .infinity : nil)
+            .frame(height: height)
         }
         .buttonStyle(.plain)
         // White fill above the glass base: fading it out is the white → glass
         // change, without ever swapping views.
         .background {
-            RoundedRectangle(cornerRadius: BarMetrics.cornerRadius)
+            RoundedRectangle(cornerRadius: cornerRadius)
                 .fill(Color.action)
                 .opacity(composing ? 0 : 1)
         }
-        .glassBackground(cornerRadius: BarMetrics.cornerRadius)
-        .clipShape(RoundedRectangle(cornerRadius: BarMetrics.cornerRadius))
+        .glassBackground(cornerRadius: cornerRadius)
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
         .accessibilityLabel("Send Cash")
         .accessibilityIdentifier("send-cash-button")
     }
@@ -227,7 +237,7 @@ struct SendCashMorphButton: View {
         VStack {
             Spacer()
             HStack(spacing: 10) {
-                SendCashMorphButton(symbol: "€", composing: composing, fullWidth: false) {
+                SendCashMorphButton(symbol: "€", composing: composing, standalone: false) {
                     withAnimation(barMorphSpring) { composing.toggle() }
                 }
                 RoundedRectangle(cornerRadius: BarMetrics.cornerRadius)
@@ -235,6 +245,17 @@ struct SendCashMorphButton: View {
                     .frame(height: BarMetrics.contentHeight)
             }
             .padding(12)
+        }
+    }
+}
+
+#Preview("Standalone") {
+    ZStack {
+        Color.backgroundMain.ignoresSafeArea()
+        VStack {
+            Spacer()
+            SendCashMorphButton(symbol: "€", composing: false, standalone: true) {}
+                .padding(12)
         }
     }
 }
