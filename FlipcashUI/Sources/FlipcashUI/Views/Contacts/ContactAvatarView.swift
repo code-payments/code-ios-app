@@ -38,7 +38,9 @@ public struct ContactAvatarView: View {
                         switch Self.monogram(for: displayName) {
                         case .initials(let text):
                             Text(text)
-                                .font(.appTextMedium)
+                                // Scales with the avatar, preserving the default (44pt) avatar's
+                                // 16pt monogram proportions at any size.
+                                .font(.default(size: size * 16 / 44, weight: .bold))
                                 .foregroundStyle(Color.textMain)
                         case .placeholder:
                             PeopleSilhouette(size: size)
