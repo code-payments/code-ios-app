@@ -25,6 +25,29 @@ enum ContactCard: Identifiable {
         case .unknown(let contact): return "unknown-\(contact.identifier)"
         }
     }
+
+    /// The presentable card for a counterpart: the address-book card when
+    /// they're a synced contact (nil if the record can't be read, e.g. deleted
+    /// since sync), otherwise the "Add to Contacts" sheet seeded with their
+    /// number. `nil` when neither is available.
+    static func make(contact: ResolvedContact?, addablePhone: String?) -> ContactCard? {
+        if let contactId = contact?.contactId {
+            let keys = [CNContactViewController.descriptorForRequiredKeys()]
+            guard let fetched = try? CNContactStore().unifiedContact(
+                withIdentifier: contactId,
+                keysToFetch: keys
+            ) else { return nil }
+            return .existing(fetched)
+        }
+        if let addablePhone {
+            let unknown = CNMutableContact()
+            unknown.phoneNumbers = [
+                CNLabeledValue(label: CNLabelPhoneNumberMobile, value: CNPhoneNumber(stringValue: addablePhone))
+            ]
+            return .unknown(unknown)
+        }
+        return nil
+    }
 }
 
 /// The native iOS contact card (`CNContactViewController`), hosted in a

@@ -45,6 +45,12 @@ struct ChatCashCardSizingTests {
     @Test("Date separator, text, and receipt-carrying rows self-size (.auto)")
     func otherRows_areAuto() {
         let items: [ChatItem] = [
+            .profileCard(ChatProfileCard(
+                name: "Ted Livingston",
+                avatarID: "ted",
+                imageData: nil,
+                counterpart: .contact(phone: "519 802-3885")
+            )),
             .dateSeparator(id: "sep", text: "Today 1:00 PM"),
             .message(ChatMessage(id: "1", text: "hello", sender: .other)),
             .message(ChatMessage(id: "2", text: "sent", sender: .me, receipt: "Delivered")),

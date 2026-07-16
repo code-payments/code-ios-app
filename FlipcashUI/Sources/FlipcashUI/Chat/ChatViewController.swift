@@ -17,11 +17,11 @@ import FlipcashCore
 /// it pulls nothing. The owner calls `update(messages:)`; there is no network, no database,
 /// and no shared state inside.
 ///
-/// All scroll positioning is ChatLayout's: the `keepContentOffsetAtBottomOnBatchUpdates` /
-/// `keepContentAtBottomOfVisibleArea` settings keep the view anchored to the newest message as
-/// content is appended, prepended, and self-sizes, and `restoreContentOffset(_:)` against the
-/// last item's bottom edge does the explicit scroll-to-bottom. This controller never computes a
-/// content offset by hand — doing so lands short while tall cells are still at their estimate.
+/// All scroll positioning is ChatLayout's: `keepContentOffsetAtBottomOnBatchUpdates` keeps the
+/// view anchored to the newest message as content is appended, prepended, and self-sizes, and
+/// `restoreContentOffset(_:)` against the last item's bottom edge does the explicit
+/// scroll-to-bottom. Content shorter than the viewport top-aligns. This controller never computes
+/// a content offset by hand — doing so lands short while tall cells are still at their estimate.
 public final class ChatViewController: UICollectionViewController {
 
     /// Called whenever the user is near the top, to request the next older page. Fired
@@ -38,6 +38,10 @@ public final class ChatViewController: UICollectionViewController {
 
     /// Called when the user taps a URL in a text bubble; the owner opens it.
     public var onOpenURL: ((URL) -> Void)?
+
+    /// Called when the user taps the profile card's call to action; the owner opens the
+    /// counterpart's contact card (or the add-contact sheet), same as the nav title.
+    public var onContactAction: (() -> Void)?
 
     /// The widest a bubble may grow, as a share of the collection view's width.
     private static let maxBubbleWidthFraction: CGFloat = 0.78
@@ -82,10 +86,10 @@ public final class ChatViewController: UICollectionViewController {
         chatLayout.delegate = self
         chatLayout.settings.interItemSpacing = 8
         // ChatLayout owns the bottom anchoring: stay pinned to the newest message across batch
-        // updates (so an append at the bottom follows and a prepend preserves position), and sit
-        // content at the bottom when it's shorter than the viewport.
+        // updates (so an append at the bottom follows and a prepend preserves position). Content
+        // shorter than the viewport top-aligns — the profile card sits under the nav bar with
+        // messages flowing beneath it, iMessage-style.
         chatLayout.keepContentOffsetAtBottomOnBatchUpdates = true
-        chatLayout.keepContentAtBottomOfVisibleArea = true
         chatLayout.processOnlyVisibleItemsOnAnimatedBatchUpdates = false
         // Estimated size lets ChatLayout place off-screen rows without measuring them; the
         // native cell self-sizes to its true height, so the estimate never clips content.
@@ -115,6 +119,7 @@ public final class ChatViewController: UICollectionViewController {
         collectionView.register(ChatCashCardCell.self, forCellWithReuseIdentifier: ChatCashCardCell.reuseIdentifier)
         collectionView.register(ChatDateSeparatorCell.self, forCellWithReuseIdentifier: ChatDateSeparatorCell.reuseIdentifier)
         collectionView.register(ChatTypingIndicatorCell.self, forCellWithReuseIdentifier: ChatTypingIndicatorCell.reuseIdentifier)
+        collectionView.register(ChatProfileCardCell.self, forCellWithReuseIdentifier: ChatProfileCardCell.reuseIdentifier)
         collectionView.reloadData()
     }
 
@@ -215,6 +220,10 @@ public final class ChatViewController: UICollectionViewController {
         switch item {
         case .typingIndicator:
             break
+        case .profileCard(let card):
+            (cell as! ChatProfileCardCell).configure(with: card) { [weak self] in
+                self?.onContactAction?()
+            }
         case .dateSeparator(_, let text):
             (cell as! ChatDateSeparatorCell).configure(text: text)
         case .message(let message):
@@ -418,9 +427,7 @@ extension ChatViewController {
             case .cash:
                 return nil
             }
-        case .dateSeparator:
-            return nil
-        case .typingIndicator:
+        case .dateSeparator, .typingIndicator, .profileCard:
             return nil
         }
 

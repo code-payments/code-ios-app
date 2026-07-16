@@ -17,12 +17,15 @@ public enum ChatItem: Hashable, Sendable, Codable, Identifiable {
     case dateSeparator(id: String, text: String)
     /// A leading-aligned typing bubble pinned at the transcript tail while the counterpart types.
     case typingIndicator
+    /// The counterpart's profile card at the head of a short transcript.
+    case profileCard(ChatProfileCard)
 
     public var id: String {
         switch self {
         case .message(let message): message.id
         case .dateSeparator(let id, _): id
         case .typingIndicator: "typing-indicator"
+        case .profileCard: "profile-card"
         }
     }
 }

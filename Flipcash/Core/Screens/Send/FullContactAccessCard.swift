@@ -22,7 +22,7 @@ struct FullContactAccessCard: View {
                     .resizable()
                     .scaledToFit()
                     .frame(width: 48, height: 48)
-                    .foregroundStyle(Color.iconWarning)
+                    .foregroundStyle(Color.warning)
                     .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 4) {
