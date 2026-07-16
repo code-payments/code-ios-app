@@ -8,8 +8,6 @@
 import SwiftUI
 import UIKit
 import Combine
-import Contacts
-import ContactsUI
 import FlipcashCore
 import FlipcashUI
 
@@ -23,6 +21,17 @@ private let logger = Logger(label: "flipcash.conversation")
 nonisolated enum ConversationContext: Hashable {
     case existing(ConversationID)
     case contact(ResolvedContact)
+
+    /// Resolves the counterpart's synced contact from the directory — the one
+    /// rule the nav title, transcript profile card, and profile page share.
+    func resolvedContact(in directory: [ResolvedContact]) -> ResolvedContact? {
+        switch self {
+        case .contact(let contact):
+            directory.first { $0.contactId == contact.contactId && $0.phoneE164 == contact.phoneE164 } ?? contact
+        case .existing(let conversationID):
+            directory.first { $0.dmChatID == conversationID.data }
+        }
+    }
 }
 
 /// A DM conversation: an iMessage-style transcript over a unified bottom bar
@@ -58,13 +67,7 @@ struct ConversationScreen: View {
     /// so a `dmChatID` stored after the first payment flows in. Falls back to
     /// the pushed snapshot when the directory hasn't resolved yet.
     private var contact: ResolvedContact? {
-        let directory = contactSyncController.resolvedContacts.onFlipcash
-        switch context {
-        case .contact(let contact):
-            return directory.first { $0.id == contact.id } ?? contact
-        case .existing(let conversationID):
-            return directory.first { $0.dmChatID == conversationID.data }
-        }
+        context.resolvedContact(in: contactSyncController.resolvedContacts.onFlipcash)
     }
 
     private var conversationID: ConversationID? {
@@ -147,6 +150,7 @@ struct ConversationScreen: View {
             onRetry: retry,
             onCashCardTap: openCurrencyInfo,
             onOpenURL: openLink,
+            onContactAction: openContactCard,
             showsSendCash: sendTarget != nil,
             chatExists: chatExists,
             conversationID: conversationID,
@@ -281,26 +285,11 @@ struct ConversationScreen: View {
         conversationController.visibleConversationID = id
     }
 
-    /// Opens the native iOS contact card for the counterpart. An address-book
-    /// contact shows their card (fetched with the descriptor
-    /// `CNContactViewController` requires; nothing is shown if it can't be read,
-    /// e.g. deleted since sync). A non-contact with a known number opens the
-    /// "Add to Contacts" sheet seeded with that number.
+    /// Opens the native iOS contact card for the counterpart: their
+    /// address-book card when they're a contact, otherwise the "Add to
+    /// Contacts" sheet seeded with their number.
     private func openContactCard() {
-        if let contactId = contact?.contactId {
-            let keys = [CNContactViewController.descriptorForRequiredKeys()]
-            guard let fetched = try? CNContactStore().unifiedContact(
-                withIdentifier: contactId,
-                keysToFetch: keys
-            ) else { return }
-            presentedCard = .existing(fetched)
-        } else if let phone = addableContactPhone {
-            let unknown = CNMutableContact()
-            unknown.phoneNumbers = [
-                CNLabeledValue(label: CNLabelPhoneNumberMobile, value: CNPhoneNumber(stringValue: phone))
-            ]
-            presentedCard = .unknown(unknown)
-        }
+        presentedCard = ContactCard.make(contact: contact, addablePhone: addableContactPhone)
     }
 
     private func sendCash() {
@@ -350,9 +339,42 @@ struct ConversationScreen: View {
             coordinator = ConversationLoadCoordinator(
                 conversationID: id,
                 controller: conversationController,
-                session: session
+                session: session,
+                profileCard: { [context, contactSyncController, conversationController] in
+                    Self.profileCard(
+                        context: context,
+                        conversationID: id,
+                        directory: contactSyncController.resolvedContacts.onFlipcash,
+                        controller: conversationController
+                    )
+                }
             )
         }
+    }
+
+    /// The transcript's profile card for the counterpart, resolved live from the directory the
+    /// same way the nav title is: the synced contact when there is one, otherwise the counterpart's
+    /// formatted number flagged as an unknown contact.
+    private static func profileCard(
+        context: ConversationContext,
+        conversationID: ConversationID,
+        directory: [ResolvedContact],
+        controller: ConversationController
+    ) -> ChatProfileCard {
+        if let contact = context.resolvedContact(in: directory) {
+            return ChatProfileCard(
+                name: contact.displayName,
+                avatarID: contact.contactId,
+                imageData: contact.imageData,
+                counterpart: .contact(phone: contact.nationalPhone)
+            )
+        }
+        return ChatProfileCard(
+            name: controller.displayName(forConversationID: conversationID),
+            avatarID: conversationID.description,
+            imageData: nil,
+            counterpart: .unknown
+        )
     }
 
     /// After returning from the amount screen for a contact's first payment,

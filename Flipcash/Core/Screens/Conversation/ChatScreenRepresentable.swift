@@ -29,6 +29,9 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
     /// Fired when the user taps a URL in a message. The owner routes it through the deep-link handler,
     /// falling back to the system browser.
     let onOpenURL: (URL) -> Void
+    /// Fired when the user taps the profile card's call to action. The owner opens the
+    /// counterpart's contact card (or the add-contact sheet), same as tapping the nav title.
+    let onContactAction: () -> Void
     let showsSendCash: Bool
     let chatExists: Bool
     let conversationID: ConversationID?
@@ -45,6 +48,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onRetry = onRetry
         screen.onCashCardTap = onCashCardTap
         screen.onOpenURL = onOpenURL
+        screen.onContactAction = onContactAction
         screen.update(items: items)
         context.coordinator.barHost = barHost
         context.coordinator.screen = screen
@@ -60,6 +64,7 @@ struct ChatScreenRepresentable: UIViewControllerRepresentable {
         screen.onRetry = onRetry
         screen.onCashCardTap = onCashCardTap
         screen.onOpenURL = onOpenURL
+        screen.onContactAction = onContactAction
 
         // Scroll only when the user's *own* message was just appended — a new trailing message id
         // (skipping any trailing receipt) that is from me. Received messages and prepended history

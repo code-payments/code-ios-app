@@ -37,6 +37,13 @@ final class MessageLoader {
         controller.windowedMessages(for: conversationID, startingAt: startID, limit: Self.initialWindow)
     }
 
+    /// Whether a rendered window of `windowCount` messages is the entire locally-known history:
+    /// nothing paged back and the window under its limit. The count is passed in because
+    /// `messages` is a DB read the caller already holds.
+    func isEntireHistory(windowCount: Int) -> Bool {
+        startID == nil && windowCount < Self.initialWindow
+    }
+
     /// Reveals an older step: moves the anchor back over already-persisted history, or pages the next
     /// older batch from the server (which persists it) once the local history is exhausted.
     func loadOlder() {

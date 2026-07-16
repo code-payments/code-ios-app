@@ -64,6 +64,11 @@ public final class ChatScreenViewController: UIViewController {
         set { transcript.onOpenURL = newValue }
     }
 
+    public var onContactAction: (() -> Void)? {
+        get { transcript.onContactAction }
+        set { transcript.onContactAction = newValue }
+    }
+
     public override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = UIColor(Color.backgroundMain)

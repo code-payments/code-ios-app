@@ -47,6 +47,7 @@ public enum SystemSymbol: String {
     case circleDotted = "circle.dotted"
     case circleCheck = "checkmark.circle.fill"
     case circlePerson = "person.circle"
+    case personBadgePlus = "person.badge.plus"
     
     case arrowUp = "arrow.up"
     case arrowDown = "arrow.down"

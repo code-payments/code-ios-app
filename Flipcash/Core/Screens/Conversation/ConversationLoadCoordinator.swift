@@ -23,14 +23,23 @@ final class ConversationLoadCoordinator {
     let conversationID: ConversationID
     private let controller: ConversationController
     private let session: Session
+    /// Supplies the counterpart's profile card, resolved live — it runs inside the observation
+    /// scope, so whatever it reads (the contact directory, the conversation) re-triggers mapping.
+    private let profileCard: @MainActor () -> ChatProfileCard
 
     @ObservationIgnored private var lastInputs: Inputs?
     @ObservationIgnored private var mapTask: Task<Void, Never>?
 
-    init(conversationID: ConversationID, controller: ConversationController, session: Session) {
+    init(
+        conversationID: ConversationID,
+        controller: ConversationController,
+        session: Session,
+        profileCard: @escaping @MainActor () -> ChatProfileCard
+    ) {
         self.conversationID = conversationID
         self.controller = controller
         self.session = session
+        self.profileCard = profileCard
         self.loader = MessageLoader(conversationID: conversationID, controller: controller)
 
         // First paint is synchronous so an open never flashes an empty transcript; every later
@@ -80,6 +89,9 @@ final class ConversationLoadCoordinator {
             counterpartReadDate: read?.date,
             suppressReceiptFor: controller.settlingSendID,
             isTyping: controller.isCounterpartTyping(in: conversationID),
+            // The card heads only a short transcript — long or paged histories drop it; the
+            // nav title opens the same contact card.
+            profileCard: loader.isEntireHistory(windowCount: window.count) ? profileCard() : nil,
             branding: branding
         )
     }
@@ -98,6 +110,9 @@ final class ConversationLoadCoordinator {
         if inputs.isTyping {
             items.append(.typingIndicator)
         }
+        if let card = inputs.profileCard {
+            items.insert(.profileCard(card), at: 0)
+        }
         return items
     }
 
@@ -111,6 +126,7 @@ final class ConversationLoadCoordinator {
         var counterpartReadDate: Date?
         var suppressReceiptFor: String?
         var isTyping: Bool
+        var profileCard: ChatProfileCard?
         var branding: [PublicKey: Branding]
 
         struct Branding: Equatable, Sendable {

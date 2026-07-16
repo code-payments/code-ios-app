@@ -27,6 +27,8 @@ extension ChatItem {
         switch self {
         case .typingIndicator:
             ChatTypingIndicatorCell.reuseIdentifier
+        case .profileCard:
+            ChatProfileCardCell.reuseIdentifier
         case .dateSeparator:
             ChatDateSeparatorCell.reuseIdentifier
         case .message(let message):
