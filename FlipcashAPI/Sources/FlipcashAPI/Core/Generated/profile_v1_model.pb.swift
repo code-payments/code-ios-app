@@ -53,12 +53,31 @@ public struct Flipcash_Profile_V1_UserProfile: Sendable {
   /// Clears the value of `emailAddress`. Subsequent reads from it will return its default value.
   public mutating func clearEmailAddress() {self._emailAddress = nil}
 
+  /// The user's profile picture, as the set of renditions it is stored as —
+  /// typically a DISPLAY for the profile view and a THUMBNAIL for avatars in
+  /// member rows and chat lists.
+  ///
+  /// Unset when the user has not set a picture. Set it with SetProfilePicture.
+  ///
+  /// To fetch the bytes of ANOTHER user's picture, the caller does not own
+  /// these blobs, so a GetBlobs call must carry a blob.v1.AccessContext whose
+  /// `profile` scope names this user. A caller reading its own needs none.
+  public var profilePicture: Flipcash_Blob_V1_Media {
+    get {_profilePicture ?? Flipcash_Blob_V1_Media()}
+    set {_profilePicture = newValue}
+  }
+  /// Returns true if `profilePicture` has been explicitly set.
+  public var hasProfilePicture: Bool {self._profilePicture != nil}
+  /// Clears the value of `profilePicture`. Subsequent reads from it will return its default value.
+  public mutating func clearProfilePicture() {self._profilePicture = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _phoneNumber: Flipcash_Phone_V1_PhoneNumber? = nil
   fileprivate var _emailAddress: Flipcash_Email_V1_EmailAddress? = nil
+  fileprivate var _profilePicture: Flipcash_Blob_V1_Media? = nil
 }
 
 public struct Flipcash_Profile_V1_SocialProfile: Sendable {
@@ -165,7 +184,7 @@ fileprivate let _protobuf_package = "flipcash.profile.v1"
 
 extension Flipcash_Profile_V1_UserProfile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UserProfile"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}display_name\0\u{3}social_profiles\0\u{3}phone_number\0\u{3}email_address\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}display_name\0\u{3}social_profiles\0\u{3}phone_number\0\u{3}email_address\0\u{3}profile_picture\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -177,6 +196,7 @@ extension Flipcash_Profile_V1_UserProfile: SwiftProtobuf.Message, SwiftProtobuf.
       case 2: try { try decoder.decodeRepeatedMessageField(value: &self.socialProfiles) }()
       case 3: try { try decoder.decodeSingularMessageField(value: &self._phoneNumber) }()
       case 4: try { try decoder.decodeSingularMessageField(value: &self._emailAddress) }()
+      case 5: try { try decoder.decodeSingularMessageField(value: &self._profilePicture) }()
       default: break
       }
     }
@@ -199,6 +219,9 @@ extension Flipcash_Profile_V1_UserProfile: SwiftProtobuf.Message, SwiftProtobuf.
     try { if let v = self._emailAddress {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
     } }()
+    try { if let v = self._profilePicture {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -207,6 +230,7 @@ extension Flipcash_Profile_V1_UserProfile: SwiftProtobuf.Message, SwiftProtobuf.
     if lhs.socialProfiles != rhs.socialProfiles {return false}
     if lhs._phoneNumber != rhs._phoneNumber {return false}
     if lhs._emailAddress != rhs._emailAddress {return false}
+    if lhs._profilePicture != rhs._profilePicture {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

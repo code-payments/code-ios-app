@@ -97,6 +97,50 @@ message ImageMetadata {
     string blurhash = 3 [(validate.rules).string.max_len = 64];
 }
 
+// One logical piece of media — a chat image, a profile picture — carried as the
+// set of renditions it is stored as. Distinct from Blob: a Blob is ONE stored
+// object, while a Media is the several stored objects that together represent
+// the same content at different qualities/sizes.
+//
+// Wherever a surface attaches media, it embeds this type: the client uploads a
+// single ORIGINAL and the server derives the rest, identically everywhere.
+message Media {
+    // The renditions of this media, each an independently-stored blob. When a
+    // client attaches media (e.g. SendMessage, SetProfilePicture) it supplies
+    // exactly one ORIGINAL rendition (its blob_id); the server fills that
+    // rendition's metadata and appends any derived renditions (e.g. a
+    // downscaled DISPLAY and a THUMBNAIL).
+    repeated Rendition renditions = 1 [(validate.rules).repeated = {
+        min_items: 1
+    }];
+}
+
+// A single stored variant of a Media.
+message Rendition {
+    // The intended use of this rendition within the media.
+    Role role = 1 [(validate.rules).enum = {
+        not_in: [0]
+    }];
+    enum Role {
+        UNKNOWN   = 0;
+        ORIGINAL  = 1; // full-quality source the client uploaded
+        DISPLAY   = 2; // downscaled/compressed for inline display
+        THUMBNAIL = 3; // tiny preview (grid cell, avatar, ...)
+    }
+
+    // Handle to the blob holding this rendition's bytes. Client-set on the
+    // ORIGINAL when attaching the media; server-set for derived renditions.
+    BlobId blob_id = 2 [(validate.rules).message.required = true];
+
+    // Server-authoritative blob metadata (mime type, size, download URL, and
+    // the image dimensions/preview), resolved from the blob record. Omitted on
+    // the request that attaches the media and populated on returned copies.
+    //
+    // If unavailable at the time the media is retrieved, the client can use
+    // GetBlobs to query for the blob metadata.
+    BlobMetadata blob = 3;
+}
+
 // The constraints the server enforces on uploads, surfaced so clients can
 // validate and resize/transcode before reserving an upload. Advisory and
 // cacheable; InitiateExternalUpload remains authoritative. Constraints can
@@ -247,6 +291,7 @@ enum RejectionReason {
     REJECTION_REASON_TOO_LARGE        = 4; // stored bytes exceeded the per-type ceiling
     REJECTION_REASON_CORRUPT          = 5; // bytes unreadable; failed to decode or transcode
     REJECTION_REASON_INTERNAL         = 6; // server-side processing error
+    REJECTION_REASON_PRIVACY_METADATA = 7; // blob contains privacy metadata that was not stripped
 }
 
 // AccessContext names the surface a caller is accessing blobs THROUGH on a
@@ -268,5 +313,14 @@ message AccessContext {
         // The caller is accessing these blobs from within this chat. Authorized
         // iff the caller is a member of the chat and the blob was shared into it.
         common.v1.ChatId chat = 1 [(validate.rules).message.required = true];
+
+        // The caller is accessing these blobs from this user's public profile.
+        // Authorized iff the blob is a rendition of that user's CURRENT profile
+        // picture — a profile grants nothing else, and a superseded picture's
+        // renditions stop resolving through it.
+        //
+        // A caller never needs this for its OWN profile picture, since it owns
+        // those blobs.
+        common.v1.UserId profile = 2 [(validate.rules).message.required = true];
     }
 }

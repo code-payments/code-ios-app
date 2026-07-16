@@ -37,10 +37,19 @@ public struct Flipcash_Resolver_V1_Identifier: Sendable {
     set {kind = .phone(newValue)}
   }
 
+  public var userID: Flipcash_Common_V1_UserId {
+    get {
+      if case .userID(let v)? = kind {return v}
+      return Flipcash_Common_V1_UserId()
+    }
+    set {kind = .userID(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Kind: Equatable, Sendable {
     case phone(Flipcash_Phone_V1_PhoneNumber)
+    case userID(Flipcash_Common_V1_UserId)
 
   }
 
@@ -80,7 +89,7 @@ fileprivate let _protobuf_package = "flipcash.resolver.v1"
 
 extension Flipcash_Resolver_V1_Identifier: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Identifier"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}phone\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}phone\0\u{3}user_id\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -101,6 +110,19 @@ extension Flipcash_Resolver_V1_Identifier: SwiftProtobuf.Message, SwiftProtobuf.
           self.kind = .phone(v)
         }
       }()
+      case 2: try {
+        var v: Flipcash_Common_V1_UserId?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .userID(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .userID(v)
+        }
+      }()
       default: break
       }
     }
@@ -111,9 +133,17 @@ extension Flipcash_Resolver_V1_Identifier: SwiftProtobuf.Message, SwiftProtobuf.
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
     // https://github.com/apple/swift-protobuf/issues/1182
-    try { if case .phone(let v)? = self.kind {
+    switch self.kind {
+    case .phone?: try {
+      guard case .phone(let v)? = self.kind else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
+    }()
+    case .userID?: try {
+      guard case .userID(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    }()
+    case nil: break
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 

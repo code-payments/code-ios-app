@@ -6,6 +6,7 @@ option go_package = "github.com/code-payments/flipcash2-protobuf-api/generated/g
 option java_package = "com.codeinc.flipcash.gen.profile.v1";
 option objc_class_prefix = "FPBProfileV1";
 
+import "blob/v1/model.proto";
 import "common/v1/common.proto";
 import "profile/v1/model.proto";
 import "validate/validate.proto";
@@ -14,6 +15,15 @@ service Profile {
 	rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
 
 	rpc SetDisplayName(SetDisplayNameRequest) returns (SetDisplayNameResponse);
+
+	// SetProfilePicture sets the caller's profile picture to a blob they have
+	// already uploaded via BlobStorage, replacing any picture already set.
+	//
+	// The client uploads only the ORIGINAL — InitiateExternalUpload, PUT/POST
+	// the bytes, then (optionally) CompleteExternalUpload — and passes the
+	// resulting BlobId here once the blob is READY. The server derives the
+	// DISPLAY and THUMBNAIL renditions itself and returns the full set.
+	rpc SetProfilePicture(SetProfilePictureRequest) returns (SetProfilePictureResponse);
 
 	// LinkSocialAccount links a social account to a user
 	rpc LinkSocialAccount(LinkSocialAccountRequest) returns (LinkSocialAccountResponse);
@@ -60,6 +70,31 @@ message SetDisplayNameResponse {
 		INVALID_DISPLAY_NAME = 1;
 		DENIED               = 2;
 	}
+}
+
+message SetProfilePictureRequest {
+	// The blob holding the ORIGINAL image the caller uploaded. It must be owned
+	// by the caller and READY; the server derives the remaining renditions from
+	// it. A blob may back at most one profile picture — reuse is not implied.
+	blob.v1.BlobId blob_id = 1 [(validate.rules).message.required = true];
+
+	common.v1.Auth auth = 10 [(validate.rules).message.required = true];
+}
+
+message SetProfilePictureResponse {
+	Result result = 1;
+	enum Result {
+		OK             = 0;
+		DENIED         = 1;
+		BLOB_NOT_FOUND = 2; // no such blob, or it is not owned by the caller
+		BLOB_NOT_READY = 3; // blob is still PENDING/PROCESSING; retry once READY
+		BLOB_REJECTED  = 4; // blob failed validation or moderation; terminal for this id, so the client must upload again
+		INVALID_BLOB   = 5; // blob is READY but unusable as a picture (e.g. not an image)
+	}
+
+	// The caller's new profile picture, including the renditions the server
+	// derived. Set only when result == OK.
+	blob.v1.Media profile_picture = 2;
 }
 
 message LinkSocialAccountRequest {

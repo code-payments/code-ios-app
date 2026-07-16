@@ -355,7 +355,18 @@ message StatefulSwapRequest {
             }];
 
             // The fee amount to pay for this swap
+            //
+            // Note: Amounts are coordinated outside this RPC for user verifications
+            //       and validated in this RPC.
             uint64 fee_amount = 7;
+
+            // Verified exchange data for flows that require a specific fiat value
+            // over the full amount (swap + fee). For intent fundings, it's expected
+            // that this exchange data will be used.
+            //
+            // Required for the following flows:
+            //  - Initializing a new reserve currency outside of the core mint
+            VerifiedExchangeData full_amount_exchange_data = 8;
         }
 
          // Client parameters for starting swaps against the Coinbase Stable Swaper program
@@ -458,7 +469,7 @@ message StatefulSwapResponse {
         //  4. [Optional] Memo::Memo
         //  5. AssociatedTokenAccount::CreateIdempotent (open Core Mint temporary account)
         //  6. VM::TransferForSwap (Core Mint VM swap ATA -> Core Mint temporary account)
-        //  6. Reserve::BuyAndDepositIntoVm (bounded buy depositing to_mint tokens into the to_mint VM)
+        //  7. Reserve::BuyAndDepositIntoVm (bounded buy depositing to_mint tokens into the to_mint VM)
         //  8. Token::CloseAccount (closes Core Mint temporary account)
         //  9. VM::CloseSwapAccountIfEmpty (closes Core Mint VM swap ATA if empty)
         //
@@ -524,7 +535,7 @@ message StatefulSwapResponse {
         //
         // Supported Solana transaction version: v0
         //
-        // Instruction format:
+        // Instruction format (paying with Core Mint):
         //  1. System::AdvanceNonce
         //  2. [Optional] ComputeBudget::SetComputeUnitLimit
         //  3. [Optional] ComputeBudget::SetComputeUnitPrice
@@ -537,6 +548,20 @@ message StatefulSwapResponse {
         // 10. VM::TransferForSwapWithFee (Core Mint VM swap ATA -> owner's Core Mint ATA (swap amount) and fee destination (fee amount))
         // 11. Reserve::BuyTokens (limited buy transferring to_mint tokens into the to_mint VM Deposit ATA)
         // 12. Token::CloseAccount (closes owner's Core Mint ATA)
+        //
+        // Instruction format (all other cases):
+        //  1. System::AdvanceNonce
+        //  2. [Optional] ComputeBudget::SetComputeUnitLimit
+        //  3. [Optional] ComputeBudget::SetComputeUnitPrice
+        //  4. [Optional] Memo::Memo
+        //  5. AssociatedTokenAccount::CreateIdempotent (open treasury's from_mint ATA)
+        //  6. VM::TransferForSwapWithFee (from_mint VM swap ATA -> treasury's from_mint ATA (swap + fee amount))
+        //  7. Reserve::SellTokens (limited sell of the full swap + fee amount, transferring the Core Mint value into the fee destination)
+        //  8. Reserve::BuyTokens (limited buy funded by the treasury's Core Mint ATA, transferring to_mint tokens into the to_mint VM Deposit ATA)
+        //
+        // Note: The currency, VM and to_mint VM Deposit ATA will be initialized prior to
+        //       executing this transaction. Atomicity cannot be guaranteed due to transaction
+        //       size limits, which will be revisited when the v1 transaction format is released.
         //
         // Note: Client should verify that the new currency's mint address matches that derived
         //       from using these server parameters.
@@ -591,6 +616,14 @@ message StatefulSwapResponse {
 
             // Destination account where fee should be paid
             common.v1.SolanaAccountId fee_destination = 14 [(validate.rules).message.required = true];
+
+            // Server-controlled treasury for flows that require it
+            common.v1.SolanaAccountId treasury = 15;
+
+            // The amount of core mint tokens used for purchase. Client should
+            // validate this is as expected based on a pre-coordinated amount
+            // accepted by the user.
+            uint64 treasury_purchase_amount = 16;
         }
 
         // Server parameters when executing stateful swap flows against the

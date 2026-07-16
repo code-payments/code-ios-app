@@ -46,6 +46,19 @@ public enum Flipcash_Profile_V1_Profile: Sendable {
                 type: .unary
             )
         }
+        /// Namespace for "SetProfilePicture" metadata.
+        public enum SetProfilePicture: Sendable {
+            /// Request type for "SetProfilePicture".
+            public typealias Input = Flipcash_Profile_V1_SetProfilePictureRequest
+            /// Response type for "SetProfilePicture".
+            public typealias Output = Flipcash_Profile_V1_SetProfilePictureResponse
+            /// Descriptor for "SetProfilePicture".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.profile.v1.Profile"),
+                method: "SetProfilePicture",
+                type: .unary
+            )
+        }
         /// Namespace for "LinkSocialAccount" metadata.
         public enum LinkSocialAccount: Sendable {
             /// Request type for "LinkSocialAccount".
@@ -76,6 +89,7 @@ public enum Flipcash_Profile_V1_Profile: Sendable {
         public static let descriptors: [GRPCCore.MethodDescriptor] = [
             GetProfile.descriptor,
             SetDisplayName.descriptor,
+            SetProfilePicture.descriptor,
             LinkSocialAccount.descriptor,
             UnlinkSocialAccount.descriptor
         ]
@@ -133,6 +147,35 @@ extension Flipcash_Profile_V1_Profile {
             deserializer: some GRPCCore.MessageDeserializer<Flipcash_Profile_V1_SetDisplayNameResponse>,
             options: GRPCCore.CallOptions,
             onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Flipcash_Profile_V1_SetDisplayNameResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "SetProfilePicture" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > SetProfilePicture sets the caller's profile picture to a blob they have
+        /// > already uploaded via BlobStorage, replacing any picture already set.
+        /// > 
+        /// > The client uploads only the ORIGINAL — InitiateExternalUpload, PUT/POST
+        /// > the bytes, then (optionally) CompleteExternalUpload — and passes the
+        /// > resulting BlobId here once the blob is READY. The server derives the
+        /// > DISPLAY and THUMBNAIL renditions itself and returns the full set.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Flipcash_Profile_V1_SetProfilePictureRequest` message.
+        ///   - serializer: A serializer for `Flipcash_Profile_V1_SetProfilePictureRequest` messages.
+        ///   - deserializer: A deserializer for `Flipcash_Profile_V1_SetProfilePictureResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func setProfilePicture<Result>(
+            request: GRPCCore.ClientRequest<Flipcash_Profile_V1_SetProfilePictureRequest>,
+            serializer: some GRPCCore.MessageSerializer<Flipcash_Profile_V1_SetProfilePictureRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Flipcash_Profile_V1_SetProfilePictureResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Flipcash_Profile_V1_SetProfilePictureResponse>) async throws -> Result
         ) async throws -> Result where Result: Sendable
 
         /// Call the "LinkSocialAccount" method.
@@ -251,6 +294,46 @@ extension Flipcash_Profile_V1_Profile {
             try await self.client.unary(
                 request: request,
                 descriptor: Flipcash_Profile_V1_Profile.Method.SetDisplayName.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
+        /// Call the "SetProfilePicture" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > SetProfilePicture sets the caller's profile picture to a blob they have
+        /// > already uploaded via BlobStorage, replacing any picture already set.
+        /// > 
+        /// > The client uploads only the ORIGINAL — InitiateExternalUpload, PUT/POST
+        /// > the bytes, then (optionally) CompleteExternalUpload — and passes the
+        /// > resulting BlobId here once the blob is READY. The server derives the
+        /// > DISPLAY and THUMBNAIL renditions itself and returns the full set.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Flipcash_Profile_V1_SetProfilePictureRequest` message.
+        ///   - serializer: A serializer for `Flipcash_Profile_V1_SetProfilePictureRequest` messages.
+        ///   - deserializer: A deserializer for `Flipcash_Profile_V1_SetProfilePictureResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func setProfilePicture<Result>(
+            request: GRPCCore.ClientRequest<Flipcash_Profile_V1_SetProfilePictureRequest>,
+            serializer: some GRPCCore.MessageSerializer<Flipcash_Profile_V1_SetProfilePictureRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Flipcash_Profile_V1_SetProfilePictureResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Flipcash_Profile_V1_SetProfilePictureResponse>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Flipcash_Profile_V1_Profile.Method.SetProfilePicture.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -381,6 +464,41 @@ extension Flipcash_Profile_V1_Profile.ClientProtocol {
         )
     }
 
+    /// Call the "SetProfilePicture" method.
+    ///
+    /// > Source IDL Documentation:
+    /// >
+    /// > SetProfilePicture sets the caller's profile picture to a blob they have
+    /// > already uploaded via BlobStorage, replacing any picture already set.
+    /// > 
+    /// > The client uploads only the ORIGINAL — InitiateExternalUpload, PUT/POST
+    /// > the bytes, then (optionally) CompleteExternalUpload — and passes the
+    /// > resulting BlobId here once the blob is READY. The server derives the
+    /// > DISPLAY and THUMBNAIL renditions itself and returns the full set.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Flipcash_Profile_V1_SetProfilePictureRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func setProfilePicture<Result>(
+        request: GRPCCore.ClientRequest<Flipcash_Profile_V1_SetProfilePictureRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Flipcash_Profile_V1_SetProfilePictureResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.setProfilePicture(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Flipcash_Profile_V1_SetProfilePictureRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Flipcash_Profile_V1_SetProfilePictureResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
     /// Call the "LinkSocialAccount" method.
     ///
     /// > Source IDL Documentation:
@@ -495,6 +613,45 @@ extension Flipcash_Profile_V1_Profile.ClientProtocol {
             metadata: metadata
         )
         return try await self.setDisplayName(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "SetProfilePicture" method.
+    ///
+    /// > Source IDL Documentation:
+    /// >
+    /// > SetProfilePicture sets the caller's profile picture to a blob they have
+    /// > already uploaded via BlobStorage, replacing any picture already set.
+    /// > 
+    /// > The client uploads only the ORIGINAL — InitiateExternalUpload, PUT/POST
+    /// > the bytes, then (optionally) CompleteExternalUpload — and passes the
+    /// > resulting BlobId here once the blob is READY. The server derives the
+    /// > DISPLAY and THUMBNAIL renditions itself and returns the full set.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func setProfilePicture<Result>(
+        _ message: Flipcash_Profile_V1_SetProfilePictureRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Flipcash_Profile_V1_SetProfilePictureResponse>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Flipcash_Profile_V1_SetProfilePictureRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.setProfilePicture(
             request: request,
             options: options,
             onResponse: handleResponse

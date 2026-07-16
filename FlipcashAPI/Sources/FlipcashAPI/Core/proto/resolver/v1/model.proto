@@ -16,7 +16,8 @@ message Identifier {
     oneof kind {
         option (validate.required) = true;
 
-        phone.v1.PhoneNumber phone = 1;
+        phone.v1.PhoneNumber phone   = 1;
+        common.v1.UserId     user_id = 2;
     }
 }
 
