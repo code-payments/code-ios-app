@@ -13,12 +13,20 @@ private let logger = Logger(label: "flipcash.solana-rpc")
 // MARK: - SolanaRPC -
 
 /// The narrow Solana JSON-RPC surface the app consumes today: fetch the
-/// latest blockhash, simulate a signed transaction before submitting it, and
-/// submit a signed transaction. Designed for use from any isolation context;
-/// callers are expected to hop to `@MainActor` themselves for UI updates.
+/// latest blockhash, fetch an account's raw data, simulate a signed
+/// transaction before submitting it, and submit a signed transaction.
+/// Designed for use from any isolation context; callers are expected to hop
+/// to `@MainActor` themselves for UI updates.
 public protocol SolanaRPC: Sendable {
 
     func getLatestBlockhash(commitment: SolanaCommitment) async throws -> Hash
+
+    /// Returns the raw data of an on-chain account, or `nil` when the
+    /// account does not exist.
+    func getAccountData(
+        _ account: PublicKey,
+        commitment: SolanaCommitment
+    ) async throws -> Data?
 
     func sendTransaction(
         _ base64Transaction: String,
@@ -65,6 +73,17 @@ public struct SolanaJSONRPCClient: SolanaRPC {
             params: GetLatestBlockhashParams(commitment: commitment)
         )
         return try Hash(base58: response.value.blockhash)
+    }
+
+    public func getAccountData(
+        _ account: PublicKey,
+        commitment: SolanaCommitment
+    ) async throws -> Data? {
+        let response: RPCContextValue<GetAccountInfoValue?> = try await call(
+            method: "getAccountInfo",
+            params: GetAccountInfoParams(account: account.base58, commitment: commitment)
+        )
+        return response.value?.data
     }
 
     public func sendTransaction(
@@ -193,6 +212,46 @@ private struct GetLatestBlockhashParams: Encodable, Sendable {
 
 private struct GetLatestBlockhashValue: Decodable, Sendable {
     let blockhash: String
+}
+
+// MARK: - getAccountInfo -
+
+private struct GetAccountInfoParams: Encodable, Sendable {
+    let account: String
+    let commitment: SolanaCommitment
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.unkeyedContainer()
+        try container.encode(account)
+        try container.encode(ConfigObject(commitment: commitment))
+    }
+
+    private struct ConfigObject: Encodable, Sendable {
+        let commitment: SolanaCommitment
+        let encoding = "base64"
+    }
+}
+
+private struct GetAccountInfoValue: Decodable, Sendable {
+    let data: Data
+
+    private enum CodingKeys: String, CodingKey {
+        case data
+    }
+
+    init(from decoder: Decoder) throws {
+        // `data` arrives as a two-element array: ["<base64>", "base64"].
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        var dataContainer = try container.nestedUnkeyedContainer(forKey: .data)
+        let base64 = try dataContainer.decode(String.self)
+        guard let decoded = Data(base64Encoded: base64) else {
+            throw DecodingError.dataCorruptedError(
+                in: dataContainer,
+                debugDescription: "Account data is not valid base64"
+            )
+        }
+        self.data = decoded
+    }
 }
 
 // MARK: - sendTransaction -

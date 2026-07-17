@@ -45,6 +45,7 @@ public final class WalletConnection {
     private let box: Box
     let owner: AccountCluster
     private let rpc: any SolanaRPC
+    private let preferredLiquidityPool: () -> UserFlags.UsdcLiquidityPool
 
     /// Awaiting continuation for `connect()` / `handshake()`. Resumed by
     /// `didConnect` on success or by the errorCode branch of `didReceiveURL`
@@ -60,9 +61,14 @@ public final class WalletConnection {
 
     // MARK: - Init -
 
-    init(owner: AccountCluster, rpc: any SolanaRPC = SolanaJSONRPCClient()) {
+    init(
+        owner: AccountCluster,
+        rpc: any SolanaRPC = SolanaJSONRPCClient(),
+        preferredLiquidityPool: @escaping () -> UserFlags.UsdcLiquidityPool
+    ) {
         self.owner = owner
         self.rpc = rpc
+        self.preferredLiquidityPool = preferredLiquidityPool
 
         var continuation: AsyncStream<DeeplinkEvent>.Continuation!
         self.deeplinkEvents = AsyncStream { continuation = $0 }
@@ -303,8 +309,7 @@ public final class WalletConnection {
     /// comes back via `didReceiveURL` → `deeplinkEvents`.
     func sendUsdcToUsdfSignRequest(
         usdc: FlipcashCore.TokenAmount,
-        swapId: SwapId,
-        displayName: String
+        swapId: SwapId
     ) async throws {
         guard let connectedSession = Keychain.connectedWalletSession else {
             logger.error("Sign request without a connected wallet session")
@@ -320,20 +325,24 @@ public final class WalletConnection {
         let externalWallet = try FlipcashCore.PublicKey(base58: connectedSession.walletPublicKey.base58)
         let flipcashOwner = owner.authorityPublicKey
 
+        // The blockhash fetch runs as a child task so it overlaps the pool
+        // resolution's own network round-trip.
+        async let recentBlockhash = rpc.getLatestBlockhash(commitment: .finalized)
+
+        let swapPool = try await resolveFundSwapPool(preferredLiquidityPool())
+
         let instructions = SwapInstructionBuilder.buildUsdcToUsdfSwapInstructions(
             sender: externalWallet,
             owner: flipcashOwner,
             amount: usdc.quarks,
-            pool: .usdf,
+            pool: swapPool,
             swapId: swapId.publicKey,
             destination: .vmDeposit
         )
 
-        let recentBlockhash = try await rpc.getLatestBlockhash(commitment: .finalized)
-
         let transaction = SolanaTransaction(
             payer: externalWallet,
-            recentBlockhash: recentBlockhash,
+            recentBlockhash: try await recentBlockhash,
             instructions: instructions
         )
 
@@ -363,13 +372,46 @@ public final class WalletConnection {
             throw Error.invalidURL
         }
 
+        let poolLabel = switch swapPool {
+        case .usdf: "flipcash"
+        case .coinbaseStableSwapper: "coinbaseStableSwapper"
+        }
+
         Analytics.walletRequestAmount(amount: amount.nativeAmount)
         openExternalWallet(url)
         logger.info("Requested USDC→USDF deposit swap", metadata: [
             "amount": "\(amount.nativeAmount.formatted())",
             "swapId": "\(swapId.publicKey.base58)",
-            "name": "\(displayName)",
+            "pool": "\(poolLabel)",
         ])
+    }
+
+    /// Resolves which pool the funding swap routes through. The Coinbase
+    /// pool's fee recipient lives on the on-chain pool account, so that
+    /// variant fetches and parses it; a failed fetch fails the deposit rather
+    /// than falling back to the legacy pool.
+    func resolveFundSwapPool(
+        _ liquidityPool: UserFlags.UsdcLiquidityPool
+    ) async throws -> FundSwapPool {
+        switch liquidityPool {
+        case .unknown, .flipcash:
+            return .usdf
+        case .coinbaseStableSwapper:
+            guard let poolAddress = CoinbaseStableSwapperProgram.derivePoolAddress() else {
+                logger.error("Failed to derive Coinbase pool address")
+                throw Error.poolAccountUnavailable
+            }
+            guard
+                let accountData = try await rpc.getAccountData(poolAddress.publicKey, commitment: .finalized),
+                let poolAccount = CoinbaseStableSwapperProgram.PoolAccount(accountData: accountData)
+            else {
+                logger.error("Failed to resolve Coinbase pool account", metadata: [
+                    "pool": "\(poolAddress.publicKey.base58)",
+                ])
+                throw Error.poolAccountUnavailable
+            }
+            return .coinbaseStableSwapper(feeRecipient: poolAccount.feeRecipient)
+        }
     }
 }
 
@@ -508,9 +550,12 @@ public enum WalletConnectionError: Error, LocalizedError {
 }
 
 extension WalletConnection {
-    enum Error: Swift.Error {
+    enum Error: Swift.Error, Equatable {
         case noSession
         case invalidURL
+        /// The Coinbase pool account could not be fetched or parsed, so the
+        /// swap's fee recipient is unknown.
+        case poolAccountUnavailable
     }
 }
 
@@ -566,5 +611,5 @@ private extension FlipcashCore.Keychain {
 // MARK: - Mock -
 
 extension WalletConnection {
-    static let mock = WalletConnection(owner: .mock)
+    static let mock = WalletConnection(owner: .mock, preferredLiquidityPool: { .unknown })
 }

@@ -15,6 +15,8 @@ final class MockSolanaRPC: SolanaRPC, @unchecked Sendable {
     nonisolated(unsafe) var simulateHandler: (@Sendable (String) async throws -> SolanaSimulationResult)?
     nonisolated(unsafe) var sendHandler: (@Sendable (String) async throws -> Signature)?
     nonisolated(unsafe) var blockhashHandler: (@Sendable (SolanaCommitment) async throws -> Hash)?
+    nonisolated(unsafe) var accountDataHandler: (@Sendable (PublicKey) async throws -> Data?)?
+    nonisolated(unsafe) private(set) var accountDataRequests: [PublicKey] = []
 
     init() {}
 
@@ -23,6 +25,17 @@ final class MockSolanaRPC: SolanaRPC, @unchecked Sendable {
             return try await handler(commitment)
         }
         return Hash.mock
+    }
+
+    func getAccountData(
+        _ account: PublicKey,
+        commitment: SolanaCommitment
+    ) async throws -> Data? {
+        accountDataRequests.append(account)
+        if let handler = accountDataHandler {
+            return try await handler(account)
+        }
+        return nil
     }
 
     func simulateTransaction(

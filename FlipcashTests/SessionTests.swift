@@ -662,7 +662,8 @@ struct SessionOfflineCacheTests {
             withdrawalFeeAmount: TokenAmount(quarks: 50_000, mint: .usdf),
             minimumHolderValue: .zero(mint: .usdf),
             enablePhoneNumberSend: false,
-            requireCoinbaseEmailVerification: false
+            requireCoinbaseEmailVerification: false,
+            preferredOnrampUsdcLiquidityPool: .unknown
         )
     }
 
@@ -724,7 +725,8 @@ struct SessionCanSendTests {
             withdrawalFeeAmount: .zero(mint: .usdf),
             minimumHolderValue: .zero(mint: .usdf),
             enablePhoneNumberSend: enablePhoneNumberSend,
-            requireCoinbaseEmailVerification: false
+            requireCoinbaseEmailVerification: false,
+            preferredOnrampUsdcLiquidityPool: .unknown
         )
     }
 

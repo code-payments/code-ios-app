@@ -101,8 +101,7 @@ final class PhantomDepositOperation {
         state = .awaitingExternal(.phantomSign)
         try await walletConnection.sendUsdcToUsdfSignRequest(
             usdc: amount.onChainAmount,
-            swapId: swapId,
-            displayName: "USDF"
+            swapId: swapId
         )
         Analytics.addMoneyPaymentInvoked(method: .phantom, exchangedFiat: amount)
 
@@ -164,6 +163,19 @@ final class PhantomDepositOperation {
                 "signature": "\(signature.base58)",
                 "swapId": "\(swapId.publicKey.base58)",
             ])
+        } catch let SolanaRPCError.responseError(response) {
+            // The node refused the transaction at its preflight — commonly an
+            // expired blockhash after a slow Phantom approval — so nothing was
+            // submitted and the user can simply retry.
+            logger.error("Chain submission rejected at preflight", metadata: [
+                "code": "\(response.code ?? -1)",
+                "message": "\(response.message ?? "nil")",
+                "swapId": "\(swapId.publicKey.base58)",
+            ])
+            throw DepositError.externalRejected(
+                title: "Transaction Failed",
+                subtitle: "The transaction simulation failed. Check your Phantom wallet and try again."
+            )
         } catch {
             logger.error("Chain submission failed", metadata: [
                 "error": "\(error)",

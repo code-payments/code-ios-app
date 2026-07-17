@@ -65,6 +65,74 @@ struct SolanaRPCDecodingTests {
         #expect(signature.base58 == Self.signatureB58)
     }
 
+    // MARK: - getAccountInfo
+
+    @Test("getAccountData decodes the base64 payload from value.data")
+    func getAccountData_decodesBase64Payload() async throws {
+        let payload = Data([0x01, 0x02, 0x03, 0x04])
+        let body = """
+        {
+          "jsonrpc": "2.0",
+          "result": {
+            "context": { "slot": 1 },
+            "value": {
+              "data": ["\(payload.base64EncodedString())", "base64"],
+              "executable": false,
+              "lamports": 1000000,
+              "owner": "11111111111111111111111111111111",
+              "rentEpoch": 0
+            }
+          },
+          "id": 1
+        }
+        """
+        let account = try PublicKey([UInt8](repeating: 1, count: 32))
+        let data = try await Self.client(serving: body).getAccountData(account, commitment: .finalized)
+        #expect(data == payload)
+    }
+
+    @Test("getAccountData returns nil when the account does not exist (value is null)")
+    func getAccountData_returnsNil_whenAccountMissing() async throws {
+        let body = """
+        {
+          "jsonrpc": "2.0",
+          "result": {
+            "context": { "slot": 1 },
+            "value": null
+          },
+          "id": 1
+        }
+        """
+        let account = try PublicKey([UInt8](repeating: 1, count: 32))
+        let data = try await Self.client(serving: body).getAccountData(account, commitment: .finalized)
+        #expect(data == nil)
+    }
+
+    @Test("getAccountData throws decoding when the payload is not valid base64")
+    func getAccountData_throwsDecoding_whenPayloadIsMalformed() async throws {
+        let body = """
+        {
+          "jsonrpc": "2.0",
+          "result": {
+            "context": { "slot": 1 },
+            "value": {
+              "data": ["not-base-64!!", "base64"]
+            }
+          },
+          "id": 1
+        }
+        """
+        let account = try PublicKey([UInt8](repeating: 1, count: 32))
+        do {
+            _ = try await Self.client(serving: body).getAccountData(account, commitment: .finalized)
+            Issue.record("getAccountData should have thrown")
+        } catch SolanaRPCError.decoding {
+            // Expected — malformed base64 surfaces as a decode failure.
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
     // MARK: - simulateTransaction — success
 
     @Test("simulateTransaction returns logs when err is null")

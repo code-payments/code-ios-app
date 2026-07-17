@@ -45,4 +45,41 @@ extension CoinbaseStableSwapperProgram {
             program: address
         )
     }
+
+    /// The pool-side accounts a `Swap` instruction targets for a mint pair.
+    public struct SwapAccounts: Equatable, Sendable {
+        public let pool: PublicKey
+        public let inVault: PublicKey
+        public let outVault: PublicKey
+        public let inVaultTokenAccount: PublicKey
+        public let outVaultTokenAccount: PublicKey
+        public let whitelist: PublicKey
+    }
+
+    /// Derives every pool-side account `Swap` needs for the given mint pair,
+    /// or `nil` when any derivation fails.
+    public static func deriveSwapAccounts(
+        fromMint: PublicKey,
+        toMint: PublicKey
+    ) -> SwapAccounts? {
+        guard
+            let pool = derivePoolAddress(),
+            let inVault = deriveTokenVaultAddress(pool: pool.publicKey, mint: fromMint),
+            let outVault = deriveTokenVaultAddress(pool: pool.publicKey, mint: toMint),
+            let inVaultTokenAccount = deriveVaultTokenAccountAddress(vault: inVault.publicKey),
+            let outVaultTokenAccount = deriveVaultTokenAccountAddress(vault: outVault.publicKey),
+            let whitelist = deriveWhitelistAddress()
+        else {
+            return nil
+        }
+
+        return SwapAccounts(
+            pool: pool.publicKey,
+            inVault: inVault.publicKey,
+            outVault: outVault.publicKey,
+            inVaultTokenAccount: inVaultTokenAccount.publicKey,
+            outVaultTokenAccount: outVaultTokenAccount.publicKey,
+            whitelist: whitelist.publicKey
+        )
+    }
 }

@@ -24,7 +24,8 @@ extension UserFlags {
             withdrawalFeeAmount: .zero(mint: .usdf),
             minimumHolderValue: .zero(mint: .usdf),
             enablePhoneNumberSend: false,
-            requireCoinbaseEmailVerification: requireCoinbaseEmailVerification
+            requireCoinbaseEmailVerification: requireCoinbaseEmailVerification,
+            preferredOnrampUsdcLiquidityPool: .unknown
         )
     }
 }

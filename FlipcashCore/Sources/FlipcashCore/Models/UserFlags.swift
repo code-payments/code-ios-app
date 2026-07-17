@@ -32,6 +32,9 @@ public struct UserFlags: Codable, Sendable {
     /// When `false`, a locally collected, unverified email is acceptable.
     public let requireCoinbaseEmailVerification: Bool
 
+    /// Which liquidity pool client-built USDC→USDF on-ramp swaps route through.
+    public let preferredOnrampUsdcLiquidityPool: UsdcLiquidityPool
+
     public var hasPreferredOnrampProvider: Bool {
         preferredOnrampProvider != .unknown
     }
@@ -64,6 +67,14 @@ extension UserFlags {
         case base
     }
 
+    /// The liquidity pool client-built USDC on-ramp swaps route through;
+    /// `unknown` resolves to the legacy Flipcash pool.
+    public enum UsdcLiquidityPool: Int, Codable, Sendable {
+        case unknown
+        case flipcash
+        case coinbaseStableSwapper
+    }
+
     init(_ proto: Flipcash_Account_V1_UserFlags) {
         self.init(
             isRegistered: proto.isRegisteredAccount,
@@ -89,8 +100,24 @@ extension UserFlags {
                 mint: .usdf
             ),
             enablePhoneNumberSend: proto.enablePhoneNumberSend,
-            requireCoinbaseEmailVerification: proto.requireCoinbaseEmailVerification
+            requireCoinbaseEmailVerification: proto.requireCoinbaseEmailVerification,
+            preferredOnrampUsdcLiquidityPool: UsdcLiquidityPool(proto.preferredOnRampUsdcLiquidityPool)
         )
+    }
+}
+
+extension UserFlags.UsdcLiquidityPool {
+    init(_ proto: Flipcash_Account_V1_UserFlags.UsdcLiquidityPool) {
+        switch proto {
+        case .unknownUsdcLiquidityPool:
+            self = .unknown
+        case .flipcash:
+            self = .flipcash
+        case .coinbaseStableSwapper:
+            self = .coinbaseStableSwapper
+        case .UNRECOGNIZED:
+            self = .unknown
+        }
     }
 }
 
