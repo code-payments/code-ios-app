@@ -26,6 +26,8 @@ struct BuyPaymentCurrencyScreen: View {
     var body: some View {
         @Bindable var viewModel = viewModel
         Background(color: .backgroundMain) {
+            // Mirrors DepositCurrencyListScreen's construction — the two
+            // pickers must stay visually interchangeable.
             List {
                 Section {
                     ForEach(viewModel.rows) { row in
@@ -33,14 +35,15 @@ struct BuyPaymentCurrencyScreen: View {
                             exchangedBalance: row,
                             accessibilityIdentifier: row.stored.mint == .usdf ? "payment-currency-row-usdf" : "payment-currency-row",
                             accessory: .chevron,
-                            action: {
-                                Task { await viewModel.select(row, router: router) }
-                            }
-                        )
-                        .vSeparator(color: .rowSeparator)
+                            amountStyle: .pill,
+                            usesSymbol: row.stored.mint == .usdf
+                        ) {
+                            Task { await viewModel.select(row, router: router) }
+                        }
                     }
                 }
                 .listRowInsets(EdgeInsets())
+                .listSectionSeparator(.hidden, edges: .top)
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
