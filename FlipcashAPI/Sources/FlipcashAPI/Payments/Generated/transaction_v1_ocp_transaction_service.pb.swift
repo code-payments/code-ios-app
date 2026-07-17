@@ -886,64 +886,92 @@ public struct Ocp_Transaction_V1_StatefulSwapRequest: Sendable {
     }
 
     /// Client parameters for starting swaps against the Reserve contract
-    public struct ReserveSwapClientParameters: Sendable {
+    public struct ReserveSwapClientParameters: @unchecked Sendable {
       // SwiftProtobuf.Message conformance is added in an extension below. See the
       // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
       // methods supported on all messages.
 
       /// The unique ID for this swap randomly generated on client
       public var id: Ocp_Common_V1_SwapId {
-        get {_id ?? Ocp_Common_V1_SwapId()}
-        set {_id = newValue}
+        get {_storage._id ?? Ocp_Common_V1_SwapId()}
+        set {_uniqueStorage()._id = newValue}
       }
       /// Returns true if `id` has been explicitly set.
-      public var hasID: Bool {self._id != nil}
+      public var hasID: Bool {_storage._id != nil}
       /// Clears the value of `id`. Subsequent reads from it will return its default value.
-      public mutating func clearID() {self._id = nil}
+      public mutating func clearID() {_uniqueStorage()._id = nil}
 
       /// The source mint that will be swapped from
       public var fromMint: Ocp_Common_V1_SolanaAccountId {
-        get {_fromMint ?? Ocp_Common_V1_SolanaAccountId()}
-        set {_fromMint = newValue}
+        get {_storage._fromMint ?? Ocp_Common_V1_SolanaAccountId()}
+        set {_uniqueStorage()._fromMint = newValue}
       }
       /// Returns true if `fromMint` has been explicitly set.
-      public var hasFromMint: Bool {self._fromMint != nil}
+      public var hasFromMint: Bool {_storage._fromMint != nil}
       /// Clears the value of `fromMint`. Subsequent reads from it will return its default value.
-      public mutating func clearFromMint() {self._fromMint = nil}
+      public mutating func clearFromMint() {_uniqueStorage()._fromMint = nil}
 
       /// The destination mint that will be swapped to
       public var toMint: Ocp_Common_V1_SolanaAccountId {
-        get {_toMint ?? Ocp_Common_V1_SolanaAccountId()}
-        set {_toMint = newValue}
+        get {_storage._toMint ?? Ocp_Common_V1_SolanaAccountId()}
+        set {_uniqueStorage()._toMint = newValue}
       }
       /// Returns true if `toMint` has been explicitly set.
-      public var hasToMint: Bool {self._toMint != nil}
+      public var hasToMint: Bool {_storage._toMint != nil}
       /// Clears the value of `toMint`. Subsequent reads from it will return its default value.
-      public mutating func clearToMint() {self._toMint = nil}
+      public mutating func clearToMint() {_uniqueStorage()._toMint = nil}
 
       /// The amount to swap from the source mint in quarks.
-      public var swapAmount: UInt64 = 0
+      public var swapAmount: UInt64 {
+        get {_storage._swapAmount}
+        set {_uniqueStorage()._swapAmount = newValue}
+      }
 
       /// Where "amount" of "from_mint" will be sent from to the VM swap PDA
-      public var fundingSource: Ocp_Transaction_V1_FundingSource = .unknown
+      public var fundingSource: Ocp_Transaction_V1_FundingSource {
+        get {_storage._fundingSource}
+        set {_uniqueStorage()._fundingSource = newValue}
+      }
 
       /// The ID of the "transaction" to lookup funding state.
       ///
       /// For FUNDING_SOURCE_SUBMIT_INTENT, this value is the base58 encoded intent ID.
       /// For FUNDING_SOURCE_EXTERNAL_WALLET, this value is the base58 encoded transaction signature.
       /// For FUNDING_SOURCE_COINBASE_ONRAMP, this value is the order ID
-      public var fundingID: String = String()
+      public var fundingID: String {
+        get {_storage._fundingID}
+        set {_uniqueStorage()._fundingID = newValue}
+      }
 
       /// The fee amount to pay for this swap
-      public var feeAmount: UInt64 = 0
+      ///
+      /// Note: Amounts are coordinated outside this RPC for user verifications
+      ///       and validated in this RPC.
+      public var feeAmount: UInt64 {
+        get {_storage._feeAmount}
+        set {_uniqueStorage()._feeAmount = newValue}
+      }
+
+      /// Verified exchange data for flows that require a specific fiat value
+      /// over the full amount (swap + fee). For intent fundings, it's expected
+      /// that this exchange data will be used.
+      ///
+      /// Required for the following flows:
+      ///  - Initializing a new reserve currency outside of the core mint
+      public var fullAmountExchangeData: Ocp_Transaction_V1_VerifiedExchangeData {
+        get {_storage._fullAmountExchangeData ?? Ocp_Transaction_V1_VerifiedExchangeData()}
+        set {_uniqueStorage()._fullAmountExchangeData = newValue}
+      }
+      /// Returns true if `fullAmountExchangeData` has been explicitly set.
+      public var hasFullAmountExchangeData: Bool {_storage._fullAmountExchangeData != nil}
+      /// Clears the value of `fullAmountExchangeData`. Subsequent reads from it will return its default value.
+      public mutating func clearFullAmountExchangeData() {_uniqueStorage()._fullAmountExchangeData = nil}
 
       public var unknownFields = SwiftProtobuf.UnknownStorage()
 
       public init() {}
 
-      fileprivate var _id: Ocp_Common_V1_SwapId? = nil
-      fileprivate var _fromMint: Ocp_Common_V1_SolanaAccountId? = nil
-      fileprivate var _toMint: Ocp_Common_V1_SolanaAccountId? = nil
+      fileprivate var _storage = _StorageClass.defaultInstance
     }
 
     /// Client parameters for starting swaps against the Coinbase Stable Swaper program
@@ -1140,7 +1168,7 @@ public struct Ocp_Transaction_V1_StatefulSwapResponse: Sendable {
     ///  4. [Optional] Memo::Memo
     ///  5. AssociatedTokenAccount::CreateIdempotent (open Core Mint temporary account)
     ///  6. VM::TransferForSwap (Core Mint VM swap ATA -> Core Mint temporary account)
-    ///  6. Reserve::BuyAndDepositIntoVm (bounded buy depositing to_mint tokens into the to_mint VM)
+    ///  7. Reserve::BuyAndDepositIntoVm (bounded buy depositing to_mint tokens into the to_mint VM)
     ///  8. Token::CloseAccount (closes Core Mint temporary account)
     ///  9. VM::CloseSwapAccountIfEmpty (closes Core Mint VM swap ATA if empty)
     ///
@@ -1247,7 +1275,7 @@ public struct Ocp_Transaction_V1_StatefulSwapResponse: Sendable {
     ///
     /// Supported Solana transaction version: v0
     ///
-    /// Instruction format:
+    /// Instruction format (paying with Core Mint):
     ///  1. System::AdvanceNonce
     ///  2. [Optional] ComputeBudget::SetComputeUnitLimit
     ///  3. [Optional] ComputeBudget::SetComputeUnitPrice
@@ -1260,6 +1288,20 @@ public struct Ocp_Transaction_V1_StatefulSwapResponse: Sendable {
     /// 10. VM::TransferForSwapWithFee (Core Mint VM swap ATA -> owner's Core Mint ATA (swap amount) and fee destination (fee amount))
     /// 11. Reserve::BuyTokens (limited buy transferring to_mint tokens into the to_mint VM Deposit ATA)
     /// 12. Token::CloseAccount (closes owner's Core Mint ATA)
+    ///
+    /// Instruction format (all other cases):
+    ///  1. System::AdvanceNonce
+    ///  2. [Optional] ComputeBudget::SetComputeUnitLimit
+    ///  3. [Optional] ComputeBudget::SetComputeUnitPrice
+    ///  4. [Optional] Memo::Memo
+    ///  5. AssociatedTokenAccount::CreateIdempotent (open treasury's from_mint ATA)
+    ///  6. VM::TransferForSwapWithFee (from_mint VM swap ATA -> treasury's from_mint ATA (swap + fee amount))
+    ///  7. Reserve::SellTokens (limited sell of the full swap + fee amount, transferring the Core Mint value into the fee destination)
+    ///  8. Reserve::BuyTokens (limited buy funded by the treasury's Core Mint ATA, transferring to_mint tokens into the to_mint VM Deposit ATA)
+    ///
+    /// Note: The currency, VM and to_mint VM Deposit ATA will be initialized prior to
+    ///       executing this transaction. Atomicity cannot be guaranteed due to transaction
+    ///       size limits, which will be revisited when the v1 transaction format is released.
     ///
     /// Note: Client should verify that the new currency's mint address matches that derived
     ///       from using these server parameters.
@@ -1355,6 +1397,21 @@ public struct Ocp_Transaction_V1_StatefulSwapResponse: Sendable {
       /// Clears the value of `feeDestination`. Subsequent reads from it will return its default value.
       public mutating func clearFeeDestination() {self._feeDestination = nil}
 
+      /// Server-controlled treasury for flows that require it
+      public var treasury: Ocp_Common_V1_SolanaAccountId {
+        get {_treasury ?? Ocp_Common_V1_SolanaAccountId()}
+        set {_treasury = newValue}
+      }
+      /// Returns true if `treasury` has been explicitly set.
+      public var hasTreasury: Bool {self._treasury != nil}
+      /// Clears the value of `treasury`. Subsequent reads from it will return its default value.
+      public mutating func clearTreasury() {self._treasury = nil}
+
+      /// The amount of core mint tokens used for purchase. Client should
+      /// validate this is as expected based on a pre-coordinated amount
+      /// accepted by the user.
+      public var treasuryPurchaseAmount: UInt64 = 0
+
       public var unknownFields = SwiftProtobuf.UnknownStorage()
 
       public init() {}
@@ -1365,6 +1422,7 @@ public struct Ocp_Transaction_V1_StatefulSwapResponse: Sendable {
       fileprivate var _authority: Ocp_Common_V1_SolanaAccountId? = nil
       fileprivate var _seed: Ocp_Common_V1_SolanaAccountId? = nil
       fileprivate var _feeDestination: Ocp_Common_V1_SolanaAccountId? = nil
+      fileprivate var _treasury: Ocp_Common_V1_SolanaAccountId? = nil
     }
 
     /// Server parameters when executing stateful swap flows against the
@@ -4421,63 +4479,118 @@ extension Ocp_Transaction_V1_StatefulSwapRequest.Initiate: SwiftProtobuf.Message
 
 extension Ocp_Transaction_V1_StatefulSwapRequest.Initiate.ReserveSwapClientParameters: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = Ocp_Transaction_V1_StatefulSwapRequest.Initiate.protoMessageName + ".ReserveSwapClientParameters"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}from_mint\0\u{3}to_mint\0\u{3}swap_amount\0\u{3}funding_source\0\u{3}funding_id\0\u{3}fee_amount\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}from_mint\0\u{3}to_mint\0\u{3}swap_amount\0\u{3}funding_source\0\u{3}funding_id\0\u{3}fee_amount\0\u{3}full_amount_exchange_data\0")
+
+  fileprivate class _StorageClass {
+    var _id: Ocp_Common_V1_SwapId? = nil
+    var _fromMint: Ocp_Common_V1_SolanaAccountId? = nil
+    var _toMint: Ocp_Common_V1_SolanaAccountId? = nil
+    var _swapAmount: UInt64 = 0
+    var _fundingSource: Ocp_Transaction_V1_FundingSource = .unknown
+    var _fundingID: String = String()
+    var _feeAmount: UInt64 = 0
+    var _fullAmountExchangeData: Ocp_Transaction_V1_VerifiedExchangeData? = nil
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _id = source._id
+      _fromMint = source._fromMint
+      _toMint = source._toMint
+      _swapAmount = source._swapAmount
+      _fundingSource = source._fundingSource
+      _fundingID = source._fundingID
+      _feeAmount = source._feeAmount
+      _fullAmountExchangeData = source._fullAmountExchangeData
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._id) }()
-      case 2: try { try decoder.decodeSingularMessageField(value: &self._fromMint) }()
-      case 3: try { try decoder.decodeSingularMessageField(value: &self._toMint) }()
-      case 4: try { try decoder.decodeSingularUInt64Field(value: &self.swapAmount) }()
-      case 5: try { try decoder.decodeSingularEnumField(value: &self.fundingSource) }()
-      case 6: try { try decoder.decodeSingularStringField(value: &self.fundingID) }()
-      case 7: try { try decoder.decodeSingularUInt64Field(value: &self.feeAmount) }()
-      default: break
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularMessageField(value: &_storage._id) }()
+        case 2: try { try decoder.decodeSingularMessageField(value: &_storage._fromMint) }()
+        case 3: try { try decoder.decodeSingularMessageField(value: &_storage._toMint) }()
+        case 4: try { try decoder.decodeSingularUInt64Field(value: &_storage._swapAmount) }()
+        case 5: try { try decoder.decodeSingularEnumField(value: &_storage._fundingSource) }()
+        case 6: try { try decoder.decodeSingularStringField(value: &_storage._fundingID) }()
+        case 7: try { try decoder.decodeSingularUInt64Field(value: &_storage._feeAmount) }()
+        case 8: try { try decoder.decodeSingularMessageField(value: &_storage._fullAmountExchangeData) }()
+        default: break
+        }
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._id {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    try { if let v = self._fromMint {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-    } }()
-    try { if let v = self._toMint {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
-    } }()
-    if self.swapAmount != 0 {
-      try visitor.visitSingularUInt64Field(value: self.swapAmount, fieldNumber: 4)
-    }
-    if self.fundingSource != .unknown {
-      try visitor.visitSingularEnumField(value: self.fundingSource, fieldNumber: 5)
-    }
-    if !self.fundingID.isEmpty {
-      try visitor.visitSingularStringField(value: self.fundingID, fieldNumber: 6)
-    }
-    if self.feeAmount != 0 {
-      try visitor.visitSingularUInt64Field(value: self.feeAmount, fieldNumber: 7)
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      try { if let v = _storage._id {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+      } }()
+      try { if let v = _storage._fromMint {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+      } }()
+      try { if let v = _storage._toMint {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+      } }()
+      if _storage._swapAmount != 0 {
+        try visitor.visitSingularUInt64Field(value: _storage._swapAmount, fieldNumber: 4)
+      }
+      if _storage._fundingSource != .unknown {
+        try visitor.visitSingularEnumField(value: _storage._fundingSource, fieldNumber: 5)
+      }
+      if !_storage._fundingID.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._fundingID, fieldNumber: 6)
+      }
+      if _storage._feeAmount != 0 {
+        try visitor.visitSingularUInt64Field(value: _storage._feeAmount, fieldNumber: 7)
+      }
+      try { if let v = _storage._fullAmountExchangeData {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+      } }()
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Ocp_Transaction_V1_StatefulSwapRequest.Initiate.ReserveSwapClientParameters, rhs: Ocp_Transaction_V1_StatefulSwapRequest.Initiate.ReserveSwapClientParameters) -> Bool {
-    if lhs._id != rhs._id {return false}
-    if lhs._fromMint != rhs._fromMint {return false}
-    if lhs._toMint != rhs._toMint {return false}
-    if lhs.swapAmount != rhs.swapAmount {return false}
-    if lhs.fundingSource != rhs.fundingSource {return false}
-    if lhs.fundingID != rhs.fundingID {return false}
-    if lhs.feeAmount != rhs.feeAmount {return false}
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._id != rhs_storage._id {return false}
+        if _storage._fromMint != rhs_storage._fromMint {return false}
+        if _storage._toMint != rhs_storage._toMint {return false}
+        if _storage._swapAmount != rhs_storage._swapAmount {return false}
+        if _storage._fundingSource != rhs_storage._fundingSource {return false}
+        if _storage._fundingID != rhs_storage._fundingID {return false}
+        if _storage._feeAmount != rhs_storage._feeAmount {return false}
+        if _storage._fullAmountExchangeData != rhs_storage._fullAmountExchangeData {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -4826,7 +4939,7 @@ extension Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveExisti
 
 extension Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveNewCurrencyServerParameter: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.protoMessageName + ".ReserveNewCurrencyServerParameter"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}payer\0\u{1}nonce\0\u{1}blockhash\0\u{1}alts\0\u{3}compute_unit_limit\0\u{3}compute_unit_price\0\u{3}memo_value\0\u{1}authority\0\u{1}name\0\u{1}symbol\0\u{1}seed\0\u{3}sell_fee_bps\0\u{3}vm_lock_duration_in_days\0\u{3}fee_destination\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}payer\0\u{1}nonce\0\u{1}blockhash\0\u{1}alts\0\u{3}compute_unit_limit\0\u{3}compute_unit_price\0\u{3}memo_value\0\u{1}authority\0\u{1}name\0\u{1}symbol\0\u{1}seed\0\u{3}sell_fee_bps\0\u{3}vm_lock_duration_in_days\0\u{3}fee_destination\0\u{1}treasury\0\u{3}treasury_purchase_amount\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -4848,6 +4961,8 @@ extension Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveNewCur
       case 12: try { try decoder.decodeSingularUInt32Field(value: &self.sellFeeBps) }()
       case 13: try { try decoder.decodeSingularUInt32Field(value: &self.vmLockDurationInDays) }()
       case 14: try { try decoder.decodeSingularMessageField(value: &self._feeDestination) }()
+      case 15: try { try decoder.decodeSingularMessageField(value: &self._treasury) }()
+      case 16: try { try decoder.decodeSingularUInt64Field(value: &self.treasuryPurchaseAmount) }()
       default: break
       }
     }
@@ -4900,6 +5015,12 @@ extension Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveNewCur
     try { if let v = self._feeDestination {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 14)
     } }()
+    try { if let v = self._treasury {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 15)
+    } }()
+    if self.treasuryPurchaseAmount != 0 {
+      try visitor.visitSingularUInt64Field(value: self.treasuryPurchaseAmount, fieldNumber: 16)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -4918,6 +5039,8 @@ extension Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.ReserveNewCur
     if lhs.sellFeeBps != rhs.sellFeeBps {return false}
     if lhs.vmLockDurationInDays != rhs.vmLockDurationInDays {return false}
     if lhs._feeDestination != rhs._feeDestination {return false}
+    if lhs._treasury != rhs._treasury {return false}
+    if lhs.treasuryPurchaseAmount != rhs.treasuryPurchaseAmount {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
