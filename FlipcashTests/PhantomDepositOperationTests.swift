@@ -69,6 +69,30 @@ struct PhantomDepositOperationTests {
         #expect(op.state == .idle)
     }
 
+    @Test("A node preflight rejection at submit surfaces the retry dialog, not the generic failure")
+    func submit_preflightRejected_throwsExternalRejectedWithRetryCopy() async throws {
+        let wallet = MockTransactionSigning()
+        let rpc = MockSolanaRPC()
+        rpc.sendHandler = { _ in
+            throw SolanaRPCError.responseError(
+                SolanaRPCResponseError(code: -32002, message: "Transaction simulation failed", data: nil)
+            )
+        }
+        let op = PhantomDepositOperation(walletConnection: wallet, rpc: rpc)
+
+        let task = Task { try await op.signAndSubmit(amount: .tenUSDF, liquidityPool: .unknown) }
+        try await waitUntil(op) { $0.state == .awaitingExternal(.phantomSign) }
+        wallet.yieldDeeplinkEvent(.signed(Self.validSignedTransactionBase58))
+
+        await #expect(throws: DepositError.externalRejected(
+            title: "Transaction Failed",
+            subtitle: "The transaction simulation failed. Check your Phantom wallet and try again."
+        )) {
+            try await task.value
+        }
+        #expect(op.state == .idle)
+    }
+
     @Test("Sign user-cancel throws userCancelled")
     func signUserCancelled_throws() async throws {
         let wallet = MockTransactionSigning()
