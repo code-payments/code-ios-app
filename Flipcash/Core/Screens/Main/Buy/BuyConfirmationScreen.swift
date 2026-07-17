@@ -28,6 +28,8 @@ struct BuyConfirmationScreen: View {
         @Bindable var viewModel = viewModel
         Background(color: .backgroundMain) {
             VStack {
+                Spacer()
+
                 BorderedContainer {
                     VStack(spacing: 0) {
                         ConfirmationAmountRow(
@@ -62,21 +64,31 @@ struct BuyConfirmationScreen: View {
                         .padding(.bottom, 24)
                     }
                 }
+                // Buy Maximum rewrites every figure in place — roll the
+                // digits instead of snapping them.
+                .animation(.default, value: viewModel.paymentAmount)
 
                 Spacer()
 
-                CodeButton(
-                    state: viewModel.actionButtonState,
-                    style: .filled,
-                    title: "Buy",
-                    disabled: !viewModel.canPerformAction,
-                    action: performBuy
-                )
-                .accessibilityIdentifier("buy-confirmation-buy")
+                VStack {
+                    Text("Review the above before confirming.\nOnce made, your transaction is irreversible.")
+                        .font(.appTextSmall)
+                        .foregroundStyle(Color.textSecondary)
+                        .multilineTextAlignment(.center)
+                    CodeButton(
+                        state: viewModel.actionButtonState,
+                        style: .filled,
+                        title: "Buy",
+                        disabled: !viewModel.canPerformAction,
+                        action: performBuy
+                    )
+                    .accessibilityIdentifier("buy-confirmation-buy")
+                    .padding(.top, 20)
+                }
             }
             .padding(20)
         }
-        .navigationTitle("Buy")
+        .navigationTitle("Confirm Purchase")
         .toolbarTitleDisplayMode(.inline)
         // A submit is a live money movement — keep the user on this screen
         // until it resolves (the sheet's swipe-dismiss is already blocked at
@@ -115,6 +127,7 @@ private struct ConfirmationAmountRow: View {
                 Text(amount)
                     .font(.appDisplaySmall)
                     .foregroundStyle(Color.textMain)
+                    .contentTransition(.numericText())
             }
         }
         // The icon is the only visual carrier of WHICH currency this is —
@@ -138,6 +151,7 @@ private struct ConfirmationBreakdownRow: View {
             Text(value)
                 .font(.appTextMedium)
                 .foregroundStyle(Color.textMain)
+                .contentTransition(.numericText())
         }
     }
 }
