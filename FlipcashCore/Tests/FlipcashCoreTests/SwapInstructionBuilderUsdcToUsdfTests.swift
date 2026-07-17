@@ -245,16 +245,21 @@ struct SwapInstructionBuilderUsdcToUsdfTests {
         #expect(Self.makeCoinbaseInstructions().count == 8)
     }
 
-    @Test("Coinbase variant only replaces the swap — instruction 6 is CoinbaseStableSwapper, the rest match the legacy layout")
-    func coinbase_onlyReplacesSwapInstruction() {
-        let coinbase = Self.makeCoinbaseInstructions()
-        let legacy = Self.makeDepositInstructions()
-        #expect(coinbase[6].program == CoinbaseStableSwapperProgram.address)
-        for index in [0, 1, 2, 3, 4, 5, 7] {
-            #expect(coinbase[index].program == legacy[index].program)
-            #expect(coinbase[index].accounts.map(\.publicKey) == legacy[index].accounts.map(\.publicKey))
-            #expect(coinbase[index].data == legacy[index].data)
-        }
+    @Test("Coinbase variant replaces instruction 6 with the CoinbaseStableSwapper swap")
+    func coinbase_swapInstructionProgram() {
+        #expect(Self.makeCoinbaseInstructions()[6].program == CoinbaseStableSwapperProgram.address)
+    }
+
+    @Test(
+        "Coinbase variant matches the legacy layout at every non-swap instruction",
+        arguments: [0, 1, 2, 3, 4, 5, 7]
+    )
+    func coinbase_nonSwapInstruction_matchesLegacy(index: Int) {
+        let coinbase = Self.makeCoinbaseInstructions()[index]
+        let legacy = Self.makeDepositInstructions()[index]
+        #expect(coinbase.program == legacy.program)
+        #expect(coinbase.accounts.map(\.publicKey) == legacy.accounts.map(\.publicKey))
+        #expect(coinbase.data == legacy.data)
     }
 
     @Test("Coinbase swap accounts: pool PDAs, sender ATAs, fee recipient, whitelist")

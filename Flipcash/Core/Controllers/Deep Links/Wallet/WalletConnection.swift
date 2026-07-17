@@ -325,6 +325,10 @@ public final class WalletConnection {
         let externalWallet = try FlipcashCore.PublicKey(base58: connectedSession.walletPublicKey.base58)
         let flipcashOwner = owner.authorityPublicKey
 
+        // The blockhash fetch runs as a child task so it overlaps the pool
+        // resolution's own network round-trip.
+        async let recentBlockhash = rpc.getLatestBlockhash(commitment: .finalized)
+
         let swapPool = try await resolveFundSwapPool(preferredLiquidityPool())
 
         let instructions = SwapInstructionBuilder.buildUsdcToUsdfSwapInstructions(
@@ -336,11 +340,9 @@ public final class WalletConnection {
             destination: .vmDeposit
         )
 
-        let recentBlockhash = try await rpc.getLatestBlockhash(commitment: .finalized)
-
         let transaction = SolanaTransaction(
             payer: externalWallet,
-            recentBlockhash: recentBlockhash,
+            recentBlockhash: try await recentBlockhash,
             instructions: instructions
         )
 

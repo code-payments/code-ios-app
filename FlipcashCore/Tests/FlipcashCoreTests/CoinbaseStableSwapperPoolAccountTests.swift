@@ -18,21 +18,15 @@ struct CoinbaseStableSwapperPoolAccountTests {
         return data
     }
 
-    @Test("Parses the fee recipient at offset 72")
-    func initAccountData_validLayout_parsesFeeRecipient() throws {
+    @Test(
+        "Parses the fee recipient at offset 72, with or without trailing fields",
+        arguments: [0, 128]
+    )
+    func initAccountData_validLayout_parsesFeeRecipient(trailing: Int) throws {
         let feeRecipientBytes = [UInt8](repeating: 7, count: 32)
         let account = try #require(
-            CoinbaseStableSwapperProgram.PoolAccount(accountData: Self.accountData(feeRecipient: feeRecipientBytes))
-        )
-        #expect(account.feeRecipient == (try PublicKey(feeRecipientBytes)))
-    }
-
-    @Test("Tolerates trailing fields beyond the fee recipient")
-    func initAccountData_trailingFields_parsesFeeRecipient() throws {
-        let feeRecipientBytes = [UInt8](repeating: 9, count: 32)
-        let account = try #require(
             CoinbaseStableSwapperProgram.PoolAccount(
-                accountData: Self.accountData(feeRecipient: feeRecipientBytes, trailing: 128)
+                accountData: Self.accountData(feeRecipient: feeRecipientBytes, trailing: trailing)
             )
         )
         #expect(account.feeRecipient == (try PublicKey(feeRecipientBytes)))

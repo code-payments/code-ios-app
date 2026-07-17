@@ -123,8 +123,13 @@ struct SolanaRPCDecodingTests {
         }
         """
         let account = try PublicKey([UInt8](repeating: 1, count: 32))
-        await #expect(throws: SolanaRPCError.self) {
+        do {
             _ = try await Self.client(serving: body).getAccountData(account, commitment: .finalized)
+            Issue.record("getAccountData should have thrown")
+        } catch SolanaRPCError.decoding {
+            // Expected — malformed base64 surfaces as a decode failure.
+        } catch {
+            Issue.record("Unexpected error: \(error)")
         }
     }
 

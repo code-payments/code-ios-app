@@ -19,14 +19,8 @@ extension CoinbaseStableSwapperProgram {
         /// Parses the raw pool account data, returning `nil` when the data is
         /// too short or the fee recipient bytes are not a valid public key.
         public init?(accountData: Data) {
-            let offset = Self.feeRecipientOffset
-            guard accountData.count >= offset + 32 else {
-                return nil
-            }
-
-            let start = accountData.index(accountData.startIndex, offsetBy: offset)
-            let end = accountData.index(start, offsetBy: 32)
-            guard let feeRecipient = try? PublicKey(Data(accountData[start..<end])) else {
+            var payload = accountData.tail(from: Self.feeRecipientOffset)
+            guard let feeRecipient = try? PublicKey(payload.consume(PublicKey.length)) else {
                 return nil
             }
 
