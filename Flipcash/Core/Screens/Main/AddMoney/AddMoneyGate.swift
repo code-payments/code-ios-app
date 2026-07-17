@@ -15,12 +15,32 @@ protocol USDFReserveReading: AnyObject {
 extension Session: USDFReserveReading {}
 
 
-/// True when the user's USDF reserves can't cover `launchCost` (purchase +
-/// fee). Must agree with the wizard's `reserveBalance` affordability check.
+/// Read access to every balance the launch gate weighs.
 @MainActor
-func shouldAddMoneyBeforeLaunch(session: some USDFReserveReading, launchCost: TokenAmount) -> Bool {
-    guard let balance = session.balance(for: .usdf) else { return true }
-    return balance.usdf.value < launchCost.decimalValue
+protocol LaunchBalanceReading: AnyObject {
+    var balances: [StoredBalance] { get }
+}
+
+extension Session: LaunchBalanceReading {}
+
+/// True when `balance` alone can pay `launchCost`. USDF compares exactly (the
+/// server has no tolerance on the core path, so display-rounding must not widen
+/// it); a launchpad balance compares its display-rounded USD sell value, which
+/// mirrors the server's ± half-cent acceptance window.
+@MainActor
+func canPayLaunchCost(_ balance: StoredBalance, launchCost: TokenAmount) -> Bool {
+    if balance.mint == .usdf {
+        return balance.usdf.value >= launchCost.decimalValue
+    }
+    return balance.usdf.value.rounded(to: CurrencyCode.usd.maximumFractionDigits) >= launchCost.decimalValue
+}
+
+/// True when no single balance can pay `launchCost` (purchase + fee), so the
+/// user must add money before launching. Shares `canPayLaunchCost` with the
+/// payment picker's row enablement, so the gate and picker never disagree.
+@MainActor
+func shouldAddMoneyBeforeLaunch(session: some LaunchBalanceReading, launchCost: TokenAmount) -> Bool {
+    !session.balances.contains { canPayLaunchCost($0, launchCost: launchCost) }
 }
 
 /// The balance inputs the give/send cash gate needs — `USDFReserveReading`

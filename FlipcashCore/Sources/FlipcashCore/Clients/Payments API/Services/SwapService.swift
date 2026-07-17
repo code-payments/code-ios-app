@@ -46,10 +46,15 @@ final class SwapService: Sendable {
         owner: KeyPair,
         isNewCurrencyLaunch: Bool = false,
         kind: VerifiedSwapMetadata.ClientParameters.Kind = .reserve,
+        fullAmountExchangeData: VerifiedSwapMetadata.FullAmountExchangeData? = nil,
+        expectedTreasuryPurchaseQuarks: UInt64? = nil,
         completion: @escaping @Sendable (Result<SwapMetadata, ErrorSwap>) -> Void
     ) {
         let fromMint = direction.sourceMint.address
         let toMint = direction.destinationMint.address
+        // Captured for the treasury-funded launch builder, which needs the
+        // payment mint's VM + launchpad accounts.
+        let paymentTokenMetadata = direction.sourceMint
         let resolvedFeeAmount = feeAmount ?? TokenAmount(quarks: 0, mint: fromMint)
         logger.info("Starting swap", metadata: [
             "swapId": "\(swapId.publicKey.base58)",
@@ -142,7 +147,8 @@ final class SwapService: Sendable {
             amount: amount,
             feeAmount: resolvedFeeAmount,
             fundingSource: fundingSource,
-            kind: kind
+            kind: kind,
+            fullAmountExchangeData: fullAmountExchangeData
         )
 
         // Swap authority signs the transaction. For standard swaps the server
@@ -266,17 +272,42 @@ final class SwapService: Sendable {
                     )
                     pendingSwap.withLock { $0.serverParameters = serverParameters }
 
-                    // Build the atomic launch-and-first-buy transaction. The owner
-                    // is also the swap_authority for new-currency flows, so only
-                    // one signature is required.
+                    // Build the first-buy transaction in the format the server
+                    // compiled — it declares treasury funding by including the
+                    // treasury account; its absence means the reserves format.
+                    // Either way the owner is also the swap_authority for
+                    // new-currency flows, so only one client signature is needed.
                     let transaction: SolanaTransaction
                     do {
-                        transaction = try TransactionBuilder.swapNewCurrency(
-                            responseParams: params,
-                            authority: owner.publicKey,
-                            swapAmount: amount.quarks,
-                            feeAmount: resolvedFeeAmount.quarks
-                        )
+                        if let treasury = params.treasury {
+                            // The proto requires validating the treasury's spend
+                            // against the pre-coordinated amount the user accepted.
+                            guard params.treasuryPurchaseAmount == expectedTreasuryPurchaseQuarks else {
+                                logger.error("Treasury purchase amount does not match accepted amount", metadata: [
+                                    "treasuryPurchaseAmount": "\(params.treasuryPurchaseAmount)",
+                                    "expected": "\(expectedTreasuryPurchaseQuarks.map(String.init) ?? "nil")",
+                                ])
+                                reference.cancel()
+                                completion(.failure(.invalidSwap(reasons: [])))
+                                return
+                            }
+                            transaction = try TransactionBuilder.swapNewCurrencyTreasuryFunded(
+                                responseParams: params,
+                                treasury: treasury,
+                                treasuryPurchaseAmount: params.treasuryPurchaseAmount,
+                                authority: owner.publicKey,
+                                paymentToken: paymentTokenMetadata,
+                                swapAmount: amount.quarks,
+                                feeAmount: resolvedFeeAmount.quarks
+                            )
+                        } else {
+                            transaction = try TransactionBuilder.swapNewCurrency(
+                                responseParams: params,
+                                authority: owner.publicKey,
+                                swapAmount: amount.quarks,
+                                feeAmount: resolvedFeeAmount.quarks
+                            )
+                        }
                     } catch {
                         logger.error("Failed to build swap transaction", metadata: ["error": "\(error)"])
                         reference.cancel()

@@ -220,6 +220,31 @@ extension Client {
         }
     }
 
+    /// Buys the first tokens on a newly-launched currency, funded by another
+    /// launchpad currency rather than USDF reserves.
+    @discardableResult
+    public func buyNewCurrency(
+        swapId: SwapId,
+        amount: ExchangedFiat,
+        feeAmount: ExchangedFiat,
+        verifiedState: VerifiedState,
+        paymentToken: MintMetadata,
+        mint: PublicKey,
+        owner: AccountCluster
+    ) async throws -> SwapMetadata {
+        try await withCheckedThrowingContinuation { c in
+            transactionService.buyNewCurrency(
+                swapId: swapId,
+                amount: amount,
+                feeAmount: feeAmount,
+                verifiedState: verifiedState,
+                paymentToken: paymentToken,
+                mint: mint,
+                owner: owner
+            ) { c.resume(with: $0) }
+        }
+    }
+
     // MARK: - Status -
     
     public func pollIntentMetadata(owner: KeyPair, intentID: PublicKey, maxAttempts: Int = 50) async throws -> IntentMetadata {

@@ -12,6 +12,7 @@ import FlipcashCore
 @MainActor
 final class MockSession:
     GiveBalanceReading,
+    LaunchBalanceReading,
     AccountProviding,
     ProfileProviding,
     ProfileManaging,
@@ -171,6 +172,10 @@ final class MockSession:
 
     var usdfReserveBalance: StoredBalance?
 
+    /// Non-USDF balances the launch gate should also weigh. The USDF reserve, if
+    /// set, is included automatically in `balances`.
+    var extraBalances: [StoredBalance] = []
+
     var giveableBalanceExists = false
 
     func hasGiveableBalance(for rate: Rate) -> Bool {
@@ -178,7 +183,11 @@ final class MockSession:
     }
 
     func balance(for mint: PublicKey) -> StoredBalance? {
-        mint == .usdf ? usdfReserveBalance : nil
+        mint == .usdf ? usdfReserveBalance : extraBalances.first { $0.mint == mint }
+    }
+
+    var balances: [StoredBalance] {
+        (usdfReserveBalance.map { [$0] } ?? []) + extraBalances
     }
 }
 

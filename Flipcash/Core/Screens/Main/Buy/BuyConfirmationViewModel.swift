@@ -134,6 +134,7 @@ final class BuyConfirmationViewModel {
             actionButtonState = .normal
             router.pushAny(BuyFlowPath.processing(
                 swapId: swapId,
+                targetMint: targetMint,
                 currencyName: targetName,
                 amount: amountToBuy,
                 swapType: swapType

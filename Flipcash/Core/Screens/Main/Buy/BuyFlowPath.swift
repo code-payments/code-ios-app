@@ -26,5 +26,5 @@ enum BuyFlowPath: Hashable, Sendable {
         paymentAmount: ExchangedFiat,
         pinnedState: VerifiedState
     )
-    case processing(swapId: SwapId, currencyName: String, amount: ExchangedFiat, swapType: SwapType)
+    case processing(swapId: SwapId, targetMint: PublicKey, currencyName: String, amount: ExchangedFiat, swapType: SwapType)
 }

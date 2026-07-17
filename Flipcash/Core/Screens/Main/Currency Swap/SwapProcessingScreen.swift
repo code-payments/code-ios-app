@@ -2,9 +2,6 @@
 //  SwapProcessingScreen.swift
 //  Flipcash
 //
-//  Created by Claude.
-//  Copyright © 2025 Code Inc. All rights reserved.
-//
 
 import SwiftUI
 import FlipcashUI
@@ -19,10 +16,11 @@ struct SwapProcessingScreen: View {
 
     // MARK: - Init -
 
-    init(swapId: SwapId, swapType: SwapType, currencyName: String, amount: ExchangedFiat) {
+    init(swapId: SwapId, swapType: SwapType, targetMint: PublicKey? = nil, currencyName: String, amount: ExchangedFiat) {
         _viewModel = State(wrappedValue: SwapProcessingViewModel(
             swapId: swapId,
             swapType: swapType,
+            targetMint: targetMint,
             currencyName: currencyName,
             amount: amount
         ))
