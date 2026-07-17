@@ -26,9 +26,7 @@ protocol TransactionSigning: AnyObject {
     /// transaction is delivered later via `deeplinkEvents`.
     func sendUsdcToUsdfSignRequest(
         usdc: FlipcashCore.TokenAmount,
-        swapId: SwapId,
-        displayName: String,
-        liquidityPool: UserFlags.UsdcLiquidityPool
+        swapId: SwapId
     ) async throws
 }
 

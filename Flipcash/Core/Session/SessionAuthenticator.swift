@@ -269,7 +269,9 @@ final class SessionAuthenticator {
             userID: initializedAccount.userID
         )
 
-        let walletConnection = WalletConnection(owner: owner)
+        let walletConnection = WalletConnection(owner: owner, preferredLiquidityPool: { [weak session] in
+            session?.userFlags?.preferredOnrampUsdcLiquidityPool ?? .unknown
+        })
 
         return SessionContainer(
             session: session,

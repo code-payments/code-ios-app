@@ -45,6 +45,7 @@ public final class WalletConnection {
     private let box: Box
     let owner: AccountCluster
     private let rpc: any SolanaRPC
+    private let preferredLiquidityPool: () -> UserFlags.UsdcLiquidityPool
 
     /// Awaiting continuation for `connect()` / `handshake()`. Resumed by
     /// `didConnect` on success or by the errorCode branch of `didReceiveURL`
@@ -60,9 +61,14 @@ public final class WalletConnection {
 
     // MARK: - Init -
 
-    init(owner: AccountCluster, rpc: any SolanaRPC = SolanaJSONRPCClient()) {
+    init(
+        owner: AccountCluster,
+        rpc: any SolanaRPC = SolanaJSONRPCClient(),
+        preferredLiquidityPool: @escaping () -> UserFlags.UsdcLiquidityPool
+    ) {
         self.owner = owner
         self.rpc = rpc
+        self.preferredLiquidityPool = preferredLiquidityPool
 
         var continuation: AsyncStream<DeeplinkEvent>.Continuation!
         self.deeplinkEvents = AsyncStream { continuation = $0 }
@@ -303,9 +309,7 @@ public final class WalletConnection {
     /// comes back via `didReceiveURL` → `deeplinkEvents`.
     func sendUsdcToUsdfSignRequest(
         usdc: FlipcashCore.TokenAmount,
-        swapId: SwapId,
-        displayName: String,
-        liquidityPool: UserFlags.UsdcLiquidityPool
+        swapId: SwapId
     ) async throws {
         guard let connectedSession = Keychain.connectedWalletSession else {
             logger.error("Sign request without a connected wallet session")
@@ -321,7 +325,7 @@ public final class WalletConnection {
         let externalWallet = try FlipcashCore.PublicKey(base58: connectedSession.walletPublicKey.base58)
         let flipcashOwner = owner.authorityPublicKey
 
-        let swapPool = try await resolveFundSwapPool(liquidityPool)
+        let swapPool = try await resolveFundSwapPool(preferredLiquidityPool())
 
         let instructions = SwapInstructionBuilder.buildUsdcToUsdfSwapInstructions(
             sender: externalWallet,
@@ -376,7 +380,6 @@ public final class WalletConnection {
         logger.info("Requested USDC→USDF deposit swap", metadata: [
             "amount": "\(amount.nativeAmount.formatted())",
             "swapId": "\(swapId.publicKey.base58)",
-            "name": "\(displayName)",
             "pool": "\(poolLabel)",
         ])
     }
@@ -390,7 +393,7 @@ public final class WalletConnection {
     ) async throws -> FundSwapPool {
         switch liquidityPool {
         case .unknown, .flipcash:
-            return .usdf(.usdf)
+            return .usdf
         case .coinbaseStableSwapper:
             guard let poolAddress = CoinbaseStableSwapperProgram.derivePoolAddress() else {
                 logger.error("Failed to derive Coinbase pool address")
@@ -606,5 +609,5 @@ private extension FlipcashCore.Keychain {
 // MARK: - Mock -
 
 extension WalletConnection {
-    static let mock = WalletConnection(owner: .mock)
+    static let mock = WalletConnection(owner: .mock, preferredLiquidityPool: { .unknown })
 }

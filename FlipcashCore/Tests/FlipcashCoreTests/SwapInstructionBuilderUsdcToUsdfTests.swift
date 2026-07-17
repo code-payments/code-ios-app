@@ -23,7 +23,7 @@ struct SwapInstructionBuilderUsdcToUsdfTests {
 
     private static func makeInstructions(
         amount: UInt64 = SwapInstructionBuilderUsdcToUsdfTests.amount,
-        pool: FundSwapPool = .usdf(.usdf),
+        pool: FundSwapPool = .usdf,
         destination: UsdfSwapDestination = .swapPda
     ) -> [Instruction] {
         SwapInstructionBuilder.buildUsdcToUsdfSwapInstructions(

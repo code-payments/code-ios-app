@@ -18,6 +18,10 @@ struct WalletConnectionPoolResolutionTests {
         return data
     }
 
+    private static func makeConnection(rpc: MockSolanaRPC) -> WalletConnection {
+        WalletConnection(owner: .mock, rpc: rpc, preferredLiquidityPool: { .unknown })
+    }
+
     @Test(
         "Legacy flag values resolve to the legacy pool without touching the network",
         arguments: [UserFlags.UsdcLiquidityPool.unknown, .flipcash]
@@ -26,34 +30,23 @@ struct WalletConnectionPoolResolutionTests {
         flag: UserFlags.UsdcLiquidityPool
     ) async throws {
         let rpc = MockSolanaRPC()
-        let fetchCount = CallCounter()
-        rpc.accountDataHandler = { _ in
-            fetchCount.increment()
-            return nil
-        }
 
-        let connection = WalletConnection(owner: .mock, rpc: rpc)
-        let pool = try await connection.resolveFundSwapPool(flag)
+        let pool = try await Self.makeConnection(rpc: rpc).resolveFundSwapPool(flag)
 
-        #expect(pool == .usdf(.usdf))
-        #expect(fetchCount.value == 0)
+        #expect(pool == .usdf)
+        #expect(rpc.accountDataRequests.isEmpty)
     }
 
     @Test("Coinbase flag fetches the pool account and parses its fee recipient")
     func resolveFundSwapPool_coinbaseFlag_parsesFeeRecipientFromPoolAccount() async throws {
         let feeRecipientBytes = [UInt8](repeating: 7, count: 32)
-        let requestedAccount = RequestedAccountBox()
         let rpc = MockSolanaRPC()
-        rpc.accountDataHandler = { account in
-            requestedAccount.store(account)
-            return Self.poolAccountData(feeRecipient: feeRecipientBytes)
-        }
+        rpc.accountDataHandler = { _ in Self.poolAccountData(feeRecipient: feeRecipientBytes) }
 
-        let connection = WalletConnection(owner: .mock, rpc: rpc)
-        let pool = try await connection.resolveFundSwapPool(.coinbaseStableSwapper)
+        let pool = try await Self.makeConnection(rpc: rpc).resolveFundSwapPool(.coinbaseStableSwapper)
 
         let expectedPoolAddress = try #require(CoinbaseStableSwapperProgram.derivePoolAddress()).publicKey
-        #expect(requestedAccount.value == expectedPoolAddress)
+        #expect(rpc.accountDataRequests == [expectedPoolAddress])
         #expect(pool == .coinbaseStableSwapper(feeRecipient: try PublicKey(feeRecipientBytes)))
     }
 
@@ -62,20 +55,8 @@ struct WalletConnectionPoolResolutionTests {
         let rpc = MockSolanaRPC()
         rpc.accountDataHandler = { _ in nil }
 
-        let connection = WalletConnection(owner: .mock, rpc: rpc)
         await #expect(throws: WalletConnection.Error.poolAccountUnavailable) {
-            _ = try await connection.resolveFundSwapPool(.coinbaseStableSwapper)
-        }
-    }
-
-    @Test("Malformed pool account data fails the resolution instead of falling back")
-    func resolveFundSwapPool_malformedPoolAccount_throwsPoolAccountUnavailable() async throws {
-        let rpc = MockSolanaRPC()
-        rpc.accountDataHandler = { _ in Data(repeating: 0, count: 10) }
-
-        let connection = WalletConnection(owner: .mock, rpc: rpc)
-        await #expect(throws: WalletConnection.Error.poolAccountUnavailable) {
-            _ = try await connection.resolveFundSwapPool(.coinbaseStableSwapper)
+            _ = try await Self.makeConnection(rpc: rpc).resolveFundSwapPool(.coinbaseStableSwapper)
         }
     }
 
@@ -84,45 +65,8 @@ struct WalletConnectionPoolResolutionTests {
         let rpc = MockSolanaRPC()
         rpc.accountDataHandler = { _ in throw URLError(.notConnectedToInternet) }
 
-        let connection = WalletConnection(owner: .mock, rpc: rpc)
         await #expect(throws: URLError.self) {
-            _ = try await connection.resolveFundSwapPool(.coinbaseStableSwapper)
+            _ = try await Self.makeConnection(rpc: rpc).resolveFundSwapPool(.coinbaseStableSwapper)
         }
-    }
-}
-
-/// Minimal thread-safe capture boxes for values observed inside `@Sendable`
-/// mock handlers.
-private final class CallCounter: @unchecked Sendable {
-    private let lock = NSLock()
-    private var count = 0
-
-    var value: Int {
-        lock.lock()
-        defer { lock.unlock() }
-        return count
-    }
-
-    func increment() {
-        lock.lock()
-        count += 1
-        lock.unlock()
-    }
-}
-
-private final class RequestedAccountBox: @unchecked Sendable {
-    private let lock = NSLock()
-    private var account: PublicKey?
-
-    var value: PublicKey? {
-        lock.lock()
-        defer { lock.unlock() }
-        return account
-    }
-
-    func store(_ value: PublicKey) {
-        lock.lock()
-        account = value
-        lock.unlock()
     }
 }

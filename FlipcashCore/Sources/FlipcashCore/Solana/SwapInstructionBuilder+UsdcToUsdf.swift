@@ -117,15 +117,15 @@ extension SwapInstructionBuilder {
 
         // 7. Swap (sender's USDC ATA → sender's USDF ATA)
         switch pool {
-        case .usdf(let pool):
+        case .usdf:
             instructions.append(
                 UsdfProgram.Swap(
                     amount: amount,
                     usdfToOther: false,
                     user: sender,
-                    pool: pool.address,
-                    usdfVault: pool.usdfVault,
-                    otherVault: pool.otherVault,
+                    pool: LiquidityPool.usdf.address,
+                    usdfVault: LiquidityPool.usdf.usdfVault,
+                    otherVault: LiquidityPool.usdf.otherVault,
                     userUsdfToken: senderUsdfAta.address,
                     userOtherToken: senderUsdcAta.address
                 ).instruction()
