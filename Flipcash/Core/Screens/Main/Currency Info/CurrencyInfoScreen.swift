@@ -51,8 +51,6 @@ private struct CurrencyInfoScreenContent: View {
         mintMetadata?.mint == .usdf
     }
 
-    @Environment(WalletConnection.self) private var walletConnection
-
     private let mint: PublicKey
     private let ratesController: RatesController
     private let marketCapController: MarketCapController
@@ -165,11 +163,11 @@ private struct CurrencyInfoScreenContent: View {
         .sheet(isPresented: $isShowingCurrencySelection) {
             CurrencySelectionScreen(ratesController: ratesController)
         }
-        // `walletConnection.dialogItem` is forwarded to `session.dialogItem`
-        // from inside the `.buy` nested sheet (see BuyAmountScreen) so it
-        // surfaces in `DialogWindow` rather than fighting the sheet stack
-        // here. Binding `.dialog(item:)` on this screen would mount a sheet
-        // that competes with the `.buy` sheet's presentation queue.
+        // Dialogs originating in the buy flow route through
+        // `session.dialogItem` so they surface in `DialogWindow` rather than
+        // fighting the sheet stack here. Binding `.dialog(item:)` on this
+        // screen would mount a sheet that competes with the `.buy` sheet's
+        // presentation queue.
     }
 
     @ViewBuilder private func toolbarContent() -> some View {
