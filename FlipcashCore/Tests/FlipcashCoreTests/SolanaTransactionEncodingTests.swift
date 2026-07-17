@@ -50,6 +50,61 @@ struct SolanaTransactionEncodingTests {
         #expect(transaction.encode() == Self.expectedBytes)
     }
 
+    @Test("Multi-table lookups compile instruction indexes in table-grouped order")
+    func multiTableLookups_compileInTableGroupedOrder() throws {
+        // Loaded accounts resolve on-chain grouped BY TABLE (every table's
+        // writables, then every table's readonlys) — not in global sort
+        // order. Arrange keys so the two orderings differ: the second table's
+        // accounts sort lexicographically BEFORE the first table's.
+        func key(_ seed: UInt8) -> PublicKey { try! PublicKey([UInt8](repeating: seed, count: 32)) }
+
+        let payer = key(1)
+        let program = key(2)
+        let writableA = key(40) // in table A (sorts after writableB)
+        let writableB = key(30) // in table B
+        let readonlyA = key(41) // in table A (sorts after readonlyB)
+        let readonlyB = key(31) // in table B
+
+        let tableA = AddressLookupTable(publicKey: key(10), addresses: [writableA, readonlyA])
+        let tableB = AddressLookupTable(publicKey: key(11), addresses: [writableB, readonlyB])
+
+        let instruction = Instruction(
+            program: program,
+            accounts: [
+                .writable(publicKey: writableA),
+                .writable(publicKey: writableB),
+                .readonly(publicKey: readonlyA),
+                .readonly(publicKey: readonlyB),
+            ],
+            data: Data([7])
+        )
+
+        let transaction = SolanaTransaction(
+            payer: payer,
+            recentBlockhash: Self.blockhash,
+            addressLookupTables: [tableA, tableB],
+            instructions: [instruction]
+        )
+
+        guard case .versionedV0(let message) = transaction.message else {
+            Issue.record("Expected a v0 message when lookup tables are provided")
+            return
+        }
+
+        // Static: payer(0), program(1). Loaded: tableA.writable(2),
+        // tableB.writable(3), tableA.readonly(4), tableB.readonly(5).
+        #expect(message.staticAccountKeys == [payer, program])
+        #expect(message.instructions[0].accountIndexes == [2, 3, 4, 5])
+
+        #expect(message.addressTableLookups.count == 2)
+        #expect(message.addressTableLookups[0].publicKey == tableA.publicKey)
+        #expect(message.addressTableLookups[0].writableIndexes == [0])
+        #expect(message.addressTableLookups[0].readonlyIndexes == [1])
+        #expect(message.addressTableLookups[1].publicKey == tableB.publicKey)
+        #expect(message.addressTableLookups[1].writableIndexes == [0])
+        #expect(message.addressTableLookups[1].readonlyIndexes == [1])
+    }
+
     @Test("Round-trip: encoded bytes decode back into an equivalent transaction")
     func encodeDecode_roundTrips() throws {
         let instructions = SwapInstructionBuilder.buildUsdcToUsdfSwapInstructions(

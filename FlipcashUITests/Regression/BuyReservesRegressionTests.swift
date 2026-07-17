@@ -5,12 +5,13 @@
 
 import XCTest
 
-/// Regression test for the full buy flow using the user's USDF reserve as
-/// the funding source. Asserts that:
+/// Regression test for the full buy flow paying with USDF. Asserts that:
 ///
 /// - The buy nested sheet opens on top of CurrencyInfoScreen.
-/// - A sub-cent entry the USDF balance can cover routes straight to the
-///   swap-processing screen (the Add Money "Select Method" sheet never appears).
+/// - Next pushes the Select Payment Currency step; picking USDF lands on the
+///   Buy summary in its simple (no fee breakdown) variant.
+/// - A covered entry routes straight to the swap-processing screen (the Add
+///   Money "Select Method" sheet never appears).
 /// - After OK on the processing screen, the user lands back on
 ///   CurrencyInfoScreen — not the Wallet root, not the Scanner.
 ///
@@ -27,6 +28,8 @@ final class BuyReservesRegressionTests: BaseUITestCase {
         let wallet = WalletScreen(app: app)
         let currencyInfo = CurrencyInfoUIScreen(app: app)
         let amountEntry = AmountEntryScreen(app: app)
+        let paymentCurrency = PaymentCurrencyUIScreen(app: app)
+        let confirmation = BuyConfirmationUIScreen(app: app)
         let processing = SwapProcessingUIScreen(app: app)
 
         assertMainScreenReached()
@@ -36,11 +39,22 @@ final class BuyReservesRegressionTests: BaseUITestCase {
         wallet.selectFirstCurrency()
         currencyInfo.assertReached()
 
-        // Buy → enter $0.01 → submit. The amount is well below any plausible
-        // USDF balance, so the USDF gate routes straight to the swap.
+        // Buy → enter $0.01 → Next → USDF → summary → Buy. The amount is well
+        // below any plausible USDF balance, so USDF is always eligible.
         waitAndTap(currencyInfo.buyButton)
         amountEntry.enterMinimumAmount()
-        waitUntilHittableAndTap(amountEntry.buyActionButton)
+        waitUntilHittableAndTap(amountEntry.nextButton)
+
+        paymentCurrency.assertReached()
+        waitAndTap(paymentCurrency.usdfRow)
+
+        confirmation.assertReached()
+        // The USDF variant is the simple summary — no fee breakdown.
+        XCTAssertFalse(
+            confirmation.exchangeFeeRow.exists,
+            "USDF-paid buys must not show an Exchange fee row"
+        )
+        waitUntilHittableAndTap(confirmation.buyButton)
 
         // A covered amount must not detour through the Add Money flow — the
         // "Select Method" sheet must never appear.

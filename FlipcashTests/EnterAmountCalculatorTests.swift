@@ -169,10 +169,10 @@ import FlipcashCore
     // MARK: - Buy-Style Mode Limit Tests
 
     static let buyStyleModes: [EnterAmountView.Mode] = [
-        .buy,
+        .addMoney,
     ]
 
-    @Test("Buy-style modes use maxPerDay as per-transaction limit", arguments: buyStyleModes)
+    @Test("Add-Money-style modes use maxPerDay as per-transaction limit", arguments: buyStyleModes)
     func maxTransactionAmount_buyStyleModes_usesMaxPerDay(mode: EnterAmountView.Mode) {
         let sendLimit = Self.sendLimit(nextTransaction: 100_000_000, maxPerTransaction: 250_000_000, maxPerDay: 1_000_000_000)
 
@@ -333,10 +333,11 @@ import FlipcashCore
         #expect(result.currency == .cad)
     }
 
-    @Test("maxEnterAmount for buy mode caps at maxPerDay, not maxPerTransaction")
-    func maxEnterAmount_buyMode_capsAtMaxPerDay() {
+    @Test("maxEnterAmount for buy mode caps at the balance, ignoring send limits")
+    func maxEnterAmount_buyMode_capsAtBalance() {
         let balance = Self.createExchangedFiat(usdQuarks: 2_000_000)
-        // $0.10 remaining, $0.25 per-tx cap, $1.00 daily (used as buy per-tx)
+        // Limits far below the balance must not constrain buy entry — the
+        // send limit is enforced at submission on the Buy summary instead.
         let sendLimit = Self.sendLimit(nextTransaction: 100_000, maxPerTransaction: 250_000, maxPerDay: 1_000_000)
 
         let calculator = EnterAmountCalculator(
@@ -345,8 +346,8 @@ import FlipcashCore
             sendLimitProvider: { _ in return sendLimit }
         )
 
-        // Buy mode should use maxPerDay ($1.00), not maxPerTransaction ($0.25)
-        #expect(calculator.maxEnterAmount(maxBalance: balance) == sendLimit.maxPerDay)
+        #expect(calculator.maxTransactionAmount == nil)
+        #expect(calculator.maxEnterAmount(maxBalance: balance) == balance.nativeAmount)
     }
 
 }

@@ -40,13 +40,14 @@ struct BuyAmountScreen: View {
             EnterAmountView(
                 mode: .buy,
                 enteredAmount: $viewModel.enteredAmount,
-                subtitle: .singleTransactionLimit,
-                actionState: $viewModel.actionButtonState,
-                actionEnabled: { _ in viewModel.canPerformAction },
-                action: {
-                    Task { await viewModel.amountEnteredAction(router: router) }
-                },
-                currencySelectionAction: showCurrencySelection
+                subtitle: .balanceWithLimit(viewModel.maxPossibleAmount),
+                // Submission moved to the Buy summary; the amount step's
+                // button never leaves `.normal`.
+                actionState: .constant(.normal),
+                actionEnabled: { viewModel.actionEnabled($0) },
+                action: { viewModel.primaryAction(router: router) },
+                currencySelectionAction: showCurrencySelection,
+                actionTitle: viewModel.actionTitle
             )
             .foregroundStyle(.textMain)
             .padding(20)
@@ -65,11 +66,13 @@ struct BuyAmountScreen: View {
         .navigationDestination(for: BuyFlowPath.self) { path in
             // Env value must be set on the destination view itself — modifiers
             // on the source view don't propagate to navigation destinations
-            // (they live in a separate SwiftUI context).
+            // (they live in a separate SwiftUI context). `.id(path)` forces a
+            // fresh view identity per path value so init-seeded @State can't
+            // survive a same-depth value swap (the DestinationView convention).
             BuyFlowDestinationView(path: path)
                 .environment(\.dismissParentContainer, router.dismissSheet)
+                .id(path)
         }
-        .dialog(item: $viewModel.dialogItem)
         .sheet(isPresented: $isShowingCurrencySelection) {
             CurrencySelectionScreen(ratesController: ratesController)
         }

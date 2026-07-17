@@ -154,8 +154,6 @@ public struct SolanaTransaction: Equatable, Sendable {
         var readonlyLUTIndexes: [[UInt8]] = Array(repeating: [], count: sortedLUTs.count)
         
         var staticAccountKeys: [PublicKey] = []
-        var dynamicWritableAccounts: [PublicKey] = []
-        var dynamincReadonlyAccounts: [PublicKey] = []
         
         var header = Message.Header(
             requiredSignatures: 0,
@@ -176,10 +174,8 @@ public struct SolanaTransaction: Equatable, Sendable {
                         let byteIndex = UInt8(addressIndex)
                         if accountMeta.isWritable {
                             writableLUTIndexes[lutIndex].append(byteIndex)
-                            dynamicWritableAccounts.append(pk)
                         } else {
                             readonlyLUTIndexes[lutIndex].append(byteIndex)
-                            dynamincReadonlyAccounts.append(pk)
                         }
                         break
                     }
@@ -201,9 +197,19 @@ public struct SolanaTransaction: Equatable, Sendable {
             }
         }
         
-        // Build complete account list for instruction compilation:
-        // static keys + dynamic writable + dynamic readonly (in that order)
-        let allAccounts = staticAccountKeys + dynamicWritableAccounts + dynamincReadonlyAccounts
+        // Build complete account list for instruction compilation. Loaded
+        // accounts resolve on-chain grouped BY TABLE — every table's writable
+        // addresses first, then every table's readonly addresses — not in the
+        // global sort order they were discovered in. With a single table the
+        // two orderings coincide; with multiple tables only the table-grouped
+        // order matches the runtime (and the server's expected transaction).
+        let loadedWritableAccounts = sortedLUTs.enumerated().flatMap { lutIndex, lut in
+            writableLUTIndexes[lutIndex].map { lut.addresses[Int($0)] }
+        }
+        let loadedReadonlyAccounts = sortedLUTs.enumerated().flatMap { lutIndex, lut in
+            readonlyLUTIndexes[lutIndex].map { lut.addresses[Int($0)] }
+        }
+        let allAccounts = staticAccountKeys + loadedWritableAccounts + loadedReadonlyAccounts
         
         // Build address table lookups (only include LUTs that are actually used)
         var addressTableLookups: [MessageAddressTableLookup] = []

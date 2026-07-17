@@ -246,6 +246,70 @@ final class TransactionService: Sendable {
         }
     }
 
+    /// A buy funded by another launchpad currency — a launchpad→launchpad swap
+    /// (Phase 1 + Phase 2 via IntentFundSwap). The payment pool's sell fee is
+    /// implicit in the swap; `fee_amount` stays 0 (server-enforced).
+    func buy(amount: ExchangedFiat, with paymentToken: MintMetadata, verifiedState: VerifiedState, of token: MintMetadata, owner: AccountCluster, completion: @Sendable @escaping (Result<SwapId, ErrorSwap>) -> Void) {
+        let swapId = SwapId.generate()
+        let fundingIntentID = KeyPair.generate()!.publicKey
+        let ownerKeyPair = owner.authority.keyPair
+
+        guard let paymentVmAuthority = paymentToken.vmMetadata?.authority else {
+            logger.error("Failed to find VM authority for payment token", metadata: [
+                "symbol": "\(paymentToken.symbol)",
+                "mint": "\(paymentToken.address.base58)"
+            ])
+            completion(.failure(.unknown))
+            return
+        }
+
+        logger.info("Starting buy with currency", metadata: [
+            "amount": "\(amount.nativeAmount.formatted())",
+            "paymentSymbol": "\(paymentToken.symbol)",
+            "symbol": "\(token.symbol)"
+        ])
+
+        // Phase 1: Create swap state on the server
+        swapService.swap(
+            swapId: swapId,
+            direction: .swap(from: paymentToken, to: token),
+            amount: amount.onChainAmount,
+            fundingSource: .submitIntent(id: fundingIntentID),
+            owner: ownerKeyPair
+        ) { result in
+            switch result {
+            case .success(let metadata):
+                logger.info("Swap state created", metadata: ["swapId": "\(swapId.publicKey.base58)"])
+
+                // Phase 2: Fund the payment token's VM swap PDA via IntentFundSwap
+                let fundingIntent = IntentFundSwap(
+                    intentID: fundingIntentID,
+                    swapId: metadata.swapId,
+                    sourceCluster: owner.use(mint: paymentToken.address, timeAuthority: paymentVmAuthority),
+                    amount: amount,
+                    verifiedState: verifiedState,
+                    fromMint: paymentToken,
+                    toMint: token
+                )
+
+                self.submit(intent: fundingIntent, owner: ownerKeyPair) { fundingResult in
+                    switch fundingResult {
+                    case .success:
+                        logger.info("Buy with currency completed", metadata: ["intentId": "\(fundingIntentID.base58)"])
+                        completion(.success(swapId))
+                    case .failure(let error):
+                        logger.error("Failed to fund buy-with-currency swap", metadata: ["error": "\(error)"])
+                        completion(.failure(.fundingIntent(error)))
+                    }
+                }
+
+            case .failure(let error):
+                logger.error("Failed to start buy-with-currency swap", metadata: ["error": "\(error)"])
+                completion(.failure(error))
+            }
+        }
+    }
+
     /// Withdraws USDF to a Solana wallet as USDC via Coinbase Stable Swapper.
     /// Phase 1 + Phase 2 mirroring `buy()`: stateful swap stream → IntentFundSwap submission.
     func withdrawAsUSDC(

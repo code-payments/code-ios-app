@@ -20,11 +20,11 @@ struct CurrencySellConfirmationScreen: View {
 
     // MARK: - Init -
 
-    init(mint: PublicKey, currencyName: String, amount: ExchangedFiat, pinnedState: VerifiedState, path: Binding<[CurrencySellPath]>) {
+    init(mint: PublicKey, currencyName: String, amount: ExchangedFiat, pinnedState: VerifiedState, sellFeeBps: Int?, path: Binding<[CurrencySellPath]>) {
         self.currencyName = currencyName
         self.amount = amount
         self._path = path
-        self.viewModel = CurrencySellConfirmationViewModel(mint: mint, amount: amount, pinnedState: pinnedState)
+        self.viewModel = CurrencySellConfirmationViewModel(mint: mint, amount: amount, pinnedState: pinnedState, sellFeeBps: sellFeeBps)
     }
         
     var body: some View {

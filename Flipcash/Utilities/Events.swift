@@ -29,6 +29,7 @@ extension Analytics {
         case allowPush        = "Button: Allow Push"
         case skipPush         = "Button: Skip Push"
         case buyWithReserves  = "Button: Buy With Reserves"
+        case buyWithCurrency  = "Button: Buy With Currency"
         case give             = "Button: Give"
         case sell             = "Button: Sell"
         case shareTokenInfo   = "Button: Share Token Info"
@@ -86,6 +87,7 @@ extension Analytics {
 
     enum TokenTransactionEvent: String, AnalyticsEvent {
         case purchaseWithReserves = "Token Purchase With Reserves"
+        case purchaseWithCurrency = "Token Purchase With Currency"
         case sell                 = "Token Sell"
         case withdraw             = "Token Withdrawal"
     }

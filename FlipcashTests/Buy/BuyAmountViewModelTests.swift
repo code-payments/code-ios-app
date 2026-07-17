@@ -8,69 +8,41 @@ import Testing
 @testable import FlipcashCore
 @testable import Flipcash
 
-@Suite("BuyAmountViewModel — USDF gate")
+@Suite("BuyAmountViewModel — balance cap")
 @MainActor
 struct BuyAmountViewModelTests {
 
-    // MARK: - amountEnteredAction gating
-
-    /// Server-provided per-day limit that the gate must clear before any
-    /// submission. Set high enough that the test entered amounts ($1–$20) all
-    /// pass; the only thing varying between tests is the USDF balance.
     private static let testSendLimit = SendLimit(
         nextTransaction: FiatAmount(value: 1000, currency: .usd),
         maxPerTransaction: FiatAmount(value: 1000, currency: .usd),
         maxPerDay: FiatAmount(value: 1000, currency: .usd)
     )
 
-    /// Builds a `SessionContainer` with the given USDF balance and seeds the
-    /// fresh verified state + send limits the viewmodel needs to reach the
-    /// USDF gate. Without these, `prepareSubmission` returns nil and the flow
-    /// short-circuits at the "Rate Unavailable" dialog.
-    ///
-    /// `currency`/`fx` select the balance currency — pass a non-USD rate to
-    /// reproduce FX display rounding (see the CAD regression below).
-    ///
-    /// Pass a `maxPerDay` below the entered amount when the test drives
-    /// `amountEnteredAction` past the gate: the flow then stops at the limit
-    /// check and can never reach the real `session.buy` — which submits a
-    /// live `IntentCreateAccount` to production that the antispam guard
-    /// denies.
+    /// Builds a `SessionContainer` with the given holdings and seeds fresh
+    /// rates so the cap and pin lookups work.
     private static func makeContainer(
-        usdfQuarks: UInt64,
+        holdings: [SessionContainer.Holding],
         currency: CurrencyCode = .usd,
-        fx: Double = 1.0,
-        maxPerDay: Decimal = 1_000
+        fx: Double = 1.0
     ) async throws -> SessionContainer {
-        let holdings: [SessionContainer.Holding] = usdfQuarks == 0
-            ? []
-            : [.init(mint: MintMetadata.usdf, quarks: usdfQuarks)]
-
-        var sendLimits: [CurrencyCode: SendLimit] = [.usd: testSendLimit]
-        sendLimits[currency] = SendLimit(
-            nextTransaction: FiatAmount(value: 1000, currency: currency),
-            maxPerTransaction: FiatAmount(value: 1000, currency: currency),
-            maxPerDay: FiatAmount(value: maxPerDay, currency: currency)
-        )
-
         let container = try SessionContainer.makeTest(
             holdings: holdings,
             limits: Limits(
                 sinceDate: .now,
                 fetchDate: .now,
-                sendLimits: sendLimits
+                sendLimits: [currency: SendLimit(
+                    nextTransaction: FiatAmount(value: 1000, currency: currency),
+                    maxPerTransaction: FiatAmount(value: 1000, currency: currency),
+                    maxPerDay: FiatAmount(value: 1000, currency: currency)
+                )]
             )
         )
 
-        // Force the balance currency. Without this the rates controller reads
-        // `LocalDefaults.balanceCurrency`, which can be polluted by other
-        // suites that called `configureTestRates(balanceCurrency: .cad, ...)`.
         container.ratesController.configureTestRates(
             balanceCurrency: currency,
             rates: [Rate(fx: Decimal(fx), currency: currency)]
         )
 
-        // Pin a fresh verified state so prepareSubmission() succeeds.
         await container.ratesController.verifiedProtoService.saveRates([
             .freshRate(currencyCode: currency.rawValue.uppercased(), rate: fx)
         ])
@@ -79,7 +51,7 @@ struct BuyAmountViewModelTests {
     }
 
     private static func makeViewModel(
-        mint: PublicKey = .usdf,
+        mint: PublicKey = .jeffy,
         currencyName: String = "Jeffy",
         container: SessionContainer
     ) -> BuyAmountViewModel {
@@ -91,99 +63,125 @@ struct BuyAmountViewModelTests {
         )
     }
 
-    @Test(
-        "Insufficient USDF surfaces the No Balance dialog instead of buying",
-        arguments: [
-            (usdfQuarks: UInt64(0),         enteredAmount: "1"),
-            (usdfQuarks: UInt64(5_000_000), enteredAmount: "20"),
-        ]
-    )
-    func insufficientBalance_showsNoBalanceDialog(usdfQuarks: UInt64, enteredAmount: String) async throws {
-        let container = try await Self.makeContainer(usdfQuarks: usdfQuarks)
-        let viewModel = Self.makeViewModel(container: container)
-        let router = AppRouter()
-        router.present(.balance)
+    @Test("Cap is the highest eligible balance")
+    func cap_isHighestBalance() async throws {
+        // USDF $30 dwarfs the small launchpad holding.
+        let container = try await Self.makeContainer(holdings: [
+            .init(mint: .usdf, quarks: 30_000_000),
+            .init(mint: .makeLaunchpad(address: .jeffy), quarks: 10_000_000_000), // 1 token ≈ $0.01
+        ])
+        let viewModel = Self.makeViewModel(mint: .usdcAuthority, container: container)
 
-        viewModel.enteredAmount = enteredAmount
-        await viewModel.amountEnteredAction(router: router)
-
-        // The standard "No Balance Yet" dialog is surfaced; its "Add Money"
-        // action (not fired here) is what presents the deposit picker, so the
-        // sheet isn't on the stack yet.
-        #expect(container.session.dialogItem?.title == "No Balance Yet")
-        #expect(!router.presentedSheets.contains(.addMoney(.buyCurrency)))
+        #expect(viewModel.maxPossibleAmount.nativeAmount.formatted() == "$30.00")
+        #expect(!viewModel.isBalanceEmpty)
+        #expect(viewModel.actionTitle == "Next")
     }
 
-    @Test("Empty entered amount does nothing on submit")
-    func emptyAmount_noop() async throws {
-        let container = try await Self.makeContainer(usdfQuarks: 50_000_000)
+    @Test("The target currency is excluded from the cap")
+    func cap_excludesTarget() async throws {
+        // Jeffy is the largest holding but is also the buy target — the cap
+        // must fall back to the USDF balance.
+        let jeffyQuarks: UInt64 = 2_000 * 10_000_000_000 // ≈ $20 of curve value
+        let container = try await Self.makeContainer(holdings: [
+            .init(mint: .usdf, quarks: 5_000_000),
+            .init(mint: .makeLaunchpad(address: .jeffy), quarks: jeffyQuarks),
+        ])
+        let viewModel = Self.makeViewModel(mint: .jeffy, container: container)
+
+        #expect(viewModel.maxPossibleAmount.nativeAmount.formatted() == "$5.00")
+    }
+
+    @Test("A launchpad balance above USDF drives the cap when it isn't the target")
+    func cap_launchpadCanExceedUSDF() async throws {
+        let jeffyQuarks: UInt64 = 2_000 * 10_000_000_000
+        let container = try await Self.makeContainer(holdings: [
+            .init(mint: .usdf, quarks: 5_000_000),
+            .init(mint: .makeLaunchpad(address: .jeffy), quarks: jeffyQuarks),
+        ])
+        let viewModel = Self.makeViewModel(mint: .usdcAuthority, container: container)
+
+        let jeffyValue = try #require(container.session.balance(for: .jeffy))
+            .computeExchangedValue(with: container.ratesController.rateForBalanceCurrency())
+        #expect(viewModel.maxPossibleAmount.nativeAmount == jeffyValue.nativeAmount)
+        #expect(viewModel.maxPossibleAmount.nativeAmount.value > 5)
+    }
+
+    @Test("Zero eligible balance flips the button to Add Money")
+    func zeroBalance_addMoneyCTA() async throws {
+        let container = try await Self.makeContainer(holdings: [])
+        let viewModel = Self.makeViewModel(container: container)
+
+        #expect(viewModel.isBalanceEmpty)
+        #expect(viewModel.actionTitle == "Add Money")
+        #expect(viewModel.actionEnabled("") == true)
+    }
+
+    @Test("Holding only the target currency flips the button to Add Money")
+    func onlyTargetHolding_addMoneyCTA() async throws {
+        // The buy target can't pay for itself, so the sole holding leaves no
+        // eligible source — the flow never reaches the payment selector.
+        let jeffyQuarks: UInt64 = 2_000 * 10_000_000_000
+        let container = try await Self.makeContainer(holdings: [
+            .init(mint: .makeLaunchpad(address: .jeffy), quarks: jeffyQuarks),
+        ])
+        let viewModel = Self.makeViewModel(mint: .jeffy, container: container)
+
+        #expect(viewModel.isBalanceEmpty)
+        #expect(viewModel.actionTitle == "Add Money")
+    }
+
+    @Test("Add Money CTA presents the Add Money sheet")
+    func zeroBalance_primaryActionPresentsAddMoney() async throws {
+        let container = try await Self.makeContainer(holdings: [])
         let viewModel = Self.makeViewModel(container: container)
         let router = AppRouter()
         router.present(.balance)
+
+        viewModel.primaryAction(router: router)
+
+        #expect(router.presentedSheets.contains(.addMoney(.buyCurrency)))
+    }
+
+    @Test("Next pushes the payment-currency step with the validated amount")
+    func next_pushesSelectPaymentCurrency() async throws {
+        let container = try await Self.makeContainer(holdings: [
+            .init(mint: .usdf, quarks: 30_000_000),
+        ])
+        let viewModel = Self.makeViewModel(container: container)
+        let router = AppRouter()
+        router.present(.balance)
+        router.presentNested(.buy(.jeffy))
+
+        viewModel.enteredAmount = "10"
+        viewModel.primaryAction(router: router)
+
+        #expect(router[.buy].count == 1)
+    }
+
+    @Test("An invalid entered amount does not push")
+    func invalidAmount_noop() async throws {
+        let container = try await Self.makeContainer(holdings: [
+            .init(mint: .usdf, quarks: 30_000_000),
+        ])
+        let viewModel = Self.makeViewModel(container: container)
+        let router = AppRouter()
+        router.present(.balance)
+        router.presentNested(.buy(.jeffy))
 
         viewModel.enteredAmount = ""
-        await viewModel.amountEnteredAction(router: router)
+        viewModel.primaryAction(router: router)
 
-        #expect(!router.presentedSheets.contains(.addMoney(.buyCurrency)))
-        #expect(viewModel.dialogItem == nil)
-        // Loading flicker on an empty submit would be a regression.
-        #expect(viewModel.actionButtonState == .normal)
+        #expect(router[.buy].isEmpty)
     }
 
-    // MARK: - FX rounding regression (deposit 1 CAD, buy 1 CAD)
-
-    /// Regression: a CAD user deposits USDF that *displays* as 1.00 CAD, then
-    /// buys 1.00 CAD — the gate must treat that as sufficient. The old raw
-    /// `Decimal` compare (`usdfBalance.value >= amount.usdfValue.value`)
-    /// rejected it, because 1.00 CAD converts to fractionally more USD than
-    /// the truncated 6-decimal balance. The gate must follow
-    /// `Session.hasSufficientFunds` (quarks compare + half-denomination
-    /// max-send tolerance) like every other spend flow.
-    ///
-    /// Two balances straddle the quark rounding boundary at fx 1.37/1.36:
-    /// one where the entered amount's quarks equal the balance exactly, one
-    /// where they land 1 quark over and only the tolerance saves the buy.
-    @Test(
-        "Displayed-balance max buy in a non-USD currency passes the gate",
-        arguments: [
-            (usdfQuarks: UInt64(729_927), fx: 1.37),
-            (usdfQuarks: UInt64(735_293), fx: 1.36),
-        ]
-    )
-    func maxBuy_nonUSDCurrency_passesGate(usdfQuarks: UInt64, fx: Double) async throws {
-        // The daily limit sits below the entered $1.00 so the flow stops at
-        // the limit check right after the gate, never reaching the real buy.
-        let container = try await Self.makeContainer(
-            usdfQuarks: usdfQuarks,
-            currency: .cad,
-            fx: fx,
-            maxPerDay: 0.5
-        )
-        let viewModel = Self.makeViewModel(container: container)
-        let router = AppRouter()
-        router.present(.balance)
-
-        viewModel.enteredAmount = "1"
-        await viewModel.amountEnteredAction(router: router)
-
-        // The gate must NOT route a covered max-buy to Add Money...
-        #expect(container.session.dialogItem == nil)
-
-        // ...and the flow must have cleared the gate, stopping at the limit
-        // check rather than reaching the network buy.
-        #expect(viewModel.dialogItem?.title == "Transaction Limit Reached")
-    }
-
-    @Test("Submission quarks are capped to the USDF balance for a max buy")
-    func maxBuy_submissionCappedToBalance() async throws {
-        let usdfQuarks: UInt64 = 729_927 // displays as 1.00 CAD at 1.37
-        let container = try await Self.makeContainer(usdfQuarks: usdfQuarks, currency: .cad, fx: 1.37)
+    @Test("Entering beyond the cap disables Next; the cap itself is allowed")
+    func overCap_disabled() async throws {
+        let container = try await Self.makeContainer(holdings: [
+            .init(mint: .usdf, quarks: 30_000_000),
+        ])
         let viewModel = Self.makeViewModel(container: container)
 
-        viewModel.enteredAmount = "1"
-        let submission = await viewModel.prepareSubmission()
-
-        let quarks = try #require(submission).amount.onChainAmount.quarks
-        #expect(quarks == usdfQuarks, "A max buy must spend exactly the balance, not overshoot it")
+        #expect(viewModel.actionEnabled("30") == true)
+        #expect(viewModel.actionEnabled("31") == false)
     }
 }

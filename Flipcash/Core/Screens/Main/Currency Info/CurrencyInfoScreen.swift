@@ -51,8 +51,6 @@ private struct CurrencyInfoScreenContent: View {
         mintMetadata?.mint == .usdf
     }
 
-    @Environment(WalletConnection.self) private var walletConnection
-
     private let mint: PublicKey
     private let ratesController: RatesController
     private let marketCapController: MarketCapController
@@ -113,7 +111,7 @@ private struct CurrencyInfoScreenContent: View {
                     marketCapController: marketCapController,
                     onShowTransactionHistory: { router.push(.transactionHistory(metadata.mint)) },
                     onShowCurrencySelection: { isShowingCurrencySelection = true },
-                    onBuy: { presentBuyOrAddMoney() },
+                    onBuy: { router.presentNested(.buy(mint)) },
                     onGive: {
                         Analytics.buttonTapped(name: .give)
                         router.push(.give(mint))
@@ -156,7 +154,7 @@ private struct CurrencyInfoScreenContent: View {
             await viewModel.loadMintMetadata()
 
             if showBuyOnAppear {
-                presentBuyOrAddMoney()
+                router.presentNested(.buy(mint))
             }
         }
         .sheet(item: $presentedSellViewModel) { sellViewModel in
@@ -165,24 +163,11 @@ private struct CurrencyInfoScreenContent: View {
         .sheet(isPresented: $isShowingCurrencySelection) {
             CurrencySelectionScreen(ratesController: ratesController)
         }
-        // `walletConnection.dialogItem` is forwarded to `session.dialogItem`
-        // from inside the `.buy` nested sheet (see BuyAmountScreen) so it
-        // surfaces in `DialogWindow` rather than fighting the sheet stack
-        // here. Binding `.dialog(item:)` on this screen would mount a sheet
-        // that competes with the `.buy` sheet's presentation queue.
-    }
-
-    /// Routes the Buy button (and the buy-on-appear deeplink) to the Add Money
-    /// flow when the user has no USDF reserves, or straight into the buy amount
-    /// sheet when they do.
-    private func presentBuyOrAddMoney() {
-        if shouldAddMoneyBeforeBuy(session: session) {
-            session.dialogItem = .noBalance(subtitle: AddMoneyContext.buyCurrency.noBalanceSubtitle) {
-                router.presentAddMoney(.buyCurrency, source: .buyShortfall)
-            }
-        } else {
-            router.presentNested(.buy(mint))
-        }
+        // Dialogs originating in the buy flow route through
+        // `session.dialogItem` so they surface in `DialogWindow` rather than
+        // fighting the sheet stack here. Binding `.dialog(item:)` on this
+        // screen would mount a sheet that competes with the `.buy` sheet's
+        // presentation queue.
     }
 
     @ViewBuilder private func toolbarContent() -> some View {

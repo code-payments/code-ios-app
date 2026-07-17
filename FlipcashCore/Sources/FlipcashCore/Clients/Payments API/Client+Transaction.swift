@@ -131,6 +131,21 @@ extension Client {
         }
     }
 
+    /// Buy tokens paying with another launchpad currency (Phase 1 + Phase 2).
+    @discardableResult
+    public func buy(amount: ExchangedFiat, with paymentToken: MintMetadata, verifiedState: VerifiedState, of token: MintMetadata, owner: AccountCluster) async throws -> SwapId {
+        // Ensure the timelock vault account exists for the target mint
+        try await ensureAccountExists(
+            owner: owner.authority.keyPair,
+            ownerAuthority: owner.authority,
+            token: token
+        )
+
+        return try await withCheckedThrowingContinuation { c in
+            transactionService.buy(amount: amount, with: paymentToken, verifiedState: verifiedState, of: token, owner: owner) { c.resume(with: $0) }
+        }
+    }
+
     @discardableResult
     public func sell(amount: ExchangedFiat, verifiedState: VerifiedState, in token: MintMetadata, owner: AccountCluster) async throws -> SwapId {
         try await withCheckedThrowingContinuation { c in

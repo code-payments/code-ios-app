@@ -52,6 +52,7 @@ struct CurrencySellAmountScreen: View {
                         currencyName: viewModel.currencyMetadata.name,
                         amount: amount,
                         pinnedState: pinnedState,
+                        sellFeeBps: viewModel.currencyMetadata.sellFeeBps,
                         path: $viewModel.path
                     )
                     .environment(\.dismissParentContainer, {

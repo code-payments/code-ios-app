@@ -14,6 +14,9 @@ class CurrencySellConfirmationViewModel {
     @ObservationIgnored let mint: PublicKey
     @ObservationIgnored let amount: ExchangedFiat
     @ObservationIgnored let pinnedState: VerifiedState
+    /// The pool's sell fee in basis points; nil falls back to the launchpad
+    /// default (100).
+    @ObservationIgnored let sellFeeBps: Int?
 
     var dialogItem: DialogItem?
     private(set) var actionButtonState: ButtonState = .normal
@@ -27,22 +30,7 @@ class CurrencySellConfirmationViewModel {
     }
 
     var fee: ExchangedFiat {
-        let bps: UInt64 = 100
-        let feeQuarks = amount.onChainAmount.quarks * bps / 10_000
-        let feeOnChain = TokenAmount(
-            quarks: feeQuarks,
-            mint: amount.onChainAmount.mint
-        )
-        // Scale native by the *actual* on-chain ratio (not the static bps),
-        // so a fee that rounds down to 0 quarks also displays as 0 fiat.
-        let scale: Decimal = amount.onChainAmount.quarks > 0
-            ? Decimal(feeQuarks) / Decimal(amount.onChainAmount.quarks)
-            : 0
-        return ExchangedFiat(
-            onChainAmount: feeOnChain,
-            nativeAmount: amount.nativeAmount * scale,
-            currencyRate: amount.currencyRate,
-        )
+        amount.launchpadSellFee(bps: UInt64(max(0, sellFeeBps ?? 100)))
     }
 
     /// Formats the fee for display, prefixing with "~" when the value is
@@ -59,10 +47,11 @@ class CurrencySellConfirmationViewModel {
 
     // MARK: - Init -
 
-    init(mint: PublicKey, amount: ExchangedFiat, pinnedState: VerifiedState) {
+    init(mint: PublicKey, amount: ExchangedFiat, pinnedState: VerifiedState, sellFeeBps: Int? = nil) {
         self.mint        = mint
         self.amount      = amount
         self.pinnedState = pinnedState
+        self.sellFeeBps  = sellFeeBps
     }
     
     // MARK: - Actions -

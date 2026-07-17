@@ -14,12 +14,6 @@ protocol USDFReserveReading: AnyObject {
 
 extension Session: USDFReserveReading {}
 
-/// True when the user holds no USDF reserves to spend on a buy.
-@MainActor
-func shouldAddMoneyBeforeBuy(session: some USDFReserveReading) -> Bool {
-    guard let balance = session.balance(for: .usdf) else { return true }
-    return balance.usdf.value == 0
-}
 
 /// True when the user's USDF reserves can't cover `launchCost` (purchase +
 /// fee). Must agree with the wizard's `reserveBalance` affordability check.

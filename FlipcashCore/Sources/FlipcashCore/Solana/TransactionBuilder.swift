@@ -59,6 +59,18 @@ extension TransactionBuilder {
                 minOutput: minOutput,
             )
 
+        case .swap(let sourceMint, let targetMint):
+            try SwapInstructionBuilder.buildSwapInstructions(
+                serverParameters: responseParams,
+                nonce: metadata.serverParameters.nonce,
+                authority: authority,
+                swapAuthority: swapAuthority,
+                sourceMintMetadata: sourceMint,
+                targetMintMetadata: targetMint,
+                coreMintMetadata: coreMint,
+                amount: amount,
+            )
+
         case .withdraw:
             // Stablecoin (USDF → USDC) withdraws go through swapUsdfToUsdc.
             throw SwapTransactionBuildError.unsupportedServerParameters

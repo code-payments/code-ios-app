@@ -651,6 +651,7 @@ extension SwapResponseServerParameters {
 enum SwapDirection {
     case buy(mint: MintMetadata)                 // USDF -> Bonded Token
     case sell(mint: MintMetadata)                // Bonded Token -> USDF
+    case swap(from: MintMetadata, to: MintMetadata) // Bonded Token -> Bonded Token
     case withdraw(mint: MintMetadata)            // USDF -> USDC via Coinbase Stable Swapper
 
     var sourceMint: MintMetadata {
@@ -659,6 +660,8 @@ enum SwapDirection {
             return .usdf
         case .sell(let mint):
             return mint
+        case .swap(let from, _):
+            return from
         case .withdraw:
             return .usdf
         }
@@ -670,6 +673,8 @@ enum SwapDirection {
             return mint
         case .sell:
             return .usdf
+        case .swap(_, let to):
+            return to
         case .withdraw(let mint):
             return mint
         }
