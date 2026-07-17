@@ -28,8 +28,6 @@ struct BuyConfirmationScreen: View {
         @Bindable var viewModel = viewModel
         Background(color: .backgroundMain) {
             VStack {
-                Spacer()
-
                 BorderedContainer {
                     VStack(spacing: 0) {
                         ConfirmationAmountRow(
