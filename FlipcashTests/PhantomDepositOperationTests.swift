@@ -27,7 +27,7 @@ struct PhantomDepositOperationTests {
         #expect(op.state == .idle)
 
         // Amount screen: sign + submit.
-        let task = Task { try await op.signAndSubmit(amount: .tenUSDF) }
+        let task = Task { try await op.signAndSubmit(amount: .tenUSDF, liquidityPool: .unknown) }
         try await waitUntil(op) { $0.state == .awaitingExternal(.phantomSign) }
         wallet.yieldDeeplinkEvent(.signed(Self.validSignedTransactionBase58))
         try await task.value
@@ -47,7 +47,7 @@ struct PhantomDepositOperationTests {
         rpc.sendHandler = { _ in .mock }
         let op = PhantomDepositOperation(walletConnection: wallet, rpc: rpc)
 
-        let task = Task { try await op.signAndSubmit(amount: .tenUSDF) }
+        let task = Task { try await op.signAndSubmit(amount: .tenUSDF, liquidityPool: .unknown) }
         try await waitUntil(op) { $0.state == .awaitingExternal(.phantomSign) }
         wallet.yieldDeeplinkEvent(.signed(Self.validSignedTransactionBase58))
         try await task.value
@@ -74,7 +74,7 @@ struct PhantomDepositOperationTests {
         let wallet = MockTransactionSigning()
         let op = PhantomDepositOperation(walletConnection: wallet, rpc: MockSolanaRPC())
 
-        let task = Task { try await op.signAndSubmit(amount: .tenUSDF) }
+        let task = Task { try await op.signAndSubmit(amount: .tenUSDF, liquidityPool: .unknown) }
         try await waitUntil(op) { $0.state == .awaitingExternal(.phantomSign) }
         wallet.yieldDeeplinkEvent(.userCancelled)
 
@@ -101,7 +101,7 @@ private extension PhantomDepositOperationTests {
             sender: PublicKey.mock,
             owner: PublicKey.mock,
             amount: 1_000_000,
-            pool: .usdf,
+            pool: .usdf(.usdf),
             swapId: PublicKey.mock,
             destination: .vmDeposit
         )

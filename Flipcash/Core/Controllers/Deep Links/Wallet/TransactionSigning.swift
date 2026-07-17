@@ -27,7 +27,8 @@ protocol TransactionSigning: AnyObject {
     func sendUsdcToUsdfSignRequest(
         usdc: FlipcashCore.TokenAmount,
         swapId: SwapId,
-        displayName: String
+        displayName: String,
+        liquidityPool: UserFlags.UsdcLiquidityPool
     ) async throws
 }
 

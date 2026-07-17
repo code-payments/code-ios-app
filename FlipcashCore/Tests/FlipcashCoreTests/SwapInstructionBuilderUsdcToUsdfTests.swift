@@ -22,14 +22,17 @@ struct SwapInstructionBuilderUsdcToUsdfTests {
     private static let amount: UInt64 = 20_000_000
 
     private static func makeInstructions(
-        amount: UInt64 = SwapInstructionBuilderUsdcToUsdfTests.amount
+        amount: UInt64 = SwapInstructionBuilderUsdcToUsdfTests.amount,
+        pool: FundSwapPool = .usdf(.usdf),
+        destination: UsdfSwapDestination = .swapPda
     ) -> [Instruction] {
         SwapInstructionBuilder.buildUsdcToUsdfSwapInstructions(
             sender: sender,
             owner: owner,
             amount: amount,
-            pool: .usdf,
-            swapId: swapId
+            pool: pool,
+            swapId: swapId,
+            destination: destination
         )
     }
 
@@ -164,14 +167,7 @@ struct SwapInstructionBuilderUsdcToUsdfTests {
     private static func makeDepositInstructions(
         amount: UInt64 = SwapInstructionBuilderUsdcToUsdfTests.amount
     ) -> [Instruction] {
-        SwapInstructionBuilder.buildUsdcToUsdfSwapInstructions(
-            sender: sender,
-            owner: owner,
-            amount: amount,
-            pool: .usdf,
-            swapId: swapId,
-            destination: .vmDeposit
-        )
+        makeInstructions(amount: amount, destination: .vmDeposit)
     }
 
     /// The owner's USDF VM Deposit ATA — derived exactly as the builder does:
@@ -228,5 +224,79 @@ struct SwapInstructionBuilderUsdcToUsdfTests {
     func deposit_addressDiffersFromSwapPda() throws {
         let swapPdaAta = try #require(MintMetadata.usdf.timelockSwapAccounts(owner: Self.owner)).ata.publicKey
         #expect(Self.usdfDepositAta() != swapPdaAta)
+    }
+
+    // MARK: - Coinbase Stable Swapper pool
+
+    private static let feeRecipient = testKey(4)
+
+    private static func makeCoinbaseInstructions(
+        amount: UInt64 = SwapInstructionBuilderUsdcToUsdfTests.amount
+    ) -> [Instruction] {
+        makeInstructions(
+            amount: amount,
+            pool: .coinbaseStableSwapper(feeRecipient: feeRecipient),
+            destination: .vmDeposit
+        )
+    }
+
+    @Test("Coinbase variant still produces exactly 8 instructions")
+    func coinbase_produces8Instructions() {
+        #expect(Self.makeCoinbaseInstructions().count == 8)
+    }
+
+    @Test("Coinbase variant only replaces the swap — instruction 6 is CoinbaseStableSwapper, the rest match the legacy layout")
+    func coinbase_onlyReplacesSwapInstruction() {
+        let coinbase = Self.makeCoinbaseInstructions()
+        let legacy = Self.makeDepositInstructions()
+        #expect(coinbase[6].program == CoinbaseStableSwapperProgram.address)
+        for index in [0, 1, 2, 3, 4, 5, 7] {
+            #expect(coinbase[index].program == legacy[index].program)
+            #expect(coinbase[index].accounts.map(\.publicKey) == legacy[index].accounts.map(\.publicKey))
+            #expect(coinbase[index].data == legacy[index].data)
+        }
+    }
+
+    @Test("Coinbase swap accounts: pool PDAs, sender ATAs, fee recipient, whitelist")
+    func coinbase_swapAccounts() throws {
+        let instructions = Self.makeCoinbaseInstructions()
+        let ix = instructions[6]
+
+        let pool = try #require(CoinbaseStableSwapperProgram.derivePoolAddress()).publicKey
+        let inVault = try #require(CoinbaseStableSwapperProgram.deriveTokenVaultAddress(pool: pool, mint: .usdc)).publicKey
+        let outVault = try #require(CoinbaseStableSwapperProgram.deriveTokenVaultAddress(pool: pool, mint: .usdf)).publicKey
+        let inVaultTokenAccount = try #require(CoinbaseStableSwapperProgram.deriveVaultTokenAccountAddress(vault: inVault)).publicKey
+        let outVaultTokenAccount = try #require(CoinbaseStableSwapperProgram.deriveVaultTokenAccountAddress(vault: outVault)).publicKey
+        let whitelist = try #require(CoinbaseStableSwapperProgram.deriveWhitelistAddress()).publicKey
+        let senderUsdcAta = instructions[4].accounts[1].publicKey
+        let senderUsdfAta = instructions[2].accounts[1].publicKey
+        let feeRecipientUsdcAta = try #require(
+            PublicKey.deriveAssociatedAccount(from: Self.feeRecipient, mint: .usdc)
+        ).publicKey
+
+        // Account list order documented on CoinbaseStableSwapperProgram.Swap.
+        #expect(ix.accounts[0].publicKey == pool)
+        #expect(ix.accounts[1].publicKey == inVault)
+        #expect(ix.accounts[2].publicKey == outVault)
+        #expect(ix.accounts[3].publicKey == inVaultTokenAccount)
+        #expect(ix.accounts[4].publicKey == outVaultTokenAccount)
+        #expect(ix.accounts[5].publicKey == senderUsdcAta)
+        #expect(ix.accounts[6].publicKey == senderUsdfAta)
+        #expect(ix.accounts[7].publicKey == feeRecipientUsdcAta)
+        #expect(ix.accounts[8].publicKey == Self.feeRecipient)
+        #expect(ix.accounts[9].publicKey == PublicKey.usdc)
+        #expect(ix.accounts[10].publicKey == PublicKey.usdf)
+        #expect(ix.accounts[11].publicKey == Self.sender)
+        #expect(ix.accounts[11].isSigner)
+        #expect(ix.accounts[12].publicKey == whitelist)
+    }
+
+    @Test("Coinbase swap data: discriminator + amountIn(8 LE) + minAmountOut(8 LE), both equal to amount")
+    func coinbase_dataLayout() {
+        let ix = Self.makeCoinbaseInstructions(amount: 20_000_000)[6]
+        #expect(ix.data.count == 8 + 8 + 8)
+        #expect(Array(ix.data.prefix(8)) == CoinbaseStableSwapperProgram.Swap.discriminator)
+        #expect(UInt64(bytes: Array(ix.data[8..<16])) == 20_000_000)
+        #expect(UInt64(bytes: Array(ix.data[16..<24])) == 20_000_000)
     }
 }

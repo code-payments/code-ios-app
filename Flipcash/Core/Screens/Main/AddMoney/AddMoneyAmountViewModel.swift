@@ -163,12 +163,13 @@ final class AddMoneyAmountViewModel {
     ) {
         Analytics.addMoneyAmountConfirmed(method: .phantom, exchangedFiat: amount)
         let operation = PhantomDepositOperation(walletConnection: walletConnection)
+        let liquidityPool = session.userFlags?.preferredOnrampUsdcLiquidityPool ?? .unknown
         depositTask = Task { [weak self, operation] in
             self?.actionButtonState = .loading
             defer { self?.actionButtonState = .normal }
             do {
                 // The wallet was connected on the education screen — sign only.
-                try await operation.signAndSubmit(amount: amount)
+                try await operation.signAndSubmit(amount: amount, liquidityPool: liquidityPool)
                 onProceed(.init(amount: amount, method: .phantom, depositRef: operation.submittedSignature))
             } catch is CancellationError {
                 // User dismissed the Phantom flow — silent.

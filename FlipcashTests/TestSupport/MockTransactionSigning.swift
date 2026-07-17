@@ -17,7 +17,7 @@ final class MockTransactionSigning: TransactionSigning {
     private let continuation: AsyncStream<WalletConnection.DeeplinkEvent>.Continuation
 
     private(set) var handshakeCallCount = 0
-    private(set) var sendSignRequestCalls: [(usdc: FlipcashCore.TokenAmount, swapId: SwapId, displayName: String)] = []
+    private(set) var sendSignRequestCalls: [(usdc: FlipcashCore.TokenAmount, swapId: SwapId, displayName: String, liquidityPool: UserFlags.UsdcLiquidityPool)] = []
 
     var handshakeHandler: (() async throws -> Void)?
     var sendSignRequestHandler: ((FlipcashCore.TokenAmount, SwapId, String) async throws -> Void)?
@@ -36,9 +36,10 @@ final class MockTransactionSigning: TransactionSigning {
     func sendUsdcToUsdfSignRequest(
         usdc: FlipcashCore.TokenAmount,
         swapId: SwapId,
-        displayName: String
+        displayName: String,
+        liquidityPool: UserFlags.UsdcLiquidityPool
     ) async throws {
-        sendSignRequestCalls.append((usdc, swapId, displayName))
+        sendSignRequestCalls.append((usdc, swapId, displayName, liquidityPool))
         try await sendSignRequestHandler?(usdc, swapId, displayName)
     }
 

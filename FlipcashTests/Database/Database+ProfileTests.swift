@@ -23,7 +23,8 @@ struct DatabaseProfileTests {
         withdrawalFeeAmount: TokenAmount(quarks: 50_000, mint: .usdf),
         minimumHolderValue: TokenAmount(quarks: 100_000, mint: .usdf),
         enablePhoneNumberSend: true,
-        requireCoinbaseEmailVerification: true
+        requireCoinbaseEmailVerification: true,
+        preferredOnrampUsdcLiquidityPool: .coinbaseStableSwapper
     )
 
     /// Restricted account: no onramp providers, unset timeout, zero fees.
@@ -39,7 +40,8 @@ struct DatabaseProfileTests {
         withdrawalFeeAmount: .zero(mint: .usdf),
         minimumHolderValue: .zero(mint: .usdf),
         enablePhoneNumberSend: false,
-        requireCoinbaseEmailVerification: false
+        requireCoinbaseEmailVerification: false,
+        preferredOnrampUsdcLiquidityPool: .unknown
     )
 
     // MARK: - Empty (fresh install) -
@@ -106,5 +108,6 @@ struct DatabaseProfileTests {
         #expect(restored.newCurrencyFeeAmount == original.newCurrencyFeeAmount)
         #expect(restored.withdrawalFeeAmount == original.withdrawalFeeAmount)
         #expect(restored.minimumHolderValue == original.minimumHolderValue)
+        #expect(restored.preferredOnrampUsdcLiquidityPool == original.preferredOnrampUsdcLiquidityPool)
     }
 }

@@ -22,7 +22,7 @@ extension SwapInstructionBuilder {
     ///   - sender: The sender/payer of the transaction (Phantom wallet)
     ///   - owner: The owner for deriving timelock swap accounts (Flipcash user)
     ///   - amount: Amount of USDC to swap (in quarks)
-    ///   - pool: The liquidity pool to use for the swap
+    ///   - pool: The liquidity pool to swap through
     ///   - swapId: Unique identifier for the swap (used in memo)
     ///   - destination: Which of the owner's USDF accounts receives the swapped
     ///     USDF. Defaults to `.swapPda`.
@@ -31,7 +31,7 @@ extension SwapInstructionBuilder {
         sender: PublicKey,
         owner: PublicKey,
         amount: UInt64,
-        pool: LiquidityPool,
+        pool: FundSwapPool,
         swapId: PublicKey,
         destination: UsdfSwapDestination = .swapPda
     ) -> [Instruction] {
@@ -115,19 +115,61 @@ extension SwapInstructionBuilder {
             MemoProgram.Memo(message: swapId.base58).instruction()
         )
 
-        // 7. Usdf::Swap (sender's USDC ATA → sender's USDF ATA)
-        instructions.append(
-            UsdfProgram.Swap(
-                amount: amount,
-                usdfToOther: false,
-                user: sender,
-                pool: pool.address,
-                usdfVault: pool.usdfVault,
-                otherVault: pool.otherVault,
-                userUsdfToken: senderUsdfAta.address,
-                userOtherToken: senderUsdcAta.address
-            ).instruction()
-        )
+        // 7. Swap (sender's USDC ATA → sender's USDF ATA)
+        switch pool {
+        case .usdf(let pool):
+            instructions.append(
+                UsdfProgram.Swap(
+                    amount: amount,
+                    usdfToOther: false,
+                    user: sender,
+                    pool: pool.address,
+                    usdfVault: pool.usdfVault,
+                    otherVault: pool.otherVault,
+                    userUsdfToken: senderUsdfAta.address,
+                    userOtherToken: senderUsdcAta.address
+                ).instruction()
+            )
+
+        case .coinbaseStableSwapper(let feeRecipient):
+            guard let swapAccounts = CoinbaseStableSwapperProgram.deriveSwapAccounts(
+                fromMint: .usdc,
+                toMint: .usdf
+            ) else {
+                fatalError("Failed to derive Coinbase swap accounts")
+            }
+            // Fee is paid in the from-mint, so the recipient's USDC ATA.
+            guard let feeRecipientUsdcAta = PublicKey.deriveAssociatedAccount(
+                from: feeRecipient,
+                mint: .usdc
+            ) else {
+                fatalError("Failed to derive fee recipient USDC ATA")
+            }
+
+            // `minAmountOut: amount` enforces a 1:1 rate — the Coinbase Stable
+            // Swapper is a stable pair, so any slippage indicates a
+            // misconfigured pool and the swap should fail rather than
+            // silently lose value.
+            instructions.append(
+                CoinbaseStableSwapperProgram.Swap(
+                    pool: swapAccounts.pool,
+                    inVault: swapAccounts.inVault,
+                    outVault: swapAccounts.outVault,
+                    inVaultTokenAccount: swapAccounts.inVaultTokenAccount,
+                    outVaultTokenAccount: swapAccounts.outVaultTokenAccount,
+                    userFromTokenAccount: senderUsdcAta.address,
+                    toTokenAccount: senderUsdfAta.address,
+                    feeRecipientTokenAccount: feeRecipientUsdcAta.publicKey,
+                    feeRecipient: feeRecipient,
+                    fromMint: .usdc,
+                    toMint: .usdf,
+                    user: sender,
+                    whitelist: swapAccounts.whitelist,
+                    amountIn: amount,
+                    minAmountOut: amount
+                ).instruction()
+            )
+        }
 
         // 8. Token::Transfer (sender's USDF ATA → destination USDF ATA)
         instructions.append(

@@ -68,33 +68,11 @@ extension SwapInstructionBuilder {
         }
 
         // Coinbase Stable Swapper PDAs.
-        guard let pool = CoinbaseStableSwapperProgram.derivePoolAddress() else {
-            fatalError("Failed to derive Coinbase pool address")
-        }
-        guard let inVault = CoinbaseStableSwapperProgram.deriveTokenVaultAddress(
-            pool: pool.publicKey,
-            mint: fromMint.address
+        guard let swapAccounts = CoinbaseStableSwapperProgram.deriveSwapAccounts(
+            fromMint: fromMint.address,
+            toMint: toMint.address
         ) else {
-            fatalError("Failed to derive Coinbase in-vault address")
-        }
-        guard let outVault = CoinbaseStableSwapperProgram.deriveTokenVaultAddress(
-            pool: pool.publicKey,
-            mint: toMint.address
-        ) else {
-            fatalError("Failed to derive Coinbase out-vault address")
-        }
-        guard let inVaultTokenAccount = CoinbaseStableSwapperProgram.deriveVaultTokenAccountAddress(
-            vault: inVault.publicKey
-        ) else {
-            fatalError("Failed to derive Coinbase in-vault token account")
-        }
-        guard let outVaultTokenAccount = CoinbaseStableSwapperProgram.deriveVaultTokenAccountAddress(
-            vault: outVault.publicKey
-        ) else {
-            fatalError("Failed to derive Coinbase out-vault token account")
-        }
-        guard let whitelist = CoinbaseStableSwapperProgram.deriveWhitelistAddress() else {
-            fatalError("Failed to derive Coinbase whitelist address")
+            fatalError("Failed to derive Coinbase swap accounts")
         }
 
         // Fee recipient's source-mint ATA — fee is paid in the from-mint.
@@ -151,11 +129,11 @@ extension SwapInstructionBuilder {
         //    lose value.
         instructions.append(
             CoinbaseStableSwapperProgram.Swap(
-                pool: pool.publicKey,
-                inVault: inVault.publicKey,
-                outVault: outVault.publicKey,
-                inVaultTokenAccount: inVaultTokenAccount.publicKey,
-                outVaultTokenAccount: outVaultTokenAccount.publicKey,
+                pool: swapAccounts.pool,
+                inVault: swapAccounts.inVault,
+                outVault: swapAccounts.outVault,
+                inVaultTokenAccount: swapAccounts.inVaultTokenAccount,
+                outVaultTokenAccount: swapAccounts.outVaultTokenAccount,
                 userFromTokenAccount: ownerFromAta.publicKey,
                 toTokenAccount: ownerToVmDepositAta.publicKey,
                 feeRecipientTokenAccount: feeRecipientFromAta.publicKey,
@@ -163,7 +141,7 @@ extension SwapInstructionBuilder {
                 fromMint: fromMint.address,
                 toMint: toMint.address,
                 user: owner,
-                whitelist: whitelist.publicKey,
+                whitelist: swapAccounts.whitelist,
                 amountIn: amount,
                 minAmountOut: amount
             ).instruction()

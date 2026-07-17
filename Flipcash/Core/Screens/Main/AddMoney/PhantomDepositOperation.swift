@@ -56,8 +56,8 @@ final class PhantomDepositOperation {
 
     /// Has Phantom sign the USDC→USDF swap and submits it to chain. Requires
     /// a live session from a prior `connect()`; it does not re-handshake.
-    func signAndSubmit(amount: ExchangedFiat) async throws {
-        let task = Task { try await runSignAndSubmit(amount) }
+    func signAndSubmit(amount: ExchangedFiat, liquidityPool: UserFlags.UsdcLiquidityPool) async throws {
+        let task = Task { try await runSignAndSubmit(amount, liquidityPool: liquidityPool) }
         runTask = task
         defer { runTask = nil }
         return try await withTaskCancellationHandler {
@@ -92,7 +92,7 @@ final class PhantomDepositOperation {
         }
     }
 
-    private func runSignAndSubmit(_ amount: ExchangedFiat) async throws {
+    private func runSignAndSubmit(_ amount: ExchangedFiat, liquidityPool: UserFlags.UsdcLiquidityPool) async throws {
         // Reset state on any exit.
         defer { state = .idle }
 
@@ -102,7 +102,8 @@ final class PhantomDepositOperation {
         try await walletConnection.sendUsdcToUsdfSignRequest(
             usdc: amount.onChainAmount,
             swapId: swapId,
-            displayName: "USDF"
+            displayName: "USDF",
+            liquidityPool: liquidityPool
         )
         Analytics.addMoneyPaymentInvoked(method: .phantom, exchangedFiat: amount)
 

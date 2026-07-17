@@ -37,7 +37,7 @@ struct SolanaTransactionEncodingTests {
             sender: Self.sender,
             owner: Self.owner,
             amount: Self.amount,
-            pool: .usdf,
+            pool: .usdf(.usdf),
             swapId: Self.swapId
         )
 
@@ -56,7 +56,7 @@ struct SolanaTransactionEncodingTests {
             sender: Self.sender,
             owner: Self.owner,
             amount: Self.amount,
-            pool: .usdf,
+            pool: .usdf(.usdf),
             swapId: Self.swapId
         )
 
