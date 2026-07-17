@@ -11,7 +11,7 @@ import XCTest
 /// no auth keys are required.
 final class AddMoneyGateRegressionTests: BaseUITestCase {
 
-    func testBuyWithNoAssets_gatesOnAddMoneyBeforeAmountEntry() {
+    func testBuyWithNoAssets_offersAddMoneyOnAmountEntry() {
         let addMoney = AddMoneyStartScreen(app: app)
         let currencyInfo = CurrencyInfoUIScreen(app: app)
 
@@ -25,20 +25,17 @@ final class AddMoneyGateRegressionTests: BaseUITestCase {
         )
         currencyInfo.assertReached()
 
-        // Buy on a $0 account must gate immediately — no amount sheet.
+        // Buy always opens the amount sheet; on a $0 account the action
+        // button becomes an Add Money CTA instead of Next.
         waitAndTap(currencyInfo.buyButton)
-        addMoney.assertNoBalanceReached()
         XCTAssertTrue(
-            app.staticTexts["Add money to buy currencies"].exists,
-            "Expected the buy-context subtitle on the No Balance prompt"
-        )
-        XCTAssertFalse(
-            app.navigationBars["Amount"].exists,
-            "The buy amount sheet must not open when the account has no USDF"
+            app.navigationBars["Amount"].waitForExistence(timeout: 10),
+            "The buy amount sheet must open even when the account has no balance"
         )
 
-        // Add Money → the Select Method picker.
-        addMoney.tapAddMoney(from: self)
+        // Add Money → the Select Method picker. This flow enters from
+        // Discover, so the sheet's CTA is the only Add Money button on screen.
+        waitUntilHittableAndTap(app.buttons["Add Money"].firstMatch)
         addMoney.assertSelectMethodReached()
     }
 

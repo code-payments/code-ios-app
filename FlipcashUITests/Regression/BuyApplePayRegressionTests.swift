@@ -12,6 +12,10 @@ import XCTest
 /// state, so the test accepts either. Stops short of completing
 /// verification — SMS / email links are out of scope for the simulator.
 ///
+/// Entry is the Balance screen's own Add Money button — buy entry is capped
+/// at the highest spendable balance, so the old buy-shortfall vehicle into
+/// Add Money no longer exists.
+///
 /// **Prerequisites:**
 /// - `FLIPCASH_UI_TEST_ACCESS_KEY` set in `secrets.local.xcconfig`
 /// - The account behind the access key must have **no verified email**. A
@@ -25,33 +29,20 @@ final class BuyApplePayRegressionTests: BaseUITestCase {
 
     func testApplePay_unverifiedAccount_showsVerificationSheet() {
         let wallet = WalletScreen(app: app)
-        let currencyInfo = CurrencyInfoUIScreen(app: app)
         let amountEntry = AmountEntryScreen(app: app)
         let addMoney = AddMoneyStartScreen(app: app)
         let verifyInfo = VerifyInfoUIScreen(app: app)
 
         assertMainScreenReached()
 
-        // Navigate: Main → Wallet → first currency → CurrencyInfoScreen → Buy
+        // Navigate: Main → Wallet → Add Money → Select Method → Pay.
         wallet.open(from: self)
-        wallet.selectFirstCurrency()
-        currencyInfo.assertReached()
-        waitAndTap(currencyInfo.buyButton)
-
-        // Enter an amount above the USDF balance so the buy shortfall routes
-        // into the Add Money flow.
-        amountEntry.enterPickerTriggeringAmount()
-        waitUntilHittableAndTap(amountEntry.buyActionButton)
-
-        // No Balance Yet → Add Money → Select Method → Pay.
-        addMoney.assertNoBalanceReached()
-        addMoney.tapAddMoney(from: self)
+        waitUntilHittableAndTap(app.buttons["Add Money"].firstMatch)
         addMoney.assertSelectMethodReached()
         addMoney.selectPayDebitCard(from: self)
 
         // Amount to Add → enter $10 → the verified-contact gate opens the
-        // verification sheet. The buy keypad was navigated away, so only one
-        // keypad is in the hierarchy.
+        // verification sheet.
         addMoney.assertAmountToAddReached()
         amountEntry.keypadButton("1").tap()
         amountEntry.keypadButton("0").tap()

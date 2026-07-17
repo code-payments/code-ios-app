@@ -25,21 +25,14 @@ struct Regression_native_amount_mismatch {
 
     // MARK: - Scenario D (buy)
 
-    @Test("Scenario D (buy): amountEnteredAction computes quarks from the PINNED rate, not the live cache")
-    func scenarioD_buyAmountEnteredActionUsesPinnedRate() async throws {
-        // Pinned rate: 1 USD = 1.35 CAD. Live cache drifted to 1.37 after the pin was captured.
-        // prepareSubmission pins the rate and computes quarks against it, independent of balance.
+    @Test("Scenario D (buy): the payment compute uses the PINNED rate, not the live cache")
+    func scenarioD_buyPaymentComputeUsesPinnedRate() async throws {
+        // Pinned rate: 1 USD = 1.35 CAD. Live cache drifted to 1.37 after the
+        // pin was captured. The payment-currency step pins the rate on row
+        // selection and computes quarks against it; the balance is ample so
+        // the USDF cap can't interfere.
         let sessionContainer = try SessionContainer.makeTest(
-            holdings: [],
-            limits: Limits(
-                sinceDate: .now,
-                fetchDate: .now,
-                sendLimits: [.cad: SendLimit(
-                    nextTransaction: FiatAmount(value: 1000, currency: .cad),
-                    maxPerTransaction: FiatAmount(value: 1000, currency: .cad),
-                    maxPerDay: FiatAmount(value: 1000, currency: .cad)
-                )]
-            )
+            holdings: [.init(mint: MintMetadata.usdf, quarks: 50_000_000)]
         )
         sessionContainer.ratesController.configureTestRates(
             balanceCurrency: .cad,
@@ -49,22 +42,24 @@ struct Regression_native_amount_mismatch {
             .freshRate(currencyCode: "CAD", rate: 1.35)
         ])
 
-        let vm = BuyAmountViewModel(
-            mint: .usdf,
-            currencyName: "USDF",
+        let vm = BuyPaymentCurrencyViewModel(
+            targetMint: .jeffy,
+            targetName: "Jeffy",
+            entered: FiatAmount(value: 1, currency: .cad),
             session: sessionContainer.session,
             ratesController: sessionContainer.ratesController
         )
-        vm.enteredAmount = "1"
 
-        let submission = try #require(await vm.prepareSubmission())
+        let usdfBalance = try #require(sessionContainer.session.balance(for: .usdf))
+        let pin = try #require(await sessionContainer.ratesController.currentPinnedState(for: .cad, mint: .usdf))
+        let amount = try #require(vm.computePaymentAmount(for: usdfBalance, pin: pin))
 
         // $1 CAD / 1.35 × 10^6, HALF_UP rounded via scaleUpInt → 740_741 USDF quarks.
         // The buggy live path (1.37) would round to 729_927 quarks — the value
         // the server rejected in production.
-        #expect(submission.amount.onChainAmount.quarks == 740_741)
-        #expect(submission.amount.currencyRate.fx == Decimal(1.35))
-        #expect(submission.pinnedState.exchangeRate == 1.35)
+        #expect(amount.onChainAmount.quarks == 740_741)
+        #expect(amount.currencyRate.fx == Decimal(1.35))
+        #expect(pin.exchangeRate == 1.35)
     }
 
     // MARK: - Scenario D (sell)
@@ -143,11 +138,11 @@ struct Regression_native_amount_mismatch {
 
     // MARK: - Scenario E (buy)
 
-    @Test("Scenario E (buy): amountEnteredAction surfaces .staleRate when no fresh pin is cached")
-    func scenarioE_buyAmountEnteredActionSurfacesStaleRateWhenNoPin() async throws {
-        // The account holds ample USDF so the balance gate passes; a live rate
-        // is configured, but nothing is seeded in the verified proto service —
-        // the submit path has no pin to use and must bail.
+    @Test("Scenario E (buy): selecting a payment currency surfaces Rate Unavailable when no fresh pin is cached")
+    func scenarioE_buyPaymentSelectionSurfacesRateUnavailableWhenNoPin() async throws {
+        // The account holds ample USDF; a live rate is configured, but nothing
+        // is seeded in the verified proto service — the selection path has no
+        // pin to carry to the summary and must bail without pushing.
         let sessionContainer = try SessionContainer.makeTest(
             holdings: [.init(mint: MintMetadata.usdf, quarks: 50_000_000)]
         )
@@ -156,20 +151,23 @@ struct Regression_native_amount_mismatch {
             rates: [Rate(fx: 1.35, currency: .cad)]
         )
 
-        let vm = BuyAmountViewModel(
-            mint: .usdf,
-            currencyName: "USDF",
+        let vm = BuyPaymentCurrencyViewModel(
+            targetMint: .jeffy,
+            targetName: "Jeffy",
+            entered: FiatAmount(value: 1, currency: .cad),
             session: sessionContainer.session,
             ratesController: sessionContainer.ratesController
         )
-        vm.enteredAmount = "1"
 
         let router = AppRouter()
         router.present(.balance)
-        await vm.amountEnteredAction(router: router)
+        router.presentNested(.buy(.jeffy))
+
+        let usdfRow = try #require(vm.rows.first { $0.stored.mint == .usdf })
+        await vm.select(usdfRow, router: router)
 
         #expect(vm.dialogItem?.title == "Rate Unavailable")
-        #expect(!router.presentedSheets.contains(.addMoney(.buyCurrency)))
+        #expect(router[.buy].isEmpty, "A pinless selection must not push the summary")
     }
 
     // MARK: - Scenario E (sell)

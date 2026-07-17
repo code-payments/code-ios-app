@@ -27,28 +27,9 @@ struct AddMoneyGateTests {
         )
     }
 
-    // MARK: - Buy
-
-    @Test("Buy pre-check adds money when there is no USDF balance")
-    func buy_noBalance_addsMoney() {
-        let session = MockSession()
-        session.usdfReserveBalance = nil
-        #expect(shouldAddMoneyBeforeBuy(session: session) == true)
-    }
-
-    @Test("Buy pre-check adds money when the USDF balance is zero")
-    func buy_zeroBalance_addsMoney() throws {
-        let session = MockSession()
-        session.usdfReserveBalance = try makeUSDFBalance(quarks: 0)
-        #expect(shouldAddMoneyBeforeBuy(session: session) == true)
-    }
-
-    @Test("Buy pre-check opens the buy sheet when USDF reserves exist")
-    func buy_positiveBalance_opensBuy() throws {
-        let session = MockSession()
-        session.usdfReserveBalance = try makeUSDFBalance(quarks: 5_000_000)
-        #expect(shouldAddMoneyBeforeBuy(session: session) == false)
-    }
+    // Buy has no pre-gate anymore: the amount screen always opens and its
+    // action button becomes an Add Money CTA when nothing is spendable
+    // (covered by BuyAmountViewModelTests).
 
     // MARK: - Launch
 

@@ -99,6 +99,25 @@ final class SwapService: Sendable {
                     completion(.failure(.invalidSwap(reasons: [])))
                     return
                 }
+            case .swap(let sourceMint, let targetMint):
+                for mint in [sourceMint, targetMint] {
+                    guard mint.vmMetadata != nil else {
+                        logger.error("Swap mint missing VM metadata", metadata: [
+                            "symbol": "\(mint.symbol)",
+                            "mint": "\(mint.address.base58)"
+                        ])
+                        completion(.failure(.invalidSwap(reasons: [])))
+                        return
+                    }
+                    guard mint.launchpadMetadata != nil else {
+                        logger.error("Swap mint missing launchpad metadata", metadata: [
+                            "symbol": "\(mint.symbol)",
+                            "mint": "\(mint.address.base58)"
+                        ])
+                        completion(.failure(.invalidSwap(reasons: [])))
+                        return
+                    }
+                }
             case .withdraw:
                 // No VM / launchpad validation: the destination is USDC (an external
                 // SPL token) and validation is server-side via CoinbaseStableSwapperSwapHandler.
@@ -184,6 +203,14 @@ final class SwapService: Sendable {
                         completion(.failure(.unknown))
                         return
                     }
+
+                    // Log the serialized transaction so it can be diffed against
+                    // the server's `expected_transaction` when `signatureError`
+                    // comes back (parity with the new-currency path).
+                    logger.debug("Swap transaction built", metadata: [
+                        "txBytes": "\(transaction.encode().hexEncodedString())"
+                    ])
+
                     let signatures = transaction.signatures(using: owner, swapAuthority)
                     pendingSwap.withLock { $0.signature = signatures.first }
 

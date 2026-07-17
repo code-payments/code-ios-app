@@ -167,4 +167,49 @@ struct TransactionBuilderSwapErrorTests {
 
         #expect(transaction.message.instructions.count == 9)
     }
+
+    @Test("Stateful parameters with a swap direction build a 12-instruction transaction")
+    func statefulParameters_swapDirection_buildsTransaction() throws {
+        let paymentMint = MintMetadata(
+            address: Self.testKey(20),
+            decimals: 10,
+            name: "Pay Token",
+            symbol: "PAY",
+            description: "",
+            imageURL: nil,
+            vmMetadata: VMMetadata(
+                vm: Self.testKey(21),
+                authority: Self.testKey(22),
+                lockDurationInDays: 21
+            ),
+            launchpadMetadata: LaunchpadMetadata(
+                currencyConfig: Self.testKey(23),
+                liquidityPool: Self.testKey(24),
+                seed: Self.testKey(25),
+                authority: Self.testKey(22),
+                mintVault: Self.testKey(26),
+                coreMintVault: Self.testKey(27),
+                coreMintFees: nil,
+                supplyFromBonding: 50_000,
+                sellFeeBps: 100
+            )
+        )
+
+        let transaction = try buildSwap(
+            responseParams: Self.makeStatefulParameters(),
+            direction: .swap(from: paymentMint, to: Self.launchpadMint)
+        )
+
+        #expect(transaction.message.instructions.count == 12)
+    }
+
+    @Test("New-currency parameters with a swap direction throw unsupportedServerParameters")
+    func newCurrencyParameters_swapDirection_throwsUnsupported() {
+        #expect(throws: SwapTransactionBuildError.unsupportedServerParameters) {
+            try self.buildSwap(
+                responseParams: Self.makeNewCurrencyParameters(),
+                direction: .swap(from: Self.launchpadMint, to: Self.launchpadMint)
+            )
+        }
+    }
 }

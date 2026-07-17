@@ -427,8 +427,12 @@ class Session {
             return .insufficient(shortfall: nil)
         }
 
-        let rate = ratesController.rateForBalanceCurrency()
-        let exchangedBalance = balance.computeExchangedValue(with: rate)
+        // Value the balance at the REQUESTED amount's rate, not the live cache.
+        // Pinned-rate callers (the buy confirmation) would otherwise compare —
+        // and `subtracting` — across two different rates: a rule-4 violation
+        // that trips ExchangedFiat's same-rate precondition when the live rate
+        // drifts after the pin. Live-rate callers are unaffected (same rate).
+        let exchangedBalance = balance.computeExchangedValue(with: exchangedFiat.currencyRate)
 
         if exchangedFiat.onChainAmount <= exchangedBalance.onChainAmount {
             // Sufficient funds - send the requested amount
@@ -645,6 +649,47 @@ class Session {
         logger.info("buying", metadata: ["amount": "\(amount.nativeAmount.formatted())", "symbol": "\(token.symbol)"])
 
         return try await client.buy(amount: amount, verifiedState: verifiedState, of: token.metadata, owner: owner)
+    }
+
+    /// Buys `mint` paying with another launchpad currency. `amount` is denominated
+    /// in the payment token and is the gross debit — the payment pool's sell fee
+    /// is implicit in the swap.
+    @discardableResult
+    func buy(amount: ExchangedFiat, with paymentMint: PublicKey, verifiedState: VerifiedState, of mint: PublicKey) async throws -> SwapId {
+        try assertFresh(verifiedState, operation: "buyWithCurrency", currency: amount.nativeAmount.currency, mint: paymentMint)
+
+        guard let supply = verifiedState.supplyFromBonding else {
+            throw Error.missingSupply
+        }
+
+        let paymentToken = try await fetchMintMetadata(mint: paymentMint)
+        let token = try await fetchMintMetadata(mint: mint)
+
+        // Cap to the on-chain balance when rounding pushed quarks above it —
+        // the confirmation gate should have prevented this (sell parity).
+        let amountForIntent: ExchangedFiat
+        if let balance = balance(for: paymentMint), amount.onChainAmount.quarks > balance.quarks {
+            logger.error("Buy-with-currency workaround branch fired — gating should have prevented this", metadata: [
+                "amountQuarks": "\(amount.onChainAmount.quarks)",
+                "balanceQuarks": "\(balance.quarks)",
+                "paymentMint": "\(paymentMint.base58)",
+            ])
+            amountForIntent = ExchangedFiat.compute(
+                onChainAmount: TokenAmount(quarks: balance.quarks, mint: paymentMint),
+                rate: verifiedState.rate,
+                supplyQuarks: supply
+            )
+        } else {
+            amountForIntent = amount
+        }
+
+        logger.info("buying with currency", metadata: [
+            "amount": "\(amountForIntent.nativeAmount.formatted())",
+            "paymentSymbol": "\(paymentToken.symbol)",
+            "symbol": "\(token.symbol)"
+        ])
+
+        return try await client.buy(amount: amountForIntent, with: paymentToken.metadata, verifiedState: verifiedState, of: token.metadata, owner: owner)
     }
 
     @discardableResult
