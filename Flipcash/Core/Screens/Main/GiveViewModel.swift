@@ -93,7 +93,6 @@ final class GiveViewModel {
 
                 session.showCashBill(
                     .init(
-                        kind: .cash,
                         exchangedFiat: amountToSend,
                         received: false,
                         verifiedState: pinnedState

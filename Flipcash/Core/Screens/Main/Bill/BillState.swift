@@ -10,21 +10,16 @@ import FlipcashCore
 import FlipcashUI
 
 struct BillState {
-    
+
     var bill: Bill?
-    var shouldShowToast: Bool
-    
+
     var primaryAction: PrimaryAction?
     var secondaryAction: SecondaryAction?
-    
-    var hideBillButtons: Bool
-    
-    init(bill: Bill?, shouldShowDeposit: Bool = false, primaryAction: PrimaryAction? = nil, secondaryAction: SecondaryAction? = nil, hideBillButtons: Bool = false) {
+
+    init(bill: Bill?, primaryAction: PrimaryAction? = nil, secondaryAction: SecondaryAction? = nil) {
         self.bill            = bill
-        self.shouldShowToast = shouldShowDeposit
         self.primaryAction   = primaryAction
         self.secondaryAction = secondaryAction
-        self.hideBillButtons = hideBillButtons
     }
 }
 
@@ -41,7 +36,6 @@ extension BillState {
         var asset: Asset
         var title: String
         var action: ThrowingAction
-        var loadingStateDelayMillisenconds: Int? = nil
     }
 }
 

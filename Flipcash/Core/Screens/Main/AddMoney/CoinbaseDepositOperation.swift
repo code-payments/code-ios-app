@@ -141,8 +141,7 @@ final class CoinbaseDepositOperation {
                     partnerUserRef: userRef,
                     phoneNumberVerifiedAt: .now,
                     agreementAcceptedAt: .now
-                ),
-                idempotencyKey: nil
+                )
             )
             // A stuck deposit must be traceable with Coinbase from the log alone.
             logger.info("Coinbase order created", metadata: [

@@ -24,12 +24,6 @@ extension UIApplication {
             .first
     }
 
-    /// The first connected `UIWindowScene` in the `.foregroundActive` state.
-    var foregroundWindowScene: UIWindowScene? {
-        connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .first { $0.activationState == .foregroundActive }
-    }
 
     /// The key window across all connected scenes.
     var currentKeyWindow: UIWindow? {

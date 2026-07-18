@@ -18,10 +18,7 @@ final class MockOnrampOrdering: OnrampOrdering {
     private(set) var createOrderCalls: [OnrampOrderRequest] = []
     var createOrderHandler: ((OnrampOrderRequest) async throws -> OnrampOrderResponse)?
 
-    func createOrder(
-        request: OnrampOrderRequest,
-        idempotencyKey: UUID?
-    ) async throws -> OnrampOrderResponse {
+    func createOrder(request: OnrampOrderRequest) async throws -> OnrampOrderResponse {
         createOrderCalls.append(request)
         guard let handler = createOrderHandler else {
             return .fixture()

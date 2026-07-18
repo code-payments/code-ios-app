@@ -18,10 +18,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     let container: Container
 
     private var sessionContainer: SessionContainer? {
-        if case .loggedIn(let container) = container.sessionAuthenticator.state {
-            return container
-        }
-        return nil
+        container.sessionAuthenticator.loggedInContainer
     }
 
     // MARK: - Init -
@@ -235,12 +232,6 @@ private extension AppDelegate {
             bar.shadowImage = background
         }
 
-        // Segmented Control
-        let segmented = UISegmentedControl.appearance()
-        segmented.setTitleTextAttributes([
-            .font: UIFont.appTextMedium,
-            .foregroundColor: UIColor(.textMain),
-        ], for: .normal)
     }
 }
 

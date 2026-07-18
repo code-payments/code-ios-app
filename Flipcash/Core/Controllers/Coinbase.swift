@@ -28,7 +28,7 @@ public actor Coinbase {
     
     // MARK: - API -
 
-    public func createOrder(request: OnrampOrderRequest, idempotencyKey: UUID? = nil) async throws -> OnrampOrderResponse {
+    public func createOrder(request: OnrampOrderRequest) async throws -> OnrampOrderResponse {
 
         let url = config.baseURL.appendingPathComponent("onramp/orders")
         
@@ -43,10 +43,7 @@ public actor Coinbase {
         urlRequest.httpMethod = "POST"
         urlRequest.httpBody   = bodyData
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let key = idempotencyKey {
-            urlRequest.setValue(key.uuidString, forHTTPHeaderField: "Idempotency-Key")
-        }
-        
+
         // Bearer token (JWT per CDP docs) — scoped to POST /platform/v2/onramp/orders
         let token = try await config.bearerTokenProvider("POST", "platform/v2/onramp/orders")
         urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")

@@ -255,7 +255,6 @@ class CurrencyLaunchProcessingViewModel {
         }
 
         return Session.BillDescription(
-            kind: .cash,
             exchangedFiat: balanceFiat,
             received: true,
             verifiedState: state

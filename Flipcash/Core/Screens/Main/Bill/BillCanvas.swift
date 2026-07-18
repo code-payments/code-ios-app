@@ -15,15 +15,13 @@ struct BillCanvas: UIViewControllerRepresentable {
     var centerOffset: CGSize
     var preferredCanvasSize: CGSize
     var bill: BillState.Bill?
-    var action: VoidAction?
     var dismissHandler: VoidAction?
-    
-    init(state: PresentationState, centerOffset: CGSize = .zero, preferredCanvasSize: CGSize, bill: BillState.Bill?, action: VoidAction? = nil, dismissHandler: VoidAction? = nil) {
+
+    init(state: PresentationState, centerOffset: CGSize = .zero, preferredCanvasSize: CGSize, bill: BillState.Bill?, dismissHandler: VoidAction? = nil) {
         self.state               = state
         self.centerOffset        = centerOffset
         self.preferredCanvasSize = preferredCanvasSize
         self.bill                = bill
-        self.action              = action
         self.dismissHandler      = dismissHandler
     }
     
@@ -38,7 +36,6 @@ struct BillCanvas: UIViewControllerRepresentable {
     
     func updateUIViewController(_ uiViewController: UIViewController, context: Context) {
         if let canvas = uiViewController as? _BillCanvasController {
-            canvas.action = action
             canvas.dismissHandler = dismissHandler
             canvas.update(presentationState: state, bill: bill)
         }
@@ -48,8 +45,7 @@ struct BillCanvas: UIViewControllerRepresentable {
 // MARK: - _BillCanvasController -
 
 private class _BillCanvasController: UIViewController {
-    
-    var action: VoidAction?
+
     var dismissHandler: VoidAction?
 
     private var centerOffset: CGSize
@@ -107,8 +103,7 @@ private class _BillCanvasController: UIViewController {
                     data: payload.codeData(),
                     canvasSize: canvasSize(),
                     backgroundColors: parsedColors,
-                    mint: mint,
-                    action: action
+                    mint: mint
                 )
             }
 
@@ -116,8 +111,7 @@ private class _BillCanvasController: UIViewController {
             BillView(
                 fiat: .zero(in: .usd),
                 data: Data(),
-                canvasSize: canvasSize(),
-                action: action
+                canvasSize: canvasSize()
             )
         }
     }

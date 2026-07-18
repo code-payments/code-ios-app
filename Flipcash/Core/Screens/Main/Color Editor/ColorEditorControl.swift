@@ -24,23 +24,6 @@ public struct ColorEditorControl: View {
     
     // MARK: - Init -
     
-    public init(color: Binding<Color>) {
-        self._colors = Binding<[Color]>(
-            get: { [color.wrappedValue] },
-            set: { colors in
-                if let first = colors.first {
-                    color.wrappedValue = first
-                }
-            }
-        )
-        
-        self._stops = State(
-            initialValue: [
-                GradientStop(from: color.wrappedValue)
-            ]
-        )
-    }
-    
     public init(colors: Binding<[Color]>) {
         self._colors = colors
         self._stops  = State(initialValue: Self.initialStops(from: colors.wrappedValue))
