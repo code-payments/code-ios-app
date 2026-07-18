@@ -17,13 +17,12 @@ struct CurrencyLaunchProcessingScreen: View {
 
     // MARK: - Init -
 
-    init(swapId: SwapId, launchedMint: PublicKey, currencyName: String, launchAmount: ExchangedFiat, fundingMethod: CurrencyLaunchProcessingViewModel.FundingMethod) {
+    init(swapId: SwapId, launchedMint: PublicKey, currencyName: String, launchAmount: ExchangedFiat) {
         _viewModel = State(wrappedValue: CurrencyLaunchProcessingViewModel(
             swapId: swapId,
             launchedMint: launchedMint,
             currencyName: currencyName,
-            launchAmount: launchAmount,
-            fundingMethod: fundingMethod
+            launchAmount: launchAmount
         ))
     }
 

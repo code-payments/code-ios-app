@@ -14,7 +14,6 @@ extension Analytics {
     enum GeneralEvent: String, AnalyticsEvent {
         case autoLoginComplete     = "Auto-login complete"
         case completeOnboarding    = "Complete Onboarding"
-        case cancelPendingPurchase = "Cancel Pending Purchase"
     }
 
     enum AccountEvent: String, AnalyticsEvent {
@@ -51,8 +50,6 @@ extension Analytics {
         case showConfirmPhone     = "Onramp: Show Confirm Phone"
         case showEnterEmail       = "Onramp: Show Enter Email"
         case showConfirmEmail     = "Onramp: Show Confirm Email"
-        case invokePayment        = "Onramp: Invoke Payment Custom"
-        case completed            = "Onramp: Completed"
     }
 
     enum SendEvent: String, AnalyticsEvent {
@@ -94,8 +91,6 @@ extension Analytics {
 
     enum CurrencyLaunchEvent: String, AnalyticsEvent {
         case launchWithReserves = "Currency Launch With Reserves"
-        case launchWithPhantom  = "Currency Launch With Phantom"
-        case launchWithCoinbase = "Currency Launch With Coinbase"
     }
 
     enum DeeplinkEvent: String, AnalyticsEvent {
@@ -262,36 +257,6 @@ extension DepositMethod {
     }
 }
 
-// MARK: - Onramp -
-
-extension Analytics {
-    static func onrampInvokePayment(amount: FiatAmount) {
-        var properties: [Property: AnalyticsValue] = [:]
-
-        properties[.fiat]     = amount.doubleValue
-        properties[.currency] = amount.currency.rawValue
-
-        track(event: OnrampEvent.invokePayment, properties: properties)
-    }
-
-    static func onrampCompleted(amount: FiatAmount?, successful: Bool, error: Error?) {
-        var properties: [Property: AnalyticsValue] = [
-            .state: successful ? String.success : String.failure,
-        ]
-
-        if let amount {
-            properties[.fiat]     = amount.doubleValue
-            properties[.currency] = amount.currency.rawValue
-        }
-
-        track(
-            event: OnrampEvent.completed,
-            properties: properties,
-            error: error
-        )
-    }
-}
-
 // MARK: - Wallet -
 
 extension Analytics {
@@ -387,13 +352,8 @@ extension Analytics {
 extension Analytics {
     enum Property: String {
 
-        case id                = "ID"
         case ownerPublicKey    = "Owner Public Key"
-        case autoCompleteCount = "Auto-complete count"
-        case inputChangeCount  = "Input change count"
-        case result            = "Result"
         case grabTime          = "Grab Time"
-        case time              = "Time"
 
         case state             = "State"
         case source            = "Source"
@@ -403,8 +363,6 @@ extension Analytics {
         case fiat              = "Fiat"
         case currency          = "Currency"
         case fx                = "Exchange Rate"
-        case animation         = "Animation"
-        case rendezvous        = "Rendezvous"
 
         case type              = "Type"
         case error             = "Error"

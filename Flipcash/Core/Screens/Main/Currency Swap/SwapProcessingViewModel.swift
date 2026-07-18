@@ -28,7 +28,7 @@ class SwapProcessingViewModel {
         case .success:
             if let exchangedFiat {
                 switch swapType {
-                case .buyWithReserves, .buyWithCurrency, .launchWithReserves:
+                case .buyWithReserves, .buyWithCurrency:
                     return "\(exchangedFiat.nativeAmount.formatted()) of \(currencyName)"
                 case .sell:
                     return "\(exchangedFiat.nativeAmount.formatted()) of USDF"
@@ -46,7 +46,7 @@ class SwapProcessingViewModel {
             return "This transaction typically takes about a minute. You may leave the app while it completes"
         case .success:
             switch swapType {
-            case .buyWithReserves, .buyWithCurrency, .launchWithReserves, .sell:
+            case .buyWithReserves, .buyWithCurrency, .sell:
                 return "was just added to your Flipcash wallet"
             }
         case .failed:
@@ -69,7 +69,7 @@ class SwapProcessingViewModel {
         switch displayState {
         case .processing:
             switch swapType {
-            case .buyWithReserves, .buyWithCurrency, .launchWithReserves:
+            case .buyWithReserves, .buyWithCurrency:
                 "Purchasing \(currencyName)"
             case .sell:
                 "Selling \(currencyName)"
@@ -182,7 +182,7 @@ class SwapProcessingViewModel {
 
     private func trackTransaction(successful: Bool) {
         switch swapType {
-        case .buyWithReserves, .launchWithReserves:
+        case .buyWithReserves:
             Analytics.tokenPurchase(method: .purchaseWithReserves, exchangedFiat: amount, successful: successful)
         case .buyWithCurrency:
             Analytics.tokenPurchase(method: .purchaseWithCurrency, exchangedFiat: amount, successful: successful)
@@ -213,6 +213,5 @@ enum SwapError: Error {
 nonisolated enum SwapType: CaseIterable {
     case buyWithReserves
     case buyWithCurrency
-    case launchWithReserves
     case sell
 }

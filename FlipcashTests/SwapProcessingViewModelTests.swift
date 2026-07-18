@@ -12,12 +12,11 @@ import FlipcashCore
 @MainActor
 struct SwapProcessingViewModelTests {
 
-    @Test("SwapType exposes the reserves, currency-paid, launch, and sell cases")
+    @Test("SwapType exposes the reserves, currency-paid, and sell cases")
     func swapType_exposesExpectedCases() {
-        #expect(SwapType.allCases.count == 4)
+        #expect(SwapType.allCases.count == 3)
         #expect(SwapType.allCases.contains(.buyWithReserves))
         #expect(SwapType.allCases.contains(.buyWithCurrency))
-        #expect(SwapType.allCases.contains(.launchWithReserves))
         #expect(SwapType.allCases.contains(.sell))
     }
 
@@ -33,7 +32,6 @@ struct SwapProcessingViewModelTests {
         }
         #expect(makeViewModel(.buyWithReserves).navigationTitle == "Purchasing TestCoin")
         #expect(makeViewModel(.buyWithCurrency).navigationTitle == "Purchasing TestCoin")
-        #expect(makeViewModel(.launchWithReserves).navigationTitle == "Purchasing TestCoin")
         #expect(makeViewModel(.sell).navigationTitle == "Selling TestCoin")
     }
 }

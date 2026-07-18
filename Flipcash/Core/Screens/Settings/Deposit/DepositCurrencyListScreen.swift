@@ -13,13 +13,8 @@ struct DepositCurrencyListScreen: View {
 
     @Environment(Session.self) private var session
     @Environment(RatesController.self) private var ratesController
-    @Environment(AppRouter.self) private var router
 
-    @State private var selectedMint: PublicKey?
-
-    /// When set, selecting a currency calls this instead of pushing
-    /// `.depositAddress` on the router stack.
-    private let onSelect: ((PublicKey) -> Void)?
+    private let onSelect: (PublicKey) -> Void
 
     // Skip session.balances(for:) to avoid filtering out zero-balance currencies.
     // For deposits, we want to show every currency the user has an account for.
@@ -33,8 +28,7 @@ struct DepositCurrencyListScreen: View {
         }
     }
 
-    init(selectedMint: PublicKey? = nil, onSelect: ((PublicKey) -> Void)? = nil) {
-        _selectedMint = State(initialValue: selectedMint)
+    init(onSelect: @escaping (PublicKey) -> Void) {
         self.onSelect = onSelect
     }
 
@@ -63,29 +57,11 @@ struct DepositCurrencyListScreen: View {
         }
         .navigationTitle("Select Currency")
         .toolbarTitleDisplayMode(.inline)
-        .onChange(of: balances, initial: true) {
-            handleAutoSelect()
-        }
     }
 
     // MARK: - Actions -
 
     private func selectCurrency(_ balance: ExchangedBalance) {
-        navigate(to: balance.stored.mint)
-    }
-
-    private func handleAutoSelect() {
-        guard let mint = selectedMint,
-              balances.contains(where: { $0.stored.mint == mint }) else { return }
-        selectedMint = nil
-        navigate(to: mint)
-    }
-
-    private func navigate(to mint: PublicKey) {
-        if let onSelect {
-            onSelect(mint)
-        } else {
-            router.push(.depositAddress(mint))
-        }
+        onSelect(balance.stored.mint)
     }
 }

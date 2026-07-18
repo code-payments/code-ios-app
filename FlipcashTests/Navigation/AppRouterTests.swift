@@ -340,7 +340,6 @@ struct AppRouterTests {
             AppRouter.Destination.currencyInfoForDeposit(.usdc),
             AppRouter.Destination.transactionHistory(.usdc),
             AppRouter.Destination.give(.usdc),
-            AppRouter.Destination.depositAddress(.usdc),
         ]
     )
     func destination_payload_returnsMintForKeyedCases(_ destination: AppRouter.Destination) {
@@ -354,8 +353,6 @@ struct AppRouterTests {
             AppRouter.Destination.currencyCreationSummary,
             AppRouter.Destination.currencyCreationWizard,
             AppRouter.Destination.settingsMyAccount,
-            AppRouter.Destination.deposit,
-            AppRouter.Destination.depositCurrencyList,
             AppRouter.Destination.withdraw,
         ]
     )

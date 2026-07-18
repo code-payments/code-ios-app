@@ -45,15 +45,6 @@ extension AppRouter {
         case settingsAccountSelection
         case settingsApplicationLogs
         case accessKey
-        /// USDC → USDF deposit education screen with a "Deposit Other Flipcash
-        /// Currencies" escape hatch into the currency picker.
-        case deposit
-        case depositCurrencyList
-        /// Direct deposit address screen for `mint` — the VM deposit address,
-        /// which for USDF accepts USDF tokens directly. Distinct from
-        /// `.usdcDepositAddress`, which shows the authority pubkey that accepts
-        /// USDC for 1:1 conversion to USDF.
-        case depositAddress(PublicKey)
         case withdraw
 
         // Conversation flow
@@ -76,8 +67,7 @@ extension AppRouter {
                 return .balance
             case .settingsMyAccount, .settingsAdvancedFeatures, .settingsAdvancedBetaFeatures,
                  .settingsAppSettings, .settingsBetaFlags, .settingsAccountSelection,
-                 .settingsApplicationLogs, .accessKey, .deposit, .depositCurrencyList,
-                 .depositAddress, .withdraw:
+                 .settingsApplicationLogs, .accessKey, .withdraw:
                 return .settings
             case .dmConversation:
                 return .send
@@ -109,9 +99,6 @@ extension AppRouter {
             case .settingsAccountSelection:     "settingsAccountSelection"
             case .settingsApplicationLogs:      "settingsApplicationLogs"
             case .accessKey:                    "accessKey"
-            case .deposit:                      "deposit"
-            case .depositCurrencyList:          "depositCurrencyList"
-            case .depositAddress:               "depositAddress"
             case .withdraw:                     "withdraw"
             case .dmConversation:               "dmConversation"
             }
@@ -126,8 +113,7 @@ extension AppRouter {
                  .currencyInfoForDeposit(let mint),
                  .transactionHistory(let mint),
                  .give(let mint),
-                 .withdrawCurrency(let mint),
-                 .depositAddress(let mint):
+                 .withdrawCurrency(let mint):
                 return mint.base58
             case .dmConversation(.existing(let conversationID)):
                 return conversationID.description
@@ -137,8 +123,7 @@ extension AppRouter {
                  .usdcDepositEducation, .usdcDepositAddress,
                  .settingsMyAccount, .settingsAdvancedFeatures, .settingsAdvancedBetaFeatures,
                  .settingsAppSettings, .settingsBetaFlags, .settingsAccountSelection,
-                 .settingsApplicationLogs, .accessKey, .deposit, .depositCurrencyList,
-                 .withdraw:
+                 .settingsApplicationLogs, .accessKey, .withdraw:
                 return nil
             }
         }

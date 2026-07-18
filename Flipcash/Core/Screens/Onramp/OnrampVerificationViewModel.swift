@@ -163,9 +163,8 @@ final class OnrampVerificationViewModel<P: PhoneVerifying, E: EmailVerifying>: V
 // MARK: - Production wiring -
 
 /// Default concrete combination of phone + email verifiers. Use this
-/// typealias at storage sites (e.g. `BuyAmountViewModel`,
-/// `CurrencyCreationWizardScreen`) so they don't have to spell out the
-/// generic parameters.
+/// typealias at storage sites (e.g. `AddMoneyAmountViewModel`) so they
+/// don't have to spell out the generic parameters.
 typealias OnrampVerification = OnrampVerificationViewModel<
     PhoneVerificationViewModel,
     EmailVerificationViewModel

@@ -12,15 +12,13 @@ import FlipcashCore
 struct CurrencyLaunchProcessingViewModelTests {
 
     private func makeViewModel(
-        currencyName: String = "Test Coin",
-        fundingMethod: CurrencyLaunchProcessingViewModel.FundingMethod = .reserves
+        currencyName: String = "Test Coin"
     ) -> CurrencyLaunchProcessingViewModel {
         CurrencyLaunchProcessingViewModel(
             swapId: .generate(),
             launchedMint: .usdf,
             currencyName: currencyName,
-            launchAmount: ExchangedFiat.mockOne,
-            fundingMethod: fundingMethod
+            launchAmount: ExchangedFiat.mockOne
         )
     }
 
@@ -53,10 +51,4 @@ struct CurrencyLaunchProcessingViewModelTests {
         #expect(vm.actionTitle == "OK")
     }
 
-    @Test("Funding method maps to analytics event")
-    func fundingAnalyticsEvent() {
-        #expect(makeViewModel(fundingMethod: .reserves).analyticsEvent == .launchWithReserves)
-        #expect(makeViewModel(fundingMethod: .phantom).analyticsEvent == .launchWithPhantom)
-        #expect(makeViewModel(fundingMethod: .coinbase).analyticsEvent == .launchWithCoinbase)
-    }
 }

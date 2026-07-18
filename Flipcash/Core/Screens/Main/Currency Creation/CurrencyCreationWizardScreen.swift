@@ -225,8 +225,7 @@ struct CurrencyCreationWizardScreen: View {
                     swapId: context.swapId,
                     launchedMint: context.launchedMint,
                     currencyName: context.currencyName,
-                    launchAmount: context.amount,
-                    fundingMethod: .reserves
+                    launchAmount: context.amount
                 )
                 .environment(\.dismissParentContainer, {
                     // Sheet dismiss unmounts the wizard, taking the
@@ -476,9 +475,6 @@ struct CurrencyCreationWizardScreen: View {
             let totalLaunchCost = self.totalLaunchCost
             let displayName = state.currencyName
 
-            // Pack wizard state into the operation payload. The operation
-            // owns the launch + buyNewCurrency sequence; the wizard catches
-            // its thrown errors and routes them to the right dialog.
             guard let nameAttestation = state.nameAttestation,
                   let iconAttestation = state.iconAttestation,
                   let descriptionAttestation = state.descriptionAttestation,
@@ -496,26 +492,17 @@ struct CurrencyCreationWizardScreen: View {
                 return
             }
 
-            let attestations = PaymentOperation.LaunchAttestations(
-                description: state.currencyDescription,
-                billColors: state.backgroundColors.map { $0.hexString },
-                icon: iconData,
-                nameAttestation: nameAttestation,
-                descriptionAttestation: descriptionAttestation,
-                iconAttestation: iconAttestation
-            )
-
             var launchedMint: PublicKey?
             let swapId: SwapId
             do {
                 let mint = try await session.launchCurrency(
                     name: displayName,
-                    description: attestations.description,
-                    billColors: attestations.billColors,
-                    icon: attestations.icon,
-                    nameAttestation: attestations.nameAttestation,
-                    descriptionAttestation: attestations.descriptionAttestation,
-                    iconAttestation: attestations.iconAttestation
+                    description: state.currencyDescription,
+                    billColors: state.backgroundColors.map { $0.hexString },
+                    icon: iconData,
+                    nameAttestation: nameAttestation,
+                    descriptionAttestation: descriptionAttestation,
+                    iconAttestation: iconAttestation
                 )
                 launchedMint = mint
                 swapId = try await session.buyNewCurrency(

@@ -95,23 +95,6 @@ struct DestinationView: View {
                 .navigationTitle("Access Key")
                 .toolbarTitleDisplayMode(.inline)
 
-        case .deposit:
-            USDCDepositEducationScreen(
-                onNext: { sessionContainer.appRouter.push(.usdcDepositAddress) },
-                onDepositOtherCurrencies: {
-                    sessionContainer.appRouter.push(.depositCurrencyList)
-                }
-            )
-
-        case .depositCurrencyList:
-            DepositCurrencyListScreen()
-
-        case .depositAddress(let mint):
-            // Renders empty if the balance vanished between push and render.
-            if let screen = DepositScreen.currencyDeposit(mint: mint, session: sessionContainer.session) {
-                screen
-            }
-
         case .withdraw:
             PreselectedWithdrawRoot(
                 mint: .usdf,

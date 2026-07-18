@@ -10,8 +10,6 @@ import FlipcashUI
 /// The `.addMoney` sheet — the "Select Method" deposit picker.
 struct AddMoneyStartScreen: View {
 
-    let context: AddMoneyContext
-
     @Environment(AppRouter.self) private var router
     @Environment(Session.self) private var session
 
