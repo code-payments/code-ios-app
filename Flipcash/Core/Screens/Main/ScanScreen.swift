@@ -343,11 +343,11 @@ private struct RoutedSheet: View {
             // Rendering EmptyView is a defensive no-op; the misuse is already
             // logged by the router when the stack is empty.
             EmptyView()
-        case .addMoney(let context):
+        case .addMoney:
             // Add Money entered as a root sheet — the give-cash no-balance case
             // (Scan / deeplink). Buy & launch shortfalls present it *nested* over
             // their gating sheet via `presentNested(.addMoney(context))`.
-            AddMoneySheetRoot(context: context)
+            AddMoneySheetRoot()
         case .downloadApp:
             NavigationStack(path: $router[.downloadApp]) {
                 DownloadAppScreen()

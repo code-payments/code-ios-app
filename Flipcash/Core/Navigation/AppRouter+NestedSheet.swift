@@ -65,8 +65,8 @@ private struct NestedSheetRootView: View {
             case .sendAmount(let contact):
                 SendAmountSheetRoot(contact: contact)
 
-            case .addMoney(let context):
-                AddMoneySheetRoot(context: context)
+            case .addMoney:
+                AddMoneySheetRoot()
 
             case .balance, .settings, .give, .discover, .downloadApp, .send:
                 // Root-only sheets; `presentNested` logs a warning if one
@@ -112,16 +112,14 @@ private struct BuySheetRoot: View {
     }
 }
 
-/// Root view for the `.addMoney(context)` sheet — the content-sized
+/// Root view for the `.addMoney` sheet — the content-sized
 /// `AddMoneyStartScreen` prompt.
 struct AddMoneySheetRoot: View {
-
-    let context: AddMoneyContext
 
     @Environment(AppRouter.self) private var router
 
     var body: some View {
-        AddMoneyStartScreen(context: context)
+        AddMoneyStartScreen()
             .environment(\.dismissParentContainer, { router.dismissSheet() })
     }
 }

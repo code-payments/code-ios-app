@@ -26,7 +26,6 @@ class CurrencyLaunchProcessingViewModel {
     let currencyName: String
     let launchAmount: ExchangedFiat
     let launchedMint: PublicKey
-    let fundingMethod: FundingMethod
 
     // MARK: - Private -
 
@@ -34,12 +33,11 @@ class CurrencyLaunchProcessingViewModel {
 
     // MARK: - Init -
 
-    init(swapId: SwapId, launchedMint: PublicKey, currencyName: String, launchAmount: ExchangedFiat, fundingMethod: FundingMethod) {
+    init(swapId: SwapId, launchedMint: PublicKey, currencyName: String, launchAmount: ExchangedFiat) {
         self.swapId = swapId
         self.launchedMint = launchedMint
         self.currencyName = currencyName
         self.launchAmount = launchAmount
-        self.fundingMethod = fundingMethod
     }
 
     // MARK: - Copy -
@@ -80,11 +78,7 @@ class CurrencyLaunchProcessingViewModel {
     var isSuccess: Bool  { displayState == .success }
 
     var analyticsEvent: Analytics.CurrencyLaunchEvent {
-        switch fundingMethod {
-        case .reserves: .launchWithReserves
-        case .phantom:  .launchWithPhantom
-        case .coinbase: .launchWithCoinbase
-        }
+        .launchWithReserves
     }
 
     // MARK: - Actions -
@@ -267,7 +261,6 @@ class CurrencyLaunchProcessingViewModel {
     private func reportLaunchFailure(state: SwapState, reason: String) {
         logger.error("Launch swap failed", metadata: [
             "swapId": "\(swapId.publicKey.base58)",
-            "fundingMethod": "\(fundingMethod)",
             "state": "\(state)",
             "mint": "\(launchedMint.base58)",
             "reason": "\(reason)",
@@ -277,7 +270,6 @@ class CurrencyLaunchProcessingViewModel {
             reason: reason,
             metadata: [
                 "swapId": swapId.publicKey.base58,
-                "fundingMethod": "\(fundingMethod)",
                 "finalState": "\(state)",
                 "mint": launchedMint.base58,
                 "amount": launchAmount.nativeAmount.formatted(),
@@ -295,9 +287,4 @@ extension CurrencyLaunchProcessingViewModel {
         case failed
     }
 
-    enum FundingMethod: String {
-        case reserves
-        case phantom
-        case coinbase
-    }
 }

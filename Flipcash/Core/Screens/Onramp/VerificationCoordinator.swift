@@ -11,11 +11,10 @@ private let logger = Logger(label: "flipcash.verification-coordinator")
 
 /// Session-scoped coordinator for verification flows. Owns two slots:
 ///
-/// 1. **Inline flow** — `BuyAmountViewModel` / `CurrencyCreationWizardScreen`
-///    call `runGated(...)` (or `beginInlineFlow()` directly) to obtain a fresh
-///    `OnrampVerification` and mount the sheet themselves. The slot is
-///    released via `endInlineFlow(_:)` when the awaited `vm.run()` returns or
-///    throws.
+/// 1. **Inline flow** — `AddMoneyAmountViewModel` calls `runGated(...)` (or
+///    `beginInlineFlow()` directly) to obtain a fresh `OnrampVerification`
+///    and mount the sheet itself. The slot is released via
+///    `endInlineFlow(_:)` when the awaited `vm.run()` returns or throws.
 /// 2. **Fallback for out-of-flow deeplinks** — when an email verification
 ///    link fires while no inline flow is active, the coordinator constructs
 ///    its own viewmodel, publishes it on `fallbackViewModel`, and
