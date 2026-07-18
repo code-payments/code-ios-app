@@ -78,13 +78,7 @@ actor UsdcSweepOperation {
                 "owner": "\(ownerKeyPair.publicKey.base58)",
             ])
 
-            let amount = TokenAmount(quarks: account.quarks, mint: .usdc)
-            let result = try await swapper.statelessSwap(
-                fromMint: .usdc,
-                toMint: .usdf,
-                amount: amount,
-                owner: ownerKeyPair
-            )
+            let result = try await swap(quarks: account.quarks)
 
             logger.info("USDC sweep completed", metadata: [
                 "signature": "\(result.signature.base58)",
@@ -145,13 +139,7 @@ actor UsdcSweepOperation {
                         "owner": "\(ownerKeyPair.publicKey.base58)",
                     ])
 
-                    let amount = TokenAmount(quarks: available, mint: .usdc)
-                    let result = try await swapper.statelessSwap(
-                        fromMint: .usdc,
-                        toMint: .usdf,
-                        amount: amount,
-                        owner: ownerKeyPair
-                    )
+                    let result = try await swap(quarks: available)
 
                     logger.info("Retrying USDC sweep completed", metadata: [
                         "signature": "\(result.signature.base58)",
@@ -182,6 +170,16 @@ actor UsdcSweepOperation {
             await ErrorReporting.captureError(lastError, reason: "Retrying USDC sweep attempts failed")
         }
         return false
+    }
+
+    /// Swaps `quarks` of USDC to USDF for the owner and returns the result.
+    private func swap(quarks: UInt64) async throws -> StatelessSwapResult {
+        try await swapper.statelessSwap(
+            fromMint: .usdc,
+            toMint: .usdf,
+            amount: TokenAmount(quarks: quarks, mint: .usdc),
+            owner: ownerKeyPair
+        )
     }
 }
 

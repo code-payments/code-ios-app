@@ -133,21 +133,26 @@ extension StoredMintMetadata {
 }
 
 extension StoredMintMetadata {
+    /// Returns the JSON string persisted in the `socialLinks` column, or `nil` when empty.
+    nonisolated static func encodedSocialLinks(_ socialLinks: [SocialLink]) -> String? {
+        guard !socialLinks.isEmpty,
+              let data = try? JSONEncoder().encode(socialLinks) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    /// Returns the JSON string persisted in the `billColors` column, or `nil` when empty.
+    nonisolated static func encodedBillColors(_ billColors: [String]) -> String? {
+        guard !billColors.isEmpty,
+              let data = try? JSONEncoder().encode(billColors) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
     /// Creates a StoredMintMetadata from a MintMetadata for immediate display.
     /// Used when navigating from screens that already have the full metadata
     /// (e.g. Currency Discovery) to avoid a loading flash.
     init(_ metadata: MintMetadata) {
-        let encodedSocialLinks: String? = {
-            guard !metadata.socialLinks.isEmpty,
-                  let data = try? JSONEncoder().encode(metadata.socialLinks) else { return nil }
-            return String(data: data, encoding: .utf8)
-        }()
-
-        let encodedBillColors: String? = {
-            guard !metadata.billColors.isEmpty,
-                  let data = try? JSONEncoder().encode(metadata.billColors) else { return nil }
-            return String(data: data, encoding: .utf8)
-        }()
+        let encodedSocialLinks = Self.encodedSocialLinks(metadata.socialLinks)
+        let encodedBillColors = Self.encodedBillColors(metadata.billColors)
 
         self.init(
             mint: metadata.address,

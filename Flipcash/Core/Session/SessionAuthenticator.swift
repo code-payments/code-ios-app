@@ -42,10 +42,14 @@ final class SessionAuthenticator {
     private(set) var requiresForceLogout: Bool = false
 
     var isLoggedIn: Bool {
-        if case .loggedIn = state {
-            return true
-        } else {
-            return false
+        loggedInContainer != nil
+    }
+
+    /// The logged-in session container, or `nil` in any other state.
+    var loggedInContainer: SessionContainer? {
+        switch state {
+        case .loggedIn(let container): return container
+        case .loggedOut, .migrating:   return nil
         }
     }
 
@@ -415,7 +419,7 @@ final class SessionAuthenticator {
     }
     
     func deleteAndLogout() {
-        if case .loggedIn(let container) = state {
+        if let container = loggedInContainer {
             accountManager.setDeleted(
                 ownerPublicKey: container.session.owner.authorityPublicKey,
                 deleted: true
@@ -425,7 +429,7 @@ final class SessionAuthenticator {
     }
     
     func logout() {
-        if case .loggedIn(let container) = state {
+        if let container = loggedInContainer {
             container.session.prepareForLogout()
             container.pushController.prepareForLogout()
             container.usdcSweepOperation.cancel()
@@ -610,28 +614,18 @@ extension SessionAuthenticator: SessionDelegate {
     }
 }
 
-// MARK: - Errors -
-
-extension SessionAuthenticator {
-    enum Error: Swift.Error {
-        case primaryAccountNotFound
-    }
-}
-
 // MARK: - AuthenticationState -
 
 extension SessionAuthenticator {
     enum AuthenticationState {
         case loggedOut
         case migrating
-        case pending
         case loggedIn(SessionContainer)
-        
+
         var intValue: Int {
             switch self {
             case .loggedOut: return 0
             case .migrating: return 1
-            case .pending:   return 2
             case .loggedIn:  return 3
             }
         }

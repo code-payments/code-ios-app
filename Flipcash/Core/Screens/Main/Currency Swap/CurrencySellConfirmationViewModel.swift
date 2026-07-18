@@ -84,10 +84,6 @@ class CurrencySellConfirmationViewModel {
         }
     }
 
-    func reset() {
-        actionButtonState = .normal
-        pendingSwapId = nil
-    }
 
     // MARK: - Dialogs -
 

@@ -26,7 +26,7 @@ struct ContainerScreen: View {
                     IntroScreen()
                         .transition(.opacity)
 
-                case .migrating, .pending:
+                case .migrating:
                     VStack {
                         LoadingView(color: .white)
                     }

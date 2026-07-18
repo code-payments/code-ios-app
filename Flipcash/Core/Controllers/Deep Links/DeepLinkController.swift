@@ -57,7 +57,7 @@ final class DeepLinkController {
 
     func handle(open url: URL) -> DeepLinkAction? {
         
-        if case .loggedIn(let container) = sessionAuthenticator.state {
+        if let container = sessionAuthenticator.loggedInContainer {
             container.walletConnection.didReceiveURL(url: url)
         }
         
@@ -95,7 +95,7 @@ final class DeepLinkController {
                 let entropy = route.fragments[.entropy],
                 let mnemonic = MnemonicPhrase(base58EncodedEntropy: entropy.value)
             {
-                return actionForLogin(mnemonic: mnemonic)
+                return action(.accessKey(mnemonic))
             }
             
         case .cash:
@@ -104,7 +104,7 @@ final class DeepLinkController {
                 let entropy = route.fragments[.entropy],
                 let mnemonic = MnemonicPhrase(base58EncodedEntropy: entropy.value)
             {
-                return actionForReceiveRemoteSend(mnemonic: mnemonic)
+                return action(.receiveCashLink(mnemonic))
             }
             
         case .verifyEmail:
@@ -117,36 +117,38 @@ final class DeepLinkController {
                     clientData = nil
                 }
                 
-                return actionForVerificationCode(
-                    email: email,
-                    code: code,
-                    clientData: clientData
-                )
+                return action(.verifyEmail(
+                    .init(
+                        email: email,
+                        code: code,
+                        clientData: clientData
+                    )
+                ))
             }
             
         case .token(let mint):
-            return actionForCurrencyInfo(mint: mint)
+            return action(.currencyInfo(mint))
 
         case .chat(let conversationID):
-            return actionForChat(conversationID: conversationID)
+            return action(.chat(conversationID))
 
         case .chatContact(let phone):
-            return actionForChatContact(phone: phone)
+            return action(.chatContact(phone))
 
         case .chatSendCash(let conversationID):
-            return actionForChatSendCash(conversationID: conversationID)
+            return action(.chatSendCash(conversationID))
 
         case .give:
-            return actionForOpenSheet(.give)
+            return action(.openSheet(.give))
 
         case .balance:
-            return actionForOpenSheet(.balance)
+            return action(.openSheet(.balance))
 
         case .discover:
-            return actionForOpenSheet(.discover)
+            return action(.openSheet(.discover))
 
         case .send:
-            return actionForOpenSheet(.send)
+            return action(.openSheet(.send))
 
         case .unknown:
             break
@@ -155,66 +157,8 @@ final class DeepLinkController {
         return nil
     }
     
-    private func actionForLogin(mnemonic: MnemonicPhrase) -> DeepLinkAction {
-        DeepLinkAction(
-            kind: .accessKey(mnemonic),
-            sessionAuthenticator: sessionAuthenticator
-        )
-    }
-    
-    private func actionForReceiveRemoteSend(mnemonic: MnemonicPhrase) -> DeepLinkAction {
-        DeepLinkAction(
-            kind: .receiveCashLink(mnemonic),
-            sessionAuthenticator: sessionAuthenticator
-        )
-    }
-    
-    private func actionForVerificationCode(email: String, code: String, clientData: String?) -> DeepLinkAction {
-        DeepLinkAction(
-            kind: .verifyEmail(
-                .init(
-                    email: email,
-                    code: code,
-                    clientData: clientData
-                )
-            ),
-            sessionAuthenticator: sessionAuthenticator
-        )
-    }
-
-    private func actionForCurrencyInfo(mint: PublicKey) -> DeepLinkAction {
-        DeepLinkAction(
-            kind: .currencyInfo(mint),
-            sessionAuthenticator: sessionAuthenticator
-        )
-    }
-
-    private func actionForChat(conversationID: ConversationID) -> DeepLinkAction {
-        DeepLinkAction(
-            kind: .chat(conversationID),
-            sessionAuthenticator: sessionAuthenticator
-        )
-    }
-
-    private func actionForChatContact(phone: Phone) -> DeepLinkAction {
-        DeepLinkAction(
-            kind: .chatContact(phone),
-            sessionAuthenticator: sessionAuthenticator
-        )
-    }
-
-    private func actionForChatSendCash(conversationID: ConversationID) -> DeepLinkAction {
-        DeepLinkAction(
-            kind: .chatSendCash(conversationID),
-            sessionAuthenticator: sessionAuthenticator
-        )
-    }
-
-    private func actionForOpenSheet(_ sheet: AppRouter.SheetPresentation) -> DeepLinkAction {
-        DeepLinkAction(
-            kind: .openSheet(sheet),
-            sessionAuthenticator: sessionAuthenticator
-        )
+    private func action(_ kind: DeepLinkAction.Kind) -> DeepLinkAction {
+        DeepLinkAction(kind: kind, sessionAuthenticator: sessionAuthenticator)
     }
 }
 
@@ -238,7 +182,7 @@ struct DeepLinkAction {
 
         switch kind {
         case .accessKey(let mnemonic):
-            if case .loggedIn(let sessionContainer) = sessionAuthenticator.state {
+            if let sessionContainer = sessionAuthenticator.loggedInContainer {
                 guard mnemonic != sessionContainer.session.keyAccount.mnemonic else {
                     return
                 }
@@ -252,24 +196,24 @@ struct DeepLinkAction {
             }
 
         case .receiveCashLink(let mnemonic):
-            if case .loggedIn(let container) = sessionAuthenticator.state {
+            if let container = sessionAuthenticator.loggedInContainer {
                 Analytics.deeplinkRouted(kind: kind)
                 container.session.receiveCashLink(mnemonic: mnemonic)
             }
 
         case .verifyEmail(let description):
-            if case .loggedIn(let container) = sessionAuthenticator.state {
+            if let container = sessionAuthenticator.loggedInContainer {
                 container.onrampDeeplinkInbox.pendingEmailVerification = description
             }
 
         case .currencyInfo(let mint):
-            if case .loggedIn(let container) = sessionAuthenticator.state {
+            if let container = sessionAuthenticator.loggedInContainer {
                 Analytics.deeplinkRouted(kind: kind)
                 container.appRouter.navigate(to: .currencyInfo(mint))
             }
 
         case .chat(let conversationID):
-            if case .loggedIn(let container) = sessionAuthenticator.state {
+            if let container = sessionAuthenticator.loggedInContainer {
                 Analytics.deeplinkRouted(kind: kind)
                 // Push the chat onto the Send stack so it lands over the recipient
                 // picker (back reveals it); a second chat deeplink swaps the leaf
@@ -278,7 +222,7 @@ struct DeepLinkAction {
             }
 
         case .chatContact(let phone):
-            if case .loggedIn(let container) = sessionAuthenticator.state {
+            if let container = sessionAuthenticator.loggedInContainer {
                 Analytics.deeplinkRouted(kind: kind)
                 // Resolve the phone against the synced directory. No match (not a
                 // contact, or contact sync hasn't settled yet) is a silent no-op,
@@ -294,7 +238,7 @@ struct DeepLinkAction {
             }
 
         case .chatSendCash(let conversationID):
-            if case .loggedIn(let container) = sessionAuthenticator.state {
+            if let container = sessionAuthenticator.loggedInContainer {
                 let conversation = container.conversationController.conversation(withID: conversationID)
                 if let target = ResolvedContact.sendTarget(
                     in: conversation,
@@ -310,7 +254,7 @@ struct DeepLinkAction {
             }
 
         case .openSheet(let sheet):
-            if case .loggedIn(let container) = sessionAuthenticator.state {
+            if let container = sessionAuthenticator.loggedInContainer {
                 Analytics.deeplinkRouted(kind: kind)
                 if sheet == .give {
                     let rate = container.ratesController.rateForBalanceCurrency()

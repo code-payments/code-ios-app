@@ -16,21 +16,18 @@ struct SelectCurrencyScreen: View {
     @Environment(Session.self) private var session
     @Environment(RatesController.self) private var ratesController
 
-    let fixedRate: Rate?
     let action: (ExchangedBalance) -> Void
 
     private var balances: [ExchangedBalance] {
-        session.balances(for: fixedRate ?? ratesController.rateForBalanceCurrency())
+        session.balances(for: ratesController.rateForBalanceCurrency())
             .giveable
     }
 
     init(
         isPresented: Binding<Bool>,
-        fixedRate: Rate? = nil,
         action: @escaping (ExchangedBalance) -> Void
     ) {
         self._isPresented = isPresented
-        self.fixedRate = fixedRate
         self.action = action
     }
 

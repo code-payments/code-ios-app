@@ -190,17 +190,8 @@ nonisolated extension Database {
     private func insert(mint: MintMetadata, date: Date) throws {
         let table = MintTable()
 
-        let socialLinksJSON: String? = {
-            guard !mint.socialLinks.isEmpty else { return nil }
-            guard let data = try? JSONEncoder().encode(mint.socialLinks) else { return nil }
-            return String(data: data, encoding: .utf8)
-        }()
-
-        let billColorsJSON: String? = {
-            guard !mint.billColors.isEmpty else { return nil }
-            guard let data = try? JSONEncoder().encode(mint.billColors) else { return nil }
-            return String(data: data, encoding: .utf8)
-        }()
+        let socialLinksJSON = StoredMintMetadata.encodedSocialLinks(mint.socialLinks)
+        let billColorsJSON = StoredMintMetadata.encodedBillColors(mint.billColors)
 
         // TODO: Collapse into a single statement with COALESCE(excluded.supplyFromBonding,
         // supplyFromBonding) once Setter(excluded:) is made public in our SQLite.swift fork.

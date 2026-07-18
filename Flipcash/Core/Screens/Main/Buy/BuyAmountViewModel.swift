@@ -11,7 +11,7 @@ import FlipcashUI
 
 @Observable
 @MainActor
-final class BuyAmountViewModel: Identifiable {
+final class BuyAmountViewModel {
     var enteredAmount: String = ""
 
     @ObservationIgnored let mint: PublicKey

@@ -10,12 +10,8 @@ import Foundation
 /// order and return Coinbase's response (order id + payment link).
 protocol OnrampOrdering: Sendable {
 
-    /// Submits the order to Coinbase. `idempotencyKey` lets the caller retry
-    /// without risking a duplicate order on a transient transport failure.
-    func createOrder(
-        request: OnrampOrderRequest,
-        idempotencyKey: UUID?
-    ) async throws -> OnrampOrderResponse
+    /// Submits the order to Coinbase.
+    func createOrder(request: OnrampOrderRequest) async throws -> OnrampOrderResponse
 }
 
 extension Coinbase: OnrampOrdering {}

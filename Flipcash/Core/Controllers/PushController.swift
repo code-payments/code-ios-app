@@ -105,11 +105,11 @@ class PushController {
     /// Deletes the FCM token from the server and unregisters from APNs.
     func prepareForLogout() {
         Task {
-            guard let token = uploadedFirebaseToken else {
+            guard uploadedFirebaseToken != nil else {
                 return
             }
-            
-            try await deleteFirebaseToken(token)
+
+            try await deleteFirebaseToken()
         }
         
         unregisterAPNS()
@@ -163,7 +163,7 @@ class PushController {
         }
     }
     
-    private func deleteFirebaseToken(_ token: String) async throws {
+    private func deleteFirebaseToken() async throws {
         try await client.deleteTokens(
             installationID: try await Self.installationID(),
             owner: owner

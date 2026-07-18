@@ -12,9 +12,3 @@ enum OnrampVerificationPath: Hashable {
     case enterEmail
     case confirmEmailCode
 }
-
-extension Profile {
-    var canCreateCoinbaseOrder: Bool {
-        phone != nil && email?.isEmpty == false
-    }
-}

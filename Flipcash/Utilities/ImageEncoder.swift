@@ -33,7 +33,7 @@ nonisolated enum ImageEncoder {
         var current = image
         let dimensionSteps: [CGFloat] = [1024, 768, 512, 384, 256]
         for maxDim in dimensionSteps {
-            current = Self.downsize(current, maxDimension: maxDim)
+            current = ImageCompressor.compressSync(current, maxDimension: maxDim)
             for quality in qualitySteps {
                 guard let data = current.jpegData(compressionQuality: quality) else {
                     throw ImageEncoderError.cannotEncode
@@ -43,18 +43,5 @@ nonisolated enum ImageEncoder {
         }
 
         throw ImageEncoderError.cannotFitBudget
-    }
-
-    private static func downsize(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
-        let size = image.size
-        guard size.width > maxDimension || size.height > maxDimension else {
-            return image
-        }
-        let scale = maxDimension / max(size.width, size.height)
-        let target = CGSize(width: size.width * scale, height: size.height * scale)
-        let renderer = UIGraphicsImageRenderer(size: target)
-        return renderer.image { _ in
-            image.draw(in: CGRect(origin: .zero, size: target))
-        }
     }
 }

@@ -971,7 +971,6 @@ class Session {
                 updatePostTransaction()
 
                 showCashBill(.init(
-                    kind: .cash,
                     exchangedFiat: metadata.exchangedFiat,
                     received: true,
                     verifiedState: metadata.verifiedState
@@ -1506,7 +1505,6 @@ class Session {
 
                 showCashBill(
                     .init(
-                        kind: .cash,
                         exchangedFiat: exchangedFiat,
                         received: true,
                         verifiedState: verifiedState
@@ -1650,17 +1648,11 @@ extension Session {
 
 extension Session {
     struct BillDescription {
-        enum Kind {
-            case cash
-        }
-
-        let kind: Kind
         let exchangedFiat: ExchangedFiat
         let received: Bool
         let verifiedState: VerifiedState?
 
-        init(kind: Kind, exchangedFiat: ExchangedFiat, received: Bool, verifiedState: VerifiedState? = nil) {
-            self.kind = kind
+        init(exchangedFiat: ExchangedFiat, received: Bool, verifiedState: VerifiedState? = nil) {
             self.exchangedFiat = exchangedFiat
             self.received = received
             self.verifiedState = verifiedState

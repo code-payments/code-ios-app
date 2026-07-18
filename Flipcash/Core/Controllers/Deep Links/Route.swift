@@ -193,6 +193,5 @@ nonisolated extension Route {
 nonisolated extension Route.Fragment {
     enum Key: String, CaseIterable {
         case entropy = "e"
-        case payload = "p"
     }
 }

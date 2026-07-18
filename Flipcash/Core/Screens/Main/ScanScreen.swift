@@ -184,7 +184,6 @@ private struct ScanScreenContent: View {
             centerOffset: CGSize(width: 0, height: -30),
             preferredCanvasSize: preferredCanvasSize(),
             bill: session.billState.bill,
-            action: nil,
             dismissHandler: dismissBill
         )
         .allowsHitTesting(session.presentationState.isPresenting)
@@ -294,11 +293,6 @@ private struct ScanScreenContent: View {
     }
 }
 
-extension String: @retroactive Identifiable {
-    public var id: String {
-        self
-    }
-}
 
 // MARK: - RoutedSheet -
 

@@ -79,7 +79,7 @@ struct AccountSelectionScreen: View {
         case .loggedIn(let container):
             return container.session.ownerKeyPair.publicKey == description.account.ownerPublicKey
 
-        case .loggedOut, .migrating, .pending:
+        case .loggedOut, .migrating:
             return false
         }
     }

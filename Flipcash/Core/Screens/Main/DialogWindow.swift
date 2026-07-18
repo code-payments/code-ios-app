@@ -40,7 +40,7 @@ private struct DialogWindowContent: View {
     // Secondary `UIWindow`s don't inherit the main scene's SwiftUI
     // environment; `AppRouter` must be injected explicitly.
     var body: some View {
-        if case .loggedIn(let container) = sessionAuthenticator.state {
+        if let container = sessionAuthenticator.loggedInContainer {
             DialogPresenter(session: container.session)
                 .environment(container.appRouter)
         }

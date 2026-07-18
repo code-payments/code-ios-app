@@ -43,7 +43,6 @@ nonisolated struct MintTable: Sendable {
     let coreMintVault     = Expression <PublicKey?> ("coreMintVault")
     let coreMintFees      = Expression <PublicKey?> ("coreMintFees")
     let supplyFromBonding = Expression <UInt64?>    ("supplyFromBonding")
-    let coreMintLocked    = Expression <UInt64?>    ("coreMintLocked")
     let sellFeeBps        = Expression <Int?>       ("sellFeeBps")
 
     let socialLinks       = Expression <String?>    ("socialLinks")
@@ -212,15 +211,6 @@ nonisolated struct ConversationMessageTable: Sendable {
     let clientMessageID = Expression <UUID?>        ("clientMessageID")
 }
 
-nonisolated extension Expression {
-    func alias(_ alias: String) -> Expression<Datatype> {
-        Expression(alias)
-    }
-
-    func casting<T>(to type: T.Type) -> Expression<T> {
-        Expression<T>(template)
-    }
-}
 
 // MARK: - Tables -
 
@@ -261,7 +251,6 @@ nonisolated extension Database {
                 t.column(mintTable.coreMintVault)
                 t.column(mintTable.coreMintFees)
                 t.column(mintTable.supplyFromBonding)
-                t.column(mintTable.coreMintLocked)
                 t.column(mintTable.sellFeeBps)
 
                 t.column(mintTable.socialLinks)
@@ -433,11 +422,6 @@ nonisolated extension Database {
             })
         }
 
-        try createIndexesIfNeeded()
-    }
-    
-    private func createIndexesIfNeeded() throws {
-        
     }
 }
 

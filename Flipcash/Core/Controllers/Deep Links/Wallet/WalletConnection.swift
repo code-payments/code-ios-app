@@ -574,22 +574,17 @@ public struct SealedData {
 
 // MARK: - WalletSession -
 
-public struct WalletSession: Codable {
-    
-    public let walletPublicKey: FlipcashCore.PublicKey
-    public let sessionToken: String
-    
+struct WalletSession {
+
+    let walletPublicKey: FlipcashCore.PublicKey
+    let sessionToken: String
+
     init?(walletPublicKey: String, sessionToken: String) {
         guard let publicKey = try? PublicKey(base58: walletPublicKey) else {
             return nil
         }
-        
+
         self.walletPublicKey = publicKey
-        self.sessionToken = sessionToken
-    }
-    
-    init(walletPublicKey: FlipcashCore.PublicKey, sessionToken: String) {
-        self.walletPublicKey = walletPublicKey
         self.sessionToken = sessionToken
     }
 }
