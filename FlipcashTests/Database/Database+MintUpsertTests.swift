@@ -134,7 +134,7 @@ struct DatabaseMintUpsertTests {
 
     // MARK: - Write Gating
 
-    @Test("Re-inserting an identical mint leaves the writer change count untouched")
+    @Test("Re-inserting an identical mint leaves the writer change count untouched", .currencyInfoAppHang)
     func upsertIdenticalMint_isSilent() throws {
         let (db, url) = try Database.makeTemp()
         defer { Database.removeTemp(at: url) }
@@ -147,7 +147,7 @@ struct DatabaseMintUpsertTests {
         #expect(db.writer.totalChanges == before)
     }
 
-    @Test("Re-inserting an identical mint preserves the stored row")
+    @Test("Re-inserting an identical mint preserves the stored row", .currencyInfoAppHang)
     func upsertIdenticalMint_rowUnchanged() throws {
         let (db, url) = try Database.makeTemp()
         defer { Database.removeTemp(at: url) }

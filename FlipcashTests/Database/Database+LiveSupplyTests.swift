@@ -75,7 +75,7 @@ struct DatabaseLiveSupplyTests {
         #expect(stored?.supplyFromBonding == 999)
     }
 
-    @Test("Re-delivering an unchanged supply leaves the writer change count untouched")
+    @Test("Re-delivering an unchanged supply leaves the writer change count untouched", .currencyInfoAppHang)
     func updateLiveSupply_unchangedSupply_isSilent() throws {
         let (db, url) = try Database.makeTemp()
         defer { Database.removeTemp(at: url) }

@@ -12,7 +12,7 @@ import FlipcashCore
 /// AppHang: redundant `loadingState` reassignments re-render the whole screen
 /// (including the navigation-bar principal item) mid-transition.
 @MainActor
-@Suite("CurrencyInfoViewModel loading-state churn")
+@Suite("CurrencyInfoViewModel loading-state churn", .currencyInfoAppHang)
 struct CurrencyInfoViewModelTests {
 
     private func makeViewModel(

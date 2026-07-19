@@ -8,7 +8,7 @@ import Testing
 import FlipcashCore
 @testable import Flipcash
 
-@Suite("Balance upsert write gating")
+@Suite("Balance upsert write gating", .currencyInfoAppHang)
 struct DatabaseBalanceUpsertTests {
 
     @Test("Re-upserting identical balance values leaves the writer change count untouched")
