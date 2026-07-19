@@ -75,6 +75,42 @@ struct DatabaseLiveSupplyTests {
         #expect(stored?.supplyFromBonding == 999)
     }
 
+    @Test("Re-delivering an unchanged supply leaves the writer change count untouched")
+    func updateLiveSupply_unchangedSupply_isSilent() throws {
+        let (db, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let mint = PublicKey.jeffy
+
+        try db.insert(mints: [Self.makeLaunchpadMint(address: mint)], date: .now)
+        try db.updateLiveSupply(
+            updates: [ReserveStateUpdate(mint: mint, supplyFromBonding: 500)],
+            date: .now
+        )
+
+        let before = db.writer.totalChanges
+        try db.updateLiveSupply(
+            updates: [ReserveStateUpdate(mint: mint, supplyFromBonding: 500)],
+            date: .now + 60
+        )
+        #expect(db.writer.totalChanges == before)
+    }
+
+    @Test("A supply delivered over a NULL column still writes")
+    func updateLiveSupply_nullStoredSupply_writes() throws {
+        let (db, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let mint = PublicKey.jeffy
+
+        // A basic mint stores no bonding supply — the column starts NULL.
+        try db.insert(mints: [.makeBasic(address: mint)], date: .now)
+
+        try db.updateLiveSupply(
+            updates: [ReserveStateUpdate(mint: mint, supplyFromBonding: 500)],
+            date: .now
+        )
+        #expect(try db.getMintMetadata(mint: mint)?.supplyFromBonding == 500)
+    }
+
     @Test("getBalances reflects live supply update")
     func getBalances_reflectsLiveUpdate() throws {
         let (db, url) = try Database.makeTemp()

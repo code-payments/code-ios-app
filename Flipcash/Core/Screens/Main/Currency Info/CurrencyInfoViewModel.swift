@@ -142,6 +142,13 @@ class CurrencyInfoViewModel {
         do {
             let metadata = try await session.fetchMintMetadata(mint: mint)
             setupUpdateable(with: metadata)
+            // Skip the reassign when the row is unchanged — on the cached
+            // path this method re-reads the same row the initializer already
+            // loaded, and re-setting `loadingState` re-renders the whole
+            // screen (navigation-bar principal item included) mid-push.
+            if case .loaded(let current, _) = loadingState, current == metadata {
+                return
+            }
             loadingState = .loaded(metadata, metadata.metadata)
         } catch Session.Error.mintNotFound {
             // Only show error if we didn't have cached data
@@ -157,16 +164,13 @@ class CurrencyInfoViewModel {
     }
 
     private func setupUpdateable(with initialValue: StoredMintMetadata) {
+        // One observer per view model — the initializer's cached-path setup
+        // stays in place when loadMintMetadata re-reads the same mint.
+        guard updateableMint == nil else { return }
         updateableMint = Updateable { [database, mint] in
             (try? database.getMintMetadata(mint: mint)) ?? initialValue
         } didSet: { [weak self] in
             guard let self, let updateable = self.updateableMint else { return }
-            // Skip redundant updates — @Observable fires on every set,
-            // even with the same value, which would re-evaluate every
-            // view observing loadingState on each poll cycle.
-            if case .loaded(let current, _) = self.loadingState, current == updateable.value {
-                return
-            }
             self.loadingState = .loaded(updateable.value, updateable.value.metadata)
         }
     }

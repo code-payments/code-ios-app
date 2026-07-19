@@ -132,6 +132,78 @@ struct DatabaseMintUpsertTests {
         #expect(stored.metadata.createdAt == created)
     }
 
+    // MARK: - Write Gating
+
+    @Test("Re-inserting an identical mint leaves the writer change count untouched")
+    func upsertIdenticalMint_isSilent() throws {
+        let (db, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let original = MintMetadata.makeLaunchpad(createdAt: Date(timeIntervalSince1970: 1_700_000_000))
+
+        try db.insert(mints: [original], date: .now)
+
+        let before = db.writer.totalChanges
+        try db.insert(mints: [original], date: .now + 60)
+        #expect(db.writer.totalChanges == before)
+    }
+
+    @Test("Re-inserting an identical mint preserves the stored row")
+    func upsertIdenticalMint_rowUnchanged() throws {
+        let (db, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let original = MintMetadata.makeLaunchpad()
+
+        try db.insert(mints: [original], date: .now)
+        let stored = try #require(try db.getMintMetadata(mint: original.address))
+
+        try db.insert(mints: [original], date: .now + 60)
+        let after = try #require(try db.getMintMetadata(mint: original.address))
+        #expect(after == stored)
+    }
+
+    @Test("A changed name still writes")
+    func upsertChangedName_writes() throws {
+        let (db, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let mint = PublicKey.jeffy
+
+        try db.insert(mints: [.makeLaunchpad(address: mint)], date: .now)
+
+        let renamed = MintMetadata.makeLaunchpad(address: mint, name: "Renamed Token")
+
+        let before = db.writer.totalChanges
+        try db.insert(mints: [renamed], date: .now + 60)
+        #expect(db.writer.totalChanges > before)
+        #expect(try db.getMintMetadata(mint: mint)?.name == "Renamed Token")
+    }
+
+    @Test("A changed bonding supply still writes")
+    func upsertChangedSupply_writes() throws {
+        let (db, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let mint = PublicKey.jeffy
+
+        try db.insert(mints: [.makeLaunchpad(address: mint, supplyFromBonding: 100)], date: .now)
+
+        let before = db.writer.totalChanges
+        try db.insert(mints: [.makeLaunchpad(address: mint, supplyFromBonding: 999)], date: .now + 60)
+        #expect(db.writer.totalChanges > before)
+        #expect(try db.getMintMetadata(mint: mint)?.supplyFromBonding == 999)
+    }
+
+    @Test("A static re-upsert over a launchpad row still writes")
+    func upsertStaticOverLaunchpad_writes() throws {
+        let (db, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let mint = PublicKey.jeffy
+
+        try db.insert(mints: [.makeLaunchpad(address: mint)], date: .now)
+
+        let before = db.writer.totalChanges
+        try db.insert(mints: [Self.makeStaticMint(address: mint)], date: .now + 60)
+        #expect(db.writer.totalChanges > before)
+    }
+
     @Test("Balance is visible after mint upsert without launchpadMetadata")
     func balanceVisibleAfterStaticUpsert() throws {
         let (db, url) = try Database.makeTemp()

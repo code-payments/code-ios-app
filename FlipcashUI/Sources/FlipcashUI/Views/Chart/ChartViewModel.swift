@@ -81,8 +81,16 @@ public final class ChartViewModel {
         self.onRangeChange = onRangeChange
     }
 
+    /// Historical points from the last successful load, kept so a live
+    /// current-value tick can re-append without refetching history.
+    /// Cleared when a new load starts so a tick mid-load can't repaint a
+    /// stale range.
+    @ObservationIgnored private var basePoints: [ChartDataPoint] = []
+
     /// Updates data points and appends currentValue as the final point if different
     public func setDataPoints(_ points: [ChartDataPoint], appendingCurrentValue currentValue: Double) {
+        basePoints = points
+
         var finalPoints = points
 
         // Append current value as last point if meaningfully different
@@ -100,8 +108,16 @@ public final class ChartViewModel {
         loadingState = .loaded
     }
 
+    /// Replaces the appended "current" point with a fresh live value without
+    /// touching fetched history. No-op until a load has succeeded.
+    public func updateCurrentValue(_ value: Double) {
+        guard !basePoints.isEmpty else { return }
+        setDataPoints(basePoints, appendingCurrentValue: value)
+    }
+
     /// Marks the chart as loading
     public func setLoading() {
+        basePoints = []
         // Only show loading indicator if we don't already have data
         if dataPoints.isEmpty {
             loadingState = .loading

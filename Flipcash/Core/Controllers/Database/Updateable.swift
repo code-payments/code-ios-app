@@ -12,9 +12,15 @@ import SwiftUI
 ///
 /// Use this to keep a view or model in sync with the local database without
 /// manual refresh calls. The ``value`` property is tracked by `@Observable`,
-/// so SwiftUI views reading it will update automatically.
+/// so SwiftUI views reading it will update automatically. A refresh whose
+/// re-queried value compares equal keeps the current `value` — observers see
+/// no invalidation and `didSet` is not called.
+///
+/// `T` is `Sendable` because the notification hop captures the generic
+/// context in a `@Sendable` closure — and a value re-queried across
+/// database-change notifications is snapshot data by nature.
 @Observable
-final class Updateable<T> {
+final class Updateable<T: Equatable & Sendable> {
 
     private(set) var value: T
 
@@ -55,7 +61,9 @@ final class Updateable<T> {
     }
 
     private func handleDatabaseDidChange() {
-        value = valueBlock()
+        let newValue = valueBlock()
+        guard newValue != value else { return }
+        value = newValue
         didSet?()
     }
 }
