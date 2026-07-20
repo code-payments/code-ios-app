@@ -44,6 +44,20 @@ extension View {
             self.buttonStyle(LiquidGlassCompatibleButtonStyle(shape: shape))
         }
     }
+
+    /// Applies Apple's prominent button style — `.glassProminent` on iOS 26+,
+    /// `.borderedProminent` on earlier versions.
+    /// The app tints everything white, which a prominent style takes as its fill —
+    /// opting back out to the system accent has to name the colour, because
+    /// `.tint(nil)` resolves to the white `AccentColor` asset and drops the fill.
+    @ViewBuilder
+    public func prominentButtonStyle() -> some View {
+        if #available(iOS 26, *) {
+            self.buttonStyle(.glassProminent).tint(Color.blue)
+        } else {
+            self.buttonStyle(.borderedProminent).tint(Color.blue)
+        }
+    }
 }
 
 struct LiquidGlassCompatibleButtonStyle: ButtonStyle {

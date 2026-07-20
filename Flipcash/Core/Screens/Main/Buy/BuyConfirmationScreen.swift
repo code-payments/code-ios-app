@@ -33,10 +33,10 @@ struct BuyConfirmationScreen: View {
                 BorderedContainer {
                     VStack(spacing: 0) {
                         ConfirmationAmountRow(
-                            title: "You Pay",
-                            currencyName: viewModel.payment.name,
-                            imageURL: viewModel.payment.imageURL,
-                            amount: viewModel.paymentAmount.nativeAmount.formatted()
+                            title: "You Receive",
+                            currencyName: viewModel.targetName,
+                            imageURL: viewModel.targetImageURL,
+                            amount: viewModel.amountToBuy.nativeAmount.formatted()
                         )
                         .padding(.top, 24)
 
@@ -55,10 +55,10 @@ struct BuyConfirmationScreen: View {
                         }
 
                         ConfirmationAmountRow(
-                            title: "You Receive",
-                            currencyName: viewModel.targetName,
-                            imageURL: viewModel.targetImageURL,
-                            amount: viewModel.amountToBuy.nativeAmount.formatted()
+                            title: "You Pay",
+                            currencyName: viewModel.payment.name,
+                            imageURL: viewModel.payment.imageURL,
+                            amount: viewModel.paymentAmount.nativeAmount.formatted()
                         )
                         .padding(.top, viewModel.isUSDF ? 24 : 0)
                         .padding(.bottom, 24)
@@ -96,6 +96,13 @@ struct BuyConfirmationScreen: View {
         .navigationBarBackButtonHidden(viewModel.actionButtonState == .loading)
         .dialog(item: $viewModel.dialogItem)
         .task { await viewModel.loadTargetImage(session: session) }
+        .task {
+            // A sheet presented mid-push is swallowed by the transition — let
+            // the push land before offering Buy Maximum.
+            try? await Task.sleep(for: .seconds(0.35))
+            guard !Task.isCancelled else { return }
+            viewModel.presentInsufficientBalanceIfNeeded(session: session)
+        }
     }
 
     // MARK: - Actions -

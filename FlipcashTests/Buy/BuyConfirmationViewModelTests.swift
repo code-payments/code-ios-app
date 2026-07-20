@@ -142,6 +142,49 @@ struct BuyConfirmationViewModelTests {
         }
     }
 
+    // MARK: - Appear-time gate
+
+    @Test("Landing on the confirmation with an underfunded amount surfaces the sheet without a Buy tap")
+    func appearGate_underfunded_showsSheet() async throws {
+        let container = try await Self.makeContainer(holdings: [
+            .init(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.jeffySupply), quarks: Self.jeffyQuarks),
+        ])
+        let rate = container.ratesController.rateForBalanceCurrency()
+        let jeffyBalance = try #require(container.session.balance(for: .jeffy))
+        let displayed = jeffyBalance.computeExchangedValue(with: rate)
+            .nativeAmount.value.rounded(to: CurrencyCode.usd.maximumFractionDigits)
+        let pin = try #require(await container.ratesController.currentPinnedState(for: .usd, mint: .jeffy))
+        let paymentAmount = try Self.makePaymentAmount(entered: displayed, balance: jeffyBalance, pin: pin, container: container)
+
+        let viewModel = Self.makeViewModel(payment: jeffyBalance, paymentAmount: paymentAmount, pin: pin)
+
+        viewModel.presentInsufficientBalanceIfNeeded(session: container.session)
+
+        #expect(viewModel.dialogItem?.title == "Insufficient Balance After Fees")
+
+        // Dismissing must not let the next appear re-present it — the Buy tap
+        // is the only thing that fires the gate again.
+        viewModel.dialogItem = nil
+        viewModel.presentInsufficientBalanceIfNeeded(session: container.session)
+        #expect(viewModel.dialogItem == nil)
+    }
+
+    @Test("Landing on the confirmation with a covered amount surfaces nothing")
+    func appearGate_funded_staysSilent() async throws {
+        let container = try await Self.makeContainer(holdings: [
+            .init(mint: .usdf, quarks: 30_000_000),
+        ])
+        let usdfBalance = try #require(container.session.balance(for: .usdf))
+        let pin = try #require(await container.ratesController.currentPinnedState(for: .usd, mint: .usdf))
+        let paymentAmount = try Self.makePaymentAmount(entered: 10, balance: usdfBalance, pin: pin, container: container)
+
+        let viewModel = Self.makeViewModel(payment: usdfBalance, paymentAmount: paymentAmount, pin: pin)
+
+        viewModel.presentInsufficientBalanceIfNeeded(session: container.session)
+
+        #expect(viewModel.dialogItem == nil)
+    }
+
     // MARK: - USDF variant
 
     @Test("USDF payments show no fee and amountToBuy equals the payment")
