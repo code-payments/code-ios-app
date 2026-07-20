@@ -25,6 +25,8 @@ final class BuyConfirmationViewModel {
     /// Icon for the You Receive row, resolved from cached mint metadata.
     private(set) var targetImageURL: URL?
 
+    @ObservationIgnored private var hasCheckedFundsOnAppear = false
+
     var isUSDF: Bool { payment.mint == .usdf }
 
     var canPerformAction: Bool { !pinnedState.isStale }
@@ -58,6 +60,25 @@ final class BuyConfirmationViewModel {
 
     func loadTargetImage(session: Session) async {
         targetImageURL = try? await session.fetchMintMetadata(mint: targetMint).imageURL
+    }
+
+    /// Surfaces the insufficient-balance sheet when the amount pushed onto this
+    /// screen already exceeds the payment balance, at most once per screen.
+    func presentInsufficientBalanceIfNeeded(session: Session) {
+        guard !hasCheckedFundsOnAppear else { return }
+        hasCheckedFundsOnAppear = true
+
+        switch session.hasSufficientFunds(for: paymentAmount) {
+        case .sufficient:
+            break
+        case .insufficient:
+            logger.info("Buy gated on appear: insufficient balance", metadata: [
+                "paymentMint": "\(payment.mint.base58)",
+                "amountQuarks": "\(paymentAmount.onChainAmount.quarks)",
+                "balanceQuarks": "\(session.balance(for: payment.mint)?.quarks ?? 0)",
+            ])
+            showInsufficientBalance(session: session)
+        }
     }
 
     func buyAction(session: Session, router: AppRouter) async {
