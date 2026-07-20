@@ -14,11 +14,14 @@ struct BuyPaymentCurrencyViewModelTests {
 
     private static let jeffySupply: UInt64 = 50_000 * 10_000_000_000
     private static let jeffyQuarks: UInt64 = 2_000 * 10_000_000_000 // ≈ $20 of curve value
+    /// A freshly launched currency: the creator holds the entire ≈ $10 curve.
+    private static let soleHolderSupply: UInt64 = 9_996_054_730_448
 
     private static func makeContainer(
         holdings: [SessionContainer.Holding],
         currency: CurrencyCode = .usd,
-        fx: Double = 1.0
+        fx: Double = 1.0,
+        jeffySupply: UInt64 = jeffySupply
     ) async throws -> SessionContainer {
         let container = try SessionContainer.makeTest(holdings: holdings)
 
@@ -198,6 +201,53 @@ struct BuyPaymentCurrencyViewModelTests {
         // that overshoot is what drives the insufficient-after-fees sheet.
         #expect(amount.onChainAmount.quarks > jeffyBalance.quarks)
         #expect(amount.mint == .jeffy)
+    }
+
+    /// Regression (2026-07-20 log): paying with a freshly created currency the
+    /// user wholly owns. The entered value exceeds the curve's entire TVL, so
+    /// the uncapped compute used to fail and select() dead-ended in a
+    /// "Rate Unavailable" dialog the user could never escape.
+    @Test("Token payment beyond the curve TVL clamps instead of failing")
+    func tokenCompute_overTVL_returnsClampedQuote() async throws {
+        let container = try await Self.makeContainer(
+            holdings: [
+                .init(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.soleHolderSupply), quarks: Self.soleHolderSupply),
+            ],
+            currency: .cad,
+            fx: 1.37,
+            jeffySupply: Self.soleHolderSupply
+        )
+        let viewModel = Self.makeViewModel(entered: 50, currency: .cad, container: container)
+        let jeffyBalance = try #require(container.session.balance(for: .jeffy))
+        let pin = try #require(await container.ratesController.currentPinnedState(for: .cad, mint: .jeffy))
+
+        let amount = try #require(viewModel.computePaymentAmount(for: jeffyBalance, pin: pin))
+
+        // The maximum extractable quote: the whole curve, i.e. the whole balance.
+        #expect(amount.onChainAmount.quarks == jeffyBalance.quarks)
+        #expect(amount.mint == .jeffy)
+    }
+
+    @Test("Selecting a source worth less than the entered value still reaches the confirmation")
+    func select_overTVL_pushesConfirmation() async throws {
+        let container = try await Self.makeContainer(
+            holdings: [
+                .init(mint: .makeLaunchpad(address: .jeffy, supplyFromBonding: Self.soleHolderSupply), quarks: Self.soleHolderSupply),
+            ],
+            currency: .cad,
+            fx: 1.37,
+            jeffySupply: Self.soleHolderSupply
+        )
+        let viewModel = Self.makeViewModel(entered: 50, currency: .cad, container: container)
+        let router = AppRouter()
+        router.present(.balance)
+        router.presentNested(.buy(.usdcAuthority))
+
+        let jeffyRow = try #require(viewModel.rows.first { $0.stored.mint == .jeffy })
+        await viewModel.select(jeffyRow, router: router)
+
+        #expect(router[.buy].count == 1)
+        #expect(viewModel.dialogItem == nil)
     }
 
     @Test("A pin without reserve supply fails the token compute")

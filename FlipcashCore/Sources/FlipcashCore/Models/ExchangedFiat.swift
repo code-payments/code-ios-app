@@ -125,7 +125,9 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
         )
     }
 
-    /// Build an `ExchangedFiat` from a user-entered fiat amount.
+    /// Build an `ExchangedFiat` from a user-entered fiat amount. A bonded
+    /// request worth more than the curve's TVL clamps to the maximum
+    /// extractable quote (the full supply) rather than failing.
     ///
     /// - Parameters:
     ///   - amount: User-entered fiat amount (in `rate.currency`).
@@ -175,7 +177,18 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
             fiat: BigDecimal(cappedNative.value),
             fiatRate: BigDecimal(rate.fx),
             supplyQuarks: Int(supplyQuarks),
-        ) else { return nil }
+        ) else {
+            // The curve refuses a request worth more than its TVL. Clamp to
+            // the maximum extractable quote — the entire supply (or the token
+            // balance cap) — so an over-ask surfaces as insufficient balance
+            // downstream instead of failing outright.
+            guard cappedUSD.isPositive, supplyQuarks > 0 else { return nil }
+            return compute(
+                onChainAmount: TokenAmount(quarks: min(supplyQuarks, tokenBalanceQuarks ?? supplyQuarks), mint: mint),
+                rate: rate,
+                supplyQuarks: supplyQuarks,
+            )
+        }
 
         let tokenQuarks = valuation.tokens.asDecimal().scaleUpInt(mint.mintDecimals)
 
