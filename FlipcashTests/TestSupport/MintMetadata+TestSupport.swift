@@ -9,6 +9,7 @@ import FlipcashCore
 extension MintMetadata {
     static func makeLaunchpad(
         address: PublicKey = .jeffy,
+        name: String = "Test Token",
         supplyFromBonding: UInt64 = 50_000 * 10_000_000_000,
         coreMintFees: PublicKey? = nil,
         createdAt: Date? = nil
@@ -16,7 +17,7 @@ extension MintMetadata {
         MintMetadata(
             address: address,
             decimals: 10,
-            name: "Test Token",
+            name: name,
             symbol: "TEST",
             description: "A test token",
             imageURL: nil,

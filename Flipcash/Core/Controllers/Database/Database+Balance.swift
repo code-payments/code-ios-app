@@ -59,6 +59,16 @@ nonisolated extension Database {
     }
     
     func getMintMetadata(mint: PublicKey) throws -> StoredMintMetadata? {
+        let stored = try fetchStoredMint(mint)
+        if stored == nil {
+            logger.warning("Missing mint in database", metadata: ["mint": "\(mint.base58)"])
+        }
+        return stored
+    }
+
+    /// Row lookup without the missing-row warning — for callers where
+    /// absence is an expected case (e.g. the upsert's write gate).
+    private func fetchStoredMint(_ mint: PublicKey) throws -> StoredMintMetadata? {
         let statement = try reader.prepareRowIterator("""
         SELECT
             m.mint,
@@ -118,11 +128,7 @@ nonisolated extension Database {
                 updatedAt:         row[m.updatedAt]
             )
         }
-        
-        if mints.isEmpty {
-            logger.warning("Missing mint in database", metadata: ["mint": "\(mint.base58)"])
-        }
-        
+
         return mints.first
     }
     
@@ -152,7 +158,14 @@ nonisolated extension Database {
         try transaction {
             let table = MintTable()
             for update in updates {
-                let row = table.table.filter(table.mint == update.mint)
+                // Only touch rows whose supply actually moved — a re-delivered
+                // identical supply must not count as a change, or every stream
+                // tick posts `.databaseDidChange` and re-renders every
+                // database-driven screen. NULL is always a change.
+                let row = table.table.filter(
+                    table.mint == update.mint &&
+                    (table.supplyFromBonding == nil || table.supplyFromBonding != update.supplyFromBonding)
+                )
                 try $0.writer.run(
                     row.update(
                         table.supplyFromBonding <- update.supplyFromBonding,
@@ -167,15 +180,22 @@ nonisolated extension Database {
     
     func insertBalance(quarks: UInt64, mint: PublicKey, costBasis: Double, date: Date) throws {
         let table = BalanceTable()
+        // The filter becomes the DO UPDATE's WHERE clause (fork behavior —
+        // see "SQLite.swift Fork" in CLAUDE.md): a conflicting row only
+        // rewrites when a value actually changed, so the balance poller's
+        // unchanged upserts stop counting as changes and stop posting
+        // `.databaseDidChange`. Fresh inserts are unaffected.
         try writer.run(
-            table.table.upsert(
-                table.mint      <- mint,
-                table.quarks    <- quarks,
-                table.costBasis <- costBasis,
-                table.updatedAt <- date,
+            table.table
+                .filter(table.quarks != quarks || table.costBasis != costBasis)
+                .upsert(
+                    table.mint      <- mint,
+                    table.quarks    <- quarks,
+                    table.costBasis <- costBasis,
+                    table.updatedAt <- date,
 
-                onConflictOf: table.mint,
-            )
+                    onConflictOf: table.mint,
+                )
         )
     }
 
@@ -192,6 +212,16 @@ nonisolated extension Database {
 
         let socialLinksJSON = StoredMintMetadata.encodedSocialLinks(mint.socialLinks)
         let billColorsJSON = StoredMintMetadata.encodedBillColors(mint.billColors)
+
+        // Skip the write when it wouldn't change the stored row (updatedAt
+        // aside). The balance poller re-fetches held mints every cycle;
+        // letting identical data count as a change turns every poll into a
+        // `.databaseDidChange` broadcast that re-renders every
+        // database-driven screen.
+        if let stored = try? fetchStoredMint(mint.address),
+           storedRowUnchanged(stored, by: mint, socialLinksJSON: socialLinksJSON, billColorsJSON: billColorsJSON) {
+            return
+        }
 
         // TODO: Collapse into a single statement with COALESCE(excluded.supplyFromBonding,
         // supplyFromBonding) once Setter(excluded:) is made public in our SQLite.swift fork.
@@ -235,5 +265,45 @@ nonisolated extension Database {
                 row.update(table.supplyFromBonding <- supplyFromBonding)
             )
         }
+    }
+
+    /// Whether upserting `mint` would leave `stored` unchanged (updatedAt
+    /// aside). Mirrors the SET clause above, including the supply rule: the
+    /// trailing supplyFromBonding update only runs when the incoming
+    /// metadata carries one.
+    private func storedRowUnchanged(
+        _ stored: StoredMintMetadata,
+        by mint: MintMetadata,
+        socialLinksJSON: String?,
+        billColorsJSON: String?
+    ) -> Bool {
+        stored.name == mint.name &&
+        stored.symbol == mint.symbol &&
+        stored.decimals == mint.decimals &&
+        stored.bio == mint.description &&
+        stored.imageURL == mint.imageURL &&
+        stored.vmAddress == mint.vmMetadata?.vm &&
+        stored.vmAuthority == mint.vmMetadata?.authority &&
+        stored.lockDuration == mint.vmMetadata?.lockDurationInDays &&
+        stored.currencyConfig == mint.launchpadMetadata?.currencyConfig &&
+        stored.liquidityPool == mint.launchpadMetadata?.liquidityPool &&
+        stored.seed == mint.launchpadMetadata?.seed &&
+        stored.authority == mint.launchpadMetadata?.authority &&
+        stored.mintVault == mint.launchpadMetadata?.mintVault &&
+        stored.coreMintVault == mint.launchpadMetadata?.coreMintVault &&
+        stored.coreMintFees == mint.launchpadMetadata?.coreMintFees &&
+        stored.sellFeeBps == mint.launchpadMetadata?.sellFeeBps &&
+        stored.socialLinks == socialLinksJSON &&
+        stored.billColors == billColorsJSON &&
+        sameStoredDate(stored.createdAt, mint.createdAt) &&
+        (mint.launchpadMetadata?.supplyFromBonding == nil ||
+         stored.supplyFromBonding == mint.launchpadMetadata?.supplyFromBonding)
+    }
+
+    /// Compares dates in the DB's storage form (`Date.datatypeValue`, the
+    /// exact string SQLite persists) — a fresh server date with
+    /// sub-millisecond fraction never compares `==` to its round-tripped copy.
+    private func sameStoredDate(_ lhs: Date?, _ rhs: Date?) -> Bool {
+        lhs.map(\.datatypeValue) == rhs.map(\.datatypeValue)
     }
 }

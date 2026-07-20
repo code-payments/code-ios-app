@@ -47,8 +47,12 @@ private struct CurrencyInfoScreenContent: View {
         viewModel.mintMetadata
     }
 
+    /// Derived from the mint the screen was pushed with, not the async
+    /// metadata load — the navigation-bar item set must not change when
+    /// metadata lands mid-transition (iOS 27 wedges in nav-bar autolayout
+    /// when toolbar items churn during a push).
     private var isUSDF: Bool {
-        mintMetadata?.mint == .usdf
+        mint == .usdf
     }
 
     private let mint: PublicKey
@@ -171,20 +175,16 @@ private struct CurrencyInfoScreenContent: View {
     }
 
     @ViewBuilder private func toolbarContent() -> some View {
-        if let metadata = mintMetadata {
-            if metadata.mint == .usdf {
-                Text("USDF")
-                    .font(.appBarButton)
-                    .foregroundStyle(Color.textMain)
-            } else {
-                CurrencyLabel(
-                    imageURL: metadata.imageURL,
-                    name: metadata.name,
-                    amount: nil
-                )
-            }
-        } else {
-            EmptyView()
+        if isUSDF {
+            Text("USDF")
+                .font(.appBarButton)
+                .foregroundStyle(Color.textMain)
+        } else if let metadata = mintMetadata {
+            CurrencyLabel(
+                imageURL: metadata.imageURL,
+                name: metadata.name,
+                amount: nil
+            )
         }
     }
 }

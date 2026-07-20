@@ -38,8 +38,9 @@ struct CurrencyInfoMarketCapSection: View {
             setupChart()
         }
         .onChange(of: marketCap) { _, newMarketCap in
-            guard let viewModel = chartViewModel else { return }
-            loadChartData(for: viewModel.selectedRange, into: viewModel)
+            // Live ticks only move the appended "current" point — history
+            // doesn't change when the spot value moves, so no refetch.
+            chartViewModel?.updateCurrentValue(newMarketCap.doubleValue)
         }
         .onChange(of: currencyCode) { _, _ in
             guard let viewModel = chartViewModel else { return }
