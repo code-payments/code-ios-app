@@ -2,9 +2,6 @@
 //  IntentFundSwap.swift
 //  FlipcashCore
 //
-//  Created by Claude.
-//  Copyright © 2025 Code Inc. All rights reserved.
-//
 
 import Foundation
 import FlipcashAPI
@@ -68,15 +65,7 @@ extension IntentFundSwap {
                 $0.destinationOwner = destinationOwner.solanaAccountID
                 $0.mint = amount.mint.solanaAccountID
 
-                $0.clientExchangeData = .with {
-                    $0.mint = amount.mint.solanaAccountID
-                    $0.quarks = amount.onChainAmount.quarks
-                    $0.nativeAmount = amount.nativeAmount.doubleValue
-                    $0.coreMintFiatExchangeRate = verifiedState.rateProto
-                    if let reserveProto = verifiedState.reserveProto {
-                        $0.launchpadCurrencyReserveState = reserveProto
-                    }
-                }
+                $0.clientExchangeData = .init(amount: amount, verifiedState: verifiedState)
 
                 $0.isWithdrawal = true
                 $0.isIndirectSend = false

@@ -2,9 +2,6 @@
 //  SwapProcessingViewModel.swift
 //  Flipcash
 //
-//  Created by Claude.
-//  Copyright © 2025 Code Inc. All rights reserved.
-//
 
 import SwiftUI
 import FlipcashCore
@@ -93,14 +90,18 @@ class SwapProcessingViewModel {
 
     private let swapId: SwapId
     private let swapType: SwapType
+    /// The token being bought — analytics-only; nil on the sell path, where
+    /// `amount.mint` already names the subject token.
+    private let targetMint: PublicKey?
     private let currencyName: String
     private let amount: ExchangedFiat
 
     // MARK: - Init -
 
-    init(swapId: SwapId, swapType: SwapType, currencyName: String, amount: ExchangedFiat) {
+    init(swapId: SwapId, swapType: SwapType, targetMint: PublicKey? = nil, currencyName: String, amount: ExchangedFiat) {
         self.swapId = swapId
         self.swapType = swapType
+        self.targetMint = targetMint
         self.currencyName = currencyName
         self.amount = amount
     }
@@ -183,9 +184,9 @@ class SwapProcessingViewModel {
     private func trackTransaction(successful: Bool) {
         switch swapType {
         case .buyWithReserves:
-            Analytics.tokenPurchase(method: .purchaseWithReserves, exchangedFiat: amount, successful: successful)
+            Analytics.tokenPurchase(method: .purchaseWithReserves, targetMint: targetMint, exchangedFiat: amount, successful: successful)
         case .buyWithCurrency:
-            Analytics.tokenPurchase(method: .purchaseWithCurrency, exchangedFiat: amount, successful: successful)
+            Analytics.tokenPurchase(method: .purchaseWithCurrency, targetMint: targetMint, exchangedFiat: amount, successful: successful)
         case .sell:
             Analytics.tokenSell(exchangedFiat: amount, successful: successful)
         }

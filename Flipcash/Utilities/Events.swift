@@ -91,6 +91,7 @@ extension Analytics {
 
     enum CurrencyLaunchEvent: String, AnalyticsEvent {
         case launchWithReserves = "Currency Launch With Reserves"
+        case launchWithCurrency = "Currency Launch With Currency"
     }
 
     enum DeeplinkEvent: String, AnalyticsEvent {
@@ -281,13 +282,20 @@ extension Analytics {
 // MARK: - Token Transactions -
 
 extension Analytics {
-    static func tokenPurchase(method: TokenTransactionEvent, exchangedFiat: ExchangedFiat, successful: Bool, error: Error? = nil) {
-        let properties: [Property: AnalyticsValue] = [
+    /// `Mint` is the token being purchased; `Payment Mint` is the token the
+    /// buyer spent (USDF for reserves buys), taken from `exchangedFiat`.
+    /// A nil `targetMint` omits `Mint` — `exchangedFiat` is payment-denominated,
+    /// so no truthful substitute exists.
+    static func tokenPurchase(method: TokenTransactionEvent, targetMint: PublicKey?, exchangedFiat: ExchangedFiat, successful: Bool, error: Error? = nil) {
+        var properties: [Property: AnalyticsValue] = [
             .state: successful ? String.success : String.failure,
-            .mint: exchangedFiat.mint.base58,
+            .paymentMint: exchangedFiat.mint.base58,
             .fiat: exchangedFiat.nativeAmount.doubleValue,
             .currency: exchangedFiat.currencyRate.currency.rawValue,
         ]
+        if let targetMint {
+            properties[.mint] = targetMint.base58
+        }
         track(event: method, properties: properties, error: error)
     }
 
@@ -306,10 +314,13 @@ extension Analytics {
 // MARK: - Currency Launch -
 
 extension Analytics {
-    static func currencyLaunch(event: CurrencyLaunchEvent, launchedMint: PublicKey, exchangedFiat: ExchangedFiat, successful: Bool, error: Error? = nil) {
+    /// `Mint` is the launched currency; `Payment Mint` is the token that paid
+    /// the launch cost.
+    static func currencyLaunch(event: CurrencyLaunchEvent, launchedMint: PublicKey, paymentMint: PublicKey, exchangedFiat: ExchangedFiat, successful: Bool, error: Error? = nil) {
         let properties: [Property: AnalyticsValue] = [
             .state: successful ? String.success : String.failure,
             .mint: launchedMint.base58,
+            .paymentMint: paymentMint.base58,
             .fiat: exchangedFiat.nativeAmount.doubleValue,
             .currency: exchangedFiat.currencyRate.currency.rawValue,
         ]
@@ -360,6 +371,7 @@ extension Analytics {
         case method            = "Method"
         case quarks            = "Quarks"
         case mint              = "Mint"
+        case paymentMint       = "Payment Mint"
         case fiat              = "Fiat"
         case currency          = "Currency"
         case fx                = "Exchange Rate"

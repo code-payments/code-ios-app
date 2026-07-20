@@ -26,6 +26,9 @@ class CurrencyLaunchProcessingViewModel {
     let currencyName: String
     let launchAmount: ExchangedFiat
     let launchedMint: PublicKey
+    /// The token that paid the launch cost — distinguishes the reserves and
+    /// currency analytics events.
+    let paymentMint: PublicKey
 
     // MARK: - Private -
 
@@ -33,11 +36,12 @@ class CurrencyLaunchProcessingViewModel {
 
     // MARK: - Init -
 
-    init(swapId: SwapId, launchedMint: PublicKey, currencyName: String, launchAmount: ExchangedFiat) {
+    init(swapId: SwapId, launchedMint: PublicKey, currencyName: String, launchAmount: ExchangedFiat, paymentMint: PublicKey) {
         self.swapId = swapId
         self.launchedMint = launchedMint
         self.currencyName = currencyName
         self.launchAmount = launchAmount
+        self.paymentMint = paymentMint
     }
 
     // MARK: - Copy -
@@ -78,7 +82,7 @@ class CurrencyLaunchProcessingViewModel {
     var isSuccess: Bool  { displayState == .success }
 
     var analyticsEvent: Analytics.CurrencyLaunchEvent {
-        .launchWithReserves
+        paymentMint == .usdf ? .launchWithReserves : .launchWithCurrency
     }
 
     // MARK: - Actions -
@@ -121,20 +125,20 @@ class CurrencyLaunchProcessingViewModel {
                 // doesn't race the streamed wallet update.
                 if await awaitBalance(session: session) {
                     displayState = .success
-                    Analytics.currencyLaunch(event: analyticsEvent, launchedMint: launchedMint, exchangedFiat: launchAmount, successful: true)
+                    Analytics.currencyLaunch(event: analyticsEvent, launchedMint: launchedMint, paymentMint: paymentMint, exchangedFiat: launchAmount, successful: true)
                 } else {
                     reportLaunchFailure(state: metadata.state, reason: "Launched currency balance did not land within budget")
                     displayState = .failed
-                    Analytics.currencyLaunch(event: analyticsEvent, launchedMint: launchedMint, exchangedFiat: launchAmount, successful: false)
+                    Analytics.currencyLaunch(event: analyticsEvent, launchedMint: launchedMint, paymentMint: paymentMint, exchangedFiat: launchAmount, successful: false)
                 }
             case .failed, .cancelled:
                 reportLaunchFailure(state: metadata.state, reason: "Launch swap completed with failure state")
                 displayState = .failed
-                Analytics.currencyLaunch(event: analyticsEvent, launchedMint: launchedMint, exchangedFiat: launchAmount, successful: false)
+                Analytics.currencyLaunch(event: analyticsEvent, launchedMint: launchedMint, paymentMint: paymentMint, exchangedFiat: launchAmount, successful: false)
             case .unknown, .created, .funding, .funded, .submitting, .cancelling:
                 reportLaunchFailure(state: metadata.state, reason: "Launch swap timed out in intermediate state")
                 displayState = .failed
-                Analytics.currencyLaunch(event: analyticsEvent, launchedMint: launchedMint, exchangedFiat: launchAmount, successful: false)
+                Analytics.currencyLaunch(event: analyticsEvent, launchedMint: launchedMint, paymentMint: paymentMint, exchangedFiat: launchAmount, successful: false)
             }
         } catch is CancellationError {
             // Task was cancelled (e.g., by SwiftUI during navigation
@@ -144,7 +148,7 @@ class CurrencyLaunchProcessingViewModel {
             // No swap state was ever fetched within the poll budget
             logger.error("Launch swap polling failed", metadata: ["error": "\(error)"])
             displayState = .failed
-            Analytics.currencyLaunch(event: analyticsEvent, launchedMint: launchedMint, exchangedFiat: launchAmount, successful: false, error: error)
+            Analytics.currencyLaunch(event: analyticsEvent, launchedMint: launchedMint, paymentMint: paymentMint, exchangedFiat: launchAmount, successful: false, error: error)
         }
 
         isPolling = false
@@ -285,5 +289,4 @@ extension CurrencyLaunchProcessingViewModel {
         case success
         case failed
     }
-
 }

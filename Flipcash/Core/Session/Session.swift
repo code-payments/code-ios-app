@@ -766,6 +766,61 @@ class Session {
         return metadata.swapId
     }
 
+    /// Buys the first tokens on a newly-launched currency paying with another
+    /// launchpad currency, given the swap and fee legs in the payment token.
+    @discardableResult
+    func buyNewCurrency(
+        amount: ExchangedFiat,
+        feeAmount: ExchangedFiat,
+        with paymentMint: PublicKey,
+        verifiedState: VerifiedState,
+        mint: PublicKey,
+        swapId: SwapId = .generate()
+    ) async throws -> SwapId {
+        let fullAmount = amount.adding(feeAmount)
+        guard fullAmount.onChainAmount.quarks > 0 else {
+            throw Error.invalidAmount
+        }
+
+        try assertFresh(verifiedState, operation: "buyNewCurrencyWithCurrency",
+                        currency: fullAmount.nativeAmount.currency, mint: paymentMint)
+
+        // Defensive: the picker's eligibility gate should have prevented this.
+        // Unlike buy(with:), don't silently recompute here — a recompute would
+        // break the swap/fee split the server re-values; the split helper
+        // already balance-caps the total.
+        if let balance = balance(for: paymentMint), fullAmount.onChainAmount.quarks > balance.quarks {
+            logger.error("New-currency currency buy exceeds balance — gating should have prevented this", metadata: [
+                "fullQuarks": "\(fullAmount.onChainAmount.quarks)",
+                "balanceQuarks": "\(balance.quarks)",
+                "paymentMint": "\(paymentMint.base58)",
+            ])
+            throw Error.insufficientBalance
+        }
+
+        let paymentToken = try await fetchMintMetadata(mint: paymentMint)
+
+        logger.info("Buying new currency with currency", metadata: [
+            "amount": "\(amount.nativeAmount.formatted())",
+            "feeAmount": "\(feeAmount.nativeAmount.formatted())",
+            "paymentSymbol": "\(paymentToken.symbol)",
+            "mint": "\(mint.base58)",
+        ])
+
+        let metadata = try await client.buyNewCurrency(
+            swapId: swapId,
+            amount: amount,
+            feeAmount: feeAmount,
+            verifiedState: verifiedState,
+            paymentToken: paymentToken.metadata,
+            mint: mint,
+            owner: owner
+        )
+
+        updatePostTransaction()
+        return metadata.swapId
+    }
+
     @discardableResult
     func sell(amount: ExchangedFiat, verifiedState: VerifiedState, in mint: PublicKey) async throws -> SwapId {
         try assertFresh(verifiedState, operation: "sell", currency: amount.nativeAmount.currency, mint: mint)

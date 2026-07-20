@@ -156,6 +156,18 @@ public struct VerifiedSwapMetadata: Sendable {
         self.serverParameters = serverParameters
     }
     
+    /// The signed full-amount valuation a launchpad-funded new-currency launch
+    /// carries so the server can re-value the payment token against its reserve.
+    public struct FullAmountExchangeData: Sendable {
+        public let amount: ExchangedFiat
+        public let verifiedState: VerifiedState
+
+        public init(amount: ExchangedFiat, verifiedState: VerifiedState) {
+            self.amount = amount
+            self.verifiedState = verifiedState
+        }
+    }
+
     public struct ClientParameters: Sendable {
         public let id: SwapId
         public let fromMint: PublicKey
@@ -164,6 +176,7 @@ public struct VerifiedSwapMetadata: Sendable {
         public let feeAmount: TokenAmount
         public let fundingSource: FundingSource
         public let kind: Kind
+        public let fullAmountExchangeData: FullAmountExchangeData?
 
         public enum Kind: Sendable, Hashable {
             /// Reserve-swap path (buy/sell bonded tokens, new currency launch).
@@ -179,7 +192,8 @@ public struct VerifiedSwapMetadata: Sendable {
             amount: TokenAmount,
             feeAmount: TokenAmount? = nil,
             fundingSource: FundingSource,
-            kind: Kind = .reserve
+            kind: Kind = .reserve,
+            fullAmountExchangeData: FullAmountExchangeData? = nil
         ) {
             self.id = id
             self.fromMint = fromMint
@@ -188,6 +202,7 @@ public struct VerifiedSwapMetadata: Sendable {
             self.feeAmount = feeAmount ?? TokenAmount(quarks: 0, mint: fromMint)
             self.fundingSource = fundingSource
             self.kind = kind
+            self.fullAmountExchangeData = fullAmountExchangeData
         }
     }
     
@@ -216,6 +231,9 @@ extension VerifiedSwapMetadata.ClientParameters {
 
         let fundingSource = FundingSource(proto.fundingSource, fundingID: proto.fundingID)
 
+        // The full-amount valuation is only ever set client-side for the
+        // outbound Initiate; the server echo the client parses back doesn't
+        // need it.
         self.init(
             id: swapId,
             fromMint: fromMint,
@@ -235,6 +253,9 @@ extension VerifiedSwapMetadata.ClientParameters {
             $0.feeAmount = feeAmount.quarks
             $0.fundingSource = fundingSource.protoSource
             $0.fundingID = fundingSource.fundingID
+            if let full = fullAmountExchangeData {
+                $0.fullAmountExchangeData = .init(amount: full.amount, verifiedState: full.verifiedState)
+            }
         }
     }
 }
@@ -499,6 +520,12 @@ public struct SwapResponseServerParameters {
         public let sellFeeBps: UInt32
         public let vmLockDurationInDays: UInt32
         public let feeDestination: PublicKey
+        /// Server-controlled treasury funding the first buy. Present only for
+        /// launches paid with another launchpad currency.
+        public let treasury: PublicKey?
+        /// Core-mint quarks the treasury spends on the purchase. The client
+        /// must validate this equals the user-accepted purchase amount.
+        public let treasuryPurchaseAmount: UInt64
 
         public init(
             payer: PublicKey,
@@ -514,7 +541,9 @@ public struct SwapResponseServerParameters {
             seed: PublicKey,
             sellFeeBps: UInt32,
             vmLockDurationInDays: UInt32,
-            feeDestination: PublicKey
+            feeDestination: PublicKey,
+            treasury: PublicKey? = nil,
+            treasuryPurchaseAmount: UInt64 = 0
         ) {
             self.payer = payer
             self.nonce = nonce
@@ -530,6 +559,8 @@ public struct SwapResponseServerParameters {
             self.sellFeeBps = sellFeeBps
             self.vmLockDurationInDays = vmLockDurationInDays
             self.feeDestination = feeDestination
+            self.treasury = treasury
+            self.treasuryPurchaseAmount = treasuryPurchaseAmount
         }
     }
 }
@@ -572,6 +603,14 @@ extension SwapResponseServerParameters.ReserveNewCurrency {
             return nil
         }
 
+        let treasury: PublicKey?
+        if proto.hasTreasury {
+            guard let parsed = try? PublicKey(proto.treasury.value) else { return nil }
+            treasury = parsed
+        } else {
+            treasury = nil
+        }
+
         let alts = proto.alts.compactMap { AddressLookupTable($0) }
 
         self.init(
@@ -588,7 +627,9 @@ extension SwapResponseServerParameters.ReserveNewCurrency {
             seed: seed,
             sellFeeBps: proto.sellFeeBps,
             vmLockDurationInDays: proto.vmLockDurationInDays,
-            feeDestination: feeDestination
+            feeDestination: feeDestination,
+            treasury: treasury,
+            treasuryPurchaseAmount: proto.treasuryPurchaseAmount
         )
     }
 }

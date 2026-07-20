@@ -170,4 +170,33 @@ extension TransactionBuilder {
             instructions: instructions
         )
     }
+
+    /// Builds the first-buy transaction for a new launchpad currency paid with
+    /// another launchpad currency, funded through the server's treasury.
+    static func swapNewCurrencyTreasuryFunded(
+        responseParams: SwapResponseServerParameters.ReserveNewCurrency,
+        treasury: PublicKey,
+        treasuryPurchaseAmount: UInt64,
+        authority: PublicKey,
+        paymentToken: MintMetadata,
+        swapAmount: UInt64,
+        feeAmount: UInt64
+    ) throws -> SolanaTransaction {
+        let instructions = try SwapInstructionBuilder.newCurrencyLaunchTreasuryFunded(
+            serverParams: responseParams,
+            treasury: treasury,
+            treasuryPurchaseAmount: treasuryPurchaseAmount,
+            authority: authority,
+            paymentToken: paymentToken,
+            swapAmount: swapAmount,
+            feeAmount: feeAmount
+        )
+
+        return SolanaTransaction(
+            payer: responseParams.payer,
+            recentBlockhash: responseParams.blockhash,
+            addressLookupTables: responseParams.alts,
+            instructions: instructions
+        )
+    }
 }

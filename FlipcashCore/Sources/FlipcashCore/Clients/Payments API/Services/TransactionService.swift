@@ -463,6 +463,102 @@ final class TransactionService: Sendable {
         }
     }
 
+    /// A buy of a freshly-launched currency, funded by another launchpad
+    /// currency (Phase 1 launchpad→launchpad swap + Phase 2 via IntentFundSwap).
+    /// The swap+fee total is valued at the exact USD launch cost on the wire;
+    /// the payment pool's sell fee is absorbed by the swap treasury.
+    func buyNewCurrency(
+        swapId: SwapId,
+        amount: ExchangedFiat,
+        feeAmount: ExchangedFiat,
+        verifiedState: VerifiedState,
+        paymentToken: MintMetadata,
+        mint: PublicKey,
+        owner: AccountCluster,
+        completion: @Sendable @escaping (Result<SwapMetadata, ErrorSwap>) -> Void
+    ) {
+        guard let fundingIntentID = PublicKey.generate() else {
+            completion(.failure(.unknown))
+            return
+        }
+        guard let paymentVmAuthority = paymentToken.vmMetadata?.authority else {
+            logger.error("Payment token missing VM authority", metadata: [
+                "symbol": "\(paymentToken.symbol)",
+                "mint": "\(paymentToken.address.base58)",
+            ])
+            completion(.failure(.unknown))
+            return
+        }
+        let ownerKeyPair = owner.authority.keyPair
+        // Derived, not passed: the wire total is exactly the two legs summed.
+        let fullAmount = amount.adding(feeAmount)
+        // The swap leg is valued at the exact USD purchase component; the core
+        // mint is a USD stablecoin, so the treasury must spend exactly this many
+        // core quarks on the buy. Validated against the server's parameters.
+        let expectedTreasuryPurchaseQuarks = TokenAmount(
+            wholeTokens: amount.usdfValue.value,
+            mint: .usdf
+        ).quarks
+
+        logger.info("Starting new-currency buy with currency", metadata: [
+            "amount": "\(amount.nativeAmount.formatted())",
+            "feeAmount": "\(feeAmount.nativeAmount.formatted())",
+            "fullAmount": "\(fullAmount.nativeAmount.formatted())",
+            "paymentSymbol": "\(paymentToken.symbol)",
+            "mint": "\(mint.base58)",
+            "swapId": "\(swapId.publicKey.base58)",
+        ])
+
+        // Phase 1: Create swap state on the server
+        swapService.swap(
+            swapId: swapId,
+            direction: .swap(from: paymentToken, to: .launchStub(address: mint)),
+            amount: amount.onChainAmount,
+            feeAmount: feeAmount.onChainAmount,
+            fundingSource: .submitIntent(id: fundingIntentID),
+            owner: ownerKeyPair,
+            isNewCurrencyLaunch: true,
+            fullAmountExchangeData: .init(amount: fullAmount, verifiedState: verifiedState),
+            expectedTreasuryPurchaseQuarks: expectedTreasuryPurchaseQuarks
+        ) { [weak self] result in
+            guard let self else { return }
+            switch result {
+            case .success(let metadata):
+                logger.info("New-currency currency swap state created", metadata: [
+                    "swapId": "\(metadata.swapId.publicKey.base58)",
+                ])
+
+                // Phase 2: Fund the payment token's VM swap PDA via IntentFundSwap.
+                let fundingIntent = IntentFundSwap(
+                    intentID: fundingIntentID,
+                    swapId: metadata.swapId,
+                    sourceCluster: owner.use(mint: paymentToken.address, timeAuthority: paymentVmAuthority),
+                    amount: fullAmount,
+                    verifiedState: verifiedState,
+                    fromMint: paymentToken,
+                    toMint: .launchStub(address: mint)
+                )
+
+                self.submit(intent: fundingIntent, owner: ownerKeyPair) { fundingResult in
+                    switch fundingResult {
+                    case .success:
+                        logger.info("New-currency currency buy completed", metadata: [
+                            "intentId": "\(fundingIntentID.base58)",
+                        ])
+                        completion(.success(metadata))
+                    case .failure(let error):
+                        logger.error("Failed to fund new-currency currency swap", metadata: ["error": "\(error)"])
+                        completion(.failure(.fundingIntent(error)))
+                    }
+                }
+
+            case .failure(let error):
+                logger.error("Failed to start new-currency currency swap", metadata: ["error": "\(error)"])
+                completion(.failure(error))
+            }
+        }
+    }
+
     /// Runs a stateless USDC ↔ USDF swap via Coinbase Stable Swapper. Used by
     /// the on-app-open auto-sweep.
     func statelessSwap(

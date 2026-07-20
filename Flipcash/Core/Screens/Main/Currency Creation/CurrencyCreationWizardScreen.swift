@@ -33,9 +33,9 @@ struct CurrencyCreationWizardScreen: View {
     @State private var isShowingPhotoPicker = false
     @State private var isShowingFilePicker = false
 
-    /// Non-nil while the Reserves-funded launch is in flight. Drives a
-    /// `fullScreenCover` that presents `CurrencyLaunchProcessingScreen`.
-    @State private var reservesLaunchContext: ReservesLaunchContext?
+    /// Non-nil while a launch is in flight. Drives a `fullScreenCover` that
+    /// presents `CurrencyLaunchProcessingScreen`.
+    @State private var launchContext: LaunchContext?
     /// Mint from an earlier attempt whose buy failed inline. On a
     /// `nameExists` retry, reuse it so only the buy reruns. Bound to
     /// `name` — renaming invalidates.
@@ -46,11 +46,13 @@ struct CurrencyCreationWizardScreen: View {
         let name: String
     }
 
-    private struct ReservesLaunchContext: Identifiable, Hashable {
+    private struct LaunchContext: Identifiable, Hashable {
         let swapId: SwapId
         let launchedMint: PublicKey
         let currencyName: String
         let amount: ExchangedFiat
+        /// The token that paid the launch cost, for analytics.
+        let paymentMint: PublicKey
 
         var id: String { swapId.publicKey.base58 }
     }
@@ -94,10 +96,9 @@ struct CurrencyCreationWizardScreen: View {
         )
     }
 
-    /// True while the reserves-funded launch is preflighting or its processing
-    /// cover is up.
+    /// True while a launch is preflighting or its processing cover is up.
     private var isPayInFlight: Bool {
-        isValidating || reservesLaunchContext != nil
+        isValidating || launchContext != nil
     }
 
     enum Field: Hashable {
@@ -106,10 +107,18 @@ struct CurrencyCreationWizardScreen: View {
     }
 
     enum WizardStep: Int, CaseIterable {
-        case name = 0, icon, description, billCreation, confirmation
+        case name = 0, icon, description, billCreation, confirmation, paymentSelection
 
         var next: WizardStep? { WizardStep(rawValue: rawValue + 1) }
         var previous: WizardStep? { WizardStep(rawValue: rawValue - 1) }
+
+        /// Whether this step joins the progress bar. The payment picker shows a
+        /// title instead, so it opts out — the bar's total derives from this, not
+        /// a hard-coded count.
+        var showsProgressBar: Bool { self != .paymentSelection }
+
+        /// Number of steps the progress bar counts.
+        static let progressStepCount = allCases.filter(\.showsProgressBar).count
     }
 
     enum Direction {
@@ -179,10 +188,27 @@ struct CurrencyCreationWizardScreen: View {
                         onBuy: onPayToCreateTap
                     )
                     .transition(direction.slide)
+
+                case .paymentSelection:
+                    PaymentSelectionStep(
+                        viewModel: CurrencyPaymentSelectionViewModel(
+                            launchCost: totalLaunchCost.onChainAmount,
+                            // The launch flow prices everything in USD — the
+                            // rows must match the "$20" the CTA promised.
+                            displayRate: .oneToOne,
+                            session: session,
+                            ratesController: ratesController
+                        ),
+                        isLaunching: isPayInFlight,
+                        onConfirm: { launchAndBuy(payment: $0) }
+                    )
+                    .transition(direction.slide)
                 }
             }
         }
         .dialog(item: $errorDialog)
+        // The picker step names itself; the creation steps show the progress bar.
+        .navigationTitle(step.showsProgressBar ? "" : "Select Payment Currency")
         .toolbarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .interactiveDismissDisabled()
@@ -193,11 +219,13 @@ struct CurrencyCreationWizardScreen: View {
                         .foregroundStyle(Color.textMain)
                 }
             }
-            ToolbarItem(placement: .principal) {
-                CreationProgressBar(
-                    current: step.rawValue + 1,
-                    total: WizardStep.allCases.count
-                )
+            if step.showsProgressBar {
+                ToolbarItem(placement: .principal) {
+                    CreationProgressBar(
+                        current: step.rawValue + 1,
+                        total: WizardStep.progressStepCount
+                    )
+                }
             }
             if step == .billCreation {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -219,13 +247,14 @@ struct CurrencyCreationWizardScreen: View {
         ) { result in
             handleFileImport(result)
         }
-        .fullScreenCover(item: $reservesLaunchContext) { context in
+        .fullScreenCover(item: $launchContext) { context in
             NavigationStack {
                 CurrencyLaunchProcessingScreen(
                     swapId: context.swapId,
                     launchedMint: context.launchedMint,
                     currencyName: context.currencyName,
-                    launchAmount: context.amount
+                    launchAmount: context.amount,
+                    paymentMint: context.paymentMint
                 )
                 .environment(\.dismissParentContainer, {
                     // Sheet dismiss unmounts the wizard, taking the
@@ -244,7 +273,7 @@ struct CurrencyCreationWizardScreen: View {
             switch newStep {
             case .name: focusedField = .name
             case .description: focusedField = .description
-            case .icon, .billCreation, .confirmation: focusedField = nil
+            case .icon, .billCreation, .confirmation, .paymentSelection: focusedField = nil
             }
         }
     }
@@ -465,30 +494,55 @@ struct CurrencyCreationWizardScreen: View {
     }
 
     private func launchAndBuyWithReserves() {
+        performLaunch(paymentMint: .usdf) {
+            guard let pin = await ratesController.currentPinnedState(
+                for: launchAmount.nativeAmount.currency,
+                mint: launchAmount.mint
+            ) else { return nil }
+            return { mint in
+                try await session.buyNewCurrency(
+                    amount: launchAmount,
+                    feeAmount: launchFee,
+                    verifiedState: pin,
+                    mint: mint
+                )
+            }
+        }
+    }
+
+    /// Shared launch scaffold: guards the wizard's attestations, resolves the
+    /// funding proof via `prepareBuy`, launches the currency, buys the first
+    /// tokens with the yielded closure, and routes every error to a dialog. On
+    /// a `nameExists` collision it reuses a prior attempt's mint and reruns only
+    /// the buy. `prepareBuy` returns `nil` when the proof can't be resolved.
+    private func performLaunch(
+        paymentMint: PublicKey,
+        prepareBuy: @escaping () async -> ((PublicKey) async throws -> SwapId)?
+    ) {
         validationTask?.cancel()
         validationTask = Task {
             isValidating = true
             defer { isValidating = false }
 
-            let launchAmount = self.launchAmount
-            let launchFee = self.launchFee
             let totalLaunchCost = self.totalLaunchCost
+            let launchAmount = self.launchAmount
             let displayName = state.currencyName
 
+            // These two guards can fail while the "Ready To Create?" dialog is
+            // still tearing down — a locally-bound `.dialog(item:)` presented in
+            // that window is silently dropped, so route them through
+            // `session.dialogItem` (rendered in `DialogWindow` above any sheet).
             guard let nameAttestation = state.nameAttestation,
                   let iconAttestation = state.iconAttestation,
                   let descriptionAttestation = state.descriptionAttestation,
                   let iconData = state.encodedIconData else {
                 logger.error("Confirmation reached without required attestations or icon")
-                presentGenericErrorDialog()
+                session.dialogItem = .error(title: "Something Went Wrong", subtitle: "Please try again")
                 return
             }
 
-            guard let verifiedState = await ratesController.currentPinnedState(
-                for: launchAmount.nativeAmount.currency,
-                mint: launchAmount.mint
-            ) else {
-                presentGenericErrorDialog()
+            guard let buy = await prepareBuy() else {
+                session.dialogItem = .error(title: "Rate Unavailable", subtitle: "Couldn't get a fresh rate. Please try again.")
                 return
             }
 
@@ -505,12 +559,7 @@ struct CurrencyCreationWizardScreen: View {
                     iconAttestation: iconAttestation
                 )
                 launchedMint = mint
-                swapId = try await session.buyNewCurrency(
-                    amount: launchAmount,
-                    feeAmount: launchFee,
-                    verifiedState: verifiedState,
-                    mint: mint
-                )
+                swapId = try await buy(mint)
             } catch ErrorLaunchCurrency.denied {
                 logger.error("Launch denied after preflight attestations passed")
                 ErrorReporting.captureError(ErrorLaunchCurrency.denied)
@@ -521,31 +570,26 @@ struct CurrencyCreationWizardScreen: View {
                 return
             } catch ErrorLaunchCurrency.nameExists {
                 // Recover when a prior attempt minted the same name but its
-                // buyNewCurrency step failed — reuse the mint and try the buy
-                // directly so the user isn't stranded on a server-confirmed
-                // name collision.
+                // buy step failed — reuse the mint and rerun the buy directly
+                // so the user isn't stranded on a server-confirmed collision.
                 if let existing = createdMint, existing.name == displayName {
                     logger.info("Launch nameExists — reusing mint from prior attempt", metadata: [
                         "mint": "\(existing.mint.base58)",
                     ])
                     do {
-                        let retrySwapId = try await session.buyNewCurrency(
-                            amount: launchAmount,
-                            feeAmount: launchFee,
-                            verifiedState: verifiedState,
-                            mint: existing.mint
-                        )
-                        reservesLaunchContext = ReservesLaunchContext(
+                        let retrySwapId = try await buy(existing.mint)
+                        launchContext = LaunchContext(
                             swapId: retrySwapId,
                             launchedMint: existing.mint,
                             currencyName: displayName,
-                            amount: launchAmount
+                            amount: launchAmount,
+                            paymentMint: paymentMint
                         )
                     } catch Session.Error.insufficientBalance {
                         presentInsufficientFundsDialog(totalLaunchCost: totalLaunchCost)
                     } catch {
                         if Task.isCancelled { return }
-                        logger.error("Reserves-funded buy retry failed", metadata: [
+                        logger.error("Buy retry failed", metadata: [
                             "error": "\(error)",
                             "mint": "\(existing.mint.base58)",
                         ])
@@ -576,7 +620,7 @@ struct CurrencyCreationWizardScreen: View {
             } catch {
                 if Task.isCancelled { return }
                 captureCreatedMint(launchedMint, name: displayName)
-                logger.error("Reserves-funded launch failed", metadata: [
+                logger.error("Launch failed", metadata: [
                     "error": "\(error)",
                     "mint": "\(launchedMint?.base58 ?? "nil")",
                 ])
@@ -587,12 +631,40 @@ struct CurrencyCreationWizardScreen: View {
 
             // Submission accepted — record the mint and present the processing screen.
             captureCreatedMint(launchedMint, name: displayName)
-            reservesLaunchContext = ReservesLaunchContext(
+            launchContext = LaunchContext(
                 swapId: swapId,
                 launchedMint: launchedMint!,
                 currencyName: displayName,
-                amount: launchAmount
+                amount: launchAmount,
+                paymentMint: paymentMint
             )
+        }
+    }
+
+    private func launchAndBuyWithCurrency(payment: StoredBalance) {
+        performLaunch(paymentMint: payment.mint) {
+            // Pin the payment currency's USD proof and derive the swap/fee split
+            // at the commit moment — quarks are tied to this exact proof.
+            guard let pin = await ratesController.currentPinnedState(for: .usd, mint: payment.mint),
+                  let supply = pin.supplyFromBonding,
+                  let split = LaunchPaymentSplit.compute(
+                      purchaseUSD: launchAmount.nativeAmount.value,
+                      feeUSD: launchFee.nativeAmount.value,
+                      rate: pin.rate,
+                      paymentMint: payment.mint,
+                      supplyQuarks: supply,
+                      balanceUSD: payment.usdf
+                  )
+            else { return nil }
+            return { mint in
+                try await session.buyNewCurrency(
+                    amount: split.swap,
+                    feeAmount: split.fee,
+                    with: payment.mint,
+                    verifiedState: pin,
+                    mint: mint
+                )
+            }
         }
     }
 
@@ -613,16 +685,25 @@ struct CurrencyCreationWizardScreen: View {
 
     // MARK: - Pay-to-Create dispatch
 
-    /// "Pay X to Create" tap handler — launches from reserves, or routes to
-    /// Add Money when the balance no longer covers the cost (checked at "Get
+    /// "Pay X to Create" tap handler — advances to the payment-currency picker,
+    /// or routes to Add Money when no balance covers the cost (checked at "Get
     /// Started", so that only fires if it dropped mid-flow).
     private func onPayToCreateTap() {
-        if !shouldAddMoneyBeforeLaunch(session: session, launchCost: totalLaunchCost.onChainAmount) {
-            launchAndBuyWithReserves()
-        } else {
+        if shouldAddMoneyBeforeLaunch(session: session, launchCost: totalLaunchCost.onChainAmount) {
             session.dialogItem = .noBalance(subtitle: AddMoneyContext.createCurrency.noBalanceSubtitle) {
                 router.presentAddMoney(.createCurrency, source: .buyShortfall)
             }
+        } else {
+            advance()
+        }
+    }
+
+    /// Routes a chosen payment currency to the matching launch path.
+    private func launchAndBuy(payment: StoredBalance) {
+        if payment.mint == .usdf {
+            launchAndBuyWithReserves()
+        } else {
+            launchAndBuyWithCurrency(payment: payment)
         }
     }
 
@@ -892,6 +973,55 @@ private struct ConfirmationStep: View {
             .padding(.bottom, 20)
         }
         .padding(.horizontal, 20)
+    }
+}
+
+// MARK: - PaymentSelectionStep
+
+private struct PaymentSelectionStep: View {
+    @State private var viewModel: CurrencyPaymentSelectionViewModel
+    let isLaunching: Bool
+    let onConfirm: (StoredBalance) -> Void
+
+    init(
+        viewModel: CurrencyPaymentSelectionViewModel,
+        isLaunching: Bool,
+        onConfirm: @escaping (StoredBalance) -> Void
+    ) {
+        self._viewModel = State(initialValue: viewModel)
+        self.isLaunching = isLaunching
+        self.onConfirm = onConfirm
+    }
+
+    var body: some View {
+        @Bindable var viewModel = viewModel
+        List {
+            Section {
+                ForEach(viewModel.rows) { row in
+                    let eligible = viewModel.isEligible(row)
+                    let isUSDF = row.stored.mint == .usdf
+                    // The confirmed row's chevron becomes the in-flight loader —
+                    // the app never shows a full-screen loader.
+                    let isPaying = isLaunching && viewModel.confirmedMint == row.stored.mint
+                    CurrencyBalanceRow(
+                        exchangedBalance: row,
+                        accessibilityIdentifier: isUSDF ? "launch-payment-row-usdf" : "launch-payment-row",
+                        accessory: isPaying ? .loader : .chevron,
+                        amountStyle: .pill,
+                        usesSymbol: isUSDF
+                    ) {
+                        viewModel.select(row, onConfirm: onConfirm)
+                    }
+                    .disabled(!eligible || isLaunching)
+                    .opacity(eligible ? 1 : 0.4)
+                }
+            }
+            .listRowInsets(EdgeInsets())
+            .listSectionSeparator(.hidden, edges: .top)
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .dialog(item: $viewModel.dialogItem)
     }
 }
 

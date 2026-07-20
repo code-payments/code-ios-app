@@ -80,6 +80,7 @@ struct SelectCurrencyScreen: View {
 enum CurrencyRowAccessory {
     case chevron
     case check(isSelected: Bool)
+    case loader
 }
 
 struct CurrencyBalanceRow: View {
@@ -206,6 +207,10 @@ private struct AccessoryView: View {
                 .foregroundStyle(Color.textSecondary)
         case .check(let isSelected):
             CheckView(active: isSelected)
+        case .loader:
+            ProgressView()
+                .progressViewStyle(.circular)
+                .tint(Color.textSecondary)
         }
     }
 }

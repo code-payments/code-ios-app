@@ -58,6 +58,70 @@ struct AddMoneyGateTests {
         #expect(shouldAddMoneyBeforeLaunch(session: session, launchCost: launchCost) == false)
     }
 
+    /// A launchpad `StoredBalance` whose curve sell value covers/undershoots the cost.
+    /// Supply ≈ 50k tokens; ~2000 tokens ≈ $20 of curve value (matches the buy tests).
+    private func makeLaunchpadBalance(quarks: UInt64) throws -> StoredBalance {
+        try StoredBalance(
+            quarks: quarks,
+            symbol: "JEFFY",
+            name: "Jeffy",
+            supplyFromBonding: 50_000 * 10_000_000_000,
+            sellFeeBps: 100,
+            mint: .jeffy,
+            vmAuthority: nil,
+            updatedAt: Date(),
+            imageURL: nil,
+            costBasis: 0
+        )
+    }
+
+    @Test("Launch proceeds when a launchpad currency covers the cost")
+    func launch_launchpadCovers_proceeds() throws {
+        let session = MockSession()
+        session.extraBalances = [try makeLaunchpadBalance(quarks: 3_000 * 10_000_000_000)]
+        #expect(shouldAddMoneyBeforeLaunch(session: session, launchCost: launchCost) == false)
+    }
+
+    @Test("Launch adds money when the only launchpad balance is short")
+    func launch_launchpadShort_addsMoney() throws {
+        let session = MockSession()
+        session.extraBalances = [try makeLaunchpadBalance(quarks: 100 * 10_000_000_000)]
+        #expect(shouldAddMoneyBeforeLaunch(session: session, launchCost: launchCost) == true)
+    }
+
+    @Test("USDF eligibility is exact — a dust-short balance can't pay")
+    func launch_usdfDustShort_addsMoney() throws {
+        let session = MockSession()
+        session.usdfReserveBalance = try makeUSDFBalance(quarks: 19_999_999) // $19.999999
+        #expect(shouldAddMoneyBeforeLaunch(session: session, launchCost: launchCost) == true)
+    }
+
+    @Test("A launchpad balance that displays $20.00 can pay; one displaying $19.99 cannot")
+    func launch_boundaryDisplays() throws {
+        let supply: UInt64 = 50_000 * 10_000_000_000
+
+        // $19.996 raw rounds to a displayed $20.00 — inside the server's
+        // ±half-cent acceptance window, so the row must be payable.
+        let displaysTwenty = try #require(ExchangedFiat.compute(
+            fromEntered: .usd(Decimal(string: "19.996")!),
+            rate: .oneToOne, mint: .jeffy, supplyQuarks: supply
+        ))
+        #expect(canPayLaunchCost(
+            try makeLaunchpadBalance(quarks: displaysTwenty.onChainAmount.quarks),
+            launchCost: launchCost
+        ) == true)
+
+        // $19.99 raw displays as $19.99 — short, and outside the window.
+        let displaysShort = try #require(ExchangedFiat.compute(
+            fromEntered: .usd(Decimal(string: "19.99")!),
+            rate: .oneToOne, mint: .jeffy, supplyQuarks: supply
+        ))
+        #expect(canPayLaunchCost(
+            try makeLaunchpadBalance(quarks: displaysShort.onChainAmount.quarks),
+            launchCost: launchCost
+        ) == false)
+    }
+
     // MARK: - Give / send cash
 
     @Test("Give gate proceeds when a community currency is on hand")

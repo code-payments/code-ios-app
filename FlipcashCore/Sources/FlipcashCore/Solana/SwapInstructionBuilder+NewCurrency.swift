@@ -260,4 +260,177 @@ extension SwapInstructionBuilder {
 
         return instructions
     }
+
+    /// Builds the first-buy instruction list for a new launchpad currency paid
+    /// with another launchpad currency. The buyer's payment tokens (swap + fee)
+    /// flow to the server-controlled treasury, the treasury sells them into
+    /// Core Mint, and the treasury funds the buy with `treasuryPurchaseAmount`
+    /// Core Mint quarks — guaranteeing the purchase value regardless of
+    /// payment-mint price movement. Mirrors ocp-server's
+    /// `ReserveTreasuryFundedCreateAndBuySwapHandler.MakeInstructions`: unlike
+    /// the reserves format there are no Initialize/Memo/Close instructions, and
+    /// the compute-budget instructions are unconditional.
+    static func newCurrencyLaunchTreasuryFunded(
+        serverParams: SwapResponseServerParameters.ReserveNewCurrency,
+        treasury: PublicKey,
+        treasuryPurchaseAmount: UInt64,
+        authority: PublicKey,
+        paymentToken: MintMetadata,
+        swapAmount: UInt64,
+        feeAmount: UInt64
+    ) throws -> [Instruction] {
+        let coreMint = MintMetadata.usdf
+
+        guard let sourceVM = paymentToken.vmMetadata else {
+            throw SwapTransactionBuildError.missingMintMetadata(symbol: paymentToken.symbol)
+        }
+        guard let sourceLaunchpad = paymentToken.launchpadMetadata else {
+            throw SwapTransactionBuildError.missingMintMetadata(symbol: paymentToken.symbol)
+        }
+        guard let sourceSwapAccounts = paymentToken.timelockSwapAccounts(owner: authority) else {
+            throw SwapTransactionBuildError.missingMintMetadata(symbol: paymentToken.symbol)
+        }
+
+        // Derive the new currency's launchpad PDAs from server params.
+        guard let (targetMint, _) = LaunchpadMint.deriveMint(
+            authority: serverParams.authority,
+            name: serverParams.name,
+            seed: serverParams.seed
+        ) else {
+            fatalError("Failed to derive target mint PDA")
+        }
+
+        guard let (currency, _) = LaunchpadMint.deriveCurrency(mint: targetMint) else {
+            fatalError("Failed to derive currency PDA")
+        }
+
+        guard let (pool, _) = LaunchpadMint.derivePool(currency: currency) else {
+            fatalError("Failed to derive pool PDA")
+        }
+
+        guard let (vaultA, _) = LaunchpadMint.deriveVault(pool: pool, mint: targetMint) else {
+            fatalError("Failed to derive vault A PDA")
+        }
+
+        guard let (vaultB, _) = LaunchpadMint.deriveVault(pool: pool, mint: coreMint.address) else {
+            fatalError("Failed to derive vault B PDA")
+        }
+
+        // Buyer's deposit PDA + ATA on the new target-mint VM — where the
+        // bought tokens land.
+        guard let lockDuration = Byte(exactly: serverParams.vmLockDurationInDays) else {
+            throw SwapTransactionBuildError.invalidServerParameter("vmLockDurationInDays")
+        }
+        guard let buyerVMDepositPda = PublicKey.deriveDepositAccount(
+            owner: authority,
+            mint: targetMint,
+            timeAuthority: serverParams.authority,
+            lockout: lockDuration
+        ) else {
+            fatalError("Failed to derive buyer VM deposit PDA")
+        }
+        guard let buyerTargetVMDepositATA = PublicKey.deriveAssociatedAccount(
+            from: buyerVMDepositPda.publicKey,
+            mint: targetMint
+        ) else {
+            fatalError("Failed to derive buyer target VM deposit ATA")
+        }
+
+        // Treasury's Core Mint ATA funds the buy; it already exists on-chain.
+        guard let treasuryCoreMintATA = PublicKey.deriveAssociatedAccount(
+            from: treasury,
+            mint: coreMint.address
+        ) else {
+            fatalError("Failed to derive treasury Core Mint ATA")
+        }
+
+        // Treasury's payment-mint ATA receives the swap + fee, created here.
+        let createTreasuryFromMintATA = AssociatedTokenProgram.CreateIdempotent(
+            subsidizer: serverParams.payer,
+            owner: treasury,
+            mint: paymentToken.address
+        )
+
+        var instructions: [Instruction] = []
+
+        // 1. System::AdvanceNonce
+        instructions.append(
+            SystemProgram.AdvanceNonce(
+                nonce: serverParams.nonce,
+                authority: serverParams.payer
+            ).instruction()
+        )
+
+        // 2. ComputeBudget::SetComputeUnitLimit
+        instructions.append(
+            ComputeBudgetProgram.SetComputeUnitLimit(
+                units: serverParams.computeUnitLimit
+            ).instruction()
+        )
+
+        // 3. ComputeBudget::SetComputeUnitPrice
+        instructions.append(
+            ComputeBudgetProgram.SetComputeUnitPrice(
+                microLamports: serverParams.computeUnitPrice
+            ).instruction()
+        )
+
+        // 4. ATA::CreateIdempotent — treasury's payment-mint ATA
+        instructions.append(createTreasuryFromMintATA.instruction())
+
+        // 5. VM::TransferForSwapWithFee — the entire swap and fee amount is
+        //    collected by the treasury (both destinations), then converted into
+        //    Core Mint by the sell below.
+        instructions.append(
+            VMProgram.TransferForSwapWithFee(
+                vmAuthority: sourceVM.authority,
+                vm: sourceVM.vm,
+                swapper: authority,
+                swapPda: sourceSwapAccounts.pda.publicKey,
+                swapAta: sourceSwapAccounts.ata.publicKey,
+                swapDestination: createTreasuryFromMintATA.address,
+                feeDestination: createTreasuryFromMintATA.address,
+                swapAmount: swapAmount,
+                feeAmount: feeAmount,
+                bump: sourceSwapAccounts.pda.bump
+            ).instruction()
+        )
+
+        // 6. Reserve::SellTokens — treasury sells the collected payment tokens;
+        //    the Core Mint proceeds go to the fee destination.
+        instructions.append(
+            CurrencyCreatorProgram.SellTokens(
+                seller: treasury,
+                pool: sourceLaunchpad.liquidityPool,
+                targetMint: paymentToken.address,
+                baseMint: coreMint.address,
+                vaultTarget: sourceLaunchpad.mintVault,
+                vaultBase: sourceLaunchpad.coreMintVault,
+                sellerTarget: createTreasuryFromMintATA.address,
+                sellerBase: serverParams.feeDestination,
+                inAmount: swapAmount + feeAmount,
+                minAmountOut: 0
+            ).instruction()
+        )
+
+        // 7. Reserve::BuyTokens — treasury funds the first buy with the
+        //    pre-coordinated Core Mint amount, depositing the minted tokens
+        //    into the buyer's target-mint VM deposit ATA.
+        instructions.append(
+            CurrencyCreatorProgram.BuyTokens(
+                buyer: treasury,
+                pool: pool,
+                targetMint: targetMint,
+                baseMint: coreMint.address,
+                vaultA: vaultA,
+                vaultB: vaultB,
+                buyerTarget: buyerTargetVMDepositATA.publicKey,
+                buyerBase: treasuryCoreMintATA.publicKey,
+                amount: treasuryPurchaseAmount,
+                minOutAmount: 0
+            ).instruction()
+        )
+
+        return instructions
+    }
 }
