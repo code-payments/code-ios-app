@@ -259,7 +259,7 @@ struct ExchangedFiatTests {
             let currentTVL = curve.tokensToValue(currentSupply: 0, tokens: Int(supplyTokens))?.asDecimal()
 
             for fiat in fiatToTest {
-                let shouldSucceed = currentTVL.map { fiat <= $0 } ?? false
+                let withinTVL = currentTVL.map { fiat <= $0 } ?? false
                 let exchanged = ExchangedFiat.compute(
                     fromEntered: FiatAmount(value: fiat, currency: .usd),
                     rate: .oneToOne,
@@ -267,12 +267,16 @@ struct ExchangedFiatTests {
                     supplyQuarks: supplyQuarks
                 )
 
-                if shouldSucceed {
-                    #expect(exchanged != nil, "Expected exchange to succeed for \(fiat) at supply \(supplyTokens)")
-                }
+                #expect(exchanged != nil, "Expected exchange to succeed for \(fiat) at supply \(supplyTokens)")
 
-                guard let exchanged else {
-                    continue // Skip if amount exceeds what's available
+                guard let exchanged else { continue }
+
+                guard withinTVL else {
+                    // Beyond the TVL the quote clamps to the full supply; it
+                    // can't join the constant-usdfValue checks below.
+                    #expect(exchanged.onChainAmount.quarks == supplyQuarks,
+                           "Over-TVL entry should clamp to the full supply at \(supplyTokens) tokens")
+                    continue
                 }
 
                 results.append((
@@ -487,6 +491,47 @@ struct ExchangedFiatComputeFromEnteredTests {
 
         #expect(result != nil)
         #expect(result?.onChainAmount.quarks == balanceQuarks)
+    }
+
+    @Test("Entered value beyond the curve TVL clamps to the full supply")
+    func overTVLClampsToFullSupply() throws {
+        // A 1000-token curve holds ≈ $10 of value; $50 cannot be extracted.
+        let curve = DiscreteBondingCurve()
+        let tvl = try #require(curve.tokensToValue(currentSupply: 0, tokens: 1000)?.asDecimal())
+        #expect(tvl < 50, "Test premise: the curve's TVL must be below the entered value")
+
+        let result = try #require(ExchangedFiat.compute(
+            fromEntered: FiatAmount.usd(50),
+            rate: .oneToOne,
+            mint: testMint,
+            supplyQuarks: testSupplyQuarks
+        ))
+
+        #expect(result.onChainAmount.quarks == testSupplyQuarks)
+        // The quote's value is the TVL, matching compute(onChainAmount:) for
+        // the full supply — server-consistent, not the unpriceable $50.
+        let fullSupply = ExchangedFiat.compute(
+            onChainAmount: TokenAmount(quarks: testSupplyQuarks, mint: testMint),
+            rate: .oneToOne,
+            supplyQuarks: testSupplyQuarks
+        )
+        #expect(result.nativeAmount.value == fullSupply.nativeAmount.value)
+        #expect(result.nativeAmount.value < 50)
+    }
+
+    @Test("Over-TVL clamp still respects the token balance cap")
+    func overTVLRespectsTokenBalanceCap() throws {
+        let balanceQuarks: UInt64 = 999 * Self.quarksPerToken // holder of 999 of 1000 tokens
+
+        let result = try #require(ExchangedFiat.compute(
+            fromEntered: FiatAmount.usd(50),
+            rate: .oneToOne,
+            mint: testMint,
+            supplyQuarks: testSupplyQuarks,
+            tokenBalanceQuarks: balanceQuarks
+        ))
+
+        #expect(result.onChainAmount.quarks == balanceQuarks)
     }
 }
 

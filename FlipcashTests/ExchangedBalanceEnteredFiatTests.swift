@@ -51,4 +51,19 @@ struct ExchangedBalanceEnteredFiatTests {
         let fiat = try #require(balance.enteredFiat(for: 1_000_000_000_000_000, rate: .oneToOne))
         #expect(fiat.onChainAmount.quarks == balance.stored.quarks + 1)
     }
+
+    @Test("Sole holder entering beyond the TVL still gets the sentinel")
+    func bonded_soleHolderBeyondTVL_returnsSentinel() throws {
+        // The creator owns the entire ≈ $10 curve; a $50 entry must stay an
+        // over-balance sentinel so the funds gate reports a real shortfall.
+        let supplyQuarks: UInt64 = 9_996_054_730_448
+        let balance = ExchangedBalance.makeTest(
+            mint: .jeffy,
+            quarks: supplyQuarks,
+            supplyQuarks: supplyQuarks
+        )
+        let fiat = try #require(balance.enteredFiat(for: 50, rate: .oneToOne))
+        #expect(fiat.onChainAmount.quarks == balance.stored.quarks + 1)
+        #expect(fiat.nativeAmount.value == 50)
+    }
 }
