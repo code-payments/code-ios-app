@@ -229,8 +229,11 @@ struct CurrencyCreationWizardScreen: View {
             }
             if step == .billCreation {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Next", action: advance)
-                        .prominentButtonStyle()
+                    Button(action: advance) {
+                        Text("Next")
+                            .foregroundStyle(.white)
+                    }
+                    .prominentButtonStyle()
                 }
             }
         }
