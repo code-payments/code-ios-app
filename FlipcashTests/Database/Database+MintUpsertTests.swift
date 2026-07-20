@@ -134,7 +134,7 @@ struct DatabaseMintUpsertTests {
 
     // MARK: - Write Gating
 
-    @Test("Re-inserting an identical mint is silent and preserves the stored row", .currencyInfoAppHang)
+    @Test("Re-inserting an identical mint is silent and preserves the stored row")
     func upsertIdenticalMint_isSilent() throws {
         let (db, url) = try Database.makeTemp()
         defer { Database.removeTemp(at: url) }
