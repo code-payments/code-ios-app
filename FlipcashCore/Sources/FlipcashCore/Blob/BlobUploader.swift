@@ -36,7 +36,6 @@ final class BlobUploader: Sendable {
         self.timeout      = timeout
     }
 
-    /// Uploads `data` and returns its blob once the server has finalized it.
     /// Stores `data` and returns its blob, leaving finalization to the caller.
     ///
     /// Separate from `awaitFinalization` so a caller whose poll times out can
@@ -105,17 +104,30 @@ final class BlobUploader: Sendable {
     private func store(_ data: Data, mimeType: String, to target: UploadTarget) async throws {
         let boundary = "Boundary-\(UUID().uuidString)"
 
-        let (status, responseBody) = try await transport.post(
-            url: target.url,
-            contentType: "multipart/form-data; boundary=\(boundary)",
-            headers: target.headers,
-            body: Self.multipartBody(
-                fields: target.formFields,
-                file: data,
-                mimeType: mimeType,
-                boundary: boundary
+        let status: Int
+        let responseBody: Data
+
+        do {
+            // The upload leg is plain HTTP, so its failures arrive as `URLError`
+            // rather than an `ErrorBlob`; wrapping keeps network weather out of
+            // the caller's generic catch, which reports as a defect.
+            (status, responseBody) = try await transport.post(
+                url: target.url,
+                contentType: "multipart/form-data; boundary=\(boundary)",
+                headers: target.headers,
+                body: Self.multipartBody(
+                    fields: target.formFields,
+                    file: data,
+                    mimeType: mimeType,
+                    boundary: boundary
+                )
             )
-        )
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            logger.info("Upload transport failed", metadata: ["error": "\(error)"])
+            throw ErrorBlob.network(error)
+        }
 
         guard (200..<300).contains(status) else {
             // Storage reports signature and policy failures only in the body.

@@ -7,8 +7,6 @@ import Foundation
 import FlipcashAPI
 import GRPCCore
 
-private let logger = Logger(label: "flipcash.blob-service")
-
 final class BlobService: Sendable {
 
     private let service: Flipcash_Blob_V1_BlobStorage.Client<AppTransport>
@@ -85,7 +83,31 @@ extension BlobService: BlobReserving {
         }
     }
 
+    /// Returns a freshly minted download URL for a blob the caller owns.
+    ///
+    /// Media can arrive without one — the proto leaves the metadata optional —
+    /// and the URLs expire, so this is the way to get a usable one.
+    func downloadURL(blobID: BlobID, owner: KeyPair) async throws -> URL? {
+        let blob = try await fetchBlob(blobID: blobID, owner: owner)
+
+        guard let blob, blob.hasMetadata, blob.metadata.hasDownloadURL else {
+            return nil
+        }
+
+        return URL(string: blob.metadata.downloadURL.url)
+    }
+
     func blobState(blobID: BlobID, owner: KeyPair) async throws -> BlobState {
+        // Unauthorized or unknown ids are omitted rather than reported.
+        guard let blob = try await fetchBlob(blobID: blobID, owner: owner) else {
+            throw ErrorBlob.notFound
+        }
+
+        return BlobState(status: blob.status, rejection: blob.rejection)
+    }
+
+    /// Returns the blob record for `blobID`, or nil when the server omitted it.
+    private func fetchBlob(blobID: BlobID, owner: KeyPair) async throws -> Flipcash_Blob_V1_Blob? {
         var request = Flipcash_Blob_V1_GetBlobsRequest()
         request.blobIds = .with { $0.blobIds = [.with { $0.value = blobID.data }] }
         request.auth    = owner.authFor(message: request)
@@ -95,13 +117,7 @@ extension BlobService: BlobReserving {
 
             switch response.result {
             case .ok:
-                // Unauthorized or unknown ids are omitted rather than reported.
-                guard let blob = response.blobs.blobs.first else {
-                    throw ErrorBlob.notFound
-                }
-
-                return BlobState(status: blob.status, rejection: blob.rejection)
-
+                return response.blobs.blobs.first
             case .denied:
                 throw ErrorBlob.uploadDenied
             case .UNRECOGNIZED:
@@ -140,7 +156,7 @@ extension ErrorBlob: ServerError {
         case .unknown:
             .error
         case .network(let error):
-            (error as? ServerError)?.reportingLevel ?? .error
+            error.wrappedReportingLevel
         }
     }
 }
