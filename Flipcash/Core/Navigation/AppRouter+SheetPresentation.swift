@@ -27,6 +27,8 @@ extension AppRouter {
         /// Send Cash amount entry, stacked on top of the chat via
         /// `presentNested(.sendAmount)`. Dismissing it reveals the chat.
         case sendAmount(ResolvedContact)
+        /// My Tipcard, or the invitation to create a profile when there isn't one.
+        case tips
 
         var id: Self { self }
 
@@ -44,6 +46,7 @@ extension AppRouter {
             case .downloadApp:  .downloadApp
             case .send:         .send
             case .sendAmount:   .sendAmount
+            case .tips:         .tips
             }
         }
 
@@ -61,6 +64,7 @@ extension AppRouter {
             case .downloadApp:  .downloadApp
             case .send:         .send
             case .sendAmount:   .sendAmount
+            case .tips:         .tips
             }
         }
 
@@ -74,6 +78,7 @@ extension AppRouter {
             case downloadApp
             case send
             case sendAmount
+            case tips
         }
 
         var description: String {
@@ -87,6 +92,7 @@ extension AppRouter {
             case .downloadApp:  "downloadApp"
             case .send:         "send"
             case .sendAmount:   "sendAmount"
+            case .tips:         "tips"
             }
         }
     }

@@ -111,6 +111,7 @@ extension BetaFlags {
 
         case vibrateOnScan
         case enableCoinbase
+        case enableTips
 
         var id: String {
             localizedTitle
@@ -122,6 +123,8 @@ extension BetaFlags {
                 return "Vibrate on scan"
             case .enableCoinbase:
                 return "Enable Coinbase"
+            case .enableTips:
+                return "Tips"
             }
         }
 
@@ -131,6 +134,8 @@ extension BetaFlags {
                 return "If enabled, the device will vibrate to indicate that the camera has registered the code on the bill"
             case .enableCoinbase:
                 return "If enabled, Coinbase onramp will be available regardless of region"
+            case .enableTips:
+                return "If enabled, the Tips tab is available from the scan screen"
             }
         }
     }

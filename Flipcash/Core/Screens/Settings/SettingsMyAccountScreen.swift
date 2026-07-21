@@ -34,6 +34,10 @@ struct SettingsMyAccountScreen: View {
     private func list() -> some View {
         VStack(alignment: .leading, spacing: 0) {
 
+            SettingsRow(asset: .photo, title: "Profile", insets: insets) {
+                router.push(.settingsProfile)
+            }
+
             SettingsRow(asset: .key, title: "Access Key", insets: insets) {
                 dialogItem = .alert(
                     title: "View Your Access Key?",

@@ -1,0 +1,57 @@
+//
+//  TipcardView.swift
+//  Flipcash
+//
+
+import SwiftUI
+import FlipcashUI
+
+/// The shareable tipcard: a scannable code over the owner's name and photo.
+///
+/// Takes only resolved values — no environment, no URLs, no async loading — so
+/// the same view renders on screen and through `ImageRenderer` for export.
+struct TipcardView: View {
+
+    /// Explicit because a rendered tree has no container to size against.
+    let size: CGSize
+    let name: String
+    let avatar: UIImage?
+    let codeData: Data
+
+    var body: some View {
+        VStack(spacing: 0) {
+            CodeView(data: codeData)
+                .foregroundStyle(Color.white)
+                .frame(width: codeDimension, height: codeDimension)
+
+            HStack(spacing: 8) {
+                Text("Tip")
+
+                if let avatar {
+                    Image(uiImage: avatar)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: avatarDimension, height: avatarDimension)
+                        .clipShape(Circle())
+                }
+
+                Text(name)
+                    .lineLimit(1)
+            }
+            .font(.appDisplayXS)
+            .foregroundStyle(Color.textMain)
+            .padding(.top, size.height * 0.06)
+        }
+        .frame(width: size.width, height: size.height)
+        .background(Color(white: 0.11))
+        .clipShape(RoundedRectangle(cornerRadius: size.width * 0.08, style: .continuous))
+    }
+
+    private var codeDimension: CGFloat {
+        size.width * 0.68
+    }
+
+    private var avatarDimension: CGFloat {
+        size.width * 0.09
+    }
+}

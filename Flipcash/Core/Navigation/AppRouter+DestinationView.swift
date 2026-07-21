@@ -121,6 +121,17 @@ struct DestinationView: View {
         case .usdcDepositAddress:
             DepositScreen.usdcDeposit(session: sessionContainer.session)
 
+        case .settingsProfile:
+            SettingsProfileScreen()
+
+        // MARK: - Tips flow
+
+        case .profileName:
+            ProfileNameScreen()
+
+        case .profilePhoto:
+            ProfilePhotoScreen()
+
         // MARK: - Conversation flow
 
         case .dmConversation(let context):

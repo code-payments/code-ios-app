@@ -22,6 +22,7 @@ extension AppRouter {
         case downloadApp
         case send
         case sendAmount
+        case tips
 
         /// The sheet a stack is presented in. Cross-stack navigation uses
         /// this to know which top-level modal to surface.
@@ -41,6 +42,7 @@ extension AppRouter {
             case .downloadApp:  .downloadApp
             case .send:         .send
             case .sendAmount:   nil
+            case .tips:         .tips
             }
         }
 
@@ -55,6 +57,7 @@ extension AppRouter {
             case .downloadApp:  "downloadApp"
             case .send:         "send"
             case .sendAmount:   "sendAmount"
+            case .tips:         "tips"
             }
         }
     }

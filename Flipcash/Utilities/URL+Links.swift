@@ -17,6 +17,11 @@ extension URL {
         URL(string: "https://send.flipcash.com/c/#/e=\(mnemonic.base58EncodedEntropy)")!
     }
 
+    /// The public page that opens this user's tipcard.
+    static func tipcard(for userID: UserID) -> URL {
+        URL(string: "https://app.flipcash.com/tip/\(userID.uuidString.lowercased())")!
+    }
+
     static var privacyPolicy: URL {
         URL(string: "https://www.flipcash.com/privacy")!
     }
