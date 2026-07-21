@@ -33,7 +33,9 @@ private struct TipsIntroScreen: View {
             VStack(spacing: 0) {
                 Spacer()
 
-                Image(.Icons.tips)
+                // The tab-bar asset carries a heavier stroke tuned for 40pt;
+                // at this size it needs the lighter one.
+                Image(.Icons.tipsLarge)
                     .resizable()
                     .scaledToFit()
                     .frame(width: 120, height: 120)
