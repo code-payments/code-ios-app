@@ -165,7 +165,7 @@ extension ErrorProfile: ServerError {
         case .unknown:
             .error
         case .network(let error):
-            error.wrappedReportingLevel
+            (error as? ServerError)?.reportingLevel ?? .error
         }
     }
 }

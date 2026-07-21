@@ -28,22 +28,3 @@ public enum ErrorReportingLevel: Sendable, Equatable {
 public protocol ServerError: Error {
     var reportingLevel: ErrorReportingLevel { get }
 }
-
-extension Error {
-
-    /// The level this error reports at when another error carries it — the
-    /// `.network(Error)` case every wrapping conformer defines.
-    ///
-    /// `URLError` bridges to `NSError` once it is held as an existential, and
-    /// the bridged value no longer answers to `ServerError`, so it is re-cast
-    /// concretely. Without this a dropped connection reports as a defect.
-    public var wrappedReportingLevel: ErrorReportingLevel {
-        if let server = self as? ServerError {
-            server.reportingLevel
-        } else if let urlError = self as? URLError {
-            urlError.reportingLevel
-        } else {
-            .error
-        }
-    }
-}

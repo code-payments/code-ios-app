@@ -142,8 +142,9 @@ struct BlobUploaderTests {
     func bridgedURLErrorStaysSuppressed() {
         let carried: Error = URLError(.timedOut)
 
+        // Pins the bridge itself: if this ever starts succeeding, the concrete
+        // re-cast in ErrorBlob.network is dead weight and should go.
         #expect(carried as? ServerError == nil)
-        #expect(carried.wrappedReportingLevel == .suppressed)
         #expect(ErrorBlob.network(carried).reportingLevel == .suppressed)
     }
 

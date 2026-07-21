@@ -156,7 +156,12 @@ extension ErrorBlob: ServerError {
         case .unknown:
             .error
         case .network(let error):
-            error.wrappedReportingLevel
+            // The upload leg is plain HTTP, and a `URLError` bridges to
+            // `NSError` once carried here, which drops its `ServerError`
+            // conformance — hence the second, concrete cast.
+            (error as? ServerError)?.reportingLevel
+                ?? (error as? URLError)?.reportingLevel
+                ?? .error
         }
     }
 }
