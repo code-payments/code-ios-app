@@ -42,7 +42,7 @@ struct TipcardScreen: View {
                 HStack(spacing: 40) {
                     if let url {
                         ShareLink(item: url) {
-                            TipcardAction(systemName: "square.and.arrow.up", title: "Share")
+                            TipcardAction(icon: .Icons.share, title: "Share")
                         }
                         .accessibilityIdentifier("tipcard-share-button")
                     }
@@ -52,7 +52,7 @@ struct TipcardScreen: View {
                             item: exportImage,
                             preview: SharePreview("My Tipcard", image: exportImage)
                         ) {
-                            TipcardAction(systemName: "rectangle.portrait.and.arrow.right", title: "Export")
+                            TipcardAction(icon: .Icons.export, title: "Export")
                         }
                         .accessibilityIdentifier("tipcard-export-button")
                     }
@@ -129,20 +129,23 @@ struct TipcardScreen: View {
 
 private struct TipcardAction: View {
 
-    let systemName: String
+    let icon: ImageResource
     let title: String
 
     var body: some View {
         VStack(spacing: 8) {
-            Image(systemName: systemName)
-                .font(.system(size: 22, weight: .regular))
+            Image(icon)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 28, height: 28)
+                .foregroundStyle(Color.textMain)
                 .frame(width: 64, height: 64)
                 .background(Color(white: 0.16))
                 .clipShape(Circle())
 
             Text(title)
                 .font(.appTextSmall)
+                .foregroundStyle(Color.textSecondary)
         }
-        .foregroundStyle(Color.textMain)
     }
 }
