@@ -19,9 +19,16 @@ public struct Profile: Codable, Equatable, Sendable {
     public let displayName: String?
     public let phone: Phone?
     public let email: String?
-    
+    public let profilePicture: ProfilePicture?
+
     public var isPhoneVerified: Bool {
         phone != nil
+    }
+
+    /// Returns whether this profile can receive tips — both a name and a
+    /// picture are required.
+    public var isTippable: Bool {
+        displayName?.isEmpty == false && profilePicture != nil
     }
 
     /// Returns whether this profile gained a phone number not present in `previous`.
@@ -29,7 +36,7 @@ public struct Profile: Codable, Equatable, Sendable {
         phone != nil && phone?.e164 != previous?.phone?.e164
     }
 
-    public init(displayName: String?, phone: String?, email: String?) throws {
+    public init(displayName: String?, phone: String?, email: String?, profilePicture: ProfilePicture? = nil) throws {
 
         // Only parse phone if it's not empty
         var parsedPhone: Phone?
@@ -48,14 +55,16 @@ public struct Profile: Codable, Equatable, Sendable {
         self.init(
             displayName: displayName,
             phone: parsedPhone,
-            email: normalizedEmail
+            email: normalizedEmail,
+            profilePicture: profilePicture
         )
     }
-    
-    public init(displayName: String?, phone: Phone?, email: String?) {
+
+    public init(displayName: String?, phone: Phone?, email: String?, profilePicture: ProfilePicture? = nil) {
         self.displayName = displayName
         self.phone = phone
         self.email = email
+        self.profilePicture = profilePicture
     }
 }
 
@@ -72,7 +81,8 @@ extension Profile {
         try self.init(
             displayName: proto.displayName,
             phone: proto.phoneNumber.value,
-            email: proto.emailAddress.value
+            email: proto.emailAddress.value,
+            profilePicture: proto.hasProfilePicture ? ProfilePicture(proto.profilePicture) : nil
         )
     }
 }

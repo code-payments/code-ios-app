@@ -29,6 +29,8 @@ public class FlipClient: ObservableObject {
     internal let phoneService: PhoneService
     internal let emailService: EmailService
     internal let profileService: ProfileService
+    internal let blobService: BlobService
+    internal let blobUploader: BlobUploader
     internal let settingsService: SettingsService
     internal let moderationService: ModerationService
     internal let contactListService: ContactListService
@@ -67,6 +69,14 @@ public class FlipClient: ObservableObject {
         self.phoneService       = PhoneService(client: client)
         self.emailService       = EmailService(client: client)
         self.profileService     = ProfileService(client: client)
+
+        let blobService         = BlobService(client: client)
+        self.blobService        = blobService
+        self.blobUploader       = BlobUploader(
+            reserving: blobService,
+            transport: URLSessionBlobUploader()
+        )
+
         self.settingsService    = SettingsService(client: client)
         self.moderationService  = ModerationService(client: client)
         self.contactListService = ContactListService(client: client)
