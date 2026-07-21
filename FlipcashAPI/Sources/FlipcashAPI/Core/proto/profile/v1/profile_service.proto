@@ -8,6 +8,7 @@ option objc_class_prefix = "FPBProfileV1";
 
 import "blob/v1/model.proto";
 import "common/v1/common.proto";
+import "moderation/v1/model.proto";
 import "profile/v1/model.proto";
 import "validate/validate.proto";
 
@@ -69,7 +70,13 @@ message SetDisplayNameResponse {
 		OK                   = 0;
 		INVALID_DISPLAY_NAME = 1;
 		DENIED               = 2;
+		FAILED_MODERATED     = 3;
 	}
+
+	// The best-fit category that tripped moderation, mirroring the Moderation
+    // service's vocabulary. Set only when result == FAILED_MODERATED; NONE
+	// otherwise.
+    moderation.v1.FlaggedCategory flagged_category = 2;
 }
 
 message SetProfilePictureRequest {

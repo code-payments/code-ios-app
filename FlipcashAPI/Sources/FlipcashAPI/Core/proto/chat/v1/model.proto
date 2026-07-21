@@ -12,6 +12,12 @@ import "messaging/v1/model.proto";
 import "validate/validate.proto";
 import "google/protobuf/timestamp.proto";
 
+enum ChatType {
+    UNKNOWN    = 0;
+    CONTACT_DM = 1;
+    TIP_DM     = 2;
+}
+
 message Metadata {
     common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
 
@@ -19,10 +25,6 @@ message Metadata {
     ChatType type = 2 [(validate.rules).enum = {
         not_in: [0] // UNKNOWN
     }];
-    enum ChatType {
-        UNKNOWN = 0;
-        DM      = 1;
-    }
 
     // Members of this chat
     repeated Member members = 3;

@@ -12,13 +12,13 @@ extension FlipClient {
     /// Page the DM chat feed to exhaustion against a single pinned snapshot.
     /// The caller must already be consuming `eventStreamer.events` so updates
     /// that land mid-pagination aren't lost.
-    public func getDmChatFeed(owner: KeyPair) async throws -> [Conversation] {
+    public func getDmChatFeed(owner: KeyPair, type: ConversationType) async throws -> [Conversation] {
         var all: [Conversation] = []
         var pagingToken: Data?
 
         while true {
             let page = try await withCheckedThrowingContinuation { c in
-                chatService.getDmChatFeed(owner: owner, pagingToken: pagingToken) { c.resume(with: $0) }
+                chatService.getDmChatFeed(owner: owner, type: type, pagingToken: pagingToken) { c.resume(with: $0) }
             }
             all.append(contentsOf: page.conversations)
             if !page.hasMore { break }

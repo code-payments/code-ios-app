@@ -26,6 +26,7 @@ message ChatMetadata {
         option (validate.required) = true;
 
         ContactDmPayment contact_dm_payment = 2;
+        TipDmPayment     tip_dm_payment     = 3;
     }
 
     // For sending a payment to a contact in a DM
@@ -35,5 +36,10 @@ message ChatMetadata {
 
         // Destination phone number that is being paid. This is validated to be linked to the receiver.
         phone.v1.PhoneNumber destination = 2 [(validate.rules).message.required = true];
+    }
+
+    // For sending a DM tip payment to someone. The message is empty, since
+    // it's between two user IDs, which map directly to/from public keys.
+    message TipDmPayment {
     }
 }

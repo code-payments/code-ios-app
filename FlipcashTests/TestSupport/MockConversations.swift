@@ -119,7 +119,7 @@ final class MockConversations: ConversationFetching, ConversationMessaging, Conv
 
     // MARK: - ConversationFetching
 
-    func getDmChatFeed(owner: KeyPair) async throws -> [Conversation] { feed }
+    func getDmChatFeed(owner: KeyPair, type: ConversationType) async throws -> [Conversation] { feed }
 
     func getChat(owner: KeyPair, conversationID: ConversationID) async throws -> Conversation {
         guard let conversation = feed.first(where: { $0.id == conversationID }) else {

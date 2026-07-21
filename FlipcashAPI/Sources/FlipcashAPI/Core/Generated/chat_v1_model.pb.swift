@@ -20,6 +20,44 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
+public enum Flipcash_Chat_V1_ChatType: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+  case unknown // = 0
+  case contactDm // = 1
+  case tipDm // = 2
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unknown
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unknown
+    case 1: self = .contactDm
+    case 2: self = .tipDm
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unknown: return 0
+    case .contactDm: return 1
+    case .tipDm: return 2
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Flipcash_Chat_V1_ChatType] = [
+    .unknown,
+    .contactDm,
+    .tipDm,
+  ]
+
+}
+
 public struct Flipcash_Chat_V1_Metadata: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -35,7 +73,7 @@ public struct Flipcash_Chat_V1_Metadata: @unchecked Sendable {
   public mutating func clearChatID() {_uniqueStorage()._chatID = nil}
 
   /// The type of chat
-  public var type: Flipcash_Chat_V1_Metadata.ChatType {
+  public var type: Flipcash_Chat_V1_ChatType {
     get {_storage._type}
     set {_uniqueStorage()._type = newValue}
   }
@@ -81,40 +119,6 @@ public struct Flipcash_Chat_V1_Metadata: @unchecked Sendable {
   }
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public enum ChatType: SwiftProtobuf.Enum, Swift.CaseIterable {
-    public typealias RawValue = Int
-    case unknown // = 0
-    case dm // = 1
-    case UNRECOGNIZED(Int)
-
-    public init() {
-      self = .unknown
-    }
-
-    public init?(rawValue: Int) {
-      switch rawValue {
-      case 0: self = .unknown
-      case 1: self = .dm
-      default: self = .UNRECOGNIZED(rawValue)
-      }
-    }
-
-    public var rawValue: Int {
-      switch self {
-      case .unknown: return 0
-      case .dm: return 1
-      case .UNRECOGNIZED(let i): return i
-      }
-    }
-
-    // The compiler won't synthesize support with the UNRECOGNIZED case.
-    public static let allCases: [Flipcash_Chat_V1_Metadata.ChatType] = [
-      .unknown,
-      .dm,
-    ]
-
-  }
 
   public init() {}
 
@@ -242,13 +246,17 @@ public struct Flipcash_Chat_V1_MetadataUpdate: Sendable {
 
 fileprivate let _protobuf_package = "flipcash.chat.v1"
 
+extension Flipcash_Chat_V1_ChatType: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0UNKNOWN\0\u{1}CONTACT_DM\0\u{1}TIP_DM\0")
+}
+
 extension Flipcash_Chat_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Metadata"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}chat_id\0\u{1}type\0\u{1}members\0\u{3}last_message\0\u{3}last_activity\0\u{3}latest_event_sequence\0")
 
   fileprivate class _StorageClass {
     var _chatID: Flipcash_Common_V1_ChatId? = nil
-    var _type: Flipcash_Chat_V1_Metadata.ChatType = .unknown
+    var _type: Flipcash_Chat_V1_ChatType = .unknown
     var _members: [Flipcash_Chat_V1_Member] = []
     var _lastMessage: Flipcash_Messaging_V1_Message? = nil
     var _lastActivity: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
@@ -345,10 +353,6 @@ extension Flipcash_Chat_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Messa
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
-}
-
-extension Flipcash_Chat_V1_Metadata.ChatType: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0UNKNOWN\0\u{1}DM\0")
 }
 
 extension Flipcash_Chat_V1_Member: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {

@@ -416,7 +416,7 @@ final class ConversationController {
         isLoadingFeed = true
         defer { isLoadingFeed = false }
         do {
-            let conversations = try await fetching.getDmChatFeed(owner: owner)
+            let conversations = try await fetching.getDmChatFeed(owner: owner, type: .contactDm)
             store.setFeed(conversations)
             persist(operation: "replace-feed") { try database.replaceConversationFeed(store.conversations) }
         } catch {

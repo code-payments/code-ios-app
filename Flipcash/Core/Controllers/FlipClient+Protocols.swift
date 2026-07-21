@@ -61,7 +61,7 @@ protocol ContactSyncing: AnyObject, Sendable {
 /// DM conversation read surface used by `ConversationController` — the feed plus a
 /// single conversation by id. Maps 1:1 to the `flipcash.chat.v1.Chat` RPCs.
 protocol ConversationFetching: AnyObject, Sendable {
-    func getDmChatFeed(owner: KeyPair) async throws -> [Conversation]
+    func getDmChatFeed(owner: KeyPair, type: ConversationType) async throws -> [Conversation]
     func getChat(owner: KeyPair, conversationID: ConversationID) async throws -> Conversation
 }
 
