@@ -43,16 +43,13 @@ struct ProfileTests {
         #expect(none.hasNewlyLinkedPhone(since: x) == false) // number removed
     }
 
-    /// Download URLs are signed and short-lived, so persisting one guarantees a
-    /// 403 when it is read back on the next launch. Only the blob survives.
-    @Test("Storing a profile drops the signed URLs and keeps the blob")
-    func persistingAProfileDropsSignedURLs() throws {
-        let picture = ProfilePicture(
-            blobID: .mock,
-            thumbnailURL: URL(string: "https://cdn.example.com/thumb?Expires=1&Signature=abc"),
-            displayURL: URL(string: "https://cdn.example.com/display?Expires=1&Signature=abc"),
-            expiresAt: Date(timeIntervalSince1970: 1)
-        )
+    /// The blobs are the whole picture, so a stored profile round-trips to an
+    /// equal one — nothing has to be re-fetched to make it usable again.
+    @Test("A stored profile round-trips its picture blobs")
+    func persistingAProfileKeepsTheBlobs() throws {
+        // A distinct thumbnail blob, so a dropped one can't pass as the original.
+        let thumbnail = BlobID(uuid: UUID(uuidString: "6f9619ff-8b86-d011-b42d-00cf4fc964ff")!)
+        let picture = ProfilePicture(blobID: .mock, thumbnailBlobID: thumbnail)
         let profile = Profile(displayName: "Ted", phone: Optional<Phone>.none, email: nil, profilePicture: picture)
 
         let restored = try JSONDecoder().decode(
@@ -60,11 +57,7 @@ struct ProfileTests {
             from: try JSONEncoder().encode(profile)
         )
 
-        #expect(restored.profilePicture?.blobID == .mock)
-        #expect(restored.profilePicture?.thumbnailURL == nil)
-        #expect(restored.profilePicture?.displayURL == nil)
-        // The picture still exists, so the tipcard is still reachable while the
-        // next fetch mints a usable URL.
+        #expect(restored.profilePicture == picture)
         #expect(restored.isTippable)
     }
 
@@ -84,6 +77,37 @@ struct ProfileTests {
         #expect(profile.isTippable == false)
     }
 
+    /// A fixture, not a round-trip: a round-trip passes even if the key names
+    /// change together, which is exactly the break that empties every stored row.
+    @Test("A stored picture decodes from its on-disk keys")
+    func decodesPictureFromStoredKeys() throws {
+        let stored = Data(#"""
+        {"displayName":"Ted","profilePicture":{"blobID":{"data":"AQIDBAUGBwgJCgsMDQ4PEA=="},"thumbnailBlobID":{"data":"EA8ODQwLCgkIBwYFBAMCAQ=="}}}
+        """#.utf8)
+
+        let profile = try JSONDecoder().decode(Profile.self, from: stored)
+        let picture = try #require(profile.profilePicture)
+
+        #expect(picture.blobID.data == Data([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]))
+        #expect(picture.thumbnailBlobID.data == Data([16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]))
+        #expect(profile.isTippable)
+    }
+
+    /// An earlier build on this branch stored the blob alone. Rows persist as one
+    /// JSON blob, so throwing here would empty the whole profile.
+    @Test("A picture stored without a thumbnail falls back to the original")
+    func decodesPictureWithoutAThumbnail() throws {
+        let stored = Data(#"""
+        {"displayName":"Ted","profilePicture":{"blobID":{"data":"AQIDBAUGBwgJCgsMDQ4PEA=="}}}
+        """#.utf8)
+
+        let profile = try JSONDecoder().decode(Profile.self, from: stored)
+        let picture = try #require(profile.profilePicture)
+
+        #expect(picture.thumbnailBlobID == picture.blobID)
+        #expect(profile.isTippable)
+    }
+
     @Test("A profile needs both a name and a picture to receive tips",
           arguments: [
               (name: "Ted", hasPicture: true,  expected: true),
@@ -92,12 +116,7 @@ struct ProfileTests {
               (name: "",    hasPicture: true,  expected: false),
           ] as [(name: String?, hasPicture: Bool, expected: Bool)])
     func isTippableRequiresNameAndPicture(name: String?, hasPicture: Bool, expected: Bool) {
-        let picture = ProfilePicture(
-            blobID: .mock,
-            thumbnailURL: URL(string: "https://cdn.example.com/thumb"),
-            displayURL: URL(string: "https://cdn.example.com/display"),
-            expiresAt: nil
-        )
+        let picture = ProfilePicture(blobID: .mock, thumbnailBlobID: .mock)
 
         let profile = Profile(
             displayName: name,

@@ -9,6 +9,7 @@ import FlipcashCore
 import CodeScanner
 @testable import Flipcash
 
+@Suite("Tip Code Encoding Tests")
 struct TipCodeEncodingTests {
 
     /// Fixed rather than random: Swift Testing reruns individual arguments, so a
@@ -37,9 +38,9 @@ struct TipCodeEncodingTests {
     }
 
     /// `KikCodes.decode` strips trailing zero bytes, so a user id ending in
-    /// zeros survives the code as a SHORT frame. The decoder has to restore it —
-    /// the scanner hands `KikCodes.decode` output straight to the initializer
-    /// (`CodeExtractor.processSample`), with no padding in between.
+    /// zeros survives the code as a SHORT frame. The decoder has to restore it,
+    /// since a scanner hands that output to the initializer with no padding in
+    /// between.
     @Test("Round-trip survives the scannable code, which strips trailing zeros",
           arguments: TipCodeEncodingTests.userIDs)
     func roundTripThroughKikCode(userID: UUID) throws {

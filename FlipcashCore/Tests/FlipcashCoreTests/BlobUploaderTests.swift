@@ -108,9 +108,43 @@ struct BlobUploaderTests {
         await transport.setResponse(status: 403, body: Data("<Error>SignatureDoesNotMatch</Error>".utf8))
         let uploader = makeUploader(transport: transport, states: [.ready])
 
-        await #expect(throws: ErrorBlob.self) {
+        // The status is the whole diagnostic — a bare `ErrorBlob` assertion also
+        // passes when the uploader loses it to `.unknown`.
+        await #expect(performing: {
             _ = try await uploader.storeThenFinalize(Self.fileBytes, owner: try Self.owner())
-        }
+        }, throws: { error in
+            guard case ErrorBlob.uploadFailed(let status) = error else { return false }
+            return status == 403
+        })
+    }
+
+    /// The upload leg is plain HTTP, so its failures are `URLError`s. They have
+    /// to arrive as a blob error, or a dropped connection reports as a defect.
+    @Test("A transport failure surfaces as a suppressed network error")
+    func transportFailureIsClassifiedAsNetwork() async throws {
+        let transport = RecordingTransport()
+        await transport.setFailure(URLError(.networkConnectionLost))
+        let uploader = makeUploader(transport: transport, states: [.ready])
+
+        await #expect(performing: {
+            _ = try await uploader.store(Self.fileBytes, mimeType: "image/jpeg", owner: try Self.owner())
+        }, throws: { error in
+            guard case ErrorBlob.network = error else { return false }
+            return (error as? ErrorBlob)?.reportingLevel == .suppressed
+        })
+    }
+
+    /// A `URLError` held as an existential bridges to `NSError` and stops
+    /// answering to `ServerError`, so the wrapper has to re-cast it concretely —
+    /// the generic conformance check alone silently reports network weather as a
+    /// defect.
+    @Test("A bridged URLError still classifies as network weather")
+    func bridgedURLErrorStaysSuppressed() {
+        let carried: Error = URLError(.timedOut)
+
+        #expect(carried as? ServerError == nil)
+        #expect(carried.wrappedReportingLevel == .suppressed)
+        #expect(ErrorBlob.network(carried).reportingLevel == .suppressed)
     }
 
     // MARK: - Finalization -
@@ -140,10 +174,37 @@ struct BlobUploaderTests {
             timeout: .seconds(5)
         )
 
-        await #expect(throws: ErrorBlob.self) {
+        // The reason drives which dialog the user sees, so losing it is a bug a
+        // type-only assertion would miss.
+        await #expect(performing: {
             _ = try await uploader.storeThenFinalize(Self.fileBytes, owner: try Self.owner())
-        }
+        }, throws: { error in
+            guard case ErrorBlob.rejected(let reason) = error else { return false }
+            return reason == .moderation
+        })
         #expect(await reserving.pollCount == 2)
+    }
+
+    /// Storage can refuse at finalization, before any polling starts — the strip
+    /// happens client-side, so a blob rejected for privacy metadata means the
+    /// sanitizer let something through.
+    @Test("A rejection at completion throws without polling")
+    func rejectionAtCompletionSkipsPolling() async throws {
+        let reserving = StubReserving(states: [], completion: .rejected(.privacyMetadata))
+        let uploader = BlobUploader(
+            reserving: reserving,
+            transport: RecordingTransport(),
+            pollInterval: .milliseconds(1),
+            timeout: .seconds(5)
+        )
+
+        await #expect(performing: {
+            _ = try await uploader.store(Self.fileBytes, mimeType: "image/jpeg", owner: try Self.owner())
+        }, throws: { error in
+            guard case ErrorBlob.rejected(let reason) = error else { return false }
+            return reason == .privacyMetadata
+        })
+        #expect(await reserving.pollCount == 0)
     }
 
     @Test("Polling gives up at the deadline")
@@ -313,10 +374,15 @@ private actor RecordingTransport: BlobUploading {
 
     private var status = 204
     private var responseBody = Data()
+    private var failure: Error?
 
     func setResponse(status: Int, body: Data) {
         self.status = status
         self.responseBody = body
+    }
+
+    func setFailure(_ error: Error) {
+        self.failure = error
     }
 
     func post(url: URL, contentType: String, headers: [String: String], body: Data) async throws -> (status: Int, body: Data) {
@@ -324,6 +390,10 @@ private actor RecordingTransport: BlobUploading {
         self.contentType = contentType
         self.headers     = headers
         self.body        = body
+
+        if let failure {
+            throw failure
+        }
 
         return (status, responseBody)
     }
@@ -334,12 +404,14 @@ private actor StubReserving: BlobReserving {
     static let blobID = BlobID(uuid: UUID(uuidString: "3f2504e0-4f89-11d3-9a0c-0305e82c3301")!)
 
     private var states: [BlobState]
+    private let completion: BlobState
     private(set) var pollCount = 0
     private(set) var reserveCount = 0
     private(set) var declaredSizeBytes: Int?
 
-    init(states: [BlobState]) {
+    init(states: [BlobState], completion: BlobState = .processing) {
         self.states = states
+        self.completion = completion
     }
 
     func initiateExternalUpload(mimeType: String, sizeBytes: Int, owner: KeyPair) async throws -> ReservedUpload {
@@ -361,9 +433,9 @@ private actor StubReserving: BlobReserving {
         )
     }
 
-    /// Always `PROCESSING`, so every test exercises the polling path.
+    /// `PROCESSING` unless a test says otherwise, so the default path is polling.
     func completeExternalUpload(blobID: BlobID, owner: KeyPair) async throws -> BlobState {
-        .processing
+        completion
     }
 
     func blobState(blobID: BlobID, owner: KeyPair) async throws -> BlobState {

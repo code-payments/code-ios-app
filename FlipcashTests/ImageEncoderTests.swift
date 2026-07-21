@@ -40,7 +40,12 @@ struct ImageEncoderTests {
         #expect(uikitProperties[kCGImagePropertyExifDictionary as String] != nil)
 
         let data = try await ImageEncoder.encodeForUpload(image, maxBytes: 1_048_576)
+
+        // ImageIO parses the result independently, so a walker bug shared by the
+        // encoder and this suite's own marker scan can't false-green the strip.
         let encoded = try #require(properties(of: data))
+        #expect(encoded[kCGImagePropertyExifDictionary as String] == nil)
+        #expect(encoded[kCGImagePropertyGPSDictionary as String] == nil)
 
         // The service allowlists JPEG segments structurally rather than
         // reading their contents, so the contract is "no APP1 at all" — not
@@ -114,6 +119,25 @@ struct ImageEncoderTests {
         #expect(CGImageDestinationFinalize(destination))
 
         return try #require(UIImage(data: output as Data))
+    }
+
+    /// The ladder is finite: four qualities across five shrinking dimensions. A
+    /// budget nothing can satisfy has to surface rather than ship oversized bytes
+    /// the reservation would then sign.
+    @Test("encode reports a budget it cannot meet")
+    func encode_impossibleBudget_throws() async throws {
+        let image = try makeNoiseImage(side: 512)
+
+        await #expect(throws: ImageEncoderError.cannotFitBudget) {
+            _ = try await ImageEncoder.encodeForUpload(image, maxBytes: 64)
+        }
+    }
+
+    @Test("encode reports an image it cannot read")
+    func encode_imageWithoutPixels_throws() async throws {
+        await #expect(throws: ImageEncoderError.cannotEncode) {
+            _ = try await ImageEncoder.encodeForUpload(UIImage(), maxBytes: 1_048_576)
+        }
     }
 
     @Test("encode downsizes a large image to stay under budget")
