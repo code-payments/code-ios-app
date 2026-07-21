@@ -110,10 +110,7 @@ struct ProfilePhotoScreen: View {
 
         } catch ErrorBlob.rejected(let reason) {
             logger.info("Profile picture rejected", metadata: ["reason": "\(reason)"])
-            errorDialog = .error(
-                title: "This Image is Not Allowed",
-                subtitle: "Try a different image"
-            )
+            errorDialog = .profilePictureRejected(reason)
 
         } catch ErrorBlob.timedOut {
             logger.info("Profile picture upload timed out")

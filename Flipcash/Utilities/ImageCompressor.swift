@@ -15,20 +15,25 @@ nonisolated enum ImageCompressor {
         }.value
     }
 
+    /// Returns `original` redrawn upright, baking any EXIF rotation into the
+    /// pixels.
+    static func normalizedSync(_ original: UIImage) -> UIImage {
+        guard original.imageOrientation != .up else {
+            return original
+        }
+
+        // UIImage from Files can carry EXIF rotation that causes layout jumps
+        // when set as view content.
+        let renderer = UIGraphicsImageRenderer(size: original.size)
+        return renderer.image { _ in
+            original.draw(in: CGRect(origin: .zero, size: original.size))
+        }
+    }
+
     /// Synchronous variant for tests. Production callers should use the async
     /// form which offloads the CPU work.
     static func compressSync(_ original: UIImage, maxDimension: CGFloat = 1024) -> UIImage {
-        // Normalize orientation — UIImage from Files can carry EXIF
-        // rotation that causes layout jumps when set as view content.
-        let normalized: UIImage
-        if original.imageOrientation != .up {
-            let renderer = UIGraphicsImageRenderer(size: original.size)
-            normalized = renderer.image { _ in
-                original.draw(in: CGRect(origin: .zero, size: original.size))
-            }
-        } else {
-            normalized = original
-        }
+        let normalized = normalizedSync(original)
 
         let size = normalized.size
         guard size.width > maxDimension || size.height > maxDimension else {

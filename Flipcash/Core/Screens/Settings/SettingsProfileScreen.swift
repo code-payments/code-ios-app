@@ -148,7 +148,7 @@ struct SettingsProfileScreen: View {
             } catch ErrorBlob.rejected(let reason) {
                 logger.info("Profile picture rejected", metadata: ["reason": "\(reason)"])
                 await loadAvatar()
-                errorDialog = .error(title: "This Image is Not Allowed", subtitle: "Try a different image")
+                errorDialog = .profilePictureRejected(reason)
 
             } catch {
                 guard !Task.isCancelled else { return }

@@ -5,52 +5,85 @@
 
 import XCTest
 
-/// Drives profile creation end to end: Tips tab → intro → name → photo →
-/// tipcard.
+/// Covers profile creation and the tipcard it produces.
 ///
-/// The photo step reaches the real blob pipeline, which is why the assertions
-/// distinguish "the flow advanced" from "the upload succeeded" — see
-/// `testCreateProfile`.
+/// A profile is created once per account and the UI-test account persists
+/// between runs, so these tests are written to be idempotent: the creation test
+/// drives the full flow on an account that has no profile and verifies the
+/// resulting tipcard on one that already does, and the upload pipeline is
+/// exercised on every run through the Settings editor either way.
 @MainActor
 final class ProfileCreationSmokeTests: BaseUITestCase {
 
     override var requiresAuthentication: Bool { true }
     override var enabledBetaFlags: [String] { ["enableTips"] }
 
-    func testTipsTabOpensTheProfileIntro() {
-        assertMainScreenReached()
-
-        waitAndTap(app.buttons["scan-tips-button"])
-
-        XCTAssertTrue(
-            app.buttons["start-receiving-tips-button"].waitForExistence(timeout: 30),
-            "Expected the Tips intro when the account has no profile"
-        )
-        XCTAssertTrue(app.staticTexts["Receive Tips From Everyone"].exists)
+    override func setUp() async throws {
+        try await super.setUp()
+        // Login plus a real upload runs past XCTest's 2-minute default, which
+        // kills the test before any assertion can report what went wrong.
+        executionTimeAllowance = 360
     }
 
-    func testNameStepGatesOnAValidName() {
-        assertMainScreenReached()
-
-        waitAndTap(app.buttons["scan-tips-button"])
-        waitAndTap(app.buttons["start-receiving-tips-button"])
-
-        let next = app.buttons["profile-name-next-button"]
-        XCTAssertTrue(next.waitForExistence(timeout: 30), "Expected the name step")
-        XCTAssertFalse(next.isEnabled, "Next must stay disabled until a name is entered")
-
-        let field = app.textFields["Your Name"]
-        waitAndTap(field)
-        field.typeText("Ted Livingston")
-
-        XCTAssertTrue(next.isEnabled, "Next must enable once the name is valid")
-    }
+    // MARK: - Creation
 
     func testCreateProfile() throws {
         assertMainScreenReached()
-
         waitAndTap(app.buttons["scan-tips-button"])
-        waitAndTap(app.buttons["start-receiving-tips-button"])
+
+        let intro = app.buttons["start-receiving-tips-button"]
+        let tipcardHeading = app.staticTexts["Share Your Tipcard to Get Tipped"]
+
+        XCTAssertTrue(
+            waitForEither(intro, tipcardHeading, timeout: 30),
+            "Tips opened on neither the creation intro nor the tipcard"
+        )
+
+        if intro.exists {
+            XCTAssertTrue(app.staticTexts["Receive Tips From Everyone"].exists)
+            try createProfile(from: intro)
+        }
+
+        XCTAssertTrue(
+            tipcardHeading.waitForExistence(timeout: 90),
+            "Expected the tipcard once the profile is complete"
+        )
+        XCTAssertTrue(app.buttons["tipcard-share-button"].exists, "Expected the Share action")
+        XCTAssertTrue(app.buttons["tipcard-export-button"].waitForExistence(timeout: 30),
+                      "Expected the Export action once the card has rendered")
+    }
+
+    /// Runs the whole upload pipeline — reserve, direct-to-storage POST,
+    /// finalize, poll — on every run, regardless of whether the account already
+    /// had a profile. This is the part that talks to the real server, so it is
+    /// the part worth exercising repeatedly.
+    func testReplaceProfilePhoto() throws {
+        assertMainScreenReached()
+
+        let settings = SettingsUIScreen(app: app)
+        settings.open(from: self)
+        settings.navigateToMyAccount(from: self)
+        waitAndTap(app.buttons["Profile"])
+
+        let avatar = app.buttons["settings-profile-photo"]
+        XCTAssertTrue(avatar.waitForExistence(timeout: 30), "Expected the Profile editor")
+
+        guard selectFirstPhotoFromLibrary(via: avatar, opensMenu: false) else {
+            throw XCTSkip("No photo in the simulator library — nothing to upload")
+        }
+
+        // A rejected or failed upload surfaces as a dialog; success is its absence.
+        let dismissedDialog = app.buttons["OK"]
+        XCTAssertFalse(
+            dismissedDialog.waitForExistence(timeout: 60),
+            "Photo upload failed: \(visibleText())"
+        )
+    }
+
+    // MARK: - Helpers
+
+    private func createProfile(from intro: XCUIElement) throws {
+        intro.tap()
 
         let field = app.textFields["Your Name"]
         waitAndTap(field)
@@ -59,87 +92,82 @@ final class ProfileCreationSmokeTests: BaseUITestCase {
         field.typeText("Ted \(Int(Date().timeIntervalSince1970) % 100_000)")
 
         let next = app.buttons["profile-name-next-button"]
-        waitAndTap(next)
+        XCTAssertTrue(next.isEnabled, "Next must enable once the name is valid")
+        next.tap()
 
-        // The name step calls SetDisplayName before advancing, so the photo step
-        // appearing is also proof the name was accepted and moderated.
+        // The name step calls SetDisplayName before advancing, so reaching the
+        // photo step is also proof the name was accepted and moderated.
         let picker = app.buttons["profile-photo-picker"]
         XCTAssertTrue(
             picker.waitForExistence(timeout: 60),
-            "Expected the photo step — SetDisplayName either failed or was rejected"
+            "Expected the photo step — SetDisplayName failed or was rejected"
         )
 
         let photoNext = app.buttons["profile-photo-next-button"]
         XCTAssertFalse(photoNext.isEnabled, "Next must stay disabled until a photo is chosen")
 
-        guard selectFirstPhotoFromLibrary(via: picker) else {
-            throw XCTSkip("No photo available in the simulator library — skipping the upload half")
+        guard selectFirstPhotoFromLibrary(via: picker, opensMenu: true) else {
+            throw XCTSkip("No photo in the simulator library — cannot finish creation")
         }
 
-        XCTAssertTrue(
-            photoNext.waitForExistence(timeout: 30) && photoNext.isEnabled,
-            "Next must enable once a photo is chosen"
-        )
+        XCTAssertTrue(photoNext.isEnabled, "Next must enable once a photo is chosen")
         photoNext.tap()
-
-        // Upload → CompleteExternalUpload → poll until READY, bounded at 60s in
-        // the app. The tipcard is the Tips root once the profile is complete.
-        XCTAssertTrue(
-            app.otherElements["tipcard"].waitForExistence(timeout: 120)
-                || app.staticTexts["Share Your Tipcard to Get Tipped"].waitForExistence(timeout: 5),
-            "Expected the tipcard after the photo upload completed"
-        )
-        XCTAssertTrue(app.buttons["tipcard-share-button"].exists, "Expected the Share action")
     }
 
-    // MARK: - Helpers
-
-    /// Picks the first photo out of the system library and confirms the crop
+    /// Picks the newest photo from the system library and commits the crop
     /// editor. Returns false when the library is empty, which is the state of a
     /// freshly created simulator.
-    private func selectFirstPhotoFromLibrary(via picker: XCUIElement) -> Bool {
-        picker.tap()
+    private func selectFirstPhotoFromLibrary(via control: XCUIElement, opensMenu: Bool) -> Bool {
+        control.tap()
 
-        // The Menu presents Photo Library / Choose File.
-        waitAndTap(app.buttons["Photo Library"])
-
-        // UIImagePickerController runs out of process on iOS 11+, so the grid
-        // may belong to the picker host rather than to `app`. Naming a bundle
-        // scopes the query without stealing foreground, and a query against a
-        // process that isn't running just returns an empty hierarchy — so
-        // polling every candidate is safe.
-        let hosts = [
-            app,
-            XCUIApplication(bundleIdentifier: "com.apple.PhotosUIPrivate.PhotosUIExtension"),
-            XCUIApplication(bundleIdentifier: "com.apple.mobileslideshow"),
-        ]
-        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-
-        let deadline = Date().addingTimeInterval(45)
-        while Date() < deadline {
-            // A reset authorization can still surface an access prompt.
-            for allow in [springboard.buttons["Allow Full Access"], springboard.buttons["Allow Access to All Photos"], springboard.buttons["OK"]] {
-                if allow.exists, allow.isHittable { allow.tap() }
-            }
-
-            for host in hosts {
-                let cell = host.collectionViews.cells.firstMatch
-                guard cell.exists, cell.isHittable else { continue }
-                cell.tap()
-
-                // `allowsEditing` presents a crop editor; "Choose" commits it.
-                for confirm in hosts.map({ $0.buttons["Choose"] }) {
-                    if confirm.waitForExistence(timeout: 10), confirm.isHittable {
-                        confirm.tap()
-                        return true
-                    }
-                }
-                return true
-            }
-
-            Thread.sleep(forTimeInterval: 0.25)
+        if opensMenu {
+            // The creation step offers Photo Library / Choose File; the Settings
+            // editor goes straight to the library.
+            waitAndTap(app.buttons["Photo Library"])
         }
 
+        // The library is a remote view hosted inside the app's own hierarchy, so
+        // it is reachable from `app` rather than a separate process. Its
+        // thumbnails are images tagged `PXGGridLayout-Info` — they are not
+        // collection-view cells, and querying `cells` finds nothing. The head of
+        // the grid is always on screen; thumbnails further down are in the tree
+        // but below the fold, so a coordinate tap on them lands nowhere.
+        let thumbnail = app.images.matching(identifier: "PXGGridLayout-Info").firstMatch
+        guard thumbnail.waitForExistence(timeout: 30) else { return false }
+
+        if thumbnail.isHittable {
+            thumbnail.tap()
+        } else {
+            thumbnail.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        }
+
+        // `allowsEditing` puts a crop editor in front of the selection; "Choose"
+        // is what actually returns the image.
+        let choose = app.buttons["Choose"]
+        guard choose.waitForExistence(timeout: 20) else { return false }
+        choose.tap()
+
+        return true
+    }
+
+    /// Waits until either element exists, so a test can branch on whichever
+    /// state the account is actually in.
+    private func waitForEither(_ a: XCUIElement, _ b: XCUIElement, timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if a.exists || b.exists { return true }
+            Thread.sleep(forTimeInterval: 0.25)
+        }
         return false
+    }
+
+    /// Everything legible on screen, for failure messages — an upload failure
+    /// surfaces as a dialog whose copy names the stage that failed.
+    private func visibleText() -> String {
+        app.staticTexts.allElementsBoundByIndex
+            .prefix(15)
+            .map(\.label)
+            .filter { !$0.isEmpty }
+            .joined(separator: " | ")
     }
 }
