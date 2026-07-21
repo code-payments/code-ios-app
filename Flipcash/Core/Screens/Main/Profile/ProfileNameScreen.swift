@@ -17,8 +17,10 @@ struct ProfileNameScreen: View {
     @Environment(ProfileCreationState.self) private var state
 
     @FocusState private var isNameFocused: Bool
-    @State private var isSubmitting = false
+    @State private var submitTask: Task<Void, Never>?
     @State private var errorDialog: DialogItem?
+
+    private var isSubmitting: Bool { submitTask != nil }
 
     /// Shown only once the limit is close enough to explain a disabled Next.
     private static let countdownThreshold = 10
@@ -71,14 +73,16 @@ struct ProfileNameScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .dialog(item: $errorDialog)
         .onAppear { isNameFocused = true }
+        // Leaving the screen abandons the submission: its only continuation is a
+        // push onto a stack this screen no longer sits on.
+        .onDisappear { submitTask?.cancel() }
     }
 
     private func submit() {
         guard let name = state.validatedDisplayName, !isSubmitting else { return }
 
-        isSubmitting = true
-        Task {
-            defer { isSubmitting = false }
+        submitTask = Task {
+            defer { submitTask = nil }
 
             do {
                 try await container.flipClient.setDisplayName(
@@ -90,7 +94,7 @@ struct ProfileNameScreen: View {
                 // `push` resolves the stack when it runs, and this runs after two
                 // RPCs — by now the user may have swapped to another sheet, whose
                 // stack has no profile-creation state to mount against.
-                guard router.presentedSheet?.stack == .tips else { return }
+                guard !Task.isCancelled, router.presentedSheet?.stack == .tips else { return }
                 router.push(.profilePhoto)
 
             } catch ErrorProfile.moderated(let category) {

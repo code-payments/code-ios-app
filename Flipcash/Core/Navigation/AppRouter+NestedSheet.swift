@@ -130,12 +130,13 @@ struct TipsSheetRoot: View {
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
                         CloseButton(action: router.dismissSheet)
+                            .disabled(creationState.isUploading)
                     }
                 }
         }
         .environment(creationState)
         // A rejected blob is terminal and a reserved upload is signed against
-        // one byte count, so a swipe mid-upload loses real work.
+        // one byte count, so dismissing mid-upload loses real work.
         .interactiveDismissDisabled(creationState.isUploading)
     }
 }

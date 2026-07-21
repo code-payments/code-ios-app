@@ -20,7 +20,6 @@ struct ProfilePhotoScreen: View {
     @State private var isShowingPhotoPicker = false
     @State private var isShowingFilePicker = false
     @State private var errorDialog: DialogItem?
-    @State private var compressTask: Task<Void, Never>?
 
     private static let avatarSize: CGFloat = 150
 
@@ -80,7 +79,7 @@ struct ProfilePhotoScreen: View {
         .dialog(item: $errorDialog)
         .fullScreenCover(isPresented: $isShowingPhotoPicker) {
             ImagePickerWithEditor(
-                onImagePicked: setSelectedImage,
+                onImagePicked: state.select,
                 onDismiss: { isShowingPhotoPicker = false }
             )
             .ignoresSafeArea()
@@ -102,8 +101,10 @@ struct ProfilePhotoScreen: View {
     private func upload() async {
         do {
             try await state.uploadPhoto(
-                session: sessionContainer.session,
-                flipClient: container.flipClient
+                with: SessionProfilePictureUploader(
+                    session: sessionContainer.session,
+                    flipClient: container.flipClient
+                )
             )
             // The Tips root renders the tipcard once the profile is complete.
             router.popToRoot(on: .tips)
@@ -114,7 +115,9 @@ struct ProfilePhotoScreen: View {
             ErrorReporting.captureError(error, reason: "Profile picture upload failed")
             errorDialog = .profilePictureFailed(error)
 
-        } catch is ImageEncoderError {
+        } catch let error as ImageEncoderError {
+            logger.error("Failed to encode the profile picture", metadata: ["error": "\(error)"])
+            ErrorReporting.captureError(error, reason: "Failed to encode the profile picture")
             errorDialog = .imageProcessingFailed
 
         } catch {
@@ -128,23 +131,19 @@ struct ProfilePhotoScreen: View {
         }
     }
 
-    private func setSelectedImage(_ image: UIImage) {
-        // The picker can be reopened while a large photo is still compressing,
-        // so without this a slow earlier pick lands last and wins.
-        compressTask?.cancel()
-        compressTask = Task {
-            let compressed = await ImageCompressor.compress(
-                image,
-                maxDimension: ProfileCreationState.maxImageDimension
-            )
-            guard !Task.isCancelled else { return }
-            state.selectedImage = compressed
+    private func handleFileImport(_ result: Result<[URL], Error>) {
+        switch result {
+        case .failure(let error):
+            logger.info("Photo file import failed", metadata: ["error": "\(error)"])
+            return
+
+        case .success(let urls):
+            guard let url = urls.first else { return }
+            importImage(at: url)
         }
     }
 
-    private func handleFileImport(_ result: Result<[URL], Error>) {
-        guard case .success(let urls) = result, let url = urls.first else { return }
-
+    private func importImage(at url: URL) {
         Task {
             guard url.startAccessingSecurityScopedResource() else { return }
             defer { url.stopAccessingSecurityScopedResource() }
@@ -162,7 +161,7 @@ struct ProfilePhotoScreen: View {
                 return
             }
 
-            setSelectedImage(image)
+            state.select(image)
         }
     }
 }

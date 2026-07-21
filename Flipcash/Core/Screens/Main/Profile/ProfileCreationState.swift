@@ -18,7 +18,7 @@ final class ProfileCreationState {
 
     var displayName: String = ""
 
-    var selectedImage: UIImage? {
+    private(set) var selectedImage: UIImage? {
         didSet {
             guard selectedImage !== oldValue else { return }
             // A different photo needs its own blob: rejection is terminal and a
@@ -26,6 +26,8 @@ final class ProfileCreationState {
             reservedBlobID = nil
         }
     }
+
+    @ObservationIgnored private var compressTask: Task<Void, Never>?
 
     /// Bumped to start an upload attempt. The photo screen keys its `task` on
     /// this, so SwiftUI owns cancellation and "Try Again" is a re-run.
@@ -58,7 +60,21 @@ final class ProfileCreationState {
         selectedImage != nil && !isUploading
     }
 
+    /// Compresses `image` and makes it the selection, replacing any earlier pick
+    /// still compressing so a slow one can't land last and win.
+    func select(_ image: UIImage) {
+        compressTask?.cancel()
+        compressTask = Task {
+            let compressed = await ImageCompressor.compress(image, maxDimension: Self.maxImageDimension)
+            guard !Task.isCancelled else { return }
+            selectedImage = compressed
+        }
+    }
+
     func beginUpload() {
+        // A pick still compressing would land mid-upload and replace the bytes
+        // the reservation is signed against; what is on screen is what uploads.
+        compressTask?.cancel()
         hasPendingUpload = true
         uploadAttemptID += 1
     }
@@ -68,7 +84,7 @@ final class ProfileCreationState {
     /// Uploads the selected photo and attaches it to the profile.
     ///
     /// Resumes a previous attempt when its bytes are already stored.
-    func uploadPhoto(session: Session, flipClient: FlipClient) async throws {
+    func uploadPhoto(with uploader: some ProfilePictureUploading) async throws {
         guard let image = selectedImage else {
             throw ErrorBlob.notFound
         }
@@ -79,8 +95,6 @@ final class ProfileCreationState {
             hasPendingUpload = false
         }
 
-        let owner = session.ownerKeyPair
-
         if let reservedBlobID {
             logger.info("Resuming profile picture finalization", metadata: ["blobId": "\(reservedBlobID)"])
         } else {
@@ -89,20 +103,20 @@ final class ProfileCreationState {
             let data = try await ImageEncoder.encodeForUpload(image, maxBytes: Self.maxUploadBytes)
             // Held from the moment the bytes land, so a timed-out wait resumes
             // this blob rather than storing a second copy.
-            reservedBlobID = try await flipClient.storeBlob(data, mimeType: "image/jpeg", owner: owner)
+            reservedBlobID = try await uploader.storeBlob(data, mimeType: "image/jpeg")
         }
 
         guard let blobID = reservedBlobID else { return }
 
         do {
-            try await flipClient.awaitBlobFinalization(blobID: blobID, owner: owner)
+            try await uploader.awaitBlobFinalization(blobID: blobID)
         } catch ErrorBlob.rejected(let reason) {
             reservedBlobID = nil
             throw ErrorBlob.rejected(reason)
         }
 
-        _ = try await flipClient.setProfilePicture(blobID: blobID, owner: owner)
-        try await session.updateProfile()
+        try await uploader.setProfilePicture(blobID: blobID)
+        try await uploader.refreshProfile()
 
         // The sheet root outlives this flow, so the bitmap would sit resident
         // until the sheet closes.
