@@ -133,16 +133,11 @@ class OnboardingViewModel {
         try await Task.delay(milliseconds: 500) // Delay deferred state change
     }
 
-    /// Whether to collect a phone number during onboarding. The local beta flag
-    /// forces it on; otherwise the server's `enablePhoneNumberSend` decides.
-    /// The flags fetch is time-boxed so a slow connection can't stall onboarding;
+    /// Whether to collect a phone number during onboarding, decided by the
+    /// server's `enablePhoneNumberSend`. The fetch is time-boxed so a slow connection can't stall onboarding;
     /// the step is skipped if the account isn't known yet, the fetch times out, or
     /// it fails — a phone can still be connected later from the Send sheet.
     private func shouldOfferPhoneVerification() async -> Bool {
-        if BetaFlags.shared.hasEnabled(.enableSend) {
-            return true
-        }
-
         guard let userID = initializedAccount?.userID else {
             return false
         }

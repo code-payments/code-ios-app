@@ -18,7 +18,7 @@ struct RecipientPickerUIScreen {
 
     // MARK: - Elements
 
-    /// The Send button on the ScanBottomBar (gated by the `enableSend` flag).
+    /// The Send button on the ScanBottomBar (gated by `Session.canSend`).
     var sendButton: XCUIElement { app.buttons["scan-send-button"] }
 
     /// A recipient row whose accessibility label starts with `name`.

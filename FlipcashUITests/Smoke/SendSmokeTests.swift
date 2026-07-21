@@ -9,7 +9,6 @@ final class SendSmokeTests: BaseUITestCase {
 
     override var requiresAuthentication: Bool { true }
     override var resetPermissions: [XCUIProtectedResource] { [.contacts] }
-    override var enabledBetaFlags: [String] { ["enableSend"] }
 
     func testSendFlow_picker_inviteFallback() {
         assertMainScreenReached()

@@ -8,7 +8,6 @@ import XCTest
 final class CreateAccountSmokeTests: BaseUITestCase {
 
     override var resetPermissions: [XCUIProtectedResource] { [.photos, .contacts] }
-    override var enabledBetaFlags: [String] { ["enableSend"] }
 
     // MARK: - Tests
 

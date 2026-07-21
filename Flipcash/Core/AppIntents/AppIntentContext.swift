@@ -26,7 +26,7 @@ enum AppIntentContext {
     }
 
     /// Whether the signed-in user can send — gates both the contact query and
-    /// the intent. Mirrors `Session.canSend` (beta flag OR server flag).
+    /// the intent. Mirrors `Session.canSend`.
     static var canSend: Bool {
         loggedInContainer?.session.canSend ?? false
     }
