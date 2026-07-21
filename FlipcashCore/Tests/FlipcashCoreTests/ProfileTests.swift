@@ -43,6 +43,31 @@ struct ProfileTests {
         #expect(none.hasNewlyLinkedPhone(since: x) == false) // number removed
     }
 
+    /// Download URLs are signed and short-lived, so persisting one guarantees a
+    /// 403 when it is read back on the next launch. Only the blob survives.
+    @Test("Storing a profile drops the signed URLs and keeps the blob")
+    func persistingAProfileDropsSignedURLs() throws {
+        let picture = ProfilePicture(
+            blobID: .mock,
+            thumbnailURL: URL(string: "https://cdn.example.com/thumb?Expires=1&Signature=abc"),
+            displayURL: URL(string: "https://cdn.example.com/display?Expires=1&Signature=abc"),
+            expiresAt: Date(timeIntervalSince1970: 1)
+        )
+        let profile = Profile(displayName: "Ted", phone: Optional<Phone>.none, email: nil, profilePicture: picture)
+
+        let restored = try JSONDecoder().decode(
+            Profile.self,
+            from: try JSONEncoder().encode(profile)
+        )
+
+        #expect(restored.profilePicture?.blobID == .mock)
+        #expect(restored.profilePicture?.thumbnailURL == nil)
+        #expect(restored.profilePicture?.displayURL == nil)
+        // The picture still exists, so the tipcard is still reachable while the
+        // next fetch mints a usable URL.
+        #expect(restored.isTippable)
+    }
+
     /// Profiles persist as a JSON blob in a single-row table, so adding
     /// `profilePicture` is only safe if rows written before it still decode.
     /// This is the whole reason the change ships without a `SQLiteVersion` bump.

@@ -36,6 +36,34 @@ public struct ProfilePicture: Codable, Equatable, Sendable {
     }
 }
 
+// MARK: - Codable -
+
+extension ProfilePicture {
+
+    /// Only the blob survives being stored. Download URLs are signed and
+    /// short-lived, so a persisted one is expired by the time it is read back —
+    /// the blob is the durable handle, and the URLs come from the next fetch.
+    private enum CodingKeys: String, CodingKey {
+        case blobID
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        self.init(
+            blobID: try container.decode(BlobID.self, forKey: .blobID),
+            thumbnailURL: nil,
+            displayURL: nil,
+            expiresAt: nil
+        )
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(blobID, forKey: .blobID)
+    }
+}
+
 // MARK: - Proto -
 
 extension ProfilePicture {
@@ -49,8 +77,8 @@ extension ProfilePicture {
             return nil
         }
 
-        let thumbnail = renditions.first { $0.role == .thumbnail } ?? original
-        let display   = renditions.first { $0.role == .display }   ?? original
+        let thumbnail = renditions.largest(role: .thumbnail) ?? original
+        let display   = renditions.largest(role: .display)   ?? original
 
         self.init(
             blobID: BlobID(data: original.blobID.value),
@@ -61,7 +89,21 @@ extension ProfilePicture {
     }
 }
 
+private extension Array where Element == Flipcash_Blob_V1_Rendition {
+
+    /// The highest-resolution rendition for `role`. The server derives several
+    /// sizes per role and orders them arbitrarily.
+    func largest(role: Flipcash_Blob_V1_Rendition.Role) -> Element? {
+        filter { $0.role == role }.max { $0.pixelWidth < $1.pixelWidth }
+    }
+}
+
 private extension Flipcash_Blob_V1_Rendition {
+
+    var pixelWidth: UInt32 {
+        hasBlob ? blob.image.width : 0
+    }
+
 
     var downloadURL: URL? {
         guard hasBlob, blob.hasDownloadURL else { return nil }

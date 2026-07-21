@@ -62,9 +62,10 @@ struct TipcardScreen: View {
         }
         .navigationTitle("My Tipcard")
         .toolbarTitleDisplayMode(.inline)
-        // Renders the export only once the avatar is in hand: `ImageRenderer`
-        // is synchronous, so a URL-backed image would export as a placeholder.
-        .task(id: profilePicture?.blobID) {
+        // Keyed on the URL, not the blob: a refresh re-mints the signed URL
+        // without changing the blob, and a load that failed on an expired one
+        // has to be retried when the new one arrives.
+        .task(id: profilePicture?.thumbnailURL) {
             codeData = TipCode.Payload(userID: sessionContainer.session.userID).codeData()
             await loadAvatar()
             renderExportImage()
