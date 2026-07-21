@@ -23,7 +23,10 @@ class BetaFlags {
     private(set) var options: Set<Option> = []
     private(set) var accessGranted: Bool = false
     
-    @ObservationIgnored @Defaults(.betaFlags) private var storedOptions: Set<Option>?
+    // Stored as raw strings, not as `Option`: decoding a `Set<Option>` fails
+    // whole when it holds a case that has since been removed, silently resetting
+    // every other flag with it.
+    @ObservationIgnored @Defaults(.betaFlags) private var storedOptions: Set<String>?
     @ObservationIgnored @SecureString(.betaFlagsEnabled) private var storedAccessGranted: String?
     
     // MARK: - Init -
@@ -86,7 +89,7 @@ class BetaFlags {
     // MARK: - Cache -
     
     private func writeToCache() {
-        self.storedOptions = options
+        self.storedOptions = Set(options.map(\.rawValue))
     }
     
     private func readAccessGranted() {
@@ -98,8 +101,8 @@ class BetaFlags {
     }
     
     private func readStoredOptions() {
-        if let options = storedOptions {
-            self.options = options
+        if let stored = storedOptions {
+            self.options = Set(stored.compactMap(Option.init(rawValue:)))
         }
     }
 }
