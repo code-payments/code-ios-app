@@ -49,7 +49,6 @@ nonisolated enum ImageCompressor {
     private static func render(_ image: UIImage, at size: CGSize, scale: CGFloat) -> UIImage {
         let format = UIGraphicsImageRendererFormat.default()
         format.scale = scale
-        format.opaque = true
 
         return UIGraphicsImageRenderer(size: size, format: format).image { _ in
             image.draw(in: CGRect(origin: .zero, size: size))

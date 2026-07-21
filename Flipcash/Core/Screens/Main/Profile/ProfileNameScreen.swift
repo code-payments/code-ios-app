@@ -86,6 +86,11 @@ struct ProfileNameScreen: View {
                     owner: sessionContainer.session.ownerKeyPair
                 )
                 try await sessionContainer.session.updateProfile()
+
+                // `push` resolves the stack when it runs, and this runs after two
+                // RPCs — by now the user may have swapped to another sheet, whose
+                // stack has no profile-creation state to mount against.
+                guard router.presentedSheet?.stack == .tips else { return }
                 router.push(.profilePhoto)
 
             } catch ErrorProfile.moderated(let category) {

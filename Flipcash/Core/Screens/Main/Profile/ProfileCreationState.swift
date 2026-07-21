@@ -31,6 +31,11 @@ final class ProfileCreationState {
     /// this, so SwiftUI owns cancellation and "Try Again" is a re-run.
     private(set) var uploadAttemptID: Int = 0
 
+    /// Whether the current attempt still needs to run. Cleared when it settles,
+    /// so returning to the screen doesn't re-submit on its own — the state
+    /// outlives the screen and the counter never resets.
+    private(set) var hasPendingUpload = false
+
     private(set) var isUploading = false
 
     /// Set once the bytes are stored. A timed-out attempt resumes against this
@@ -54,6 +59,7 @@ final class ProfileCreationState {
     }
 
     func beginUpload() {
+        hasPendingUpload = true
         uploadAttemptID += 1
     }
 
@@ -63,10 +69,15 @@ final class ProfileCreationState {
     ///
     /// Resumes a previous attempt when its bytes are already stored.
     func uploadPhoto(session: Session, flipClient: FlipClient) async throws {
-        guard let image = selectedImage else { return }
+        guard let image = selectedImage else {
+            throw ErrorBlob.notFound
+        }
 
         isUploading = true
-        defer { isUploading = false }
+        defer {
+            isUploading = false
+            hasPendingUpload = false
+        }
 
         let owner = session.ownerKeyPair
 
@@ -83,7 +94,13 @@ final class ProfileCreationState {
 
         guard let blobID = reservedBlobID else { return }
 
-        try await flipClient.awaitBlobFinalization(blobID: blobID, owner: owner)
+        do {
+            try await flipClient.awaitBlobFinalization(blobID: blobID, owner: owner)
+        } catch ErrorBlob.rejected(let reason) {
+            reservedBlobID = nil
+            throw ErrorBlob.rejected(reason)
+        }
+
         _ = try await flipClient.setProfilePicture(blobID: blobID, owner: owner)
         try await session.updateProfile()
 

@@ -20,6 +20,7 @@ struct ProfilePhotoScreen: View {
     @State private var isShowingPhotoPicker = false
     @State private var isShowingFilePicker = false
     @State private var errorDialog: DialogItem?
+    @State private var compressTask: Task<Void, Never>?
 
     private static let avatarSize: CGFloat = 150
 
@@ -93,7 +94,7 @@ struct ProfilePhotoScreen: View {
         // Keyed on the attempt so a retry re-runs it, and so SwiftUI cancels the
         // poll when this screen goes away.
         .task(id: state.uploadAttemptID) {
-            guard state.uploadAttemptID > 0 else { return }
+            guard state.hasPendingUpload else { return }
             await upload()
         }
     }
@@ -108,6 +109,7 @@ struct ProfilePhotoScreen: View {
             router.popToRoot(on: .tips)
 
         } catch let error as ErrorBlob {
+            guard !Task.isCancelled else { return }
             logger.info("Profile picture upload failed", metadata: ["error": "\(error)"])
             ErrorReporting.captureError(error, reason: "Profile picture upload failed")
             errorDialog = .profilePictureFailed(error)
@@ -127,11 +129,16 @@ struct ProfilePhotoScreen: View {
     }
 
     private func setSelectedImage(_ image: UIImage) {
-        Task {
-            state.selectedImage = await ImageCompressor.compress(
+        // The picker can be reopened while a large photo is still compressing,
+        // so without this a slow earlier pick lands last and wins.
+        compressTask?.cancel()
+        compressTask = Task {
+            let compressed = await ImageCompressor.compress(
                 image,
                 maxDimension: ProfileCreationState.maxImageDimension
             )
+            guard !Task.isCancelled else { return }
+            state.selectedImage = compressed
         }
     }
 
