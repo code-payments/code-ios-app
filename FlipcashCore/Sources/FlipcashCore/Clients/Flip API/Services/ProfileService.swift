@@ -89,7 +89,7 @@ final class ProfileService: Sendable {
         }
     }
 
-    func setProfilePicture(blobID: BlobID, owner: KeyPair) async throws -> ProfilePicture {
+    func setProfilePicture(blobID: BlobID, owner: KeyPair) async throws {
         var request = Flipcash_Profile_V1_SetProfilePictureRequest()
         request.blobID = .with { $0.value = blobID.data }
         request.auth   = owner.authFor(message: request)
@@ -99,12 +99,7 @@ final class ProfileService: Sendable {
 
             switch response.result {
             case .ok:
-                guard let picture = ProfilePicture(response.profilePicture) else {
-                    throw ErrorProfile.unknown
-                }
-
                 logger.info("Profile picture set", metadata: ["blobId": "\(blobID)"])
-                return picture
 
             case .denied:
                 throw ErrorProfile.denied

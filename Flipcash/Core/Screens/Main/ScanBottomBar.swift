@@ -10,10 +10,12 @@ struct ScanBottomBar: View {
     let toast: String?
     let showSend: Bool
     let sendBadgeCount: Int
+    let showTips: Bool
     let onGive: () -> Void
     let onWallet: () -> Void
     let onDiscover: () -> Void
     let onSend: () -> Void
+    let onTips: () -> Void
 
     var body: some View {
         HStack(alignment: .bottom) {
@@ -39,6 +41,15 @@ struct ScanBottomBar: View {
                     action: onSend
                 )
                 .accessibilityIdentifier("scan-send-button")
+            }
+
+            if showTips {
+                LargeButton(
+                    title: "Tips",
+                    image: Image(.Icons.tips),
+                    action: onTips
+                )
+                .accessibilityIdentifier("scan-tips-button")
             }
 
             ToastContainer(toast: toast) {

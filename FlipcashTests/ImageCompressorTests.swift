@@ -23,6 +23,34 @@ struct ImageCompressorTests {
         #expect(result === image)
     }
 
+    /// `maxDimension` is a pixel budget: the encoded JPEG and the byte budget
+    /// downstream are both measured in pixels, so a point-sized result at screen
+    /// scale would be 3x larger in each axis than every caller assumes.
+    @Test("Caps actual pixels, not points", arguments: [
+        CGSize(width: 3000, height: 3000),
+        CGSize(width: 4000, height: 2000),
+    ])
+    func downscale_capsPixelsNotPoints(size: CGSize) throws {
+        let result = ImageCompressor.compressSync(makeImage(size: size), maxDimension: 1600)
+
+        let cg = try #require(result.cgImage)
+        #expect(max(cg.width, cg.height) == 1600)
+    }
+
+    /// A scale-3 image measures a third of its real size in points, so a
+    /// point-based bound lets three times the requested pixels per axis through
+    /// — and the byte budget downstream is then sized against the wrong image.
+    @Test("Caps a scaled image that is within the budget only in points")
+    func scaledImageWithinPointBudgetIsStillCapped() throws {
+        let image = makeImage(size: CGSize(width: 800, height: 600), scale: 3)
+        #expect(max(image.size.width, image.size.height) < 1024)
+
+        let result = ImageCompressor.compressSync(image, maxDimension: 1024)
+
+        let cg = try #require(result.cgImage)
+        #expect(max(cg.width, cg.height) == 1024)
+    }
+
     @Test("Downscales preserving aspect ratio", arguments: [
         (input: CGSize(width: 4000, height: 2000), expected: CGSize(width: 1024, height: 512)),
         (input: CGSize(width: 1500, height: 3000), expected: CGSize(width: 512, height: 1024)),
@@ -69,9 +97,14 @@ struct ImageCompressorTests {
         #expect(result.size.height == 1024)
     }
 
-    private func makeImage(size: CGSize) -> UIImage {
-        let renderer = UIGraphicsImageRenderer(size: size)
-        return renderer.image { context in
+    /// Scale is pinned rather than left at the screen's, so `size` means the same
+    /// thing in points and pixels — the renderer would otherwise emit a 500pt
+    /// fixture as 1500px and quietly change which branch a test exercises.
+    private func makeImage(size: CGSize, scale: CGFloat = 1) -> UIImage {
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = scale
+
+        return UIGraphicsImageRenderer(size: size, format: format).image { context in
             UIColor.blue.setFill()
             context.fill(CGRect(x: 0, y: 0, width: size.width, height: size.height))
         }

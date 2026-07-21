@@ -224,10 +224,12 @@ private struct ScanScreenContent: View {
                 toast: toast,
                 showSend: session.canSend,
                 sendBadgeCount: sessionContainer.conversationController.unreadConversationCount,
+                showTips: session.canReceiveTips,
                 onGive: presentGive,
                 onWallet: { router.present(.balance) },
                 onDiscover: { router.present(.discover) },
-                onSend: { router.present(.send) }
+                onSend: { router.present(.send) },
+                onTips: { router.present(.tips) }
             )
         }
         .opacity(session.isShowingBillDesigner ? 0 : 1)
@@ -353,6 +355,8 @@ private struct RoutedSheet: View {
             }
         case .send:
             SendRootScreen()
+        case .tips:
+            TipsSheetRoot()
         case .sendAmount(let contact):
             // Send Cash entered directly as a root sheet — e.g. the notification
             // Send Cash deeplink / App Intent opens the amount entry with no chat

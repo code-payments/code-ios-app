@@ -67,15 +67,4 @@ final class AddMoneyGateRegressionTests: BaseUITestCase {
         addMoney.tapAddMoney(from: self)
         addMoney.assertSelectMethodReached()
     }
-
-    /// Walks the fastest fresh-account path (write-down branch, no Photos
-    /// permission needed) so each test starts from a guaranteed $0 balance.
-    private func createFreshAccount() {
-        waitAndTap(app.buttons["Create a New Account"])
-        waitAndTap(app.buttons["Wrote the 12 Words Down Instead?"])
-        waitAndTap(app.buttons["Yes, I Wrote Them Down"])
-        allowPhoneVerificationIfNeeded()
-        allowPushNotificationsIfNeeded()
-        assertMainScreenReached()
-    }
 }

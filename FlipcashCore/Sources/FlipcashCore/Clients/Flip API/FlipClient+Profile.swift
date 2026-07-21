@@ -21,9 +21,8 @@ extension FlipClient {
         try await profileService.setDisplayName(displayName, owner: owner)
     }
 
-    /// Attaches an already-finalized blob as the caller's profile picture and
-    /// returns the rendition set the server derived from it.
-    public func setProfilePicture(blobID: BlobID, owner: KeyPair) async throws -> ProfilePicture {
+    /// Attaches an already-finalized blob as the caller's profile picture.
+    public func setProfilePicture(blobID: BlobID, owner: KeyPair) async throws {
         try await profileService.setProfilePicture(blobID: blobID, owner: owner)
     }
 }

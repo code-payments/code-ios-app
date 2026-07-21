@@ -68,7 +68,7 @@ private struct NestedSheetRootView: View {
             case .addMoney:
                 AddMoneySheetRoot()
 
-            case .balance, .settings, .give, .discover, .downloadApp, .send:
+            case .balance, .settings, .give, .discover, .downloadApp, .send, .tips:
                 // Root-only sheets; `presentNested` logs a warning if one
                 // lands here.
                 EmptyView()
@@ -109,6 +109,35 @@ private struct BuySheetRoot: View {
                     .environment(\.dismissParentContainer, { router.dismissSheet() })
             }
         }
+    }
+}
+
+/// Root view for the `.tips` sheet — owns the `NavigationStack` bound to
+/// `router[.tips]` and the profile-creation state.
+///
+/// The state lives here, not on a screen: the name entered on one push has to
+/// survive the next, and an upload must outlive the screen that started it.
+struct TipsSheetRoot: View {
+
+    @Environment(AppRouter.self) private var router
+    @State private var creationState = ProfileCreationState()
+
+    var body: some View {
+        @Bindable var router = router
+        NavigationStack(path: $router[.tips]) {
+            TipsScreen()
+                .appRouterDestinations()
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        CloseButton(action: router.dismissSheet)
+                            .disabled(creationState.isUploading)
+                    }
+                }
+        }
+        .environment(creationState)
+        // A rejected blob is terminal and a reserved upload is signed against
+        // one byte count, so dismissing mid-upload loses real work.
+        .interactiveDismissDisabled(creationState.isUploading)
     }
 }
 

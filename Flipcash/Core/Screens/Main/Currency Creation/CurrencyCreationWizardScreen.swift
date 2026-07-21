@@ -407,10 +407,7 @@ struct CurrencyCreationWizardScreen: View {
             } catch {
                 logger.error("Failed to encode icon within 1 MB budget", metadata: ["error": "\(error)"])
                 ErrorReporting.captureError(error)
-                errorDialog = DialogItem.error(
-                    title: "Couldn't Process Image",
-                    subtitle: "Try a smaller or simpler image"
-                )
+                errorDialog = .imageProcessingFailed
                 return
             }
             state.encodedIconData = imageData
@@ -1026,77 +1023,6 @@ private struct PaymentSelectionStep: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .dialog(item: $viewModel.dialogItem)
-    }
-}
-
-// MARK: - CircleImage
-
-private struct CircleImage: View {
-    let image: UIImage?
-    let size: CGFloat
-    let plusSize: CGFloat
-
-    var body: some View {
-        ZStack {
-            Circle().fill(Color(white: 0.2))
-
-            if let image {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-            } else {
-                Image(systemName: "plus")
-                    .font(.system(size: plusSize, weight: .light))
-                    .foregroundStyle(Color.textSecondary)
-            }
-        }
-        .frame(width: size, height: size)
-        .compositingGroup()
-        .clipShape(Circle())
-    }
-}
-
-// MARK: - ImagePickerWithEditor
-
-private struct ImagePickerWithEditor: UIViewControllerRepresentable {
-    let onImagePicked: (UIImage) -> Void
-    let onDismiss: () -> Void
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(onImagePicked: onImagePicked, onDismiss: onDismiss)
-    }
-
-    func makeUIViewController(context: Context) -> UIImagePickerController {
-        let picker = UIImagePickerController()
-        picker.sourceType = .photoLibrary
-        picker.allowsEditing = true
-        picker.delegate = context.coordinator
-        return picker
-    }
-
-    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
-
-    final class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
-        let onImagePicked: (UIImage) -> Void
-        let onDismiss: () -> Void
-
-        init(onImagePicked: @escaping (UIImage) -> Void, onDismiss: @escaping () -> Void) {
-            self.onImagePicked = onImagePicked
-            self.onDismiss = onDismiss
-        }
-
-        func imagePickerController(
-            _ picker: UIImagePickerController,
-            didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]
-        ) {
-            let image = (info[.editedImage] as? UIImage) ?? (info[.originalImage] as? UIImage)
-            if let image { onImagePicked(image) }
-            onDismiss()
-        }
-
-        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
-            onDismiss()
-        }
     }
 }
 

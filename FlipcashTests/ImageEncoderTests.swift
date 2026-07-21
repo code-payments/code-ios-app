@@ -5,6 +5,7 @@
 
 import Testing
 import UIKit
+import ImageIO
 @testable import Flipcash
 
 @Suite("ImageEncoder")
@@ -22,6 +23,121 @@ struct ImageEncoderTests {
 
         #expect(data.count <= 1_048_576)
         #expect(UIImage(data: data) != nil)
+    }
+
+    /// The blob service refuses an upload carrying privacy metadata
+    /// (`REJECTION_REASON_PRIVACY_METADATA`), so a JPEG that keeps the source
+    /// photo's EXIF fails every profile-picture upload — and leaks the capture
+    /// location on every currency icon. `UIImage.jpegData` copies it through;
+    /// the encoder must not.
+    @Test("encode strips EXIF, GPS and TIFF metadata")
+    func encode_stripsPrivacyMetadata() async throws {
+        let image = try makeImageCarryingMetadata()
+
+        // The fixture has to actually carry metadata, or this proves nothing.
+        let viaUIKit = try #require(image.jpegData(compressionQuality: 0.9))
+        let uikitProperties = try #require(properties(of: viaUIKit))
+        #expect(uikitProperties[kCGImagePropertyExifDictionary as String] != nil)
+
+        let data = try await ImageEncoder.encodeForUpload(image, maxBytes: 1_048_576)
+
+        // ImageIO parses the result independently, so a walker bug shared by the
+        // encoder and this suite's own marker scan can't false-green the strip.
+        let encoded = try #require(properties(of: data))
+        #expect(encoded[kCGImagePropertyExifDictionary as String] == nil)
+        #expect(encoded[kCGImagePropertyGPSDictionary as String] == nil)
+
+        // The service allowlists JPEG segments structurally rather than
+        // reading their contents, so the contract is "no APP1 at all" — not
+        // "an APP1 with nothing sensitive in it".
+        let markers = appMarkers(in: data)
+        #expect(!markers.contains(0xE1), "APP1 (EXIF/XMP) must not survive")
+        #expect(!markers.contains(0xED), "APP13 (IPTC) must not survive")
+        #expect(!markers.contains(0xFE), "COM comments must not survive")
+        #expect(markers.allSatisfy { [0xE0, 0xE2, 0xEE].contains($0) })
+
+        #expect(UIImage(data: data) != nil)
+    }
+
+    /// Walks the JPEG's marker segments and returns every APPn and COM marker
+    /// it carries, mirroring how the service inspects an upload.
+    private func appMarkers(in jpeg: Data) -> [UInt8] {
+        let bytes = [UInt8](jpeg)
+        guard bytes.count >= 2, bytes[0] == 0xFF, bytes[1] == 0xD8 else { return [] }
+
+        var markers: [UInt8] = []
+        var position = 2
+
+        while position + 3 < bytes.count {
+            guard bytes[position] == 0xFF else { break }
+            let marker = bytes[position + 1]
+
+            if marker == 0xFF { position += 1; continue }
+            if marker == 0xD8 || marker == 0x01 || (0xD0...0xD7).contains(marker) {
+                position += 2
+                continue
+            }
+            if marker == 0xDA || marker == 0xD9 { break }
+
+            let length = Int(bytes[position + 2]) << 8 | Int(bytes[position + 3])
+            guard length >= 2 else { break }
+
+            if marker == 0xFE || (0xE0...0xEF).contains(marker) {
+                markers.append(marker)
+            }
+            position += 2 + length
+        }
+
+        return markers
+    }
+
+    private func properties(of data: Data) -> [String: Any]? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        return CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [String: Any]
+    }
+
+    /// Builds a JPEG carrying EXIF and GPS, then reads it back as a `UIImage`
+    /// the way a photo picked from the library arrives.
+    private func makeImageCarryingMetadata() throws -> UIImage {
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 64, height: 64))
+        let plain = renderer.image { context in
+            UIColor.blue.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 64, height: 64))
+        }
+
+        let output = NSMutableData()
+        let destination = try #require(
+            CGImageDestinationCreateWithData(output, "public.jpeg" as CFString, 1, nil)
+        )
+        CGImageDestinationAddImage(destination, try #require(plain.cgImage), [
+            kCGImagePropertyExifDictionary: [kCGImagePropertyExifUserComment: "captured"],
+            kCGImagePropertyGPSDictionary: [
+                kCGImagePropertyGPSLatitude: 51.5,
+                kCGImagePropertyGPSLongitude: 0.12,
+            ],
+        ] as CFDictionary)
+        #expect(CGImageDestinationFinalize(destination))
+
+        return try #require(UIImage(data: output as Data))
+    }
+
+    /// The ladder is finite: four qualities across five shrinking dimensions. A
+    /// budget nothing can satisfy has to surface rather than ship oversized bytes
+    /// the reservation would then sign.
+    @Test("encode reports a budget it cannot meet")
+    func encode_impossibleBudget_throws() async throws {
+        let image = try makeNoiseImage(side: 512)
+
+        await #expect(throws: ImageEncoderError.cannotFitBudget) {
+            _ = try await ImageEncoder.encodeForUpload(image, maxBytes: 64)
+        }
+    }
+
+    @Test("encode reports an image it cannot read")
+    func encode_imageWithoutPixels_throws() async throws {
+        await #expect(throws: ImageEncoderError.cannotEncode) {
+            _ = try await ImageEncoder.encodeForUpload(UIImage(), maxBytes: 1_048_576)
+        }
     }
 
     @Test("encode downsizes a large image to stay under budget")

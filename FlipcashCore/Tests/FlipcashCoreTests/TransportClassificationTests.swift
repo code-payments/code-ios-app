@@ -125,6 +125,25 @@ struct TransportClassificationTests {
         #expect(ErrorBlob.timedOut.reportingLevel == .info)
     }
 
+    /// The blob upload leg is plain HTTP rather than gRPC, so its failures are
+    /// `URLError`s and have to classify alongside the RPC ones.
+    @Test("URLError suppresses transient codes, softens cancellation, errors the rest",
+          arguments: [
+              (code: URLError.Code.timedOut, expected: ErrorReportingLevel.suppressed),
+              (code: .notConnectedToInternet, expected: .suppressed),
+              (code: .networkConnectionLost, expected: .suppressed),
+              (code: .cannotConnectToHost, expected: .suppressed),
+              (code: .cancelled, expected: .info),
+              (code: .badServerResponse, expected: .error),
+              (code: .userAuthenticationRequired, expected: .error),
+          ] as [(code: URLError.Code, expected: ErrorReportingLevel)])
+    func urlErrorClassification(code: URLError.Code, expected: ErrorReportingLevel) {
+        #expect(URLError(code).reportingLevel == expected)
+        // Carried inside a wrapper it must classify the same, which only holds
+        // because the bridged value is re-cast concretely.
+        #expect(ErrorBlob.network(URLError(code)).reportingLevel == expected)
+    }
+
     @Test("ErrorSwap classifies grpcStatus by transience; grpcError always reports")
     func errorSwapClassification() {
         #expect(ErrorSwap.grpcStatus(RPCError(code: .deadlineExceeded, message: "")).reportingLevel == .suppressed)

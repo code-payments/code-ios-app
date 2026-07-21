@@ -7,7 +7,7 @@ import Foundation
 import FlipcashAPI
 
 /// Where a blob is in its lifecycle.
-public enum BlobState: Sendable, Equatable {
+enum BlobState: Sendable, Equatable {
     case pending
     case processing
     case ready
@@ -30,21 +30,21 @@ public enum BlobRejectionReason: Sendable, Equatable {
 
 /// A reserved upload: the blob it will become, and the request that stores its
 /// bytes.
-public struct ReservedUpload: Sendable, Equatable {
-    public let blobID: BlobID
-    public let target: UploadTarget
+struct ReservedUpload: Sendable, Equatable {
+    let blobID: BlobID
+    let target: UploadTarget
 }
 
 /// The HTTP request that uploads a blob's bytes directly to storage.
 ///
 /// A bearer credential — anyone holding it can write to the reserved key until
 /// it expires, so it is never persisted or shared.
-public struct UploadTarget: Sendable, Equatable {
-    public let url: URL
-    public let headers: [String: String]
-    public let formFields: [String: String]
+struct UploadTarget: Sendable, Equatable {
+    let url: URL
+    let headers: [String: String]
+    let formFields: [String: String]
 
-    public init(url: URL, headers: [String: String], formFields: [String: String]) {
+    init(url: URL, headers: [String: String], formFields: [String: String]) {
         self.url        = url
         self.headers    = headers
         self.formFields = formFields

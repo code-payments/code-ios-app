@@ -47,6 +47,10 @@ extension AppRouter {
         case accessKey
         case withdraw
 
+        // Tips flow
+        case profileName
+        case profilePhoto
+
         // Conversation flow
         /// A DM conversation, pushed onto the `.send` stack — from the Chats
         /// section of the recipient picker (`.existing`) or by tapping a synced
@@ -69,6 +73,8 @@ extension AppRouter {
                  .settingsAppSettings, .settingsBetaFlags, .settingsAccountSelection,
                  .settingsApplicationLogs, .accessKey, .withdraw:
                 return .settings
+            case .profileName, .profilePhoto:
+                return .tips
             case .dmConversation:
                 return .send
             }
@@ -100,6 +106,8 @@ extension AppRouter {
             case .settingsApplicationLogs:      "settingsApplicationLogs"
             case .accessKey:                    "accessKey"
             case .withdraw:                     "withdraw"
+            case .profileName:                  "profileName"
+            case .profilePhoto:                 "profilePhoto"
             case .dmConversation:               "dmConversation"
             }
         }
@@ -123,7 +131,8 @@ extension AppRouter {
                  .usdcDepositEducation, .usdcDepositAddress,
                  .settingsMyAccount, .settingsAdvancedFeatures, .settingsAdvancedBetaFeatures,
                  .settingsAppSettings, .settingsBetaFlags, .settingsAccountSelection,
-                 .settingsApplicationLogs, .accessKey, .withdraw:
+                 .settingsApplicationLogs, .accessKey, .withdraw,
+                 .profileName, .profilePhoto:
                 return nil
             }
         }

@@ -9,7 +9,7 @@ import Foundation
 ///
 /// The body is an explicit parameter rather than part of a `URLRequest` so
 /// callers — and tests — can observe the bytes that go on the wire.
-public protocol BlobUploading: Sendable {
+protocol BlobUploading: Sendable {
     func post(
         url: URL,
         contentType: String,
@@ -19,15 +19,15 @@ public protocol BlobUploading: Sendable {
 }
 
 /// The production `BlobUploading`, over a shared `URLSession`.
-public struct URLSessionBlobUploader: BlobUploading {
+struct URLSessionBlobUploader: BlobUploading {
 
     private let session: URLSession
 
-    public init(session: URLSession = .shared) {
+    init(session: URLSession = .shared) {
         self.session = session
     }
 
-    public func post(
+    func post(
         url: URL,
         contentType: String,
         headers: [String: String],
