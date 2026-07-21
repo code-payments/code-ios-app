@@ -7,6 +7,7 @@ import Foundation
 import Testing
 import GRPCCore
 import GRPCInProcessTransport
+import FlipcashAPI
 @testable import FlipcashCore
 
 @Suite("Transport classification — classifiable errors route transient gRPC failures to a non-reportable case")
@@ -100,6 +101,28 @@ struct TransportClassificationTests {
         #expect(ErrorLaunchCurrency.network(RPCError(code: .deadlineExceeded, message: "")).reportingLevel == .suppressed)
         #expect(ErrorLaunchCurrency.network(RPCError(code: .internalError, message: "")).reportingLevel == .error)
         #expect(ErrorLaunchCurrency.unknown.reportingLevel == .error)
+    }
+
+    @Test("ErrorProfile.network is reportable only for non-transient errors")
+    func errorProfileNetwork() {
+        #expect(ErrorProfile.network(RPCError(code: .deadlineExceeded, message: "")).reportingLevel == .suppressed)
+        #expect(ErrorProfile.network(RPCError(code: .internalError, message: "")).reportingLevel == .error)
+        #expect(ErrorProfile.unknown.reportingLevel == .error)
+        // Server verdicts on user input are expected outcomes, not defects.
+        #expect(ErrorProfile.moderated(.nsfw).reportingLevel == .info)
+        #expect(ErrorProfile.invalidDisplayName.reportingLevel == .info)
+        #expect(ErrorProfile.blobRejected.reportingLevel == .info)
+    }
+
+    @Test("ErrorBlob.network is reportable only for non-transient errors")
+    func errorBlobNetwork() {
+        #expect(ErrorBlob.network(RPCError(code: .deadlineExceeded, message: "")).reportingLevel == .suppressed)
+        #expect(ErrorBlob.network(RPCError(code: .internalError, message: "")).reportingLevel == .error)
+        #expect(ErrorBlob.unknown.reportingLevel == .error)
+        // Storage refusals and a poll that ran out of budget are both expected.
+        #expect(ErrorBlob.rejected(.moderation).reportingLevel == .info)
+        #expect(ErrorBlob.uploadFailed(403).reportingLevel == .info)
+        #expect(ErrorBlob.timedOut.reportingLevel == .info)
     }
 
     @Test("ErrorSwap classifies grpcStatus by transience; grpcError always reports")
