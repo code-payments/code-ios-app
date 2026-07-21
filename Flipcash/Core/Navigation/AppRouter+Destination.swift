@@ -46,7 +46,6 @@ extension AppRouter {
         case settingsApplicationLogs
         case accessKey
         case withdraw
-        case settingsProfile
 
         // Tips flow
         case profileName
@@ -72,7 +71,7 @@ extension AppRouter {
                 return .balance
             case .settingsMyAccount, .settingsAdvancedFeatures, .settingsAdvancedBetaFeatures,
                  .settingsAppSettings, .settingsBetaFlags, .settingsAccountSelection,
-                 .settingsApplicationLogs, .accessKey, .withdraw, .settingsProfile:
+                 .settingsApplicationLogs, .accessKey, .withdraw:
                 return .settings
             case .profileName, .profilePhoto:
                 return .tips
@@ -107,7 +106,6 @@ extension AppRouter {
             case .settingsApplicationLogs:      "settingsApplicationLogs"
             case .accessKey:                    "accessKey"
             case .withdraw:                     "withdraw"
-            case .settingsProfile:              "settingsProfile"
             case .profileName:                  "profileName"
             case .profilePhoto:                 "profilePhoto"
             case .dmConversation:               "dmConversation"
@@ -133,7 +131,7 @@ extension AppRouter {
                  .usdcDepositEducation, .usdcDepositAddress,
                  .settingsMyAccount, .settingsAdvancedFeatures, .settingsAdvancedBetaFeatures,
                  .settingsAppSettings, .settingsBetaFlags, .settingsAccountSelection,
-                 .settingsApplicationLogs, .accessKey, .withdraw, .settingsProfile,
+                 .settingsApplicationLogs, .accessKey, .withdraw,
                  .profileName, .profilePhoto:
                 return nil
             }

@@ -8,13 +8,50 @@ import FlipcashUI
 
 extension DialogItem {
 
-    /// Returns the dialog explaining why the server refused a profile picture.
+    /// Returns the dialog explaining why a profile picture didn't upload.
     ///
-    /// Only moderation means the picture itself was disallowed; the rest are
-    /// processing failures, and telling a user their photo "isn't allowed"
-    /// when it merely failed to transcode sends them looking for a new photo
-    /// they don't need.
-    static func profilePictureRejected(_ reason: BlobRejectionReason) -> DialogItem {
+    /// The distinctions matter to the reader: only moderation means the picture
+    /// itself was disallowed, and only the transient failures are worth
+    /// retrying — telling someone to try again when the server refused them
+    /// outright just wastes their time.
+    static func profilePictureFailed(_ error: ErrorBlob) -> DialogItem {
+        switch error {
+        case .rejected(let reason):
+            profilePictureRejected(reason)
+
+        case .uploadDenied:
+            .error(
+                title: "Photo Uploads Aren't Available",
+                subtitle: "This account can't upload a photo yet"
+            )
+
+        case .quotaExceeded:
+            .error(
+                title: "Upload Limit Reached",
+                subtitle: "Try again later"
+            )
+
+        case .unsupportedType:
+            .error(
+                title: "This Image Format Isn't Supported",
+                subtitle: "Use a PNG or JPEG image"
+            )
+
+        case .tooLarge:
+            .error(
+                title: "This Image is Too Large",
+                subtitle: "Try a smaller image"
+            )
+
+        case .timedOut, .uploadFailed, .notFound, .notUploaded, .unknown, .network:
+            .error(
+                title: "Couldn't Upload Your Photo",
+                subtitle: "Try again"
+            )
+        }
+    }
+
+    private static func profilePictureRejected(_ reason: BlobRejectionReason) -> DialogItem {
         switch reason {
         case .moderation:
             .error(

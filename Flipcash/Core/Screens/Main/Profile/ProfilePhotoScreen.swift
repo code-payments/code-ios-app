@@ -108,16 +108,10 @@ struct ProfilePhotoScreen: View {
             // The Tips root renders the tipcard once the profile is complete.
             router.popToRoot(on: .tips)
 
-        } catch ErrorBlob.rejected(let reason) {
-            logger.info("Profile picture rejected", metadata: ["reason": "\(reason)"])
-            errorDialog = .profilePictureRejected(reason)
-
-        } catch ErrorBlob.timedOut {
-            logger.info("Profile picture upload timed out")
-            errorDialog = .error(
-                title: "Couldn't Upload Your Photo",
-                subtitle: "Try again"
-            )
+        } catch let error as ErrorBlob {
+            logger.info("Profile picture upload failed", metadata: ["error": "\(error)"])
+            ErrorReporting.captureError(error, reason: "Profile picture upload failed")
+            errorDialog = .profilePictureFailed(error)
 
         } catch is ImageEncoderError {
             errorDialog = .error(

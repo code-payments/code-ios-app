@@ -52,7 +52,7 @@ struct TipcardScreen: View {
                             item: exportImage,
                             preview: SharePreview("My Tipcard", image: exportImage)
                         ) {
-                            TipcardAction(systemName: "arrow.up.doc", title: "Export")
+                            TipcardAction(systemName: "rectangle.portrait.and.arrow.right", title: "Export")
                         }
                         .accessibilityIdentifier("tipcard-export-button")
                     }
