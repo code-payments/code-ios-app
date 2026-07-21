@@ -27,13 +27,12 @@ struct TipcardView: View {
             HStack(spacing: 8) {
                 Text("Tip")
 
-                if let avatar {
-                    Image(uiImage: avatar)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: avatarDimension, height: avatarDimension)
-                        .clipShape(Circle())
-                }
+                avatarImage
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: avatarDimension, height: avatarDimension)
+                    .foregroundStyle(Color.textSecondary)
+                    .clipShape(Circle())
 
                 Text(name)
                     .lineLimit(1)
@@ -45,6 +44,16 @@ struct TipcardView: View {
         .frame(width: size.width, height: size.height)
         .background(Color(white: 0.11))
         .clipShape(RoundedRectangle(cornerRadius: size.width * 0.08, style: .continuous))
+    }
+
+    /// The system avatar placeholder stands in when the photo isn't available,
+    /// so the card never renders with a hole in it.
+    private var avatarImage: Image {
+        if let avatar {
+            Image(uiImage: avatar)
+        } else {
+            Image(systemName: "person.crop.circle.fill")
+        }
     }
 
     private var codeDimension: CGFloat {

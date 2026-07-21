@@ -5,10 +5,10 @@
 
 import UIKit
 import ImageIO
-import FlipcashCore
 import UniformTypeIdentifiers
+import FlipcashCore
 
-enum ImageEncoderError: Error {
+enum ImageEncoderError: Error, Equatable {
     case cannotEncode
     case cannotFitBudget
 }
@@ -64,7 +64,7 @@ nonisolated enum ImageEncoder {
     /// metadata into the output, which the blob service refuses with
     /// `PRIVACY_METADATA` — and which would otherwise publish the capture
     /// location alongside the picture.
-    static func jpegData(from image: UIImage, quality: CGFloat) -> Data? {
+    private static func jpegData(from image: UIImage, quality: CGFloat) -> Data? {
         // Writing a CGImage drops `imageOrientation`, so bake any rotation in
         // before encoding rather than recording it in the EXIF being stripped.
         let upright = ImageCompressor.normalizedSync(image)

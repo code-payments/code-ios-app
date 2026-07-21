@@ -11,11 +11,11 @@ private let logger = Logger(label: "flipcash.tipcard")
 
 struct TipcardScreen: View {
 
+    @Environment(Container.self) private var container
     @Environment(SessionContainer.self) private var sessionContainer
 
     @State private var avatar: UIImage?
     @State private var exportImage: Image?
-    @State private var codeData: Data?
 
     /// The card's on-screen width; the export renders the same view at @3x.
     private static let cardWidth: CGFloat = 300
@@ -33,10 +33,7 @@ struct TipcardScreen: View {
 
                 Spacer()
 
-                if let card {
-                    card
-                        .accessibilityIdentifier("tipcard")
-                }
+                card
 
                 Spacer()
 
@@ -62,11 +59,7 @@ struct TipcardScreen: View {
         }
         .navigationTitle("My Tipcard")
         .toolbarTitleDisplayMode(.inline)
-        // Keyed on the URL, not the blob: a refresh re-mints the signed URL
-        // without changing the blob, and a load that failed on an expired one
-        // has to be retried when the new one arrives.
-        .task(id: profilePicture?.thumbnailURL) {
-            codeData = TipCode.Payload(userID: sessionContainer.session.userID).codeData()
+        .task(id: profilePicture?.thumbnailBlobID) {
             await loadAvatar()
             renderExportImage()
         }
@@ -86,8 +79,12 @@ struct TipcardScreen: View {
         .tipcard(for: sessionContainer.session.userID)
     }
 
+    private var codeData: Data {
+        TipCode.Payload(userID: sessionContainer.session.userID).codeData()
+    }
+
     private var card: TipcardView? {
-        guard let name = profile?.displayName, !name.isEmpty, let codeData else { return nil }
+        guard let name = profile?.displayName, !name.isEmpty else { return nil }
 
         return TipcardView(
             size: CGSize(width: Self.cardWidth, height: Self.cardWidth * Self.cardAspectRatio),
@@ -100,10 +97,23 @@ struct TipcardScreen: View {
     // MARK: - Loading -
 
     private func loadAvatar() async {
-        guard let picture = profilePicture, let url = picture.thumbnailURL else { return }
+        // Cleared up front: a replaced picture must not leave the previous photo
+        // on the card, least of all baked into the export.
+        avatar = nil
+
+        guard let blobID = profilePicture?.thumbnailBlobID else { return }
 
         do {
-            avatar = try await RemoteImageLoader.image(at: url, cacheKey: picture.blobID.description)
+            // Download URLs expire, so one is minted per load and never stored.
+            guard let url = try await container.flipClient.blobDownloadURL(
+                blobID: blobID,
+                owner: sessionContainer.session.ownerKeyPair
+            ) else {
+                logger.info("Profile picture blob has no download URL", metadata: ["blobId": "\(blobID)"])
+                return
+            }
+
+            avatar = try await RemoteImageLoader.image(at: url, cacheKey: blobID.description)
         } catch {
             guard !Task.isCancelled else { return }
             // The card still renders and shares without the photo.

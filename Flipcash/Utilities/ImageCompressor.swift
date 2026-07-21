@@ -30,7 +30,13 @@ nonisolated enum ImageCompressor {
     /// Synchronous variant for tests. Production callers should use the async
     /// form which offloads the CPU work.
     static func compressSync(_ original: UIImage, maxDimension: CGFloat = 1024) -> UIImage {
-        let size = original.size
+        // `UIImage.size` is in points, while the budget is pixels: a scale-3
+        // image measures a third of its real size and would slip through.
+        let size = CGSize(
+            width: original.size.width * original.scale,
+            height: original.size.height * original.scale
+        )
+
         guard size.width > maxDimension || size.height > maxDimension else {
             return normalizedSync(original)
         }
