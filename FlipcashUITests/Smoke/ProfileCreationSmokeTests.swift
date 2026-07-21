@@ -65,31 +65,11 @@ final class ProfileCreationSmokeTests: BaseUITestCase {
         XCTAssertTrue(photoNext.isEnabled, "Next must enable once a photo is chosen")
         photoNext.tap()
 
-        // Upload → CompleteExternalUpload → poll until READY, bounded at 60s in
-        // the app. The tipcard is the Tips root once the profile is complete.
-        let tipcard = app.staticTexts["Share Your Tipcard to Get Tipped"]
-
-        // `InitiateExternalUpload` is gated server-side, and a freshly
-        // registered account is not on the allowlist — so on this environment
-        // the upload is refused before any bytes are sent. Detect that
-        // explicitly rather than waiting out the timeout, and skip: the client
-        // did its part, the environment declined.
-        let uploadsUnavailable = app.staticTexts["Photo Uploads Aren't Available"]
-
-        let deadline = Date().addingTimeInterval(90)
-        while Date() < deadline, !tipcard.exists, !uploadsUnavailable.exists {
-            Thread.sleep(forTimeInterval: 0.5)
-        }
-
-        if uploadsUnavailable.exists {
-            throw XCTSkip(
-                "Server refused the upload for a newly registered account "
-                + "(InitiateExternalUpload DENIED). Profile creation cannot complete "
-                + "until blob uploads are enabled for ordinary accounts."
-            )
-        }
-
-        guard tipcard.exists else {
+        // Upload, finalize, then poll until ready — bounded at 60s in the app.
+        // The tipcard is the Tips root once the profile is complete.
+        guard app.staticTexts["Share Your Tipcard to Get Tipped"].waitForExistence(timeout: 90) else {
+            // An upload failure surfaces as a dialog whose copy names the stage
+            // that failed, so say what is actually on screen.
             XCTFail("Tipcard never appeared. On screen: [\(visibleText())]")
             return
         }
