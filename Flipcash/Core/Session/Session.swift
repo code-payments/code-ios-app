@@ -103,7 +103,7 @@ class Session {
     }
 
     var canSend: Bool {
-        BetaFlags.shared.hasEnabled(.enableSend) || userFlags?.enablePhoneNumberSend == true
+        userFlags?.enablePhoneNumberSend == true
     }
 
     var hasPreferredOnrampProvider: Bool {
