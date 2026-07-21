@@ -26,6 +26,21 @@ public struct Conversation: Identifiable, Hashable, Sendable {
     }
 }
 
+/// The kind of direct-message conversation, used to scope the DM feed.
+public enum ConversationType: Sendable {
+    case contactDm
+    case tipDm
+}
+
+extension ConversationType {
+    var proto: Flipcash_Chat_V1_ChatType {
+        switch self {
+        case .contactDm: .contactDm
+        case .tipDm:     .tipDm
+        }
+    }
+}
+
 extension Conversation {
     public init(_ proto: Flipcash_Chat_V1_Metadata) {
         self.id = ConversationID(proto.chatID)

@@ -134,6 +134,11 @@ public struct Flipcash_Chat_V1_GetDmChatFeedRequest: Sendable {
   /// Clears the value of `queryOptions`. Subsequent reads from it will return its default value.
   public mutating func clearQueryOptions() {self._queryOptions = nil}
 
+  /// The type of DM chat to filter for
+  ///
+  /// For backwards compatiblity, UNKNOWN maps to CONTACT_DM for legacy clients
+  public var dmChatType: Flipcash_Chat_V1_ChatType = .unknown
+
   public var auth: Flipcash_Common_V1_Auth {
     get {_auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
@@ -314,7 +319,7 @@ extension Flipcash_Chat_V1_GetChatResponse.Result: SwiftProtobuf._ProtoNameProvi
 
 extension Flipcash_Chat_V1_GetDmChatFeedRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetDmChatFeedRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}query_options\0\u{2}\u{9}auth\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}query_options\0\u{3}dm_chat_type\0\u{2}\u{8}auth\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -323,6 +328,7 @@ extension Flipcash_Chat_V1_GetDmChatFeedRequest: SwiftProtobuf.Message, SwiftPro
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._queryOptions) }()
+      case 2: try { try decoder.decodeSingularEnumField(value: &self.dmChatType) }()
       case 10: try { try decoder.decodeSingularMessageField(value: &self._auth) }()
       default: break
       }
@@ -337,6 +343,9 @@ extension Flipcash_Chat_V1_GetDmChatFeedRequest: SwiftProtobuf.Message, SwiftPro
     try { if let v = self._queryOptions {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
     } }()
+    if self.dmChatType != .unknown {
+      try visitor.visitSingularEnumField(value: self.dmChatType, fieldNumber: 2)
+    }
     try { if let v = self._auth {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
     } }()
@@ -345,6 +354,7 @@ extension Flipcash_Chat_V1_GetDmChatFeedRequest: SwiftProtobuf.Message, SwiftPro
 
   public static func ==(lhs: Flipcash_Chat_V1_GetDmChatFeedRequest, rhs: Flipcash_Chat_V1_GetDmChatFeedRequest) -> Bool {
     if lhs._queryOptions != rhs._queryOptions {return false}
+    if lhs.dmChatType != rhs.dmChatType {return false}
     if lhs._auth != rhs._auth {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true

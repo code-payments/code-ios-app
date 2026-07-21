@@ -70,10 +70,19 @@ public struct Flipcash_Intent_V1_ChatMetadata: Sendable {
     set {type = .contactDmPayment(newValue)}
   }
 
+  public var tipDmPayment: Flipcash_Intent_V1_ChatMetadata.TipDmPayment {
+    get {
+      if case .tipDmPayment(let v)? = type {return v}
+      return Flipcash_Intent_V1_ChatMetadata.TipDmPayment()
+    }
+    set {type = .tipDmPayment(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Type: Equatable, Sendable {
     case contactDmPayment(Flipcash_Intent_V1_ChatMetadata.ContactDmPayment)
+    case tipDmPayment(Flipcash_Intent_V1_ChatMetadata.TipDmPayment)
 
   }
 
@@ -109,6 +118,18 @@ public struct Flipcash_Intent_V1_ChatMetadata: Sendable {
 
     fileprivate var _source: Flipcash_Phone_V1_PhoneNumber? = nil
     fileprivate var _destination: Flipcash_Phone_V1_PhoneNumber? = nil
+  }
+
+  /// For sending a DM tip payment to someone. The message is empty, since
+  /// it's between two user IDs, which map directly to/from public keys.
+  public struct TipDmPayment: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
   }
 
   public init() {}
@@ -168,7 +189,7 @@ extension Flipcash_Intent_V1_AppMetadata: SwiftProtobuf.Message, SwiftProtobuf._
 
 extension Flipcash_Intent_V1_ChatMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ChatMetadata"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}chat_id\0\u{3}contact_dm_payment\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}chat_id\0\u{3}contact_dm_payment\0\u{3}tip_dm_payment\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -190,6 +211,19 @@ extension Flipcash_Intent_V1_ChatMetadata: SwiftProtobuf.Message, SwiftProtobuf.
           self.type = .contactDmPayment(v)
         }
       }()
+      case 3: try {
+        var v: Flipcash_Intent_V1_ChatMetadata.TipDmPayment?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .tipDmPayment(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .tipDmPayment(v)
+        }
+      }()
       default: break
       }
     }
@@ -203,9 +237,17 @@ extension Flipcash_Intent_V1_ChatMetadata: SwiftProtobuf.Message, SwiftProtobuf.
     try { if let v = self._chatID {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
     } }()
-    try { if case .contactDmPayment(let v)? = self.type {
+    switch self.type {
+    case .contactDmPayment?: try {
+      guard case .contactDmPayment(let v)? = self.type else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-    } }()
+    }()
+    case .tipDmPayment?: try {
+      guard case .tipDmPayment(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    }()
+    case nil: break
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -251,6 +293,25 @@ extension Flipcash_Intent_V1_ChatMetadata.ContactDmPayment: SwiftProtobuf.Messag
   public static func ==(lhs: Flipcash_Intent_V1_ChatMetadata.ContactDmPayment, rhs: Flipcash_Intent_V1_ChatMetadata.ContactDmPayment) -> Bool {
     if lhs._source != rhs._source {return false}
     if lhs._destination != rhs._destination {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Intent_V1_ChatMetadata.TipDmPayment: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Flipcash_Intent_V1_ChatMetadata.protoMessageName + ".TipDmPayment"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    // Load everything into unknown fields
+    while try decoder.nextFieldNumber() != nil {}
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Intent_V1_ChatMetadata.TipDmPayment, rhs: Flipcash_Intent_V1_ChatMetadata.TipDmPayment) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

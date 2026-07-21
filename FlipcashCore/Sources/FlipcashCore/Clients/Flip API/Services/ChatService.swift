@@ -25,7 +25,7 @@ final class ChatService: Sendable {
         let hasMore: Bool
     }
 
-    func getDmChatFeed(owner: KeyPair, pageSize: Int = 50, pagingToken: Data?, completion: @Sendable @escaping (Result<DmFeedPage, ErrorGetDmChatFeed>) -> Void) {
+    func getDmChatFeed(owner: KeyPair, type: ConversationType, pageSize: Int = 50, pagingToken: Data?, completion: @Sendable @escaping (Result<DmFeedPage, ErrorGetDmChatFeed>) -> Void) {
         let request = Flipcash_Chat_V1_GetDmChatFeedRequest.with {
             $0.queryOptions = .with {
                 $0.pageSize = Int32(pageSize)
@@ -33,6 +33,7 @@ final class ChatService: Sendable {
                     $0.pagingToken = .with { $0.value = pagingToken }
                 }
             }
+            $0.dmChatType = type.proto
             $0.auth = owner.authFor(message: $0)
         }
 

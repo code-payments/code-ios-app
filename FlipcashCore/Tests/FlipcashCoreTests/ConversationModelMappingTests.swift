@@ -92,7 +92,7 @@ struct ConversationModelMappingTests {
         let conversationBytes = Data(repeating: 0xAB, count: 32)
         let proto = Flipcash_Chat_V1_Metadata.with {
             $0.chatID = .with { $0.value = conversationBytes }
-            $0.type = .dm
+            $0.type = .contactDm
             $0.lastActivity = .init(date: Date(timeIntervalSince1970: 1_700_000_500))
             $0.lastMessage = .with {
                 $0.messageID = .with { $0.value = 9 }
