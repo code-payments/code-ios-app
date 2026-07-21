@@ -55,14 +55,12 @@ private struct ScanScreenContent: View {
     }
     
     private let sessionContainer: SessionContainer
-    private let betaFlags: BetaFlags
 
     // MARK: - Init -
 
     init(container: Container, sessionContainer: SessionContainer) {
         self.sessionContainer = sessionContainer
         self.session          = sessionContainer.session
-        self.betaFlags        = container.betaFlags
 
         self.viewModel = ScanViewModel(
             container: container,
@@ -226,7 +224,7 @@ private struct ScanScreenContent: View {
                 toast: toast,
                 showSend: session.canSend,
                 sendBadgeCount: sessionContainer.conversationController.unreadConversationCount,
-                showTips: betaFlags.hasEnabled(.enableTips),
+                showTips: session.canReceiveTips,
                 onGive: presentGive,
                 onWallet: { router.present(.balance) },
                 onDiscover: { router.present(.discover) },

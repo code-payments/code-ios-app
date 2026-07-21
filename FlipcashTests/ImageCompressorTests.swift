@@ -23,6 +23,20 @@ struct ImageCompressorTests {
         #expect(result === image)
     }
 
+    /// `maxDimension` is a pixel budget: the encoded JPEG and the byte budget
+    /// downstream are both measured in pixels, so a point-sized result at screen
+    /// scale would be 3x larger in each axis than every caller assumes.
+    @Test("Caps actual pixels, not points", arguments: [
+        CGSize(width: 3000, height: 3000),
+        CGSize(width: 4000, height: 2000),
+    ])
+    func downscale_capsPixelsNotPoints(size: CGSize) throws {
+        let result = ImageCompressor.compressSync(makeImage(size: size), maxDimension: 1600)
+
+        let cg = try #require(result.cgImage)
+        #expect(max(cg.width, cg.height) == 1600)
+    }
+
     @Test("Downscales preserving aspect ratio", arguments: [
         (input: CGSize(width: 4000, height: 2000), expected: CGSize(width: 1024, height: 512)),
         (input: CGSize(width: 1500, height: 3000), expected: CGSize(width: 512, height: 1024)),

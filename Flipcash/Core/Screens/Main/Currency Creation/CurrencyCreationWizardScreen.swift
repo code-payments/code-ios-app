@@ -407,10 +407,7 @@ struct CurrencyCreationWizardScreen: View {
             } catch {
                 logger.error("Failed to encode icon within 1 MB budget", metadata: ["error": "\(error)"])
                 ErrorReporting.captureError(error)
-                errorDialog = DialogItem.error(
-                    title: "Couldn't Process Image",
-                    subtitle: "Try a smaller or simpler image"
-                )
+                errorDialog = .imageProcessingFailed
                 return
             }
             state.encodedIconData = imageData

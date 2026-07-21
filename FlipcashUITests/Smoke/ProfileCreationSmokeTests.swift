@@ -103,17 +103,6 @@ final class ProfileCreationSmokeTests: BaseUITestCase {
 
     // MARK: - Helpers
 
-    /// Walks the fastest fresh-account path — the write-down branch, which
-    /// needs no Photos permission — so every run starts with no profile.
-    private func createFreshAccount() {
-        waitAndTap(app.buttons["Create a New Account"])
-        waitAndTap(app.buttons["Wrote the 12 Words Down Instead?"])
-        waitAndTap(app.buttons["Yes, I Wrote Them Down"])
-        allowPhoneVerificationIfNeeded()
-        allowPushNotificationsIfNeeded()
-        assertMainScreenReached()
-    }
-
     /// Picks the newest photo from the system library and commits the crop
     /// editor. Returns false when the library is empty, which is the state of a
     /// freshly created simulator.

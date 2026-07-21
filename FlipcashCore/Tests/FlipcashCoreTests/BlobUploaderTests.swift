@@ -17,7 +17,7 @@ struct BlobUploaderTests {
         let transport = RecordingTransport()
         let uploader = makeUploader(transport: transport, states: [.ready])
 
-        _ = try await uploader.upload(Self.fileBytes, mimeType: "image/jpeg", owner: try Self.owner())
+        _ = try await uploader.storeThenFinalize(Self.fileBytes, owner: try Self.owner())
 
         let parsed = try await Self.parse(transport)
         #expect(parsed.names.last == "file")
@@ -29,7 +29,7 @@ struct BlobUploaderTests {
         let transport = RecordingTransport()
         let uploader = makeUploader(transport: transport, states: [.ready])
 
-        _ = try await uploader.upload(Self.fileBytes, mimeType: "image/jpeg", owner: try Self.owner())
+        _ = try await uploader.storeThenFinalize(Self.fileBytes, owner: try Self.owner())
 
         let parsed = try await Self.parse(transport)
         for (name, value) in Self.formFields {
@@ -42,7 +42,7 @@ struct BlobUploaderTests {
         let transport = RecordingTransport()
         let uploader = makeUploader(transport: transport, states: [.ready])
 
-        _ = try await uploader.upload(Self.fileBytes, mimeType: "image/jpeg", owner: try Self.owner())
+        _ = try await uploader.storeThenFinalize(Self.fileBytes, owner: try Self.owner())
 
         let contentType = try #require(await transport.contentType)
         let boundary = try #require(contentType.components(separatedBy: "boundary=").last)
@@ -61,7 +61,7 @@ struct BlobUploaderTests {
         let reserving = StubReserving(states: [.ready])
         let uploader = BlobUploader(reserving: reserving, transport: transport)
 
-        _ = try await uploader.upload(Self.fileBytes, mimeType: "image/jpeg", owner: try Self.owner())
+        _ = try await uploader.storeThenFinalize(Self.fileBytes, owner: try Self.owner())
 
         let declared = try #require(await reserving.declaredSizeBytes)
         #expect(declared == Self.fileBytes.count)
@@ -73,11 +73,31 @@ struct BlobUploaderTests {
         let transport = RecordingTransport()
         let uploader = makeUploader(transport: transport, states: [.ready])
 
-        _ = try await uploader.upload(Self.fileBytes, mimeType: "image/jpeg", owner: try Self.owner())
+        _ = try await uploader.storeThenFinalize(Self.fileBytes, owner: try Self.owner())
 
         let body = String(decoding: try #require(await transport.body), as: UTF8.self)
         #expect(body.contains("Content-Disposition: form-data; name=\"key\"\r\n\r\n"))
         #expect(!body.contains("form-data; name=\"key\"\n\n"))
+    }
+
+    /// The uploader is the write site: bytes that never went through the app's
+    /// encoder must still be sanitized, or storage refuses them.
+    @Test("Stored bytes are stripped of privacy segments, and the reservation matches")
+    func storeStripsPrivacySegments() async throws {
+        let transport = RecordingTransport()
+        let reserving = StubReserving(states: [.ready])
+        let uploader = BlobUploader(reserving: reserving, transport: transport)
+
+        let raw = Self.jpegCarryingComment()
+        #expect(raw.count > Self.strippedJPEG.count)
+
+        _ = try await uploader.store(raw, mimeType: "image/jpeg", owner: try Self.owner())
+
+        let sent = try #require(await transport.body)
+        #expect(!sent.contains(Data("secret-location".utf8)))
+        // The reservation signs the byte count, so it must describe the bytes
+        // actually sent — not the ones handed in.
+        #expect(await reserving.declaredSizeBytes == Self.strippedJPEG.count)
     }
 
     // MARK: - Upload failure -
@@ -89,7 +109,7 @@ struct BlobUploaderTests {
         let uploader = makeUploader(transport: transport, states: [.ready])
 
         await #expect(throws: ErrorBlob.self) {
-            _ = try await uploader.upload(Self.fileBytes, mimeType: "image/jpeg", owner: try Self.owner())
+            _ = try await uploader.storeThenFinalize(Self.fileBytes, owner: try Self.owner())
         }
     }
 
@@ -105,7 +125,7 @@ struct BlobUploaderTests {
             timeout: .seconds(5)
         )
 
-        _ = try await uploader.upload(Self.fileBytes, mimeType: "image/jpeg", owner: try Self.owner())
+        _ = try await uploader.storeThenFinalize(Self.fileBytes, owner: try Self.owner())
 
         #expect(await reserving.pollCount == 3)
     }
@@ -121,7 +141,7 @@ struct BlobUploaderTests {
         )
 
         await #expect(throws: ErrorBlob.self) {
-            _ = try await uploader.upload(Self.fileBytes, mimeType: "image/jpeg", owner: try Self.owner())
+            _ = try await uploader.storeThenFinalize(Self.fileBytes, owner: try Self.owner())
         }
         #expect(await reserving.pollCount == 2)
     }
@@ -137,8 +157,27 @@ struct BlobUploaderTests {
         )
 
         await #expect(throws: ErrorBlob.self) {
-            _ = try await uploader.upload(Self.fileBytes, mimeType: "image/jpeg", owner: try Self.owner())
+            _ = try await uploader.storeThenFinalize(Self.fileBytes, owner: try Self.owner())
         }
+    }
+
+    /// `store` must hand back the blob without waiting for finalization — that
+    /// is what lets a caller whose poll times out resume the same blob instead
+    /// of storing a second copy.
+    @Test("Storing returns the blob without waiting for finalization")
+    func storeReturnsBeforeFinalizing() async throws {
+        let reserving = StubReserving(states: [])
+        let uploader = BlobUploader(
+            reserving: reserving,
+            transport: RecordingTransport(),
+            pollInterval: .milliseconds(1),
+            timeout: .milliseconds(20)
+        )
+
+        let blobID = try await uploader.store(Self.fileBytes, mimeType: "image/jpeg", owner: try Self.owner())
+
+        #expect(blobID == StubReserving.blobID)
+        #expect(await reserving.pollCount == 0)
     }
 
     /// A timed-out attempt already stored its bytes, so resuming must poll the
@@ -163,6 +202,22 @@ struct BlobUploaderTests {
     // MARK: - Fixtures -
 
     private static let fileBytes = Data(repeating: 0xAB, count: 4096)
+
+    /// A minimal JPEG: SOI, a COM comment carrying personal data, then SOS and
+    /// EOI. Enough for the marker walker without pulling in an image encoder.
+    private static func jpegCarryingComment() -> Data {
+        let comment = Array("secret-location".utf8)
+        var data = Data([0xFF, 0xD8])
+        data.append(contentsOf: [0xFF, 0xFE])
+        let length = comment.count + 2
+        data.append(contentsOf: [UInt8(length >> 8), UInt8(length & 0xFF)])
+        data.append(contentsOf: comment)
+        data.append(contentsOf: [0xFF, 0xDA, 0x00, 0x02])
+        data.append(contentsOf: [0xFF, 0xD9])
+        return data
+    }
+
+    private static let strippedJPEG = Data([0xFF, 0xD8, 0xFF, 0xDA, 0x00, 0x02, 0xFF, 0xD9])
 
     private static let formFields = [
         "key": "uploads/abc123",
@@ -314,5 +369,15 @@ private actor StubReserving: BlobReserving {
     func blobState(blobID: BlobID, owner: KeyPair) async throws -> BlobState {
         pollCount += 1
         return states.isEmpty ? .processing : states.removeFirst()
+    }
+}
+
+private extension BlobUploader {
+    /// What a real caller does: store the bytes, then wait for the server to
+    /// finalize them.
+    func storeThenFinalize(_ data: Data, owner: KeyPair) async throws -> BlobID {
+        let blobID = try await store(data, mimeType: "image/jpeg", owner: owner)
+        try await awaitFinalization(blobID: blobID, owner: owner)
+        return blobID
     }
 }

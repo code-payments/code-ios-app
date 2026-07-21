@@ -7,34 +7,12 @@ import Foundation
 import FlipcashCore
 import CodeScanner
 
-/*
- Layout: Tip
-
-   0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15  16  17  18  19
- +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
- | T |                        User ID                        |    Reserved (0)   |
- +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
- (T) Kind (1 byte)
-
- Distinguishes this payload from the cash layouts sharing the same frame.
-
- User ID (16 bytes)
-
- The raw bytes of the user's UUID.
-
- Reserved (3 bytes)
-
- Always zero.
- */
-
 nonisolated extension TipCode.Payload {
 
-    /// Matches `CashCode.Payload.length` — both render through the same code.
+    /// The shared frame both code kinds are encoded into.
     static let length: Int = 20
 
-    /// The leading byte of every tip payload. Disjoint from every
-    /// `CashCode.Payload.Kind` so a scanner can dispatch on byte 0.
+    /// The leading byte of every tip payload.
     static let kind: UInt8 = 2
 
     private static let userIDRange = 1..<17

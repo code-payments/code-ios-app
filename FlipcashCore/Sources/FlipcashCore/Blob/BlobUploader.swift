@@ -37,7 +37,16 @@ final class BlobUploader: Sendable {
     }
 
     /// Uploads `data` and returns its blob once the server has finalized it.
-    func upload(_ data: Data, mimeType: String, owner: KeyPair) async throws -> BlobID {
+    /// Stores `data` and returns its blob, leaving finalization to the caller.
+    ///
+    /// Separate from `awaitFinalization` so a caller whose poll times out can
+    /// resume the same blob instead of uploading a second copy.
+    func store(_ data: Data, mimeType: String, owner: KeyPair) async throws -> BlobID {
+        // Sanitize before reserving: the reservation signs the byte count, and
+        // storage refuses an image carrying personal metadata. Doing it here
+        // rather than at the call site is what makes it true of every upload.
+        let data = JPEGMetadata.stripped(data)
+
         let reserved = try await reserving.initiateExternalUpload(
             mimeType: mimeType,
             sizeBytes: data.count,
@@ -53,20 +62,16 @@ final class BlobUploader: Sendable {
         try await store(data, mimeType: mimeType, to: reserved.target)
 
         switch try await reserving.completeExternalUpload(blobID: reserved.blobID, owner: owner) {
-        case .ready:
-            return reserved.blobID
         case .rejected(let reason):
             throw ErrorBlob.rejected(reason)
-        case .pending, .processing:
-            try await awaitFinalization(blobID: reserved.blobID, owner: owner)
+        case .ready, .pending, .processing:
             return reserved.blobID
         }
     }
 
     /// Polls until the blob is finalized.
     ///
-    /// Separate from `upload(_:mimeType:owner:)` so a timed-out attempt can be
-    /// resumed: the bytes are already stored, and a rejection is terminal.
+    /// Returns immediately when it is already ready; a rejection is terminal.
     func awaitFinalization(blobID: BlobID, owner: KeyPair) async throws {
         let deadline = ContinuousClock.now.advanced(by: timeout)
 

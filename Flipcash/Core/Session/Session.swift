@@ -98,6 +98,12 @@ class Session {
         scanOperation != nil
     }
     
+    /// Whether the Tips tab is available. Mirrors `hasCoinbaseOnramp`: a beta
+    /// override today, a server flag when one ships.
+    var canReceiveTips: Bool {
+        BetaFlags.shared.hasEnabled(.enableTips)
+    }
+
     var hasCoinbaseOnramp: Bool {
         BetaFlags.shared.hasEnabled(.enableCoinbase) || userFlags?.hasCoinbase == true
     }

@@ -15,6 +15,7 @@ struct TipcardScreen: View {
 
     @State private var avatar: UIImage?
     @State private var exportImage: Image?
+    @State private var codeData: Data?
 
     /// The card's on-screen width; the export renders the same view at @3x.
     private static let cardWidth: CGFloat = 300
@@ -40,12 +41,10 @@ struct TipcardScreen: View {
                 Spacer()
 
                 HStack(spacing: 40) {
-                    if let url {
-                        ShareLink(item: url) {
-                            TipcardAction(icon: .Icons.share, title: "Share")
-                        }
-                        .accessibilityIdentifier("tipcard-share-button")
+                    ShareLink(item: url) {
+                        TipcardAction(icon: .Icons.share, title: "Share")
                     }
+                    .accessibilityIdentifier("tipcard-share-button")
 
                     if let exportImage {
                         ShareLink(
@@ -66,6 +65,7 @@ struct TipcardScreen: View {
         // Renders the export only once the avatar is in hand: `ImageRenderer`
         // is synchronous, so a URL-backed image would export as a placeholder.
         .task(id: profilePicture?.blobID) {
+            codeData = TipCode.Payload(userID: sessionContainer.session.userID).codeData()
             await loadAvatar()
             renderExportImage()
         }
@@ -81,18 +81,18 @@ struct TipcardScreen: View {
         profile?.profilePicture
     }
 
-    private var url: URL? {
-        URL.tipcard(for: sessionContainer.session.userID)
+    private var url: URL {
+        .tipcard(for: sessionContainer.session.userID)
     }
 
     private var card: TipcardView? {
-        guard let name = profile?.displayName, !name.isEmpty else { return nil }
+        guard let name = profile?.displayName, !name.isEmpty, let codeData else { return nil }
 
         return TipcardView(
             size: CGSize(width: Self.cardWidth, height: Self.cardWidth * Self.cardAspectRatio),
             name: name,
             avatar: avatar,
-            codeData: TipCode.Payload(userID: sessionContainer.session.userID).codeData()
+            codeData: codeData
         )
     }
 

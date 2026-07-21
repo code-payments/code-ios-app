@@ -20,7 +20,6 @@ struct ProfilePhotoScreen: View {
     @State private var isShowingPhotoPicker = false
     @State private var isShowingFilePicker = false
     @State private var errorDialog: DialogItem?
-    @State private var compressTask: Task<Void, Never>?
 
     private static let avatarSize: CGFloat = 150
 
@@ -114,10 +113,7 @@ struct ProfilePhotoScreen: View {
             errorDialog = .profilePictureFailed(error)
 
         } catch is ImageEncoderError {
-            errorDialog = .error(
-                title: "Couldn't Process Image",
-                subtitle: "Try a smaller or simpler image"
-            )
+            errorDialog = .imageProcessingFailed
 
         } catch {
             guard !Task.isCancelled else { return }
@@ -131,14 +127,11 @@ struct ProfilePhotoScreen: View {
     }
 
     private func setSelectedImage(_ image: UIImage) {
-        compressTask?.cancel()
-        compressTask = Task {
-            let compressed = await ImageCompressor.compress(
+        Task {
+            state.selectedImage = await ImageCompressor.compress(
                 image,
                 maxDimension: ProfileCreationState.maxImageDimension
             )
-            guard !Task.isCancelled else { return }
-            state.selectedImage = compressed
         }
     }
 
@@ -149,11 +142,12 @@ struct ProfilePhotoScreen: View {
             guard url.startAccessingSecurityScopedResource() else { return }
             defer { url.stopAccessingSecurityScopedResource() }
 
-            let data = await Task.detached(priority: .userInitiated) {
-                try? Data(contentsOf: url)
+            let image = await Task.detached(priority: .userInitiated) { () -> UIImage? in
+                guard let data = try? Data(contentsOf: url) else { return nil }
+                return UIImage(data: data)
             }.value
 
-            guard let data, let image = UIImage(data: data) else {
+            guard let image else {
                 errorDialog = .error(
                     title: "Couldn't Open That File",
                     subtitle: "Try a different image"

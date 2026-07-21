@@ -66,6 +66,17 @@ class BaseUITestCase: XCTestCase {
 
     // MARK: - Helpers
 
+    /// Registers a new account via the write-down branch — the fastest path,
+    /// and the only one that needs no Photos permission.
+    func createFreshAccount() {
+        waitAndTap(app.buttons["Create a New Account"])
+        waitAndTap(app.buttons["Wrote the 12 Words Down Instead?"])
+        waitAndTap(app.buttons["Yes, I Wrote Them Down"])
+        allowPhoneVerificationIfNeeded()
+        allowPushNotificationsIfNeeded()
+        assertMainScreenReached()
+    }
+
     /// Waits for an element to appear and taps it. Fails the test if the element doesn't appear within the timeout.
     func waitAndTap(_ element: XCUIElement, timeout: TimeInterval = 30, _ message: String? = nil) {
         let defaultMessage = "Expected \(element) to exist within \(timeout)s"

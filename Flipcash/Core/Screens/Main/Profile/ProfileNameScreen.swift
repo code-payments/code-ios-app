@@ -61,7 +61,7 @@ struct ProfileNameScreen: View {
                     }
                 }
                 .buttonStyle(.filled)
-                .disabled(!state.isDisplayNameValid || isSubmitting)
+                .disabled(state.validatedDisplayName == nil || isSubmitting)
                 .accessibilityIdentifier("profile-name-next-button")
                 .padding(.bottom, 20)
             }

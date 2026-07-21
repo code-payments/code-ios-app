@@ -10,8 +10,9 @@ private let logger = Logger(label: "flipcash.profile-creation")
 
 /// Drives profile creation across the name and photo screens.
 ///
-/// Owned by the Tips sheet root so the entered name survives a push, and so a
-/// running upload is not torn down when a screen is popped.
+/// Owned by the Tips sheet root so the name entered on one screen survives the
+/// push to the next, and so a resumable upload outlives the screen that
+/// started it.
 @Observable
 final class ProfileCreationState {
 
@@ -44,10 +45,6 @@ final class ProfileCreationState {
         validator.validate(displayName)
     }
 
-    var isDisplayNameValid: Bool {
-        validatedDisplayName != nil
-    }
-
     var remainingCharacters: Int {
         validator.remaining(in: displayName)
     }
@@ -73,25 +70,30 @@ final class ProfileCreationState {
 
         let owner = session.ownerKeyPair
 
-        let blobID: BlobID
         if let reservedBlobID {
             logger.info("Resuming profile picture finalization", metadata: ["blobId": "\(reservedBlobID)"])
-            try await flipClient.awaitBlobFinalization(blobID: reservedBlobID, owner: owner)
-            blobID = reservedBlobID
         } else {
-            // Encode before reserving: the signed policy pins the byte count, so
-            // the bytes may not change after `InitiateExternalUpload`.
+            // Encode before storing: the reservation signs the byte count, so the
+            // bytes may not change afterwards.
             let data = try await ImageEncoder.encodeForUpload(image, maxBytes: Self.maxUploadBytes)
-            blobID = try await flipClient.uploadBlob(data, mimeType: "image/jpeg", owner: owner)
-            reservedBlobID = blobID
+            // Held from the moment the bytes land, so a timed-out wait resumes
+            // this blob rather than storing a second copy.
+            reservedBlobID = try await flipClient.storeBlob(data, mimeType: "image/jpeg", owner: owner)
         }
 
+        guard let blobID = reservedBlobID else { return }
+
+        try await flipClient.awaitBlobFinalization(blobID: blobID, owner: owner)
         _ = try await flipClient.setProfilePicture(blobID: blobID, owner: owner)
         try await session.updateProfile()
+
+        // The sheet root outlives this flow, so the bitmap would sit resident
+        // until the sheet closes.
+        selectedImage = nil
     }
 
-    /// The server accepts 8 MiB, but its largest derived rendition is 1600px —
-    /// a bigger original buys nothing.
     private static let maxUploadBytes = 2 * 1_024 * 1_024
+
+    /// The server's largest derived rendition, so a bigger original buys nothing.
     static let maxImageDimension: CGFloat = 1600
 }
