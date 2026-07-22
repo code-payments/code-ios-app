@@ -17,19 +17,22 @@ public struct Conversation: Identifiable, Hashable, Sendable {
     public var members: [ConversationMember]
     public var lastMessage: ConversationMessage?
     public var lastActivity: Date
+    public let type: ConversationType
 
-    public init(id: ConversationID, members: [ConversationMember], lastMessage: ConversationMessage?, lastActivity: Date) {
+    public init(id: ConversationID, members: [ConversationMember], lastMessage: ConversationMessage?, lastActivity: Date, type: ConversationType = .contactDm) {
         self.id = id
         self.members = members
         self.lastMessage = lastMessage
         self.lastActivity = lastActivity
+        self.type = type
     }
 }
 
-/// The kind of direct-message conversation, used to scope the DM feed.
-public enum ConversationType: Sendable {
-    case contactDm
-    case tipDm
+/// The kind of direct-message conversation, used to scope the DM feed. Raw
+/// values match the proto's `ChatType` and are what the local cache stores.
+public enum ConversationType: Int, Sendable {
+    case contactDm = 1
+    case tipDm = 2
 }
 
 extension ConversationType {
@@ -37,6 +40,17 @@ extension ConversationType {
         switch self {
         case .contactDm: .contactDm
         case .tipDm:     .tipDm
+        }
+    }
+
+    /// Unknown chat types map to `.contactDm`, mirroring the server's
+    /// legacy-client contract for the DM feed.
+    init(_ proto: Flipcash_Chat_V1_ChatType) {
+        switch proto {
+        case .tipDm:
+            self = .tipDm
+        case .contactDm, .unknown, .UNRECOGNIZED:
+            self = .contactDm
         }
     }
 }
@@ -47,6 +61,7 @@ extension Conversation {
         self.members = proto.members.map(ConversationMember.init)
         self.lastMessage = proto.hasLastMessage ? ConversationMessage(proto.lastMessage) : nil
         self.lastActivity = proto.hasLastActivity ? proto.lastActivity.date : .distantPast
+        self.type = ConversationType(proto.type)
     }
 
     /// The member that isn't the signed-in user, used to title the conversation.
@@ -111,15 +126,19 @@ public struct ConversationMember: Hashable, Sendable, Identifiable {
     /// When this member last advanced their READ watermark, for the read
     /// receipt. `nil` until the server reports a pointer with a timestamp.
     public var readPointerTimestamp: Date?
+    /// The blobs backing this member's profile picture, when they have one.
+    /// The renditions authorize through the member's profile access context.
+    public var profilePicture: ProfilePicture?
 
     public var id: String { userID?.uuidString ?? displayName }
 
-    public init(userID: UserID?, displayName: String, phoneE164: String? = nil, readPointer: MessageID? = nil, readPointerTimestamp: Date? = nil) {
+    public init(userID: UserID?, displayName: String, phoneE164: String? = nil, readPointer: MessageID? = nil, readPointerTimestamp: Date? = nil, profilePicture: ProfilePicture? = nil) {
         self.userID = userID
         self.displayName = displayName
         self.phoneE164 = phoneE164
         self.readPointer = readPointer
         self.readPointerTimestamp = readPointerTimestamp
+        self.profilePicture = profilePicture
     }
 
     /// The member's phone number formatted for display, used as a conversation
@@ -150,5 +169,8 @@ extension ConversationMember {
         }
         self.readPointer = read
         self.readPointerTimestamp = readAt
+        self.profilePicture = proto.userProfile.hasProfilePicture
+            ? ProfilePicture(proto.userProfile.profilePicture)
+            : nil
     }
 }

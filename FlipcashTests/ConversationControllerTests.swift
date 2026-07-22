@@ -218,7 +218,7 @@ struct ConversationControllerTests {
         #expect(controller.conversations.map(\.id) == [ConversationID.test(2), ConversationID.test(1)])
     }
 
-    @Test("unreadConversationCount counts only conversations with unread messages")
+    @Test("Unread counts include only unread conversations, scoped by type")
     func unreadConversationCount() async {
         let me = UUID()
         let mock = MockConversations()
@@ -251,10 +251,19 @@ struct ConversationControllerTests {
                 lastMessage: ConversationMessage(id: MessageID(value: 2), senderID: nil, content: .text("z"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0),
                 lastActivity: Date(timeIntervalSince1970: 100)
             ),
+            // Unread tip DM: counted in the tip bucket, not the contact one.
+            Conversation(
+                id: ConversationID.test(5),
+                members: [ConversationMember(userID: me, displayName: "", readPointer: nil)],
+                lastMessage: ConversationMessage(id: MessageID(value: 3), senderID: nil, content: .text("t"), date: Date(timeIntervalSince1970: 0), unreadSeq: 0),
+                lastActivity: Date(timeIntervalSince1970: 50),
+                type: .tipDm
+            ),
         ]
         let controller = makeController(mock, selfUserID: me)
         await controller.loadFeed()
-        #expect(controller.unreadConversationCount == 2)
+        #expect(controller.unreadConversationCount(of: .contactDm) == 2)
+        #expect(controller.unreadConversationCount(of: .tipDm) == 1)
     }
 
     @Test("send records the message and appends it to the conversation")

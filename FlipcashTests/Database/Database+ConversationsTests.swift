@@ -396,7 +396,7 @@ struct DatabaseConversationsTests {
         #expect(try database.getCatchupCursors()[id] == 42)
 
         // A feed replace deletes+reinserts every conversation row but must preserve the cursor.
-        try database.replaceConversationFeed([conversation(byte: 1)])
+        try database.replaceConversationFeed([conversation(byte: 1)], type: .contactDm)
         #expect(try database.getCatchupCursors()[id] == 42)
     }
 
@@ -510,7 +510,7 @@ struct DatabaseConversationsTests {
         try database.upsertConversationMessages([textMessage(id: 1)], conversationID: ConversationID.test(1))
         try database.upsertConversationMessages([textMessage(id: 2)], conversationID: ConversationID.test(2))
 
-        try database.replaceConversationFeed([conversation(byte: 1)])
+        try database.replaceConversationFeed([conversation(byte: 1)], type: .contactDm)
 
         #expect(try database.getConversations().map(\.id) == [ConversationID.test(1)])
         #expect(try database.getConversationMessages(conversationID: ConversationID.test(1)).map(\.id.value) == [1])
@@ -526,7 +526,7 @@ struct DatabaseConversationsTests {
         try database.upsertConversation(conversation(byte: 1))
         try database.upsertConversationMessages([textMessage(id: 1)], conversationID: ConversationID.test(1))
 
-        try database.replaceConversationFeed([])
+        try database.replaceConversationFeed([], type: .contactDm)
 
         #expect(try database.getConversations().isEmpty)
         #expect(try database.getConversationMessages(conversationID: ConversationID.test(1)).map(\.id.value) == [1])
@@ -573,5 +573,54 @@ struct DatabaseConversationsTests {
 
         #expect(try database.getConversationMessages(conversationID: ConversationID.test(1)).isEmpty)
         #expect(try database.getConversationMessages(conversationID: ConversationID.test(2)).map(\.id.value) == [2])
+    }
+
+    // MARK: - Typed feed
+
+    @Test("Round-trip preserves the conversation type and member profile picture")
+    func roundTripPreservesTypeAndMemberPicture() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let picture = ProfilePicture(
+            blobID: BlobID(data: Data(repeating: 0x0A, count: 16)),
+            thumbnailBlobID: BlobID(data: Data(repeating: 0x0B, count: 16))
+        )
+        let tip = Conversation(
+            id: ConversationID.test(1),
+            members: [ConversationMember(userID: otherID, displayName: "Fred", profilePicture: picture)],
+            lastMessage: nil,
+            lastActivity: Date(timeIntervalSince1970: 100),
+            type: .tipDm
+        )
+
+        try database.upsertConversation(tip)
+        let restored = try #require(try database.getConversations().first)
+
+        #expect(restored.type == .tipDm)
+        #expect(restored.members.first?.profilePicture == picture)
+    }
+
+    @Test("A typed feed replace keeps the other type's conversations and members")
+    func typedFeedReplaceKeepsOtherType() throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let contact = conversation(byte: 1, members: [ConversationMember(userID: otherID, displayName: "Anna")])
+        let tip = Conversation(
+            id: ConversationID.test(2),
+            members: [ConversationMember(userID: otherID, displayName: "Fred")],
+            lastMessage: nil,
+            lastActivity: Date(timeIntervalSince1970: 200),
+            type: .tipDm
+        )
+        try database.upsertConversation(contact)
+        try database.upsertConversation(tip)
+
+        // A fresh contact feed that drops the old contact chat must not touch the tip chat.
+        let newContact = conversation(byte: 3)
+        try database.replaceConversationFeed([newContact], type: .contactDm)
+
+        let remaining = try database.getConversations()
+        #expect(remaining.map(\.id) == [tip.id, newContact.id])
+        #expect(remaining.first?.members.map(\.displayName) == ["Fred"])
     }
 }

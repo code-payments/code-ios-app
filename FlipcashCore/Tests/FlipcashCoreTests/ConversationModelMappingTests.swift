@@ -104,6 +104,63 @@ struct ConversationModelMappingTests {
         #expect(conversation.id == ConversationID(data: conversationBytes))
         #expect(conversation.lastMessage?.content == .text("last"))
         #expect(conversation.lastActivity == Date(timeIntervalSince1970: 1_700_000_500))
+        #expect(conversation.type == .contactDm)
+    }
+
+    @Test("Metadata maps the tip-DM chat type")
+    func dmMetadataMapsTipDmType() {
+        let proto = Flipcash_Chat_V1_Metadata.with {
+            $0.chatID = .with { $0.value = Data(repeating: 0xAB, count: 32) }
+            $0.type = .tipDm
+        }
+
+        #expect(Conversation(proto).type == .tipDm)
+    }
+
+    @Test("Metadata with an unknown chat type maps to contact DM")
+    func dmMetadataUnknownTypeDefaultsToContactDm() {
+        let proto = Flipcash_Chat_V1_Metadata.with {
+            $0.chatID = .with { $0.value = Data(repeating: 0xAB, count: 32) }
+            $0.type = .unknown
+        }
+
+        #expect(Conversation(proto).type == .contactDm)
+    }
+
+    @Test("Member maps the profile picture's rendition blob ids")
+    func memberMapsProfilePicture() {
+        let originalBlob = Data(repeating: 0x0A, count: 16)
+        let thumbnailBlob = Data(repeating: 0x0B, count: 16)
+        let proto = Flipcash_Chat_V1_Member.with {
+            $0.userID = .with { $0.value = UUID().data }
+            $0.userProfile = .with {
+                $0.profilePicture = .with {
+                    $0.renditions = [
+                        .with {
+                            $0.role = .original
+                            $0.blobID = .with { $0.value = originalBlob }
+                        },
+                        .with {
+                            $0.role = .thumbnail
+                            $0.blobID = .with { $0.value = thumbnailBlob }
+                        },
+                    ]
+                }
+            }
+        }
+
+        let member = ConversationMember(proto)
+        #expect(member.profilePicture?.blobID == BlobID(data: originalBlob))
+        #expect(member.profilePicture?.thumbnailBlobID == BlobID(data: thumbnailBlob))
+    }
+
+    @Test("Member has no profile picture when the profile omits one")
+    func memberWithoutProfilePicture() {
+        let proto = Flipcash_Chat_V1_Member.with {
+            $0.userID = .with { $0.value = UUID().data }
+        }
+
+        #expect(ConversationMember(proto).profilePicture == nil)
     }
 
     @Test("Counterpart excludes the signed-in user")

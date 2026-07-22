@@ -19,7 +19,6 @@ struct TipcardScreen: View {
 
     /// The card's on-screen width; the export renders the same view at @3x.
     private static let cardWidth: CGFloat = 300
-    private static let cardAspectRatio: CGFloat = 1.16
 
     var body: some View {
         Background(color: .backgroundMain) {
@@ -43,6 +42,10 @@ struct TipcardScreen: View {
                     }
                     .accessibilityIdentifier("tipcard-share-button")
 
+                    // Always present so the row never reflows; disabled until
+                    // the card has rendered with the photo — `ImageRenderer`
+                    // is synchronous, so an earlier export would bake in the
+                    // placeholder.
                     if let exportImage {
                         ShareLink(
                             item: exportImage,
@@ -51,6 +54,12 @@ struct TipcardScreen: View {
                             TipcardAction(icon: .Icons.export, title: "Export")
                         }
                         .accessibilityIdentifier("tipcard-export-button")
+                    } else {
+                        TipcardAction(icon: .Icons.export, title: "Export")
+                            .opacity(0.4)
+                            .accessibilityIdentifier("tipcard-export-button")
+                            .accessibilityAddTraits(.isButton)
+                            .accessibilityHint("Preparing the card image")
                     }
                 }
                 .padding(.bottom, 40)
@@ -87,7 +96,7 @@ struct TipcardScreen: View {
         guard let name = profile?.displayName, !name.isEmpty else { return nil }
 
         return TipcardView(
-            size: CGSize(width: Self.cardWidth, height: Self.cardWidth * Self.cardAspectRatio),
+            size: CGSize(width: Self.cardWidth, height: Self.cardWidth * TipcardView.aspectRatio),
             name: name,
             avatar: avatar,
             codeData: codeData

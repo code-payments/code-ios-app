@@ -11,6 +11,7 @@ struct ScanBottomBar: View {
     let showSend: Bool
     let sendBadgeCount: Int
     let showTips: Bool
+    let tipsBadgeCount: Int
     let onGive: () -> Void
     let onWallet: () -> Void
     let onDiscover: () -> Void
@@ -47,6 +48,7 @@ struct ScanBottomBar: View {
                 LargeButton(
                     title: "Tips",
                     image: Image(.Icons.tips),
+                    badgeCount: tipsBadgeCount,
                     action: onTips
                 )
                 .accessibilityIdentifier("scan-tips-button")

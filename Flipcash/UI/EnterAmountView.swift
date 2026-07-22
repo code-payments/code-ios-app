@@ -140,6 +140,7 @@ public struct EnterAmountView: View {
                 .frame(maxWidth: .infinity)
             }
             .disabled(currencySelectionAction == nil)
+            .accessibilityIdentifier("amount-currency-button")
             
             Spacer()
             

@@ -20,17 +20,19 @@ class ScanViewModel {
     @ObservationIgnored let cameraSession: CameraSession<CodeExtractor>
 
     @ObservationIgnored private let session: Session
+    @ObservationIgnored private let tipFlow: TipFlow
 
     @ObservationIgnored private var scannedRendezvous: Set<PublicKey> = []
     @ObservationIgnored private var scannedQRCodes: Set<String> = []
     @ObservationIgnored private var cancellables: Set<AnyCancellable> = []
-    
+
     // MARK: - Init -
-    
+
     init(container: Container, sessionContainer: SessionContainer) {
         self.session = sessionContainer.session
+        self.tipFlow = sessionContainer.tipFlow
         self.cameraSession = container.cameraSession
-        
+
         registerCodeExtractorObserver()
     }
     
@@ -65,7 +67,7 @@ class ScanViewModel {
         .store(in: &cancellables)
     }
     
-    private func didScan(_ payload: CashCode.Payload) {
+    private func didScan(_ code: ScannedCode) {
         guard !session.isShowingBill else {
             return
         }
@@ -74,22 +76,31 @@ class ScanViewModel {
             return
         }
 
+        switch code {
+        case .cash(let payload):
+            didScanCash(payload)
+        case .tip(let payload):
+            tipFlow.begin(userID: payload.userID)
+        }
+    }
+
+    private func didScanCash(_ payload: CashCode.Payload) {
         guard !scannedRendezvous.contains(payload.rendezvous.publicKey) else {
             return
         }
-        
+
         if BetaFlags.shared.hasEnabled(.vibrateOnScan) {
             Haptics.tap()
         }
-        
+
         scannedRendezvous.insert(payload.rendezvous.publicKey)
-        
+
         logger.debug("Scanned payload", metadata: [
             "kind":       "\(payload.kind)",
             "nonce":      "\(payload.nonce.hexString())",
             "rendezvous": "\(payload.rendezvous.publicKey.base58)",
         ])
-        
+
         switch payload.kind {
         case .cash, .cashMulticurrency:
             session.receiveCash(payload) { [weak self] result in
@@ -114,7 +125,7 @@ class ScanViewModel {
         }
 
         switch route.path {
-        case .cash, .token:
+        case .cash, .token, .tip:
             return true
         case .login, .verifyEmail, .chat, .chatContact, .chatSendCash, .give, .balance, .discover, .send, .unknown:
             return false

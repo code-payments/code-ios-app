@@ -83,12 +83,13 @@ extension BlobService: BlobReserving {
         }
     }
 
-    /// Returns a freshly minted download URL for a blob the caller owns.
+    /// Returns a freshly minted download URL for a blob the caller owns, or —
+    /// with an access context — one it can read through that surface.
     ///
     /// Media can arrive without one — the proto leaves the metadata optional —
     /// and the URLs expire, so this is the way to get a usable one.
-    func downloadURL(blobID: BlobID, owner: KeyPair) async throws -> URL? {
-        let blob = try await fetchBlob(blobID: blobID, owner: owner)
+    func downloadURL(blobID: BlobID, owner: KeyPair, accessContext: BlobAccessContext? = nil) async throws -> URL? {
+        let blob = try await fetchBlob(blobID: blobID, owner: owner, accessContext: accessContext)
 
         guard let blob, blob.hasMetadata, blob.metadata.hasDownloadURL else {
             return nil
@@ -107,9 +108,12 @@ extension BlobService: BlobReserving {
     }
 
     /// Returns the blob record for `blobID`, or nil when the server omitted it.
-    private func fetchBlob(blobID: BlobID, owner: KeyPair) async throws -> Flipcash_Blob_V1_Blob? {
+    private func fetchBlob(blobID: BlobID, owner: KeyPair, accessContext: BlobAccessContext? = nil) async throws -> Flipcash_Blob_V1_Blob? {
         var request = Flipcash_Blob_V1_GetBlobsRequest()
         request.blobIds = .with { $0.blobIds = [.with { $0.value = blobID.data }] }
+        if let accessContext {
+            request.context = accessContext.proto
+        }
         request.auth    = owner.authFor(message: request)
 
         do {
@@ -162,6 +166,23 @@ extension ErrorBlob: ServerError {
             (error as? ServerError)?.reportingLevel
                 ?? (error as? URLError)?.reportingLevel
                 ?? .error
+        }
+    }
+}
+
+// MARK: - Access Context -
+
+/// The surface a blob read is authorized through, for blobs the caller does
+/// not own. See `flipcash.blob.v1.AccessContext`.
+public enum BlobAccessContext: Sendable {
+
+    /// Reading a rendition of `userID`'s current profile picture.
+    case profile(UserID)
+
+    var proto: Flipcash_Blob_V1_AccessContext {
+        switch self {
+        case .profile(let userID):
+            return .with { $0.profile = .with { $0.value = userID.data } }
         }
     }
 }

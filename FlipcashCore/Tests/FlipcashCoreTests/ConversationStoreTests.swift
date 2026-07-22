@@ -54,6 +54,42 @@ struct ConversationStoreTests {
         #expect(store.conversations.map(\.id) == [conversationID(2), conversationID(3), conversationID(1)])
     }
 
+    @Test("A typed setFeed replaces only that type's conversations")
+    func typedFeedReplacesOnlyItsType() {
+        var store = ConversationStore()
+        store.setFeed([
+            conversation(1, lastActivity: 100),
+            typedConversation(2, type: .tipDm, lastActivity: 300),
+        ])
+
+        store.setFeed([conversation(3, lastActivity: 200)], type: .contactDm)
+
+        #expect(store.conversations.map(\.id) == [conversationID(2), conversationID(3)])
+    }
+
+    @Test("A typed setFeed keeps the combined feed sorted by last activity")
+    func typedFeedKeepsSortAcrossTypes() {
+        var store = ConversationStore()
+        store.setFeed([typedConversation(1, type: .tipDm, lastActivity: 100)])
+
+        store.setFeed([
+            conversation(2, lastActivity: 300),
+            conversation(3, lastActivity: 50),
+        ], type: .contactDm)
+
+        #expect(store.conversations.map(\.id) == [conversationID(2), conversationID(1), conversationID(3)])
+    }
+
+    private func typedConversation(_ byte: UInt8, type: ConversationType, lastActivity: TimeInterval) -> Conversation {
+        Conversation(
+            id: conversationID(byte),
+            members: [],
+            lastMessage: nil,
+            lastActivity: Date(timeIntervalSince1970: lastActivity),
+            type: type
+        )
+    }
+
     @Test("advanceLastActivity moves the conversation to the front")
     func advanceActivityResorts() {
         var store = ConversationStore()

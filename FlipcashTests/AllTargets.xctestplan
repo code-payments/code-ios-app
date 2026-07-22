@@ -9,7 +9,8 @@
     }
   ],
   "defaultOptions" : {
-    "maximumTestExecutionTimeAllowance" : 120,
+    "defaultTestExecutionTimeAllowance" : 120,
+    "maximumTestExecutionTimeAllowance" : 600,
     "maximumTestRepetitions" : 3,
     "performanceAntipatternCheckerEnabled" : true,
     "targetForVariableExpansion" : {

@@ -125,9 +125,11 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
         )
     }
 
-    /// Build an `ExchangedFiat` from a user-entered fiat amount. A bonded
-    /// request worth more than the curve's TVL clamps to the maximum
-    /// extractable quote (the full supply) rather than failing.
+    /// Build an `ExchangedFiat` from a user-entered fiat amount, preserving
+    /// the entered (or balance-capped) value as `nativeAmount` — only the
+    /// on-chain quarks are curve-quantized. A bonded request worth more than
+    /// the curve's TVL clamps to the maximum extractable quote (the full
+    /// supply) rather than failing.
     ///
     /// - Parameters:
     ///   - amount: User-entered fiat amount (in `rate.currency`).
@@ -171,8 +173,11 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
             )
         }
 
-        // Bonded: resolve token quarks via curve.
-        let cappedNative = cappedUSD.converting(to: rate)
+        // Bonded: resolve token quarks via curve. When no cap applies, keep
+        // the entered amount verbatim — a round-trip through USD can drift in
+        // the last digits of the Decimal.
+        let isCappedToBalance = cappedUSD.value != usdRequested.value
+        let cappedNative = isCappedToBalance ? cappedUSD.converting(to: rate) : amount
         guard let valuation = bondingCurve.tokensForValueExchange(
             fiat: BigDecimal(cappedNative.value),
             fiatRate: BigDecimal(rate.fx),
@@ -201,12 +206,17 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
             )
         }
 
-        // Round-trip through `compute(onChainAmount:)` so the fiat side matches
-        // the server's intent validation (tokens → fiat via curve sell).
-        return compute(
+        // Keep the (capped) entered fiat as `nativeAmount`. The server accepts
+        // a native amount within half a display unit of the quarks' curve-sell
+        // value, but enforces user-visible bounds (e.g. the tip minimum)
+        // inclusively against `nativeAmount` itself — re-deriving it from the
+        // quantized quarks can land an exactly-entered bound fractionally
+        // outside itself.
+        guard tokenQuarks > 0 else { return safeZero(mint: mint, rate: rate) }
+        return ExchangedFiat(
             onChainAmount: TokenAmount(quarks: tokenQuarks, mint: mint),
-            rate: rate,
-            supplyQuarks: supplyQuarks,
+            nativeAmount: cappedNative,
+            currencyRate: rate,
         )
     }
 

@@ -138,6 +138,9 @@ final class DeepLinkController {
         case .chatSendCash(let conversationID):
             return action(.chatSendCash(conversationID))
 
+        case .tip(let userID):
+            return action(.tip(userID))
+
         case .give:
             return action(.openSheet(.give))
 
@@ -176,7 +179,26 @@ struct DeepLinkAction {
     }
     
     // MARK: - Execute -
-    
+
+    /// Routes a chat id to the surface owning its type: tip DMs open on the
+    /// Tips stack, contact DMs on the Send stack. The push payload carries no
+    /// type, so the controller resolves it — hydrating an id the feed doesn't
+    /// know yet (e.g. a first-ever tip's push) so the routed screen finds the
+    /// chat populated.
+    private static func routeChat(_ conversationID: ConversationID, in container: SessionContainer) async {
+        let conversation = await container.conversationController.hydratedConversation(withID: conversationID)
+
+        switch conversation?.type {
+        case .tipDm:
+            container.appRouter.navigate(to: .tipConversation(conversationID))
+        case .contactDm, nil:
+            // Push the chat onto the Send stack so it lands over the recipient
+            // picker (back reveals it); a second chat deeplink swaps the leaf
+            // in place rather than stacking a new sheet.
+            container.appRouter.navigate(to: .dmConversation(.existing(conversationID)))
+        }
+    }
+
     func executeAction() async throws {
         logger.info("Executing deep link action", metadata: ["kind": "\(kind.analyticsName)"])
 
@@ -215,10 +237,7 @@ struct DeepLinkAction {
         case .chat(let conversationID):
             if let container = sessionAuthenticator.loggedInContainer {
                 Analytics.deeplinkRouted(kind: kind)
-                // Push the chat onto the Send stack so it lands over the recipient
-                // picker (back reveals it); a second chat deeplink swaps the leaf
-                // in place rather than stacking a new sheet.
-                container.appRouter.navigate(to: .dmConversation(.existing(conversationID)))
+                await Self.routeChat(conversationID, in: container)
             }
 
         case .chatContact(let phone):
@@ -239,18 +258,31 @@ struct DeepLinkAction {
 
         case .chatSendCash(let conversationID):
             if let container = sessionAuthenticator.loggedInContainer {
-                let conversation = container.conversationController.conversation(withID: conversationID)
-                if let target = ResolvedContact.sendTarget(
-                    in: conversation,
+                let conversation = await container.conversationController.hydratedConversation(withID: conversationID)
+                guard let target = SendTarget(
+                    conversation: conversation,
                     dmChatID: conversationID.data,
                     selfUserID: container.session.userID
-                ), container.session.canSend {
-                    Analytics.deeplinkRouted(kind: kind)
-                    // Open the Send Cash amount entry directly as the sheet — one
-                    // animation, no chat behind it. Dismissing returns to where the
-                    // user was (the chat itself is reachable via the chat deeplink).
-                    container.appRouter.present(.sendAmount(target))
+                ) else { return }
+
+                switch target {
+                case .contact:
+                    guard container.session.canSend else { return }
+                case .tip:
+                    break
                 }
+
+                Analytics.deeplinkRouted(kind: kind)
+                // Open the Send Cash amount entry directly as the sheet — one
+                // animation, no chat behind it. Dismissing returns to where the
+                // user was (the chat itself is reachable via the chat deeplink).
+                container.appRouter.present(.sendAmount(target))
+            }
+
+        case .tip(let userID):
+            if let container = sessionAuthenticator.loggedInContainer {
+                Analytics.deeplinkRouted(kind: kind)
+                container.tipFlow.begin(userID: userID)
             }
 
         case .openSheet(let sheet):
@@ -284,6 +316,7 @@ extension DeepLinkAction {
         case chat(ConversationID)
         case chatContact(Phone)
         case chatSendCash(ConversationID)
+        case tip(UserID)
         case openSheet(AppRouter.SheetPresentation)
     }
 }
@@ -298,6 +331,7 @@ extension DeepLinkAction.Kind {
         case .chat:                 "Chat"
         case .chatContact:          "ChatContact"
         case .chatSendCash:         "ChatSendCash"
+        case .tip:                  "Tip"
         case .openSheet(let sheet): "Sheet:\(sheet)"
         }
     }

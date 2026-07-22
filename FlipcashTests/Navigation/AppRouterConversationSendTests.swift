@@ -16,7 +16,7 @@ struct AppRouterConversationSendTests {
 
     private static let conversationID = ConversationID.test(0x01)
 
-    private static let contact = ResolvedContact(
+    private static let resolvedContact = ResolvedContact(
         contactId: "contact-anna",
         displayName: "Anna",
         phoneE164: "+15555550001",
@@ -24,6 +24,8 @@ struct AppRouterConversationSendTests {
         imageData: nil,
         dmChatID: nil
     )
+
+    private static let contact = SendTarget.contact(resolvedContact)
 
     private static var existingContext: ConversationContext {
         .existing(conversationID)
@@ -95,7 +97,7 @@ struct AppRouterConversationSendTests {
     func sendAmount_overSend_stacks() {
         let router = AppRouter()
         router.present(.send)                                  // recipient picker
-        router.push(.dmConversation(.contact(Self.contact)))  // chat pushed on the picker
+        router.push(.dmConversation(.contact(Self.resolvedContact)))  // chat pushed on the picker
 
         router.presentNested(.sendAmount(Self.contact))
 
@@ -108,14 +110,14 @@ struct AppRouterConversationSendTests {
     func sendAmount_overSend_dismissRevealsChat() {
         let router = AppRouter()
         router.present(.send)
-        router.push(.dmConversation(.contact(Self.contact)))
+        router.push(.dmConversation(.contact(Self.resolvedContact)))
         router.presentNested(.sendAmount(Self.contact))
 
         router.dismissSheet()
 
         #expect(router.presentedSheets == [.send])
         // The chat is still on the .send stack underneath.
-        #expect(router[.send] == AppRouter.navigationPath(.dmConversation(.contact(Self.contact))))
+        #expect(router[.send] == AppRouter.navigationPath(.dmConversation(.contact(Self.resolvedContact))))
     }
 
     // MARK: - Send Cash over a deeplinked chat

@@ -318,4 +318,26 @@ struct RouteTests {
         }
     }
 
+    @Test("Tip route parses the user id from both URL formats", arguments: [
+        "https://app.flipcash.com/tip/11111111-2222-3333-4444-555555555555",
+        "flipcash://tip/11111111-2222-3333-4444-555555555555",
+    ])
+    func tipRoute(urlString: String) throws {
+        let path = try #require(Route(url: URL(string: urlString)!)?.path)
+        guard case .tip(let userID) = path else {
+            Issue.record("\(urlString) should parse as .tip")
+            return
+        }
+        #expect(userID == UUID(uuidString: "11111111-2222-3333-4444-555555555555"))
+    }
+
+    @Test("Tip route rejects a missing or malformed user id", arguments: [
+        "https://app.flipcash.com/tip",
+        "https://app.flipcash.com/tip/not-a-uuid",
+        "flipcash://tip/",
+    ])
+    func tipRouteMalformed(urlString: String) {
+        #expect(Route(url: URL(string: urlString)!) == nil)
+    }
+
 }

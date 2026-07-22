@@ -101,7 +101,7 @@ extension IntentTransferTests {
     @Test("Metadata carries serialized chat app metadata that decodes back")
     func metadataCarriesChatAppMetadata() throws {
         let chatID = ConversationID(data: Data(repeating: 0x05, count: 32))
-        let chat = ChatPaymentMetadata(
+        let chat = ChatPaymentMetadata.contactDm(
             chatID: chatID,
             sourcePhoneE164: "+14155550100",
             destinationPhoneE164: "+14155550101"

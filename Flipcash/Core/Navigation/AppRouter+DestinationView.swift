@@ -129,6 +129,14 @@ struct DestinationView: View {
         case .profilePhoto:
             ProfilePhotoScreen()
 
+        case .tipcard:
+            TipcardScreen()
+
+        case .tipConversation(let conversationID):
+            // `.id` forces fresh view identity per conversation.
+            ConversationScreen(context: .existing(conversationID))
+                .id(conversationID)
+
         // MARK: - Conversation flow
 
         case .dmConversation(let context):

@@ -16,9 +16,10 @@ extension FlipClient {
         try await blobUploader.store(data, mimeType: mimeType, owner: owner)
     }
 
-    /// Returns a freshly minted download URL for a blob the caller owns.
-    public func blobDownloadURL(blobID: BlobID, owner: KeyPair) async throws -> URL? {
-        try await blobService.downloadURL(blobID: blobID, owner: owner)
+    /// Returns a freshly minted download URL for a blob the caller owns, or —
+    /// with an access context — one it can read through that surface.
+    public func blobDownloadURL(blobID: BlobID, owner: KeyPair, accessContext: BlobAccessContext? = nil) async throws -> URL? {
+        try await blobService.downloadURL(blobID: blobID, owner: owner, accessContext: accessContext)
     }
 
     /// Waits for an already-uploaded blob to finish finalizing.

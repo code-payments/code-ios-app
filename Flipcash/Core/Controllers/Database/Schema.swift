@@ -172,6 +172,8 @@ nonisolated struct ConversationTable: Sendable {
     // Highest contiguous event-log sequence applied for this chat — the resume
     // point passed to GetDelta. Nil until the first catch-up establishes one.
     let catchupCursor = Expression <UInt64?> ("catchupCursor")
+    // ConversationType raw value; scopes feed replaces and the Tips surfaces.
+    let type          = Expression <Int>     ("type")
 }
 
 nonisolated struct ConversationMemberTable: Sendable {
@@ -184,6 +186,9 @@ nonisolated struct ConversationMemberTable: Sendable {
     let phoneE164             = Expression <String?> ("phoneE164")
     let readPointer           = Expression <UInt64?> ("readPointer")
     let readPointerTimestamp  = Expression <Double?> ("readPointerTimestamp")
+    // Profile-picture rendition blob ids, when the member has a picture.
+    let profilePictureBlobID          = Expression <Data?> ("profilePictureBlobID")
+    let profilePictureThumbnailBlobID = Expression <Data?> ("profilePictureThumbnailBlobID")
 }
 
 // One row per message; cash content is decomposed across the amount columns
@@ -382,6 +387,7 @@ nonisolated extension Database {
                 t.column(conversationTable.id, primaryKey: true)
                 t.column(conversationTable.lastActivity)
                 t.column(conversationTable.catchupCursor)
+                t.column(conversationTable.type, defaultValue: ConversationType.contactDm.rawValue)
             })
         }
 
@@ -398,6 +404,8 @@ nonisolated extension Database {
                 t.column(conversationMemberTable.phoneE164)
                 t.column(conversationMemberTable.readPointer)
                 t.column(conversationMemberTable.readPointerTimestamp)
+                t.column(conversationMemberTable.profilePictureBlobID)
+                t.column(conversationMemberTable.profilePictureThumbnailBlobID)
             })
         }
 

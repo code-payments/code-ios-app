@@ -7,15 +7,15 @@ import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
-/// The Tips sheet's root: the tipcard once a profile exists, the invitation to
-/// create one until then.
+/// The Tips sheet's root: the tip conversations once a profile exists, the
+/// invitation to create one until then.
 struct TipsScreen: View {
 
     @Environment(SessionContainer.self) private var sessionContainer
 
     var body: some View {
         if sessionContainer.session.profile?.isTippable == true {
-            TipcardScreen()
+            TipConversationsScreen()
         } else {
             TipsIntroScreen()
         }

@@ -10,7 +10,8 @@ extension UserFlags {
 
     /// Baseline flags fixture — override only what the test cares about.
     static func fixture(
-        requireCoinbaseEmailVerification: Bool = false
+        requireCoinbaseEmailVerification: Bool = false,
+        tipPresets: [UserFlags.TipPresets] = []
     ) -> UserFlags {
         UserFlags(
             isRegistered: true,
@@ -25,7 +26,8 @@ extension UserFlags {
             minimumHolderValue: .zero(mint: .usdf),
             enablePhoneNumberSend: false,
             requireCoinbaseEmailVerification: requireCoinbaseEmailVerification,
-            preferredOnrampUsdcLiquidityPool: .unknown
+            preferredOnrampUsdcLiquidityPool: .unknown,
+            tipPresets: tipPresets
         )
     }
 }

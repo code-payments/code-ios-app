@@ -50,11 +50,7 @@ class BaseUITestCase: XCTestCase {
         app.launch()
 
         if requiresAuthentication {
-            let accessKey = Bundle(for: Self.self).infoDictionary?["UITestAccessKey"] as? String ?? ""
-            try XCTSkipIf(accessKey.isEmpty, "FLIPCASH_UI_TEST_ACCESS_KEY not set in secrets.local.xcconfig — skipping authenticated UI test")
-
-            let loginURL = URL(string: "flipcash://login#e=\(accessKey.addingPercentEncoding(withAllowedCharacters: .urlFragmentAllowed) ?? accessKey)")!
-            app.open(loginURL)
+            try loginTestAccount()
         } else if requiresUsdfOnlyAccount {
             let accessKey = Bundle(for: Self.self).infoDictionary?["UITestUsdfOnlyAccessKey"] as? String ?? ""
             try XCTSkipIf(accessKey.isEmpty, "FLIPCASH_UI_TEST_USDF_ONLY_ACCESS_KEY not set in secrets.local.xcconfig — skipping USDF-only UI test")
@@ -65,6 +61,17 @@ class BaseUITestCase: XCTestCase {
     }
 
     // MARK: - Helpers
+
+    /// Logs into the funded test account via the login deeplink, skipping the
+    /// test when no access key is configured. Callable mid-test after a
+    /// relaunch as well as from `setUp`.
+    func loginTestAccount() throws {
+        let accessKey = Bundle(for: Self.self).infoDictionary?["UITestAccessKey"] as? String ?? ""
+        try XCTSkipIf(accessKey.isEmpty, "FLIPCASH_UI_TEST_ACCESS_KEY not set in secrets.local.xcconfig — skipping authenticated UI test")
+
+        let loginURL = URL(string: "flipcash://login#e=\(accessKey.addingPercentEncoding(withAllowedCharacters: .urlFragmentAllowed) ?? accessKey)")!
+        app.open(loginURL)
+    }
 
     /// Registers a new account via the write-down branch — the fastest path,
     /// and the only one that needs no Photos permission.
@@ -172,6 +179,48 @@ class BaseUITestCase: XCTestCase {
 
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         waitUntilHittableAndTap(springboard.buttons["Allow"])
+    }
+
+    /// Picks the newest photo from the system library and commits the crop
+    /// editor. Returns false when the library is empty, which is the state of a
+    /// freshly created simulator.
+    func selectFirstPhotoFromLibrary(via picker: XCUIElement) -> Bool {
+        picker.tap()
+
+        // The Menu offers Photo Library / Choose File.
+        waitAndTap(app.buttons["Photo Library"])
+
+        // The library is a remote view hosted inside the app's own hierarchy, so
+        // it is reachable from `app` rather than a separate process. Its
+        // thumbnails are images tagged `PXGGridLayout-Info` — they are not
+        // collection-view cells, and querying `cells` finds nothing. The head of
+        // the grid is always on screen; thumbnails further down are in the tree
+        // but below the fold, so a coordinate tap on them lands nowhere.
+        let thumbnail = app.images.matching(identifier: "PXGGridLayout-Info").firstMatch
+        guard thumbnail.waitForExistence(timeout: 30) else { return false }
+
+        if thumbnail.isHittable {
+            thumbnail.tap()
+        } else {
+            thumbnail.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        }
+
+        // `allowsEditing` puts a crop editor in front of the selection; "Choose"
+        // is what actually returns the image.
+        let choose = app.buttons["Choose"]
+        guard choose.waitForExistence(timeout: 20) else { return false }
+        choose.tap()
+
+        return true
+    }
+
+    /// Everything legible on screen, for failure messages.
+    func visibleText() -> String {
+        app.staticTexts.allElementsBoundByIndex
+            .prefix(15)
+            .map(\.label)
+            .filter { !$0.isEmpty }
+            .joined(separator: " | ")
     }
 
     /// Handles the contacts permission flow if it appears. Resilient to:

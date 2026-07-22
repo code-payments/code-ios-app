@@ -100,7 +100,7 @@ class Session {
     
     /// Whether the Tips tab is available. Mirrors `hasCoinbaseOnramp`: a beta
     /// override today, a server flag when one ships.
-    var canReceiveTips: Bool {
+    var canUseTips: Bool {
         BetaFlags.shared.hasEnabled(.enableTips)
     }
 
@@ -921,6 +921,12 @@ class Session {
     /// Throws `ErrorResolve.notFound` when the contact isn't on Flipcash.
     func resolveContact(e164: String) async throws -> PublicKey {
         try await flipClient.resolvePhone(e164, owner: ownerKeyPair)
+    }
+
+    /// Resolves a user id to their payment-destination owner.
+    /// Throws `ErrorResolve.notFound` when no such user exists.
+    func resolveUserID(_ userID: UserID) async throws -> PublicKey {
+        try await flipClient.resolveUserID(userID, owner: ownerKeyPair)
     }
 
     /// Submits a direct payment to a resolved recipient.

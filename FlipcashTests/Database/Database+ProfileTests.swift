@@ -24,7 +24,11 @@ struct DatabaseProfileTests {
         minimumHolderValue: TokenAmount(quarks: 100_000, mint: .usdf),
         enablePhoneNumberSend: true,
         requireCoinbaseEmailVerification: true,
-        preferredOnrampUsdcLiquidityPool: .coinbaseStableSwapper
+        preferredOnrampUsdcLiquidityPool: .coinbaseStableSwapper,
+        tipPresets: [
+            UserFlags.TipPresets(currency: .usd, minimum: 1, low: 5, medium: 10, high: 20),
+            UserFlags.TipPresets(currency: .cad, minimum: 2, low: 5, medium: 10, high: 25),
+        ]
     )
 
     /// Restricted account: no onramp providers, unset timeout, zero fees.
@@ -41,7 +45,8 @@ struct DatabaseProfileTests {
         minimumHolderValue: .zero(mint: .usdf),
         enablePhoneNumberSend: false,
         requireCoinbaseEmailVerification: false,
-        preferredOnrampUsdcLiquidityPool: .unknown
+        preferredOnrampUsdcLiquidityPool: .unknown,
+        tipPresets: []
     )
 
     // MARK: - Empty (fresh install) -
@@ -109,5 +114,6 @@ struct DatabaseProfileTests {
         #expect(restored.withdrawalFeeAmount == original.withdrawalFeeAmount)
         #expect(restored.minimumHolderValue == original.minimumHolderValue)
         #expect(restored.preferredOnrampUsdcLiquidityPool == original.preferredOnrampUsdcLiquidityPool)
+        #expect(restored.tipPresets == original.tipPresets)
     }
 }
