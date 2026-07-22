@@ -45,6 +45,14 @@ public struct ConversationStore: Sendable {
         self.conversations = conversations.sorted { $0.lastActivity > $1.lastActivity }
     }
 
+    /// Replace one type's conversations from that type's paged feed load,
+    /// leaving the other types' conversations in place. Rows of a different
+    /// type are ignored — the call describes exactly one type's set.
+    public mutating func setFeed(_ conversations: [Conversation], type: ConversationType) {
+        let others = self.conversations.filter { $0.type != type }
+        setFeed(others + conversations.filter { $0.type == type })
+    }
+
     /// How far apart an incoming server copy and a pending optimistic send may be (in either
     /// direction, to absorb client/server clock skew) and still be treated as the same message. Wide
     /// enough for skew, tight enough that an unrelated old history message with identical text never

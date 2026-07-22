@@ -663,7 +663,8 @@ struct SessionOfflineCacheTests {
             minimumHolderValue: .zero(mint: .usdf),
             enablePhoneNumberSend: false,
             requireCoinbaseEmailVerification: false,
-            preferredOnrampUsdcLiquidityPool: .unknown
+            preferredOnrampUsdcLiquidityPool: .unknown,
+            tipPresets: []
         )
     }
 
@@ -723,7 +724,8 @@ struct SessionCanSendTests {
             minimumHolderValue: .zero(mint: .usdf),
             enablePhoneNumberSend: enablePhoneNumberSend,
             requireCoinbaseEmailVerification: false,
-            preferredOnrampUsdcLiquidityPool: .unknown
+            preferredOnrampUsdcLiquidityPool: .unknown,
+            tipPresets: []
         )
     }
 

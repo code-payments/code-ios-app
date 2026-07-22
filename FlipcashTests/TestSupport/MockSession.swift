@@ -142,6 +142,18 @@ final class MockSession:
         return try await handler(e164)
     }
 
+    var resolveUserIDHandler: (@MainActor (UserID) async throws -> PublicKey)?
+
+    private(set) var resolveUserIDCalls: [UserID] = []
+
+    func resolveUserID(_ userID: UserID) async throws -> PublicKey {
+        resolveUserIDCalls.append(userID)
+        guard let handler = resolveUserIDHandler else {
+            throw MockSessionError.unimplemented(method: "resolveUserID")
+        }
+        return try await handler(userID)
+    }
+
     // MARK: - Direct send
 
     struct SendCall: Sendable {

@@ -32,7 +32,7 @@ struct SendAmountViewModelTests {
     static func createViewModel(displayName: String = "Alice") -> SendAmountViewModel {
         SendAmountViewModel(
             sessionContainer: .mock,
-            contact: makeContact(displayName: displayName),
+            target: .contact(makeContact(displayName: displayName)),
             mint: nil
         )
     }
@@ -91,7 +91,7 @@ struct SendAmountViewModelTests {
         ])
         container.ratesController.selectedTokenMint = nil
 
-        let viewModel = SendAmountViewModel(sessionContainer: container, contact: Self.makeContact(), mint: nil)
+        let viewModel = SendAmountViewModel(sessionContainer: container, target: .contact(Self.makeContact()), mint: nil)
 
         #expect(viewModel.selectedBalance?.stored.mint == .jeffy)
         #expect(container.ratesController.selectedTokenMint == .jeffy)
@@ -108,7 +108,7 @@ struct SendAmountViewModelTests {
         ])
         container.ratesController.selectToken(.usdf)
 
-        let viewModel = SendAmountViewModel(sessionContainer: container, contact: Self.makeContact(), mint: nil)
+        let viewModel = SendAmountViewModel(sessionContainer: container, target: .contact(Self.makeContact()), mint: nil)
 
         #expect(viewModel.selectedBalance?.stored.mint == .jeffy)
         #expect(container.ratesController.selectedTokenMint == .jeffy)
@@ -144,7 +144,7 @@ struct SendAmountViewModelTests {
     func canSend_noSelectedBalance_isFalse() {
         let viewModel = SendAmountViewModel(
             sessionContainer: .mock,
-            contact: Self.makeContact(),
+            target: .contact(Self.makeContact()),
             mint: .generate()!  // unknown mint forces selectedBalance to nil
         )
         viewModel.enteredAmount = "10"
@@ -181,7 +181,7 @@ struct SendAmountViewModelTests {
         let container = try await Self.makeReadyToSendContainer()
         let viewModel = SendAmountViewModel(
             sessionContainer: container,
-            contact: Self.makeContact(),
+            target: .contact(Self.makeContact()),
             mint: .usdf
         )
         viewModel.enteredAmount = "1\(AmountValidator.localizedDecimalSeparator)50"
@@ -217,7 +217,7 @@ struct SendAmountViewModelTests {
         let sender = MockSession()
         let viewModel = SendAmountViewModel(
             sessionContainer: .mock,
-            contact: Self.makeContact(),
+            target: .contact(Self.makeContact()),
             mint: nil,
             sender: sender
         )
@@ -236,7 +236,7 @@ struct SendAmountViewModelTests {
         let mock = MockSession()
         let viewModel = SendAmountViewModel(
             sessionContainer: .mock,
-            contact: Self.makeContact(),
+            target: .contact(Self.makeContact()),
             mint: nil,
             sender: mock,
             resolver: mock
@@ -262,7 +262,7 @@ struct SendAmountViewModelTests {
         mock.resolveContactHandler = { _ in throw ErrorResolve.notFound }
         let viewModel = SendAmountViewModel(
             sessionContainer: container,
-            contact: Self.makeContact(),
+            target: .contact(Self.makeContact()),
             mint: .usdf,
             sender: mock,
             resolver: mock
@@ -283,7 +283,7 @@ struct SendAmountViewModelTests {
         mock.resolveContactHandler = { _ in throw ErrorResolve.transportFailure }
         let viewModel = SendAmountViewModel(
             sessionContainer: container,
-            contact: Self.makeContact(),
+            target: .contact(Self.makeContact()),
             mint: .usdf,
             sender: mock,
             resolver: mock
@@ -311,7 +311,7 @@ struct SendAmountViewModelTests {
         mock.sendHandler = { _, _, _ in }
         let viewModel = SendAmountViewModel(
             sessionContainer: container,
-            contact: Self.makeContact(),
+            target: .contact(Self.makeContact()),
             mint: .usdf,
             sender: mock,
             resolver: mock
@@ -334,7 +334,7 @@ struct SendAmountViewModelTests {
         mock.resolveContactHandler = { _ in Self.recipient }
         let viewModel = SendAmountViewModel(
             sessionContainer: container,
-            contact: Self.makeContact(),
+            target: .contact(Self.makeContact()),
             mint: .usdf,
             sender: mock,
             resolver: mock
@@ -357,7 +357,7 @@ struct SendAmountViewModelTests {
         mock.resolveContactHandler = { _ in Self.recipient }
         let viewModel = SendAmountViewModel(
             sessionContainer: container,
-            contact: Self.makeContact(),
+            target: .contact(Self.makeContact()),
             mint: .usdf,
             sender: mock,
             resolver: mock
@@ -380,7 +380,7 @@ struct SendAmountViewModelTests {
         mock.sendHandler = { _, _, _ in }  // succeeds
         let viewModel = SendAmountViewModel(
             sessionContainer: container,
-            contact: Self.makeContact(),
+            target: .contact(Self.makeContact()),
             mint: .usdf,
             sender: mock,
             resolver: mock
@@ -406,7 +406,7 @@ struct SendAmountViewModelTests {
         let dmChatID = Data(repeating: 0x07, count: 32)
         let viewModel = SendAmountViewModel(
             sessionContainer: container,
-            contact: Self.makeContact(dmChatID: dmChatID),
+            target: .contact(Self.makeContact(dmChatID: dmChatID)),
             mint: .usdf,
             sender: mock,
             resolver: mock
@@ -417,9 +417,13 @@ struct SendAmountViewModelTests {
 
         #expect(outcome == .success)
         let chat = try #require(mock.sendCalls.first?.chat)
-        #expect(chat.chatID == ConversationID(data: dmChatID))
-        #expect(chat.sourcePhoneE164 == ownPhone.e164)
-        #expect(chat.destinationPhoneE164 == "+15551234567")
+        guard case .contactDm(let chatID, let source, let destination) = chat else {
+            Issue.record("Expected contactDm metadata, got \(chat)")
+            return
+        }
+        #expect(chatID == ConversationID(data: dmChatID))
+        #expect(source == ownPhone.e164)
+        #expect(destination == "+15551234567")
     }
 
     @Test("sendAction submits without chat metadata when the contact has no DM chat")
@@ -432,7 +436,7 @@ struct SendAmountViewModelTests {
         mock.sendHandler = { _, _, _ in }
         let viewModel = SendAmountViewModel(
             sessionContainer: container,
-            contact: Self.makeContact(),
+            target: .contact(Self.makeContact()),
             mint: .usdf,
             sender: mock,
             resolver: mock
@@ -454,7 +458,7 @@ struct SendAmountViewModelTests {
         mock.sendHandler = { _, _, _ in throw URLError(.timedOut) }
         let viewModel = SendAmountViewModel(
             sessionContainer: container,
-            contact: Self.makeContact(),
+            target: .contact(Self.makeContact()),
             mint: .usdf,
             sender: mock,
             resolver: mock
@@ -476,7 +480,7 @@ struct SendAmountViewModelTests {
         mock.sendHandler = { _, _, _ in }
         let viewModel = SendAmountViewModel(
             sessionContainer: container,
-            contact: Self.makeContact(),
+            target: .contact(Self.makeContact()),
             mint: .usdf,
             sender: mock,
             resolver: mock
@@ -488,5 +492,107 @@ struct SendAmountViewModelTests {
         #expect(outcome == .failed)
         #expect(mock.sendCalls.isEmpty)  // the limit gate blocks before sending
         #expect(container.session.dialogItem?.title == "Transaction Limit Reached")
+    }
+
+    // MARK: - Tip targets
+
+    private static func makeTipViewModel(
+        container: SessionContainer,
+        recipientID: UserID,
+        mock: MockSession
+    ) -> SendAmountViewModel {
+        SendAmountViewModel(
+            sessionContainer: container,
+            target: .tip(TipRecipient(userID: recipientID, displayName: "Fred")),
+            mint: .usdf,
+            sender: mock,
+            resolver: mock
+        )
+    }
+
+    @Test("A tip send resolves by user id and attaches the derived tip-DM chat metadata")
+    func sendAction_tipTarget_attachesTipDmMetadata() async throws {
+        let container = try await Self.makeReadyToSendContainer()
+        let recipientID = UUID()
+        let mock = MockSession()
+        mock.resolveUserIDHandler = { _ in Self.recipient }
+        mock.sendHandler = { _, _, _ in }
+        let viewModel = Self.makeTipViewModel(container: container, recipientID: recipientID, mock: mock)
+        viewModel.enteredAmount = "5"
+
+        let outcome = await viewModel.sendAction()
+
+        #expect(outcome == .success)
+        #expect(mock.resolveUserIDCalls == [recipientID])
+        #expect(mock.resolveContactCalls.isEmpty)
+        let chat = try #require(mock.sendCalls.first?.chat)
+        guard case .tipDm(let chatID) = chat else {
+            Issue.record("Expected tipDm metadata, got \(chat)")
+            return
+        }
+        #expect(chatID == ConversationID.tipDm(between: container.session.userID, and: recipientID))
+    }
+
+    @Test("A tip below the server minimum is blocked before submission")
+    func sendAction_tipTarget_belowMinimumBlocks() async throws {
+        let container = try await Self.makeReadyToSendContainer()
+        container.session.userFlags = .fixture(tipPresets: [
+            UserFlags.TipPresets(currency: .usd, minimum: 1, low: 5, medium: 10, high: 20),
+        ])
+        let recipientID = UUID()
+        let mock = MockSession()
+        mock.resolveUserIDHandler = { _ in Self.recipient }
+        mock.sendHandler = { _, _, _ in }
+        let viewModel = Self.makeTipViewModel(container: container, recipientID: recipientID, mock: mock)
+        viewModel.enteredAmount = "0\(AmountValidator.localizedDecimalSeparator)50"
+
+        let outcome = await viewModel.sendAction()
+
+        #expect(outcome == .failed)
+        #expect(mock.sendCalls.isEmpty)
+        #expect(container.session.dialogItem?.title == "Tips Start at $1.00")
+    }
+
+    @Test("A tip at exactly the displayed minimum is allowed")
+    func sendAction_tipTarget_atMinimumSends() async throws {
+        let container = try await Self.makeReadyToSendContainer()
+        container.session.userFlags = .fixture(tipPresets: [
+            UserFlags.TipPresets(currency: .usd, minimum: 1, low: 5, medium: 10, high: 20),
+        ])
+        let recipientID = UUID()
+        let mock = MockSession()
+        mock.resolveUserIDHandler = { _ in Self.recipient }
+        mock.sendHandler = { _, _, _ in }
+        let viewModel = Self.makeTipViewModel(container: container, recipientID: recipientID, mock: mock)
+        viewModel.enteredAmount = "1"
+
+        let outcome = await viewModel.sendAction()
+
+        #expect(outcome == .success)
+        #expect(mock.sendCalls.count == 1)
+    }
+
+    @Test("A contact send never consults the tip minimum")
+    func sendAction_contactTarget_ignoresTipMinimum() async throws {
+        let container = try await Self.makeReadyToSendContainer()
+        container.session.userFlags = .fixture(tipPresets: [
+            UserFlags.TipPresets(currency: .usd, minimum: 1, low: 5, medium: 10, high: 20),
+        ])
+        let mock = MockSession()
+        mock.resolveContactHandler = { _ in Self.recipient }
+        mock.sendHandler = { _, _, _ in }
+        let viewModel = SendAmountViewModel(
+            sessionContainer: container,
+            target: .contact(Self.makeContact()),
+            mint: .usdf,
+            sender: mock,
+            resolver: mock
+        )
+        viewModel.enteredAmount = "0\(AmountValidator.localizedDecimalSeparator)50"
+
+        let outcome = await viewModel.sendAction()
+
+        #expect(outcome == .success)
+        #expect(mock.sendCalls.count == 1)
     }
 }

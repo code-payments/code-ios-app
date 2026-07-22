@@ -51,7 +51,7 @@ struct RecipientPickerScreen: View {
 
     var body: some View {
         let contacts = contactSyncController.resolvedContacts
-        let conversations = conversationController.conversations
+        let conversations = conversationController.conversations(of: .contactDm)
         // Denied always renders the list so the CTA card shows; full/limited fall
         // back to an empty state only when there's nothing to list.
         let showList = contactAccess == .denied || !(contacts.isEmpty && conversations.isEmpty)
@@ -375,7 +375,7 @@ private struct RecipientPickerList: View {
 
 /// Where a picker row's accessory sits, which in turn sets how wide the subtitle
 /// runs.
-private enum RecipientRowAccessoryPlacement {
+enum RecipientRowAccessoryPlacement {
     /// Centered in a full-height trailing column; the subtitle stays in the
     /// column beside it — the invite rows.
     case trailingColumn
@@ -386,7 +386,7 @@ private enum RecipientRowAccessoryPlacement {
 
 /// The chrome every picker row shares: a full-row button with avatar,
 /// title/subtitle, and an accessory.
-private struct RecipientRowScaffold<Trailing: View>: View {
+struct RecipientRowScaffold<Trailing: View>: View {
 
     let avatarID: String
     let title: String
@@ -416,7 +416,7 @@ private struct RecipientRowScaffold<Trailing: View>: View {
 /// The visual content of a picker row: avatar, title/subtitle, and an accessory
 /// placed per `accessoryPlacement`. Shared by the tappable `RecipientRowScaffold`
 /// and the `ShareLink` invite-fallback row.
-private struct RecipientRowBody<Trailing: View>: View {
+struct RecipientRowBody<Trailing: View>: View {
 
     let avatarID: String
     let title: String
@@ -507,22 +507,8 @@ private struct RecipientListItemRow: View {
         case .contact:
             return nil
         case .conversation(let conversation), .matched(_, let conversation):
-            if conversationController.isCounterpartTyping(in: conversation.id) {
-                return "Typing…"
-            }
-            guard let message = conversation.lastMessage else { return nil }
-            switch message.content {
-            case .text(let text):
-                return text
-            case .cash(let amount):
-                let verb = message.isFromSelf(conversationController.selfUserID) ? "You sent" : "You received"
-                let formatted = amount.nativeAmount.formatted()
-                guard let name = session.balance(for: amount.mint)?.name else {
-                    return "\(verb) \(formatted)"
-                }
-                return "\(verb) \(formatted) of \(name)"
-            case .deleted:
-                return nil
+            return conversationController.lastMessagePreview(for: conversation) {
+                session.balance(for: $0)?.name
             }
         }
     }
@@ -573,7 +559,7 @@ private struct RecipientListItemRow: View {
 /// A merged recipient row's title-line accessory: a relative timestamp — or an
 /// "Unknown Contact" pill for a chat with someone not in the address book —
 /// followed by an unread badge or a disclosure chevron.
-private struct RecipientRowAccessory: View {
+struct RecipientRowAccessory: View {
 
     let timestamp: Date
     let isUnknown: Bool

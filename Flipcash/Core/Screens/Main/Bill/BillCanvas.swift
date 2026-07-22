@@ -105,6 +105,15 @@ private class _BillCanvasController: UIViewController {
                     backgroundColors: parsedColors,
                     mint: mint
                 )
+
+            case .tipcard(let codeData, let name, let avatar):
+                TipcardView(
+                    size: tipcardSize(),
+                    name: name,
+                    avatar: avatar,
+                    codeData: codeData
+                )
+                .frame(width: canvasSize().width, height: canvasSize().height)
             }
 
         } else {
@@ -118,13 +127,19 @@ private class _BillCanvasController: UIViewController {
     
     private func canvasSize() -> CGSize {
         var rect = CGRect(origin: .zero, size: preferredCanvasSize)
-        
+
         rect.size.height -= view.safeAreaInsets.top
         rect.size.height -= view.safeAreaInsets.bottom
         rect.size.width  -= view.safeAreaInsets.left
         rect.size.width  -= view.safeAreaInsets.right
-        
+
         return rect.size
+    }
+
+    /// The tipcard's proportions on the scan screen, fitted to the canvas.
+    private func tipcardSize() -> CGSize {
+        let width = min(canvasSize().width * 0.82, 320)
+        return CGSize(width: width, height: width * TipcardView.aspectRatio)
     }
     
     // MARK: - View -

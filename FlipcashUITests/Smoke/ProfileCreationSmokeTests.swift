@@ -66,7 +66,7 @@ final class ProfileCreationSmokeTests: BaseUITestCase {
         photoNext.tap()
 
         // Upload, finalize, then poll until ready — bounded at 60s in the app.
-        // The tipcard is the Tips root once the profile is complete.
+        // Creation lands directly on the tipcard, pushed over the Tips list.
         guard app.staticTexts["Share Your Tipcard to Get Tipped"].waitForExistence(timeout: 90) else {
             // An upload failure surfaces as a dialog whose copy names the stage
             // that failed, so say what is actually on screen.
@@ -79,49 +79,12 @@ final class ProfileCreationSmokeTests: BaseUITestCase {
             app.buttons["tipcard-export-button"].waitForExistence(timeout: 30),
             "Expected the Export action once the card has rendered"
         )
-    }
 
-    // MARK: - Helpers
-
-    /// Picks the newest photo from the system library and commits the crop
-    /// editor. Returns false when the library is empty, which is the state of a
-    /// freshly created simulator.
-    private func selectFirstPhotoFromLibrary(via picker: XCUIElement) -> Bool {
-        picker.tap()
-
-        // The Menu offers Photo Library / Choose File.
-        waitAndTap(app.buttons["Photo Library"])
-
-        // The library is a remote view hosted inside the app's own hierarchy, so
-        // it is reachable from `app` rather than a separate process. Its
-        // thumbnails are images tagged `PXGGridLayout-Info` — they are not
-        // collection-view cells, and querying `cells` finds nothing. The head of
-        // the grid is always on screen; thumbnails further down are in the tree
-        // but below the fold, so a coordinate tap on them lands nowhere.
-        let thumbnail = app.images.matching(identifier: "PXGGridLayout-Info").firstMatch
-        guard thumbnail.waitForExistence(timeout: 30) else { return false }
-
-        if thumbnail.isHittable {
-            thumbnail.tap()
-        } else {
-            thumbnail.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        }
-
-        // `allowsEditing` puts a crop editor in front of the selection; "Choose"
-        // is what actually returns the image.
-        let choose = app.buttons["Choose"]
-        guard choose.waitForExistence(timeout: 20) else { return false }
-        choose.tap()
-
-        return true
-    }
-
-    /// Everything legible on screen, for failure messages.
-    private func visibleText() -> String {
-        app.staticTexts.allElementsBoundByIndex
-            .prefix(15)
-            .map(\.label)
-            .filter { !$0.isEmpty }
-            .joined(separator: " | ")
+        // Backing off the card reveals the conversation list — the Tips root.
+        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertTrue(
+            app.buttons["show-my-tipcard-button"].waitForExistence(timeout: 15),
+            "Expected the Tips conversation list beneath the tipcard"
+        )
     }
 }

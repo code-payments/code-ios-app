@@ -53,8 +53,13 @@ private struct ProfileCardView: View {
                 .font(.appTextSmall)
                 .padding(.top, 4)
 
-            ContactActionPill(counterpart: card.counterpart, action: onContactAction)
-                .padding(.top, 16)
+            switch card.counterpart {
+            case .contact, .unknown:
+                ContactActionPill(counterpart: card.counterpart, action: onContactAction)
+                    .padding(.top, 16)
+            case .tipcode:
+                EmptyView()
+            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 20)
@@ -85,6 +90,12 @@ private struct ProfileCardSubtitle: View {
         case .unknown:
             Text("Unknown Contact")
                 .foregroundStyle(Color.warning)
+        case .tipcode:
+            HStack(spacing: 6) {
+                Image.asset(.kikCode)
+                Text("via Tipcode")
+            }
+            .pill()
         }
     }
 }
@@ -106,6 +117,15 @@ private struct ProfileCardSubtitle: View {
                 avatarID: "unknown",
                 imageData: nil,
                 counterpart: .unknown
+            ),
+            onContactAction: {}
+        )
+        ProfileCardView(
+            card: ChatProfileCard(
+                name: "Raul",
+                avatarID: "raul",
+                imageData: nil,
+                counterpart: .tipcode
             ),
             onContactAction: {}
         )

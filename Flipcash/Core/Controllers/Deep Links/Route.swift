@@ -88,6 +88,7 @@ nonisolated extension Route {
         case chat(ConversationID)
         case chatContact(Phone)
         case chatSendCash(ConversationID)
+        case tip(UserID)
         case give
         case balance
         case discover
@@ -139,6 +140,12 @@ nonisolated extension Route {
                     return .chatContact(phone)
                 }
                 return nil
+            case "tip":
+                // The tipcard share URL: `/tip/{userId}`, lowercase UUID.
+                guard components.count > 1, let userID = UUID(uuidString: components[1]) else {
+                    return nil
+                }
+                return .tip(userID)
             case "give":
                 return .give
             case "balance":

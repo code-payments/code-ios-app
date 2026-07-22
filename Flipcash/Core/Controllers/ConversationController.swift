@@ -41,9 +41,38 @@ final class ConversationController {
         conversations.first { $0.id == id }
     }
 
-    /// Number of conversations with unread messages for the signed-in user.
-    var unreadConversationCount: Int {
-        conversations.filter { $0.hasUnread(for: selfUserID) }.count
+    /// DM conversations of one type, most-recent activity first.
+    func conversations(of type: ConversationType) -> [Conversation] {
+        conversations.filter { $0.type == type }
+    }
+
+    /// Number of conversations of `type` with unread messages for the
+    /// signed-in user.
+    func unreadConversationCount(of type: ConversationType) -> Int {
+        conversations(of: type).count { $0.hasUnread(for: selfUserID) }
+    }
+
+    /// The conversation for an id, hydrating it from the server when the feed
+    /// doesn't hold it yet — the same fetch + apply + persist path stream
+    /// events use, so the caller's screen finds the chat populated. Returns
+    /// nil when the server doesn't know the chat either.
+    func hydratedConversation(withID conversationID: ConversationID) async -> Conversation? {
+        if let conversation = conversation(withID: conversationID) {
+            return conversation
+        }
+        do {
+            let conversation = try await fetching.getChat(owner: owner, conversationID: conversationID)
+            store.apply(.metadataRefresh(conversation))
+            persistConversation(conversationID)
+            return conversation
+        } catch {
+            logger.error("Failed to hydrate conversation on demand", metadata: [
+                "conversationID": "\(conversationID)",
+                "error": "\(error)",
+            ])
+            ErrorReporting.captureError(error, reason: "Failed to hydrate conversation on demand")
+            return nil
+        }
     }
 
     /// The signed-in user, used to tell own messages from the counterpart's.
@@ -415,12 +444,23 @@ final class ConversationController {
     func loadFeed() async {
         isLoadingFeed = true
         defer { isLoadingFeed = false }
+        // Both DM feeds load concurrently and apply independently, so one
+        // type's failure doesn't drop the other's conversations.
+        async let contact: Void = loadFeed(type: .contactDm)
+        async let tip: Void = loadFeed(type: .tipDm)
+        _ = await (contact, tip)
+    }
+
+    func loadFeed(type: ConversationType) async {
         do {
-            let conversations = try await fetching.getDmChatFeed(owner: owner, type: .contactDm)
-            store.setFeed(conversations)
-            persist(operation: "replace-feed") { try database.replaceConversationFeed(store.conversations) }
+            let conversations = try await fetching.getDmChatFeed(owner: owner, type: type)
+            store.setFeed(conversations, type: type)
+            persist(operation: "replace-feed") { try database.replaceConversationFeed(conversations, type: type) }
         } catch {
-            logger.error("Failed to load conversation feed", metadata: ["error": "\(error)"])
+            logger.error("Failed to load conversation feed", metadata: [
+                "type": "\(type)",
+                "error": "\(error)",
+            ])
             ErrorReporting.captureError(error, reason: "Failed to load conversation feed")
         }
     }
@@ -576,8 +616,10 @@ final class ConversationController {
     /// The counterpart's name for a conversation: the synced contact's
     /// address-book name, else the server-provided member name from the feed,
     /// else the counterpart's shared phone number, else a generic fallback.
+    /// Tip DMs skip the contact lookup — their derived ids can never match a
+    /// contact's, so the directory scan is a guaranteed miss.
     func displayName(for conversation: Conversation) -> String {
-        if let contactName = contactName(for: conversation.id) {
+        if conversation.type != .tipDm, let contactName = contactName(for: conversation.id) {
             return contactName
         }
         guard let counterpart = conversation.counterpart(excluding: selfUserID) else {
@@ -587,6 +629,29 @@ final class ConversationController {
             return counterpart.displayName
         }
         return counterpart.formattedPhoneNumber ?? Self.fallbackCounterpartName
+    }
+
+    /// The feed row's last-message line: the typing indicator while the
+    /// counterpart types, the message text, or the cash summary. `currencyName`
+    /// resolves a mint to its display name; nil drops the "of …" suffix.
+    func lastMessagePreview(for conversation: Conversation, currencyName: (PublicKey) -> String?) -> String? {
+        if isCounterpartTyping(in: conversation.id) {
+            return "Typing…"
+        }
+        guard let message = conversation.lastMessage else { return nil }
+        switch message.content {
+        case .text(let text):
+            return text
+        case .cash(let amount):
+            let verb = message.isFromSelf(selfUserID) ? "You sent" : "You received"
+            let formatted = amount.nativeAmount.formatted()
+            guard let name = currencyName(amount.mint) else {
+                return "\(verb) \(formatted)"
+            }
+            return "\(verb) \(formatted) of \(name)"
+        case .deleted:
+            return nil
+        }
     }
 
     func displayName(forConversationID conversationID: ConversationID) -> String {

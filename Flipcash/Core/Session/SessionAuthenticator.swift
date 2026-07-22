@@ -476,6 +476,12 @@ final class SessionContainer {
     let quickActionsController: QuickActionsController
     let conversationController: ConversationController
     let chatSpotlightIndexer: ChatSpotlightIndexer
+    let tipAvatars: TipAvatarStore
+
+    /// Lazy so it can capture the container it reads its dependencies from;
+    /// observation-ignored because `TipFlow` is itself observable and the
+    /// reference never changes.
+    @ObservationIgnored private(set) lazy var tipFlow = TipFlow(sessionContainer: self)
 
     init(
         session: Session,
@@ -562,6 +568,8 @@ final class SessionContainer {
         )
         chatSpotlightIndexer.start()
         self.chatSpotlightIndexer = chatSpotlightIndexer
+
+        self.tipAvatars = TipAvatarStore(flipClient: flipClient, owner: session.ownerKeyPair)
     }
 
     fileprivate func injectingEnvironment<SomeView>(into view: SomeView) -> some View where SomeView: View {

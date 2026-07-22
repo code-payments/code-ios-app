@@ -255,21 +255,24 @@ public struct Flipcash_Account_V1_GetUserFlagsRequest: Sendable {
   fileprivate var _countryCode: Flipcash_Common_V1_CountryCode? = nil
 }
 
-public struct Flipcash_Account_V1_GetUserFlagsResponse: Sendable {
+public struct Flipcash_Account_V1_GetUserFlagsResponse: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var result: Flipcash_Account_V1_GetUserFlagsResponse.Result = .ok
+  public var result: Flipcash_Account_V1_GetUserFlagsResponse.Result {
+    get {_storage._result}
+    set {_uniqueStorage()._result = newValue}
+  }
 
   public var userFlags: Flipcash_Account_V1_UserFlags {
-    get {_userFlags ?? Flipcash_Account_V1_UserFlags()}
-    set {_userFlags = newValue}
+    get {_storage._userFlags ?? Flipcash_Account_V1_UserFlags()}
+    set {_uniqueStorage()._userFlags = newValue}
   }
   /// Returns true if `userFlags` has been explicitly set.
-  public var hasUserFlags: Bool {self._userFlags != nil}
+  public var hasUserFlags: Bool {_storage._userFlags != nil}
   /// Clears the value of `userFlags`. Subsequent reads from it will return its default value.
-  public mutating func clearUserFlags() {self._userFlags = nil}
+  public mutating func clearUserFlags() {_uniqueStorage()._userFlags = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -309,7 +312,7 @@ public struct Flipcash_Account_V1_GetUserFlagsResponse: Sendable {
 
   public init() {}
 
-  fileprivate var _userFlags: Flipcash_Account_V1_UserFlags? = nil
+  fileprivate var _storage = _StorageClass.defaultInstance
 }
 
 public struct Flipcash_Account_V1_GetUnauthenticatedUserFlagsRequest: Sendable {
@@ -335,21 +338,24 @@ public struct Flipcash_Account_V1_GetUnauthenticatedUserFlagsRequest: Sendable {
   fileprivate var _countryCode: Flipcash_Common_V1_CountryCode? = nil
 }
 
-public struct Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse: Sendable {
+public struct Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var result: Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse.Result = .ok
+  public var result: Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse.Result {
+    get {_storage._result}
+    set {_uniqueStorage()._result = newValue}
+  }
 
   public var userFlags: Flipcash_Account_V1_UserFlags {
-    get {_userFlags ?? Flipcash_Account_V1_UserFlags()}
-    set {_userFlags = newValue}
+    get {_storage._userFlags ?? Flipcash_Account_V1_UserFlags()}
+    set {_uniqueStorage()._userFlags = newValue}
   }
   /// Returns true if `userFlags` has been explicitly set.
-  public var hasUserFlags: Bool {self._userFlags != nil}
+  public var hasUserFlags: Bool {_storage._userFlags != nil}
   /// Clears the value of `userFlags`. Subsequent reads from it will return its default value.
-  public mutating func clearUserFlags() {self._userFlags = nil}
+  public mutating func clearUserFlags() {_uniqueStorage()._userFlags = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -385,7 +391,7 @@ public struct Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse: Sendable 
 
   public init() {}
 
-  fileprivate var _userFlags: Flipcash_Account_V1_UserFlags? = nil
+  fileprivate var _storage = _StorageClass.defaultInstance
 }
 
 public struct Flipcash_Account_V1_UserFlags: Sendable {
@@ -444,6 +450,9 @@ public struct Flipcash_Account_V1_UserFlags: Sendable {
 
   /// Whether email verification is required for Coinbase purchase flows
   public var requireCoinbaseEmailVerification: Bool = false
+
+  /// Tip presets for all currencies
+  public var tipPresets: [Flipcash_Account_V1_TipPresets] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -550,6 +559,35 @@ public struct Flipcash_Account_V1_UserFlags: Sendable {
   public init() {}
 
   fileprivate var _billExchangeDataTimeout: SwiftProtobuf.Google_Protobuf_Duration? = nil
+}
+
+public struct Flipcash_Account_V1_TipPresets: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var region: Flipcash_Common_V1_Region {
+    get {_region ?? Flipcash_Common_V1_Region()}
+    set {_region = newValue}
+  }
+  /// Returns true if `region` has been explicitly set.
+  public var hasRegion: Bool {self._region != nil}
+  /// Clears the value of `region`. Subsequent reads from it will return its default value.
+  public mutating func clearRegion() {self._region = nil}
+
+  public var minimum: Double = 0
+
+  public var low: Double = 0
+
+  public var medium: Double = 0
+
+  public var high: Double = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _region: Flipcash_Common_V1_Region? = nil
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -773,36 +811,74 @@ extension Flipcash_Account_V1_GetUserFlagsResponse: SwiftProtobuf.Message, Swift
   public static let protoMessageName: String = _protobuf_package + ".GetUserFlagsResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}result\0\u{3}user_flags\0")
 
+  fileprivate class _StorageClass {
+    var _result: Flipcash_Account_V1_GetUserFlagsResponse.Result = .ok
+    var _userFlags: Flipcash_Account_V1_UserFlags? = nil
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _result = source._result
+      _userFlags = source._userFlags
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
-      case 2: try { try decoder.decodeSingularMessageField(value: &self._userFlags) }()
-      default: break
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularEnumField(value: &_storage._result) }()
+        case 2: try { try decoder.decodeSingularMessageField(value: &_storage._userFlags) }()
+        default: break
+        }
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    if self.result != .ok {
-      try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      if _storage._result != .ok {
+        try visitor.visitSingularEnumField(value: _storage._result, fieldNumber: 1)
+      }
+      try { if let v = _storage._userFlags {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+      } }()
     }
-    try { if let v = self._userFlags {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipcash_Account_V1_GetUserFlagsResponse, rhs: Flipcash_Account_V1_GetUserFlagsResponse) -> Bool {
-    if lhs.result != rhs.result {return false}
-    if lhs._userFlags != rhs._userFlags {return false}
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._result != rhs_storage._result {return false}
+        if _storage._userFlags != rhs_storage._userFlags {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -855,36 +931,74 @@ extension Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse: SwiftProtobuf
   public static let protoMessageName: String = _protobuf_package + ".GetUnauthenticatedUserFlagsResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}result\0\u{3}user_flags\0")
 
+  fileprivate class _StorageClass {
+    var _result: Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse.Result = .ok
+    var _userFlags: Flipcash_Account_V1_UserFlags? = nil
+
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _result = source._result
+      _userFlags = source._userFlags
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
-      case 2: try { try decoder.decodeSingularMessageField(value: &self._userFlags) }()
-      default: break
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularEnumField(value: &_storage._result) }()
+        case 2: try { try decoder.decodeSingularMessageField(value: &_storage._userFlags) }()
+        default: break
+        }
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    if self.result != .ok {
-      try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      if _storage._result != .ok {
+        try visitor.visitSingularEnumField(value: _storage._result, fieldNumber: 1)
+      }
+      try { if let v = _storage._userFlags {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+      } }()
     }
-    try { if let v = self._userFlags {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse, rhs: Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse) -> Bool {
-    if lhs.result != rhs.result {return false}
-    if lhs._userFlags != rhs._userFlags {return false}
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._result != rhs_storage._result {return false}
+        if _storage._userFlags != rhs_storage._userFlags {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -896,7 +1010,7 @@ extension Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse.Result: SwiftP
 
 extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UserFlags"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}is_registered_account\0\u{3}is_staff\0\u{3}requires_iap_for_registration\0\u{3}supported_on_ramp_providers\0\u{3}preferred_on_ramp_provider\0\u{3}min_build_number\0\u{3}bill_exchange_data_timeout\0\u{3}new_currency_purchase_amount\0\u{3}new_currency_fee_amount\0\u{3}withdrawal_fee_amount\0\u{3}preferred_on_ramp_usdc_liquidity_pool\0\u{3}enable_phone_number_send\0\u{3}minimum_holder_value\0\u{3}require_coinbase_email_verification\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}is_registered_account\0\u{3}is_staff\0\u{3}requires_iap_for_registration\0\u{3}supported_on_ramp_providers\0\u{3}preferred_on_ramp_provider\0\u{3}min_build_number\0\u{3}bill_exchange_data_timeout\0\u{3}new_currency_purchase_amount\0\u{3}new_currency_fee_amount\0\u{3}withdrawal_fee_amount\0\u{3}preferred_on_ramp_usdc_liquidity_pool\0\u{3}enable_phone_number_send\0\u{3}minimum_holder_value\0\u{3}require_coinbase_email_verification\0\u{3}tip_presets\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -918,6 +1032,7 @@ extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
       case 12: try { try decoder.decodeSingularBoolField(value: &self.enablePhoneNumberSend) }()
       case 13: try { try decoder.decodeSingularUInt64Field(value: &self.minimumHolderValue) }()
       case 14: try { try decoder.decodeSingularBoolField(value: &self.requireCoinbaseEmailVerification) }()
+      case 15: try { try decoder.decodeRepeatedMessageField(value: &self.tipPresets) }()
       default: break
       }
     }
@@ -970,6 +1085,9 @@ extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
     if self.requireCoinbaseEmailVerification != false {
       try visitor.visitSingularBoolField(value: self.requireCoinbaseEmailVerification, fieldNumber: 14)
     }
+    if !self.tipPresets.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.tipPresets, fieldNumber: 15)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -988,6 +1106,7 @@ extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
     if lhs.enablePhoneNumberSend != rhs.enablePhoneNumberSend {return false}
     if lhs.minimumHolderValue != rhs.minimumHolderValue {return false}
     if lhs.requireCoinbaseEmailVerification != rhs.requireCoinbaseEmailVerification {return false}
+    if lhs.tipPresets != rhs.tipPresets {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -999,4 +1118,58 @@ extension Flipcash_Account_V1_UserFlags.OnRampProvider: SwiftProtobuf._ProtoName
 
 extension Flipcash_Account_V1_UserFlags.UsdcLiquidityPool: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0UNKNOWN_USDC_LIQUIDITY_POOL\0\u{1}FLIPCASH\0\u{1}COINBASE_STABLE_SWAPPER\0")
+}
+
+extension Flipcash_Account_V1_TipPresets: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".TipPresets"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}region\0\u{1}minimum\0\u{1}low\0\u{1}medium\0\u{1}high\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._region) }()
+      case 2: try { try decoder.decodeSingularDoubleField(value: &self.minimum) }()
+      case 3: try { try decoder.decodeSingularDoubleField(value: &self.low) }()
+      case 4: try { try decoder.decodeSingularDoubleField(value: &self.medium) }()
+      case 5: try { try decoder.decodeSingularDoubleField(value: &self.high) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._region {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if self.minimum.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.minimum, fieldNumber: 2)
+    }
+    if self.low.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.low, fieldNumber: 3)
+    }
+    if self.medium.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.medium, fieldNumber: 4)
+    }
+    if self.high.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.high, fieldNumber: 5)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Account_V1_TipPresets, rhs: Flipcash_Account_V1_TipPresets) -> Bool {
+    if lhs._region != rhs._region {return false}
+    if lhs.minimum != rhs.minimum {return false}
+    if lhs.low != rhs.low {return false}
+    if lhs.medium != rhs.medium {return false}
+    if lhs.high != rhs.high {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
 }

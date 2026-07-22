@@ -16,7 +16,7 @@ class CodeExtractor: CameraSessionExtractor {
     
     required init() {}
 
-    func extract(output: AVCaptureOutput, sampleBuffer: CMSampleBuffer, connection: AVCaptureConnection) -> CashCode.Payload? {
+    func extract(output: AVCaptureOutput, sampleBuffer: CMSampleBuffer, connection: AVCaptureConnection) -> ScannedCode? {
         let sample = extractSample(from: sampleBuffer)
         
         guard let sample = sample else {
@@ -32,21 +32,21 @@ class CodeExtractor: CameraSessionExtractor {
         return payload
     }
     
-    private static func processSample(sample: Sample, quality: KikCodesScanQuality) -> (Data, CashCode.Payload)? {
+    private static func processSample(sample: Sample, quality: KikCodesScanQuality) -> (Data, ScannedCode)? {
         guard let data = KikCodes.scan(sample.data, width: sample.width, height: sample.height, quality: quality) else {
             return nil
         }
-        
+
         let result = KikCodes.decode(data)
 
-        guard let payload = try? CashCode.Payload(data: result) else {
+        guard let payload = ScannedCode(data: result) else {
             return nil
         }
-        
+
         return (result, payload)
     }
-    
-    private static func processSample(sample: Sample, quality: KikCodesScanQuality, container: inout RedundancyContainer<Data>) -> CashCode.Payload? {
+
+    private static func processSample(sample: Sample, quality: KikCodesScanQuality, container: inout RedundancyContainer<Data>) -> ScannedCode? {
         if let (data, payload) = processSample(sample: sample, quality: quality) {
             container.insert(data)
             

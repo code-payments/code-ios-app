@@ -176,6 +176,7 @@ public enum Asset: String, Sendable {
     case send
     case send2
     case people = "IconPeople"
+    case kikCode = "IconKikCode"
     case checklist = "IconChecklist"
     case lock = "IconLock"
     case peopleGear = "IconPeopleGear"

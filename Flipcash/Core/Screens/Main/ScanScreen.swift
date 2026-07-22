@@ -130,6 +130,40 @@ private struct ScanScreenContent: View {
             }
             .interactiveDismissDisabled()
         }
+        // Send a Tip over the scanned tipcard. A swipe-down cancels the whole
+        // flow — the card comes down with the sheet.
+        .sheet(isPresented: Binding(
+            get: { sessionContainer.tipFlow.isSheetPresented },
+            set: { isPresented in
+                if !isPresented {
+                    sessionContainer.tipFlow.cancel()
+                }
+            }
+        )) {
+            PartialSheet(
+                background: Color(red: 0.1, green: 0.1, blue: 0.1).opacity(0.7),
+                canAccessBackground: true
+            ) {
+                SendTipSheet(tipFlow: sessionContainer.tipFlow)
+            }
+        }
+        // Resume a tip held for profile creation the moment the profile
+        // becomes tippable. The sheet-close hook is the belt for a missed
+        // flip edge (e.g. the profile record arriving mid-transition):
+        // closing Tips with a held tip resumes it when a profile exists and
+        // drops it when creation was abandoned.
+        .onChange(of: session.profile?.isTippable ?? false) { _, isTippable in
+            guard isTippable else { return }
+            sessionContainer.tipFlow.resumeAfterProfileCreation()
+        }
+        .onChange(of: router.rootSheet) { old, new in
+            guard old == .tips, new == nil else { return }
+            if session.profile?.isTippable == true {
+                sessionContainer.tipFlow.resumeAfterProfileCreation()
+            } else {
+                sessionContainer.tipFlow.abandonPendingTip()
+            }
+        }
         // Swipe-to-dismiss writes nil through this binding; route through
         // `dismissSheet()` so the dismissal is logged. Programmatic presentations
         // go through `router.present(_:)` directly and never write through here.
@@ -181,13 +215,24 @@ private struct ScanScreenContent: View {
     @ViewBuilder private func billView() -> some View {
         BillCanvas(
             state: session.presentationState,
-            centerOffset: CGSize(width: 0, height: -30),
+            centerOffset: billCenterOffset(),
             preferredCanvasSize: preferredCanvasSize(),
             bill: session.billState.bill,
             dismissHandler: dismissBill
         )
         .allowsHitTesting(session.presentationState.isPresenting)
         .ignoresSafeArea()
+    }
+
+    /// Tipcards sit higher than cash bills so the Send a Tip sheet doesn't
+    /// crowd them.
+    private func billCenterOffset() -> CGSize {
+        switch session.billState.bill {
+        case .tipcard:
+            CGSize(width: 0, height: -185)
+        case .cash, nil:
+            CGSize(width: 0, height: -30)
+        }
     }
 
     private func preferredCanvasSize() -> CGSize {
@@ -223,8 +268,9 @@ private struct ScanScreenContent: View {
             ScanBottomBar(
                 toast: toast,
                 showSend: session.canSend,
-                sendBadgeCount: sessionContainer.conversationController.unreadConversationCount,
-                showTips: session.canReceiveTips,
+                sendBadgeCount: sessionContainer.conversationController.unreadConversationCount(of: .contactDm),
+                showTips: session.canUseTips,
+                tipsBadgeCount: sessionContainer.conversationController.unreadConversationCount(of: .tipDm),
                 onGive: presentGive,
                 onWallet: { router.present(.balance) },
                 onDiscover: { router.present(.discover) },
@@ -291,7 +337,12 @@ private struct ScanScreenContent: View {
     }
 
     private func dismissBill() {
-        session.dismissCashBill(style: .slide)
+        switch session.billState.bill {
+        case .tipcard:
+            sessionContainer.tipFlow.cancel()
+        case .cash, nil:
+            session.dismissCashBill(style: .slide)
+        }
     }
 }
 
@@ -357,11 +408,11 @@ private struct RoutedSheet: View {
             SendRootScreen()
         case .tips:
             TipsSheetRoot()
-        case .sendAmount(let contact):
+        case .sendAmount(let target):
             // Send Cash entered directly as a root sheet — e.g. the notification
             // Send Cash deeplink / App Intent opens the amount entry with no chat
             // behind it. (In-chat Send Cash still enters it via presentNested.)
-            SendAmountSheetRoot(contact: contact)
+            SendAmountSheetRoot(target: target)
         }
     }
 }

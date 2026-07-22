@@ -51,6 +51,7 @@ struct ConversationScreen: View {
     @Environment(RatesController.self) private var ratesController
     @Environment(PushController.self) private var pushController
     @Environment(Container.self) private var container
+    @Environment(SessionContainer.self) private var sessionContainer
 
     @State private var didInitialRead = false
     @State private var barModel = ConversationBarModel()
@@ -79,17 +80,25 @@ struct ConversationScreen: View {
         }
     }
 
-    /// Who Send Cash pays: the synced address-book contact when there is one,
-    /// otherwise a target built from the counterpart's shared phone number so a
-    /// chat with a non-contact can still receive cash. `nil` only when neither a
-    /// contact nor a counterpart phone number is available.
-    private var sendTarget: ResolvedContact? {
-        if let contact {
-            return contact
+    /// The tip DM counterpart, when this conversation is a tip DM.
+    private var tipCounterpart: ConversationMember? {
+        guard let conversationID,
+              let conversation = conversationController.conversation(withID: conversationID),
+              conversation.type == .tipDm else { return nil }
+        return conversation.counterpart(excluding: conversationController.selfUserID)
+    }
+
+    /// Who Send Cash pays: the tip counterpart in a tip DM, the synced
+    /// address-book contact when there is one, otherwise a target built from
+    /// the counterpart's shared phone number so a chat with a non-contact can
+    /// still receive cash. `nil` when none of those resolve.
+    private var sendTarget: SendTarget? {
+        if let contact, tipCounterpart == nil {
+            return .contact(contact)
         }
         guard let conversationID else { return nil }
-        return ResolvedContact.sendTarget(
-            in: conversationController.conversation(withID: conversationID),
+        return SendTarget(
+            conversation: conversationController.conversation(withID: conversationID),
             dmChatID: conversationID.data,
             selfUserID: conversationController.selfUserID
         )
@@ -120,10 +129,11 @@ struct ConversationScreen: View {
     }
 
     /// The counterpart's phone number when they're NOT yet an address-book
-    /// contact — the seed for the native "Add to Contacts" sheet.
+    /// contact — the seed for the native "Add to Contacts" sheet. Tip DMs
+    /// never expose one; their counterpart is known by profile only.
     private var addableContactPhone: String? {
-        guard contact == nil else { return nil }
-        return sendTarget?.phoneE164
+        guard contact == nil, case .contact(let target)? = sendTarget else { return nil }
+        return target.phoneE164
     }
 
     private var title: String {
@@ -173,10 +183,18 @@ struct ConversationScreen: View {
                     title: title,
                     contact: contact,
                     conversationID: conversationID,
+                    imageData: contact?.imageData ?? sessionContainer.tipAvatars.data(for: tipCounterpart?.userID),
                     width: max(navBarWidth - Self.titleSideInset * 2, 0),
                     onTap: titleTapAction
                 )
             }
+        }
+        // Fetch the tip counterpart's avatar for the title and profile card.
+        .task(id: tipCounterpart?.userID) {
+            await sessionContainer.tipAvatars.load(
+                userID: tipCounterpart?.userID,
+                picture: tipCounterpart?.profilePicture
+            )
         }
         .sheet(item: $presentedCard) { card in
             ContactCardView(card: card)
@@ -294,8 +312,12 @@ struct ConversationScreen: View {
 
     private func sendCash() {
         guard let sendTarget else { return }
+        let context: AddMoneyContext = switch sendTarget {
+        case .tip:     .sendTips
+        case .contact: .giveCash
+        }
         let rate = ratesController.rateForBalanceCurrency()
-        if let dialog = giveCashGate(session: session, rate: rate).blockingDialog(router: router, addMoneySource: .chat) {
+        if let dialog = giveCashGate(session: session, rate: rate).blockingDialog(router: router, addMoneySource: .chat, context: context) {
             session.dialogItem = dialog
             return
         }
@@ -340,12 +362,15 @@ struct ConversationScreen: View {
                 conversationID: id,
                 controller: conversationController,
                 session: session,
-                profileCard: { [context, contactSyncController, conversationController] in
+                // `tipAvatars` is captured directly so the coordinator retains
+                // one small store, not the whole session container.
+                profileCard: { [context, contactSyncController, conversationController, tipAvatars = sessionContainer.tipAvatars] in
                     Self.profileCard(
                         context: context,
                         conversationID: id,
                         directory: contactSyncController.resolvedContacts.onFlipcash,
-                        controller: conversationController
+                        controller: conversationController,
+                        tipAvatars: tipAvatars
                     )
                 }
             )
@@ -353,14 +378,26 @@ struct ConversationScreen: View {
     }
 
     /// The transcript's profile card for the counterpart, resolved live from the directory the
-    /// same way the nav title is: the synced contact when there is one, otherwise the counterpart's
-    /// formatted number flagged as an unknown contact.
+    /// same way the nav title is: the synced contact when there is one, the profile-only tip
+    /// counterpart for a tip DM, otherwise the counterpart's formatted number flagged as an
+    /// unknown contact.
     private static func profileCard(
         context: ConversationContext,
         conversationID: ConversationID,
         directory: [ResolvedContact],
-        controller: ConversationController
+        controller: ConversationController,
+        tipAvatars: TipAvatarStore
     ) -> ChatProfileCard {
+        if let conversation = controller.conversation(withID: conversationID),
+           conversation.type == .tipDm {
+            let counterpart = conversation.counterpart(excluding: controller.selfUserID)
+            return ChatProfileCard(
+                name: controller.displayName(for: conversation),
+                avatarID: counterpart?.userID?.uuidString ?? conversationID.description,
+                imageData: tipAvatars.data(for: counterpart?.userID),
+                counterpart: .tipcode
+            )
+        }
         if let contact = context.resolvedContact(in: directory) {
             return ChatProfileCard(
                 name: contact.displayName,
@@ -418,6 +455,7 @@ private struct ConversationTitleItem: View {
     let title: String
     let contact: ResolvedContact?
     let conversationID: ConversationID?
+    let imageData: Data?
     let width: CGFloat
     let onTap: (() -> Void)?
 
@@ -426,6 +464,7 @@ private struct ConversationTitleItem: View {
             title: title,
             contact: contact,
             conversationID: conversationID,
+            imageData: imageData,
             width: width
         )
         if let onTap {
@@ -444,6 +483,7 @@ private struct ConversationTitleLabel: View {
     let title: String
     let contact: ResolvedContact?
     let conversationID: ConversationID?
+    let imageData: Data?
     let width: CGFloat
 
     var body: some View {
@@ -451,7 +491,7 @@ private struct ConversationTitleLabel: View {
             ContactAvatarView(
                 id: contact?.contactId ?? conversationID?.description ?? title,
                 displayName: title,
-                imageData: contact?.imageData,
+                imageData: imageData,
                 size: 44
             )
             .accessibilityHidden(true)

@@ -62,8 +62,8 @@ private struct NestedSheetRootView: View {
             case .buy(let mint):
                 BuySheetRoot(mint: mint)
 
-            case .sendAmount(let contact):
-                SendAmountSheetRoot(contact: contact)
+            case .sendAmount(let target):
+                SendAmountSheetRoot(target: target)
 
             case .addMoney:
                 AddMoneySheetRoot()
@@ -153,18 +153,18 @@ struct AddMoneySheetRoot: View {
     }
 }
 
-/// Root view for the `.sendAmount(contact)` sheet — Send Cash, presented either stacked on the
+/// Root view for the `.sendAmount(target)` sheet — Send Cash, presented either stacked on the
 /// chat (in-chat send) or directly as a root sheet (notification deeplink / App Intent). The
 /// `NavigationStack` is unbound: nothing pushes onto it, so it exists only to render the toolbar.
 struct SendAmountSheetRoot: View {
 
-    let contact: ResolvedContact
+    let target: SendTarget
 
     @Environment(AppRouter.self) private var router
 
     var body: some View {
         NavigationStack {
-            SendAmountScreen(contact: contact)
+            SendAmountScreen(target: target)
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
                         CloseButton(action: router.dismissSheet)

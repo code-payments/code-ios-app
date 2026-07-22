@@ -46,6 +46,6 @@ enum AppIntentContext {
     /// Foregrounds the app on the Send Cash amount entry for `contact`, presented
     /// directly as a sheet (one animation, no chat behind).
     static func openSendFlow(to contact: ResolvedContact) {
-        loggedInContainer?.appRouter.present(.sendAmount(contact))
+        loggedInContainer?.appRouter.present(.sendAmount(.contact(contact)))
     }
 }

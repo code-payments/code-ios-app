@@ -220,13 +220,13 @@ extension CashCode.Payload {
  
  
  
- Layout 5: Tip
- 
+ Layout 5: Tip (kind 2 — decoded by `TipCode.Payload`, not this type)
+
    0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15  16  17  18  19
  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
- | T |     Flags     |             username                  | ... remainder (0) |
+ | T |                    user id (16 bytes)                     | remainder (0) |
  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
- 
+
  (T) Type (1 byte)
 
  The first byte of the data in all Code scan codes is reserved for the scan

@@ -330,7 +330,8 @@ struct WithdrawViewModelTests {
                 minimumHolderValue: .zero(mint: .usdf),
                 enablePhoneNumberSend: false,
                 requireCoinbaseEmailVerification: false,
-                preferredOnrampUsdcLiquidityPool: .unknown
+                preferredOnrampUsdcLiquidityPool: .unknown,
+                tipPresets: []
             )
         }
         let stored = try #require(container.session.balance(for: mint))

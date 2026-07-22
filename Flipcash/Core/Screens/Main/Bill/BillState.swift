@@ -53,17 +53,13 @@ extension BillState {
     enum Bill: Equatable {
 
         case cash(CashCode.Payload, mint: PublicKey, billColors: [String] = [])
+        /// A scanned (or deeplinked) recipient's tipcard, shown over the
+        /// camera while the Send a Tip sheet is up.
+        case tipcard(codeData: Data, name: String, avatar: UIImage?)
 
         var canSwipeToDismiss: Bool {
             switch self {
-            case .cash: return true
-            }
-        }
-
-        var mint: PublicKey {
-            switch self {
-            case .cash(_, let mint, _):
-                return mint
+            case .cash, .tipcard: return true
             }
         }
     }

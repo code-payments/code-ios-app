@@ -166,4 +166,16 @@ message UserFlags {
 
 	// Whether email verification is required for Coinbase purchase flows
 	bool require_coinbase_email_verification = 14;
+
+	// Tip presets for all currencies
+	repeated TipPresets tip_presets = 15;
+}
+
+message TipPresets {
+    common.v1.Region region = 1 [(validate.rules).message.required = true];
+
+    double minimum = 2;
+    double low     = 3;
+    double medium  = 4;
+    double high    = 5;
 }

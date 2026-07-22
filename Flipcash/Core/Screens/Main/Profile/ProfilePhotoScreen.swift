@@ -106,8 +106,10 @@ struct ProfilePhotoScreen: View {
                     flipClient: container.flipClient
                 )
             )
-            // The Tips root renders the tipcard once the profile is complete.
+            // Creation lands on the tipcard — the thing the profile was made
+            // for — with the conversation list beneath it as the Tips root.
             router.popToRoot(on: .tips)
+            router.push(.tipcard)
 
         } catch let error as ErrorBlob {
             guard !Task.isCancelled else { return }

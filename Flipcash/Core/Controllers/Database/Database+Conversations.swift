@@ -62,7 +62,8 @@ nonisolated extension Database {
                     displayName: row[m.displayName],
                     phoneE164: row[m.phoneE164],
                     readPointer: row[m.readPointer].map(MessageID.init(value:)),
-                    readPointerTimestamp: row[m.readPointerTimestamp].map { Date(timeIntervalSinceReferenceDate: $0) }
+                    readPointerTimestamp: row[m.readPointerTimestamp].map { Date(timeIntervalSinceReferenceDate: $0) },
+                    profilePicture: memberProfilePicture(from: row)
                 )
             )
         }
@@ -78,7 +79,8 @@ nonisolated extension Database {
                 id: ConversationID(data: id),
                 members: membersByConversation[id] ?? [],
                 lastMessage: try latestMessage(conversationId: id),
-                lastActivity: Date(timeIntervalSinceReferenceDate: row[c.lastActivity])
+                lastActivity: Date(timeIntervalSinceReferenceDate: row[c.lastActivity]),
+                type: ConversationType(rawValue: row[c.type]) ?? .contactDm
             )
         }
     }
@@ -190,29 +192,29 @@ nonisolated extension Database {
 
     // MARK: - Write -
 
-    /// Mirror a paged feed load: replaces the conversation + member sets (messages are retained), then
-    /// stores each conversation's last-message preview.
-    func replaceConversationFeed(_ conversations: [Conversation]) throws {
+    /// Mirror one type's paged feed load: replaces that type's conversation + member sets (messages
+    /// are retained, other types' conversations untouched), then stores each conversation's
+    /// last-message preview.
+    func replaceConversationFeed(_ conversations: [Conversation], type: ConversationType) throws {
         let c = ConversationTable()
         let m = ConversationMemberTable()
         let ids = conversations.map(\.id.data)
         try writer.transaction {
-            // Delete only the conversations that dropped out of the feed, then upsert the rest.
-            // `writeConversation` upserts the row (leaving `catchupCursor` untouched on conflict) and
-            // replaces that conversation's members, so a surviving conversation keeps its event-log
+            // Delete only the same-type conversations that dropped out of this feed, then upsert the
+            // rest. `writeConversation` upserts the row (leaving `catchupCursor` untouched on conflict)
+            // and replaces that conversation's members, so a surviving conversation keeps its event-log
             // cursor without a read-and-restore dance.
             // Messages are deliberately NOT deleted here: they are the transcript's source of truth,
             // and a feed snapshot fetched before a brand-new chat's first message landed would
             // otherwise wipe that just-persisted message. Rows for conversations that genuinely left
             // the feed are orphaned but unread — nothing windows a conversation that isn't opened.
-            if ids.isEmpty {
-                try writer.run(c.table.delete())
-                try writer.run(m.table.delete())
-            } else {
-                try writer.run(c.table.filter(!ids.contains(c.id)).delete())
-                try writer.run(m.table.filter(!ids.contains(m.conversationId)).delete())
+            let doomed = try writer.prepare(c.table.select(c.id).filter(c.type == type.rawValue && !ids.contains(c.id)))
+                .map { $0[c.id] }
+            if !doomed.isEmpty {
+                try writer.run(c.table.filter(doomed.contains(c.id)).delete())
+                try writer.run(m.table.filter(doomed.contains(m.conversationId)).delete())
             }
-            for conversation in conversations {
+            for conversation in conversations where conversation.type == type {
                 try writeConversation(conversation)
             }
         }
@@ -282,6 +284,7 @@ nonisolated extension Database {
             c.table.upsert(
                 c.id           <- conversation.id.data,
                 c.lastActivity <- conversation.lastActivity.timeIntervalSinceReferenceDate,
+                c.type         <- conversation.type.rawValue,
                 onConflictOf: c.id
             )
         )
@@ -295,7 +298,9 @@ nonisolated extension Database {
                     m.displayName           <- member.displayName,
                     m.phoneE164             <- member.phoneE164,
                     m.readPointer           <- member.readPointer?.value,
-                    m.readPointerTimestamp  <- member.readPointerTimestamp?.timeIntervalSinceReferenceDate
+                    m.readPointerTimestamp  <- member.readPointerTimestamp?.timeIntervalSinceReferenceDate,
+                    m.profilePictureBlobID          <- member.profilePicture?.blobID.data,
+                    m.profilePictureThumbnailBlobID <- member.profilePicture?.thumbnailBlobID.data
                 )
             )
         }
@@ -377,6 +382,20 @@ nonisolated extension Database {
     }
 
     // MARK: - Decode -
+
+    /// Returns nil unless both rendition columns are present — the pair is
+    /// written together, so a lone column is treated as no picture.
+    private func memberProfilePicture(from row: RowIterator.Element) -> ProfilePicture? {
+        let m = ConversationMemberTable()
+        guard let blobID = row[m.profilePictureBlobID],
+              let thumbnailBlobID = row[m.profilePictureThumbnailBlobID] else {
+            return nil
+        }
+        return ProfilePicture(
+            blobID: BlobID(data: blobID),
+            thumbnailBlobID: BlobID(data: thumbnailBlobID)
+        )
+    }
 
     /// Returns nil for rows this client can't represent (unknown kind, a text
     /// row missing its text, or a cash row missing its amount columns).

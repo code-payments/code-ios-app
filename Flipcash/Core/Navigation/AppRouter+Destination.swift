@@ -50,6 +50,11 @@ extension AppRouter {
         // Tips flow
         case profileName
         case profilePhoto
+        /// The signed-in user's own tipcard, pushed from the Tips list.
+        case tipcard
+        /// A tip DM conversation, pushed onto the `.tips` stack — from the
+        /// Tips list, a completed tip, or a tip-DM push notification.
+        case tipConversation(ConversationID)
 
         // Conversation flow
         /// A DM conversation, pushed onto the `.send` stack — from the Chats
@@ -73,7 +78,7 @@ extension AppRouter {
                  .settingsAppSettings, .settingsBetaFlags, .settingsAccountSelection,
                  .settingsApplicationLogs, .accessKey, .withdraw:
                 return .settings
-            case .profileName, .profilePhoto:
+            case .profileName, .profilePhoto, .tipcard, .tipConversation:
                 return .tips
             case .dmConversation:
                 return .send
@@ -108,6 +113,8 @@ extension AppRouter {
             case .withdraw:                     "withdraw"
             case .profileName:                  "profileName"
             case .profilePhoto:                 "profilePhoto"
+            case .tipcard:                      "tipcard"
+            case .tipConversation:              "tipConversation"
             case .dmConversation:               "dmConversation"
             }
         }
@@ -127,12 +134,14 @@ extension AppRouter {
                 return conversationID.description
             case .dmConversation(.contact(let contact)):
                 return contact.contactId
+            case .tipConversation(let conversationID):
+                return conversationID.description
             case .discoverCurrencies, .currencyCreationSummary, .currencyCreationWizard,
                  .usdcDepositEducation, .usdcDepositAddress,
                  .settingsMyAccount, .settingsAdvancedFeatures, .settingsAdvancedBetaFeatures,
                  .settingsAppSettings, .settingsBetaFlags, .settingsAccountSelection,
                  .settingsApplicationLogs, .accessKey, .withdraw,
-                 .profileName, .profilePhoto:
+                 .profileName, .profilePhoto, .tipcard:
                 return nil
             }
         }

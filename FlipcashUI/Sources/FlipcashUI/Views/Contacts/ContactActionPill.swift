@@ -50,6 +50,10 @@ private struct ContactActionLabel: View {
             } icon: {
                 Image.system(.personBadgePlus)
             }
+        case .tipcode:
+            // Tip counterparts carry no contact action; the hosting card
+            // omits the pill entirely.
+            EmptyView()
         }
     }
 }

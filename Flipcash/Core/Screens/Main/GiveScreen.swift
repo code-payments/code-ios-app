@@ -130,25 +130,3 @@ private struct GiveScreenContent: View {
     }
 }
 
-// MARK: - TokenSelectorButton -
-
-private struct TokenSelectorButton: View {
-    let selectedBalance: ExchangedBalance?
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack {
-                CurrencyLabel(
-                    imageURL: selectedBalance?.stored.imageURL,
-                    name: selectedBalance?.stored.name ?? "",
-                    amount: nil
-                )
-
-                Image.system(.chevronDown)
-                    .font(.default(size: 12, weight: .bold))
-                    .foregroundStyle(.textMain)
-            }
-        }
-    }
-}

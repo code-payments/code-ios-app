@@ -34,6 +34,33 @@ final class ResolverService: Sendable {
             $0.auth = owner.authFor(message: $0)
         }
 
+        resolve(request, completion: completion)
+    }
+
+    /// Resolve a user ID (e.g. from a scanned tipcode) to the on-chain payment
+    /// destination. Throws `.notFound` when no such user exists; throws for
+    /// hard failures (DENIED, network errors).
+    func resolveUserID(
+        _ userID: UserID,
+        owner: KeyPair,
+        completion: @Sendable @escaping (Result<PublicKey, ErrorResolve>) -> Void
+    ) {
+        logger.info("Resolving user id to payment destination")
+
+        let request = Flipcash_Resolver_V1_ResolveRequest.with {
+            $0.identifier = .with {
+                $0.userID = .with { $0.value = userID.data }
+            }
+            $0.auth = owner.authFor(message: $0)
+        }
+
+        resolve(request, completion: completion)
+    }
+
+    private func resolve(
+        _ request: Flipcash_Resolver_V1_ResolveRequest,
+        completion: @Sendable @escaping (Result<PublicKey, ErrorResolve>) -> Void
+    ) {
         Task {
             do {
                 let response = try await service.resolve(request, options: .unaryDefault)

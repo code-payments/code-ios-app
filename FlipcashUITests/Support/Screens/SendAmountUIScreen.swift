@@ -5,7 +5,7 @@
 
 import XCTest
 
-/// Page object for the Send amount sheet's slide-to-send control. Digit entry
+/// Page object for the Send flow's "Swipe to Send" amount screen. Digit entry
 /// uses the shared `AmountEntryScreen`.
 @MainActor
 struct SendAmountUIScreen {
@@ -18,7 +18,7 @@ struct SendAmountUIScreen {
 
     // MARK: - Elements
 
-    /// The "Swipe to Send" slider.
+    /// The slide-to-commit control.
     var swipeToSend: XCUIElement { app.buttons["Swipe to Send"] }
 
     // MARK: - Actions

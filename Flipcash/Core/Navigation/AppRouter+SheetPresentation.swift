@@ -26,7 +26,7 @@ extension AppRouter {
         case send
         /// Send Cash amount entry, stacked on top of the chat via
         /// `presentNested(.sendAmount)`. Dismissing it reveals the chat.
-        case sendAmount(ResolvedContact)
+        case sendAmount(SendTarget)
         /// My Tipcard, or the invitation to create a profile when there isn't one.
         case tips
 

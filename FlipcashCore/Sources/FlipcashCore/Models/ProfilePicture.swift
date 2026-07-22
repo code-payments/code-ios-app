@@ -16,7 +16,7 @@ public typealias BlobID = ID
 /// Carries no download URL by design: those are signed, short-lived, and
 /// re-minted on every fetch, so a stored one is expired before it is read back.
 /// A caller that needs the bytes mints a URL from these ids.
-public struct ProfilePicture: Codable, Equatable, Sendable {
+public struct ProfilePicture: Codable, Hashable, Sendable {
 
     /// The blob holding the full-quality original the user uploaded.
     public let blobID: BlobID

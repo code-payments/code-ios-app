@@ -9,20 +9,23 @@ import Foundation
 import FlipcashAPI
 import SwiftProtobuf
 
-/// Chat context attached to a direct contact payment. The server uses it to
-/// post the payment as a cash message in the contact's DM (creating the chat
-/// if it doesn't exist yet). Both phones must be payment-linked to their
-/// respective accounts or the server rejects the intent.
-public struct ChatPaymentMetadata: Sendable {
+/// Chat context attached to a direct DM payment. The server uses it to post
+/// the payment as a cash message in the DM (creating the chat if it doesn't
+/// exist yet). Contact DMs require both phones to be payment-linked; tip DMs
+/// are keyed on user IDs alone.
+public enum ChatPaymentMetadata: Sendable {
 
-    public let chatID: ConversationID
-    public let sourcePhoneE164: String
-    public let destinationPhoneE164: String
+    case contactDm(chatID: ConversationID, sourcePhoneE164: String, destinationPhoneE164: String)
+    case tipDm(chatID: ConversationID)
 
-    public init(chatID: ConversationID, sourcePhoneE164: String, destinationPhoneE164: String) {
-        self.chatID = chatID
-        self.sourcePhoneE164 = sourcePhoneE164
-        self.destinationPhoneE164 = destinationPhoneE164
+    /// The DM chat this payment posts into.
+    public var chatID: ConversationID {
+        switch self {
+        case .contactDm(let chatID, _, _):
+            return chatID
+        case .tipDm(let chatID):
+            return chatID
+        }
     }
 
     /// Serialized `flipcash.intent.v1.AppMetadata` for SubmitIntent's
@@ -31,9 +34,14 @@ public struct ChatPaymentMetadata: Sendable {
         try Flipcash_Intent_V1_AppMetadata.with {
             $0.chat = .with {
                 $0.chatID = chatID.proto
-                $0.contactDmPayment = .with {
-                    $0.source = .with { $0.value = sourcePhoneE164 }
-                    $0.destination = .with { $0.value = destinationPhoneE164 }
+                switch self {
+                case .contactDm(_, let sourcePhoneE164, let destinationPhoneE164):
+                    $0.contactDmPayment = .with {
+                        $0.source = .with { $0.value = sourcePhoneE164 }
+                        $0.destination = .with { $0.value = destinationPhoneE164 }
+                    }
+                case .tipDm:
+                    $0.tipDmPayment = .init()
                 }
             }
         }.serializedData()

@@ -533,6 +533,39 @@ struct ExchangedFiatComputeFromEnteredTests {
 
         #expect(result.onChainAmount.quarks == balanceQuarks)
     }
+
+    @Test("Entered fiat is preserved exactly as nativeAmount")
+    func enteredAmountIsPreservedAsNativeAmount() throws {
+        // The server enforces user-visible bounds (e.g. the $1 tip floor)
+        // inclusively against the wire nativeAmount, and accepts any value
+        // within half a display unit of the quarks' curve-sell value — so an
+        // entered $1.00 must reach the wire as exactly 1.00, not as a curve
+        // round-trip of the quantized quarks that can land fractionally below.
+        let result = try #require(ExchangedFiat.compute(
+            fromEntered: FiatAmount.usd(1),
+            rate: .oneToOne,
+            mint: testMint,
+            supplyQuarks: testSupplyQuarks
+        ))
+
+        #expect(result.nativeAmount.value == 1)
+        #expect(result.onChainAmount.quarks > 0)
+    }
+
+    @Test("Entered non-USD fiat is preserved verbatim, not round-tripped through USD")
+    func enteredNonUSDAmountIsPreservedVerbatim() throws {
+        let entered = FiatAmount(value: Decimal(string: "1.40")!, currency: .cad)
+
+        let result = try #require(ExchangedFiat.compute(
+            fromEntered: entered,
+            rate: Rate(fx: Decimal(1.4), currency: .cad),
+            mint: testMint,
+            supplyQuarks: testSupplyQuarks
+        ))
+
+        #expect(result.nativeAmount.value == entered.value)
+        #expect(result.nativeAmount.currency == .cad)
+    }
 }
 
 // MARK: - compute(fromEntered:) Cap Tests

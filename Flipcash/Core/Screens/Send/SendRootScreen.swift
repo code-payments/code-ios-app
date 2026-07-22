@@ -141,7 +141,7 @@ struct SendRootScreen: View {
             // full-screen pitch instead — but wait out the first-login feed load
             // so an in-flight fetch doesn't flash the empty state before its
             // conversations arrive.
-            guard conversationController.conversations.isEmpty else {
+            guard conversationController.conversations(of: .contactDm).isEmpty else {
                 return .ready(access)
             }
             return conversationController.isLoadingFeed ? .loading : .deniedNoRecents

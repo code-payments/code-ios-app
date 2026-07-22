@@ -12,6 +12,10 @@ import FlipcashUI
 /// the same view renders on screen and through `ImageRenderer` for export.
 struct TipcardView: View {
 
+    /// The card's height-to-width proportion, shared by every surface that
+    /// sizes one.
+    static let aspectRatio: CGFloat = 1.16
+
     /// Explicit because a rendered tree has no container to size against.
     let size: CGSize
     let name: String
