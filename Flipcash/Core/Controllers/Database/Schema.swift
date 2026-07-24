@@ -187,8 +187,10 @@ nonisolated struct ConversationMemberTable: Sendable {
     let readPointer           = Expression <UInt64?> ("readPointer")
     let readPointerTimestamp  = Expression <Double?> ("readPointerTimestamp")
     // Profile-picture rendition blob ids, when the member has a picture.
-    let profilePictureBlobID          = Expression <Data?> ("profilePictureBlobID")
-    let profilePictureThumbnailBlobID = Expression <Data?> ("profilePictureThumbnailBlobID")
+    let profilePictureBlobID          = Expression <Data?>   ("profilePictureBlobID")
+    let profilePictureThumbnailBlobID = Expression <Data?>   ("profilePictureThumbnailBlobID")
+    // The thumbnail rendition's BlurHash preview, when present.
+    let profilePictureThumbnailBlurhash = Expression <String?> ("profilePictureThumbnailBlurhash")
 }
 
 // One row per message; cash content is decomposed across the amount columns
@@ -406,6 +408,7 @@ nonisolated extension Database {
                 t.column(conversationMemberTable.readPointerTimestamp)
                 t.column(conversationMemberTable.profilePictureBlobID)
                 t.column(conversationMemberTable.profilePictureThumbnailBlobID)
+                t.column(conversationMemberTable.profilePictureThumbnailBlurhash)
             })
         }
 

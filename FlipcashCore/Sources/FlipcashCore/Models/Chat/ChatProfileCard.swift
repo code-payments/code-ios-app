@@ -16,6 +16,9 @@ public struct ChatProfileCard: Hashable, Sendable, Codable {
     public var avatarID: String
     /// The contact's address-book thumbnail; nil renders the monogram placeholder.
     public var imageData: Data?
+    /// The counterpart's profile-picture BlurHash, shown as a blurred preview while
+    /// their avatar bytes load. Nil for address-book contacts.
+    public var blurhash: String?
     public var counterpart: Counterpart
 
     /// How the counterpart relates to the address book.
@@ -29,10 +32,11 @@ public struct ChatProfileCard: Hashable, Sendable, Codable {
         case tipcode
     }
 
-    public init(name: String, avatarID: String, imageData: Data?, counterpart: Counterpart) {
+    public init(name: String, avatarID: String, imageData: Data?, blurhash: String? = nil, counterpart: Counterpart) {
         self.name = name
         self.avatarID = avatarID
         self.imageData = imageData
+        self.blurhash = blurhash
         self.counterpart = counterpart
     }
 }

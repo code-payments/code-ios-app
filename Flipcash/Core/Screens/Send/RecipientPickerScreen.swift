@@ -392,6 +392,7 @@ struct RecipientRowScaffold<Trailing: View>: View {
     let title: String
     let subtitle: String?
     let imageData: Data?
+    var blurhash: String? = nil
     var accessoryPlacement: RecipientRowAccessoryPlacement = .trailingColumn
     let accessibilityLabel: String
     let onTap: () -> Void
@@ -404,6 +405,7 @@ struct RecipientRowScaffold<Trailing: View>: View {
                 title: title,
                 subtitle: subtitle,
                 imageData: imageData,
+                blurhash: blurhash,
                 accessoryPlacement: accessoryPlacement
             ) {
                 trailing
@@ -422,6 +424,7 @@ struct RecipientRowBody<Trailing: View>: View {
     let title: String
     let subtitle: String?
     let imageData: Data?
+    var blurhash: String? = nil
     var accessoryPlacement: RecipientRowAccessoryPlacement = .trailingColumn
     @ViewBuilder let trailing: Trailing
 
@@ -431,6 +434,7 @@ struct RecipientRowBody<Trailing: View>: View {
                 id: avatarID,
                 displayName: title,
                 imageData: imageData,
+                blurhash: blurhash,
                 size: 44
             )
             VStack(alignment: .leading, spacing: 2) {

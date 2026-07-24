@@ -16,12 +16,14 @@ public struct ContactAvatarView: View {
     public let id: String
     public let displayName: String
     public let imageData: Data?
+    public let blurhash: String?
     public let size: CGFloat
 
-    public init(id: String, displayName: String, imageData: Data? = nil, size: CGFloat = 44) {
+    public init(id: String, displayName: String, imageData: Data? = nil, blurhash: String? = nil, size: CGFloat = 44) {
         self.id = id
         self.displayName = displayName
         self.imageData = imageData
+        self.blurhash = blurhash
         self.size = size
     }
 
@@ -30,6 +32,12 @@ public struct ContactAvatarView: View {
             if let imageData,
                let uiImage = ContactAvatarCache.shared.image(forKey: id, data: imageData) {
                 Image(uiImage: uiImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } else if let preview = BlurHashCache.shared.image(for: blurhash) {
+                // The picture is loading: show its BlurHash as an instant blurred
+                // preview until the bytes arrive.
+                Image(uiImage: preview)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
             } else {
