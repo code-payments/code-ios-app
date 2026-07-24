@@ -17,6 +17,7 @@ struct SelectCurrencyScreen: View {
     @Environment(RatesController.self) private var ratesController
 
     let action: (ExchangedBalance) -> Void
+    let isEnabled: (ExchangedBalance) -> Bool
 
     private var balances: [ExchangedBalance] {
         session.balances(for: ratesController.rateForBalanceCurrency())
@@ -25,9 +26,11 @@ struct SelectCurrencyScreen: View {
 
     init(
         isPresented: Binding<Bool>,
+        isEnabled: @escaping (ExchangedBalance) -> Bool = { _ in true },
         action: @escaping (ExchangedBalance) -> Void
     ) {
         self._isPresented = isPresented
+        self.isEnabled = isEnabled
         self.action = action
     }
 
@@ -50,6 +53,7 @@ struct SelectCurrencyScreen: View {
                     List {
                         Section {
                             ForEach(balances) { balance in
+                                let enabled = isEnabled(balance)
                                 CurrencyBalanceRow(
                                     exchangedBalance: balance,
                                     accessory: .check(isSelected: ratesController.isSelectedToken(balance.stored.mint)),
@@ -58,6 +62,8 @@ struct SelectCurrencyScreen: View {
                                     action(balance)
                                     isPresented = false
                                 }
+                                .disabled(!enabled)
+                                .opacity(enabled ? 1 : 0.4)
                             }
                         }
                         .listRowInsets(EdgeInsets())
