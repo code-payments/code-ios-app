@@ -36,4 +36,13 @@ public enum NotificationPayload {
         guard case .chatID(let chatID) = payload.navigation.type else { return nil }
         return ConversationID(chatID)
     }
+
+    /// The kind of DM a CHAT push targets (contact vs. tip), or `nil` when the push isn't a chat
+    /// message or carries no chat metadata (system messages, or a legacy server that omits it).
+    public static func chatType(_ userInfo: [AnyHashable: Any]) -> ConversationType? {
+        guard let payload = decode(userInfo), payload.category == .chat, payload.hasChatMetadata else {
+            return nil
+        }
+        return ConversationType(payload.chatMetadata.type)
+    }
 }

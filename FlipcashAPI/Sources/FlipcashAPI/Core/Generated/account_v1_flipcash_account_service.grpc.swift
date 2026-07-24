@@ -15,13 +15,13 @@ import GRPCProtobuf
 
 /// Namespace containing generated types for the "flipcash.account.v1.Account" service.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public enum Flipcash_Account_V1_Account: Sendable {
+public enum Flipcash_Account_V1_Account {
     /// Service descriptor for the "flipcash.account.v1.Account" service.
     public static let descriptor = GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.account.v1.Account")
     /// Namespace for method metadata.
-    public enum Method: Sendable {
+    public enum Method {
         /// Namespace for "Register" metadata.
-        public enum Register: Sendable {
+        public enum Register {
             /// Request type for "Register".
             public typealias Input = Flipcash_Account_V1_RegisterRequest
             /// Response type for "Register".
@@ -29,12 +29,11 @@ public enum Flipcash_Account_V1_Account: Sendable {
             /// Descriptor for "Register".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.account.v1.Account"),
-                method: "Register",
-                type: .unary
+                method: "Register"
             )
         }
         /// Namespace for "Login" metadata.
-        public enum Login: Sendable {
+        public enum Login {
             /// Request type for "Login".
             public typealias Input = Flipcash_Account_V1_LoginRequest
             /// Response type for "Login".
@@ -42,12 +41,11 @@ public enum Flipcash_Account_V1_Account: Sendable {
             /// Descriptor for "Login".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.account.v1.Account"),
-                method: "Login",
-                type: .unary
+                method: "Login"
             )
         }
         /// Namespace for "GetUserFlags" metadata.
-        public enum GetUserFlags: Sendable {
+        public enum GetUserFlags {
             /// Request type for "GetUserFlags".
             public typealias Input = Flipcash_Account_V1_GetUserFlagsRequest
             /// Response type for "GetUserFlags".
@@ -55,12 +53,11 @@ public enum Flipcash_Account_V1_Account: Sendable {
             /// Descriptor for "GetUserFlags".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.account.v1.Account"),
-                method: "GetUserFlags",
-                type: .unary
+                method: "GetUserFlags"
             )
         }
         /// Namespace for "GetUnauthenticatedUserFlags" metadata.
-        public enum GetUnauthenticatedUserFlags: Sendable {
+        public enum GetUnauthenticatedUserFlags {
             /// Request type for "GetUnauthenticatedUserFlags".
             public typealias Input = Flipcash_Account_V1_GetUnauthenticatedUserFlagsRequest
             /// Response type for "GetUnauthenticatedUserFlags".
@@ -68,8 +65,7 @@ public enum Flipcash_Account_V1_Account: Sendable {
             /// Descriptor for "GetUnauthenticatedUserFlags".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.account.v1.Account"),
-                method: "GetUnauthenticatedUserFlags",
-                type: .unary
+                method: "GetUnauthenticatedUserFlags"
             )
         }
         /// Descriptors for all methods in the "flipcash.account.v1.Account" service.

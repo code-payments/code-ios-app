@@ -15,13 +15,13 @@ import GRPCProtobuf
 
 /// Namespace containing generated types for the "ocp.account.v1.Account" service.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public enum Ocp_Account_V1_Account: Sendable {
+public enum Ocp_Account_V1_Account {
     /// Service descriptor for the "ocp.account.v1.Account" service.
     public static let descriptor = GRPCCore.ServiceDescriptor(fullyQualifiedService: "ocp.account.v1.Account")
     /// Namespace for method metadata.
-    public enum Method: Sendable {
+    public enum Method {
         /// Namespace for "IsOcpAccount" metadata.
-        public enum IsOcpAccount: Sendable {
+        public enum IsOcpAccount {
             /// Request type for "IsOcpAccount".
             public typealias Input = Ocp_Account_V1_IsOcpAccountRequest
             /// Response type for "IsOcpAccount".
@@ -29,12 +29,11 @@ public enum Ocp_Account_V1_Account: Sendable {
             /// Descriptor for "IsOcpAccount".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "ocp.account.v1.Account"),
-                method: "IsOcpAccount",
-                type: .unary
+                method: "IsOcpAccount"
             )
         }
         /// Namespace for "GetTokenAccountInfos" metadata.
-        public enum GetTokenAccountInfos: Sendable {
+        public enum GetTokenAccountInfos {
             /// Request type for "GetTokenAccountInfos".
             public typealias Input = Ocp_Account_V1_GetTokenAccountInfosRequest
             /// Response type for "GetTokenAccountInfos".
@@ -42,8 +41,7 @@ public enum Ocp_Account_V1_Account: Sendable {
             /// Descriptor for "GetTokenAccountInfos".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "ocp.account.v1.Account"),
-                method: "GetTokenAccountInfos",
-                type: .unary
+                method: "GetTokenAccountInfos"
             )
         }
         /// Descriptors for all methods in the "ocp.account.v1.Account" service.

@@ -52,11 +52,11 @@ public struct Flipcash_Intent_V1_ChatMetadata: Sendable {
   // methods supported on all messages.
 
   public var chatID: Flipcash_Common_V1_ChatId {
-    get {_chatID ?? Flipcash_Common_V1_ChatId()}
+    get {return _chatID ?? Flipcash_Common_V1_ChatId()}
     set {_chatID = newValue}
   }
   /// Returns true if `chatID` has been explicitly set.
-  public var hasChatID: Bool {self._chatID != nil}
+  public var hasChatID: Bool {return self._chatID != nil}
   /// Clears the value of `chatID`. Subsequent reads from it will return its default value.
   public mutating func clearChatID() {self._chatID = nil}
 
@@ -94,21 +94,21 @@ public struct Flipcash_Intent_V1_ChatMetadata: Sendable {
 
     /// Source phone number that is paying. This is validated to be linked to the sender.
     public var source: Flipcash_Phone_V1_PhoneNumber {
-      get {_source ?? Flipcash_Phone_V1_PhoneNumber()}
+      get {return _source ?? Flipcash_Phone_V1_PhoneNumber()}
       set {_source = newValue}
     }
     /// Returns true if `source` has been explicitly set.
-    public var hasSource: Bool {self._source != nil}
+    public var hasSource: Bool {return self._source != nil}
     /// Clears the value of `source`. Subsequent reads from it will return its default value.
     public mutating func clearSource() {self._source = nil}
 
     /// Destination phone number that is being paid. This is validated to be linked to the receiver.
     public var destination: Flipcash_Phone_V1_PhoneNumber {
-      get {_destination ?? Flipcash_Phone_V1_PhoneNumber()}
+      get {return _destination ?? Flipcash_Phone_V1_PhoneNumber()}
       set {_destination = newValue}
     }
     /// Returns true if `destination` has been explicitly set.
-    public var hasDestination: Bool {self._destination != nil}
+    public var hasDestination: Bool {return self._destination != nil}
     /// Clears the value of `destination`. Subsequent reads from it will return its default value.
     public mutating func clearDestination() {self._destination = nil}
 

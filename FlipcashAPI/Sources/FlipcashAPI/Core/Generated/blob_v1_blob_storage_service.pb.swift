@@ -26,11 +26,11 @@ public struct Flipcash_Blob_V1_GetUploadPolicyRequest: Sendable {
   // methods supported on all messages.
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {_auth ?? Flipcash_Common_V1_Auth()}
+    get {return _auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {self._auth != nil}
+  public var hasAuth: Bool {return self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
@@ -50,11 +50,11 @@ public struct Flipcash_Blob_V1_GetUploadPolicyResponse: Sendable {
 
   /// The constraints in force for the caller. Set when result == OK.
   public var policy: Flipcash_Blob_V1_UploadPolicy {
-    get {_policy ?? Flipcash_Blob_V1_UploadPolicy()}
+    get {return _policy ?? Flipcash_Blob_V1_UploadPolicy()}
     set {_policy = newValue}
   }
   /// Returns true if `policy` has been explicitly set.
-  public var hasPolicy: Bool {self._policy != nil}
+  public var hasPolicy: Bool {return self._policy != nil}
   /// Clears the value of `policy`. Subsequent reads from it will return its default value.
   public mutating func clearPolicy() {self._policy = nil}
 
@@ -105,11 +105,11 @@ public struct Flipcash_Blob_V1_InitiateExternalUploadRequest: Sendable {
   // methods supported on all messages.
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {_auth ?? Flipcash_Common_V1_Auth()}
+    get {return _auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {self._auth != nil}
+  public var hasAuth: Bool {return self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
@@ -140,21 +140,21 @@ public struct Flipcash_Blob_V1_InitiateExternalUploadResponse: Sendable {
   /// Server-assigned handle. On OK the client references this as the ORIGINAL
   /// rendition's blob_id on SendMessage.
   public var blobID: Flipcash_Blob_V1_BlobId {
-    get {_blobID ?? Flipcash_Blob_V1_BlobId()}
+    get {return _blobID ?? Flipcash_Blob_V1_BlobId()}
     set {_blobID = newValue}
   }
   /// Returns true if `blobID` has been explicitly set.
-  public var hasBlobID: Bool {self._blobID != nil}
+  public var hasBlobID: Bool {return self._blobID != nil}
   /// Clears the value of `blobID`. Subsequent reads from it will return its default value.
   public mutating func clearBlobID() {self._blobID = nil}
 
   /// Where and how to upload the bytes. Set only when result == OK.
   public var uploadTarget: Flipcash_Blob_V1_UploadTarget {
-    get {_uploadTarget ?? Flipcash_Blob_V1_UploadTarget()}
+    get {return _uploadTarget ?? Flipcash_Blob_V1_UploadTarget()}
     set {_uploadTarget = newValue}
   }
   /// Returns true if `uploadTarget` has been explicitly set.
-  public var hasUploadTarget: Bool {self._uploadTarget != nil}
+  public var hasUploadTarget: Bool {return self._uploadTarget != nil}
   /// Clears the value of `uploadTarget`. Subsequent reads from it will return its default value.
   public mutating func clearUploadTarget() {self._uploadTarget = nil}
 
@@ -162,11 +162,11 @@ public struct Flipcash_Blob_V1_InitiateExternalUploadResponse: Sendable {
   /// version in force, so the client can detect a stale cached policy and
   /// re-fetch. Unset otherwise.
   public var policyVersion: Flipcash_Blob_V1_PolicyVersion {
-    get {_policyVersion ?? Flipcash_Blob_V1_PolicyVersion()}
+    get {return _policyVersion ?? Flipcash_Blob_V1_PolicyVersion()}
     set {_policyVersion = newValue}
   }
   /// Returns true if `policyVersion` has been explicitly set.
-  public var hasPolicyVersion: Bool {self._policyVersion != nil}
+  public var hasPolicyVersion: Bool {return self._policyVersion != nil}
   /// Clears the value of `policyVersion`. Subsequent reads from it will return its default value.
   public mutating func clearPolicyVersion() {self._policyVersion = nil}
 
@@ -237,21 +237,21 @@ public struct Flipcash_Blob_V1_CompleteExternalUploadRequest: Sendable {
   // methods supported on all messages.
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {_auth ?? Flipcash_Common_V1_Auth()}
+    get {return _auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {self._auth != nil}
+  public var hasAuth: Bool {return self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
   /// The blob whose upload just finished.
   public var blobID: Flipcash_Blob_V1_BlobId {
-    get {_blobID ?? Flipcash_Blob_V1_BlobId()}
+    get {return _blobID ?? Flipcash_Blob_V1_BlobId()}
     set {_blobID = newValue}
   }
   /// Returns true if `blobID` has been explicitly set.
-  public var hasBlobID: Bool {self._blobID != nil}
+  public var hasBlobID: Bool {return self._blobID != nil}
   /// Clears the value of `blobID`. Subsequent reads from it will return its default value.
   public mutating func clearBlobID() {self._blobID = nil}
 
@@ -275,11 +275,11 @@ public struct Flipcash_Blob_V1_CompleteExternalUploadResponse: Sendable {
 
   /// Why the blob was rejected. Set only when status == REJECTED.
   public var rejectionMetadata: Flipcash_Blob_V1_RejectionMetadata {
-    get {_rejectionMetadata ?? Flipcash_Blob_V1_RejectionMetadata()}
+    get {return _rejectionMetadata ?? Flipcash_Blob_V1_RejectionMetadata()}
     set {_rejectionMetadata = newValue}
   }
   /// Returns true if `rejectionMetadata` has been explicitly set.
-  public var hasRejectionMetadata: Bool {self._rejectionMetadata != nil}
+  public var hasRejectionMetadata: Bool {return self._rejectionMetadata != nil}
   /// Clears the value of `rejectionMetadata`. Subsequent reads from it will return its default value.
   public mutating func clearRejectionMetadata() {self._rejectionMetadata = nil}
 
@@ -338,21 +338,21 @@ public struct Flipcash_Blob_V1_GetBlobsRequest: Sendable {
   // methods supported on all messages.
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {_auth ?? Flipcash_Common_V1_Auth()}
+    get {return _auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {self._auth != nil}
+  public var hasAuth: Bool {return self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
   /// The blobs to resolve.
   public var blobIds: Flipcash_Blob_V1_BlobIdBatch {
-    get {_blobIds ?? Flipcash_Blob_V1_BlobIdBatch()}
+    get {return _blobIds ?? Flipcash_Blob_V1_BlobIdBatch()}
     set {_blobIds = newValue}
   }
   /// Returns true if `blobIds` has been explicitly set.
-  public var hasBlobIds: Bool {self._blobIds != nil}
+  public var hasBlobIds: Bool {return self._blobIds != nil}
   /// Clears the value of `blobIds`. Subsequent reads from it will return its default value.
   public mutating func clearBlobIds() {self._blobIds = nil}
 
@@ -367,11 +367,11 @@ public struct Flipcash_Blob_V1_GetBlobsRequest: Sendable {
   /// unless a context that authorizes it is supplied. A caller reading only
   /// its own blobs may omit it, so existing owner-only clients are unaffected.
   public var context: Flipcash_Blob_V1_AccessContext {
-    get {_context ?? Flipcash_Blob_V1_AccessContext()}
+    get {return _context ?? Flipcash_Blob_V1_AccessContext()}
     set {_context = newValue}
   }
   /// Returns true if `context` has been explicitly set.
-  public var hasContext: Bool {self._context != nil}
+  public var hasContext: Bool {return self._context != nil}
   /// Clears the value of `context`. Subsequent reads from it will return its default value.
   public mutating func clearContext() {self._context = nil}
 
@@ -394,11 +394,11 @@ public struct Flipcash_Blob_V1_GetBlobsResponse: Sendable {
   /// The resolved blobs. Unknown or unauthorized ids are omitted; the batch
   /// is left unset (not empty) when none resolve.
   public var blobs: Flipcash_Blob_V1_BlobBatch {
-    get {_blobs ?? Flipcash_Blob_V1_BlobBatch()}
+    get {return _blobs ?? Flipcash_Blob_V1_BlobBatch()}
     set {_blobs = newValue}
   }
   /// Returns true if `blobs` has been explicitly set.
-  public var hasBlobs: Bool {self._blobs != nil}
+  public var hasBlobs: Bool {return self._blobs != nil}
   /// Clears the value of `blobs`. Subsequent reads from it will return its default value.
   public mutating func clearBlobs() {self._blobs = nil}
 

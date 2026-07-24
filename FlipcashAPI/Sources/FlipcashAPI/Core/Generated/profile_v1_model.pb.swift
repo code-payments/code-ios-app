@@ -34,22 +34,22 @@ public struct Flipcash_Profile_V1_UserProfile: Sendable {
   /// Phone number linked to this user. This is private and will only be returned
   /// when the requesting user asks for their own profile
   public var phoneNumber: Flipcash_Phone_V1_PhoneNumber {
-    get {_phoneNumber ?? Flipcash_Phone_V1_PhoneNumber()}
+    get {return _phoneNumber ?? Flipcash_Phone_V1_PhoneNumber()}
     set {_phoneNumber = newValue}
   }
   /// Returns true if `phoneNumber` has been explicitly set.
-  public var hasPhoneNumber: Bool {self._phoneNumber != nil}
+  public var hasPhoneNumber: Bool {return self._phoneNumber != nil}
   /// Clears the value of `phoneNumber`. Subsequent reads from it will return its default value.
   public mutating func clearPhoneNumber() {self._phoneNumber = nil}
 
   /// Email address linked to this user. This is private and will only be returned
   /// when the requesting user asks for their own profile
   public var emailAddress: Flipcash_Email_V1_EmailAddress {
-    get {_emailAddress ?? Flipcash_Email_V1_EmailAddress()}
+    get {return _emailAddress ?? Flipcash_Email_V1_EmailAddress()}
     set {_emailAddress = newValue}
   }
   /// Returns true if `emailAddress` has been explicitly set.
-  public var hasEmailAddress: Bool {self._emailAddress != nil}
+  public var hasEmailAddress: Bool {return self._emailAddress != nil}
   /// Clears the value of `emailAddress`. Subsequent reads from it will return its default value.
   public mutating func clearEmailAddress() {self._emailAddress = nil}
 
@@ -63,11 +63,11 @@ public struct Flipcash_Profile_V1_UserProfile: Sendable {
   /// these blobs, so a GetBlobs call must carry a blob.v1.AccessContext whose
   /// `profile` scope names this user. A caller reading its own needs none.
   public var profilePicture: Flipcash_Blob_V1_Media {
-    get {_profilePicture ?? Flipcash_Blob_V1_Media()}
+    get {return _profilePicture ?? Flipcash_Blob_V1_Media()}
     set {_profilePicture = newValue}
   }
   /// Returns true if `profilePicture` has been explicitly set.
-  public var hasProfilePicture: Bool {self._profilePicture != nil}
+  public var hasProfilePicture: Bool {return self._profilePicture != nil}
   /// Clears the value of `profilePicture`. Subsequent reads from it will return its default value.
   public mutating func clearProfilePicture() {self._profilePicture = nil}
 

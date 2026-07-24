@@ -17,6 +17,13 @@ public enum SendStatus: Sendable, Hashable {
     case failed
 }
 
+/// How a cash message was delivered. `.sent` is the wire default and the fallback for any
+/// message that predates the field or carries an unrecognized action.
+public enum CashAction: Sendable, Hashable {
+    case sent
+    case tipped
+}
+
 /// A single message within a conversation.
 public struct ConversationMessage: Identifiable, Hashable, Sendable {
 
@@ -34,6 +41,8 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
     public let id: MessageID
     public let senderID: UserID?
     public let content: Content
+    /// How a `.cash` message was delivered (sent vs. tipped); `nil` for non-cash content.
+    public let cashAction: CashAction?
     public let date: Date
     public let unreadSeq: UInt64
     /// The event-log version at which this message reached its current state,
@@ -55,6 +64,7 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
         id: MessageID,
         senderID: UserID?,
         content: Content,
+        cashAction: CashAction? = nil,
         date: Date,
         unreadSeq: UInt64,
         eventSequence: UInt64 = 0,
@@ -64,6 +74,7 @@ public struct ConversationMessage: Identifiable, Hashable, Sendable {
         self.id = id
         self.senderID = senderID
         self.content = content
+        self.cashAction = cashAction
         self.date = date
         self.unreadSeq = unreadSeq
         self.eventSequence = eventSequence
@@ -98,13 +109,17 @@ extension ConversationMessage {
         switch proto.content.first?.type {
         case .text(let textContent):
             self.content = .text(textContent.text)
+            self.cashAction = nil
         case .cash(let cashContent):
             guard let amount = try? ExchangedFiat(cashContent.amount) else {
                 return nil
             }
             self.content = .cash(amount)
+            // Unrecognized actions fall back to `.sent`, per the proto contract.
+            self.cashAction = cashContent.action == .tipped ? .tipped : .sent
         case .deleted:
             self.content = .deleted
+            self.cashAction = nil
         case .reply, .media, .system, .none:
             return nil
         }

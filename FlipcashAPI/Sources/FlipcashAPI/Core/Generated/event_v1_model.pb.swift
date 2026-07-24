@@ -40,20 +40,20 @@ public struct Flipcash_Event_V1_Event: Sendable {
   // methods supported on all messages.
 
   public var id: Flipcash_Event_V1_EventId {
-    get {_id ?? Flipcash_Event_V1_EventId()}
+    get {return _id ?? Flipcash_Event_V1_EventId()}
     set {_id = newValue}
   }
   /// Returns true if `id` has been explicitly set.
-  public var hasID: Bool {self._id != nil}
+  public var hasID: Bool {return self._id != nil}
   /// Clears the value of `id`. Subsequent reads from it will return its default value.
   public mutating func clearID() {self._id = nil}
 
   public var ts: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {_ts ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {return _ts ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_ts = newValue}
   }
   /// Returns true if `ts` has been explicitly set.
-  public var hasTs: Bool {self._ts != nil}
+  public var hasTs: Bool {return self._ts != nil}
   /// Clears the value of `ts`. Subsequent reads from it will return its default value.
   public mutating func clearTs() {self._ts = nil}
 
@@ -116,20 +116,20 @@ public struct Flipcash_Event_V1_UserEvent: Sendable {
   // methods supported on all messages.
 
   public var userID: Flipcash_Common_V1_UserId {
-    get {_userID ?? Flipcash_Common_V1_UserId()}
+    get {return _userID ?? Flipcash_Common_V1_UserId()}
     set {_userID = newValue}
   }
   /// Returns true if `userID` has been explicitly set.
-  public var hasUserID: Bool {self._userID != nil}
+  public var hasUserID: Bool {return self._userID != nil}
   /// Clears the value of `userID`. Subsequent reads from it will return its default value.
   public mutating func clearUserID() {self._userID = nil}
 
   public var event: Flipcash_Event_V1_Event {
-    get {_event ?? Flipcash_Event_V1_Event()}
+    get {return _event ?? Flipcash_Event_V1_Event()}
     set {_event = newValue}
   }
   /// Returns true if `event` has been explicitly set.
-  public var hasEvent: Bool {self._event != nil}
+  public var hasEvent: Bool {return self._event != nil}
   /// Clears the value of `event`. Subsequent reads from it will return its default value.
   public mutating func clearEvent() {self._event = nil}
 
@@ -175,21 +175,21 @@ public struct Flipcash_Event_V1_ServerPing: Sendable {
   /// Timestamp the ping was sent on the stream, for client to get a sense
   /// of potential network latency
   public var timestamp: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {_timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {return _timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_timestamp = newValue}
   }
   /// Returns true if `timestamp` has been explicitly set.
-  public var hasTimestamp: Bool {self._timestamp != nil}
+  public var hasTimestamp: Bool {return self._timestamp != nil}
   /// Clears the value of `timestamp`. Subsequent reads from it will return its default value.
   public mutating func clearTimestamp() {self._timestamp = nil}
 
   /// The delay server will apply before sending the next ping
   public var pingDelay: SwiftProtobuf.Google_Protobuf_Duration {
-    get {_pingDelay ?? SwiftProtobuf.Google_Protobuf_Duration()}
+    get {return _pingDelay ?? SwiftProtobuf.Google_Protobuf_Duration()}
     set {_pingDelay = newValue}
   }
   /// Returns true if `pingDelay` has been explicitly set.
-  public var hasPingDelay: Bool {self._pingDelay != nil}
+  public var hasPingDelay: Bool {return self._pingDelay != nil}
   /// Clears the value of `pingDelay`. Subsequent reads from it will return its default value.
   public mutating func clearPingDelay() {self._pingDelay = nil}
 
@@ -209,11 +209,11 @@ public struct Flipcash_Event_V1_ClientPong: Sendable {
   /// Timestamp the Pong was sent on the stream, for server to get a sense
   /// of potential network latency
   public var timestamp: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {_timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {return _timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_timestamp = newValue}
   }
   /// Returns true if `timestamp` has been explicitly set.
-  public var hasTimestamp: Bool {self._timestamp != nil}
+  public var hasTimestamp: Bool {return self._timestamp != nil}
   /// Clears the value of `timestamp`. Subsequent reads from it will return its default value.
   public mutating func clearTimestamp() {self._timestamp = nil}
 
@@ -231,11 +231,11 @@ public struct Flipcash_Event_V1_ChatUpdate: Sendable {
 
   /// The chat that this update is for
   public var chat: Flipcash_Common_V1_ChatId {
-    get {_chat ?? Flipcash_Common_V1_ChatId()}
+    get {return _chat ?? Flipcash_Common_V1_ChatId()}
     set {_chat = newValue}
   }
   /// Returns true if `chat` has been explicitly set.
-  public var hasChat: Bool {self._chat != nil}
+  public var hasChat: Bool {return self._chat != nil}
   /// Clears the value of `chat`. Subsequent reads from it will return its default value.
   public mutating func clearChat() {self._chat = nil}
 
@@ -246,11 +246,11 @@ public struct Flipcash_Event_V1_ChatUpdate: Sendable {
   ///
   /// NOTE: This field was marked as deprecated in the .proto file.
   public var newMessages: Flipcash_Messaging_V1_MessageBatch {
-    get {_newMessages ?? Flipcash_Messaging_V1_MessageBatch()}
+    get {return _newMessages ?? Flipcash_Messaging_V1_MessageBatch()}
     set {_newMessages = newValue}
   }
   /// Returns true if `newMessages` has been explicitly set.
-  public var hasNewMessages: Bool {self._newMessages != nil}
+  public var hasNewMessages: Bool {return self._newMessages != nil}
   /// Clears the value of `newMessages`. Subsequent reads from it will return its default value.
   public mutating func clearNewMessages() {self._newMessages = nil}
 
@@ -259,22 +259,22 @@ public struct Flipcash_Event_V1_ChatUpdate: Sendable {
   /// best-effort overlay and are reconciled from current state on reconnect —
   /// they are intentionally NOT part of the gap-detected event log.
   public var pointerUpdates: Flipcash_Messaging_V1_PointerBatch {
-    get {_pointerUpdates ?? Flipcash_Messaging_V1_PointerBatch()}
+    get {return _pointerUpdates ?? Flipcash_Messaging_V1_PointerBatch()}
     set {_pointerUpdates = newValue}
   }
   /// Returns true if `pointerUpdates` has been explicitly set.
-  public var hasPointerUpdates: Bool {self._pointerUpdates != nil}
+  public var hasPointerUpdates: Bool {return self._pointerUpdates != nil}
   /// Clears the value of `pointerUpdates`. Subsequent reads from it will return its default value.
   public mutating func clearPointerUpdates() {self._pointerUpdates = nil}
 
   /// If present, message typing notification state changes for members in the
   /// chat. Transient and best-effort — not part of the event log.
   public var isTypingNotifications: Flipcash_Messaging_V1_IsTypingNotificationBatch {
-    get {_isTypingNotifications ?? Flipcash_Messaging_V1_IsTypingNotificationBatch()}
+    get {return _isTypingNotifications ?? Flipcash_Messaging_V1_IsTypingNotificationBatch()}
     set {_isTypingNotifications = newValue}
   }
   /// Returns true if `isTypingNotifications` has been explicitly set.
-  public var hasIsTypingNotifications: Bool {self._isTypingNotifications != nil}
+  public var hasIsTypingNotifications: Bool {return self._isTypingNotifications != nil}
   /// Clears the value of `isTypingNotifications`. Subsequent reads from it will return its default value.
   public mutating func clearIsTypingNotifications() {self._isTypingNotifications = nil}
 
@@ -286,11 +286,11 @@ public struct Flipcash_Event_V1_ChatUpdate: Sendable {
   /// ascending Event.sequence and gap-detect via Event.sequence/count, catching
   /// up with Messaging.GetDelta on a gap. This supersedes new_messages.
   public var events: Flipcash_Messaging_V1_EventBatch {
-    get {_events ?? Flipcash_Messaging_V1_EventBatch()}
+    get {return _events ?? Flipcash_Messaging_V1_EventBatch()}
     set {_events = newValue}
   }
   /// Returns true if `events` has been explicitly set.
-  public var hasEvents: Bool {self._events != nil}
+  public var hasEvents: Bool {return self._events != nil}
   /// Clears the value of `events`. Subsequent reads from it will return its default value.
   public mutating func clearEvents() {self._events = nil}
 
@@ -300,11 +300,11 @@ public struct Flipcash_Event_V1_ChatUpdate: Sendable {
   /// ReactionUpdate.sequence and reconcile any misses by refreshing a message's
   /// ReactionSummary on view.
   public var reactionUpdates: Flipcash_Messaging_V1_ReactionUpdateBatch {
-    get {_reactionUpdates ?? Flipcash_Messaging_V1_ReactionUpdateBatch()}
+    get {return _reactionUpdates ?? Flipcash_Messaging_V1_ReactionUpdateBatch()}
     set {_reactionUpdates = newValue}
   }
   /// Returns true if `reactionUpdates` has been explicitly set.
-  public var hasReactionUpdates: Bool {self._reactionUpdates != nil}
+  public var hasReactionUpdates: Bool {return self._reactionUpdates != nil}
   /// Clears the value of `reactionUpdates`. Subsequent reads from it will return its default value.
   public mutating func clearReactionUpdates() {self._reactionUpdates = nil}
 
@@ -337,11 +337,11 @@ public struct Flipcash_Event_V1_BlobUpdate: Sendable {
   /// The blobs that transitioned, each carrying its new status and, when READY,
   /// its resolved metadata (including a freshly minted download_url).
   public var blobs: Flipcash_Blob_V1_BlobBatch {
-    get {_blobs ?? Flipcash_Blob_V1_BlobBatch()}
+    get {return _blobs ?? Flipcash_Blob_V1_BlobBatch()}
     set {_blobs = newValue}
   }
   /// Returns true if `blobs` has been explicitly set.
-  public var hasBlobs: Bool {self._blobs != nil}
+  public var hasBlobs: Bool {return self._blobs != nil}
   /// Clears the value of `blobs`. Subsequent reads from it will return its default value.
   public mutating func clearBlobs() {self._blobs = nil}
 

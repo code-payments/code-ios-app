@@ -27,30 +27,30 @@ public struct Flipcash_Settings_V1_UpdateSettingsRequest: Sendable {
 
   /// Locale setting, only updated if present
   public var locale: Flipcash_Common_V1_Locale {
-    get {_locale ?? Flipcash_Common_V1_Locale()}
+    get {return _locale ?? Flipcash_Common_V1_Locale()}
     set {_locale = newValue}
   }
   /// Returns true if `locale` has been explicitly set.
-  public var hasLocale: Bool {self._locale != nil}
+  public var hasLocale: Bool {return self._locale != nil}
   /// Clears the value of `locale`. Subsequent reads from it will return its default value.
   public mutating func clearLocale() {self._locale = nil}
 
   /// Region setting, only updated if present
   public var region: Flipcash_Common_V1_Region {
-    get {_region ?? Flipcash_Common_V1_Region()}
+    get {return _region ?? Flipcash_Common_V1_Region()}
     set {_region = newValue}
   }
   /// Returns true if `region` has been explicitly set.
-  public var hasRegion: Bool {self._region != nil}
+  public var hasRegion: Bool {return self._region != nil}
   /// Clears the value of `region`. Subsequent reads from it will return its default value.
   public mutating func clearRegion() {self._region = nil}
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {_auth ?? Flipcash_Common_V1_Auth()}
+    get {return _auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {self._auth != nil}
+  public var hasAuth: Bool {return self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 

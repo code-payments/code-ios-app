@@ -15,13 +15,13 @@ import GRPCProtobuf
 
 /// Namespace containing generated types for the "flipcash.resolver.v1.Resolver" service.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public enum Flipcash_Resolver_V1_Resolver: Sendable {
+public enum Flipcash_Resolver_V1_Resolver {
     /// Service descriptor for the "flipcash.resolver.v1.Resolver" service.
     public static let descriptor = GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.resolver.v1.Resolver")
     /// Namespace for method metadata.
-    public enum Method: Sendable {
+    public enum Method {
         /// Namespace for "Resolve" metadata.
-        public enum Resolve: Sendable {
+        public enum Resolve {
             /// Request type for "Resolve".
             public typealias Input = Flipcash_Resolver_V1_ResolveRequest
             /// Response type for "Resolve".
@@ -29,8 +29,7 @@ public enum Flipcash_Resolver_V1_Resolver: Sendable {
             /// Descriptor for "Resolve".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.resolver.v1.Resolver"),
-                method: "Resolve",
-                type: .unary
+                method: "Resolve"
             )
         }
         /// Descriptors for all methods in the "flipcash.resolver.v1.Resolver" service.

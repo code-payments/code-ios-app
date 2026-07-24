@@ -30,11 +30,11 @@ public struct Flipcash_Moderation_V1_ModerateTextRequest: Sendable {
   public var text: String = String()
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {_auth ?? Flipcash_Common_V1_Auth()}
+    get {return _auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {self._auth != nil}
+  public var hasAuth: Bool {return self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
@@ -57,11 +57,11 @@ public struct Flipcash_Moderation_V1_ModerateTextResponse: Sendable {
 
   /// Signed attestation of the moderation result when content is allowed
   public var attestation: Flipcash_Moderation_V1_ModerationAttestation {
-    get {_attestation ?? Flipcash_Moderation_V1_ModerationAttestation()}
+    get {return _attestation ?? Flipcash_Moderation_V1_ModerationAttestation()}
     set {_attestation = newValue}
   }
   /// Returns true if `attestation` has been explicitly set.
-  public var hasAttestation: Bool {self._attestation != nil}
+  public var hasAttestation: Bool {return self._attestation != nil}
   /// Clears the value of `attestation`. Subsequent reads from it will return its default value.
   public mutating func clearAttestation() {self._attestation = nil}
 
@@ -122,11 +122,11 @@ public struct Flipcash_Moderation_V1_ModerateImageRequest: Sendable {
   public var imageData: Data = Data()
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {_auth ?? Flipcash_Common_V1_Auth()}
+    get {return _auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {self._auth != nil}
+  public var hasAuth: Bool {return self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
@@ -149,11 +149,11 @@ public struct Flipcash_Moderation_V1_ModerateImageResponse: Sendable {
 
   /// Signed attestation of the moderation result when content is allowed
   public var attestation: Flipcash_Moderation_V1_ModerationAttestation {
-    get {_attestation ?? Flipcash_Moderation_V1_ModerationAttestation()}
+    get {return _attestation ?? Flipcash_Moderation_V1_ModerationAttestation()}
     set {_attestation = newValue}
   }
   /// Returns true if `attestation` has been explicitly set.
-  public var hasAttestation: Bool {self._attestation != nil}
+  public var hasAttestation: Bool {return self._attestation != nil}
   /// Clears the value of `attestation`. Subsequent reads from it will return its default value.
   public mutating func clearAttestation() {self._attestation = nil}
 

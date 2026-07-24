@@ -15,13 +15,13 @@ import GRPCProtobuf
 
 /// Namespace containing generated types for the "flipcash.push.v1.Push" service.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public enum Flipcash_Push_V1_Push: Sendable {
+public enum Flipcash_Push_V1_Push {
     /// Service descriptor for the "flipcash.push.v1.Push" service.
     public static let descriptor = GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.push.v1.Push")
     /// Namespace for method metadata.
-    public enum Method: Sendable {
+    public enum Method {
         /// Namespace for "AddToken" metadata.
-        public enum AddToken: Sendable {
+        public enum AddToken {
             /// Request type for "AddToken".
             public typealias Input = Flipcash_Push_V1_AddTokenRequest
             /// Response type for "AddToken".
@@ -29,12 +29,11 @@ public enum Flipcash_Push_V1_Push: Sendable {
             /// Descriptor for "AddToken".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.push.v1.Push"),
-                method: "AddToken",
-                type: .unary
+                method: "AddToken"
             )
         }
         /// Namespace for "DeleteTokens" metadata.
-        public enum DeleteTokens: Sendable {
+        public enum DeleteTokens {
             /// Request type for "DeleteTokens".
             public typealias Input = Flipcash_Push_V1_DeleteTokensRequest
             /// Response type for "DeleteTokens".
@@ -42,8 +41,7 @@ public enum Flipcash_Push_V1_Push: Sendable {
             /// Descriptor for "DeleteTokens".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.push.v1.Push"),
-                method: "DeleteTokens",
-                type: .unary
+                method: "DeleteTokens"
             )
         }
         /// Descriptors for all methods in the "flipcash.push.v1.Push" service.
