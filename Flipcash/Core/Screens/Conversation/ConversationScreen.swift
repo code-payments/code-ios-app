@@ -397,7 +397,7 @@ struct ConversationScreen: View {
                 avatarID: counterpart?.userID?.uuidString ?? conversationID.description,
                 imageData: tipAvatars.data(for: counterpart?.userID),
                 blurhash: counterpart?.profilePicture?.thumbnailBlurhash,
-                counterpart: .tipcode
+                counterpart: .tipcard
             )
         }
         if let contact = context.resolvedContact(in: directory) {

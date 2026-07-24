@@ -58,7 +58,7 @@ private struct ProfileCardView: View {
             case .contact, .unknown:
                 ContactActionPill(counterpart: card.counterpart, action: onContactAction)
                     .padding(.top, 16)
-            case .tipcode:
+            case .tipcard:
                 EmptyView()
             }
         }
@@ -91,10 +91,10 @@ private struct ProfileCardSubtitle: View {
         case .unknown:
             Text("Unknown Contact")
                 .foregroundStyle(Color.warning)
-        case .tipcode:
+        case .tipcard:
             HStack(spacing: 6) {
                 Image.asset(.kikCode)
-                Text("via Tipcode")
+                Text("via Tip Card")
             }
             .pill()
         }
@@ -126,7 +126,7 @@ private struct ProfileCardSubtitle: View {
                 name: "Raul",
                 avatarID: "raul",
                 imageData: nil,
-                counterpart: .tipcode
+                counterpart: .tipcard
             ),
             onContactAction: {}
         )
