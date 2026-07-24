@@ -512,13 +512,15 @@ extension ChatMessage {
             "👍", "See you then.",
         ]
         let senders: [Sender] = (0..<count).map { $0 % 3 == 0 ? .other : .me }
-        return (0..<count).map { i in
-            ChatMessage(
+        return (0..<count).map { (i: Int) -> ChatMessage in
+            let isContinuation = i > 0 && senders[i - 1] == senders[i]
+            let isContinued = i < count - 1 && senders[i + 1] == senders[i]
+            return ChatMessage(
                 id: "msg-\(i)",
                 text: texts[i % texts.count],
                 sender: senders[i],
-                isContinuationFromPrevious: i > 0 && senders[i - 1] == senders[i],
-                isContinuedByNext: i < count - 1 && senders[i + 1] == senders[i]
+                isContinuationFromPrevious: isContinuation,
+                isContinuedByNext: isContinued
             )
         }
     }
