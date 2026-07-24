@@ -18,9 +18,13 @@ private struct DialogItemModifier: ViewModifier {
     let item: Binding<DialogItem?>
     @Environment(AppRouter.self) private var router: AppRouter?
 
+    /// Captured while the dialog is up so its `onDismiss` still fires when the
+    /// scrim tap clears the binding before `onDismiss` runs.
+    @State private var pendingDismiss: (() -> Void)?
+
     func body(content: Content) -> some View {
         content
-            .sheet(item: item) { presented in
+            .sheet(item: item, onDismiss: runPendingDismiss) { presented in
                 PartialSheet(background: presented.style.backgroundColor, canDismiss: presented.dismissable) {
                     Dialog(
                         style: presented.style,
@@ -30,6 +34,7 @@ private struct DialogItemModifier: ViewModifier {
                         actions: presented.actions
                     )
                     .onAppear {
+                        pendingDismiss = presented.onDismiss
                         guard presented.tracked,
                               let title = presented.title,
                               let subtitle = presented.subtitle else { return }
@@ -46,5 +51,10 @@ private struct DialogItemModifier: ViewModifier {
 
     private func dismiss() {
         item.wrappedValue = nil
+    }
+
+    private func runPendingDismiss() {
+        pendingDismiss?()
+        pendingDismiss = nil
     }
 }
