@@ -22,6 +22,10 @@ struct TipcardView: View {
     let avatar: UIImage?
     let codeData: Data
 
+    /// Opacity of the black tint over the frosted backdrop, so callers can tune
+    /// contrast against different surfaces (share sheet vs. live camera).
+    var tintOpacity: Double = 0.72
+
     var body: some View {
         VStack(spacing: 0) {
             CodeView(data: codeData)
@@ -46,7 +50,7 @@ struct TipcardView: View {
             .padding(.top, size.height * 0.06)
         }
         .frame(width: size.width, height: size.height)
-        .background(Color(white: 0.11))
+        .background(Color.black.opacity(tintOpacity).background(BackdropBlur(radius: 20)))
         .clipShape(RoundedRectangle(cornerRadius: size.width * 0.08, style: .continuous))
     }
 
