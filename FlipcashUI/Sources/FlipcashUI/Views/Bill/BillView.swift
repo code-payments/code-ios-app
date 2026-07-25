@@ -293,7 +293,7 @@ struct LineView: View {
 
 // MARK: - BillClipShape -
 
-private struct BillClipShape: Shape {
+private nonisolated struct BillClipShape: Shape {
     
     let codeWidth: CGFloat
     let codePadding: CGFloat

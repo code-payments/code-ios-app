@@ -46,7 +46,7 @@ public struct CodeView: View {
 
 // MARK: - Code Shape -
 
-struct CodeShape: Shape {
+nonisolated struct CodeShape: Shape {
     
     var data: Data
     

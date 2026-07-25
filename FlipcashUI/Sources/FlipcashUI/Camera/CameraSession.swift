@@ -236,7 +236,10 @@ public final class CameraSession<T>: AnyCameraSession, @unchecked Sendable where
     /// extractor work runs off-main; the result is hopped to the main queue
     /// before publishing to subscribers.
     private nonisolated func receiveSampleBuffer(output: AVCaptureOutput, sampleBuffer: CMSampleBuffer, connection: AVCaptureConnection) {
-        let extracted = extractor.extract(output: output, sampleBuffer: sampleBuffer, connection: connection)
+        // SAFETY: `T.Output` has no Sendable constraint, but the extracted value
+        // is produced here on `videoDelegate.queue` and consumed exactly once on
+        // the main queue — there is no shared reference, so the hop is sound.
+        nonisolated(unsafe) let extracted = extractor.extract(output: output, sampleBuffer: sampleBuffer, connection: connection)
         let extraction = self.extraction
         DispatchQueue.main.async {
             extraction.send(extracted)

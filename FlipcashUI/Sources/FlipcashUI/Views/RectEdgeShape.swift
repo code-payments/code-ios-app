@@ -8,7 +8,7 @@
 
 import SwiftUI
 
-public struct RectEdgeShape: Shape, InsettableShape {
+nonisolated public struct RectEdgeShape: Shape, InsettableShape {
 
     public var edge: UIRectEdge
     public var insets: CGFloat
