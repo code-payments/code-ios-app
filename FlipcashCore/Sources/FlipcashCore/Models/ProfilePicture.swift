@@ -24,9 +24,14 @@ public struct ProfilePicture: Codable, Hashable, Sendable {
     /// The blob holding the avatar-sized rendition.
     public let thumbnailBlobID: BlobID
 
-    public init(blobID: BlobID, thumbnailBlobID: BlobID) {
-        self.blobID          = blobID
-        self.thumbnailBlobID = thumbnailBlobID
+    /// The thumbnail rendition's BlurHash, a compact blurred preview shown while
+    /// the bytes download. Nil when the server carried none.
+    public let thumbnailBlurhash: String?
+
+    public init(blobID: BlobID, thumbnailBlobID: BlobID, thumbnailBlurhash: String? = nil) {
+        self.blobID            = blobID
+        self.thumbnailBlobID   = thumbnailBlobID
+        self.thumbnailBlurhash = thumbnailBlurhash
     }
 }
 
@@ -44,7 +49,8 @@ extension ProfilePicture {
 
         self.init(
             blobID: blobID,
-            thumbnailBlobID: try container.decodeIfPresent(BlobID.self, forKey: .thumbnailBlobID) ?? blobID
+            thumbnailBlobID: try container.decodeIfPresent(BlobID.self, forKey: .thumbnailBlobID) ?? blobID,
+            thumbnailBlurhash: try container.decodeIfPresent(String.self, forKey: .thumbnailBlurhash)
         )
     }
 }
@@ -68,7 +74,8 @@ extension ProfilePicture {
 
         self.init(
             blobID: BlobID(data: original.blobID.value),
-            thumbnailBlobID: BlobID(data: thumbnail.blobID.value)
+            thumbnailBlobID: BlobID(data: thumbnail.blobID.value),
+            thumbnailBlurhash: thumbnail.blurhash
         )
     }
 }
@@ -86,5 +93,11 @@ private extension Flipcash_Blob_V1_Rendition {
 
     var pixelWidth: UInt32 {
         hasBlob ? blob.image.width : 0
+    }
+
+    /// The rendition's BlurHash preview, or nil when the blob carries none.
+    var blurhash: String? {
+        guard hasBlob, !blob.image.blurhash.isEmpty else { return nil }
+        return blob.image.blurhash
     }
 }

@@ -300,7 +300,8 @@ nonisolated extension Database {
                     m.readPointer           <- member.readPointer?.value,
                     m.readPointerTimestamp  <- member.readPointerTimestamp?.timeIntervalSinceReferenceDate,
                     m.profilePictureBlobID          <- member.profilePicture?.blobID.data,
-                    m.profilePictureThumbnailBlobID <- member.profilePicture?.thumbnailBlobID.data
+                    m.profilePictureThumbnailBlobID <- member.profilePicture?.thumbnailBlobID.data,
+                    m.profilePictureThumbnailBlurhash <- member.profilePicture?.thumbnailBlurhash
                 )
             )
         }
@@ -393,7 +394,8 @@ nonisolated extension Database {
         }
         return ProfilePicture(
             blobID: BlobID(data: blobID),
-            thumbnailBlobID: BlobID(data: thumbnailBlobID)
+            thumbnailBlobID: BlobID(data: thumbnailBlobID),
+            thumbnailBlurhash: row[m.profilePictureThumbnailBlurhash]
         )
     }
 

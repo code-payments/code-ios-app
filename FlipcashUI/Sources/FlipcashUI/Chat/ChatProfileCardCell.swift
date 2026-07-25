@@ -39,6 +39,7 @@ private struct ProfileCardView: View {
                 id: card.avatarID,
                 displayName: card.name,
                 imageData: card.imageData,
+                blurhash: card.blurhash,
                 size: 80
             )
             .accessibilityHidden(true)

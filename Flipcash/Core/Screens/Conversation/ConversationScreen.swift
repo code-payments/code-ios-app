@@ -184,6 +184,7 @@ struct ConversationScreen: View {
                     contact: contact,
                     conversationID: conversationID,
                     imageData: contact?.imageData ?? sessionContainer.tipAvatars.data(for: tipCounterpart?.userID),
+                    blurhash: tipCounterpart?.profilePicture?.thumbnailBlurhash,
                     width: max(navBarWidth - Self.titleSideInset * 2, 0),
                     onTap: titleTapAction
                 )
@@ -395,6 +396,7 @@ struct ConversationScreen: View {
                 name: controller.displayName(for: conversation),
                 avatarID: counterpart?.userID?.uuidString ?? conversationID.description,
                 imageData: tipAvatars.data(for: counterpart?.userID),
+                blurhash: counterpart?.profilePicture?.thumbnailBlurhash,
                 counterpart: .tipcode
             )
         }
@@ -456,6 +458,7 @@ private struct ConversationTitleItem: View {
     let contact: ResolvedContact?
     let conversationID: ConversationID?
     let imageData: Data?
+    let blurhash: String?
     let width: CGFloat
     let onTap: (() -> Void)?
 
@@ -465,6 +468,7 @@ private struct ConversationTitleItem: View {
             contact: contact,
             conversationID: conversationID,
             imageData: imageData,
+            blurhash: blurhash,
             width: width
         )
         if let onTap {
@@ -484,6 +488,7 @@ private struct ConversationTitleLabel: View {
     let contact: ResolvedContact?
     let conversationID: ConversationID?
     let imageData: Data?
+    let blurhash: String?
     let width: CGFloat
 
     var body: some View {
@@ -492,6 +497,7 @@ private struct ConversationTitleLabel: View {
                 id: contact?.contactId ?? conversationID?.description ?? title,
                 displayName: title,
                 imageData: imageData,
+                blurhash: blurhash,
                 size: 44
             )
             .accessibilityHidden(true)

@@ -71,6 +71,60 @@ struct ProfilePictureTests {
         #expect(ProfilePicture(Flipcash_Blob_V1_Media()) == nil)
     }
 
+    /// The BlurHash is read off the same rendition chosen as the thumbnail — the
+    /// largest one — so the preview matches the bytes that will load.
+    @Test("Carries the selected thumbnail's BlurHash")
+    func carriesSelectedThumbnailBlurhash() throws {
+        let media = Self.media([
+            (role: .original,  id: 1, width: 1600, blurhash: ""),
+            (role: .thumbnail, id: 2, width: 64,   blurhash: "small"),
+            (role: .thumbnail, id: 3, width: 320,  blurhash: "large"),
+        ])
+
+        let picture = try #require(ProfilePicture(media))
+
+        #expect(picture.thumbnailBlobID == Self.blobID(3))
+        #expect(picture.thumbnailBlurhash == "large")
+    }
+
+    /// Legacy or still-processing media may carry no BlurHash; the empty proto
+    /// default maps to nil rather than an empty string.
+    @Test("BlurHash is nil when the thumbnail carries none")
+    func nilBlurhashWhenAbsent() throws {
+        let media = Self.media([
+            (role: .original,  id: 1, width: 1600, blurhash: ""),
+            (role: .thumbnail, id: 2, width: 320,  blurhash: ""),
+        ])
+
+        let picture = try #require(ProfilePicture(media))
+
+        #expect(picture.thumbnailBlurhash == nil)
+    }
+
+    /// A row written by a build that predates the field must still decode — the
+    /// missing key maps to nil, not a throw.
+    @Test("Decodes a JSON blob written before the BlurHash field existed")
+    func decodesLegacyJSONWithoutBlurhash() throws {
+        let picture = ProfilePicture(
+            blobID: Self.blobID(1),
+            thumbnailBlobID: Self.blobID(2),
+            thumbnailBlurhash: "abc"
+        )
+
+        // Strip the field to simulate a row from an earlier schema.
+        let encoded = try JSONEncoder().encode(picture)
+        var object = try #require(
+            try JSONSerialization.jsonObject(with: encoded) as? [String: Any]
+        )
+        object.removeValue(forKey: "thumbnailBlurhash")
+        let stripped = try JSONSerialization.data(withJSONObject: object)
+
+        let decoded = try JSONDecoder().decode(ProfilePicture.self, from: stripped)
+
+        #expect(decoded.thumbnailBlobID == Self.blobID(2))
+        #expect(decoded.thumbnailBlurhash == nil)
+    }
+
     // MARK: - Fixtures -
 
     private static func blobID(_ seed: UInt8) -> BlobID {
@@ -88,6 +142,26 @@ struct ProfilePictureTests {
                     $0.blob   = .with { metadata in
                         metadata.mimeType = "image/jpeg"
                         metadata.image = .with { $0.width = rendition.width }
+                    }
+                }
+            }
+        }
+    }
+
+    private static func media(
+        _ renditions: [(role: Flipcash_Blob_V1_Rendition.Role, id: UInt8, width: UInt32, blurhash: String)]
+    ) -> Flipcash_Blob_V1_Media {
+        Flipcash_Blob_V1_Media.with { media in
+            media.renditions = renditions.map { rendition in
+                Flipcash_Blob_V1_Rendition.with {
+                    $0.role   = rendition.role
+                    $0.blobID = .with { $0.value = blobID(rendition.id).data }
+                    $0.blob   = .with { metadata in
+                        metadata.mimeType = "image/jpeg"
+                        metadata.image = .with {
+                            $0.width = rendition.width
+                            $0.blurhash = rendition.blurhash
+                        }
                     }
                 }
             }

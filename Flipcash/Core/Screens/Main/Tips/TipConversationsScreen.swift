@@ -67,6 +67,7 @@ private struct TipConversationRow: View {
             title: title,
             subtitle: subtitle,
             imageData: sessionContainer.tipAvatars.data(for: counterpart?.userID),
+            blurhash: counterpart?.profilePicture?.thumbnailBlurhash,
             accessoryPlacement: .titleLine,
             accessibilityLabel: hasUnread ? "\(title), unread messages" : title,
             onTap: onTap
