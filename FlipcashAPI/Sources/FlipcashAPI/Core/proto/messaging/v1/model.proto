@@ -125,6 +125,14 @@ message CashContent {
 
     // Reserved for receiver, which will is required for group chats
     reserved 3;
+
+    // Action for how the cash was sent. Clietns should always show SENT as a
+    // fallback.
+    enum Action {
+        SENT   = 0;
+        TIPPED = 1;
+    }
+    Action action = 4;
 }
 
 // Reply content

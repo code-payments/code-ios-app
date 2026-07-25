@@ -1,0 +1,116 @@
+syntax = "proto3";
+
+package flipcash.blocklist.v1;
+
+import "blocklist/v1/model.proto";
+import "common/v1/common.proto";
+import "validate/validate.proto";
+
+option go_package = "github.com/code-payments/flipcash2-protobuf-api/generated/go/blocklist/v1;blocklistpb";
+option java_package = "com.codeinc.flipcash.gen.blocklist.v1";
+option objc_class_prefix = "FPBBlocklistV1";
+
+// Blocklist manages the set of users a user has blocked.
+service Blocklist {
+    // BlockUser adds a user to the caller's blocklist. Blocking a user that
+    // is already blocked is a no-op and returns OK.
+    rpc BlockUser(BlockUserRequest) returns (BlockUserResponse);
+
+    // UnblockUser removes a user from the caller's blocklist. Unblocking a
+    // user that isn't blocked is a no-op and returns OK.
+    rpc UnblockUser(UnblockUserRequest) returns (UnblockUserResponse);
+
+    // IsBlocked checks whether a user is on the caller's blocklist.
+    rpc IsBlocked(IsBlockedRequest) returns (IsBlockedResponse);
+
+    // GetBlocklist gets the caller's blocklist using a paged API, ordered by
+    // most recently blocked first.
+    rpc GetBlocklist(GetBlocklistRequest) returns (GetBlocklistResponse);
+}
+
+message BlockUserRequest {
+    // The user to block
+    common.v1.UserId user_id = 1 [(validate.rules).message.required = true];
+
+    common.v1.Auth auth = 10 [(validate.rules).message.required = true];
+}
+
+message BlockUserResponse {
+    Result result = 1;
+    enum Result {
+        OK                = 0;
+        DENIED            = 1;
+        // The user to block doesn't exist
+        USER_NOT_FOUND    = 2;
+        // Users cannot block themselves
+        CANNOT_BLOCK_SELF = 3;
+    }
+}
+
+message UnblockUserRequest {
+    // The user to unblock
+    common.v1.UserId user_id = 1 [(validate.rules).message.required = true];
+
+    common.v1.Auth auth = 10 [(validate.rules).message.required = true];
+}
+
+message UnblockUserResponse {
+    Result result = 1;
+    enum Result {
+        OK     = 0;
+        DENIED = 1;
+    }
+}
+
+message IsBlockedRequest {
+    // The user to check against the caller's blocklist
+    common.v1.UserId user_id = 1 [(validate.rules).message.required = true];
+
+    common.v1.Auth auth = 10 [(validate.rules).message.required = true];
+}
+
+message IsBlockedResponse {
+    Result result = 1;
+    enum Result {
+        OK     = 0;
+        DENIED = 1;
+    }
+
+    // Whether the user is on the caller's blocklist. Set when result is OK.
+    bool is_blocked = 2;
+}
+
+message GetBlocklistRequest {
+    // QueryOptions controls page_size. Ordering is fixed to most recently
+    // blocked first and is not client-selectable.
+    //
+    // Leave query_options.paging_token unset on the first request. On every
+    // subsequent request, set query_options.paging_token to the paging_token
+    // from the most recent response to advance to the next page. The token is
+    // opaque and server-generated; do not construct it.
+    common.v1.QueryOptions query_options = 1;
+
+    common.v1.Auth auth = 10 [(validate.rules).message.required = true];
+}
+
+message GetBlocklistResponse {
+    Result result = 1;
+    enum Result {
+        OK     = 0;
+        DENIED = 1;
+    }
+
+    repeated BlockedUser blocked_users = 2 [(validate.rules).repeated = {
+        min_items: 0
+        max_items: 100
+    }];
+
+    // PagingToken is the server-generated cursor for this paginated read. The
+    // client MUST send the most recent value back in query_options.paging_token
+    // on the next GetBlocklistRequest. Set when result is OK.
+    common.v1.PagingToken paging_token = 3;
+
+    // HasMore indicates whether further pages remain. When true, the client
+    // should issue another GetBlocklistRequest with the returned paging_token.
+    bool has_more = 4;
+}

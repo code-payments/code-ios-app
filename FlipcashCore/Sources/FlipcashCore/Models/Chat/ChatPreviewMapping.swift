@@ -74,7 +74,8 @@ extension ChatItem {
                     amount: fiat.nativeAmount.formatted(),
                     token: branding?.name ?? "",
                     flagImageName: currency.region?.rawValue ?? currency.rawValue.uppercased(),
-                    iconURL: branding?.iconURL
+                    iconURL: branding?.iconURL,
+                    isTip: message.cashAction == .tipped
                 ))
             case .deleted:
                 continue // filtered out above; unreachable, kept for switch exhaustiveness

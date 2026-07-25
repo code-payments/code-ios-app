@@ -15,13 +15,13 @@ import GRPCProtobuf
 
 /// Namespace containing generated types for the "ocp.messaging.v1.Messaging" service.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public enum Ocp_Messaging_V1_Messaging: Sendable {
+public enum Ocp_Messaging_V1_Messaging {
     /// Service descriptor for the "ocp.messaging.v1.Messaging" service.
     public static let descriptor = GRPCCore.ServiceDescriptor(fullyQualifiedService: "ocp.messaging.v1.Messaging")
     /// Namespace for method metadata.
-    public enum Method: Sendable {
+    public enum Method {
         /// Namespace for "OpenMessageStream" metadata.
-        public enum OpenMessageStream: Sendable {
+        public enum OpenMessageStream {
             /// Request type for "OpenMessageStream".
             public typealias Input = Ocp_Messaging_V1_OpenMessageStreamRequest
             /// Response type for "OpenMessageStream".
@@ -29,12 +29,11 @@ public enum Ocp_Messaging_V1_Messaging: Sendable {
             /// Descriptor for "OpenMessageStream".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "ocp.messaging.v1.Messaging"),
-                method: "OpenMessageStream",
-                type: .serverStreaming
+                method: "OpenMessageStream"
             )
         }
         /// Namespace for "OpenMessageStreamWithKeepAlive" metadata.
-        public enum OpenMessageStreamWithKeepAlive: Sendable {
+        public enum OpenMessageStreamWithKeepAlive {
             /// Request type for "OpenMessageStreamWithKeepAlive".
             public typealias Input = Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveRequest
             /// Response type for "OpenMessageStreamWithKeepAlive".
@@ -42,12 +41,11 @@ public enum Ocp_Messaging_V1_Messaging: Sendable {
             /// Descriptor for "OpenMessageStreamWithKeepAlive".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "ocp.messaging.v1.Messaging"),
-                method: "OpenMessageStreamWithKeepAlive",
-                type: .bidirectionalStreaming
+                method: "OpenMessageStreamWithKeepAlive"
             )
         }
         /// Namespace for "PollMessages" metadata.
-        public enum PollMessages: Sendable {
+        public enum PollMessages {
             /// Request type for "PollMessages".
             public typealias Input = Ocp_Messaging_V1_PollMessagesRequest
             /// Response type for "PollMessages".
@@ -55,12 +53,11 @@ public enum Ocp_Messaging_V1_Messaging: Sendable {
             /// Descriptor for "PollMessages".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "ocp.messaging.v1.Messaging"),
-                method: "PollMessages",
-                type: .unary
+                method: "PollMessages"
             )
         }
         /// Namespace for "AckMessages" metadata.
-        public enum AckMessages: Sendable {
+        public enum AckMessages {
             /// Request type for "AckMessages".
             public typealias Input = Ocp_Messaging_V1_AckMessagesRequest
             /// Response type for "AckMessages".
@@ -68,12 +65,11 @@ public enum Ocp_Messaging_V1_Messaging: Sendable {
             /// Descriptor for "AckMessages".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "ocp.messaging.v1.Messaging"),
-                method: "AckMessages",
-                type: .unary
+                method: "AckMessages"
             )
         }
         /// Namespace for "SendMessage" metadata.
-        public enum SendMessage: Sendable {
+        public enum SendMessage {
             /// Request type for "SendMessage".
             public typealias Input = Ocp_Messaging_V1_SendMessageRequest
             /// Response type for "SendMessage".
@@ -81,8 +77,7 @@ public enum Ocp_Messaging_V1_Messaging: Sendable {
             /// Descriptor for "SendMessage".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "ocp.messaging.v1.Messaging"),
-                method: "SendMessage",
-                type: .unary
+                method: "SendMessage"
             )
         }
         /// Descriptors for all methods in the "ocp.messaging.v1.Messaging" service.

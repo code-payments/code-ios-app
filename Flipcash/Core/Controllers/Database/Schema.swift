@@ -208,6 +208,8 @@ nonisolated struct ConversationMessageTable: Sendable {
     let nativeAmount   = Expression <String?>       ("nativeAmount")
     let currency       = Expression <CurrencyCode?> ("currency")
     let mint           = Expression <PublicKey?>    ("mint")
+    // Cash delivery action (0 = sent, 1 = tipped); nil for non-cash rows.
+    let cashAction     = Expression <Int?>          ("cashAction")
     let date           = Expression <Double>        ("date")
     let unreadSeq      = Expression <UInt64>        ("unreadSeq")
     // Event-log version of this message's current state; the store applies
@@ -425,6 +427,7 @@ nonisolated extension Database {
                 t.column(conversationMessageTable.nativeAmount)
                 t.column(conversationMessageTable.currency)
                 t.column(conversationMessageTable.mint)
+                t.column(conversationMessageTable.cashAction)
                 t.column(conversationMessageTable.date)
                 t.column(conversationMessageTable.unreadSeq)
                 t.column(conversationMessageTable.eventSequence)

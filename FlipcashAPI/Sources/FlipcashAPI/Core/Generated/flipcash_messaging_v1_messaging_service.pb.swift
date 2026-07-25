@@ -26,29 +26,29 @@ public struct Flipcash_Messaging_V1_GetMessageRequest: Sendable {
   // methods supported on all messages.
 
   public var chatID: Flipcash_Common_V1_ChatId {
-    get {_chatID ?? Flipcash_Common_V1_ChatId()}
+    get {return _chatID ?? Flipcash_Common_V1_ChatId()}
     set {_chatID = newValue}
   }
   /// Returns true if `chatID` has been explicitly set.
-  public var hasChatID: Bool {self._chatID != nil}
+  public var hasChatID: Bool {return self._chatID != nil}
   /// Clears the value of `chatID`. Subsequent reads from it will return its default value.
   public mutating func clearChatID() {self._chatID = nil}
 
   public var messageID: Flipcash_Messaging_V1_MessageId {
-    get {_messageID ?? Flipcash_Messaging_V1_MessageId()}
+    get {return _messageID ?? Flipcash_Messaging_V1_MessageId()}
     set {_messageID = newValue}
   }
   /// Returns true if `messageID` has been explicitly set.
-  public var hasMessageID: Bool {self._messageID != nil}
+  public var hasMessageID: Bool {return self._messageID != nil}
   /// Clears the value of `messageID`. Subsequent reads from it will return its default value.
   public mutating func clearMessageID() {self._messageID = nil}
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {_auth ?? Flipcash_Common_V1_Auth()}
+    get {return _auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {self._auth != nil}
+  public var hasAuth: Bool {return self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
@@ -69,11 +69,11 @@ public struct Flipcash_Messaging_V1_GetMessageResponse: Sendable {
   public var result: Flipcash_Messaging_V1_GetMessageResponse.Result = .ok
 
   public var message: Flipcash_Messaging_V1_Message {
-    get {_message ?? Flipcash_Messaging_V1_Message()}
+    get {return _message ?? Flipcash_Messaging_V1_Message()}
     set {_message = newValue}
   }
   /// Returns true if `message` has been explicitly set.
-  public var hasMessage: Bool {self._message != nil}
+  public var hasMessage: Bool {return self._message != nil}
   /// Clears the value of `message`. Subsequent reads from it will return its default value.
   public mutating func clearMessage() {self._message = nil}
 
@@ -128,11 +128,11 @@ public struct Flipcash_Messaging_V1_GetMessagesRequest: Sendable {
   // methods supported on all messages.
 
   public var chatID: Flipcash_Common_V1_ChatId {
-    get {_chatID ?? Flipcash_Common_V1_ChatId()}
+    get {return _chatID ?? Flipcash_Common_V1_ChatId()}
     set {_chatID = newValue}
   }
   /// Returns true if `chatID` has been explicitly set.
-  public var hasChatID: Bool {self._chatID != nil}
+  public var hasChatID: Bool {return self._chatID != nil}
   /// Clears the value of `chatID`. Subsequent reads from it will return its default value.
   public mutating func clearChatID() {self._chatID = nil}
 
@@ -155,11 +155,11 @@ public struct Flipcash_Messaging_V1_GetMessagesRequest: Sendable {
   }
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {_auth ?? Flipcash_Common_V1_Auth()}
+    get {return _auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {self._auth != nil}
+  public var hasAuth: Bool {return self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
@@ -185,11 +185,11 @@ public struct Flipcash_Messaging_V1_GetMessagesResponse: Sendable {
   public var result: Flipcash_Messaging_V1_GetMessagesResponse.Result = .ok
 
   public var messages: Flipcash_Messaging_V1_MessageBatch {
-    get {_messages ?? Flipcash_Messaging_V1_MessageBatch()}
+    get {return _messages ?? Flipcash_Messaging_V1_MessageBatch()}
     set {_messages = newValue}
   }
   /// Returns true if `messages` has been explicitly set.
-  public var hasMessages: Bool {self._messages != nil}
+  public var hasMessages: Bool {return self._messages != nil}
   /// Clears the value of `messages`. Subsequent reads from it will return its default value.
   public mutating func clearMessages() {self._messages = nil}
 
@@ -244,11 +244,11 @@ public struct Flipcash_Messaging_V1_GetDeltaRequest: Sendable {
   // methods supported on all messages.
 
   public var chatID: Flipcash_Common_V1_ChatId {
-    get {_chatID ?? Flipcash_Common_V1_ChatId()}
+    get {return _chatID ?? Flipcash_Common_V1_ChatId()}
     set {_chatID = newValue}
   }
   /// Returns true if `chatID` has been explicitly set.
-  public var hasChatID: Bool {self._chatID != nil}
+  public var hasChatID: Bool {return self._chatID != nil}
   /// Clears the value of `chatID`. Subsequent reads from it will return its default value.
   public mutating func clearChatID() {self._chatID = nil}
 
@@ -259,11 +259,11 @@ public struct Flipcash_Messaging_V1_GetDeltaRequest: Sendable {
   public var afterSequence: UInt64 = 0
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {_auth ?? Flipcash_Common_V1_Auth()}
+    get {return _auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {self._auth != nil}
+  public var hasAuth: Bool {return self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
@@ -294,11 +294,11 @@ public struct Flipcash_Messaging_V1_GetDeltaResponse: Sendable {
   /// itself requires at least one message, so "no changes" is signaled by
   /// leaving this field unset, never by an empty batch.
   public var messages: Flipcash_Messaging_V1_MessageBatch {
-    get {_messages ?? Flipcash_Messaging_V1_MessageBatch()}
+    get {return _messages ?? Flipcash_Messaging_V1_MessageBatch()}
     set {_messages = newValue}
   }
   /// Returns true if `messages` has been explicitly set.
-  public var hasMessages: Bool {self._messages != nil}
+  public var hasMessages: Bool {return self._messages != nil}
   /// Clears the value of `messages`. Subsequent reads from it will return its default value.
   public mutating func clearMessages() {self._messages = nil}
 
@@ -374,11 +374,11 @@ public struct Flipcash_Messaging_V1_SendMessageRequest: Sendable {
   // methods supported on all messages.
 
   public var chatID: Flipcash_Common_V1_ChatId {
-    get {_chatID ?? Flipcash_Common_V1_ChatId()}
+    get {return _chatID ?? Flipcash_Common_V1_ChatId()}
     set {_chatID = newValue}
   }
   /// Returns true if `chatID` has been explicitly set.
-  public var hasChatID: Bool {self._chatID != nil}
+  public var hasChatID: Bool {return self._chatID != nil}
   /// Clears the value of `chatID`. Subsequent reads from it will return its default value.
   public mutating func clearChatID() {self._chatID = nil}
 
@@ -392,20 +392,20 @@ public struct Flipcash_Messaging_V1_SendMessageRequest: Sendable {
   /// sends and to correlate the optimistic local echo with the server-assigned
   /// message returned in the response.
   public var clientMessageID: Flipcash_Messaging_V1_ClientMessageId {
-    get {_clientMessageID ?? Flipcash_Messaging_V1_ClientMessageId()}
+    get {return _clientMessageID ?? Flipcash_Messaging_V1_ClientMessageId()}
     set {_clientMessageID = newValue}
   }
   /// Returns true if `clientMessageID` has been explicitly set.
-  public var hasClientMessageID: Bool {self._clientMessageID != nil}
+  public var hasClientMessageID: Bool {return self._clientMessageID != nil}
   /// Clears the value of `clientMessageID`. Subsequent reads from it will return its default value.
   public mutating func clearClientMessageID() {self._clientMessageID = nil}
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {_auth ?? Flipcash_Common_V1_Auth()}
+    get {return _auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {self._auth != nil}
+  public var hasAuth: Bool {return self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
@@ -428,11 +428,11 @@ public struct Flipcash_Messaging_V1_SendMessageResponse: Sendable {
   /// The chat message that was sent if the RPC was succesful, which includes
   /// server-side metadata like the generated message ID and official timestamp
   public var message: Flipcash_Messaging_V1_Message {
-    get {_message ?? Flipcash_Messaging_V1_Message()}
+    get {return _message ?? Flipcash_Messaging_V1_Message()}
     set {_message = newValue}
   }
   /// Returns true if `message` has been explicitly set.
-  public var hasMessage: Bool {self._message != nil}
+  public var hasMessage: Bool {return self._message != nil}
   /// Clears the value of `message`. Subsequent reads from it will return its default value.
   public mutating func clearMessage() {self._message = nil}
 
@@ -483,20 +483,20 @@ public struct Flipcash_Messaging_V1_EditMessageRequest: Sendable {
   // methods supported on all messages.
 
   public var chatID: Flipcash_Common_V1_ChatId {
-    get {_chatID ?? Flipcash_Common_V1_ChatId()}
+    get {return _chatID ?? Flipcash_Common_V1_ChatId()}
     set {_chatID = newValue}
   }
   /// Returns true if `chatID` has been explicitly set.
-  public var hasChatID: Bool {self._chatID != nil}
+  public var hasChatID: Bool {return self._chatID != nil}
   /// Clears the value of `chatID`. Subsequent reads from it will return its default value.
   public mutating func clearChatID() {self._chatID = nil}
 
   public var messageID: Flipcash_Messaging_V1_MessageId {
-    get {_messageID ?? Flipcash_Messaging_V1_MessageId()}
+    get {return _messageID ?? Flipcash_Messaging_V1_MessageId()}
     set {_messageID = newValue}
   }
   /// Returns true if `messageID` has been explicitly set.
-  public var hasMessageID: Bool {self._messageID != nil}
+  public var hasMessageID: Bool {return self._messageID != nil}
   /// Clears the value of `messageID`. Subsequent reads from it will return its default value.
   public mutating func clearMessageID() {self._messageID = nil}
 
@@ -515,11 +515,11 @@ public struct Flipcash_Messaging_V1_EditMessageRequest: Sendable {
   public var expectedEventSequence: UInt64 = 0
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {_auth ?? Flipcash_Common_V1_Auth()}
+    get {return _auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {self._auth != nil}
+  public var hasAuth: Bool {return self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
@@ -542,11 +542,11 @@ public struct Flipcash_Messaging_V1_EditMessageResponse: Sendable {
   /// On OK, the updated materialized message (advanced event_sequence,
   /// last_edited_ts set). On CONFLICT, the message's current state.
   public var message: Flipcash_Messaging_V1_Message {
-    get {_message ?? Flipcash_Messaging_V1_Message()}
+    get {return _message ?? Flipcash_Messaging_V1_Message()}
     set {_message = newValue}
   }
   /// Returns true if `message` has been explicitly set.
-  public var hasMessage: Bool {self._message != nil}
+  public var hasMessage: Bool {return self._message != nil}
   /// Clears the value of `message`. Subsequent reads from it will return its default value.
   public mutating func clearMessage() {self._message = nil}
 
@@ -613,20 +613,20 @@ public struct Flipcash_Messaging_V1_DeleteMessageRequest: Sendable {
   // methods supported on all messages.
 
   public var chatID: Flipcash_Common_V1_ChatId {
-    get {_chatID ?? Flipcash_Common_V1_ChatId()}
+    get {return _chatID ?? Flipcash_Common_V1_ChatId()}
     set {_chatID = newValue}
   }
   /// Returns true if `chatID` has been explicitly set.
-  public var hasChatID: Bool {self._chatID != nil}
+  public var hasChatID: Bool {return self._chatID != nil}
   /// Clears the value of `chatID`. Subsequent reads from it will return its default value.
   public mutating func clearChatID() {self._chatID = nil}
 
   public var messageID: Flipcash_Messaging_V1_MessageId {
-    get {_messageID ?? Flipcash_Messaging_V1_MessageId()}
+    get {return _messageID ?? Flipcash_Messaging_V1_MessageId()}
     set {_messageID = newValue}
   }
   /// Returns true if `messageID` has been explicitly set.
-  public var hasMessageID: Bool {self._messageID != nil}
+  public var hasMessageID: Bool {return self._messageID != nil}
   /// Clears the value of `messageID`. Subsequent reads from it will return its default value.
   public mutating func clearMessageID() {self._messageID = nil}
 
@@ -639,11 +639,11 @@ public struct Flipcash_Messaging_V1_DeleteMessageRequest: Sendable {
   public var expectedEventSequence: UInt64 = 0
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {_auth ?? Flipcash_Common_V1_Auth()}
+    get {return _auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {self._auth != nil}
+  public var hasAuth: Bool {return self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
@@ -666,11 +666,11 @@ public struct Flipcash_Messaging_V1_DeleteMessageResponse: Sendable {
   /// On OK, the tombstoned materialized message (content replaced with
   /// DeletedContent, event_sequence advanced). On CONFLICT, the current state.
   public var message: Flipcash_Messaging_V1_Message {
-    get {_message ?? Flipcash_Messaging_V1_Message()}
+    get {return _message ?? Flipcash_Messaging_V1_Message()}
     set {_message = newValue}
   }
   /// Returns true if `message` has been explicitly set.
-  public var hasMessage: Bool {self._message != nil}
+  public var hasMessage: Bool {return self._message != nil}
   /// Clears the value of `message`. Subsequent reads from it will return its default value.
   public mutating func clearMessage() {self._message = nil}
 
@@ -737,39 +737,39 @@ public struct Flipcash_Messaging_V1_AddReactionRequest: Sendable {
   // methods supported on all messages.
 
   public var chatID: Flipcash_Common_V1_ChatId {
-    get {_chatID ?? Flipcash_Common_V1_ChatId()}
+    get {return _chatID ?? Flipcash_Common_V1_ChatId()}
     set {_chatID = newValue}
   }
   /// Returns true if `chatID` has been explicitly set.
-  public var hasChatID: Bool {self._chatID != nil}
+  public var hasChatID: Bool {return self._chatID != nil}
   /// Clears the value of `chatID`. Subsequent reads from it will return its default value.
   public mutating func clearChatID() {self._chatID = nil}
 
   public var messageID: Flipcash_Messaging_V1_MessageId {
-    get {_messageID ?? Flipcash_Messaging_V1_MessageId()}
+    get {return _messageID ?? Flipcash_Messaging_V1_MessageId()}
     set {_messageID = newValue}
   }
   /// Returns true if `messageID` has been explicitly set.
-  public var hasMessageID: Bool {self._messageID != nil}
+  public var hasMessageID: Bool {return self._messageID != nil}
   /// Clears the value of `messageID`. Subsequent reads from it will return its default value.
   public mutating func clearMessageID() {self._messageID = nil}
 
   /// The emoji to react with.
   public var emoji: Flipcash_Messaging_V1_Emoji {
-    get {_emoji ?? Flipcash_Messaging_V1_Emoji()}
+    get {return _emoji ?? Flipcash_Messaging_V1_Emoji()}
     set {_emoji = newValue}
   }
   /// Returns true if `emoji` has been explicitly set.
-  public var hasEmoji: Bool {self._emoji != nil}
+  public var hasEmoji: Bool {return self._emoji != nil}
   /// Clears the value of `emoji`. Subsequent reads from it will return its default value.
   public mutating func clearEmoji() {self._emoji = nil}
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {_auth ?? Flipcash_Common_V1_Auth()}
+    get {return _auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {self._auth != nil}
+  public var hasAuth: Bool {return self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
@@ -792,11 +792,11 @@ public struct Flipcash_Messaging_V1_AddReactionResponse: Sendable {
 
   /// The affected emoji's aggregate after the add (count, reacted_by_self true).
   public var reaction: Flipcash_Messaging_V1_EmojiReaction {
-    get {_reaction ?? Flipcash_Messaging_V1_EmojiReaction()}
+    get {return _reaction ?? Flipcash_Messaging_V1_EmojiReaction()}
     set {_reaction = newValue}
   }
   /// Returns true if `reaction` has been explicitly set.
-  public var hasReaction: Bool {self._reaction != nil}
+  public var hasReaction: Bool {return self._reaction != nil}
   /// Clears the value of `reaction`. Subsequent reads from it will return its default value.
   public mutating func clearReaction() {self._reaction = nil}
 
@@ -862,39 +862,39 @@ public struct Flipcash_Messaging_V1_RemoveReactionRequest: Sendable {
   // methods supported on all messages.
 
   public var chatID: Flipcash_Common_V1_ChatId {
-    get {_chatID ?? Flipcash_Common_V1_ChatId()}
+    get {return _chatID ?? Flipcash_Common_V1_ChatId()}
     set {_chatID = newValue}
   }
   /// Returns true if `chatID` has been explicitly set.
-  public var hasChatID: Bool {self._chatID != nil}
+  public var hasChatID: Bool {return self._chatID != nil}
   /// Clears the value of `chatID`. Subsequent reads from it will return its default value.
   public mutating func clearChatID() {self._chatID = nil}
 
   public var messageID: Flipcash_Messaging_V1_MessageId {
-    get {_messageID ?? Flipcash_Messaging_V1_MessageId()}
+    get {return _messageID ?? Flipcash_Messaging_V1_MessageId()}
     set {_messageID = newValue}
   }
   /// Returns true if `messageID` has been explicitly set.
-  public var hasMessageID: Bool {self._messageID != nil}
+  public var hasMessageID: Bool {return self._messageID != nil}
   /// Clears the value of `messageID`. Subsequent reads from it will return its default value.
   public mutating func clearMessageID() {self._messageID = nil}
 
   /// The emoji whose reaction to remove for the caller.
   public var emoji: Flipcash_Messaging_V1_Emoji {
-    get {_emoji ?? Flipcash_Messaging_V1_Emoji()}
+    get {return _emoji ?? Flipcash_Messaging_V1_Emoji()}
     set {_emoji = newValue}
   }
   /// Returns true if `emoji` has been explicitly set.
-  public var hasEmoji: Bool {self._emoji != nil}
+  public var hasEmoji: Bool {return self._emoji != nil}
   /// Clears the value of `emoji`. Subsequent reads from it will return its default value.
   public mutating func clearEmoji() {self._emoji = nil}
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {_auth ?? Flipcash_Common_V1_Auth()}
+    get {return _auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {self._auth != nil}
+  public var hasAuth: Bool {return self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
@@ -917,11 +917,11 @@ public struct Flipcash_Messaging_V1_RemoveReactionResponse: Sendable {
 
   /// The affected emoji's aggregate after the removal
   public var reaction: Flipcash_Messaging_V1_EmojiReaction {
-    get {_reaction ?? Flipcash_Messaging_V1_EmojiReaction()}
+    get {return _reaction ?? Flipcash_Messaging_V1_EmojiReaction()}
     set {_reaction = newValue}
   }
   /// Returns true if `reaction` has been explicitly set.
-  public var hasReaction: Bool {self._reaction != nil}
+  public var hasReaction: Bool {return self._reaction != nil}
   /// Clears the value of `reaction`. Subsequent reads from it will return its default value.
   public mutating func clearReaction() {self._reaction = nil}
 
@@ -976,30 +976,30 @@ public struct Flipcash_Messaging_V1_GetReactorsRequest: Sendable {
   // methods supported on all messages.
 
   public var chatID: Flipcash_Common_V1_ChatId {
-    get {_chatID ?? Flipcash_Common_V1_ChatId()}
+    get {return _chatID ?? Flipcash_Common_V1_ChatId()}
     set {_chatID = newValue}
   }
   /// Returns true if `chatID` has been explicitly set.
-  public var hasChatID: Bool {self._chatID != nil}
+  public var hasChatID: Bool {return self._chatID != nil}
   /// Clears the value of `chatID`. Subsequent reads from it will return its default value.
   public mutating func clearChatID() {self._chatID = nil}
 
   public var messageID: Flipcash_Messaging_V1_MessageId {
-    get {_messageID ?? Flipcash_Messaging_V1_MessageId()}
+    get {return _messageID ?? Flipcash_Messaging_V1_MessageId()}
     set {_messageID = newValue}
   }
   /// Returns true if `messageID` has been explicitly set.
-  public var hasMessageID: Bool {self._messageID != nil}
+  public var hasMessageID: Bool {return self._messageID != nil}
   /// Clears the value of `messageID`. Subsequent reads from it will return its default value.
   public mutating func clearMessageID() {self._messageID = nil}
 
   /// The emoji whose reactors to list.
   public var emoji: Flipcash_Messaging_V1_Emoji {
-    get {_emoji ?? Flipcash_Messaging_V1_Emoji()}
+    get {return _emoji ?? Flipcash_Messaging_V1_Emoji()}
     set {_emoji = newValue}
   }
   /// Returns true if `emoji` has been explicitly set.
-  public var hasEmoji: Bool {self._emoji != nil}
+  public var hasEmoji: Bool {return self._emoji != nil}
   /// Clears the value of `emoji`. Subsequent reads from it will return its default value.
   public mutating func clearEmoji() {self._emoji = nil}
 
@@ -1009,20 +1009,20 @@ public struct Flipcash_Messaging_V1_GetReactorsRequest: Sendable {
   /// response to advance through the list. The token is opaque and
   /// server-generated; do not construct it.
   public var options: Flipcash_Common_V1_QueryOptions {
-    get {_options ?? Flipcash_Common_V1_QueryOptions()}
+    get {return _options ?? Flipcash_Common_V1_QueryOptions()}
     set {_options = newValue}
   }
   /// Returns true if `options` has been explicitly set.
-  public var hasOptions: Bool {self._options != nil}
+  public var hasOptions: Bool {return self._options != nil}
   /// Clears the value of `options`. Subsequent reads from it will return its default value.
   public mutating func clearOptions() {self._options = nil}
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {_auth ?? Flipcash_Common_V1_Auth()}
+    get {return _auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {self._auth != nil}
+  public var hasAuth: Bool {return self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
@@ -1053,11 +1053,11 @@ public struct Flipcash_Messaging_V1_GetReactorsResponse: Sendable {
   /// GetReactorsRequest to fetch the following page. Set when result is OK and
   /// has_more is true.
   public var pagingToken: Flipcash_Common_V1_PagingToken {
-    get {_pagingToken ?? Flipcash_Common_V1_PagingToken()}
+    get {return _pagingToken ?? Flipcash_Common_V1_PagingToken()}
     set {_pagingToken = newValue}
   }
   /// Returns true if `pagingToken` has been explicitly set.
-  public var hasPagingToken: Bool {self._pagingToken != nil}
+  public var hasPagingToken: Bool {return self._pagingToken != nil}
   /// Clears the value of `pagingToken`. Subsequent reads from it will return its default value.
   public mutating func clearPagingToken() {self._pagingToken = nil}
 
@@ -1117,29 +1117,29 @@ public struct Flipcash_Messaging_V1_GetReactionSummaryRequest: Sendable {
   // methods supported on all messages.
 
   public var chatID: Flipcash_Common_V1_ChatId {
-    get {_chatID ?? Flipcash_Common_V1_ChatId()}
+    get {return _chatID ?? Flipcash_Common_V1_ChatId()}
     set {_chatID = newValue}
   }
   /// Returns true if `chatID` has been explicitly set.
-  public var hasChatID: Bool {self._chatID != nil}
+  public var hasChatID: Bool {return self._chatID != nil}
   /// Clears the value of `chatID`. Subsequent reads from it will return its default value.
   public mutating func clearChatID() {self._chatID = nil}
 
   public var messageID: Flipcash_Messaging_V1_MessageId {
-    get {_messageID ?? Flipcash_Messaging_V1_MessageId()}
+    get {return _messageID ?? Flipcash_Messaging_V1_MessageId()}
     set {_messageID = newValue}
   }
   /// Returns true if `messageID` has been explicitly set.
-  public var hasMessageID: Bool {self._messageID != nil}
+  public var hasMessageID: Bool {return self._messageID != nil}
   /// Clears the value of `messageID`. Subsequent reads from it will return its default value.
   public mutating func clearMessageID() {self._messageID = nil}
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {_auth ?? Flipcash_Common_V1_Auth()}
+    get {return _auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {self._auth != nil}
+  public var hasAuth: Bool {return self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
@@ -1164,11 +1164,11 @@ public struct Flipcash_Messaging_V1_GetReactionSummaryResponse: Sendable {
   /// EmojiReaction.sequence, so a summary that is slightly behind a live update
   /// is harmlessly ignored rather than regressing state.
   public var summary: Flipcash_Messaging_V1_ReactionSummary {
-    get {_summary ?? Flipcash_Messaging_V1_ReactionSummary()}
+    get {return _summary ?? Flipcash_Messaging_V1_ReactionSummary()}
     set {_summary = newValue}
   }
   /// Returns true if `summary` has been explicitly set.
-  public var hasSummary: Bool {self._summary != nil}
+  public var hasSummary: Bool {return self._summary != nil}
   /// Clears the value of `summary`. Subsequent reads from it will return its default value.
   public mutating func clearSummary() {self._summary = nil}
 
@@ -1223,11 +1223,11 @@ public struct Flipcash_Messaging_V1_GetReactionSummariesRequest: Sendable {
   // methods supported on all messages.
 
   public var chatID: Flipcash_Common_V1_ChatId {
-    get {_chatID ?? Flipcash_Common_V1_ChatId()}
+    get {return _chatID ?? Flipcash_Common_V1_ChatId()}
     set {_chatID = newValue}
   }
   /// Returns true if `chatID` has been explicitly set.
-  public var hasChatID: Bool {self._chatID != nil}
+  public var hasChatID: Bool {return self._chatID != nil}
   /// Clears the value of `chatID`. Subsequent reads from it will return its default value.
   public mutating func clearChatID() {self._chatID = nil}
 
@@ -1250,11 +1250,11 @@ public struct Flipcash_Messaging_V1_GetReactionSummariesRequest: Sendable {
   }
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {_auth ?? Flipcash_Common_V1_Auth()}
+    get {return _auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {self._auth != nil}
+  public var hasAuth: Bool {return self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
@@ -1331,31 +1331,31 @@ public struct Flipcash_Messaging_V1_AdvancePointerRequest: Sendable {
   // methods supported on all messages.
 
   public var chatID: Flipcash_Common_V1_ChatId {
-    get {_chatID ?? Flipcash_Common_V1_ChatId()}
+    get {return _chatID ?? Flipcash_Common_V1_ChatId()}
     set {_chatID = newValue}
   }
   /// Returns true if `chatID` has been explicitly set.
-  public var hasChatID: Bool {self._chatID != nil}
+  public var hasChatID: Bool {return self._chatID != nil}
   /// Clears the value of `chatID`. Subsequent reads from it will return its default value.
   public mutating func clearChatID() {self._chatID = nil}
 
   public var pointerType: Flipcash_Messaging_V1_Pointer.TypeEnum = .unknown
 
   public var newValue: Flipcash_Messaging_V1_MessageId {
-    get {_newValue ?? Flipcash_Messaging_V1_MessageId()}
+    get {return _newValue ?? Flipcash_Messaging_V1_MessageId()}
     set {_newValue = newValue}
   }
   /// Returns true if `newValue` has been explicitly set.
-  public var hasNewValue: Bool {self._newValue != nil}
+  public var hasNewValue: Bool {return self._newValue != nil}
   /// Clears the value of `newValue`. Subsequent reads from it will return its default value.
   public mutating func clearNewValue() {self._newValue = nil}
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {_auth ?? Flipcash_Common_V1_Auth()}
+    get {return _auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {self._auth != nil}
+  public var hasAuth: Bool {return self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
@@ -1424,22 +1424,22 @@ public struct Flipcash_Messaging_V1_NotifyIsTypingRequest: Sendable {
   // methods supported on all messages.
 
   public var chatID: Flipcash_Common_V1_ChatId {
-    get {_chatID ?? Flipcash_Common_V1_ChatId()}
+    get {return _chatID ?? Flipcash_Common_V1_ChatId()}
     set {_chatID = newValue}
   }
   /// Returns true if `chatID` has been explicitly set.
-  public var hasChatID: Bool {self._chatID != nil}
+  public var hasChatID: Bool {return self._chatID != nil}
   /// Clears the value of `chatID`. Subsequent reads from it will return its default value.
   public mutating func clearChatID() {self._chatID = nil}
 
   public var state: Flipcash_Messaging_V1_IsTypingNotification.State = .unknownTypingState
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {_auth ?? Flipcash_Common_V1_Auth()}
+    get {return _auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {self._auth != nil}
+  public var hasAuth: Bool {return self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 

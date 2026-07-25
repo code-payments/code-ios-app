@@ -85,41 +85,41 @@ public struct Flipcash_Moderation_V1_ModerationAttestation: Sendable {
 
   /// Timestamp of the moderation
   public var timestamp: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {_timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {return _timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_timestamp = newValue}
   }
   /// Returns true if `timestamp` has been explicitly set.
-  public var hasTimestamp: Bool {self._timestamp != nil}
+  public var hasTimestamp: Bool {return self._timestamp != nil}
   /// Clears the value of `timestamp`. Subsequent reads from it will return its default value.
   public mutating func clearTimestamp() {self._timestamp = nil}
 
   /// The user who submitted the content
   public var userID: Flipcash_Common_V1_UserId {
-    get {_userID ?? Flipcash_Common_V1_UserId()}
+    get {return _userID ?? Flipcash_Common_V1_UserId()}
     set {_userID = newValue}
   }
   /// Returns true if `userID` has been explicitly set.
-  public var hasUserID: Bool {self._userID != nil}
+  public var hasUserID: Bool {return self._userID != nil}
   /// Clears the value of `userID`. Subsequent reads from it will return its default value.
   public mutating func clearUserID() {self._userID = nil}
 
   /// Public key of the attestor that signed this message
   public var attestor: Flipcash_Common_V1_PublicKey {
-    get {_attestor ?? Flipcash_Common_V1_PublicKey()}
+    get {return _attestor ?? Flipcash_Common_V1_PublicKey()}
     set {_attestor = newValue}
   }
   /// Returns true if `attestor` has been explicitly set.
-  public var hasAttestor: Bool {self._attestor != nil}
+  public var hasAttestor: Bool {return self._attestor != nil}
   /// Clears the value of `attestor`. Subsequent reads from it will return its default value.
   public mutating func clearAttestor() {self._attestor = nil}
 
   /// Attestor signature over this message
   public var signature: Flipcash_Common_V1_Signature {
-    get {_signature ?? Flipcash_Common_V1_Signature()}
+    get {return _signature ?? Flipcash_Common_V1_Signature()}
     set {_signature = newValue}
   }
   /// Returns true if `signature` has been explicitly set.
-  public var hasSignature: Bool {self._signature != nil}
+  public var hasSignature: Bool {return self._signature != nil}
   /// Clears the value of `signature`. Subsequent reads from it will return its default value.
   public mutating func clearSignature() {self._signature = nil}
 

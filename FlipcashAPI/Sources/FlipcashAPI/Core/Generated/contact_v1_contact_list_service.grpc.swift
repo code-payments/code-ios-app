@@ -15,13 +15,13 @@ import GRPCProtobuf
 
 /// Namespace containing generated types for the "flipcash.contact.v1.ContactList" service.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public enum Flipcash_Contact_V1_ContactList: Sendable {
+public enum Flipcash_Contact_V1_ContactList {
     /// Service descriptor for the "flipcash.contact.v1.ContactList" service.
     public static let descriptor = GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.contact.v1.ContactList")
     /// Namespace for method metadata.
-    public enum Method: Sendable {
+    public enum Method {
         /// Namespace for "CheckSync" metadata.
-        public enum CheckSync: Sendable {
+        public enum CheckSync {
             /// Request type for "CheckSync".
             public typealias Input = Flipcash_Contact_V1_CheckSyncRequest
             /// Response type for "CheckSync".
@@ -29,12 +29,11 @@ public enum Flipcash_Contact_V1_ContactList: Sendable {
             /// Descriptor for "CheckSync".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.contact.v1.ContactList"),
-                method: "CheckSync",
-                type: .unary
+                method: "CheckSync"
             )
         }
         /// Namespace for "DeltaUpload" metadata.
-        public enum DeltaUpload: Sendable {
+        public enum DeltaUpload {
             /// Request type for "DeltaUpload".
             public typealias Input = Flipcash_Contact_V1_DeltaUploadRequest
             /// Response type for "DeltaUpload".
@@ -42,12 +41,11 @@ public enum Flipcash_Contact_V1_ContactList: Sendable {
             /// Descriptor for "DeltaUpload".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.contact.v1.ContactList"),
-                method: "DeltaUpload",
-                type: .unary
+                method: "DeltaUpload"
             )
         }
         /// Namespace for "FullUpload" metadata.
-        public enum FullUpload: Sendable {
+        public enum FullUpload {
             /// Request type for "FullUpload".
             public typealias Input = Flipcash_Contact_V1_FullUploadRequest
             /// Response type for "FullUpload".
@@ -55,12 +53,11 @@ public enum Flipcash_Contact_V1_ContactList: Sendable {
             /// Descriptor for "FullUpload".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.contact.v1.ContactList"),
-                method: "FullUpload",
-                type: .clientStreaming
+                method: "FullUpload"
             )
         }
         /// Namespace for "GetFlipcashContacts" metadata.
-        public enum GetFlipcashContacts: Sendable {
+        public enum GetFlipcashContacts {
             /// Request type for "GetFlipcashContacts".
             public typealias Input = Flipcash_Contact_V1_GetFlipcashContactsRequest
             /// Response type for "GetFlipcashContacts".
@@ -68,8 +65,7 @@ public enum Flipcash_Contact_V1_ContactList: Sendable {
             /// Descriptor for "GetFlipcashContacts".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.contact.v1.ContactList"),
-                method: "GetFlipcashContacts",
-                type: .serverStreaming
+                method: "GetFlipcashContacts"
             )
         }
         /// Descriptors for all methods in the "flipcash.contact.v1.ContactList" service.

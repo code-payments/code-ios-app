@@ -131,6 +131,28 @@ struct ChatMessageMappingTests {
         #expect(cash.token == "Cash")
         #expect(cash.amount == fiat.nativeAmount.formatted())
         #expect(cash.flagImageName != nil) // currency flag derived from the currency
+        #expect(!cash.isTip) // no cash action → plain send
+        #expect(ChatCashContent.caption(isFromSelf: false, isTip: cash.isTip) == "You received")
+    }
+
+    @Test("Tipped cash messages carry the tip flag and caption")
+    func tippedCash() {
+        let fiat = ExchangedFiat(
+            nativeAmount: FiatAmount(value: 5, currency: .usd),
+            rate: Rate(fx: 1, currency: .usd)
+        )
+        let messages = [
+            ConversationMessage(id: MessageID(value: 1), senderID: them, content: .cash(fiat), cashAction: .tipped, date: base, unreadSeq: 1),
+        ]
+
+        let rows = messageRows(ChatItem.from(messages, selfUserID: me))
+
+        guard case .cash(let cash) = rows.first?.content else {
+            Issue.record("expected cash content")
+            return
+        }
+        #expect(cash.isTip)
+        #expect(ChatCashContent.caption(isFromSelf: false, isTip: cash.isTip) == "You received a tip")
     }
 
     @Test("The latest sent message reads Delivered until the read pointer reaches it")

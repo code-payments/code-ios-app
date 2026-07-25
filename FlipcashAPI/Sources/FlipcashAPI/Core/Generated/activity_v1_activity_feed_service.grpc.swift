@@ -15,13 +15,13 @@ import GRPCProtobuf
 
 /// Namespace containing generated types for the "flipcash.activity.v1.ActivityFeed" service.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public enum Flipcash_Activity_V1_ActivityFeed: Sendable {
+public enum Flipcash_Activity_V1_ActivityFeed {
     /// Service descriptor for the "flipcash.activity.v1.ActivityFeed" service.
     public static let descriptor = GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.activity.v1.ActivityFeed")
     /// Namespace for method metadata.
-    public enum Method: Sendable {
+    public enum Method {
         /// Namespace for "GetLatestNotifications" metadata.
-        public enum GetLatestNotifications: Sendable {
+        public enum GetLatestNotifications {
             /// Request type for "GetLatestNotifications".
             public typealias Input = Flipcash_Activity_V1_GetLatestNotificationsRequest
             /// Response type for "GetLatestNotifications".
@@ -29,12 +29,11 @@ public enum Flipcash_Activity_V1_ActivityFeed: Sendable {
             /// Descriptor for "GetLatestNotifications".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.activity.v1.ActivityFeed"),
-                method: "GetLatestNotifications",
-                type: .unary
+                method: "GetLatestNotifications"
             )
         }
         /// Namespace for "GetPagedNotifications" metadata.
-        public enum GetPagedNotifications: Sendable {
+        public enum GetPagedNotifications {
             /// Request type for "GetPagedNotifications".
             public typealias Input = Flipcash_Activity_V1_GetPagedNotificationsRequest
             /// Response type for "GetPagedNotifications".
@@ -42,12 +41,11 @@ public enum Flipcash_Activity_V1_ActivityFeed: Sendable {
             /// Descriptor for "GetPagedNotifications".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.activity.v1.ActivityFeed"),
-                method: "GetPagedNotifications",
-                type: .unary
+                method: "GetPagedNotifications"
             )
         }
         /// Namespace for "GetBatchNotifications" metadata.
-        public enum GetBatchNotifications: Sendable {
+        public enum GetBatchNotifications {
             /// Request type for "GetBatchNotifications".
             public typealias Input = Flipcash_Activity_V1_GetBatchNotificationsRequest
             /// Response type for "GetBatchNotifications".
@@ -55,8 +53,7 @@ public enum Flipcash_Activity_V1_ActivityFeed: Sendable {
             /// Descriptor for "GetBatchNotifications".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.activity.v1.ActivityFeed"),
-                method: "GetBatchNotifications",
-                type: .unary
+                method: "GetBatchNotifications"
             )
         }
         /// Descriptors for all methods in the "flipcash.activity.v1.ActivityFeed" service.

@@ -59,6 +59,29 @@ struct ConversationModelMappingTests {
         #expect(amount.nativeAmount.currency == .usd)
         #expect(amount.onChainAmount.quarks == 5_000_000)
         #expect(amount.mint == (try PublicKey(mintBytes)))
+        // A cash message with no explicit action defaults to `.sent`.
+        #expect(message.cashAction == .sent)
+    }
+
+    @Test("Cash message maps the tipped action")
+    func cashMessageMapsTippedAction() throws {
+        let proto = Flipcash_Messaging_V1_Message.with {
+            $0.messageID = .with { $0.value = 13 }
+            $0.content = [.with {
+                $0.cash = .with {
+                    $0.action = .tipped
+                    $0.amount = .with {
+                        $0.currency = "usd"
+                        $0.nativeAmount = 2.0
+                        $0.quarks = 2_000_000
+                        $0.mint = .with { $0.value = Data(repeating: 0x02, count: 32) }
+                    }
+                }
+            }]
+        }
+
+        let message = try #require(ConversationMessage(proto))
+        #expect(message.cashAction == .tipped)
     }
 
     @Test("Cash message with a malformed amount returns nil")

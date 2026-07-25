@@ -26,32 +26,32 @@ public struct Flipcash_Contact_V1_FlipcashContact: Sendable {
   // methods supported on all messages.
 
   public var phone: Flipcash_Phone_V1_PhoneNumber {
-    get {_phone ?? Flipcash_Phone_V1_PhoneNumber()}
+    get {return _phone ?? Flipcash_Phone_V1_PhoneNumber()}
     set {_phone = newValue}
   }
   /// Returns true if `phone` has been explicitly set.
-  public var hasPhone: Bool {self._phone != nil}
+  public var hasPhone: Bool {return self._phone != nil}
   /// Clears the value of `phone`. Subsequent reads from it will return its default value.
   public mutating func clearPhone() {self._phone = nil}
 
   /// The DM chat ID for the Flipcash contact. If the chat doesn't exist, it needs
   /// to be initiated with a cash send to initialize it
   public var dmChatID: Flipcash_Common_V1_ChatId {
-    get {_dmChatID ?? Flipcash_Common_V1_ChatId()}
+    get {return _dmChatID ?? Flipcash_Common_V1_ChatId()}
     set {_dmChatID = newValue}
   }
   /// Returns true if `dmChatID` has been explicitly set.
-  public var hasDmChatID: Bool {self._dmChatID != nil}
+  public var hasDmChatID: Bool {return self._dmChatID != nil}
   /// Clears the value of `dmChatID`. Subsequent reads from it will return its default value.
   public mutating func clearDmChatID() {self._dmChatID = nil}
 
   /// Timestamp the contact joined Flipcash
   public var joinTs: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {_joinTs ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    get {return _joinTs ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_joinTs = newValue}
   }
   /// Returns true if `joinTs` has been explicitly set.
-  public var hasJoinTs: Bool {self._joinTs != nil}
+  public var hasJoinTs: Bool {return self._joinTs != nil}
   /// Clears the value of `joinTs`. Subsequent reads from it will return its default value.
   public mutating func clearJoinTs() {self._joinTs = nil}
 

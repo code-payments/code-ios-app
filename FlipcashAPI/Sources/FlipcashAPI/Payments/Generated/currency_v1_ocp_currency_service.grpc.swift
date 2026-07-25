@@ -15,13 +15,13 @@ import GRPCProtobuf
 
 /// Namespace containing generated types for the "ocp.currency.v1.Currency" service.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public enum Ocp_Currency_V1_Currency: Sendable {
+public enum Ocp_Currency_V1_Currency {
     /// Service descriptor for the "ocp.currency.v1.Currency" service.
     public static let descriptor = GRPCCore.ServiceDescriptor(fullyQualifiedService: "ocp.currency.v1.Currency")
     /// Namespace for method metadata.
-    public enum Method: Sendable {
+    public enum Method {
         /// Namespace for "GetMints" metadata.
-        public enum GetMints: Sendable {
+        public enum GetMints {
             /// Request type for "GetMints".
             public typealias Input = Ocp_Currency_V1_GetMintsRequest
             /// Response type for "GetMints".
@@ -29,12 +29,11 @@ public enum Ocp_Currency_V1_Currency: Sendable {
             /// Descriptor for "GetMints".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "ocp.currency.v1.Currency"),
-                method: "GetMints",
-                type: .unary
+                method: "GetMints"
             )
         }
         /// Namespace for "GetHistoricalMintData" metadata.
-        public enum GetHistoricalMintData: Sendable {
+        public enum GetHistoricalMintData {
             /// Request type for "GetHistoricalMintData".
             public typealias Input = Ocp_Currency_V1_GetHistoricalMintDataRequest
             /// Response type for "GetHistoricalMintData".
@@ -42,12 +41,11 @@ public enum Ocp_Currency_V1_Currency: Sendable {
             /// Descriptor for "GetHistoricalMintData".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "ocp.currency.v1.Currency"),
-                method: "GetHistoricalMintData",
-                type: .unary
+                method: "GetHistoricalMintData"
             )
         }
         /// Namespace for "StreamLiveMintData" metadata.
-        public enum StreamLiveMintData: Sendable {
+        public enum StreamLiveMintData {
             /// Request type for "StreamLiveMintData".
             public typealias Input = Ocp_Currency_V1_StreamLiveMintDataRequest
             /// Response type for "StreamLiveMintData".
@@ -55,12 +53,11 @@ public enum Ocp_Currency_V1_Currency: Sendable {
             /// Descriptor for "StreamLiveMintData".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "ocp.currency.v1.Currency"),
-                method: "StreamLiveMintData",
-                type: .bidirectionalStreaming
+                method: "StreamLiveMintData"
             )
         }
         /// Namespace for "Launch" metadata.
-        public enum Launch: Sendable {
+        public enum Launch {
             /// Request type for "Launch".
             public typealias Input = Ocp_Currency_V1_LaunchRequest
             /// Response type for "Launch".
@@ -68,12 +65,11 @@ public enum Ocp_Currency_V1_Currency: Sendable {
             /// Descriptor for "Launch".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "ocp.currency.v1.Currency"),
-                method: "Launch",
-                type: .unary
+                method: "Launch"
             )
         }
         /// Namespace for "UpdateIcon" metadata.
-        public enum UpdateIcon: Sendable {
+        public enum UpdateIcon {
             /// Request type for "UpdateIcon".
             public typealias Input = Ocp_Currency_V1_UpdateIconRequest
             /// Response type for "UpdateIcon".
@@ -81,12 +77,11 @@ public enum Ocp_Currency_V1_Currency: Sendable {
             /// Descriptor for "UpdateIcon".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "ocp.currency.v1.Currency"),
-                method: "UpdateIcon",
-                type: .unary
+                method: "UpdateIcon"
             )
         }
         /// Namespace for "UpdateMetadata" metadata.
-        public enum UpdateMetadata: Sendable {
+        public enum UpdateMetadata {
             /// Request type for "UpdateMetadata".
             public typealias Input = Ocp_Currency_V1_UpdateMetadataRequest
             /// Response type for "UpdateMetadata".
@@ -94,12 +89,11 @@ public enum Ocp_Currency_V1_Currency: Sendable {
             /// Descriptor for "UpdateMetadata".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "ocp.currency.v1.Currency"),
-                method: "UpdateMetadata",
-                type: .unary
+                method: "UpdateMetadata"
             )
         }
         /// Namespace for "Discover" metadata.
-        public enum Discover: Sendable {
+        public enum Discover {
             /// Request type for "Discover".
             public typealias Input = Ocp_Currency_V1_DiscoverRequest
             /// Response type for "Discover".
@@ -107,12 +101,11 @@ public enum Ocp_Currency_V1_Currency: Sendable {
             /// Descriptor for "Discover".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "ocp.currency.v1.Currency"),
-                method: "Discover",
-                type: .serverStreaming
+                method: "Discover"
             )
         }
         /// Namespace for "CheckAvailability" metadata.
-        public enum CheckAvailability: Sendable {
+        public enum CheckAvailability {
             /// Request type for "CheckAvailability".
             public typealias Input = Ocp_Currency_V1_CheckAvailabilityRequest
             /// Response type for "CheckAvailability".
@@ -120,8 +113,7 @@ public enum Ocp_Currency_V1_Currency: Sendable {
             /// Descriptor for "CheckAvailability".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "ocp.currency.v1.Currency"),
-                method: "CheckAvailability",
-                type: .unary
+                method: "CheckAvailability"
             )
         }
         /// Descriptors for all methods in the "ocp.currency.v1.Currency" service.

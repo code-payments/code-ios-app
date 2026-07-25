@@ -15,13 +15,13 @@ import GRPCProtobuf
 
 /// Namespace containing generated types for the "flipcash.email.v1.EmailVerification" service.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public enum Flipcash_Email_V1_EmailVerification: Sendable {
+public enum Flipcash_Email_V1_EmailVerification {
     /// Service descriptor for the "flipcash.email.v1.EmailVerification" service.
     public static let descriptor = GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.email.v1.EmailVerification")
     /// Namespace for method metadata.
-    public enum Method: Sendable {
+    public enum Method {
         /// Namespace for "SendVerificationCode" metadata.
-        public enum SendVerificationCode: Sendable {
+        public enum SendVerificationCode {
             /// Request type for "SendVerificationCode".
             public typealias Input = Flipcash_Email_V1_SendVerificationCodeRequest
             /// Response type for "SendVerificationCode".
@@ -29,12 +29,11 @@ public enum Flipcash_Email_V1_EmailVerification: Sendable {
             /// Descriptor for "SendVerificationCode".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.email.v1.EmailVerification"),
-                method: "SendVerificationCode",
-                type: .unary
+                method: "SendVerificationCode"
             )
         }
         /// Namespace for "CheckVerificationCode" metadata.
-        public enum CheckVerificationCode: Sendable {
+        public enum CheckVerificationCode {
             /// Request type for "CheckVerificationCode".
             public typealias Input = Flipcash_Email_V1_CheckVerificationCodeRequest
             /// Response type for "CheckVerificationCode".
@@ -42,12 +41,11 @@ public enum Flipcash_Email_V1_EmailVerification: Sendable {
             /// Descriptor for "CheckVerificationCode".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.email.v1.EmailVerification"),
-                method: "CheckVerificationCode",
-                type: .unary
+                method: "CheckVerificationCode"
             )
         }
         /// Namespace for "Unlink" metadata.
-        public enum Unlink: Sendable {
+        public enum Unlink {
             /// Request type for "Unlink".
             public typealias Input = Flipcash_Email_V1_UnlinkRequest
             /// Response type for "Unlink".
@@ -55,8 +53,7 @@ public enum Flipcash_Email_V1_EmailVerification: Sendable {
             /// Descriptor for "Unlink".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.email.v1.EmailVerification"),
-                method: "Unlink",
-                type: .unary
+                method: "Unlink"
             )
         }
         /// Descriptors for all methods in the "flipcash.email.v1.EmailVerification" service.

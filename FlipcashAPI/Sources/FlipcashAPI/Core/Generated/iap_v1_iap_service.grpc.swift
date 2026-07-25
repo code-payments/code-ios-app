@@ -15,13 +15,13 @@ import GRPCProtobuf
 
 /// Namespace containing generated types for the "flipcash.iap.v1.Iap" service.
 @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
-public enum Flipcash_Iap_V1_Iap: Sendable {
+public enum Flipcash_Iap_V1_Iap {
     /// Service descriptor for the "flipcash.iap.v1.Iap" service.
     public static let descriptor = GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.iap.v1.Iap")
     /// Namespace for method metadata.
-    public enum Method: Sendable {
+    public enum Method {
         /// Namespace for "OnPurchaseCompleted" metadata.
-        public enum OnPurchaseCompleted: Sendable {
+        public enum OnPurchaseCompleted {
             /// Request type for "OnPurchaseCompleted".
             public typealias Input = Flipcash_Iap_V1_OnPurchaseCompletedRequest
             /// Response type for "OnPurchaseCompleted".
@@ -29,8 +29,7 @@ public enum Flipcash_Iap_V1_Iap: Sendable {
             /// Descriptor for "OnPurchaseCompleted".
             public static let descriptor = GRPCCore.MethodDescriptor(
                 service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "flipcash.iap.v1.Iap"),
-                method: "OnPurchaseCompleted",
-                type: .unary
+                method: "OnPurchaseCompleted"
             )
         }
         /// Descriptors for all methods in the "flipcash.iap.v1.Iap" service.

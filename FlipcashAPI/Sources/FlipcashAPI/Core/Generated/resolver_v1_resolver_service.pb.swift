@@ -26,20 +26,20 @@ public struct Flipcash_Resolver_V1_ResolveRequest: Sendable {
   // methods supported on all messages.
 
   public var auth: Flipcash_Common_V1_Auth {
-    get {_auth ?? Flipcash_Common_V1_Auth()}
+    get {return _auth ?? Flipcash_Common_V1_Auth()}
     set {_auth = newValue}
   }
   /// Returns true if `auth` has been explicitly set.
-  public var hasAuth: Bool {self._auth != nil}
+  public var hasAuth: Bool {return self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
   public var identifier: Flipcash_Resolver_V1_Identifier {
-    get {_identifier ?? Flipcash_Resolver_V1_Identifier()}
+    get {return _identifier ?? Flipcash_Resolver_V1_Identifier()}
     set {_identifier = newValue}
   }
   /// Returns true if `identifier` has been explicitly set.
-  public var hasIdentifier: Bool {self._identifier != nil}
+  public var hasIdentifier: Bool {return self._identifier != nil}
   /// Clears the value of `identifier`. Subsequent reads from it will return its default value.
   public mutating func clearIdentifier() {self._identifier = nil}
 
@@ -60,11 +60,11 @@ public struct Flipcash_Resolver_V1_ResolveResponse: Sendable {
 
   /// The resolved payment destination address. Set when result == OK.
   public var resolution: Flipcash_Resolver_V1_Resolution {
-    get {_resolution ?? Flipcash_Resolver_V1_Resolution()}
+    get {return _resolution ?? Flipcash_Resolver_V1_Resolution()}
     set {_resolution = newValue}
   }
   /// Returns true if `resolution` has been explicitly set.
-  public var hasResolution: Bool {self._resolution != nil}
+  public var hasResolution: Bool {return self._resolution != nil}
   /// Clears the value of `resolution`. Subsequent reads from it will return its default value.
   public mutating func clearResolution() {self._resolution = nil}
 

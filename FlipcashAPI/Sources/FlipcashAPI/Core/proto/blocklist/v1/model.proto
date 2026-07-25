@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package flipcash.blocklist.v1;
+
+import "common/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+import "validate/validate.proto";
+
+option go_package = "github.com/code-payments/flipcash2-protobuf-api/generated/go/blocklist/v1;blocklistpb";
+option java_package = "com.codeinc.flipcash.gen.blocklist.v1";
+option objc_class_prefix = "FPBBlocklistV1";
+
+// BlockedUser is a single entry in a user's blocklist
+message BlockedUser {
+    // The user that is blocked
+    common.v1.UserId user_id = 1 [(validate.rules).message.required = true];
+
+    // Timestamp when the user was blocked
+    google.protobuf.Timestamp blocked_at = 2 [(validate.rules).timestamp.required = true];
+}

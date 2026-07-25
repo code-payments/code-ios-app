@@ -119,7 +119,7 @@ public final class ChatCashCardCell: ChatColumnCell {
     public func configure(with message: ChatMessage) {
         guard case .cash(let cash) = message.content else { return }
         tokenLabel.text = cash.token
-        captionLabel.text = message.sender == .me ? "You sent" : "You received"
+        captionLabel.text = ChatCashContent.caption(isFromSelf: message.sender == .me, isTip: cash.isTip)
         amountLabel.text = cash.amount
 
         let flagImage = cash.flagImageName.flatMap { UIImage(named: $0, in: .module, compatibleWith: nil) }

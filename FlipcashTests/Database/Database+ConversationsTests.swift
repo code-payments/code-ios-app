@@ -107,6 +107,32 @@ struct DatabaseConversationsTests {
         }
     }
 
+    @Test("Cash message tip action round-trips", arguments: [CashAction.sent, .tipped])
+    func cashMessageActionRoundTrip(_ action: CashAction) throws {
+        let (database, url) = try Database.makeTemp()
+        defer { Database.removeTemp(at: url) }
+        let id = ConversationID.test(1)
+
+        let onChain = TokenAmount(quarks: 100_000_000, mint: .usdf)
+        let native = FiatAmount(value: 5, currency: .usd)
+        let message = ConversationMessage(
+            id: MessageID(value: 1),
+            senderID: selfID,
+            content: .cash(ExchangedFiat(
+                onChainAmount: onChain,
+                nativeAmount: native,
+                currencyRate: Rate(fx: native.value / onChain.decimalValue, currency: .usd)
+            )),
+            cashAction: action,
+            date: Date(timeIntervalSince1970: 50),
+            unreadSeq: 1
+        )
+
+        try database.upsertConversationMessages([message], conversationID: id)
+        let loaded = try #require(try database.getConversationMessages(conversationID: id).first)
+        #expect(loaded.cashAction == action)
+    }
+
     @Test("Cash messages with non-exact FX rates round-trip without precision loss", arguments: [
         (Decimal(string: "1")!, UInt64(3_000_000)),
         (Decimal(string: "100")!, UInt64(7_000_000)),

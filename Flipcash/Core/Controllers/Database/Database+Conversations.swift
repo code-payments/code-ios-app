@@ -362,6 +362,12 @@ nonisolated extension Database {
             kind = 2
         }
 
+        let cashAction: Int? = switch message.cashAction {
+        case .sent:   0
+        case .tipped: 1
+        case .none:   nil
+        }
+
         try writer.run(
             m.table.insert(
                 or: .replace,
@@ -374,6 +380,7 @@ nonisolated extension Database {
                 m.nativeAmount   <- nativeAmount,
                 m.currency       <- currency,
                 m.mint           <- mint,
+                m.cashAction     <- cashAction,
                 m.date           <- message.date.timeIntervalSinceReferenceDate,
                 m.unreadSeq      <- message.unreadSeq,
                 m.eventSequence  <- message.eventSequence,
@@ -403,6 +410,12 @@ nonisolated extension Database {
     /// row missing its text, or a cash row missing its amount columns).
     private func conversationMessage(from row: RowIterator.Element) -> ConversationMessage? {
         let m = ConversationMessageTable()
+
+        let cashAction: CashAction? = switch row[m.cashAction] {
+        case 1:  .tipped
+        case 0:  .sent
+        default: nil
+        }
 
         let content: ConversationMessage.Content
         switch row[m.kind] {
@@ -438,6 +451,7 @@ nonisolated extension Database {
             id: MessageID(value: row[m.id]),
             senderID: row[m.senderId],
             content: content,
+            cashAction: cashAction,
             date: Date(timeIntervalSinceReferenceDate: row[m.date]),
             unreadSeq: row[m.unreadSeq],
             eventSequence: row[m.eventSequence],
